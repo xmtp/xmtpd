@@ -1,0 +1,10 @@
+#!/bin/bash
+set -eo pipefail
+
+PORT="${PORT:-5000}"
+GIT_COMMIT="$(git rev-parse HEAD)"
+
+go run \
+    -ldflags="-X 'main.GitCommit=${GIT_COMMIT}'" \
+    cmd/xmtpd/main.go \
+    "$@"

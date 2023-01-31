@@ -1,0 +1,11 @@
+#!/bin/bash
+set -eo pipefail
+
+dev/lint-shellcheck
+
+if [[ $(gofmt -l .) ]]; then
+    echo "gofmt errors, run 'dev/fmt' and commit"
+    exit 1
+fi 
+
+golangci-lint run ./...

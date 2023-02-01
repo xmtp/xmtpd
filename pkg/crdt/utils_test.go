@@ -77,9 +77,7 @@ func (net *network) AddNode(store NodeStore) *Node {
 
 func (net *network) RemoveNode(n int) *Node {
 	node := net.nodes[n]
-	if node == nil {
-		return nil
-	}
+	assert.NotNil(net.t, node)
 	delete(net.nodes, n)
 	node.Close()
 	return node
@@ -89,14 +87,29 @@ func (net *network) RemoveNode(n int) *Node {
 func (net *network) Publish(node int, topic, msg string) {
 	net.t.Helper()
 	n := net.nodes[node]
+	assert.NotNil(net.t, n)
 	ev, err := n.Publish(n.ctx, &messagev1.Envelope{TimestampNs: uint64(len(net.events) + 1), ContentTopic: topic, Message: []byte(msg)})
 	assert.NoError(net.t, err)
 	net.events = append(net.events, ev)
 }
 
+func (net *network) Query(node int, topic string, modifiers ...queryModifier) ([]*messagev1.Envelope, *messagev1.PagingInfo, error) {
+	net.t.Helper()
+	n := net.nodes[node]
+	assert.NotNil(net.t, n)
+	q := &messagev1.QueryRequest{
+		ContentTopics: []string{topic},
+	}
+	for _, m := range modifiers {
+		m(q)
+	}
+	return n.Query(net.ctx, q)
+}
+
 // Suspends topic broadcast delivery to the given node while fn runs
 func (net *network) WithSuspendedTopic(node int, topic string, fn func(*Node)) {
 	n := net.nodes[node]
+	assert.NotNil(net.t, n)
 	bc := n.NodeBroadcaster.(*chanBroadcaster)
 	bc.RemoveNode(n)
 	defer bc.AddNode(n)
@@ -184,4 +197,36 @@ func ignored(i int, ignore []int) bool {
 		}
 	}
 	return false
+}
+
+type queryModifier func(*messagev1.QueryRequest)
+
+func timeRange(start, end uint64) queryModifier {
+	return func(q *messagev1.QueryRequest) {
+		q.StartTimeNs = start
+		q.EndTimeNs = end
+	}
+}
+
+func withPagingInfo(q *messagev1.QueryRequest, f func(pi *messagev1.PagingInfo)) {
+	if q.PagingInfo == nil {
+		q.PagingInfo = new(messagev1.PagingInfo)
+	}
+	f(q.PagingInfo)
+}
+
+func limit(l uint32) queryModifier {
+	return func(q *messagev1.QueryRequest) {
+		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
+			pi.Limit = l
+		})
+	}
+}
+
+func descending() queryModifier {
+	return func(q *messagev1.QueryRequest) {
+		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
+			pi.Direction = messagev1.SortDirection_SORT_DIRECTION_DESCENDING
+		})
+	}
 }

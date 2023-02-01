@@ -53,10 +53,6 @@ func (t *Topic) Publish(ctx context.Context, env *messagev1.Envelope) (*Event, e
 	return ev, nil
 }
 
-func (t *Topic) Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messagev1.Envelope, *messagev1.PagingInfo, error) {
-	return nil, nil, TODO
-}
-
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
 func (t *Topic) receiveEventLoop(ctx context.Context) {

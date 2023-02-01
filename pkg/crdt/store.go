@@ -1,6 +1,8 @@
 package crdt
 
 import (
+	"context"
+
 	mh "github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 )
@@ -43,6 +45,9 @@ type TopicStore interface {
 	// are not present in the topic.
 	// Returns the list of all missing links.
 	FindMissingLinks() (links []mh.Multihash, err error)
+
+	// Following methods are needed for querying
+	Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messagev1.Envelope, *messagev1.PagingInfo, error)
 
 	// Following methods are just for testing,
 	// not needed for the protocol implementation

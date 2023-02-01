@@ -76,6 +76,17 @@ func (n *Node) Publish(ctx context.Context, env *messagev1.Envelope) (*Event, er
 	return topic.Publish(ctx, env)
 }
 
+func (n *Node) Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messagev1.Envelope, *messagev1.PagingInfo, error) {
+	if len(req.ContentTopics) != 1 {
+		return nil, nil, TODO
+	}
+	t := n.getTopic(req.ContentTopics[0])
+	if t == nil {
+		return nil, nil, UnknownTopic
+	}
+	return t.Query(ctx, req)
+}
+
 // Get retrieves an Event for given Topic.
 func (n *Node) Get(topic string, cid mh.Multihash) (*Event, error) {
 	t := n.getTopic(topic)

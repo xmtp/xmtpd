@@ -1,6 +1,7 @@
 package crdt
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 
@@ -41,6 +42,18 @@ func (ev *Event) Reader() *chunkReader {
 		chunks = append(chunks, link)
 	}
 	return &chunkReader{chunks, 0}
+}
+
+// Compare returns an integer comparing two events based on their timestamps.
+// The result will -1 if ev < ev2, and +1 if ev > ev2.
+// The result can only be 0 if ev and ev2 are the same event.
+// TODO: total order should reflect the DAG first and foremost.
+func (ev *Event) Compare(ev2 *Event) int {
+	res := ev.TimestampNs - ev2.TimestampNs
+	if res != 0 {
+		return int(res)
+	}
+	return bytes.Compare(ev.cid, ev2.cid)
 }
 
 // chunkReader helps computing an Event CID efficiently by

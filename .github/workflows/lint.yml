@@ -1,0 +1,26 @@
+name: Lint
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: shellcheck
+        run: |
+          sudo apt-get -y install tree
+          dev/lint-shellcheck
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.50
+          args: --timeout=5m --config dev/.golangci.yaml

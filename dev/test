@@ -1,4 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
+echo "All tests"
 go test ./... "$@"
+echo "Short tests with race detection"
+go test -race -short ./... "$@"

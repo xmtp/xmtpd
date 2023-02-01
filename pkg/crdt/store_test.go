@@ -306,6 +306,8 @@ func (s *mapTopicStore) Get(cid mh.Multihash) (*Event, error) {
 }
 
 func (s *mapTopicStore) Count() (int, error) {
+	s.RLock()
+	defer s.RUnlock()
 	return len(s.events), nil
 }
 

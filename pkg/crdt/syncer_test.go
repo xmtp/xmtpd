@@ -2,6 +2,7 @@ package crdt
 
 import (
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ func Test_BasicSyncing(t *testing.T) {
 // In-memory syncer that implements fetching by
 // reaching directly into a random Node's store.
 type randomSyncer struct {
+	sync.RWMutex
 	nodes []*Node
 }
 
@@ -41,7 +43,15 @@ func newRandomSyncer() *randomSyncer {
 }
 
 func (s *randomSyncer) AddNode(n *Node) {
+	s.Lock()
+	defer s.Unlock()
 	s.nodes = append(s.nodes, n)
+}
+
+func (s *randomSyncer) GetRandomNode() *Node {
+	s.RLock()
+	defer s.RUnlock()
+	return s.nodes[rand.Intn(len(s.nodes))]
 }
 
 func (s *randomSyncer) NewTopic(name string, n *Node) TopicSyncer {
@@ -61,7 +71,7 @@ type randomTopicSyncer struct {
 }
 
 func (s *randomTopicSyncer) Fetch(cids []mh.Multihash) (results []*Event, err error) {
-	node := s.nodes[rand.Intn(len(s.nodes))]
+	node := s.GetRandomNode()
 	s.log.Debug("fetching", zapCids("cids", cids...))
 	for _, cid := range cids {
 		ev, err := node.Get(s.topic, cid)

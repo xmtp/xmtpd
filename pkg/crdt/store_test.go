@@ -235,7 +235,7 @@ func (s *mapTopicStore) Query(ctx context.Context, req *messagev1.QueryRequest) 
 			return cEvt.Compare(result[i])
 		})
 		if !found {
-			return nil, nil, InvalidCursor
+			return nil, nil, ErrInvalidCursor
 		}
 		// reslice the result from the cursor event to the end
 		if reversed {

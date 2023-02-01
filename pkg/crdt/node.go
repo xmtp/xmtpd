@@ -12,7 +12,7 @@ import (
 )
 
 var TODO = errors.New("Not Yet Implemented")
-var UnknownTopic = errors.New("Unknown Topic")
+var ErrUnknownTopic = errors.New("Unknown Topic")
 
 // Node represents a peer in the XMTP network.
 // Node hosts a set of Topics and provides the required
@@ -83,7 +83,7 @@ func (n *Node) Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messa
 	}
 	t := n.getTopic(req.ContentTopics[0])
 	if t == nil {
-		return nil, nil, UnknownTopic
+		return nil, nil, ErrUnknownTopic
 	}
 	return t.Query(ctx, req)
 }
@@ -92,7 +92,7 @@ func (n *Node) Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messa
 func (n *Node) Get(topic string, cid mh.Multihash) (*Event, error) {
 	t := n.getTopic(topic)
 	if t == nil {
-		return nil, UnknownTopic
+		return nil, ErrUnknownTopic
 	}
 	return t.Get(cid)
 }

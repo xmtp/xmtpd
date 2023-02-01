@@ -139,6 +139,14 @@ func (net *network) AssertEventuallyConsistent(timeout time.Duration, ignore ...
 	}
 }
 
+func (net *network) assertQueryResult(envelopes []*messagev1.Envelope, expected ...int) {
+	var result []int
+	for _, env := range envelopes {
+		result = append(result, int(env.TimestampNs))
+	}
+	assert.Equal(net.t, expected, result)
+}
+
 // Check that all nodes except the ignored ones have all events.
 // Returns map of nodes that have missing events,
 // the key is the node number

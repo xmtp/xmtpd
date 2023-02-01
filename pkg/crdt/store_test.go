@@ -14,12 +14,24 @@ import (
 
 func Test_Query(t *testing.T) {
 	// create a topic with some pre-existing traffic
-	net := randomMsgTest(t, 1, 1, 100)
+	net := randomMsgTest(t, 1, 1, 20)
 	defer net.Close()
 
-	res, _, err := net.Query(0, t0, timeRange(5, 20))
+	res, _, err := net.Query(0, t0, timeRange(5, 13))
 	assert.NoError(t, err)
-	assert.Equal(t, net.events[5:20], res)
+	net.assertQueryResult(res, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+
+	res, _, err = net.Query(0, t0, timeRange(5, 9), descending())
+	assert.NoError(t, err)
+	net.assertQueryResult(res, 9, 8, 7, 6, 5)
+
+	res, _, err = net.Query(0, t0, timeRange(5, 15), limit(4))
+	assert.NoError(t, err)
+	net.assertQueryResult(res, 5, 6, 7, 8)
+
+	res, _, err = net.Query(0, t0, timeRange(5, 15), limit(4), descending())
+	assert.NoError(t, err)
+	net.assertQueryResult(res, 15, 14, 13, 12)
 }
 
 // In-memory store using maps to store Events

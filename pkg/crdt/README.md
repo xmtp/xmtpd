@@ -20,8 +20,6 @@ The implementation here follows this broad structure, the `Event`, `Topic`, `Nod
 
 ## TODO
 
-* simple timestamp event ordering
-* querying
 * bootstrapping a new node efficiently
 * investigate possible lockups
 * boltdb store

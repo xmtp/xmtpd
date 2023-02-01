@@ -45,7 +45,7 @@ func (ev *Event) Reader() *chunkReader {
 }
 
 // Compare returns an integer comparing two events based on their timestamps.
-// The result will -1 if ev < ev2, and +1 if ev > ev2.
+// The result will be negative if ev < ev2, and positive if ev > ev2.
 // The result can only be 0 if ev and ev2 are the same event.
 // TODO: total order should reflect the DAG first and foremost.
 func (ev *Event) Compare(ev2 *Event) int {

@@ -137,6 +137,8 @@ func (net *network) AssertEventuallyConsistent(t *testing.T, timeout time.Durati
 	}
 }
 
+// Check that the resulting envelops match the expected list of timestamps.
+// net.Publish generates timestamps incrementally starting from 1 so they are unique and match the publishing order.
 func (net *network) assertQueryResult(t *testing.T, envelopes []*messagev1.Envelope, expected ...int) {
 	t.Helper()
 	var result []int
@@ -146,6 +148,8 @@ func (net *network) assertQueryResult(t *testing.T, envelopes []*messagev1.Envel
 	assert.Equal(t, expected, result)
 }
 
+// Check that the cursor timestamp matches the expected timestamp
+// net.Publish generates timestamps incrementally starting from 1 so they are unique and match the publishing order.
 func (net *network) assertQueryCursor(t *testing.T, expected int, cursor *messagev1.Cursor) {
 	t.Helper()
 	assert.NotNil(t, cursor)
@@ -212,6 +216,8 @@ func ignored(i int, ignore []int) bool {
 	}
 	return false
 }
+
+// queryModifiers are handy for building more complex queries.
 
 type queryModifier func(*messagev1.QueryRequest)
 

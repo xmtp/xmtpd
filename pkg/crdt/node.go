@@ -78,6 +78,7 @@ func (n *Node) Publish(ctx context.Context, env *messagev1.Envelope) (*Event, er
 
 func (n *Node) Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messagev1.Envelope, *messagev1.PagingInfo, error) {
 	if len(req.ContentTopics) != 1 {
+		// Not supporting querying multiple topics
 		return nil, nil, TODO
 	}
 	t := n.getTopic(req.ContentTopics[0])

@@ -8,7 +8,9 @@ import (
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 )
 
-var InvalidCursor = errors.New("Invalid cursor")
+// The cursor event couldn't be find in the event range resulting from the parameters of the query.
+// The store may have changed since the query that yielded that cursor.
+var InvalidCursor = errors.New("Cursor event not found")
 
 // NodeStore manages the storage capacity for a Node.
 type NodeStore interface {

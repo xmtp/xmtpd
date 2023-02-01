@@ -2,10 +2,13 @@ package crdt
 
 import (
 	"context"
+	"errors"
 
 	mh "github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 )
+
+var InvalidCursor = errors.New("Invalid cursor")
 
 // NodeStore manages the storage capacity for a Node.
 type NodeStore interface {

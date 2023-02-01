@@ -45,10 +45,10 @@ func Test_NewNodeJoin(t *testing.T) {
 	net := randomMsgTest(t, 3, 1, 10)
 	defer net.Close()
 	// add a new node and observe that it catches up
-	net.AddNode(newMapStore())
+	net.AddNode(t, newMapStore())
 	// need to trigger a sync for the node to catch up
-	net.Publish(0, t0, "ahoy new node")
-	net.AssertEventuallyConsistent(time.Second)
+	net.Publish(t, 0, t0, "ahoy new node")
+	net.AssertEventuallyConsistent(t, time.Second)
 }
 
 func Test_NodeRestart(t *testing.T) {
@@ -56,15 +56,15 @@ func Test_NodeRestart(t *testing.T) {
 	net := randomMsgTest(t, 3, 1, 10)
 	defer net.Close()
 	// replace node 2 reusing its store
-	n := net.RemoveNode(2)
+	n := net.RemoveNode(t, 2)
 	store := n.NodeStore.(*mapStore)
 	// delete some early events from the node store
 	// to see if they get re-fetched during bootstrap
 	for _, ev := range net.events[:5] {
 		delete(store.topics[t0].events, ev.cid.String())
 	}
-	net.AddNode(store)
-	net.AssertEventuallyConsistent(time.Second)
+	net.AddNode(t, store)
+	net.AssertEventuallyConsistent(t, time.Second)
 }
 
 // Run a single topic test with given number of nodes and messages and visualise the resulting topic DAG after.
@@ -95,11 +95,11 @@ func randomMsgTest(t *testing.T, nodes, topics, messages int) *network {
 	for i := 0; i < messages; i++ {
 		topic := fmt.Sprintf("t%d", rand.Intn(topics))
 		msg := fmt.Sprintf("gm %d", i)
-		net.Publish(rand.Intn(nodes), topic, msg)
+		net.Publish(t, rand.Intn(nodes), topic, msg)
 		if i%delayEvery == 0 {
 			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
 		}
 	}
-	net.AssertEventuallyConsistent(time.Duration(messages*nodes) * time.Millisecond)
+	net.AssertEventuallyConsistent(t, time.Duration(messages*nodes)*time.Millisecond)
 	return net
 }

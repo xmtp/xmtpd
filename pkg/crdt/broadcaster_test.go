@@ -10,8 +10,8 @@ import (
 func Test_BasicBroadcast(t *testing.T) {
 	net := newNetwork(t, 5, 1)
 	defer net.Close()
-	net.Publish(0, t0, "hi")
-	net.AssertEventuallyConsistent(time.Second)
+	net.Publish(t, 0, t0, "hi")
+	net.AssertEventuallyConsistent(t, time.Second)
 }
 
 // In-memory broadcaster that uses channels to broadcast Events between Nodes.

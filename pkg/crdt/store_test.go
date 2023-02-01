@@ -8,30 +8,83 @@ import (
 
 	mh "github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"go.uber.org/zap"
 )
 
 func Test_Query(t *testing.T) {
-	// create a topic with some pre-existing traffic
+	// create a topic with 20 messages
 	net := randomMsgTest(t, 1, 1, 20)
 	defer net.Close()
 
-	res, _, err := net.Query(0, t0, timeRange(5, 13))
-	assert.NoError(t, err)
-	net.assertQueryResult(res, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+	t.Run("range", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, timeRange(5, 13))
+		require.NoError(t, err)
+		assert.Nil(t, pi)
+		net.assertQueryResult(t, res, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 
-	res, _, err = net.Query(0, t0, timeRange(5, 9), descending())
-	assert.NoError(t, err)
-	net.assertQueryResult(res, 9, 8, 7, 6, 5)
+	})
+	t.Run("range descending", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, timeRange(5, 9), descending())
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		net.assertQueryResult(t, res, 9, 8, 7, 6, 5)
 
-	res, _, err = net.Query(0, t0, timeRange(5, 15), limit(4))
-	assert.NoError(t, err)
-	net.assertQueryResult(res, 5, 6, 7, 8)
+	})
+	t.Run("range limit", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, timeRange(5, 15), limit(4))
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		net.assertQueryResult(t, res, 5, 6, 7, 8)
 
-	res, _, err = net.Query(0, t0, timeRange(5, 15), limit(4), descending())
-	assert.NoError(t, err)
-	net.assertQueryResult(res, 15, 14, 13, 12)
+	})
+	t.Run("range limit descending", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, timeRange(5, 15), limit(4), descending())
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		net.assertQueryResult(t, res, 15, 14, 13, 12)
+
+	})
+	t.Run("cursor", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, timeRange(5, 13), limit(5))
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		net.assertQueryCursor(t, 9, pi.Cursor)
+		net.assertQueryResult(t, res, 5, 6, 7, 8, 9)
+
+		res, pi, err = net.Query(t, 0, t0, timeRange(5, 13), limit(5), cursor(pi.Cursor))
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		net.assertQueryCursor(t, 13, pi.Cursor)
+		net.assertQueryResult(t, res, 10, 11, 12, 13)
+
+		res, pi, err = net.Query(t, 0, t0, timeRange(5, 13), limit(5), cursor(pi.Cursor))
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		assert.Nil(t, pi.Cursor)
+		net.assertQueryResult(t, res)
+
+	})
+	t.Run("cursor descending", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, timeRange(7, 15), limit(5), descending())
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		assert.NotNil(t, pi.Cursor)
+		net.assertQueryResult(t, res, 15, 14, 13, 12, 11)
+
+		res, pi, err = net.Query(t, 0, t0, timeRange(7, 15), limit(5), descending(), cursor(pi.Cursor))
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		assert.NotNil(t, pi.Cursor)
+		net.assertQueryResult(t, res, 10, 9, 8, 7)
+
+		res, pi, err = net.Query(t, 0, t0, timeRange(7, 15), limit(5), descending(), cursor(pi.Cursor))
+		require.NoError(t, err)
+		assert.NotNil(t, pi)
+		assert.Nil(t, pi.Cursor)
+		net.assertQueryResult(t, res)
+	})
 }
 
 // In-memory store using maps to store Events
@@ -167,22 +220,49 @@ func (s *mapTopicStore) Query(ctx context.Context, req *messagev1.QueryRequest) 
 	})
 	result := s.byTime[from:end]
 	if req.PagingInfo == nil {
+		// if there's no paging info we're done
 		return toEnvelopes(result, false), nil, nil
 	}
-	if cursor := req.PagingInfo.Cursor.GetIndex(); cursor != nil {
-		return nil, nil, TODO
+	reversed := req.PagingInfo.Direction == messagev1.SortDirection_SORT_DIRECTION_DESCENDING
+	cursor := req.PagingInfo.Cursor.GetIndex()
+	if cursor != nil {
+		// find the cursor event in the result
+		cEvt := &Event{
+			cid:      cursor.Digest,
+			Envelope: &messagev1.Envelope{TimestampNs: cursor.SenderTimeNs},
+		}
+		cIdx, found := sort.Find(len(result), func(i int) int {
+			return cEvt.Compare(result[i])
+		})
+		if !found {
+			return nil, nil, InvalidCursor
+		}
+		// reslice the result from the cursor event to the end
+		if reversed {
+			result = result[:cIdx]
+		} else {
+			result = result[cIdx+1:]
+		}
 	}
-	if req.PagingInfo.Direction == messagev1.SortDirection_SORT_DIRECTION_DESCENDING {
-		if limit := req.PagingInfo.Limit; limit != 0 {
+	if reversed {
+		if limit := req.PagingInfo.Limit; limit != 0 && int(limit) < len(result) {
 			result = result[len(result)-int(limit):]
 		}
-		return toEnvelopes(result, true), nil, nil
+		var newCursorEvent *Event
+		if len(result) > 0 {
+			newCursorEvent = result[0]
+		}
+		return toEnvelopes(result, reversed), updatedPagingInfo(req.PagingInfo, newCursorEvent), nil
 
 	}
-	if limit := req.PagingInfo.Limit; limit != 0 {
+	if limit := req.PagingInfo.Limit; limit != 0 && int(limit) < len(result) {
 		result = result[:limit]
 	}
-	return toEnvelopes(result, false), nil, nil
+	var newCursorEvent *Event
+	if len(result) > 0 {
+		newCursorEvent = result[len(result)-1]
+	}
+	return toEnvelopes(result, reversed), updatedPagingInfo(req.PagingInfo, newCursorEvent), nil
 }
 
 func (s *mapTopicStore) Get(cid mh.Multihash) (*Event, error) {
@@ -255,4 +335,21 @@ func toEnvelopes(events []*Event, reversed bool) []*messagev1.Envelope {
 		}
 	}
 	return envs
+}
+
+func updatedPagingInfo(pi *messagev1.PagingInfo, cursorEvent *Event) *messagev1.PagingInfo {
+	var cursor *messagev1.Cursor
+	if cursorEvent != nil {
+		cursor = &messagev1.Cursor{
+			Cursor: &messagev1.Cursor_Index{
+				Index: &messagev1.IndexCursor{
+					SenderTimeNs: cursorEvent.TimestampNs,
+					Digest:       cursorEvent.cid,
+				},
+			},
+		}
+	}
+	// Note that we're modifying the original query's paging info here.
+	pi.Cursor = cursor
+	return pi
 }

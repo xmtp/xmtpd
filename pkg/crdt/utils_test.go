@@ -139,22 +139,22 @@ func (net *network) AssertEventuallyConsistent(t *testing.T, timeout time.Durati
 
 // Check that the resulting envelops match the expected list of timestamps.
 // net.Publish generates timestamps incrementally starting from 1 so they are unique and match the publishing order.
-func (net *network) assertQueryResult(t *testing.T, envelopes []*messagev1.Envelope, expected ...int) {
+func (net *network) AssertQueryResult(t *testing.T, envelopes []*messagev1.Envelope, expected ...int) {
 	t.Helper()
 	var result []int
 	for _, env := range envelopes {
 		result = append(result, int(env.TimestampNs))
 	}
-	assert.Equal(t, expected, result)
+	assert.Equal(t, expected, result, "timestamps")
 }
 
 // Check that the cursor timestamp matches the expected timestamp
 // net.Publish generates timestamps incrementally starting from 1 so they are unique and match the publishing order.
-func (net *network) assertQueryCursor(t *testing.T, expected int, cursor *messagev1.Cursor) {
+func (net *network) AssertQueryCursor(t *testing.T, expected int, cursor *messagev1.Cursor) {
 	t.Helper()
-	assert.NotNil(t, cursor)
+	require.NotNil(t, cursor, "cursor")
 	actual := int(cursor.GetIndex().SenderTimeNs)
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, expected, actual, "timestamp")
 }
 
 // Check that all nodes except the ignored ones have all events.

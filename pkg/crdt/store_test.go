@@ -18,72 +18,100 @@ func Test_Query(t *testing.T) {
 	net := randomMsgTest(t, 1, 1, 20)
 	defer net.Close()
 
+	t.Run("all", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0)
+		require.NoError(t, err)
+		assert.Nil(t, pi, "paging info")
+		net.AssertQueryResult(t, res, intRange(1, 20)...)
+	})
+	t.Run("descending", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, descending())
+		require.NoError(t, err)
+		assert.NotNil(t, pi, "paging info")
+		net.AssertQueryResult(t, res, intRange(20, 1)...)
+	})
+	t.Run("limit", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, limit(5))
+		require.NoError(t, err)
+		require.NotNil(t, pi, "paging info")
+		net.AssertQueryCursor(t, 5, pi.Cursor)
+		net.AssertQueryResult(t, res, intRange(1, 5)...)
+	})
+	t.Run("limit descending", func(t *testing.T) {
+		res, pi, err := net.Query(t, 0, t0, limit(5), descending())
+		require.NoError(t, err)
+		require.NotNil(t, pi, "paging info")
+		net.AssertQueryCursor(t, 16, pi.Cursor)
+		net.AssertQueryResult(t, res, intRange(20, 16)...)
+	})
 	t.Run("range", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, timeRange(5, 13))
 		require.NoError(t, err)
-		assert.Nil(t, pi)
-		net.assertQueryResult(t, res, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+		assert.Nil(t, pi, "paging info")
+		net.AssertQueryResult(t, res, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 
 	})
 	t.Run("range descending", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, timeRange(5, 9), descending())
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
-		net.assertQueryResult(t, res, 9, 8, 7, 6, 5)
+		assert.NotNil(t, pi, "paging info")
+		net.AssertQueryResult(t, res, 9, 8, 7, 6, 5)
 
 	})
 	t.Run("range limit", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, timeRange(5, 15), limit(4))
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
-		net.assertQueryResult(t, res, 5, 6, 7, 8)
+		require.NotNil(t, pi, "paging info")
+		net.AssertQueryCursor(t, 8, pi.Cursor)
+		net.AssertQueryResult(t, res, 5, 6, 7, 8)
 
 	})
 	t.Run("range limit descending", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, timeRange(5, 15), limit(4), descending())
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
-		net.assertQueryResult(t, res, 15, 14, 13, 12)
+		require.NotNil(t, pi, "paging info")
+		net.AssertQueryCursor(t, 12, pi.Cursor)
+		net.AssertQueryResult(t, res, 15, 14, 13, 12)
 
 	})
 	t.Run("cursor", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, timeRange(5, 13), limit(5))
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
-		net.assertQueryCursor(t, 9, pi.Cursor)
-		net.assertQueryResult(t, res, 5, 6, 7, 8, 9)
+		require.NotNil(t, pi, "paging info")
+		net.AssertQueryCursor(t, 9, pi.Cursor)
+		net.AssertQueryResult(t, res, 5, 6, 7, 8, 9)
 
 		res, pi, err = net.Query(t, 0, t0, timeRange(5, 13), limit(5), cursor(pi.Cursor))
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
-		net.assertQueryCursor(t, 13, pi.Cursor)
-		net.assertQueryResult(t, res, 10, 11, 12, 13)
+		require.NotNil(t, pi, "paging info")
+		net.AssertQueryCursor(t, 13, pi.Cursor)
+		net.AssertQueryResult(t, res, 10, 11, 12, 13)
 
 		res, pi, err = net.Query(t, 0, t0, timeRange(5, 13), limit(5), cursor(pi.Cursor))
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
+		require.NotNil(t, pi, "paging info")
 		assert.Nil(t, pi.Cursor)
-		net.assertQueryResult(t, res)
+		net.AssertQueryResult(t, res)
 
 	})
 	t.Run("cursor descending", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, timeRange(7, 15), limit(5), descending())
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
+		require.NotNil(t, pi, "paging info")
 		assert.NotNil(t, pi.Cursor)
-		net.assertQueryResult(t, res, 15, 14, 13, 12, 11)
+		net.AssertQueryResult(t, res, 15, 14, 13, 12, 11)
 
 		res, pi, err = net.Query(t, 0, t0, timeRange(7, 15), limit(5), descending(), cursor(pi.Cursor))
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
+		require.NotNil(t, pi, "paging info")
 		assert.NotNil(t, pi.Cursor)
-		net.assertQueryResult(t, res, 10, 9, 8, 7)
+		net.AssertQueryResult(t, res, 10, 9, 8, 7)
 
 		res, pi, err = net.Query(t, 0, t0, timeRange(7, 15), limit(5), descending(), cursor(pi.Cursor))
 		require.NoError(t, err)
-		assert.NotNil(t, pi)
+		require.NotNil(t, pi, "paging info")
 		assert.Nil(t, pi.Cursor)
-		net.assertQueryResult(t, res)
+		net.AssertQueryResult(t, res)
 	})
 }
 
@@ -207,18 +235,24 @@ func (s *mapTopicStore) FindMissingLinks() (links []mh.Multihash, err error) {
 func (s *mapTopicStore) Query(ctx context.Context, req *messagev1.QueryRequest) ([]*messagev1.Envelope, *messagev1.PagingInfo, error) {
 	s.RLock()
 	defer s.RUnlock()
-	from, _ := sort.Find(len(s.byTime), func(i int) int {
-		return int(req.StartTimeNs - s.byTime[i].TimestampNs)
-	})
-	if from == len(s.byTime) {
+	var start int
+	if req.StartTimeNs > 0 {
+		start, _ = sort.Find(len(s.byTime), func(i int) int {
+			return int(req.StartTimeNs - s.byTime[i].TimestampNs)
+		})
+	}
+	if start == len(s.byTime) {
 		// everything is earlier than StartTimeNs
 		return nil, nil, nil
 	}
-	upTo := req.EndTimeNs + 1
-	end, _ := sort.Find(len(s.byTime), func(i int) int {
-		return int(upTo - s.byTime[i].TimestampNs)
-	})
-	result := s.byTime[from:end]
+	end := len(s.byTime)
+	if req.EndTimeNs > 0 {
+		upTo := req.EndTimeNs + 1
+		end, _ = sort.Find(len(s.byTime), func(i int) int {
+			return int(upTo - s.byTime[i].TimestampNs)
+		})
+	}
+	result := s.byTime[start:end]
 	if req.PagingInfo == nil {
 		// if there's no paging info we're done
 		return toEnvelopes(result, false), nil, nil
@@ -337,6 +371,7 @@ func toEnvelopes(events []*Event, reversed bool) []*messagev1.Envelope {
 	return envs
 }
 
+// updates paging info with a cursor for given event (or nil)
 func updatedPagingInfo(pi *messagev1.PagingInfo, cursorEvent *Event) *messagev1.PagingInfo {
 	var cursor *messagev1.Cursor
 	if cursorEvent != nil {
@@ -352,4 +387,21 @@ func updatedPagingInfo(pi *messagev1.PagingInfo, cursorEvent *Event) *messagev1.
 	// Note that we're modifying the original query's paging info here.
 	pi.Cursor = cursor
 	return pi
+}
+
+// generate a list of ints in from start to end inclusive.
+// if end < start generate it in reverse.
+func intRange(start, end int) (list []int) {
+	if start < end {
+		list = make([]int, end-start+1)
+		for k := range list {
+			list[k] = start + k
+		}
+		return list
+	}
+	list = make([]int, start-end+1)
+	for k := range list {
+		list[k] = start - k
+	}
+	return list
 }

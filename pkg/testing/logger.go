@@ -14,7 +14,7 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "debug level logging in tests")
 }
 
-func NewLog(t *testing.T) *zap.Logger {
+func NewLogger(t *testing.T) *zap.Logger {
 	cfg := zap.NewDevelopmentConfig()
 	if !debug {
 		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)

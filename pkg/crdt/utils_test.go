@@ -36,7 +36,7 @@ const t0 = "t0" // first topic
 // Creates a network with given number of nodes
 func newNetwork(t *testing.T, nodes, topics int) *network {
 	ctx, cancel := context.WithCancel(context.Background())
-	log := test.NewLog(t)
+	log := test.NewLogger(t)
 	net := &network{
 		ctx:    ctx,
 		cancel: cancel,

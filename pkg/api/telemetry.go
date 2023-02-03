@@ -4,8 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/xmtp/xmtpd/pkg/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -61,14 +60,14 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 	md, _ := metadata.FromIncomingContext(ctx)
 	clientName, _, clientVersion := parseVersionHeaderValue(md.Get(clientVersionMetadataKey))
 	appName, _, appVersion := parseVersionHeaderValue(md.Get(appVersionMetadataKey))
-	fields := []zapcore.Field{
+	fields := zap.Fields(
 		zap.String("grpc_service", serviceName),
 		zap.String("grpc_method", methodName),
 		zap.String("api_client", clientName),
 		zap.String("api_client_version", clientVersion),
 		zap.String("api_app", appName),
 		zap.String("api_app_version", appVersion),
-	}
+	)
 
 	if ips := md.Get("x-forwarded-for"); len(ips) > 0 {
 		// There are potentially multiple comma separated IPs bundled in that first value
@@ -84,10 +83,10 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 		grpcErr, _ := status.FromError(err)
 		if grpcErr != nil {
 			errCode := grpcErr.Code().String()
-			fields = append(fields, []zapcore.Field{
+			fields = append(fields,
 				zap.String("error_code", errCode),
 				zap.String("error_message", grpcErr.Message()),
-			}...)
+			)
 		}
 	}
 

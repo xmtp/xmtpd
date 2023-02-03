@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 var debug bool
@@ -15,11 +15,7 @@ func init() {
 }
 
 func NewLogger(t *testing.T) *zap.Logger {
-	cfg := zap.NewDevelopmentConfig()
-	if !debug {
-		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	}
-	log, err := cfg.Build()
+	log, err := zap.NewDevelopmentLogger(debug)
 	require.NoError(t, err)
 	return log
 }

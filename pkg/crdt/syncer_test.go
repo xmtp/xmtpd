@@ -7,7 +7,7 @@ import (
 	"time"
 
 	mh "github.com/multiformats/go-multihash"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 func Test_BasicSyncing(t *testing.T) {
@@ -72,7 +72,7 @@ type randomTopicSyncer struct {
 
 func (s *randomTopicSyncer) Fetch(cids []mh.Multihash) (results []*Event, err error) {
 	node := s.GetRandomNode()
-	s.log.Debug("fetching", zapCids("cids", cids...))
+	s.log.Debug("fetching", zap.Cids("cids", cids...))
 	for _, cid := range cids {
 		ev, err := node.Get(s.topic, cid)
 		if err != nil {

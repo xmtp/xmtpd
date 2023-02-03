@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 func Test_BasicBroadcast(t *testing.T) {
@@ -60,6 +60,6 @@ type topicChanBroadcaster struct {
 }
 
 func (tb *topicChanBroadcaster) Broadcast(ev *Event) {
-	tb.log.Debug("broadcasting", zapCid("event", ev.cid))
+	tb.log.Debug("broadcasting", zap.Cid("event", ev.cid))
 	tb.chanBroadcaster.Broadcast(ev, tb.node)
 }

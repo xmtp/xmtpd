@@ -9,8 +9,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/node"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 // GitCommit should be included in the binary via -ldflags=-X ${COMMIT}
@@ -29,7 +28,7 @@ func main() {
 	}
 
 	// Initialize logger.
-	log, err := buildLogger(&opts.Log)
+	log, err := zap.NewLogger(&opts.Log)
 	if err != nil {
 		fatal("error building logger: %s", err)
 	}
@@ -57,32 +56,6 @@ func waitForEndSignal() os.Signal {
 		syscall.SIGQUIT,
 	)
 	return <-sigC
-}
-
-func buildLogger(opts *node.LogOptions) (*zap.Logger, error) {
-	atom := zap.NewAtomicLevel()
-	level := zapcore.InfoLevel
-	err := level.Set(opts.Level)
-	if err != nil {
-		return nil, err
-	}
-	atom.SetLevel(level)
-	cfg := zap.Config{
-		Encoding:         opts.Encoding,
-		Level:            atom,
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-		EncoderConfig: zapcore.EncoderConfig{
-			MessageKey:   "message",
-			LevelKey:     "level",
-			EncodeLevel:  zapcore.CapitalLevelEncoder,
-			TimeKey:      "time",
-			EncodeTime:   zapcore.ISO8601TimeEncoder,
-			NameKey:      "caller",
-			EncodeCaller: zapcore.ShortCallerEncoder,
-		},
-	}
-	return cfg.Build()
 }
 
 func fatal(msg string, args ...any) {

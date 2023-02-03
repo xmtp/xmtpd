@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/api"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type Node struct {

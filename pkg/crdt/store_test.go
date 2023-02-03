@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 func Test_Query(t *testing.T) {
@@ -173,7 +173,7 @@ func (s *mapTopicStore) AddEvent(ev *Event) (added bool, err error) {
 	if s.events[key] != nil {
 		return false, nil
 	}
-	s.log.Debug("adding event", zapCid("event", ev.cid))
+	s.log.Debug("adding event", zap.Cid("event", ev.cid))
 	s.addEvent(key, ev)
 	return true, nil
 }
@@ -187,7 +187,7 @@ func (s *mapTopicStore) AddHead(ev *Event) (added bool, err error) {
 	}
 	s.addEvent(key, ev)
 	s.heads[key] = true
-	s.log.Debug("adding head", zapCid("event", ev.cid), zap.Int("heads", len(s.heads)))
+	s.log.Debug("adding head", zap.Cid("event", ev.cid), zap.Int("heads", len(s.heads)))
 	return true, nil
 }
 
@@ -199,7 +199,7 @@ func (s *mapTopicStore) RemoveHead(cid mh.Multihash) (have bool, err error) {
 		return false, nil
 	}
 	if s.heads[key] {
-		s.log.Debug("removing head", zapCid("event", cid), zap.Int("heads", len(s.heads)-1))
+		s.log.Debug("removing head", zap.Cid("event", cid), zap.Int("heads", len(s.heads)-1))
 	}
 	delete(s.heads, key)
 	return true, nil
@@ -213,7 +213,7 @@ func (s *mapTopicStore) NewEvent(env *messagev1.Envelope) (*Event, error) {
 		return nil, err
 	}
 	key := ev.cid.String()
-	s.log.Debug("creating event", zapCid("event", ev.cid), zap.Int("links", len(ev.links)))
+	s.log.Debug("creating event", zap.Cid("event", ev.cid), zap.Int("links", len(ev.links)))
 	s.addEvent(key, ev)
 	s.heads = map[string]bool{key: true}
 	return ev, err

@@ -13,15 +13,15 @@ import (
 // It captures a message and links to its preceding Events
 type Event struct {
 	*messagev1.Envelope
-	links []mh.Multihash // cid's of direct ancestors
-	cid   mh.Multihash   // cid is computed by hashing the links and message together
+	Links []mh.Multihash // cid's of direct ancestors
+	Cid   mh.Multihash   // cid is computed by hashing the links and message together
 }
 
 // NewEvent creates an event from a message and a set of links to preceding events (heads)
 func NewEvent(env *messagev1.Envelope, heads []mh.Multihash) (*Event, error) {
-	ev := &Event{Envelope: env, links: heads}
+	ev := &Event{Envelope: env, Links: heads}
 	var err error
-	ev.cid, err = mh.SumStream(ev.Reader(), mh.SHA2_256, -1)
+	ev.Cid, err = mh.SumStream(ev.Reader(), mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (ev *Event) Reader() *chunkReader {
 		copy(head[8:], ev.ContentTopic)                  // topic
 		chunks = append(chunks, head, ev.Message)        // message payload
 	}
-	for _, link := range ev.links { // links
+	for _, link := range ev.Links { // links
 		chunks = append(chunks, link)
 	}
 	return &chunkReader{chunks, 0}
@@ -53,7 +53,7 @@ func (ev *Event) Compare(ev2 *Event) int {
 	if res != 0 {
 		return int(res)
 	}
-	return bytes.Compare(ev.cid, ev2.cid)
+	return bytes.Compare(ev.Cid, ev2.Cid)
 }
 
 // chunkReader helps computing an Event CID efficiently by

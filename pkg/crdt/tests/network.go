@@ -1,4 +1,4 @@
-package crdt
+package tests
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/crdt"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -24,8 +25,8 @@ type network struct {
 	bc     *chanBroadcaster
 	sync   *randomSyncer
 	count  int
-	nodes  map[int]*Node // all the nodes in the network
-	events []*Event      // captures events published to the network
+	nodes  map[int]*crdt.Node // all the nodes in the network
+	events []*crdt.Event      // captures events published to the network
 }
 
 const t0 = "t0" // first topic
@@ -43,7 +44,7 @@ func newNetwork(t *testing.T, nodes, topics int) *network {
 		log:    log,
 		bc:     newChanBroadcaster(log),
 		sync:   newRandomSyncer(),
-		nodes:  make(map[int]*Node),
+		nodes:  make(map[int]*crdt.Node),
 	}
 	for i := 0; i < nodes; i++ {
 		net.AddNode(t, newMapStore())
@@ -58,9 +59,9 @@ func (net *network) Close() {
 	net.cancel()
 }
 
-func (net *network) AddNode(t *testing.T, store NodeStore) *Node {
+func (net *network) AddNode(t *testing.T, store crdt.NodeStore) *crdt.Node {
 	name := fmt.Sprintf("n%d", net.count)
-	n, err := NewNode(net.ctx,
+	n, err := crdt.NewNode(net.ctx,
 		net.log.Named(name),
 		store,
 		net.sync,
@@ -73,7 +74,7 @@ func (net *network) AddNode(t *testing.T, store NodeStore) *Node {
 	return n
 }
 
-func (net *network) RemoveNode(t *testing.T, n int) *Node {
+func (net *network) RemoveNode(t *testing.T, n int) *crdt.Node {
 	node := net.nodes[n]
 	assert.NotNil(t, node)
 	delete(net.nodes, n)
@@ -86,7 +87,7 @@ func (net *network) Publish(t *testing.T, node int, topic, msg string) {
 	t.Helper()
 	n := net.nodes[node]
 	assert.NotNil(t, n)
-	ev, err := n.Publish(n.ctx, &messagev1.Envelope{TimestampNs: uint64(len(net.events) + 1), ContentTopic: topic, Message: []byte(msg)})
+	ev, err := n.Publish(net.ctx, &messagev1.Envelope{TimestampNs: uint64(len(net.events) + 1), ContentTopic: topic, Message: []byte(msg)})
 	assert.NoError(t, err)
 	net.events = append(net.events, ev)
 }
@@ -105,7 +106,7 @@ func (net *network) Query(t *testing.T, node int, topic string, modifiers ...que
 }
 
 // Suspends topic broadcast delivery to the given node while fn runs
-func (net *network) WithSuspendedTopic(t *testing.T, node int, topic string, fn func(*Node)) {
+func (net *network) WithSuspendedTopic(t *testing.T, node int, topic string, fn func(*crdt.Node)) {
 	n := net.nodes[node]
 	assert.NotNil(t, n)
 	bc := n.NodeBroadcaster.(*chanBroadcaster)
@@ -175,7 +176,7 @@ func (net *network) checkEvents(t *testing.T, ignore []int) (missing map[int]str
 		result := ""
 		pass := true
 		for i, ev := range net.events {
-			ev2, err := n.Get(ev.ContentTopic, ev.cid)
+			ev2, err := n.Get(ev.ContentTopic, ev.Cid)
 			if err != nil || ev2 == nil {
 				result = result + "_"
 				pass = false
@@ -198,9 +199,9 @@ func (net *network) visualiseTopic(w io.Writer, topic string) {
 		if ev.ContentTopic != topic {
 			continue
 		}
-		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", zap.ShortCid(ev.cid), i)
-		fmt.Fprintf(w, "\t\"%s\" -> { ", zap.ShortCid(ev.cid))
-		for _, l := range ev.links {
+		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", zap.ShortCid(ev.Cid), i)
+		fmt.Fprintf(w, "\t\"%s\" -> { ", zap.ShortCid(ev.Cid))
+		for _, l := range ev.Links {
 			fmt.Fprintf(w, "\"%s\" ", zap.ShortCid(l))
 		}
 		fmt.Fprintf(w, "}\n")
@@ -215,46 +216,4 @@ func ignored(i int, ignore []int) bool {
 		}
 	}
 	return false
-}
-
-// queryModifiers are handy for building more complex queries.
-
-type queryModifier func(*messagev1.QueryRequest)
-
-func timeRange(start, end uint64) queryModifier {
-	return func(q *messagev1.QueryRequest) {
-		q.StartTimeNs = start
-		q.EndTimeNs = end
-	}
-}
-
-func withPagingInfo(q *messagev1.QueryRequest, f func(pi *messagev1.PagingInfo)) {
-	if q.PagingInfo == nil {
-		q.PagingInfo = new(messagev1.PagingInfo)
-	}
-	f(q.PagingInfo)
-}
-
-func limit(l uint32) queryModifier {
-	return func(q *messagev1.QueryRequest) {
-		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
-			pi.Limit = l
-		})
-	}
-}
-
-func descending() queryModifier {
-	return func(q *messagev1.QueryRequest) {
-		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
-			pi.Direction = messagev1.SortDirection_SORT_DIRECTION_DESCENDING
-		})
-	}
-}
-
-func cursor(cursor *messagev1.Cursor) queryModifier {
-	return func(q *messagev1.QueryRequest) {
-		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
-			pi.Cursor = cursor
-		})
-	}
 }

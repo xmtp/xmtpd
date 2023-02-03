@@ -16,7 +16,7 @@ func Test_NilEventCID(t *testing.T) {
 	assert.NoError(t, err)
 	emptyHash, err := mh.Sum(nil, mh.SHA2_256, -1)
 	assert.NoError(t, err)
-	assert.Equal(t, ev.cid, emptyHash)
+	assert.Equal(t, ev.Cid, emptyHash)
 }
 
 func Test_EventCID(t *testing.T) {
@@ -27,7 +27,7 @@ func Test_EventCID(t *testing.T) {
 	links := makeLinks(t, "one", "two", "three")
 	ev, err := NewEvent(env, links)
 	assert.NoError(t, err)
-	assert.Equal(t, computeCid(t, ev), ev.cid)
+	assert.Equal(t, computeCid(t, ev), ev.Cid)
 }
 
 func makeLinks(t *testing.T, payloads ...string) (links []mh.Multihash) {
@@ -47,7 +47,7 @@ func computeCid(t *testing.T, ev *Event) mh.Multihash {
 		[]byte(ev.ContentTopic),
 		ev.Message,
 	}
-	for _, l := range ev.links {
+	for _, l := range ev.Links {
 		chunks = append(chunks, l)
 	}
 	sum, err := mh.Sum(bytes.Join(chunks, nil), mh.SHA2_256, -1)

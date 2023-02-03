@@ -1,9 +1,8 @@
-package crdt
+package tests
 
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -61,7 +60,7 @@ func Test_NodeRestart(t *testing.T) {
 	// delete some early events from the node store
 	// to see if they get re-fetched during bootstrap
 	for _, ev := range net.events[:5] {
-		delete(store.topics[t0].events, ev.cid.String())
+		delete(store.topics[t0].events, ev.Cid.String())
 	}
 	net.AddNode(t, store)
 	net.AssertEventuallyConsistent(t, time.Second)
@@ -80,26 +79,4 @@ func Test_VisualiseTopic(t *testing.T) {
 	net := randomMsgTest(t, visTopicN, 1, visTopicM)
 	defer net.Close()
 	net.visualiseTopic(os.Stdout, t0)
-}
-
-func randomMsgTest(t *testing.T, nodes, topics, messages int) *network {
-	// to emulate significant concurrent activity we want nodes to be adding
-	// events concurrently, but we also want to allow propagation at the same time.
-	// So we need to introduce short delays to allow the network
-	// to make some propagation progress. Given the random spraying approach
-	// injecting a delay at every (nodes*topics)th event should allow most nodes
-	// to inject an event to most topics, and then the random length of the delay
-	// should allow some amount of propagation to happen before the next burst.
-	delayEvery := nodes * topics
-	net := newNetwork(t, nodes, topics)
-	for i := 0; i < messages; i++ {
-		topic := fmt.Sprintf("t%d", rand.Intn(topics))
-		msg := fmt.Sprintf("gm %d", i)
-		net.Publish(t, rand.Intn(nodes), topic, msg)
-		if i%delayEvery == 0 {
-			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
-		}
-	}
-	net.AssertEventuallyConsistent(t, time.Duration(messages*nodes)*time.Millisecond)
-	return net
 }

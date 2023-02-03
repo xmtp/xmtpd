@@ -53,6 +53,10 @@ func (t *Topic) Publish(ctx context.Context, env *messagev1.Envelope) (*Event, e
 	return ev, nil
 }
 
+func (t *Topic) ReceiveEvent(ev *Event) {
+	t.pendingReceiveEvents <- ev
+}
+
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
 func (t *Topic) receiveEventLoop(ctx context.Context) {
@@ -71,7 +75,7 @@ loop:
 				t.pendingReceiveEvents <- ev
 			}
 			if added {
-				for _, link := range ev.links {
+				for _, link := range ev.Links {
 					t.pendingLinks <- link
 				}
 			}
@@ -144,7 +148,7 @@ loop:
 				t.pendingSyncEvents <- ev
 			}
 			if added {
-				for _, link := range ev.links {
+				for _, link := range ev.Links {
 					// TODO: if the channel is full, this will lock up the loop
 					t.pendingLinks <- link
 				}

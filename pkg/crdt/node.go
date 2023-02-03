@@ -54,7 +54,10 @@ func NewNode(ctx context.Context, log *zap.Logger, store NodeStore, syncer NodeS
 	for _, name := range topics {
 		topic := name
 		grp.Go(func() (err error) {
-			t := node.createTopic(topic)
+			t, err := node.createTopic(topic)
+			if err != nil {
+				return err
+			}
 			return t.bootstrap(ctx)
 		})
 	}
@@ -80,7 +83,10 @@ func (n *Node) LogNamed(name string) *zap.Logger {
 
 // Publish sends a new message out to the network.
 func (n *Node) Publish(ctx context.Context, env *messagev1.Envelope) (*Event, error) {
-	topic := n.GetOrCreateTopic(env.ContentTopic)
+	topic, err := n.GetOrCreateTopic(env.ContentTopic)
+	if err != nil {
+		return nil, err
+	}
 	return topic.Publish(ctx, env)
 }
 
@@ -125,7 +131,7 @@ func (n *Node) getTopic(topic string) *Topic {
 	return n.topics[topic]
 }
 
-func (n *Node) createTopic(topic string) *Topic {
+func (n *Node) createTopic(topic string) (*Topic, error) {
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
 	return n.newTopic(topic)
@@ -133,27 +139,35 @@ func (n *Node) createTopic(topic string) *Topic {
 
 // GetOrCreateTopic MUST NOT be called before topic bootstrap is complete
 // to avoid creating empty topics that weren't bootstrapped.
-func (n *Node) GetOrCreateTopic(topic string) *Topic {
+func (n *Node) GetOrCreateTopic(topic string) (*Topic, error) {
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
 	t := n.topics[topic]
 	if t == nil {
-		t = n.newTopic(topic)
+		var err error
+		t, err = n.newTopic(topic)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return t
+	return t, nil
 }
 
 // newTopic adds a topic to the Node.
 // MUST be called with a write lock!
-func (n *Node) newTopic(name string) *Topic {
+func (n *Node) newTopic(name string) (*Topic, error) {
+	store, err := n.NodeStore.NewTopic(name, n)
+	if err != nil {
+		return nil, err
+	}
 	t := NewTopic(
 		n.ctx,
 		name,
-		n.log.Named(name),
-		n.NodeStore.NewTopic(name, n),
+		n.LogNamed(name),
+		store,
 		n.NodeSyncer.NewTopic(name, n),
 		n.NodeBroadcaster.NewTopic(name, n),
 	)
 	n.topics[name] = t
-	return t
+	return t, nil
 }

@@ -15,7 +15,7 @@ var ErrInvalidCursor = errors.New("Cursor event not found")
 // NodeStore manages the storage capacity for a Node.
 type NodeStore interface {
 	// NewTopic creates a TopicStore for the specified topic.
-	NewTopic(name string, node *Node) TopicStore
+	NewTopic(name string, node *Node) (TopicStore, error)
 
 	// Following methods are needed for bootstrapping topics
 	// from a pre-existing store.

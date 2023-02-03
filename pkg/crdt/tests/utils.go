@@ -68,7 +68,6 @@ func QueryTests(t *testing.T, modifiers ...configModifier) {
 		require.NoError(t, err)
 		assert.Nil(t, pi, "paging info")
 		net.AssertQueryResult(t, res, 5, 6, 7, 8, 9, 10, 11, 12, 13)
-
 	})
 	t.Run("range descending", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, TimeRange(5, 9), Descending())
@@ -111,7 +110,6 @@ func QueryTests(t *testing.T, modifiers ...configModifier) {
 		require.NotNil(t, pi, "paging info")
 		assert.Nil(t, pi.Cursor)
 		net.AssertQueryResult(t, res)
-
 	})
 	t.Run("cursor descending", func(t *testing.T) {
 		res, pi, err := net.Query(t, 0, t0, TimeRange(7, 15), Limit(5), Descending())

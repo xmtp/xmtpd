@@ -10,8 +10,9 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/multiformats/go-multihash v0.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/xmtp/proto/v3 v3.12.3
+	go.etcd.io/bbolt v1.3.7
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.48.0

@@ -31,7 +31,10 @@ func (b *chanBroadcaster) Broadcast(ev *crdt.Event, from *crdt.Node) {
 		if sub == from {
 			continue
 		}
-		t := sub.GetOrCreateTopic(ev.ContentTopic)
+		t, err := sub.GetOrCreateTopic(ev.ContentTopic)
+		if err != nil {
+			b.log.Error("receiving event", zap.Error(err), zap.Cid("event", ev.Cid), zap.String("topic", ev.ContentTopic))
+		}
 		t.ReceiveEvent(ev)
 	}
 }

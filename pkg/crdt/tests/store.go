@@ -24,7 +24,7 @@ func NewMapStore(l *zap.Logger) crdt.NodeStore {
 }
 
 // NewTopic returns a store for a pre-existing topic or creates a new one.
-func (s *mapStore) NewTopic(name string, n *crdt.Node) crdt.TopicStore {
+func (s *mapStore) NewTopic(name string, n *crdt.Node) (crdt.TopicStore, error) {
 	s.Lock()
 	defer s.Unlock()
 	ts := s.topics[name]
@@ -37,7 +37,7 @@ func (s *mapStore) NewTopic(name string, n *crdt.Node) crdt.TopicStore {
 		}
 		s.topics[name] = ts
 	}
-	return ts
+	return ts, nil
 }
 
 // Topics lists all topics in the store.

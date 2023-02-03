@@ -84,6 +84,7 @@ func NewNetwork(t *testing.T, nodes, topics int, modifiers ...configModifier) *n
 	ctx, cancel := context.WithCancel(context.Background())
 	log := test.NewLogger(t)
 	cfg := defaultNetworkConfig()
+	cfg.modify(modifiers...)
 	net := &network{
 		ctx:    ctx,
 		cancel: cancel,

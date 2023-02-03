@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

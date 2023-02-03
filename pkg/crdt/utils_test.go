@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	test "github.com/xmtp/xmtpd/pkg/testing"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 // network is an in-memory simulation of a network of a given number of Nodes.
@@ -198,10 +198,10 @@ func (net *network) visualiseTopic(w io.Writer, topic string) {
 		if ev.ContentTopic != topic {
 			continue
 		}
-		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", shortenedCid(ev.cid), i)
-		fmt.Fprintf(w, "\t\"%s\" -> { ", shortenedCid(ev.cid))
+		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", zap.ShortenedCid(ev.cid), i)
+		fmt.Fprintf(w, "\t\"%s\" -> { ", zap.ShortenedCid(ev.cid))
 		for _, l := range ev.links {
-			fmt.Fprintf(w, "\"%s\" ", shortenedCid(l))
+			fmt.Fprintf(w, "\"%s\" ", zap.ShortenedCid(l))
 		}
 		fmt.Fprintf(w, "}\n")
 	}

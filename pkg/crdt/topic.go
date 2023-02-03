@@ -5,7 +5,7 @@ import (
 
 	mh "github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 // Topic manages the DAG of a topic replica.
@@ -62,7 +62,7 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case ev := <-t.pendingReceiveEvents:
-			// t.log.Debug("adding event", zapCid("event", ev.cid))
+			// t.log.Debug("adding event", zap.Cid("event", ev.cid))
 			added, err := t.AddHead(ev)
 			if err != nil {
 				// requeue for later
@@ -88,7 +88,7 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case cid := <-t.pendingLinks:
-			// t.log.Debug("checking link", zapCid("link", cid))
+			// t.log.Debug("checking link", zap.Cid("link", cid))
 			// If the CID is in heads, it should be removed because
 			// we have an event that points to it.
 			// We also don't need to fetch it since we already have it.
@@ -103,7 +103,7 @@ loop:
 			if haveAlready {
 				continue
 			}
-			t.log.Debug("fetching link", zapCid("link", cid))
+			t.log.Debug("fetching link", zap.Cid("link", cid))
 			cids := []mh.Multihash{cid}
 			evs, err := t.Fetch(cids)
 			if err != nil {
@@ -135,7 +135,7 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case ev := <-t.pendingSyncEvents:
-			// t.log.Debug("adding link event", zapCid("event", ev.cid))
+			// t.log.Debug("adding link event", zap.Cid("event", ev.cid))
 			added, err := t.AddEvent(ev)
 			if err != nil {
 				// requeue for later

@@ -32,7 +32,7 @@ func Cid(key string, c mh.Multihash) zapcore.Field {
 }
 
 func (c cid) String() string {
-	return ShortenedCid(mh.Multihash(c))
+	return ShortCid(mh.Multihash(c))
 }
 
 // cidSlice provides uniform logging for lists of CIDs
@@ -40,7 +40,7 @@ type cidSlice []mh.Multihash
 
 func (cids cidSlice) MarshalLogArray(enc zapcore.ArrayEncoder) error {
 	for _, cid := range cids {
-		enc.AppendString(ShortenedCid(cid))
+		enc.AppendString(ShortCid(cid))
 	}
 	return nil
 }

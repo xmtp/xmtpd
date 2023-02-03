@@ -6,7 +6,7 @@ import messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 
 type queryModifier func(*messagev1.QueryRequest)
 
-func timeRange(start, end uint64) queryModifier {
+func TimeRange(start, end uint64) queryModifier {
 	return func(q *messagev1.QueryRequest) {
 		q.StartTimeNs = start
 		q.EndTimeNs = end
@@ -20,7 +20,7 @@ func withPagingInfo(q *messagev1.QueryRequest, f func(pi *messagev1.PagingInfo))
 	f(q.PagingInfo)
 }
 
-func limit(l uint32) queryModifier {
+func Limit(l uint32) queryModifier {
 	return func(q *messagev1.QueryRequest) {
 		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
 			pi.Limit = l
@@ -28,7 +28,7 @@ func limit(l uint32) queryModifier {
 	}
 }
 
-func descending() queryModifier {
+func Descending() queryModifier {
 	return func(q *messagev1.QueryRequest) {
 		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
 			pi.Direction = messagev1.SortDirection_SORT_DIRECTION_DESCENDING
@@ -36,7 +36,7 @@ func descending() queryModifier {
 	}
 }
 
-func cursor(cursor *messagev1.Cursor) queryModifier {
+func Cursor(cursor *messagev1.Cursor) queryModifier {
 	return func(q *messagev1.QueryRequest) {
 		withPagingInfo(q, func(pi *messagev1.PagingInfo) {
 			pi.Cursor = cursor

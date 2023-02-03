@@ -35,19 +35,19 @@ const t0 = "t0" // first topic
 // ...
 
 // Creates a network with given number of nodes
-func newNetwork(t *testing.T, nodes, topics int) *network {
+func NewNetwork(t *testing.T, nodes, topics int) *network {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := test.NewLogger(t)
 	net := &network{
 		ctx:    ctx,
 		cancel: cancel,
 		log:    log,
-		bc:     newChanBroadcaster(log),
-		sync:   newRandomSyncer(),
+		bc:     NewChanBroadcaster(log),
+		sync:   NewRandomSyncer(),
 		nodes:  make(map[int]*crdt.Node),
 	}
 	for i := 0; i < nodes; i++ {
-		net.AddNode(t, newMapStore())
+		net.AddNode(t, NewMapStore())
 	}
 	require.Len(t, net.nodes, nodes)
 	require.Len(t, net.bc.subscribers, nodes)

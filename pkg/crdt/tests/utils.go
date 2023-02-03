@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func randomMsgTest(t *testing.T, nodes, topics, messages int) *network {
+func RandomMsgTest(t *testing.T, nodes, topics, messages int) *network {
 	// to emulate significant concurrent activity we want nodes to be adding
 	// events concurrently, but we also want to allow propagation at the same time.
 	// So we need to introduce short delays to allow the network
@@ -16,7 +16,7 @@ func randomMsgTest(t *testing.T, nodes, topics, messages int) *network {
 	// to inject an event to most topics, and then the random length of the delay
 	// should allow some amount of propagation to happen before the next burst.
 	delayEvery := nodes * topics
-	net := newNetwork(t, nodes, topics)
+	net := NewNetwork(t, nodes, topics)
 	for i := 0; i < messages; i++ {
 		topic := fmt.Sprintf("t%d", rand.Intn(topics))
 		msg := fmt.Sprintf("gm %d", i)

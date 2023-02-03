@@ -11,7 +11,7 @@ type chanBroadcaster struct {
 	subscribers map[*crdt.Node]bool
 }
 
-func newChanBroadcaster(log *zap.Logger) *chanBroadcaster {
+func NewChanBroadcaster(log *zap.Logger) *chanBroadcaster {
 	return &chanBroadcaster{
 		log:         log.Named("chanbc"),
 		subscribers: make(map[*crdt.Node]bool),

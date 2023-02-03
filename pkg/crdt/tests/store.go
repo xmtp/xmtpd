@@ -17,7 +17,7 @@ type mapStore struct {
 	topics map[string]*mapTopicStore
 }
 
-func newMapStore() *mapStore {
+func NewMapStore() *mapStore {
 	return &mapStore{
 		topics: make(map[string]*mapTopicStore),
 	}

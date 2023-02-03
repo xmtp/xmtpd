@@ -16,7 +16,7 @@ type randomSyncer struct {
 	nodes []*crdt.Node
 }
 
-func newRandomSyncer() *randomSyncer {
+func NewRandomSyncer() *randomSyncer {
 	return &randomSyncer{}
 }
 

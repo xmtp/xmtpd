@@ -223,29 +223,17 @@ type logger struct {
 }
 
 func (l *logger) Error(msg string, keysAndValues ...interface{}) {
-	l.zap.Error(msg, zapFields(keysAndValues...)...)
+	l.zap.Error(msg, zap.AnyFields(keysAndValues...)...)
 }
 
 func (l *logger) Info(msg string, keysAndValues ...interface{}) {
-	l.zap.Info(msg, zapFields(keysAndValues...)...)
+	l.zap.Info(msg, zap.AnyFields(keysAndValues...)...)
 }
 
 func (l *logger) Debug(msg string, keysAndValues ...interface{}) {
-	l.zap.Debug(msg, zapFields(keysAndValues...)...)
+	l.zap.Debug(msg, zap.AnyFields(keysAndValues...)...)
 }
 
 func (l *logger) Warn(msg string, keysAndValues ...interface{}) {
-	l.zap.Warn(msg, zapFields(keysAndValues...)...)
-}
-
-func zapFields(keysAndValues ...interface{}) []zap.Field {
-	fields := make([]zap.Field, 0, len(keysAndValues)/2)
-	for i := 0; i < len(keysAndValues); i += 2 {
-		key, ok := keysAndValues[i].(string)
-		if !ok {
-			continue
-		}
-		fields = append(fields, zap.Any(key, keysAndValues[i+1]))
-	}
-	return fields
+	l.zap.Warn(msg, zap.AnyFields(keysAndValues...)...)
 }

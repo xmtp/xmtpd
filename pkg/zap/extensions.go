@@ -11,6 +11,19 @@ func Fields(fields ...zapcore.Field) []zapcore.Field {
 	return fields
 }
 
+// AnyFields creates a slice of Any fields from a key, value sequence
+func AnyFields(keysAndValues ...interface{}) []zap.Field {
+	fields := make([]zap.Field, 0, len(keysAndValues)/2)
+	for i := 0; i < len(keysAndValues); i += 2 {
+		key, ok := keysAndValues[i].(string)
+		if !ok {
+			continue
+		}
+		fields = append(fields, zap.Any(key, keysAndValues[i+1]))
+	}
+	return fields
+}
+
 // cid provides uniform logging for individual CIDs
 type cid mh.Multihash
 

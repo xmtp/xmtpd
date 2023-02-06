@@ -42,6 +42,7 @@ func NewNode(ctx context.Context, log *zap.Logger, store NodeStore, syncer NodeS
 		NodeSyncer:      syncer,
 		NodeBroadcaster: bc,
 	}
+
 	// Find pre-existing topics
 	topics, err := store.Topics()
 	if err != nil {
@@ -63,6 +64,9 @@ func NewNode(ctx context.Context, log *zap.Logger, store NodeStore, syncer NodeS
 		cancel()
 		return nil, err
 	}
+
+	bc.AddNode(node)
+	syncer.AddNode(node)
 	return node, nil
 }
 
@@ -70,9 +74,13 @@ func (n *Node) Close() {
 	n.cancel()
 }
 
+func (n *Node) LogNamed(name string) *zap.Logger {
+	return n.log.Named(name)
+}
+
 // Publish sends a new message out to the network.
 func (n *Node) Publish(ctx context.Context, env *messagev1.Envelope) (*Event, error) {
-	topic := n.getOrCreateTopic(env.ContentTopic)
+	topic := n.GetOrCreateTopic(env.ContentTopic)
 	return topic.Publish(ctx, env)
 }
 
@@ -123,9 +131,9 @@ func (n *Node) createTopic(topic string) *Topic {
 	return n.newTopic(topic)
 }
 
-// getOrCreateTopic MUST NOT be called before topic bootstrap is complete
+// GetOrCreateTopic MUST NOT be called before topic bootstrap is complete
 // to avoid creating empty topics that weren't bootstrapped.
-func (n *Node) getOrCreateTopic(topic string) *Topic {
+func (n *Node) GetOrCreateTopic(topic string) *Topic {
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
 	t := n.topics[topic]

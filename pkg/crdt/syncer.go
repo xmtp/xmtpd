@@ -6,6 +6,9 @@ import (
 
 // NodeSyncer manages the syncing capability for a Node
 type NodeSyncer interface {
+	// AddNode registers the node with the broadcaster.
+	AddNode(*Node)
+	// NewTopic creates a TopicSyncer for given topic and node.
 	NewTopic(name string, node *Node) TopicSyncer
 }
 

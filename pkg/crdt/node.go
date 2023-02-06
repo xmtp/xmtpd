@@ -42,6 +42,7 @@ func NewNode(ctx context.Context, log *zap.Logger, store NodeStore, syncer NodeS
 		NodeSyncer:      syncer,
 		NodeBroadcaster: bc,
 	}
+
 	// Find pre-existing topics
 	topics, err := store.Topics()
 	if err != nil {
@@ -63,6 +64,9 @@ func NewNode(ctx context.Context, log *zap.Logger, store NodeStore, syncer NodeS
 		cancel()
 		return nil, err
 	}
+
+	bc.AddNode(node)
+	syncer.AddNode(node)
 	return node, nil
 }
 

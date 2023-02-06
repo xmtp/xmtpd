@@ -16,14 +16,59 @@ import (
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
+type storeMaker func(*zap.Logger) crdt.NodeStore
+type syncerMaker func(*zap.Logger) crdt.NodeSyncer
+type broadcasterMaker func(*zap.Logger) crdt.NodeBroadcaster
+type networkConfig struct {
+	storeMaker
+	syncerMaker
+	broadcasterMaker
+}
+
+func defaultNetworkConfig() *networkConfig {
+	var cfg networkConfig
+	(&cfg).modify(
+		WithStore(NewMapStore),
+		WithSyncer(NewRandomSyncer),
+		WithBroadcaster(NewChanBroadcaster),
+	)
+	return &cfg
+}
+
+func (cfg *networkConfig) modify(modifiers ...configModifier) {
+	for _, m := range modifiers {
+		m(cfg)
+	}
+}
+
+type configModifier func(*networkConfig)
+
+func WithStore(m storeMaker) configModifier {
+	return func(cfg *networkConfig) {
+		cfg.storeMaker = m
+	}
+}
+
+func WithBroadcaster(m broadcasterMaker) configModifier {
+	return func(cfg *networkConfig) {
+		cfg.broadcasterMaker = m
+	}
+}
+
+func WithSyncer(m syncerMaker) configModifier {
+	return func(cfg *networkConfig) {
+		cfg.syncerMaker = m
+	}
+}
+
 // network is an in-memory simulation of a network of a given number of Nodes.
 // network also captures events that were published to it for final analysis of the test results.
 type network struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	log    *zap.Logger
-	bc     *chanBroadcaster
-	sync   *randomSyncer
+	bc     crdt.NodeBroadcaster
+	sync   crdt.NodeSyncer
 	count  int
 	nodes  map[int]*crdt.Node // all the nodes in the network
 	events []*crdt.Event      // captures events published to the network
@@ -35,23 +80,22 @@ const t0 = "t0" // first topic
 // ...
 
 // Creates a network with given number of nodes
-func NewNetwork(t *testing.T, nodes, topics int) *network {
+func NewNetwork(t *testing.T, nodes, topics int, modifiers ...configModifier) *network {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := test.NewLogger(t)
+	cfg := defaultNetworkConfig()
 	net := &network{
 		ctx:    ctx,
 		cancel: cancel,
 		log:    log,
-		bc:     NewChanBroadcaster(log),
-		sync:   NewRandomSyncer(),
+		bc:     cfg.broadcasterMaker(log),
+		sync:   cfg.syncerMaker(log),
 		nodes:  make(map[int]*crdt.Node),
 	}
 	for i := 0; i < nodes; i++ {
-		net.AddNode(t, NewMapStore())
+		net.AddNode(t, cfg.storeMaker(log))
 	}
 	require.Len(t, net.nodes, nodes)
-	require.Len(t, net.bc.subscribers, nodes)
-	require.Len(t, net.sync.nodes, nodes)
 	return net
 }
 
@@ -67,8 +111,6 @@ func (net *network) AddNode(t *testing.T, store crdt.NodeStore) *crdt.Node {
 		net.sync,
 		net.bc)
 	assert.NoError(t, err)
-	net.bc.AddNode(n)
-	net.sync.AddNode(n)
 	net.nodes[net.count] = n
 	net.count += 1
 	return n

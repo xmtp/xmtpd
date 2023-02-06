@@ -16,7 +16,7 @@ type randomSyncer struct {
 	nodes []*crdt.Node
 }
 
-func NewRandomSyncer() *randomSyncer {
+func NewRandomSyncer(l *zap.Logger) crdt.NodeSyncer {
 	return &randomSyncer{}
 }
 

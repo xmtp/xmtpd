@@ -17,7 +17,7 @@ type mapStore struct {
 	topics map[string]*mapTopicStore
 }
 
-func NewMapStore() *mapStore {
+func NewMapStore(l *zap.Logger) crdt.NodeStore {
 	return &mapStore{
 		topics: make(map[string]*mapTopicStore),
 	}

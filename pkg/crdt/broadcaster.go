@@ -2,7 +2,10 @@ package crdt
 
 // NodeBroadcaster manages the overall broadcasting capacity of a Node
 type NodeBroadcaster interface {
-	// NewTopic creates a broadcaster for a specific topic
+	// AddNode registers the node with the broadcaster.
+	AddNode(*Node)
+
+	// NewTopic creates a TopicBroadcaster for given topic and node.
 	NewTopic(name string, node *Node) TopicBroadcaster
 }
 

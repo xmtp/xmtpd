@@ -44,7 +44,7 @@ func Test_NewNodeJoin(t *testing.T) {
 	net := RandomMsgTest(t, 3, 1, 10)
 	defer net.Close()
 	// add a new node and observe that it catches up
-	net.AddNode(t, NewMapStore())
+	net.AddNode(t, NewMapStore(net.log))
 	// need to trigger a sync for the node to catch up
 	net.Publish(t, 0, t0, "ahoy new node")
 	net.AssertEventuallyConsistent(t, time.Second)

@@ -8,7 +8,9 @@ import (
 	"syscall"
 
 	"github.com/jessevdk/go-flags"
+	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
 	"github.com/xmtp/xmtpd/pkg/node"
+	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -34,9 +36,20 @@ func main() {
 	}
 	log.Info("running", zap.String("git-commit", GitCommit))
 
+	// Initialize store.
+	store := memstore.New(log)
+	defer store.Close()
+
+	// Initialize messagev1 service.
+	messagev1, err := messagev1.New(log, store)
+	if err != nil {
+		log.Fatal("error initializing messagev1", zap.Error(err))
+	}
+	defer messagev1.Close()
+
 	// Initialize node.
 	ctx := context.Background()
-	node, err := node.New(ctx, log, &opts)
+	node, err := node.New(ctx, log, messagev1, &opts)
 	if err != nil {
 		log.Fatal("error initializing node", zap.Error(err))
 	}

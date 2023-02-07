@@ -1,10 +1,10 @@
-package merklecrdt
+package crdt
 
 import (
 	"errors"
 
 	mh "github.com/multiformats/go-multihash"
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 
 // The cursor event couldn't be find in the event range resulting from the parameters of the query.

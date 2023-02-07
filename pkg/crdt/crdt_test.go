@@ -1,21 +1,22 @@
-package merklecrdt_test
+package crdt_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	crdt "github.com/xmtp/xmtpd/pkg/merklecrdt"
-	chanbroadcaster "github.com/xmtp/xmtpd/pkg/merklecrdt/broadcasters/chan"
-	memstore "github.com/xmtp/xmtpd/pkg/merklecrdt/stores/mem"
-	chansyncer "github.com/xmtp/xmtpd/pkg/merklecrdt/syncers/chan"
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	crdt "github.com/xmtp/xmtpd/pkg/crdt"
+	chanbroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/chan"
+	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
+	chansyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/chan"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
-func TestMerkleCRDT_NewClose(t *testing.T) {
+func TestCRDT_NewClose(t *testing.T) {
 	log := test.NewLogger(t)
 	ctx := context.Background()
 
@@ -23,7 +24,7 @@ func TestMerkleCRDT_NewClose(t *testing.T) {
 	bc := chanbroadcaster.New(log)
 	syncer := chansyncer.New(log)
 
-	crdt, err := crdt.New(ctx, log, store, bc, syncer)
+	crdt, err := crdt.New(ctx, log, store, bc, syncer, nil)
 	require.NoError(t, err)
 	require.NotNil(t, crdt)
 
@@ -31,7 +32,7 @@ func TestMerkleCRDT_NewClose(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMerkleCRDT_BroadcastStore(t *testing.T) {
+func TestCRDT_BroadcastStore(t *testing.T) {
 	log := test.NewLogger(t)
 	ctx := context.Background()
 
@@ -39,7 +40,13 @@ func TestMerkleCRDT_BroadcastStore(t *testing.T) {
 	bc := chanbroadcaster.New(log)
 	syncer := chansyncer.New(log)
 
-	crdt, err := crdt.New(ctx, log, store, bc, syncer)
+	var events []*types.Event
+	var eventsLock sync.RWMutex
+	crdt, err := crdt.New(ctx, log, store, bc, syncer, func(ev *types.Event) {
+		eventsLock.Lock()
+		defer eventsLock.Unlock()
+		events = append(events, ev)
+	})
 	require.NoError(t, err)
 	defer crdt.Close()
 
@@ -47,6 +54,13 @@ func TestMerkleCRDT_BroadcastStore(t *testing.T) {
 	require.NoError(t, err)
 	err = bc.Broadcast(ev)
 	require.NoError(t, err)
+
+	assert.Eventually(t, func() bool {
+		eventsLock.RLock()
+		defer eventsLock.RUnlock()
+		return len(events) == 1
+	}, time.Second, 10*time.Millisecond)
+	require.Equal(t, []*types.Event{ev}, events)
 
 	assert.Eventually(t, func() bool {
 		return len(store.Events()) == 1

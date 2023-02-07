@@ -3,7 +3,7 @@ package chanbroadcaster
 import (
 	"context"
 
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 

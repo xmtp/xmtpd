@@ -1,9 +1,9 @@
-package merklecrdt
+package crdt
 
 import (
 	"context"
 
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 
 // Broadcaster manages broadcasts for a CRDT instance.

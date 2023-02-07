@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -54,7 +56,10 @@ func Test_Health(t *testing.T) {
 func newTestServer(t *testing.T) (*Server, func()) {
 	ctx := context.Background()
 	log := test.NewLogger(t)
-	s, err := New(ctx, log, &Options{
+	store := memstore.New(log)
+	messagev1, err := messagev1.New(log, store)
+	require.NoError(t, err)
+	s, err := New(ctx, log, messagev1, &Options{
 		GRPCAddress: "localhost",
 		GRPCPort:    0,
 		HTTPAddress: "localhost",

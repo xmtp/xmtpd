@@ -1,8 +1,8 @@
-package merklecrdt
+package crdt
 
 import (
 	mh "github.com/multiformats/go-multihash"
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 
 // Syncer provides syncing capability to a specific CRDT.

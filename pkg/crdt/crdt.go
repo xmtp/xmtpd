@@ -1,18 +1,21 @@
-package merklecrdt
+package crdt
 
 import (
 	"context"
 
 	mh "github.com/multiformats/go-multihash"
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
-// MerkleCRDT manages the DAG of a dataset replica.
-type MerkleCRDT struct {
-	log       *zap.Logger
-	ctx       context.Context
-	ctxCancel context.CancelFunc
+type NewEventFunc func(ev *types.Event)
+
+// CRDT manages the DAG of a dataset replica.
+type CRDT struct {
+	log        *zap.Logger
+	ctx        context.Context
+	ctxCancel  context.CancelFunc
+	onNewEvent NewEventFunc
 
 	store       Store
 	broadcaster Broadcaster
@@ -23,12 +26,13 @@ type MerkleCRDT struct {
 	pendingLinks         chan mh.Multihash // missing links that were discovered but not successfully fetched yet
 }
 
-func New(ctx context.Context, log *zap.Logger, store Store, bc Broadcaster, syncer Syncer) (*MerkleCRDT, error) {
+func New(ctx context.Context, log *zap.Logger, store Store, bc Broadcaster, syncer Syncer, onNewEvent NewEventFunc) (*CRDT, error) {
 	ctx, ctxCancel := context.WithCancel(ctx)
-	m := &MerkleCRDT{
-		log:       log,
-		ctx:       ctx,
-		ctxCancel: ctxCancel,
+	c := &CRDT{
+		log:        log,
+		ctx:        ctx,
+		ctxCancel:  ctxCancel,
+		onNewEvent: onNewEvent,
 
 		store:       store,
 		broadcaster: bc,
@@ -41,61 +45,73 @@ func New(ctx context.Context, log *zap.Logger, store Store, bc Broadcaster, sync
 		pendingLinks:         make(chan mh.Multihash, 20),
 	}
 
-	go m.receiveEventLoop(ctx)
-	go m.syncEventLoop(ctx)
-	go m.syncLinkLoop(ctx)
-	go m.nextBroadcastedEventLoop(ctx)
+	go c.receiveEventLoop(ctx)
+	go c.syncEventLoop(ctx)
+	go c.syncLinkLoop(ctx)
+	go c.nextBroadcastedEventLoop(ctx)
 
-	err := m.bootstrap(ctx)
+	err := c.bootstrap(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return m, nil
+	return c, nil
 }
 
-func (m *MerkleCRDT) Close() error {
-	if m.ctxCancel != nil {
-		m.ctxCancel()
+func (c *CRDT) Close() error {
+	if c.ctxCancel != nil {
+		c.ctxCancel()
 	}
 	return nil
 }
 
-func (m *MerkleCRDT) nextBroadcastedEventLoop(ctx context.Context) {
+func (c *CRDT) Broadcast(ctx context.Context, payload []byte) error {
+	ev, err := types.NewEvent(payload, nil)
+	if err != nil {
+		return err
+	}
+	return c.broadcaster.Broadcast(ev)
+}
+
+func (c *CRDT) nextBroadcastedEventLoop(ctx context.Context) {
 	for {
-		ev, err := m.broadcaster.Next(ctx)
+		ev, err := c.broadcaster.Next(ctx)
 		if err != nil {
 			if err == context.Canceled {
 				return
 			}
-			m.log.Error("error getting next broadcasted event", zap.Error(err))
+			c.log.Error("error getting next broadcasted event", zap.Error(err))
 			return
 		}
-		m.log.Debug("received broadcasted event", zap.Cid("event_cid", ev.Cid))
-		m.pendingReceiveEvents <- ev
+		c.log.Debug("received broadcasted event", zap.Cid("event_cid", ev.Cid))
+		c.pendingReceiveEvents <- ev
+
+		if c.onNewEvent != nil {
+			c.onNewEvent(ev)
+		}
 	}
 }
 
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
-func (m *MerkleCRDT) receiveEventLoop(ctx context.Context) {
+func (c *CRDT) receiveEventLoop(ctx context.Context) {
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
-		case ev := <-m.pendingReceiveEvents:
-			// m.log.Debug("adding event", zap.Cid("event", ev.cid))
-			added, err := m.store.AddHead(ev)
+		case ev := <-c.pendingReceiveEvents:
+			// c.log.Debug("adding event", zap.Cid("event", ev.cid))
+			added, err := c.store.AddHead(ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				m.pendingReceiveEvents <- ev
+				c.pendingReceiveEvents <- ev
 			}
 			if added {
 				for _, link := range ev.Links {
-					m.pendingLinks <- link
+					c.pendingLinks <- link
 				}
 			}
 		}
@@ -104,44 +120,44 @@ loop:
 
 // syncLoop fetches missing events from links.
 // It consumes pendingLinks and writes into pendingSyncEvents
-func (m *MerkleCRDT) syncLinkLoop(ctx context.Context) {
+func (c *CRDT) syncLinkLoop(ctx context.Context) {
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
-		case cid := <-m.pendingLinks:
-			// m.log.Debug("checking link", zap.Cid("link", cid))
+		case cid := <-c.pendingLinks:
+			// c.log.Debug("checking link", zap.Cid("link", cid))
 			// If the CID is in heads, it should be removed because
 			// we have an event that points to it.
 			// We also don't need to fetch it since we already have it.
-			haveAlready, err := m.store.RemoveHead(cid)
+			haveAlready, err := c.store.RemoveHead(cid)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				m.pendingLinks <- cid
+				c.pendingLinks <- cid
 				continue
 			}
 			if haveAlready {
 				continue
 			}
-			m.log.Debug("fetching link", zap.Cid("link", cid))
+			c.log.Debug("fetching link", zap.Cid("link", cid))
 			cids := []mh.Multihash{cid}
-			evs, err := m.syncer.Fetch(cids)
+			evs, err := c.syncer.Fetch(cids)
 			if err != nil {
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.
 				// TODO: if the channel is full, this will lock up the loop
-				m.pendingLinks <- cid
+				c.pendingLinks <- cid
 			}
 			for i, ev := range evs {
 				if ev == nil {
 					// requeue missing links
-					m.pendingLinks <- cids[i]
+					c.pendingLinks <- cids[i]
 					continue
 				}
-				m.pendingSyncEvents <- ev
+				c.pendingSyncEvents <- ev
 			}
 		}
 	}
@@ -151,25 +167,25 @@ loop:
 // It consumes pendingSyncEvents and writes into pendingLinks.
 // TODO: There is channel read/write cycle between the two sync loops,
 // i.e. they could potentially lock up if both channels fill up.
-func (m *MerkleCRDT) syncEventLoop(ctx context.Context) {
+func (c *CRDT) syncEventLoop(ctx context.Context) {
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
-		case ev := <-m.pendingSyncEvents:
-			// m.log.Debug("adding link event", zap.Cid("event", ev.cid))
-			added, err := m.store.AddEvent(ev)
+		case ev := <-c.pendingSyncEvents:
+			// c.log.Debug("adding link event", zap.Cid("event", ev.cid))
+			added, err := c.store.AddEvent(ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				m.pendingSyncEvents <- ev
+				c.pendingSyncEvents <- ev
 			}
 			if added {
 				for _, link := range ev.Links {
 					// TODO: if the channel is full, this will lock up the loop
-					m.pendingLinks <- link
+					c.pendingLinks <- link
 				}
 			}
 		}
@@ -177,8 +193,8 @@ loop:
 }
 
 // Bootstrap from the contents of the store.
-func (m *MerkleCRDT) bootstrap(ctx context.Context) error {
-	links, err := m.store.FindMissingLinks()
+func (c *CRDT) bootstrap(ctx context.Context) error {
+	links, err := c.store.FindMissingLinks()
 	if err != nil {
 		return err
 	}
@@ -186,7 +202,7 @@ func (m *MerkleCRDT) bootstrap(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case m.pendingLinks <- link:
+		case c.pendingLinks <- link:
 		}
 	}
 	return nil

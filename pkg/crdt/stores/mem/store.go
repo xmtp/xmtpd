@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/multiformats/go-multihash"
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -93,6 +93,8 @@ func (s *MemoryStore) FindMissingLinks() (links []multihash.Multihash, err error
 }
 
 func (s *MemoryStore) Events() map[string]*types.Event {
+	s.RLock()
+	defer s.RUnlock()
 	return s.events
 }
 

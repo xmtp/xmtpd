@@ -2,7 +2,7 @@ package chansyncer
 
 import (
 	"github.com/multiformats/go-multihash"
-	"github.com/xmtp/xmtpd/pkg/merklecrdt/types"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 

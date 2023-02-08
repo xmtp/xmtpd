@@ -9,7 +9,7 @@ import (
 
 func TestReplicaSet_BroadcastStore(t *testing.T) {
 	rs := crdttest.NewTestReplicaSet(t, 3)
-	events := rs.BroadcastRandom(t, 5)
+	events := rs.BroadcastRandom(t, 10)
 	rs.RequireEventuallyCapturedEvents(t, events)
 	rs.RequireEventuallyStoredEvents(t, events)
 

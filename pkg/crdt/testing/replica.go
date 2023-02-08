@@ -108,7 +108,7 @@ func (r *testReplica) BroadcastRandom(t *testing.T, count int) []*types.Event {
 	t.Helper()
 	payloads := make([][]byte, count)
 	for i := 0; i < count; i++ {
-		payloads[i] = []byte("payload-" + test.RandomStringLower(13))
+		payloads[i] = []byte("event-" + test.RandomStringLower(13))
 	}
 	return r.Broadcast(t, payloads)
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
@@ -45,16 +46,22 @@ func (rs *testReplicaSet) Visualize(w io.Writer) {
 
 func (rs *testReplicaSet) BroadcastRandom(t *testing.T, count int) []*types.Event {
 	t.Helper()
-	replica := rs.randomReplica(t, nil)
-	return replica.BroadcastRandom(t, count)
+	events := make([]*types.Event, count)
+	// Emulate concurrent appends across replicas.
+	for i := 0; i < count; i++ {
+		replica := rs.randomReplica(t)
+		evs := replica.BroadcastRandom(t, 1)
+		events[i] = evs[0]
+		if i%count == 0 {
+			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
+		}
+	}
+	return events
 }
 
-func (rs *testReplicaSet) randomReplica(t *testing.T, exclude *testReplica) *testReplica {
+func (rs *testReplicaSet) randomReplica(t *testing.T) *testReplica {
 	t.Helper()
 	i := rand.Intn(len(rs.replicas))
-	for exclude != nil && rs.replicas[i] == exclude {
-		i = rand.Intn(len(rs.replicas))
-	}
 	return rs.replicas[i]
 }
 

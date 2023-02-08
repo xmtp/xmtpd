@@ -70,10 +70,11 @@ func (s *Service) Publish(ctx context.Context, req *messagev1.PublishRequest) (*
 		if err != nil {
 			return nil, err
 		}
-		err = topic.Broadcast(ctx, envB)
+		ev, err := topic.BroadcastAppend(ctx, envB)
 		if err != nil {
 			return nil, err
 		}
+		s.log.Debug("envelope published", zap.Cid("event", ev.Cid))
 	}
 	return &messagev1.PublishResponse{}, nil
 }

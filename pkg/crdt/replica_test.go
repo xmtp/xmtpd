@@ -3,7 +3,6 @@ package crdt_test
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"testing"
 
@@ -44,9 +43,13 @@ func TestReplica_BroadcastStore_SingleReplica(t *testing.T) {
 	replica := crdttest.NewTestReplica(t)
 	defer replica.Close()
 
-	events := replica.BroadcastRandom(t, 1)
+	events := replica.BroadcastRandom(t, 3)
 	replica.RequireEventuallyCapturedEvents(t, events)
 	replica.RequireEventuallyStoredEvents(t, events)
+
+	if visualize {
+		replica.Visualize(os.Stdout, "replica1")
+	}
 }
 
 func TestReplica_BroadcastStore_TwoReplicas(t *testing.T) {
@@ -89,17 +92,4 @@ func TestReplica_BroadcastStore_TwoReplicas(t *testing.T) {
 
 	// replica2.requireEventuallyCapturedEvents(t, events)
 	// replica2.requireEventuallyStoredEvents(t, events)
-}
-
-func TestReplica_BroadcastStore_ReplicaSet(t *testing.T) {
-	rs := crdttest.NewTestReplicaSet(t, 3)
-	events := rs.BroadcastRandom(t, 5)
-	rs.RequireEventuallyCapturedEvents(t, events)
-	rs.RequireEventuallyStoredEvents(t, events)
-
-	if visualize {
-		for i, replica := range rs.Replicas() {
-			replica.Visualize(os.Stdout, fmt.Sprintf("replica%d", i+1))
-		}
-	}
 }

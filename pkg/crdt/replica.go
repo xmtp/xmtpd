@@ -65,12 +65,12 @@ func (r *Replica) Close() error {
 	return nil
 }
 
-func (r *Replica) Broadcast(ctx context.Context, payload []byte) error {
-	ev, err := types.NewEvent(payload, nil)
+func (r *Replica) BroadcastAppend(ctx context.Context, payload []byte) (*types.Event, error) {
+	ev, err := r.store.AppendEvent(payload)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.broadcaster.Broadcast(ev)
+	return ev, r.broadcaster.Broadcast(ev)
 }
 
 func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {

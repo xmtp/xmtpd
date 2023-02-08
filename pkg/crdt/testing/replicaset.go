@@ -1,6 +1,8 @@
 package crdttest
 
 import (
+	"fmt"
+	"io"
 	"math/rand"
 	"testing"
 
@@ -33,6 +35,12 @@ func NewTestReplicaSet(t *testing.T, count int) *testReplicaSet {
 
 func (rs *testReplicaSet) Replicas() []*testReplica {
 	return rs.replicas
+}
+
+func (rs *testReplicaSet) Visualize(w io.Writer) {
+	for i, replica := range rs.Replicas() {
+		replica.Visualize(w, fmt.Sprintf("replica%d", i+1))
+	}
 }
 
 func (rs *testReplicaSet) BroadcastRandom(t *testing.T, count int) []*types.Event {

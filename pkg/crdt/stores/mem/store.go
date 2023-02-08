@@ -65,7 +65,7 @@ func (s *MemoryStore) RemoveHead(cid multihash.Multihash) (have bool, err error)
 	return true, nil
 }
 
-func (s *MemoryStore) NewEvent(payload []byte) (*types.Event, error) {
+func (s *MemoryStore) AppendEvent(payload []byte) (*types.Event, error) {
 	s.Lock()
 	defer s.Unlock()
 	ev, err := types.NewEvent(payload, s.allHeads())

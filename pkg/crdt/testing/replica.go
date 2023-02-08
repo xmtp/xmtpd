@@ -92,24 +92,25 @@ func (r *testReplica) AddPeer(t *testing.T, peer *testReplica) {
 	}
 }
 
-func (r *testReplica) Broadcast(t *testing.T, events []*types.Event) {
+func (r *testReplica) Broadcast(t *testing.T, payloads [][]byte) []*types.Event {
 	t.Helper()
-	for _, ev := range events {
-		err := r.bc.Broadcast(ev)
+	ctx := context.Background()
+	events := make([]*types.Event, len(payloads))
+	for i, payload := range payloads {
+		ev, err := r.Replica.BroadcastAppend(ctx, payload)
 		require.NoError(t, err)
+		events[i] = ev
 	}
+	return events
 }
 
 func (r *testReplica) BroadcastRandom(t *testing.T, count int) []*types.Event {
 	t.Helper()
-	events := make([]*types.Event, count)
+	payloads := make([][]byte, count)
 	for i := 0; i < count; i++ {
-		ev, err := types.NewEvent([]byte("payload-"+test.RandomStringLower(13)), nil)
-		require.NoError(t, err)
-		events[i] = ev
+		payloads[i] = []byte("payload-" + test.RandomStringLower(13))
 	}
-	r.Broadcast(t, events)
-	return events
+	return r.Broadcast(t, payloads)
 }
 
 func (r *testReplica) RequireEventuallyCapturedEvents(t *testing.T, expected []*types.Event) {

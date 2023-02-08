@@ -13,11 +13,11 @@ var ErrStoreInvalidCursor = errors.New("cursor event not found")
 
 // Store represents the storage capacity for a specific CRDT.
 type Store interface {
-	// NewEvent creates and stores a new Event,
+	// AppendEvent creates and stores a new Event,
 	// making the current heads its links and
 	// replacing the heads with the new Event.
 	// Returns the new Event.
-	NewEvent([]byte) (*types.Event, error)
+	AppendEvent([]byte) (*types.Event, error)
 	// AddEvent stores the Event if it isn't know yet,
 	// Returns whether it was actually added.
 	AddEvent(ev *types.Event) (added bool, err error)

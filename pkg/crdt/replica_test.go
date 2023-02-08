@@ -86,12 +86,18 @@ func TestReplica_BroadcastStore_TwoReplicas(t *testing.T) {
 type testReplica struct {
 	*crdt.Replica
 
-	store  crdt.Store
+	store  testStore
 	bc     crdt.Broadcaster
 	syncer crdt.Syncer
 
 	capturedEvents     []*types.Event
 	capturedEventsLock sync.RWMutex
+}
+
+type testStore interface {
+	crdt.Store
+
+	Events() ([]*types.Event, error)
 }
 
 func newTestReplica(t *testing.T) *testReplica {

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/crdt"
-	chanbroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/chan"
+	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
-	chansyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/chan"
+	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -44,8 +44,8 @@ func NewTestReplica(t *testing.T) *testReplica {
 	log := test.NewLogger(t)
 
 	store := memstore.New(log)
-	bc := chanbroadcaster.New(log)
-	syncer := chansyncer.New(log)
+	bc := membroadcaster.New(log)
+	syncer := memsyncer.New(log)
 
 	tr := &testReplica{
 		store:             store,
@@ -80,9 +80,9 @@ func (r *testReplica) CapturedEvents(t *testing.T) []*types.Event {
 func (r *testReplica) AddPeer(t *testing.T, peer *testReplica) {
 	t.Helper()
 	switch bc := r.bc.(type) {
-	case *chanbroadcaster.ChannelBroadcaster:
+	case *membroadcaster.MemoryBroadcaster:
 		switch peerBC := peer.bc.(type) {
-		case *chanbroadcaster.ChannelBroadcaster:
+		case *membroadcaster.MemoryBroadcaster:
 			bc.AddPeer(peerBC)
 		default:
 			require.Fail(t, "peer broadcaster unknown")

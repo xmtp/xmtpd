@@ -1,4 +1,4 @@
-package chanbroadcaster
+package membroadcaster
 
 import (
 	"context"
@@ -7,20 +7,20 @@ import (
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
-type ChannelBroadcaster struct {
+type MemoryBroadcaster struct {
 	log   *zap.Logger
 	ch    chan *types.Event
-	peers []*ChannelBroadcaster
+	peers []*MemoryBroadcaster
 }
 
-func New(log *zap.Logger) *ChannelBroadcaster {
-	return &ChannelBroadcaster{
+func New(log *zap.Logger) *MemoryBroadcaster {
+	return &MemoryBroadcaster{
 		log: log,
 		ch:  make(chan *types.Event, 100),
 	}
 }
 
-func (b *ChannelBroadcaster) Broadcast(ev *types.Event) error {
+func (b *MemoryBroadcaster) Broadcast(ev *types.Event) error {
 	b.log.Debug("broadcast event", zap.Cid("event", ev.Cid))
 	b.ch <- ev
 	for _, peer := range b.peers {
@@ -29,10 +29,10 @@ func (b *ChannelBroadcaster) Broadcast(ev *types.Event) error {
 	return nil
 }
 
-func (b *ChannelBroadcaster) Next(ctx context.Context) (*types.Event, error) {
+func (b *MemoryBroadcaster) Next(ctx context.Context) (*types.Event, error) {
 	return <-b.ch, nil
 }
 
-func (b *ChannelBroadcaster) AddPeer(peer *ChannelBroadcaster) {
+func (b *MemoryBroadcaster) AddPeer(peer *MemoryBroadcaster) {
 	b.peers = append(b.peers, peer)
 }

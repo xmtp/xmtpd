@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	crdt "github.com/xmtp/xmtpd/pkg/crdt"
-	chanbroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/chan"
+	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
-	chansyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/chan"
+	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	crdttest "github.com/xmtp/xmtpd/pkg/crdt/testing"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
@@ -28,8 +28,8 @@ func TestReplica_NewClose(t *testing.T) {
 	ctx := context.Background()
 
 	store := memstore.New(log)
-	bc := chanbroadcaster.New(log)
-	syncer := chansyncer.New(log)
+	bc := membroadcaster.New(log)
+	syncer := memsyncer.New(log)
 
 	replica, err := crdt.NewReplica(ctx, log, store, bc, syncer, nil)
 	require.NoError(t, err)

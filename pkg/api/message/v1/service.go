@@ -7,9 +7,9 @@ import (
 
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/crdt"
-	chanbroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/chan"
+	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	crdtmemstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
-	chansyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/chan"
+	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	crdttypes "github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/store"
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -164,8 +164,8 @@ func (s *Service) createTopic(ctx context.Context, topicId string) (*crdt.Replic
 		s.log,
 		// TODO: these factories/makers should be passed in as options/config
 		crdtmemstore.New(s.log),
-		chanbroadcaster.New(s.log),
-		chansyncer.New(s.log),
+		membroadcaster.New(s.log),
+		memsyncer.New(s.log),
 		func(ev *crdttypes.Event) {
 			s.topicSubsLock.RLock()
 			defer s.topicSubsLock.RUnlock()

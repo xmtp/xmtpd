@@ -17,6 +17,10 @@ type NodeStore interface {
 	// NewTopic creates a TopicStore for the specified topic.
 	NewTopic(name string, node *Node) (TopicStore, error)
 
+	// Close is a node shutdown callback allowing the store
+	// to perform necessary shutdown actions.
+	Close() error
+
 	// Following methods are needed for bootstrapping topics
 	// from a pre-existing store.
 

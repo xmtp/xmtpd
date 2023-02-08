@@ -50,6 +50,8 @@ func (s *mapStore) Topics() (topics []string, err error) {
 	return topics, nil
 }
 
+func (s *mapStore) Close() error { return nil }
+
 // In-memory TopicStore
 type mapTopicStore struct {
 	sync.RWMutex

@@ -23,6 +23,8 @@ type networkConfig struct {
 	storeMaker
 	syncerMaker
 	broadcasterMaker
+
+	perMessageTimeout time.Duration
 }
 
 func defaultNetworkConfig() *networkConfig {
@@ -31,47 +33,55 @@ func defaultNetworkConfig() *networkConfig {
 		WithStore(NewMapStore),
 		WithSyncer(NewRandomSyncer),
 		WithBroadcaster(NewChanBroadcaster),
+		WithPerMessageTimeout(time.Millisecond),
 	)
 	return &cfg
 }
 
-func (cfg *networkConfig) modify(modifiers ...configModifier) {
+func (cfg *networkConfig) modify(modifiers ...ConfigModifier) {
 	for _, m := range modifiers {
 		m(cfg)
 	}
 }
 
-type configModifier func(*networkConfig)
+type ConfigModifier func(*networkConfig)
 
-func WithStore(m storeMaker) configModifier {
+func WithStore(m storeMaker) ConfigModifier {
 	return func(cfg *networkConfig) {
 		cfg.storeMaker = m
 	}
 }
 
-func WithBroadcaster(m broadcasterMaker) configModifier {
+func WithBroadcaster(m broadcasterMaker) ConfigModifier {
 	return func(cfg *networkConfig) {
 		cfg.broadcasterMaker = m
 	}
 }
 
-func WithSyncer(m syncerMaker) configModifier {
+func WithSyncer(m syncerMaker) ConfigModifier {
 	return func(cfg *networkConfig) {
 		cfg.syncerMaker = m
+	}
+}
+
+func WithPerMessageTimeout(t time.Duration) ConfigModifier {
+	return func(cfg *networkConfig) {
+		cfg.perMessageTimeout = t
 	}
 }
 
 // network is an in-memory simulation of a network of a given number of Nodes.
 // network also captures events that were published to it for final analysis of the test results.
 type network struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	log    *zap.Logger
-	bc     crdt.NodeBroadcaster
-	sync   crdt.NodeSyncer
-	count  int
-	nodes  map[int]*crdt.Node // all the nodes in the network
-	events []*crdt.Event      // captures events published to the network
+	ctx               context.Context
+	cancel            context.CancelFunc
+	log               *zap.Logger
+	bc                crdt.NodeBroadcaster
+	sync              crdt.NodeSyncer
+	count             int
+	perMessageTimeout time.Duration      // how long do we give each message replica to deliver and store
+	nodes             map[int]*crdt.Node // all the nodes in the network
+	events            []*crdt.Event      // captures events published to the network
 }
 
 const t0 = "t0" // first topic
@@ -80,18 +90,19 @@ const t0 = "t0" // first topic
 // ...
 
 // Creates a network with given number of nodes
-func NewNetwork(t *testing.T, nodes, topics int, modifiers ...configModifier) *network {
+func NewNetwork(t *testing.T, nodes, topics int, modifiers ...ConfigModifier) *network {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := test.NewLogger(t)
 	cfg := defaultNetworkConfig()
 	cfg.modify(modifiers...)
 	net := &network{
-		ctx:    ctx,
-		cancel: cancel,
-		log:    log,
-		bc:     cfg.broadcasterMaker(log),
-		sync:   cfg.syncerMaker(log),
-		nodes:  make(map[int]*crdt.Node),
+		ctx:               ctx,
+		cancel:            cancel,
+		log:               log,
+		bc:                cfg.broadcasterMaker(log),
+		sync:              cfg.syncerMaker(log),
+		perMessageTimeout: cfg.perMessageTimeout,
+		nodes:             make(map[int]*crdt.Node),
 	}
 	for i := 0; i < nodes; i++ {
 		net.AddNode(t, cfg.storeMaker(log))

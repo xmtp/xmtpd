@@ -2,6 +2,7 @@ package crdt
 
 import (
 	"context"
+	"sync"
 
 	mh "github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
@@ -24,7 +25,7 @@ type Topic struct {
 }
 
 // Creates a new topic replica
-func NewTopic(ctx context.Context, name string, log *zap.Logger, store TopicStore, syncer TopicSyncer, bc TopicBroadcaster) *Topic {
+func NewTopic(ctx context.Context, wg *sync.WaitGroup, name string, log *zap.Logger, store TopicStore, syncer TopicSyncer, bc TopicBroadcaster) *Topic {
 	t := &Topic{
 		name: name,
 		// TODO: tuning the channel sizes will likely be important
@@ -37,9 +38,10 @@ func NewTopic(ctx context.Context, name string, log *zap.Logger, store TopicStor
 		TopicSyncer:          syncer,
 		TopicBroadcaster:     bc,
 	}
-	go t.receiveEventLoop(ctx)
-	go t.syncEventLoop(ctx)
-	go t.syncLinkLoop(ctx)
+	wg.Add(3)
+	go t.receiveEventLoop(ctx, wg)
+	go t.syncEventLoop(ctx, wg)
+	go t.syncLinkLoop(ctx, wg)
 	return t
 }
 
@@ -59,7 +61,8 @@ func (t *Topic) ReceiveEvent(ev *Event) {
 
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
-func (t *Topic) receiveEventLoop(ctx context.Context) {
+func (t *Topic) receiveEventLoop(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 loop:
 	for {
 		select {
@@ -85,7 +88,8 @@ loop:
 
 // syncLoop fetches missing events from links.
 // It consumes pendingLinks and writes into pendingSyncEvents
-func (t *Topic) syncLinkLoop(ctx context.Context) {
+func (t *Topic) syncLinkLoop(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 loop:
 	for {
 		select {
@@ -132,7 +136,8 @@ loop:
 // It consumes pendingSyncEvents and writes into pendingLinks.
 // TODO: There is channel read/write cycle between the two sync loops,
 // i.e. they could potentially lock up if both channels fill up.
-func (t *Topic) syncEventLoop(ctx context.Context) {
+func (t *Topic) syncEventLoop(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 loop:
 	for {
 		select {

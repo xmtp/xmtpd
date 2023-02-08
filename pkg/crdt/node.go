@@ -20,6 +20,7 @@ var ErrUnknownTopic = errors.New("Unknown Topic")
 type Node struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 	log    *zap.Logger
 
 	topicsLock sync.RWMutex
@@ -73,8 +74,10 @@ func NewNode(ctx context.Context, log *zap.Logger, store NodeStore, syncer NodeS
 	return node, nil
 }
 
-func (n *Node) Close() {
+func (n *Node) Close() error {
 	n.cancel()
+	n.wg.Wait()
+	return n.NodeStore.Close()
 }
 
 func (n *Node) LogNamed(name string) *zap.Logger {
@@ -162,6 +165,7 @@ func (n *Node) newTopic(name string) (*Topic, error) {
 	}
 	t := NewTopic(
 		n.ctx,
+		&(n.wg),
 		name,
 		n.LogNamed(name),
 		store,

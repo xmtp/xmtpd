@@ -2,6 +2,8 @@ package crdt_test
 
 import (
 	"context"
+	"math/rand"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	chansyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/chan"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 func TestReplica_NewClose(t *testing.T) {
@@ -83,6 +86,66 @@ func TestReplica_BroadcastStore_TwoReplicas(t *testing.T) {
 	// replica2.requireEventuallyStoredEvents(t, events)
 }
 
+func TestReplica_BroadcastStore_ReplicaSet(t *testing.T) {
+	rs := newTestReplicaSet(t, 3)
+	events := rs.broadcastRandom(t, 5)
+	rs.requireEventuallyCapturedEvents(t, events)
+	rs.requireEventuallyStoredEvents(t, events)
+}
+
+type testReplicaSet struct {
+	replicas []*testReplica
+}
+
+func newTestReplicaSet(t *testing.T, count int) *testReplicaSet {
+	t.Helper()
+	replicas := make([]*testReplica, count)
+	for i := 0; i < count; i++ {
+		replicas[i] = newTestReplica(t)
+	}
+	for _, a := range replicas {
+		for _, b := range replicas {
+			if a == b {
+				continue
+			}
+			a.addPeer(t, b)
+			b.addPeer(t, a)
+		}
+	}
+	return &testReplicaSet{
+		replicas: replicas,
+	}
+}
+
+func (rs *testReplicaSet) broadcastRandom(t *testing.T, count int) []*types.Event {
+	t.Helper()
+	replica := rs.randomReplica(t, nil)
+	return replica.broadcastRandom(t, count)
+}
+
+func (rs *testReplicaSet) randomReplica(t *testing.T, exclude *testReplica) *testReplica {
+	t.Helper()
+	i := rand.Intn(len(rs.replicas))
+	for exclude != nil && rs.replicas[i] == exclude {
+		i = rand.Intn(len(rs.replicas))
+	}
+	return rs.replicas[i]
+}
+
+func (rs *testReplicaSet) requireEventuallyCapturedEvents(t *testing.T, expected []*types.Event) {
+	t.Helper()
+	for _, replica := range rs.replicas {
+		replica.requireEventuallyCapturedEvents(t, expected)
+	}
+}
+
+func (rs *testReplicaSet) requireEventuallyStoredEvents(t *testing.T, expected []*types.Event) {
+	t.Helper()
+	for _, replica := range rs.replicas {
+		replica.requireEventuallyStoredEvents(t, expected)
+	}
+}
+
 type testReplica struct {
 	*crdt.Replica
 
@@ -90,6 +153,7 @@ type testReplica struct {
 	bc     crdt.Broadcaster
 	syncer crdt.Syncer
 
+	capturedEventCids  map[string]struct{}
 	capturedEvents     []*types.Event
 	capturedEventsLock sync.RWMutex
 }
@@ -110,14 +174,20 @@ func newTestReplica(t *testing.T) *testReplica {
 	syncer := chansyncer.New(log)
 
 	tr := &testReplica{
-		store:  store,
-		bc:     bc,
-		syncer: syncer,
+		store:             store,
+		bc:                bc,
+		syncer:            syncer,
+		capturedEventCids: map[string]struct{}{},
 	}
 
 	replica, err := crdt.NewReplica(ctx, log, store, bc, syncer, func(ev *types.Event) {
 		tr.capturedEventsLock.Lock()
 		defer tr.capturedEventsLock.Unlock()
+		if _, ok := tr.capturedEventCids[ev.Cid.String()]; ok {
+			log.Debug("ignore duplicate event during capture", zap.Cid("event", ev.Cid))
+			return
+		}
+		tr.capturedEventCids[ev.Cid.String()] = struct{}{}
 		tr.capturedEvents = append(tr.capturedEvents, ev)
 	})
 	require.NoError(t, err)
@@ -184,6 +254,13 @@ func (r *testReplica) requireEventuallyStoredEvents(t *testing.T, expected []*ty
 		return len(events) == len(expected)
 	}, time.Second, 10*time.Millisecond)
 	events, err := r.store.Events()
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Cid.String() < events[j].Cid.String()
+	})
+	expected = expected[:]
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i].Cid.String() < expected[j].Cid.String()
+	})
 	require.NoError(t, err)
 	require.Equal(t, expected, events)
 }

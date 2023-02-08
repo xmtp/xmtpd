@@ -24,11 +24,11 @@ func TestCRDT_NewClose(t *testing.T) {
 	bc := chanbroadcaster.New(log)
 	syncer := chansyncer.New(log)
 
-	crdt, err := crdt.New(ctx, log, store, bc, syncer, nil)
+	replica, err := crdt.NewReplica(ctx, log, store, bc, syncer, nil)
 	require.NoError(t, err)
-	require.NotNil(t, crdt)
+	require.NotNil(t, replica)
 
-	err = crdt.Close()
+	err = replica.Close()
 	require.NoError(t, err)
 }
 
@@ -42,7 +42,7 @@ func TestCRDT_BroadcastStore(t *testing.T) {
 
 	var events []*types.Event
 	var eventsLock sync.RWMutex
-	crdt, err := crdt.New(ctx, log, store, bc, syncer, func(ev *types.Event) {
+	crdt, err := crdt.NewReplica(ctx, log, store, bc, syncer, func(ev *types.Event) {
 		eventsLock.Lock()
 		defer eventsLock.Unlock()
 		events = append(events, ev)

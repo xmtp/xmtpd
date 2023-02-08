@@ -37,7 +37,7 @@ type Service struct {
 	topicSubs     map[string]map[chan *crdttypes.Event]struct{}
 	topicSubsLock sync.RWMutex
 
-	topics     map[string]*crdt.CRDT
+	topics     map[string]*crdt.Replica
 	topicsLock sync.RWMutex
 }
 
@@ -48,7 +48,7 @@ func New(log *zap.Logger, store store.Store) (*Service, error) {
 		store: store,
 
 		topicSubs: map[string]map[chan *crdttypes.Event]struct{}{},
-		topics:    map[string]*crdt.CRDT{},
+		topics:    map[string]*crdt.Replica{},
 	}
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
 	return s, nil
@@ -128,7 +128,7 @@ func (s *Service) BatchQuery(ctx context.Context, req *messagev1.BatchQueryReque
 	return &messagev1.BatchQueryResponse{}, ErrTODO
 }
 
-func (s *Service) getOrCreateTopic(ctx context.Context, topicId string) (*crdt.CRDT, error) {
+func (s *Service) getOrCreateTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
 	topic, err := s.getTopic(ctx, topicId)
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (s *Service) getOrCreateTopic(ctx context.Context, topicId string) (*crdt.C
 	return topic, nil
 }
 
-func (s *Service) getTopic(ctx context.Context, topicId string) (*crdt.CRDT, error) {
+func (s *Service) getTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
 	s.topicsLock.RLock()
 	defer s.topicsLock.RUnlock()
 	topic, ok := s.topics[topicId]
@@ -152,13 +152,13 @@ func (s *Service) getTopic(ctx context.Context, topicId string) (*crdt.CRDT, err
 	return topic, nil
 }
 
-func (s *Service) createTopic(ctx context.Context, topicId string) (*crdt.CRDT, error) {
+func (s *Service) createTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
 	s.topicsLock.Lock()
 	defer s.topicsLock.Unlock()
 	if _, ok := s.topics[topicId]; ok {
 		return nil, ErrTopicAlreadyExists
 	}
-	return crdt.New(
+	return crdt.NewReplica(
 		ctx,
 		s.log,
 		// TODO: these factories/makers should be passed in as options/config

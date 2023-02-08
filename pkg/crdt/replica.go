@@ -10,8 +10,8 @@ import (
 
 type NewEventFunc func(ev *types.Event)
 
-// CRDT manages the DAG of a dataset replica.
-type CRDT struct {
+// Replica manages the DAG of a dataset replica.
+type Replica struct {
 	log        *zap.Logger
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
@@ -26,9 +26,9 @@ type CRDT struct {
 	pendingLinks         chan mh.Multihash // missing links that were discovered but not successfully fetched yet
 }
 
-func New(ctx context.Context, log *zap.Logger, store Store, bc Broadcaster, syncer Syncer, onNewEvent NewEventFunc) (*CRDT, error) {
+func NewReplica(ctx context.Context, log *zap.Logger, store Store, bc Broadcaster, syncer Syncer, onNewEvent NewEventFunc) (*Replica, error) {
 	ctx, ctxCancel := context.WithCancel(ctx)
-	c := &CRDT{
+	r := &Replica{
 		log:        log,
 		ctx:        ctx,
 		ctxCancel:  ctxCancel,
@@ -45,73 +45,73 @@ func New(ctx context.Context, log *zap.Logger, store Store, bc Broadcaster, sync
 		pendingLinks:         make(chan mh.Multihash, 20),
 	}
 
-	go c.receiveEventLoop(ctx)
-	go c.syncEventLoop(ctx)
-	go c.syncLinkLoop(ctx)
-	go c.nextBroadcastedEventLoop(ctx)
+	go r.receiveEventLoop(ctx)
+	go r.syncEventLoop(ctx)
+	go r.syncLinkLoop(ctx)
+	go r.nextBroadcastedEventLoop(ctx)
 
-	err := c.bootstrap(ctx)
+	err := r.bootstrap(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return c, nil
+	return r, nil
 }
 
-func (c *CRDT) Close() error {
-	if c.ctxCancel != nil {
-		c.ctxCancel()
+func (r *Replica) Close() error {
+	if r.ctxCancel != nil {
+		r.ctxCancel()
 	}
 	return nil
 }
 
-func (c *CRDT) Broadcast(ctx context.Context, payload []byte) error {
+func (r *Replica) Broadcast(ctx context.Context, payload []byte) error {
 	ev, err := types.NewEvent(payload, nil)
 	if err != nil {
 		return err
 	}
-	return c.broadcaster.Broadcast(ev)
+	return r.broadcaster.Broadcast(ev)
 }
 
-func (c *CRDT) nextBroadcastedEventLoop(ctx context.Context) {
+func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 	for {
-		ev, err := c.broadcaster.Next(ctx)
+		ev, err := r.broadcaster.Next(ctx)
 		if err != nil {
 			if err == context.Canceled {
 				return
 			}
-			c.log.Error("error getting next broadcasted event", zap.Error(err))
+			r.log.Error("error getting next broadcasted event", zap.Error(err))
 			return
 		}
-		c.log.Debug("received broadcasted event", zap.Cid("event_cid", ev.Cid))
-		c.pendingReceiveEvents <- ev
+		r.log.Debug("received broadcasted event", zap.Cid("event_cid", ev.Cid))
+		r.pendingReceiveEvents <- ev
 
-		if c.onNewEvent != nil {
-			c.onNewEvent(ev)
+		if r.onNewEvent != nil {
+			r.onNewEvent(ev)
 		}
 	}
 }
 
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
-func (c *CRDT) receiveEventLoop(ctx context.Context) {
+func (r *Replica) receiveEventLoop(ctx context.Context) {
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
-		case ev := <-c.pendingReceiveEvents:
-			// c.log.Debug("adding event", zap.Cid("event", ev.cid))
-			added, err := c.store.AddHead(ev)
+		case ev := <-r.pendingReceiveEvents:
+			// r.log.Debug("adding event", zap.Cid("event", ev.cid))
+			added, err := r.store.AddHead(ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				c.pendingReceiveEvents <- ev
+				r.pendingReceiveEvents <- ev
 			}
 			if added {
 				for _, link := range ev.Links {
-					c.pendingLinks <- link
+					r.pendingLinks <- link
 				}
 			}
 		}
@@ -120,44 +120,44 @@ loop:
 
 // syncLoop fetches missing events from links.
 // It consumes pendingLinks and writes into pendingSyncEvents
-func (c *CRDT) syncLinkLoop(ctx context.Context) {
+func (r *Replica) syncLinkLoop(ctx context.Context) {
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
-		case cid := <-c.pendingLinks:
-			// c.log.Debug("checking link", zap.Cid("link", cid))
+		case cid := <-r.pendingLinks:
+			// r.log.Debug("checking link", zap.Cid("link", cid))
 			// If the CID is in heads, it should be removed because
 			// we have an event that points to it.
 			// We also don't need to fetch it since we already have it.
-			haveAlready, err := c.store.RemoveHead(cid)
+			haveAlready, err := r.store.RemoveHead(cid)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				c.pendingLinks <- cid
+				r.pendingLinks <- cid
 				continue
 			}
 			if haveAlready {
 				continue
 			}
-			c.log.Debug("fetching link", zap.Cid("link", cid))
+			r.log.Debug("fetching link", zap.Cid("link", cid))
 			cids := []mh.Multihash{cid}
-			evs, err := c.syncer.Fetch(cids)
+			evs, err := r.syncer.Fetch(cids)
 			if err != nil {
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.
 				// TODO: if the channel is full, this will lock up the loop
-				c.pendingLinks <- cid
+				r.pendingLinks <- cid
 			}
 			for i, ev := range evs {
 				if ev == nil {
 					// requeue missing links
-					c.pendingLinks <- cids[i]
+					r.pendingLinks <- cids[i]
 					continue
 				}
-				c.pendingSyncEvents <- ev
+				r.pendingSyncEvents <- ev
 			}
 		}
 	}
@@ -167,25 +167,25 @@ loop:
 // It consumes pendingSyncEvents and writes into pendingLinks.
 // TODO: There is channel read/write cycle between the two sync loops,
 // i.e. they could potentially lock up if both channels fill up.
-func (c *CRDT) syncEventLoop(ctx context.Context) {
+func (r *Replica) syncEventLoop(ctx context.Context) {
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
-		case ev := <-c.pendingSyncEvents:
-			// c.log.Debug("adding link event", zap.Cid("event", ev.cid))
-			added, err := c.store.AddEvent(ev)
+		case ev := <-r.pendingSyncEvents:
+			// r.log.Debug("adding link event", zap.Cid("event", ev.cid))
+			added, err := r.store.AddEvent(ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				c.pendingSyncEvents <- ev
+				r.pendingSyncEvents <- ev
 			}
 			if added {
 				for _, link := range ev.Links {
 					// TODO: if the channel is full, this will lock up the loop
-					c.pendingLinks <- link
+					r.pendingLinks <- link
 				}
 			}
 		}
@@ -193,8 +193,8 @@ loop:
 }
 
 // Bootstrap from the contents of the store.
-func (c *CRDT) bootstrap(ctx context.Context) error {
-	links, err := c.store.FindMissingLinks()
+func (r *Replica) bootstrap(ctx context.Context) error {
+	links, err := r.store.FindMissingLinks()
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (c *CRDT) bootstrap(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case c.pendingLinks <- link:
+		case r.pendingLinks <- link:
 		}
 	}
 	return nil

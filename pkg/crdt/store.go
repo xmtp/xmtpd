@@ -37,4 +37,7 @@ type Store interface {
 	// are not present in the topic.
 	// Returns the list of all missing links.
 	FindMissingLinks() (links []mh.Multihash, err error)
+
+	// Events returns all stored events.
+	Events() ([]*types.Event, error)
 }

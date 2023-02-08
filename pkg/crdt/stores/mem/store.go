@@ -92,10 +92,16 @@ func (s *MemoryStore) FindMissingLinks() (links []multihash.Multihash, err error
 	return links, nil
 }
 
-func (s *MemoryStore) Events() map[string]*types.Event {
+func (s *MemoryStore) Events() ([]*types.Event, error) {
 	s.RLock()
 	defer s.RUnlock()
-	return s.events
+	events := make([]*types.Event, len(s.events))
+	i := 0
+	for _, ev := range s.events {
+		events[i] = ev
+		i++
+	}
+	return events, nil
 }
 
 // private functions

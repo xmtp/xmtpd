@@ -2,7 +2,11 @@ package crdt_test
 
 import (
 	"context"
+	"flag"
+	"fmt"
+	"io"
 	"math/rand"
+	"os"
 	"sort"
 	"sync"
 	"testing"
@@ -18,6 +22,14 @@ import (
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
+
+var (
+	visualize bool
+)
+
+func init() {
+	flag.BoolVar(&visualize, "visualize", false, "output graphviz depiction of replicas")
+}
 
 func TestReplica_NewClose(t *testing.T) {
 	log := test.NewLogger(t)
@@ -91,6 +103,12 @@ func TestReplica_BroadcastStore_ReplicaSet(t *testing.T) {
 	events := rs.broadcastRandom(t, 5)
 	rs.requireEventuallyCapturedEvents(t, events)
 	rs.requireEventuallyStoredEvents(t, events)
+
+	if visualize {
+		for i, replica := range rs.replicas {
+			replica.visualize(os.Stdout, fmt.Sprintf("replica%d", i+1))
+		}
+	}
 }
 
 type testReplicaSet struct {
@@ -263,4 +281,20 @@ func (r *testReplica) requireEventuallyStoredEvents(t *testing.T, expected []*ty
 	})
 	require.NoError(t, err)
 	require.Equal(t, expected, events)
+}
+
+// visualize emits a graphviz depiction of the topic contents showing the
+// graph of individual events and their links.
+func (r *testReplica) visualize(w io.Writer, name string) {
+	fmt.Fprintf(w, "strict digraph %s {\n", name)
+	for i := len(r.capturedEvents) - 1; i >= 0; i-- {
+		ev := r.capturedEvents[i]
+		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", zap.ShortCid(ev.Cid), i)
+		fmt.Fprintf(w, "\t\"%s\" -> { ", zap.ShortCid(ev.Cid))
+		for _, l := range ev.Links {
+			fmt.Fprintf(w, "\"%s\" ", zap.ShortCid(l))
+		}
+		fmt.Fprintf(w, "}\n")
+	}
+	fmt.Fprintf(w, "}\n")
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
-	"github.com/xmtp/xmtpd/pkg/store/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -458,7 +457,7 @@ func TestStore_QueryEnvelopes(t *testing.T, storeMaker TestStoreMaker) {
 }
 
 func envCid(t *testing.T, env *messagev1.Envelope) multihash.Multihash {
-	wrappedEnv, err := types.WrapEnvelope(env)
+	cid, err := utils.BuildEnvelopeCid(env)
 	require.NoError(t, err)
-	return wrappedEnv.Cid
+	return cid
 }

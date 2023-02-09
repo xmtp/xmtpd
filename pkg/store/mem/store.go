@@ -1,13 +1,13 @@
 package memstore
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sort"
 
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	crdtmemstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
-	"github.com/xmtp/xmtpd/pkg/store/types"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -21,7 +21,7 @@ type MemoryStore struct {
 
 	log *zap.Logger
 
-	envsByTime []*types.Envelope
+	envsByTime []*messagev1.Envelope
 }
 
 func New(log *zap.Logger) *MemoryStore {
@@ -35,19 +35,21 @@ func (s *MemoryStore) Close() error {
 }
 
 func (s *MemoryStore) InsertEnvelope(ctx context.Context, env *messagev1.Envelope) error {
-	wrappedEnv, err := types.WrapEnvelope(env)
-	if err != nil {
-		return err
-	}
 	i, _ := sort.Find(len(s.envsByTime), func(i int) int {
-		return wrappedEnv.Compare(s.envsByTime[i])
+		res := env.TimestampNs - s.envsByTime[i].TimestampNs
+		if res != 0 {
+			return int(res)
+		}
+		envCid, _ := utils.BuildEnvelopeCid(env)
+		otherEnvCid, _ := utils.BuildEnvelopeCid(s.envsByTime[i])
+		return bytes.Compare(envCid, otherEnvCid)
 	})
 	if i == len(s.envsByTime) {
-		s.envsByTime = append(s.envsByTime, wrappedEnv)
+		s.envsByTime = append(s.envsByTime, env)
 	} else {
 		s.envsByTime = makeRoomAt(s.envsByTime, i)
 	}
-	s.envsByTime[i] = wrappedEnv
+	s.envsByTime[i] = env
 	return nil
 }
 
@@ -78,7 +80,7 @@ func (s *MemoryStore) QueryEnvelopes(ctx context.Context, req *messagev1.QueryRe
 	result := s.envsByTime[start:end]
 	if req.PagingInfo == nil {
 		return &messagev1.QueryResponse{
-			Envelopes: unwrapEnvelopes(result),
+			Envelopes: result,
 		}, nil
 	}
 
@@ -86,14 +88,13 @@ func (s *MemoryStore) QueryEnvelopes(ctx context.Context, req *messagev1.QueryRe
 	cursor := req.PagingInfo.Cursor.GetIndex()
 	if cursor != nil {
 		// find the cursor event in the result
-		compEnv := types.Envelope{
-			Envelope: &messagev1.Envelope{
-				TimestampNs: cursor.SenderTimeNs,
-			},
-			Cid: cursor.Digest,
-		}
 		cIdx, found := sort.Find(len(result), func(i int) int {
-			return compEnv.Compare(result[i])
+			res := cursor.SenderTimeNs - result[i].TimestampNs
+			if res != 0 {
+				return int(res)
+			}
+			cid, _ := utils.BuildEnvelopeCid(result[i])
+			return bytes.Compare(cursor.Digest, cid)
 		})
 		if !found {
 			return nil, ErrCursorNotFound
@@ -110,14 +111,18 @@ func (s *MemoryStore) QueryEnvelopes(ctx context.Context, req *messagev1.QueryRe
 		if limit := req.PagingInfo.Limit; limit != 0 && int(limit) < len(result) {
 			result = result[len(result)-int(limit):]
 		}
-		var newCursorEnv *types.Envelope
+		var newCursorEnv *messagev1.Envelope
 		if len(result) > 0 {
 			newCursorEnv = result[0]
 		}
 		utils.Reverse(result)
+		pi, err := updatedPagingInfo(req.PagingInfo, newCursorEnv)
+		if err != nil {
+			return nil, err
+		}
 		return &messagev1.QueryResponse{
-			Envelopes:  unwrapEnvelopes(result),
-			PagingInfo: updatedPagingInfo(req.PagingInfo, newCursorEnv),
+			Envelopes:  result,
+			PagingInfo: pi,
 		}, nil
 	}
 
@@ -125,20 +130,25 @@ func (s *MemoryStore) QueryEnvelopes(ctx context.Context, req *messagev1.QueryRe
 		result = result[:limit]
 	}
 
-	var newCursorEnv *types.Envelope
+	var newCursorEnv *messagev1.Envelope
 	if len(result) > 0 {
 		newCursorEnv = result[len(result)-1]
 	}
 
+	pi, err := updatedPagingInfo(req.PagingInfo, newCursorEnv)
+	if err != nil {
+		return nil, err
+	}
+
 	return &messagev1.QueryResponse{
-		Envelopes:  unwrapEnvelopes(result),
-		PagingInfo: updatedPagingInfo(req.PagingInfo, newCursorEnv),
+		Envelopes:  result,
+		PagingInfo: pi,
 	}, nil
 }
 
 // shift events from index i to the right
 // to create room at the index.
-func makeRoomAt(envs []*types.Envelope, i int) []*types.Envelope {
+func makeRoomAt(envs []*messagev1.Envelope, i int) []*messagev1.Envelope {
 	// if there's enough capacity in the slice, just shift the tail
 	if len(envs) < cap(envs) {
 		envs = envs[:len(envs)+1]
@@ -155,34 +165,30 @@ func makeRoomAt(envs []*types.Envelope, i int) []*types.Envelope {
 		newCap = len(envs) + 1024
 	}
 	// copy events into a new slice, leaving a gap at index i
-	newEnvs := make([]*types.Envelope, len(envs)+1, newCap)
+	newEnvs := make([]*messagev1.Envelope, len(envs)+1, newCap)
 	copy(newEnvs, envs[:i])
 	copy(newEnvs[i+1:], envs[i:])
 	return newEnvs
 }
 
 // updates paging info with a cursor for given event (or nil)
-func updatedPagingInfo(pi *messagev1.PagingInfo, cursorEnv *types.Envelope) *messagev1.PagingInfo {
+func updatedPagingInfo(pi *messagev1.PagingInfo, cursorEnv *messagev1.Envelope) (*messagev1.PagingInfo, error) {
 	var cursor *messagev1.Cursor
 	if cursorEnv != nil {
+		cid, err := utils.BuildEnvelopeCid(cursorEnv)
+		if err != nil {
+			return nil, err
+		}
 		cursor = &messagev1.Cursor{
 			Cursor: &messagev1.Cursor_Index{
 				Index: &messagev1.IndexCursor{
 					SenderTimeNs: cursorEnv.TimestampNs,
-					Digest:       cursorEnv.Cid,
+					Digest:       cid,
 				},
 			},
 		}
 	}
 	// Note that we're modifying the original query's paging info here.
 	pi.Cursor = cursor
-	return pi
-}
-
-func unwrapEnvelopes(wrappedEnvs []*types.Envelope) []*messagev1.Envelope {
-	envs := make([]*messagev1.Envelope, len(wrappedEnvs))
-	for i, env := range wrappedEnvs {
-		envs[i] = env.Envelope
-	}
-	return envs
+	return pi, nil
 }

@@ -9,12 +9,8 @@ import (
 
 type Store interface {
 	crdt.Store
-	queryStore
 
-	Close() error
-}
-
-type queryStore interface {
 	InsertEnvelope(ctx context.Context, env *messagev1.Envelope) error
 	QueryEnvelopes(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error)
+	Close() error
 }

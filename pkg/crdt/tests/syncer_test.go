@@ -9,7 +9,7 @@ import (
 
 func Test_BasicSyncing(t *testing.T) {
 	// 3 nodes, one topic "t0"
-	net := NewNetwork(t, 3, 1)
+	net := NewNetwork(t, 3)
 	defer net.Close()
 	net.Publish(t, 0, t0, "hi")
 	net.Publish(t, 1, t0, "hi back")

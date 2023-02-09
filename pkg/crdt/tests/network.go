@@ -90,7 +90,7 @@ const t0 = "t0" // first topic
 // ...
 
 // Creates a network with given number of nodes
-func NewNetwork(t *testing.T, nodes, topics int, modifiers ...ConfigModifier) *network {
+func NewNetwork(t *testing.T, nodes int, modifiers ...ConfigModifier) *network {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := test.NewLogger(t)
 	cfg := defaultNetworkConfig()

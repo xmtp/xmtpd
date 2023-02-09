@@ -41,6 +41,9 @@ func (b *MemoryBroadcaster) Next(ctx context.Context) (*types.Event, error) {
 // AddPeer adds a memory broadcaster peer that new events will be shared with.
 // This method is specific to the memory broadcaster, and not part of the
 // Broadcaster interface.
-func (b *MemoryBroadcaster) AddPeer(peer *MemoryBroadcaster) {
-	b.peers = append(b.peers, peer)
+func (b *MemoryBroadcaster) AddPeer(peer interface{}) {
+	switch peer := peer.(type) {
+	case *MemoryBroadcaster:
+		b.peers = append(b.peers, peer)
+	}
 }

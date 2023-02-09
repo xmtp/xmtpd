@@ -68,7 +68,7 @@ func (s *MemoryStore) RemoveHead(cid multihash.Multihash) (have bool, err error)
 func (s *MemoryStore) AppendEvent(payload []byte) (*types.Event, error) {
 	s.Lock()
 	defer s.Unlock()
-	ev, err := types.NewEvent(payload, s.allHeads())
+	ev, err := types.NewEvent(payload, s.Heads())
 	if err != nil {
 		return nil, err
 	}
@@ -104,14 +104,14 @@ func (s *MemoryStore) Events() ([]*types.Event, error) {
 	return events, nil
 }
 
-// private functions
-
-func (s *MemoryStore) allHeads() (cids []multihash.Multihash) {
+func (s *MemoryStore) Heads() (cids []multihash.Multihash) {
 	for key := range s.heads {
 		cids = append(cids, s.events[key].Cid)
 	}
 	return cids
 }
+
+// private functions
 
 // key MUST be equal to ev.Cid.String()
 func (s *MemoryStore) addEvent(key string, ev *types.Event) {

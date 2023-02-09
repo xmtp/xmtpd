@@ -9,9 +9,8 @@ import (
 )
 
 func TestMemoryBroadcaster(t *testing.T) {
-	crdttest.TestBroadcaster_BroadcastNext(t, func(t *testing.T) *crdttest.TestBroadcaster {
+	crdttest.RunBroadcasterTests(t, func(t *testing.T) crdttest.TestBroadcaster {
 		log := test.NewLogger(t)
-		bc := membroadcaster.New(log)
-		return crdttest.NewTestBroadcaster(bc)
+		return membroadcaster.New(log)
 	})
 }

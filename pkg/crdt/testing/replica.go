@@ -23,19 +23,13 @@ import (
 type testReplica struct {
 	*crdt.Replica
 
-	store  testStore
-	bc     crdt.Broadcaster
+	store  *TestStore
+	bc     TestBroadcaster
 	syncer crdt.Syncer
 
 	capturedEventCids  map[string]struct{}
 	capturedEvents     []*types.Event
 	capturedEventsLock sync.RWMutex
-}
-
-type testStore interface {
-	crdt.Store
-
-	Events() ([]*types.Event, error)
 }
 
 func NewTestReplica(t *testing.T) *testReplica {
@@ -48,7 +42,7 @@ func NewTestReplica(t *testing.T) *testReplica {
 	syncer := memsyncer.New(log)
 
 	tr := &testReplica{
-		store:             store,
+		store:             NewTestStore(store),
 		bc:                bc,
 		syncer:            syncer,
 		capturedEventCids: map[string]struct{}{},
@@ -79,17 +73,7 @@ func (r *testReplica) CapturedEvents(t *testing.T) []*types.Event {
 
 func (r *testReplica) AddPeer(t *testing.T, peer *testReplica) {
 	t.Helper()
-	switch bc := r.bc.(type) {
-	case *membroadcaster.MemoryBroadcaster:
-		switch peerBC := peer.bc.(type) {
-		case *membroadcaster.MemoryBroadcaster:
-			bc.AddPeer(peerBC)
-		default:
-			require.Fail(t, "peer broadcaster unknown")
-		}
-	default:
-		require.Fail(t, "replica broadcaster unknown")
-	}
+	r.bc.AddPeer(peer.bc)
 }
 
 func (r *testReplica) Broadcast(t *testing.T, payloads [][]byte) []*types.Event {

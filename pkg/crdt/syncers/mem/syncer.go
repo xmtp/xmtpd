@@ -29,36 +29,14 @@ func (s *MemorySyncer) Close() error {
 }
 
 func (s *MemorySyncer) Fetch(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error) {
-	localEvents, err := s.store.GetEvents(ctx, cids)
-	if err != nil {
-		return nil, err
-	}
-	localCids := map[string]struct{}{}
-	for _, ev := range localEvents {
-		localCids[ev.Cid.String()] = struct{}{}
-	}
-
-	missingCids := make([]multihash.Multihash, 0, len(cids))
-	for _, cid := range cids {
-		if _, ok := localCids[cid.String()]; ok {
-			continue
-		}
-		missingCids = append(missingCids, cid)
-	}
-	if len(missingCids) == 0 {
-		return localEvents, nil
-	}
-
 	peer := s.randomPeer()
 	if peer == nil {
-		return localEvents, nil
+		return []*types.Event{}, nil
 	}
-	peerEvents, err := peer.Fetch(ctx, missingCids)
+	events, err := peer.GetStoreEvents(ctx, cids)
 	if err != nil {
 		return nil, err
 	}
-	events := append(localEvents, peerEvents...)
-
 	return events, nil
 }
 
@@ -79,6 +57,10 @@ func (s *MemorySyncer) AddPeer(peer interface{}) {
 	default:
 		s.log.Warn("unknown syncer peer type", zap.String("type", reflect.TypeOf(peer).String()))
 	}
+}
+
+func (s *MemorySyncer) GetStoreEvents(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error) {
+	return s.store.GetEvents(ctx, cids)
 }
 
 func (s *MemorySyncer) randomPeer() *MemorySyncer {

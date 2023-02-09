@@ -36,7 +36,7 @@ type Store interface {
 	RemoveHead(ctx context.Context, cid multihash.Multihash) (bool, error)
 
 	// GetEvents returns the set of events matching the given set of CIDs.
-	GetEvents(ctx context.Context, links []multihash.Multihash) ([]*types.Event, error)
+	GetEvents(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error)
 
 	// Following methods are needed for bootstrapping a topic
 	// from a pre-existing store.

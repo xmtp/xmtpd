@@ -2,7 +2,6 @@ package crdttest
 
 import (
 	"context"
-	"sort"
 	"testing"
 
 	"github.com/multiformats/go-multihash"
@@ -100,15 +99,5 @@ func (s *TestSyncer) addManyRandom(t *testing.T, count int) ([]*types.Event, []m
 func (s *TestSyncer) requireFetchEqual(t *testing.T, cids []multihash.Multihash, expected []*types.Event) {
 	events, err := s.Fetch(s.ctx, cids)
 	require.NoError(t, err)
-
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Cid.String() < events[j].Cid.String()
-	})
-
-	expected = expected[:]
-	sort.Slice(expected, func(i, j int) bool {
-		return expected[i].Cid.String() < expected[j].Cid.String()
-	})
-
-	require.Equal(t, expected, events)
+	require.ElementsMatch(t, expected, events)
 }

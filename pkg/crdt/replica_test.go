@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -195,15 +194,8 @@ func (r *testReplica) requireEventuallyStoredEvents(t *testing.T, expected []*ty
 		return len(events) == len(expected)
 	}, time.Second, 10*time.Millisecond)
 	events, err := r.store.Events()
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Cid.String() < events[j].Cid.String()
-	})
-	expected = expected[:]
-	sort.Slice(expected, func(i, j int) bool {
-		return expected[i].Cid.String() < expected[j].Cid.String()
-	})
 	require.NoError(t, err)
-	require.Equal(t, expected, events)
+	require.ElementsMatch(t, expected, events)
 }
 
 // visualize emits a graphviz depiction of the topic contents showing the

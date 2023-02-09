@@ -7,9 +7,6 @@ import (
 
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/crdt"
-	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
-	crdtmemstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
-	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	crdttypes "github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -25,8 +22,10 @@ type Service struct {
 	messagev1.UnimplementedMessageApiServer
 
 	// Configured as constructor options.
-	log   *zap.Logger
-	store crdt.Store
+	log         *zap.Logger
+	store       crdt.Store
+	broadcaster crdt.Broadcaster
+	syncer      crdt.Syncer
 
 	// Configured internally.
 	ctx       context.Context
@@ -39,11 +38,13 @@ type Service struct {
 	topicsLock sync.RWMutex
 }
 
-func New(log *zap.Logger, store crdt.Store) (*Service, error) {
+func New(log *zap.Logger, store crdt.Store, bc crdt.Broadcaster, syncer crdt.Syncer) (*Service, error) {
 	log = log.Named("message/v1")
 	s := &Service{
-		log:   log,
-		store: store,
+		log:         log,
+		store:       store,
+		broadcaster: bc,
+		syncer:      syncer,
 
 		topicSubs: map[string]map[chan *crdttypes.Event]struct{}{},
 		topics:    map[string]*crdt.Replica{},
@@ -148,14 +149,12 @@ func (s *Service) createTopic(ctx context.Context, topicId string) (*crdt.Replic
 	if _, ok := s.topics[topicId]; ok {
 		return nil, ErrTopicAlreadyExists
 	}
-	store := crdtmemstore.New(s.log)
 	return crdt.NewReplica(
 		ctx,
 		s.log,
-		// TODO: these factories/makers should be passed in as options/config
-		store,
-		membroadcaster.New(s.log),
-		memsyncer.New(s.log, store),
+		s.store,
+		s.broadcaster,
+		s.syncer,
 		func(ev *crdttypes.Event) {
 			s.topicSubsLock.RLock()
 			defer s.topicSubsLock.RUnlock()

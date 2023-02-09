@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
+	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -57,7 +59,9 @@ func newTestServer(t *testing.T) (*Server, func()) {
 	ctx := context.Background()
 	log := test.NewLogger(t)
 	store := memstore.New(log)
-	messagev1, err := messagev1.New(log, store)
+	bc := membroadcaster.New(log)
+	syncer := memsyncer.New(log, store)
+	messagev1, err := messagev1.New(log, store, bc, syncer)
 	require.NoError(t, err)
 	s, err := New(ctx, log, messagev1, &Options{
 		GRPCAddress: "localhost",

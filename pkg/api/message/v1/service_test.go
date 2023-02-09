@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 	proto "github.com/xmtp/proto/v3/go/message_api/v1"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
+	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
@@ -47,7 +49,9 @@ func Test_SubscribeAll(t *testing.T) {
 func newTestService(t *testing.T) *messagev1.Service {
 	log := test.NewLogger(t)
 	store := memstore.New(log)
-	s, err := messagev1.New(log, store)
+	bc := membroadcaster.New(log)
+	syncer := memsyncer.New(log, store)
+	s, err := messagev1.New(log, store, bc, syncer)
 	require.NoError(t, err)
 	return s
 }

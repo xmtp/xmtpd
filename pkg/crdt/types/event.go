@@ -1,27 +1,29 @@
 package types
 
 import (
+	"encoding/binary"
 	"io"
 
-	mh "github.com/multiformats/go-multihash"
+	"github.com/multiformats/go-multihash"
+	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 )
 
 // Event represents a node in the Merkle-Clock
 // It captures a message and links to its preceding Events
 type Event struct {
-	Links   []mh.Multihash // cid's of direct ancestors
-	Cid     mh.Multihash   // cid is computed by hashing the links and message together
-	Payload []byte
+	*messagev1.Envelope
+	Links []multihash.Multihash // cid's of direct ancestors
+	Cid   multihash.Multihash   // cid is computed by hashing the links and message together
 }
 
 // NewEvent creates an event from a message and a set of links to preceding events (heads)
-func NewEvent(payload []byte, heads []mh.Multihash) (*Event, error) {
+func NewEvent(env *messagev1.Envelope, heads []multihash.Multihash) (*Event, error) {
 	ev := &Event{
-		Links:   heads,
-		Payload: payload,
+		Envelope: env,
+		Links:    heads,
 	}
 	var err error
-	ev.Cid, err = mh.SumStream(ev.Reader(), mh.SHA2_256, -1)
+	ev.Cid, err = multihash.SumStream(ev.Reader(), multihash.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +33,12 @@ func NewEvent(payload []byte, heads []mh.Multihash) (*Event, error) {
 // Reader creates a chunk reader for given Event.
 func (ev *Event) Reader() *chunkReader {
 	chunks := make([][]byte, 0, len(ev.Links)+1)
-	chunks = append(chunks, ev.Payload)
+	if ev.Envelope != nil {
+		head := make([]byte, 8+len(ev.ContentTopic))
+		binary.BigEndian.PutUint64(head, ev.TimestampNs) // timestamp
+		copy(head[8:], ev.ContentTopic)                  // topic
+		chunks = append(chunks, head, ev.Message)        // message payload
+	}
 	for _, link := range ev.Links {
 		chunks = append(chunks, link)
 	}

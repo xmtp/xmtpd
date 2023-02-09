@@ -1,6 +1,7 @@
 package memstore_test
 
 import (
+	"context"
 	"testing"
 
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
@@ -9,9 +10,16 @@ import (
 )
 
 func TestMemoryStore(t *testing.T) {
-	crdttest.RunStoreTests(t, func(t *testing.T) *crdttest.TestStore {
-		log := test.NewLogger(t)
+	ctx := context.Background()
+	log := test.NewLogger(t)
+
+	crdttest.RunStoreEventTests(t, func(t *testing.T) *crdttest.TestStore {
 		store := memstore.New(log)
-		return crdttest.NewTestStore(store)
+		return crdttest.NewTestStore(ctx, log, store)
+	})
+
+	crdttest.RunStoreQueryTests(t, func(t *testing.T) *crdttest.TestStore {
+		s := memstore.New(test.NewLogger(t))
+		return crdttest.NewTestStore(ctx, log, s)
 	})
 }

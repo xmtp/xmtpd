@@ -1,10 +1,13 @@
 package memstore
 
 import (
+	"bytes"
 	"context"
+	"sort"
 	"sync"
 
 	"github.com/multiformats/go-multihash"
+	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -15,8 +18,9 @@ type MemoryStore struct {
 
 	log *zap.Logger
 
-	heads  map[string]bool         // CIDs of current head events
-	events map[string]*types.Event // maps CIDs to all known Events
+	heads        map[string]bool         // CIDs of current head events
+	events       map[string]*types.Event // maps CIDs to all known Events
+	eventsByTime []*types.Event
 }
 
 func New(log *zap.Logger) *MemoryStore {
@@ -27,7 +31,11 @@ func New(log *zap.Logger) *MemoryStore {
 	}
 }
 
-func (s *MemoryStore) InsertEvent(ev *types.Event) (added bool, err error) {
+func (s *MemoryStore) Close() error {
+	return nil
+}
+
+func (s *MemoryStore) InsertEvent(ctx context.Context, ev *types.Event) (added bool, err error) {
 	s.Lock()
 	defer s.Unlock()
 	key := ev.Cid.String()
@@ -39,7 +47,21 @@ func (s *MemoryStore) InsertEvent(ev *types.Event) (added bool, err error) {
 	return true, nil
 }
 
-func (s *MemoryStore) InsertHead(ev *types.Event) (added bool, err error) {
+func (s *MemoryStore) AppendEvent(ctx context.Context, env *messagev1.Envelope) (*types.Event, error) {
+	s.Lock()
+	defer s.Unlock()
+	ev, err := types.NewEvent(env, s.Heads())
+	if err != nil {
+		return nil, err
+	}
+	key := ev.Cid.String()
+	s.log.Debug("appending event", zap.Cid("event", ev.Cid), zap.Int("links", len(ev.Links)))
+	s.addEvent(key, ev)
+	s.heads = map[string]bool{key: true}
+	return ev, err
+}
+
+func (s *MemoryStore) InsertHead(ctx context.Context, ev *types.Event) (added bool, err error) {
 	s.Lock()
 	defer s.Unlock()
 	key := ev.Cid.String()
@@ -52,7 +74,7 @@ func (s *MemoryStore) InsertHead(ev *types.Event) (added bool, err error) {
 	return true, nil
 }
 
-func (s *MemoryStore) RemoveHead(cid multihash.Multihash) (have bool, err error) {
+func (s *MemoryStore) RemoveHead(ctx context.Context, cid multihash.Multihash) (have bool, err error) {
 	s.Lock()
 	defer s.Unlock()
 	key := cid.String()
@@ -66,21 +88,7 @@ func (s *MemoryStore) RemoveHead(cid multihash.Multihash) (have bool, err error)
 	return true, nil
 }
 
-func (s *MemoryStore) AppendEvent(payload []byte) (*types.Event, error) {
-	s.Lock()
-	defer s.Unlock()
-	ev, err := types.NewEvent(payload, s.Heads())
-	if err != nil {
-		return nil, err
-	}
-	key := ev.Cid.String()
-	s.log.Debug("creating event", zap.Cid("event", ev.Cid), zap.Int("links", len(ev.Links)))
-	s.addEvent(key, ev)
-	s.heads = map[string]bool{key: true}
-	return ev, err
-}
-
-func (s *MemoryStore) FindMissingLinks() (links []multihash.Multihash, err error) {
+func (s *MemoryStore) FindMissingLinks(ctx context.Context) (links []multihash.Multihash, err error) {
 	s.RLock()
 	defer s.RUnlock()
 	for _, ev := range s.events {
@@ -131,4 +139,19 @@ func (s *MemoryStore) Heads() (cids []multihash.Multihash) {
 // key MUST be equal to ev.Cid.String()
 func (s *MemoryStore) addEvent(key string, ev *types.Event) {
 	s.events[key] = ev
+
+	// Add to index sorted by timestamp.
+	i, _ := sort.Find(len(s.eventsByTime), func(i int) int {
+		res := ev.TimestampNs - s.eventsByTime[i].TimestampNs
+		if res != 0 {
+			return int(res)
+		}
+		return bytes.Compare(ev.Cid, s.eventsByTime[i].Cid)
+	})
+	if i == len(s.eventsByTime) {
+		s.eventsByTime = append(s.eventsByTime, ev)
+	} else {
+		s.eventsByTime = makeRoomAt(s.eventsByTime, i)
+	}
+	s.eventsByTime[i] = ev
 }

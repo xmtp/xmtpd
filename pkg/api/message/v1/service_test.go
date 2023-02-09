@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	proto "github.com/xmtp/proto/v3/go/message_api/v1"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
-	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
+	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 

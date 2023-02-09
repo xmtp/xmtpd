@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	crdt "github.com/xmtp/xmtpd/pkg/crdt"
 	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
@@ -123,7 +125,7 @@ func newTestReplica(t *testing.T) *testReplica {
 	syncer := memsyncer.New(log, store)
 
 	tr := &testReplica{
-		store:             crdttest.NewTestStore(store),
+		store:             crdttest.NewTestStore(ctx, log, store),
 		bc:                crdttest.NewTestBroadcaster(ctx, log, bc),
 		syncer:            syncer,
 		capturedEventCids: map[string]struct{}{},
@@ -157,12 +159,12 @@ func (r *testReplica) addPeer(t *testing.T, peer *testReplica) {
 	r.bc.AddPeer(peer.bc.ITestBroadcaster)
 }
 
-func (r *testReplica) broadcast(t *testing.T, payloads [][]byte) []*types.Event {
+func (r *testReplica) broadcast(t *testing.T, envs []*messagev1.Envelope) []*types.Event {
 	t.Helper()
 	ctx := context.Background()
-	events := make([]*types.Event, len(payloads))
-	for i, payload := range payloads {
-		ev, err := r.Replica.BroadcastAppend(ctx, payload)
+	events := make([]*types.Event, len(envs))
+	for i, env := range envs {
+		ev, err := r.Replica.BroadcastAppend(ctx, env)
 		require.NoError(t, err)
 		events[i] = ev
 	}
@@ -171,11 +173,11 @@ func (r *testReplica) broadcast(t *testing.T, payloads [][]byte) []*types.Event 
 
 func (r *testReplica) broadcastRandom(t *testing.T, count int) []*types.Event {
 	t.Helper()
-	payloads := make([][]byte, count)
+	envs := make([]*messagev1.Envelope, count)
 	for i := 0; i < count; i++ {
-		payloads[i] = []byte("event-" + test.RandomStringLower(13))
+		envs[i] = newRandomEnvelope(t)
 	}
-	return r.broadcast(t, payloads)
+	return r.broadcast(t, envs)
 }
 
 func (r *testReplica) requireEventuallyCapturedEvents(t *testing.T, expected []*types.Event) {
@@ -212,4 +214,12 @@ func (r *testReplica) visualize(w io.Writer, name string) {
 		fmt.Fprintf(w, "}\n")
 	}
 	fmt.Fprintf(w, "}\n")
+}
+
+func newRandomEnvelope(t *testing.T) *messagev1.Envelope {
+	return &messagev1.Envelope{
+		ContentTopic: "topic-" + test.RandomStringLower(5),
+		TimestampNs:  uint64(rand.Intn(100)),
+		Message:      []byte("msg-" + test.RandomString(13)),
+	}
 }

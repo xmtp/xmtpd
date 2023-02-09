@@ -11,9 +11,7 @@ import (
 	crdtmemstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
 	crdttypes "github.com/xmtp/xmtpd/pkg/crdt/types"
-	"github.com/xmtp/xmtpd/pkg/store"
 	"github.com/xmtp/xmtpd/pkg/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -28,7 +26,7 @@ type Service struct {
 
 	// Configured as constructor options.
 	log   *zap.Logger
-	store store.Store
+	store crdt.Store
 
 	// Configured internally.
 	ctx       context.Context
@@ -41,7 +39,7 @@ type Service struct {
 	topicsLock sync.RWMutex
 }
 
-func New(log *zap.Logger, store store.Store) (*Service, error) {
+func New(log *zap.Logger, store crdt.Store) (*Service, error) {
 	log = log.Named("message/v1")
 	s := &Service{
 		log:   log,
@@ -66,11 +64,7 @@ func (s *Service) Publish(ctx context.Context, req *messagev1.PublishRequest) (*
 		if err != nil {
 			return nil, err
 		}
-		envB, err := proto.Marshal(env)
-		if err != nil {
-			return nil, err
-		}
-		ev, err := topic.BroadcastAppend(ctx, envB)
+		ev, err := topic.BroadcastAppend(ctx, env)
 		if err != nil {
 			return nil, err
 		}
@@ -98,12 +92,7 @@ func (s *Service) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.Me
 		case <-stream.Context().Done():
 			return nil
 		case ev := <-eventsCh:
-			var env messagev1.Envelope
-			err := proto.Unmarshal(ev.Payload, &env)
-			if err != nil {
-				return err
-			}
-			err = stream.Send(&env)
+			err := stream.Send(ev.Envelope)
 			if err != nil {
 				return err
 			}
@@ -118,7 +107,7 @@ func (s *Service) Query(ctx context.Context, req *messagev1.QueryRequest) (*mess
 		return nil, ErrTooManyTopics
 	}
 
-	return s.store.QueryEnvelopes(ctx, req)
+	return s.store.Query(ctx, req)
 }
 
 func (s *Service) SubscribeAll(req *messagev1.SubscribeAllRequest, stream messagev1.MessageApi_SubscribeAllServer) error {

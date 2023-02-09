@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
-	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
+	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )

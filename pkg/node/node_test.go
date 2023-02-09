@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	"github.com/xmtp/xmtpd/pkg/node"
-	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 

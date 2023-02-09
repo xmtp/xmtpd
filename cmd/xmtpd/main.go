@@ -9,8 +9,8 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	"github.com/xmtp/xmtpd/pkg/node"
-	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -39,6 +39,8 @@ func main() {
 	// Initialize store.
 	store := memstore.New(log)
 	defer store.Close()
+
+	// TODO: init crdt Broadcaster and Syncer here too
 
 	// Initialize messagev1 service.
 	messagev1, err := messagev1.New(log, store)

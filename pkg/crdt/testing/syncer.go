@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
-	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -83,7 +82,7 @@ func (b *TestSyncer) addPeer(t *testing.T, peer *TestSyncer) {
 func (s *TestSyncer) addManyRandom(t *testing.T, count int) ([]*types.Event, []multihash.Multihash) {
 	events := make([]*types.Event, count)
 	for i := 0; i < count; i++ {
-		ev, err := types.NewEvent([]byte("event-"+test.RandomStringLower(13)), nil)
+		ev, err := types.NewEvent(newRandomEnvelope(t), nil)
 		require.NoError(t, err)
 		events[i] = ev
 	}

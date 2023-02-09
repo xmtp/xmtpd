@@ -4,6 +4,7 @@ import (
 	"context"
 
 	mh "github.com/multiformats/go-multihash"
+	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -65,8 +66,8 @@ func (r *Replica) Close() error {
 	return nil
 }
 
-func (r *Replica) BroadcastAppend(ctx context.Context, payload []byte) (*types.Event, error) {
-	ev, err := r.store.AppendEvent(payload)
+func (r *Replica) BroadcastAppend(ctx context.Context, env *messagev1.Envelope) (*types.Event, error) {
+	ev, err := r.store.AppendEvent(ctx, env)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ loop:
 			break loop
 		case ev := <-r.pendingReceiveEvents:
 			// r.log.Debug("adding event", zap.Cid("event", ev.cid))
-			added, err := r.store.InsertHead(ev)
+			added, err := r.store.InsertHead(ctx, ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
@@ -131,7 +132,7 @@ loop:
 			// If the CID is in heads, it should be removed because
 			// we have an event that points to it.
 			// We also don't need to fetch it since we already have it.
-			haveAlready, err := r.store.RemoveHead(cid)
+			haveAlready, err := r.store.RemoveHead(ctx, cid)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
@@ -175,7 +176,7 @@ loop:
 			break loop
 		case ev := <-r.pendingSyncEvents:
 			// r.log.Debug("adding link event", zap.Cid("event", ev.cid))
-			added, err := r.store.InsertEvent(ev)
+			added, err := r.store.InsertEvent(ctx, ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
@@ -194,7 +195,7 @@ loop:
 
 // Bootstrap from the contents of the store.
 func (r *Replica) bootstrap(ctx context.Context) error {
-	links, err := r.store.FindMissingLinks()
+	links, err := r.store.FindMissingLinks(ctx)
 	if err != nil {
 		return err
 	}

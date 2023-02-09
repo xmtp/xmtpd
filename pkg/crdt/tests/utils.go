@@ -22,8 +22,9 @@ func RandomMsgTest(t *testing.T, nodes, topics, messages int, modifiers ...Confi
 	net := NewNetwork(t, nodes, modifiers...)
 	for i := 0; i < messages; i++ {
 		topic := fmt.Sprintf("t%d", rand.Intn(topics))
-		msg := fmt.Sprintf("gm %d", i)
-		net.Publish(t, rand.Intn(nodes), topic, msg)
+		node := rand.Intn(nodes)
+		msg := fmt.Sprintf("%d/n%d", i, node)
+		net.Publish(t, node, topic, msg)
 		if i%nrTopicReplicas == 0 {
 			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
 		}

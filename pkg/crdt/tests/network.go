@@ -248,12 +248,22 @@ func (net *network) checkEvents(t *testing.T, ignore []int) (missing map[int]str
 // showing the individual events and their links
 func (net *network) visualiseTopic(w io.Writer, topic string) {
 	fmt.Fprintf(w, "strict digraph %s {\n", topic)
+	fmt.Fprintln(w, "\tnode [colorscheme=pastel19]")
 	for i := len(net.events) - 1; i >= 0; i-- {
 		ev := net.events[i]
 		if ev.ContentTopic != topic {
 			continue
 		}
-		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", zap.ShortCid(ev.Cid), i)
+		prefix := strconv.Itoa(i)
+		var color string
+		var msg, node int
+		if n, err := fmt.Sscanf(string(ev.Message), "%d/n%d", &msg, &node); err == nil && n == 2 {
+			prefix = string(ev.Message)
+			if len(net.nodes) < 10 {
+				color = fmt.Sprintf(" style=filled color=%d", node+1)
+			}
+		}
+		fmt.Fprintf(w, "\t\"%s\" [label=\"%s: \\N\"%s]\n", zap.ShortCid(ev.Cid), prefix, color)
 		fmt.Fprintf(w, "\t\"%s\" -> { ", zap.ShortCid(ev.Cid))
 		for _, l := range ev.Links {
 			fmt.Fprintf(w, "\"%s\" ", zap.ShortCid(l))

@@ -5,6 +5,7 @@ if [[ "${OSTYPE}" == "darwin"* ]]; then
     if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
     if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
     if ! which markdownlint &>/dev/null; then brew install markdownlint-cli; fi
+    if ! which staticcheck &>/dev/null; then brew install staticcheck; fi
 fi
 
 go mod tidy

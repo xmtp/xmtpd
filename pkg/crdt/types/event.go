@@ -30,10 +30,10 @@ func NewEvent(payload []byte, heads []mh.Multihash) (*Event, error) {
 
 // Reader creates a chunk reader for given Event.
 func (ev *Event) Reader() *chunkReader {
-	chunks := make([][]byte, len(ev.Links)+1)
-	chunks[0] = ev.Payload
-	for i, link := range ev.Links {
-		chunks[i+1] = link
+	chunks := make([][]byte, 0, len(ev.Links)+1)
+	chunks = append(chunks, ev.Payload)
+	for _, link := range ev.Links {
+		chunks = append(chunks, link)
 	}
 	return &chunkReader{chunks, 0}
 }

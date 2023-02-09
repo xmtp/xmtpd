@@ -33,10 +33,10 @@ func RunStoreTests(t *testing.T, storeMaker TestStoreMaker) {
 		s := storeMaker(t)
 
 		ev1 := s.addRandomEvent(t)
-		s.requireEventsEqual(t, []*types.Event{ev1})
+		s.requireEventsEqual(t, ev1)
 
 		ev2 := s.addRandomEvent(t)
-		s.requireEventsEqual(t, []*types.Event{ev1, ev2})
+		s.requireEventsEqual(t, ev1, ev2)
 	})
 
 	t.Run("add existing event", func(t *testing.T) {
@@ -44,10 +44,10 @@ func RunStoreTests(t *testing.T, storeMaker TestStoreMaker) {
 		s := storeMaker(t)
 
 		ev1 := s.addRandomEvent(t)
-		s.requireEventsEqual(t, []*types.Event{ev1})
+		s.requireEventsEqual(t, ev1)
 
 		s.addExistingEvent(t, ev1)
-		s.requireEventsEqual(t, []*types.Event{ev1})
+		s.requireEventsEqual(t, ev1)
 	})
 
 	t.Run("append events", func(t *testing.T) {
@@ -57,12 +57,12 @@ func RunStoreTests(t *testing.T, storeMaker TestStoreMaker) {
 		ev1 := s.appendRandomEvent(t)
 		require.NotNil(t, ev1.Cid)
 		require.Nil(t, ev1.Links)
-		s.requireEventsEqual(t, []*types.Event{ev1})
+		s.requireEventsEqual(t, ev1)
 
 		ev2 := s.appendRandomEvent(t)
 		require.NotNil(t, ev2.Cid)
 		require.Equal(t, []multihash.Multihash{ev1.Cid}, ev2.Links)
-		s.requireEventsEqual(t, []*types.Event{ev1, ev2})
+		s.requireEventsEqual(t, ev1, ev2)
 	})
 
 	t.Run("add remove heads", func(t *testing.T) {
@@ -70,17 +70,17 @@ func RunStoreTests(t *testing.T, storeMaker TestStoreMaker) {
 		s := storeMaker(t)
 
 		head := s.addRandomHead(t)
-		s.requireEventsEqual(t, []*types.Event{head})
+		s.requireEventsEqual(t, head)
 
 		ev1 := s.newRandomEventWithHeads(t, []multihash.Multihash{head.Cid})
 		require.Equal(t, []multihash.Multihash{head.Cid}, ev1.Links)
 		s.addEvent(t, ev1)
-		s.requireEventsEqual(t, []*types.Event{head, ev1})
+		s.requireEventsEqual(t, head, ev1)
 
 		ev2 := s.newRandomEvent(t)
 		require.Nil(t, ev2.Links)
 		s.addEvent(t, ev2)
-		s.requireEventsEqual(t, []*types.Event{head, ev1, ev2})
+		s.requireEventsEqual(t, head, ev1, ev2)
 	})
 
 	t.Run("add existing head", func(t *testing.T) {
@@ -88,10 +88,10 @@ func RunStoreTests(t *testing.T, storeMaker TestStoreMaker) {
 		s := storeMaker(t)
 
 		head := s.addRandomHead(t)
-		s.requireEventsEqual(t, []*types.Event{head})
+		s.requireEventsEqual(t, head)
 
 		s.addExistingEvent(t, head)
-		s.requireEventsEqual(t, []*types.Event{head})
+		s.requireEventsEqual(t, head)
 	})
 }
 
@@ -158,7 +158,7 @@ func newRandomEventPayload() []byte {
 	return []byte("event-" + test.RandomStringLower(13))
 }
 
-func (s *TestStore) requireEventsEqual(t *testing.T, expected []*types.Event) {
+func (s *TestStore) requireEventsEqual(t *testing.T, expected ...*types.Event) {
 	events, err := s.Events()
 	require.NoError(t, err)
 	require.ElementsMatch(t, expected, events)

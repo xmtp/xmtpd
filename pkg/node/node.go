@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/api"
+	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -15,7 +16,7 @@ type Node struct {
 	api       *api.Server
 }
 
-func New(ctx context.Context, log *zap.Logger, opts *Options) (*Node, error) {
+func New(ctx context.Context, log *zap.Logger, messagev1 *messagev1.Service, opts *Options) (*Node, error) {
 	n := &Node{
 		log: log,
 	}
@@ -23,7 +24,7 @@ func New(ctx context.Context, log *zap.Logger, opts *Options) (*Node, error) {
 	var err error
 
 	// Initialize API server/gateway.
-	n.api, err = api.New(n.ctx, log, &opts.API)
+	n.api, err = api.New(n.ctx, log, messagev1, &opts.API)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing api")
 	}
@@ -39,4 +40,8 @@ func (n *Node) Close() {
 	if n.ctxCancel != nil {
 		n.ctxCancel()
 	}
+}
+
+func (n *Node) APIHTTPListenPort() uint {
+	return n.api.HTTPListenPort()
 }

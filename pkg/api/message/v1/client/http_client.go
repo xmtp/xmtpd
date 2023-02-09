@@ -30,10 +30,7 @@ const (
 )
 
 func NewHTTPClient(log *zap.Logger, serverAddr string, gitCommit string, appVersion string) *httpClient {
-	version := "xmtp-go/"
-	if len(gitCommit) > 0 {
-		version += gitCommit[:7]
-	}
+	version := "xmtpd/" + shortGitCommit(gitCommit)
 	http := retryablehttp.NewClient()
 	http.CheckRetry = retryPolicy
 	http.Logger = &logger{log}
@@ -216,6 +213,16 @@ func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, err
 	}
 
 	return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
+}
+
+func shortGitCommit(val string) string {
+	if len(val) > 0 {
+		if len(val) < 7 {
+			return val
+		}
+		return val[:7]
+	}
+	return ""
 }
 
 type logger struct {

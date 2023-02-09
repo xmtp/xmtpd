@@ -13,25 +13,24 @@ import (
 	"github.com/pkg/errors"
 	proto "github.com/xmtp/proto/v3/go/message_api/v1"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
-	"google.golang.org/grpc/health"
-	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
-
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Server struct {
-	opts *Options
-	ctx  context.Context
-	log  *zap.Logger
-
-	grpc      net.Listener
-	http      net.Listener
+	opts      *Options
+	ctx       context.Context
+	log       *zap.Logger
 	messagev1 *messagev1.Service
+
+	grpc net.Listener
+	http net.Listener
 }
 
-func New(ctx context.Context, log *zap.Logger, opts *Options) (*Server, error) {
+func New(ctx context.Context, log *zap.Logger, messagev1 *messagev1.Service, opts *Options) (*Server, error) {
 	err := opts.validate()
 	if err != nil {
 		return nil, err
@@ -40,9 +39,10 @@ func New(ctx context.Context, log *zap.Logger, opts *Options) (*Server, error) {
 	log = log.Named("api")
 
 	s := &Server{
-		ctx:  ctx,
-		log:  log,
-		opts: opts,
+		ctx:       ctx,
+		log:       log,
+		opts:      opts,
+		messagev1: messagev1,
 	}
 
 	err = s.startGRPC()
@@ -78,16 +78,14 @@ func (s *Server) startGRPC() error {
 		grpc.Creds(insecure.NewCredentials()),
 		grpc.UnaryInterceptor(middleware.ChainUnaryServer(unary...)),
 		grpc.StreamInterceptor(middleware.ChainStreamServer(stream...)),
-		grpc.MaxRecvMsgSize(s.opts.MaxMsgSize),
+	}
+	if s.opts.MaxMsgSize > 0 {
+		options = append(options, grpc.MaxRecvMsgSize(s.opts.MaxMsgSize))
 	}
 	grpcServer := grpc.NewServer(options...)
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(grpcServer, healthcheck)
 
-	s.messagev1, err = messagev1.NewService(s.log)
-	if err != nil {
-		return errors.Wrap(err, "creating message service")
-	}
 	proto.RegisterMessageApiServer(grpcServer, s.messagev1)
 	prometheus.Register(grpcServer)
 
@@ -157,25 +155,30 @@ func (s *Server) Close() {
 		}
 	}
 
-	if s.http != nil {
-		err := s.http.Close()
+	if s.grpc != nil {
+		err := s.grpc.Close()
 		if err != nil {
 			s.log.Error("closing grpc listener", zap.Error(err))
 		}
 	}
 }
 
+func (s *Server) HTTPListenPort() uint {
+	return uint(s.http.Addr().(*net.TCPAddr).Port)
+}
+
 func (s *Server) dialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
 	// https://github.com/grpc/grpc/blob/master/doc/naming.md
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpc.Addr().String())
-	return grpc.DialContext(
-		ctx,
-		dialAddr,
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(
+	}
+	if s.opts.MaxMsgSize > 0 {
+		opts = append(opts, grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(s.opts.MaxMsgSize),
-		),
-	)
+		))
+	}
+	return grpc.DialContext(ctx, dialAddr, opts...)
 }
 
 func (s *Server) httpListenAddr() string {

@@ -1,16 +1,19 @@
 package crdt
 
-// NodeBroadcaster manages the overall broadcasting capacity of a Node
-type NodeBroadcaster interface {
-	// AddNode registers the node with the broadcaster.
-	AddNode(*Node)
+import (
+	"context"
 
-	// NewTopic creates a TopicBroadcaster for given topic and node.
-	NewTopic(name string, node *Node) TopicBroadcaster
-}
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
+)
 
-// TopicBroadcaster manages broadcasts for a given topic
-type TopicBroadcaster interface {
+// Broadcaster manages broadcasts for a replica.
+type Broadcaster interface {
 	// Broadcast sends an Event out to the network
-	Broadcast(*Event)
+	Broadcast(*types.Event) error
+
+	// Next obtains the next event received from the network.
+	Next(ctx context.Context) (*types.Event, error)
+
+	// Close gracefully closes the broadcaster.
+	Close() error
 }

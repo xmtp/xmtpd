@@ -1,9 +1,10 @@
 package crdt
 
 import (
+	"context"
 	"errors"
 
-	mh "github.com/multiformats/go-multihash"
+	"github.com/multiformats/go-multihash"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 
@@ -18,17 +19,23 @@ type Store interface {
 	// replacing the heads with the new Event.
 	// Returns the new Event.
 	AppendEvent([]byte) (*types.Event, error)
+
 	// AddEvent stores the Event if it isn't know yet,
 	// Returns whether it was actually added.
-	AddEvent(ev *types.Event) (added bool, err error)
+	AddEvent(ev *types.Event) (bool, error)
+
 	// AddHead stores the Event if it isn't know yet,
 	// and add it to the heads
 	// Returns whether it was actually added.
-	AddHead(ev *types.Event) (added bool, err error)
+	AddHead(ev *types.Event) (bool, error)
+
 	// RemoveHead checks if we already have the event,
 	// and also removes it from heads if it's there.
 	// Returns whether we already have the event or not.
-	RemoveHead(cid mh.Multihash) (haveAlready bool, err error)
+	RemoveHead(cid multihash.Multihash) (bool, error)
+
+	// GetEvents returns the set of events matching the given set of CIDs.
+	GetEvents(context.Context, []multihash.Multihash) ([]*types.Event, error)
 
 	// Following methods are needed for bootstrapping a topic
 	// from a pre-existing store.
@@ -36,5 +43,5 @@ type Store interface {
 	// GetPendingLinks scans the whole topic for links that
 	// are not present in the topic.
 	// Returns the list of all missing links.
-	FindMissingLinks() (links []mh.Multihash, err error)
+	FindMissingLinks() ([]multihash.Multihash, error)
 }

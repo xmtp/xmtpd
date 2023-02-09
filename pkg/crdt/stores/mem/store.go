@@ -1,6 +1,7 @@
 package memstore
 
 import (
+	"context"
 	"sync"
 
 	"github.com/multiformats/go-multihash"
@@ -90,6 +91,20 @@ func (s *MemoryStore) FindMissingLinks() (links []multihash.Multihash, err error
 		}
 	}
 	return links, nil
+}
+
+func (s *MemoryStore) GetEvents(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error) {
+	s.RLock()
+	defer s.RUnlock()
+	events := make([]*types.Event, 0, len(cids))
+	for _, cid := range cids {
+		ev, ok := s.events[cid.String()]
+		if !ok {
+			continue
+		}
+		events = append(events, ev)
+	}
+	return events, nil
 }
 
 func (s *MemoryStore) Events() ([]*types.Event, error) {

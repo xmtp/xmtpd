@@ -144,7 +144,7 @@ loop:
 			}
 			r.log.Debug("fetching link", zap.Cid("link", cid))
 			cids := []mh.Multihash{cid}
-			evs, err := r.syncer.Fetch(cids)
+			evs, err := r.syncer.Fetch(ctx, cids)
 			if err != nil {
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.

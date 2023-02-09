@@ -1,16 +1,20 @@
 package crdt
 
 import (
-	mh "github.com/multiformats/go-multihash"
+	"context"
+
+	"github.com/multiformats/go-multihash"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 
-// Syncer provides syncing capability to a specific CRDT.
+// Syncer provides syncing capability to a specific replica.
 type Syncer interface {
-	// Fetch retrieves a set of Events from the network based on the provided CIDs.
+	// Fetch retrieves a set of Events from the network DHT.
 	// It is a single attempt that can fail completely or return only some
 	// of the requested events. If there is no error, the resulting slice is always
 	// the same size as the CID slice, but there can be some nils instead of Events in it.
-	Fetch([]mh.Multihash) ([]*types.Event, error)
-	// FetchAll() ([]*Event, error) // used to seed new nodes
+	Fetch(context.Context, []multihash.Multihash) ([]*types.Event, error)
+
+	// Close gracefully closes the syncer.
+	Close() error
 }

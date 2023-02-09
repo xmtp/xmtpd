@@ -37,7 +37,7 @@ func TestReplica_NewClose(t *testing.T) {
 
 	store := memstore.New(log)
 	bc := membroadcaster.New(log)
-	syncer := memsyncer.New(log)
+	syncer := memsyncer.New(log, store)
 
 	replica, err := crdt.NewReplica(ctx, log, store, bc, syncer, nil)
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func newTestReplica(t *testing.T) *testReplica {
 
 	store := memstore.New(log)
 	bc := membroadcaster.New(log)
-	syncer := memsyncer.New(log)
+	syncer := memsyncer.New(log, store)
 
 	tr := &testReplica{
 		store:             crdttest.NewTestStore(store),

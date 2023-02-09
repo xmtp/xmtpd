@@ -159,13 +159,14 @@ func (s *Service) createTopic(ctx context.Context, topicId string) (*crdt.Replic
 	if _, ok := s.topics[topicId]; ok {
 		return nil, ErrTopicAlreadyExists
 	}
+	store := crdtmemstore.New(s.log)
 	return crdt.NewReplica(
 		ctx,
 		s.log,
 		// TODO: these factories/makers should be passed in as options/config
-		crdtmemstore.New(s.log),
+		store,
 		membroadcaster.New(s.log),
-		memsyncer.New(s.log),
+		memsyncer.New(s.log, store),
 		func(ev *crdttypes.Event) {
 			s.topicSubsLock.RLock()
 			defer s.topicSubsLock.RUnlock()

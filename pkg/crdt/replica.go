@@ -102,7 +102,7 @@ loop:
 			break loop
 		case ev := <-r.pendingReceiveEvents:
 			// r.log.Debug("adding event", zap.Cid("event", ev.cid))
-			added, err := r.store.AddHead(ev)
+			added, err := r.store.InsertHead(ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay
@@ -175,7 +175,7 @@ loop:
 			break loop
 		case ev := <-r.pendingSyncEvents:
 			// r.log.Debug("adding link event", zap.Cid("event", ev.cid))
-			added, err := r.store.AddEvent(ev)
+			added, err := r.store.InsertEvent(ev)
 			if err != nil {
 				// requeue for later
 				// TODO: may need a delay

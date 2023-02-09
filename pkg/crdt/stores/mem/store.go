@@ -27,7 +27,7 @@ func New(log *zap.Logger) *MemoryStore {
 	}
 }
 
-func (s *MemoryStore) AddEvent(ev *types.Event) (added bool, err error) {
+func (s *MemoryStore) InsertEvent(ev *types.Event) (added bool, err error) {
 	s.Lock()
 	defer s.Unlock()
 	key := ev.Cid.String()
@@ -39,7 +39,7 @@ func (s *MemoryStore) AddEvent(ev *types.Event) (added bool, err error) {
 	return true, nil
 }
 
-func (s *MemoryStore) AddHead(ev *types.Event) (added bool, err error) {
+func (s *MemoryStore) InsertHead(ev *types.Event) (added bool, err error) {
 	s.Lock()
 	defer s.Unlock()
 	key := ev.Cid.String()

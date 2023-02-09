@@ -64,7 +64,7 @@ func (s *MemorySyncer) Fetch(ctx context.Context, cids []multihash.Multihash) ([
 
 func (s *MemorySyncer) AddStoreEvents(ctx context.Context, events []*types.Event) error {
 	for _, ev := range events {
-		_, err := s.store.AddEvent(ev)
+		_, err := s.store.InsertEvent(ev)
 		if err != nil {
 			return err
 		}

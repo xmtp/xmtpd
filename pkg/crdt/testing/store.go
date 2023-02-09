@@ -104,7 +104,7 @@ func (s *TestStore) addRandomHead(t *testing.T) *types.Event {
 
 func (s *TestStore) addHead(t *testing.T, head *types.Event) {
 	t.Helper()
-	added, err := s.AddHead(head)
+	added, err := s.InsertHead(head)
 	require.NoError(t, err)
 	require.True(t, added)
 }
@@ -118,14 +118,14 @@ func (s *TestStore) addRandomEvent(t *testing.T) *types.Event {
 
 func (s *TestStore) addEvent(t *testing.T, ev *types.Event) {
 	t.Helper()
-	added, err := s.AddEvent(ev)
+	added, err := s.InsertEvent(ev)
 	require.NoError(t, err)
 	require.True(t, added)
 }
 
 func (s *TestStore) addExistingEvent(t *testing.T, ev *types.Event) {
 	t.Helper()
-	added, err := s.AddEvent(ev)
+	added, err := s.InsertEvent(ev)
 	require.NoError(t, err)
 	require.False(t, added)
 }

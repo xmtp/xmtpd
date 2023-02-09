@@ -22,12 +22,12 @@ type Store interface {
 
 	// AddEvent stores the Event if it isn't know yet,
 	// Returns whether it was actually added.
-	AddEvent(ev *types.Event) (bool, error)
+	InsertEvent(ev *types.Event) (bool, error)
 
 	// AddHead stores the Event if it isn't know yet,
 	// and add it to the heads
 	// Returns whether it was actually added.
-	AddHead(ev *types.Event) (bool, error)
+	InsertHead(ev *types.Event) (bool, error)
 
 	// RemoveHead checks if we already have the event,
 	// and also removes it from heads if it's there.

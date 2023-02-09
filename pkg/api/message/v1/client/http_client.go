@@ -30,7 +30,7 @@ const (
 )
 
 func NewHTTPClient(log *zap.Logger, serverAddr string, gitCommit string, appVersion string) *httpClient {
-	version := "xmtp-go/" + shortGitCommit(gitCommit)
+	version := "xmtpd/" + shortGitCommit(gitCommit)
 	http := retryablehttp.NewClient()
 	http.CheckRetry = retryPolicy
 	http.Logger = &logger{log}

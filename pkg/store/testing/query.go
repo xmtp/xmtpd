@@ -6,8 +6,8 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/store/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
-	"github.com/xmtp/xmtpd/pkg/types"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 

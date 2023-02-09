@@ -7,7 +7,7 @@ import (
 
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	crdtmemstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
-	"github.com/xmtp/xmtpd/pkg/types"
+	"github.com/xmtp/xmtpd/pkg/store/types"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )

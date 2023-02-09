@@ -11,6 +11,8 @@ type Broadcaster interface {
 	// Broadcast sends an Event out to the network
 	Broadcast(*types.Event) error
 
-	// Obtain the next event received from the network.
+	// Next obtains the next event received from the network.
 	Next(ctx context.Context) (*types.Event, error)
+
+	Close() error
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func TestMemoryStore_QueryEnvelopes(t *testing.T) {
-	storetest.TestQueryEnvelopes(t, func(t *testing.T) *storetest.TestStore {
+	storetest.TestStore_QueryEnvelopes(t, func(t *testing.T) *storetest.TestStore {
 		s := memstore.New(test.NewLogger(t))
 		return storetest.NewTestStore(s)
 	})

@@ -20,6 +20,11 @@ func New(log *zap.Logger) *MemoryBroadcaster {
 	}
 }
 
+func (b *MemoryBroadcaster) Close() error {
+	close(b.ch)
+	return nil
+}
+
 func (b *MemoryBroadcaster) Broadcast(ev *types.Event) error {
 	b.log.Debug("broadcast event", zap.Cid("event", ev.Cid))
 	b.ch <- ev
@@ -33,6 +38,9 @@ func (b *MemoryBroadcaster) Next(ctx context.Context) (*types.Event, error) {
 	return <-b.ch, nil
 }
 
+// AddPeer adds a memory broadcaster peer that new events will be shared with.
+// This method is specific to the memory broadcaster, and not part of the
+// Broadcaster interface.
 func (b *MemoryBroadcaster) AddPeer(peer *MemoryBroadcaster) {
 	b.peers = append(b.peers, peer)
 }

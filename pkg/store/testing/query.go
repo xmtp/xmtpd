@@ -11,7 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-func TestQueryEnvelopes(t *testing.T, storeMaker TestStoreMaker) {
+func TestStore_QueryEnvelopes(t *testing.T, storeMaker TestStoreMaker) {
 	t.Helper()
 
 	t.Run("all sort default", func(t *testing.T) {

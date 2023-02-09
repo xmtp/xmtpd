@@ -3,20 +3,38 @@ package crdttest
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
-type TestBroadcaster interface {
+type ITestBroadcaster interface {
 	crdt.Broadcaster
 
 	AddPeer(peer interface{})
 }
 
-type TestBroadcasterMaker func(t *testing.T) TestBroadcaster
+type TestBroadcasterMaker func(t *testing.T) *TestBroadcaster
+
+type TestBroadcaster struct {
+	ITestBroadcaster
+
+	ctx context.Context
+	log *zap.Logger
+}
+
+func NewTestBroadcaster(ctx context.Context, log *zap.Logger, bc ITestBroadcaster) *TestBroadcaster {
+	return &TestBroadcaster{
+		ITestBroadcaster: bc,
+
+		ctx: ctx,
+		log: log,
+	}
+}
 
 func RunBroadcasterTests(t *testing.T, broadcasterMaker TestBroadcasterMaker) {
 	t.Helper()
@@ -24,31 +42,48 @@ func RunBroadcasterTests(t *testing.T, broadcasterMaker TestBroadcasterMaker) {
 	t.Run("broadcast", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
-
 		bc1 := broadcasterMaker(t)
-		require.NotNil(t, bc1)
 		defer bc1.Close()
 
 		bc2 := broadcasterMaker(t)
-		require.NotNil(t, bc2)
 		defer bc2.Close()
-		bc1.AddPeer(bc2)
+		bc1.addPeer(t, bc2)
 
-		broadcastedEvent, err := types.NewEvent([]byte("event-"+test.RandomStringLower(13)), nil)
-		require.NoError(t, err)
+		events := bc1.broadcastRandom(t, 1)
 
-		err = bc1.Broadcast(broadcastedEvent)
-		require.NoError(t, err)
+		ev1 := bc1.next(t)
+		require.Equal(t, events, []*types.Event{ev1})
 
-		bc1Event, err := bc1.Next(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, bc1Event)
-		require.Equal(t, broadcastedEvent, bc1Event)
-
-		bc2Event, err := bc2.Next(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, bc2Event)
-		require.Equal(t, broadcastedEvent, bc2Event)
+		ev2 := bc2.next(t)
+		require.Equal(t, events, []*types.Event{ev2})
 	})
+}
+
+func (b *TestBroadcaster) broadcastRandom(t *testing.T, count int) []*types.Event {
+	events := make([]*types.Event, count)
+	for i := 0; i < count; i++ {
+		ev, err := types.NewEvent([]byte("event-"+test.RandomStringLower(13)), nil)
+		require.NoError(t, err)
+
+		err = b.Broadcast(ev)
+		require.NoError(t, err)
+
+		events[i] = ev
+	}
+	return events
+}
+
+func (b *TestBroadcaster) next(t *testing.T) *types.Event {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(b.ctx, time.Second)
+	defer cancel()
+	ev, err := b.Next(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, ev)
+	return ev
+}
+
+func (b *TestBroadcaster) addPeer(t *testing.T, peer *TestBroadcaster) {
+	t.Helper()
+	b.AddPeer(peer.ITestBroadcaster)
 }

@@ -1,6 +1,7 @@
 package membroadcaster_test
 
 import (
+	"context"
 	"testing"
 
 	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
@@ -9,8 +10,10 @@ import (
 )
 
 func TestMemoryBroadcaster(t *testing.T) {
-	crdttest.RunBroadcasterTests(t, func(t *testing.T) crdttest.TestBroadcaster {
+	crdttest.RunBroadcasterTests(t, func(t *testing.T) *crdttest.TestBroadcaster {
+		ctx := context.Background()
 		log := test.NewLogger(t)
-		return membroadcaster.New(log)
+		bc := membroadcaster.New(log)
+		return crdttest.NewTestBroadcaster(ctx, log, bc)
 	})
 }

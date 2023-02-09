@@ -24,7 +24,7 @@ type testReplica struct {
 	*crdt.Replica
 
 	store  *TestStore
-	bc     TestBroadcaster
+	bc     *TestBroadcaster
 	syncer crdt.Syncer
 
 	capturedEventCids  map[string]struct{}
@@ -43,7 +43,7 @@ func NewTestReplica(t *testing.T) *testReplica {
 
 	tr := &testReplica{
 		store:             NewTestStore(store),
-		bc:                bc,
+		bc:                NewTestBroadcaster(ctx, log, bc),
 		syncer:            syncer,
 		capturedEventCids: map[string]struct{}{},
 	}
@@ -73,7 +73,7 @@ func (r *testReplica) CapturedEvents(t *testing.T) []*types.Event {
 
 func (r *testReplica) AddPeer(t *testing.T, peer *testReplica) {
 	t.Helper()
-	r.bc.AddPeer(peer.bc)
+	r.bc.AddPeer(peer.bc.ITestBroadcaster)
 }
 
 func (r *testReplica) Broadcast(t *testing.T, payloads [][]byte) []*types.Event {

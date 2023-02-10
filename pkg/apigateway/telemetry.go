@@ -1,4 +1,4 @@
-package api
+package apigateway
 
 import (
 	"context"

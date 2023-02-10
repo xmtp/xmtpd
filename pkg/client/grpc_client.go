@@ -2,9 +2,12 @@ package client
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/pkg/errors"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 type grpcClient struct {
@@ -27,15 +30,27 @@ func (c *grpcClient) Close() error {
 
 func (c *grpcClient) Subscribe(ctx context.Context, r *messagev1.SubscribeRequest) (Stream, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	stream, err := c.grpc.Subscribe(ctx, r)
+	sub, err := c.grpc.Subscribe(ctx, r)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	return &grpcStream{
+	stream := &grpcStream{
 		cancel: cancel,
-		stream: stream,
-	}, nil
+		stream: sub,
+	}
+
+	// Wait for subscribe confirmation.
+	env, err := stream.Next(ctx)
+	cancel()
+	if err != nil {
+		return nil, errors.Wrap(err, "waiting for subscribe confirmation")
+	}
+	if !proto.Equal(env, &messagev1.Envelope{}) {
+		return nil, fmt.Errorf("invalid subscribe confirmation: %s", env)
+	}
+
+	return stream, nil
 }
 
 func (c *grpcClient) SubscribeAll(ctx context.Context) (Stream, error) {

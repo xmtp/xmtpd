@@ -71,7 +71,11 @@ func (r *Replica) BroadcastAppend(ctx context.Context, env *messagev1.Envelope) 
 	if err != nil {
 		return nil, err
 	}
-	return ev, r.broadcaster.Broadcast(ev)
+	return ev, r.broadcaster.Broadcast(ctx, ev)
+}
+
+func (r *Replica) Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
+	return r.store.Query(ctx, req)
 }
 
 func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
@@ -84,7 +88,7 @@ func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 			r.log.Error("error getting next broadcasted event", zap.Error(err))
 			return
 		}
-		r.log.Debug("received broadcasted event", zap.Cid("event_cid", ev.Cid))
+		r.log.Debug("received broadcasted event", zap.Cid("event", ev.Cid))
 		r.pendingReceiveEvents <- ev
 
 		if r.onNewEvent != nil {

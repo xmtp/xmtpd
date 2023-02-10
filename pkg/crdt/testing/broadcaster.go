@@ -14,7 +14,7 @@ import (
 type ITestBroadcaster interface {
 	crdt.Broadcaster
 
-	AddPeer(peer interface{})
+	AddPeer(t *testing.T, peer interface{})
 }
 
 type TestBroadcasterMaker func(t *testing.T) *TestBroadcaster
@@ -64,7 +64,7 @@ func (b *TestBroadcaster) broadcastRandom(t *testing.T, count int) []*types.Even
 		ev, err := types.NewEvent(newRandomEnvelope(t), nil)
 		require.NoError(t, err)
 
-		err = b.Broadcast(ev)
+		err = b.Broadcast(b.ctx, ev)
 		require.NoError(t, err)
 
 		events[i] = ev
@@ -84,5 +84,5 @@ func (b *TestBroadcaster) next(t *testing.T) *types.Event {
 
 func (b *TestBroadcaster) addPeer(t *testing.T, peer *TestBroadcaster) {
 	t.Helper()
-	b.AddPeer(peer.ITestBroadcaster)
+	b.AddPeer(t, peer.ITestBroadcaster)
 }

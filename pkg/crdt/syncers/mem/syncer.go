@@ -60,7 +60,7 @@ func (s *MemorySyncer) AddPeer(peer interface{}) {
 }
 
 func (s *MemorySyncer) GetStoreEvents(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error) {
-	return s.store.GetEvents(ctx, cids)
+	return s.store.GetEvents(ctx, cids...)
 }
 
 func (s *MemorySyncer) randomPeer() *MemorySyncer {

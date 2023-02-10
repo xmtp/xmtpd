@@ -665,7 +665,14 @@ func (s *TestStore) requireEventsEqual(t *testing.T, expected ...*types.Event) {
 	t.Helper()
 	events, err := s.Events(s.ctx)
 	require.NoError(t, err)
-	require.ElementsMatch(t, expected, events)
+	var exp, act []string
+	for _, e := range events {
+		act = append(act, Dump(e))
+	}
+	for _, e := range expected {
+		exp = append(exp, Dump(e))
+	}
+	require.ElementsMatch(t, exp, act)
 }
 
 func (s *TestStore) requireNoEvents(t *testing.T) {
@@ -679,7 +686,7 @@ func (s *TestStore) seed(t *testing.T, topic string, count int) []*types.Event {
 	t.Helper()
 	ctx := context.Background()
 	events := make([]*types.Event, count)
-	for i := 0; i < 20; i++ {
+	for i := 0; i < count; i++ {
 		ev, err := s.AppendEvent(ctx, &messagev1.Envelope{
 			ContentTopic: topic,
 			TimestampNs:  uint64(i + 1),

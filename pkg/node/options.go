@@ -2,6 +2,8 @@ package node
 
 import (
 	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
+	"github.com/xmtp/xmtpd/pkg/store/bolt"
+	postgresstore "github.com/xmtp/xmtpd/pkg/store/postgres"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -13,9 +15,6 @@ type Options struct {
 }
 
 type StoreOptions struct {
-	Postgres PostgresOptions `group:"Postgres options" namespace:"postgres"`
-}
-
-type PostgresOptions struct {
-	DSN string `long:"dsn" env:"POSTGRES_DSN" description:"Postgres connection string" default:""`
+	Postgres postgresstore.Options `group:"Postgres options" namespace:"postgres"`
+	Bolt     bolt.Options          `group:"Bolt options" namespace:"bolt"`
 }

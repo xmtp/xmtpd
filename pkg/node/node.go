@@ -27,13 +27,16 @@ var (
 	ErrTopicAlreadyExists = errors.New("topic already exists")
 )
 
-type StoreMakerFunc func(topic string) (crdt.Store, error)
+type NodeStore interface {
+	NewTopic(topic string) (crdt.Store, error)
+	Close() error
+}
 
 type Node struct {
 	messagev1.UnimplementedMessageApiServer
 
-	log        *zap.Logger
-	storeMaker StoreMakerFunc
+	log   *zap.Logger
+	store NodeStore
 
 	api *apigateway.Server
 
@@ -57,10 +60,10 @@ type Node struct {
 	ot *openTelemetry
 }
 
-func New(ctx context.Context, log *zap.Logger, storeMaker StoreMakerFunc, opts *Options) (*Node, error) {
+func New(ctx context.Context, log *zap.Logger, store NodeStore, opts *Options) (*Node, error) {
 	n := &Node{
-		log:        log,
-		storeMaker: storeMaker,
+		log:   log,
+		store: store,
 
 		topics:      map[string]*crdt.Replica{},
 		topicStores: map[string]crdt.Store{},
@@ -141,10 +144,6 @@ func (n *Node) Close() {
 		n.ns.Shutdown()
 	}
 
-	if n.host != nil {
-		n.host.Close()
-	}
-
 	if n.sub != nil {
 		n.sub.Cancel()
 	}
@@ -157,9 +156,15 @@ func (n *Node) Close() {
 		n.ctxCancel()
 	}
 
+	if n.host != nil {
+		n.host.Close()
+	}
+
 	for _, store := range n.topicStores {
 		store.Close()
 	}
+
+	n.store.Close()
 
 	if n.ot != nil {
 		n.ot.Close()
@@ -321,7 +326,7 @@ func (n *Node) createTopic(ctx context.Context, topic string) (*crdt.Replica, er
 	if err != nil {
 		return nil, err
 	}
-	store, err := n.storeMaker(topic)
+	store, err := n.store.NewTopic(topic)
 	if err != nil {
 		return nil, err
 	}

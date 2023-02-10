@@ -105,7 +105,7 @@ func (s *MemoryStore) FindMissingLinks(ctx context.Context) (links []multihash.M
 	return links, nil
 }
 
-func (s *MemoryStore) GetEvents(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error) {
+func (s *MemoryStore) GetEvents(ctx context.Context, cids ...multihash.Multihash) ([]*types.Event, error) {
 	s.RLock()
 	defer s.RUnlock()
 	events := make([]*types.Event, 0, len(cids))

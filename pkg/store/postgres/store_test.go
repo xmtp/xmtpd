@@ -57,32 +57,31 @@ func TestScopedPostgresStore(t *testing.T) {
 }
 
 type testScopedStore struct {
-	*postgresstore.ScopedPostgresStore
+	*postgresstore.Store
 	db        *postgresstore.DB
 	dbCleanup func()
 }
 
 func newTestScopedStore(t *testing.T, topic string) *testScopedStore {
 	t.Helper()
-
-	ctx := context.Background()
 	log := test.NewLogger(t)
 
 	db, cleanup := newTestDB(t)
-	store, err := postgresstore.New(ctx, log, db)
+	store, err := postgresstore.NewNodeStore(log, db)
 	require.NoError(t, err)
-	scopedStore := store.Scoped(topic)
+	scopedStore, err := store.NewTopic(topic)
+	require.NoError(t, err)
 
 	return &testScopedStore{
-		ScopedPostgresStore: scopedStore,
-		db:                  db,
-		dbCleanup:           cleanup,
+		Store:     scopedStore.(*postgresstore.Store),
+		db:        db,
+		dbCleanup: cleanup,
 	}
 }
 
 func (s *testScopedStore) Close() error {
 	s.dbCleanup()
-	return s.ScopedPostgresStore.Close()
+	return s.Store.Close()
 }
 
 func newTestDB(t *testing.T) (*postgresstore.DB, func()) {

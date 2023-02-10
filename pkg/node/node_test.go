@@ -16,9 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/api/client"
-	"github.com/xmtp/xmtpd/pkg/crdt"
-	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	"github.com/xmtp/xmtpd/pkg/node"
+	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -170,9 +169,7 @@ func newTestNodeWithName(t *testing.T, name string) *testNode {
 		log = log.Named(name)
 	}
 
-	node, err := node.New(ctx, log, func(topic string) (crdt.Store, error) {
-		return memstore.New(log), nil
-	}, &node.Options{
+	node, err := node.New(ctx, log, memstore.NewNodeStore(log), &node.Options{
 		OpenTelemetry: node.OpenTelemetryOptions{
 			CollectorAddress: "localhost",
 			CollectorPort:    4317,

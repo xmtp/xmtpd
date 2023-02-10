@@ -61,7 +61,7 @@ func NewStore(fn string) (*Store, error) {
 func (s *Store) NewTopic(name string, n *crdt.Node) (crdt.TopicStore, error) {
 	nameBytes := []byte(name)
 	// Make sure the topic structure is in place in the DB
-	if err := s.db.Update(func(tx *bolt.Tx) error {
+	if err := s.db.Batch(func(tx *bolt.Tx) error {
 		if tx.Bucket(nameBytes) != nil {
 			return nil
 		}
@@ -104,6 +104,10 @@ func (s *Store) Topics() (topics []string, err error) {
 	return topics, err
 }
 
+func (s *Store) Close() error {
+	return s.db.Close()
+}
+
 // TopicStore is a topic focused adaptor on top of Store
 type TopicStore struct {
 	name []byte
@@ -113,7 +117,7 @@ type TopicStore struct {
 }
 
 func (s *TopicStore) AddEvent(ev *crdt.Event) (added bool, err error) {
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
 		if err = s.addEvent(topic, ev); err != nil {
 			return err
@@ -128,7 +132,7 @@ func (s *TopicStore) AddEvent(ev *crdt.Event) (added bool, err error) {
 }
 
 func (s *TopicStore) AddHead(ev *crdt.Event) (added bool, err error) {
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
 		if err = s.addEvent(topic, ev); err != nil {
 			return err
@@ -148,7 +152,7 @@ func (s *TopicStore) AddHead(ev *crdt.Event) (added bool, err error) {
 
 func (s *TopicStore) RemoveHead(cid mh.Multihash) (have bool, err error) {
 	var isHead bool
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
 		events := topic.Bucket(EventsBucket)
 		if events.Get(cid) == nil {
@@ -171,7 +175,7 @@ func (s *TopicStore) RemoveHead(cid mh.Multihash) (have bool, err error) {
 }
 
 func (s *TopicStore) NewEvent(env *messagev1.Envelope) (ev *crdt.Event, err error) {
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		var allHeads []mh.Multihash
 		topic := tx.Bucket(s.name)
 		heads := topic.Bucket(HeadsBucket)

@@ -8,7 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
-type MemoryManager struct {
+type Manager struct {
 	log        *zap.Logger
 	bufferSize int
 
@@ -19,8 +19,8 @@ type MemoryManager struct {
 	ctxCancel func()
 }
 
-func New(log *zap.Logger, bufferSize int) *MemoryManager {
-	m := &MemoryManager{
+func New(log *zap.Logger, bufferSize int) *Manager {
+	m := &Manager{
 		log:        log,
 		bufferSize: bufferSize,
 
@@ -30,7 +30,7 @@ func New(log *zap.Logger, bufferSize int) *MemoryManager {
 	return m
 }
 
-func (m *MemoryManager) Close() error {
+func (m *Manager) Close() error {
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
@@ -44,7 +44,7 @@ func (m *MemoryManager) Close() error {
 	return nil
 }
 
-func (m *MemoryManager) OnNewEvent(topicId string, ev *crdttypes.Event) {
+func (m *Manager) OnNewEvent(topicId string, ev *crdttypes.Event) {
 	m.topicSubsLock.RLock()
 	defer m.topicSubsLock.RUnlock()
 
@@ -63,7 +63,7 @@ func (m *MemoryManager) OnNewEvent(topicId string, ev *crdttypes.Event) {
 	}
 }
 
-func (m *MemoryManager) Subscribe(ctx context.Context, topicId string) chan *crdttypes.Event {
+func (m *Manager) Subscribe(ctx context.Context, topicId string) chan *crdttypes.Event {
 	m.topicSubsLock.Lock()
 	defer m.topicSubsLock.Unlock()
 
@@ -75,7 +75,7 @@ func (m *MemoryManager) Subscribe(ctx context.Context, topicId string) chan *crd
 	return ch
 }
 
-func (m *MemoryManager) Unsubscribe(topicId string, ch chan *crdttypes.Event) {
+func (m *Manager) Unsubscribe(topicId string, ch chan *crdttypes.Event) {
 	m.topicSubsLock.Lock()
 	defer m.topicSubsLock.Unlock()
 

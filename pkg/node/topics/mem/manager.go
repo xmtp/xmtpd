@@ -13,7 +13,7 @@ var (
 	ErrTopicAlreadyExists = errors.New("topic already exists")
 )
 
-type MemoryManager struct {
+type Manager struct {
 	log               *zap.Logger
 	newTopicReplicaFn NewTopicReplicaFunc
 
@@ -26,9 +26,9 @@ type MemoryManager struct {
 
 type NewTopicReplicaFunc func(topicId string) (*crdt.Replica, error)
 
-func New(log *zap.Logger, newTopicReplicaFn NewTopicReplicaFunc) (*MemoryManager, error) {
+func New(log *zap.Logger, newTopicReplicaFn NewTopicReplicaFunc) (*Manager, error) {
 	log = log.Named("message/v1")
-	m := &MemoryManager{
+	m := &Manager{
 		log:               log,
 		newTopicReplicaFn: newTopicReplicaFn,
 
@@ -38,7 +38,7 @@ func New(log *zap.Logger, newTopicReplicaFn NewTopicReplicaFunc) (*MemoryManager
 	return m, nil
 }
 
-func (m *MemoryManager) Close() error {
+func (m *Manager) Close() error {
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
@@ -48,7 +48,7 @@ func (m *MemoryManager) Close() error {
 	return nil
 }
 
-func (m *MemoryManager) GetOrCreateTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
+func (m *Manager) GetOrCreateTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
 	topic, err := m.getTopic(ctx, topicId)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (m *MemoryManager) GetOrCreateTopic(ctx context.Context, topicId string) (*
 	return topic, nil
 }
 
-func (m *MemoryManager) getTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
+func (m *Manager) getTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
 	m.topicsLock.RLock()
 	defer m.topicsLock.RUnlock()
 	topic, ok := m.topics[topicId]
@@ -72,7 +72,7 @@ func (m *MemoryManager) getTopic(ctx context.Context, topicId string) (*crdt.Rep
 	return topic, nil
 }
 
-func (m *MemoryManager) createTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
+func (m *Manager) createTopic(ctx context.Context, topicId string) (*crdt.Replica, error) {
 	m.topicsLock.Lock()
 	defer m.topicsLock.Unlock()
 	if _, ok := m.topics[topicId]; ok {

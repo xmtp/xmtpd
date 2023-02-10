@@ -42,6 +42,9 @@ func (m *MemoryManager) Close() error {
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
+	for _, replica := range m.topics {
+		replica.Close()
+	}
 	return nil
 }
 

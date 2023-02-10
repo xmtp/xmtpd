@@ -8,7 +8,7 @@ import (
 
 type Manager interface {
 	OnNewEvent(topicId string, ev *crdttypes.Event)
-	Subscribe(ctx context.Context, topicId string, buffer int) chan *crdttypes.Event
+	Subscribe(ctx context.Context, topicId string) chan *crdttypes.Event
 	Unsubscribe(topicId string, ch chan *crdttypes.Event)
 	Close() error
 }

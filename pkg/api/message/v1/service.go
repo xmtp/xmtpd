@@ -77,7 +77,7 @@ func (s *Service) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.Me
 	topicName := req.ContentTopics[0]
 
 	ctx := context.Background()
-	eventsCh := s.subs.Subscribe(ctx, topicName, 100)
+	eventsCh := s.subs.Subscribe(ctx, topicName)
 	defer s.subs.Unsubscribe(topicName, eventsCh)
 
 	for {

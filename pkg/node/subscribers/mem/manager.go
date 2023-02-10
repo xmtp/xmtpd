@@ -9,7 +9,8 @@ import (
 )
 
 type MemoryManager struct {
-	log *zap.Logger
+	log        *zap.Logger
+	bufferSize int
 
 	topicSubs     map[string]map[chan *crdttypes.Event]struct{}
 	topicSubsLock sync.RWMutex
@@ -18,9 +19,10 @@ type MemoryManager struct {
 	ctxCancel func()
 }
 
-func New(log *zap.Logger) *MemoryManager {
+func New(log *zap.Logger, bufferSize int) *MemoryManager {
 	m := &MemoryManager{
-		log: log,
+		log:        log,
+		bufferSize: bufferSize,
 
 		topicSubs: map[string]map[chan *crdttypes.Event]struct{}{},
 	}
@@ -32,12 +34,21 @@ func (m *MemoryManager) Close() error {
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
+	m.topicSubsLock.Lock()
+	defer m.topicSubsLock.Unlock()
+	for _, subs := range m.topicSubs {
+		for ch := range subs {
+			close(ch)
+		}
+	}
 	return nil
 }
 
 func (m *MemoryManager) OnNewEvent(topicId string, ev *crdttypes.Event) {
 	m.topicSubsLock.RLock()
 	defer m.topicSubsLock.RUnlock()
+
+	// TODO: should this check that the topicId matches ev.Envelope.ContentTopic?
 
 	if _, ok := m.topicSubs[topicId]; !ok {
 		return
@@ -52,11 +63,11 @@ func (m *MemoryManager) OnNewEvent(topicId string, ev *crdttypes.Event) {
 	}
 }
 
-func (m *MemoryManager) Subscribe(ctx context.Context, topicId string, buffer int) chan *crdttypes.Event {
+func (m *MemoryManager) Subscribe(ctx context.Context, topicId string) chan *crdttypes.Event {
 	m.topicSubsLock.Lock()
 	defer m.topicSubsLock.Unlock()
 
-	ch := make(chan *crdttypes.Event, buffer)
+	ch := make(chan *crdttypes.Event, m.bufferSize)
 	if _, ok := m.topicSubs[topicId]; !ok {
 		m.topicSubs[topicId] = map[chan *crdttypes.Event]struct{}{}
 	}

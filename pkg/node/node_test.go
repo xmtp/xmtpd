@@ -30,7 +30,7 @@ func newTestNode(t *testing.T) (*node.Node, func()) {
 	store := memstore.New(log)
 	bc := membroadcaster.New(log)
 	syncer := memsyncer.New(log, store)
-	subs := memsubs.New(log)
+	subs := memsubs.New(log, 100)
 	topics, err := memtopics.New(log, func(topicId string) (*crdt.Replica, error) {
 		return crdt.NewReplica(ctx, log, store, bc, syncer,
 			func(ev *types.Event) {

@@ -55,7 +55,7 @@ func main() {
 	defer bc.Close()
 
 	// Initialize subscribers manager.
-	subs := memsubs.New(log)
+	subs := memsubs.New(log, 100)
 	defer subs.Close()
 
 	// Initialize topics manager.

@@ -9,10 +9,14 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	"github.com/xmtp/xmtpd/pkg/crdt"
 	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	memsyncer "github.com/xmtp/xmtpd/pkg/crdt/syncers/mem"
+	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/node"
+	memsubs "github.com/xmtp/xmtpd/pkg/node/subscribers/mem"
+	memtopics "github.com/xmtp/xmtpd/pkg/node/topics/mem"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -50,15 +54,32 @@ func main() {
 	syncer := memsyncer.New(log, store)
 	defer bc.Close()
 
+	// Initialize subscribers manager.
+	subs := memsubs.New(log)
+	defer subs.Close()
+
+	// Initialize topics manager.
+	ctx := context.Background()
+	topics, err := memtopics.New(log, func(topicId string) (*crdt.Replica, error) {
+		return crdt.NewReplica(ctx, log, store, bc, syncer,
+			func(ev *types.Event) {
+				subs.OnNewEvent(topicId, ev)
+			},
+		)
+	})
+	if err != nil {
+		log.Fatal("error initializing topics manager", zap.Error(err))
+	}
+	defer topics.Close()
+
 	// Initialize messagev1 service.
-	messagev1, err := messagev1.New(log, store, bc, syncer)
+	messagev1, err := messagev1.New(log, topics, subs, store, bc, syncer)
 	if err != nil {
 		log.Fatal("error initializing messagev1", zap.Error(err))
 	}
 	defer messagev1.Close()
 
 	// Initialize node.
-	ctx := context.Background()
 	node, err := node.New(ctx, log, messagev1, &opts)
 	if err != nil {
 		log.Fatal("error initializing node", zap.Error(err))

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"sort"
 	"sync"
 	"testing"
@@ -21,6 +22,19 @@ import (
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
+
+var (
+	defaultP2PConnectDelay = 100 * time.Millisecond
+	p2pConnectDelay        time.Duration
+)
+
+func init() {
+	var err error
+	p2pConnectDelay, err = time.ParseDuration(os.Getenv("P2P_CONNECT_DELAY"))
+	if err != nil {
+		p2pConnectDelay = defaultP2PConnectDelay
+	}
+}
 
 func TestNode_NewClose(t *testing.T) {
 	t.Parallel()
@@ -190,7 +204,7 @@ func (n *testNode) connect(t *testing.T, to *testNode) {
 
 	// Wait for peers to be connected and grafted to the pubsub topic.
 	// See https://github.com/libp2p/go-libp2p-pubsub/issues/331
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(p2pConnectDelay)
 }
 
 func (n *testNode) publishRandom(t *testing.T, topic string, count int) []*messagev1.Envelope {

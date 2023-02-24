@@ -3,5 +3,8 @@ set -eo pipefail
 
 echo "All tests"
 go test ./... "$@"
-echo "Short tests with race detection"
-go test -race -short ./... "$@"
+
+if [ -z "${NO_RACE}" ]; then
+    echo
+    dev/test-race
+fi

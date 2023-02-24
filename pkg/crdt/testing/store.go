@@ -19,8 +19,8 @@ import (
 type ITestStore interface {
 	crdt.Store
 
-	Events() ([]*types.Event, error)
-	Heads() []multihash.Multihash
+	Events(context.Context) ([]*types.Event, error)
+	Heads(context.Context) ([]multihash.Multihash, error)
 }
 
 type TestStoreMaker func(t *testing.T) *TestStore
@@ -41,23 +41,25 @@ func NewTestStore(ctx context.Context, log *zap.Logger, store ITestStore) *TestS
 	}
 }
 
-func RunStoreEventTests(t *testing.T, storeMaker TestStoreMaker) {
-	t.Run("add events", func(t *testing.T) {
+func RunStoreEventTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
+	t.Run("insert events", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
+		defer s.Close()
 
-		ev1 := s.addRandomEvent(t)
+		ev1 := s.addRandomEvent(t, topic)
 		s.requireEventsEqual(t, ev1)
 
-		ev2 := s.addRandomEvent(t)
+		ev2 := s.addRandomEvent(t, topic)
 		s.requireEventsEqual(t, ev1, ev2)
 	})
 
-	t.Run("add existing event", func(t *testing.T) {
+	t.Run("insert existing event", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
+		defer s.Close()
 
-		ev1 := s.addRandomEvent(t)
+		ev1 := s.addRandomEvent(t, topic)
 		s.requireEventsEqual(t, ev1)
 
 		s.addExistingEvent(t, ev1)
@@ -67,55 +69,95 @@ func RunStoreEventTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("append events", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
+		defer s.Close()
 
-		ev1 := s.appendRandomEvent(t)
+		ev1 := s.appendRandomEvent(t, topic)
 		require.NotNil(t, ev1.Cid)
-		require.Nil(t, ev1.Links)
+		require.Empty(t, ev1.Links)
 		s.requireEventsEqual(t, ev1)
 
-		ev2 := s.appendRandomEvent(t)
+		ev2 := s.appendRandomEvent(t, topic)
 		require.NotNil(t, ev2.Cid)
 		require.Equal(t, []multihash.Multihash{ev1.Cid}, ev2.Links)
 		s.requireEventsEqual(t, ev1, ev2)
 	})
 
-	t.Run("add remove heads", func(t *testing.T) {
+	t.Run("insert remove heads", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
+		defer s.Close()
 
-		head := s.addRandomHead(t)
+		head := s.addRandomHead(t, topic)
 		s.requireEventsEqual(t, head)
 
-		ev1 := s.newRandomEventWithHeads(t, []multihash.Multihash{head.Cid})
+		ev1 := s.newRandomEventWithHeads(t, topic, []multihash.Multihash{head.Cid})
 		require.Equal(t, []multihash.Multihash{head.Cid}, ev1.Links)
 		s.addEvent(t, ev1)
 		s.requireEventsEqual(t, head, ev1)
 
-		ev2 := s.newRandomEvent(t)
+		ev2 := s.newRandomEvent(t, topic)
 		require.Nil(t, ev2.Links)
 		s.addEvent(t, ev2)
 		s.requireEventsEqual(t, head, ev1, ev2)
 	})
 
-	t.Run("add existing head", func(t *testing.T) {
+	t.Run("insert existing head", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
+		defer s.Close()
 
-		head := s.addRandomHead(t)
+		head := s.addRandomHead(t, topic)
 		s.requireEventsEqual(t, head)
 
 		s.addExistingEvent(t, head)
 		s.requireEventsEqual(t, head)
 	})
+
+	t.Run("find missing links", func(t *testing.T) {
+		t.Parallel()
+		s := storeMaker(t)
+		defer s.Close()
+
+		missingEv1 := s.newRandomEvent(t, topic)
+		s.requireNoEvents(t)
+		require.NotNil(t, missingEv1)
+
+		missingEv2 := s.newRandomEvent(t, topic)
+		s.requireNoEvents(t)
+		require.NotNil(t, missingEv2)
+
+		missingEv3 := s.newRandomEvent(t, topic)
+		s.requireNoEvents(t)
+		require.NotNil(t, missingEv3)
+
+		ev1 := s.newRandomEvent(t, topic)
+		s.requireNoEvents(t)
+		ev1.Links = []multihash.Multihash{missingEv1.Cid, missingEv2.Cid}
+
+		s.addEvent(t, ev1)
+		s.requireEventsEqual(t, ev1)
+
+		ev2 := s.newRandomEvent(t, topic)
+		s.requireEventsEqual(t, ev1)
+		ev2.Links = []multihash.Multihash{missingEv3.Cid}
+
+		s.addEvent(t, ev2)
+		s.requireEventsEqual(t, ev1, ev2)
+
+		cids, err := s.FindMissingLinks(s.ctx)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []multihash.Multihash{missingEv1.Cid, missingEv2.Cid, missingEv3.Cid}, cids)
+	})
 }
 
-func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
+func RunStoreQueryTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
 	t.Helper()
 
 	t.Run("all sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{})
 		require.NoError(t, err)
 		require.Len(t, res.Envelopes, 20)
@@ -125,7 +167,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("all sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
@@ -139,7 +182,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("all sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
@@ -154,7 +198,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Limit: 5,
@@ -168,7 +213,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
@@ -183,7 +229,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
@@ -199,7 +246,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("start time sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 10,
 		})
@@ -211,7 +259,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("end time sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			EndTimeNs: 10,
 		})
@@ -223,7 +272,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("time range sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 5,
 			EndTimeNs:   15,
@@ -236,7 +286,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("start time sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -251,7 +302,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("end time sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			EndTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -266,7 +318,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("time range sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 5,
 			EndTimeNs:   15,
@@ -282,7 +335,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("start time sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -299,7 +353,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("end time sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			EndTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -316,7 +371,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("time range sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 5,
 			EndTimeNs:   15,
@@ -334,7 +390,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit start time sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -350,7 +407,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit end time sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			EndTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -366,7 +424,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit time range sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 5,
 			EndTimeNs:   15,
@@ -383,7 +442,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit start time sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -400,7 +460,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit end time sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			EndTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -417,7 +478,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit time range sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 5,
 			EndTimeNs:   15,
@@ -435,7 +497,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit start time sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -453,7 +516,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit end time sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			EndTimeNs: 10,
 			PagingInfo: &messagev1.PagingInfo{
@@ -471,7 +535,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("limit time range sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			StartTimeNs: 5,
 			EndTimeNs:   15,
@@ -490,14 +555,15 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("cursor sort default", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Cursor: &messagev1.Cursor{
 					Cursor: &messagev1.Cursor_Index{
 						Index: &messagev1.IndexCursor{
 							SenderTimeNs: 10,
-							Digest:       events[9].Cid,
+							Digest:       []byte(events[9].Cid.HexString()),
 						},
 					},
 				},
@@ -511,7 +577,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("cursor sort ascending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
@@ -519,7 +586,7 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 					Cursor: &messagev1.Cursor_Index{
 						Index: &messagev1.IndexCursor{
 							SenderTimeNs: 10,
-							Digest:       events[9].Cid,
+							Digest:       []byte(events[9].Cid.HexString()),
 						},
 					},
 				},
@@ -533,7 +600,8 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	t.Run("cursor sort descending", func(t *testing.T) {
 		t.Parallel()
 		s := storeMaker(t)
-		events := s.seed(t, 20)
+		defer s.Close()
+		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
@@ -541,7 +609,7 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 					Cursor: &messagev1.Cursor_Index{
 						Index: &messagev1.IndexCursor{
 							SenderTimeNs: 10,
-							Digest:       events[9].Cid,
+							Digest:       []byte(events[9].Cid.HexString()),
 						},
 					},
 				},
@@ -555,9 +623,9 @@ func RunStoreQueryTests(t *testing.T, storeMaker TestStoreMaker) {
 	})
 }
 
-func (s *TestStore) addRandomHead(t *testing.T) *types.Event {
+func (s *TestStore) addRandomHead(t *testing.T, topic string) *types.Event {
 	t.Helper()
-	ev := s.newRandomEvent(t)
+	ev := s.newRandomEvent(t, topic)
 	s.addHead(t, ev)
 	return ev
 }
@@ -569,9 +637,9 @@ func (s *TestStore) addHead(t *testing.T, head *types.Event) {
 	require.True(t, added)
 }
 
-func (s *TestStore) addRandomEvent(t *testing.T) *types.Event {
+func (s *TestStore) addRandomEvent(t *testing.T, topic string) *types.Event {
 	t.Helper()
-	ev := s.newRandomEvent(t)
+	ev := s.newRandomEvent(t, topic)
 	s.addEvent(t, ev)
 	return ev
 }
@@ -590,9 +658,9 @@ func (s *TestStore) addExistingEvent(t *testing.T, ev *types.Event) {
 	require.False(t, added)
 }
 
-func (s *TestStore) appendRandomEvent(t *testing.T) *types.Event {
+func (s *TestStore) appendRandomEvent(t *testing.T, topic string) *types.Event {
 	t.Helper()
-	return s.appendEvent(t, newRandomEnvelope(t))
+	return s.appendEvent(t, newRandomEnvelope(t, topic))
 }
 
 func (s *TestStore) appendEvent(t *testing.T, env *messagev1.Envelope) *types.Event {
@@ -602,32 +670,39 @@ func (s *TestStore) appendEvent(t *testing.T, env *messagev1.Envelope) *types.Ev
 	return ev
 }
 
-func (s *TestStore) newRandomEvent(t *testing.T) *types.Event {
+func (s *TestStore) newRandomEvent(t *testing.T, topic string) *types.Event {
 	t.Helper()
-	return s.newRandomEventWithHeads(t, nil)
+	return s.newRandomEventWithHeads(t, topic, nil)
 }
 
-func (s *TestStore) newRandomEventWithHeads(t *testing.T, heads []multihash.Multihash) *types.Event {
+func (s *TestStore) newRandomEventWithHeads(t *testing.T, topic string, heads []multihash.Multihash) *types.Event {
 	t.Helper()
-	ev, err := types.NewEvent(newRandomEnvelope(t), heads)
+	ev, err := types.NewEvent(newRandomEnvelope(t, topic), heads)
 	require.NoError(t, err)
 	return ev
 }
 
 func (s *TestStore) requireEventsEqual(t *testing.T, expected ...*types.Event) {
 	t.Helper()
-	events, err := s.Events()
+	events, err := s.Events(s.ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, expected, events)
 }
 
-func (s *TestStore) seed(t *testing.T, count int) []*types.Event {
+func (s *TestStore) requireNoEvents(t *testing.T) {
+	t.Helper()
+	events, err := s.Events(s.ctx)
+	require.NoError(t, err)
+	require.Empty(t, events)
+}
+
+func (s *TestStore) seed(t *testing.T, topic string, count int) []*types.Event {
 	t.Helper()
 	ctx := context.Background()
 	events := make([]*types.Event, count)
 	for i := 0; i < 20; i++ {
 		ev, err := s.AppendEvent(ctx, &messagev1.Envelope{
-			ContentTopic: "topic",
+			ContentTopic: topic,
 			TimestampNs:  uint64(i + 1),
 			Message:      []byte(fmt.Sprintf("msg-%d", i+1)),
 		})
@@ -643,12 +718,16 @@ func (s *TestStore) query(t *testing.T, req *messagev1.QueryRequest) (*messagev1
 	return s.Query(ctx, req)
 }
 
-func newRandomEnvelope(t *testing.T) *messagev1.Envelope {
+func newRandomEnvelope(t *testing.T, topic string) *messagev1.Envelope {
 	return &messagev1.Envelope{
-		ContentTopic: "topic-" + test.RandomStringLower(5),
+		ContentTopic: topic,
 		TimestampNs:  uint64(rand.Intn(100)),
 		Message:      []byte("msg-" + test.RandomString(13)),
 	}
+}
+
+func newRandomEnvelopeWithRandomTopic(t *testing.T) *messagev1.Envelope {
+	return newRandomEnvelope(t, "topic-"+test.RandomStringLower(13))
 }
 
 func toEnvelopes(events []*types.Event) []*messagev1.Envelope {

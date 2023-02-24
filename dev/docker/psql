@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eo pipefail
+set -a; source .env.local; set +a
+
+export PGPASSWORD="${POSTGRES_PASSWORD}"
+psql -U "${POSTGRES_USER}" -h localhost -p "${POSTGRES_PORT}" -d "${POSTGRES_DB}" "$@"

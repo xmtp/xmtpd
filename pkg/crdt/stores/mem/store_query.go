@@ -55,7 +55,7 @@ func (s *MemoryStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*
 			if res != 0 {
 				return int(res)
 			}
-			return bytes.Compare(cursor.Digest, result[i].Cid)
+			return bytes.Compare(cursor.Digest, []byte(result[i].Cid.HexString()))
 		})
 		if !found {
 			return nil, ErrCursorNotFound

@@ -42,7 +42,7 @@ func (s *MemoryStore) InsertEvent(ctx context.Context, ev *types.Event) (added b
 	if s.events[key] != nil {
 		return false, nil
 	}
-	s.log.Debug("adding event", zap.Cid("event", ev.Cid))
+	s.log.Debug("inserting event", zap.Cid("event", ev.Cid))
 	s.addEvent(key, ev)
 	return true, nil
 }
@@ -50,7 +50,11 @@ func (s *MemoryStore) InsertEvent(ctx context.Context, ev *types.Event) (added b
 func (s *MemoryStore) AppendEvent(ctx context.Context, env *messagev1.Envelope) (*types.Event, error) {
 	s.Lock()
 	defer s.Unlock()
-	ev, err := types.NewEvent(env, s.Heads())
+	heads, err := s.Heads(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ev, err := types.NewEvent(env, heads)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +74,7 @@ func (s *MemoryStore) InsertHead(ctx context.Context, ev *types.Event) (added bo
 	}
 	s.addEvent(key, ev)
 	s.heads[key] = true
-	s.log.Debug("adding head", zap.Cid("event", ev.Cid), zap.Int("heads", len(s.heads)))
+	s.log.Debug("inserting head", zap.Cid("event", ev.Cid), zap.Int("heads", len(s.heads)))
 	return true, nil
 }
 
@@ -115,7 +119,7 @@ func (s *MemoryStore) GetEvents(ctx context.Context, cids []multihash.Multihash)
 	return events, nil
 }
 
-func (s *MemoryStore) Events() ([]*types.Event, error) {
+func (s *MemoryStore) Events(ctx context.Context) ([]*types.Event, error) {
 	s.RLock()
 	defer s.RUnlock()
 	events := make([]*types.Event, len(s.events))
@@ -127,11 +131,12 @@ func (s *MemoryStore) Events() ([]*types.Event, error) {
 	return events, nil
 }
 
-func (s *MemoryStore) Heads() (cids []multihash.Multihash) {
+func (s *MemoryStore) Heads(ctx context.Context) ([]multihash.Multihash, error) {
+	cids := []multihash.Multihash{}
 	for key := range s.heads {
 		cids = append(cids, s.events[key].Cid)
 	}
-	return cids
+	return cids, nil
 }
 
 // private functions

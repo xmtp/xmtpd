@@ -13,3 +13,5 @@ if ! which mockgen &>/dev/null; then go install github.com/golang/mock/mockgen@v
 go mod tidy
 
 dev/generate
+
+dev/docker/up

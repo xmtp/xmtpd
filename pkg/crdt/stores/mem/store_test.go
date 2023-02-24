@@ -12,13 +12,14 @@ import (
 func TestMemoryStore(t *testing.T) {
 	ctx := context.Background()
 	log := test.NewLogger(t)
+	topic := "topic-" + test.RandomStringLower(13)
 
-	crdttest.RunStoreEventTests(t, func(t *testing.T) *crdttest.TestStore {
+	crdttest.RunStoreEventTests(t, topic, func(t *testing.T) *crdttest.TestStore {
 		store := memstore.New(log)
 		return crdttest.NewTestStore(ctx, log, store)
 	})
 
-	crdttest.RunStoreQueryTests(t, func(t *testing.T) *crdttest.TestStore {
+	crdttest.RunStoreQueryTests(t, topic, func(t *testing.T) *crdttest.TestStore {
 		s := memstore.New(test.NewLogger(t))
 		return crdttest.NewTestStore(ctx, log, s)
 	})

@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eo pipefail
+set -a; source .env.local; set +a
 
 PORT="${PORT:-5000}"
 GIT_COMMIT="$(git rev-parse HEAD)"

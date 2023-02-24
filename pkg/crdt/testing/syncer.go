@@ -83,7 +83,7 @@ func (s *TestSyncer) addManyRandom(t *testing.T, count int) ([]*types.Event, []m
 	events := make([]*types.Event, count)
 	cids := make([]multihash.Multihash, len(events))
 	for i := 0; i < count; i++ {
-		ev, err := types.NewEvent(newRandomEnvelope(t), nil)
+		ev, err := types.NewEvent(newRandomEnvelopeWithRandomTopic(t), nil)
 		require.NoError(t, err)
 		events[i] = ev
 		cids[i] = ev.Cid

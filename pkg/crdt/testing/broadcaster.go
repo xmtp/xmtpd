@@ -61,7 +61,7 @@ func RunBroadcasterTests(t *testing.T, broadcasterMaker TestBroadcasterMaker) {
 func (b *TestBroadcaster) broadcastRandom(t *testing.T, count int) []*types.Event {
 	events := make([]*types.Event, count)
 	for i := 0; i < count; i++ {
-		ev, err := types.NewEvent(newRandomEnvelope(t), nil)
+		ev, err := types.NewEvent(newRandomEnvelopeWithRandomTopic(t), nil)
 		require.NoError(t, err)
 
 		err = b.Broadcast(b.ctx, ev)

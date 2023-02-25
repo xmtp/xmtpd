@@ -6,9 +6,10 @@ import (
 )
 
 type Options struct {
-	Log   zap.Options        `group:"Log options" namespace:"log"`
-	API   apigateway.Options `group:"API options" namespace:"api"`
-	Store StoreOptions       `group:"Store options" namespace:"store"`
+	Log           zap.Options          `group:"Log options" namespace:"log"`
+	API           apigateway.Options   `group:"API options" namespace:"api"`
+	Store         StoreOptions         `group:"Store options" namespace:"store"`
+	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
 }
 
 type StoreOptions struct {

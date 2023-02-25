@@ -1,0 +1,9 @@
+#!/bin/bash
+set -eo pipefail
+
+if ! which jq &>/dev/null; then brew install jq; fi
+if ! which kind &>/dev/null; then brew install kind; fi
+
+export PLAN="${PLAN:-devnet-local}"
+
+dev/terraform/apply "$@"

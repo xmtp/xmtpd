@@ -1,0 +1,11 @@
+#!/bin/bash
+set -eo pipefail
+
+argo_app="$1"
+namespace="xmtp-system"
+
+argocd \
+    --port-forward \
+    --port-forward-namespace="${namespace}" \
+    app sync ${argo_app} \
+    --local dev/helm/xmtp-node

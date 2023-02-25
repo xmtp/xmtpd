@@ -1,2 +1,17 @@
 bin/
 .env
+
+# Embedded db data files
+data/
+
+# Temporary files.
+tmp/
+
+# XMTP node files.
+.xmtp/
+
+# Terraform
+terraform.secrets.auto.tfvars.json
+secrets.tfvars
+secrets.tfvars.json
+!dev/terraform/plans/devnet-local/terraform.secrets.auto.tfvars.json

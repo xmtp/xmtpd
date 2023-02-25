@@ -1,0 +1,7 @@
+#!/bin/bash
+set -eo pipefail
+
+export PLAN="${PLAN:-devnet-local}"
+
+dev/terraform/tf destroy "$@"
+dev/terraform/clean

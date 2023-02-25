@@ -20,8 +20,8 @@ import (
 )
 
 type OpenTelemetryOptions struct {
-	CollectorAddress string `long:"collector-address" env:"OTEL_COLLECTOR_ADDRESS" default:"localhost"`
-	CollectorPort    uint   `long:"collector-port" env:"OTEL_COLLECTOR_PORT" default:"4317"`
+	CollectorAddress string `long:"collector-address" env:"OTEL_COLLECTOR_ADDRESS" description:"OpenTelemetry collector address" default:"localhost"`
+	CollectorPort    uint   `long:"collector-port" env:"OTEL_COLLECTOR_PORT" description:"OpenTelemetry collector port" default:"4317"`
 }
 
 type openTelemetry struct {

@@ -1,0 +1,116 @@
+#!/bin/bash
+set -eo pipefail
+
+out_dir="${1}"
+
+if [ -z "${out_dir}" ]; then
+    echo "Usage: dev/terraform/geenrate [out_dir] [desired_nodes]"
+    echo
+    echo "This will write terraform.tfvars and terraform.secrets.auto.tfvars to out_dir"
+    echo "out_dir is required"
+    echo "desired_nodes is optional and defaults to 1"
+    exit 1
+fi
+
+out_vars_path="${out_dir}/terraform.tfvars.json"
+out_secrets_path="${out_dir}/terraform.secrets.auto.tfvars.json"
+
+if [ -z "${OVERWRITE}" ]; then
+    if [ -f "${out_vars_path}" ]; then
+        echo "${out_vars_path} already exists, aborting"
+        exit 1
+    fi
+
+    if [ -f "${out_secrets_path}" ]; then
+        echo "${out_secrets_path} already exists, aborting"
+        exit 1
+    fi
+fi
+
+nodes="[]"
+node_keys="{}"
+
+if [ -f "${out_vars_path}" ]; then
+    nodes="$(jq '.nodes' "${out_vars_path}")"
+fi
+
+if [ -f "${out_secrets_path}" ]; then
+    node_keys="$(jq '.node_keys' "${out_secrets_path}")"
+fi
+
+existing_nodes="$(echo "${nodes}" | jq '. | length')"
+default_desired_nodes="3"
+desired_nodes="${2}"
+if [ -z "${desired_nodes}" ]; then
+    if (( existing_nodes > 0 )); then
+        desired_nodes="${existing_nodes}"
+    else
+        desired_nodes="${default_desired_nodes}"
+    fi
+fi
+delta_nodes="$((desired_nodes-existing_nodes))"
+
+if ((delta_nodes > 0)); then
+    for ((i=1;i<=delta_nodes;i++)); do
+        node="{}"
+
+        node_name=""
+        while true; do
+            suffix="$(LC_ALL=C tr -dc A-Za-z0-9 </dev/urandom | head -c 3 | tr '[:upper:]' '[:lower:]' ; echo '')"
+            node_name="node-${suffix}"
+            if [ -z "$(echo "${nodes}" | jq -r ".[] | select(.name == \"${node_name}\")")" ]; then
+                break
+            fi
+        done
+
+        echo "adding node ${node_name}"
+        node="$(echo "${node}" | jq ".name = \"${node_name}\"")"
+
+        key="$(dev/run --generate-key)"
+        node_key="$(echo "${key}" | jq -r '.private_node_key')"
+        node_id="$(echo "${key}" | jq -r '.public_node_id')"
+        p2p_public_address="/dns4/${node_name}/tcp/9001/p2p/${node_id}"
+
+        node="$(echo "${node}" | jq ".node_id = \"${node_id}\"")"
+        node="$(echo "${node}" | jq ".p2p_public_address = \"${p2p_public_address}\"")"
+
+        nodes="$(echo "${nodes}" | jq ".[. | length] |= .+ ${node}")"
+        node_keys="$(echo "${node_keys}" | jq ".\"${node_name}\" = \"${node_key}\"")"
+    done
+elif ((delta_nodes < 0)); then
+    delta_nodes="$((-delta_nodes))"
+    while IFS= read -r node; do
+        node_name="$(echo "${node}" | jq -r '.name')"
+        echo "removing node ${node_name}"
+        nodes="$(echo "${nodes}" | jq "del(.[] | select(.name == \"${node_name}\"))")"
+        node_keys="$(echo "${node_keys}" | jq "del(.\"${node_name}\")")"
+    done < <(printf '%s\n' "$(echo "${nodes}" | jq -rc '.[]' | tail -n "${delta_nodes}")")
+else
+    echo "${desired_nodes} nodes already configured"
+fi
+
+# Collect the p2p public multiaddrs for every node.
+node_addrs="[]"
+while IFS= read -r node; do
+    p2p_public_address="$(echo "${node}" | jq -r '.p2p_public_address')"
+    node_addrs="$(echo "${node_addrs}" | jq ". += [\"${p2p_public_address}\"]")"
+done < <(printf '%s\n' "$(echo "${nodes}" | jq -rc '.[]')")
+
+# Explicit fully connected nodes via persistent peers config.
+i=0
+while IFS= read -r node; do
+    p2p_public_address="$(echo "${node}" | jq -r '.p2p_public_address')"
+    node="$(echo "${node}" | jq ".persistent_peers = ${node_addrs}")"
+    nodes="$(echo "${nodes}" | jq ".[${i}] = ${node}")"
+    i="$((i+1))"
+done < <(printf '%s\n' "$(echo "${nodes}" | jq -rc '.[]')")
+
+nodes="$(echo "{}" | jq ".nodes = ${nodes}")"
+node_keys="$(echo "{}" | jq ".node_keys = ${node_keys}")"
+
+mkdir -p "${out_dir}"
+echo "${nodes}" > "${out_vars_path}"
+echo "${node_keys}" > "${out_secrets_path}"
+
+echo "${out_vars_path}"
+echo "${out_secrets_path}"

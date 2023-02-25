@@ -5,6 +5,7 @@ if [[ "${OSTYPE}" == "darwin"* ]]; then
     if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
     if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
     if ! which markdownlint &>/dev/null; then brew install markdownlint-cli; fi
+    if ! which chronic &>/dev/null; then brew install docwhat/tap/chronic; fi
 fi
 
 if ! which mockgen &>/dev/null; then go install github.com/golang/mock/mockgen@v1.6.0; fi

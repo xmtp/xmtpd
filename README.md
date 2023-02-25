@@ -26,9 +26,9 @@ Run tests:
 dev/test
 ```
 
-Visit local [Grafana](https://grafana.com/) UI:
+Visit local [Prometheus](https://prometheus.io/) UI:
 ```sh
-open http://localhost:3000
+open http://localhost:9090
 ```
 
 Visit local [Jaeger](https://www.jaegertracing.io/) UI:

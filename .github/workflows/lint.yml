@@ -16,6 +16,9 @@ jobs:
         run: |
           sudo apt-get -y install tree
           dev/lint-shellcheck
+      - uses: terraform-linters/setup-tflint@v3
+      - name: tflint
+        run: dev/terraform/lint
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod

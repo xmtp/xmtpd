@@ -1,0 +1,11 @@
+#!/bin/bash
+set -eo pipefail
+script_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+plan="${PLAN:-devnet-local}"
+plan_dir="${script_dir}/plans/${plan}"
+
+rm -rf "${plan_dir}/.xmtp"
+rm -rf "${plan_dir}/.terraform"
+rm -rf "${plan_dir}/.terraform.lock.hcl"
+rm -rf "${plan_dir}/terraform.tfstate"

@@ -1,2 +1,12 @@
 bin/
 .env
+
+# Terraform
+.xmtp/
+terraform.secrets.auto.tfvars.json
+secrets.tfvars
+secrets.tfvars.json
+!dev/terraform/plans/devnet-local/terraform.secrets.auto.tfvars.json
+.terraform/
+.terraform.*
+terraform.tfstate*

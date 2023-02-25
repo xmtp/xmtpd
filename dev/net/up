@@ -1,0 +1,12 @@
+#!/bin/bash
+set -eo pipefail
+set -a; source .env.local; set +a
+
+if [[ "${OSTYPE}" == "darwin"* ]]; then
+    if ! which jq &>/dev/null; then brew install jq; fi
+    if ! which kind &>/dev/null; then brew install kind; fi
+    if ! which tflint &>/dev/null; then brew install tflint; fi
+fi
+
+dev/terraform/tf init
+dev/terraform/apply "$@"

@@ -1,0 +1,14 @@
+#!/bin/bash
+set -eo pipefail
+
+namespace="xmtp-system"
+username="admin"
+password="$(kubectl get secret --namespace ${namespace} argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 --decode)"
+argo_host="argo.localhost"
+
+argocd login \
+    --port-forward \
+    --port-forward-namespace "${namespace}" \
+    --plaintext "${argo_host}" \
+    --username "${username}" \
+    --password "${password}"

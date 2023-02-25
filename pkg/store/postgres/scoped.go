@@ -421,7 +421,7 @@ func (s *ScopedPostgresStore) heads(ctx context.Context, tx *sql.Tx) ([]multihas
 
 func (s *ScopedPostgresStore) rollback(tx *sql.Tx) {
 	err := tx.Rollback()
-	if err != nil {
+	if err != nil && err != sql.ErrTxDone {
 		s.log.Error("error rolling back", zap.Error(err))
 	}
 }

@@ -65,7 +65,10 @@ func (s *Server) startGRPC() error {
 		return errors.Wrap(err, "creating grpc listener")
 	}
 
-	telemetry := NewTelemetryInterceptor(s.log)
+	telemetry, err := NewTelemetryInterceptor(s.log)
+	if err != nil {
+		return err
+	}
 	unary := []grpc.UnaryServerInterceptor{
 		telemetry.Unary(),
 		otelgrpc.UnaryServerInterceptor(),

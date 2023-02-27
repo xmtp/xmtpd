@@ -113,8 +113,8 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 
 	attrs := make([]attribute.KeyValue, 0, len(fields))
 	exclude := map[string]bool{
-		"grpc_error_code": true,
-		"client_ip":       true,
+		"grpc_error_message": true,
+		"client_ip":          true,
 	}
 	for _, field := range fields {
 		if exclude[field.Key] {

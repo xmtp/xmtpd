@@ -190,6 +190,17 @@ func (s *ScopedPostgresStore) GetEvents(ctx context.Context, cids []multihash.Mu
 	return nil, ErrTODO
 }
 
+func (s *ScopedPostgresStore) NewCursor(ev *types.Event) *messagev1.Cursor {
+	return &messagev1.Cursor{
+		Cursor: &messagev1.Cursor_Index{
+			Index: &messagev1.IndexCursor{
+				SenderTimeNs: ev.TimestampNs,
+				Digest:       []byte(ev.Cid.HexString()),
+			},
+		},
+	}
+}
+
 func (s *ScopedPostgresStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
 	if len(req.ContentTopics) == 0 {
 		req.ContentTopics = []string{s.topic}

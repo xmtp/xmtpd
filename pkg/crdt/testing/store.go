@@ -559,14 +559,7 @@ func RunStoreQueryTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
 		events := s.seed(t, topic, 20)
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
-				Cursor: &messagev1.Cursor{
-					Cursor: &messagev1.Cursor_Index{
-						Index: &messagev1.IndexCursor{
-							SenderTimeNs: 10,
-							Digest:       []byte(events[9].Cid.HexString()),
-						},
-					},
-				},
+				Cursor: s.NewCursor(events[9]),
 			},
 		})
 		require.NoError(t, err)
@@ -582,14 +575,7 @@ func RunStoreQueryTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-				Cursor: &messagev1.Cursor{
-					Cursor: &messagev1.Cursor_Index{
-						Index: &messagev1.IndexCursor{
-							SenderTimeNs: 10,
-							Digest:       []byte(events[9].Cid.HexString()),
-						},
-					},
-				},
+				Cursor:    s.NewCursor(events[9]),
 			},
 		})
 		require.NoError(t, err)
@@ -605,14 +591,7 @@ func RunStoreQueryTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
 		res, err := s.query(t, &messagev1.QueryRequest{
 			PagingInfo: &messagev1.PagingInfo{
 				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-				Cursor: &messagev1.Cursor{
-					Cursor: &messagev1.Cursor_Index{
-						Index: &messagev1.IndexCursor{
-							SenderTimeNs: 10,
-							Digest:       []byte(events[9].Cid.HexString()),
-						},
-					},
-				},
+				Cursor:    s.NewCursor(events[9]),
 			},
 		})
 		require.NoError(t, err)

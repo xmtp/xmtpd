@@ -16,7 +16,7 @@ type DB struct {
 func NewDB(dsn string) (*DB, error) {
 	db, err := otelsql.Open("pgx", dsn,
 		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
-		otelsql.WithDBName("mydb"),
+		otelsql.WithDBName("xmtpd"),
 	)
 	if err != nil {
 		return nil, err

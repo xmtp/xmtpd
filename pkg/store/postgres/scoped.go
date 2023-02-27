@@ -213,7 +213,7 @@ func (s *ScopedPostgresStore) Query(ctx context.Context, req *messagev1.QueryReq
 		return nil, ErrTopicMismatch
 	}
 
-	baseSQL := "SELECT cid, links, topic, timestamp_ns, message FROM events WHERE topic = $1"
+	baseSQL := "SELECT cid, topic, timestamp_ns, message FROM events WHERE topic = $1"
 	args := []any{topic}
 
 	timeFilterSQL := ""
@@ -264,17 +264,11 @@ func (s *ScopedPostgresStore) Query(ctx context.Context, req *messagev1.QueryReq
 	for rows.Next() {
 		var (
 			cidHex      string
-			linksJSON   string
 			topic       string
 			timestampNS uint64
 			message     []byte
 		)
-		err := rows.Scan(&cidHex, &linksJSON, &topic, &timestampNS, &message)
-		if err != nil {
-			return nil, err
-		}
-		var links []multihash.Multihash
-		err = json.Unmarshal([]byte(linksJSON), &links)
+		err := rows.Scan(&cidHex, &topic, &timestampNS, &message)
 		if err != nil {
 			return nil, err
 		}

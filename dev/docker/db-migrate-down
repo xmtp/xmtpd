@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eo pipefail
+set -a; source .env.local; set +a
+
+migrate -database "${POSTGRESQL_URL}" -path "${POSTGRES_MIGRATIONS_DIR}" down

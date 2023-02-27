@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	defaultP2PConnectDelay = 100 * time.Millisecond
+	defaultP2PConnectDelay = 500 * time.Millisecond
 	p2pConnectDelay        time.Duration
 )
 
@@ -253,6 +253,7 @@ func (n *testNode) subscribe(t *testing.T, topic string) *testSubscriber {
 }
 
 func (n *testNode) requireStoredEvents(t *testing.T, topic string, expected []*messagev1.Envelope) {
+	t.Helper()
 	res, err := n.client.Query(n.ctx, &messagev1.QueryRequest{
 		ContentTopics: []string{topic},
 	})

@@ -190,12 +190,13 @@ func (r *testReplica) requireEventuallyCapturedEvents(t *testing.T, expected []*
 
 func (r *testReplica) requireEventuallyStoredEvents(t *testing.T, expected []*types.Event) {
 	t.Helper()
+	ctx := context.Background()
 	assert.Eventually(t, func() bool {
-		events, err := r.store.Events()
+		events, err := r.store.Events(ctx)
 		require.NoError(t, err)
 		return len(events) == len(expected)
 	}, time.Second, 10*time.Millisecond)
-	events, err := r.store.Events()
+	events, err := r.store.Events(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, expected, events)
 }

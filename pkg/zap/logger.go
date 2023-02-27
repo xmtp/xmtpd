@@ -20,6 +20,11 @@ func (l *Logger) Named(name string) *Logger {
 	return &Logger{l.Logger.Named(name)}
 }
 
+// With needs to rewrap the result so that zap.Logger doesn't leak out.
+func (l *Logger) With(field zap.Field) *Logger {
+	return &Logger{l.Logger.With(field)}
+}
+
 // NewLogger is the primary logger constructor.
 func NewLogger(opts *Options) (*Logger, error) {
 	atom := zap.NewAtomicLevel()

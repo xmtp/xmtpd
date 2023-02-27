@@ -15,6 +15,17 @@ var (
 	ErrCursorNotFound = errors.New("cursor not found")
 )
 
+func (s *MemoryStore) NewCursor(ev *types.Event) *messagev1.Cursor {
+	return &messagev1.Cursor{
+		Cursor: &messagev1.Cursor_Index{
+			Index: &messagev1.IndexCursor{
+				SenderTimeNs: ev.TimestampNs,
+				Digest:       ev.Cid,
+			},
+		},
+	}
+}
+
 func (s *MemoryStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
 	s.RLock()
 	defer s.RUnlock()
@@ -77,7 +88,7 @@ func (s *MemoryStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*
 			newCursorEvent = result[0]
 		}
 		utils.Reverse(result)
-		pi, err := updatedPagingInfo(req.PagingInfo, newCursorEvent)
+		pi, err := s.updatedPagingInfo(req.PagingInfo, newCursorEvent)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +107,7 @@ func (s *MemoryStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*
 		newCursorEvent = result[len(result)-1]
 	}
 
-	pi, err := updatedPagingInfo(req.PagingInfo, newCursorEvent)
+	pi, err := s.updatedPagingInfo(req.PagingInfo, newCursorEvent)
 	if err != nil {
 		return nil, err
 	}
@@ -133,17 +144,10 @@ func makeRoomAt(events []*types.Event, i int) []*types.Event {
 }
 
 // updates paging info with a cursor for given event (or nil)
-func updatedPagingInfo(pi *messagev1.PagingInfo, cursorEvent *types.Event) (*messagev1.PagingInfo, error) {
+func (s *MemoryStore) updatedPagingInfo(pi *messagev1.PagingInfo, cursorEvent *types.Event) (*messagev1.PagingInfo, error) {
 	var cursor *messagev1.Cursor
 	if cursorEvent != nil {
-		cursor = &messagev1.Cursor{
-			Cursor: &messagev1.Cursor_Index{
-				Index: &messagev1.IndexCursor{
-					SenderTimeNs: cursorEvent.TimestampNs,
-					Digest:       cursorEvent.Cid,
-				},
-			},
-		}
+		cursor = s.NewCursor(cursorEvent)
 	}
 	// Note that we're modifying the original query's paging info here.
 	pi.Cursor = cursor

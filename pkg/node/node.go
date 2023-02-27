@@ -334,12 +334,6 @@ func (n *Node) createTopic(ctx context.Context, topic string) (*crdt.Replica, er
 
 func (n *Node) p2pEventConsumerLoop() {
 	for {
-		select {
-		case <-n.ctx.Done():
-			n.log.Info("context done", zap.Error(n.ctx.Err()))
-			return
-		default:
-		}
 		msg, err := n.sub.Next(n.ctx)
 		if err != nil {
 			if err == context.Canceled {

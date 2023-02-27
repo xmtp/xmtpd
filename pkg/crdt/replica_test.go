@@ -127,7 +127,7 @@ func newTestReplica(t *testing.T) *testReplica {
 	tr := &testReplica{
 		store:             crdttest.NewTestStore(ctx, log, store),
 		bc:                crdttest.NewTestBroadcaster(ctx, log, bc),
-		syncer:            syncer,
+		syncer:            crdttest.NewTestSyncer(ctx, log, syncer),
 		capturedEventCids: map[string]struct{}{},
 	}
 
@@ -156,7 +156,7 @@ func (r *testReplica) getCapturedEvents(t *testing.T) []*types.Event {
 
 func (r *testReplica) addPeer(t *testing.T, peer *testReplica) {
 	t.Helper()
-	r.bc.AddPeer(peer.bc.ITestBroadcaster)
+	r.bc.AddPeer(t, peer.bc.ITestBroadcaster)
 }
 
 func (r *testReplica) broadcast(t *testing.T, envs []*messagev1.Envelope) []*types.Event {

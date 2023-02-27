@@ -1,11 +1,11 @@
 package node
 
 import (
-	"github.com/xmtp/xmtpd/pkg/api"
+	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type Options struct {
-	Log zap.Options `group:"Log options" namespace:"log"`
-	API api.Options `group:"API options" namespace:"api"`
+	Log zap.Options        `group:"Log options" namespace:"log"`
+	API apigateway.Options `group:"API options" namespace:"api"`
 }

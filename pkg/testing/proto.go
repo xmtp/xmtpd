@@ -10,5 +10,6 @@ import (
 
 func RequireProtoEqual[S ~[]E, E any](t *testing.T, expected, actual S) {
 	t.Helper()
-	require.Equal(t, "", cmp.Diff(expected, actual, protocmp.Transform()))
+	diff := cmp.Diff(expected, actual, protocmp.Transform())
+	require.Equal(t, "", diff, diff)
 }

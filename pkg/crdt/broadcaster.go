@@ -9,7 +9,7 @@ import (
 // Broadcaster manages broadcasts for a replica.
 type Broadcaster interface {
 	// Broadcast sends an Event out to the network
-	Broadcast(*types.Event) error
+	Broadcast(context.Context, *types.Event) error
 
 	// Next obtains the next event received from the network.
 	Next(ctx context.Context) (*types.Event, error)

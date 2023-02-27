@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/pkg/errors"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"google.golang.org/grpc/metadata"
@@ -63,6 +64,16 @@ func (c *httpClient) Subscribe(ctx context.Context, req *messagev1.SubscribeRequ
 	if err != nil {
 		return nil, err
 	}
+
+	// Wait for subscribe confirmation.
+	env, err := stream.Next(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "waiting for subscribe confirmation")
+	}
+	if !proto.Equal(env, &messagev1.Envelope{}) {
+		return nil, fmt.Errorf("invalid subscribe confirmation: %s", env)
+	}
+
 	return stream, nil
 }
 

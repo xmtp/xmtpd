@@ -1,4 +1,4 @@
-package api
+package gateway
 
 import (
 	"context"
@@ -8,11 +8,9 @@ import (
 	"strings"
 
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
-	proto "github.com/xmtp/proto/v3/go/message_api/v1"
-	messagev1 "github.com/xmtp/xmtpd/pkg/api/message/v1"
+	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -24,13 +22,13 @@ type Server struct {
 	opts      *Options
 	ctx       context.Context
 	log       *zap.Logger
-	messagev1 *messagev1.Service
+	messagev1 messagev1.MessageApiServer
 
 	grpc net.Listener
 	http net.Listener
 }
 
-func New(ctx context.Context, log *zap.Logger, messagev1 *messagev1.Service, opts *Options) (*Server, error) {
+func New(ctx context.Context, log *zap.Logger, messagev1 messagev1.MessageApiServer, opts *Options) (*Server, error) {
 	err := opts.validate()
 	if err != nil {
 		return nil, err
@@ -66,13 +64,9 @@ func (s *Server) startGRPC() error {
 		return errors.Wrap(err, "creating grpc listener")
 	}
 
-	prometheus.EnableHandlingTimeHistogram()
-	unary := []grpc.UnaryServerInterceptor{prometheus.UnaryServerInterceptor}
-	stream := []grpc.StreamServerInterceptor{prometheus.StreamServerInterceptor}
-
 	telemetry := NewTelemetryInterceptor(s.log)
-	unary = append(unary, telemetry.Unary())
-	stream = append(stream, telemetry.Stream())
+	unary := []grpc.UnaryServerInterceptor{telemetry.Unary()}
+	stream := []grpc.StreamServerInterceptor{telemetry.Stream()}
 
 	options := []grpc.ServerOption{
 		grpc.Creds(insecure.NewCredentials()),
@@ -86,8 +80,7 @@ func (s *Server) startGRPC() error {
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(grpcServer, healthcheck)
 
-	proto.RegisterMessageApiServer(grpcServer, s.messagev1)
-	prometheus.Register(grpcServer)
+	messagev1.RegisterMessageApiServer(grpcServer, s.messagev1)
 
 	go func() {
 		s.log.Info("serving grpc", zap.String("address", s.grpc.Addr().String()))
@@ -116,7 +109,7 @@ func (s *Server) startHTTP() error {
 	)
 	mux.Handle("/", gwmux)
 
-	err = proto.RegisterMessageApiHandler(s.ctx, gwmux, conn)
+	err = messagev1.RegisterMessageApiHandler(s.ctx, gwmux, conn)
 	if err != nil {
 		return errors.Wrap(err, "registering message handler")
 	}
@@ -144,10 +137,6 @@ func (s *Server) startHTTP() error {
 }
 
 func (s *Server) Close() {
-	if s.messagev1 != nil {
-		s.messagev1.Close()
-	}
-
 	if s.http != nil {
 		err := s.http.Close()
 		if err != nil {
@@ -181,7 +170,7 @@ func (s *Server) dialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
 	return grpc.DialContext(ctx, dialAddr, opts...)
 }
 
-func (s *Server) httpListenAddr() string {
+func (s *Server) HTTPListenAddr() string {
 	return "http://" + s.http.Addr().String()
 }
 

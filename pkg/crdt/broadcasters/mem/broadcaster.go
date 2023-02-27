@@ -3,6 +3,7 @@ package membroadcaster
 import (
 	"context"
 	"reflect"
+	"testing"
 
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -26,7 +27,7 @@ func (b *MemoryBroadcaster) Close() error {
 	return nil
 }
 
-func (b *MemoryBroadcaster) Broadcast(ev *types.Event) error {
+func (b *MemoryBroadcaster) Broadcast(ctx context.Context, ev *types.Event) error {
 	b.log.Debug("broadcast event", zap.Cid("event", ev.Cid))
 	b.ch <- ev
 	for _, peer := range b.peers {
@@ -49,7 +50,7 @@ func (b *MemoryBroadcaster) Next(ctx context.Context) (*types.Event, error) {
 }
 
 // AddPeer adds a memory broadcaster peer that new events will be shared with.
-func (b *MemoryBroadcaster) AddPeer(peer interface{}) {
+func (b *MemoryBroadcaster) AddPeer(t *testing.T, peer interface{}) {
 	switch peer := peer.(type) {
 	case *MemoryBroadcaster:
 		b.peers = append(b.peers, peer)

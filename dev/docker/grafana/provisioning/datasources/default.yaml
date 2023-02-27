@@ -2,14 +2,14 @@ apiVersion: 1
 
 datasources:
   - name: Prometheus
-    uid: webstore-metrics
+    uid: xmtpd-metrics
     type: prometheus
     url: http://prometheus:9090
     editable: true
     isDefault: true
     jsonData:
       exemplarTraceIdDestinations:
-        - datasourceUid: webstore-traces
+        - datasourceUid: xmtpd-traces
           name: trace_id
 
         - url: http://localhost:8080/jaeger/ui/trace/$${__value.raw}

@@ -103,8 +103,8 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 		if grpcErr != nil {
 			errCode := grpcErr.Code().String()
 			fields = append(fields,
-				zap.String("error_code", errCode),
-				zap.String("error_message", grpcErr.Message()),
+				zap.String("grpc_error_code", errCode),
+				zap.String("grpc_error_message", grpcErr.Message()),
 			)
 		}
 	}
@@ -112,7 +112,14 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 	logFn("api request", fields...)
 
 	attrs := make([]attribute.KeyValue, 0, len(fields))
+	exclude := map[string]bool{
+		"grpc_error_code": true,
+		"client_ip":       true,
+	}
 	for _, field := range fields {
+		if exclude[field.Key] {
+			continue
+		}
 		attrs = append(attrs, attribute.String(field.Key, field.String))
 	}
 	ti.requestCounter.Add(ctx, 1, attrs...)

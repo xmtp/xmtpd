@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -18,8 +19,8 @@ import (
 )
 
 type OpenTelemetryOptions struct {
-	TraceCollectorEndpoint   string `long:"trace-collector" env:"OTEL_TRACE_COLLECTOR" default:"localhost:4317"`
-	MetricsCollectorEndpoint string `long:"metrics-collector" env:"OTEL_METRICS_COLLECTOR" default:"localhost:4317"`
+	CollectorAddress string `long:"collector-address" env:"OTEL_COLLECTOR_ADDRESS" default:"localhost"`
+	CollectorPort    uint   `long:"collector-port" env:"OTEL_COLLECTOR_PORT" default:"4317"`
 }
 
 type openTelemetry struct {
@@ -37,6 +38,7 @@ func newOpenTelemetry(ctx context.Context, log *zap.Logger, opts *OpenTelemetryO
 		ctx: ctx,
 		log: log.Named("otel"),
 	}
+	collectorEndpoint := fmt.Sprintf("%s:%d", opts.CollectorAddress, opts.CollectorPort)
 
 	extraResources, err := sdkresource.New(
 		ctx,
@@ -58,7 +60,7 @@ func newOpenTelemetry(ctx context.Context, log *zap.Logger, opts *OpenTelemetryO
 
 	ot.traceExporter, err = otlptracegrpc.New(ctx,
 		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint(opts.TraceCollectorEndpoint),
+		otlptracegrpc.WithEndpoint(collectorEndpoint),
 	)
 	if err != nil {
 		return nil, err
@@ -72,7 +74,7 @@ func newOpenTelemetry(ctx context.Context, log *zap.Logger, opts *OpenTelemetryO
 
 	ot.metricsExporter, err = otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint(opts.MetricsCollectorEndpoint),
+		otlpmetricgrpc.WithEndpoint(collectorEndpoint),
 	)
 	if err != nil {
 		return nil, err
@@ -93,23 +95,23 @@ func newOpenTelemetry(ctx context.Context, log *zap.Logger, opts *OpenTelemetryO
 
 func (ot *openTelemetry) Close() error {
 	err := ot.traceExporter.Shutdown(ot.ctx)
-	if err != nil {
-		ot.log.Error("error shutting down trace exporter")
+	if err != nil && err != context.Canceled {
+		ot.log.Error("error shutting down trace exporter", zap.Error(err))
 	}
 
 	err = ot.traceProvider.Shutdown(ot.ctx)
-	if err != nil {
-		ot.log.Error("error shutting down trace provider")
+	if err != nil && err != context.Canceled {
+		ot.log.Error("error shutting down trace provider", zap.Error(err))
 	}
 
 	err = ot.metricsExporter.Shutdown(ot.ctx)
-	if err != nil {
-		ot.log.Error("error shutting down metrics exporter")
+	if err != nil && err != context.Canceled {
+		ot.log.Error("error shutting down metrics exporter", zap.Error(err))
 	}
 
 	err = ot.metricsProvider.Shutdown(ot.ctx)
-	if err != nil {
-		ot.log.Error("error shutting down metrics provider")
+	if err != nil && err != context.Canceled {
+		ot.log.Error("error shutting down metrics provider", zap.Error(err))
 	}
 
 	return nil

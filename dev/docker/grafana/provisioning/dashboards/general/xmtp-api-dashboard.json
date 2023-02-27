@@ -111,7 +111,7 @@
           "refId": "A"
         }
       ],
-      "title": "API requests by k8s namespace, k8s service, grpc method, and grpc error code",
+      "title": "API requests by k8s node, grpc method, and grpc error code",
       "type": "timeseries"
     },
     {
@@ -198,7 +198,7 @@
           "refId": "B"
         }
       ],
-      "title": "API requests by k8s namespace, k8s service, api app, and api client",
+      "title": "API requests by k8s node, api app, and api client",
       "type": "timeseries"
     },
     {
@@ -261,7 +261,7 @@
           "refId": "A"
         }
       ],
-      "title": "API requests by namespace and node",
+      "title": "API requests by node",
       "transformations": [
         {
           "id": "sortBy",

@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	defaultP2PConnectDelay = 200 * time.Millisecond
+	defaultP2PConnectDelay = 100 * time.Millisecond
 	p2pConnectDelay        time.Duration
 )
 

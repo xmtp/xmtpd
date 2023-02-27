@@ -5,6 +5,10 @@ import (
 	"strings"
 
 	"github.com/xmtp/xmtpd/pkg/zap"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -17,12 +21,27 @@ const (
 
 type TelemetryInterceptor struct {
 	log *zap.Logger
+
+	metrics        metric.Meter
+	requestCounter instrument.Int64Counter
 }
 
-func NewTelemetryInterceptor(log *zap.Logger) *TelemetryInterceptor {
+func NewTelemetryInterceptor(log *zap.Logger) (*TelemetryInterceptor, error) {
+	metrics := global.MeterProvider().Meter("xmtpd")
+	requestCounter, err := metrics.Int64Counter(
+		"xmtpd.api_requests",
+		instrument.WithDescription("API requests"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &TelemetryInterceptor{
 		log: log,
-	}
+
+		metrics:        metrics,
+		requestCounter: requestCounter,
+	}, nil
 }
 
 func (ti *TelemetryInterceptor) Unary() grpc.UnaryServerInterceptor {
@@ -84,13 +103,26 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 		if grpcErr != nil {
 			errCode := grpcErr.Code().String()
 			fields = append(fields,
-				zap.String("error_code", errCode),
-				zap.String("error_message", grpcErr.Message()),
+				zap.String("grpc_error_code", errCode),
+				zap.String("grpc_error_message", grpcErr.Message()),
 			)
 		}
 	}
 
 	logFn("api request", fields...)
+
+	attrs := make([]attribute.KeyValue, 0, len(fields))
+	exclude := map[string]bool{
+		"grpc_error_message": true,
+		"client_ip":          true,
+	}
+	for _, field := range fields {
+		if exclude[field.Key] {
+			continue
+		}
+		attrs = append(attrs, attribute.String(field.Key, field.String))
+	}
+	ti.requestCounter.Add(ctx, 1, attrs...)
 }
 
 func splitMethodName(fullMethodName string) (serviceName string, methodName string) {

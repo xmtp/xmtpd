@@ -53,6 +53,8 @@ type Node struct {
 
 	ns *server.Server
 	nc *nats.Conn
+
+	ot *openTelemetry
 }
 
 func New(ctx context.Context, log *zap.Logger, storeMaker StoreMakerFunc, opts *Options) (*Node, error) {
@@ -67,6 +69,12 @@ func New(ctx context.Context, log *zap.Logger, storeMaker StoreMakerFunc, opts *
 	}
 	n.ctx, n.ctxCancel = context.WithCancel(ctx)
 	var err error
+
+	// Initialize open telemetry.
+	n.ot, err = newOpenTelemetry(ctx, log, &opts.OpenTelemetry)
+	if err != nil {
+		return nil, errors.Wrap(err, "initializing open telemetry")
+	}
 
 	// Initialize API server/gateway.
 	n.api, err = apigateway.New(n.ctx, log, n, &opts.API)
@@ -151,6 +159,10 @@ func (n *Node) Close() {
 
 	for _, store := range n.topicStores {
 		store.Close()
+	}
+
+	if n.ot != nil {
+		n.ot.Close()
 	}
 }
 

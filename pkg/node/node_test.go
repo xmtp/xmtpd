@@ -172,7 +172,12 @@ func newTestNodeWithName(t *testing.T, name string) *testNode {
 
 	node, err := node.New(ctx, log, func(topic string) (crdt.Store, error) {
 		return memstore.New(log), nil
-	}, &node.Options{})
+	}, &node.Options{
+		OpenTelemetry: node.OpenTelemetryOptions{
+			CollectorAddress: "localhost",
+			CollectorPort:    4317,
+		},
+	})
 	require.NoError(t, err)
 
 	client := client.NewHTTPClient(log, fmt.Sprintf("http://localhost:%d", node.APIHTTPListenPort()), "test", name)

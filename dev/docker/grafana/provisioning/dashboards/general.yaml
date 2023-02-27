@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: 'XMTP'
+    orgId: 1
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/general

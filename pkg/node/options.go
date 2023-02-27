@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/xmtp/xmtpd/pkg/apigateway"
+	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 

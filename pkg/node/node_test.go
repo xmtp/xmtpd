@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
-	"github.com/xmtp/xmtpd/pkg/client"
+	"github.com/xmtp/xmtpd/pkg/api/client"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	"github.com/xmtp/xmtpd/pkg/node"

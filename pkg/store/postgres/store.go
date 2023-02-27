@@ -3,7 +3,7 @@ package postgresstore
 import (
 	"context"
 
-	"github.com/xmtp/xmtpd/db/migrations"
+	"github.com/xmtp/xmtpd/pkg/store/postgres/migrations"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 

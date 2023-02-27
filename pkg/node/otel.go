@@ -8,6 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -46,6 +47,9 @@ func newOpenTelemetry(ctx context.Context, log *zap.Logger, opts *OpenTelemetryO
 		sdkresource.WithProcess(),
 		sdkresource.WithContainer(),
 		sdkresource.WithHost(),
+		sdkresource.WithAttributes(
+			attribute.String("service.name", "xmtpd"),
+		),
 	)
 	if err != nil {
 		return nil, err

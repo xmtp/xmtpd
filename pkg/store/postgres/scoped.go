@@ -47,24 +47,15 @@ func (s *ScopedPostgresStore) Close() error {
 func (s *ScopedPostgresStore) InsertEvent(ctx context.Context, ev *types.Event) (bool, error) {
 	s.log.Debug("inserting event", zap.Cid("event", ev.Cid))
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return false, err
-	}
-	defer s.rollback(tx)
-
-	added, err := s.insertEvent(ctx, tx, ev)
-	if err != nil {
-		return false, err
-	}
-
-	// If it wasn't added, but there was no error, then don't attempt to
-	// commit, because there's nothing to commit and it will fail.
-	if !added {
-		return false, nil
-	}
-
-	err = tx.Commit()
+	var added bool
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		added, err = s.insertEvent(ctx, tx, ev)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		return false, err
 	}
@@ -77,39 +68,30 @@ func (s *ScopedPostgresStore) AppendEvent(ctx context.Context, env *messagev1.En
 		return nil, ErrTopicMismatch
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer s.rollback(tx)
+	var ev *types.Event
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
+		heads, err := s.heads(ctx, tx)
+		if err != nil {
+			return err
+		}
+		ev, err = types.NewEvent(env, heads)
+		if err != nil {
+			return err
+		}
+		s.log.Debug("appending event", zap.Cid("event", ev.Cid), zap.Int("links", len(ev.Links)))
 
-	heads, err := s.heads(ctx, tx)
-	if err != nil {
-		return nil, err
-	}
-	ev, err := types.NewEvent(env, heads)
-	if err != nil {
-		return nil, err
-	}
-	s.log.Debug("appending event", zap.Cid("event", ev.Cid), zap.Int("links", len(ev.Links)))
+		_, err = s.insertEvent(ctx, tx, ev)
+		if err != nil {
+			return err
+		}
 
-	eventAdded, err := s.insertEvent(ctx, tx, ev)
-	if err != nil {
-		return nil, err
-	}
+		_, err = s.insertHead(ctx, tx, ev)
+		if err != nil {
+			return err
+		}
 
-	headAdded, err := s.insertHead(ctx, tx, ev)
-	if err != nil {
-		return nil, err
-	}
-
-	// If both weren't added, but there was no error, then don't attempt to
-	// commit, because there's nothing to commit and it will fail.
-	if !eventAdded && !headAdded {
-		return ev, nil
-	}
-
-	err = tx.Commit()
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -120,29 +102,20 @@ func (s *ScopedPostgresStore) AppendEvent(ctx context.Context, env *messagev1.En
 func (s *ScopedPostgresStore) InsertHead(ctx context.Context, ev *types.Event) (bool, error) {
 	s.log.Debug("inserting head", zap.Cid("event", ev.Cid))
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return false, err
-	}
-	defer s.rollback(tx)
+	var headAdded bool
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
+		_, err := s.insertEvent(ctx, tx, ev)
+		if err != nil {
+			return err
+		}
 
-	eventAdded, err := s.insertEvent(ctx, tx, ev)
-	if err != nil {
-		return false, err
-	}
+		headAdded, err = s.insertHead(ctx, tx, ev)
+		if err != nil {
+			return err
+		}
 
-	headAdded, err := s.insertHead(ctx, tx, ev)
-	if err != nil {
-		return false, err
-	}
-
-	// If both weren't added, but there was no error, then don't attempt to
-	// commit, because there's nothing to commit and it will fail.
-	if !eventAdded && !headAdded {
-		return false, nil
-	}
-
-	err = tx.Commit()
+		return nil
+	})
 	if err != nil {
 		return false, err
 	}
@@ -328,22 +301,15 @@ func (s *ScopedPostgresStore) Events(ctx context.Context) ([]*types.Event, error
 }
 
 func (s *ScopedPostgresStore) Heads(ctx context.Context) ([]multihash.Multihash, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer s.rollback(tx)
-
-	cids, err := s.heads(ctx, tx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
+	var cids []multihash.Multihash
+	s.executeTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		cids, err = s.heads(ctx, tx)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	return cids, nil
 }
 
@@ -424,11 +390,26 @@ func (s *ScopedPostgresStore) heads(ctx context.Context, tx *sql.Tx) ([]multihas
 	return cids, nil
 }
 
-func (s *ScopedPostgresStore) rollback(tx *sql.Tx) {
-	err := tx.Rollback()
-	if err != nil && err != sql.ErrTxDone {
-		s.log.Error("error rolling back", zap.Error(err))
+func (s *ScopedPostgresStore) executeTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
 	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		} else if err != nil {
+			rollbackErr := tx.Rollback() // err is non-nil; don't change it
+			if rollbackErr != nil {
+				s.log.Error("error rolling back", zap.Error(err))
+			}
+		} else {
+			err = tx.Commit() // err is nil; if Commit returns error update err
+		}
+	}()
+	err = fn(tx)
+	return err
 }
 
 func isDuplicateKeyError(err error) bool {

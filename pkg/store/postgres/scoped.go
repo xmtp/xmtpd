@@ -302,7 +302,7 @@ func (s *ScopedPostgresStore) Events(ctx context.Context) ([]*types.Event, error
 
 func (s *ScopedPostgresStore) Heads(ctx context.Context) ([]multihash.Multihash, error) {
 	var cids []multihash.Multihash
-	s.executeTx(ctx, func(tx *sql.Tx) error {
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
 		var err error
 		cids, err = s.heads(ctx, tx)
 		if err != nil {
@@ -310,6 +310,9 @@ func (s *ScopedPostgresStore) Heads(ctx context.Context) ([]multihash.Multihash,
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	return cids, nil
 }
 
@@ -397,7 +400,10 @@ func (s *ScopedPostgresStore) executeTx(ctx context.Context, fn func(tx *sql.Tx)
 	}
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				s.log.Error("error rolling back", zap.Error(err))
+			}
 			panic(p) // re-throw panic after Rollback
 		} else if err != nil {
 			rollbackErr := tx.Rollback() // err is non-nil; don't change it

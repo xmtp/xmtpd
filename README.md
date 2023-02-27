@@ -25,3 +25,13 @@ Run tests:
 ```sh
 dev/test
 ```
+
+Visit local [Grafana](https://grafana.com/) UI:
+```sh
+open http://localhost:3000
+```
+
+Visit local [Jaeger](https://www.jaegertracing.io/) UI:
+```sh
+open http://localhost:16686
+```

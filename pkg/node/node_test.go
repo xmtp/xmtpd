@@ -216,17 +216,33 @@ syncLoop:
 			})
 			require.NoError(t, err)
 
-			res, err := to.client.Query(n.ctx, &messagev1.QueryRequest{
-				ContentTopics: []string{topic},
-				PagingInfo: &messagev1.PagingInfo{
-					Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-					Limit:     1,
-				},
-			})
-			require.NoError(t, err)
+			func() {
+				queryTicker := time.NewTicker(100 * time.Millisecond)
+				defer queryTicker.Stop()
+				queryCtx, queryCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+				defer queryCancel()
+				for {
+					select {
+					case <-queryCtx.Done():
+						return
+					case <-queryTicker.C:
+						res, err := to.client.Query(n.ctx, &messagev1.QueryRequest{
+							ContentTopics: []string{topic},
+							PagingInfo: &messagev1.PagingInfo{
+								Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
+								Limit:     1,
+							},
+						})
+						require.NoError(t, err)
 
-			if len(res.Envelopes) > 0 && proto.Equal(sentEnv, res.Envelopes[0]) {
-				connected = true
+						if len(res.Envelopes) > 0 && proto.Equal(sentEnv, res.Envelopes[0]) {
+							connected = true
+							return
+						}
+					}
+				}
+			}()
+			if connected {
 				break syncLoop
 			}
 

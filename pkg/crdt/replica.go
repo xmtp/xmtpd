@@ -83,6 +83,7 @@ func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 		ev, err := r.broadcaster.Next(ctx)
 		if err != nil {
 			if err == context.Canceled {
+				r.log.Named("nextBroadcastedEventLoop").Debug("context closed", zap.Error(err))
 				return
 			}
 			r.log.Error("error getting next broadcasted event", zap.Error(err))
@@ -100,11 +101,11 @@ func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
 func (r *Replica) receiveEventLoop(ctx context.Context) {
-loop:
 	for {
 		select {
 		case <-ctx.Done():
-			break loop
+			r.log.Named("receiveEventLoop").Debug("context closed", zap.Error(ctx.Err()))
+			return
 		case ev := <-r.pendingReceiveEvents:
 			added, err := r.store.InsertHead(ctx, ev)
 			if err != nil {
@@ -126,11 +127,11 @@ loop:
 // syncLoop fetches missing events from links.
 // It consumes pendingLinks and writes into pendingSyncEvents
 func (r *Replica) syncLinkLoop(ctx context.Context) {
-loop:
 	for {
 		select {
 		case <-ctx.Done():
-			break loop
+			r.log.Named("syncLinkLoop").Debug("context closed", zap.Error(ctx.Err()))
+			return
 		case cid := <-r.pendingLinks:
 			// r.log.Debug("checking link", zap.Cid("link", cid))
 			// If the CID is in heads, it should be removed because
@@ -175,11 +176,11 @@ loop:
 // TODO: There is channel read/write cycle between the two sync loops,
 // i.e. they could potentially lock up if both channels fill up.
 func (r *Replica) syncEventLoop(ctx context.Context) {
-loop:
 	for {
 		select {
 		case <-ctx.Done():
-			break loop
+			r.log.Named("syncEventLoop").Debug("context closed", zap.Error(ctx.Err()))
+			return
 		case ev := <-r.pendingSyncEvents:
 			added, err := r.store.InsertEvent(ctx, ev)
 			if err != nil {
@@ -208,6 +209,7 @@ func (r *Replica) bootstrap(ctx context.Context) error {
 	for _, link := range links {
 		select {
 		case <-ctx.Done():
+			r.log.Named("bootstrap").Debug("context closed", zap.Error(ctx.Err()))
 			return ctx.Err()
 		case r.pendingLinks <- link:
 		}

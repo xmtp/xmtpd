@@ -71,7 +71,7 @@ func New(ctx context.Context, log *zap.Logger, storeMaker StoreMakerFunc, opts *
 	var err error
 
 	// Initialize open telemetry.
-	n.ot, err = newOpenTelemetry(ctx, log, &opts.OpenTelemetry)
+	n.ot, err = newOpenTelemetry(n.ctx, log, &opts.OpenTelemetry)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing open telemetry")
 	}
@@ -89,7 +89,7 @@ func New(ctx context.Context, log *zap.Logger, storeMaker StoreMakerFunc, opts *
 	}
 
 	// Initialize libp2p pubsub.
-	gs, err := pubsub.NewGossipSub(ctx, n.host)
+	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
 	if err != nil {
 		return nil, err
 	}

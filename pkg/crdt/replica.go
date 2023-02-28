@@ -106,9 +106,9 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case ev := <-r.pendingReceiveEvents:
-			// r.log.Debug("adding event", zap.Cid("event", ev.cid))
 			added, err := r.store.InsertHead(ctx, ev)
 			if err != nil {
+				r.log.Error("error inserting head", zap.Cid("event", ev.Cid), zap.Error(err))
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
@@ -136,21 +136,23 @@ loop:
 			// If the CID is in heads, it should be removed because
 			// we have an event that points to it.
 			// We also don't need to fetch it since we already have it.
-			haveAlready, err := r.store.RemoveHead(ctx, cid)
+			removed, err := r.store.RemoveHead(ctx, cid)
 			if err != nil {
+				r.log.Error("error removing head", zap.Cid("event", cid), zap.Error(err))
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
 				r.pendingLinks <- cid
 				continue
 			}
-			if haveAlready {
+			if removed {
 				continue
 			}
 			r.log.Debug("fetching link", zap.Cid("link", cid))
 			cids := []mh.Multihash{cid}
 			evs, err := r.syncer.Fetch(ctx, cids)
 			if err != nil {
+				r.log.Error("error fetching event", zap.Cids("event", cids...), zap.Error(err))
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.
 				// TODO: if the channel is full, this will lock up the loop
@@ -179,9 +181,9 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case ev := <-r.pendingSyncEvents:
-			// r.log.Debug("adding link event", zap.Cid("event", ev.cid))
 			added, err := r.store.InsertEvent(ctx, ev)
 			if err != nil {
+				r.log.Error("error inserting event", zap.Cid("event", ev.Cid), zap.Error(err))
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop

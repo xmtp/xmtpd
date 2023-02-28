@@ -15,6 +15,7 @@ type Options struct {
 }
 
 type StoreOptions struct {
-	Postgres postgresstore.Options `group:"Postgres options" namespace:"postgres"`
-	Bolt     bolt.Options          `group:"Bolt options" namespace:"bolt"`
+	Type     string                `long:"type" description:"type of storage to use" choice:"mem" choice:"postgres" choice:"bolt" default:"mem"`
+	Postgres postgresstore.Options `group:"Store Postgres options" namespace:"postgres"`
+	Bolt     bolt.Options          `group:"Store Bolt options" namespace:"bolt"`
 }

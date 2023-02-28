@@ -42,7 +42,7 @@ func main() {
 	// Initialize datastore.
 	var store node.NodeStore
 	switch {
-	case opts.Store.Postgres.DSN != "":
+	case opts.Store.Type == "postgres":
 		log.Info("using postgres store")
 		db, err := postgresstore.NewDB(opts.Store.Postgres.DSN)
 		if err != nil {
@@ -52,7 +52,7 @@ func main() {
 		if err != nil {
 			fatal("error initializing postgres: %s", err)
 		}
-	case opts.Store.Bolt.DataPath != "":
+	case opts.Store.Type == "bolt":
 		log.Info("using bolt store")
 		store, err = bolt.NewNodeStore(opts.Store.Bolt.DataPath, log)
 		if err != nil {

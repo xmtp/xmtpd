@@ -14,6 +14,7 @@ type Options struct {
 	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
 }
 
+//nolint:staticcheck // it doesn't like the multiple "choice" struct tags
 type StoreOptions struct {
 	Type     string                `long:"type" description:"type of storage to use" choice:"mem" choice:"postgres" choice:"bolt" default:"mem"`
 	Postgres postgresstore.Options `group:"Store Postgres options" namespace:"postgres"`

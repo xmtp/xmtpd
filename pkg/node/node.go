@@ -325,7 +325,7 @@ func (n *Node) createTopic(ctx context.Context, topic string) (*crdt.Replica, er
 	if err != nil {
 		return nil, err
 	}
-	replica, err := crdt.NewReplica(ctx, n.log, store, bc, nil, func(ev *types.Event) {
+	replica, err := crdt.NewReplica(n.ctx, n.log, store, bc, nil, func(ev *types.Event) {
 		evB, err := ev.ToBytes()
 		if err != nil {
 			n.log.Error("error converting event to bytes", zap.Error(err))

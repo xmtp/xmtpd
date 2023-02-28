@@ -46,12 +46,12 @@ func NewReplica(ctx context.Context, log *zap.Logger, store Store, bc Broadcaste
 		pendingLinks:         make(chan mh.Multihash, 20),
 	}
 
-	go r.receiveEventLoop(ctx)
-	go r.syncEventLoop(ctx)
-	go r.syncLinkLoop(ctx)
-	go r.nextBroadcastedEventLoop(ctx)
+	go r.receiveEventLoop()
+	go r.syncEventLoop()
+	go r.syncLinkLoop()
+	go r.nextBroadcastedEventLoop()
 
-	err := r.bootstrap(ctx)
+	err := r.bootstrap()
 	if err != nil {
 		return nil, err
 	}
@@ -78,17 +78,19 @@ func (r *Replica) Query(ctx context.Context, req *messagev1.QueryRequest) (*mess
 	return r.store.Query(ctx, req)
 }
 
-func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
+func (r *Replica) nextBroadcastedEventLoop() {
+	log := r.log.Named("nextBroadcastedEventLoop")
 	for {
-		ev, err := r.broadcaster.Next(ctx)
+		ev, err := r.broadcaster.Next(r.ctx)
 		if err != nil {
 			if err == context.Canceled {
+				log.Debug("context closed", zap.Error(err))
 				return
 			}
-			r.log.Error("error getting next broadcasted event", zap.Error(err))
+			log.Error("error getting next broadcasted event", zap.Error(err))
 			return
 		}
-		r.log.Debug("received broadcasted event", zap.Cid("event", ev.Cid))
+		log.Debug("received broadcasted event", zap.Cid("event", ev.Cid))
 		r.pendingReceiveEvents <- ev
 
 		if r.onNewEvent != nil {
@@ -99,16 +101,17 @@ func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 
 // receiveEventLoop processes incoming Events from broadcasts.
 // It consumes pendingReceiveEvents and writes into pendingLinks.
-func (r *Replica) receiveEventLoop(ctx context.Context) {
-loop:
+func (r *Replica) receiveEventLoop() {
+	log := r.log.Named("receiveEventLoop")
 	for {
 		select {
-		case <-ctx.Done():
-			break loop
+		case <-r.ctx.Done():
+			log.Debug("context closed", zap.Error(r.ctx.Err()))
+			return
 		case ev := <-r.pendingReceiveEvents:
-			// r.log.Debug("adding event", zap.Cid("event", ev.cid))
-			added, err := r.store.InsertHead(ctx, ev)
+			added, err := r.store.InsertHead(r.ctx, ev)
 			if err != nil {
+				log.Error("error inserting head", zap.Cid("event", ev.Cid), zap.Error(err))
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
@@ -125,32 +128,35 @@ loop:
 
 // syncLoop fetches missing events from links.
 // It consumes pendingLinks and writes into pendingSyncEvents
-func (r *Replica) syncLinkLoop(ctx context.Context) {
-loop:
+func (r *Replica) syncLinkLoop() {
+	log := r.log.Named("syncLinkLoop")
 	for {
 		select {
-		case <-ctx.Done():
-			break loop
+		case <-r.ctx.Done():
+			log.Debug("context closed", zap.Error(r.ctx.Err()))
+			return
 		case cid := <-r.pendingLinks:
 			// r.log.Debug("checking link", zap.Cid("link", cid))
 			// If the CID is in heads, it should be removed because
 			// we have an event that points to it.
 			// We also don't need to fetch it since we already have it.
-			haveAlready, err := r.store.RemoveHead(ctx, cid)
+			removed, err := r.store.RemoveHead(r.ctx, cid)
 			if err != nil {
+				log.Error("error removing head", zap.Cid("event", cid), zap.Error(err))
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
 				r.pendingLinks <- cid
 				continue
 			}
-			if haveAlready {
+			if removed {
 				continue
 			}
-			r.log.Debug("fetching link", zap.Cid("link", cid))
+			log.Debug("fetching link", zap.Cid("link", cid))
 			cids := []mh.Multihash{cid}
-			evs, err := r.syncer.Fetch(ctx, cids)
+			evs, err := r.syncer.Fetch(r.ctx, cids)
 			if err != nil {
+				log.Error("error fetching event", zap.Cids("event", cids...), zap.Error(err))
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.
 				// TODO: if the channel is full, this will lock up the loop
@@ -172,16 +178,17 @@ loop:
 // It consumes pendingSyncEvents and writes into pendingLinks.
 // TODO: There is channel read/write cycle between the two sync loops,
 // i.e. they could potentially lock up if both channels fill up.
-func (r *Replica) syncEventLoop(ctx context.Context) {
-loop:
+func (r *Replica) syncEventLoop() {
+	log := r.log.Named("syncEventLoop")
 	for {
 		select {
-		case <-ctx.Done():
-			break loop
+		case <-r.ctx.Done():
+			log.Debug("context closed", zap.Error(r.ctx.Err()))
+			return
 		case ev := <-r.pendingSyncEvents:
-			// r.log.Debug("adding link event", zap.Cid("event", ev.cid))
-			added, err := r.store.InsertEvent(ctx, ev)
+			added, err := r.store.InsertEvent(r.ctx, ev)
 			if err != nil {
+				log.Error("error inserting event", zap.Cid("event", ev.Cid), zap.Error(err))
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
@@ -198,15 +205,17 @@ loop:
 }
 
 // Bootstrap from the contents of the store.
-func (r *Replica) bootstrap(ctx context.Context) error {
-	links, err := r.store.FindMissingLinks(ctx)
+func (r *Replica) bootstrap() error {
+	log := r.log.Named("bootstrap")
+	links, err := r.store.FindMissingLinks(r.ctx)
 	if err != nil {
 		return err
 	}
 	for _, link := range links {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-r.ctx.Done():
+			log.Debug("context closed", zap.Error(r.ctx.Err()))
+			return r.ctx.Err()
 		case r.pendingLinks <- link:
 		}
 	}

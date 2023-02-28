@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
 	"sort"
 	"sync"
 	"testing"
@@ -21,20 +20,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/node"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
+	"google.golang.org/protobuf/proto"
 )
-
-var (
-	defaultP2PConnectDelay = 500 * time.Millisecond
-	p2pConnectDelay        time.Duration
-)
-
-func init() {
-	var err error
-	p2pConnectDelay, err = time.ParseDuration(os.Getenv("P2P_CONNECT_DELAY"))
-	if err != nil {
-		p2pConnectDelay = defaultP2PConnectDelay
-	}
-}
 
 func TestNode_NewClose(t *testing.T) {
 	t.Parallel()
@@ -209,18 +196,68 @@ func (n *testNode) connect(t *testing.T, to *testNode) {
 
 	// Wait for peers to be connected and grafted to the pubsub topic.
 	// See https://github.com/libp2p/go-libp2p-pubsub/issues/331
-	time.Sleep(p2pConnectDelay)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	attempt := 1
+	var connected bool
+	ctx, cancel := context.WithTimeout(n.ctx, 5*time.Second)
+	defer cancel()
+syncLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			n.log.Info("context closed", zap.Error(ctx.Err()))
+			break syncLoop
+		case <-ticker.C:
+			topic := "sync-" + test.RandomStringLower(13)
+			sentEnv := newRandomEnvelope(topic)
+			_, err := n.client.Publish(n.ctx, &messagev1.PublishRequest{
+				Envelopes: []*messagev1.Envelope{sentEnv},
+			})
+			require.NoError(t, err)
+
+			func() {
+				queryTicker := time.NewTicker(100 * time.Millisecond)
+				defer queryTicker.Stop()
+				queryCtx, queryCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+				defer queryCancel()
+				for {
+					select {
+					case <-queryCtx.Done():
+						return
+					case <-queryTicker.C:
+						res, err := to.client.Query(n.ctx, &messagev1.QueryRequest{
+							ContentTopics: []string{topic},
+							PagingInfo: &messagev1.PagingInfo{
+								Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
+								Limit:     1,
+							},
+						})
+						require.NoError(t, err)
+
+						if len(res.Envelopes) > 0 && proto.Equal(sentEnv, res.Envelopes[0]) {
+							connected = true
+							return
+						}
+					}
+				}
+			}()
+			if connected {
+				break syncLoop
+			}
+
+			n.log.Debug("waiting for p2p connectivity sync message", zap.Int("attempt", attempt))
+			attempt++
+		}
+	}
+	require.True(t, connected, fmt.Sprintf("node %s failed to connect to node %s", n.name, to.name))
 }
 
 func (n *testNode) publishRandom(t *testing.T, topic string, count int) []*messagev1.Envelope {
 	t.Helper()
 	envs := make([]*messagev1.Envelope, count)
 	for i := 0; i < count; i++ {
-		env := &messagev1.Envelope{
-			ContentTopic: topic,
-			TimestampNs:  uint64(rand.Intn(100)),
-			Message:      []byte("msg-" + test.RandomString(13)),
-		}
+		env := newRandomEnvelope(topic)
 		res, err := n.client.Publish(n.ctx, &messagev1.PublishRequest{
 			Envelopes: []*messagev1.Envelope{env},
 		})
@@ -303,4 +340,12 @@ func requireEnvelopesEqual(t *testing.T, actual, expected []*messagev1.Envelope)
 		return bytes.Compare(actual[i].Message, actual[j].Message) < 0
 	})
 	test.RequireProtoEqual(t, expected, actual)
+}
+
+func newRandomEnvelope(topic string) *messagev1.Envelope {
+	return &messagev1.Envelope{
+		ContentTopic: topic,
+		TimestampNs:  uint64(rand.Intn(100)),
+		Message:      []byte("msg-" + test.RandomString(13)),
+	}
 }

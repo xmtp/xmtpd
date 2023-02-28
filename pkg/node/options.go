@@ -2,6 +2,8 @@ package node
 
 import (
 	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
+	"github.com/xmtp/xmtpd/pkg/store/bolt"
+	postgresstore "github.com/xmtp/xmtpd/pkg/store/postgres"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
@@ -12,10 +14,9 @@ type Options struct {
 	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
 }
 
+//nolint:staticcheck // it doesn't like the multiple "choice" struct tags
 type StoreOptions struct {
-	Postgres PostgresOptions `group:"Postgres options" namespace:"postgres"`
-}
-
-type PostgresOptions struct {
-	DSN string `long:"dsn" env:"POSTGRES_DSN" description:"Postgres connection string" default:""`
+	Type     string                `long:"type" description:"type of storage to use" choice:"mem" choice:"postgres" choice:"bolt" default:"mem"`
+	Postgres postgresstore.Options `group:"Store Postgres options" namespace:"postgres"`
+	Bolt     bolt.Options          `group:"Store Bolt options" namespace:"bolt"`
 }

@@ -78,6 +78,24 @@ func (r *chunkReader) Read(b []byte) (n int, err error) {
 	return total, io.EOF
 }
 
+// Storage Marshaling Support
+
+// ByTimeKey is used as an indexing key in a ByTime index.
+// The key must sort alphabeticely in the desired time order,
+// It is composed of 8 bytes of the timestampNs, and cid hash after.
+func ToByTimeKey(timestampNs uint64, cid []byte) []byte {
+	key := make([]byte, 8+len(cid))
+	binary.BigEndian.PutUint64(key, timestampNs)
+	copy(key[8:], cid)
+	return key
+}
+
+func FromByTimeKey(key []byte) (timestampNs uint64, cid []byte) {
+	timestampNs = binary.BigEndian.Uint64(key)
+	cid = key[8:]
+	return timestampNs, cid
+}
+
 // Event bytes are encoded as a list of event cid and link cids followed by the Envelope.
 // The list of cids is encoded as total size of the list in bytes encoded as uvarint,
 // followed by the multihash bytes of each cid (which are themselves length prefixed).
@@ -121,6 +139,19 @@ func EventFromBytes(evBytes []byte) (*Event, error) {
 		Links:    links,
 		Envelope: env,
 	}, nil
+}
+
+func EnvelopeFromBytes(evBytes []byte) (*messagev1.Envelope, error) {
+	cidsSize, n := binary.Uvarint(evBytes)
+	if n <= 0 || cidsSize == 0 || cidsSize > math.MaxInt {
+		return nil, ErrInvalidCids
+	}
+	return unmarshalEnvelope(evBytes[int(cidsSize)+n:])
+}
+
+func LinksFromBytes(evBytes []byte) (links []multihash.Multihash, err error) {
+	_, links, _, err = readLinks(evBytes)
+	return links, err
 }
 
 func readLinks(evBytes []byte) (cid multihash.Multihash, links []multihash.Multihash, remainder []byte, err error) {

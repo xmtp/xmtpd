@@ -28,7 +28,12 @@ func (b *broadcaster) Broadcast(ctx context.Context, ev *types.Event) error {
 }
 
 func (b *broadcaster) Next(ctx context.Context) (*types.Event, error) {
-	return <-b.C, nil
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case ev := <-b.C:
+		return ev, nil
+	}
 }
 
 func (b *broadcaster) Close() error {

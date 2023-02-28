@@ -200,11 +200,14 @@ func (n *testNode) connect(t *testing.T, to *testNode) {
 	defer ticker.Stop()
 	attempt := 1
 	var connected bool
+	ctx, cancel := context.WithTimeout(n.ctx, 5*time.Second)
+	defer cancel()
 syncLoop:
 	for {
 		select {
-		case <-n.ctx.Done():
-			return
+		case <-ctx.Done():
+			n.log.Info("context closed", zap.Error(ctx.Err()))
+			break syncLoop
 		case <-ticker.C:
 			topic := "sync-" + test.RandomStringLower(13)
 			sentEnv := newRandomEnvelope(topic)

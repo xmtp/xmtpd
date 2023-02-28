@@ -69,7 +69,7 @@ func newTestStore(t testing.TB, topic string, ns *testNodeStore) *testStore {
 	return &testStore{ns: ns, Store: store.(*Store)}
 }
 
-func TestStore(t *testing.T) {
+func TestEvents(t *testing.T) {
 	ctx := context.Background()
 	log := test.NewLogger(t)
 

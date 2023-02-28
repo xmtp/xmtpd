@@ -53,9 +53,10 @@ func main() {
 			fatal("error initializing postgres: %s", err)
 		}
 	case opts.Store.Bolt.DataPath != "":
+		log.Info("using bolt store")
 		store, err = bolt.NewNodeStore(opts.Store.Bolt.DataPath, log)
 		if err != nil {
-			fatal("opening bolt store: %s", err)
+			fatal("error opening bolt store: %s", err)
 		}
 	default:
 		log.Info("using memory store")

@@ -27,11 +27,6 @@ var (
 	ErrTopicAlreadyExists = errors.New("topic already exists")
 )
 
-type NodeStore interface {
-	NewTopic(topic string) (crdt.Store, error)
-	Close() error
-}
-
 type Node struct {
 	messagev1.UnimplementedMessageApiServer
 
@@ -163,8 +158,9 @@ func (n *Node) Close() {
 	for _, store := range n.topicStores {
 		store.Close()
 	}
-
-	n.store.Close()
+	if n.store != nil {
+		n.store.Close()
+	}
 
 	if n.ot != nil {
 		n.ot.Close()

@@ -1,9 +1,8 @@
 package node
 
 import (
-	"context"
-
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 

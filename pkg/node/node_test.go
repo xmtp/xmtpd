@@ -2,7 +2,6 @@ package node_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -15,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/api/client"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/node"
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
@@ -33,7 +33,7 @@ func TestNode_NewClose(t *testing.T) {
 func TestNode_Publish(t *testing.T) {
 	n := newTestNode(t)
 	defer n.Close()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	_, err := n.Publish(ctx, &messagev1.PublishRequest{})
 	require.NoError(t, err)
 }
@@ -48,7 +48,7 @@ func TestNode_Subscribe(t *testing.T) {
 func TestNode_Query(t *testing.T) {
 	n := newTestNode(t)
 	defer n.Close()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	_, err := n.Query(ctx, &messagev1.QueryRequest{})
 	require.Equal(t, err, node.ErrMissingTopic)
 }
@@ -56,7 +56,7 @@ func TestNode_Query(t *testing.T) {
 func TestNode_BatchQuery(t *testing.T) {
 	n := newTestNode(t)
 	defer n.Close()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	_, err := n.BatchQuery(ctx, &messagev1.BatchQueryRequest{})
 	require.NoError(t, err)
 }
@@ -67,8 +67,8 @@ func TestNode_SubscribeAll(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	stream := node.NewMockMessageApi_SubscribeServer(ctrl)
 	stream.EXPECT().Send(&messagev1.Envelope{}).Return(nil)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx := test.NewContext(t)
+	ctx.Close()
 	stream.EXPECT().Context().Return(ctx)
 	err := n.SubscribeAll(&messagev1.SubscribeAllRequest{}, stream)
 	require.NoError(t, err)
@@ -135,13 +135,10 @@ func TestNode_PublishSubscribeQuery_TwoNodes(t *testing.T) {
 
 type testNode struct {
 	*node.Node
-
-	log  *zap.Logger
 	name string
 
-	client    client.Client
-	ctx       context.Context
-	ctxCancel context.CancelFunc
+	client client.Client
+	ctx    context.Context
 }
 
 func newTestNode(t *testing.T) *testNode {
@@ -150,13 +147,12 @@ func newTestNode(t *testing.T) *testNode {
 
 func newTestNodeWithName(t *testing.T, name string) *testNode {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
 	if name != "" {
-		log = log.Named(name)
+		ctx = context.WithLogger(ctx, ctx.Logger().Named(name))
 	}
 
-	node, err := node.New(ctx, log, memstore.NewNodeStore(log), &node.Options{
+	node, err := node.New(ctx, memstore.NewNodeStore(ctx), &node.Options{
 		OpenTelemetry: node.OpenTelemetryOptions{
 			CollectorAddress: "localhost",
 			CollectorPort:    4317,
@@ -164,23 +160,18 @@ func newTestNodeWithName(t *testing.T, name string) *testNode {
 	})
 	require.NoError(t, err)
 
-	client := client.NewHTTPClient(log, fmt.Sprintf("http://localhost:%d", node.APIHTTPListenPort()), "test", name)
+	client := client.NewHTTPClient(ctx.Logger(), fmt.Sprintf("http://localhost:%d", node.APIHTTPListenPort()), "test", name)
 
 	return &testNode{
-		Node: node,
-
-		log:  log,
-		name: name,
-
+		Node:   node,
+		name:   name,
 		client: client,
-
-		ctx:       ctx,
-		ctxCancel: cancel,
+		ctx:    ctx,
 	}
 }
 
 func (n *testNode) Close() error {
-	n.ctxCancel()
+	n.ctx.Close()
 	n.Node.Close()
 	return nil
 }
@@ -190,6 +181,7 @@ func (n *testNode) connect(t *testing.T, to *testNode) {
 
 	err := n.Connect(n.ctx, to.Address())
 	require.NoError(t, err)
+	log := n.ctx.Logger()
 
 	// Wait for peers to be connected and grafted to the pubsub topic.
 	// See https://github.com/libp2p/go-libp2p-pubsub/issues/331
@@ -197,13 +189,13 @@ func (n *testNode) connect(t *testing.T, to *testNode) {
 	defer ticker.Stop()
 	attempt := 1
 	var connected bool
-	ctx, cancel := context.WithTimeout(n.ctx, 5*time.Second)
-	defer cancel()
+	ctx := context.WithTimeout(n.ctx, 5*time.Second)
+	defer ctx.Close()
 syncLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			n.log.Info("context closed", zap.Error(ctx.Err()))
+			log.Info("context closed", zap.Error(ctx.Err()))
 			break syncLoop
 		case <-ticker.C:
 			topic := "sync-" + test.RandomStringLower(13)
@@ -216,8 +208,8 @@ syncLoop:
 			func() {
 				queryTicker := time.NewTicker(100 * time.Millisecond)
 				defer queryTicker.Stop()
-				queryCtx, queryCancel := context.WithTimeout(ctx, 500*time.Millisecond)
-				defer queryCancel()
+				queryCtx := context.WithTimeout(ctx, 500*time.Millisecond)
+				defer queryCtx.Close()
 				for {
 					select {
 					case <-queryCtx.Done():
@@ -243,7 +235,7 @@ syncLoop:
 				break syncLoop
 			}
 
-			n.log.Debug("waiting for p2p connectivity sync message", zap.Int("attempt", attempt))
+			log.Debug("waiting for p2p connectivity sync message", zap.Int("attempt", attempt))
 			attempt++
 		}
 	}

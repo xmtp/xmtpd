@@ -1,7 +1,6 @@
 package crdttest
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -9,11 +8,11 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type ITestStore interface {
@@ -21,23 +20,21 @@ type ITestStore interface {
 
 	Events(context.Context) ([]*types.Event, error)
 	Heads(context.Context) ([]multihash.Multihash, error)
+
+	Close() error
 }
 
 type TestStoreMaker func(t *testing.T) *TestStore
 
 type TestStore struct {
 	ITestStore
-
-	log *zap.Logger
 	ctx context.Context
 }
 
-func NewTestStore(ctx context.Context, log *zap.Logger, store ITestStore) *TestStore {
+func NewTestStore(ctx context.Context, store ITestStore) *TestStore {
 	return &TestStore{
 		ITestStore: store,
-
-		log: log,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -684,7 +681,7 @@ func (s *TestStore) requireNoEvents(t *testing.T) {
 
 func (s *TestStore) seed(t *testing.T, topic string, count int) []*types.Event {
 	t.Helper()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	events := make([]*types.Event, count)
 	for i := 0; i < count; i++ {
 		ev, err := s.AppendEvent(ctx, &messagev1.Envelope{
@@ -700,7 +697,7 @@ func (s *TestStore) seed(t *testing.T, topic string, count int) []*types.Event {
 
 func (s *TestStore) query(t *testing.T, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	return s.Query(ctx, req)
 }
 

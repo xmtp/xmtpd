@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -40,7 +38,7 @@ func Test_HTTPRootPath(t *testing.T) {
 }
 
 func Test_Health(t *testing.T) {
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	server, cleanup := newTestServer(t)
 	conn, err := server.dialGRPC(ctx)
 	assert.NoError(t, err)
@@ -53,11 +51,9 @@ func Test_Health(t *testing.T) {
 }
 
 func newTestServer(t *testing.T) (*Server, func()) {
-	ctx := context.Background()
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
 
-	store := memstore.New(log)
-	s, err := New(ctx, log, nil, &Options{
+	s, err := New(ctx, nil, &Options{
 		GRPCAddress: "localhost",
 		GRPCPort:    0,
 		HTTPAddress: "localhost",
@@ -67,6 +63,5 @@ func newTestServer(t *testing.T) (*Server, func()) {
 	require.NoError(t, err)
 	return s, func() {
 		s.Close()
-		store.Close()
 	}
 }

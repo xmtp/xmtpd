@@ -1,7 +1,6 @@
 package postgresstore_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,15 +34,15 @@ func init() {
 }
 
 func TestScopedPostgresStore(t *testing.T) {
-	ctx := context.Background()
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
+
 	topic := "topic-" + test.RandomStringLower(13)
 
 	t.Run("event", func(t *testing.T) {
 		t.Parallel()
 		crdttest.RunStoreEventTests(t, topic, func(t *testing.T) *crdttest.TestStore {
 			store := newTestScopedStore(t, topic)
-			return crdttest.NewTestStore(ctx, log, store)
+			return crdttest.NewTestStore(ctx, store)
 		})
 	})
 
@@ -51,7 +50,7 @@ func TestScopedPostgresStore(t *testing.T) {
 		t.Parallel()
 		crdttest.RunStoreQueryTests(t, topic, func(t *testing.T) *crdttest.TestStore {
 			store := newTestScopedStore(t, topic)
-			return crdttest.NewTestStore(ctx, log, store)
+			return crdttest.NewTestStore(ctx, store)
 		})
 	})
 }
@@ -64,10 +63,10 @@ type testScopedStore struct {
 
 func newTestScopedStore(t *testing.T, topic string) *testScopedStore {
 	t.Helper()
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
 
 	db, cleanup := newTestDB(t)
-	store, err := postgresstore.NewNodeStore(log, db)
+	store, err := postgresstore.NewNodeStore(ctx, db)
 	require.NoError(t, err)
 	scopedStore, err := store.NewTopic(topic)
 	require.NoError(t, err)
@@ -81,21 +80,25 @@ func newTestScopedStore(t *testing.T, topic string) *testScopedStore {
 
 func (s *testScopedStore) Close() error {
 	s.dbCleanup()
-	return s.Store.Close()
+	return nil
 }
 
 func newTestDB(t *testing.T) (*postgresstore.DB, func()) {
 	t.Helper()
-	dsn := localTestDBDSNPrefix + localTestDBDSNSuffix
-	ctlDB, err := postgresstore.NewDB(dsn)
+	opts := &postgresstore.Options{
+		DSN: localTestDBDSNPrefix + localTestDBDSNSuffix,
+	}
+	ctlDB, err := postgresstore.NewDB(opts)
 	require.NoError(t, err)
 
 	dbName := "test_" + test.RandomStringLower(13)
 	_, err = ctlDB.Exec("CREATE DATABASE " + dbName)
 	require.NoError(t, err)
 
-	dsn = localTestDBDSNPrefix + "/" + dbName + localTestDBDSNSuffix
-	db, err := postgresstore.NewDB(dsn)
+	opts2 := &postgresstore.Options{
+		DSN: localTestDBDSNPrefix + "/" + dbName + localTestDBDSNSuffix,
+	}
+	db, err := postgresstore.NewDB(opts2)
 	require.NoError(t, err)
 
 	return db, func() {

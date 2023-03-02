@@ -1,8 +1,7 @@
 package crdt
 
 import (
-	"context"
-
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 

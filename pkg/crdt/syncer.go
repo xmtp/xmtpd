@@ -1,9 +1,8 @@
 package crdt
 
 import (
-	"context"
-
 	"github.com/multiformats/go-multihash"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 

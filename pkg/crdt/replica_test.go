@@ -1,7 +1,6 @@
 package crdt_test
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	crdt "github.com/xmtp/xmtpd/pkg/crdt"
 	membroadcaster "github.com/xmtp/xmtpd/pkg/crdt/broadcasters/mem"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
@@ -33,19 +33,17 @@ func init() {
 }
 
 func TestReplica_NewClose(t *testing.T) {
-	log := test.NewLogger(t)
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 
-	store := memstore.New(log)
-	bc := membroadcaster.New(log)
-	syncer := memsyncer.New(log, store)
+	store := memstore.New(ctx)
+	bc := membroadcaster.New(ctx)
+	syncer := memsyncer.New(ctx, store)
 
-	replica, err := crdt.NewReplica(ctx, log, store, bc, syncer, nil)
+	replica, err := crdt.NewReplica(ctx, store, bc, syncer, nil)
 	require.NoError(t, err)
 	require.NotNil(t, replica)
 
-	err = replica.Close()
-	require.NoError(t, err)
+	ctx.Close()
 }
 
 func TestReplica_BroadcastStore_SingleReplica(t *testing.T) {
@@ -105,6 +103,7 @@ func TestReplica_BroadcastStore_TwoReplicas(t *testing.T) {
 
 type testReplica struct {
 	*crdt.Replica
+	ctx context.Context
 
 	store  *crdttest.TestStore
 	bc     *crdttest.TestBroadcaster
@@ -117,25 +116,25 @@ type testReplica struct {
 
 func newTestReplica(t *testing.T) *testReplica {
 	t.Helper()
-	ctx := context.Background()
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
 
-	store := memstore.New(log)
-	bc := membroadcaster.New(log)
-	syncer := memsyncer.New(log, store)
+	store := memstore.New(ctx)
+	bc := membroadcaster.New(ctx)
+	syncer := memsyncer.New(ctx, store)
 
 	tr := &testReplica{
-		store:             crdttest.NewTestStore(ctx, log, store),
-		bc:                crdttest.NewTestBroadcaster(ctx, log, bc),
-		syncer:            crdttest.NewTestSyncer(ctx, log, syncer),
+		ctx:               ctx,
+		store:             crdttest.NewTestStore(ctx, store),
+		bc:                crdttest.NewTestBroadcaster(ctx, bc),
+		syncer:            crdttest.NewTestSyncer(ctx, syncer),
 		capturedEventCids: map[string]struct{}{},
 	}
 
-	replica, err := crdt.NewReplica(ctx, log, store, bc, syncer, func(ev *types.Event) {
+	replica, err := crdt.NewReplica(ctx, store, bc, syncer, func(ev *types.Event) {
 		tr.capturedEventsLock.Lock()
 		defer tr.capturedEventsLock.Unlock()
 		if _, ok := tr.capturedEventCids[ev.Cid.String()]; ok {
-			log.Debug("ignore duplicate event during capture", zap.Cid("event", ev.Cid))
+			ctx.Logger().Debug("ignore duplicate event during capture", zap.Cid("event", ev.Cid))
 			return
 		}
 		tr.capturedEventCids[ev.Cid.String()] = struct{}{}
@@ -145,6 +144,10 @@ func newTestReplica(t *testing.T) *testReplica {
 	tr.Replica = replica
 
 	return tr
+}
+
+func (r *testReplica) Close() {
+	r.ctx.Close()
 }
 
 func (r *testReplica) getCapturedEvents(t *testing.T) []*types.Event {
@@ -161,7 +164,7 @@ func (r *testReplica) addPeer(t *testing.T, peer *testReplica) {
 
 func (r *testReplica) broadcast(t *testing.T, envs []*messagev1.Envelope) []*types.Event {
 	t.Helper()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	events := make([]*types.Event, len(envs))
 	for i, env := range envs {
 		ev, err := r.Replica.BroadcastAppend(ctx, env)
@@ -190,7 +193,7 @@ func (r *testReplica) requireEventuallyCapturedEvents(t *testing.T, expected []*
 
 func (r *testReplica) requireEventuallyStoredEvents(t *testing.T, expected []*types.Event) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := test.NewContext(t)
 	assert.Eventually(t, func() bool {
 		events, err := r.store.Events(ctx)
 		require.NoError(t, err)

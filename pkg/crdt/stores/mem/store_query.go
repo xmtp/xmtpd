@@ -2,11 +2,11 @@ package memstore
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"sort"
 
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )

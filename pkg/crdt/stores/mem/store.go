@@ -2,12 +2,12 @@ package memstore
 
 import (
 	"bytes"
-	"context"
 	"sort"
 	"sync"
 
 	"github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -23,9 +23,9 @@ type MemoryStore struct {
 	eventsByTime []*types.Event
 }
 
-func New(log *zap.Logger) *MemoryStore {
+func New(ctx context.Context) *MemoryStore {
 	return &MemoryStore{
-		log:    log,
+		log:    ctx.Logger(),
 		heads:  make(map[string]bool),
 		events: make(map[string]*types.Event),
 	}

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/node"
 	"github.com/xmtp/xmtpd/pkg/store/bolt"
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
@@ -30,8 +30,6 @@ func main() {
 		return
 	}
 
-	ctx := context.Background()
-
 	// Initialize logger.
 	log, err := zap.NewLogger(&opts.Log)
 	if err != nil {
@@ -39,32 +37,34 @@ func main() {
 	}
 	log.Info("running", zap.String("git-commit", GitCommit))
 
+	ctx := context.New(context.Background(), log)
+
 	// Initialize datastore.
 	var store node.NodeStore
 	switch {
 	case opts.Store.Type == "postgres":
 		log.Info("using postgres store")
-		db, err := postgresstore.NewDB(opts.Store.Postgres.DSN)
+		db, err := postgresstore.NewDB(&opts.Store.Postgres)
 		if err != nil {
 			fatal("error initializing postgres: %s", err)
 		}
-		store, err = postgresstore.NewNodeStore(log, db)
+		store, err = postgresstore.NewNodeStore(ctx, db)
 		if err != nil {
 			fatal("error initializing postgres: %s", err)
 		}
 	case opts.Store.Type == "bolt":
 		log.Info("using bolt store")
-		store, err = bolt.NewNodeStore(opts.Store.Bolt.DataPath, log)
+		store, err = bolt.NewNodeStore(ctx, &opts.Store.Bolt)
 		if err != nil {
 			fatal("error opening bolt store: %s", err)
 		}
 	default:
 		log.Info("using memory store")
-		store = memstore.NewNodeStore(log)
+		store = memstore.NewNodeStore(ctx)
 	}
 
 	// Initialize node.
-	node, err := node.New(ctx, log, store, &opts)
+	node, err := node.New(ctx, store, &opts)
 	if err != nil {
 		log.Fatal("error initializing node", zap.Error(err))
 	}

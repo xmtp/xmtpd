@@ -1,12 +1,12 @@
 package bolt
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
@@ -18,9 +18,8 @@ import (
 */
 
 func BenchmarkQuery(b *testing.B) {
-	ctx := context.Background()
-	log := test.NewLogger(b)
-	store := newTestNodeStore(b, log)
+	ctx := test.NewContext(b)
+	store := newTestNodeStore(b, ctx)
 	defer store.Close()
 	topic := newTestStore(b, "topic", store)
 	defer topic.Close()

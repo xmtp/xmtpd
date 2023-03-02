@@ -1,15 +1,12 @@
 package node_test
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
 
 	proto "github.com/xmtp/proto/v3/go/message_api/v1"
-	test "github.com/xmtp/xmtpd/pkg/testing"
-	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 func TestNetwork(t *testing.T) {
@@ -23,19 +20,11 @@ func TestNetwork(t *testing.T) {
 }
 
 type testNetwork struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	log    *zap.Logger
-
 	nodes []*testNode
 }
 
 func newTestNetwork(t *testing.T, count int) *testNetwork {
 	t.Helper()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	log := test.NewLogger(t)
-
 	nodes := make([]*testNode, count)
 	for i := 0; i < count; i++ {
 		nodes[i] = newTestNodeWithName(t, fmt.Sprintf("node%d", i+1))
@@ -63,10 +52,6 @@ func newTestNetwork(t *testing.T, count int) *testNetwork {
 	wg.Wait()
 
 	return &testNetwork{
-		ctx:    ctx,
-		cancel: cancel,
-		log:    log,
-
 		nodes: nodes,
 	}
 }

@@ -1,10 +1,10 @@
 package membroadcaster
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -15,9 +15,9 @@ type MemoryBroadcaster struct {
 	peers []*MemoryBroadcaster
 }
 
-func New(log *zap.Logger) *MemoryBroadcaster {
+func New(ctx context.Context) *MemoryBroadcaster {
 	return &MemoryBroadcaster{
-		log: log,
+		log: ctx.Logger(),
 		ch:  make(chan *types.Event, 100),
 	}
 }

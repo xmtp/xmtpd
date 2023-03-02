@@ -1,7 +1,7 @@
 package node
 
 import (
-	"context"
+	gocontext "context"
 	"sync"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -30,22 +31,19 @@ var (
 type Node struct {
 	messagev1.UnimplementedMessageApiServer
 
-	log   *zap.Logger
-	store NodeStore
+	log *zap.Logger
+	ctx context.Context
 
-	api *apigateway.Server
-
-	ctx       context.Context
-	ctxCancel context.CancelFunc
-
-	topics      map[string]*crdt.Replica
-	topicStores map[string]crdt.Store
-	topicsLock  sync.RWMutex
+	topics     map[string]*crdt.Replica
+	topicsLock sync.RWMutex
 
 	host  host.Host
 	topic *pubsub.Topic
 	sub   *pubsub.Subscription
 
+	api *apigateway.Server
+
+	store            NodeStore
 	broadcasters     map[string]chan *types.Event
 	broadcastersLock sync.RWMutex
 
@@ -55,27 +53,25 @@ type Node struct {
 	ot *openTelemetry
 }
 
-func New(ctx context.Context, log *zap.Logger, store NodeStore, opts *Options) (*Node, error) {
+func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	n := &Node{
-		log:   log,
-		store: store,
-
-		topics:      map[string]*crdt.Replica{},
-		topicStores: map[string]crdt.Store{},
-
+		ctx:          ctx,
+		log:          ctx.Logger(),
+		store:        store,
+		topics:       map[string]*crdt.Replica{},
 		broadcasters: map[string]chan *types.Event{},
 	}
-	n.ctx, n.ctxCancel = context.WithCancel(ctx)
+
 	var err error
 
 	// Initialize open telemetry.
-	n.ot, err = newOpenTelemetry(n.ctx, log, &opts.OpenTelemetry)
+	n.ot, err = newOpenTelemetry(n.ctx, &opts.OpenTelemetry)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing open telemetry")
 	}
 
 	// Initialize API server/gateway.
-	n.api, err = apigateway.New(n.ctx, log, n, &opts.API)
+	n.api, err = apigateway.New(n.ctx, n, &opts.API)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing api")
 	}
@@ -127,6 +123,7 @@ func New(ctx context.Context, log *zap.Logger, store NodeStore, opts *Options) (
 }
 
 func (n *Node) Close() {
+	// Shut off the clients
 	if n.api != nil {
 		n.api.Close()
 	}
@@ -139,6 +136,10 @@ func (n *Node) Close() {
 		n.ns.Shutdown()
 	}
 
+	// Shut down the topics
+	n.ctx.Close()
+
+	// Shut down all the infrastructure
 	if n.sub != nil {
 		n.sub.Cancel()
 	}
@@ -147,21 +148,15 @@ func (n *Node) Close() {
 		n.topic.Close()
 	}
 
-	if n.ctxCancel != nil {
-		n.ctxCancel()
-	}
-
 	if n.host != nil {
 		n.host.Close()
 	}
 
-	for _, store := range n.topicStores {
-		store.Close()
-	}
 	if n.store != nil {
 		n.store.Close()
 	}
 
+	// Shut down telemetry
 	if n.ot != nil {
 		n.ot.Close()
 	}
@@ -182,9 +177,10 @@ func (n *Node) Address() peer.AddrInfo {
 	}
 }
 
-func (n *Node) Publish(ctx context.Context, req *messagev1.PublishRequest) (*messagev1.PublishResponse, error) {
+func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*messagev1.PublishResponse, error) {
+	ctx := context.New(gctx, n.log)
 	for _, env := range req.Envelopes {
-		topic, err := n.getOrCreateTopic(ctx, env.ContentTopic)
+		topic, err := n.getOrCreateTopic(env.ContentTopic)
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +234,7 @@ func (n *Node) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.Messa
 	}
 }
 
-func (n *Node) Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
+func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
 	if len(req.ContentTopics) == 0 {
 		return nil, ErrMissingTopic
 	} else if len(req.ContentTopics) > 1 {
@@ -246,12 +242,12 @@ func (n *Node) Query(ctx context.Context, req *messagev1.QueryRequest) (*message
 	}
 	topic := req.ContentTopics[0]
 
-	replica, err := n.getOrCreateTopic(ctx, topic)
+	replica, err := n.getOrCreateTopic(topic)
 	if err != nil {
 		return nil, err
 	}
 
-	return replica.Query(ctx, req)
+	return replica.Query(context.New(gctx, n.log), req)
 }
 
 func (n *Node) SubscribeAll(req *messagev1.SubscribeAllRequest, stream messagev1.MessageApi_SubscribeAllServer) error {
@@ -262,10 +258,10 @@ func (n *Node) SubscribeAll(req *messagev1.SubscribeAllRequest, stream messagev1
 	}, stream)
 }
 
-func (n *Node) BatchQuery(ctx context.Context, req *messagev1.BatchQueryRequest) (*messagev1.BatchQueryResponse, error) {
+func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryRequest) (*messagev1.BatchQueryResponse, error) {
 	res := &messagev1.BatchQueryResponse{}
 	var mu sync.Mutex
-	g, ctx := errgroup.WithContext(ctx)
+	g, ctx := errgroup.WithContext(gctx)
 	for _, r := range req.Requests {
 		r := r
 		g.Go(func() error {
@@ -286,13 +282,13 @@ func (n *Node) BatchQuery(ctx context.Context, req *messagev1.BatchQueryRequest)
 	return res, nil
 }
 
-func (n *Node) getOrCreateTopic(ctx context.Context, topic string) (*crdt.Replica, error) {
-	replica, err := n.getTopic(ctx, topic)
+func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
+	replica, err := n.getTopic(topic)
 	if err != nil {
 		return nil, err
 	}
 	if replica == nil {
-		replica, err = n.createTopic(ctx, topic)
+		replica, err = n.createTopic(topic)
 		if err != nil {
 			return nil, err
 		}
@@ -300,7 +296,7 @@ func (n *Node) getOrCreateTopic(ctx context.Context, topic string) (*crdt.Replic
 	return replica, nil
 }
 
-func (n *Node) getTopic(ctx context.Context, topic string) (*crdt.Replica, error) {
+func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
 	n.log.Debug("getting topic", zap.String("topic", topic))
 	n.topicsLock.RLock()
 	defer n.topicsLock.RUnlock()
@@ -311,7 +307,7 @@ func (n *Node) getTopic(ctx context.Context, topic string) (*crdt.Replica, error
 	return replica, nil
 }
 
-func (n *Node) createTopic(ctx context.Context, topic string) (*crdt.Replica, error) {
+func (n *Node) createTopic(topic string) (*crdt.Replica, error) {
 	n.log.Debug("creating topic", zap.String("topic", topic))
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
@@ -326,7 +322,7 @@ func (n *Node) createTopic(ctx context.Context, topic string) (*crdt.Replica, er
 	if err != nil {
 		return nil, err
 	}
-	replica, err := crdt.NewReplica(n.ctx, n.log, store, bc, nil, func(ev *types.Event) {
+	replica, err := crdt.NewReplica(n.ctx, store, bc, nil, func(ev *types.Event) {
 		evB, err := ev.ToBytes()
 		if err != nil {
 			n.log.Error("error converting event to bytes", zap.Error(err))
@@ -341,7 +337,6 @@ func (n *Node) createTopic(ctx context.Context, topic string) (*crdt.Replica, er
 		return nil, err
 	}
 	n.topics[topic] = replica
-	n.topicStores[topic] = store
 	return replica, nil
 }
 
@@ -361,7 +356,7 @@ func (n *Node) p2pEventConsumerLoop() {
 			continue
 		}
 
-		_, err = n.getOrCreateTopic(n.ctx, ev.ContentTopic)
+		_, err = n.getOrCreateTopic(ev.ContentTopic)
 		if err != nil {
 			n.log.Error("error getting or creating topic", zap.Error(err))
 			continue

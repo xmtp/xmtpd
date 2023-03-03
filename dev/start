@@ -8,4 +8,7 @@ GIT_COMMIT="$(git rev-parse HEAD)"
 go run \
     -ldflags="-X 'main.GitCommit=${GIT_COMMIT}'" \
     cmd/xmtpd/main.go \
+    --p2p.port=9000 \
+    --api.grpc-port=5000 \
+    --api.http-port=5001 \
     "$@"

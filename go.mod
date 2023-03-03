@@ -3,6 +3,7 @@ module github.com/xmtp/xmtpd
 go 1.20
 
 require (
+	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9

@@ -23,9 +23,8 @@ provider "helm" {
 }
 
 provider "argocd" {
-  server_addr = "argo.localhost:80"
-  username    = "admin"
-  # password                    = data.kubernetes_secret.argocd-initial-admin-secret.data.password
+  server_addr                 = module.system.argocd_hostnames[0]
+  username                    = module.system.argocd_username
   password                    = module.system.argocd_password
   plain_text                  = true
   insecure                    = true
@@ -34,22 +33,15 @@ provider "argocd" {
 }
 
 locals {
-  node_pool_label_key = "node-pool"
-  system_node_pool    = "xmtp-system"
-  system_namespace    = "xmtp-system"
-  tools_node_pool     = local.system_node_pool
-  tools_namespace     = "xmtp-tools"
-  nodes_node_pool     = "xmtp-nodes"
-  nodes_namespace     = "xmtp-nodes"
-
+  node_pool_label_key     = "node-pool"
+  system_node_pool        = "xmtp-system"
+  nodes_node_pool         = "xmtp-nodes"
   ingress_class_name      = "traefik"
   cluster_http_node_port  = 32080
   cluster_https_node_port = 32443
+  hostnames               = ["localhost", "xmtp.local"]
 
-  hostnames        = ["localhost", "xmtp.local"]
-  argocd_hostnames = [for hostname in local.hostnames : "argo.${hostname}"]
-
-  node_configs = [for node in var.nodes : {
+  nodes = [for node in var.nodes : {
     name = node.name
   }]
 }
@@ -82,7 +74,7 @@ module "system" {
   source     = "../../modules/cluster-system"
   depends_on = [module.cluster]
 
-  namespace               = local.system_namespace
+  namespace               = "xmtp-system"
   node_pool_label_key     = local.node_pool_label_key
   node_pool               = local.system_node_pool
   cluster_http_node_port  = local.cluster_http_node_port
@@ -95,9 +87,9 @@ module "tools" {
   source     = "../../modules/cluster-tools"
   depends_on = [module.system]
 
-  namespace           = local.tools_namespace
+  namespace           = "xmtp-tools"
   node_pool_label_key = local.node_pool_label_key
-  node_pool           = local.tools_node_pool
+  node_pool           = local.system_node_pool
   argocd_namespace    = module.system.namespace
   argocd_project      = "xmtp-tools"
   ingress_class_name  = local.ingress_class_name
@@ -107,11 +99,11 @@ module "nodes" {
   source     = "../../modules/cluster-nodes"
   depends_on = [module.system]
 
-  namespace           = local.nodes_namespace
+  namespace           = "xmtp-nodes"
   node_pool_label_key = local.node_pool_label_key
   node_pool           = local.nodes_node_pool
   argocd_namespace    = module.system.namespace
-  nodes               = local.node_configs
+  nodes               = local.nodes
   argocd_project      = "xmtp-nodes"
   ingress_class_name  = local.ingress_class_name
 }

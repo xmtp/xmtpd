@@ -6,16 +6,11 @@ terraform {
   }
 }
 
-locals {
-  argocd_project = "xmtp-nodes"
-}
-
 resource "kubernetes_namespace" "nodes" {
   metadata {
     name = var.namespace
   }
 }
-
 
 resource "argocd_project" "nodes" {
   metadata {

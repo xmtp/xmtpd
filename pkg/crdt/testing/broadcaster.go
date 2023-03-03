@@ -1,14 +1,13 @@
 package crdttest
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
-	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type ITestBroadcaster interface {
@@ -21,17 +20,13 @@ type TestBroadcasterMaker func(t *testing.T) *TestBroadcaster
 
 type TestBroadcaster struct {
 	ITestBroadcaster
-
 	ctx context.Context
-	log *zap.Logger
 }
 
-func NewTestBroadcaster(ctx context.Context, log *zap.Logger, bc ITestBroadcaster) *TestBroadcaster {
+func NewTestBroadcaster(ctx context.Context, bc ITestBroadcaster) *TestBroadcaster {
 	return &TestBroadcaster{
 		ITestBroadcaster: bc,
-
-		ctx: ctx,
-		log: log,
+		ctx:              ctx,
 	}
 }
 
@@ -74,8 +69,8 @@ func (b *TestBroadcaster) broadcastRandom(t *testing.T, count int) []*types.Even
 
 func (b *TestBroadcaster) next(t *testing.T) *types.Event {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(b.ctx, time.Second)
-	defer cancel()
+	ctx := context.WithTimeout(b.ctx, time.Second)
+	defer ctx.Close()
 	ev, err := b.Next(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, ev)

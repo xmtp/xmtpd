@@ -13,8 +13,8 @@ type DB struct {
 	DSN string
 }
 
-func NewDB(dsn string) (*DB, error) {
-	db, err := otelsql.Open("pgx", dsn,
+func NewDB(opts *Options) (*DB, error) {
+	db, err := otelsql.Open("pgx", opts.DSN,
 		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
 		otelsql.WithDBName("xmtpd"),
 	)
@@ -23,6 +23,6 @@ func NewDB(dsn string) (*DB, error) {
 	}
 	return &DB{
 		DB:  db,
-		DSN: dsn,
+		DSN: opts.DSN,
 	}, nil
 }

@@ -1,19 +1,19 @@
 package postgresstore
 
 import (
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/store/postgres/migrations"
-	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type NodeStore struct {
-	log *zap.Logger
+	ctx context.Context
 	db  *DB
 }
 
-func NewNodeStore(log *zap.Logger, db *DB) (*NodeStore, error) {
+func NewNodeStore(ctx context.Context, db *DB) (*NodeStore, error) {
 	s := &NodeStore{
-		log: log.Named("pgstore"),
+		ctx: context.WithLogger(ctx, ctx.Logger().Named("pgstore")),
 		db:  db,
 	}
 
@@ -30,5 +30,5 @@ func (s *NodeStore) Close() error {
 }
 
 func (s *NodeStore) NewTopic(topic string) (crdt.Store, error) {
-	return New(s.log, s.db, topic), nil
+	return New(s.ctx, s.db, topic), nil
 }

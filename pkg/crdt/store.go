@@ -1,11 +1,11 @@
 package crdt
 
 import (
-	"context"
 	"errors"
 
 	"github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 )
 
@@ -51,7 +51,4 @@ type Store interface {
 
 	// NewCursor builds and returns a new cursor instance.
 	NewCursor(ev *types.Event) *messagev1.Cursor
-
-	// Close gracefully closes the store.
-	Close() error
 }

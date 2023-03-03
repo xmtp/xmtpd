@@ -1,11 +1,11 @@
 package bolt
 
 import (
-	"context"
 	"errors"
 
 	"github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	bolt "go.etcd.io/bbolt"
@@ -25,6 +25,14 @@ type Store struct {
 	name []byte
 	db   *bolt.DB
 	log  *zap.Logger
+}
+
+func New(ctx context.Context, db *bolt.DB, topic string) *Store {
+	return &Store{
+		name: []byte(topic),
+		db:   db,
+		log:  ctx.Logger().With(zap.String("topic", topic)),
+	}
 }
 
 func (s *Store) InsertEvent(ctx context.Context, ev *types.Event) (added bool, err error) {
@@ -191,8 +199,6 @@ func (s *Store) NewCursor(ev *types.Event) *messagev1.Cursor {
 		},
 	}
 }
-
-func (s *Store) Close() error { return nil }
 
 // private functions
 

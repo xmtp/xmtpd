@@ -1,7 +1,6 @@
 package postgresstore
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -11,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
@@ -28,17 +28,12 @@ type Store struct {
 	topic string
 }
 
-func New(log *zap.Logger, db *DB, topic string) *Store {
+func New(ctx context.Context, db *DB, topic string) *Store {
 	return &Store{
-		log: log.With(zap.String("topic", topic)),
-
+		log:   ctx.Logger().With(zap.String("topic", topic)),
 		db:    db,
 		topic: topic,
 	}
-}
-
-func (s *Store) Close() error {
-	return nil
 }
 
 func (s *Store) InsertEvent(ctx context.Context, ev *types.Event) (bool, error) {

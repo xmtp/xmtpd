@@ -1,11 +1,11 @@
 package memsyncer
 
 import (
-	"context"
 	"math/rand"
 	"reflect"
 
 	"github.com/multiformats/go-multihash"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -17,9 +17,9 @@ type MemorySyncer struct {
 	peers []*MemorySyncer
 }
 
-func New(log *zap.Logger, store crdt.Store) *MemorySyncer {
+func New(ctx context.Context, store crdt.Store) *MemorySyncer {
 	return &MemorySyncer{
-		log:   log,
+		log:   ctx.Logger(),
 		store: store,
 	}
 }

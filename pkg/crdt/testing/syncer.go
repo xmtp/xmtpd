@@ -1,14 +1,13 @@
 package crdttest
 
 import (
-	"context"
 	"testing"
 
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
-	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type ITestSyncer interface {
@@ -22,17 +21,13 @@ type TestSyncerMaker func(t *testing.T) *TestSyncer
 
 type TestSyncer struct {
 	ITestSyncer
-
 	ctx context.Context
-	log *zap.Logger
 }
 
-func NewTestSyncer(ctx context.Context, log *zap.Logger, bc ITestSyncer) *TestSyncer {
+func NewTestSyncer(ctx context.Context, bc ITestSyncer) *TestSyncer {
 	return &TestSyncer{
 		ITestSyncer: bc,
-
-		ctx: ctx,
-		log: log,
+		ctx:         ctx,
 	}
 }
 

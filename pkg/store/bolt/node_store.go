@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
-	"github.com/xmtp/xmtpd/pkg/zap"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -22,12 +22,12 @@ var (
 
 // NodeStore using embedded BoltDB.
 type NodeStore struct {
-	log *zap.Logger
+	ctx context.Context
 	db  *bolt.DB
 }
 
-func NewNodeStore(fn string, log *zap.Logger) (*NodeStore, error) {
-	db, err := bolt.Open(fn, 0600, nil)
+func NewNodeStore(ctx context.Context, opts *Options) (*NodeStore, error) {
+	db, err := bolt.Open(opts.DataPath, 0600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func NewNodeStore(fn string, log *zap.Logger) (*NodeStore, error) {
 		return nil, err
 	}
 
-	return &NodeStore{db: db, log: log}, nil
+	return &NodeStore{db: db, ctx: ctx}, nil
 }
 
 // NewTopic returns a store for a pre-existing topic or creates a new one.
@@ -74,11 +74,7 @@ func (s *NodeStore) NewTopic(name string) (crdt.Store, error) {
 	}); err != nil {
 		return nil, err
 	}
-	return &Store{
-		name: nameBytes,
-		db:   s.db,
-		log:  s.log.Named(name),
-	}, nil
+	return New(s.ctx, s.db, name), nil
 }
 
 // Topics lists all topics in the store.

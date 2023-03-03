@@ -35,3 +35,7 @@ Visit local [Jaeger](https://www.jaegertracing.io/) UI:
 ```sh
 open http://localhost:16686
 ```
+
+## Resources
+
+* OpenTelemetry intro https://www.komu.engineer/blogs/11/opentelemetry-and-go

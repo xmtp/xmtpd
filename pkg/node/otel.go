@@ -1,10 +1,10 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -34,10 +34,10 @@ type openTelemetry struct {
 	metricsProvider *sdkmetric.MeterProvider
 }
 
-func newOpenTelemetry(ctx context.Context, log *zap.Logger, opts *OpenTelemetryOptions) (*openTelemetry, error) {
+func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTelemetry, error) {
 	ot := &openTelemetry{
 		ctx: ctx,
-		log: log.Named("otel"),
+		log: ctx.Logger().Named("otel"),
 	}
 	collectorEndpoint := fmt.Sprintf("%s:%d", opts.CollectorAddress, opts.CollectorPort)
 

@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -29,13 +29,13 @@ type Server struct {
 	http net.Listener
 }
 
-func New(ctx context.Context, log *zap.Logger, messagev1 messagev1.MessageApiServer, opts *Options) (*Server, error) {
+func New(ctx context.Context, messagev1 messagev1.MessageApiServer, opts *Options) (*Server, error) {
 	err := opts.validate()
 	if err != nil {
 		return nil, err
 	}
 
-	log = log.Named("api")
+	log := ctx.Logger().Named("api")
 
 	s := &Server{
 		ctx:       ctx,

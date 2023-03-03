@@ -1,7 +1,6 @@
 package bolt
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -13,10 +12,10 @@ import (
 	v1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	bolt "go.etcd.io/bbolt"
 
+	"github.com/xmtp/xmtpd/pkg/context"
 	crdttest "github.com/xmtp/xmtpd/pkg/crdt/testing"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
-	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type testNodeStore struct {
@@ -56,9 +55,11 @@ func (s *testStore) Close() error {
 	return s.ns.Close()
 }
 
-func newTestNodeStore(t testing.TB, log *zap.Logger) *testNodeStore {
-	path := filepath.Join(t.TempDir(), "testdb.bolt")
-	store, err := NewNodeStore(path, log)
+func newTestNodeStore(t testing.TB, ctx context.Context) *testNodeStore {
+	opts := &Options{
+		DataPath: filepath.Join(t.TempDir(), "testdb.bolt"),
+	}
+	store, err := NewNodeStore(ctx, opts)
 	require.NoError(t, err)
 	return &testNodeStore{store}
 }
@@ -70,32 +71,29 @@ func newTestStore(t testing.TB, topic string, ns *testNodeStore) *testStore {
 }
 
 func TestEvents(t *testing.T) {
-	ctx := context.Background()
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
 
 	crdttest.RunStoreEventTests(t, "topic", func(t *testing.T) *crdttest.TestStore {
-		ns := newTestNodeStore(t, log)
+		ns := newTestNodeStore(t, ctx)
 		topic := newTestStore(t, "topic", ns)
-		return crdttest.NewTestStore(ctx, log, topic)
+		return crdttest.NewTestStore(ctx, topic)
 	})
 }
 
 func TestQuery(t *testing.T) {
-	ctx := context.Background()
-	log := test.NewLogger(t)
+	ctx := test.NewContext(t)
 
 	crdttest.RunStoreQueryTests(t, "topic", func(t *testing.T) *crdttest.TestStore {
-		ns := newTestNodeStore(t, log)
+		ns := newTestNodeStore(t, ctx)
 		topic := newTestStore(t, "topic", ns)
-		return crdttest.NewTestStore(ctx, log, topic)
+		return crdttest.NewTestStore(ctx, topic)
 	})
 }
 
 func Test_Basic(t *testing.T) {
 	const t0 = "t0"
-	ctx := context.Background()
-	log := test.NewLogger(t)
-	ns := newTestNodeStore(t, log)
+	ctx := test.NewContext(t)
+	ns := newTestNodeStore(t, ctx)
 	defer ns.Close()
 	topic := newTestStore(t, t0, ns)
 	defer topic.Close()

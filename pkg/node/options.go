@@ -9,9 +9,15 @@ import (
 
 type Options struct {
 	Log           zap.Options          `group:"Log options" namespace:"log"`
+	P2P           P2POptions           `group:"P2P options" namespace:"p2p"`
 	API           apigateway.Options   `group:"API options" namespace:"api"`
 	Store         StoreOptions         `group:"Store options" namespace:"store"`
 	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
+}
+
+type P2POptions struct {
+	Port        uint   `long:"port" description:"P2P listen port" default:"9000"`
+	IdentityKey string `long:"identity-key" description:"Identity private key in hex format" default:""`
 }
 
 //nolint:staticcheck // it doesn't like the multiple "choice" struct tags

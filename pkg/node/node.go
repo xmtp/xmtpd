@@ -2,11 +2,14 @@ package node
 
 import (
 	gocontext "context"
+	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/nats-io/nats-server/v2/server"
@@ -77,10 +80,23 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	}
 
 	// Initialize libp2p host.
-	n.host, err = libp2p.New()
+	privKey, err := getOrCreatePrivateKey(opts.P2P.IdentityKey)
 	if err != nil {
 		return nil, err
 	}
+	privKeyHex, err := privateKeyToHex(privKey)
+	if err != nil {
+		return nil, err
+	}
+	n.host, err = libp2p.New(
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", opts.P2P.Port)),
+		libp2p.Identity(privKey),
+	)
+	if err != nil {
+		return nil, err
+	}
+	n.log.Debug("p2p identity", zap.String("private_key", privKeyHex), zap.PeerID("public_id", n.host.ID()))
+	n.log.Info("p2p listening", zap.Multiaddrs("addresses", n.host.Addrs()...), zap.PeerID("node", n.host.ID()))
 
 	// Initialize libp2p pubsub.
 	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
@@ -379,4 +395,29 @@ func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {
 		n.broadcasters[topic] = make(chan *types.Event, 100)
 	}
 	return newBroadcaster(n.topic, n.broadcasters[topic])
+}
+
+func getOrCreatePrivateKey(key string) (crypto.PrivKey, error) {
+	if key == "" {
+		priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return priv, nil
+	}
+
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding private key")
+	}
+	return crypto.UnmarshalPrivateKey(keyBytes)
+}
+
+func privateKeyToHex(key crypto.PrivKey) (string, error) {
+	keyBytes, err := crypto.MarshalPrivateKey(key)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(keyBytes), nil
 }

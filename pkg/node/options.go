@@ -16,8 +16,9 @@ type Options struct {
 }
 
 type P2POptions struct {
-	Port    uint   `long:"port" description:"P2P listen port" default:"9000"`
-	NodeKey string `long:"node-key" env:"XMTP_NODE_KEY" description:"P2P node identity private key in hex format" default:""`
+	Port            uint     `long:"port" description:"P2P listen port" default:"0"`
+	NodeKey         string   `long:"node-key" env:"XMTP_NODE_KEY" description:"P2P node identity private key in hex format" default:""`
+	PersistentPeers []string `long:"persistent-peer" description:"P2P persistent peers"`
 }
 
 //nolint:staticcheck // it doesn't like the multiple "choice" struct tags

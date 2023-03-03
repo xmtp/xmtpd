@@ -7,11 +7,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
@@ -95,8 +97,9 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	n.log = n.log.With(zap.PeerID("node", n.host.ID()))
 	// n.log.Debug("p2p identity", zap.String("private_key", privKeyHex), zap.PeerID("public_id", n.host.ID()))
-	n.log.Info("p2p listening", zap.Multiaddrs("addresses", n.host.Addrs()...), zap.PeerID("node", n.host.ID()))
+	n.log.Info("p2p listening", zap.Strings("addresses", n.listenAddresses()))
 
 	// Initialize libp2p pubsub.
 	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
@@ -133,6 +136,75 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	n.nc, err = nats.Connect(n.ns.ClientURL())
 	if err != nil {
 		return nil, err
+	}
+
+	// Log connected peers periodically.
+	persistentPeers := make([]peer.AddrInfo, 0, len(opts.P2P.PersistentPeers))
+	for _, addr := range opts.P2P.PersistentPeers {
+		maddr, err := multiaddr.NewMultiaddr(addr)
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing persistent peer address")
+		}
+		peer, err := peer.AddrInfoFromP2pAddr(maddr)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting persistent peer address info")
+		}
+		if peer == nil {
+			return nil, fmt.Errorf("persistent peer address info is nil: %s", addr)
+		}
+		if peer.ID == n.host.ID() {
+			continue
+		}
+		persistentPeers = append(persistentPeers, *peer)
+	}
+	// Log connected peers.
+	go func() {
+		for {
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+			select {
+			case <-n.ctx.Done():
+				return
+			case <-ticker.C:
+				peers := n.connectedPeers()
+				addrs := make([]string, 0, len(peers))
+				for addr := range peers {
+					addrs = append(addrs, addr)
+				}
+				log.Info("total connected peers", zap.Int("total_peers", len(peers)), zap.Strings("peers", addrs))
+			}
+		}
+	}()
+
+	// Connect to p2p persistent peers.
+	// TODO: put all in this a connection/peer manager structure
+	for _, addr := range persistentPeers {
+		addr := addr
+		go func() {
+			for {
+				ticker := time.NewTicker(1 * time.Second)
+				defer ticker.Stop()
+				select {
+				case <-n.ctx.Done():
+					return
+				case <-ticker.C:
+					peers := n.connectedPeers()
+					if _, ok := peers[addr.ID.Pretty()]; ok {
+						continue
+					}
+					err = backoff.Retry(func() error {
+						ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+						defer cancel()
+						n.log.Info("connecting to persistent peer", zap.String("peer", addr.ID.Pretty()))
+						return n.host.Connect(ctx, addr)
+					}, backoff.NewExponentialBackOff())
+					if err != nil {
+						n.log.Error("error connecting to persistent peer", zap.Error(err))
+					}
+					n.log.Info("connected to persistent peer", zap.String("peer", addr.ID.Pretty()))
+				}
+			}
+		}()
 	}
 
 	return n, nil
@@ -385,6 +457,32 @@ func (n *Node) p2pEventConsumerLoop() {
 		}
 		bc.C <- ev
 	}
+}
+
+func (n *Node) listenAddresses() []string {
+	exclude := map[string]bool{
+		"/p2p-circuit": true,
+	}
+	addrs := []string{}
+	for _, ma := range n.host.Network().ListenAddresses() {
+		addr := ma.String()
+		if exclude[addr] {
+			continue
+		}
+		addrs = append(addrs, addr+"/p2p/"+n.host.ID().Pretty())
+	}
+	return addrs
+}
+
+func (n *Node) connectedPeers() map[string]*peer.AddrInfo {
+	peers := map[string]*peer.AddrInfo{}
+	for _, conn := range n.host.Network().Conns() {
+		peers[conn.RemotePeer().Pretty()] = &peer.AddrInfo{
+			ID:    conn.RemotePeer(),
+			Addrs: []multiaddr.Multiaddr{conn.RemoteMultiaddr()},
+		}
+	}
+	return peers
 }
 
 func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {

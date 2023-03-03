@@ -80,14 +80,14 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	}
 
 	// Initialize libp2p host.
-	privKey, err := getOrCreatePrivateKey(opts.P2P.IdentityKey)
+	privKey, err := getOrCreatePrivateKey(opts.P2P.NodeKey)
 	if err != nil {
 		return nil, err
 	}
-	privKeyHex, err := privateKeyToHex(privKey)
-	if err != nil {
-		return nil, err
-	}
+	// privKeyHex, err := privateKeyToHex(privKey)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	n.host, err = libp2p.New(
 		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", opts.P2P.Port)),
 		libp2p.Identity(privKey),
@@ -95,7 +95,7 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	n.log.Debug("p2p identity", zap.String("private_key", privKeyHex), zap.PeerID("public_id", n.host.ID()))
+	// n.log.Debug("p2p identity", zap.String("private_key", privKeyHex), zap.PeerID("public_id", n.host.ID()))
 	n.log.Info("p2p listening", zap.Multiaddrs("addresses", n.host.Addrs()...), zap.PeerID("node", n.host.ID()))
 
 	// Initialize libp2p pubsub.

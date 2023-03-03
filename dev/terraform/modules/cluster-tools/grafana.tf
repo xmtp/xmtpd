@@ -41,6 +41,7 @@ EOT
       automated = {
         prune     = true
         self_heal = true
+        allow_empty = false
       }
     }
   }

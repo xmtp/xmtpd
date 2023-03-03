@@ -82,6 +82,7 @@ resource "argocd_application" "nodes" {
     #   automated = {
     #     prune     = true
     #     self_heal = true
+    #     allow_empty = false
     #   }
     # }
   }

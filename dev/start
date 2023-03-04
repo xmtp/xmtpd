@@ -11,4 +11,5 @@ go run \
     --p2p.port=9000 \
     --api.grpc-port=5000 \
     --api.http-port=5001 \
+    --store.type=postgres \
     "$@"

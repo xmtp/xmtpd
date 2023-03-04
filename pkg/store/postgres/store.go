@@ -72,9 +72,15 @@ func (s *Store) AppendEvent(ctx context.Context, env *messagev1.Envelope) (*type
 		}
 		s.log.Debug("appending event", zap.Cid("event", ev.Cid), zap.Int("links", len(ev.Links)))
 
-		_, err = s.insertEvent(ctx, tx, ev)
+		events, err := s.getEvents(ctx, tx, ev.Cid)
 		if err != nil {
 			return err
+		}
+		if len(events) == 0 {
+			_, err = s.insertEvent(ctx, tx, ev)
+			if err != nil {
+				return err
+			}
 		}
 
 		_, err = s.insertHead(ctx, tx, ev)
@@ -96,9 +102,15 @@ func (s *Store) InsertHead(ctx context.Context, ev *types.Event) (bool, error) {
 
 	var headAdded bool
 	err := s.executeTx(ctx, func(tx *sql.Tx) error {
-		_, err := s.insertEvent(ctx, tx, ev)
+		events, err := s.getEvents(ctx, tx, ev.Cid)
 		if err != nil {
 			return err
+		}
+		if len(events) == 0 {
+			_, err := s.insertEvent(ctx, tx, ev)
+			if err != nil {
+				return err
+			}
 		}
 
 		headAdded, err = s.insertHead(ctx, tx, ev)
@@ -152,7 +164,19 @@ func (s *Store) FindMissingLinks(ctx context.Context) ([]multihash.Multihash, er
 }
 
 func (s *Store) GetEvents(ctx context.Context, cids ...multihash.Multihash) ([]*types.Event, error) {
-	return nil, ErrTODO
+	var events []*types.Event
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		events, err = s.getEvents(ctx, tx, cids...)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 func (s *Store) NewCursor(ev *types.Event) *messagev1.Cursor {
@@ -306,6 +330,53 @@ func (s *Store) Heads(ctx context.Context) ([]multihash.Multihash, error) {
 		return nil, err
 	}
 	return cids, nil
+}
+
+func (s *Store) getEvents(ctx context.Context, tx *sql.Tx, cids ...multihash.Multihash) ([]*types.Event, error) {
+	ids := make([]string, 0, len(cids))
+	for _, cid := range cids {
+		ids = append(ids, cid.HexString())
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT cid, links, topic, timestamp_ns, message FROM events WHERE topic = $1 AND cid = ANY($2)", s.topic, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []*types.Event
+	for rows.Next() {
+		var (
+			cidHex      string
+			linksJSON   string
+			topic       string
+			timestampNS uint64
+			message     []byte
+		)
+		err := rows.Scan(&cidHex, &linksJSON, &topic, &timestampNS, &message)
+		if err != nil {
+			return nil, err
+		}
+		cid, err := multihash.FromHexString(cidHex)
+		if err != nil {
+			return nil, err
+		}
+		var links []multihash.Multihash
+		err = json.Unmarshal([]byte(linksJSON), &links)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, &types.Event{
+			Cid:   cid,
+			Links: links,
+			Envelope: &messagev1.Envelope{
+				ContentTopic: topic,
+				TimestampNs:  timestampNS,
+				Message:      message,
+			},
+		})
+	}
+
+	return events, nil
 }
 
 func (s *Store) insertEvent(ctx context.Context, tx *sql.Tx, ev *types.Event) (bool, error) {

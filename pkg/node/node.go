@@ -98,7 +98,7 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	}
 	n.log = n.log.With(zap.PeerID("node", n.host.ID()))
 	// n.log.Debug("p2p identity", zap.String("private_key", privKeyHex), zap.PeerID("public_id", n.host.ID()))
-	n.log.Info("p2p listening", zap.Strings("addresses", n.listenAddresses()))
+	n.log.Info("p2p listening", zap.Strings("addresses", n.P2PListenAddresses()))
 
 	// Initialize libp2p pubsub.
 	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
@@ -189,8 +189,31 @@ func (n *Node) APIHTTPListenPort() uint {
 	return n.api.HTTPListenPort()
 }
 
+func (n *Node) P2PListenAddresses() []string {
+	exclude := map[string]bool{
+		"/p2p-circuit": true,
+	}
+	addrs := []string{}
+	for _, ma := range n.host.Network().ListenAddresses() {
+		addr := ma.String()
+		if exclude[addr] {
+			continue
+		}
+		addrs = append(addrs, addr+"/p2p/"+n.host.ID().Pretty())
+	}
+	return addrs
+}
+
+func (n *Node) ID() peer.ID {
+	return n.host.ID()
+}
+
 func (n *Node) Connect(ctx context.Context, addr peer.AddrInfo) error {
 	return n.host.Connect(ctx, addr)
+}
+
+func (n *Node) Disconnect(ctx context.Context, peer peer.ID) error {
+	return n.host.Network().ClosePeer(peer)
 }
 
 func (n *Node) Address() peer.AddrInfo {
@@ -392,21 +415,6 @@ func (n *Node) p2pEventConsumerLoop() {
 		}
 		bc.C <- ev
 	}
-}
-
-func (n *Node) listenAddresses() []string {
-	exclude := map[string]bool{
-		"/p2p-circuit": true,
-	}
-	addrs := []string{}
-	for _, ma := range n.host.Network().ListenAddresses() {
-		addr := ma.String()
-		if exclude[addr] {
-			continue
-		}
-		addrs = append(addrs, addr+"/p2p/"+n.host.ID().Pretty())
-	}
-	return addrs
 }
 
 func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {

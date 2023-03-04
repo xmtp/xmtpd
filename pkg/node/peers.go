@@ -44,7 +44,7 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 	// Log connected peers periodically.
 	go func() {
 		for {
-			ticker := time.NewTicker(10 * time.Second)
+			ticker := time.NewTicker(60 * time.Second)
 			defer ticker.Stop()
 			select {
 			case <-ctx.Done():
@@ -55,7 +55,7 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 				for addr := range peers {
 					addrs = append(addrs, addr)
 				}
-				log.Info("total connected peers", zap.Int("total_peers", len(peers)), zap.Strings("peers", addrs))
+				log.Debug("total connected peers", zap.Int("total_peers", len(peers)), zap.Strings("peers", addrs))
 			}
 		}
 	}()
@@ -78,7 +78,7 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 					err := backoff.Retry(func() error {
 						ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 						defer cancel()
-						log.Info("connecting to persistent peer", zap.String("peer", peer.ID.Pretty()))
+						log.Debug("connecting to persistent peer", zap.String("peer", peer.ID.Pretty()))
 						return p.host.Connect(ctx, peer)
 					}, backoff.NewExponentialBackOff())
 					if err != nil {

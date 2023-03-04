@@ -133,37 +133,56 @@ func TestNode_PublishSubscribeQuery_TwoNodes(t *testing.T) {
 	n2.requireStoredEvents(t, "topic1", append(n1Topic1Envs, n2Topic1Envs...))
 }
 
-// func TestNode_PersistentPeers(t *testing.T) {
-// 	t.Parallel()
+func TestNode_PersistentPeers(t *testing.T) {
+	t.Parallel()
 
-// 	n1 := newTestNodeWithOptions(t, "node1", nil)
-// 	defer n1.Close()
+	n1 := newTestNodeWithOptions(t, "node1", nil)
+	defer n1.Close()
 
-// 	n2 := newTestNodeWithOptions(t, "node2", n1.P2PListenAddresses())
-// 	defer n2.Close()
+	// TODO: test that connect/disconnect works as expected when not a persistent peer
 
-// 	// n1.connect(t, n2)
+	n2 := newTestNodeWithOptions(t, "node2", n1.P2PListenAddresses())
+	defer n2.Close()
 
-// 	time.Sleep(3 * time.Second)
-// 	fmt.Println("disconnect")
-// 	err := n1.Disconnect(n1.ctx, n2.ID())
-// 	require.NoError(t, err)
-// 	time.Sleep(10 * time.Second)
+	// TODO: remove this
+	time.Sleep(time.Second)
 
-// 	fmt.Println("connect")
-// 	n1.connect(t, n2)
-// 	time.Sleep(10 * time.Second)
+	n1Topic1Sub := n1.subscribe(t, "topic1")
+	time.Sleep(time.Second)
+	n2Topic1Sub := n2.subscribe(t, "topic1")
+	topic1Envs := n1.publishRandom(t, n1Topic1Sub.topic, 1)
+	n1Topic1Sub.requireEventuallyCapturedEvents(t, topic1Envs)
+	n2Topic1Sub.requireEventuallyCapturedEvents(t, topic1Envs)
 
-// 	// n1Topic1Sub := n1.subscribe(t, "topic1")
-// 	// n1Topic1Envs := n1.publishRandom(t, n1Topic1Sub.topic, 1)
-// 	// n1Topic1Sub.requireEventuallyCapturedEvents(t, n1Topic1Envs)
-// 	// n1.requireStoredEvents(t, "topic1", n1Topic1Envs)
+	n1Topic2Sub := n1.subscribe(t, "topic2")
+	n2Topic2Sub := n2.subscribe(t, "topic2")
+	topic2Envs := n2.publishRandom(t, n2Topic2Sub.topic, 1)
+	n1Topic2Sub.requireEventuallyCapturedEvents(t, topic2Envs)
+	n2Topic2Sub.requireEventuallyCapturedEvents(t, topic2Envs)
 
-// 	// n2Topic1Sub := n2.subscribe(t, "topic1")
-// 	// n2Topic1Envs := n2.publishRandom(t, n2Topic1Sub.topic, 2)
-// 	// n2Topic1Sub.requireEventuallyCapturedEvents(t, n2Topic1Envs)
-// 	// n2.requireStoredEvents(t, "topic1", append(n1Topic1Envs, n2Topic1Envs...))
-// }
+	// TODO: clean up
+	fmt.Println("disconnect")
+	err := n1.Disconnect(n1.ctx, n2.ID())
+	require.NoError(t, err)
+	err = n2.Disconnect(n2.ctx, n1.ID())
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	fmt.Println("disconnected-ish")
+
+	// Should reconnect automatically.
+
+	n1Topic1Sub = n1.subscribe(t, "topic1")
+	n2Topic1Sub = n2.subscribe(t, "topic1")
+	topic1Envs = n1.publishRandom(t, n1Topic1Sub.topic, 1)
+	n1Topic1Sub.requireEventuallyCapturedEvents(t, topic1Envs)
+	n2Topic1Sub.requireEventuallyCapturedEvents(t, topic1Envs)
+
+	n1Topic2Sub = n1.subscribe(t, "topic2")
+	n2Topic2Sub = n2.subscribe(t, "topic2")
+	topic2Envs = n2.publishRandom(t, n2Topic2Sub.topic, 1)
+	n1Topic2Sub.requireEventuallyCapturedEvents(t, topic2Envs)
+	n2Topic2Sub.requireEventuallyCapturedEvents(t, topic2Envs)
+}
 
 type testNode struct {
 	*node.Node

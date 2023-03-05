@@ -1,4 +1,4 @@
-package node
+package xmtpcrdtnode
 
 import (
 	gocontext "context"
@@ -20,6 +20,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
+	"github.com/xmtp/xmtpd/pkg/otel"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -53,7 +54,7 @@ type Node struct {
 	ns *server.Server
 	nc *nats.Conn
 
-	ot    *openTelemetry
+	ot    *otel.OpenTelemetry
 	peers *persistentPeers
 }
 
@@ -69,7 +70,7 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	var err error
 
 	// Initialize open telemetry.
-	n.ot, err = newOpenTelemetry(n.ctx, &opts.OpenTelemetry)
+	n.ot, err = otel.New(n.ctx, &opts.OpenTelemetry)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing open telemetry")
 	}

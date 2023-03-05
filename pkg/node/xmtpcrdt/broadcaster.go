@@ -1,4 +1,4 @@
-package node
+package xmtpcrdtnode
 
 import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"

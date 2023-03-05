@@ -8,7 +8,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/context"
-	"github.com/xmtp/xmtpd/pkg/node"
+	xmtpcrdtnode "github.com/xmtp/xmtpd/pkg/node/xmtpcrdt"
 	"github.com/xmtp/xmtpd/pkg/store/bolt"
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	postgresstore "github.com/xmtp/xmtpd/pkg/store/postgres"
@@ -18,7 +18,7 @@ import (
 // GitCommit should be included in the binary via -ldflags=-X ${COMMIT}
 var GitCommit string
 
-var opts node.Options
+var opts xmtpcrdtnode.Options
 
 func main() {
 	// Initialize options.
@@ -40,7 +40,7 @@ func main() {
 	ctx := context.New(context.Background(), log)
 
 	// Initialize datastore.
-	var store node.NodeStore
+	var store xmtpcrdtnode.NodeStore
 	switch {
 	case opts.Store.Type == "postgres":
 		log.Info("using postgres store")
@@ -64,7 +64,7 @@ func main() {
 	}
 
 	// Initialize node.
-	node, err := node.New(ctx, store, &opts)
+	node, err := xmtpcrdtnode.New(ctx, store, &opts)
 	if err != nil {
 		log.Fatal("error initializing node", zap.Error(err))
 	}

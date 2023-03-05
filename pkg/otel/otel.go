@@ -1,4 +1,4 @@
-package node
+package otel
 
 import (
 	"fmt"
@@ -19,12 +19,12 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-type OpenTelemetryOptions struct {
+type Options struct {
 	CollectorAddress string `long:"collector-address" env:"OTEL_COLLECTOR_ADDRESS" description:"OpenTelemetry collector address" default:"localhost"`
 	CollectorPort    uint   `long:"collector-port" env:"OTEL_COLLECTOR_PORT" description:"OpenTelemetry collector port" default:"4317"`
 }
 
-type openTelemetry struct {
+type OpenTelemetry struct {
 	ctx context.Context
 	log *zap.Logger
 
@@ -34,8 +34,8 @@ type openTelemetry struct {
 	metricsProvider *sdkmetric.MeterProvider
 }
 
-func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTelemetry, error) {
-	ot := &openTelemetry{
+func New(ctx context.Context, opts *Options) (*OpenTelemetry, error) {
+	ot := &OpenTelemetry{
 		ctx: ctx,
 		log: ctx.Logger().Named("otel"),
 	}
@@ -97,7 +97,7 @@ func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTel
 	return ot, nil
 }
 
-func (ot *openTelemetry) Close() error {
+func (ot *OpenTelemetry) Close() error {
 	err := ot.traceExporter.Shutdown(ot.ctx)
 	if err != nil && err != context.Canceled {
 		ot.log.Error("error shutting down trace exporter", zap.Error(err))

@@ -1,4 +1,4 @@
-package node_test
+package xmtpcrdtnode_test
 
 import (
 	"fmt"

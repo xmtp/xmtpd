@@ -1,4 +1,4 @@
-package node_test
+package xmtpcrdtnode_test
 
 import (
 	"bytes"
@@ -15,7 +15,8 @@ import (
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/api/client"
 	"github.com/xmtp/xmtpd/pkg/context"
-	"github.com/xmtp/xmtpd/pkg/node"
+	xmtpcrdtnode "github.com/xmtp/xmtpd/pkg/node/xmtpcrdt"
+	"github.com/xmtp/xmtpd/pkg/otel"
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
@@ -42,7 +43,7 @@ func TestNode_Subscribe(t *testing.T) {
 	n := newTestNode(t)
 	defer n.Close()
 	err := n.Subscribe(&messagev1.SubscribeRequest{}, nil)
-	require.Equal(t, err, node.ErrMissingTopic)
+	require.Equal(t, err, xmtpcrdtnode.ErrMissingTopic)
 }
 
 func TestNode_Query(t *testing.T) {
@@ -50,7 +51,7 @@ func TestNode_Query(t *testing.T) {
 	defer n.Close()
 	ctx := test.NewContext(t)
 	_, err := n.Query(ctx, &messagev1.QueryRequest{})
-	require.Equal(t, err, node.ErrMissingTopic)
+	require.Equal(t, err, xmtpcrdtnode.ErrMissingTopic)
 }
 
 func TestNode_BatchQuery(t *testing.T) {
@@ -65,7 +66,7 @@ func TestNode_SubscribeAll(t *testing.T) {
 	n := newTestNode(t)
 	defer n.Close()
 	ctrl := gomock.NewController(t)
-	stream := node.NewMockMessageApi_SubscribeServer(ctrl)
+	stream := xmtpcrdtnode.NewMockMessageApi_SubscribeServer(ctrl)
 	stream.EXPECT().Send(&messagev1.Envelope{}).Return(nil)
 	ctx := test.NewContext(t)
 	ctx.Close()
@@ -185,7 +186,7 @@ func TestNode_PersistentPeers(t *testing.T) {
 }
 
 type testNode struct {
-	*node.Node
+	*xmtpcrdtnode.Node
 	name string
 
 	client client.Client
@@ -203,11 +204,11 @@ func newTestNodeWithOptions(t *testing.T, name string, persistentPeers []string)
 		ctx = context.WithLogger(ctx, ctx.Logger().Named(name))
 	}
 
-	node, err := node.New(ctx, memstore.NewNodeStore(ctx), &node.Options{
-		P2P: node.P2POptions{
+	node, err := xmtpcrdtnode.New(ctx, memstore.NewNodeStore(ctx), &xmtpcrdtnode.Options{
+		P2P: xmtpcrdtnode.P2POptions{
 			PersistentPeers: persistentPeers,
 		},
-		OpenTelemetry: node.OpenTelemetryOptions{
+		OpenTelemetry: otel.Options{
 			CollectorAddress: "localhost",
 			CollectorPort:    4317,
 		},

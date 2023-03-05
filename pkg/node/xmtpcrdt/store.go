@@ -1,4 +1,4 @@
-package node
+package xmtpcrdtnode
 
 import "github.com/xmtp/xmtpd/pkg/crdt"
 

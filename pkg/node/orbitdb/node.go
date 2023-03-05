@@ -2,27 +2,38 @@ package orbitdbnode
 
 import (
 	gocontext "context"
-	"encoding/hex"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	orbitdb "berty.tech/go-orbit-db"
+	"berty.tech/go-orbit-db/accesscontroller"
+	"berty.tech/go-orbit-db/iface"
+	orbitstores "berty.tech/go-orbit-db/stores"
+	"berty.tech/go-orbit-db/stores/operation"
+	ds "github.com/ipfs/go-datastore"
+	dsync "github.com/ipfs/go-datastore/sync"
+	ipfsconfig "github.com/ipfs/kubo/config"
+	ipfscore "github.com/ipfs/kubo/core"
+	"github.com/ipfs/kubo/core/bootstrap"
+	"github.com/ipfs/kubo/core/coreapi"
+	"github.com/ipfs/kubo/repo"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
 	"github.com/xmtp/xmtpd/pkg/context"
-	"github.com/xmtp/xmtpd/pkg/crdt"
-	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	"github.com/xmtp/xmtpd/pkg/otel"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -30,6 +41,8 @@ var (
 	ErrMissingTopic       = errors.New("missing topic")
 	ErrTooManyTopics      = errors.New("too many topics")
 	ErrTopicAlreadyExists = errors.New("topic already exists")
+
+	infinity = -1
 )
 
 type Node struct {
@@ -38,30 +51,25 @@ type Node struct {
 	log *zap.Logger
 	ctx context.Context
 
-	topics     map[string]*crdt.Replica
+	topics     map[string]orbitdb.EventLogStore
 	topicsLock sync.RWMutex
 
-	host  host.Host
-	topic *pubsub.Topic
-	sub   *pubsub.Subscription
-
 	api *apigateway.Server
-
-	broadcasters     map[string]chan *types.Event
-	broadcastersLock sync.RWMutex
 
 	ns *server.Server
 	nc *nats.Conn
 
 	ot *otel.OpenTelemetry
+
+	ipfs  *ipfscore.IpfsNode
+	orbit orbitdb.OrbitDB
 }
 
 func New(ctx context.Context, opts *Options) (*Node, error) {
 	n := &Node{
-		ctx:          ctx,
-		log:          ctx.Logger(),
-		topics:       map[string]*crdt.Replica{},
-		broadcasters: map[string]chan *types.Event{},
+		ctx:    ctx,
+		log:    ctx.Logger(),
+		topics: map[string]orbitdb.EventLogStore{},
 	}
 
 	var err error
@@ -78,46 +86,61 @@ func New(ctx context.Context, opts *Options) (*Node, error) {
 		return nil, errors.Wrap(err, "initializing api")
 	}
 
-	// Initialize libp2p host.
-	privKey, err := getOrCreatePrivateKey(opts.P2P.NodeKey)
+	// Initialize IPFS node.
+	ipfsRepo, err := newIPFSRepo(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// privKeyHex, err := privateKeyToHex(privKey)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	n.host, err = libp2p.New(
-		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", opts.P2P.Port)),
-		libp2p.Identity(privKey),
-	)
+	n.ipfs, err = ipfscore.NewNode(ctx, &ipfscore.BuildCfg{
+		// TODO: pass in bootstrap peers, or at least don't try to use default peers while starting up, is that online = false?
+		Online: true,
+		Repo:   ipfsRepo,
+		// Host:   mock.MockHostOption(m),
+		ExtraOpts: map[string]bool{
+			"pubsub": true,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
-	n.log = n.log.With(zap.PeerID("node", n.host.ID()))
-	// n.log.Debug("p2p identity", zap.String("private_key", privKeyHex), zap.PeerID("public_id", n.host.ID()))
-	n.log.Info("p2p listening", zap.Strings("addresses", n.P2PListenAddresses()))
-
-	// Initialize libp2p pubsub.
-	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
+	n.log = n.log.With(zap.String("node", n.ipfs.Identity.Pretty()))
+	n.log.Info("ipfs node listening", zap.Strings("addresses", n.P2PListenAddresses()))
+	peers := make([]peer.AddrInfo, 0, len(opts.P2P.BootstrapPeers))
+	for _, addr := range opts.P2P.BootstrapPeers {
+		maddr, err := multiaddr.NewMultiaddr(addr)
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing persistent peer address")
+		}
+		peer, err := peer.AddrInfoFromP2pAddr(maddr)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting persistent peer address info")
+		}
+		if peer == nil {
+			return nil, fmt.Errorf("persistent peer address info is nil: %s", addr)
+		}
+		if peer.ID == n.ipfs.Identity {
+			continue
+		}
+		peers = append(peers, *peer)
+	}
+	fmt.Println("BOOTSTRAPPING with", peers)
+	err = n.ipfs.Bootstrap(bootstrap.BootstrapConfigWithPeers(peers))
 	if err != nil {
 		return nil, err
 	}
-
-	// Initialize libp2p pubsub topic.
-	n.topic, err = gs.Join("/xmtp/0")
+	n.ipfs.IsOnline = true
+	ipfsAPI, err := coreapi.NewCoreAPI(n.ipfs)
 	if err != nil {
 		return nil, err
 	}
-
-	// Initialize libp2p pubsub topic subscription.
-	n.sub, err = n.topic.Subscribe()
+	// dataPath := filepath.Join(t.TempDir(), test.RandomStringLower(13))
+	n.orbit, err = orbitdb.NewOrbitDB(ctx, ipfsAPI, &orbitdb.NewOrbitDBOptions{
+		// TODO:
+		// Directory: &dataPath,
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	// Initialize libp2p events consumer.
-	// go n.p2pEventConsumerLoop()
 
 	// Initialize nats for API subscribers.
 	n.ns, err = server.NewServer(&server.Options{
@@ -135,10 +158,11 @@ func New(ctx context.Context, opts *Options) (*Node, error) {
 		return nil, err
 	}
 
-	// n.peers, err = newPersistentPeers(n.ctx, n.log, n.host, opts.P2P.PersistentPeers)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// TODO: remove this
+	_, err = n.getOrCreateTopic(ctx, "topic")
+	if err != nil {
+		return nil, err
+	}
 
 	return n, nil
 }
@@ -157,20 +181,18 @@ func (n *Node) Close() {
 		n.ns.Shutdown()
 	}
 
-	// Shut down the topics
 	n.ctx.Close()
 
-	// Shut down all the infrastructure
-	if n.sub != nil {
-		n.sub.Cancel()
+	for _, replica := range n.topics {
+		replica.Close()
 	}
 
-	if n.topic != nil {
-		n.topic.Close()
+	if n.orbit != nil {
+		n.orbit.Close()
 	}
 
-	if n.host != nil {
-		n.host.Close()
+	if n.ipfs != nil {
+		n.ipfs.Close()
 	}
 
 	// Shut down telemetry
@@ -188,48 +210,43 @@ func (n *Node) P2PListenAddresses() []string {
 		"/p2p-circuit": true,
 	}
 	addrs := []string{}
-	for _, ma := range n.host.Network().ListenAddresses() {
+	for _, ma := range n.ipfs.PeerHost.Network().ListenAddresses() {
 		addr := ma.String()
 		if exclude[addr] {
 			continue
 		}
-		addrs = append(addrs, addr+"/p2p/"+n.host.ID().Pretty())
+		addrs = append(addrs, addr+"/p2p/"+n.ipfs.Identity.Pretty())
 	}
 	return addrs
 }
 
-func (n *Node) ID() peer.ID {
-	return n.host.ID()
-}
-
-func (n *Node) Connect(ctx context.Context, addr peer.AddrInfo) error {
-	return n.host.Connect(ctx, addr)
-}
-
-func (n *Node) Disconnect(ctx context.Context, peer peer.ID) error {
-	return n.host.Network().ClosePeer(peer)
-}
-
-func (n *Node) Address() peer.AddrInfo {
-	return peer.AddrInfo{
-		ID:    n.host.ID(),
-		Addrs: n.host.Addrs(),
-	}
-}
-
 func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*messagev1.PublishResponse, error) {
 	ctx := context.New(gctx, n.log)
+
 	for _, env := range req.Envelopes {
-		topic, err := n.getOrCreateTopic(env.ContentTopic)
+		replica, err := n.getOrCreateTopic(ctx, env.ContentTopic)
 		if err != nil {
 			return nil, err
 		}
-		ev, err := topic.BroadcastAppend(ctx, env)
+
+		envB, err := proto.Marshal(env)
 		if err != nil {
 			return nil, err
 		}
-		n.log.Debug("envelope published", zap.Cid("event", ev.Cid))
+
+		op, err := replica.Add(ctx, envB)
+		if err != nil {
+			return nil, err
+		}
+
+		err = n.nc.Publish(env.ContentTopic, envB)
+		if err != nil {
+			n.log.Error("error publishing published event")
+		}
+
+		n.log.Debug("envelope published", zap.String("event", op.GetEntry().GetHash().String()), zap.String("operation", string(op.GetEntry().GetPayload())))
 	}
+
 	return &messagev1.PublishResponse{}, nil
 }
 
@@ -249,12 +266,13 @@ func (n *Node) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.Messa
 	}
 
 	sub, err := n.nc.Subscribe(topic, func(msg *nats.Msg) {
-		ev, err := types.EventFromBytes(msg.Data)
+		var env messagev1.Envelope
+		err := proto.Unmarshal(msg.Data, &env)
 		if err != nil {
 			n.log.Error("error parsing event from bytes", zap.Error(err))
 			return
 		}
-		err = stream.Send(ev.Envelope)
+		err = stream.Send(&env)
 		if err != nil {
 			n.log.Error("error emitting new event", zap.Error(err))
 		}
@@ -280,14 +298,15 @@ func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*mess
 	} else if len(req.ContentTopics) > 1 {
 		return nil, ErrTooManyTopics
 	}
-	topic := req.ContentTopics[0]
+	// topic := req.ContentTopics[0]
 
-	replica, err := n.getOrCreateTopic(topic)
-	if err != nil {
-		return nil, err
-	}
+	// replica, err := n.getOrCreateTopic(topic)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	return replica.Query(context.New(gctx, n.log), req)
+	// return replica.Query(context.New(gctx, n.log), req)
+	return nil, ErrTODO
 }
 
 func (n *Node) SubscribeAll(req *messagev1.SubscribeAllRequest, stream messagev1.MessageApi_SubscribeAllServer) error {
@@ -322,13 +341,13 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 	return res, nil
 }
 
-func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
-	replica, err := n.getTopic(topic)
+func (n *Node) getOrCreateTopic(ctx context.Context, topic string) (orbitdb.EventLogStore, error) {
+	replica, err := n.getTopic(ctx, topic)
 	if err != nil {
 		return nil, err
 	}
 	if replica == nil {
-		replica, err = n.createTopic(topic)
+		replica, err = n.createTopic(ctx, topic)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +355,7 @@ func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
 	return replica, nil
 }
 
-func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
+func (n *Node) getTopic(ctx context.Context, topic string) (orbitdb.EventLogStore, error) {
 	n.log.Debug("getting topic", zap.String("topic", topic))
 	n.topicsLock.RLock()
 	defer n.topicsLock.RUnlock()
@@ -347,102 +366,127 @@ func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
 	return replica, nil
 }
 
-func (n *Node) createTopic(topic string) (*crdt.Replica, error) {
+func (n *Node) createTopic(ctx context.Context, topic string) (orbitdb.EventLogStore, error) {
 	n.log.Debug("creating topic", zap.String("topic", topic))
-	// n.topicsLock.Lock()
-	// defer n.topicsLock.Unlock()
-	// if _, ok := n.topics[topic]; ok {
-	// 	return nil, ErrTopicAlreadyExists
-	// }
-	// bc, err := n.getOrCreateBroadcaster(topic)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// store, err := n.store.NewTopic(topic)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// replica, err := crdt.NewReplica(n.ctx, store, bc, nil, func(ev *types.Event) {
-	// 	evB, err := ev.ToBytes()
-	// 	if err != nil {
-	// 		n.log.Error("error converting event to bytes", zap.Error(err))
-	// 		return
-	// 	}
-	// 	err = n.nc.Publish(ev.ContentTopic, evB)
-	// 	if err != nil {
-	// 		n.log.Error("error publishing replicated event")
-	// 	}
-	// })
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// n.topics[topic] = replica
-	// return replica, nil
-	return nil, ErrTODO
-}
+	n.topicsLock.Lock()
+	defer n.topicsLock.Unlock()
+	if _, ok := n.topics[topic]; ok {
+		return nil, ErrTopicAlreadyExists
+	}
 
-// func (n *Node) p2pEventConsumerLoop() {
-// 	for {
-// 		msg, err := n.sub.Next(n.ctx)
-// 		if err != nil {
-// 			if err == context.Canceled {
-// 				return
-// 			}
-// 			n.log.Error("error getting next event", zap.Error(err))
-// 			continue
-// 		}
-// 		ev, err := types.EventFromBytes(msg.Data)
-// 		if err != nil {
-// 			n.log.Error("error unmarshaling event", zap.Error(err))
-// 			continue
-// 		}
+	// Determine the full address so we attempt to open as existing before creating.
+	// TODO: namespace the topic?
+	addr, err := n.orbit.DetermineAddress(ctx, topic, "eventlog", &iface.DetermineAddressOptions{
+		AccessController: &accesscontroller.CreateAccessControllerOptions{
+			Access: map[string][]string{
+				// TODO: figure this out
+				"write": {"*"},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("ADDR", addr.String())
 
-// 		_, err = n.getOrCreateTopic(ev.ContentTopic)
-// 		if err != nil {
-// 			n.log.Error("error getting or creating topic", zap.Error(err))
-// 			continue
-// 		}
+	// Open the data store, or creating it if necessary.
+	replica, err := n.orbit.Log(n.ctx, addr.String(), &iface.CreateDBOptions{})
+	if err != nil {
+		return nil, err
+	}
 
-// 		// Push onto broadcaster channel to be consumed by it's replica via Next.
-// 		bc, err := n.getOrCreateBroadcaster(ev.ContentTopic)
-// 		if err != nil {
-// 			n.log.Error("error getting broadcaster", zap.Error(err))
-// 		}
-// 		bc.C <- ev
-// 	}
-// }
-
-// func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {
-// 	n.broadcastersLock.Lock()
-// 	defer n.broadcastersLock.Unlock()
-
-// 	if _, ok := n.broadcasters[topic]; !ok {
-// 		n.broadcasters[topic] = make(chan *types.Event, 100)
-// 	}
-// 	return newBroadcaster(n.topic, n.broadcasters[topic])
-// }
-
-func getOrCreatePrivateKey(key string) (crypto.PrivKey, error) {
-	if key == "" {
-		priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 1)
+	go func() {
+		// Load log store data in case there are existing entries.
+		err = replica.Load(n.ctx, infinity)
 		if err != nil {
-			return nil, err
+			n.log.Error("error loading topic replica", zap.Error(err))
 		}
+	}()
 
-		return priv, nil
-	}
+	go func() {
+		sub, err := replica.EventBus().Subscribe([]interface{}{
+			new(orbitstores.EventReplicateProgress),
+			new(orbitstores.EventReplicated),
+		}, eventbus.BufSize(infinity+32))
+		if err != nil {
+			n.log.Error("error streaming from topic replica", zap.Error(err))
+			// TODO: retry?
+		}
+		for {
+			select {
+			case <-n.ctx.Done():
+				n.log.Debug("replica stream node context closed")
+				return
+			case obj, ok := <-sub.Out():
+				if !ok {
+					return
+				}
 
-	keyBytes, err := hex.DecodeString(key)
-	if err != nil {
-		return nil, errors.Wrap(err, "decoding private key")
-	}
-	return crypto.UnmarshalPrivateKey(keyBytes)
+				switch ev := obj.(type) {
+				case orbitstores.EventReplicateProgress:
+					fmt.Println("TODO.EventReplicateProgress", ev)
+				case orbitstores.EventReplicated:
+					for _, entry := range ev.Entries {
+						op, err := operation.ParseOperation(entry)
+						if err != nil {
+							n.log.Error("error parsing replicated operation", zap.Error(err))
+							continue
+						}
+						envB := op.GetValue()
+
+						var env messagev1.Envelope
+						err = proto.Unmarshal(envB, &env)
+						if err != nil {
+							n.log.Error("error unmarhsaling replicated event", zap.Error(err))
+							continue
+						}
+
+						err = n.nc.Publish(env.ContentTopic, envB)
+						if err != nil {
+							n.log.Error("error publishing replicated event")
+						}
+
+						n.log.Debug("received replicated envelope", zap.String("env_topic", env.ContentTopic), zap.String("env_message", string(env.Message)), zap.Int("env_timestamp", int(env.TimestampNs)))
+					}
+				}
+			}
+		}
+	}()
+
+	n.topics[topic] = replica
+	return replica, nil
 }
 
-func privateKeyToHex(key crypto.PrivKey) (string, error) {
-	keyBytes, err := crypto.MarshalPrivateKey(key)
+func newIPFSRepo(ctx context.Context) (repo.Repo, error) {
+	c := ipfsconfig.Config{}
+	// TODO: use common method between node types, or pass into the node constructor
+	// TODO: key from opts
+	priv, pub, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return hex.EncodeToString(keyBytes), nil
+
+	pid, err := peer.IDFromPublicKey(pub)
+	if err != nil {
+		return nil, err
+	}
+
+	privkeyb, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Pubsub.Enabled = ipfsconfig.True
+	// c.Swarm.ResourceMgr.Enabled = cfg.False
+	c.Bootstrap = []string{}
+	// TODO: random ports here
+	// TODO: ports from opts
+	c.Addresses.Swarm = []string{"/ip4/127.0.0.1/tcp/0", "/ip4/127.0.0.1/udp/0/quic"}
+	c.Identity.PeerID = pid.Pretty()
+	c.Identity.PrivKey = base64.StdEncoding.EncodeToString(privkeyb)
+
+	return &repo.Mock{
+		D: dsync.MutexWrap(ds.NewMapDatastore()),
+		C: c,
+	}, nil
 }

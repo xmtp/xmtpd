@@ -43,7 +43,7 @@ func TestOrbitDB_NewClose_NonMocked(t *testing.T) {
 	defer cancel()
 
 	t.Run("add and list", func(t *testing.T) {
-		orbitDB, cleanup := newTestMockedOrbitDB(t)
+		orbitDB, cleanup := newTestNonMockedOrbitDB(t)
 		defer cleanup()
 		testAddAndList(t, ctx, orbitDB)
 	})
@@ -141,6 +141,7 @@ func testAddAndList(t testing.TB, ctx context.Context, orbitDB orbitdbiface.Orbi
 	require.NotEqual(t, ops[1].GetEntry().GetHash().String(), prevHash.String())
 	require.Equal(t, ops[1].GetEntry().GetHash().String(), op.GetEntry().GetHash().String())
 }
+
 func testingRepo(ctx context.Context, t testing.TB) repo.Repo {
 	t.Helper()
 

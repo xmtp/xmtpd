@@ -227,7 +227,7 @@ func (n *Node) Address() peer.AddrInfo {
 func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*messagev1.PublishResponse, error) {
 	ctx := context.New(gctx, n.log)
 	for _, env := range req.Envelopes {
-		topic, err := n.getOrCreateTopic(env.ContentTopic)
+		topic, err := n.getOrCreateTopicReplica(env.ContentTopic)
 		if err != nil {
 			return nil, err
 		}
@@ -289,7 +289,7 @@ func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*mess
 	}
 	topic := req.ContentTopics[0]
 
-	replica, err := n.getOrCreateTopic(topic)
+	replica, err := n.getOrCreateTopicReplica(topic)
 	if err != nil {
 		return nil, err
 	}
@@ -329,13 +329,13 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 	return res, nil
 }
 
-func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
-	replica, err := n.getTopic(topic)
+func (n *Node) getOrCreateTopicReplica(topic string) (*crdt.Replica, error) {
+	replica, err := n.getTopicReplica(topic)
 	if err != nil {
 		return nil, err
 	}
 	if replica == nil {
-		replica, err = n.createTopic(topic)
+		replica, err = n.createTopicReplica(topic)
 		if err != nil {
 			return nil, err
 		}
@@ -343,7 +343,7 @@ func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
 	return replica, nil
 }
 
-func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
+func (n *Node) getTopicReplica(topic string) (*crdt.Replica, error) {
 	n.log.Debug("getting topic", zap.String("topic", topic))
 	n.topicsLock.RLock()
 	defer n.topicsLock.RUnlock()
@@ -354,7 +354,7 @@ func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
 	return replica, nil
 }
 
-func (n *Node) createTopic(topic string) (*crdt.Replica, error) {
+func (n *Node) createTopicReplica(topic string) (*crdt.Replica, error) {
 	n.log.Debug("creating topic", zap.String("topic", topic))
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
@@ -403,7 +403,7 @@ func (n *Node) p2pEventConsumerLoop() {
 			continue
 		}
 
-		_, err = n.getOrCreateTopic(ev.ContentTopic)
+		_, err = n.getOrCreateTopicReplica(ev.ContentTopic)
 		if err != nil {
 			n.log.Error("error getting or creating topic", zap.Error(err))
 			continue

@@ -190,17 +190,6 @@ func (s *Store) Events(ctx context.Context) (evs []*types.Event, err error) {
 	return evs, err
 }
 
-func (s *Store) NewCursor(ev *types.Event) *messagev1.Cursor {
-	return &messagev1.Cursor{
-		Cursor: &messagev1.Cursor_Index{
-			Index: &messagev1.IndexCursor{
-				SenderTimeNs: ev.TimestampNs,
-				Digest:       ev.Cid,
-			},
-		},
-	}
-}
-
 func (s *Store) InsertNewEvents(ctx context.Context, evs []*types.Event) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		topic := tx.Bucket([]byte(s.name))

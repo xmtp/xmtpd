@@ -8,23 +8,11 @@ import (
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 var (
 	ErrCursorNotFound = errors.New("cursor not found")
 )
-
-func (s *MemoryStore) NewCursor(ev *types.Event) *messagev1.Cursor {
-	return &messagev1.Cursor{
-		Cursor: &messagev1.Cursor_Index{
-			Index: &messagev1.IndexCursor{
-				SenderTimeNs: ev.TimestampNs,
-				Digest:       ev.Cid,
-			},
-		},
-	}
-}
 
 func (s *MemoryStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
 	s.RLock()
@@ -79,43 +67,36 @@ func (s *MemoryStore) Query(ctx context.Context, req *messagev1.QueryRequest) (*
 		}
 	}
 
+	limit := int(req.PagingInfo.Limit)
 	if reversed {
-		if limit := req.PagingInfo.Limit; limit != 0 && int(limit) < len(result) {
+		if limit != 0 && limit < len(result) {
 			result = result[len(result)-int(limit):]
 		}
-		var newCursorEvent *types.Event
-		if len(result) > 0 {
-			newCursorEvent = result[0]
+		result = reverseEvents(result)
+	} else {
+		if limit != 0 && limit < len(result) {
+			result = result[:limit]
 		}
-		utils.Reverse(result)
-		pi, err := s.updatedPagingInfo(req.PagingInfo, newCursorEvent)
-		if err != nil {
-			return nil, err
+	}
+	resp := &messagev1.QueryResponse{
+		Envelopes: toEnvelopes(result),
+	}
+	if limit > 0 && len(result) == limit {
+		lastEvent := result[len(result)-1]
+		resp.PagingInfo = &messagev1.PagingInfo{
+			Limit:     req.PagingInfo.Limit,
+			Direction: req.PagingInfo.Direction,
+			Cursor: &messagev1.Cursor{
+				Cursor: &messagev1.Cursor_Index{
+					Index: &messagev1.IndexCursor{
+						SenderTimeNs: lastEvent.TimestampNs,
+						Digest:       lastEvent.Cid,
+					},
+				},
+			},
 		}
-		return &messagev1.QueryResponse{
-			Envelopes:  toEnvelopes(result),
-			PagingInfo: pi,
-		}, nil
 	}
-
-	if limit := req.PagingInfo.Limit; limit != 0 && int(limit) < len(result) {
-		result = result[:limit]
-	}
-
-	var newCursorEvent *types.Event
-	if len(result) > 0 {
-		newCursorEvent = result[len(result)-1]
-	}
-
-	pi, err := s.updatedPagingInfo(req.PagingInfo, newCursorEvent)
-	if err != nil {
-		return nil, err
-	}
-
-	return &messagev1.QueryResponse{
-		Envelopes:  toEnvelopes(result),
-		PagingInfo: pi,
-	}, nil
+	return resp, nil
 }
 
 // shift events from index i to the right
@@ -141,17 +122,6 @@ func makeRoomAt(events []*types.Event, i int) []*types.Event {
 	copy(newEvents, events[:i])
 	copy(newEvents[i+1:], events[i:])
 	return newEvents
-}
-
-// updates paging info with a cursor for given event (or nil)
-func (s *MemoryStore) updatedPagingInfo(pi *messagev1.PagingInfo, cursorEvent *types.Event) (*messagev1.PagingInfo, error) {
-	var cursor *messagev1.Cursor
-	if cursorEvent != nil {
-		cursor = s.NewCursor(cursorEvent)
-	}
-	// Note that we're modifying the original query's paging info here.
-	pi.Cursor = cursor
-	return pi, nil
 }
 
 func toEnvelopes(events []*types.Event) []*messagev1.Envelope {

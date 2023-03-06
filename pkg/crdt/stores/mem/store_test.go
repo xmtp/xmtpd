@@ -8,15 +8,18 @@ import (
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
-func TestMemoryStore(t *testing.T) {
+func TestEvents(t *testing.T) {
 	ctx := test.NewContext(t)
 	topic := "topic-" + test.RandomStringLower(13)
-
 	crdttest.RunStoreEventTests(t, topic, func(t *testing.T) *crdttest.TestStore {
 		store := memstore.New(ctx)
 		return crdttest.NewTestStore(ctx, store)
 	})
+}
 
+func TestQuery(t *testing.T) {
+	ctx := test.NewContext(t)
+	topic := "topic-" + test.RandomStringLower(13)
 	crdttest.RunStoreQueryTests(t, topic, func(t *testing.T) *crdttest.TestStore {
 		store := memstore.New(test.NewContext(t))
 		return crdttest.NewTestStore(ctx, store)

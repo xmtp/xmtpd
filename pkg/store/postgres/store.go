@@ -308,6 +308,21 @@ func (s *Store) Heads(ctx context.Context) ([]multihash.Multihash, error) {
 	return cids, nil
 }
 
+func (s *Store) InsertNewEvents(ctx context.Context, evs []*types.Event) error {
+	return s.executeTx(ctx, func(tx *sql.Tx) error {
+		for _, ev := range evs {
+			added, err := s.insertEvent(ctx, tx, ev)
+			if err != nil {
+				return err
+			}
+			if !added {
+				return fmt.Errorf("event already exists: %s", ev.Cid)
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Store) insertEvent(ctx context.Context, tx *sql.Tx, ev *types.Event) (bool, error) {
 	if ev.ContentTopic != s.topic {
 		return false, ErrTopicMismatch

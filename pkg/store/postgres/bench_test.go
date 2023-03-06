@@ -1,4 +1,4 @@
-package bolt_test
+package postgresstore_test
 
 import (
 	"testing"
@@ -17,9 +17,8 @@ import (
 
 func BenchmarkQuery(b *testing.B) {
 	ctx := test.NewContext(b)
-	store := newTestNodeStore(b, ctx)
-	defer store.Close()
-	topic := newTestStore(b, "topic", store)
+	topic := newTestStore(b, "topic")
+	defer topic.Close()
 	testStore := crdttest.NewTestStore(ctx, topic)
 	testStore.Seed(b, "topic", 100000)
 	b.Log("seeded")

@@ -54,9 +54,13 @@ func main() {
 		}
 	case opts.Store.Type == "bolt":
 		log.Info("using bolt store")
-		store, err = bolt.NewNodeStore(ctx, &opts.Store.Bolt)
+		db, err := bolt.NewDB(&opts.Store.Bolt)
 		if err != nil {
-			fatal("error opening bolt store: %s", err)
+			fatal("error opening bolt db: %s", err)
+		}
+		store, err = bolt.NewNodeStore(ctx, db, &opts.Store.Bolt)
+		if err != nil {
+			fatal("error creating bolt store: %s", err)
 		}
 	default:
 		log.Info("using memory store")
@@ -66,6 +70,7 @@ func main() {
 	// Initialize node.
 	node, err := node.New(ctx, store, &opts)
 	if err != nil {
+		ctx.Close()
 		log.Fatal("error initializing node", zap.Error(err))
 	}
 	defer node.Close()

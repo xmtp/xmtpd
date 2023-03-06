@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
@@ -200,11 +201,27 @@ func (s *Store) NewCursor(ev *types.Event) *messagev1.Cursor {
 	}
 }
 
+func (s *Store) InsertNewEvents(ctx context.Context, evs []*types.Event) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		topic := tx.Bucket([]byte(s.name))
+		for _, ev := range evs {
+			added, err := addEvent(topic, ev)
+			if err != nil {
+				return err
+			}
+			if !added {
+				return fmt.Errorf("event already exists: %s", ev.Cid)
+			}
+		}
+		return nil
+	})
+}
+
 // private functions
 
 func addEvent(topic *bolt.Bucket, ev *types.Event) (added bool, err error) {
-	byTime := topic.Bucket(ByCIDBucket)
-	if byTime.Get(ev.Cid) != nil {
+	byCid := topic.Bucket(ByCIDBucket)
+	if byCid.Get(ev.Cid) != nil {
 		return false, nil
 	}
 	evBytes, err := ev.ToBytes()
@@ -216,5 +233,5 @@ func addEvent(topic *bolt.Bucket, ev *types.Event) (added bool, err error) {
 	if err = events.Put(orderKey, evBytes); err != nil {
 		return false, err
 	}
-	return true, byTime.Put(ev.Cid, orderKey)
+	return true, byCid.Put(ev.Cid, orderKey)
 }

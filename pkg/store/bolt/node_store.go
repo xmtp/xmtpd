@@ -26,12 +26,9 @@ type NodeStore struct {
 	db  *bolt.DB
 }
 
-func NewNodeStore(ctx context.Context, opts *Options) (*NodeStore, error) {
-	db, err := bolt.Open(opts.DataPath, 0600, nil)
-	if err != nil {
-		return nil, err
-	}
-	if err = db.Update(func(tx *bolt.Tx) error {
+func NewNodeStore(ctx context.Context, db *bolt.DB, opts *Options) (*NodeStore, error) {
+	if err := db.Update(func(tx *bolt.Tx) error {
+		var err error
 		meta := tx.Bucket(MetaBucket)
 		if meta != nil {
 			v := meta.Get(VersionKey)

@@ -21,11 +21,11 @@ type Store interface {
 	// Returns the new Event.
 	AppendEvent(ctx context.Context, env *messagev1.Envelope) (*types.Event, error)
 
-	// AddEvent stores the Event if it isn't know yet,
+	// InsertEvent stores the Event if it isn't know yet,
 	// Returns whether it was actually added.
 	InsertEvent(ctx context.Context, ev *types.Event) (bool, error)
 
-	// AddHead stores the Event if it isn't know yet,
+	// InsertHead stores the Event if it isn't know yet,
 	// and add it to the heads
 	// Returns whether it was actually added.
 	InsertHead(ctx context.Context, ev *types.Event) (bool, error)
@@ -41,8 +41,8 @@ type Store interface {
 	// Following methods are needed for bootstrapping a topic
 	// from a pre-existing store.
 
-	// GetPendingLinks scans the whole topic for links that
-	// are not present in the topic.
+	// FindMissingLinks scans the whole topic for links
+	// pointing to Events that are not present in the topic.
 	// Returns the list of all missing links.
 	FindMissingLinks(ctx context.Context) ([]multihash.Multihash, error)
 

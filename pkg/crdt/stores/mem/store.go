@@ -2,6 +2,7 @@ package memstore
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -137,6 +138,20 @@ func (s *MemoryStore) Heads(ctx context.Context) ([]multihash.Multihash, error) 
 		cids = append(cids, s.events[key].Cid)
 	}
 	return cids, nil
+}
+
+func (s *MemoryStore) InsertNewEvents(ctx context.Context, evs []*types.Event) error {
+	s.Lock()
+	defer s.Unlock()
+	for _, ev := range evs {
+		key := ev.Cid.String()
+		if s.events[key] != nil {
+			return fmt.Errorf("event already exists: %s", ev.Cid)
+		}
+		s.log.Debug("inserting event", zap.Cid("event", ev.Cid))
+		s.addEvent(key, ev)
+	}
+	return nil
 }
 
 // private functions

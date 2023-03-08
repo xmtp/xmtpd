@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	ErrTODO               = errors.New("TODO")
+	ErrUnknownTopic       = errors.New("topic does not exist")
 	ErrMissingTopic       = errors.New("missing topic")
 	ErrTooManyTopics      = errors.New("too many topics")
 	ErrTopicAlreadyExists = errors.New("topic already exists")
@@ -102,6 +102,27 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 
 	// Initialize libp2p events consumer.
 	go n.p2pEventConsumerLoop()
+
+	// Find pre-existing topics
+	topics, err := store.Topics()
+	if err != nil {
+		return nil, err
+	}
+	// Bootstrap all the topics with some parallelization.
+	grp, _ := errgroup.WithContext(ctx)
+	grp.SetLimit(1000) // up to 1000 topic bootstraps in parallel
+	for _, name := range topics {
+		topic := name
+		grp.Go(func() (err error) {
+			_, err = n.createTopic(topic)
+			return err
+		})
+	}
+	// Do not return until all topics are bootstrapped successfully.
+	// If any bootstrap fails, bail out.
+	if err := grp.Wait(); err != nil {
+		return nil, err
+	}
 
 	// Initialize nats for API subscribers.
 	n.ns, err = server.NewServer(&server.Options{
@@ -242,7 +263,7 @@ func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*mess
 	}
 	topic := req.ContentTopics[0]
 
-	replica, err := n.getOrCreateTopic(topic)
+	replica, err := n.getTopic(topic)
 	if err != nil {
 		return nil, err
 	}
@@ -283,17 +304,12 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 }
 
 func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
-	replica, err := n.getTopic(topic)
-	if err != nil {
-		return nil, err
+	n.topicsLock.Lock()
+	defer n.topicsLock.Unlock()
+	if replica, ok := n.topics[topic]; ok {
+		return replica, nil
 	}
-	if replica == nil {
-		replica, err = n.createTopic(topic)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return replica, nil
+	return n.addTopic(topic)
 }
 
 func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
@@ -302,7 +318,7 @@ func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
 	defer n.topicsLock.RUnlock()
 	replica, ok := n.topics[topic]
 	if !ok {
-		return nil, nil
+		return nil, ErrUnknownTopic
 	}
 	return replica, nil
 }
@@ -311,6 +327,10 @@ func (n *Node) createTopic(topic string) (*crdt.Replica, error) {
 	n.log.Debug("creating topic", zap.String("topic", topic))
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
+	return n.addTopic(topic)
+}
+
+func (n *Node) addTopic(topic string) (*crdt.Replica, error) {
 	if _, ok := n.topics[topic]; ok {
 		return nil, ErrTopicAlreadyExists
 	}
@@ -318,11 +338,15 @@ func (n *Node) createTopic(topic string) (*crdt.Replica, error) {
 	if err != nil {
 		return nil, err
 	}
+	syn, err := n.getOrCreateSyncer(topic)
+	if err != nil {
+		return nil, err
+	}
 	store, err := n.store.NewTopic(topic)
 	if err != nil {
 		return nil, err
 	}
-	replica, err := crdt.NewReplica(n.ctx, store, bc, nil, func(ev *types.Event) {
+	replica, err := crdt.NewReplica(n.ctx, store, bc, syn, func(ev *types.Event) {
 		evB, err := ev.ToBytes()
 		if err != nil {
 			n.log.Error("error converting event to bytes", zap.Error(err))
@@ -379,4 +403,8 @@ func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {
 		n.broadcasters[topic] = make(chan *types.Event, 100)
 	}
 	return newBroadcaster(n.topic, n.broadcasters[topic])
+}
+
+func (n *Node) getOrCreateSyncer(topic string) (*nilSyncer, error) {
+	return &nilSyncer{}, nil
 }

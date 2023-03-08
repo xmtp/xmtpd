@@ -1,54 +1,29 @@
-package bolt
+package bolt_test
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
-	"github.com/multiformats/go-multihash"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
-	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	v1 "github.com/xmtp/proto/v3/go/message_api/v1"
-	bolt "go.etcd.io/bbolt"
+	"go.etcd.io/bbolt"
 
 	"github.com/xmtp/xmtpd/pkg/context"
 	crdttest "github.com/xmtp/xmtpd/pkg/crdt/testing"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
+	"github.com/xmtp/xmtpd/pkg/store/bolt"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
 type testNodeStore struct {
-	*NodeStore
+	*bolt.NodeStore
+	db *bbolt.DB
 }
 
 type testStore struct {
 	ns *testNodeStore
-	*Store
-}
-
-func (s *testStore) seed(count int) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		topic := tx.Bucket(s.name)
-		var prev []multihash.Multihash
-		for i := 0; i < count; i++ {
-			env := &messagev1.Envelope{
-				ContentTopic: string(s.name),
-				TimestampNs:  uint64(i + 1),
-				Message:      []byte(fmt.Sprintf("msg-%d", i+1)),
-			}
-			ev, err := types.NewEvent(env, prev)
-			if err != nil {
-				return err
-			}
-			prev = []multihash.Multihash{ev.Cid}
-			if _, err = addEvent(topic, ev); err != nil {
-				return err
-			}
-		}
-		heads := topic.Bucket(HeadsBucket)
-		return heads.Put(prev[0], nil)
-	})
+	*bolt.Store
 }
 
 func (s *testStore) Close() error {
@@ -56,18 +31,20 @@ func (s *testStore) Close() error {
 }
 
 func newTestNodeStore(t testing.TB, ctx context.Context) *testNodeStore {
-	opts := &Options{
+	opts := &bolt.Options{
 		DataPath: filepath.Join(t.TempDir(), "testdb.bolt"),
 	}
-	store, err := NewNodeStore(ctx, opts)
+	db, err := bolt.NewDB(opts)
 	require.NoError(t, err)
-	return &testNodeStore{store}
+	store, err := bolt.NewNodeStore(ctx, db, opts)
+	require.NoError(t, err)
+	return &testNodeStore{store, db}
 }
 
 func newTestStore(t testing.TB, topic string, ns *testNodeStore) *testStore {
 	store, err := ns.NewTopic(topic)
 	require.NoError(t, err)
-	return &testStore{ns: ns, Store: store.(*Store)}
+	return &testStore{ns: ns, Store: store.(*bolt.Store)}
 }
 
 func TestEvents(t *testing.T) {

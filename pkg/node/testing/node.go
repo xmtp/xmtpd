@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -77,11 +78,16 @@ func (n *testNode) Connect(t *testing.T, to *testNode) {
 
 	// Wait for peers to be connected and grafted to the pubsub topic.
 	// See https://github.com/libp2p/go-libp2p-pubsub/issues/331
-	ticker := time.NewTicker(500 * time.Millisecond)
+	totalTimeout := 5 * time.Second
+	if os.Getenv("CI") == "true" {
+		totalTimeout = 10 * time.Second
+	}
+	retryTimeout := totalTimeout / 10
+	ticker := time.NewTicker(retryTimeout)
 	defer ticker.Stop()
 	attempt := 1
 	var connected bool
-	ctx := context.WithTimeout(n.ctx, 5*time.Second)
+	ctx := context.WithTimeout(n.ctx, totalTimeout)
 	defer ctx.Close()
 	topic := "sync-" + test.RandomStringLower(13)
 syncLoop:
@@ -98,9 +104,9 @@ syncLoop:
 			require.NoError(t, err)
 
 			func() {
-				queryTicker := time.NewTicker(100 * time.Millisecond)
+				queryTicker := time.NewTicker(retryTimeout / 5)
 				defer queryTicker.Stop()
-				queryCtx := context.WithTimeout(ctx, 500*time.Millisecond)
+				queryCtx := context.WithTimeout(ctx, retryTimeout)
 				defer queryCtx.Close()
 				for {
 					select {

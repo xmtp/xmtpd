@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/ipfs/kubo/core/bootstrap"
 	"github.com/ipfs/kubo/core/coreapi"
 	"github.com/ipfs/kubo/repo"
+	"github.com/ipfs/kubo/repo/fsrepo"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
@@ -231,6 +233,13 @@ func New(ctx context.Context, opts *Options) (*Node, error) {
 			}
 		}()
 
+		// Load log store data in case there are existing entries.
+		// TODO: re-add this, maybe?
+		// err = n.topicsDB.Load(n.ctx, infinity)
+		// if err != nil {
+		// 	n.log.Error("error loading topics registry replica", zap.Error(err))
+		// }
+
 		// Create local topic replicas for all existing topics in the registry.
 		topics := n.topicsDB.All()
 		fmt.Println("TOPICS", topics)
@@ -240,13 +249,6 @@ func New(ctx context.Context, opts *Options) (*Node, error) {
 				n.log.Error("error initializing topic replica", zap.Error(err), zap.String("topic", topic))
 			}
 		}
-
-		// Load log store data in case there are existing entries.
-		// TODO: re-add this
-		// err = n.topicsDB.Load(n.ctx, infinity)
-		// if err != nil {
-		// 	n.log.Error("error loading topics registry replica", zap.Error(err))
-		// }
 	}()
 
 	return n, nil
@@ -326,10 +328,10 @@ func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*
 			return nil, err
 		}
 
-		err = n.nc.Publish(env.ContentTopic, envB)
-		if err != nil {
-			n.log.Error("error publishing published event")
-		}
+		// err = n.nc.Publish(env.ContentTopic, envB)
+		// if err != nil {
+		// 	n.log.Error("error publishing published event")
+		// }
 
 		n.log.Debug("envelope published", zap.String("event", op.GetEntry().GetHash().String()), zap.String("operation", string(op.GetEntry().GetPayload())))
 	}
@@ -429,38 +431,32 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 }
 
 func (n *Node) getOrCreateTopicReplica(ctx context.Context, topic string) (orbitdb.EventLogStore, error) {
-	fmt.Println("HERE.getOrCreateTopicReplica.1")
 	replica, err := n.getTopicReplica(ctx, topic)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("HERE.getOrCreateTopicReplica.2")
 
 	if replica == nil {
+		fmt.Println("GET", topic)
 		val, err := n.topicsDB.Get(ctx, topic)
-		fmt.Println("HERE.getOrCreateTopicReplica.3")
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Println("HERE.getOrCreateTopicReplica.4")
-
 		if val == nil {
-			fmt.Println("HERE.getOrCreateTopicReplica.5")
+			fmt.Println("PUT", topic)
 			_, err := n.topicsDB.Put(ctx, topic, []byte{1})
 			if err != nil {
 				return nil, err
 			}
 		}
-		fmt.Println("HERE.getOrCreateTopicReplica.6")
 
+		fmt.Println("CREATING", topic)
 		replica, err = n.createTopicReplica(ctx, topic)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("HERE.getOrCreateTopicReplica.7")
 	}
-	fmt.Println("HERE.getOrCreateTopicReplica.8")
 
 	return replica, nil
 }
@@ -536,7 +532,7 @@ func (n *Node) createTopicReplica(ctx context.Context, topic string) (orbitdb.Ev
 				case orbitstores.EventReplicateProgress:
 				// n.log.Debug("replication progress event", zap.Any("event", ev))
 				case orbitstores.EventReplicated:
-					fmt.Println("START", ev)
+					fmt.Println("START", reflect.TypeOf(obj), ev)
 					for _, entry := range ev.Entries {
 						fmt.Println("HERE", entry.GetHash(), string(entry.GetPayload()))
 						op, err := operation.ParseOperation(entry)
@@ -553,9 +549,18 @@ func (n *Node) createTopicReplica(ctx context.Context, topic string) (orbitdb.Ev
 							continue
 						}
 
-						err = n.nc.Publish(env.ContentTopic, envB)
+						// TODO: re-add this
+						// err = n.nc.Publish(env.ContentTopic, envB)
+						// if err != nil {
+						// 	n.log.Error("error publishing replicated event")
+						// }
+
+						ops, err := replica.List(ctx, &iface.StreamOptions{})
 						if err != nil {
-							n.log.Error("error publishing replicated event")
+							n.log.Error("error listing replica events", zap.String("topic", env.ContentTopic))
+						}
+						for i, op := range ops {
+							fmt.Println("OP", i+1, string(op.GetValue()))
 						}
 
 						n.log.Debug("received replicated envelope", zap.String("env_topic", env.ContentTopic), zap.String("env_message", string(env.Message)), zap.Int("env_timestamp", int(env.TimestampNs)))
@@ -598,6 +603,8 @@ func newIPFSRepo(ctx context.Context, opts *P2POptions) (repo.Repo, error) {
 	}
 	c.Identity.PeerID = pid.Pretty()
 	c.Identity.PrivKey = base64.StdEncoding.EncodeToString(privKeyB)
+
+	fsrepo.Init()
 
 	return &repo.Mock{
 		D: dsync.MutexWrap(ds.NewMapDatastore()),

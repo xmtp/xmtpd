@@ -9,6 +9,7 @@ tmp/
 
 # XMTP node files.
 .xmtp/
+/orbitdb/
 
 # Terraform
 terraform.secrets.auto.tfvars.json

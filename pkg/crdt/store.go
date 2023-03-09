@@ -48,7 +48,4 @@ type Store interface {
 
 	// Query returns a set of envelopes matching the query request criteria.
 	Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error)
-
-	// NewCursor builds and returns a new cursor instance.
-	NewCursor(ev *types.Event) *messagev1.Cursor
 }

@@ -9,25 +9,23 @@ import (
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
-func TestScopedPostgresStore(t *testing.T) {
+func TestEvents(t *testing.T) {
 	ctx := test.NewContext(t)
-
 	topic := "topic-" + test.RandomStringLower(13)
-
-	t.Run("event", func(t *testing.T) {
-		t.Parallel()
-		crdttest.RunStoreEventTests(t, topic, func(t *testing.T) *crdttest.TestStore {
-			store := newTestStore(t, topic)
-			return crdttest.NewTestStore(ctx, store)
-		})
+	t.Parallel()
+	crdttest.RunStoreEventTests(t, topic, func(t *testing.T) *crdttest.TestStore {
+		store := newTestStore(t, topic)
+		return crdttest.NewTestStore(ctx, store)
 	})
+}
 
-	t.Run("query", func(t *testing.T) {
-		t.Parallel()
-		crdttest.RunStoreQueryTests(t, topic, func(t *testing.T) *crdttest.TestStore {
-			store := newTestStore(t, topic)
-			return crdttest.NewTestStore(ctx, store)
-		})
+func TestQuery(t *testing.T) {
+	ctx := test.NewContext(t)
+	topic := "topic-" + test.RandomStringLower(13)
+	t.Parallel()
+	crdttest.RunStoreQueryTests(t, topic, func(t *testing.T) *crdttest.TestStore {
+		store := newTestStore(t, topic)
+		return crdttest.NewTestStore(ctx, store)
 	})
 }
 

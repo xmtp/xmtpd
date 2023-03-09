@@ -8,11 +8,12 @@ import (
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	v1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
 	test "github.com/xmtp/xmtpd/pkg/testing"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type ITestStore interface {
@@ -37,567 +38,6 @@ func NewTestStore(ctx context.Context, store ITestStore) *TestStore {
 		ITestStore: store,
 		ctx:        ctx,
 	}
-}
-
-func RunStoreEventTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
-	t.Run("insert events", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-
-		ev1 := s.addRandomEvent(t, topic)
-		s.requireEventsEqual(t, ev1)
-
-		ev2 := s.addRandomEvent(t, topic)
-		s.requireEventsEqual(t, ev1, ev2)
-	})
-
-	t.Run("insert existing event", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-
-		ev1 := s.addRandomEvent(t, topic)
-		s.requireEventsEqual(t, ev1)
-
-		s.addExistingEvent(t, ev1)
-		s.requireEventsEqual(t, ev1)
-	})
-
-	t.Run("append events", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-
-		ev1 := s.appendRandomEvent(t, topic)
-		require.NotNil(t, ev1.Cid)
-		require.Empty(t, ev1.Links)
-		s.requireEventsEqual(t, ev1)
-
-		ev2 := s.appendRandomEvent(t, topic)
-		require.NotNil(t, ev2.Cid)
-		require.Equal(t, []multihash.Multihash{ev1.Cid}, ev2.Links)
-		s.requireEventsEqual(t, ev1, ev2)
-	})
-
-	t.Run("insert remove heads", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-
-		head := s.addRandomHead(t, topic)
-		s.requireEventsEqual(t, head)
-
-		ev1 := s.newRandomEventWithHeads(t, topic, []multihash.Multihash{head.Cid})
-		require.Equal(t, []multihash.Multihash{head.Cid}, ev1.Links)
-		s.addEvent(t, ev1)
-		s.requireEventsEqual(t, head, ev1)
-
-		ev2 := s.newRandomEvent(t, topic)
-		require.Nil(t, ev2.Links)
-		s.addEvent(t, ev2)
-		s.requireEventsEqual(t, head, ev1, ev2)
-	})
-
-	t.Run("insert existing head", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-
-		head := s.addRandomHead(t, topic)
-		s.requireEventsEqual(t, head)
-
-		s.addExistingEvent(t, head)
-		s.requireEventsEqual(t, head)
-	})
-
-	t.Run("find missing links", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-
-		missingEv1 := s.newRandomEvent(t, topic)
-		s.requireNoEvents(t)
-		require.NotNil(t, missingEv1)
-
-		missingEv2 := s.newRandomEvent(t, topic)
-		s.requireNoEvents(t)
-		require.NotNil(t, missingEv2)
-
-		missingEv3 := s.newRandomEvent(t, topic)
-		s.requireNoEvents(t)
-		require.NotNil(t, missingEv3)
-
-		ev1 := s.newRandomEvent(t, topic)
-		s.requireNoEvents(t)
-		ev1.Links = []multihash.Multihash{missingEv1.Cid, missingEv2.Cid}
-
-		s.addEvent(t, ev1)
-		s.requireEventsEqual(t, ev1)
-
-		ev2 := s.newRandomEvent(t, topic)
-		s.requireEventsEqual(t, ev1)
-		ev2.Links = []multihash.Multihash{missingEv3.Cid}
-
-		s.addEvent(t, ev2)
-		s.requireEventsEqual(t, ev1, ev2)
-
-		cids, err := s.FindMissingLinks(s.ctx)
-		require.NoError(t, err)
-		require.ElementsMatch(t, []multihash.Multihash{missingEv1.Cid, missingEv2.Cid, missingEv3.Cid}, cids)
-	})
-}
-
-func RunStoreQueryTests(t *testing.T, topic string, storeMaker TestStoreMaker) {
-	t.Helper()
-
-	t.Run("all sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 20)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
-
-	t.Run("all sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 20)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
-
-	t.Run("all sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-			},
-		})
-		require.NoError(t, err)
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 20)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
-
-	t.Run("limit sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Limit: 5,
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 5)
-		test.RequireProtoEqual(t, toEnvelopes(events[:5]), res.Envelopes)
-	})
-
-	t.Run("limit sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-				Limit:     5,
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 5)
-		test.RequireProtoEqual(t, toEnvelopes(events[:5]), res.Envelopes)
-	})
-
-	t.Run("limit sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-				Limit:     5,
-			},
-		})
-		require.NoError(t, err)
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 5)
-		test.RequireProtoEqual(t, toEnvelopes(events[:5]), res.Envelopes)
-	})
-
-	t.Run("start time sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 10,
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 11)
-		test.RequireProtoEqual(t, toEnvelopes(events[9:]), res.Envelopes)
-	})
-
-	t.Run("end time sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			EndTimeNs: 10,
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 10)
-		test.RequireProtoEqual(t, toEnvelopes(events[:10]), res.Envelopes)
-	})
-
-	t.Run("time range sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 5,
-			EndTimeNs:   15,
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 11)
-		test.RequireProtoEqual(t, toEnvelopes(events[4:15]), res.Envelopes)
-	})
-
-	t.Run("start time sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 11)
-		test.RequireProtoEqual(t, toEnvelopes(events[9:]), res.Envelopes)
-	})
-
-	t.Run("end time sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			EndTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 10)
-		test.RequireProtoEqual(t, toEnvelopes(events[:10]), res.Envelopes)
-	})
-
-	t.Run("time range sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 5,
-			EndTimeNs:   15,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 11)
-		test.RequireProtoEqual(t, toEnvelopes(events[4:15]), res.Envelopes)
-	})
-
-	t.Run("start time sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-			},
-		})
-		require.NoError(t, err)
-		events = events[9:]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 11)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
-
-	t.Run("end time sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			EndTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-			},
-		})
-		require.NoError(t, err)
-		events = events[:10]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 10)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
-
-	t.Run("time range sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 5,
-			EndTimeNs:   15,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-			},
-		})
-		require.NoError(t, err)
-		events = events[4:15]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 11)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
-
-	t.Run("limit start time sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Limit: 3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[9:]
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit end time sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			EndTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Limit: 3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[:10]
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit time range sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 5,
-			EndTimeNs:   15,
-			PagingInfo: &messagev1.PagingInfo{
-				Limit: 3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[4:15]
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit start time sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-				Limit:     3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[9:]
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit end time sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			EndTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-				Limit:     3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[:10]
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit time range sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 5,
-			EndTimeNs:   15,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-				Limit:     3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[4:15]
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit start time sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-				Limit:     3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[9:]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit end time sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			EndTimeNs: 10,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-				Limit:     3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[:10]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("limit time range sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			StartTimeNs: 5,
-			EndTimeNs:   15,
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-				Limit:     3,
-			},
-		})
-		require.NoError(t, err)
-		events = events[5:15]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 3)
-		test.RequireProtoEqual(t, toEnvelopes(events[:3]), res.Envelopes)
-	})
-
-	t.Run("cursor sort default", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Cursor: s.NewCursor(events[9]),
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 10)
-		test.RequireProtoEqual(t, toEnvelopes(events[10:]), res.Envelopes)
-	})
-
-	t.Run("cursor sort ascending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_ASCENDING,
-				Cursor:    s.NewCursor(events[9]),
-			},
-		})
-		require.NoError(t, err)
-		require.Len(t, res.Envelopes, 10)
-		test.RequireProtoEqual(t, toEnvelopes(events[10:]), res.Envelopes)
-	})
-
-	t.Run("cursor sort descending", func(t *testing.T) {
-		t.Parallel()
-		s := storeMaker(t)
-		defer s.Close()
-		events := s.Seed(t, topic, 20)
-		res, err := s.query(t, &messagev1.QueryRequest{
-			PagingInfo: &messagev1.PagingInfo{
-				Direction: messagev1.SortDirection_SORT_DIRECTION_DESCENDING,
-				Cursor:    s.NewCursor(events[9]),
-			},
-		})
-		require.NoError(t, err)
-		events = events[:9]
-		utils.Reverse(events)
-		require.Len(t, res.Envelopes, 9)
-		test.RequireProtoEqual(t, toEnvelopes(events), res.Envelopes)
-	})
 }
 
 func (s *TestStore) addRandomHead(t *testing.T, topic string) *types.Event {
@@ -665,10 +105,10 @@ func (s *TestStore) requireEventsEqual(t *testing.T, expected ...*types.Event) {
 	require.NoError(t, err)
 	var exp, act []string
 	for _, e := range events {
-		act = append(act, Dump(e))
+		act = append(act, DumpEvent(e))
 	}
 	for _, e := range expected {
-		exp = append(exp, Dump(e))
+		exp = append(exp, DumpEvent(e))
 	}
 	require.ElementsMatch(t, exp, act)
 }
@@ -707,10 +147,16 @@ func (s *TestStore) Seed(t testing.TB, topic string, count int) []*types.Event {
 	return events
 }
 
-func (s *TestStore) query(t *testing.T, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
+func (s *TestStore) query(t *testing.T, topic string, modifiers ...api.QueryModifier) *messagev1.QueryResponse {
 	t.Helper()
 	ctx := test.NewContext(t)
-	return s.Query(ctx, req)
+	req := &messagev1.QueryRequest{ContentTopics: []string{topic}}
+	for _, m := range modifiers {
+		m(req)
+	}
+	res, err := s.Query(ctx, req)
+	require.NoError(t, err)
+	return res
 }
 
 func newRandomEnvelope(t *testing.T, topic string) *messagev1.Envelope {
@@ -725,10 +171,43 @@ func newRandomEnvelopeWithRandomTopic(t *testing.T) *messagev1.Envelope {
 	return newRandomEnvelope(t, "topic-"+test.RandomStringLower(13))
 }
 
-func toEnvelopes(events []*types.Event) []*messagev1.Envelope {
-	envs := make([]*messagev1.Envelope, len(events))
-	for i, ev := range events {
-		envs[i] = ev.Envelope
+func requireResultEqual(t *testing.T, res *v1.QueryResponse, from, to int) {
+	t.Helper()
+	var actual []int
+	for _, env := range res.Envelopes {
+		actual = append(actual, int(env.TimestampNs))
 	}
-	return envs
+	require.Equal(t, intRange(from, to), actual)
+}
+
+func requireResultCursor(t *testing.T, res *v1.QueryResponse, expected int) {
+	t.Helper()
+	require.NotNil(t, res.PagingInfo, "paging info")
+	require.NotNil(t, res.PagingInfo.Cursor, "cursor")
+	cursor := res.PagingInfo.Cursor.GetIndex()
+	require.NotNil(t, cursor, "index cursor")
+	actual := int(cursor.SenderTimeNs)
+	require.Equal(t, expected, actual, "timestamp")
+}
+
+func requireNoCursor(t *testing.T, res *v1.QueryResponse) {
+	t.Helper()
+	require.Nil(t, res.PagingInfo, "paging info")
+}
+
+// generate a list of ints in from start to end inclusive.
+// if end < start generate it in reverse.
+func intRange(start, end int) (list []int) {
+	if start < end {
+		list = make([]int, end-start+1)
+		for k := range list {
+			list[k] = start + k
+		}
+		return list
+	}
+	list = make([]int, start-end+1)
+	for k := range list {
+		list[k] = start - k
+	}
+	return list
 }

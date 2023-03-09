@@ -20,9 +20,10 @@ func (s *Store) Query(ctx context.Context, req *messagev1.QueryRequest) (resp *m
 	// reversed - whether we iterate in reverse or not
 	// start, stop - the key to start from (nil => starting from the beginning or end if reversed)
 	// stop - the key to stop at (nil => run to the end or beginning if reversed)
-	// limit - max number of iteration steps (0 => no limit)
-	start, stop, reversed, limit := computeCursorLoopParameters(req)
-	withinLimits := buildCursorLoopCondition(&limit, stop, reversed)
+	// count - max number of iteration steps (0 => no limit)
+	start, stop, reversed, count := computeCursorLoopParameters(req)
+	limit := int(count)
+	withinLimits := buildCursorLoopCondition(&count, stop, reversed)
 	hadCursor := req.PagingInfo != nil && req.PagingInfo.Cursor.GetIndex() != nil
 	err = s.db.View(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
@@ -41,7 +42,7 @@ func (s *Store) Query(ctx context.Context, req *messagev1.QueryRequest) (resp *m
 			}
 			envs = append(envs, env)
 			lastKey = k
-			limit--
+			count--
 		}
 		// Have to make a copy of the last key before leaving the transaction scope.
 		if lastKey != nil {
@@ -51,11 +52,26 @@ func (s *Store) Query(ctx context.Context, req *messagev1.QueryRequest) (resp *m
 		}
 		return nil
 	})
-	return &messagev1.QueryResponse{
-			Envelopes:  envs,
-			PagingInfo: updatedPagingInfo(req.PagingInfo, lastKey),
-		},
-		err
+	resp = &messagev1.QueryResponse{
+		Envelopes: envs,
+	}
+	// Set PagingInfo to pass the cursor back if there could be more pages to follow.
+	if limit > 0 && len(envs) == limit {
+		timestampNs, cid := types.FromByTimeKey(lastKey)
+		resp.PagingInfo = &messagev1.PagingInfo{
+			Limit:     req.PagingInfo.Limit,
+			Direction: req.PagingInfo.Direction,
+			Cursor: &messagev1.Cursor{
+				Cursor: &messagev1.Cursor_Index{
+					Index: &messagev1.IndexCursor{
+						SenderTimeNs: timestampNs,
+						Digest:       cid,
+					},
+				},
+			},
+		}
+	}
+	return resp, err
 }
 
 // loopCondition says whether k is still in the range of the iteration parameters.
@@ -153,29 +169,4 @@ func positionCursor(c *bolt.Cursor, start []byte, reversed, hadCursor bool) (k, 
 		}
 	}
 	return k, v
-}
-
-// updates paging info with a cursor for given lastKey (or nil)
-func updatedPagingInfo(pi *messagev1.PagingInfo, lastKey []byte) *messagev1.PagingInfo {
-	if pi == nil {
-		return nil
-	}
-	if pi.Limit == 0 || lastKey == nil {
-		// lastKey == nil means we ran to the end of the iteration range
-		// as opposed to running out of limit.
-		pi.Cursor = nil
-		return pi
-	}
-	timestampNs, cid := types.FromByTimeKey(lastKey)
-	// Note that we're modifying the original query's paging info here.
-	pi.Cursor = &messagev1.Cursor{
-		Cursor: &messagev1.Cursor_Index{
-			Index: &messagev1.IndexCursor{
-				SenderTimeNs: timestampNs,
-				Digest:       cid,
-			},
-		},
-	}
-
-	return pi
 }

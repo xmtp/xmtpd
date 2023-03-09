@@ -116,7 +116,7 @@ func (s *Store) InsertHead(ctx context.Context, ev *types.Event) (bool, error) {
 }
 
 func (s *Store) RemoveHead(ctx context.Context, cid multihash.Multihash) (bool, error) {
-	res, err := s.db.ExecContext(ctx, "DELETE FROM heads WHERE topic = $1 AND cid = $2", s.topic, cid)
+	res, err := s.db.ExecContext(ctx, "DELETE FROM heads WHERE topic = $1 AND cid = $2", s.topic, cid.HexString())
 	if err != nil {
 		return false, err
 	}

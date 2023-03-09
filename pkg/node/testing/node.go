@@ -46,9 +46,8 @@ func NewTestNodeWithNameAndStore(t *testing.T, ctx context.Context, name string,
 
 	node, err := node.New(ctx, store, &node.Options{
 		OpenTelemetry: node.OpenTelemetryOptions{
-			Disable: true, // otel fails race detector atm
-			// CollectorAddress: "localhost",
-			// CollectorPort:    4317,
+			CollectorAddress: "localhost",
+			CollectorPort:    4317,
 		},
 	})
 	require.NoError(t, err)

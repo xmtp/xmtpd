@@ -20,7 +20,6 @@ import (
 )
 
 type OpenTelemetryOptions struct {
-	Disable          bool   `long:"disable" env:"OTEL_DISABLE" default:"false"`
 	CollectorAddress string `long:"collector-address" env:"OTEL_COLLECTOR_ADDRESS" default:"localhost"`
 	CollectorPort    uint   `long:"collector-port" env:"OTEL_COLLECTOR_PORT" default:"4317"`
 }
@@ -36,9 +35,6 @@ type openTelemetry struct {
 }
 
 func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTelemetry, error) {
-	if opts.Disable {
-		return nil, nil
-	}
 	ot := &openTelemetry{
 		ctx: ctx,
 		log: ctx.Logger().Named("otel"),

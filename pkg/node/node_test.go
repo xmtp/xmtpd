@@ -119,3 +119,22 @@ func TestNode_PublishSubscribeQuery_TwoNodes(t *testing.T) {
 	n2Topic1Sub.RequireEventuallyCapturedEvents(t, n2Topic1Envs)
 	n2.RequireStoredEvents(t, "topic1", append(n1Topic1Envs, n2Topic1Envs...))
 }
+
+func TestNode_Fetch(t *testing.T) {
+	t.Parallel()
+	topic := "topic"
+
+	n1 := ntest.NewTestNodeWithName(t, "node1")
+	defer n1.Close()
+
+	envs := n1.PublishRandom(t, topic, 3)
+	n1.RequireStoredEvents(t, topic, envs)
+
+	n2 := ntest.NewTestNodeWithName(t, "node2")
+	defer n2.Close()
+	n1.Connect(t, n2)
+
+	envs = append(envs, n1.PublishRandom(t, topic, 3)...)
+	n1.RequireStoredEvents(t, topic, envs)
+	n2.RequireStoredEvents(t, topic, envs)
+}

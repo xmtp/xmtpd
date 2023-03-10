@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/context"
@@ -152,7 +153,21 @@ func (s *Store) FindMissingLinks(ctx context.Context) ([]multihash.Multihash, er
 }
 
 func (s *Store) GetEvents(ctx context.Context, cids ...multihash.Multihash) ([]*types.Event, error) {
-	return nil, ErrTODO
+	var events []*types.Event
+	ids := make([]string, 0, len(cids))
+	for _, cid := range cids {
+		ids = append(ids, cid.HexString())
+	}
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, "SELECT cid, links, topic, timestamp_ns, message FROM events WHERE topic = $1 AND cid = ANY($2)", s.topic, pq.StringArray(ids))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		events, err = eventsFromRows(rows)
+		return err
+	})
+	return events, err
 }
 
 func (s *Store) Events(ctx context.Context) ([]*types.Event, error) {
@@ -161,41 +176,7 @@ func (s *Store) Events(ctx context.Context) ([]*types.Event, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var events []*types.Event
-	for rows.Next() {
-		var (
-			cidHex      string
-			linksJSON   string
-			topic       string
-			timestampNS uint64
-			message     []byte
-		)
-		err := rows.Scan(&cidHex, &linksJSON, &topic, &timestampNS, &message)
-		if err != nil {
-			return nil, err
-		}
-		cid, err := multihash.FromHexString(cidHex)
-		if err != nil {
-			return nil, err
-		}
-		var links []multihash.Multihash
-		err = json.Unmarshal([]byte(linksJSON), &links)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, &types.Event{
-			Cid:   cid,
-			Links: links,
-			Envelope: &messagev1.Envelope{
-				ContentTopic: topic,
-				TimestampNs:  timestampNS,
-				Message:      message,
-			},
-		})
-	}
-
-	return events, nil
+	return eventsFromRows(rows)
 }
 
 func (s *Store) Heads(ctx context.Context) ([]multihash.Multihash, error) {
@@ -334,4 +315,40 @@ func (s *Store) executeTx(ctx context.Context, fn func(tx *sql.Tx) error) error 
 func isDuplicateKeyError(err error) bool {
 	pgErr, ok := err.(*pgconn.PgError)
 	return ok && pgErr.Code == pgerrcode.UniqueViolation
+}
+
+func eventsFromRows(rows *sql.Rows) (events []*types.Event, err error) {
+	for rows.Next() {
+		var (
+			cidHex      string
+			linksJSON   string
+			topic       string
+			timestampNS uint64
+			message     []byte
+		)
+		err := rows.Scan(&cidHex, &linksJSON, &topic, &timestampNS, &message)
+		if err != nil {
+			return nil, err
+		}
+		cid, err := multihash.FromHexString(cidHex)
+		if err != nil {
+			return nil, err
+		}
+		var links []multihash.Multihash
+		err = json.Unmarshal([]byte(linksJSON), &links)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, &types.Event{
+			Cid:   cid,
+			Links: links,
+			Envelope: &messagev1.Envelope{
+				ContentTopic: topic,
+				TimestampNs:  timestampNS,
+				Message:      message,
+			},
+		})
+	}
+
+	return events, nil
 }

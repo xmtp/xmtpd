@@ -150,10 +150,7 @@ func (s *TestStore) Seed(t testing.TB, topic string, count int) []*types.Event {
 func (s *TestStore) query(t *testing.T, topic string, modifiers ...api.QueryModifier) *messagev1.QueryResponse {
 	t.Helper()
 	ctx := test.NewContext(t)
-	req := &messagev1.QueryRequest{ContentTopics: []string{topic}}
-	for _, m := range modifiers {
-		m(req)
-	}
+	req := api.NewQuery(topic, modifiers...)
 	res, err := s.Query(ctx, req)
 	require.NoError(t, err)
 	return res

@@ -2,6 +2,17 @@ package api
 
 import proto "github.com/xmtp/proto/v3/go/message_api/v1"
 
+func NewQuery(topic string, modifiers ...QueryModifier) *proto.QueryRequest {
+	q := &proto.QueryRequest{}
+	if topic != "" {
+		q.ContentTopics = []string{topic}
+	}
+	for _, m := range modifiers {
+		m(q)
+	}
+	return q
+}
+
 // QueryModifiers are handy for building more complex queries.
 type QueryModifier func(*proto.QueryRequest)
 
@@ -46,7 +57,7 @@ func Ascending() QueryModifier {
 // Set cursor from previous response if present
 func Cursor(resp *proto.QueryResponse) QueryModifier {
 	return func(q *proto.QueryRequest) {
-		if resp.PagingInfo == nil || resp.PagingInfo.Cursor == nil {
+		if resp == nil || resp.PagingInfo == nil || resp.PagingInfo.Cursor == nil {
 			return
 		}
 		withPagingInfo(q, func(pi *proto.PagingInfo) {

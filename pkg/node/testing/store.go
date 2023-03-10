@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	v1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/context"
 	crdttest "github.com/xmtp/xmtpd/pkg/crdt/testing"
 	"github.com/xmtp/xmtpd/pkg/node"
@@ -40,20 +41,16 @@ func TestTopicBootstrap(t *testing.T, storeMaker func(t *testing.T, ctx context.
 func BenchmarkQuery(b *testing.B, ctx context.Context, topic *crdttest.TestStore, start, end uint64, pageSize uint32) {
 	b.Run(fmt.Sprintf("%d/%d/%d", start, end, pageSize), func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
-			var cursor *v1.Cursor
 			var resp *v1.QueryResponse
 			var err error
 			for count := end - start + 1; count > 0; count -= uint64(len(resp.Envelopes)) {
-				resp, err = topic.Query(ctx, &v1.QueryRequest{
-					StartTimeNs: start,
-					EndTimeNs:   end,
-					PagingInfo: &v1.PagingInfo{
-						Limit:  pageSize,
-						Cursor: cursor,
-					},
-				})
+				resp, err = topic.Query(ctx,
+					api.NewQuery("",
+						api.TimeRange(start, end),
+						api.Limit(pageSize),
+						api.Cursor(resp),
+					))
 				require.NoError(b, err)
-				cursor = resp.PagingInfo.Cursor
 			}
 		}
 	})

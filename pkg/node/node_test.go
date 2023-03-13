@@ -27,7 +27,7 @@ func TestNode_Publish(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNode_Subscribe(t *testing.T) {
+func TestNode_Subscribe_MissingTopic(t *testing.T) {
 	n := ntest.NewTestNode(t)
 	defer n.Close()
 	err := n.Node.Subscribe(&messagev1.SubscribeRequest{}, nil)
@@ -40,6 +40,17 @@ func TestNode_Query(t *testing.T) {
 	ctx := test.NewContext(t)
 	_, err := n.Query(ctx, &messagev1.QueryRequest{})
 	require.Equal(t, err, node.ErrMissingTopic)
+}
+
+func TestNode_Query_UnknownTopic(t *testing.T) {
+	n := ntest.NewTestNode(t)
+	defer n.Close()
+	ctx := test.NewContext(t)
+	res, err := n.Query(ctx, &messagev1.QueryRequest{
+		ContentTopics: []string{"unknown-topic"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, &messagev1.QueryResponse{}, res)
 }
 
 func TestNode_BatchQuery(t *testing.T) {

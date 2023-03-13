@@ -267,6 +267,9 @@ func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*mess
 
 	replica, err := n.getTopic(topic)
 	if err != nil {
+		if err == ErrUnknownTopic {
+			return &messagev1.QueryResponse{}, nil
+		}
 		return nil, err
 	}
 

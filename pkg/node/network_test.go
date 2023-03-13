@@ -16,5 +16,5 @@ func TestNetwork(t *testing.T) {
 	sub := net.Subscribe(t, "topic1")
 	envs := net.PublishRandom(t, sub.Topic, 1)
 	sub.RequireEventuallyCapturedEvents(t, envs)
-	net.RequireStoredEvents(t, "topic1", envs)
+	net.RequireEventuallyStoredEvents(t, "topic1", envs)
 }

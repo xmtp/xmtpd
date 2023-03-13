@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/api/client"
@@ -181,13 +182,15 @@ func (n *testNode) Subscribe(t *testing.T, topic string) *testSubscriber {
 	return sub
 }
 
-func (n *testNode) RequireStoredEvents(t *testing.T, topic string, expected []*messagev1.Envelope) {
+func (n *testNode) RequireEventuallyStoredEvents(t *testing.T, topic string, expected []*messagev1.Envelope) {
 	t.Helper()
 	res, err := n.client.Query(n.ctx, &messagev1.QueryRequest{
 		ContentTopics: []string{topic},
 	})
 	require.NoError(t, err)
-	require.Len(t, res.Envelopes, len(expected))
+	assert.Eventually(t, func() bool {
+		return len(res.Envelopes) == len(expected)
+	}, 3*time.Second, 100*time.Millisecond)
 	requireEnvelopesEqual(t, expected, res.Envelopes)
 }
 

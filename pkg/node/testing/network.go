@@ -17,7 +17,7 @@ func NewTestNetwork(t *testing.T, count int) *testNetwork {
 	t.Helper()
 	nodes := make([]*testNode, count)
 	for i := 0; i < count; i++ {
-		nodes[i] = NewTestNodeWithName(t, fmt.Sprintf("node%d", i+1))
+		nodes[i] = NewNode(t, WithName(fmt.Sprintf("node%d", i+1)))
 	}
 
 	var wg sync.WaitGroup

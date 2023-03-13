@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	ErrTopicNotFound      = errors.New("topic does not exist")
+	ErrUnknownTopic       = errors.New("topic does not exist")
 	ErrMissingTopic       = errors.New("missing topic")
 	ErrTooManyTopics      = errors.New("too many topics")
 	ErrTopicAlreadyExists = errors.New("topic already exists")
@@ -374,7 +374,7 @@ func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
 	defer n.topicsLock.RUnlock()
 	replica, ok := n.topics[topic]
 	if !ok {
-		return nil, ErrTopicNotFound
+		return nil, ErrUnknownTopic
 	}
 	return replica, nil
 }

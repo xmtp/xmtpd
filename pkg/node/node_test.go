@@ -58,7 +58,7 @@ func TestNode_Query_MissingTopic(t *testing.T) {
 }
 
 func TestNode_Query_UnknownTopic(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	ctx := test.NewContext(t)
 	res, err := n.Query(ctx, &messagev1.QueryRequest{
@@ -209,13 +209,13 @@ func TestNode_Fetch(t *testing.T) {
 	t.Parallel()
 	topic := "topic"
 
-	n1 := ntest.NewTestNodeWithName(t, "node1")
+	n1 := ntest.NewNode(t, ntest.WithName("node1"))
 	defer n1.Close()
 
 	envs := n1.PublishRandom(t, topic, 3)
 	n1.RequireEventuallyStoredEvents(t, topic, envs)
 
-	n2 := ntest.NewTestNodeWithName(t, "node2")
+	n2 := ntest.NewNode(t, ntest.WithName("node2"))
 	defer n2.Close()
 	n1.Connect(t, n2)
 

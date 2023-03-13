@@ -18,7 +18,10 @@ func TestTopicBootstrap(t *testing.T, storeMaker func(t *testing.T, ctx context.
 	topics := []string{"topic1", "topic2", "topic3"}
 	ctx := test.NewContext(t)
 	store := storeMaker(t, ctx)
-	node := NewTestNodeWithNameAndStore(t, ctx, "", store)
+	node := NewNode(t,
+		WithContext(ctx),
+		WithStore(store),
+	)
 	for i, topic := range topics {
 		node.PublishRandom(t, topic, i+1)
 	}
@@ -29,7 +32,10 @@ func TestTopicBootstrap(t *testing.T, storeMaker func(t *testing.T, ctx context.
 
 	ctx = test.NewContext(t)
 	store = storeMaker(t, ctx)
-	node = NewTestNodeWithNameAndStore(t, ctx, "", store)
+	node = NewNode(t,
+		WithContext(ctx),
+		WithStore(store),
+	)
 	for i, topic := range topics {
 		resp, err := node.Query(ctx, &v1.QueryRequest{ContentTopics: []string{topic}})
 		require.NoError(t, err)

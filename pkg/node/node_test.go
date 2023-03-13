@@ -14,13 +14,13 @@ import (
 func TestNode_NewClose(t *testing.T) {
 	t.Parallel()
 
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	err := n.Close()
 	require.NoError(t, err)
 }
 
 func TestNode_Publish(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	ctx := test.NewContext(t)
 	_, err := n.Publish(ctx, &messagev1.PublishRequest{})
@@ -28,14 +28,14 @@ func TestNode_Publish(t *testing.T) {
 }
 
 func TestNode_Subscribe_MissingTopic(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	err := n.Node.Subscribe(&messagev1.SubscribeRequest{}, nil)
 	require.Equal(t, err, node.ErrMissingTopic)
 }
 
 func TestNode_Subscribe_MultipleTopics(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	ctrl := gomock.NewController(t)
 	stream := node.NewMockMessageApi_SubscribeServer(ctrl)
@@ -50,7 +50,7 @@ func TestNode_Subscribe_MultipleTopics(t *testing.T) {
 }
 
 func TestNode_Query_MissingTopic(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	ctx := test.NewContext(t)
 	_, err := n.Query(ctx, &messagev1.QueryRequest{})
@@ -69,7 +69,7 @@ func TestNode_Query_UnknownTopic(t *testing.T) {
 }
 
 func TestNode_BatchQuery(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	ctx := test.NewContext(t)
 	_, err := n.BatchQuery(ctx, &messagev1.BatchQueryRequest{})
@@ -77,7 +77,7 @@ func TestNode_BatchQuery(t *testing.T) {
 }
 
 func TestNode_SubscribeAll(t *testing.T) {
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 	ctrl := gomock.NewController(t)
 	stream := node.NewMockMessageApi_SubscribeServer(ctrl)
@@ -92,7 +92,7 @@ func TestNode_SubscribeAll(t *testing.T) {
 func TestNode_PublishSubscribeQuery_SingleNode(t *testing.T) {
 	t.Parallel()
 
-	n := ntest.NewTestNode(t)
+	n := ntest.NewNode(t)
 	defer n.Close()
 
 	topic1Sub := n.Subscribe(t, "topic1")
@@ -127,23 +127,82 @@ func TestNode_PublishSubscribeQuery_SingleNode(t *testing.T) {
 func TestNode_PublishSubscribeQuery_TwoNodes(t *testing.T) {
 	t.Parallel()
 
-	n1 := ntest.NewTestNodeWithName(t, "node1")
+	n1 := ntest.NewNode(t, ntest.WithName("node1"))
 	defer n1.Close()
 
-	n2 := ntest.NewTestNodeWithName(t, "node2")
+	n2 := ntest.NewNode(t, ntest.WithName("node2"))
 	defer n2.Close()
 
 	n1.Connect(t, n2)
 
-	n1Topic1Sub := n1.Subscribe(t, "topic1")
-	n1Topic1Envs := n1.PublishRandom(t, n1Topic1Sub.Topic, 1)
-	n1Topic1Sub.RequireEventuallyCapturedEvents(t, n1Topic1Envs)
-	n1.RequireEventuallyStoredEvents(t, "topic1", n1Topic1Envs)
+	topic := "topic"
+	n1Sub := n1.Subscribe(t, topic)
+	n2Sub := n2.Subscribe(t, topic)
 
-	n2Topic1Sub := n2.Subscribe(t, "topic1")
-	n2Topic1Envs := n2.PublishRandom(t, n2Topic1Sub.Topic, 2)
-	n2Topic1Sub.RequireEventuallyCapturedEvents(t, n2Topic1Envs)
-	n2.RequireEventuallyStoredEvents(t, "topic1", append(n1Topic1Envs, n2Topic1Envs...))
+	n2Envs := n2.PublishRandom(t, topic, 1)
+	n1Sub.RequireEventuallyCapturedEvents(t, n2Envs)
+	n1.RequireEventuallyStoredEvents(t, topic, n2Envs)
+	n2.RequireEventuallyStoredEvents(t, topic, n2Envs)
+
+	n1Envs := n1.PublishRandom(t, topic, 2)
+	envs := append(n2Envs, n1Envs...)
+	n2Sub.RequireEventuallyCapturedEvents(t, envs)
+	n1.RequireEventuallyStoredEvents(t, topic, envs)
+	n2.RequireEventuallyStoredEvents(t, topic, envs)
+
+	n1.Disconnect(t, n2)
+
+	n1Envs = n1.PublishRandom(t, topic, 1)
+	n2Sub.RequireEventuallyCapturedEvents(t, envs)
+	n2.RequireEventuallyStoredEvents(t, topic, envs)
+
+	n2.PublishRandom(t, topic, 1)
+	n1Sub.RequireEventuallyCapturedEvents(t, append(envs, n1Envs...))
+	n1.RequireEventuallyStoredEvents(t, topic, append(envs, n1Envs...))
+}
+
+func TestNode_PersistentPeers(t *testing.T) {
+	t.Parallel()
+
+	n1 := ntest.NewNode(t, ntest.WithName("node1"))
+	defer n1.Close()
+
+	n2 := ntest.NewNode(t,
+		ntest.WithName("node2"),
+		ntest.WithPersistentPeers(n1.P2PListenAddresses()[0]),
+	)
+	defer n2.Close()
+
+	n1.WaitForConnected(t, n2)
+
+	topic := "topic"
+	n1Sub := n1.Subscribe(t, topic)
+	n2Sub := n2.Subscribe(t, topic)
+
+	n1Envs := n1.PublishRandom(t, topic, 1)
+	n1Sub.RequireEventuallyCapturedEvents(t, n1Envs)
+	n2Sub.RequireEventuallyCapturedEvents(t, n1Envs)
+
+	n2Envs := n2.PublishRandom(t, topic, 1)
+	envs := append(n1Envs, n2Envs...)
+	n1Sub.RequireEventuallyCapturedEvents(t, envs)
+	n2Sub.RequireEventuallyCapturedEvents(t, envs)
+
+	n1.Disconnect(t, n2)
+	n2.Disconnect(t, n1)
+
+	// Should reconnect automatically.
+	n1.WaitForConnected(t, n2)
+
+	n1Envs = n1.PublishRandom(t, topic, 1)
+	envs = append(envs, n1Envs...)
+	n1Sub.RequireEventuallyCapturedEvents(t, envs)
+	n2Sub.RequireEventuallyCapturedEvents(t, envs)
+
+	n2Envs = n1.PublishRandom(t, topic, 1)
+	envs = append(envs, n2Envs...)
+	n1Sub.RequireEventuallyCapturedEvents(t, envs)
+	n2Sub.RequireEventuallyCapturedEvents(t, envs)
 }
 
 func TestNode_Fetch(t *testing.T) {

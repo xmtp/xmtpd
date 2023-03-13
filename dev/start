@@ -2,11 +2,12 @@
 set -eo pipefail
 set -a; source .env.local; set +a
 
-PORT="${PORT:-5000}"
-GIT_COMMIT="$(git rev-parse HEAD)"
+PORT="${PORT:-5001}"
 
-go run \
-    -ldflags="-X 'main.GitCommit=${GIT_COMMIT}'" \
-    cmd/xmtpd/main.go \
+dev/run \
+    start \
+    --p2p.port=9000 \
+    --api.grpc-port=5000 \
+    --api.http-port="${PORT}" \
     --store.type=postgres \
     "$@"

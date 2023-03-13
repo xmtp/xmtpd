@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
@@ -71,7 +72,13 @@ func (s *Server) startGRPC() error {
 	}
 	unary := []grpc.UnaryServerInterceptor{
 		telemetry.Unary(),
-		otelgrpc.UnaryServerInterceptor(),
+		otelgrpc.UnaryServerInterceptor(
+			otelgrpc.WithInterceptorFilter(
+				filters.Not(
+					filters.HealthCheck(),
+				),
+			),
+		),
 	}
 	stream := []grpc.StreamServerInterceptor{
 		telemetry.Stream(),

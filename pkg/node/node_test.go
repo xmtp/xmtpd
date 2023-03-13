@@ -34,7 +34,22 @@ func TestNode_Subscribe_MissingTopic(t *testing.T) {
 	require.Equal(t, err, node.ErrMissingTopic)
 }
 
-func TestNode_Query(t *testing.T) {
+func TestNode_Subscribe_MultipleTopics(t *testing.T) {
+	n := ntest.NewTestNode(t)
+	defer n.Close()
+	ctrl := gomock.NewController(t)
+	stream := node.NewMockMessageApi_SubscribeServer(ctrl)
+	stream.EXPECT().Send(&messagev1.Envelope{}).Return(nil).Times(2)
+	ctx := test.NewContext(t)
+	ctx.Close()
+	stream.EXPECT().Context().Return(ctx)
+	err := n.Node.Subscribe(&messagev1.SubscribeRequest{
+		ContentTopics: []string{"topic1", "topic2"},
+	}, stream)
+	require.NoError(t, err)
+}
+
+func TestNode_Query_MissingTopic(t *testing.T) {
 	n := ntest.NewTestNode(t)
 	defer n.Close()
 	ctx := test.NewContext(t)

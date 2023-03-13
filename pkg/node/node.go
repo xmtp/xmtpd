@@ -219,35 +219,43 @@ func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*
 func (n *Node) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.MessageApi_SubscribeServer) error {
 	if len(req.ContentTopics) == 0 {
 		return ErrMissingTopic
-	} else if len(req.ContentTopics) > 1 {
-		return ErrTooManyTopics
-	}
-	topic := req.ContentTopics[0]
-
-	// Send subscribe confirmation.
-	n.log.Debug("sending subscribe confirmation", zap.String("topic", topic))
-	err := stream.Send(&messagev1.Envelope{})
-	if err != nil {
-		return err
 	}
 
-	sub, err := n.nc.Subscribe(topic, func(msg *nats.Msg) {
-		ev, err := types.EventFromBytes(msg.Data)
+	var streamLock sync.Mutex
+	for _, topic := range req.ContentTopics {
+		sub, err := n.nc.Subscribe(topic, func(msg *nats.Msg) {
+			ev, err := types.EventFromBytes(msg.Data)
+			if err != nil {
+				n.log.Error("error parsing event from bytes", zap.Error(err))
+				return
+			}
+			func() {
+				streamLock.Lock()
+				defer streamLock.Unlock()
+				err := stream.Send(ev.Envelope)
+				if err != nil {
+					n.log.Error("error emitting new event", zap.Error(err))
+				}
+			}()
+		})
 		if err != nil {
-			n.log.Error("error parsing event from bytes", zap.Error(err))
-			return
+			return err
 		}
-		err = stream.Send(ev.Envelope)
-		if err != nil {
-			n.log.Error("error emitting new event", zap.Error(err))
-		}
-	})
-	if err != nil {
-		return err
+		defer func() {
+			_ = sub.Unsubscribe()
+		}()
+
+		// Send subscribe confirmation.
+		func() {
+			streamLock.Lock()
+			defer streamLock.Unlock()
+			n.log.Debug("sending subscribe confirmation", zap.String("topic", topic))
+			err = stream.Send(&messagev1.Envelope{})
+			if err != nil {
+				n.log.Error("error emitting subscribe confirmation", zap.Error(err))
+			}
+		}()
 	}
-	defer func() {
-		_ = sub.Unsubscribe()
-	}()
 
 	select {
 	case <-n.ctx.Done():

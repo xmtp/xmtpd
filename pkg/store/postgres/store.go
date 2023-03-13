@@ -72,9 +72,12 @@ func (s *Store) AppendEvent(ctx context.Context, env *messagev1.Envelope) (*type
 		}
 		s.log.Debug("appending event", zap.Cid("event", ev.Cid), zap.Int("links", len(ev.Links)))
 
-		_, err = s.insertEvent(ctx, tx, ev)
+		eventAdded, err := s.insertEvent(ctx, tx, ev)
 		if err != nil {
 			return err
+		}
+		if !eventAdded {
+			return nil
 		}
 
 		_, err = s.insertHead(ctx, tx, ev)
@@ -96,9 +99,12 @@ func (s *Store) InsertHead(ctx context.Context, ev *types.Event) (bool, error) {
 
 	var headAdded bool
 	err := s.executeTx(ctx, func(tx *sql.Tx) error {
-		_, err := s.insertEvent(ctx, tx, ev)
+		eventAdded, err := s.insertEvent(ctx, tx, ev)
 		if err != nil {
 			return err
+		}
+		if !eventAdded {
+			return nil
 		}
 
 		headAdded, err = s.insertHead(ctx, tx, ev)

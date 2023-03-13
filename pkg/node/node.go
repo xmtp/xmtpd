@@ -124,6 +124,8 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 		return nil, err
 	}
 
+	n.setSyncHandler()
+
 	// Initialize nats for API subscribers.
 	n.ns, err = server.NewServer(&server.Options{
 		Port: server.RANDOM_PORT,
@@ -405,6 +407,9 @@ func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {
 	return newBroadcaster(n.topic, n.broadcasters[topic])
 }
 
-func (n *Node) getOrCreateSyncer(topic string) (*nilSyncer, error) {
-	return &nilSyncer{}, nil
+func (n *Node) getOrCreateSyncer(topic string) (*syncer, error) {
+	return &syncer{
+		host:  n.host,
+		topic: topic,
+	}, nil
 }

@@ -1,6 +1,8 @@
 package crdt
 
 import (
+	"bytes"
+
 	mh "github.com/multiformats/go-multihash"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/context"
@@ -54,6 +56,10 @@ func NewReplica(ctx context.Context, store Store, bc Broadcaster, syncer Syncer,
 	}
 
 	return r, nil
+}
+
+func (r *Replica) GetEvents(ctx context.Context, cids ...mh.Multihash) ([]*types.Event, error) {
+	return r.store.GetEvents(ctx, cids...)
 }
 
 func (r *Replica) BroadcastAppend(ctx context.Context, env *messagev1.Envelope) (*types.Event, error) {
@@ -152,13 +158,14 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 				// TODO: if the channel is full, this will lock up the loop
 				r.pendingLinks <- cid
 			}
-			for i, ev := range evs {
+			for _, cid := range cids {
+				ev := findEvent(cid, evs)
 				if ev == nil {
 					// requeue missing links
-					r.pendingLinks <- cids[i]
-					continue
+					r.pendingLinks <- cid
+				} else {
+					r.pendingSyncEvents <- ev
 				}
-				r.pendingSyncEvents <- ev
 			}
 		}
 	}
@@ -207,6 +214,15 @@ func (r *Replica) bootstrap() error {
 			log.Debug("context closed", zap.Error(r.ctx.Err()))
 			return r.ctx.Err()
 		case r.pendingLinks <- link:
+		}
+	}
+	return nil
+}
+
+func findEvent(cid mh.Multihash, evs []*types.Event) *types.Event {
+	for _, ev := range evs {
+		if bytes.Equal(cid, ev.Cid) {
+			return ev
 		}
 	}
 	return nil

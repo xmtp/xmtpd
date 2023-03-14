@@ -73,19 +73,19 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 		go func() {
 			for {
 				peers := p.connectedPeers()
-				if _, ok := peers[peer.ID.Pretty()]; ok {
-					continue
+				if _, ok := peers[peer.ID.Pretty()]; !ok {
+					err := backoff.Retry(func() error {
+						ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+						defer cancel()
+						log.Debug("connecting to persistent peer", zap.PeerID("peer", peer.ID))
+						return p.host.Connect(ctx, peer)
+					}, backoff.NewExponentialBackOff())
+					if err != nil {
+						log.Error("error connecting to persistent peer", zap.Error(err))
+					} else {
+						log.Info("connected to persistent peer", zap.PeerID("peer", peer.ID))
+					}
 				}
-				err := backoff.Retry(func() error {
-					ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-					defer cancel()
-					log.Debug("connecting to persistent peer", zap.PeerID("peer", peer.ID))
-					return p.host.Connect(ctx, peer)
-				}, backoff.NewExponentialBackOff())
-				if err != nil {
-					log.Error("error connecting to persistent peer", zap.Error(err))
-				}
-				log.Info("connected to persistent peer", zap.PeerID("peer", peer.ID))
 
 				ticker := time.NewTicker(1 * time.Second)
 				defer ticker.Stop()

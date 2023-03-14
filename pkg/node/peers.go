@@ -11,6 +11,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // persistentPeers maintains a connection to the given set of peer addresses.
@@ -47,25 +48,27 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 		peers = append(peers, *peer)
 	}
 
-	// Log connected peers periodically.
-	go func() {
-		for {
-			peers := p.connectedPeers()
-			addrs := make([]string, 0, len(peers))
-			for addr := range peers {
-				addrs = append(addrs, addr)
-			}
-			log.Debug("connected peers", zap.Int("total_peers", len(peers)), zap.Strings("peers", addrs))
+	if log.Level() == zapcore.DebugLevel {
+		// Log connected peers periodically.
+		go func() {
+			for {
+				peers := p.connectedPeers()
+				addrs := make([]string, 0, len(peers))
+				for addr := range peers {
+					addrs = append(addrs, addr)
+				}
+				log.Debug("connected peers", zap.Int("total_peers", len(peers)), zap.Strings("peers", addrs))
 
-			ticker := time.NewTicker(30 * time.Second)
-			defer ticker.Stop()
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
+				ticker := time.NewTicker(30 * time.Second)
+				defer ticker.Stop()
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	// Connect to p2p persistent peers.
 	for _, peer := range peers {

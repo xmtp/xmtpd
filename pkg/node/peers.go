@@ -53,11 +53,11 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 		go func() {
 			for {
 				peers := p.connectedPeers()
-				addrs := make([]string, 0, len(peers))
-				for addr := range peers {
-					addrs = append(addrs, addr)
+				ids := make([]peer.ID, 0, len(peers))
+				for id := range peers {
+					ids = append(ids, peer.ID(id))
 				}
-				log.Debug("connected peers", zap.Int("total_peers", len(peers)), zap.Strings("peers", addrs))
+				log.Debug("connected peers", zap.Int("total_peers", len(peers)), zap.PeerIDs("peers", ids...))
 
 				ticker := time.NewTicker(30 * time.Second)
 				defer ticker.Stop()

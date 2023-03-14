@@ -37,6 +37,20 @@ func (id peerID) String() string {
 	return peer.ID(id).Pretty()
 }
 
+// peerIDSlice provides uniform logging for lists of peer.ID
+type peerIDSlice []peer.ID
+
+func (ids peerIDSlice) MarshalLogArray(enc zapcore.ArrayEncoder) error {
+	for _, id := range ids {
+		enc.AppendString(id.Pretty())
+	}
+	return nil
+}
+
+func PeerIDs(key string, ids ...peer.ID) zapcore.Field {
+	return zap.Array(key, peerIDSlice(ids))
+}
+
 // cid provides uniform logging for individual CIDs
 type cid mh.Multihash
 

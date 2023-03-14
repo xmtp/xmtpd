@@ -13,6 +13,7 @@ var GitCommit string
 type Root struct {
 	Start       cmd.Start       `command:"start"`
 	GenerateKey cmd.GenerateKey `command:"generate-key"`
+	ShowID      cmd.ShowID      `command:"show-id"`
 	Version     cmd.Version     `command:"version"`
 }
 

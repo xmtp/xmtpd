@@ -2,10 +2,12 @@ variable "kubeconfig_path" { default = ".xmtp/kubeconfig.yaml" }
 variable "node_container_image" { default = "xmtpdev/xmtpd:dev" }
 variable "nodes" {
   type = list(object({
-    name                 = string
-    node_id              = string
-    p2p_public_address   = string
-    p2p_persistent_peers = list(string)
+    name                     = string
+    node_id                  = string
+    p2p_public_address       = string
+    p2p_persistent_peers     = list(string)
+    enable_postgres          = optional(bool, false)
+    enable_persistent_volume = optional(bool, false)
   }))
 }
 variable "node_keys" {

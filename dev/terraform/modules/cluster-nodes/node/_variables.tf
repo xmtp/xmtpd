@@ -18,3 +18,6 @@ variable "ingress_class_name" {}
 variable "wait_for_ready" { type = bool }
 variable "debug" { type = bool }
 variable "enable_postgres" { type = bool }
+variable "enable_persistent_volume" { type = bool }
+variable "argocd_project" {}
+variable "argocd_namespace" {}

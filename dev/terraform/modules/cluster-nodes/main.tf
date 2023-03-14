@@ -1,8 +1,35 @@
+terraform {
+  required_providers {
+    argocd = {
+      source = "oboukili/argocd"
+    }
+  }
+}
+
 locals {
   num_nodes       = length(var.nodes)
   nodes_mid_index = floor(local.num_nodes / 2)
   nodes_group1    = slice(var.nodes, 0, local.nodes_mid_index)
   nodes_group2    = slice(var.nodes, local.nodes_mid_index, local.num_nodes)
+}
+
+resource "argocd_project" "nodes" {
+  metadata {
+    name      = var.argocd_project
+    namespace = var.argocd_namespace
+  }
+
+  spec {
+    source_repos = ["*"]
+    destination {
+      server    = "https://kubernetes.default.svc"
+      namespace = var.namespace
+    }
+    cluster_resource_whitelist {
+      group = "*"
+      kind  = "*"
+    }
+  }
 }
 
 resource "kubernetes_namespace" "nodes" {
@@ -18,6 +45,8 @@ module "nodes_group1" {
 
   name                      = local.nodes_group1[count.index].name
   namespace                 = var.namespace
+  argocd_project            = var.argocd_project
+  argocd_namespace          = var.argocd_namespace
   p2p_persistent_peers      = local.nodes_group1[count.index].p2p_persistent_peers
   private_key               = var.node_keys[local.nodes_group1[count.index].name]
   container_image           = var.container_image
@@ -35,6 +64,8 @@ module "nodes_group1" {
   ingress_class_name        = var.ingress_class_name
   wait_for_ready            = var.wait_for_ready
   debug                     = var.debug
+  enable_postgres           = local.nodes_group1[count.index].enable_postgres
+  enable_persistent_volume  = local.nodes_group1[count.index].enable_persistent_volume
 }
 
 module "nodes_group2" {
@@ -44,6 +75,8 @@ module "nodes_group2" {
 
   name                      = local.nodes_group2[count.index].name
   namespace                 = var.namespace
+  argocd_project            = var.argocd_project
+  argocd_namespace          = var.argocd_namespace
   p2p_persistent_peers      = local.nodes_group2[count.index].p2p_persistent_peers
   private_key               = var.node_keys[local.nodes_group2[count.index].name]
   container_image           = var.container_image
@@ -61,6 +94,8 @@ module "nodes_group2" {
   ingress_class_name        = var.ingress_class_name
   wait_for_ready            = var.wait_for_ready
   debug                     = var.debug
+  enable_postgres           = local.nodes_group2[count.index].enable_postgres
+  enable_persistent_volume  = local.nodes_group2[count.index].enable_persistent_volume
 }
 
 resource "kubernetes_service" "nodes_api" {

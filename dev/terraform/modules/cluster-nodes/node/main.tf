@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    argocd = {
+      source = "oboukili/argocd"
+    }
+  }
+}
+
 locals {
   labels = {
     "app.kubernetes.io/part-of" = "xmtp-nodes"
@@ -67,9 +75,12 @@ resource "kubernetes_secret" "secret" {
     namespace = var.namespace
     labels    = local.labels
   }
-  data = {
-    XMTP_NODE_KEY = var.private_key
-  }
+  data = merge(
+    {
+      XMTP_NODE_KEY = var.private_key
+    },
+    local.postgres_dsn != null ? { POSTGRES_DSN = local.postgres_dsn } : {}
+  )
 }
 
 resource "kubernetes_stateful_set" "statefulset" {
@@ -122,9 +133,12 @@ resource "kubernetes_stateful_set" "statefulset" {
             name           = "p2p"
             container_port = var.p2p_port
           }
-          volume_mount {
-            name       = "data"
-            mount_path = "/data"
+          dynamic "volume_mount" {
+            for_each = var.enable_persistent_volume ? [1] : []
+            content {
+              name       = "data"
+              mount_path = "/data"
+            }
           }
           env_from {
             secret_ref {
@@ -149,7 +163,8 @@ resource "kubernetes_stateful_set" "statefulset" {
               "--api.grpc-port=${var.api_grpc_port}",
             ],
             [for peer in var.p2p_persistent_peers : "--p2p.persistent-peer=${peer}"],
-            var.debug ? ["--log.level=debug"] : []
+            var.debug ? ["--log.level=debug"] : [],
+            var.enable_postgres ? ["--store.type=postgres"] : [],
           )
           readiness_probe {
             http_get {
@@ -168,19 +183,22 @@ resource "kubernetes_stateful_set" "statefulset" {
         }
       }
     }
-    volume_claim_template {
-      metadata {
-        name   = "data"
-        labels = local.labels
-      }
-      spec {
-        access_modes = [
-          "ReadWriteOnce"
-        ]
-        storage_class_name = var.storage_class_name
-        resources {
-          requests = {
-            "storage" = var.storage_request
+    dynamic "volume_claim_template" {
+      for_each = var.enable_persistent_volume ? [1] : []
+      content {
+        metadata {
+          name   = "data"
+          labels = local.labels
+        }
+        spec {
+          access_modes = [
+            "ReadWriteOnce"
+          ]
+          storage_class_name = var.storage_class_name
+          resources {
+            requests = {
+              "storage" = var.storage_request
+            }
           }
         }
       }

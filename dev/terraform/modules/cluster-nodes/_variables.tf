@@ -5,10 +5,12 @@ variable "node_pool" {}
 variable "ingress_class_name" {}
 variable "nodes" {
   type = list(object({
-    name                 = string
-    node_id              = string
-    p2p_public_address   = string
-    p2p_persistent_peers = list(string)
+    name                     = string
+    node_id                  = string
+    p2p_public_address       = string
+    p2p_persistent_peers     = list(string)
+    enable_postgres          = optional(bool, false)
+    enable_persistent_volume = optional(bool, false)
   }))
 }
 variable "node_keys" {
@@ -23,3 +25,5 @@ variable "container_storage_request" {}
 variable "container_cpu_request" {}
 variable "one_instance_per_k8s_node" { type = bool }
 variable "debug" { type = bool }
+variable "argocd_project" {}
+variable "argocd_namespace" {}

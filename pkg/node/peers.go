@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -15,14 +14,12 @@ import (
 )
 
 type persistentPeers struct {
-	host  host.Host
-	topic *pubsub.Topic
+	host host.Host
 }
 
-func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, topic *pubsub.Topic, addrs []string) (*persistentPeers, error) {
+func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, addrs []string) (*persistentPeers, error) {
 	p := &persistentPeers{
-		host:  host,
-		topic: topic,
+		host: host,
 	}
 
 	peers := make([]peer.AddrInfo, 0, len(addrs))

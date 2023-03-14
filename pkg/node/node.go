@@ -157,7 +157,7 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 		return nil, err
 	}
 
-	n.peers, err = newPersistentPeers(n.ctx, n.log, n.host, n.topic, opts.P2P.PersistentPeers)
+	n.peers, err = newPersistentPeers(n.ctx, n.log, n.host, opts.P2P.PersistentPeers)
 	if err != nil {
 		return nil, err
 	}

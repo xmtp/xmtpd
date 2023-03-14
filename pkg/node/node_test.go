@@ -27,19 +27,45 @@ func TestNode_Publish(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNode_Subscribe(t *testing.T) {
+func TestNode_Subscribe_MissingTopic(t *testing.T) {
 	n := ntest.NewTestNode(t)
 	defer n.Close()
 	err := n.Node.Subscribe(&messagev1.SubscribeRequest{}, nil)
 	require.Equal(t, err, node.ErrMissingTopic)
 }
 
-func TestNode_Query(t *testing.T) {
+func TestNode_Subscribe_MultipleTopics(t *testing.T) {
+	n := ntest.NewTestNode(t)
+	defer n.Close()
+	ctrl := gomock.NewController(t)
+	stream := node.NewMockMessageApi_SubscribeServer(ctrl)
+	stream.EXPECT().Send(&messagev1.Envelope{}).Return(nil).Times(2)
+	ctx := test.NewContext(t)
+	ctx.Close()
+	stream.EXPECT().Context().Return(ctx)
+	err := n.Node.Subscribe(&messagev1.SubscribeRequest{
+		ContentTopics: []string{"topic1", "topic2"},
+	}, stream)
+	require.NoError(t, err)
+}
+
+func TestNode_Query_MissingTopic(t *testing.T) {
 	n := ntest.NewTestNode(t)
 	defer n.Close()
 	ctx := test.NewContext(t)
 	_, err := n.Query(ctx, &messagev1.QueryRequest{})
 	require.Equal(t, err, node.ErrMissingTopic)
+}
+
+func TestNode_Query_UnknownTopic(t *testing.T) {
+	n := ntest.NewTestNode(t)
+	defer n.Close()
+	ctx := test.NewContext(t)
+	res, err := n.Query(ctx, &messagev1.QueryRequest{
+		ContentTopics: []string{"unknown-topic"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, &messagev1.QueryResponse{}, res)
 }
 
 func TestNode_BatchQuery(t *testing.T) {
@@ -72,12 +98,12 @@ func TestNode_PublishSubscribeQuery_SingleNode(t *testing.T) {
 	topic1Sub := n.Subscribe(t, "topic1")
 	topic1Envs := n.PublishRandom(t, topic1Sub.Topic, 2)
 	topic1Sub.RequireEventuallyCapturedEvents(t, topic1Envs)
-	n.RequireStoredEvents(t, "topic1", topic1Envs)
+	n.RequireEventuallyStoredEvents(t, "topic1", topic1Envs)
 
 	topic2Sub := n.Subscribe(t, "topic2")
 	topic2Envs1 := n.PublishRandom(t, topic2Sub.Topic, 1)
 	topic2Sub.RequireEventuallyCapturedEvents(t, topic2Envs1)
-	n.RequireStoredEvents(t, "topic2", topic2Envs1)
+	n.RequireEventuallyStoredEvents(t, "topic2", topic2Envs1)
 
 	topic3Sub := n.Subscribe(t, "topic3")
 	topic3Sub.RequireEventuallyCapturedEvents(t, nil)
@@ -85,16 +111,16 @@ func TestNode_PublishSubscribeQuery_SingleNode(t *testing.T) {
 	topic4Sub := n.Subscribe(t, "topic4")
 	topic4Envs := n.PublishRandom(t, topic4Sub.Topic, 3)
 	topic4Sub.RequireEventuallyCapturedEvents(t, topic4Envs)
-	n.RequireStoredEvents(t, "topic4", topic4Envs)
+	n.RequireEventuallyStoredEvents(t, "topic4", topic4Envs)
 
 	topic2Envs2 := n.PublishRandom(t, topic2Sub.Topic, 2)
 	topic2Envs := append(topic2Envs1, topic2Envs2...)
 	topic2Sub.RequireEventuallyCapturedEvents(t, topic2Envs)
-	n.RequireStoredEvents(t, "topic2", topic2Envs)
+	n.RequireEventuallyStoredEvents(t, "topic2", topic2Envs)
 
-	n.RequireStoredEvents(t, "topic1", topic1Envs)
-	n.RequireStoredEvents(t, "topic2", topic2Envs)
-	n.RequireStoredEvents(t, "topic4", topic4Envs)
+	n.RequireEventuallyStoredEvents(t, "topic1", topic1Envs)
+	n.RequireEventuallyStoredEvents(t, "topic2", topic2Envs)
+	n.RequireEventuallyStoredEvents(t, "topic4", topic4Envs)
 
 }
 
@@ -112,12 +138,12 @@ func TestNode_PublishSubscribeQuery_TwoNodes(t *testing.T) {
 	n1Topic1Sub := n1.Subscribe(t, "topic1")
 	n1Topic1Envs := n1.PublishRandom(t, n1Topic1Sub.Topic, 1)
 	n1Topic1Sub.RequireEventuallyCapturedEvents(t, n1Topic1Envs)
-	n1.RequireStoredEvents(t, "topic1", n1Topic1Envs)
+	n1.RequireEventuallyStoredEvents(t, "topic1", n1Topic1Envs)
 
 	n2Topic1Sub := n2.Subscribe(t, "topic1")
 	n2Topic1Envs := n2.PublishRandom(t, n2Topic1Sub.Topic, 2)
 	n2Topic1Sub.RequireEventuallyCapturedEvents(t, n2Topic1Envs)
-	n2.RequireStoredEvents(t, "topic1", append(n1Topic1Envs, n2Topic1Envs...))
+	n2.RequireEventuallyStoredEvents(t, "topic1", append(n1Topic1Envs, n2Topic1Envs...))
 }
 
 func TestNode_Fetch(t *testing.T) {
@@ -128,13 +154,13 @@ func TestNode_Fetch(t *testing.T) {
 	defer n1.Close()
 
 	envs := n1.PublishRandom(t, topic, 3)
-	n1.RequireStoredEvents(t, topic, envs)
+	n1.RequireEventuallyStoredEvents(t, topic, envs)
 
 	n2 := ntest.NewTestNodeWithName(t, "node2")
 	defer n2.Close()
 	n1.Connect(t, n2)
 
 	envs = append(envs, n1.PublishRandom(t, topic, 3)...)
-	n1.RequireStoredEvents(t, topic, envs)
-	n2.RequireStoredEvents(t, topic, envs)
+	n1.RequireEventuallyStoredEvents(t, topic, envs)
+	n2.RequireEventuallyStoredEvents(t, topic, envs)
 }

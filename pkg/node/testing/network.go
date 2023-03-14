@@ -55,9 +55,9 @@ func (net *testNetwork) PublishRandom(t *testing.T, topic string, count int) []*
 	return node.PublishRandom(t, topic, count)
 }
 
-func (net *testNetwork) RequireStoredEvents(t *testing.T, topic string, expected []*proto.Envelope) {
+func (net *testNetwork) RequireEventuallyStoredEvents(t *testing.T, topic string, expected []*proto.Envelope) {
 	for _, node := range net.nodes {
-		node.RequireStoredEvents(t, topic, expected)
+		node.RequireEventuallyStoredEvents(t, topic, expected)
 	}
 }
 

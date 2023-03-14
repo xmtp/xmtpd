@@ -79,13 +79,13 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 				err := backoff.Retry(func() error {
 					ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 					defer cancel()
-					log.Debug("connecting to persistent peer", zap.String("peer", peer.ID.Pretty()))
+					log.Debug("connecting to persistent peer", zap.PeerID("peer", peer.ID))
 					return p.host.Connect(ctx, peer)
 				}, backoff.NewExponentialBackOff())
 				if err != nil {
 					log.Error("error connecting to persistent peer", zap.Error(err))
 				}
-				log.Info("connected to persistent peer", zap.String("peer", peer.ID.Pretty()))
+				log.Info("connected to persistent peer", zap.PeerID("peer", peer.ID))
 
 				ticker := time.NewTicker(1 * time.Second)
 				defer ticker.Stop()

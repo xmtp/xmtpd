@@ -13,6 +13,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
+// persistentPeers maintains a connection to the given set of peer addresses.
+// The libp2p package does not attempt to reconnect to disconnected peers or
+// maintain a minimum number of connections to peers, so the pattern of a
+// "persistent peer" is useful in the case where there is no DHT peer discovery
+// mechanism being used that would otherwise maintain minimum connectivity, or
+// in the case where you would like to always connect to a specific peer.
 type persistentPeers struct {
 	host host.Host
 }

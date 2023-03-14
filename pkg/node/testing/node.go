@@ -23,44 +23,75 @@ import (
 
 type testNode struct {
 	*node.Node
-	name string
+	name            string
+	persistentPeers []string
 
+	store  node.NodeStore
 	client client.Client
 	ctx    context.Context
 }
 
-func NewTestNode(t *testing.T) *testNode {
-	return NewTestNodeWithName(t, "")
-}
+type TestNodeOption func(n *testNode)
 
-func NewTestNodeWithName(t *testing.T, name string) *testNode {
-	t.Helper()
-	ctx := test.NewContext(t)
-	if name != "" {
-		ctx = context.WithLogger(ctx, ctx.Logger().Named(name))
+func WithContext(ctx context.Context) TestNodeOption {
+	return func(n *testNode) {
+		n.ctx = ctx
 	}
-	return NewTestNodeWithNameAndStore(t, ctx, name, memstore.NewNodeStore(ctx))
 }
 
-func NewTestNodeWithNameAndStore(t *testing.T, ctx context.Context, name string, store node.NodeStore) *testNode {
+func WithName(name string) TestNodeOption {
+	return func(n *testNode) {
+		n.name = name
+	}
+}
+
+func WithStore(store node.NodeStore) TestNodeOption {
+	return func(n *testNode) {
+		n.store = store
+	}
+}
+
+func WithPersistentPeers(addrs ...string) TestNodeOption {
+	return func(n *testNode) {
+		n.persistentPeers = addrs
+	}
+}
+
+func NewNode(t *testing.T, opts ...TestNodeOption) *testNode {
 	t.Helper()
 
-	node, err := node.New(ctx, store, &node.Options{
+	tn := &testNode{}
+
+	for _, opt := range opts {
+		opt(tn)
+	}
+
+	if tn.ctx == nil {
+		tn.ctx = test.NewContext(t)
+	}
+	if tn.name != "" {
+		tn.ctx = context.WithLogger(tn.ctx, tn.ctx.Logger().Named(tn.name))
+	}
+
+	if tn.store == nil {
+		tn.store = memstore.NewNodeStore(tn.ctx)
+	}
+
+	var err error
+	tn.Node, err = node.New(tn.ctx, tn.store, &node.Options{
 		OpenTelemetry: node.OpenTelemetryOptions{
 			CollectorAddress: "localhost",
 			CollectorPort:    4317,
 		},
+		P2P: node.P2POptions{
+			PersistentPeers: tn.persistentPeers,
+		},
 	})
 	require.NoError(t, err)
 
-	client := client.NewHTTPClient(ctx.Logger(), fmt.Sprintf("http://localhost:%d", node.APIHTTPListenPort()), "test", name)
+	tn.client = client.NewHTTPClient(tn.ctx.Logger(), fmt.Sprintf("http://localhost:%d", tn.Node.APIHTTPListenPort()), "test", tn.name)
 
-	return &testNode{
-		Node:   node,
-		name:   name,
-		client: client,
-		ctx:    ctx,
-	}
+	return tn
 }
 
 func (n *testNode) Close() error {
@@ -69,15 +100,32 @@ func (n *testNode) Close() error {
 	return nil
 }
 
+func (n *testNode) Context() context.Context {
+	return n.ctx
+}
+
 func (n *testNode) Connect(t *testing.T, to *testNode) {
 	t.Helper()
 
 	err := n.Node.Connect(n.ctx, to.Address())
 	require.NoError(t, err)
-	log := n.ctx.Logger()
+
+	n.WaitForConnected(t, to)
+}
+
+func (n *testNode) Disconnect(t *testing.T, to *testNode) {
+	t.Helper()
+
+	err := n.Node.Disconnect(n.ctx, to.ID())
+	require.NoError(t, err)
+}
+
+func (n *testNode) WaitForConnected(t *testing.T, to *testNode) {
+	t.Helper()
 
 	// Wait for peers to be connected and grafted to the pubsub topic.
 	// See https://github.com/libp2p/go-libp2p-pubsub/issues/331
+	log := n.ctx.Logger()
 	totalTimeout := 5 * time.Second
 	if os.Getenv("CI") == "true" {
 		totalTimeout = 10 * time.Second
@@ -138,6 +186,7 @@ syncLoop:
 			attempt++
 		}
 	}
+
 	require.True(t, connected, fmt.Sprintf("node %s failed to connect to node %s", n.name, to.name))
 }
 
@@ -194,9 +243,10 @@ func (n *testNode) RequireEventuallyStoredEvents(t *testing.T, topic string, exp
 	requireEnvelopesEqual(t, expected, res.Envelopes)
 }
 
-func requireEnvelopesEqual(t *testing.T, actual, expected []*messagev1.Envelope) {
+func requireEnvelopesEqual(t *testing.T, expected, actual []*messagev1.Envelope) {
 	t.Helper()
-	expected = expected[:]
+
+	expected = append([]*messagev1.Envelope{}, expected...)
 	sort.Slice(expected, func(i, j int) bool {
 		d := int(expected[i].TimestampNs) - int(expected[j].TimestampNs)
 		if d != 0 {
@@ -204,7 +254,8 @@ func requireEnvelopesEqual(t *testing.T, actual, expected []*messagev1.Envelope)
 		}
 		return bytes.Compare(expected[i].Message, expected[j].Message) < 0
 	})
-	actual = actual[:]
+
+	actual = append([]*messagev1.Envelope{}, actual...)
 	sort.Slice(actual, func(i, j int) bool {
 		d := int(actual[i].TimestampNs) - int(actual[j].TimestampNs)
 		if d != 0 {
@@ -212,6 +263,7 @@ func requireEnvelopesEqual(t *testing.T, actual, expected []*messagev1.Envelope)
 		}
 		return bytes.Compare(actual[i].Message, actual[j].Message) < 0
 	})
+
 	test.RequireProtoEqual(t, expected, actual)
 }
 

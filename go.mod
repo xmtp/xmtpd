@@ -3,6 +3,7 @@ module github.com/xmtp/xmtpd
 go 1.20
 
 require (
+	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
@@ -16,6 +17,7 @@ require (
 	github.com/lib/pq v1.10.0
 	github.com/libp2p/go-libp2p v0.26.2
 	github.com/libp2p/go-libp2p-pubsub v0.9.0
+	github.com/multiformats/go-multiaddr v0.8.0
 	github.com/multiformats/go-multihash v0.2.1
 	github.com/nats-io/nats-server/v2 v2.9.14
 	github.com/nats-io/nats.go v1.23.0
@@ -97,7 +99,6 @@ require (
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
-	github.com/multiformats/go-multiaddr v0.8.0 // indirect
 	github.com/multiformats/go-multiaddr-dns v0.3.1 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.1.1 // indirect

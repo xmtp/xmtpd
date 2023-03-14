@@ -9,9 +9,9 @@ import (
 
 type Options struct {
 	GRPCAddress string `long:"grpc-address" description:"API gRPC listen address" default:"0.0.0.0"`
-	GRPCPort    uint   `long:"grpc-port" description:"API gRPC listen port" default:"5000"`
+	GRPCPort    uint   `long:"grpc-port" description:"API gRPC listen port" default:"0"`
 	HTTPAddress string `long:"http-address" description:"API HTTP listen address" default:"0.0.0.0"`
-	HTTPPort    uint   `long:"http-port" description:"API HTTP listen port" default:"5001"`
+	HTTPPort    uint   `long:"http-port" description:"API HTTP listen port" default:"0"`
 	MaxMsgSize  int    `long:"max-msg-size" description:"Max message size in bytes (default 10Mb)" default:"1250000"`
 }
 

@@ -1,6 +1,8 @@
 package zap
 
 import (
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -22,6 +24,31 @@ func AnyFields(keysAndValues ...interface{}) []zap.Field {
 		fields = append(fields, zap.Any(key, keysAndValues[i+1]))
 	}
 	return fields
+}
+
+// peerId provides uniform logging for individual peer IDs
+type peerID peer.ID
+
+func PeerID(key string, id peer.ID) zapcore.Field {
+	return zap.Stringer(key, peerID(id))
+}
+
+func (id peerID) String() string {
+	return peer.ID(id).Pretty()
+}
+
+// peerIDSlice provides uniform logging for lists of peer.ID
+type peerIDSlice []peer.ID
+
+func (ids peerIDSlice) MarshalLogArray(enc zapcore.ArrayEncoder) error {
+	for _, id := range ids {
+		enc.AppendString(id.Pretty())
+	}
+	return nil
+}
+
+func PeerIDs(key string, ids ...peer.ID) zapcore.Field {
+	return zap.Array(key, peerIDSlice(ids))
 }
 
 // cid provides uniform logging for individual CIDs
@@ -47,4 +74,18 @@ func (cids cidSlice) MarshalLogArray(enc zapcore.ArrayEncoder) error {
 
 func Cids(key string, cids ...mh.Multihash) zapcore.Field {
 	return zap.Array(key, cidSlice(cids))
+}
+
+// multiaddrSlice provides uniform logging for lists of multiaddrs
+type multiaddrSlice []multiaddr.Multiaddr
+
+func (mas multiaddrSlice) MarshalLogArray(enc zapcore.ArrayEncoder) error {
+	for _, ma := range mas {
+		enc.AppendString(ma.String())
+	}
+	return nil
+}
+
+func Multiaddrs(key string, mas ...multiaddr.Multiaddr) zapcore.Field {
+	return zap.Array(key, multiaddrSlice(mas))
 }

@@ -2,6 +2,7 @@ package node
 
 import (
 	gocontext "context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -28,6 +29,10 @@ var (
 	ErrTopicAlreadyExists = errors.New("topic already exists")
 )
 
+const (
+	pubsubTopic = "/xmtp/0"
+)
+
 type Node struct {
 	messagev1.UnimplementedMessageApiServer
 
@@ -50,7 +55,8 @@ type Node struct {
 	ns *server.Server
 	nc *nats.Conn
 
-	ot *openTelemetry
+	ot    *openTelemetry
+	peers *persistentPeers
 }
 
 func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
@@ -77,10 +83,19 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	}
 
 	// Initialize libp2p host.
-	n.host, err = libp2p.New()
+	privKey, err := getOrCreatePrivateKey(opts.P2P.NodeKey)
 	if err != nil {
 		return nil, err
 	}
+	n.host, err = libp2p.New(
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", opts.P2P.Port)),
+		libp2p.Identity(privKey),
+	)
+	if err != nil {
+		return nil, err
+	}
+	n.log = n.log.With(zap.PeerID("node", n.host.ID()))
+	n.log.Info("p2p listening", zap.Strings("addresses", n.P2PListenAddresses()))
 
 	// Initialize libp2p pubsub.
 	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
@@ -89,7 +104,7 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 	}
 
 	// Initialize libp2p pubsub topic.
-	n.topic, err = gs.Join("/xmtp/0")
+	n.topic, err = gs.Join(pubsubTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +157,11 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 		return nil, err
 	}
 
+	n.peers, err = newPersistentPeers(n.ctx, n.log, n.host, opts.P2P.PersistentPeers)
+	if err != nil {
+		return nil, err
+	}
+
 	return n, nil
 }
 
@@ -189,8 +209,31 @@ func (n *Node) APIHTTPListenPort() uint {
 	return n.api.HTTPListenPort()
 }
 
+func (n *Node) P2PListenAddresses() []string {
+	exclude := map[string]bool{
+		"/p2p-circuit": true,
+	}
+	addrs := []string{}
+	for _, ma := range n.host.Network().ListenAddresses() {
+		addr := ma.String()
+		if exclude[addr] {
+			continue
+		}
+		addrs = append(addrs, addr+"/p2p/"+n.host.ID().Pretty())
+	}
+	return addrs
+}
+
+func (n *Node) ID() peer.ID {
+	return n.host.ID()
+}
+
 func (n *Node) Connect(ctx context.Context, addr peer.AddrInfo) error {
 	return n.host.Connect(ctx, addr)
+}
+
+func (n *Node) Disconnect(ctx context.Context, peer peer.ID) error {
+	return n.host.Network().ClosePeer(peer)
 }
 
 func (n *Node) Address() peer.AddrInfo {

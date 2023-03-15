@@ -3,6 +3,8 @@ set -eo pipefail
 
 dev/lint-shellcheck
 
+dev/lint-markdown
+
 dev/terraform/lint
 
 if [[ $(gofmt -l .) ]]; then
@@ -11,4 +13,3 @@ if [[ $(gofmt -l .) ]]; then
 fi 
 
 golangci-lint run ./...
-

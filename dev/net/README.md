@@ -63,7 +63,8 @@ source dev/net/k8s-env
 ```
 
 This `k8s-env` script also creates a few command-line aliases for interacting with specific namespaces in the cluster:
-```
+
+```sh
 alias kn="kubectl -n xmtp-nodes"
 alias ks="kubectl -n xmtp-system"
 alias kt="kubectl -n xmtp-tools"

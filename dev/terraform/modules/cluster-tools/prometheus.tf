@@ -16,29 +16,31 @@ module "argocd_app_prometheus" {
   repo_url         = "https://prometheus-community.github.io/helm-charts"
   chart            = "prometheus"
   target_revision  = "19.7.2"
-  helm_values      = <<EOF
-    server:
-      nodeSelector:
-        node-pool: ${var.node_pool}
-      persistentVolume:
-        enabled: false
-      ingress:
-        enabled: true
-        hosts: ${jsonencode(local.prometheus_hostnames)}
-      global:
-        evaluation_interval: 30s
-        scrape_interval: 10s
-        scrape_timeout: 5s
-    alertmanager:
-      persistence:
-        enabled: false
-      nodeSelector:
-        node-pool: ${var.node_pool}
-    kube-state-metrics:
-      nodeSelector:
-        node-pool: ${var.node_pool}
-    prometheus-pushgateway:
-      nodeSelector:
-        node-pool: ${var.node_pool}
-  EOF
+  helm_values = [
+    <<EOF
+      server:
+        nodeSelector:
+          node-pool: ${var.node_pool}
+        persistentVolume:
+          enabled: false
+        ingress:
+          enabled: true
+          hosts: ${jsonencode(local.prometheus_hostnames)}
+        global:
+          evaluation_interval: 30s
+          scrape_interval: 10s
+          scrape_timeout: 5s
+      alertmanager:
+        persistence:
+          enabled: false
+        nodeSelector:
+          node-pool: ${var.node_pool}
+      kube-state-metrics:
+        nodeSelector:
+          node-pool: ${var.node_pool}
+      prometheus-pushgateway:
+        nodeSelector:
+          node-pool: ${var.node_pool}
+    EOF
+  ]
 }

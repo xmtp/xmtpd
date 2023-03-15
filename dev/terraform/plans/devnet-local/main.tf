@@ -1,16 +1,3 @@
-terraform {
-  required_providers {
-    helm = {
-      source  = "hashicorp/helm"
-      version = "2.9.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "2.18.1"
-    }
-  }
-}
-
 provider "kubernetes" {
   config_path = var.kubeconfig_path
 }
@@ -68,6 +55,7 @@ module "system" {
   cluster_https_node_port = local.cluster_https_node_port
   argocd_hostnames        = [for hostname in local.hostnames : "argo.${hostname}"]
   ingress_class_name      = local.ingress_class_name
+  ingress_service_type    = "NodePort"
 }
 
 module "tools" {

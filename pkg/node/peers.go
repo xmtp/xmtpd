@@ -81,7 +81,11 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 						ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 						defer cancel()
 						log.Debug("connecting to persistent peer", zap.PeerID("peer", peer.ID))
-						return p.host.Connect(ctx, peer)
+						err := p.host.Connect(ctx, peer)
+						if err != nil {
+							log.Debug("error connecting to persistent peer", zap.Error(err), zap.PeerID("peer", peer.ID))
+						}
+						return err
 					}, backoff.NewExponentialBackOff())
 					if err != nil {
 						log.Error("error connecting to persistent peer", zap.Error(err))

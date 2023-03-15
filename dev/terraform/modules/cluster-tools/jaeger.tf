@@ -18,32 +18,34 @@ module "argocd_app_jaeger" {
   repo_url         = "https://jaegertracing.github.io/helm-charts"
   chart            = "jaeger"
   target_revision  = "0.67.6"
-  helm_values      = <<EOF
-    allInOne:
-      enabled: true
-      args:
-        - --memory.max-traces=10000
-        - --query.base-path=/jaeger/ui
-        - --prometheus.server-url=${local.prometheus_server_url}
-      extraEnv:
-        - name: COLLECTOR_OTLP_ENABLED
-          value: "true"
-        - name: METRICS_STORAGE_TYPE
-          value: prometheus
-      nodeSelector:
-        node-pool: ${var.node_pool}
-      ingress:
+  helm_values = [
+    <<EOF
+      allInOne:
         enabled: true
-        ingressClassName: ${var.ingress_class_name}
-        hosts:
-          - ${local.jaeger_public_hostname}
-    provisionDataStore:
-      cassandra: false
-    agent:
-      enabled: false
-    collector:
-      enabled: false
-    query:
-      enabled: false
-  EOF
+        args:
+          - --memory.max-traces=10000
+          - --query.base-path=/jaeger/ui
+          - --prometheus.server-url=${local.prometheus_server_url}
+        extraEnv:
+          - name: COLLECTOR_OTLP_ENABLED
+            value: "true"
+          - name: METRICS_STORAGE_TYPE
+            value: prometheus
+        nodeSelector:
+          node-pool: ${var.node_pool}
+        ingress:
+          enabled: true
+          ingressClassName: ${var.ingress_class_name}
+          hosts:
+            - ${local.jaeger_public_hostname}
+      provisionDataStore:
+        cassandra: false
+      agent:
+        enabled: false
+      collector:
+        enabled: false
+      query:
+        enabled: false
+    EOF
+  ]
 }

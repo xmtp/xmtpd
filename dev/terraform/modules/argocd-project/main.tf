@@ -11,14 +11,16 @@ resource "kubernetes_manifest" "argocd_project" {
       name      = var.name
       namespace = var.namespace
     }
-    spec = {
-      description                = var.description
-      sourceRepos                = var.source_repos
-      destinations               = var.destinations
-      clusterResourceWhitelist   = var.cluster_resource_whitelist
-      namespaceResourceWhitelist = var.namespace_resource_whitelist
-      namespaceResourceBlacklist = var.namespace_resource_blacklist
-    }
+    spec = merge(
+      {
+        description  = var.description
+        sourceRepos  = var.source_repos
+        destinations = var.destinations
+      },
+      var.cluster_resource_whitelist == null ? {} : { clusterResourceWhitelist = var.cluster_resource_whitelist },
+      var.namespace_resource_whitelist == null ? {} : { namespaceResourceWhitelist = var.namespace_resource_whitelist },
+      var.namespace_resource_blacklist == null ? {} : { namespaceResourceBlacklist = var.namespace_resource_blacklist },
+    )
   }
 }
 

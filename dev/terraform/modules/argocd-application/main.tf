@@ -25,7 +25,7 @@ resource "kubernetes_manifest" "argocd_application" {
           path           = var.path
           helm = {
             releaseName = var.name
-            values      = var.helm_values
+            values      = yamlencode(merge([for values in var.helm_values : yamldecode(values)]...))
           }
         }
         destination = {

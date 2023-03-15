@@ -15,7 +15,7 @@ fi
 out_vars_path="${out_dir}/terraform.tfvars.json"
 out_secrets_path="${out_dir}/terraform.secrets.auto.tfvars.json"
 
-if [ -z "${OVERWRITE}" ]; then
+if [ -z "${OVERWRITE:-}" ]; then
     if [ -f "${out_vars_path}" ]; then
         echo "${out_vars_path} already exists, aborting"
         exit 1
@@ -69,7 +69,7 @@ if ((delta_nodes > 0)); then
 
         node_key="$(dev/run generate-key)"
         node_id="$(XMTP_NODE_KEY=${node_key} dev/run show-id)"
-        p2p_public_address="/dns4/${node_name}/tcp/9001/p2p/${node_id}"
+        p2p_public_address="/dns4/${node_name}/tcp/9000/p2p/${node_id}"
 
         node="$(echo "${node}" | jq ".node_id = \"${node_id}\"")"
         node="$(echo "${node}" | jq ".p2p_public_address = \"${p2p_public_address}\"")"

@@ -31,8 +31,9 @@ func (s *testStore) Close() error {
 }
 
 func newTestNodeStore(t testing.TB, ctx context.Context) *testNodeStore {
+	fn := "test_" + test.RandomStringLower(13) + ".bolt"
 	opts := &bolt.Options{
-		DataPath: filepath.Join(t.TempDir(), "testdb.bolt"),
+		DataPath: filepath.Join(t.TempDir(), fn),
 	}
 	db, err := bolt.NewDB(opts)
 	require.NoError(t, err)

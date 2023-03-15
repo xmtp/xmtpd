@@ -37,9 +37,8 @@ func TestTopicBootstrap(t *testing.T, storeMaker func(t *testing.T, ctx context.
 		WithStore(store),
 	)
 	for i, topic := range topics {
-		resp, err := node.Query(ctx, &v1.QueryRequest{ContentTopics: []string{topic}})
-		require.NoError(t, err)
-		require.Len(t, resp.Envelopes, i+1)
+		envs := node.RequireQuery(t, topic)
+		require.Len(t, envs, i+1)
 	}
 	node.Close()
 }

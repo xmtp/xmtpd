@@ -309,6 +309,7 @@ func (n *Node) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.Messa
 }
 
 func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
+	n.log.Debug("query", zap.Strings("topics", req.ContentTopics))
 	if len(req.ContentTopics) == 0 {
 		return nil, ErrMissingTopic
 	} else if len(req.ContentTopics) > 1 {
@@ -336,6 +337,7 @@ func (n *Node) SubscribeAll(req *messagev1.SubscribeAllRequest, stream messagev1
 }
 
 func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryRequest) (*messagev1.BatchQueryResponse, error) {
+	n.log.Debug("batch query", zap.Int("req-count", len(req.Requests)))
 	res := &messagev1.BatchQueryResponse{}
 	var mu sync.Mutex
 	g, ctx := errgroup.WithContext(gctx)
@@ -360,6 +362,7 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 }
 
 func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
+	n.log.Debug("getting or creating topic", zap.String("topic", topic))
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
 	if replica, ok := n.topics[topic]; ok {

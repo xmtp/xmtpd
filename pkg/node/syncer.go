@@ -34,7 +34,7 @@ type syncer struct {
 
 func (n *Node) setSyncHandler() {
 	n.host.SetStreamHandler(syncProtocol, func(s network.Stream) {
-		log := n.ctx.Logger()
+		log := n.ctx.Logger().Named("syncHandler")
 		failed := func(msg string, err error) bool {
 			if err == nil {
 				return false

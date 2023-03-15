@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -eou pipefail
 plan_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 function tf() {

@@ -1,6 +1,6 @@
 #!/bin/bash
-set -eo pipefail
+set -eou pipefail
 
 go fmt ./...
 
-markdownlint --fix README.md
+dev/lint-markdown --fix

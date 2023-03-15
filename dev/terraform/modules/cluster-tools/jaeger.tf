@@ -1,3 +1,11 @@
+locals {
+  jaeger_hostnames          = [for hostname in var.hostnames : "jaeger.${hostname}"]
+  jaeger_public_hostname    = local.jaeger_hostnames[0]
+  jaegar_public_url         = "http://${local.jaeger_public_hostname}"
+  jaeger_collector_endpoint = "jaeger-collector:4317"
+  jaeger_query_endpoint     = "jaeger-query:16686"
+}
+
 resource "argocd_application" "jaeger" {
   count      = var.enable_monitoring ? 1 : 0
   depends_on = [argocd_project.tools]
@@ -20,7 +28,7 @@ resource "argocd_application" "jaeger" {
             args:
               - --memory.max-traces=10000
               - --query.base-path=/jaeger/ui
-              - --prometheus.server-url=http://prometheus-server:80
+              - --prometheus.server-url=${local.prometheus_server_url}
             extraEnv:
               - name: COLLECTOR_OTLP_ENABLED
                 value: "true"
@@ -32,7 +40,7 @@ resource "argocd_application" "jaeger" {
               enabled: true
               ingressClassName: ${var.ingress_class_name}
               hosts:
-                - jaeger.localhost
+                - ${local.jaeger_public_hostname}
           provisionDataStore:
             cassandra: false
           agent:

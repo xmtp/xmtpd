@@ -1,33 +1,3 @@
-# auth:
-#   anonymous:
-#     enabled: true
-#     org_name: XMTP
-#     org_role: Editor
-# disable_login_form: true
-
-grafana.ini:
-  auth.anonymous:
-    enabled: true
-    # Organization name that should be used for unauthenticated users
-    org_name: "Main Org."
-    # Role for unauthenticated users, other valid values are `Editor` and `Admin`
-    org_role: "Admin"
-    # Hide the Grafana version text from the footer and help tooltip for unauthenticated users (default: false)
-    hide_version: true
-sidecar: 
-  datasources: 
-    enabled: true
-
-datasources:
- datasources.yaml:
-   apiVersion: 1
-   datasources:
-   - name: Prometheus
-     type: prometheus
-     url: http://prometheus-server
-     access: proxy
-     isDefault: true
-
 dashboardProviders:
   dashboardproviders.yaml:
     apiVersion: 1
@@ -48,14 +18,6 @@ dashboardProviders:
       editable: true
       options:
         path: /var/lib/grafana/dashboards/golang
-    - name: badgerdb
-      orgId: 1
-      folder: BadgerDB
-      type: file
-      disableDeletion: true
-      editable: true
-      options:
-        path: /var/lib/grafana/dashboards/badgerdb
     - name: xmtp
       orgId: 1
       folder: XMTP
@@ -97,11 +59,6 @@ dashboards:
     # https://grafana.com/grafana/dashboards/10826-go-metrics/
     go-metrics:
       gnetId: 10826
-      datasource: Prometheus
-  badgerdb:
-    # https://grafana.com/grafana/dashboards/9574-badger/
-    badger-9574:
-      gnetId: 9574
       datasource: Prometheus
 
 dashboardsConfigMaps:

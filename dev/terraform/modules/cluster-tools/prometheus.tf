@@ -1,3 +1,10 @@
+locals {
+  prometheus_hostnames       = [for hostname in var.hostnames : "prometheus.${hostname}"]
+  prometheus_public_hostname = local.prometheus_hostnames[0]
+  prometheus_server_endpoint = "prometheus-server:80"
+  prometheus_server_url      = "http://${local.prometheus_server_endpoint}"
+}
+
 resource "argocd_application" "prometheus" {
   count      = var.enable_monitoring ? 1 : 0
   depends_on = [argocd_project.tools]
@@ -23,7 +30,11 @@ resource "argocd_application" "prometheus" {
             ingress:
               enabled: true
               hosts:
-                - prometheus.localhost
+                - ${local.prometheus_public_hostname}
+            global:
+              evaluation_interval: 30s
+              scrape_interval: 10s
+              scrape_timeout: 5s
           alertmanager:
             persistence:
               enabled: false
@@ -35,19 +46,6 @@ resource "argocd_application" "prometheus" {
           prometheus-pushgateway:
             nodeSelector:
               node-pool: ${var.node_pool}
-          global:
-            evaluation_interval: 30s
-            scrape_interval: 5s
-          scrape_configs:
-          - job_name: otel
-            honor_labels: true
-            static_configs:
-            - targets:
-              - 'otelcol:9464'
-          - job_name: otel-collector
-            static_configs:
-            - targets:
-              - 'otelcol:8888'
         EOT
       }
     }

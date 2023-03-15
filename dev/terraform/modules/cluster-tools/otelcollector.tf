@@ -15,6 +15,13 @@ resource "argocd_application" "otelcollector" {
         release_name = "otelcollector"
         values       = <<EOT
           mode: daemonset
+          podAnnotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/path: /metrics
+            prometheus.io/port: "9464"
+          ports:
+            metrics:
+              enabled: true
           config:
             receivers:
               otlp:
@@ -29,7 +36,7 @@ resource "argocd_application" "otelcollector" {
                         - "https://*"
             exporters:
               otlp:
-                endpoint: "jaeger-collector:4317"
+                endpoint: "${local.jaeger_collector_endpoint}"
                 tls:
                   insecure: true
               logging: {}
@@ -55,7 +62,7 @@ resource "argocd_application" "otelcollector" {
                   processors: [spanmetrics, batch]
                   exporters: [logging, otlp]
                 metrics:
-                  receivers: [otlp]
+                  receivers: [otlp, prometheus]
                   processors: [transform, batch]
                   exporters: [prometheus, logging]
         EOT

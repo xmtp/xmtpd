@@ -67,7 +67,6 @@ if ((delta_nodes > 0)); then
         echo "adding node ${node_name}"
         node="$(echo "${node}" | jq ".name = \"${node_name}\"")"
 
-        key="$(dev/run generate-key)"
         node_key="$(dev/run generate-key)"
         node_id="$(XMTP_NODE_KEY=${node_key} dev/run show-id)"
         p2p_public_address="/dns4/${node_name}/tcp/9001/p2p/${node_id}"

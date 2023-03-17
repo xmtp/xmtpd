@@ -7,6 +7,7 @@ x-default-logging: &logging
     max-file: "2"
 
 services:
+  # Postgres
   postgres:
     image: postgres:13
     environment:
@@ -40,16 +41,6 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       - METRICS_STORAGE_TYPE=prometheus
-    logging: *logging
-
-  # Grafana
-  grafana:
-    image: grafana/grafana:9.1.0
-    volumes:
-      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
-      - ./grafana/provisioning/:/etc/grafana/provisioning/
-    ports:
-      - "${GRAFANA_SERVICE_PORT}:${GRAFANA_SERVICE_PORT}"
     logging: *logging
 
   # OpenTelemetry Collector

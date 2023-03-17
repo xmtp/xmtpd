@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -eou pipefail
 set -a; source .env.local; set +a
 
 export PGPASSWORD="${POSTGRES_PASSWORD}"

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -eou pipefail
 
 if [[ "${OSTYPE}" == "darwin"* ]]; then
     if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi

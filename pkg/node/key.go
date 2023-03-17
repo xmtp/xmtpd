@@ -20,8 +20,16 @@ func PrivateKeyToHex(key crypto.PrivKey) (string, error) {
 	return hex.EncodeToString(keyBytes), nil
 }
 
-func getOrCreatePrivateKey(key string) (crypto.PrivKey, error) {
-	if key == "" {
+func DecodePrivateKey(keyHex string) (crypto.PrivKey, error) {
+	keyBytes, err := hex.DecodeString(keyHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "decoding private key")
+	}
+	return crypto.UnmarshalPrivateKey(keyBytes)
+}
+
+func getOrCreatePrivateKey(keyHex string) (crypto.PrivKey, error) {
+	if keyHex == "" {
 		priv, err := GeneratePrivateKey()
 		if err != nil {
 			return nil, err
@@ -29,10 +37,5 @@ func getOrCreatePrivateKey(key string) (crypto.PrivKey, error) {
 
 		return priv, nil
 	}
-
-	keyBytes, err := hex.DecodeString(key)
-	if err != nil {
-		return nil, errors.Wrap(err, "decoding private key")
-	}
-	return crypto.UnmarshalPrivateKey(keyBytes)
+	return DecodePrivateKey(keyHex)
 }

@@ -1,0 +1,9 @@
+#!/bin/bash
+set -eou pipefail
+
+tflint \
+    --recursive \
+    --disable-rule=terraform_typed_variables \
+    --disable-rule=terraform_required_providers \
+    --disable-rule=terraform_required_version \
+    "$@"

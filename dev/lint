@@ -1,7 +1,11 @@
 #!/bin/bash
-set -eo pipefail
+set -eou pipefail
 
 dev/lint-shellcheck
+
+dev/lint-markdown
+
+dev/terraform/lint
 
 if [[ $(gofmt -l .) ]]; then
     echo "gofmt errors, run 'dev/fmt' and commit"
@@ -9,4 +13,3 @@ if [[ $(gofmt -l .) ]]; then
 fi 
 
 golangci-lint run ./...
-

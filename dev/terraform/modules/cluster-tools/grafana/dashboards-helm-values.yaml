@@ -1,0 +1,65 @@
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: kubernetes
+      orgId: 1
+      folder: Kubernetes
+      type: file
+      disableDeletion: true
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/kubernetes
+    - name: golang
+      orgId: 1
+      folder: Go
+      type: file
+      disableDeletion: true
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/golang
+    - name: xmtp
+      orgId: 1
+      folder: XMTP
+      type: file
+      disableDeletion: true
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/xmtp
+
+dashboards:
+  kubernetes:
+    # https://github.com/dotdc/grafana-dashboards-kubernetes
+    k8s-addons-starboard-operator:
+      gnetId: 16337
+      datasource: Prometheus
+    k8s-system-api-server:
+      gnetId: 15761
+      datasource: Prometheus
+    k8s-system-coredns:
+      gnetId: 15762
+      datasource: Prometheus
+    k8s-views-global:
+      gnetId: 15757
+      datasource: Prometheus
+    k8s-views-namespaces:
+      gnetId: 15758
+      datasource: Prometheus
+    k8s-views-nodes:
+      gnetId: 15759
+      datasource: Prometheus
+    k8s-views-pods:
+      gnetId: 15760
+      datasource: Prometheus
+  golang:
+    # https://grafana.com/grafana/dashboards/6671-go-processes/
+    go-processes:
+      gnetId: 6671
+      datasource: Prometheus
+    # https://grafana.com/grafana/dashboards/10826-go-metrics/
+    go-metrics:
+      gnetId: 10826
+      datasource: Prometheus
+
+dashboardsConfigMaps:
+  xmtp: "xmtp-dashboards"

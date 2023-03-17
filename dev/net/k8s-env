@@ -1,0 +1,11 @@
+#!/bin/bash
+(
+    set -a; source .env.local; set +a
+)
+
+export KUBECONFIG="${PWD}/dev/terraform/plans/${PLAN}/.xmtp/kubeconfig.yaml"
+
+alias k=kubectl
+alias kn="kubectl -n xmtp-nodes"
+alias ks="kubectl -n xmtp-system"
+alias kt="kubectl -n xmtp-tools"

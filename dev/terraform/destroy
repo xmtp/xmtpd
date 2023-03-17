@@ -1,0 +1,22 @@
+#!/bin/bash
+set -eou pipefail
+set -a; source .env.local; set +a
+script_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+plan="${PLAN:-devnet-local}"
+plan_dir="${script_dir}/plans/${plan}"
+
+if [ ! -d "${plan_dir}" ]; then
+    echo "${plan_dir} does not exist"
+    exit 1
+fi
+
+destroy_path="${plan_dir}/destroy.sh"
+
+if [ ! -f "${destroy_path}" ]; then
+    echo "${destroy_path} does not exist"
+    exit 1
+fi
+
+cd "${plan_dir}"
+./destroy.sh

@@ -10,7 +10,7 @@ func TestNetwork(t *testing.T) {
 	if testing.Short() {
 		t.Skip("too slow under race detector")
 	}
-	net := ntest.NewTestNetwork(t, 3)
+	net := ntest.NewNetwork(t, 3)
 	defer net.Close()
 
 	sub := net.Subscribe(t, "topic1")

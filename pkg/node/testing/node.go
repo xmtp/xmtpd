@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/client"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/node"
@@ -231,15 +231,23 @@ func (n *testNode) Subscribe(t *testing.T, topic string) *testSubscriber {
 	return sub
 }
 
+func (n *testNode) RequireQuery(t *testing.T, topic string, mods ...api.QueryModifier) []*messagev1.Envelope {
+	resp, err := n.Query(n.ctx, api.NewQuery(topic, mods...))
+	require.NoError(t, err)
+	return resp.Envelopes
+}
+
 func (n *testNode) RequireEventuallyStoredEvents(t *testing.T, topic string, expected []*messagev1.Envelope) {
 	t.Helper()
-	res, err := n.client.Query(n.ctx, &messagev1.QueryRequest{
-		ContentTopics: []string{topic},
-	})
-	require.NoError(t, err)
-	assert.Eventually(t, func() bool {
+	var res *messagev1.QueryResponse
+	require.Eventually(t, func() bool {
+		var err error
+		res, err = n.client.Query(n.ctx, &messagev1.QueryRequest{
+			ContentTopics: []string{topic},
+		})
+		require.NoError(t, err)
 		return len(res.Envelopes) == len(expected)
-	}, 3*time.Second, 100*time.Millisecond)
+	}, 3*time.Second, 100*time.Millisecond, "%s topic %s expected %d", n.name, topic, len(expected))
 	requireEnvelopesEqual(t, expected, res.Envelopes)
 }
 

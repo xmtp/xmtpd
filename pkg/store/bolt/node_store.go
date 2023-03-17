@@ -6,6 +6,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
+	"github.com/xmtp/xmtpd/pkg/zap"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -27,6 +28,7 @@ type NodeStore struct {
 }
 
 func NewNodeStore(ctx context.Context, db *bolt.DB, opts *Options) (*NodeStore, error) {
+	ctx.Logger().Info("opening db", zap.String("path", db.Path()))
 	if err := db.Update(func(tx *bolt.Tx) error {
 		var err error
 		meta := tx.Bucket(MetaBucket)

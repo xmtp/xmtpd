@@ -37,7 +37,7 @@ func New(ctx context.Context, db *bolt.DB, topic string) *Store {
 }
 
 func (s *Store) InsertEvent(ctx context.Context, ev *types.Event) (added bool, err error) {
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
 		added, err = addEvent(topic, ev)
 		return err
@@ -49,7 +49,7 @@ func (s *Store) InsertEvent(ctx context.Context, ev *types.Event) (added bool, e
 }
 
 func (s *Store) InsertHead(ctx context.Context, ev *types.Event) (added bool, err error) {
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
 		if added, err = addEvent(topic, ev); err != nil {
 			return err
@@ -65,7 +65,7 @@ func (s *Store) InsertHead(ctx context.Context, ev *types.Event) (added bool, er
 
 func (s *Store) RemoveHead(ctx context.Context, cid multihash.Multihash) (have bool, err error) {
 	var isHead bool
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket(s.name)
 		byCID := topic.Bucket(ByCIDBucket)
 		if byCID.Get(cid) == nil {
@@ -88,7 +88,7 @@ func (s *Store) RemoveHead(ctx context.Context, cid multihash.Multihash) (have b
 }
 
 func (s *Store) AppendEvent(ctx context.Context, env *messagev1.Envelope) (ev *types.Event, err error) {
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Batch(func(tx *bolt.Tx) error {
 		var allHeads []multihash.Multihash
 		topic := tx.Bucket(s.name)
 		heads := topic.Bucket(HeadsBucket)
@@ -191,7 +191,7 @@ func (s *Store) Events(ctx context.Context) (evs []*types.Event, err error) {
 }
 
 func (s *Store) InsertNewEvents(ctx context.Context, evs []*types.Event) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Batch(func(tx *bolt.Tx) error {
 		topic := tx.Bucket([]byte(s.name))
 		for _, ev := range evs {
 			added, err := addEvent(topic, ev)

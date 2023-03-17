@@ -87,7 +87,13 @@ func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 			return
 		}
 		log.Debug("received broadcasted event", zap.Cid("event", ev.Cid))
-		r.pendingReceiveEvents <- ev
+
+		select {
+		case r.pendingReceiveEvents <- ev:
+		case <-ctx.Done():
+			log.Debug("context closed", zap.Error(ctx.Err()))
+			return
+		}
 
 		if r.onNewEvent != nil {
 			r.onNewEvent(ev)
@@ -111,11 +117,21 @@ func (r *Replica) receiveEventLoop(ctx context.Context) {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				r.pendingReceiveEvents <- ev
+				select {
+				case r.pendingReceiveEvents <- ev:
+				case <-ctx.Done():
+					log.Debug("context closed", zap.Error(ctx.Err()))
+					return
+				}
 			}
 			if added {
 				for _, link := range ev.Links {
-					r.pendingLinks <- link
+					select {
+					case r.pendingLinks <- link:
+					case <-ctx.Done():
+						log.Debug("context closed", zap.Error(ctx.Err()))
+						return
+					}
 				}
 			}
 		}
@@ -142,8 +158,13 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				r.pendingLinks <- cid
-				continue
+				select {
+				case r.pendingLinks <- cid:
+					continue
+				case <-ctx.Done():
+					log.Debug("context closed", zap.Error(ctx.Err()))
+					return
+				}
 			}
 			if removed {
 				continue
@@ -156,15 +177,30 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.
 				// TODO: if the channel is full, this will lock up the loop
-				r.pendingLinks <- cid
+				select {
+				case r.pendingLinks <- cid:
+				case <-ctx.Done():
+					log.Debug("context closed", zap.Error(ctx.Err()))
+					return
+				}
 			}
 			for _, cid := range cids {
 				ev := findEvent(cid, evs)
 				if ev == nil {
 					// requeue missing links
-					r.pendingLinks <- cid
+					select {
+					case r.pendingLinks <- cid:
+					case <-ctx.Done():
+						log.Debug("context closed", zap.Error(ctx.Err()))
+						return
+					}
 				} else {
-					r.pendingSyncEvents <- ev
+					select {
+					case r.pendingSyncEvents <- ev:
+					case <-ctx.Done():
+						log.Debug("context closed", zap.Error(ctx.Err()))
+						return
+					}
 				}
 			}
 		}
@@ -189,12 +225,22 @@ func (r *Replica) syncEventLoop(ctx context.Context) {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
-				r.pendingSyncEvents <- ev
+				select {
+				case r.pendingSyncEvents <- ev:
+				case <-ctx.Done():
+					log.Debug("context closed", zap.Error(ctx.Err()))
+					return
+				}
 			}
 			if added {
 				for _, link := range ev.Links {
 					// TODO: if the channel is full, this will lock up the loop
-					r.pendingLinks <- link
+					select {
+					case r.pendingLinks <- link:
+					case <-ctx.Done():
+						log.Debug("context closed", zap.Error(ctx.Err()))
+						return
+					}
 				}
 			}
 		}

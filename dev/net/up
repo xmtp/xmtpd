@@ -9,5 +9,4 @@ if [[ "${OSTYPE}" == "darwin"* ]]; then
     if ! which tflint &>/dev/null; then brew install tflint; fi
 fi
 
-dev/terraform/tf init
 dev/terraform/apply "$@"

@@ -17,7 +17,14 @@ variable "one_instance_per_k8s_node" { type = bool }
 variable "ingress_class_name" {}
 variable "wait_for_ready" { type = bool }
 variable "debug" { type = bool }
-variable "enable_postgres" { type = bool }
-variable "enable_persistent_volume" { type = bool }
+variable "store_type" {
+    type = string
+    description = "type of persistent store to use"
+    default = "mem"
+    validation {
+        condition = contains(["mem", "bolt", "postgres"], var.store_type)
+        error_message = "Recognized store types are mem, bolt or postgres"
+    }
+}
 variable "argocd_project" {}
 variable "argocd_namespace" {}

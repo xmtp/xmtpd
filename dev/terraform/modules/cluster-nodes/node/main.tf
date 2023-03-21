@@ -135,7 +135,7 @@ resource "kubernetes_stateful_set" "statefulset" {
             container_port = var.p2p_port
           }
           dynamic "volume_mount" {
-            for_each = var.enable_persistent_volume ? [1] : []
+            for_each = var.store_type == "bolt" ? [1] : []
             content {
               name       = "data"
               mount_path = "/data"
@@ -162,10 +162,11 @@ resource "kubernetes_stateful_set" "statefulset" {
               "--p2p.port=${var.p2p_port}",
               "--api.http-port=${var.api_http_port}",
               "--api.grpc-port=${var.api_grpc_port}",
+              "--store.type=${var.store_type}",
             ],
             [for peer in var.p2p_persistent_peers : "--p2p.persistent-peer=${peer}"],
             var.debug ? ["--log.level=debug"] : [],
-            var.enable_postgres ? ["--store.type=postgres"] : [],
+            var.store_type == "bolt" ? ["--store.bolt.data-path=/data/db.bolt"]: [],
           )
           readiness_probe {
             http_get {
@@ -185,7 +186,7 @@ resource "kubernetes_stateful_set" "statefulset" {
       }
     }
     dynamic "volume_claim_template" {
-      for_each = var.enable_persistent_volume ? [1] : []
+      for_each = var.store_type == "bolt" ? [1] : []
       content {
         metadata {
           name   = "data"

@@ -1,8 +1,6 @@
 #!/bin/bash
-(
-    set -a; source .env.local; set +a
-)
 
+PLAN=$(source .env.local; echo "$PLAN")
 export KUBECONFIG="${PWD}/dev/terraform/plans/${PLAN}/.xmtp/kubeconfig.yaml"
 
 alias k=kubectl

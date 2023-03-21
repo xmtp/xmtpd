@@ -6,7 +6,7 @@ locals {
 }
 
 resource "argocd_application" "postgres" {
-  count = var.enable_postgres ? 1 : 0
+  count = var.store_type == "postgres" ? 1 : 0
   wait  = true
   metadata {
     name      = local.postgres_name
@@ -41,7 +41,7 @@ resource "argocd_application" "postgres" {
 }
 
 data "kubernetes_secret" "postgres" {
-  count      = var.enable_postgres ? 1 : 0
+  count      = var.store_type == "postgres" ? 1 : 0
   depends_on = [argocd_application.postgres]
   metadata {
     name      = "${local.postgres_name}-postgresql"

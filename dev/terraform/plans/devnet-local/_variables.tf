@@ -6,8 +6,7 @@ variable "nodes" {
     node_id                  = string
     p2p_public_address       = string
     p2p_persistent_peers     = list(string)
-    enable_postgres          = optional(bool, false)
-    enable_persistent_volume = optional(bool, false)
+    store_type               = optional(string, "mem")
   }))
 }
 variable "node_keys" {

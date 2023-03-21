@@ -65,9 +65,8 @@ module "nodes_group1" {
   ingress_class_name        = var.ingress_class_name
   wait_for_ready            = var.wait_for_ready
   debug                     = var.debug
-  enable_postgres           = local.nodes_group1[count.index].enable_postgres
-  enable_persistent_volume  = local.nodes_group1[count.index].enable_persistent_volume
-}
+  store_type                = local.nodes_group1[count.index].store_type
+}              
 
 module "nodes_group2" {
   source     = "./node"
@@ -95,8 +94,7 @@ module "nodes_group2" {
   ingress_class_name        = var.ingress_class_name
   wait_for_ready            = var.wait_for_ready
   debug                     = var.debug
-  enable_postgres           = local.nodes_group2[count.index].enable_postgres
-  enable_persistent_volume  = local.nodes_group2[count.index].enable_persistent_volume
+  store_type                = local.nodes_group2[count.index].store_type
 }
 
 resource "kubernetes_service" "nodes_api" {

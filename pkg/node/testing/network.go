@@ -2,6 +2,7 @@ package testing
 
 import (
 	"bytes"
+	gocontext "context"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -9,7 +10,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	proto "github.com/xmtp/proto/v3/go/message_api/v1"
+	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/node"
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
@@ -128,22 +131,29 @@ func (me missingEnvs) String() string {
 	return buf.String()
 }
 
+type trackerNode interface {
+	Publish(gocontext.Context, *proto.PublishRequest) (*proto.PublishResponse, error)
+	Query(gocontext.Context, *proto.QueryRequest) (*proto.QueryResponse, error)
+}
+
 type convergenceTracker struct {
-	net       *network
+	ctx       context.Context
+	nodes     []trackerNode
 	envelopes envsByTopic
 	envCount  int
 }
 
-func newConvergenceTracker(net *network) *convergenceTracker {
+func newConvergenceTracker(ctx context.Context, nodes []trackerNode) *convergenceTracker {
 	return &convergenceTracker{
-		net:       net,
+		nodes:     nodes,
+		ctx:       ctx,
 		envelopes: make(envsByTopic),
 	}
 }
 
 func (tr *convergenceTracker) Publish(t *testing.T, node int, topic, msg string) {
 	t.Helper()
-	n := tr.net.nodes[node]
+	n := tr.nodes[node]
 	assert.NotNil(t, n)
 	tr.envCount++
 	env := &proto.Envelope{
@@ -151,14 +161,14 @@ func (tr *convergenceTracker) Publish(t *testing.T, node int, topic, msg string)
 		ContentTopic: topic,
 		Message:      []byte(msg),
 	}
-	_, err := n.Publish(tr.net.ctx, &proto.PublishRequest{Envelopes: []*proto.Envelope{env}})
+	_, err := n.Publish(tr.ctx, &proto.PublishRequest{Envelopes: []*proto.Envelope{env}})
 	assert.NoError(t, err)
 	tr.envelopes[topic] = append(tr.envelopes[topic], env)
 }
 
 func (tr *convergenceTracker) newMissingEnvs() missingEnvs {
-	nodes := make(missingEnvs, 0, len(tr.net.nodes))
-	for range tr.net.nodes {
+	nodes := make(missingEnvs, 0, len(tr.nodes))
+	for range tr.nodes {
 		missing := make(map[string][]int)
 		for topic, envs := range tr.envelopes {
 			ids := make([]int, 0, len(envs))
@@ -211,10 +221,12 @@ func (tr *convergenceTracker) RequireEventuallyComplete(t *testing.T, timeout ti
 func (tr *convergenceTracker) checkEvents(t *testing.T, missing missingEnvs) (remaining missingEnvs, progress bool) {
 	anyMissing, progress := false, false
 	for ni, nodeMissing := range missing {
-		node := tr.net.nodes[ni]
+		node := tr.nodes[ni]
 		for topic, topicMissing := range nodeMissing {
 			topicAll := tr.envelopes[topic]
-			topicPresent := node.RequireQuery(t, topic)
+			resp, err := node.Query(tr.ctx, api.NewQuery(topic))
+			require.NoError(t, err)
+			topicPresent := resp.Envelopes
 			if len(topicAll) == len(topicPresent) {
 				progress = true
 				delete(nodeMissing, topic)
@@ -248,24 +260,33 @@ OUTER:
 	return remaining
 }
 
-func RandomNodeAndTopicSpraying(t *testing.T, nodes, topics, messages int, opts ...networkOption) {
+func (tr *convergenceTracker) runRandomNodeAndTopicSpraying(t *testing.T, topics, messages int, suffix string) {
 	// to emulate significant concurrent activity we want nodes to be adding
 	// events concurrently, but we also want to allow propagation at the same time.
 	// So we need to introduce short delays to allow the network make some propagation progress.
 	// Given the random spraying approach injecting a delay at every (nodes*topics)th event
 	// should allow most nodes inject an event to most topics, and then the random length of the delay
 	// should allow some amount of propagation to happen before the next burst.
+	nodes := len(tr.nodes)
 	delayEvery := nodes * topics
-	net := NewNetwork(t, nodes, opts...)
-	defer net.Close()
-	tracker := newConvergenceTracker(net)
 	for i := 0; i < messages; i++ {
-		topic := fmt.Sprintf("t%d", rand.Intn(topics))
+		topic := fmt.Sprintf("t%d%s", rand.Intn(topics), suffix)
 		msg := fmt.Sprintf("gm %d", i)
-		tracker.Publish(t, rand.Intn(nodes), topic, msg)
+		tr.Publish(t, rand.Intn(nodes), topic, msg)
 		if i%delayEvery == 0 {
 			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
 		}
 	}
-	tracker.RequireEventuallyComplete(t, time.Duration(nodes*messages/100)*time.Second)
+	tr.RequireEventuallyComplete(t, time.Duration(nodes*messages/100)*time.Second)
+}
+
+func RunRandomNodeAndTopicSpraying(t *testing.T, nodes, topics, messages int, opts ...networkOption) {
+	net := NewNetwork(t, nodes, opts...)
+	defer net.Close()
+	var clients []trackerNode
+	for _, n := range net.nodes {
+		clients = append(clients, n)
+	}
+	tracker := newConvergenceTracker(net.ctx, clients)
+	tracker.runRandomNodeAndTopicSpraying(t, topics, messages, "")
 }

@@ -23,6 +23,15 @@ type httpClient struct {
 	http       *retryablehttp.Client
 	version    string
 	appVersion string
+	headers    map[string]string
+}
+
+type option func(*httpClient)
+
+func WithHeader(name, value string) option {
+	return func(c *httpClient) {
+		c.headers[name] = value
+	}
 }
 
 const (
@@ -30,18 +39,23 @@ const (
 	appVersionHeaderKey    = "x-app-version"
 )
 
-func NewHTTPClient(log *zap.Logger, serverAddr string, gitCommit string, appVersion string) *httpClient {
+func NewHTTPClient(log *zap.Logger, serverAddr string, gitCommit string, appVersion string, opts ...option) *httpClient {
 	version := "xmtpd/" + shortGitCommit(gitCommit)
 	http := retryablehttp.NewClient()
 	http.CheckRetry = retryPolicy
 	http.Logger = &logger{log}
-	return &httpClient{
+	client := &httpClient{
 		log:        log,
 		http:       http,
 		url:        serverAddr,
 		version:    version,
 		appVersion: appVersion,
+		headers:    make(map[string]string),
 	}
+	for _, opt := range opts {
+		opt(client)
+	}
+	return client
 }
 
 func (c *httpClient) Close() error {
@@ -191,6 +205,9 @@ func (c *httpClient) post(ctx context.Context, path string, req interface{}) (*h
 	}
 	post = post.WithContext(ctx)
 	post.Header.Set("Content-Type", "application/json")
+	for key, value := range c.headers {
+		post.Header.Set(key, value)
+	}
 	md, _ := metadata.FromOutgoingContext(ctx)
 	for key, vals := range md {
 		if len(vals) > 0 {

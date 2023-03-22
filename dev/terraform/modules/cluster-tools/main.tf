@@ -1,35 +1,20 @@
-terraform {
-  required_providers {
-    argocd = {
-      source = "oboukili/argocd"
-      version = "4.3.0"
-    }
-  }
-}
-
 resource "kubernetes_namespace" "tools" {
   metadata {
     name = var.namespace
   }
 }
 
-resource "argocd_project" "tools" {
-  metadata {
-    name      = var.argocd_project
-    namespace = var.argocd_namespace
-  }
+module "argocd_project" {
+  source = "../argocd-project"
 
-  spec {
-    source_repos = ["*"]
-    destination {
+  name      = var.argocd_project
+  namespace = var.argocd_namespace
+  destinations = [
+    {
       server    = "https://kubernetes.default.svc"
       namespace = var.namespace
     }
-    cluster_resource_whitelist {
-      group = "*"
-      kind  = "*"
-    }
-  }
+  ]
 }
 
 module "chat-app" {

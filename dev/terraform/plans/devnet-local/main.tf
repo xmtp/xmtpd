@@ -1,15 +1,11 @@
 terraform {
   required_providers {
-    argocd = {
-      source = "oboukili/argocd"
-      version = "4.3.0"
-    }
     helm = {
-      source = "hashicorp/helm"
+      source  = "hashicorp/helm"
       version = "2.9.0"
     }
     kubernetes = {
-      source = "hashicorp/kubernetes"
+      source  = "hashicorp/kubernetes"
       version = "2.18.1"
     }
   }
@@ -23,16 +19,6 @@ provider "helm" {
   kubernetes {
     config_path = var.kubeconfig_path
   }
-}
-
-provider "argocd" {
-  server_addr                 = module.system.argocd_hostnames[0]
-  username                    = module.system.argocd_username
-  password                    = module.system.argocd_password
-  plain_text                  = true
-  insecure                    = true
-  port_forward                = true
-  port_forward_with_namespace = module.system.namespace
 }
 
 locals {

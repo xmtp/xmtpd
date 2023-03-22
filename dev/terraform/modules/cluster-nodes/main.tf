@@ -1,12 +1,3 @@
-terraform {
-  required_providers {
-    argocd = {
-      source = "oboukili/argocd"
-      version = "4.3.0"
-    }
-  }
-}
-
 locals {
   num_nodes       = length(var.nodes)
   nodes_mid_index = floor(local.num_nodes / 2)
@@ -14,23 +5,17 @@ locals {
   nodes_group2    = slice(var.nodes, local.nodes_mid_index, local.num_nodes)
 }
 
-resource "argocd_project" "nodes" {
-  metadata {
-    name      = var.argocd_project
-    namespace = var.argocd_namespace
-  }
+module "argocd_project" {
+  source = "../argocd-project"
 
-  spec {
-    source_repos = ["*"]
-    destination {
+  name      = var.argocd_project
+  namespace = var.argocd_namespace
+  destinations = [
+    {
       server    = "https://kubernetes.default.svc"
       namespace = var.namespace
     }
-    cluster_resource_whitelist {
-      group = "*"
-      kind  = "*"
-    }
-  }
+  ]
 }
 
 resource "kubernetes_namespace" "nodes" {
@@ -66,7 +51,7 @@ module "nodes_group1" {
   wait_for_ready            = var.wait_for_ready
   debug                     = var.debug
   store_type                = local.nodes_group1[count.index].store_type
-}              
+}
 
 module "nodes_group2" {
   source     = "./node"

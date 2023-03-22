@@ -1,12 +1,3 @@
-terraform {
-  required_providers {
-    argocd = {
-      source = "oboukili/argocd"
-      version = "4.3.0"
-    }
-  }
-}
-
 resource "kubernetes_namespace" "system" {
   metadata {
     name = var.namespace
@@ -72,72 +63,45 @@ data "kubernetes_secret" "argocd-initial-admin-secret" {
   }
 }
 
-resource "argocd_project" "system" {
-  metadata {
-    name      = var.argocd_project
-    namespace = var.namespace
-  }
+module "argocd_project" {
+  source = "../argocd-project"
 
-  spec {
-    source_repos = ["*"]
-    destination {
+  name      = var.argocd_project
+  namespace = var.namespace
+  destinations = [
+    {
       server    = "https://kubernetes.default.svc"
       namespace = var.namespace
     }
-    cluster_resource_whitelist {
-      group = "*"
-      kind  = "*"
-    }
-  }
+  ]
 }
 
-resource "argocd_application" "traefik" {
-  depends_on = [helm_release.argocd]
-  wait       = true
-  metadata {
-    name      = "traefik"
-    namespace = var.namespace
-  }
-  spec {
-    project = argocd_project.system.metadata[0].name
-    source {
-      repo_url        = "https://traefik.github.io/charts"
-      chart           = "traefik"
-      target_revision = "21.1.0"
-      helm {
-        release_name = "traefik"
-        values       = <<EOF
-          service:
-            type: NodePort
-          nodeSelector:
-            ${var.node_pool_label_key}: ${var.node_pool}
-          ports:
-            web:
-              nodePort: ${var.cluster_http_node_port}
-            websecure:
-              nodePort: ${var.cluster_https_node_port}
-          providers:
-            kubernetesCRD:
-              ingressClass: ${var.ingress_class_name}
-            kubernetesIngress:
-              ingressClass: ${var.ingress_class_name}
-              publishedService:
-                enabled: true
-        EOF
-      }
-    }
+module "argocd_application" {
+  source = "../argocd-application"
 
-    destination {
-      server    = "https://kubernetes.default.svc"
-      namespace = var.namespace
-    }
-
-    sync_policy {
-      automated = {
-        prune       = true
-        self_heal   = true
-        allow_empty = false
-      }
-    }
-  }
+  argocd_namespace = var.namespace
+  argocd_project   = module.argocd_project.name
+  name             = "traefik"
+  namespace        = var.namespace
+  repo_url         = "https://traefik.github.io/charts"
+  chart            = "traefik"
+  target_revision  = "21.1.0"
+  helm_values      = <<EOF
+    service:
+      type: NodePort
+    nodeSelector:
+      ${var.node_pool_label_key}: ${var.node_pool}
+    ports:
+      web:
+        nodePort: ${var.cluster_http_node_port}
+      websecure:
+        nodePort: ${var.cluster_https_node_port}
+    providers:
+      kubernetesCRD:
+        ingressClass: ${var.ingress_class_name}
+      kubernetesIngress:
+        ingressClass: ${var.ingress_class_name}
+        publishedService:
+          enabled: true
+  EOF
 }

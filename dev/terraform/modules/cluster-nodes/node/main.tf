@@ -1,12 +1,3 @@
-terraform {
-  required_providers {
-    argocd = {
-      source = "oboukili/argocd"
-      version = "4.3.0"
-    }
-  }
-}
-
 locals {
   labels = {
     "app.kubernetes.io/part-of" = "xmtp-nodes"
@@ -166,7 +157,7 @@ resource "kubernetes_stateful_set" "statefulset" {
             ],
             [for peer in var.p2p_persistent_peers : "--p2p.persistent-peer=${peer}"],
             var.debug ? ["--log.level=debug"] : [],
-            var.store_type == "bolt" ? ["--store.bolt.data-path=/data/db.bolt"]: [],
+            var.store_type == "bolt" ? ["--store.bolt.data-path=/data/db.bolt"] : [],
           )
           readiness_probe {
             http_get {

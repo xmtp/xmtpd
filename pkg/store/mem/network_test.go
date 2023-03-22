@@ -23,7 +23,7 @@ func Test_RandomNodeAndTopicSpraying(t *testing.T) {
 		name := fmt.Sprintf("%d/%dn/%dt/%dm", i, tc.nodes, tc.topics, tc.messages)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			ntest.RandomNodeAndTopicSpraying(t, tc.nodes, tc.topics, tc.messages)
+			ntest.RunRandomNodeAndTopicSpraying(t, tc.nodes, tc.topics, tc.messages)
 		})
 	}
 }

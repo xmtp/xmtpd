@@ -28,7 +28,7 @@ func Test_RandomNodeAndTopicSpraying(t *testing.T) {
 			t.Parallel()
 			db, cleanup := newTestDB(t)
 			defer cleanup()
-			ntest.RandomNodeAndTopicSpraying(t, tc.nodes, tc.topics, tc.messages,
+			ntest.RunRandomNodeAndTopicSpraying(t, tc.nodes, tc.topics, tc.messages,
 				ntest.WithStoreMaker(func(t testing.TB, ctx context.Context) node.NodeStore {
 					store, err := postgresstore.NewNodeStore(ctx, db)
 					require.NoError(t, err)

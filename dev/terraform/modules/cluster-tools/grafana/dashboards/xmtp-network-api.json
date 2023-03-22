@@ -28,7 +28,10 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "xmtpd-metrics"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -41,8 +44,8 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -59,7 +62,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -105,13 +108,13 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "sum(rate(xmtpd_api_requests[$__rate_interval])) by (host_name, grpc_method, grpc_error_code)",
+          "expr": "sum(increase(xmtpd_api_requests[$__rate_interval])) by (api_app, grpc_method, grpc_error_code)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "API requests by k8s node, grpc method, and grpc error code",
+      "title": "API requests by k8s node, grpc method and grpc error code",
       "type": "timeseries"
     },
     {
@@ -247,7 +250,7 @@
         },
         "showUnfilled": true
       },
-      "pluginVersion": "9.3.1",
+      "pluginVersion": "9.3.8",
       "targets": [
         {
           "datasource": "Prometheus",

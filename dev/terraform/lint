@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eou pipefail
 
+terraform fmt -check -recursive
+
 tflint \
     --recursive \
     --disable-rule=terraform_typed_variables \

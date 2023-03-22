@@ -29,6 +29,9 @@ tf init -upgrade
 
 # Create clusters.
 tf apply -auto-approve -target=module.cluster
+tf apply -auto-approve \
+    -target=module.system.kubernetes_namespace.system \
+    -target=module.system.helm_release.argocd
 kind_cluster="$(tf output -json | jq -r '.cluster_name.value')"
 echo
 

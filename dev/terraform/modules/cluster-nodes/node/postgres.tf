@@ -5,44 +5,23 @@ locals {
   postgres_dsn          = local.postgres_password != null ? "postgres://postgres:${local.postgres_password}@${local.postgres_service_name}:5432?sslmode=disable" : null
 }
 
-resource "argocd_application" "postgres" {
-  count = var.store_type == "postgres" ? 1 : 0
-  wait  = true
-  metadata {
-    name      = local.postgres_name
-    namespace = var.argocd_namespace
-  }
-  spec {
-    project = var.argocd_project
-    source {
-      repo_url        = "https://charts.bitnami.com/bitnami"
-      chart           = "postgresql"
-      target_revision = "12.2.3"
-      helm {
-        release_name = local.postgres_name
-        values       = <<EOT
-        EOT
-      }
-    }
+module "argocd_app_postgres" {
+  count  = var.store_type == "postgres" ? 1 : 0
+  source = "../../argocd-application"
 
-    destination {
-      server    = "https://kubernetes.default.svc"
-      namespace = var.namespace
-    }
-
-    sync_policy {
-      automated = {
-        prune       = true
-        self_heal   = true
-        allow_empty = false
-      }
-    }
-  }
+  argocd_namespace = var.argocd_namespace
+  argocd_project   = var.argocd_project
+  name             = local.postgres_name
+  namespace        = var.namespace
+  repo_url         = "https://charts.bitnami.com/bitnami"
+  chart            = "postgresql"
+  target_revision  = "12.2.3"
+  wait             = true
 }
 
 data "kubernetes_secret" "postgres" {
   count      = var.store_type == "postgres" ? 1 : 0
-  depends_on = [argocd_application.postgres]
+  depends_on = [module.argocd_app_postgres]
   metadata {
     name      = "${local.postgres_name}-postgresql"
     namespace = var.namespace

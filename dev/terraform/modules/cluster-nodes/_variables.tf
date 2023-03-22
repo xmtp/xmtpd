@@ -5,11 +5,11 @@ variable "node_pool" {}
 variable "ingress_class_name" {}
 variable "nodes" {
   type = list(object({
-    name                     = string
-    node_id                  = string
-    p2p_public_address       = string
-    p2p_persistent_peers     = list(string)
-    store_type               = optional(string, "mem")
+    name                 = string
+    node_id              = string
+    p2p_public_address   = string
+    p2p_persistent_peers = list(string)
+    store_type           = optional(string, "mem")
   }))
 }
 variable "node_keys" {

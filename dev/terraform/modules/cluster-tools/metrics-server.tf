@@ -1,38 +1,18 @@
-resource "argocd_application" "metrics-server" {
-  count      = var.enable_monitoring ? 1 : 0
-  depends_on = [argocd_project.tools]
-  wait       = var.wait_for_ready
-  metadata {
-    name      = "metrics-server"
-    namespace = var.argocd_namespace
-  }
-  spec {
-    project = argocd_project.tools.metadata[0].name
-    source {
-      repo_url        = "https://kubernetes-sigs.github.io/metrics-server/"
-      chart           = "metrics-server"
-      target_revision = "3.8.3"
-      helm {
-        release_name = "metrics-server"
-        values       = <<EOT
-          args:
-            - --kubelet-insecure-tls
-            - --kubelet-preferred-address-types=InternalIP
-        EOT
-      }
-    }
+module "argocd_app_metrics_server" {
+  count  = var.enable_monitoring ? 1 : 0
+  source = "../argocd-application"
 
-    destination {
-      server    = "https://kubernetes.default.svc"
-      namespace = var.namespace
-    }
-
-    sync_policy {
-      automated = {
-        prune       = true
-        self_heal   = true
-        allow_empty = false
-      }
-    }
-  }
+  argocd_namespace = var.argocd_namespace
+  argocd_project   = module.argocd_project.name
+  name             = "metrics-server"
+  namespace        = var.namespace
+  wait             = var.wait_for_ready
+  repo_url         = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart            = "metrics-server"
+  target_revision  = "3.8.3"
+  helm_values      = <<EOF
+    args:
+      - --kubelet-insecure-tls
+      - --kubelet-preferred-address-types=InternalIP
+  EOF
 }

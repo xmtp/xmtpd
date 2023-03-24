@@ -55,14 +55,15 @@ type Node struct {
 	ns *server.Server
 	nc *nats.Conn
 
-	ot    *openTelemetry
-	peers *persistentPeers
+	metrics *Metrics
+	peers   *persistentPeers
 }
 
-func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
+func New(ctx context.Context, metrics *Metrics, store NodeStore, opts *Options) (*Node, error) {
 	n := &Node{
 		ctx:          ctx,
 		log:          ctx.Logger(),
+		metrics:      metrics,
 		store:        store,
 		topics:       map[string]*crdt.Replica{},
 		broadcasters: map[string]chan *types.Event{},
@@ -70,14 +71,12 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 
 	var err error
 
-	// Initialize open telemetry.
-	n.ot, err = newOpenTelemetry(n.ctx, &opts.OpenTelemetry)
-	if err != nil {
-		return nil, errors.Wrap(err, "initializing open telemetry")
-	}
-
 	// Initialize API server/gateway.
-	n.api, err = apigateway.New(n.ctx, n, &opts.API)
+	var apiMetrics *apigateway.Metrics
+	if metrics != nil {
+		apiMetrics = metrics.Api
+	}
+	n.api, err = apigateway.New(n.ctx, n, apiMetrics, &opts.API)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing api")
 	}
@@ -95,6 +94,7 @@ func New(ctx context.Context, store NodeStore, opts *Options) (*Node, error) {
 		return nil, err
 	}
 	n.log = n.log.With(zap.PeerID("node", n.host.ID()))
+	n.ctx = context.WithLogger(n.ctx, n.log)
 	n.log.Info("p2p listening", zap.Strings("addresses", n.P2PListenAddresses()))
 
 	// Initialize libp2p pubsub.
@@ -199,10 +199,6 @@ func (n *Node) Close() {
 		n.store.Close()
 	}
 
-	// Shut down telemetry
-	if n.ot != nil {
-		n.ot.Close()
-	}
 }
 
 func (n *Node) APIHTTPListenPort() uint {
@@ -362,7 +358,6 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 }
 
 func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
-	n.log.Debug("getting or creating topic", zap.String("topic", topic))
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
 	if replica, ok := n.topics[topic]; ok {
@@ -372,7 +367,6 @@ func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
 }
 
 func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
-	n.log.Debug("getting topic", zap.String("topic", topic))
 	n.topicsLock.RLock()
 	defer n.topicsLock.RUnlock()
 	replica, ok := n.topics[topic]
@@ -383,13 +377,15 @@ func (n *Node) getTopic(topic string) (*crdt.Replica, error) {
 }
 
 func (n *Node) createTopic(topic string) (*crdt.Replica, error) {
-	n.log.Debug("creating topic", zap.String("topic", topic))
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()
 	return n.addTopic(topic)
 }
 
 func (n *Node) addTopic(topic string) (*crdt.Replica, error) {
+	log := n.log.With(zap.String("topic", topic))
+	ctx := context.WithLogger(n.ctx, log)
+	log.Debug("adding topic")
 	if _, ok := n.topics[topic]; ok {
 		return nil, ErrTopicAlreadyExists
 	}
@@ -405,7 +401,11 @@ func (n *Node) addTopic(topic string) (*crdt.Replica, error) {
 	if err != nil {
 		return nil, err
 	}
-	replica, err := crdt.NewReplica(n.ctx, store, bc, syn, func(ev *types.Event) {
+	var crdtMetrics *crdt.Metrics
+	if n.metrics != nil {
+		crdtMetrics = n.metrics.Replicas
+	}
+	replica, err := crdt.NewReplica(ctx, crdtMetrics, store, bc, syn, func(ev *types.Event) {
 		evB, err := ev.ToBytes()
 		if err != nil {
 			n.log.Error("error converting event to bytes", zap.Error(err))
@@ -466,7 +466,8 @@ func (n *Node) getOrCreateBroadcaster(topic string) (*broadcaster, error) {
 
 func (n *Node) getOrCreateSyncer(topic string) (*syncer, error) {
 	return &syncer{
-		host:  n.host,
-		topic: topic,
+		metrics: n.metrics,
+		host:    n.host,
+		topic:   topic,
 	}, nil
 }

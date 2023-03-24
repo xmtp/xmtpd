@@ -14,8 +14,10 @@ type NodeStore struct {
 }
 
 func NewNodeStore(ctx context.Context, db *DB) (*NodeStore, error) {
+	log := ctx.Logger().Named("store")
+	ctx = context.WithLogger(ctx, log)
 	s := &NodeStore{
-		ctx: context.WithLogger(ctx, ctx.Logger().Named("pgstore")),
+		ctx: ctx,
 		db:  db,
 	}
 

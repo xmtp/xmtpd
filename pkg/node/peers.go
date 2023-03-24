@@ -76,7 +76,7 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 		go func() {
 			for {
 				peers := p.connectedPeers()
-				if _, ok := peers[peer.ID.Pretty()]; !ok {
+				if _, ok := peers[peer.ID]; !ok {
 					err := backoff.Retry(func() error {
 						ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 						defer cancel()
@@ -108,10 +108,10 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 	return p, nil
 }
 
-func (p *persistentPeers) connectedPeers() map[string]*peer.AddrInfo {
-	peers := map[string]*peer.AddrInfo{}
+func (p *persistentPeers) connectedPeers() map[peer.ID]*peer.AddrInfo {
+	peers := map[peer.ID]*peer.AddrInfo{}
 	for _, conn := range p.host.Network().Conns() {
-		peers[conn.RemotePeer().Pretty()] = &peer.AddrInfo{
+		peers[conn.RemotePeer()] = &peer.AddrInfo{
 			ID:    conn.RemotePeer(),
 			Addrs: []multiaddr.Multiaddr{conn.RemoteMultiaddr()},
 		}

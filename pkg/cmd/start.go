@@ -15,7 +15,8 @@ import (
 )
 
 type Start struct {
-	node.Options `group:"options"`
+	node.Options  `group:"node options"`
+	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
 
 	GitCommit string
 }
@@ -58,8 +59,20 @@ func (c *Start) Execute(args []string) error {
 		store = memstore.NewNodeStore(ctx)
 	}
 
+	// Initialize open telemetry.
+	ot, err := newOpenTelemetry(ctx, &c.OpenTelemetry)
+	if err != nil {
+		return errors.Wrap(err, "initializing open telemetry")
+	}
+	defer ot.Close()
+
+	metrics, err := node.NewMetrics(ot.meter)
+	if err != nil {
+		return errors.Wrap(err, "initializing metrics")
+	}
+
 	// Initialize node.
-	node, err := node.New(ctx, store, &c.Options)
+	node, err := node.New(ctx, metrics, store, &c.Options)
 	if err != nil {
 		ctx.Close()
 		return errors.Wrap(err, "error initializing node")

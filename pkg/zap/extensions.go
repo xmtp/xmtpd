@@ -1,6 +1,8 @@
 package zap
 
 import (
+	"fmt"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
@@ -88,4 +90,14 @@ func (mas multiaddrSlice) MarshalLogArray(enc zapcore.ArrayEncoder) error {
 
 func Multiaddrs(key string, mas ...multiaddr.Multiaddr) zapcore.Field {
 	return zap.Array(key, multiaddrSlice(mas))
+}
+
+type percent int
+
+func (p percent) String() string {
+	return fmt.Sprintf("%d%%", p)
+}
+
+func Percent(key string, p int) zapcore.Field {
+	return zap.Stringer(key, percent(p))
 }

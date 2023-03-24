@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/pkg/errors"
@@ -206,6 +207,10 @@ func (c *httpClient) post(ctx context.Context, path string, req interface{}) (*h
 	post = post.WithContext(ctx)
 	post.Header.Set("Content-Type", "application/json")
 	for key, value := range c.headers {
+		if strings.ToLower(key) == "host" {
+			post.Host = value
+			continue
+		}
 		post.Header.Set(key, value)
 	}
 	md, _ := metadata.FromOutgoingContext(ctx)

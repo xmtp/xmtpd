@@ -14,8 +14,9 @@ type NewEventFunc func(ev *types.Event)
 
 // Replica manages the DAG of a dataset replica.
 type Replica struct {
-	log *zap.Logger
-	ctx context.Context
+	log     *zap.Logger
+	ctx     context.Context
+	metrics *Metrics
 
 	onNewEvent NewEventFunc
 
@@ -28,10 +29,11 @@ type Replica struct {
 	pendingLinks         chan mh.Multihash // missing links that were discovered but not successfully fetched yet
 }
 
-func NewReplica(ctx context.Context, store Store, bc Broadcaster, syncer Syncer, onNewEvent NewEventFunc) (*Replica, error) {
+func NewReplica(ctx context.Context, metrics *Metrics, store Store, bc Broadcaster, syncer Syncer, onNewEvent NewEventFunc) (*Replica, error) {
 	r := &Replica{
 		log:        ctx.Logger(),
 		ctx:        ctx,
+		metrics:    metrics,
 		onNewEvent: onNewEvent,
 
 		store:       store,
@@ -42,7 +44,7 @@ func NewReplica(ctx context.Context, store Store, bc Broadcaster, syncer Syncer,
 		// current implementation can lock up if the channels fill up.
 		pendingReceiveEvents: make(chan *types.Event, 20),
 		pendingSyncEvents:    make(chan *types.Event, 20),
-		pendingLinks:         make(chan mh.Multihash, 20),
+		pendingLinks:         make(chan mh.Multihash, 200),
 	}
 
 	r.ctx.Go(r.receiveEventLoop)
@@ -67,7 +69,11 @@ func (r *Replica) BroadcastAppend(ctx context.Context, env *messagev1.Envelope) 
 	if err != nil {
 		return nil, err
 	}
-	return ev, r.broadcaster.Broadcast(ctx, ev)
+	err = r.broadcaster.Broadcast(ctx, ev)
+	if err != nil {
+		return nil, err
+	}
+	return ev, err
 }
 
 func (r *Replica) Query(ctx context.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
@@ -88,12 +94,15 @@ func (r *Replica) nextBroadcastedEventLoop(ctx context.Context) {
 		}
 		log.Debug("received broadcasted event", zap.Cid("event", ev.Cid))
 
+		r.metrics.recordFreeSpaceInEvents(ctx, r.pendingReceiveEvents, false)
 		select {
 		case r.pendingReceiveEvents <- ev:
 		case <-ctx.Done():
 			log.Debug("context closed", zap.Error(ctx.Err()))
 			return
 		}
+
+		r.metrics.recordReceivedEvent(ctx, ev, false)
 
 		if r.onNewEvent != nil {
 			r.onNewEvent(ev)
@@ -117,6 +126,7 @@ func (r *Replica) receiveEventLoop(ctx context.Context) {
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
+				r.metrics.recordFreeSpaceInEvents(ctx, r.pendingReceiveEvents, false)
 				select {
 				case r.pendingReceiveEvents <- ev:
 				case <-ctx.Done():
@@ -126,6 +136,7 @@ func (r *Replica) receiveEventLoop(ctx context.Context) {
 			}
 			if added {
 				for _, link := range ev.Links {
+					r.metrics.recordFreeSpaceInLinks(ctx, r.pendingLinks)
 					select {
 					case r.pendingLinks <- link:
 					case <-ctx.Done():
@@ -155,6 +166,7 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 			removed, err := r.store.RemoveHead(ctx, cid)
 			if err != nil {
 				log.Error("error removing head", zap.Cid("event", cid), zap.Error(err))
+				r.metrics.recordFreeSpaceInLinks(ctx, r.pendingLinks)
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
@@ -174,6 +186,7 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 			evs, err := r.syncer.Fetch(ctx, cids)
 			if err != nil {
 				log.Error("error fetching event", zap.Cids("event", cids...), zap.Error(err))
+				r.metrics.recordFreeSpaceInLinks(ctx, r.pendingLinks)
 				// requeue for later
 				// TODO: this will need refinement for invalid, missing cids etc.
 				// TODO: if the channel is full, this will lock up the loop
@@ -187,6 +200,7 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 			for _, cid := range cids {
 				ev := findEvent(cid, evs)
 				if ev == nil {
+					r.metrics.recordFreeSpaceInLinks(ctx, r.pendingLinks)
 					// requeue missing links
 					select {
 					case r.pendingLinks <- cid:
@@ -195,6 +209,7 @@ func (r *Replica) syncLinkLoop(ctx context.Context) {
 						return
 					}
 				} else {
+					r.metrics.recordFreeSpaceInEvents(ctx, r.pendingSyncEvents, true)
 					select {
 					case r.pendingSyncEvents <- ev:
 					case <-ctx.Done():
@@ -222,6 +237,7 @@ func (r *Replica) syncEventLoop(ctx context.Context) {
 			added, err := r.store.InsertEvent(ctx, ev)
 			if err != nil {
 				log.Error("error inserting event", zap.Cid("event", ev.Cid), zap.Error(err))
+				r.metrics.recordFreeSpaceInEvents(ctx, r.pendingSyncEvents, true)
 				// requeue for later
 				// TODO: may need a delay
 				// TODO: if the channel is full, this will lock up the loop
@@ -232,8 +248,12 @@ func (r *Replica) syncEventLoop(ctx context.Context) {
 					return
 				}
 			}
+
+			r.metrics.recordReceivedEvent(ctx, ev, true)
+
 			if added {
 				for _, link := range ev.Links {
+					r.metrics.recordFreeSpaceInLinks(ctx, r.pendingLinks)
 					// TODO: if the channel is full, this will lock up the loop
 					select {
 					case r.pendingLinks <- link:
@@ -255,6 +275,7 @@ func (r *Replica) bootstrap() error {
 		return err
 	}
 	for _, link := range links {
+		r.metrics.recordFreeSpaceInLinks(r.ctx, r.pendingLinks)
 		select {
 		case <-r.ctx.Done():
 			log.Debug("context closed", zap.Error(r.ctx.Err()))

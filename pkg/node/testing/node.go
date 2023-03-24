@@ -78,11 +78,7 @@ func NewNode(t *testing.T, opts ...TestNodeOption) *testNode {
 	}
 
 	var err error
-	tn.Node, err = node.New(tn.ctx, tn.store, &node.Options{
-		OpenTelemetry: node.OpenTelemetryOptions{
-			CollectorAddress: "localhost",
-			CollectorPort:    4317,
-		},
+	tn.Node, err = node.New(tn.ctx, nil, tn.store, &node.Options{
 		P2P: node.P2POptions{
 			PersistentPeers: tn.persistentPeers,
 		},

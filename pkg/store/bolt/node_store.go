@@ -28,7 +28,9 @@ type NodeStore struct {
 }
 
 func NewNodeStore(ctx context.Context, db *bolt.DB, opts *Options) (*NodeStore, error) {
-	ctx.Logger().Info("opening db", zap.String("path", db.Path()))
+	log := ctx.Logger().Named("store")
+	ctx = context.WithLogger(ctx, log)
+	log.Info("opening db", zap.String("path", db.Path()))
 	if err := db.Update(func(tx *bolt.Tx) error {
 		var err error
 		meta := tx.Bucket(MetaBucket)

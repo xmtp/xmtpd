@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -28,8 +29,9 @@ var (
 )
 
 type syncer struct {
-	host  host.Host
-	topic string
+	metrics *Metrics
+	host    host.Host
+	topic   string
 }
 
 func (n *Node) setSyncHandler() {
@@ -65,7 +67,8 @@ func (n *Node) setSyncHandler() {
 	})
 }
 
-func (s *syncer) Fetch(ctx context.Context, cids []multihash.Multihash) ([]*types.Event, error) {
+func (s *syncer) Fetch(ctx context.Context, cids []multihash.Multihash) (evs []*types.Event, err error) {
+	start := time.Now()
 	peer, err := randomPeer(s.host)
 	if err != nil {
 		return nil, err
@@ -82,7 +85,12 @@ func (s *syncer) Fetch(ctx context.Context, cids []multihash.Multihash) ([]*type
 	if err = s.writeFetchRequest(w, cids); err != nil {
 		return nil, err
 	}
-	return s.readFetchResponse(bufio.NewReader(stream))
+	evs, err = s.readFetchResponse(bufio.NewReader(stream))
+	if err != nil {
+		return nil, err
+	}
+	s.metrics.recordFetch(ctx, s.topic, time.Since(start))
+	return evs, err
 }
 
 func (s *syncer) Close() error {

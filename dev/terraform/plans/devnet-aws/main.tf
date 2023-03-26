@@ -44,7 +44,6 @@ locals {
   namespace = "xmtp"
   stage     = "devnet"
   name      = "aws"
-  fullname  = "xmtp-devnet-aws"
 
   node_hostnames       = flatten([for node in var.nodes : [for hostname in var.hostnames : "${node.name}.${hostname}"]])
   argocd_hostnames     = [for hostname in var.hostnames : "argo.${hostname}"]

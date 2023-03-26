@@ -2,13 +2,6 @@ locals {
   ingress_public_hostname = module.system.ingress_public_hostname
 }
 
-data "kubernetes_service" "ingress" {
-  metadata {
-    name      = "traefik"
-    namespace = module.system.namespace
-  }
-}
-
 resource "cloudflare_record" "hostnames" {
   count   = length(var.hostnames)
   zone_id = var.cloudflare_zone_id

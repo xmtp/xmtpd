@@ -68,3 +68,14 @@ resource "cloudflare_record" "prometheus_hostnames" {
   tags    = []
   proxied = true
 }
+
+resource "cloudflare_record" "chat_app_hostnames" {
+  count   = length(local.chat_app_hostnames)
+  zone_id = var.cloudflare_zone_id
+  name    = local.chat_app_hostnames[count.index]
+  value   = local.ingress_public_hostname
+  type    = "CNAME"
+  tags    = []
+  proxied = true
+}
+

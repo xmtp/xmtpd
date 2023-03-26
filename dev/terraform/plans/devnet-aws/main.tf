@@ -41,6 +41,11 @@ locals {
   ingress_class_name  = "traefik"
   node_api_http_port  = 5001
 
+  namespace = "xmtp"
+  stage     = "devnet"
+  name      = "aws"
+  fullname  = "xmtp-devnet-aws"
+
   node_hostnames       = flatten([for node in var.nodes : [for hostname in var.hostnames : "${node.name}.${hostname}"]])
   argocd_hostnames     = [for hostname in var.hostnames : "argo.${hostname}"]
   chat_app_hostnames   = [for hostname in var.hostnames : "chat.${hostname}"]
@@ -53,9 +58,9 @@ module "ecr_node_repo" {
   source  = "cloudposse/ecr/aws"
   version = "0.35.0"
 
-  namespace  = "xmtp"
-  stage      = "devnet"
-  name       = "aws"
+  namespace  = local.namespace
+  stage      = local.stage
+  name       = local.name
   attributes = ["node"]
 
   force_delete = true
@@ -64,9 +69,9 @@ module "ecr_node_repo" {
 module "cluster" {
   source = "../../modules/clusters/aws"
 
-  namespace = "xmtp"
-  stage     = "devnet"
-  name      = "aws"
+  namespace = local.namespace
+  stage     = local.stage
+  name      = local.name
 
   region                       = var.region
   availability_zones           = var.availability_zones
@@ -153,80 +158,4 @@ module "nodes" {
   debug                     = true
   wait_for_ready            = false
   one_instance_per_k8s_node = false
-}
-
-resource "null_resource" "wait_for_ingress_lb" {
-  provisioner "local-exec" {
-    command = <<-EOF
-      ${path.module}/kubeconfig.sh
-      export KUBECONFIG="${path.module}/.xmtp/kubeconfig.yaml"
-      until kubectl get service/traefik -n ${module.system.namespace} --output=jsonpath='{.status.loadBalancer}' | grep ingress; do : ; done
-    EOF
-  }
-}
-
-resource "cloudflare_record" "hostnames" {
-  count      = length(var.hostnames)
-  depends_on = [null_resource.wait_for_ingress_lb]
-  zone_id    = var.cloudflare_zone_id
-  name       = var.hostnames[count.index]
-  value      = module.system.ingress_public_hostname
-  type       = "CNAME"
-  tags       = []
-  proxied    = true
-}
-
-resource "cloudflare_record" "node_hostnames" {
-  count      = length(local.node_hostnames)
-  depends_on = [null_resource.wait_for_ingress_lb]
-  zone_id    = var.cloudflare_zone_id
-  name       = local.node_hostnames[count.index]
-  value      = module.system.ingress_public_hostname
-  type       = "CNAME"
-  tags       = []
-  proxied    = true
-}
-
-resource "cloudflare_record" "argocd_hostnames" {
-  count      = length(local.argocd_hostnames)
-  depends_on = [null_resource.wait_for_ingress_lb]
-  zone_id    = var.cloudflare_zone_id
-  name       = local.argocd_hostnames[count.index]
-  value      = module.system.ingress_public_hostname
-  type       = "CNAME"
-  tags       = []
-  proxied    = true
-}
-
-resource "cloudflare_record" "grafana_hostnames" {
-  count      = length(local.grafana_hostnames)
-  depends_on = [null_resource.wait_for_ingress_lb]
-  zone_id    = var.cloudflare_zone_id
-  name       = local.grafana_hostnames[count.index]
-  value      = module.system.ingress_public_hostname
-  type       = "CNAME"
-  tags       = []
-  proxied    = true
-}
-
-resource "cloudflare_record" "jaeger_hostnames" {
-  count      = length(local.jaeger_hostnames)
-  depends_on = [null_resource.wait_for_ingress_lb]
-  zone_id    = var.cloudflare_zone_id
-  name       = local.jaeger_hostnames[count.index]
-  value      = module.system.ingress_public_hostname
-  type       = "CNAME"
-  tags       = []
-  proxied    = true
-}
-
-resource "cloudflare_record" "prometheus_hostnames" {
-  count      = length(local.prometheus_hostnames)
-  depends_on = [null_resource.wait_for_ingress_lb]
-  zone_id    = var.cloudflare_zone_id
-  name       = local.prometheus_hostnames[count.index]
-  value      = module.system.ingress_public_hostname
-  type       = "CNAME"
-  tags       = []
-  proxied    = true
 }

@@ -37,7 +37,8 @@ resource "kubernetes_deployment" "deployment" {
     }
     template {
       metadata {
-        labels = local.labels
+        labels      = local.labels
+        annotations = {}
       }
       spec {
         node_selector = {

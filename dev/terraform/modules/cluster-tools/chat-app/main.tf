@@ -69,19 +69,13 @@ resource "kubernetes_deployment" "deployment" {
 resource "kubernetes_ingress_v1" "app" {
   count = length(var.hostnames) > 0 ? 1 : 0
   metadata {
-    name      = var.name
-    namespace = var.namespace
-    labels    = {}
-    annotations = {
-      "cert-manager.io/cluster-issuer" = "cert-manager"
-    }
+    name        = var.name
+    namespace   = var.namespace
+    labels      = {}
+    annotations = {}
   }
   spec {
     ingress_class_name = var.ingress_class_name
-    tls {
-      hosts       = var.hostnames
-      secret_name = "${var.name}-tls"
-    }
     dynamic "rule" {
       for_each = var.hostnames
       content {

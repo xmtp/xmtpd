@@ -7,9 +7,10 @@ locals {
 
 resource "kubernetes_ingress_v1" "ingress" {
   metadata {
-    name      = var.name
-    namespace = var.namespace
-    labels    = local.labels
+    name        = var.name
+    namespace   = var.namespace
+    labels      = local.labels
+    annotations = {}
   }
   spec {
     ingress_class_name = var.ingress_class_name
@@ -40,9 +41,10 @@ resource "kubernetes_ingress_v1" "ingress" {
 
 resource "kubernetes_service" "service" {
   metadata {
-    name      = var.name
-    namespace = var.namespace
-    labels    = local.labels
+    name        = var.name
+    namespace   = var.namespace
+    labels      = local.labels
+    annotations = {}
   }
   spec {
     selector = local.labels
@@ -63,9 +65,10 @@ resource "kubernetes_service" "service" {
 
 resource "kubernetes_secret" "secret" {
   metadata {
-    name      = var.name
-    namespace = var.namespace
-    labels    = local.labels
+    name        = var.name
+    namespace   = var.namespace
+    labels      = local.labels
+    annotations = {}
   }
   data = merge(
     {
@@ -78,9 +81,10 @@ resource "kubernetes_secret" "secret" {
 resource "kubernetes_stateful_set" "statefulset" {
   wait_for_rollout = var.wait_for_ready
   metadata {
-    name      = var.name
-    namespace = var.namespace
-    labels    = local.labels
+    name        = var.name
+    namespace   = var.namespace
+    labels      = local.labels
+    annotations = {}
   }
   spec {
     selector {
@@ -145,6 +149,7 @@ resource "kubernetes_stateful_set" "statefulset" {
               }
             }
           }
+          args = []
           command = concat(
             [
               "xmtpd",

@@ -5,7 +5,7 @@ module "argocd_app_metrics_server" {
   argocd_namespace = var.argocd_namespace
   argocd_project   = module.argocd_project.name
   name             = "metrics-server"
-  namespace        = var.namespace
+  namespace        = "kube-system"
   wait             = var.wait_for_ready
   repo_url         = "https://kubernetes-sigs.github.io/metrics-server/"
   chart            = "metrics-server"

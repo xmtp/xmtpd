@@ -17,7 +17,11 @@ module "argocd_project" {
     {
       server    = "https://kubernetes.default.svc"
       namespace = local.namespace
-    }
+    },
+    {
+      server    = "https://kubernetes.default.svc"
+      namespace = "kube-system"
+    },
   ]
 }
 

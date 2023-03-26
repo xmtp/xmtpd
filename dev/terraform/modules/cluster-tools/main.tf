@@ -29,6 +29,6 @@ module "chat-app" {
   node_pool_label_key   = var.node_pool_label_key
   node_pool_label_value = var.node_pool
   api_url               = var.public_api_url
-  hostnames             = [for hostname in var.hostnames : "chat.${hostname}"]
+  hostnames             = var.chat_app_hostnames
   ingress_class_name    = var.ingress_class_name
 }

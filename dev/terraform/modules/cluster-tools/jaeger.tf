@@ -1,6 +1,5 @@
 locals {
-  jaeger_hostnames          = [for hostname in var.hostnames : "jaeger.${hostname}"]
-  jaeger_public_hostname    = local.jaeger_hostnames[0]
+  jaeger_public_hostname    = var.jaeger_hostnames[0]
   jaegar_public_url         = "http://${local.jaeger_public_hostname}"
   jaeger_collector_endpoint = "jaeger-collector:4317"
   jaeger_query_endpoint     = "jaeger-query:16686"
@@ -36,8 +35,7 @@ module "argocd_app_jaeger" {
         ingress:
           enabled: true
           ingressClassName: ${var.ingress_class_name}
-          hosts:
-            - ${local.jaeger_public_hostname}
+          hosts: ${jsonencode(var.jaeger_hostnames)}
       provisionDataStore:
         cassandra: false
       agent:

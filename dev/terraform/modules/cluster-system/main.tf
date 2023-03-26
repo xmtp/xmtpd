@@ -117,3 +117,11 @@ module "argocd_app_traefik" {
     ] : [],
   )
 }
+
+data "kubernetes_service" "traefik_service" {
+  depends_on = [module.argocd_app_traefik]
+  metadata {
+    name      = "traefik"
+    namespace = local.namespace
+  }
+}

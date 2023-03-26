@@ -17,6 +17,11 @@ locals {
   cluster_https_node_port = 32443
   hostnames               = ["localhost", "xmtp.local"]
   node_api_http_port      = 5001
+
+  chat_app_hostnames   = [for hostname in local.hostnames : "chat.${hostname}"]
+  grafana_hostnames    = [for hostname in local.hostnames : "grafana.${hostname}"]
+  jaeger_hostnames     = [for hostname in local.hostnames : "jaeger.${hostname}"]
+  prometheus_hostnames = [for hostname in local.hostnames : "prometheus.${hostname}"]
 }
 
 module "cluster" {
@@ -62,17 +67,20 @@ module "tools" {
   source     = "../../modules/cluster-tools"
   depends_on = [module.system]
 
-  namespace           = "xmtp-tools"
-  node_pool_label_key = local.node_pool_label_key
-  node_pool           = local.system_node_pool
-  argocd_namespace    = module.system.namespace
-  argocd_project      = "xmtp-tools"
-  ingress_class_name  = local.ingress_class_name
-  wait_for_ready      = false
-  enable_chat_app     = var.enable_chat_app
-  enable_monitoring   = var.enable_monitoring
-  hostnames           = local.hostnames
-  public_api_url      = "http://${local.hostnames[0]}"
+  namespace            = "xmtp-tools"
+  node_pool_label_key  = local.node_pool_label_key
+  node_pool            = local.system_node_pool
+  argocd_namespace     = module.system.namespace
+  argocd_project       = "xmtp-tools"
+  ingress_class_name   = local.ingress_class_name
+  wait_for_ready       = false
+  enable_chat_app      = var.enable_chat_app
+  enable_monitoring    = var.enable_monitoring
+  public_api_url       = "http://${local.hostnames[0]}"
+  chat_app_hostnames   = local.chat_app_hostnames
+  grafana_hostnames    = local.grafana_hostnames
+  jaeger_hostnames     = local.jaeger_hostnames
+  prometheus_hostnames = local.prometheus_hostnames
 }
 
 module "nodes" {

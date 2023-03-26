@@ -6,8 +6,10 @@ locals {
 
 resource "kubernetes_service" "service" {
   metadata {
-    name      = var.name
-    namespace = var.namespace
+    name        = var.name
+    namespace   = var.namespace
+    labels      = {}
+    annotations = {}
   }
   spec {
     selector = local.labels
@@ -16,14 +18,17 @@ resource "kubernetes_service" "service" {
       port        = var.service_port
       target_port = var.container_port
     }
+    external_ips                = []
+    load_balancer_source_ranges = []
   }
 }
 
 resource "kubernetes_deployment" "deployment" {
   metadata {
-    name      = var.name
-    namespace = var.namespace
-    labels    = local.labels
+    name        = var.name
+    namespace   = var.namespace
+    labels      = local.labels
+    annotations = {}
   }
   spec {
     replicas = 1
@@ -39,8 +44,10 @@ resource "kubernetes_deployment" "deployment" {
           (var.node_pool_label_key) = var.node_pool_label_value
         }
         container {
-          name  = "web"
-          image = var.container_image
+          name    = "web"
+          image   = var.container_image
+          command = []
+          args    = []
           port {
             name           = "http"
             container_port = var.container_port
@@ -64,6 +71,7 @@ resource "kubernetes_ingress_v1" "app" {
   metadata {
     name      = var.name
     namespace = var.namespace
+    labels    = {}
     annotations = {
       "cert-manager.io/cluster-issuer" = "cert-manager"
     }

@@ -1,5 +1,4 @@
 locals {
-  prometheus_hostnames       = [for hostname in var.hostnames : "prometheus.${hostname}"]
   prometheus_server_endpoint = "prometheus-server:80"
   prometheus_server_url      = "http://${local.prometheus_server_endpoint}"
 }
@@ -25,7 +24,7 @@ module "argocd_app_prometheus" {
           enabled: false
         ingress:
           enabled: true
-          hosts: ${jsonencode(local.prometheus_hostnames)}
+          hosts: ${jsonencode(var.prometheus_hostnames)}
         global:
           evaluation_interval: 30s
           scrape_interval: 10s

@@ -45,3 +45,5 @@ variable "node_keys" {
 variable "enable_chat_app" { default = true }
 variable "enable_monitoring" { default = true }
 variable "hostnames" { type = list(string) }
+variable "cloudflare_api_token" { sensitive = true }
+variable "cloudflare_zone_id" {}

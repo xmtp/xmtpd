@@ -1,7 +1,3 @@
-locals {
-  grafana_hostnames = [for hostname in var.hostnames : "grafana.${hostname}"]
-}
-
 resource "kubernetes_config_map" "xmtp-dashboards" {
   depends_on = [kubernetes_namespace.tools]
   metadata {
@@ -33,7 +29,7 @@ module "argocd_app_grafana" {
         enabled: false
       ingress:
         enabled: true
-        hosts: ${jsonencode(local.grafana_hostnames)}
+        hosts: ${jsonencode(var.grafana_hostnames)}
       grafana.ini:
         auth.anonymous:
           enabled: true

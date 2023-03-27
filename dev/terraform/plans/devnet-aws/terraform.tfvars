@@ -5,4 +5,4 @@ kubernetes_version           = "1.25"
 enabled_cluster_log_types    = ["audit"]
 cluster_log_retention_period = 7
 
-hostnames = ["xmtp.snormore.dev", "xmtp-devnet-aws-us-east-2.snormore.dev"]
+hostnames = ["snormore.dev"]

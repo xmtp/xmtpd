@@ -22,6 +22,7 @@ tf apply -auto-approve \
 tf apply -auto-approve \
     -target=module.system.kubernetes_namespace.system \
     -target=module.system.helm_release.argocd
+tf apply -auto-approve -refresh-only
 node_repo_url="$(tf output -json | jq -r '.ecr_node_repo_url.value')"
 aws_region="$(tf output -json | jq -r '.region.value')"
 ecr_repo_id="$(tf output -json | jq -r '.ecr_node_repo_id.value')"

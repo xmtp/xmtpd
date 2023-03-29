@@ -94,7 +94,8 @@ resource "kubernetes_stateful_set" "statefulset" {
     replicas     = 1
     template {
       metadata {
-        labels = local.labels
+        labels      = local.labels
+        annotations = {}
       }
       spec {
         termination_grace_period_seconds = 10
@@ -185,8 +186,9 @@ resource "kubernetes_stateful_set" "statefulset" {
       for_each = var.store_type == "bolt" ? [1] : []
       content {
         metadata {
-          name   = "data"
-          labels = local.labels
+          name        = "data"
+          labels      = local.labels
+          annotations = {}
         }
         spec {
           access_modes = [
@@ -194,6 +196,7 @@ resource "kubernetes_stateful_set" "statefulset" {
           ]
           storage_class_name = var.storage_class_name
           resources {
+            limits = {}
             requests = {
               "storage" = var.storage_request
             }

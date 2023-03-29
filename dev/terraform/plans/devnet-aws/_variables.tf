@@ -30,12 +30,11 @@ variable "cluster_log_retention_period" {
 variable "node_container_image" { default = "xmtpdev/xmtpd:dev" }
 variable "nodes" {
   type = list(object({
-    name                     = string
-    node_id                  = string
-    p2p_public_address       = string
-    p2p_persistent_peers     = list(string)
-    enable_postgres          = optional(bool, false)
-    enable_persistent_volume = optional(bool, false)
+    name                 = string
+    node_id              = string
+    p2p_public_address   = string
+    p2p_persistent_peers = list(string)
+    store_type           = optional(string, "mem")
   }))
 }
 variable "node_keys" {

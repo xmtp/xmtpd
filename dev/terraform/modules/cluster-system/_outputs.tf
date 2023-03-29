@@ -15,6 +15,10 @@ output "argocd_password" {
   sensitive = true
 }
 
+output "argocd_project" {
+  value = var.argocd_project
+}
+
 output "ingress_public_hostname" {
   value = try(kubernetes_service.traefik.status[0].load_balancer[0].ingress[0].hostname, null)
 }

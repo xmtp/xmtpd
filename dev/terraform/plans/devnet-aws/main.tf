@@ -44,6 +44,7 @@ locals {
   namespace = "xmtp"
   stage     = "devnet"
   name      = "aws"
+  fullname  = "${local.namespace}-${local.stage}-${local.name}"
 
   node_hostnames       = flatten([for node in var.nodes : [for hostname in var.hostnames : "${node.name}.${hostname}"]])
   argocd_hostnames     = [for hostname in var.hostnames : "argo.${hostname}"]
@@ -52,6 +53,8 @@ locals {
   jaeger_hostnames     = [for hostname in var.hostnames : "jaeger.${hostname}"]
   prometheus_hostnames = [for hostname in var.hostnames : "prometheus.${hostname}"]
 }
+
+data "aws_caller_identity" "current" {}
 
 module "ecr_node_repo" {
   source  = "cloudposse/ecr/aws"
@@ -151,7 +154,7 @@ module "nodes" {
   ingress_class_name        = local.ingress_class_name
   hostnames                 = var.hostnames
   node_api_http_port        = local.node_api_http_port
-  storage_class_name        = "standard"
+  storage_class_name        = "gp2"
   container_storage_request = "1Gi"
   container_cpu_request     = "10m"
   debug                     = true

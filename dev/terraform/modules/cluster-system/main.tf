@@ -4,9 +4,13 @@ resource "kubernetes_namespace" "system" {
   }
 }
 
+locals {
+  namespace = kubernetes_namespace.system.metadata[0].name
+}
+
 resource "helm_release" "argocd" {
   name       = "argocd"
-  namespace  = var.namespace
+  namespace  = local.namespace
   repository = "https://argoproj.github.io/argo-helm"
   version    = "5.23.5"
   chart      = "argo-cd"
@@ -59,7 +63,7 @@ data "kubernetes_secret" "argocd-initial-admin-secret" {
   depends_on = [helm_release.argocd]
   metadata {
     name      = "argocd-initial-admin-secret"
-    namespace = var.namespace
+    namespace = local.namespace
   }
 }
 
@@ -67,41 +71,77 @@ module "argocd_project" {
   source = "../argocd-project"
 
   name      = var.argocd_project
-  namespace = var.namespace
+  namespace = local.namespace
   destinations = [
     {
       server    = "https://kubernetes.default.svc"
-      namespace = var.namespace
-    }
+      namespace = local.namespace
+    },
+    {
+      server    = "https://kubernetes.default.svc"
+      namespace = "kube-system"
+    },
   ]
 }
 
-module "argocd_application" {
+resource "kubernetes_service" "traefik" {
+  depends_on             = [module.argocd_app_traefik]
+  wait_for_load_balancer = var.ingress_service_type == "LoadBalancer"
+  metadata {
+    name      = "traefik"
+    namespace = local.namespace
+    labels = {
+      "app.kubernetes.io/name" = "traefik"
+    }
+    annotations = {}
+  }
+  spec {
+    type = var.ingress_service_type
+    selector = {
+      "app.kubernetes.io/instance" = "traefik-${local.namespace}"
+      "app.kubernetes.io/name"     = "traefik"
+    }
+    port {
+      name        = "web"
+      port        = 80
+      protocol    = "TCP"
+      target_port = "web"
+      node_port   = var.cluster_http_node_port
+    }
+    port {
+      name        = "websecure"
+      port        = 443
+      protocol    = "TCP"
+      target_port = "websecure"
+      node_port   = var.cluster_https_node_port
+    }
+  }
+}
+
+module "argocd_app_traefik" {
   source = "../argocd-application"
 
-  argocd_namespace = var.namespace
+  argocd_namespace = local.namespace
   argocd_project   = module.argocd_project.name
   name             = "traefik"
-  namespace        = var.namespace
+  namespace        = local.namespace
   repo_url         = "https://traefik.github.io/charts"
   chart            = "traefik"
   target_revision  = "21.1.0"
-  helm_values      = <<EOF
-    service:
-      type: NodePort
-    nodeSelector:
-      ${var.node_pool_label_key}: ${var.node_pool}
-    ports:
-      web:
-        nodePort: ${var.cluster_http_node_port}
-      websecure:
-        nodePort: ${var.cluster_https_node_port}
-    providers:
-      kubernetesCRD:
-        ingressClass: ${var.ingress_class_name}
-      kubernetesIngress:
-        ingressClass: ${var.ingress_class_name}
-        publishedService:
-          enabled: true
-  EOF
+  helm_values = [
+    <<EOF
+      service:
+        enabled: false
+        type: ${var.ingress_service_type}
+      nodeSelector:
+        ${var.node_pool_label_key}: ${var.node_pool}
+      providers:
+        kubernetesCRD:
+          ingressClass: ${var.ingress_class_name}
+        kubernetesIngress:
+          ingressClass: ${var.ingress_class_name}
+          publishedService:
+            enabled: true
+    EOF
+  ]
 }

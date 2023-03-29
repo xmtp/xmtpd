@@ -3,6 +3,13 @@ locals {
   nodes_mid_index = floor(local.num_nodes / 2)
   nodes_group1    = slice(var.nodes, 0, local.nodes_mid_index)
   nodes_group2    = slice(var.nodes, local.nodes_mid_index, local.num_nodes)
+  namespace       = kubernetes_namespace.nodes.metadata[0].name
+}
+
+resource "kubernetes_namespace" "nodes" {
+  metadata {
+    name = var.namespace
+  }
 }
 
 module "argocd_project" {
@@ -13,15 +20,9 @@ module "argocd_project" {
   destinations = [
     {
       server    = "https://kubernetes.default.svc"
-      namespace = var.namespace
+      namespace = local.namespace
     }
   ]
-}
-
-resource "kubernetes_namespace" "nodes" {
-  metadata {
-    name = var.namespace
-  }
 }
 
 module "nodes_group1" {
@@ -30,7 +31,7 @@ module "nodes_group1" {
   count      = length(local.nodes_group1)
 
   name                      = local.nodes_group1[count.index].name
-  namespace                 = var.namespace
+  namespace                 = local.namespace
   argocd_project            = var.argocd_project
   argocd_namespace          = var.argocd_namespace
   p2p_persistent_peers      = local.nodes_group1[count.index].p2p_persistent_peers
@@ -59,7 +60,7 @@ module "nodes_group2" {
   count      = length(local.nodes_group2)
 
   name                      = local.nodes_group2[count.index].name
-  namespace                 = var.namespace
+  namespace                 = local.namespace
   argocd_project            = var.argocd_project
   argocd_namespace          = var.argocd_namespace
   p2p_persistent_peers      = local.nodes_group2[count.index].p2p_persistent_peers
@@ -85,7 +86,7 @@ module "nodes_group2" {
 resource "kubernetes_service" "nodes_api" {
   metadata {
     name      = "nodes-api"
-    namespace = var.namespace
+    namespace = local.namespace
   }
   spec {
     selector = {
@@ -102,7 +103,7 @@ resource "kubernetes_service" "nodes_api" {
 resource "kubernetes_ingress_v1" "nodes_api" {
   metadata {
     name      = "nodes-api"
-    namespace = var.namespace
+    namespace = local.namespace
   }
   spec {
     ingress_class_name = var.ingress_class_name

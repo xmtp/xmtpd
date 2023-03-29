@@ -13,10 +13,9 @@ fi
 
 destroy_path="${plan_dir}/destroy.sh"
 
-if [ ! -f "${destroy_path}" ]; then
-    echo "${destroy_path} does not exist"
-    exit 1
+if [ -f "${destroy_path}" ]; then
+    cd "${plan_dir}"
+    ./destroy.sh "$@"
+else
+    "${script_dir}"/tf destroy "$@"
 fi
-
-cd "${plan_dir}"
-./destroy.sh

@@ -4,6 +4,7 @@ bin/
 # Terraform
 .xmtp/
 terraform.secrets.auto.tfvars.json
+terraform.secrets.auto.tfvars
 secrets.tfvars
 secrets.tfvars.json
 !dev/terraform/plans/devnet-local/terraform.secrets.auto.tfvars.json

@@ -6,6 +6,9 @@ while IFS= read -r file; do
     if [[ "${file}" == *".git/"* ]]; then
         continue
     fi
+    if [[ "${file}" == *".terraform/"* ]]; then
+        continue
+    fi
     if head "${file}" | grep -q "#!"; then
         files="${files} ${file}"
     fi

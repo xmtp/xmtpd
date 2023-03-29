@@ -64,16 +64,9 @@ resource "kubernetes_ingress_v1" "app" {
   metadata {
     name      = var.name
     namespace = var.namespace
-    annotations = {
-      "cert-manager.io/cluster-issuer" = "cert-manager"
-    }
   }
   spec {
     ingress_class_name = var.ingress_class_name
-    tls {
-      hosts       = var.hostnames
-      secret_name = "${var.name}-tls"
-    }
     dynamic "rule" {
       for_each = var.hostnames
       content {

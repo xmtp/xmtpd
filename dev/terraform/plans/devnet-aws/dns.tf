@@ -8,7 +8,6 @@ resource "cloudflare_record" "hostnames" {
   name    = var.hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 
@@ -18,7 +17,6 @@ resource "cloudflare_record" "node_hostnames" {
   name    = local.node_hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 
@@ -28,7 +26,6 @@ resource "cloudflare_record" "argocd_hostnames" {
   name    = local.argocd_hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 
@@ -38,7 +35,6 @@ resource "cloudflare_record" "grafana_hostnames" {
   name    = local.grafana_hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 
@@ -48,7 +44,6 @@ resource "cloudflare_record" "jaeger_hostnames" {
   name    = local.jaeger_hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 
@@ -58,7 +53,6 @@ resource "cloudflare_record" "prometheus_hostnames" {
   name    = local.prometheus_hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 
@@ -68,7 +62,6 @@ resource "cloudflare_record" "chat_app_hostnames" {
   name    = local.chat_app_hostnames[count.index]
   value   = local.ingress_public_hostname
   type    = "CNAME"
-  tags    = []
   proxied = true
 }
 

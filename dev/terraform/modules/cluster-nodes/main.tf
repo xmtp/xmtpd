@@ -8,9 +8,7 @@ locals {
 
 resource "kubernetes_namespace" "nodes" {
   metadata {
-    name        = var.namespace
-    labels      = {}
-    annotations = {}
+    name = var.namespace
   }
 }
 
@@ -87,10 +85,8 @@ module "nodes_group2" {
 
 resource "kubernetes_service" "nodes_api" {
   metadata {
-    name        = "nodes-api"
-    namespace   = local.namespace
-    labels      = {}
-    annotations = {}
+    name      = "nodes-api"
+    namespace = local.namespace
   }
   spec {
     selector = {
@@ -106,10 +102,8 @@ resource "kubernetes_service" "nodes_api" {
 
 resource "kubernetes_ingress_v1" "nodes_api" {
   metadata {
-    name        = "nodes-api"
-    namespace   = local.namespace
-    labels      = {}
-    annotations = {}
+    name      = "nodes-api"
+    namespace = local.namespace
   }
   spec {
     ingress_class_name = var.ingress_class_name

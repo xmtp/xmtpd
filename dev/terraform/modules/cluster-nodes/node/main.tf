@@ -7,10 +7,9 @@ locals {
 
 resource "kubernetes_ingress_v1" "ingress" {
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = local.labels
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
+    labels    = local.labels
   }
   spec {
     ingress_class_name = var.ingress_class_name
@@ -41,10 +40,9 @@ resource "kubernetes_ingress_v1" "ingress" {
 
 resource "kubernetes_service" "service" {
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = local.labels
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
+    labels    = local.labels
   }
   spec {
     selector = local.labels
@@ -65,10 +63,9 @@ resource "kubernetes_service" "service" {
 
 resource "kubernetes_secret" "secret" {
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = local.labels
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
+    labels    = local.labels
   }
   data = merge(
     {
@@ -81,10 +78,9 @@ resource "kubernetes_secret" "secret" {
 resource "kubernetes_stateful_set" "statefulset" {
   wait_for_rollout = var.wait_for_ready
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = local.labels
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
+    labels    = local.labels
   }
   spec {
     selector {
@@ -94,8 +90,7 @@ resource "kubernetes_stateful_set" "statefulset" {
     replicas     = 1
     template {
       metadata {
-        labels      = local.labels
-        annotations = {}
+        labels = local.labels
       }
       spec {
         termination_grace_period_seconds = 10
@@ -150,7 +145,6 @@ resource "kubernetes_stateful_set" "statefulset" {
               }
             }
           }
-          args = []
           command = concat(
             [
               "xmtpd",
@@ -186,9 +180,8 @@ resource "kubernetes_stateful_set" "statefulset" {
       for_each = var.store_type == "bolt" ? [1] : []
       content {
         metadata {
-          name        = "data"
-          labels      = local.labels
-          annotations = {}
+          name   = "data"
+          labels = local.labels
         }
         spec {
           access_modes = [
@@ -196,7 +189,6 @@ resource "kubernetes_stateful_set" "statefulset" {
           ]
           storage_class_name = var.storage_class_name
           resources {
-            limits = {}
             requests = {
               "storage" = var.storage_request
             }

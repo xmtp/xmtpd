@@ -6,10 +6,8 @@ locals {
 
 resource "kubernetes_service" "service" {
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = {}
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
   }
   spec {
     selector = local.labels
@@ -18,17 +16,14 @@ resource "kubernetes_service" "service" {
       port        = var.service_port
       target_port = var.container_port
     }
-    external_ips                = []
-    load_balancer_source_ranges = []
   }
 }
 
 resource "kubernetes_deployment" "deployment" {
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = local.labels
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
+    labels    = local.labels
   }
   spec {
     replicas = 1
@@ -37,18 +32,15 @@ resource "kubernetes_deployment" "deployment" {
     }
     template {
       metadata {
-        labels      = local.labels
-        annotations = {}
+        labels = local.labels
       }
       spec {
         node_selector = {
           (var.node_pool_label_key) = var.node_pool_label_value
         }
         container {
-          name    = "web"
-          image   = var.container_image
-          command = []
-          args    = []
+          name  = "web"
+          image = var.container_image
           port {
             name           = "http"
             container_port = var.container_port
@@ -70,10 +62,8 @@ resource "kubernetes_deployment" "deployment" {
 resource "kubernetes_ingress_v1" "app" {
   count = length(var.hostnames) > 0 ? 1 : 0
   metadata {
-    name        = var.name
-    namespace   = var.namespace
-    labels      = {}
-    annotations = {}
+    name      = var.name
+    namespace = var.namespace
   }
   spec {
     ingress_class_name = var.ingress_class_name

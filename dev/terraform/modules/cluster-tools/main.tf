@@ -1,8 +1,6 @@
 resource "kubernetes_namespace" "tools" {
   metadata {
-    name        = var.namespace
-    labels      = {}
-    annotations = {}
+    name = var.namespace
   }
 }
 

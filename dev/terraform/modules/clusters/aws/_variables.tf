@@ -44,8 +44,8 @@ variable "node_pools" {
     name           = string
     labels         = optional(map(string), {})
     desired_size   = number
-    min_size       = number
-    max_size       = number
+    min_size       = optional(number, null)
+    max_size       = optional(number, null)
     instance_types = list(string)
   }))
 }

@@ -108,8 +108,8 @@ module "eks_node_group" {
   cluster_name      = module.eks_cluster.eks_cluster_id
   instance_types    = var.node_pools[count.index].instance_types
   desired_size      = var.node_pools[count.index].desired_size
-  min_size          = var.node_pools[count.index].min_size
-  max_size          = var.node_pools[count.index].max_size
+  min_size          = coalesce(var.node_pools[count.index].min_size, var.node_pools[count.index].desired_size)
+  max_size          = coalesce(var.node_pools[count.index].max_size, var.node_pools[count.index].desired_size)
   kubernetes_labels = var.node_pools[count.index].labels
 
   # Prevent the node groups from being created before the Kubernetes aws-auth ConfigMap

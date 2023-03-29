@@ -1,0 +1,7 @@
+{
+    "search.exclude": {
+        "**/.git": true,
+        "**/.terraform": true,
+        "**/.xmtp": true
+    }
+}

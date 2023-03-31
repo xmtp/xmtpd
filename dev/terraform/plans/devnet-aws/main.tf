@@ -52,6 +52,7 @@ locals {
   grafana_hostnames    = [for hostname in var.hostnames : "grafana.${hostname}"]
   jaeger_hostnames     = [for hostname in var.hostnames : "jaeger.${hostname}"]
   prometheus_hostnames = [for hostname in var.hostnames : "prometheus.${hostname}"]
+  promlens_hostnames   = [for hostname in var.hostnames : "promlens.${hostname}"]
 }
 
 data "aws_caller_identity" "current" {}
@@ -133,6 +134,7 @@ module "tools" {
   grafana_hostnames    = local.grafana_hostnames
   jaeger_hostnames     = local.jaeger_hostnames
   prometheus_hostnames = local.prometheus_hostnames
+  promlens_hostnames   = local.promlens_hostnames
 }
 
 module "nodes" {

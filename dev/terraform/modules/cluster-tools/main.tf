@@ -36,3 +36,16 @@ module "chat-app" {
   hostnames             = var.chat_app_hostnames
   ingress_class_name    = var.ingress_class_name
 }
+
+module "promlens" {
+  source = "./promlens"
+  count  = 1
+
+  namespace             = local.namespace
+  node_pool_label_key   = var.node_pool_label_key
+  node_pool_label_value = var.node_pool
+  hostnames             = var.promlens_hostnames
+  ingress_class_name    = var.ingress_class_name
+  
+  prometheus_server_endpoint = local.prometheus_server_endpoint
+}

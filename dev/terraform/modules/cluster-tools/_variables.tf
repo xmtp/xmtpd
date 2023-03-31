@@ -11,4 +11,5 @@ variable "chat_app_hostnames" { type = list(string) }
 variable "grafana_hostnames" { type = list(string) }
 variable "jaeger_hostnames" { type = list(string) }
 variable "prometheus_hostnames" { type = list(string) }
+variable "promlens_hostnames" { type = list(string) }
 variable "public_api_url" {}

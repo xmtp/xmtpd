@@ -65,3 +65,12 @@ resource "cloudflare_record" "chat_app_hostnames" {
   proxied = true
 }
 
+resource "cloudflare_record" "promlens_hostnames" {
+  count   = length(local.promlens_hostnames)
+  zone_id = var.cloudflare_zone_id
+  name    = local.promlens_hostnames[count.index]
+  value   = local.ingress_public_hostname
+  type    = "CNAME"
+  proxied = true
+}
+

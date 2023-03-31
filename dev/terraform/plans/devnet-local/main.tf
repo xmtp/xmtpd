@@ -22,6 +22,7 @@ locals {
   grafana_hostnames    = [for hostname in local.hostnames : "grafana.${hostname}"]
   jaeger_hostnames     = [for hostname in local.hostnames : "jaeger.${hostname}"]
   prometheus_hostnames = [for hostname in local.hostnames : "prometheus.${hostname}"]
+  promlens_hostnames   = [for hostname in local.hostnames : "promlens.${hostname}"]
 }
 
 module "cluster" {
@@ -81,6 +82,7 @@ module "tools" {
   grafana_hostnames    = local.grafana_hostnames
   jaeger_hostnames     = local.jaeger_hostnames
   prometheus_hostnames = local.prometheus_hostnames
+  promlens_hostnames   = local.promlens_hostnames
 }
 
 module "nodes" {

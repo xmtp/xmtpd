@@ -37,6 +37,11 @@ module "argocd_app_otelcollector" {
             endpoint: "${local.jaeger_collector_endpoint}"
             tls:
               insecure: true
+          otlp/uptrace:
+            endpoint: "${local.uptrace_endpoint}"
+            tls:
+              insecure: true
+            headers: { 'uptrace-dsn': 'http://6789@uptrace:14317/2' }
           logging: {}
           prometheus:
             endpoint: "0.0.0.0:9464"
@@ -62,7 +67,7 @@ module "argocd_app_otelcollector" {
             metrics:
               receivers: [otlp, prometheus]
               processors: [transform, batch]
-              exporters: [prometheus, logging]
+              exporters: [prometheus, logging, otlp/uptrace]
     EOF
   ]
 }

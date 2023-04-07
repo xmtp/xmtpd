@@ -28,11 +28,8 @@ export TF_VAR_kubeconfig_path="${plan_dir}/.xmtp/kubeconfig.yaml"
 tf init -upgrade
 
 # Create clusters.
-tf apply -auto-approve -target=module.cluster
-tf apply -auto-approve \
-    -target=module.system.kubernetes_namespace.system \
-    -target=module.system.helm_release.argocd
-kind_cluster="$(tf output -json | jq -r '.cluster_name.value')"
+tf apply -auto-approve -target=module.cluster.module.k8s
+kind_cluster="$(tf output -json | jq -r '.k8s_cluster_name.value')"
 echo
 
 # Load local docker images into kind cluster.

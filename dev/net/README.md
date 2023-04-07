@@ -49,13 +49,6 @@ open http://jaeger.localhost
 
 ### Kubernetes
 
-Visit the [Argo](https://argo-cd.readthedocs.io/en/stable/) UI to troubleshoot system and tool installations on the cluster:
-
-```sh
-dev/net/copy-argo-password
-open http://argo.localhost
-```
-
 Interact with the Kubernetes cluster directly via `kubectl` by exporting the `KUBECONFIG` with:
 
 ```sh

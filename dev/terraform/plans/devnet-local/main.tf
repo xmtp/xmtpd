@@ -1,7 +1,7 @@
 module "cluster" {
   source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=4d89f25"
 
-  name                 = "xmtp-devnet-local"
+  name_prefix          = "xmtp-devnet"
   nodes                = var.nodes
   node_keys            = var.node_keys
   node_container_image = var.node_container_image

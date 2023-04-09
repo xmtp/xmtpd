@@ -1,0 +1,22 @@
+name: E2E
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  test:
+    name: E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - name: Run E2E
+        run: |
+          export TF_VAR_enable_monitoring=false
+          export TF_VAR_enable_e2e=false
+          export TF_VAR_enable_chat_app=false
+          dev/net/up
+      - run: curl localhost/healthz

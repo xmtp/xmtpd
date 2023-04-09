@@ -8,6 +8,6 @@ module "cluster" {
   enable_chat_app      = var.enable_chat_app
   enable_monitoring    = var.enable_monitoring
 
-  ingress_http_port = 80
+  ingress_http_port  = 80
   ingress_https_port = 443
 }

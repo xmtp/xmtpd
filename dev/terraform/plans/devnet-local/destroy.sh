@@ -6,7 +6,7 @@ function tf() {
     terraform -chdir="${plan_dir}" "$@"
 }
 
-kind_cluster="$(tf output -json | jq -r '.cluster_name.value')"
+kind_cluster="$(tf output -json | jq -r '.k8s_cluster_name.value')"
 kind delete cluster --name "${kind_cluster}"
 
 ../../clean

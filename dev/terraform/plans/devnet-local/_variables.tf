@@ -1,4 +1,3 @@
-variable "kubeconfig_path" { default = ".xmtp/kubeconfig.yaml" }
 variable "node_container_image" { default = "xmtpdev/xmtpd:dev" }
 variable "nodes" {
   type = list(object({
@@ -15,4 +14,3 @@ variable "node_keys" {
 }
 variable "enable_chat_app" { default = true }
 variable "enable_monitoring" { default = true }
-variable "num_xmtp_node_pool_nodes" { default = 2 }

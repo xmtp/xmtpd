@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+            ssh-private-key: ${{ secrets.XMTPD_TERRAFORM_GIT_SSH_KEY }}
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod

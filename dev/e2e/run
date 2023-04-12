@@ -1,0 +1,9 @@
+#!/bin/bash
+set -eou pipefail
+
+GIT_COMMIT="$(git rev-parse HEAD)"
+
+go run \
+    -ldflags="-X 'main.GitCommit=${GIT_COMMIT}'" \
+    cmd/xmtpd-e2e/main.go \
+    "$@"

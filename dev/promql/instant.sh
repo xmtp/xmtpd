@@ -25,7 +25,7 @@ start=$(date -v"$offset" +%s)
 echo "$(date -r "$start" +%H:%M:%S)" "$query"
 
 
-curl --silent http://${PROMETHEUS:-prometheus.localhost}/api/v1/query \
+curl --silent http://"${PROMETHEUS:-prometheus.localhost}"/api/v1/query \
     --data-urlencode "query=$query" \
     --data-urlencode "time=$start" \
 | jq -r --arg group_by "$group_by"  '

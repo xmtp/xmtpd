@@ -13,6 +13,6 @@ condition="{$2}"
 fi
 
 # shellcheck disable=SC2154
-curl --silent http://${PROMETHEUS:-prometheus.localhost}/api/v1/series \
+curl --silent http://"${PROMETHEUS:-prometheus.localhost}"/api/v1/series \
     --data-urlencode "match[]=$metric$condition" \
 | jq -r '.data'

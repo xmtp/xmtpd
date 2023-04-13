@@ -2,7 +2,7 @@
 # set $metrict_meta (name, type, help, unit), $metric_type, $metric
 function set_metric() {
     metric_meta=$(
-        curl --silent http://${PROMETHEUS:-prometheus.localhost}/api/v1/metadata \
+        curl --silent http://"${PROMETHEUS:-prometheus.localhost}"/api/v1/metadata \
         | jq -rM ".data | to_entries[]
             | select(.key | test(\"xmtpd.*\"))
             | select(.key | test(\".*$1.*\"))

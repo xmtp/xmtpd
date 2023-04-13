@@ -13,5 +13,5 @@ if [[ $1 ]]; then
     args+=("--data-urlencode match[]=$metric$condition")
 fi
 
-curl --silent http://${PROMETHEUS:-prometheus.localhost}/api/v1/labels "${args[@]}" \
+curl --silent http://"${PROMETHEUS:-prometheus.localhost}"/api/v1/labels "${args[@]}" \
 | jq -r '.data[]'

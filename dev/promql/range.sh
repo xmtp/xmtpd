@@ -29,7 +29,7 @@ endt=$(date -v "$toOffset" +%s)
 
 echo "$(date -r "$startt" +%H:%M:%S)" "$(date -r "$endt" +%H:%M:%S)" "$query"
 
-curl --silent http://${PROMETHEUS:-prometheus.localhost}/api/v1/query_range \
+curl --silent http://"${PROMETHEUS:-prometheus.localhost}"/api/v1/query_range \
     --data-urlencode "query=$query" \
     --data-urlencode "start=$startt" \
     --data-urlencode "end=$endt" \

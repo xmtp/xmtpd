@@ -12,27 +12,41 @@ import (
 )
 
 var (
-	devnet string
+	spray  string
+	target string
 )
 
 func init() {
-	flag.StringVar(&devnet, "devnet", "", "run devnet tests with given number of topics and messages, format topics/messages, e.g. 30/1000")
+	flag.StringVar(&spray, "spray", "", "run spraying test with given number of topics and messages, format topics/messages, e.g. 30/1000")
+	flag.StringVar(&target, "target", "devnet", "run spraying test (defined by --messages) against given target (devnet, localhost, a host address)")
 }
 
-func Test_DevnetSpraying(t *testing.T) {
-	if len(devnet) == 0 {
+func Test_Spraying(t *testing.T) {
+	if len(spray) == 0 {
 		return
 	}
 	var topics, messages int
-	n, err := fmt.Sscanf(devnet, "%d/%d", &topics, &messages)
+	n, err := fmt.Sscanf(spray, "%d/%d", &topics, &messages)
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
+
 	ctx := test.NewContext(t)
 	var clients []trackerNode
-	for _, n := range []string{"node1", "node2", "node3"} {
+	switch target {
+	case "devnet":
+		for _, n := range []string{"node1", "node2", "node3"} {
+			client := client.NewHTTPClient(ctx.Logger(),
+				"http://localhost", "test", "spraying "+n,
+				client.WithHeader("Host", n+".localhost"))
+			clients = append(clients, client)
+		}
+	case "local":
 		client := client.NewHTTPClient(ctx.Logger(),
-			"http://localhost", "test", n,
-			client.WithHeader("Host", n+".localhost"))
+			"http://localhost:6666", "test", "spraying")
+		clients = append(clients, client)
+	default:
+		client := client.NewHTTPClient(ctx.Logger(),
+			target, "test", "spraying")
 		clients = append(clients, client)
 	}
 	tracker := newConvergenceTracker(ctx, clients)

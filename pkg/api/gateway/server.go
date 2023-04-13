@@ -25,12 +25,13 @@ type Server struct {
 	ctx       context.Context
 	log       *zap.Logger
 	messagev1 messagev1.MessageApiServer
+	metrics   *Metrics
 
 	grpc net.Listener
 	http net.Listener
 }
 
-func New(ctx context.Context, messagev1 messagev1.MessageApiServer, opts *Options) (*Server, error) {
+func New(ctx context.Context, messagev1 messagev1.MessageApiServer, metrics *Metrics, opts *Options) (*Server, error) {
 	err := opts.validate()
 	if err != nil {
 		return nil, err
@@ -43,6 +44,7 @@ func New(ctx context.Context, messagev1 messagev1.MessageApiServer, opts *Option
 		log:       log,
 		opts:      opts,
 		messagev1: messagev1,
+		metrics:   metrics,
 	}
 
 	err = s.startGRPC()
@@ -66,7 +68,7 @@ func (s *Server) startGRPC() error {
 		return errors.Wrap(err, "creating grpc listener")
 	}
 
-	telemetry, err := NewTelemetryInterceptor(s.log)
+	telemetry, err := NewTelemetryInterceptor(s.log, s.metrics)
 	if err != nil {
 		return err
 	}

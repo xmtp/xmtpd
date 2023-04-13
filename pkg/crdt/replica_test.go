@@ -39,7 +39,7 @@ func TestReplica_NewClose(t *testing.T) {
 	bc := membroadcaster.New(ctx)
 	syncer := memsyncer.New(ctx, store)
 
-	replica, err := crdt.NewReplica(ctx, store, bc, syncer, nil)
+	replica, err := crdt.NewReplica(ctx, nil, store, bc, syncer, nil)
 	require.NoError(t, err)
 	require.NotNil(t, replica)
 
@@ -130,7 +130,7 @@ func newTestReplica(t *testing.T) *testReplica {
 		capturedEventCids: map[string]struct{}{},
 	}
 
-	replica, err := crdt.NewReplica(ctx, store, bc, syncer, func(ev *types.Event) {
+	replica, err := crdt.NewReplica(ctx, nil, store, bc, syncer, func(ev *types.Event) {
 		tr.capturedEventsLock.Lock()
 		defer tr.capturedEventsLock.Unlock()
 		if _, ok := tr.capturedEventCids[ev.Cid.String()]; ok {

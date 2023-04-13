@@ -53,7 +53,7 @@ func Test_Health(t *testing.T) {
 func newTestServer(t *testing.T) (*Server, func()) {
 	ctx := test.NewContext(t)
 
-	s, err := New(ctx, nil, &Options{
+	s, err := New(ctx, nil, nil, &Options{
 		GRPCAddress: "localhost",
 		GRPCPort:    0,
 		HTTPAddress: "localhost",

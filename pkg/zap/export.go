@@ -9,3 +9,4 @@ var String = zap.String
 var Strings = zap.Strings
 var Error = zap.Error
 var Int = zap.Int
+var Duration = zap.Duration

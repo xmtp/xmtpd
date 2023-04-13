@@ -1,4 +1,4 @@
-package node
+package cmd
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -32,6 +33,7 @@ type openTelemetry struct {
 	traceProvider   *sdktrace.TracerProvider
 	metricsExporter sdkmetric.Exporter
 	metricsProvider *sdkmetric.MeterProvider
+	meter           metric.Meter
 }
 
 func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTelemetry, error) {
@@ -43,9 +45,6 @@ func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTel
 
 	extraResources, err := sdkresource.New(
 		ctx,
-		sdkresource.WithOS(),
-		sdkresource.WithProcess(),
-		sdkresource.WithContainer(),
 		sdkresource.WithHost(),
 		sdkresource.WithAttributes(
 			attribute.String("service.name", "xmtpd"),
@@ -88,6 +87,8 @@ func newOpenTelemetry(ctx context.Context, opts *OpenTelemetryOptions) (*openTel
 		sdkmetric.WithResource(resource),
 	)
 	global.SetMeterProvider(ot.metricsProvider)
+
+	ot.meter = ot.metricsProvider.Meter("xmtpd")
 
 	err = runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
 	if err != nil {

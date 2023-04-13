@@ -3,12 +3,11 @@ package gateway
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -20,27 +19,14 @@ const (
 )
 
 type TelemetryInterceptor struct {
-	log *zap.Logger
-
-	metrics        metric.Meter
-	requestCounter instrument.Int64Counter
+	log     *zap.Logger
+	metrics *Metrics
 }
 
-func NewTelemetryInterceptor(log *zap.Logger) (*TelemetryInterceptor, error) {
-	metrics := global.MeterProvider().Meter("xmtpd")
-	requestCounter, err := metrics.Int64Counter(
-		"xmtpd.api_requests",
-		instrument.WithDescription("API requests"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
+func NewTelemetryInterceptor(log *zap.Logger, metrics *Metrics) (*TelemetryInterceptor, error) {
 	return &TelemetryInterceptor{
-		log: log,
-
-		metrics:        metrics,
-		requestCounter: requestCounter,
+		log:     log,
+		metrics: metrics,
 	}, nil
 }
 
@@ -51,8 +37,9 @@ func (ti *TelemetryInterceptor) Unary() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
+		start := time.Now()
 		res, err := handler(ctx, req)
-		ti.record(ctx, info.FullMethod, err)
+		ti.record(ctx, info.FullMethod, time.Since(start), err)
 		return res, err
 	}
 }
@@ -64,13 +51,14 @@ func (ti *TelemetryInterceptor) Stream() grpc.StreamServerInterceptor {
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,
 	) error {
+		start := time.Now()
 		res := handler(srv, stream)
-		ti.record(stream.Context(), info.FullMethod, nil)
+		ti.record(stream.Context(), info.FullMethod, time.Since(start), nil)
 		return res
 	}
 }
 
-func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, err error) {
+func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, duration time.Duration, err error) {
 	serviceName, methodName := splitMethodName(fullMethod)
 	if serviceName == "grpc.health.v1.Health" {
 		return
@@ -86,6 +74,7 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 		zap.String("api_client_version", clientVersion),
 		zap.String("api_app", appName),
 		zap.String("api_app_version", appVersion),
+		zap.Duration("duration", duration),
 	)
 
 	if ips := md.Get("x-forwarded-for"); len(ips) > 0 {
@@ -111,18 +100,13 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, e
 
 	logFn("api request", fields...)
 
-	attrs := make([]attribute.KeyValue, 0, len(fields))
-	exclude := map[string]bool{
-		"grpc_error_message": true,
-		"client_ip":          true,
-	}
-	for _, field := range fields {
-		if exclude[field.Key] {
-			continue
-		}
-		attrs = append(attrs, attribute.String(field.Key, field.String))
-	}
-	ti.requestCounter.Add(ctx, 1, attrs...)
+	attrs := attrsFromFieldsExcluding(
+		fields,
+		"grpc_error_message",
+		"client_ip",
+		"duration",
+	)
+	ti.metrics.recordRequest(ctx, duration, attrs...)
 }
 
 func splitMethodName(fullMethodName string) (serviceName string, methodName string) {
@@ -146,4 +130,18 @@ func parseVersionHeaderValue(vals []string) (name string, version string, full s
 		}
 	}
 	return
+}
+
+func attrsFromFieldsExcluding(fields []zapcore.Field, exclude ...string) []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, len(fields))
+OUTER:
+	for _, field := range fields {
+		for _, ex := range exclude {
+			if ex == field.Key {
+				continue OUTER
+			}
+		}
+		attrs = append(attrs, attribute.String(field.Key, field.String))
+	}
+	return attrs
 }

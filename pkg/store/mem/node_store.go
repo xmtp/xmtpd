@@ -15,6 +15,8 @@ type NodeStore struct {
 }
 
 func NewNodeStore(ctx context.Context) *NodeStore {
+	log := ctx.Logger().Named("store")
+	ctx = context.WithLogger(ctx, log)
 	return &NodeStore{
 		ctx:    ctx,
 		topics: make(map[string]*memstore.MemoryStore)}

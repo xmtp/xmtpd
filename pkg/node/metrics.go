@@ -3,50 +3,53 @@ package node
 import (
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/xmtp/xmtpd/pkg/api/gateway"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type Metrics struct {
 	// Records syncer fetch durations in microseconds by topic_type.
-	syncFetchHistogram instrument.Int64Histogram
+	syncFetchHistogram *prometheus.HistogramVec
 
 	Api      *gateway.Metrics
 	Replicas *crdt.Metrics
 }
 
-func NewMetrics(meter metric.Meter) (*Metrics, error) {
-	var m Metrics
-	var err error
-	m.Api, err = gateway.NewMetrics(meter)
-	if err != nil {
-		return nil, err
+func NewMetrics() *Metrics {
+	return &Metrics{
+		Api:      gateway.NewMetrics(),
+		Replicas: crdt.NewMetrics(),
+		syncFetchHistogram: promauto.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: "xmtpd",
+				Subsystem: "sync",
+				Name:      "fetch_duration_us",
+				Help:      "duration of fetch requests from replica syncers (microseconds)",
+				Buckets:   prometheus.ExponentialBuckets(10, 10, 10),
+			},
+			[]string{"topic_type"},
+		),
 	}
-	m.Replicas, err = crdt.NewMetrics(meter)
-	if err != nil {
-		return nil, err
-	}
-	m.syncFetchHistogram, err = meter.Int64Histogram(
-		"xmtpd.sync.fetch_duration_us",
-		instrument.WithDescription(`duration of fetch requests from replica syncers (microseconds)`),
-		instrument.WithUnit("microsecond"),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &m, nil
 }
 
 func (m *Metrics) recordFetch(ctx context.Context, topic string, duration time.Duration) {
 	if m == nil || m.syncFetchHistogram == nil {
 		return
 	}
-	m.syncFetchHistogram.Record(ctx, duration.Microseconds(),
-		attribute.String("topic_type", utils.CategoryFromTopic(topic)),
-	)
+	topic_type := utils.CategoryFromTopic(topic)
+	met, err := m.syncFetchHistogram.GetMetricWithLabelValues(topic_type)
+	if err != nil {
+		ctx.Logger().Warn("metric observe",
+			zap.Error(err),
+			zap.String("metric", "fetch_duration_ms"),
+			zap.String("topic_type", topic_type),
+		)
+		return
+	}
+	met.Observe(float64(duration.Microseconds()))
 }

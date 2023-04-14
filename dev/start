@@ -6,6 +6,7 @@ PORT="${PORT:-5001}"
 
 dev/run \
     start \
+    --admin.port=6666 \
     --p2p.port=9000 \
     --api.grpc-port=5000 \
     --api.http-port="${PORT}" \

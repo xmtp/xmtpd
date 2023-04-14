@@ -4,33 +4,57 @@ import (
 	gocontext "context"
 	"time"
 
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap/zapcore"
 )
 
 type Metrics struct {
 	// Records API request durations in microseconds by various dimensions
 	// e.g. grpc_method, grpc_error_code, client name/version, app name/version.
-	apiRequestHistogram instrument.Int64Histogram
+	apiRequestHistogram *prometheus.HistogramVec
 }
 
-func NewMetrics(meter metric.Meter) (m *Metrics, err error) {
-	m = &Metrics{}
-	m.apiRequestHistogram, err = meter.Int64Histogram(
-		"xmtpd.api.request_duration_us",
-		instrument.WithDescription("duration of API request (microseconds)"),
-		instrument.WithUnit("microsecond"),
-	)
-	if err != nil {
-		return nil, err
+var requestDurationLabels = []string{
+	"grpc_method", "grpc_error_code", "app_client", "app_client_version", "api_app", "api_app_version",
+}
+
+func NewMetrics() *Metrics {
+	return &Metrics{
+		apiRequestHistogram: promauto.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: "xmtpd",
+				Subsystem: "api",
+				Name:      "request_duration_us",
+				Help:      "duration of api requests (microseconds)",
+				Buckets:   prometheus.ExponentialBuckets(10, 10, 10),
+			},
+			requestDurationLabels,
+		),
 	}
-	return m, nil
 }
 
-func (m *Metrics) recordRequest(ctx gocontext.Context, duration time.Duration, attrs ...attribute.KeyValue) {
+func (m *Metrics) recordRequest(ctx gocontext.Context, duration time.Duration, fields []zapcore.Field) {
 	if m == nil || m.apiRequestHistogram == nil {
 		return
 	}
-	m.apiRequestHistogram.Record(ctx, duration.Microseconds(), attrs...)
+	met, err := m.apiRequestHistogram.GetMetricWithLabelValues(requestDurationLabelValuesFromFields(fields)...)
+	if err != nil {
+		return
+	}
+	met.Observe(float64(duration.Microseconds()))
+}
+
+func requestDurationLabelValuesFromFields(fields []zapcore.Field) (values []string) {
+	for _, label := range requestDurationLabels {
+		var val string
+		for _, field := range fields {
+			if field.Key == label {
+				val = field.String
+				break
+			}
+		}
+		values = append(values, val)
+	}
+	return values
 }

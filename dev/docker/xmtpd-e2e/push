@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eou pipefail
+script_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+set -a; source "${script_dir}/.env.default"; set +a
+
+docker push "${BUILD_CONTAINER_IMAGE}"

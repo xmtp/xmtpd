@@ -27,9 +27,9 @@ type httpClient struct {
 	headers    map[string]string
 }
 
-type option func(*httpClient)
+type Option func(*httpClient)
 
-func WithHeader(name, value string) option {
+func WithHeader(name, value string) Option {
 	return func(c *httpClient) {
 		c.headers[name] = value
 	}
@@ -40,7 +40,7 @@ const (
 	appVersionHeaderKey    = "x-app-version"
 )
 
-func NewHTTPClient(log *zap.Logger, serverAddr string, gitCommit string, appVersion string, opts ...option) *httpClient {
+func NewHTTPClient(log *zap.Logger, serverAddr string, gitCommit string, appVersion string, opts ...Option) *httpClient {
 	version := "xmtpd/" + shortGitCommit(gitCommit)
 	http := retryablehttp.NewClient()
 	http.CheckRetry = retryPolicy
@@ -83,6 +83,9 @@ func (c *httpClient) Subscribe(ctx context.Context, req *messagev1.SubscribeRequ
 	// Wait for subscribe confirmation.
 	env, err := stream.Next(ctx)
 	if err != nil {
+		if err == context.Canceled {
+			return nil, err
+		}
 		return nil, errors.Wrap(err, "waiting for subscribe confirmation")
 	}
 	if !proto.Equal(env, &messagev1.Envelope{}) {

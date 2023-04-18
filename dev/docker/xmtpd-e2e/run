@@ -1,0 +1,10 @@
+#!/bin/bash
+set -eou pipefail
+script_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+set -a; source "${script_dir}/.env.default"; set +a
+
+XMTP_API_URLS="${XMTP_API_URLS:-https://xmtp.pizza}"
+
+docker run --rm -it \
+    -e XMTP_API_URLS="${XMTP_API_URLS}" \
+    "${BUILD_CONTAINER_IMAGE}"

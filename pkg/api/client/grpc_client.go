@@ -44,6 +44,9 @@ func (c *grpcClient) Subscribe(ctx context.Context, r *messagev1.SubscribeReques
 	env, err := stream.Next(ctx)
 	cancel()
 	if err != nil {
+		if err == context.Canceled {
+			return nil, err
+		}
 		return nil, errors.Wrap(err, "waiting for subscribe confirmation")
 	}
 	if !proto.Equal(env, &messagev1.Envelope{}) {

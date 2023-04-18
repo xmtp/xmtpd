@@ -1,11 +1,11 @@
-name: Publish
+name: Publish E2E
 on:
   workflow_run:
     workflows: ["Test"]
     branches: [main]
     types: [completed]
 env:
-  BUILD_CONTAINER_IMAGE: xmtp/xmtpd:latest
+  BUILD_CONTAINER_IMAGE: xmtp/xmtpd-e2e:latest
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -17,5 +17,5 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
       - uses: actions/checkout@v3
-      - run: dev/docker/xmtpd/build
-      - run: dev/docker/xmtpd/push
+      - run: dev/docker/xmtpd-e2e/build
+      - run: dev/docker/xmtpd-e2e/push

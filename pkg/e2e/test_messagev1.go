@@ -80,7 +80,7 @@ func (e *E2E) testMessageV1PublishSubscribeQuery() error {
 	// Expect them to be relayed to each subscription.
 	for _, stream := range streams {
 		envC := make(chan *messagev1.Envelope, 100)
-		go func() {
+		go func(stream apiclient.Stream) {
 			for {
 				env, err := stream.Next(ctx)
 				if err != nil {
@@ -95,7 +95,7 @@ func (e *E2E) testMessageV1PublishSubscribeQuery() error {
 				}
 				envC <- env
 			}
-		}()
+		}(stream)
 		err := subscribeExpect(envC, envs)
 		if err != nil {
 			return err

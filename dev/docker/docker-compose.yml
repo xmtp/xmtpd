@@ -81,3 +81,15 @@ services:
     ports:
       - "${PROMETHEUS_SERVICE_PORT}:${PROMETHEUS_SERVICE_PORT}"
     logging: *logging
+
+  grafana:
+    image: grafana/grafana:7.5.7
+    command:
+      - --config=/etc/grafana/grafana.ini
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+    logging: *logging

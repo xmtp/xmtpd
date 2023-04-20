@@ -1,5 +1,5 @@
 module "cluster" {
-  source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=c1270a9"
+  source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=611159d"
 
   name_prefix          = "xmtp-devnet"
   nodes                = var.nodes

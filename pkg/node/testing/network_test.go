@@ -42,7 +42,7 @@ func Test_Spraying(t *testing.T) {
 		}
 	case "local":
 		client := client.NewHTTPClient(ctx.Logger(),
-			"http://localhost:6666", "test", "spraying")
+			"http://localhost:5001", "test", "spraying")
 		clients = append(clients, client)
 	default:
 		client := client.NewHTTPClient(ctx.Logger(),

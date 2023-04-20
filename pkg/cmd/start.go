@@ -17,6 +17,7 @@ import (
 type Start struct {
 	node.Options  `group:"node options"`
 	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
+	AdminOptions  `group:"admin options" namespace:"admin"`
 
 	GitCommit string
 }
@@ -30,6 +31,9 @@ func (c *Start) Execute(args []string) error {
 	log.Info("running", zap.String("git-commit", c.GitCommit))
 
 	ctx := context.New(context.Background(), log)
+
+	// Initialize admin interface (metrics/debug/...).
+	metrics := startAdmin(ctx, &c.AdminOptions)
 
 	// Initialize datastore.
 	var store node.NodeStore
@@ -65,11 +69,6 @@ func (c *Start) Execute(args []string) error {
 		return errors.Wrap(err, "initializing open telemetry")
 	}
 	defer ot.Close()
-
-	metrics, err := node.NewMetrics(ot.meter)
-	if err != nil {
-		return errors.Wrap(err, "initializing metrics")
-	}
 
 	// Initialize node.
 	node, err := node.New(ctx, metrics, store, &c.Options)

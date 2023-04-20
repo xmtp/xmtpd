@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/zap"
-	"go.opentelemetry.io/otel/attribute"
-	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -99,14 +97,7 @@ func (ti *TelemetryInterceptor) record(ctx context.Context, fullMethod string, d
 	}
 
 	logFn("api request", fields...)
-
-	attrs := attrsFromFieldsExcluding(
-		fields,
-		"grpc_error_message",
-		"client_ip",
-		"duration",
-	)
-	ti.metrics.recordRequest(ctx, duration, attrs...)
+	ti.metrics.recordRequest(ctx, duration, fields)
 }
 
 func splitMethodName(fullMethodName string) (serviceName string, methodName string) {
@@ -130,18 +121,4 @@ func parseVersionHeaderValue(vals []string) (name string, version string, full s
 		}
 	}
 	return
-}
-
-func attrsFromFieldsExcluding(fields []zapcore.Field, exclude ...string) []attribute.KeyValue {
-	attrs := make([]attribute.KeyValue, 0, len(fields))
-OUTER:
-	for _, field := range fields {
-		for _, ex := range exclude {
-			if ex == field.Key {
-				continue OUTER
-			}
-		}
-		attrs = append(attrs, attribute.String(field.Key, field.String))
-	}
-	return attrs
 }

@@ -11,3 +11,7 @@ scrape_configs:
   static_configs:
   - targets:
     - 'otelcol:8888'
+- job_name: xmtpd
+  static_configs:
+  - targets:
+    - 'host.docker.internal:6666'

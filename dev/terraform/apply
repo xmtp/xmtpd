@@ -15,7 +15,7 @@ apply_path="${plan_dir}/apply.sh"
 
 if [ -f "${apply_path}" ]; then
     cd "${plan_dir}"
-    ./apply.sh
+    ./apply.sh "$@"
 else
-    "${script_dir}"/tf apply -auto-approve
+    "${script_dir}"/tf apply -auto-approve "$@"
 fi

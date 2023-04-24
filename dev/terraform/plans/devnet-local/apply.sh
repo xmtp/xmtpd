@@ -38,4 +38,4 @@ nodes="$(kubectl get nodes -l "node-pool=xmtp-nodes" --no-headers -o custom-colu
 kind load docker-image "${CONTAINER_IMAGE_FULL}" --name "${kind_cluster}" --nodes "${nodes}"
 
 # Apply the rest.
-tf apply -auto-approve
+tf apply -auto-approve "$@"

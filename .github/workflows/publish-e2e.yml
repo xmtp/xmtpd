@@ -1,7 +1,7 @@
 name: Publish E2E
 on:
   workflow_run:
-    workflows: ["Test"]
+    workflows: ["Publish Node"]
     branches: [main]
     types: [completed]
 env:
@@ -17,5 +17,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
       - uses: actions/checkout@v3
-      - run: dev/docker/xmtpd-e2e/build
-      - run: dev/docker/xmtpd-e2e/push
+      - name: Build
+        run: dev/docker/xmtpd-e2e/build
+      - name: Push
+        id: push
+        run: |
+          dev/docker/xmtpd-e2e/push
+          echo "docker_image=$(docker inspect --format='{{index .RepoDigests 0}}' ${BUILD_CONTAINER_IMAGE})" >> $GITHUB_OUTPUT
+      - name: Deploy (testnet-pizza)
+        uses: xmtp-labs/terraform-deployer@v1
+        with:
+          terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
+          terraform-org: xmtp
+          terraform-workspace: testnet-pizza
+          variable-name: e2e_container_image
+          variable-value: ${{ steps.push.outputs.docker_image }}
+          variable-value-required-prefix: "xmtp/xmtpd-e2e@sha256:"

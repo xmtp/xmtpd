@@ -17,53 +17,6 @@ services:
       - "${POSTGRES_PORT}:5432"
     logging: *logging
 
-  # ********************
-  # Telemetry Components
-  # ********************
-  # Jaeger
-  jaeger:
-    image: jaegertracing/all-in-one
-    command:
-      - "--memory.max-traces"
-      - "10000"
-      - "--query.base-path"
-      - "/jaeger/ui"
-      - "--prometheus.server-url"
-      - "http://${PROMETHEUS_ADDR}"
-    deploy:
-      resources:
-        limits:
-          memory: 275M
-    restart: unless-stopped
-    ports:
-      - "${JAEGER_SERVICE_PORT}:${JAEGER_SERVICE_PORT}" # Jaeger UI
-      - "4317"                                          # OTLP gRPC default port
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - METRICS_STORAGE_TYPE=prometheus
-    logging: *logging
-
-  # OpenTelemetry Collector
-  otelcol:
-    image: otel/opentelemetry-collector-contrib:0.70.0
-    deploy:
-      resources:
-        limits:
-          memory: 100M
-    restart: unless-stopped
-    command: [ "--config=/etc/otelcol-config.yml", "--config=/etc/otelcol-config-extras.yml" ]
-    volumes:
-      - ./otelcollector/otelcol-config.yml:/etc/otelcol-config.yml
-      - ./otelcollector/otelcol-config-extras.yml:/etc/otelcol-config-extras.yml
-    ports:
-      - "4317:4317"     # OTLP over gRPC receiver
-      - "4318:4318"     # OTLP over HTTP receiver
-      - "9464"          # Prometheus exporter
-      - "8888"          # metrics endpoint
-    depends_on:
-      - jaeger
-    logging: *logging
-
   # Prometheus
   prometheus:
     image: quay.io/prometheus/prometheus:v2.34.0

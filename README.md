@@ -4,7 +4,7 @@ XMTP node implementation.
 
 [![Test](https://github.com/xmtp/xmtpd/actions/workflows/test.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/test.yml)
 [![Build](https://github.com/xmtp/xmtpd/actions/workflows/build.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/build.yml)
-[![Publish](https://github.com/xmtp/xmtpd/actions/workflows/publish.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/publish.yml)
+[![Publish](https://github.com/xmtp/xmtpd/actions/workflows/publish-node.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/publish-node.yml)
 
 ## Development
 

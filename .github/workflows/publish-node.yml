@@ -1,4 +1,4 @@
-name: Publish xmtpd
+name: Publish Node
 on:
   workflow_run:
     workflows: ["Test"]
@@ -9,6 +9,7 @@ env:
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    concurrency: main
     runs-on: ubuntu-latest
     steps:
       - uses: docker/setup-buildx-action@v1
@@ -17,5 +18,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
       - uses: actions/checkout@v3
-      - run: dev/docker/xmtpd/build
-      - run: dev/docker/xmtpd/push
+      - name: Build
+        run: dev/docker/xmtpd/build
+      - name: Push
+        id: push
+        run: |
+          dev/docker/xmtpd/push
+          echo "docker_image=$(docker inspect --format='{{index .RepoDigests 0}}' ${BUILD_CONTAINER_IMAGE})" >> $GITHUB_OUTPUT
+      - name: Deploy (testnet-pizza)
+        uses: xmtp-labs/terraform-deployer@v1
+        with:
+          terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
+          terraform-org: xmtp
+          terraform-workspace: testnet-pizza
+          variable-name: node_container_image
+          variable-value: ${{ steps.push.outputs.docker_image }}
+          variable-value-required-prefix: "xmtp/xmtpd@sha256:"

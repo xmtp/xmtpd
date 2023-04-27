@@ -41,12 +41,6 @@ Visit the [Prometheus](https://prometheus.io/) UI to explore metrics:
 open http://prometheus.localhost
 ```
 
-Visit the [Jaeger](https://www.jaegertracing.io/) UI to explore traces:
-
-```sh
-open http://jaeger.localhost
-```
-
 ### Kubernetes
 
 Interact with the Kubernetes cluster directly via `kubectl` by exporting the `KUBECONFIG` with:

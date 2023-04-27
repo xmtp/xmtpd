@@ -15,9 +15,8 @@ import (
 )
 
 type Start struct {
-	node.Options  `group:"node options"`
-	OpenTelemetry OpenTelemetryOptions `group:"OpenTelemetry options" namespace:"otel"`
-	AdminOptions  `group:"admin options" namespace:"admin"`
+	node.Options `group:"node options"`
+	AdminOptions `group:"admin options" namespace:"admin"`
 
 	GitCommit string
 }
@@ -62,13 +61,6 @@ func (c *Start) Execute(args []string) error {
 		log.Info("using memory store")
 		store = memstore.NewNodeStore(ctx)
 	}
-
-	// Initialize open telemetry.
-	ot, err := newOpenTelemetry(ctx, &c.OpenTelemetry)
-	if err != nil {
-		return errors.Wrap(err, "initializing open telemetry")
-	}
-	defer ot.Close()
 
 	// Initialize node.
 	node, err := node.New(ctx, metrics, store, &c.Options)

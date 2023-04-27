@@ -22,4 +22,4 @@ jobs:
           export TF_VAR_enable_e2e=false
           export TF_VAR_enable_chat_app=false
           dev/net/up
-      - run: curl localhost/healthz
+      - run: dev/e2e/run

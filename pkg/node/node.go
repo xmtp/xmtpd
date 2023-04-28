@@ -43,6 +43,7 @@ type Node struct {
 	topicsLock sync.RWMutex
 
 	host  host.Host
+	gs    *pubsub.PubSub
 	topic *pubsub.Topic
 	sub   *pubsub.Subscription
 
@@ -98,13 +99,13 @@ func New(ctx context.Context, metrics *Metrics, store NodeStore, opts *Options) 
 	n.log.Info("p2p listening", zap.Strings("addresses", n.P2PListenAddresses()))
 
 	// Initialize libp2p pubsub.
-	gs, err := pubsub.NewGossipSub(n.ctx, n.host)
+	n.gs, err = pubsub.NewGossipSub(n.ctx, n.host)
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize libp2p pubsub topic.
-	n.topic, err = gs.Join(pubsubTopic)
+	n.topic, err = n.gs.Join(pubsubTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +229,14 @@ func (n *Node) Connect(ctx context.Context, addr peer.AddrInfo) error {
 	return n.host.Connect(ctx, addr)
 }
 
+func (n *Node) ConnectedPeers() map[peer.ID]*peer.AddrInfo {
+	return connectedPeers(n.host)
+}
+
+func (n *Node) PubSubPeers() []peer.ID {
+	return n.topic.ListPeers()
+}
+
 func (n *Node) Disconnect(ctx context.Context, peer peer.ID) error {
 	return n.host.Network().ClosePeer(peer)
 }
@@ -242,6 +251,7 @@ func (n *Node) Address() peer.AddrInfo {
 func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*messagev1.PublishResponse, error) {
 	ctx := context.New(gctx, n.log)
 	for _, env := range req.Envelopes {
+		start := time.Now()
 		topic, err := n.getOrCreateTopic(env.ContentTopic)
 		if err != nil {
 			return nil, err
@@ -250,7 +260,11 @@ func (n *Node) Publish(gctx gocontext.Context, req *messagev1.PublishRequest) (*
 		if err != nil {
 			return nil, err
 		}
-		n.log.Debug("envelope published", zap.Cid("event", ev.Cid))
+		n.log.Debug("envelope published",
+			zap.Cid("event", ev.Cid),
+			zap.String("topic", env.ContentTopic),
+			zap.Int("timestamp_ns", int(env.TimestampNs)),
+			zap.Duration("duration", time.Since(start)))
 	}
 	return &messagev1.PublishResponse{}, nil
 }
@@ -305,6 +319,7 @@ func (n *Node) Subscribe(req *messagev1.SubscribeRequest, stream messagev1.Messa
 }
 
 func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*messagev1.QueryResponse, error) {
+	start := time.Now()
 	n.log.Debug("query", zap.Strings("topics", req.ContentTopics))
 	if len(req.ContentTopics) == 0 {
 		return nil, ErrMissingTopic
@@ -321,7 +336,12 @@ func (n *Node) Query(gctx gocontext.Context, req *messagev1.QueryRequest) (*mess
 		return nil, err
 	}
 
-	return replica.Query(context.New(gctx, n.log), req)
+	resp, err := replica.Query(context.New(gctx, n.log), req)
+	if err != nil {
+		n.log.Debug("query error", zap.String("topic", topic), zap.Error(err), zap.Duration("duration", time.Since(start)))
+	}
+	n.log.Debug("query result", zap.String("topic", topic), zap.Int("envelopes", len(resp.Envelopes)), zap.Duration("duration", time.Since(start)))
+	return resp, nil
 }
 
 func (n *Node) SubscribeAll(req *messagev1.SubscribeAllRequest, stream messagev1.MessageApi_SubscribeAllServer) error {

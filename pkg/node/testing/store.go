@@ -14,7 +14,7 @@ import (
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
-func TestTopicBootstrap(t *testing.T, storeMaker func(t *testing.T, ctx context.Context) node.NodeStore) {
+func TestTopicBootstrap(t testing.TB, storeMaker func(t testing.TB, ctx context.Context) node.NodeStore) {
 	topics := []string{"topic1", "topic2", "topic3"}
 	ctx := test.NewContext(t)
 	store := storeMaker(t, ctx)

@@ -51,7 +51,7 @@ func (s *MemoryStore) InsertEvent(ctx context.Context, ev *types.Event) (added b
 func (s *MemoryStore) AppendEvent(ctx context.Context, env *messagev1.Envelope) (*types.Event, error) {
 	s.Lock()
 	defer s.Unlock()
-	heads, err := s.Heads(ctx)
+	heads, err := s.getHeads(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -133,11 +133,9 @@ func (s *MemoryStore) Events(ctx context.Context) ([]*types.Event, error) {
 }
 
 func (s *MemoryStore) Heads(ctx context.Context) ([]multihash.Multihash, error) {
-	cids := []multihash.Multihash{}
-	for key := range s.heads {
-		cids = append(cids, s.events[key].Cid)
-	}
-	return cids, nil
+	s.RLock()
+	defer s.RUnlock()
+	return s.getHeads(ctx)
 }
 
 func (s *MemoryStore) InsertNewEvents(ctx context.Context, evs []*types.Event) error {
@@ -156,6 +154,14 @@ func (s *MemoryStore) InsertNewEvents(ctx context.Context, evs []*types.Event) e
 
 // private functions
 
+func (s *MemoryStore) getHeads(ctx context.Context) ([]multihash.Multihash, error) {
+	cids := []multihash.Multihash{}
+	for key := range s.heads {
+		cids = append(cids, s.events[key].Cid)
+	}
+	return cids, nil
+}
+
 // key MUST be equal to ev.Cid.String()
 func (s *MemoryStore) addEvent(key string, ev *types.Event) {
 	s.events[key] = ev
@@ -172,6 +178,9 @@ func (s *MemoryStore) addEvent(key string, ev *types.Event) {
 		s.eventsByTime = append(s.eventsByTime, ev)
 	} else {
 		s.eventsByTime = makeRoomAt(s.eventsByTime, i)
+		s.eventsByTime[i] = ev
 	}
-	s.eventsByTime[i] = ev
+	if len(s.events) != len(s.eventsByTime) {
+		s.log.Warn("internal mismatch", zap.Int("events", len(s.events)), zap.Int("eventsByTime", len(s.eventsByTime)))
+	}
 }

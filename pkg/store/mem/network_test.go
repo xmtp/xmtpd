@@ -8,15 +8,17 @@ import (
 )
 
 func Test_RandomNodeAndTopicSpraying(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	tcs := []struct {
 		nodes    int
 		topics   int
 		messages int
 	}{
-		// TODO: these are failing to make progress for some reason, especially in CI.
-		// {3, 10, 300},
-		// {5, 3, 100},
-		// {10, 5, 100},
+		{3, 10, 300},
+		{5, 3, 100},
+		{10, 5, 100},
 	}
 	for i, tc := range tcs {
 		tc := tc
@@ -26,4 +28,12 @@ func Test_RandomNodeAndTopicSpraying(t *testing.T) {
 			ntest.RunRandomNodeAndTopicSpraying(t, tc.nodes, tc.topics, tc.messages)
 		})
 	}
+}
+
+func Test_WaitForPubSub(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	net := ntest.NewNetwork(t, 10)
+	net.WaitForPubSub(t)
 }

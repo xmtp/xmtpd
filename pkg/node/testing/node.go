@@ -18,7 +18,6 @@ import (
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 	"github.com/xmtp/xmtpd/pkg/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 type testNode struct {
@@ -57,7 +56,7 @@ func WithPersistentPeers(addrs ...string) TestNodeOption {
 	}
 }
 
-func NewNode(t *testing.T, opts ...TestNodeOption) *testNode {
+func NewNode(t testing.TB, opts ...TestNodeOption) *testNode {
 	t.Helper()
 
 	tn := &testNode{}
@@ -105,8 +104,6 @@ func (n *testNode) Connect(t *testing.T, to *testNode) {
 
 	err := n.Node.Connect(n.ctx, to.Address())
 	require.NoError(t, err)
-
-	n.WaitForConnected(t, to)
 }
 
 func (n *testNode) Disconnect(t *testing.T, to *testNode) {
@@ -116,7 +113,7 @@ func (n *testNode) Disconnect(t *testing.T, to *testNode) {
 	require.NoError(t, err)
 }
 
-func (n *testNode) WaitForConnected(t *testing.T, to *testNode) {
+func (n *testNode) WaitForPubSub(t *testing.T, to *testNode) {
 	t.Helper()
 
 	// Wait for peers to be connected and grafted to the pubsub topic.
@@ -126,14 +123,14 @@ func (n *testNode) WaitForConnected(t *testing.T, to *testNode) {
 	if os.Getenv("CI") == "true" {
 		totalTimeout = 10 * time.Second
 	}
-	retryTimeout := totalTimeout / 10
+	retryTimeout := totalTimeout / 5
 	ticker := time.NewTicker(retryTimeout)
 	defer ticker.Stop()
 	attempt := 1
 	var connected bool
 	ctx := context.WithTimeout(n.ctx, totalTimeout)
 	defer ctx.Close()
-	topic := "sync-" + test.RandomStringLower(13)
+	topic := fmt.Sprintf("sync-%s-%s-%s", n.name, to.name, test.RandomStringLower(13))
 syncLoop:
 	for {
 		select {
@@ -152,6 +149,7 @@ syncLoop:
 				defer queryTicker.Stop()
 				queryCtx := context.WithTimeout(ctx, retryTimeout)
 				defer queryCtx.Close()
+			checkLoop:
 				for {
 					select {
 					case <-queryCtx.Done():
@@ -165,9 +163,15 @@ syncLoop:
 							},
 						})
 						if err != nil {
-							continue
+							n.ctx.Logger().Debug("sync check err", zap.String("to", to.name), zap.Int("attempt", attempt), zap.Error(err))
+							continue checkLoop
 						}
-						if len(res.Envelopes) > 0 && proto.Equal(sentEnv, res.Envelopes[len(res.Envelopes)-1]) {
+						if len(res.Envelopes) == 0 {
+							n.ctx.Logger().Debug("sync check none", zap.String("to", to.name), zap.Int("attempt", attempt))
+							continue checkLoop
+						}
+						if env := res.Envelopes[len(res.Envelopes)-1]; bytes.Equal(sentEnv.Message, env.Message) {
+							n.ctx.Logger().Debug("sync check", zap.String("to", to.name), zap.Int("attempt", attempt), zap.Int("got", int(env.TimestampNs)))
 							connected = true
 							return
 						}
@@ -186,7 +190,7 @@ syncLoop:
 	require.True(t, connected, fmt.Sprintf("node %s failed to connect to node %s", n.name, to.name))
 }
 
-func (n *testNode) PublishRandom(t *testing.T, topic string, count int) []*messagev1.Envelope {
+func (n *testNode) PublishRandom(t testing.TB, topic string, count int) []*messagev1.Envelope {
 	t.Helper()
 	envs := make([]*messagev1.Envelope, count)
 	for i := 0; i < count; i++ {
@@ -227,7 +231,7 @@ func (n *testNode) Subscribe(t *testing.T, topic string) *testSubscriber {
 	return sub
 }
 
-func (n *testNode) RequireQuery(t *testing.T, topic string, mods ...api.QueryModifier) []*messagev1.Envelope {
+func (n *testNode) RequireQuery(t testing.TB, topic string, mods ...api.QueryModifier) []*messagev1.Envelope {
 	resp, err := n.Query(n.ctx, api.NewQuery(topic, mods...))
 	require.NoError(t, err)
 	return resp.Envelopes

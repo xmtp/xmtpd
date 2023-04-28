@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	messagev1 "github.com/xmtp/proto/v3/go/message_api/v1"
 	"github.com/xmtp/xmtpd/pkg/api/client"
 	test "github.com/xmtp/xmtpd/pkg/testing"
@@ -20,7 +20,7 @@ type testSubscriber struct {
 
 func (s *testSubscriber) RequireEventuallyCapturedEvents(t *testing.T, expected []*messagev1.Envelope) {
 	t.Helper()
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		s.RLock()
 		defer s.RUnlock()
 		return len(s.envs) == len(expected)

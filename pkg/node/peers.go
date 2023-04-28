@@ -109,8 +109,12 @@ func newPersistentPeers(ctx context.Context, log *zap.Logger, host host.Host, ad
 }
 
 func (p *persistentPeers) connectedPeers() map[peer.ID]*peer.AddrInfo {
+	return connectedPeers(p.host)
+}
+
+func connectedPeers(host host.Host) map[peer.ID]*peer.AddrInfo {
 	peers := map[peer.ID]*peer.AddrInfo{}
-	for _, conn := range p.host.Network().Conns() {
+	for _, conn := range host.Network().Conns() {
 		peers[conn.RemotePeer()] = &peer.AddrInfo{
 			ID:    conn.RemotePeer(),
 			Addrs: []multiaddr.Multiaddr{conn.RemoteMultiaddr()},

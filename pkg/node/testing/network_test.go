@@ -40,6 +40,12 @@ func Test_Spraying(t *testing.T) {
 				client.WithHeader("Host", n+".localhost"))
 			clients = append(clients, client)
 		}
+	case "snormore.dev":
+		for _, n := range []string{"node1", "node2", "node3"} {
+			client := client.NewHTTPClient(ctx.Logger(),
+				fmt.Sprintf("http://%s.snormore.dev", n), "test", "spraying "+n)
+			clients = append(clients, client)
+		}
 	case "local":
 		client := client.NewHTTPClient(ctx.Logger(),
 			"http://localhost:5001", "test", "spraying")

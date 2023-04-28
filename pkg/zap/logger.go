@@ -57,10 +57,13 @@ func NewLogger(opts *Options) (*Logger, error) {
 }
 
 // NewDevelopmentLogger is used for testing.
-func NewDevelopmentLogger(debug bool) (*Logger, error) {
+func NewDevelopmentLogger(debug bool, json bool) (*Logger, error) {
 	cfg := zap.NewDevelopmentConfig()
 	if !debug {
 		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	}
+	if json {
+		cfg.Encoding = "json"
 	}
 	l, err := cfg.Build()
 	if err != nil {

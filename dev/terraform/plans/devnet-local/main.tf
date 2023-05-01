@@ -1,9 +1,9 @@
 module "cluster" {
-  # source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=611159d"
+  source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=b0d4754"
 
   # Uncomment this line and comment out the previous source line to use a
   # local instance of xmtpd-modules living in the parent directory of xmtpd.
-  source = "../../../../../xmtpd-terraform/modules/xmtp-cluster-kind"
+  # source = "../../../../../xmtpd-terraform/modules/xmtp-cluster-kind"
 
   name_prefix                 = "xmtp-devnet"
   nodes                       = var.nodes

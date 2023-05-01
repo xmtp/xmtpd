@@ -1,4 +1,5 @@
 variable "node_container_image" { default = "xmtpdev/xmtpd:dev" }
+variable "e2e_container_image" { default = "xmtpdev/xmtpd-e2e:dev" }
 variable "nodes" {
   type = list(object({
     name                 = string

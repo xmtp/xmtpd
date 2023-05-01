@@ -65,8 +65,10 @@ func New(ctx context.Context, opts *Options) (*E2E, error) {
 		go func() {
 			// Initialize HTTP server for profiler and metrics.
 			http.Handle("/metrics", promhttp.Handler())
+			http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {})
 			addr := net.JoinHostPort("0.0.0.0", strconv.Itoa(int(opts.AdminPort)))
 			go func() {
+				e.log.Info("serving admin http", zap.String("address", addr))
 				err := http.ListenAndServe(addr, nil)
 				if err != nil {
 					e.log.Error("serving e2e admin", zap.Error(err))

@@ -1,4 +1,5 @@
 variable "node_container_image" { default = "xmtpdev/xmtpd:dev" }
+variable "e2e_container_image" { default = "xmtpdev/xmtpd-e2e:dev" }
 variable "nodes" {
   type = list(object({
     name                 = string
@@ -14,3 +15,6 @@ variable "node_keys" {
 }
 variable "enable_chat_app" { default = true }
 variable "enable_monitoring" { default = true }
+variable "e2e_delay" { default = "" }
+variable "node_container_cpu_limit" { default = "500m" }
+variable "node_container_memory_limit" { default = "500Mi" }

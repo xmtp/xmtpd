@@ -13,15 +13,22 @@ function tf() {
     pids=()
     dev/docker/xmtpd/build &
     pids+=("$!")
+    dev/docker/xmtpd-e2e/build &
+    pids+=("$!")
     for pid in ${pids[@]+"${pids[@]}"}; do
         wait "${pid}"
     done
 )
-CONTAINER_IMAGE_ID="$(docker inspect --format='{{.Id}}' "${CONTAINER_IMAGE}")"
-CONTAINER_IMAGE_FULL="${CONTAINER_IMAGE}-${CONTAINER_IMAGE_ID##*:}"
-docker tag "${CONTAINER_IMAGE}" "${CONTAINER_IMAGE_FULL}"
+node_container_image_id="$(docker inspect --format='{{.Id}}' "${CONTAINER_IMAGE}")"
+node_container_image_full="${CONTAINER_IMAGE}-${node_container_image_id##*:}"
+docker tag "${CONTAINER_IMAGE}" "${node_container_image_full}"
 
-export TF_VAR_node_container_image="${CONTAINER_IMAGE_FULL}"
+e2e_container_image_id="$(docker inspect --format='{{.Id}}' "${E2E_CONTAINER_IMAGE}")"
+e2e_container_image_full="${E2E_CONTAINER_IMAGE}-${e2e_container_image_id##*:}"
+docker tag "${E2E_CONTAINER_IMAGE}" "${e2e_container_image_full}"
+
+export TF_VAR_node_container_image="${node_container_image_full}"
+export TF_VAR_e2e_container_image="${e2e_container_image_full}"
 export TF_VAR_kubeconfig_path="${plan_dir}/.xmtp/kubeconfig.yaml"
 
 # Initialize terraform.
@@ -35,7 +42,9 @@ echo
 # Load local docker images into kind cluster.
 export KUBECONFIG="${TF_VAR_kubeconfig_path}"
 nodes="$(kubectl get nodes -l "node-pool=xmtp-nodes" --no-headers -o custom-columns=":metadata.name" | paste -s -d, -)"
-kind load docker-image "${CONTAINER_IMAGE_FULL}" --name "${kind_cluster}" --nodes "${nodes}"
+kind load docker-image "${node_container_image_full}" --name "${kind_cluster}" --nodes "${nodes}"
+nodes="$(kubectl get nodes -l "node-pool=xmtp-tools" --no-headers -o custom-columns=":metadata.name" | paste -s -d, -)"
+kind load docker-image "${e2e_container_image_full}" --name "${kind_cluster}" --nodes "${nodes}"
 
 # Apply the rest.
 tf apply -auto-approve "$@"

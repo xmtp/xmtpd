@@ -1,0 +1,12 @@
+#!/bin/bash
+set -eou pipefail
+
+. dev/net/k8s-env
+
+nodes="$(kubectl -n xmtp-nodes get pods -l "app.kubernetes.io/part-of=xmtp-nodes" -o=json | jq -r '.items[].metadata.labels["app.kubernetes.io/name"]')"
+opts=""
+while read -r node; do
+    opts="${opts} --api-url=${node}.localhost"
+done <<< "$(echo -e "$nodes")"
+
+dev/e2e/run "${opts}" "$@"

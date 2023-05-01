@@ -74,7 +74,7 @@ func New(ctx context.Context, metrics *Metrics, store NodeStore, opts *Options) 
 	// Initialize API server/gateway.
 	var apiMetrics *apigateway.Metrics
 	if metrics != nil {
-		apiMetrics = metrics.Api
+		apiMetrics = metrics.API
 	}
 	n.api, err = apigateway.New(n.ctx, n, apiMetrics, &opts.API)
 	if err != nil {

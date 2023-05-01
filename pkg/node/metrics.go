@@ -16,13 +16,13 @@ type Metrics struct {
 	// Records syncer fetch durations in microseconds by topic_type.
 	syncFetchHistogram *prometheus.HistogramVec
 
-	Api      *gateway.Metrics
+	API      *gateway.Metrics
 	Replicas *crdt.Metrics
 }
 
 func NewMetrics() *Metrics {
 	return &Metrics{
-		Api:      gateway.NewMetrics(),
+		API:      gateway.NewMetrics(),
 		Replicas: crdt.NewMetrics(),
 		syncFetchHistogram: promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
@@ -41,13 +41,13 @@ func (m *Metrics) recordFetch(ctx context.Context, topic string, duration time.D
 	if m == nil || m.syncFetchHistogram == nil {
 		return
 	}
-	topic_type := utils.CategoryFromTopic(topic)
-	met, err := m.syncFetchHistogram.GetMetricWithLabelValues(topic_type)
+	topicType := utils.CategoryFromTopic(topic)
+	met, err := m.syncFetchHistogram.GetMetricWithLabelValues(topicType)
 	if err != nil {
 		ctx.Logger().Warn("metric observe",
 			zap.Error(err),
 			zap.String("metric", "fetch_duration_ms"),
-			zap.String("topic_type", topic_type),
+			zap.String("topic_type", topicType),
 		)
 		return
 	}

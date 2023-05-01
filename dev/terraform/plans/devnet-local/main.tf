@@ -1,5 +1,5 @@
 module "cluster" {
-  source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=b0d4754"
+  source = "git@github.com:xmtp-labs/xmtpd-terraform.git//modules/xmtp-cluster-kind?ref=fd94c46"
 
   # Uncomment this line and comment out the previous source line to use a
   # local instance of xmtpd-modules living in the parent directory of xmtpd.

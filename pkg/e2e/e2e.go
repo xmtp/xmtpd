@@ -2,10 +2,13 @@ package e2e
 
 import (
 	"math/rand"
+	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"golang.org/x/sync/errgroup"
@@ -14,10 +17,11 @@ import (
 )
 
 type E2E struct {
-	ctx    context.Context
-	log    *zap.Logger
-	rand   *rand.Rand
-	randMu sync.Mutex
+	ctx     context.Context
+	log     *zap.Logger
+	metrics *Metrics
+	rand    *rand.Rand
+	randMu  sync.Mutex
 
 	opts *Options
 }
@@ -29,6 +33,7 @@ type Options struct {
 	Continuous       bool          `long:"continuous" description:"Run continuously"`
 	ExitOnError      bool          `long:"exit-on-error" description:"Exit on error if running continuously"`
 	RunDelay         time.Duration `long:"delay" description:"Delay between runs (in seconds)" default:"5s"`
+	AdminPort        uint          `long:"admin-port" description:"Admin HTTP server listen port" default:"7777"`
 
 	GitCommit string
 }
@@ -48,20 +53,25 @@ func (e *E2E) Tests() []*Test {
 
 func New(ctx context.Context, opts *Options) (*E2E, error) {
 	e := &E2E{
-		ctx:  ctx,
-		log:  ctx.Logger().Named("e2e"),
-		rand: rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
-		opts: opts,
+		ctx:     ctx,
+		log:     ctx.Logger().Named("e2e"),
+		metrics: newMetrics(),
+		rand:    rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
+		opts:    opts,
 	}
 	e.log.Info("running", zap.String("git-commit", opts.GitCommit))
 
 	if e.opts.Continuous {
 		go func() {
-			// Initialize HTTP server for profiler.
-			err := http.ListenAndServe("0.0.0.0:0", nil)
-			if err != nil {
-				e.log.Error("serving profiler", zap.Error(err))
-			}
+			// Initialize HTTP server for profiler and metrics.
+			http.Handle("/metrics", promhttp.Handler())
+			addr := net.JoinHostPort("0.0.0.0", strconv.Itoa(int(opts.AdminPort)))
+			go func() {
+				err := http.ListenAndServe(addr, nil)
+				if err != nil {
+					e.log.Error("serving e2e admin", zap.Error(err))
+				}
+			}()
 		}()
 	}
 
@@ -95,9 +105,11 @@ func (e *E2E) runTest(test *Test) error {
 	log = log.With(zap.Duration("duration", duration))
 	if err != nil {
 		log.Error("test failed", zap.Error(err))
+		e.metrics.recordRun(e.ctx, test.Name, "failed", duration)
 		return err
 	}
 	log.Info("test passed")
+	e.metrics.recordRun(e.ctx, test.Name, "passed", duration)
 
 	return nil
 }

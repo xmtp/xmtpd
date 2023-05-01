@@ -5,7 +5,7 @@ set -eou pipefail
 
 nodes="$(kubectl -n xmtp-nodes get pods -l "app.kubernetes.io/part-of=xmtp-nodes" -o=json | jq -r '.items[].metadata.labels["app.kubernetes.io/name"]')"
 opts=""
-while read node; do
+while read -r node; do
     opts="${opts} --api-url=${node}.localhost"
 done <<< "$(echo -e "$nodes")"
 

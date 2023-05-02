@@ -19,10 +19,12 @@ func TestE2E(t *testing.T) {
 	n2 := nodetest.NewNode(t, nodetest.WithName("node2"))
 	defer n2.Close()
 	n2.Connect(t, n1)
+	n2.WaitForPubSub(t, n1)
 
 	n3 := nodetest.NewNode(t, nodetest.WithName("node3"))
 	defer n3.Close()
 	n3.Connect(t, n1)
+	n3.WaitForPubSub(t, n1)
 
 	e2e, err := New(ctx, &Options{
 		APIURLs: []string{

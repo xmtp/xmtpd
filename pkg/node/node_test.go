@@ -134,6 +134,7 @@ func TestNode_PublishSubscribeQuery_TwoNodes(t *testing.T) {
 	defer n2.Close()
 
 	n1.Connect(t, n2)
+	n1.WaitForPubSub(t, n2)
 
 	topic := "topic"
 	n1Sub := n1.Subscribe(t, topic)
@@ -173,7 +174,7 @@ func TestNode_PersistentPeers(t *testing.T) {
 	)
 	defer n2.Close()
 
-	n1.WaitForConnected(t, n2)
+	n1.WaitForPubSub(t, n2)
 
 	topic := "topic"
 	n1Sub := n1.Subscribe(t, topic)
@@ -192,7 +193,7 @@ func TestNode_PersistentPeers(t *testing.T) {
 	n2.Disconnect(t, n1)
 
 	// Should reconnect automatically.
-	n1.WaitForConnected(t, n2)
+	n1.WaitForPubSub(t, n2)
 
 	n1Envs = n1.PublishRandom(t, topic, 1)
 	envs = append(envs, n1Envs...)
@@ -218,6 +219,7 @@ func TestNode_Fetch(t *testing.T) {
 	n2 := ntest.NewNode(t, ntest.WithName("node2"))
 	defer n2.Close()
 	n1.Connect(t, n2)
+	n1.WaitForPubSub(t, n2)
 
 	envs = append(envs, n1.PublishRandom(t, topic, 3)...)
 	n1.RequireEventuallyStoredEvents(t, topic, envs)

@@ -12,6 +12,7 @@ func TestNetwork(t *testing.T) {
 	}
 	net := ntest.NewNetwork(t, 3)
 	defer net.Close()
+	net.WaitForPubSub(t)
 
 	sub := net.Subscribe(t, "topic1")
 	envs := net.PublishRandom(t, sub.Topic, 1)

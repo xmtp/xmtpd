@@ -10,6 +10,9 @@ import (
 )
 
 func Test_RandomNodeAndTopicSpraying(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	tcs := []struct {
 		nodes    int
 		topics   int
@@ -17,9 +20,7 @@ func Test_RandomNodeAndTopicSpraying(t *testing.T) {
 	}{
 		{3, 10, 300},
 		{5, 3, 100},
-		// TODO: 10 nodes are failing due to the WaitForConnect failures,
-		// even though the test continues regardless and succeeds.
-		// {10, 5, 100},
+		{10, 5, 100},
 	}
 	for i, tc := range tcs {
 		tc := tc
@@ -32,4 +33,15 @@ func Test_RandomNodeAndTopicSpraying(t *testing.T) {
 				}))
 		})
 	}
+}
+
+func Test_WaitForPubSub(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	net := ntest.NewNetwork(t, 8,
+		ntest.WithStoreMaker(func(t testing.TB, ctx context.Context) node.NodeStore {
+			return newTestNodeStore(t, ctx)
+		}))
+	net.WaitForPubSub(t)
 }

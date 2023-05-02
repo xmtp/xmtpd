@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/node"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type AdminOptions struct {
@@ -25,5 +26,6 @@ func startAdmin(ctx context.Context, opts *AdminOptions) *node.Metrics {
 	http.Handle("/metrics", promhttp.Handler())
 	addr := net.JoinHostPort(opts.Address, strconv.Itoa(int(opts.Port)))
 	go func() { _ = http.ListenAndServe(addr, nil) }()
+	ctx.Logger().Info("started admin interface", zap.String("address", addr))
 	return metrics
 }

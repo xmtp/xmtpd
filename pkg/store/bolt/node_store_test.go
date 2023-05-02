@@ -15,7 +15,7 @@ func Test_TopicBootstrap(t *testing.T) {
 	opts := &bolt.Options{
 		DataPath: filepath.Join(t.TempDir(), "testdb.bolt"),
 	}
-	ntest.TestTopicBootstrap(t, func(t *testing.T, ctx context.Context) node.NodeStore {
+	ntest.TestTopicBootstrap(t, func(t testing.TB, ctx context.Context) node.NodeStore {
 		db, err := bolt.NewDB(opts)
 		require.NoError(t, err)
 		store, err := bolt.NewNodeStore(ctx, db, opts)

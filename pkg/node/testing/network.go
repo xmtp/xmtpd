@@ -17,6 +17,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/node"
 	memstore "github.com/xmtp/xmtpd/pkg/store/mem"
 	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
 type storeMaker func(t testing.TB, ctx context.Context) node.NodeStore
@@ -55,22 +56,33 @@ func NewNetwork(t *testing.T, count int, opts ...networkOption) *network {
 			WithStore(n.storeMaker(t, context.WithLogger(n.ctx, n.ctx.Logger().Named(name)))))
 	}
 
-	var wg sync.WaitGroup
 	for i, a := range nodes {
 		for _, b := range nodes[i:] {
+			if a == b {
+				continue
+			}
+			a.Connect(t, b)
+		}
+	}
+	n.nodes = nodes
+	return n
+}
+
+func (net *network) WaitForPubSub(t *testing.T) {
+	var wg sync.WaitGroup
+	for i, a := range net.nodes {
+		for _, b := range net.nodes[i:] {
 			if a == b {
 				continue
 			}
 			wg.Add(1)
 			go func(a, b *testNode) {
 				defer wg.Done()
-				a.Connect(t, b)
+				a.WaitForPubSub(t, b)
 			}(a, b)
 		}
 	}
 	wg.Wait()
-	n.nodes = nodes
-	return n
 }
 
 func (net *network) Close() error {
@@ -272,9 +284,16 @@ func (tr *convergenceTracker) runRandomNodeAndTopicSpraying(t *testing.T, topics
 	for i := 0; i < messages; i++ {
 		topic := fmt.Sprintf("t%d%s", rand.Intn(topics), suffix)
 		msg := fmt.Sprintf("gm %d", i)
+		start := time.Now()
 		tr.Publish(t, rand.Intn(nodes), topic, msg)
+		// make sure publish takes at least 10 milliseconds
+		// this gives the pubsub enough time to start broadcasting events
+		// before all events are published and dropped
+		if time.Since(start) < 10*time.Millisecond {
+			time.Sleep(10 * time.Millisecond)
+		}
 		if i%delayEvery == 0 {
-			time.Sleep(time.Duration(rand.Intn(100)) * time.Microsecond)
+			time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
 		}
 	}
 	tr.RequireEventuallyComplete(t, time.Duration(nodes*messages/100)*time.Second)
@@ -286,6 +305,7 @@ func RunRandomNodeAndTopicSpraying(t *testing.T, nodes, topics, messages int, op
 	var clients []trackerNode
 	for _, n := range net.nodes {
 		clients = append(clients, n)
+		n.ctx.Logger().Debug("connected peers", zap.Int("p2p", len(n.ConnectedPeers())), zap.Int("pubsub", len(n.PubSubPeers())))
 	}
 	tracker := newConvergenceTracker(net.ctx, clients)
 	tracker.runRandomNodeAndTopicSpraying(t, topics, messages, "")

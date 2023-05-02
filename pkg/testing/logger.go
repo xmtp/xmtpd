@@ -11,8 +11,8 @@ import (
 var debug, json bool
 
 func init() {
-	flag.BoolVar(&debug, "debug", false, "debug level logging in tests")
-	flag.BoolVar(&json, "json-logs", false, "log in json format")
+	flag.BoolVar(&debug, "log-debug", false, "debug level logging in tests")
+	flag.BoolVar(&json, "log-json", false, "log in json format in tests")
 }
 
 func NewLogger(t testing.TB) *zap.Logger {

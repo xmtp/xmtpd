@@ -87,9 +87,16 @@ func New(ctx context.Context, metrics *Metrics, store NodeStore, opts *Options) 
 	if err != nil {
 		return nil, err
 	}
+
+	rcm, err := p2pResourceManager(metrics)
+	if err != nil {
+		return nil, err
+	}
+
 	n.host, err = libp2p.New(
 		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", opts.P2P.Port)),
 		libp2p.Identity(privKey),
+		libp2p.ResourceManager(rcm),
 	)
 	if err != nil {
 		return nil, err

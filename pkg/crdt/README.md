@@ -24,9 +24,6 @@ The implementation here follows this broad structure, the `Event`, `Topic`, `Nod
 
 * bootstrapping a new node efficiently
 * investigate possible lockups
-* boltdb store
-* pubsub broadcaster
-* libp2p syncer
 * metrics
 * fetching multiple cids at a time
 * fetching multiple topics at a time

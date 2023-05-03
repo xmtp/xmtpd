@@ -40,7 +40,7 @@ func NewMetrics() *Metrics {
 		topicsGauge: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: "xmtpd",
-				Subsystem: "sync",
+				Subsystem: "node",
 				Name:      "topic_count",
 				Help:      "total number of topics",
 			},

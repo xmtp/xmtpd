@@ -440,7 +440,7 @@ func (n *Node) addTopic(topic string) (*crdt.Replica, error) {
 		return nil, err
 	}
 	n.topics[topic] = replica
-	n.metrics.recordTopicCountChange(ctx, topic, true)
+	n.metrics.recordTopicAdd(ctx, topic)
 	return replica, nil
 }
 

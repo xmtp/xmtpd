@@ -66,7 +66,15 @@ func (m *Metrics) recordFetch(ctx context.Context, topic string, duration time.D
 	met.Observe(float64(duration.Microseconds()))
 }
 
-func (m *Metrics) recordTopicCountChange(ctx context.Context, topic string, added bool) {
+func (m *Metrics) recordTopicAdd(ctx context.Context, topic string) {
+	m.recordTopicCountChange(ctx, topic, 1)
+}
+
+func (m *Metrics) recordTopicRemove(ctx context.Context, topic string) {
+	m.recordTopicCountChange(ctx, topic, -1)
+}
+
+func (m *Metrics) recordTopicCountChange(ctx context.Context, topic string, change int) {
 	if m == nil || m.topicsGauge == nil {
 		return
 	}
@@ -79,10 +87,6 @@ func (m *Metrics) recordTopicCountChange(ctx context.Context, topic string, adde
 			zap.String("topic_type", topicType),
 		)
 		return
-	}
-	change := -1
-	if added {
-		change = 1
 	}
 	met.Add(float64(change))
 }

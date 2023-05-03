@@ -42,7 +42,7 @@ func TestE2E(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			t.Parallel()
 
-			err := test.Run()
+			err := test.Run(test.Name)
 			require.NoError(t, err)
 		})
 	}

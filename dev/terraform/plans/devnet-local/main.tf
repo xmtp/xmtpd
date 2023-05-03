@@ -12,6 +12,7 @@ module "cluster" {
   e2e_container_image         = var.e2e_container_image
   e2e_delay                   = var.e2e_delay
   enable_chat_app             = var.enable_chat_app
+  enable_e2e                  = var.enable_e2e
   enable_monitoring           = var.enable_monitoring
   node_container_cpu_limit    = var.node_container_cpu_limit
   node_container_memory_limit = var.node_container_memory_limit

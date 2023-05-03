@@ -38,7 +38,7 @@ type Options struct {
 	GitCommit string
 }
 
-type testRunFunc func() error
+type testRunFunc func(name string) error
 
 type Test struct {
 	Name string
@@ -47,7 +47,7 @@ type Test struct {
 
 func (e *E2E) Tests() []*Test {
 	return []*Test{
-		e.newTest("messagev1 publish subscribe query", e.testMessageV1PublishSubscribeQuery),
+		e.newTest("convergence", e.testConvergence),
 	}
 }
 
@@ -59,7 +59,7 @@ func New(ctx context.Context, opts *Options) (*E2E, error) {
 		rand:    rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
 		opts:    opts,
 	}
-	e.log.Info("running", zap.String("git-commit", opts.GitCommit))
+	e.log.Info("running", zap.String("git-commit", opts.GitCommit), zap.Strings("nodes", opts.APIURLs))
 
 	if e.opts.Continuous {
 		go func() {
@@ -102,7 +102,7 @@ func (e *E2E) runTest(test *Test) error {
 	started := time.Now().UTC()
 	log := e.log.With(zap.String("test", test.Name))
 
-	err := test.Run()
+	err := test.Run(test.Name)
 	duration := time.Since(started)
 	log = log.With(zap.Duration("duration", duration))
 	if err != nil {

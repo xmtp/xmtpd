@@ -440,6 +440,7 @@ func (n *Node) addTopic(topic string) (*crdt.Replica, error) {
 		return nil, err
 	}
 	n.topics[topic] = replica
+	n.metrics.recordTopicAdd(ctx, topic)
 	return replica, nil
 }
 

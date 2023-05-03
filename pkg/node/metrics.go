@@ -16,6 +16,9 @@ type Metrics struct {
 	// Records syncer fetch durations in microseconds by topic_type.
 	syncFetchHistogram *prometheus.HistogramVec
 
+	// Total number of topics on the node.
+	topicsGauge *prometheus.GaugeVec
+
 	API      *gateway.Metrics
 	Replicas *crdt.Metrics
 }
@@ -31,6 +34,15 @@ func NewMetrics() *Metrics {
 				Name:      "fetch_duration_us",
 				Help:      "duration of fetch requests from replica syncers (microseconds)",
 				Buckets:   prometheus.ExponentialBuckets(10, 10, 10),
+			},
+			[]string{"topic_type"},
+		),
+		topicsGauge: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: "xmtpd",
+				Subsystem: "node",
+				Name:      "topic_count",
+				Help:      "total number of topics",
 			},
 			[]string{"topic_type"},
 		),
@@ -52,4 +64,25 @@ func (m *Metrics) recordFetch(ctx context.Context, topic string, duration time.D
 		return
 	}
 	met.Observe(float64(duration.Microseconds()))
+}
+
+func (m *Metrics) recordTopicAdd(ctx context.Context, topic string) {
+	m.recordTopicCountChange(ctx, topic, 1)
+}
+
+func (m *Metrics) recordTopicCountChange(ctx context.Context, topic string, change int) {
+	if m == nil || m.topicsGauge == nil {
+		return
+	}
+	topicType := utils.CategoryFromTopic(topic)
+	met, err := m.topicsGauge.GetMetricWithLabelValues(topicType)
+	if err != nil {
+		ctx.Logger().Warn("metric observe",
+			zap.Error(err),
+			zap.String("metric", "topic_count"),
+			zap.String("topic_type", topicType),
+		)
+		return
+	}
+	met.Add(float64(change))
 }

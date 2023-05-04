@@ -398,6 +398,7 @@ func (n *Node) DeleteTopic(topic string) error {
 	}
 	replica.Close()
 	delete(n.topics, topic)
+	n.metrics.recordTopicRemove(n.ctx, topic)
 	return n.store.DeleteTopic(topic)
 }
 

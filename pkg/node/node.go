@@ -18,6 +18,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	"github.com/xmtp/xmtpd/pkg/crdt/types"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"github.com/xmtp/xmtpd/pkg/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -168,6 +169,10 @@ func New(ctx context.Context, metrics *Metrics, store NodeStore, opts *Options) 
 	n.peers, err = newPersistentPeers(n.ctx, n.log, n.host, opts.P2P.PersistentPeers)
 	if err != nil {
 		return nil, err
+	}
+
+	if opts.TopicReaperPeriod > 0 {
+		go n.topicReaper(ctx, opts.TopicReaperPeriod)
 	}
 
 	return n, nil
@@ -461,6 +466,36 @@ func (n *Node) addTopic(topic string) (*crdt.Replica, error) {
 	n.topics[topic] = replica
 	n.metrics.recordTopicAdd(ctx, topic)
 	return replica, nil
+}
+
+func (n *Node) topicReaper(ctx context.Context, period time.Duration) {
+	ctx.Logger().Info("starting topic reaper", zap.Duration("period", period))
+	var candidates []string
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			candidates = n.reapTopics(candidates)
+		}
+	}
+}
+
+func (n *Node) reapTopics(candidates []string) []string {
+	for _, topic := range candidates {
+		n.DeleteTopic(topic)
+	}
+	n.topicsLock.RLock()
+	defer n.topicsLock.RUnlock()
+	for topic := range n.topics {
+		category := utils.CategoryFromTopic(topic)
+		if category == "invalid" || category == "test" {
+			candidates = append(candidates, topic)
+		}
+	}
+	return candidates
 }
 
 func (n *Node) p2pEventConsumerLoop() {

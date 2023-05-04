@@ -11,4 +11,5 @@ dev/run \
     --api.grpc-port=5000 \
     --api.http-port="${PORT}" \
     --store.type=postgres \
+    --topic-reaper-period=1m \
     "$@"

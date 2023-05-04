@@ -26,7 +26,7 @@ func Test_RandomNodeAndTopicSpraying(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		// It seems we need to give postgres a sec to start up in CI
 		// getting postgres dial errors too often.
-		time.Sleep(time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	for i, tc := range tcs {
 		tc := tc

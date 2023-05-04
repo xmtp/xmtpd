@@ -486,7 +486,7 @@ func (n *Node) topicReaper(ctx context.Context, period time.Duration) {
 
 func (n *Node) reapTopics(candidates []string) []string {
 	for _, topic := range candidates {
-		n.DeleteTopic(topic)
+		_ = n.DeleteTopic(topic)
 	}
 	n.topicsLock.RLock()
 	defer n.topicsLock.RUnlock()

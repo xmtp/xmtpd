@@ -282,3 +282,15 @@ func newRandomEnvelope(topic string, timestampNs int) *messagev1.Envelope {
 		Message:      []byte("msg-" + test.RandomString(13)),
 	}
 }
+
+func RunTopicLifecycleTest(t *testing.T, s node.NodeStore) {
+	node := NewNode(t, WithStore(s))
+	node.PublishRandom(t, "t1", 10)
+	node.PublishRandom(t, "t2", 10)
+	node.PublishRandom(t, "t3", 10)
+	require.NoError(t, node.DeleteTopic("t2"))
+	topics, err := s.Topics()
+	require.NoError(t, err)
+	require.Equal(t, 2, len(topics))
+	require.NoError(t, node.Close())
+}

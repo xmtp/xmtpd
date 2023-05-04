@@ -123,17 +123,20 @@ func (s *Store) InsertHead(ctx context.Context, ev *types.Event) (bool, error) {
 }
 
 func (s *Store) RemoveHead(ctx context.Context, cid multihash.Multihash) (bool, error) {
-	res, err := s.db.ExecContext(ctx, "DELETE FROM heads WHERE topic = $1 AND cid = $2", s.topic, cid.HexString())
-	if err != nil {
-		return false, err
-	}
-
-	count, err := res.RowsAffected()
-	if err != nil {
-		return false, err
-	}
-
-	return count == 1, nil
+	var deleted bool
+	err := s.executeTx(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, "DELETE FROM heads WHERE topic = $1 AND cid = $2", s.topic, cid.HexString())
+		if err != nil {
+			return err
+		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		deleted = count == 1
+		return nil
+	})
+	return deleted, err
 }
 
 func (s *Store) FindMissingLinks(ctx context.Context) ([]multihash.Multihash, error) {
@@ -294,28 +297,7 @@ func (s *Store) heads(ctx context.Context, tx *sql.Tx) ([]multihash.Multihash, e
 }
 
 func (s *Store) executeTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			rollbackErr := tx.Rollback()
-			if rollbackErr != nil {
-				s.log.Error("error rolling back", zap.Error(err))
-			}
-			panic(p) // re-throw panic after Rollback
-		} else if err != nil {
-			rollbackErr := tx.Rollback() // err is non-nil; don't change it
-			if rollbackErr != nil {
-				s.log.Error("error rolling back", zap.Error(err))
-			}
-		} else {
-			err = tx.Commit() // err is nil; if Commit returns error update err
-		}
-	}()
-	err = fn(tx)
-	return err
+	return executeTx(ctx, s.db, fn)
 }
 
 func isDuplicateKeyError(err error) bool {

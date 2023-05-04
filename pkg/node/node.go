@@ -384,6 +384,18 @@ func (n *Node) BatchQuery(gctx gocontext.Context, req *messagev1.BatchQueryReque
 	return res, nil
 }
 
+func (n *Node) DeleteTopic(topic string) error {
+	n.topicsLock.Lock()
+	defer n.topicsLock.Unlock()
+	replica, ok := n.topics[topic]
+	if !ok {
+		return ErrMissingTopic
+	}
+	replica.Close()
+	delete(n.topics, topic)
+	return n.store.DeleteTopic(topic)
+}
+
 func (n *Node) getOrCreateTopic(topic string) (*crdt.Replica, error) {
 	n.topicsLock.Lock()
 	defer n.topicsLock.Unlock()

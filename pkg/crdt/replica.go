@@ -30,6 +30,7 @@ type Replica struct {
 }
 
 func NewReplica(ctx context.Context, metrics *Metrics, store Store, bc Broadcaster, syncer Syncer, onNewEvent NewEventFunc) (*Replica, error) {
+	ctx = context.New(ctx, ctx.Logger())
 	r := &Replica{
 		log:        ctx.Logger(),
 		ctx:        ctx,
@@ -58,6 +59,10 @@ func NewReplica(ctx context.Context, metrics *Metrics, store Store, bc Broadcast
 	}
 
 	return r, nil
+}
+
+func (r *Replica) Close() {
+	r.ctx.Close()
 }
 
 func (r *Replica) GetEvents(ctx context.Context, cids ...mh.Multihash) ([]*types.Event, error) {

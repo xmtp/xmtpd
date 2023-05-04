@@ -8,6 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/node"
 	ntest "github.com/xmtp/xmtpd/pkg/node/testing"
 	postgresstore "github.com/xmtp/xmtpd/pkg/store/postgres"
+	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
 type testNodeStore struct {
@@ -35,4 +36,9 @@ func Test_TopicBootstrap(t *testing.T) {
 		require.NoError(t, err)
 		return store
 	})
+}
+
+func Test_TopicLifecyle(t *testing.T) {
+	ctx := test.NewContext(t)
+	ntest.RunTopicLifecycleTest(t, newTestNodeStore(t, ctx))
 }

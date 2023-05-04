@@ -1,6 +1,8 @@
 package node
 
 import (
+	"time"
+
 	apigateway "github.com/xmtp/xmtpd/pkg/api/gateway"
 	"github.com/xmtp/xmtpd/pkg/store/bolt"
 	postgresstore "github.com/xmtp/xmtpd/pkg/store/postgres"
@@ -8,10 +10,11 @@ import (
 )
 
 type Options struct {
-	Log   zap.Options        `group:"Log options" namespace:"log"`
-	P2P   P2POptions         `group:"P2P options" namespace:"p2p"`
-	API   apigateway.Options `group:"API options" namespace:"api"`
-	Store StoreOptions       `group:"Store options" namespace:"store"`
+	Log               zap.Options        `group:"Log options" namespace:"log"`
+	P2P               P2POptions         `group:"P2P options" namespace:"p2p"`
+	API               apigateway.Options `group:"API options" namespace:"api"`
+	Store             StoreOptions       `group:"Store options" namespace:"store"`
+	TopicReaperPeriod time.Duration      `long:"topic-reaper-period" description:"delete invalid and test topics after this duration"`
 }
 
 type P2POptions struct {

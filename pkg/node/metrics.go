@@ -70,6 +70,10 @@ func (m *Metrics) recordTopicAdd(ctx context.Context, topic string) {
 	m.recordTopicCountChange(ctx, topic, 1)
 }
 
+func (m *Metrics) recordTopicRemove(ctx context.Context, topic string) {
+	m.recordTopicCountChange(ctx, topic, -1)
+}
+
 func (m *Metrics) recordTopicCountChange(ctx context.Context, topic string, change int) {
 	if m == nil || m.topicsGauge == nil {
 		return

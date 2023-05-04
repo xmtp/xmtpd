@@ -48,7 +48,7 @@ func newTestReplicaSet(t *testing.T, count int) *testReplicaSet {
 
 func (rs *testReplicaSet) visualize(w io.Writer) {
 	for i, replica := range rs.replicas {
-		replica.visualize(w, fmt.Sprintf("replica%d", i+1))
+		replica.visualize(w, fmt.Sprintf("replica%d", i+1), false)
 	}
 }
 

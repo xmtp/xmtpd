@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -55,7 +56,7 @@ func TestReplica_BroadcastStore_SingleReplica(t *testing.T) {
 	replica.requireEventuallyStoredEvents(t, events)
 
 	if visualize {
-		replica.visualize(os.Stdout, "replica1")
+		replica.visualize(os.Stdout, "replica1", false)
 	}
 }
 
@@ -206,11 +207,25 @@ func (r *testReplica) requireEventuallyStoredEvents(t *testing.T, expected []*ty
 
 // visualize emits a graphviz depiction of the topic contents showing the
 // graph of individual events and their links.
-func (r *testReplica) visualize(w io.Writer, name string) {
+func (r *testReplica) visualize(w io.Writer, name string, colored bool) {
 	fmt.Fprintf(w, "strict digraph %s {\n", name)
+	if colored {
+		fmt.Fprintln(w, "\tnode [colorscheme=pastel19]")
+	}
 	for i := len(r.capturedEvents) - 1; i >= 0; i-- {
 		ev := r.capturedEvents[i]
-		fmt.Fprintf(w, "\t\"%s\" [label=\"%d: \\N\"]\n", zap.ShortCid(ev.Cid), i)
+		prefix := strconv.Itoa(i)
+		var color string
+		if colored {
+			var msg, node int
+			if n, err := fmt.Sscanf(string(ev.Message), "%d/n%d", &msg, &node); err == nil && n == 2 {
+				prefix = string(ev.Message)
+				if node < 9 {
+					color = fmt.Sprintf(" style=filled color=%d", node+1)
+				}
+			}
+		}
+		fmt.Fprintf(w, "\t\"%s\" [label=\"%s: \\N\"%s]\n", zap.ShortCid(ev.Cid), prefix, color)
 		fmt.Fprintf(w, "\t\"%s\" -> { ", zap.ShortCid(ev.Cid))
 		for _, l := range ev.Links {
 			fmt.Fprintf(w, "\"%s\" ", zap.ShortCid(l))

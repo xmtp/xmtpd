@@ -57,3 +57,14 @@ func (s *NodeStore) Topics() (topics []string, err error) {
 	}
 	return topics, nil
 }
+
+func (s *NodeStore) DeleteTopic(topic string) error {
+	return executeTx(s.ctx, s.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(s.ctx, "DELETE FROM heads WHERE topic = $1", topic)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(s.ctx, "DELETE FROM events WHERE topic = $1", topic)
+		return err
+	})
+}

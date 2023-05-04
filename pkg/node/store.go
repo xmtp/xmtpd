@@ -9,4 +9,7 @@ type NodeStore interface {
 	Topics() ([]string, error)
 	// Close the node store
 	Close() error
+	// Remove topic from the store.
+	// Assumes the replica for the topic has been closed.
+	DeleteTopic(topic string) error
 }

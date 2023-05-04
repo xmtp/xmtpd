@@ -6,6 +6,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/crdt"
 	memstore "github.com/xmtp/xmtpd/pkg/crdt/stores/mem"
+	"github.com/xmtp/xmtpd/pkg/node"
 )
 
 type NodeStore struct {
@@ -43,5 +44,15 @@ func (n *NodeStore) Topics() (topics []string, err error) {
 }
 
 func (n *NodeStore) Close() error {
+	return nil
+}
+
+func (n *NodeStore) DeleteTopic(topic string) error {
+	n.topicsLock.Lock()
+	defer n.topicsLock.Unlock()
+	if _, ok := n.topics[topic]; !ok {
+		return node.ErrMissingTopic
+	}
+	delete(n.topics, topic)
 	return nil
 }

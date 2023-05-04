@@ -97,3 +97,9 @@ func (s *NodeStore) Topics() (topics []string, err error) {
 func (s *NodeStore) Close() error {
 	return s.db.Close()
 }
+
+func (s *NodeStore) DeleteTopic(topic string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.DeleteBucket([]byte(topic))
+	})
+}

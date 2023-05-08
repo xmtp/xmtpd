@@ -36,12 +36,13 @@ type syncer struct {
 
 func (n *Node) setSyncHandler() {
 	n.host.SetStreamHandler(syncProtocol, func(s network.Stream) {
+		defer s.Close()
 		log := n.ctx.Logger().Named("syncHandler")
 		failed := func(msg string, err error) bool {
 			if err == nil {
 				return false
 			}
-			log.Error(msg, zap.Error(err))
+			log.Error(msg, zap.Error(err), zap.PeerID("peer", s.Conn().RemotePeer()))
 			_ = s.Reset()
 			return true
 		}
@@ -63,7 +64,6 @@ func (n *Node) setSyncHandler() {
 			failed("reading request code", fmt.Errorf("unknown request code (%d)", code))
 			return
 		}
-		s.Close()
 	})
 }
 
@@ -78,7 +78,7 @@ func (s *syncer) Fetch(ctx context.Context, cids []multihash.Multihash) (evs []*
 	if err != nil {
 		return nil, err
 	}
-	defer s.Close()
+	defer stream.Close()
 	// use bufio to handle short writes
 	w := bufio.NewWriter(stream)
 	// send FETCH request

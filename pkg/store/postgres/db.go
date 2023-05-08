@@ -33,12 +33,18 @@ func executeTx(ctx context.Context, db *DB, fn func(tx *sql.Tx) error) error {
 		if p := recover(); p != nil {
 			rollbackErr := tx.Rollback()
 			if rollbackErr != nil {
+				if rollbackErr == context.Canceled {
+					return
+				}
 				ctx.Logger().Error("error rolling back", zap.Error(err))
 			}
 			panic(p) // re-throw panic after Rollback
 		} else if err != nil {
 			rollbackErr := tx.Rollback() // err is non-nil; don't change it
 			if rollbackErr != nil {
+				if rollbackErr == context.Canceled {
+					return
+				}
 				ctx.Logger().Error("error rolling back", zap.Error(err))
 			}
 		} else {

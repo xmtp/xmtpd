@@ -16,6 +16,11 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     logging: *logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Prometheus
   prometheus:

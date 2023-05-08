@@ -488,6 +488,10 @@ func (n *Node) topicReaper(ctx context.Context, period time.Duration) {
 func (n *Node) reapTopics(candidates []string) []string {
 	for _, topic := range candidates {
 		_ = n.DeleteTopic(topic)
+		candidates = []string{}
+	}
+	if len(candidates) > 0 {
+		n.log.Info("reaped topics", zap.Int("topics", len(candidates)))
 	}
 	n.topicsLock.RLock()
 	defer n.topicsLock.RUnlock()

@@ -66,6 +66,26 @@ dev/test
 
 These tests provide a full suite of unit and integration tests for the `xmtpd` repo to help ensure and maintain correctness of the code over time and to avoid regressions as the code evolves. You can explore the tests by taking a look at any files with the suffix `_test.go`. 
 
+## Connect the node to the experimental XMTP testnet
+
+You can connect the `xmtpd` node to an experimental XMTP testnet.
+
+You can use https://pizza.xmtp.chat/ to try messaging on the XMTP testnet.
+
+**Warning:** The XMTP testnet is unstable and we regularly delete data from it.
+
+To connect an `xmtpd` node to the XMTP testnet:
+
+1. Do this...
+
+2. Then this...
+
+3. Then this...
+
+4. Restart the node: `dev/down`, `dev/up`, and `dev/start`???
+
+5. To confirm that your node is connected, xxxxxx.
+
 ## Monitor the node
 
 The `xmtpd` node build provides two options for monitoring your node.

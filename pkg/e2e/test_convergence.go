@@ -16,7 +16,6 @@ import (
 	apiclient "github.com/xmtp/xmtpd/pkg/api/client"
 	"github.com/xmtp/xmtpd/pkg/context"
 	"github.com/xmtp/xmtpd/pkg/zap"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -50,6 +49,8 @@ func (e *E2E) testConvergence(name string) error {
 	ctx := context.WithTimeout(e.ctx, 30*time.Second)
 	defer ctx.Close()
 
+	failedNodes := make([]bool, len(clients))
+
 	// Subscribe across nodes.
 	subscribeStart := time.Now().UTC()
 	subs := make([]apiclient.Stream, len(clients))
@@ -68,6 +69,7 @@ func (e *E2E) testConvergence(name string) error {
 			e.log.Error("error subscribing", zap.Error(err))
 			e.metrics.recordSubscribe(e.ctx, name, nodeHosts[nodeIndex], "failed", duration)
 			clients[nodeIndex] = nil
+			failedNodes[nodeIndex] = true
 		} else {
 			subs[nodeIndex] = sub
 			defer sub.Close()
@@ -80,14 +82,17 @@ func (e *E2E) testConvergence(name string) error {
 	publishStart := time.Now().UTC()
 	envs := []*messagev1.Envelope{}
 	var envsLock sync.Mutex
-	var publishGroup errgroup.Group
+	var publishGroup sync.WaitGroup
 	for nodeIndex, client := range clients {
 		if client == nil {
 			continue
 		}
 		client := client
 		nodeIndex := nodeIndex
-		publishGroup.Go(func() error {
+		publishGroup.Add(1)
+		go func() {
+			defer publishGroup.Done()
+
 			clientEnvs := make([]*messagev1.Envelope, e.opts.MessagePerClient)
 			for j := 0; j < e.opts.MessagePerClient; j++ {
 				clientEnvs[j] = &messagev1.Envelope{
@@ -108,30 +113,29 @@ func (e *E2E) testConvergence(name string) error {
 				duration := time.Since(publishStart)
 				e.log.Error("error publishing", zap.Error(err), zap.Duration("duration", time.Since(publishStart)))
 				e.metrics.recordPublish(e.ctx, name, nodeHosts[nodeIndex], "failed", duration)
-				return nil
+				failedNodes[nodeIndex] = true
+				return
 			}
 
 			duration := time.Since(publishStart)
 			e.log.Info("published", zap.Duration("duration", duration), zap.String("node", nodeHosts[nodeIndex]))
 			e.metrics.recordPublish(e.ctx, name, nodeHosts[nodeIndex], "passed", duration)
-
-			return nil
-		})
+		}()
 	}
-	err := publishGroup.Wait()
-	if err != nil {
-		return err
-	}
+	publishGroup.Wait()
 
 	// Expect them to be relayed to each subscription.
-	var subscribeGroup errgroup.Group
+	var subscribeGroup sync.WaitGroup
 	for nodeIndex, sub := range subs {
 		if sub == nil {
 			continue
 		}
 		sub := sub
 		nodeIndex := nodeIndex
-		subscribeGroup.Go(func() error {
+		subscribeGroup.Add(1)
+		go func() {
+			defer subscribeGroup.Done()
+
 			envC := make(chan *messagev1.Envelope, 100)
 			go func(sub apiclient.Stream) {
 				for {
@@ -154,50 +158,55 @@ func (e *E2E) testConvergence(name string) error {
 				duration := time.Since(publishStart)
 				e.log.Error("error checking subscription", zap.Error(err), zap.Duration("duration", time.Since(publishStart)))
 				e.metrics.recordSubscribeConvergence(e.ctx, name, nodeHosts[nodeIndex], "failed", duration)
-				return nil
+				failedNodes[nodeIndex] = true
+				return
 			}
 
 			subscribeConvergenceDuration := time.Since(publishStart)
 			e.log.Info("subscribe converged", zap.Duration("duration", subscribeConvergenceDuration), zap.String("node", nodeHosts[nodeIndex]))
 			e.metrics.recordSubscribeConvergence(e.ctx, name, nodeHosts[nodeIndex], "passed", subscribeConvergenceDuration)
-
-			return nil
-		})
+		}()
 	}
 
 	// Expect that they're stored.
-	var queryGroup errgroup.Group
+	var queryGroup sync.WaitGroup
 	for nodeIndex, client := range clients {
 		if client == nil {
 			continue
 		}
 		client := client
 		nodeIndex := nodeIndex
-		queryGroup.Go(func() error {
+		queryGroup.Add(1)
+		go func() {
+			defer queryGroup.Done()
+
 			err := expectQueryMessagesEventually(ctx, client, []string{topic}, envs)
 			if err != nil {
 				duration := time.Since(publishStart)
 				e.log.Error("error querying", zap.Error(err), zap.Duration("duration", duration))
 				e.metrics.recordQueryConvergence(e.ctx, name, nodeHosts[nodeIndex], "failed", duration)
-				return nil
+				failedNodes[nodeIndex] = true
+				return
 			}
 
 			duration := time.Since(publishStart)
 			e.log.Info("query converged", zap.Duration("duration", duration), zap.String("node", nodeHosts[nodeIndex]))
 			e.metrics.recordQueryConvergence(e.ctx, name, nodeHosts[nodeIndex], "passed", duration)
-
-			return nil
-		})
+		}()
 	}
 
-	err = subscribeGroup.Wait()
-	if err != nil {
-		return err
-	}
+	subscribeGroup.Wait()
+	queryGroup.Wait()
 
-	err = queryGroup.Wait()
-	if err != nil {
-		return err
+	var failedCount int
+	for _, failed := range failedNodes {
+		if !failed {
+			continue
+		}
+		failedCount++
+	}
+	if failedCount > 0 {
+		return errors.New("some nodes were unavailable or failed to converge")
 	}
 
 	return nil

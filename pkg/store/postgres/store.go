@@ -278,6 +278,7 @@ func (s *Store) heads(ctx context.Context, tx *sql.Tx) ([]multihash.Multihash, e
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var cids []multihash.Multihash
 	for rows.Next() {

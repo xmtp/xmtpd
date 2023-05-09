@@ -8,6 +8,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/zap"
 )
 
+const (
+	// Default in postgres is typically configured to be 100.
+	maxOpenConnections = 80
+)
+
 type DB struct {
 	*sql.DB
 	DSN string
@@ -18,6 +23,7 @@ func NewDB(opts *Options) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(maxOpenConnections)
 	return &DB{
 		DB:  db,
 		DSN: opts.DSN,

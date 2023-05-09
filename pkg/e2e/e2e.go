@@ -27,13 +27,14 @@ type E2E struct {
 }
 
 type Options struct {
-	APIURLs          []string      `long:"api-url" env:"XMTP_API_URLS" description:"XMTP node API URLs" default:"http://localhost"`
-	ClientsPerURL    int           `long:"clients-per-url" description:"Number of clients for each API URL" default:"1"`
-	MessagePerClient int           `long:"messages-per-client" description:"Number of messages to publish for each client" default:"3"`
-	Continuous       bool          `long:"continuous" description:"Run continuously"`
-	ExitOnError      bool          `long:"exit-on-error" description:"Exit on error if running continuously"`
-	RunDelay         time.Duration `long:"delay" description:"Delay between runs (in seconds)" default:"5s"`
-	AdminPort        uint          `long:"admin-port" description:"Admin HTTP server listen port" default:"7777"`
+	APIURLs               []string      `long:"api-url" env:"XMTP_API_URLS" description:"XMTP node API URLs" default:"http://localhost"`
+	ClientsPerURL         int           `long:"clients-per-url" description:"Number of clients for each API URL" default:"1"`
+	MessagePerClient      int           `long:"messages-per-client" description:"Number of messages to publish for each client" default:"3"`
+	Continuous            bool          `long:"continuous" description:"Run continuously"`
+	ExitOnError           bool          `long:"exit-on-error" description:"Exit on error if running continuously"`
+	RunDelay              time.Duration `long:"delay" description:"Delay between runs" default:"5s"`
+	AdminPort             uint          `long:"admin-port" description:"Admin HTTP server listen port" default:"7777"`
+	QueryConvergenceDelay time.Duration `long:"query-convergence-delay" description:"Delay between query convergence checks" default:"10ms"`
 
 	GitCommit string
 }

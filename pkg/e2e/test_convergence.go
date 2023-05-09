@@ -180,7 +180,7 @@ func (e *E2E) testConvergence(name string) error {
 		go func() {
 			defer queryGroup.Done()
 
-			err := expectQueryMessagesEventually(ctx, client, []string{topic}, envs)
+			err := e.expectQueryMessagesEventually(ctx, client, []string{topic}, envs)
 			if err != nil {
 				duration := time.Since(publishStart)
 				e.log.Error("error querying", zap.Error(err), zap.Duration("duration", duration))
@@ -238,10 +238,8 @@ func isErrClosedConnection(err error) bool {
 	return errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed network connection") || strings.Contains(err.Error(), "response body closed")
 }
 
-func expectQueryMessagesEventually(ctx context.Context, client apiclient.Client, contentTopics []string, expectedEnvs []*messagev1.Envelope) error {
+func (e *E2E) expectQueryMessagesEventually(ctx context.Context, client apiclient.Client, contentTopics []string, expectedEnvs []*messagev1.Envelope) error {
 	timeout := 10 * time.Second
-	delay := 10 * time.Millisecond
-	// TODO: higher delay for production?
 	started := time.Now()
 	for {
 		envs, err := query(ctx, client, contentTopics)
@@ -262,7 +260,7 @@ func expectQueryMessagesEventually(ctx context.Context, client apiclient.Client,
 			}
 			return fmt.Errorf("timeout waiting for query expectation with no diff")
 		}
-		time.Sleep(delay)
+		time.Sleep(e.opts.QueryConvergenceDelay)
 	}
 	return nil
 }

@@ -27,18 +27,19 @@ type E2E struct {
 }
 
 type Options struct {
-	APIURLs          []string      `long:"api-url" env:"XMTP_API_URLS" description:"XMTP node API URLs" default:"http://localhost"`
-	ClientsPerURL    int           `long:"clients-per-url" description:"Number of clients for each API URL" default:"1"`
-	MessagePerClient int           `long:"messages-per-client" description:"Number of messages to publish for each client" default:"3"`
-	Continuous       bool          `long:"continuous" description:"Run continuously"`
-	ExitOnError      bool          `long:"exit-on-error" description:"Exit on error if running continuously"`
-	RunDelay         time.Duration `long:"delay" description:"Delay between runs (in seconds)" default:"5s"`
-	AdminPort        uint          `long:"admin-port" description:"Admin HTTP server listen port" default:"7777"`
+	APIURLs               []string      `long:"api-url" env:"XMTP_API_URLS" description:"XMTP node API URLs" default:"http://localhost"`
+	ClientsPerURL         int           `long:"clients-per-url" description:"Number of clients for each API URL" default:"1"`
+	MessagePerClient      int           `long:"messages-per-client" description:"Number of messages to publish for each client" default:"3"`
+	Continuous            bool          `long:"continuous" description:"Run continuously"`
+	ExitOnError           bool          `long:"exit-on-error" description:"Exit on error if running continuously"`
+	RunDelay              time.Duration `long:"delay" description:"Delay between runs" default:"5s"`
+	AdminPort             uint          `long:"admin-port" description:"Admin HTTP server listen port" default:"7777"`
+	QueryConvergenceDelay time.Duration `long:"query-convergence-delay" description:"Delay between query convergence checks" default:"10ms"`
 
 	GitCommit string
 }
 
-type testRunFunc func() error
+type testRunFunc func(name string) error
 
 type Test struct {
 	Name string
@@ -47,7 +48,7 @@ type Test struct {
 
 func (e *E2E) Tests() []*Test {
 	return []*Test{
-		e.newTest("messagev1 publish subscribe query", e.testMessageV1PublishSubscribeQuery),
+		e.newTest("convergence", e.testConvergence),
 	}
 }
 
@@ -59,7 +60,7 @@ func New(ctx context.Context, opts *Options) (*E2E, error) {
 		rand:    rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
 		opts:    opts,
 	}
-	e.log.Info("running", zap.String("git-commit", opts.GitCommit))
+	e.log.Info("running", zap.String("git-commit", opts.GitCommit), zap.Strings("nodes", opts.APIURLs))
 
 	if e.opts.Continuous {
 		go func() {
@@ -102,7 +103,7 @@ func (e *E2E) runTest(test *Test) error {
 	started := time.Now().UTC()
 	log := e.log.With(zap.String("test", test.Name))
 
-	err := test.Run()
+	err := test.Run(test.Name)
 	duration := time.Since(started)
 	log = log.With(zap.Duration("duration", duration))
 	if err != nil {

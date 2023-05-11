@@ -14,6 +14,7 @@ variable "node_keys" {
   sensitive = true
 }
 variable "enable_chat_app" { default = true }
+variable "enable_e2e" { default = true }
 variable "enable_monitoring" { default = true }
 variable "e2e_delay" { default = "" }
 variable "node_container_cpu_limit" { default = "500m" }

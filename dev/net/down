@@ -1,6 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-set -a; source .env.local; set +a
-
-dev/terraform/destroy "$@"
-dev/terraform/clean

@@ -14,13 +14,6 @@ Some of these requirements include reaching functional parity with the current n
 
 To keep up with and provide feedback about `xmtpd` development, see the [Issues tab](https://github.com/xmtp/xmtpd/issues) in this repo.
 
-At this time, you can experiment with `xmtpd` as follows:
-
-- Run a local `xmtpd` node.
-- Run a cluster of `xmtpd` nodes in a local devnet.
-
-In the future, anyone will be able to run an `xmtpd` node that participates in the XMTP network.
-
 ## Prerequisites
 
 - [Go](https://go.dev/doc/install)
@@ -85,7 +78,3 @@ The `xmtpd` node build provides two options for monitoring your node.
     ```
 
     To learn how to visualize node data in Grafana, see [Prometheus Histograms with Grafana Heatmaps](https://towardsdatascience.com/prometheus-histograms-with-grafana-heatmaps-d556c28612c7) and [How to visualize Prometheus histograms in Grafana](https://grafana.com/blog/2020/06/23/how-to-visualize-prometheus-histograms-in-grafana/).
-
-## Create a local `xmtpd` devnet
-
-To learn how to create a cluster of `xmtpd` nodes to run a local devnet, see [Create an XMTP devnet](./dev/net/README.md).

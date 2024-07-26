@@ -1,4 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-
-rm -rf ./bin/*

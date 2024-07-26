@@ -1,6 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-
-go fmt ./...
-
-dev/lint-markdown --fix

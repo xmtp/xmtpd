@@ -1,0 +1,400 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "MessageApi",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "MessageApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/message/v1/batch-query": {
+      "post": {
+        "summary": "BatchQuery containing a set of queries to be processed",
+        "operationId": "MessageApi_BatchQuery",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BatchQueryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BatchQueryRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageApi"
+        ]
+      }
+    },
+    "/message/v1/publish": {
+      "post": {
+        "summary": "Publish messages to the network",
+        "operationId": "MessageApi_Publish",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PublishResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PublishRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageApi"
+        ]
+      }
+    },
+    "/message/v1/query": {
+      "post": {
+        "summary": "Query the store for messages",
+        "operationId": "MessageApi_Query",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1QueryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1QueryRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageApi"
+        ]
+      }
+    },
+    "/message/v1/subscribe": {
+      "post": {
+        "summary": "Subscribe to a stream of new envelopes matching a predicate",
+        "operationId": "MessageApi_Subscribe",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/v1Envelope"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of v1Envelope"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SubscribeRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageApi"
+        ]
+      }
+    },
+    "/message/v1/subscribe-all": {
+      "post": {
+        "summary": "Subscribe to a stream of all messages",
+        "operationId": "MessageApi_SubscribeAll",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/v1Envelope"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of v1Envelope"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SubscribeAllRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageApi"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1BatchQueryRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1QueryRequest"
+          }
+        }
+      },
+      "title": "BatchQuery"
+    },
+    "v1BatchQueryResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1QueryResponse"
+          }
+        }
+      },
+      "title": "Response containing a list of QueryResponse messages"
+    },
+    "v1Cursor": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "$ref": "#/definitions/v1IndexCursor"
+        }
+      },
+      "title": "Wrapper for potentially multiple types of cursor"
+    },
+    "v1Envelope": {
+      "type": "object",
+      "properties": {
+        "contentTopic": {
+          "type": "string",
+          "description": "The topic the message belongs to,\nIf the message includes the topic as well\nit MUST be the same as the topic in the envelope."
+        },
+        "timestampNs": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Message creation timestamp\nIf the message includes the timestamp as well\nit MUST be equivalent to the timestamp in the envelope."
+        },
+        "message": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "description": "Envelope encapsulates a message while in transit."
+    },
+    "v1IndexCursor": {
+      "type": "object",
+      "properties": {
+        "digest": {
+          "type": "string",
+          "format": "byte"
+        },
+        "senderTimeNs": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "title": "This is based off of the go-waku Index type, but with the\nreceiverTime and pubsubTopic removed for simplicity.\nBoth removed fields are optional"
+    },
+    "v1PublishRequest": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Envelope"
+          }
+        }
+      },
+      "title": "Publish"
+    },
+    "v1PublishResponse": {
+      "type": "object",
+      "title": "Empty message as a response for Publish"
+    },
+    "v1QueryRequest": {
+      "type": "object",
+      "properties": {
+        "contentTopics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "startTimeNs": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endTimeNs": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "pagingInfo": {
+          "$ref": "#/definitions/xmtpmessage_apiv1PagingInfo"
+        }
+      },
+      "title": "Query"
+    },
+    "v1QueryResponse": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Envelope"
+          }
+        },
+        "pagingInfo": {
+          "$ref": "#/definitions/xmtpmessage_apiv1PagingInfo"
+        }
+      },
+      "title": "The response, containing envelopes, for a query"
+    },
+    "v1SubscribeAllRequest": {
+      "type": "object",
+      "title": "SubscribeAll"
+    },
+    "v1SubscribeRequest": {
+      "type": "object",
+      "properties": {
+        "contentTopics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Subscribe"
+    },
+    "xmtpmessage_apiv1PagingInfo": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Note: this is a uint32, while go-waku's pageSize is a uint64"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1Cursor"
+        },
+        "direction": {
+          "$ref": "#/definitions/xmtpmessage_apiv1SortDirection"
+        }
+      },
+      "title": "This is based off of the go-waku PagingInfo struct, but with the direction\nchanged to our SortDirection enum format"
+    },
+    "xmtpmessage_apiv1SortDirection": {
+      "type": "string",
+      "enum": [
+        "SORT_DIRECTION_UNSPECIFIED",
+        "SORT_DIRECTION_ASCENDING",
+        "SORT_DIRECTION_DESCENDING"
+      ],
+      "default": "SORT_DIRECTION_UNSPECIFIED",
+      "title": "Sort direction"
+    }
+  }
+}

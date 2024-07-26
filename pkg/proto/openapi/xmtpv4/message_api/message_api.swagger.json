@@ -1,0 +1,249 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "xmtpv4/message_api/message_api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ReplicationApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/mls/v2/query-envelopes": {
+      "post": {
+        "operationId": "ReplicationApi_QueryEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/xmtpv4QueryEnvelopesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/xmtpv4QueryEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
+    "/mls/v2/subscribe-envelopes": {
+      "post": {
+        "operationId": "ReplicationApi_SubscribeEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/xmtpv4GatewayEnvelope"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of xmtpv4GatewayEnvelope"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/xmtpv4BatchSubscribeEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "BatchSubscribeEnvelopesRequestSubscribeEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/definitions/xmtpv4EnvelopesQuery"
+        }
+      }
+    },
+    "identityassociationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "xmtpv4BatchSubscribeEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/BatchSubscribeEnvelopesRequestSubscribeEnvelopesRequest"
+          }
+        }
+      }
+    },
+    "xmtpv4BlockchainProof": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "publisherId": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "xmtpv4EnvelopesQuery": {
+      "type": "object",
+      "properties": {
+        "originatorSid": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "gatewaySid": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "topic": {
+          "type": "string",
+          "format": "byte"
+        },
+        "originatorId": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "xmtpv4GatewayEnvelope": {
+      "type": "object",
+      "properties": {
+        "gatewaySid": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "originatorEnvelope": {
+          "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
+        }
+      }
+    },
+    "xmtpv4OriginatorEnvelope": {
+      "type": "object",
+      "properties": {
+        "unsignedOriginatorEnvelope": {
+          "type": "string",
+          "format": "byte",
+          "title": "Protobuf serialized"
+        },
+        "originatorSignature": {
+          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+        },
+        "blockchainProof": {
+          "$ref": "#/definitions/xmtpv4BlockchainProof"
+        }
+      }
+    },
+    "xmtpv4QueryEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/definitions/xmtpv4EnvelopesQuery"
+        },
+        "pagingInfo": {
+          "$ref": "#/definitions/xmtpxmtpv4PagingInfo"
+        }
+      }
+    },
+    "xmtpv4QueryEnvelopesResponse": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4GatewayEnvelope"
+          }
+        }
+      }
+    },
+    "xmtpxmtpv4PagingInfo": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "Pagination config for queries"
+    }
+  }
+}

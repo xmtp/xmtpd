@@ -16,7 +16,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrations/replication"
 	"github.com/xmtp/xmtpd/pkg/replication/api"
 	"github.com/xmtp/xmtpd/pkg/replication/registry"
-	legacyServer "github.com/xmtp/xmtpd/pkg/server"
 	"go.uber.org/zap"
 )
 
@@ -99,7 +98,7 @@ func parsePrivateKey(privateKeyString string) (*ecdsa.PrivateKey, error) {
 }
 
 func getWriterDb(options DbOptions) (*sql.DB, error) {
-	db, err := legacyServer.NewPGXDB(options.WriterConnectionString, options.WaitForDB, options.ReadTimeout)
+	db, err := NewPGXDB(options.WriterConnectionString, options.WaitForDB, options.ReadTimeout)
 	if err != nil {
 		return nil, err
 	}

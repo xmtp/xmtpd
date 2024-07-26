@@ -1,6 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-
-go generate ./...
-
-mockgen -package node github.com/xmtp/proto/v3/go/message_api/v1 MessageApi_SubscribeServer > pkg/node/mock.gen.go

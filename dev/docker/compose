@@ -1,5 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-set -a; source .env.local; set +a
-
-docker-compose -f dev/docker/docker-compose.yml --env-file .env.local -p "${PROJECT_NAME}" "$@"

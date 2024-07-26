@@ -1,9 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-script_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
-if [[ "${OSTYPE}" == "darwin"* ]]; then
-    if ! which migrate &>/dev/null; then brew install golang-migrate; fi
-fi
-
-"${script_dir}"/compose up -d

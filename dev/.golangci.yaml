@@ -1,8 +1,0 @@
-linters:
-  # Disable all linters.
-  Default: true
-  # Enable specific linter
-  # https://golangci-lint.run/usage/linters/#enabled-by-default-linters
-  enable:
-    - nakedret
-    - nilerr

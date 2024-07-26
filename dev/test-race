@@ -1,5 +1,0 @@
-#!/bin/bash
-set -eou pipefail
-
-echo "Short tests with race detection"
-go test -race -short ./... "$@"

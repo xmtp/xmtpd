@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+
+function docker_compose() {
+  docker-compose -f dev/docker/docker-compose.yml -p xmtpd "$@"
+}

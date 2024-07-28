@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+go mod tidy
+
+if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
+if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
+if ! which mockery &>/dev/null; then brew install mockery; fi
+
+dev/generate
+dev/docker/up

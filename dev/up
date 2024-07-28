@@ -3,6 +3,7 @@ set -e
 
 go mod tidy
 
+if ! which migrate &>/dev/null; then brew install golang-migrate; fi
 if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which mockery &>/dev/null; then brew install mockery; fi

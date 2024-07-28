@@ -11,11 +11,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/migrations"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
 
-type Server struct {
+type ReplicationServer struct {
 	options      Options
 	log          *zap.Logger
 	ctx          context.Context
@@ -27,9 +29,9 @@ type Server struct {
 	// Can add reader DB later if needed
 }
 
-func New(ctx context.Context, log *zap.Logger, options Options, nodeRegistry registry.NodeRegistry) (*Server, error) {
+func NewReplicationServer(ctx context.Context, log *zap.Logger, options Options, nodeRegistry registry.NodeRegistry) (*ReplicationServer, error) {
 	var err error
-	s := &Server{
+	s := &ReplicationServer{
 		options:      options,
 		log:          log,
 		nodeRegistry: nodeRegistry,
@@ -39,10 +41,10 @@ func New(ctx context.Context, log *zap.Logger, options Options, nodeRegistry reg
 		return nil, err
 	}
 	// Commenting out the DB stuff until I get the new migrations in
-	// s.writerDb, err = getWriterDb(options.DB)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	s.writerDb, err = db.NewDB(ctx, options.DB.WriterConnectionString, options.DB.WaitForDB, options.DB.ReadTimeout)
+	if err != nil {
+		return nil, err
+	}
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.apiServer, err = api.NewAPIServer(ctx, log, options.API.Port)
@@ -53,18 +55,22 @@ func New(ctx context.Context, log *zap.Logger, options Options, nodeRegistry reg
 	return s, nil
 }
 
-func (s *Server) Addr() net.Addr {
+func (s *ReplicationServer) Migrate() error {
+	return migrations.Migrate(s.writerDb)
+}
+
+func (s *ReplicationServer) Addr() net.Addr {
 	return s.apiServer.Addr()
 }
 
-func (s *Server) WaitForShutdown() {
+func (s *ReplicationServer) WaitForShutdown() {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM)
 	<-termChannel
 	s.Shutdown()
 }
 
-func (s *Server) Shutdown() {
+func (s *ReplicationServer) Shutdown() {
 	s.cancel()
 	if s.apiServer != nil {
 		s.apiServer.Close()

@@ -1,4 +1,6 @@
 {
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--fast"],
   "pgFormatter.typeCase": "uppercase",
   "pgFormatter.tabs": true,
   "[sql]": {

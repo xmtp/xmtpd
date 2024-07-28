@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+read -ra shellcheck_paths <<< "$(grep -rIzl '^#!' dev)"
+shellcheck -x "${shellcheck_paths[@]}"

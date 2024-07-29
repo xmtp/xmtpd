@@ -14,12 +14,12 @@ import (
 
 const WRITER_DB_CONNECTION_STRING = "postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable"
 
-func NewTestServer(t *testing.T, registry registry.NodeRegistry) *Server {
+func NewTestServer(t *testing.T, registry registry.NodeRegistry) *ReplicationServer {
 	log := test.NewLog(t)
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	server, err := New(context.Background(), log, Options{
+	server, err := NewReplicationServer(context.Background(), log, Options{
 		PrivateKeyString: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		API: ApiOptions{
 			Port: 0,
@@ -42,4 +42,10 @@ func TestCreateServer(t *testing.T) {
 	server1 := NewTestServer(t, registry)
 	server2 := NewTestServer(t, registry)
 	require.NotEqual(t, server1.Addr(), server2.Addr())
+}
+
+func TestMigrate(t *testing.T) {
+	registry := registry.NewFixedNodeRegistry([]registry.Node{})
+	server := NewTestServer(t, registry)
+	require.NoError(t, server.Migrate())
 }

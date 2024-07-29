@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+ulimit -n 2048
+
+go test ./... "$@"
+
+if [ -n "${RACE:-}" ]; then
+    echo
+    echo "Running race tests"
+    go test ./... "$@" -race
+fi

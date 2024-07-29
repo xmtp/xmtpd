@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+
+migrate create -dir pkg/migrations -seq -digits=5 -ext sql $1

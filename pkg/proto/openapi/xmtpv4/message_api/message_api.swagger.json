@@ -16,8 +16,42 @@
     "application/json"
   ],
   "paths": {
+    "/mls/v2/publish-envelope": {
+      "post": {
+        "summary": "Publish envelope",
+        "operationId": "ReplicationApi_PublishEnvelope",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/xmtpv4PublishEnvelopeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/xmtpv4PublishEnvelopeRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
     "/mls/v2/query-envelopes": {
       "post": {
+        "summary": "Query envelopes",
         "operationId": "ReplicationApi_QueryEnvelopes",
         "responses": {
           "200": {
@@ -50,7 +84,8 @@
     },
     "/mls/v2/subscribe-envelopes": {
       "post": {
-        "operationId": "ReplicationApi_SubscribeEnvelopes",
+        "summary": "Subscribe to envelopes",
+        "operationId": "ReplicationApi_BatchSubscribeEnvelopes",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -58,13 +93,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/xmtpv4GatewayEnvelope"
+                  "$ref": "#/definitions/xmtpv4BatchSubscribeEnvelopesResponse"
                 },
                 "error": {
                   "$ref": "#/definitions/rpcStatus"
                 }
               },
-              "title": "Stream result of xmtpv4GatewayEnvelope"
+              "title": "Stream result of xmtpv4BatchSubscribeEnvelopesResponse"
             }
           },
           "default": {
@@ -97,7 +132,8 @@
         "query": {
           "$ref": "#/definitions/xmtpv4EnvelopesQuery"
         }
-      }
+      },
+      "title": "Single subscription request for envelopes"
     },
     "identityassociationsRecoverableEcdsaSignature": {
       "type": "object",
@@ -148,7 +184,21 @@
             "$ref": "#/definitions/BatchSubscribeEnvelopesRequestSubscribeEnvelopesRequest"
           }
         }
-      }
+      },
+      "title": "Batch subscribe to envelopes"
+    },
+    "xmtpv4BatchSubscribeEnvelopesResponse": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4GatewayEnvelope"
+          }
+        }
+      },
+      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
     },
     "xmtpv4BlockchainProof": {
       "type": "object",
@@ -161,11 +211,22 @@
           "type": "integer",
           "format": "int64"
         }
-      }
+      },
+      "title": "An alternative to a signature for blockchain payloads"
     },
     "xmtpv4EnvelopesQuery": {
       "type": "object",
       "properties": {
+        "topic": {
+          "type": "string",
+          "format": "byte",
+          "title": "Client queries"
+        },
+        "originatorId": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Node queries"
+        },
         "originatorSid": {
           "type": "string",
           "format": "uint64"
@@ -173,16 +234,9 @@
         "gatewaySid": {
           "type": "string",
           "format": "uint64"
-        },
-        "topic": {
-          "type": "string",
-          "format": "byte"
-        },
-        "originatorId": {
-          "type": "integer",
-          "format": "int64"
         }
-      }
+      },
+      "title": "Query for envelopes, shared by query and subscribe endpoints"
     },
     "xmtpv4GatewayEnvelope": {
       "type": "object",
@@ -194,7 +248,8 @@
         "originatorEnvelope": {
           "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
         }
-      }
+      },
+      "title": "Wraps originator envelope with a sequence ID assigned by the gateway"
     },
     "xmtpv4OriginatorEnvelope": {
       "type": "object",
@@ -210,6 +265,37 @@
         "blockchainProof": {
           "$ref": "#/definitions/xmtpv4BlockchainProof"
         }
+      },
+      "title": "Signed originator envelope"
+    },
+    "xmtpv4PayerEnvelope": {
+      "type": "object",
+      "properties": {
+        "unsignedClientEnvelope": {
+          "type": "string",
+          "format": "byte",
+          "title": "Protobuf serialized"
+        },
+        "payerSignature": {
+          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+        }
+      },
+      "title": "Wraps client envelope with payer signature"
+    },
+    "xmtpv4PublishEnvelopeRequest": {
+      "type": "object",
+      "properties": {
+        "payerEnvelope": {
+          "$ref": "#/definitions/xmtpv4PayerEnvelope"
+        }
+      }
+    },
+    "xmtpv4PublishEnvelopeResponse": {
+      "type": "object",
+      "properties": {
+        "originatorEnvelope": {
+          "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
+        }
       }
     },
     "xmtpv4QueryEnvelopesRequest": {
@@ -218,10 +304,12 @@
         "query": {
           "$ref": "#/definitions/xmtpv4EnvelopesQuery"
         },
-        "pagingInfo": {
-          "$ref": "#/definitions/xmtpxmtpv4PagingInfo"
+        "limit": {
+          "type": "integer",
+          "format": "int64"
         }
-      }
+      },
+      "title": "Query envelopes request"
     },
     "xmtpv4QueryEnvelopesResponse": {
       "type": "object",
@@ -233,17 +321,8 @@
             "$ref": "#/definitions/xmtpv4GatewayEnvelope"
           }
         }
-      }
-    },
-    "xmtpxmtpv4PagingInfo": {
-      "type": "object",
-      "properties": {
-        "limit": {
-          "type": "integer",
-          "format": "int64"
-        }
       },
-      "title": "Pagination config for queries"
+      "title": "Query envelopes response"
     }
   }
 }

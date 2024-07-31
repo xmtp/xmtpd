@@ -210,26 +210,6 @@
       },
       "description": "The first entry of any XID log. The XID must be deterministically derivable\nfrom the address and nonce.\nThe recovery address defaults to the initial associated_address unless\nthere is a subsequent ChangeRecoveryAddress in the log."
     },
-    "associationsErc1271Signature": {
-      "type": "object",
-      "properties": {
-        "accountId": {
-          "type": "string",
-          "title": "CAIP-10\nhttps://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64",
-          "title": "Specify the block number to verify the signature against"
-        },
-        "signature": {
-          "type": "string",
-          "format": "byte",
-          "title": "The actual signature bytes"
-        }
-      },
-      "title": "Smart wallet signature"
-    },
     "associationsIdentityAction": {
       "type": "object",
       "properties": {
@@ -321,6 +301,30 @@
       },
       "description": "Revokes a member from an XID. The recovery address must sign the revocation."
     },
+    "associationsSmartContractWalletSignature": {
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "title": "CAIP-10 string\nhttps://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Specify the block number to verify the signature against"
+        },
+        "signature": {
+          "type": "string",
+          "format": "byte",
+          "title": "The actual signature bytes"
+        },
+        "chainRpcUrl": {
+          "type": "string",
+          "title": "The RPC URL specifies a chain to verify the signature against"
+        }
+      },
+      "title": "Smart Contract Wallet signature"
+    },
     "identityassociationsRecoverableEcdsaSignature": {
       "type": "object",
       "properties": {
@@ -338,8 +342,8 @@
         "erc191": {
           "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
         },
-        "erc1271": {
-          "$ref": "#/definitions/associationsErc1271Signature"
+        "erc6492": {
+          "$ref": "#/definitions/associationsSmartContractWalletSignature"
         },
         "installationKey": {
           "$ref": "#/definitions/associationsRecoverableEd25519Signature"

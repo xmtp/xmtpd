@@ -21,8 +21,8 @@ func NewReplicationApiService(ctx context.Context, log *zap.Logger) (message_api
 	return &Service{ctx: ctx, log: log}, nil
 }
 
-func (s *Service) SubscribeEnvelopes(req *message_api.BatchSubscribeEnvelopesRequest, server message_api.ReplicationApi_SubscribeEnvelopesServer) error {
-	return status.Errorf(codes.Unimplemented, "method SubscribeEnvelopes not implemented")
+func (s *Service) BatchSubscribeEnvelopes(req *message_api.BatchSubscribeEnvelopesRequest, server message_api.ReplicationApi_BatchSubscribeEnvelopesServer) error {
+	return status.Errorf(codes.Unimplemented, "method BatchSubscribeEnvelopes not implemented")
 }
 
 func (s *Service) QueryEnvelopes(ctx context.Context, req *message_api.QueryEnvelopesRequest) (*message_api.QueryEnvelopesResponse, error) {

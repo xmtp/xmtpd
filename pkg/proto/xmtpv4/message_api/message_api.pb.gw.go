@@ -31,7 +31,7 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 var _ = metadata.Join
 
-func request_ReplicationApi_SubscribeEnvelopes_0(ctx context.Context, marshaler runtime.Marshaler, client ReplicationApiClient, req *http.Request, pathParams map[string]string) (ReplicationApi_SubscribeEnvelopesClient, runtime.ServerMetadata, error) {
+func request_ReplicationApi_BatchSubscribeEnvelopes_0(ctx context.Context, marshaler runtime.Marshaler, client ReplicationApiClient, req *http.Request, pathParams map[string]string) (ReplicationApi_BatchSubscribeEnvelopesClient, runtime.ServerMetadata, error) {
 	var protoReq BatchSubscribeEnvelopesRequest
 	var metadata runtime.ServerMetadata
 
@@ -39,7 +39,7 @@ func request_ReplicationApi_SubscribeEnvelopes_0(ctx context.Context, marshaler 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	stream, err := client.SubscribeEnvelopes(ctx, &protoReq)
+	stream, err := client.BatchSubscribeEnvelopes(ctx, &protoReq)
 	if err != nil {
 		return nil, metadata, err
 	}
@@ -78,13 +78,39 @@ func local_request_ReplicationApi_QueryEnvelopes_0(ctx context.Context, marshale
 
 }
 
+func request_ReplicationApi_PublishEnvelope_0(ctx context.Context, marshaler runtime.Marshaler, client ReplicationApiClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq PublishEnvelopeRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.PublishEnvelope(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_ReplicationApi_PublishEnvelope_0(ctx context.Context, marshaler runtime.Marshaler, server ReplicationApiServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq PublishEnvelopeRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.PublishEnvelope(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 // RegisterReplicationApiHandlerServer registers the http handlers for service ReplicationApi to "mux".
 // UnaryRPC     :call ReplicationApiServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterReplicationApiHandlerFromEndpoint instead.
 func RegisterReplicationApiHandlerServer(ctx context.Context, mux *runtime.ServeMux, server ReplicationApiServer) error {
 
-	mux.Handle("POST", pattern_ReplicationApi_SubscribeEnvelopes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ReplicationApi_BatchSubscribeEnvelopes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
 		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -113,6 +139,31 @@ func RegisterReplicationApiHandlerServer(ctx context.Context, mux *runtime.Serve
 		}
 
 		forward_ReplicationApi_QueryEnvelopes_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_ReplicationApi_PublishEnvelope_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/xmtp.xmtpv4.ReplicationApi/PublishEnvelope", runtime.WithHTTPPathPattern("/mls/v2/publish-envelope"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_ReplicationApi_PublishEnvelope_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ReplicationApi_PublishEnvelope_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -157,25 +208,25 @@ func RegisterReplicationApiHandler(ctx context.Context, mux *runtime.ServeMux, c
 // "ReplicationApiClient" to call the correct interceptors.
 func RegisterReplicationApiHandlerClient(ctx context.Context, mux *runtime.ServeMux, client ReplicationApiClient) error {
 
-	mux.Handle("POST", pattern_ReplicationApi_SubscribeEnvelopes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_ReplicationApi_BatchSubscribeEnvelopes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.ReplicationApi/SubscribeEnvelopes", runtime.WithHTTPPathPattern("/mls/v2/subscribe-envelopes"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.ReplicationApi/BatchSubscribeEnvelopes", runtime.WithHTTPPathPattern("/mls/v2/subscribe-envelopes"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ReplicationApi_SubscribeEnvelopes_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ReplicationApi_BatchSubscribeEnvelopes_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ReplicationApi_SubscribeEnvelopes_0(annotatedContext, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+		forward_ReplicationApi_BatchSubscribeEnvelopes_0(annotatedContext, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -201,17 +252,43 @@ func RegisterReplicationApiHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("POST", pattern_ReplicationApi_PublishEnvelope_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.ReplicationApi/PublishEnvelope", runtime.WithHTTPPathPattern("/mls/v2/publish-envelope"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ReplicationApi_PublishEnvelope_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_ReplicationApi_PublishEnvelope_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
 var (
-	pattern_ReplicationApi_SubscribeEnvelopes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"mls", "v2", "subscribe-envelopes"}, ""))
+	pattern_ReplicationApi_BatchSubscribeEnvelopes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"mls", "v2", "subscribe-envelopes"}, ""))
 
 	pattern_ReplicationApi_QueryEnvelopes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"mls", "v2", "query-envelopes"}, ""))
+
+	pattern_ReplicationApi_PublishEnvelope_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"mls", "v2", "publish-envelope"}, ""))
 )
 
 var (
-	forward_ReplicationApi_SubscribeEnvelopes_0 = runtime.ForwardResponseStream
+	forward_ReplicationApi_BatchSubscribeEnvelopes_0 = runtime.ForwardResponseStream
 
 	forward_ReplicationApi_QueryEnvelopes_0 = runtime.ForwardResponseMessage
+
+	forward_ReplicationApi_PublishEnvelope_0 = runtime.ForwardResponseMessage
 )

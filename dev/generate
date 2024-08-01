@@ -5,7 +5,7 @@ go generate ./...
 
 # TODO: Generate mocks
 rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
-if ! buf generate https://github.com/xmtp/proto.git#branch=rich/xmtpv4,subdir=proto; then
+if ! buf generate https://github.com/xmtp/proto.git#subdir=proto; then
     echo "Failed to generate protobuf definitions"
     exit 1
 fi

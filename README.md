@@ -78,3 +78,21 @@ The `xmtpd` node build provides two options for monitoring your node.
     ```
 
     To learn how to visualize node data in Grafana, see [Prometheus Histograms with Grafana Heatmaps](https://towardsdatascience.com/prometheus-histograms-with-grafana-heatmaps-d556c28612c7) and [How to visualize Prometheus histograms in Grafana](https://grafana.com/blog/2020/06/23/how-to-visualize-prometheus-histograms-in-grafana/).
+
+## Modifying the protobuf schema
+
+Submit and land a PR to https://github.com/xmtp/proto. Then run:
+
+  ```sh
+  dev/generate
+  ```
+
+## Modifying the database schema
+
+Create a new migration by running:
+
+  ```sh
+  dev/gen-migration
+  ```
+
+If you are unfamiliar with migrations, you may follow [this guide](https://github.com/golang-migrate/migrate/blob/master/MIGRATIONS.md). The database is PostgreSQL and the driver is PGX.

@@ -40,7 +40,6 @@ func NewReplicationServer(ctx context.Context, log *zap.Logger, options Options,
 	if err != nil {
 		return nil, err
 	}
-	// Commenting out the DB stuff until I get the new migrations in
 	s.writerDb, err = db.NewDB(ctx, options.DB.WriterConnectionString, options.DB.WaitForDB, options.DB.ReadTimeout)
 	if err != nil {
 		return nil, err

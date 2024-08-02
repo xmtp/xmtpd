@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"strings"
@@ -20,24 +21,26 @@ import (
 )
 
 type ApiServer struct {
-	log          *zap.Logger
-	wg           sync.WaitGroup
-	grpcListener net.Listener
 	ctx          context.Context
-	service      *message_api.ReplicationApiServer
+	db           *sql.DB
+	grpcListener net.Listener
+	log          *zap.Logger
+	service      message_api.ReplicationApiServer
+	wg           sync.WaitGroup
 }
 
-func NewAPIServer(ctx context.Context, log *zap.Logger, port int) (*ApiServer, error) {
+func NewAPIServer(ctx context.Context, writerDB *sql.DB, log *zap.Logger, port int) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
 	if err != nil {
 		return nil, err
 	}
 	s := &ApiServer{
-		log:          log.Named("api"),
 		ctx:          ctx,
-		wg:           sync.WaitGroup{},
+		db:           writerDB,
 		grpcListener: &proxyproto.Listener{Listener: grpcListener, ReadHeaderTimeout: 10 * time.Second},
+		log:          log.Named("api"),
+		wg:           sync.WaitGroup{},
 	}
 
 	// TODO: Add interceptors
@@ -58,11 +61,11 @@ func NewAPIServer(ctx context.Context, log *zap.Logger, port int) (*ApiServer, e
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(grpcServer, healthcheck)
 
-	replicationService, err := NewReplicationApiService(ctx, log)
+	replicationService, err := NewReplicationApiService(ctx, log, writerDB)
 	if err != nil {
 		return nil, err
 	}
-	s.service = &replicationService
+	s.service = replicationService
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))

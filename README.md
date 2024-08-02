@@ -79,6 +79,10 @@ The `xmtpd` node build provides two options for monitoring your node.
 
     To learn how to visualize node data in Grafana, see [Prometheus Histograms with Grafana Heatmaps](https://towardsdatascience.com/prometheus-histograms-with-grafana-heatmaps-d556c28612c7) and [How to visualize Prometheus histograms in Grafana](https://grafana.com/blog/2020/06/23/how-to-visualize-prometheus-histograms-in-grafana/).
 
+# Contributing
+
+Please follow the [style guide](https://google.github.io/styleguide/go/decisions).
+
 ## Modifying the protobuf schema
 
 Submit and land a PR to https://github.com/xmtp/proto. Then run:

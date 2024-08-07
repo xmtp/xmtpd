@@ -8,7 +8,8 @@ CREATE TABLE node_info(
 	CONSTRAINT is_singleton CHECK (singleton_id = 1)
 );
 
-CREATE TABLE all_envelopes(
+-- Includes all envelopes, whether they were originated locally or not
+CREATE TABLE gateway_envelopes(
 	-- used to construct gateway_sid
 	id BIGSERIAL PRIMARY KEY,
 	originator_sid BIGINT NOT NULL,
@@ -16,9 +17,9 @@ CREATE TABLE all_envelopes(
 	originator_envelope BYTEA NOT NULL
 );
 -- Client queries
-CREATE INDEX idx_all_envelopes_topic ON all_envelopes(topic);
+CREATE INDEX idx_gateway_envelopes_topic ON gateway_envelopes(topic);
 -- Node queries
-CREATE UNIQUE INDEX idx_all_envelopes_originator_sid ON all_envelopes(originator_sid);
+CREATE UNIQUE INDEX idx_gateway_envelopes_originator_sid ON gateway_envelopes(originator_sid);
 
 
 -- Process for originating envelopes:
@@ -30,10 +31,10 @@ CREATE UNIQUE INDEX idx_all_envelopes_originator_sid ON all_envelopes(originator
 --     2.2. Atomically insert into all_envelopes and delete from originated_envelopes,
 --	        ignoring unique index violations on originator_sid
 -- This preserves total ordering, while avoiding gaps in sequence ID's.
-CREATE TABLE staged_originated_envelopes(
+CREATE TABLE staged_originator_envelopes(
 	-- used to construct originator_sid
 	id BIGSERIAL PRIMARY KEY,
-	originator_ns TIMESTAMP NOT NULL DEFAULT now(),
+	originator_time TIMESTAMP NOT NULL DEFAULT now(),
 	payer_envelope BYTEA NOT NULL
 );
 

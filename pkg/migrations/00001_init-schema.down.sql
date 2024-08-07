@@ -1,4 +1,4 @@
 DROP TABLE node_info;
-DROP TABLE all_envelopes;
-DROP TABLE staged_originated_envelopes;
+DROP TABLE gateway_envelopes;
+DROP TABLE staged_originator_envelopes;
 DROP TABLE address_log;

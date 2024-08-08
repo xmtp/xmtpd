@@ -1,0 +1,167 @@
+package blockchain
+
+import (
+	"context"
+	"math/big"
+	"time"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"go.uber.org/zap"
+)
+
+const (
+	BACKFILL_BLOCKS = 1000
+	// Don't index very new blocks to account for reorgs
+	// Setting to 0 since we are talking about L2s with low reorg risk
+	LAG_FROM_HIGHEST_BLOCK = 0
+	ERROR_SLEEP_TIME       = 100 * time.Millisecond
+)
+
+// The builder that allows you to configure contract events to listen for
+type RpcLogStreamBuilder struct {
+	// All the listeners
+	contractConfigs []contractConfig
+	logger          *zap.Logger
+	rpcUrl          string
+}
+
+func NewRpcLogStreamBuilder(rpcUrl string, logger *zap.Logger) *RpcLogStreamBuilder {
+	return &RpcLogStreamBuilder{rpcUrl: rpcUrl, logger: logger}
+}
+
+func (c *RpcLogStreamBuilder) ListenForContractEvent(fromBlock int, contractAddress common.Address, topics []common.Hash) <-chan types.Log {
+	eventChannel := make(chan types.Log)
+	c.contractConfigs = append(c.contractConfigs, contractConfig{fromBlock, contractAddress, topics, eventChannel})
+	return eventChannel
+}
+
+func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
+	client, err := ethclient.Dial(c.rpcUrl)
+	if err != nil {
+		return nil, err
+	}
+	return NewRpcLogStreamer(client, c.logger, c.contractConfigs), nil
+}
+
+// Struct defining all the information required to filter events from logs
+type contractConfig struct {
+	fromBlock       int
+	contractAddress common.Address
+	topics          []common.Hash
+	channel         chan<- types.Log
+}
+
+/*
+*
+A RpcLogStreamer is a naive implementation of the ChainStreamer interface.
+It queries a remote blockchain node for log events to backfill history, and then streams new events,
+to get a complete history of events on a chain.
+*
+*/
+type RpcLogStreamer struct {
+	client     ChainClient
+	watchers   []contractConfig
+	ctx        context.Context
+	cancelFunc context.CancelFunc
+	logger     *zap.Logger
+}
+
+func NewRpcLogStreamer(client ChainClient, logger *zap.Logger, watchers []contractConfig) *RpcLogStreamer {
+	return &RpcLogStreamer{
+		client:   client,
+		watchers: watchers,
+		logger:   logger,
+	}
+}
+
+func (r *RpcLogStreamer) Start(ctx context.Context) error {
+	r.ctx, r.cancelFunc = context.WithCancel(ctx)
+
+	for _, watcher := range r.watchers {
+		go r.watchContract(watcher)
+	}
+	return nil
+}
+
+func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
+	fromBlock := int(watcher.fromBlock)
+	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
+	for {
+		select {
+		case <-r.ctx.Done():
+			logger.Info("Stopping watcher")
+			return
+		default:
+			logs, nextBlock, err := r.getNextPage(watcher, fromBlock)
+			if err != nil {
+				logger.Error("Error getting next page", zap.Int("fromBlock", fromBlock), zap.Error(err))
+				time.Sleep(ERROR_SLEEP_TIME)
+				continue
+			}
+
+			logger.Info("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
+			for _, log := range logs {
+				watcher.channel <- log
+			}
+			if nextBlock != nil {
+				fromBlock = *nextBlock
+			}
+		}
+	}
+}
+
+func (r *RpcLogStreamer) getNextPage(config contractConfig, fromBlock int) (logs []types.Log, nextBlock *int, err error) {
+	highestBlock, err := r.client.BlockNumber(r.ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	highestBlockCanProcess := int(highestBlock) - LAG_FROM_HIGHEST_BLOCK
+	numOfBlocksToProcess := highestBlockCanProcess - fromBlock + 1
+
+	var to int
+	// Make sure we stay within a reasonable page size
+	if numOfBlocksToProcess > BACKFILL_BLOCKS {
+		// quick mode
+		to = fromBlock + BACKFILL_BLOCKS
+	} else {
+		// normal mode, up to current highest block num can process
+		to = highestBlockCanProcess
+	}
+
+	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
+	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
+	logs, err = r.client.FilterLogs(r.ctx, buildFilterQuery(config, int64(fromBlock), int64(to)))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	nextBlockNumber := to + 1
+
+	return logs, &nextBlockNumber, nil
+}
+
+func (r *RpcLogStreamer) Stop() error {
+	if r.cancelFunc != nil {
+		r.cancelFunc()
+	}
+	return nil
+}
+
+func buildFilterQuery(contractConfig contractConfig, fromBlock int64, toBlock int64) ethereum.FilterQuery {
+	addresses := []common.Address{contractConfig.contractAddress}
+	topics := [][]common.Hash{}
+	for _, topic := range contractConfig.topics {
+		topics = append(topics, []common.Hash{topic})
+	}
+
+	return ethereum.FilterQuery{
+		FromBlock: big.NewInt(fromBlock),
+		ToBlock:   big.NewInt(toBlock),
+		Addresses: addresses,
+		Topics:    topics,
+	}
+}

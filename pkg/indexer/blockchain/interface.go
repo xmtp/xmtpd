@@ -3,17 +3,24 @@ package blockchain
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Construct a raw blockchain listener that can be used to listen for events across many contract event types
-type ChainStreamerBuilder interface {
+type LogStreamBuilder interface {
 	ListenForContractEvent(fromBlock uint64, contractAddress common.Address, topic common.Hash) <-chan types.Log
-	Build() ChainStreamer
+	Build() (LogStreamer, error)
 }
 
-type ChainStreamer interface {
+type LogStreamer interface {
 	Start(ctx context.Context) error
 	Stop() error
+}
+
+type ChainClient interface {
+	ethereum.BlockNumberReader
+	ethereum.LogFilterer
+	ethereum.ChainIDReader
 }

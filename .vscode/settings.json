@@ -5,5 +5,14 @@
   "pgFormatter.tabs": true,
   "[sql]": {
     "editor.defaultFormatter": "bradymholt.pgformatter"
+  },
+  // Instructions from https://github.com/segmentio/golines
+  "emeraldwalk.runonsave": {
+    "commands": [
+        {
+            "match": "\\.go$",
+            "cmd": "golines ${file} -w"
+        }
+    ]
   }
 }

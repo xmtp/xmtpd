@@ -69,7 +69,7 @@ func addEnvVars() {
 	}
 
 	if connStr, hasConnstr := os.LookupEnv("READER_DB_CONNECTION_STRING"); hasConnstr {
-		options.DB.WriterConnectionString = connStr
+		options.DB.ReaderConnectionString = connStr
 	}
 
 	if privKey, hasPrivKey := os.LookupEnv("PRIVATE_KEY"); hasPrivKey {

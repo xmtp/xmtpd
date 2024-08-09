@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 
@@ -12,23 +13,35 @@ import (
 //go:embed *.sql
 var migrationFs embed.FS
 
-func Migrate(db *sql.DB) error {
+func Migrate(ctx context.Context, db *sql.DB) error {
 	migrationFs, err := iofs.New(migrationFs, ".")
 	if err != nil {
 		return err
 	}
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	defer migrationFs.Close()
+
+	conn, err := db.Conn(ctx)
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
+
+	driver, err := postgres.WithConnection(ctx, conn, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+	defer driver.Close()
+
 	migrator, err := migrate.NewWithInstance("iofs", migrationFs, "postgres", driver)
 	if err != nil {
 		return err
 	}
+	defer migrator.Close()
 
 	err = migrator.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}
+
 	return nil
 }

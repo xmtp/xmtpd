@@ -43,9 +43,3 @@ func TestCreateServer(t *testing.T) {
 	server2 := NewTestServer(t, registry)
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 }
-
-func TestMigrate(t *testing.T) {
-	registry := registry.NewFixedNodeRegistry([]registry.Node{})
-	server := NewTestServer(t, registry)
-	require.NoError(t, server.Migrate())
-}

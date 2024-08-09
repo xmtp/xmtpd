@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/migrations"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
@@ -25,7 +24,7 @@ type ReplicationServer struct {
 	apiServer    *api.ApiServer
 	nodeRegistry registry.NodeRegistry
 	privateKey   *ecdsa.PrivateKey
-	writerDb     *sql.DB
+	writerDB     *sql.DB
 	// Can add reader DB later if needed
 }
 
@@ -40,22 +39,18 @@ func NewReplicationServer(ctx context.Context, log *zap.Logger, options Options,
 	if err != nil {
 		return nil, err
 	}
-	s.writerDb, err = db.NewDB(ctx, options.DB.WriterConnectionString, options.DB.WaitForDB, options.DB.ReadTimeout)
+	s.writerDB, err = db.NewDB(ctx, options.DB.WriterConnectionString, options.DB.WaitForDB, options.DB.ReadTimeout)
 	if err != nil {
 		return nil, err
 	}
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.apiServer, err = api.NewAPIServer(ctx, log, options.API.Port)
+	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, options.API.Port)
 	if err != nil {
 		return nil, err
 	}
 	log.Info("Replication server started", zap.Int("port", options.API.Port))
 	return s, nil
-}
-
-func (s *ReplicationServer) Migrate() error {
-	return migrations.Migrate(s.writerDb)
 }
 
 func (s *ReplicationServer) Addr() net.Addr {

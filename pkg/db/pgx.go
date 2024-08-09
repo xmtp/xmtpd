@@ -8,15 +8,22 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/xmtp/xmtpd/pkg/migrations"
 )
 
-func NewDB(ctx context.Context, dsn string, waitForDB, statementTimeout time.Duration) (*sql.DB, error) {
+func newPGXDB(
+	ctx context.Context,
+	dsn string,
+	waitForDB, statementTimeout time.Duration,
+) (*sql.DB, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	config.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(statementTimeout.Milliseconds())
+	config.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(
+		statementTimeout.Milliseconds(),
+	)
 
 	dbPool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
@@ -34,4 +41,20 @@ func NewDB(ctx context.Context, dsn string, waitForDB, statementTimeout time.Dur
 	}
 
 	return db, err
+}
+
+func NewDB(
+	ctx context.Context,
+	dsn string,
+	waitForDB, statementTimeout time.Duration,
+) (*sql.DB, error) {
+	db, err := newPGXDB(ctx, dsn, waitForDB, statementTimeout)
+	if err != nil {
+		return nil, err
+	}
+	err = migrations.Migrate(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }

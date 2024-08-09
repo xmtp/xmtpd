@@ -8,6 +8,7 @@ if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which mockery &>/dev/null; then brew install mockery; fi
 if ! which sqlc &> /dev/null; then brew install sqlc; fi
+if ! which golines &>/dev/null; then go install github.com/segmentio/golines@latest; fi
 
 dev/generate
 dev/docker/up

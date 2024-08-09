@@ -39,7 +39,12 @@ func main() {
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
-		s, err := server.NewReplicationServer(ctx, log, options, registry.NewFixedNodeRegistry([]registry.Node{}))
+		s, err := server.NewReplicationServer(
+			ctx,
+			log,
+			options,
+			registry.NewFixedNodeRegistry([]registry.Record{}),
+		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))
 		}

@@ -1,7 +1,7 @@
 package registry
 
-type Node struct {
-	Index         int
+type Record struct {
+	ID            int32
 	PublicKey     []byte
 	GrpcAddress   string
 	DisabledBlock *uint64
@@ -9,24 +9,24 @@ type Node struct {
 }
 
 type NodeRegistry interface {
-	GetNodes() ([]Node, error)
+	GetNodes() ([]Record, error)
 	// OnChange()
 }
 
 // TODO: Delete this or move to a test file
 
 type FixedNodeRegistry struct {
-	nodes []Node
+	nodes []Record
 }
 
-func NewFixedNodeRegistry(nodes []Node) *FixedNodeRegistry {
+func NewFixedNodeRegistry(nodes []Record) *FixedNodeRegistry {
 	return &FixedNodeRegistry{nodes: nodes}
 }
 
-func (r *FixedNodeRegistry) GetNodes() ([]Node, error) {
+func (r *FixedNodeRegistry) GetNodes() ([]Record, error) {
 	return r.nodes, nil
 }
 
-func (f *FixedNodeRegistry) AddNode(node Node) {
+func (f *FixedNodeRegistry) AddNode(node Record) {
 	f.nodes = append(f.nodes, node)
 }

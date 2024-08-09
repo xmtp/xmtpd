@@ -38,7 +38,7 @@ func NewTestServer(t *testing.T, registry registry.NodeRegistry) *ReplicationSer
 }
 
 func TestCreateServer(t *testing.T) {
-	registry := registry.NewFixedNodeRegistry([]registry.Node{})
+	registry := registry.NewFixedNodeRegistry([]registry.Record{})
 	server1 := NewTestServer(t, registry)
 	server2 := NewTestServer(t, registry)
 	require.NotEqual(t, server1.Addr(), server2.Addr())

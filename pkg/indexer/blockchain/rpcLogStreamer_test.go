@@ -40,7 +40,6 @@ func TestBuilder(t *testing.T) {
 	streamer, err := builder.Build()
 	require.NoError(t, err)
 	require.NotNil(t, streamer)
-
 }
 
 func TestRpcLogStreamer(t *testing.T) {

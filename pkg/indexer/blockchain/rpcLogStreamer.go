@@ -33,7 +33,7 @@ func NewRpcLogStreamBuilder(rpcUrl string, logger *zap.Logger) *RpcLogStreamBuil
 }
 
 func (c *RpcLogStreamBuilder) ListenForContractEvent(fromBlock int, contractAddress common.Address, topics []common.Hash) <-chan types.Log {
-	eventChannel := make(chan types.Log)
+	eventChannel := make(chan types.Log, 100)
 	c.contractConfigs = append(c.contractConfigs, contractConfig{fromBlock, contractAddress, topics, eventChannel})
 	return eventChannel
 }
@@ -62,23 +62,22 @@ to get a complete history of events on a chain.
 *
 */
 type RpcLogStreamer struct {
-	client     ChainClient
-	watchers   []contractConfig
-	ctx        context.Context
-	cancelFunc context.CancelFunc
-	logger     *zap.Logger
+	client   ChainClient
+	watchers []contractConfig
+	ctx      context.Context
+	logger   *zap.Logger
 }
 
 func NewRpcLogStreamer(client ChainClient, logger *zap.Logger, watchers []contractConfig) *RpcLogStreamer {
 	return &RpcLogStreamer{
 		client:   client,
 		watchers: watchers,
-		logger:   logger,
+		logger:   logger.Named("rpcLogStreamer"),
 	}
 }
 
 func (r *RpcLogStreamer) Start(ctx context.Context) error {
-	r.ctx, r.cancelFunc = context.WithCancel(ctx)
+	r.ctx = ctx
 
 	for _, watcher := range r.watchers {
 		go r.watchContract(watcher)
@@ -89,6 +88,7 @@ func (r *RpcLogStreamer) Start(ctx context.Context) error {
 func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 	fromBlock := int(watcher.fromBlock)
 	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
+	defer close(watcher.channel)
 	for {
 		select {
 		case <-r.ctx.Done():
@@ -142,13 +142,6 @@ func (r *RpcLogStreamer) getNextPage(config contractConfig, fromBlock int) (logs
 	nextBlockNumber := to + 1
 
 	return logs, &nextBlockNumber, nil
-}
-
-func (r *RpcLogStreamer) Stop() error {
-	if r.cancelFunc != nil {
-		r.cancelFunc()
-	}
-	return nil
 }
 
 func buildFilterQuery(contractConfig contractConfig, fromBlock int64, toBlock int64) ethereum.FilterQuery {

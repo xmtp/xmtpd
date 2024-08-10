@@ -1,6 +1,10 @@
 package server
 
-import "time"
+import (
+	"time"
+
+	"github.com/xmtp/xmtpd/pkg/indexer"
+)
 
 type ApiOptions struct {
 	Port int `short:"p" long:"port" description:"Port to listen on" default:"5050"`
@@ -22,6 +26,7 @@ type Options struct {
 
 	PrivateKeyString string `long:"private-key" description:"Private key to use for the node"`
 
-	API ApiOptions `group:"API Options" namespace:"api"`
-	DB  DbOptions  `group:"Database Options" namespace:"db"`
+	API       ApiOptions               `group:"API Options" namespace:"api"`
+	DB        DbOptions                `group:"Database Options" namespace:"db"`
+	Contracts indexer.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
 }

@@ -16,7 +16,6 @@ type LogStreamBuilder interface {
 
 type LogStreamer interface {
 	Start(ctx context.Context) error
-	Stop() error
 }
 
 type ChainClient interface {

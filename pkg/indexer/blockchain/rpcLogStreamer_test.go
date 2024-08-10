@@ -4,6 +4,7 @@ import (
 	big "math/big"
 	"testing"
 
+	"github.com/xmtp/xmtpd/pkg/mocks"
 	testutils "github.com/xmtp/xmtpd/pkg/testing"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -53,7 +54,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		Data:    []byte("foo"),
 	}
 
-	mockClient := NewMockChainClient(t)
+	mockClient := mocks.NewMockChainClient(t)
 	mockClient.On("BlockNumber", mock.Anything).Return(uint64(lastBlock), nil)
 	mockClient.On("FilterLogs", mock.Anything, ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(fromBlock)),

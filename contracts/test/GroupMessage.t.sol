@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import {Test, console} from "forge-std/Test.sol";
 import {GroupMessages} from "../src/GroupMessages.sol";
 
-contract CounterTest is Test {
+contract GroupMessagesTest is Test {
     GroupMessages public groupMessages;
 
     function setUp() public {

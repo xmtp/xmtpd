@@ -11,12 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
-
-// Stores: public key, private key, id
-// Performs: signing, SID generation
-// Verify against registry
-// Verify against DB
 
 type Node struct {
 	record     registry.Record
@@ -71,4 +67,17 @@ func NewNode(
 		record:     record,
 		privateKey: privateKey,
 	}, nil
+}
+
+func (node *Node) SID(localID int64) uint64 {
+	if !utils.IsValidLocalID(localID) {
+		// Either indicates ID exhaustion or developer error -
+		// the service should not continue running either way
+		panic(fmt.Sprintf("invalid local ID %d", localID))
+	}
+	return utils.SID(node.record.ID, localID)
+}
+
+func (node *Node) Sign(data []byte) ([]byte, error) {
+	return crypto.Sign(data, node.privateKey)
 }

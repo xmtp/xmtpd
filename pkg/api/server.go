@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pires/go-proxyproto"
+	"github.com/xmtp/xmtpd/pkg/node"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -25,22 +26,33 @@ type ApiServer struct {
 	db           *sql.DB
 	grpcListener net.Listener
 	log          *zap.Logger
+	node         *node.Node
 	service      message_api.ReplicationApiServer
 	wg           sync.WaitGroup
 }
 
-func NewAPIServer(ctx context.Context, writerDB *sql.DB, log *zap.Logger, port int) (*ApiServer, error) {
+func NewAPIServer(
+	ctx context.Context,
+	writerDB *sql.DB,
+	log *zap.Logger,
+	node *node.Node,
+	port int,
+) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
 	if err != nil {
 		return nil, err
 	}
 	s := &ApiServer{
-		ctx:          ctx,
-		db:           writerDB,
-		grpcListener: &proxyproto.Listener{Listener: grpcListener, ReadHeaderTimeout: 10 * time.Second},
-		log:          log.Named("api"),
-		wg:           sync.WaitGroup{},
+		ctx: ctx,
+		db:  writerDB,
+		grpcListener: &proxyproto.Listener{
+			Listener:          grpcListener,
+			ReadHeaderTimeout: 10 * time.Second,
+		},
+		log:  log.Named("api"),
+		node: node,
+		wg:   sync.WaitGroup{},
 	}
 
 	// TODO: Add interceptors
@@ -61,7 +73,7 @@ func NewAPIServer(ctx context.Context, writerDB *sql.DB, log *zap.Logger, port i
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(grpcServer, healthcheck)
 
-	replicationService, err := NewReplicationApiService(ctx, log, writerDB)
+	replicationService, err := NewReplicationApiService(ctx, log, node, writerDB)
 	if err != nil {
 		return nil, err
 	}

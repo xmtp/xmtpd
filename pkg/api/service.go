@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/node"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -19,15 +20,17 @@ type Service struct {
 
 	ctx     context.Context
 	log     *zap.Logger
+	node    *node.Node
 	queries *queries.Queries
 }
 
 func NewReplicationApiService(
 	ctx context.Context,
 	log *zap.Logger,
+	node *node.Node,
 	writerDB *sql.DB,
 ) (*Service, error) {
-	return &Service{ctx: ctx, log: log, queries: queries.New(writerDB)}, nil
+	return &Service{ctx: ctx, log: log, node: node, queries: queries.New(writerDB)}, nil
 }
 
 func (s *Service) Close() {

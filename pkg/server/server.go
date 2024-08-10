@@ -58,7 +58,7 @@ func NewReplicationServer(
 	}
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, options.API.Port)
+	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, s.node, options.API.Port)
 	if err != nil {
 		return nil, err
 	}

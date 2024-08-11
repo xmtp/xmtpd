@@ -4,6 +4,9 @@ mockname: "Mock{{.InterfaceName}}"
 outpkg: mocks
 filename: "mock_{{.InterfaceName}}.go"
 packages:
+  github.com/xmtp/xmtpd/pkg/registry:
+    interfaces:
+      NodesContract:
   github.com/xmtp/xmtpd/pkg/indexer/blockchain:
     interfaces:
       ChainClient:

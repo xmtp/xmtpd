@@ -1,13 +1,18 @@
-package server
+package config
 
 import (
 	"time"
-
-	"github.com/xmtp/xmtpd/pkg/indexer"
 )
 
 type ApiOptions struct {
 	Port int `short:"p" long:"port" description:"Port to listen on" default:"5050"`
+}
+
+type ContractsOptions struct {
+	RpcUrl                  string        `long:"rpc-url" description:"Blockchain RPC URL"`
+	NodesContractAddress    string        `long:"nodes-address" description:"Node contract address"`
+	MessagesContractAddress string        `long:"messages-address" description:"Message contract address"`
+	RefreshInterval         time.Duration `long:"refresh-interval" description:"Refresh interval" default:"60s"`
 }
 
 type DbOptions struct {
@@ -19,14 +24,14 @@ type DbOptions struct {
 	WaitForDB              time.Duration `long:"wait-for" description:"wait for DB on start, up to specified duration"`
 }
 
-type Options struct {
+type ServerOptions struct {
 	LogLevel string `short:"l" long:"log-level" description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
 	//nolint:staticcheck
 	LogEncoding string `long:"log-encoding" description:"Log encoding format. Either console or json" choice:"console" choice:"json" default:"console"`
 
 	PrivateKeyString string `long:"private-key" description:"Private key to use for the node"`
 
-	API       ApiOptions               `group:"API Options" namespace:"api"`
-	DB        DbOptions                `group:"Database Options" namespace:"db"`
-	Contracts indexer.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
+	API       ApiOptions       `group:"API Options" namespace:"api"`
+	DB        DbOptions        `group:"Database Options" namespace:"db"`
+	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
 }

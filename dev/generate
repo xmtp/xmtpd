@@ -1,9 +1,11 @@
-#!/usr/bin/env sh
-set -e
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 go generate ./...
-mockery
+rm -f pkg/mocks/*
 ./dev/abigen
+mockery
 
 rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
 if ! buf generate https://github.com/xmtp/proto.git#subdir=proto; then

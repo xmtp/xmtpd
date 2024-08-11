@@ -12,3 +12,6 @@ linters:
     - ineffassign
     - staticcheck
     - unused
+issues:
+  exclude-files:
+    - tools.go

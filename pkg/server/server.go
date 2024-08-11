@@ -7,17 +7,19 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
 
 type ReplicationServer struct {
-	options      Options
+	options      config.ServerOptions
 	log          *zap.Logger
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -28,7 +30,7 @@ type ReplicationServer struct {
 	// Can add reader DB later if needed
 }
 
-func NewReplicationServer(ctx context.Context, log *zap.Logger, options Options, nodeRegistry registry.NodeRegistry) (*ReplicationServer, error) {
+func NewReplicationServer(ctx context.Context, log *zap.Logger, options config.ServerOptions, nodeRegistry registry.NodeRegistry) (*ReplicationServer, error) {
 	var err error
 	s := &ReplicationServer{
 		options:      options,
@@ -72,5 +74,5 @@ func (s *ReplicationServer) Shutdown() {
 }
 
 func parsePrivateKey(privateKeyString string) (*ecdsa.PrivateKey, error) {
-	return crypto.HexToECDSA(privateKeyString)
+	return crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 }

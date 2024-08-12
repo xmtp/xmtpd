@@ -54,8 +54,9 @@ func indexLogs(ctx context.Context, eventChannel <-chan types.Log, logger *zap.L
 					time.Sleep(100 * time.Millisecond)
 					continue Retry
 				}
+			} else {
+				logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
 			}
-			logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
 			break Retry
 
 		}

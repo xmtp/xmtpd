@@ -9,10 +9,11 @@
   // Instructions from https://github.com/segmentio/golines
   "emeraldwalk.runonsave": {
     "commands": [
-        {
-            "match": "\\.go$",
-            "cmd": "golines ${file} -w"
-        }
+      {
+        "match": "\\.go$",
+        "cmd": "golines ${file} -w"
+      }
     ]
-  }
+  },
+  "solidity.defaultCompiler": "localNodeModule"
 }

@@ -3,6 +3,7 @@ set -e
 
 go generate ./...
 mockery
+./dev/abigen
 
 rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
 if ! buf generate https://github.com/xmtp/proto.git#subdir=proto; then

@@ -3,6 +3,7 @@ set -e
 
 go mod tidy
 
+if ! which forge &>/dev/null; then curl -L https://foundry.paradigm.xyz | bash ; fi
 if ! which migrate &>/dev/null; then brew install golang-migrate; fi
 if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
@@ -13,3 +14,4 @@ if ! which golines &>/dev/null; then go install github.com/segmentio/golines@lat
 
 dev/generate
 dev/docker/up
+dev/contracts/deploy-local

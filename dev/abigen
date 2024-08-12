@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -e
+
+rm -f ./build/*.abi.json
+rm -f ./pkg/abis/*.go
+
+cd contracts
+
+# Generate the abi files out of the solidity code
+forge inspect ./src/Nodes.sol:Nodes abi > ../build/Nodes.abi.json
+forge inspect ./src/GroupMessages.sol:GroupMessages abi > ../build/GroupMessages.abi.json
+
+cd ..
+# Generate Go code out of the ABI files
+abigen --abi ./build/Nodes.abi.json --pkg abis --type Nodes --out ./pkg/abis/nodes.go
+abigen --abi ./build/GroupMessages.abi.json --pkg abis --type GroupMessages --out ./pkg/abis/groupMessages.go

@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -32,4 +33,14 @@ func RandomInboxId() string {
 	bytes := RandomBytes(32)
 
 	return utils.HexEncode(bytes)
+}
+
+func RandomAddress() common.Address {
+	bytes := RandomBytes(20)
+	return common.BytesToAddress(bytes)
+}
+
+func RandomLogTopic() common.Hash {
+	bytes := RandomBytes(32)
+	return common.BytesToHash(bytes)
 }

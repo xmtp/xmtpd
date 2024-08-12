@@ -1,10 +1,13 @@
 with-expecter: True
-inpackage: True
-dir: "{{.InterfaceDir}}"
+testonly: True
+dir: pkg/mocks
 mockname: "Mock{{.InterfaceName}}"
-outpkg: "{{.PackageName}}"
-filename: "mock_{{.InterfaceName}}_test.go"
+outpkg: mocks
+filename: "mock_{{.InterfaceName}}.go"
 packages:
   github.com/xmtp/xmtpd/pkg/indexer/blockchain:
     interfaces:
       ChainClient:
+  github.com/xmtp/xmtpd/pkg/indexer/storer:
+    interfaces:
+      LogStorer:

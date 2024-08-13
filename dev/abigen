@@ -8,6 +8,7 @@ rm -f ./pkg/abis/*.go
 cd contracts
 
 # Generate the abi files out of the solidity code
+mkdir -p ../build
 forge inspect ./src/Nodes.sol:Nodes abi > ../build/Nodes.abi.json
 forge inspect ./src/GroupMessages.sol:GroupMessages abi > ../build/GroupMessages.abi.json
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
@@ -19,12 +20,12 @@ func NewTestServer(t *testing.T, registry registry.NodeRegistry) *ReplicationSer
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	server, err := NewReplicationServer(context.Background(), log, Options{
+	server, err := NewReplicationServer(context.Background(), log, config.ServerOptions{
 		PrivateKeyString: hex.EncodeToString(crypto.FromECDSA(privateKey)),
-		API: ApiOptions{
+		API: config.ApiOptions{
 			Port: 0,
 		},
-		DB: DbOptions{
+		DB: config.DbOptions{
 			WriterConnectionString: WRITER_DB_CONNECTION_STRING,
 			ReadTimeout:            time.Second * 10,
 			WriteTimeout:           time.Second * 10,

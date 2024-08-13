@@ -7,10 +7,12 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/node"
@@ -25,7 +27,7 @@ type ReplicationServer struct {
 	log          *zap.Logger
 	node         *node.Node
 	nodeRegistry registry.NodeRegistry
-	options      Options
+	options      config.ServerOptions
 	writerDB     *sql.DB
 	// Can add reader DB later if needed
 }
@@ -33,7 +35,7 @@ type ReplicationServer struct {
 func NewReplicationServer(
 	ctx context.Context,
 	log *zap.Logger,
-	options Options,
+	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
 ) (*ReplicationServer, error) {
 	var err error
@@ -85,5 +87,5 @@ func (s *ReplicationServer) Shutdown() {
 }
 
 func parsePrivateKey(privateKeyString string) (*ecdsa.PrivateKey, error) {
-	return crypto.HexToECDSA(privateKeyString)
+	return crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 }

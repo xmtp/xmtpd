@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -18,7 +19,7 @@ import (
 
 var Commit string
 
-var options server.Options
+var options config.ServerOptions
 
 func main() {
 	if _, err := flags.Parse(&options); err != nil {
@@ -86,7 +87,7 @@ func fatal(msg string, args ...any) {
 	log.Fatalf(msg, args...)
 }
 
-func buildLogger(options server.Options) (*zap.Logger, *zap.Config, error) {
+func buildLogger(options config.ServerOptions) (*zap.Logger, *zap.Config, error) {
 	atom := zap.NewAtomicLevel()
 	level := zapcore.InfoLevel
 	err := level.Set(options.LogLevel)

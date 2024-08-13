@@ -6,6 +6,14 @@ services:
     ports:
       - 8765:5432
 
+  chain:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: ./anvil.Dockerfile
+    ports:
+      - 7545:8545
+
   prometheus:
     image: prom/prometheus
     ports:

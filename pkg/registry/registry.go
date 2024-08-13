@@ -1,11 +1,10 @@
 package registry
 
 type Node struct {
-	Index         int
-	PublicKey     []byte
-	GrpcAddress   string
-	DisabledBlock *uint64
-	// Maybe add mTLS cert here
+	NodeId      int
+	SigningKey  []byte
+	HttpAddress string
+	MtlsCert    []byte
 }
 
 type NodeRegistry interface {

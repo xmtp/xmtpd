@@ -10,8 +10,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 type Registrant struct {
@@ -68,7 +71,7 @@ func NewRegistrant(
 	}, nil
 }
 
-func (r *Registrant) SID(localID int64) uint64 {
+func (r *Registrant) sid(localID int64) uint64 {
 	if !utils.IsValidLocalID(localID) {
 		// Either indicates ID exhaustion or developer error -
 		// the service should not continue running either way
@@ -77,6 +80,41 @@ func (r *Registrant) SID(localID int64) uint64 {
 	return utils.SID(r.record.NodeID, localID)
 }
 
-func (r *Registrant) Sign(data []byte) ([]byte, error) {
-	return crypto.Sign(data, r.privateKey)
+func (r *Registrant) sign(data []byte) ([]byte, error) {
+	hash := crypto.Keccak256(data)
+	return crypto.Sign(hash, r.privateKey)
+}
+
+func (r *Registrant) SignStagedEnvelope(
+	stagedEnv queries.StagedOriginatorEnvelope,
+) (*message_api.OriginatorEnvelope, error) {
+	payerEnv := &message_api.PayerEnvelope{}
+	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
+		return nil, err
+	}
+	unsignedEnv := message_api.UnsignedOriginatorEnvelope{
+		OriginatorSid: r.sid(stagedEnv.ID),
+		OriginatorNs:  stagedEnv.OriginatorTime.UnixNano(),
+		PayerEnvelope: payerEnv,
+	}
+	unsignedBytes, err := proto.Marshal(&unsignedEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	sig, err := r.sign(unsignedBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	signedEnv := message_api.OriginatorEnvelope{
+		UnsignedOriginatorEnvelope: unsignedBytes,
+		Proof: &message_api.OriginatorEnvelope_OriginatorSignature{
+			OriginatorSignature: &associations.RecoverableEcdsaSignature{
+				Bytes: sig,
+			},
+		},
+	}
+
+	return &signedEnv, nil
 }

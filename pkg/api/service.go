@@ -7,7 +7,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -77,7 +76,7 @@ func (s *Service) PublishEnvelope(
 		return nil, status.Errorf(codes.Internal, "could not insert staged envelope: %v", err)
 	}
 
-	originatorEnv, err := utils.SignStagedEnvelope(stagedEnv)
+	originatorEnv, err := s.registrant.SignStagedEnvelope(stagedEnv)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}

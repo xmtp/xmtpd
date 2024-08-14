@@ -35,8 +35,8 @@ func NewAPIServer(
 	ctx context.Context,
 	writerDB *sql.DB,
 	log *zap.Logger,
-	registrant *registrant.Registrant,
 	port int,
+	registrant *registrant.Registrant,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -28,7 +29,7 @@ func NewRegistrant(
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
 ) (*Registrant, error) {
-	privateKey, err := crypto.HexToECDSA(privateKeyString)
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
 	}

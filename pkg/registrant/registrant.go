@@ -1,4 +1,4 @@
-package node
+package registrant
 
 import (
 	"bytes"
@@ -14,30 +14,29 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-type Node struct {
-	record     registry.Record
+type Registrant struct {
+	record     registry.Node
 	privateKey *ecdsa.PrivateKey
 }
 
-func NewNode(
+func NewRegistrant(
 	ctx context.Context,
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
-) (*Node, error) {
+) (*Registrant, error) {
 	privateKey, err := crypto.HexToECDSA(privateKeyString)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
 	}
-	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 
 	records, err := nodeRegistry.GetNodes()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get nodes from registry: %v", err)
 	}
 
-	i := slices.IndexFunc(records, func(e registry.Record) bool {
-		return bytes.Equal(e.PublicKey, publicKey)
+	i := slices.IndexFunc(records, func(e registry.Node) bool {
+		return e.SigningKey.Equal(&privateKey.PublicKey)
 	})
 	if i == -1 {
 		return nil, fmt.Errorf("no matching public key found in registry")
@@ -46,38 +45,38 @@ func NewNode(
 
 	_, err = db.InsertNodeInfo(
 		ctx,
-		queries.InsertNodeInfoParams{NodeID: record.ID, PublicKey: record.PublicKey},
+		queries.InsertNodeInfoParams{NodeID: int32(record.NodeId), PublicKey: crypto.FromECDSAPub(record.SigningKey)},
 	)
 	if err == sql.ErrNoRows {
 		// Node info already exists in database - verify it matches
-		// node info on initialization
+		// the record
 		nodeInfo, err := db.SelectNodeInfo(ctx)
 		if err != nil {
 			panic("unable to select node info")
 		}
-		if nodeInfo.NodeID != record.ID {
+		if nodeInfo.NodeID != int32(record.NodeId) {
 			panic("registry node ID does not match database entry")
 		}
-		if !bytes.Equal(nodeInfo.PublicKey, publicKey) {
+		if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
 			panic("public key does not match database entry")
 		}
 	}
 
-	return &Node{
+	return &Registrant{
 		record:     record,
 		privateKey: privateKey,
 	}, nil
 }
 
-func (node *Node) SID(localID int64) uint64 {
+func (r *Registrant) SID(localID int64) uint64 {
 	if !utils.IsValidLocalID(localID) {
 		// Either indicates ID exhaustion or developer error -
 		// the service should not continue running either way
 		panic(fmt.Sprintf("invalid local ID %d", localID))
 	}
-	return utils.SID(node.record.ID, localID)
+	return utils.SID(int32(r.record.NodeId), localID)
 }
 
-func (node *Node) Sign(data []byte) ([]byte, error) {
-	return crypto.Sign(data, node.privateKey)
+func (r *Registrant) Sign(data []byte) ([]byte, error) {
+	return crypto.Sign(data, r.privateKey)
 }

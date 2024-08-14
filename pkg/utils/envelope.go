@@ -14,7 +14,7 @@ func SignStagedEnvelope(
 		return nil, err
 	}
 	unsignedEnv := message_api.UnsignedOriginatorEnvelope{
-		OriginatorSid: SID(stagedEnv.ID),
+		OriginatorSid: SID(0, stagedEnv.ID),
 		OriginatorNs:  stagedEnv.OriginatorTime.UnixNano(),
 		PayerEnvelope: payerEnv,
 	}

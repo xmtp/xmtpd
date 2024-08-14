@@ -44,7 +44,7 @@ func main() {
 			ctx,
 			log,
 			options,
-			registry.NewFixedNodeRegistry([]registry.Record{}),
+			registry.NewFixedNodeRegistry([]registry.Node{}),
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))

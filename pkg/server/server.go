@@ -15,7 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/node"
+	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
@@ -25,7 +25,7 @@ type ReplicationServer struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	log          *zap.Logger
-	node         *node.Node
+	registrant   *registrant.Registrant
 	nodeRegistry registry.NodeRegistry
 	options      config.ServerOptions
 	writerDB     *sql.DB
@@ -54,13 +54,13 @@ func NewReplicationServer(
 		return nil, err
 	}
 
-	s.node, err = node.NewNode(ctx, queries.New(s.writerDB), nodeRegistry, options.PrivateKeyString)
+	s.registrant, err = registrant.NewRegistrant(ctx, queries.New(s.writerDB), nodeRegistry, options.PrivateKeyString)
 	if err != nil {
 		return nil, err
 	}
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, s.node, options.API.Port)
+	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, s.registrant, options.API.Port)
 	if err != nil {
 		return nil, err
 	}

@@ -72,13 +72,11 @@ func NewRegistrant(
 	}, nil
 }
 
-func (r *Registrant) sid(localID int64) uint64 {
+func (r *Registrant) sid(localID int64) (uint64, error) {
 	if !utils.IsValidLocalID(localID) {
-		// Either indicates ID exhaustion or developer error -
-		// the service should not continue running either way
-		panic(fmt.Sprintf("invalid local ID %d", localID))
+		return 0, fmt.Errorf("Invalid local ID %d, likely due to ID exhaustion", localID)
 	}
-	return utils.SID(r.record.NodeID, localID)
+	return utils.SID(r.record.NodeID, localID), nil
 }
 
 func (r *Registrant) sign(data []byte) ([]byte, error) {
@@ -93,8 +91,12 @@ func (r *Registrant) SignStagedEnvelope(
 	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
 		return nil, err
 	}
+	sid, err := r.sid(stagedEnv.ID)
+	if err != nil {
+		return nil, err
+	}
 	unsignedEnv := message_api.UnsignedOriginatorEnvelope{
-		OriginatorSid: r.sid(stagedEnv.ID),
+		OriginatorSid: sid,
 		OriginatorNs:  stagedEnv.OriginatorTime.UnixNano(),
 		PayerEnvelope: payerEnv,
 	}

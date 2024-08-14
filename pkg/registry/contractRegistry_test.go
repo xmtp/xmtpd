@@ -42,8 +42,8 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	require.Equal(
 		t,
 		[]Node{
-			{NodeId: 1, HttpAddress: "http://foo.com"},
-			{NodeId: 2, HttpAddress: "https://bar.com"},
+			{NodeID: 1, HttpAddress: "http://foo.com"},
+			{NodeID: 2, HttpAddress: "https://bar.com"},
 		},
 		newNodes,
 	)

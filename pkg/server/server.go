@@ -2,15 +2,12 @@ package server
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"database/sql"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -84,8 +81,4 @@ func (s *ReplicationServer) Shutdown() {
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}
-}
-
-func parsePrivateKey(privateKeyString string) (*ecdsa.PrivateKey, error) {
-	return crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 }

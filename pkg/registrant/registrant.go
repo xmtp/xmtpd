@@ -45,20 +45,20 @@ func NewRegistrant(
 
 	_, err = db.InsertNodeInfo(
 		ctx,
-		queries.InsertNodeInfoParams{NodeID: int32(record.NodeId), PublicKey: crypto.FromECDSAPub(record.SigningKey)},
+		queries.InsertNodeInfoParams{NodeID: int32(record.NodeID), PublicKey: crypto.FromECDSAPub(record.SigningKey)},
 	)
 	if err == sql.ErrNoRows {
 		// Node info already exists in database - verify it matches
 		// the record
 		nodeInfo, err := db.SelectNodeInfo(ctx)
 		if err != nil {
-			panic("unable to select node info")
+			return nil, fmt.Errorf("unable to retrieve node info from database: %v", err)
 		}
-		if nodeInfo.NodeID != int32(record.NodeId) {
-			panic("registry node ID does not match database entry")
+		if nodeInfo.NodeID != int32(record.NodeID) {
+			return nil, fmt.Errorf("registry node ID does not match ID in database")
 		}
 		if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
-			panic("public key does not match database entry")
+			return nil, fmt.Errorf("registry public key does not match public key in database")
 		}
 	}
 
@@ -74,7 +74,7 @@ func (r *Registrant) SID(localID int64) uint64 {
 		// the service should not continue running either way
 		panic(fmt.Sprintf("invalid local ID %d", localID))
 	}
-	return utils.SID(int32(r.record.NodeId), localID)
+	return utils.SID(r.record.NodeID, localID)
 }
 
 func (r *Registrant) Sign(data []byte) ([]byte, error) {

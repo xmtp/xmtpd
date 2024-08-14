@@ -136,7 +136,7 @@ func (s *SmartContractRegistry) refreshData() error {
 
 	newNodes := []Node{}
 	for _, node := range fromContract {
-		existingValue, ok := s.nodes[node.NodeId]
+		existingValue, ok := s.nodes[node.NodeID]
 		if !ok {
 			// New node found
 			newNodes = append(newNodes, node)
@@ -159,7 +159,7 @@ func (s *SmartContractRegistry) processNewNodes(nodes []Node) {
 	s.nodesMutex.Lock()
 	defer s.nodesMutex.Unlock()
 	for _, node := range nodes {
-		s.nodes[node.NodeId] = node
+		s.nodes[node.NodeID] = node
 	}
 }
 
@@ -169,9 +169,9 @@ func (s *SmartContractRegistry) processChangedNode(node Node) {
 	s.changedNodeNotifiersMutex.RLock()
 	defer s.changedNodeNotifiersMutex.RUnlock()
 
-	s.nodes[node.NodeId] = node
+	s.nodes[node.NodeID] = node
 	s.logger.Info("processing changed node", zap.Any("node", node))
-	if registry, ok := s.changedNodeNotifiers[node.NodeId]; ok {
+	if registry, ok := s.changedNodeNotifiers[node.NodeID]; ok {
 		registry.trigger(node)
 	}
 }
@@ -206,7 +206,7 @@ func convertNode(rawNode abis.NodesNodeWithId) Node {
 	}
 
 	return Node{
-		NodeId:        rawNode.NodeId,
+		NodeID:        rawNode.NodeId,
 		SigningKey:    signingKey,
 		HttpAddress:   httpAddress,
 		IsHealthy:     rawNode.Node.IsHealthy,

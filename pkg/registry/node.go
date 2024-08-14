@@ -3,7 +3,7 @@ package registry
 import "crypto/ecdsa"
 
 type Node struct {
-	NodeId        uint16
+	NodeID        uint16
 	SigningKey    *ecdsa.PublicKey
 	HttpAddress   string
 	IsHealthy     bool
@@ -18,7 +18,7 @@ func (n *Node) Equals(other Node) bool {
 		equalsSigningKey = n.SigningKey.Equal(other.SigningKey)
 	}
 
-	return n.NodeId == other.NodeId &&
+	return n.NodeID == other.NodeID &&
 		n.HttpAddress == other.HttpAddress &&
 		equalsSigningKey &&
 		n.IsHealthy == other.IsHealthy &&

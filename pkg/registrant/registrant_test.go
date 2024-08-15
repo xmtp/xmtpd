@@ -112,15 +112,16 @@ func TestNewRegistrantExistingDatabase(t *testing.T) {
 		{NodeID: 5, SigningKey: &deps.privKey1.PublicKey},
 	}, nil)
 
-	deps.db.InsertNodeInfo(
+	_, err := deps.db.InsertNodeInfo(
 		deps.ctx,
 		queries.InsertNodeInfoParams{
 			NodeID:    5,
 			PublicKey: crypto.FromECDSAPub(&deps.privKey1.PublicKey),
 		},
 	)
+	require.NoError(t, err)
 
-	_, err := registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
+	_, err = registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
 	require.NoError(t, err)
 }
 

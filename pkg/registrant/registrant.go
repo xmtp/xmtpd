@@ -81,7 +81,7 @@ func (r *Registrant) sid(localID int64) (uint64, error) {
 	return utils.SID(r.record.NodeID, localID), nil
 }
 
-func (r *Registrant) sign(data []byte) ([]byte, error) {
+func (r *Registrant) signKeccak256(data []byte) ([]byte, error) {
 	hash := crypto.Keccak256(data)
 	return crypto.Sign(hash, r.privateKey)
 }
@@ -91,7 +91,7 @@ func (r *Registrant) SignStagedEnvelope(
 ) (*message_api.OriginatorEnvelope, error) {
 	payerEnv := &message_api.PayerEnvelope{}
 	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
 	}
 	sid, err := r.sid(stagedEnv.ID)
 	if err != nil {
@@ -107,7 +107,7 @@ func (r *Registrant) SignStagedEnvelope(
 		return nil, err
 	}
 
-	sig, err := r.sign(unsignedBytes)
+	sig, err := r.signKeccak256(unsignedBytes)
 	if err != nil {
 		return nil, err
 	}

@@ -191,6 +191,10 @@ func (s *SmartContractRegistry) loadFromContract() ([]Node, error) {
 	return out, nil
 }
 
+func (s *SmartContractRegistry) SetContractForTest(contract NodesContract) {
+	s.contract = contract
+}
+
 func convertNode(rawNode abis.NodesNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the

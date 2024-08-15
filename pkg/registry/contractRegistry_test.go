@@ -1,4 +1,4 @@
-package registry
+package registry_test
 
 import (
 	"context"
@@ -12,11 +12,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/mocks"
+	r "github.com/xmtp/xmtpd/pkg/registry"
 	testUtils "github.com/xmtp/xmtpd/pkg/testing"
 )
 
 func TestContractRegistryNewNodes(t *testing.T) {
-	registry, err := NewSmartContractRegistry(
+	registry, err := r.NewSmartContractRegistry(
 		nil,
 		testUtils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 100 * time.Millisecond},
@@ -31,7 +32,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 			{NodeId: 2, Node: abis.NodesNode{HttpAddress: "https://bar.com"}},
 		}, nil)
 
-	registry.contract = mockContract
+	registry.SetContractForTest(mockContract)
 
 	sub, cancelSub := registry.OnNewNodes()
 	defer cancelSub()
@@ -41,7 +42,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	newNodes := <-sub
 	require.Equal(
 		t,
-		[]Node{
+		[]r.Node{
 			{NodeID: 1, HttpAddress: "http://foo.com"},
 			{NodeID: 2, HttpAddress: "https://bar.com"},
 		},
@@ -50,7 +51,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 }
 
 func TestContractRegistryChangedNodes(t *testing.T) {
-	registry, err := NewSmartContractRegistry(
+	registry, err := r.NewSmartContractRegistry(
 		nil,
 		testUtils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
@@ -76,12 +77,12 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	})
 
 	// Override the contract in the registry with a mock before calling Start
-	registry.contract = mockContract
+	registry.SetContractForTest(mockContract)
 
 	sub, cancelSub := registry.OnChangedNode(1)
 	defer cancelSub()
 	counterSub, cancelCounter := registry.OnChangedNode(1)
-	getCurrentCount := countChannel(counterSub)
+	getCurrentCount := r.CountChannel(counterSub)
 	defer cancelCounter()
 	go func() {
 		for node := range sub {
@@ -97,7 +98,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 }
 
 func TestStopOnContextCancel(t *testing.T) {
-	registry, err := NewSmartContractRegistry(
+	registry, err := r.NewSmartContractRegistry(
 		nil,
 		testUtils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
@@ -116,11 +117,11 @@ func TestStopOnContextCancel(t *testing.T) {
 			}, nil
 		})
 
-	registry.contract = mockContract
+	registry.SetContractForTest(mockContract)
 
 	sub, cancelSub := registry.OnNewNodes()
 	defer cancelSub()
-	getCurrentCount := countChannel(sub)
+	getCurrentCount := r.CountChannel(sub)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	require.NoError(t, registry.Start(ctx))

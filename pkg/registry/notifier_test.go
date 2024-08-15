@@ -11,7 +11,7 @@ import (
 func TestNotifier(t *testing.T) {
 	registry := newNotifier[int]()
 	channel, cancel := registry.register()
-	getCurrentCount := countChannel(channel)
+	getCurrentCount := CountChannel(channel)
 
 	// Make sure the value is getting writter to the cannel
 	registry.trigger(1)
@@ -36,9 +36,9 @@ func TestNotifierMultiple(t *testing.T) {
 	registry := newNotifier[int]()
 
 	channel1, cancel1 := registry.register()
-	getCurrentCount1 := countChannel(channel1)
+	getCurrentCount1 := CountChannel(channel1)
 	channel2, cancel2 := registry.register()
-	getCurrentCount2 := countChannel(channel2)
+	getCurrentCount2 := CountChannel(channel2)
 
 	registry.trigger(1)
 	time.Sleep(10 * time.Millisecond)
@@ -56,7 +56,7 @@ func TestNotifierMultiple(t *testing.T) {
 func TestNotifierConcurrent(t *testing.T) {
 	registry := newNotifier[int]()
 	channel, cancel := registry.register()
-	getCurrentCount := countChannel(channel)
+	getCurrentCount := CountChannel(channel)
 	defer cancel()
 
 	for i := 0; i < 100; i++ {
@@ -66,7 +66,7 @@ func TestNotifierConcurrent(t *testing.T) {
 	require.Equal(t, 100, getCurrentCount())
 }
 
-func countChannel[Kind any](ch <-chan Kind) func() int {
+func CountChannel[Kind any](ch <-chan Kind) func() int {
 	var count int
 	var mutex sync.RWMutex
 	go func() {

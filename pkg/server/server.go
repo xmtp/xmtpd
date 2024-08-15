@@ -10,7 +10,6 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -34,24 +33,22 @@ func NewReplicationServer(
 	log *zap.Logger,
 	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
+	writerDB *sql.DB,
 ) (*ReplicationServer, error) {
 	var err error
 	s := &ReplicationServer{
 		options:      options,
 		log:          log,
 		nodeRegistry: nodeRegistry,
-	}
-	s.writerDB, err = db.NewDB(
-		ctx,
-		options.DB.WriterConnectionString,
-		options.DB.WaitForDB,
-		options.DB.ReadTimeout,
-	)
-	if err != nil {
-		return nil, err
+		writerDB:     writerDB,
 	}
 
-	s.registrant, err = registrant.NewRegistrant(ctx, queries.New(s.writerDB), nodeRegistry, options.PrivateKeyString)
+	s.registrant, err = registrant.NewRegistrant(
+		ctx,
+		queries.New(s.writerDB),
+		nodeRegistry,
+		options.PrivateKeyString,
+	)
 	if err != nil {
 		return nil, err
 	}

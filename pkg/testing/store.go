@@ -16,31 +16,60 @@ const (
 	localTestDBDSNSuffix = "?sslmode=disable"
 )
 
-func newPGXDB(t testing.TB) (*sql.DB, string, func()) {
-	dsn := localTestDBDSNPrefix + localTestDBDSNSuffix
+func openDB(t testing.TB, dsn string) (*sql.DB, string, func()) {
 	config, err := pgx.ParseConfig(dsn)
 	require.NoError(t, err)
-	ctlDB := stdlib.OpenDB(*config)
-	dbName := "test_" + RandomStringLower(12)
-	_, err = ctlDB.Exec("CREATE DATABASE " + dbName)
-	require.NoError(t, err)
-
-	dsn = localTestDBDSNPrefix + "/" + dbName + localTestDBDSNSuffix
-	config2, err := pgx.ParseConfig(dsn)
-	require.NoError(t, err)
-	db := stdlib.OpenDB(*config2)
+	db := stdlib.OpenDB(*config)
 	return db, dsn, func() {
 		err := db.Close()
 		require.NoError(t, err)
+	}
+}
+
+func newCtlDB(t testing.TB) (*sql.DB, string, func()) {
+	return openDB(t, localTestDBDSNPrefix+localTestDBDSNSuffix)
+}
+
+func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string, func()) {
+	dbName := "test_" + RandomStringLower(12)
+	_, err := ctlDB.Exec("CREATE DATABASE " + dbName)
+	require.NoError(t, err)
+
+	db, dsn, cleanup := openDB(t, localTestDBDSNPrefix+"/"+dbName+localTestDBDSNSuffix)
+	require.NoError(t, migrations.Migrate(ctx, db))
+
+	return db, dsn, func() {
+		cleanup()
 		_, err = ctlDB.Exec("DROP DATABASE " + dbName)
 		require.NoError(t, err)
-		ctlDB.Close()
 	}
 }
 
 func NewDB(t *testing.T, ctx context.Context) (*sql.DB, string, func()) {
-	db, dsn, cleanup := newPGXDB(t)
-	require.NoError(t, migrations.Migrate(ctx, db))
+	ctlDB, _, ctlCleanup := newCtlDB(t)
+	db, dsn, cleanup := newInstanceDB(t, ctx, ctlDB)
 
-	return db, dsn, cleanup
+	return db, dsn, func() {
+		cleanup()
+		ctlCleanup()
+	}
+}
+
+func NewDBs(t *testing.T, ctx context.Context, count int) ([]*sql.DB, func()) {
+	ctlDB, _, ctlCleanup := newCtlDB(t)
+	dbs := []*sql.DB{}
+	cleanups := []func(){}
+
+	for i := 0; i < count; i++ {
+		db, _, cleanup := newInstanceDB(t, ctx, ctlDB)
+		dbs = append(dbs, db)
+		cleanups = append(cleanups, cleanup)
+	}
+
+	return dbs, func() {
+		for i := 0; i < count; i++ {
+			cleanups[i]()
+		}
+		ctlCleanup()
+	}
 }

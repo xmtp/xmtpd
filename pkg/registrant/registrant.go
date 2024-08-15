@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
@@ -49,11 +48,14 @@ func NewRegistrant(
 
 	_, err = db.InsertNodeInfo(
 		ctx,
-		queries.InsertNodeInfoParams{NodeID: int32(record.NodeID), PublicKey: crypto.FromECDSAPub(record.SigningKey)},
+		queries.InsertNodeInfoParams{
+			NodeID:    int32(record.NodeID),
+			PublicKey: crypto.FromECDSAPub(record.SigningKey),
+		},
 	)
-	if err == sql.ErrNoRows {
-		// Node info already exists in database - verify it matches
-		// the record
+	if err != nil {
+		// Node info likely already exists in database - verify that it
+		// exists and is matching
 		nodeInfo, err := db.SelectNodeInfo(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve node info from database: %v", err)

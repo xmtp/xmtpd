@@ -6,7 +6,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/registrant"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -17,17 +17,19 @@ import (
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx     context.Context
-	log     *zap.Logger
-	queries *queries.Queries
+	ctx        context.Context
+	log        *zap.Logger
+	registrant *registrant.Registrant
+	queries    *queries.Queries
 }
 
 func NewReplicationApiService(
 	ctx context.Context,
 	log *zap.Logger,
+	registrant *registrant.Registrant,
 	writerDB *sql.DB,
 ) (*Service, error) {
-	return &Service{ctx: ctx, log: log, queries: queries.New(writerDB)}, nil
+	return &Service{ctx: ctx, log: log, registrant: registrant, queries: queries.New(writerDB)}, nil
 }
 
 func (s *Service) Close() {
@@ -74,7 +76,7 @@ func (s *Service) PublishEnvelope(
 		return nil, status.Errorf(codes.Internal, "could not insert staged envelope: %v", err)
 	}
 
-	originatorEnv, err := utils.SignStagedEnvelope(stagedEnv)
+	originatorEnv, err := s.registrant.SignStagedEnvelope(stagedEnv)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}

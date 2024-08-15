@@ -1,46 +1,56 @@
-package server
+package server_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"database/sql"
 	"encoding/hex"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/mocks"
+	r "github.com/xmtp/xmtpd/pkg/registry"
+	s "github.com/xmtp/xmtpd/pkg/server"
 	test "github.com/xmtp/xmtpd/pkg/testing"
 )
 
-const WRITER_DB_CONNECTION_STRING = "postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable"
-
-func NewTestServer(t *testing.T, registry registry.NodeRegistry) *ReplicationServer {
+func NewTestServer(
+	t *testing.T,
+	db *sql.DB,
+	registry r.NodeRegistry,
+	privateKey *ecdsa.PrivateKey,
+) *s.ReplicationServer {
 	log := test.NewLog(t)
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
 
-	server, err := NewReplicationServer(context.Background(), log, config.ServerOptions{
+	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
 		PrivateKeyString: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		API: config.ApiOptions{
 			Port: 0,
 		},
-		DB: config.DbOptions{
-			WriterConnectionString: WRITER_DB_CONNECTION_STRING,
-			ReadTimeout:            time.Second * 10,
-			WriteTimeout:           time.Second * 10,
-			MaxOpenConns:           10,
-			WaitForDB:              time.Second * 10,
-		},
-	}, registry)
+	}, registry, db)
 	require.NoError(t, err)
 
 	return server
 }
 
 func TestCreateServer(t *testing.T) {
-	registry := registry.NewFixedNodeRegistry([]registry.Node{})
-	server1 := NewTestServer(t, registry)
-	server2 := NewTestServer(t, registry)
+	dbs, dbCleanup := test.NewDBs(t, context.Background(), 2)
+	defer dbCleanup()
+	privateKey1, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	privateKey2, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	registry := mocks.NewMockNodeRegistry(t)
+	registry.On("GetNodes").Return([]r.Node{
+		{NodeID: 1, SigningKey: &privateKey1.PublicKey},
+		{NodeID: 2, SigningKey: &privateKey2.PublicKey},
+	}, nil)
+
+	server1 := NewTestServer(t, dbs[0], registry, privateKey1)
+	server2 := NewTestServer(t, dbs[1], registry, privateKey2)
+
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 }

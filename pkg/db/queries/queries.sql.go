@@ -9,6 +9,24 @@ import (
 	"context"
 )
 
+const insertNodeInfo = `-- name: InsertNodeInfo :one
+INSERT INTO node_info(node_id, public_key)
+	VALUES ($1, $2)
+	RETURNING node_id, public_key, singleton_id
+`
+
+type InsertNodeInfoParams struct {
+	NodeID    int32
+	PublicKey []byte
+}
+
+func (q *Queries) InsertNodeInfo(ctx context.Context, arg InsertNodeInfoParams) (NodeInfo, error) {
+	row := q.db.QueryRowContext(ctx, insertNodeInfo, arg.NodeID, arg.PublicKey)
+	var i NodeInfo
+	err := row.Scan(&i.NodeID, &i.PublicKey, &i.SingletonID)
+	return i, err
+}
+
 const insertStagedOriginatorEnvelope = `-- name: InsertStagedOriginatorEnvelope :one
 INSERT INTO staged_originator_envelopes(payer_envelope)
 	VALUES ($1)
@@ -20,5 +38,16 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, payerEnvel
 	row := q.db.QueryRowContext(ctx, insertStagedOriginatorEnvelope, payerEnvelope)
 	var i StagedOriginatorEnvelope
 	err := row.Scan(&i.ID, &i.OriginatorTime, &i.PayerEnvelope)
+	return i, err
+}
+
+const selectNodeInfo = `-- name: SelectNodeInfo :one
+SELECT node_id, public_key, singleton_id FROM node_info WHERE singleton_id = 1
+`
+
+func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
+	row := q.db.QueryRowContext(ctx, selectNodeInfo)
+	var i NodeInfo
+	err := row.Scan(&i.NodeID, &i.PublicKey, &i.SingletonID)
 	return i, err
 }

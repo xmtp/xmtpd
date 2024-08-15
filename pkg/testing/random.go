@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -32,7 +31,7 @@ func RandomBytes(n int) []byte {
 func RandomInboxId() string {
 	bytes := RandomBytes(32)
 
-	return utils.HexEncode(bytes)
+	return HexEncode(bytes)
 }
 
 func RandomAddress() common.Address {

@@ -2,52 +2,59 @@ package server
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"database/sql"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
 
 type ReplicationServer struct {
-	options      config.ServerOptions
-	log          *zap.Logger
+	apiServer    *api.ApiServer
 	ctx          context.Context
 	cancel       context.CancelFunc
-	apiServer    *api.ApiServer
+	log          *zap.Logger
+	registrant   *registrant.Registrant
 	nodeRegistry registry.NodeRegistry
-	privateKey   *ecdsa.PrivateKey
+	options      config.ServerOptions
 	writerDB     *sql.DB
 	// Can add reader DB later if needed
 }
 
-func NewReplicationServer(ctx context.Context, log *zap.Logger, options config.ServerOptions, nodeRegistry registry.NodeRegistry) (*ReplicationServer, error) {
+func NewReplicationServer(
+	ctx context.Context,
+	log *zap.Logger,
+	options config.ServerOptions,
+	nodeRegistry registry.NodeRegistry,
+	writerDB *sql.DB,
+) (*ReplicationServer, error) {
 	var err error
 	s := &ReplicationServer{
 		options:      options,
 		log:          log,
 		nodeRegistry: nodeRegistry,
+		writerDB:     writerDB,
 	}
-	s.privateKey, err = parsePrivateKey(options.PrivateKeyString)
-	if err != nil {
-		return nil, err
-	}
-	s.writerDB, err = db.NewDB(ctx, options.DB.WriterConnectionString, options.DB.WaitForDB, options.DB.ReadTimeout)
+
+	s.registrant, err = registrant.NewRegistrant(
+		ctx,
+		queries.New(s.writerDB),
+		nodeRegistry,
+		options.PrivateKeyString,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, options.API.Port)
+	s.apiServer, err = api.NewAPIServer(ctx, s.writerDB, log, options.API.Port, s.registrant)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +78,4 @@ func (s *ReplicationServer) Shutdown() {
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}
-}
-
-func parsePrivateKey(privateKeyString string) (*ecdsa.PrivateKey, error) {
-	return crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 }

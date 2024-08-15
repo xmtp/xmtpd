@@ -10,6 +10,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -40,7 +41,23 @@ func main() {
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
-		s, err := server.NewReplicationServer(ctx, log, options, registry.NewFixedNodeRegistry([]registry.Node{}))
+		db, err := db.NewDB(
+			ctx,
+			options.DB.WriterConnectionString,
+			options.DB.WaitForDB,
+			options.DB.ReadTimeout,
+		)
+		if err != nil {
+			log.Fatal("initializing database", zap.Error(err))
+		}
+
+		s, err := server.NewReplicationServer(
+			ctx,
+			log,
+			options,
+			registry.NewFixedNodeRegistry([]registry.Node{}),
+			db,
+		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))
 		}

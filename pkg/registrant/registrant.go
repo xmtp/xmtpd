@@ -18,7 +18,7 @@ import (
 )
 
 type Registrant struct {
-	record     registry.Node
+	record     *registry.Node
 	privateKey *ecdsa.PrivateKey
 }
 
@@ -33,39 +33,13 @@ func NewRegistrant(
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
 	}
 
-	records, err := nodeRegistry.GetNodes()
+	record, err := getRegistryRecord(nodeRegistry, privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get nodes from registry: %v", err)
+		return nil, err
 	}
 
-	i := slices.IndexFunc(records, func(e registry.Node) bool {
-		return e.SigningKey.Equal(&privateKey.PublicKey)
-	})
-	if i == -1 {
-		return nil, fmt.Errorf("no matching public key found in registry")
-	}
-	record := records[i]
-
-	_, err = db.InsertNodeInfo(
-		ctx,
-		queries.InsertNodeInfoParams{
-			NodeID:    int32(record.NodeID),
-			PublicKey: crypto.FromECDSAPub(record.SigningKey),
-		},
-	)
-	if err != nil {
-		// Node info likely already exists in database - verify that it
-		// exists and is matching
-		nodeInfo, err := db.SelectNodeInfo(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("unable to retrieve node info from database: %v", err)
-		}
-		if nodeInfo.NodeID != int32(record.NodeID) {
-			return nil, fmt.Errorf("registry node ID does not match ID in database")
-		}
-		if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
-			return nil, fmt.Errorf("registry public key does not match public key in database")
-		}
+	if err = ensureDatabaseMatches(ctx, db, record); err != nil {
+		return nil, err
 	}
 
 	return &Registrant{
@@ -122,4 +96,50 @@ func (r *Registrant) SignStagedEnvelope(
 	}
 
 	return &signedEnv, nil
+}
+
+func getRegistryRecord(
+	nodeRegistry registry.NodeRegistry,
+	privateKey *ecdsa.PrivateKey,
+) (*registry.Node, error) {
+	records, err := nodeRegistry.GetNodes()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get nodes from registry: %v", err)
+	}
+
+	i := slices.IndexFunc(records, func(e registry.Node) bool {
+		return e.SigningKey.Equal(&privateKey.PublicKey)
+	})
+	if i == -1 {
+		return nil, fmt.Errorf("no matching public key found in registry")
+	}
+
+	return &records[i], nil
+}
+
+// Prevents mistakes such as:
+// - Running multiple nodes with different private keys against the same DB
+// - Changing a server's configuration while pointing to data in an existing DB
+func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *registry.Node) error {
+	_, err := db.InsertNodeInfo(
+		ctx,
+		queries.InsertNodeInfoParams{
+			NodeID:    int32(record.NodeID),
+			PublicKey: crypto.FromECDSAPub(record.SigningKey),
+		},
+	)
+	if err != nil {
+		nodeInfo, err := db.SelectNodeInfo(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve node info from database: %v", err)
+		}
+		if nodeInfo.NodeID != int32(record.NodeID) {
+			return fmt.Errorf("registry node ID does not match ID in database")
+		}
+		if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
+			return fmt.Errorf("registry public key does not match public key in database")
+		}
+	}
+
+	return nil
 }

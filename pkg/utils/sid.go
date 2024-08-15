@@ -1,13 +1,22 @@
 package utils
 
-// Operations to marshall to/from SIDs.
-// It is recommended not to use these directly - instead use a wrapper type that
-// performs the relevant error handling.
+// SIDS are 64-bit numbers consisting of 16 bits for the node ID
+// followed by 48 bits for the sequence ID (local ID). This file
+// contains methods for reading and constructing sids.
+//
+// We also leverage type-checking throughout the repo to avoid confusion:
+// - SIDs are uint64
+// - node IDs are uint16
+// - local IDs are int64
 
 const (
-	nodeIDBits  uint64 = 16
+	// Number of bits used for node ID
+	nodeIDBits uint64 = 16
+	// Number of bits used for local ID
 	localIDBits uint64 = 64 - nodeIDBits
-	nodeIDMask  uint64 = 0xFFFF << localIDBits
+	// A mask made by setting every bit in the node ID
+	nodeIDMask uint64 = 0xFFFF << localIDBits
+	// A mask made by setting every bit in the local ID
 	localIDMask uint64 = ^nodeIDMask
 )
 

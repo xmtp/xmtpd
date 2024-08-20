@@ -108,3 +108,5 @@ We use [sqlc](https://docs.sqlc.dev/en/latest/index.html) to generate the code f
 ```sh
 dev/generate
 ```
+
+If needed, there is a sqlc [playground](https://play.sqlc.dev/p/f6eebe941750560934cefa943c77f63497debc828c487e8d1771fb6d83773246) for experimenting with how the query syntax translates into Go code.

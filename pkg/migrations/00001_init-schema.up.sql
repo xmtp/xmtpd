@@ -11,8 +11,8 @@ CREATE TABLE node_info(
 CREATE TABLE gateway_envelopes(
 	-- used to construct gateway_sid
 	id BIGSERIAL PRIMARY KEY,
-	originator_id INT NOT NULL,
-	sequence_id BIGINT NOT NULL,
+	originator_node_id INT NOT NULL,
+	originator_sequence_id BIGINT NOT NULL,
 	topic BYTEA NOT NULL,
 	originator_envelope BYTEA NOT NULL
 );
@@ -21,9 +21,9 @@ CREATE TABLE gateway_envelopes(
 CREATE INDEX idx_gateway_envelopes_topic ON gateway_envelopes(topic);
 
 -- Node queries
-CREATE UNIQUE INDEX idx_gateway_envelopes_originator_sid ON gateway_envelopes(originator_id, sequence_id);
+CREATE UNIQUE INDEX idx_gateway_envelopes_originator_sid ON gateway_envelopes(originator_node_id, originator_sequence_id);
 
-CREATE FUNCTION insert_gateway_envelope(originator_id INT, sequence_id BIGINT, topic BYTEA, originator_envelope BYTEA)
+CREATE FUNCTION insert_gateway_envelope(originator_node_id INT, originator_sequence_id BIGINT, topic BYTEA, originator_envelope BYTEA)
 	RETURNS SETOF gateway_envelopes
 	AS $$
 BEGIN
@@ -31,8 +31,8 @@ BEGIN
 	-- Only released at the end of the enclosing transaction - beware if called within a long transaction
 	PERFORM
 		pg_advisory_xact_lock(hashtext('gateway_envelopes_sequence'));
-	RETURN QUERY INSERT INTO gateway_envelopes(originator_id, sequence_id, topic, originator_envelope)
-		VALUES(originator_id, sequence_id, topic, originator_envelope)
+	RETURN QUERY INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
+		VALUES(originator_node_id, originator_sequence_id, topic, originator_envelope)
 	ON CONFLICT
 		DO NOTHING
 	RETURNING

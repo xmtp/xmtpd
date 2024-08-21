@@ -49,7 +49,7 @@ func NewRegistrant(
 }
 
 func (r *Registrant) sid(localID int64) (uint64, error) {
-	if !utils.IsValidLocalID(localID) {
+	if !utils.IsValidSequenceID(localID) {
 		return 0, fmt.Errorf("Invalid local ID %d, likely due to ID exhaustion", localID)
 	}
 	return utils.SID(r.record.NodeID, localID), nil
@@ -121,7 +121,7 @@ func getRegistryRecord(
 // - Running multiple nodes with different private keys against the same DB
 // - Changing a server's configuration while pointing to data in an existing DB
 func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *registry.Node) error {
-	_, err := db.InsertNodeInfo(
+	numRows, err := db.InsertNodeInfo(
 		ctx,
 		queries.InsertNodeInfoParams{
 			NodeID:    int32(record.NodeID),
@@ -129,6 +129,10 @@ func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *reg
 		},
 	)
 	if err != nil {
+		return fmt.Errorf("unable to insert node info into database: %v", err)
+	}
+
+	if numRows == 0 {
 		nodeInfo, err := db.SelectNodeInfo(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve node info from database: %v", err)

@@ -1,13 +1,13 @@
 package utils
 
 // SIDS are 64-bit numbers consisting of 16 bits for the node ID
-// followed by 48 bits for the sequence ID (local ID). This file
+// followed by 48 bits for the sequence ID. This file
 // contains methods for reading and constructing sids.
 //
 // We also leverage type-checking throughout the repo to avoid confusion:
 // - SIDs are uint64
 // - node IDs are uint16
-// - local IDs are int64
+// - sequence IDs are int64
 
 const (
 	// Number of bits used for node ID
@@ -20,7 +20,7 @@ const (
 	localIDMask uint64 = ^nodeIDMask
 )
 
-func IsValidLocalID(localID int64) bool {
+func IsValidSequenceID(localID int64) bool {
 	return localID > 0 && localID>>localIDBits == 0
 }
 
@@ -28,7 +28,7 @@ func NodeID(sid uint64) uint16 {
 	return uint16(sid >> localIDBits)
 }
 
-func LocalID(sid uint64) int64 {
+func SequenceID(sid uint64) int64 {
 	return int64(sid & localIDMask)
 }
 

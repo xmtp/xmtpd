@@ -18,7 +18,8 @@ type AddressLog struct {
 
 type GatewayEnvelope struct {
 	ID                 int64
-	OriginatorSid      int64
+	OriginatorID       int32
+	SequenceID         int64
 	Topic              []byte
 	OriginatorEnvelope []byte
 }

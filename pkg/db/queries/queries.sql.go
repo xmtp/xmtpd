@@ -9,10 +9,49 @@ import (
 	"context"
 )
 
-const insertNodeInfo = `-- name: InsertNodeInfo :one
+const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
+DELETE FROM staged_originator_envelopes
+WHERE id = $1
+`
+
+func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteStagedOriginatorEnvelope, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
+SELECT
+	insert_gateway_envelope($1, $2, $3, $4)
+`
+
+type InsertGatewayEnvelopeParams struct {
+	OriginatorID       int32
+	SequenceID         int64
+	Topic              []byte
+	OriginatorEnvelope []byte
+}
+
+func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertGatewayEnvelope,
+		arg.OriginatorID,
+		arg.SequenceID,
+		arg.Topic,
+		arg.OriginatorEnvelope,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const insertNodeInfo = `-- name: InsertNodeInfo :execrows
 INSERT INTO node_info(node_id, public_key)
 	VALUES ($1, $2)
-	RETURNING node_id, public_key, singleton_id
+ON CONFLICT
+	DO NOTHING
 `
 
 type InsertNodeInfoParams struct {
@@ -20,18 +59,19 @@ type InsertNodeInfoParams struct {
 	PublicKey []byte
 }
 
-func (q *Queries) InsertNodeInfo(ctx context.Context, arg InsertNodeInfoParams) (NodeInfo, error) {
-	row := q.db.QueryRowContext(ctx, insertNodeInfo, arg.NodeID, arg.PublicKey)
-	var i NodeInfo
-	err := row.Scan(&i.NodeID, &i.PublicKey, &i.SingletonID)
-	return i, err
+func (q *Queries) InsertNodeInfo(ctx context.Context, arg InsertNodeInfoParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertNodeInfo, arg.NodeID, arg.PublicKey)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const insertStagedOriginatorEnvelope = `-- name: InsertStagedOriginatorEnvelope :one
-INSERT INTO staged_originator_envelopes(payer_envelope)
-	VALUES ($1)
-RETURNING
+SELECT
 	id, originator_time, payer_envelope
+FROM
+	insert_staged_originator_envelope($1)
 `
 
 func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, payerEnvelope []byte) (StagedOriginatorEnvelope, error) {
@@ -42,7 +82,12 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, payerEnvel
 }
 
 const selectNodeInfo = `-- name: SelectNodeInfo :one
-SELECT node_id, public_key, singleton_id FROM node_info WHERE singleton_id = 1
+SELECT
+	node_id, public_key, singleton_id
+FROM
+	node_info
+WHERE
+	singleton_id = 1
 `
 
 func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
@@ -50,4 +95,44 @@ func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
 	var i NodeInfo
 	err := row.Scan(&i.NodeID, &i.PublicKey, &i.SingletonID)
 	return i, err
+}
+
+const selectStagedOriginatorEnvelopes = `-- name: SelectStagedOriginatorEnvelopes :many
+SELECT
+	id, originator_time, payer_envelope
+FROM
+	staged_originator_envelopes
+WHERE
+	id > $1
+ORDER BY
+	id ASC
+LIMIT $2
+`
+
+type SelectStagedOriginatorEnvelopesParams struct {
+	LastSeenID int64
+	NumRows    int32
+}
+
+func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg SelectStagedOriginatorEnvelopesParams) ([]StagedOriginatorEnvelope, error) {
+	rows, err := q.db.QueryContext(ctx, selectStagedOriginatorEnvelopes, arg.LastSeenID, arg.NumRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StagedOriginatorEnvelope
+	for rows.Next() {
+		var i StagedOriginatorEnvelope
+		if err := rows.Scan(&i.ID, &i.OriginatorTime, &i.PayerEnvelope); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

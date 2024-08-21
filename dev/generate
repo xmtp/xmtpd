@@ -6,6 +6,7 @@ go generate ./...
 rm -f pkg/mocks/*
 ./dev/abigen
 mockery
+sqlc generate
 
 rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
 if ! buf generate https://github.com/xmtp/proto.git#subdir=proto; then

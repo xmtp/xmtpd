@@ -23,3 +23,5 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           args: --timeout=5m --config .golangci.yaml
+      - name: golines
+        run: dev/lint-golines

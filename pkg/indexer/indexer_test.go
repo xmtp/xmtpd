@@ -43,10 +43,12 @@ func TestIndexLogsRetryableError(t *testing.T) {
 	// Will fail for the first call with a retryable error and a non-retryable error on the second call
 	attemptNumber := 0
 
-	logStorer.EXPECT().StoreLog(mock.Anything, event).RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
-		attemptNumber++
-		return storer.NewLogStorageError(errors.New("retryable error"), attemptNumber < 2)
-	})
+	logStorer.EXPECT().
+		StoreLog(mock.Anything, event).
+		RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
+			attemptNumber++
+			return storer.NewLogStorageError(errors.New("retryable error"), attemptNumber < 2)
+		})
 	channel <- event
 
 	go indexLogs(context.Background(), channel, testutils.NewLog(t), logStorer)

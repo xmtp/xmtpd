@@ -14,7 +14,22 @@ WHERE
 
 -- name: InsertGatewayEnvelope :execrows
 SELECT
-	insert_gateway_envelope(@originator_id, @sequence_id, @topic, @originator_envelope);
+	insert_gateway_envelope(@originator_id, @originator_sequence_id, @topic, @originator_envelope);
+
+-- name: SelectGatewayEnvelopes :many
+SELECT
+	*
+FROM
+	gateway_envelopes
+WHERE (sqlc.narg('topic')::BYTEA IS NULL
+	OR topic = @topic)
+AND (sqlc.narg('originator_node_id')::INT IS NULL
+	OR originator_node_id = @originator_node_id)
+AND (sqlc.narg('originator_sequence_id')::BIGINT IS NULL
+	OR originator_sequence_id > @originator_sequence_id)
+AND (sqlc.narg('gateway_sequence_id')::BIGINT IS NULL
+	OR id > @gateway_sequence_id)
+LIMIT sqlc.narg('row_limit')::INT;
 
 -- name: InsertStagedOriginatorEnvelope :one
 SELECT

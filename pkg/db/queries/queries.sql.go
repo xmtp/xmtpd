@@ -7,6 +7,7 @@ package queries
 
 import (
 	"context"
+	"database/sql"
 )
 
 const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
@@ -28,16 +29,16 @@ SELECT
 `
 
 type InsertGatewayEnvelopeParams struct {
-	OriginatorID       int32
-	SequenceID         int64
-	Topic              []byte
-	OriginatorEnvelope []byte
+	OriginatorID         int32
+	OriginatorSequenceID int64
+	Topic                []byte
+	OriginatorEnvelope   []byte
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, insertGatewayEnvelope,
 		arg.OriginatorID,
-		arg.SequenceID,
+		arg.OriginatorSequenceID,
 		arg.Topic,
 		arg.OriginatorEnvelope,
 	)
@@ -79,6 +80,65 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, payerEnvel
 	var i StagedOriginatorEnvelope
 	err := row.Scan(&i.ID, &i.OriginatorTime, &i.PayerEnvelope)
 	return i, err
+}
+
+const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
+SELECT
+	id, originator_node_id, originator_sequence_id, topic, originator_envelope
+FROM
+	gateway_envelopes
+WHERE ($1::BYTEA IS NULL
+	OR topic = $1)
+AND ($2::INT IS NULL
+	OR originator_node_id = $2)
+AND ($3::BIGINT IS NULL
+	OR originator_sequence_id > $3)
+AND ($4::BIGINT IS NULL
+	OR id > $4)
+LIMIT $5::INT
+`
+
+type SelectGatewayEnvelopesParams struct {
+	Topic                []byte
+	OriginatorNodeID     sql.NullInt32
+	OriginatorSequenceID sql.NullInt64
+	GatewaySequenceID    sql.NullInt64
+	RowLimit             sql.NullInt32
+}
+
+func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayEnvelopesParams) ([]GatewayEnvelope, error) {
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopes,
+		arg.Topic,
+		arg.OriginatorNodeID,
+		arg.OriginatorSequenceID,
+		arg.GatewaySequenceID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GatewayEnvelope
+	for rows.Next() {
+		var i GatewayEnvelope
+		if err := rows.Scan(
+			&i.ID,
+			&i.OriginatorNodeID,
+			&i.OriginatorSequenceID,
+			&i.Topic,
+			&i.OriginatorEnvelope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const selectNodeInfo = `-- name: SelectNodeInfo :one

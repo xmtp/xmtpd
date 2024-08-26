@@ -17,11 +17,11 @@ type AddressLog struct {
 }
 
 type GatewayEnvelope struct {
-	ID                 int64
-	OriginatorID       int32
-	SequenceID         int64
-	Topic              []byte
-	OriginatorEnvelope []byte
+	ID                   int64
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	Topic                []byte
+	OriginatorEnvelope   []byte
 }
 
 type NodeInfo struct {

@@ -5,7 +5,7 @@ import (
 )
 
 type ApiOptions struct {
-	Port int `short:"p" long:"port" description:"Port to listen on" default:"5050"`
+	Port int `short:"p" long:"port" description:"Port to listen on" default:"80"`
 }
 
 type ContractsOptions struct {

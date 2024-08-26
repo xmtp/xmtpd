@@ -24,4 +24,6 @@ jobs:
         with:
           args: --timeout=5m --config .golangci.yaml
       - name: golines
-        run: dev/lint-golines
+        run: |
+          go install github.com/segmentio/golines
+          dev/lint-golines

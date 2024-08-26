@@ -51,7 +51,12 @@ func Stop() {
 
 // Wrap executes action in the context of a span.
 // Tags the span with the error if action returns one.
-func Wrap(ctx context.Context, log *zap.Logger, operation string, action func(context.Context, *zap.Logger, Span) error) error {
+func Wrap(
+	ctx context.Context,
+	log *zap.Logger,
+	operation string,
+	action func(context.Context, *zap.Logger, Span) error,
+) error {
 	span, ctx := tracer.StartSpanFromContext(ctx, operation)
 	defer span.Finish()
 	log = Link(span, log.With(zap.String("span", operation)))

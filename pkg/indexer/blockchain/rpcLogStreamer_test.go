@@ -19,7 +19,13 @@ import (
 // May be unwise or flaky and we may need to reconsider
 const RPC_URL = "https://nodes.mewapi.io/rpc/eth"
 
-func buildStreamer(t *testing.T, client ChainClient, fromBlock int, address common.Address, topic common.Hash) (*RpcLogStreamer, chan types.Log) {
+func buildStreamer(
+	t *testing.T,
+	client ChainClient,
+	fromBlock int,
+	address common.Address,
+	topic common.Hash,
+) (*RpcLogStreamer, chan types.Log) {
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	channel := make(chan types.Log)
@@ -35,7 +41,11 @@ func buildStreamer(t *testing.T, client ChainClient, fromBlock int, address comm
 func TestBuilder(t *testing.T) {
 	builder := NewRpcLogStreamBuilder(RPC_URL, testutils.NewLog(t))
 
-	listenerChannel := builder.ListenForContractEvent(1, testutils.RandomAddress(), []common.Hash{testutils.RandomLogTopic()})
+	listenerChannel := builder.ListenForContractEvent(
+		1,
+		testutils.RandomAddress(),
+		[]common.Hash{testutils.RandomLogTopic()},
+	)
 	require.NotNil(t, listenerChannel)
 
 	streamer, err := builder.Build()

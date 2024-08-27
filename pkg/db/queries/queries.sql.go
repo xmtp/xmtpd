@@ -70,15 +70,25 @@ func (q *Queries) InsertNodeInfo(ctx context.Context, arg InsertNodeInfoParams) 
 
 const insertStagedOriginatorEnvelope = `-- name: InsertStagedOriginatorEnvelope :one
 SELECT
-	id, originator_time, payer_envelope
+	id, originator_time, topic, payer_envelope
 FROM
-	insert_staged_originator_envelope($1)
+	insert_staged_originator_envelope($1, $2)
 `
 
-func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, payerEnvelope []byte) (StagedOriginatorEnvelope, error) {
-	row := q.db.QueryRowContext(ctx, insertStagedOriginatorEnvelope, payerEnvelope)
+type InsertStagedOriginatorEnvelopeParams struct {
+	Topic         []byte
+	PayerEnvelope []byte
+}
+
+func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg InsertStagedOriginatorEnvelopeParams) (StagedOriginatorEnvelope, error) {
+	row := q.db.QueryRowContext(ctx, insertStagedOriginatorEnvelope, arg.Topic, arg.PayerEnvelope)
 	var i StagedOriginatorEnvelope
-	err := row.Scan(&i.ID, &i.OriginatorTime, &i.PayerEnvelope)
+	err := row.Scan(
+		&i.ID,
+		&i.OriginatorTime,
+		&i.Topic,
+		&i.PayerEnvelope,
+	)
 	return i, err
 }
 
@@ -159,7 +169,7 @@ func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
 
 const selectStagedOriginatorEnvelopes = `-- name: SelectStagedOriginatorEnvelopes :many
 SELECT
-	id, originator_time, payer_envelope
+	id, originator_time, topic, payer_envelope
 FROM
 	staged_originator_envelopes
 WHERE
@@ -183,7 +193,12 @@ func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg Selec
 	var items []StagedOriginatorEnvelope
 	for rows.Next() {
 		var i StagedOriginatorEnvelope
-		if err := rows.Scan(&i.ID, &i.OriginatorTime, &i.PayerEnvelope); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.OriginatorTime,
+			&i.Topic,
+			&i.PayerEnvelope,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

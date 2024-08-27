@@ -60,6 +60,10 @@ func (r *Registrant) signKeccak256(data []byte) ([]byte, error) {
 	return crypto.Sign(hash, r.privateKey)
 }
 
+func (r *Registrant) NodeID() uint16 {
+	return r.record.NodeID
+}
+
 func (r *Registrant) SignStagedEnvelope(
 	stagedEnv queries.StagedOriginatorEnvelope,
 ) (*message_api.OriginatorEnvelope, error) {

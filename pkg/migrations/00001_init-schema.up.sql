@@ -41,30 +41,24 @@ END;
 $$
 LANGUAGE plpgsql;
 
--- Process for originating envelopes:
--- 1. Perform any necessary validation
--- 2. Insert into originated_envelopes
--- 3. Singleton background task will continuously query (or subscribe to)
---    staged_originated_envelopes, and for each envelope in order of ID:
---     2.1. Construct and sign OriginatorEnvelope proto
---     2.2. Atomically insert into all_envelopes and delete from originated_envelopes,
---	        ignoring unique index violations on originator_sid
--- This preserves total ordering, while avoiding gaps in sequence ID's.
+-- Newly published envelopes will be queued here first (and assigned an originator
+-- sequence ID), before being inserted in-order into the gateway_envelopes table.
 CREATE TABLE staged_originator_envelopes(
 	-- used to construct originator_sid
 	id BIGSERIAL PRIMARY KEY,
 	originator_time TIMESTAMP NOT NULL DEFAULT now(),
+	topic BYTEA NOT NULL,
 	payer_envelope BYTEA NOT NULL
 );
 
-CREATE FUNCTION insert_staged_originator_envelope(payer_envelope BYTEA)
+CREATE FUNCTION insert_staged_originator_envelope(topic BYTEA, payer_envelope BYTEA)
 	RETURNS SETOF staged_originator_envelopes
 	AS $$
 BEGIN
 	PERFORM
 		pg_advisory_xact_lock(hashtext('staged_originator_envelopes_sequence'));
-	RETURN QUERY INSERT INTO staged_originator_envelopes(payer_envelope)
-		VALUES(payer_envelope)
+	RETURN QUERY INSERT INTO staged_originator_envelopes(topic, payer_envelope)
+		VALUES(topic, payer_envelope)
 	ON CONFLICT
 		DO NOTHING
 	RETURNING

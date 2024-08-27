@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -40,17 +41,41 @@ func newTestService(t *testing.T) (*Service, *sql.DB, func()) {
 	}
 }
 
+func createClientEnvelope() *message_api.ClientEnvelope {
+	return &message_api.ClientEnvelope{
+		Payload: nil,
+		Aad: &message_api.AuthenticatedData{
+			TargetOriginator:   1,
+			TargetTopic:        []byte{0x5},
+			LastOriginatorSids: []uint64{},
+		},
+	}
+}
+
+func createPayerEnvelope(
+	t *testing.T,
+	clientEnv ...*message_api.ClientEnvelope,
+) *message_api.PayerEnvelope {
+	if len(clientEnv) == 0 {
+		clientEnv = append(clientEnv, createClientEnvelope())
+	}
+	clientEnvBytes, err := proto.Marshal(clientEnv[0])
+	require.NoError(t, err)
+
+	return &message_api.PayerEnvelope{
+		UnsignedClientEnvelope: clientEnvBytes,
+		PayerSignature:         &associations.RecoverableEcdsaSignature{},
+	}
+}
+
 func TestSimplePublish(t *testing.T) {
-	svc, _, cleanup := newTestService(t)
+	svc, db, cleanup := newTestService(t)
 	defer cleanup()
 
 	resp, err := svc.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: &message_api.PayerEnvelope{
-				UnsignedClientEnvelope: []byte{0x5},
-				PayerSignature:         &associations.RecoverableEcdsaSignature{},
-			},
+			PayerEnvelope: createPayerEnvelope(t),
 		},
 	)
 	require.NoError(t, err)
@@ -61,7 +86,70 @@ func TestSimplePublish(t *testing.T) {
 		t,
 		proto.Unmarshal(resp.GetOriginatorEnvelope().GetUnsignedOriginatorEnvelope(), unsignedEnv),
 	)
-	require.Equal(t, uint8(0x5), unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope()[0])
+	clientEnv := &message_api.ClientEnvelope{}
+	require.NoError(
+		t,
+		proto.Unmarshal(unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope(), clientEnv),
+	)
+	require.Equal(t, uint8(0x5), clientEnv.Aad.GetTargetTopic()[0])
 
-	// TODO(rich) Test that the published envelope is retrievable via the query API
+	// Check that the envelope was published to the database after a delay
+	require.Eventually(t, func() bool {
+		envs, err := queries.New(db).
+			SelectGatewayEnvelopes(context.Background(), queries.SelectGatewayEnvelopesParams{})
+		require.NoError(t, err)
+
+		if len(envs) != 1 {
+			return false
+		}
+
+		originatorEnv := &message_api.OriginatorEnvelope{}
+		require.NoError(t, proto.Unmarshal(envs[0].OriginatorEnvelope, originatorEnv))
+		return proto.Equal(originatorEnv, resp.GetOriginatorEnvelope())
+	}, 500*time.Millisecond, 50*time.Millisecond)
+}
+
+func TestUnmarshalError(t *testing.T) {
+	svc, _, cleanup := newTestService(t)
+	defer cleanup()
+
+	envelope := createPayerEnvelope(t)
+	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
+	_, err := svc.PublishEnvelope(
+		context.Background(),
+		&message_api.PublishEnvelopeRequest{
+			PayerEnvelope: envelope,
+		},
+	)
+	require.ErrorContains(t, err, "unmarshal")
+}
+
+func TestMismatchingOriginator(t *testing.T) {
+	svc, _, cleanup := newTestService(t)
+	defer cleanup()
+
+	clientEnv := createClientEnvelope()
+	clientEnv.Aad.TargetOriginator = 2
+	_, err := svc.PublishEnvelope(
+		context.Background(),
+		&message_api.PublishEnvelopeRequest{
+			PayerEnvelope: createPayerEnvelope(t, clientEnv),
+		},
+	)
+	require.ErrorContains(t, err, "originator")
+}
+
+func TestMissingTopic(t *testing.T) {
+	svc, _, cleanup := newTestService(t)
+	defer cleanup()
+
+	clientEnv := createClientEnvelope()
+	clientEnv.Aad.TargetTopic = nil
+	_, err := svc.PublishEnvelope(
+		context.Background(),
+		&message_api.PublishEnvelopeRequest{
+			PayerEnvelope: createPayerEnvelope(t, clientEnv),
+		},
+	)
+	require.ErrorContains(t, err, "topic")
 }

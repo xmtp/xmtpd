@@ -35,7 +35,7 @@ LIMIT sqlc.narg('row_limit')::INT;
 SELECT
 	*
 FROM
-	insert_staged_originator_envelope(@payer_envelope);
+	insert_staged_originator_envelope(@topic, @payer_envelope);
 
 -- name: SelectStagedOriginatorEnvelopes :many
 SELECT

@@ -33,5 +33,6 @@ type NodeInfo struct {
 type StagedOriginatorEnvelope struct {
 	ID             int64
 	OriginatorTime time.Time
+	Topic          []byte
 	PayerEnvelope  []byte
 }

@@ -3,6 +3,9 @@
 
 source dev/contracts/.env
 
+# Make sure the build directory exists
+mkdir -p ./build
+
 cd ./contracts
 
 # Deploy a contract and save the output (which includes the contract address) to a JSON file to be used in tests

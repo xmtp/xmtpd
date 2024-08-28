@@ -26,11 +26,11 @@ type RpcLogStreamBuilder struct {
 	// All the listeners
 	contractConfigs []contractConfig
 	logger          *zap.Logger
-	rpcUrl          string
+	ethclient       *ethclient.Client
 }
 
-func NewRpcLogStreamBuilder(rpcUrl string, logger *zap.Logger) *RpcLogStreamBuilder {
-	return &RpcLogStreamBuilder{rpcUrl: rpcUrl, logger: logger}
+func NewRpcLogStreamBuilder(client *ethclient.Client, logger *zap.Logger) *RpcLogStreamBuilder {
+	return &RpcLogStreamBuilder{ethclient: client, logger: logger}
 }
 
 func (c *RpcLogStreamBuilder) ListenForContractEvent(
@@ -47,11 +47,7 @@ func (c *RpcLogStreamBuilder) ListenForContractEvent(
 }
 
 func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
-	client, err := ethclient.Dial(c.rpcUrl)
-	if err != nil {
-		return nil, err
-	}
-	return NewRpcLogStreamer(client, c.logger, c.contractConfigs), nil
+	return NewRpcLogStreamer(c.ethclient, c.logger, c.contractConfigs), nil
 }
 
 // Struct defining all the information required to filter events from logs

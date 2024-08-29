@@ -47,7 +47,7 @@ func NewRegistrant(
 	}, nil
 }
 
-func (r *Registrant) sid(localID int64) (uint64, error) {
+func (r *Registrant) SID(localID int64) (uint64, error) {
 	if !utils.IsValidSequenceID(localID) {
 		return 0, fmt.Errorf("Invalid local ID %d, likely due to ID exhaustion", localID)
 	}
@@ -70,7 +70,7 @@ func (r *Registrant) SignStagedEnvelope(
 	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
 		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
 	}
-	sid, err := r.sid(stagedEnv.ID)
+	sid, err := r.SID(stagedEnv.ID)
 	if err != nil {
 		return nil, err
 	}

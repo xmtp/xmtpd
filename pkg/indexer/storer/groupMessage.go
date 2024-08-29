@@ -38,7 +38,7 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 		// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
-		OriginatorID:         0,
+		OriginatorNodeID:     0,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                []byte(topic),
 		OriginatorEnvelope:   msgSent.Message, // TODO:nm parse originator envelope and do some validation

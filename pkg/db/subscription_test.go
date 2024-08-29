@@ -13,28 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func insertGatewayEnvelopes(
-	t *testing.T,
-	db *sql.DB,
-	rows []queries.InsertGatewayEnvelopeParams,
-	notifyChan ...chan bool,
-) {
-	println("insertGatewayEnvelopes")
-	q := queries.New(db)
-	for _, row := range rows {
-		inserted, err := q.InsertGatewayEnvelope(context.Background(), row)
-		require.Equal(t, int64(1), inserted)
-		require.NoError(t, err)
-
-		if len(notifyChan) > 0 {
-			select {
-			case notifyChan[0] <- true:
-			default:
-			}
-		}
-	}
-}
-
 func setup(t *testing.T) (*sql.DB, *zap.Logger, func()) {
 	ctx := context.Background()
 	db, _, dbCleanup := testutils.NewDB(t, ctx)
@@ -45,17 +23,17 @@ func setup(t *testing.T) (*sql.DB, *zap.Logger, func()) {
 }
 
 func insertInitialRows(t *testing.T, db *sql.DB) {
-	insertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
 		{
 			// Auto-generated ID: 1
-			OriginatorID:         1,
+			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope:   []byte("envelope1"),
 		},
 		{
 			// Auto-generated ID: 2
-			OriginatorID:         2,
+			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope:   []byte("envelope2"),
@@ -65,7 +43,6 @@ func insertInitialRows(t *testing.T, db *sql.DB) {
 
 func envelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope] {
 	return func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.GatewayEnvelope, int64, error) {
-		println("envelopesQuery", lastSeenID, numRows)
 		envs, err := queries.New(db).
 			SelectGatewayEnvelopes(ctx, queries.SelectGatewayEnvelopesParams{
 				OriginatorNodeID:  NullInt32(1),
@@ -78,30 +55,29 @@ func envelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope] {
 		if len(envs) > 0 {
 			lastSeenID = envs[len(envs)-1].ID
 		}
-		println("Envs length", len(envs))
 		return envs, lastSeenID, nil
 	}
 }
 
 func insertAdditionalRows(t *testing.T, db *sql.DB, notifyChan ...chan bool) {
-	insertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
 		{
 			// Auto-generated ID: 3
-			OriginatorID:         1,
+			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope:   []byte("envelope3"),
 		},
 		{
 			// Auto-generated ID: 4
-			OriginatorID:         2,
+			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope:   []byte("envelope4"),
 		},
 		{
 			// Auto-generated ID: 5
-			OriginatorID:         1,
+			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope:   []byte("envelope5"),

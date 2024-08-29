@@ -79,7 +79,9 @@ func (s *DBSubscription[ValueType]) poll() {
 	// Repeatedly query page by page until no more results
 	for {
 		results, lastID, err := s.query(s.ctx, s.lastSeenID, s.options.NumRows)
-		if err != nil {
+		if s.ctx.Err() != nil {
+			break
+		} else if err != nil {
 			s.log.Error(
 				"Error querying for DB subscription",
 				zap.Error(err),
@@ -88,8 +90,7 @@ func (s *DBSubscription[ValueType]) poll() {
 			)
 			// Did not update lastSeenID; will retry on next poll
 			break
-		}
-		if len(results) == 0 {
+		} else if len(results) == 0 {
 			break
 		}
 		s.lastSeenID = lastID

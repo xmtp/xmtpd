@@ -118,13 +118,15 @@ func (p *PublishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	inserted, err := q.InsertGatewayEnvelope(
 		p.ctx,
 		queries.InsertGatewayEnvelopeParams{
-			OriginatorID:         int32(p.registrant.NodeID()),
+			OriginatorNodeID:     int32(p.registrant.NodeID()),
 			OriginatorSequenceID: stagedEnv.ID,
 			Topic:                stagedEnv.Topic,
 			OriginatorEnvelope:   originatorBytes,
 		},
 	)
-	if err != nil {
+	if p.ctx.Err() != nil {
+		return false
+	} else if err != nil {
 		logger.Error("Failed to insert gateway envelope", zap.Error(err))
 		return false
 	} else if inserted == 0 {
@@ -134,7 +136,9 @@ func (p *PublishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
 	deleted, err := q.DeleteStagedOriginatorEnvelope(context.Background(), stagedEnv.ID)
-	if err != nil {
+	if p.ctx.Err() != nil {
+		return true
+	} else if err != nil {
 		logger.Error("Failed to delete staged envelope", zap.Error(err))
 		// Envelope is already inserted, so it is safe to continue
 		return true

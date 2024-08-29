@@ -29,7 +29,7 @@ SELECT
 `
 
 type InsertGatewayEnvelopeParams struct {
-	OriginatorID         int32
+	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
@@ -37,7 +37,7 @@ type InsertGatewayEnvelopeParams struct {
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, insertGatewayEnvelope,
-		arg.OriginatorID,
+		arg.OriginatorNodeID,
 		arg.OriginatorSequenceID,
 		arg.Topic,
 		arg.OriginatorEnvelope,
@@ -98,6 +98,7 @@ SELECT
 FROM
 	gateway_envelopes
 WHERE ($1::BYTEA IS NULL
+	OR length($1) = 0
 	OR topic = $1)
 AND ($2::INT IS NULL
 	OR originator_node_id = $2)

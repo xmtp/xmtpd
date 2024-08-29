@@ -6,7 +6,7 @@ set -eu
 
 go run cmd/replication/main.go \
     --db.writer-connection-string=$WRITER_CONNECTION_STRING \
-    --private-key=${NODE_PRIVATE_KEY} \
+    --signer-private-key=${SIGNER_PRIVATE_KEY} \
     --contracts.nodes-address=$NODES_CONTRACT_ADDRESS \
     --contracts.messages-address=$GROUP_MESSAGES_CONTRACT_ADDRESS \
     --contracts.rpc-url=$CHAIN_RPC_URL

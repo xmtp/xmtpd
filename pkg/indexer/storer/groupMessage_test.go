@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/indexer/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -43,8 +43,7 @@ func TestStoreGroupMessages(t *testing.T) {
 	storer, cleanup := buildGroupMessageStorer(t)
 	defer cleanup()
 
-	var groupID [32]byte
-	copy(groupID[:], testutils.RandomBytes(32))
+	groupID := testutils.RandomGroupID()
 	message := testutils.RandomBytes(30)
 	sequenceID := uint64(1)
 

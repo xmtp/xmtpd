@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/indexer/blockchain"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -40,22 +40,22 @@ func StartIndexer(
 		[]common.Hash{messagesTopic},
 	)
 
+	streamer, err := builder.Build()
+	if err != nil {
+		return err
+	}
+
 	messagesContract, err := messagesContract(cfg, client)
 	if err != nil {
 		return err
 	}
 
-	indexLogs(
+	go indexLogs(
 		ctx,
 		messagesChannel,
 		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
 		storer.NewGroupMessageStorer(queries, logger, messagesContract),
 	)
-
-	streamer, err := builder.Build()
-	if err != nil {
-		return err
-	}
 
 	return streamer.Start(ctx)
 }

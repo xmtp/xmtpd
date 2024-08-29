@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/xmtp/xmtpd/pkg/mocks"
-	testutils "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"

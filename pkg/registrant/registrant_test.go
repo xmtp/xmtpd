@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
-	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -30,7 +30,7 @@ type deps struct {
 func setup(t *testing.T) (deps, func()) {
 	ctx := context.Background()
 	mockRegistry := mocks.NewMockNodeRegistry(t)
-	db, _, dbCleanup := test.NewDB(t, ctx)
+	db, _, dbCleanup := testutils.NewDB(t, ctx)
 	queries := queries.New(db)
 	privKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -38,7 +38,7 @@ func setup(t *testing.T) (deps, func()) {
 	require.NoError(t, err)
 	privKey3, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	privKey1Str := "0x" + test.HexEncode(crypto.FromECDSA(privKey1))
+	privKey1Str := "0x" + testutils.HexEncode(crypto.FromECDSA(privKey1))
 
 	return deps{
 		ctx:         ctx,
@@ -179,7 +179,7 @@ func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
 		deps.ctx,
 		deps.db,
 		deps.registry,
-		test.HexEncode(crypto.FromECDSA(deps.privKey1)),
+		testutils.HexEncode(crypto.FromECDSA(deps.privKey1)),
 	)
 	require.NoError(t, err)
 }

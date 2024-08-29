@@ -13,13 +13,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/mocks"
 	r "github.com/xmtp/xmtpd/pkg/registry"
-	testUtils "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 func TestContractRegistryNewNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(
 		nil,
-		testUtils.NewLog(t),
+		testutils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 100 * time.Millisecond},
 	)
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 func TestContractRegistryChangedNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(
 		nil,
-		testUtils.NewLog(t),
+		testutils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
 	)
 	require.NoError(t, err)
@@ -100,7 +100,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 func TestStopOnContextCancel(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(
 		nil,
-		testUtils.NewLog(t),
+		testutils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
 	)
 	require.NoError(t, err)

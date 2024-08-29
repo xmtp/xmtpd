@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
 	"github.com/xmtp/xmtpd/pkg/mocks"
-	testutils "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 func TestIndexLogsSuccess(t *testing.T) {

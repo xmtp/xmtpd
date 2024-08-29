@@ -14,17 +14,17 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
-	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	"google.golang.org/protobuf/proto"
 )
 
 func newTestService(t *testing.T) (*Service, *sql.DB, func()) {
 	ctx := context.Background()
-	log := test.NewLog(t)
-	db, _, dbCleanup := test.NewDB(t, ctx)
+	log := testutils.NewLog(t)
+	db, _, dbCleanup := testutils.NewDB(t, ctx)
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	privKeyStr := "0x" + test.HexEncode(crypto.FromECDSA(privKey))
+	privKeyStr := "0x" + testutils.HexEncode(crypto.FromECDSA(privKey))
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 1, SigningKey: &privKey.PublicKey},

@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
 )
 
@@ -37,7 +37,7 @@ func insertGatewayEnvelopes(
 
 func setup(t *testing.T) (*sql.DB, *zap.Logger, func()) {
 	ctx := context.Background()
-	db, _, dbCleanup := test.NewDB(t, ctx)
+	db, _, dbCleanup := testutils.NewDB(t, ctx)
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 

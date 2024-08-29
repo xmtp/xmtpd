@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/mocks"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
-	test "github.com/xmtp/xmtpd/pkg/testing"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 func NewTestServer(
@@ -22,7 +22,7 @@ func NewTestServer(
 	registry r.NodeRegistry,
 	privateKey *ecdsa.PrivateKey,
 ) *s.ReplicationServer {
-	log := test.NewLog(t)
+	log := testutils.NewLog(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
 		PrivateKeyString: hex.EncodeToString(crypto.FromECDSA(privateKey)),
@@ -36,7 +36,7 @@ func NewTestServer(
 }
 
 func TestCreateServer(t *testing.T) {
-	dbs, dbCleanup := test.NewDBs(t, context.Background(), 2)
+	dbs, dbCleanup := testutils.NewDBs(t, context.Background(), 2)
 	defer dbCleanup()
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)

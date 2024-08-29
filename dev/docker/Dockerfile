@@ -26,8 +26,7 @@ LABEL commit=$GIT_COMMIT
 # color, nocolor, json
 ENV GOLOG_LOG_FMT=nocolor
 
-# go-waku default port
-EXPOSE 9000
+EXPOSE 5050
 
 COPY --from=builder /app/bin/xmtpd /usr/bin/
 

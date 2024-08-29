@@ -12,7 +12,7 @@ type ContractsOptions struct {
 	RpcUrl                  string        `long:"rpc-url"          description:"Blockchain RPC URL"`
 	NodesContractAddress    string        `long:"nodes-address"    description:"Node contract address"`
 	MessagesContractAddress string        `long:"messages-address" description:"Message contract address"`
-	RefreshInterval         time.Duration `long:"refresh-interval" description:"Refresh interval"         default:"60s"`
+	RefreshInterval         time.Duration `long:"refresh-interval" description:"Refresh interval for the nodes registry" default:"60s"`
 }
 
 type DbOptions struct {

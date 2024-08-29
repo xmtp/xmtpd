@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -22,7 +23,11 @@ func StartIndexer(
 	queries *queries.Queries,
 	cfg config.ContractsOptions,
 ) error {
-	builder := blockchain.NewRpcLogStreamBuilder(cfg.RpcUrl, logger)
+	client, err := blockchain.NewClient(ctx, cfg.RpcUrl)
+	if err != nil {
+		return err
+	}
+	builder := blockchain.NewRpcLogStreamBuilder(client, logger)
 
 	messagesTopic, err := buildMessagesTopic()
 	if err != nil {
@@ -35,11 +40,16 @@ func StartIndexer(
 		[]common.Hash{messagesTopic},
 	)
 
+	messagesContract, err := messagesContract(cfg, client)
+	if err != nil {
+		return err
+	}
+
 	indexLogs(
 		ctx,
 		messagesChannel,
 		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
-		storer.NewGroupMessageStorer(queries, logger),
+		storer.NewGroupMessageStorer(queries, logger, messagesContract),
 	)
 
 	streamer, err := builder.Build()
@@ -91,4 +101,14 @@ func buildMessagesTopic() (common.Hash, error) {
 		return common.Hash{}, err
 	}
 	return utils.GetEventTopic(abi, "MessageSent")
+}
+
+func messagesContract(
+	cfg config.ContractsOptions,
+	client *ethclient.Client,
+) (*abis.GroupMessages, error) {
+	return abis.NewGroupMessages(
+		common.HexToAddress(cfg.MessagesContractAddress),
+		client,
+	)
 }

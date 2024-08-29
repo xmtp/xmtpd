@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	big "math/big"
 	"testing"
 
@@ -14,10 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
-
-// Using a free RPC url so that the dial function works.
-// May be unwise or flaky and we may need to reconsider
-const RPC_URL = "https://nodes.mewapi.io/rpc/eth"
 
 func buildStreamer(
 	t *testing.T,
@@ -39,7 +36,9 @@ func buildStreamer(
 }
 
 func TestBuilder(t *testing.T) {
-	builder := NewRpcLogStreamBuilder(RPC_URL, testutils.NewLog(t))
+	testclient, err := NewClient(context.Background(), testutils.GetContractsOptions(t).RpcUrl)
+	require.NoError(t, err)
+	builder := NewRpcLogStreamBuilder(testclient, testutils.NewLog(t))
 
 	listenerChannel := builder.ListenForContractEvent(
 		1,

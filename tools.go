@@ -7,8 +7,10 @@
 package tools
 
 import (
-	_ "github.com/ethereum/go-ethereum/cmd/abigen" //nolint:all
-	_ "github.com/segmentio/golines"               //nolint:all
-	_ "github.com/sqlc-dev/sqlc/cmd/sqlc"          //nolint:all
-	_ "github.com/vektra/mockery/v2"               //nolint:all
+	_ "github.com/bufbuild/buf/cmd/buf"                  //nolint:all
+	_ "github.com/ethereum/go-ethereum/cmd/abigen"       //nolint:all
+	_ "github.com/golang-migrate/migrate/v4/cmd/migrate" //nolint:all
+	_ "github.com/segmentio/golines"                     //nolint:all
+	_ "github.com/sqlc-dev/sqlc/cmd/sqlc"                //nolint:all
+	_ "github.com/vektra/mockery/v2"                     //nolint:all
 )

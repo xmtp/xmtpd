@@ -9,7 +9,7 @@ if ! which migrate &>/dev/null; then brew install golang-migrate; fi
 if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which mockery &>/dev/null; then go install github.com/vektra/mockery/v2; fi
-if ! which sqlc &> /dev/null; then brew install sqlc; fi
+if ! which sqlc &> /dev/null; then go install github.com/sqlc-dev/sqlc/cmd/sqlc; fi
 if ! which buf &> /dev/null; then brew install buf; fi
 if ! which golines &>/dev/null; then go install github.com/segmentio/golines@latest; fi
 if ! which abigen &>/dev/null; then go install github.com/ethereum/go-ethereum/cmd/abigen; fi

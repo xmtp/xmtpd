@@ -47,7 +47,7 @@ func NewReplicationServer(
 		ctx,
 		queries.New(s.writerDB),
 		nodeRegistry,
-		options.PrivateKeyString,
+		options.SignerPrivateKey,
 	)
 	if err != nil {
 		return nil, err

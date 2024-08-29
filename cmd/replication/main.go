@@ -90,8 +90,8 @@ func addEnvVars() {
 		options.DB.ReaderConnectionString = connStr
 	}
 
-	if privKey, hasPrivKey := os.LookupEnv("PRIVATE_KEY"); hasPrivKey {
-		options.PrivateKeyString = privKey
+	if privKey, hasPrivKey := os.LookupEnv("SIGNER_PRIVATE_KEY"); hasPrivKey {
+		options.SignerPrivateKey = privKey
 	}
 }
 

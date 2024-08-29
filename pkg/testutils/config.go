@@ -14,6 +14,10 @@ import (
 
 const BLOCKCHAIN_RPC_URL = "http://localhost:7545"
 
+// This is the private key that anvil has funded by default
+// This is safe to commit
+const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
 type contractInfo struct {
 	DeployedTo string `json:"deployedTo"`
 }
@@ -69,5 +73,12 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 		MessagesContractAddress: getDeployedTo(t, path.Join(rootDir, "./build/GroupMessages.json")),
 		NodesContractAddress:    getDeployedTo(t, path.Join(rootDir, "./build/Nodes.json")),
 		RefreshInterval:         100 * time.Millisecond,
+		ChainID:                 31337,
+	}
+}
+
+func GetPayerOptions(t *testing.T) config.PayerOptions {
+	return config.PayerOptions{
+		PrivateKey: TEST_PRIVATE_KEY,
 	}
 }

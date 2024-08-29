@@ -32,7 +32,7 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 	}
 
 	// TODO:nm figure out topic structure
-	topic := buildTopic(msgSent.GroupId)
+	topic := BuildGroupMessageTopic(msgSent.GroupId)
 
 	s.logger.Debug("Inserting message from contract", zap.String("topic", topic))
 
@@ -50,7 +50,7 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 	return nil
 }
 
-func buildTopic(groupId [32]byte) string {
+func BuildGroupMessageTopic(groupId [32]byte) string {
 	// We should think about simplifying the topics, since backwards compatibility shouldn't really matter here
 	return fmt.Sprintf("/xmtp/1/g-%x/proto", groupId)
 }

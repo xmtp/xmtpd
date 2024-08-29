@@ -25,7 +25,7 @@ func NewTestServer(
 	log := testutils.NewLog(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
-		PrivateKeyString: hex.EncodeToString(crypto.FromECDSA(privateKey)),
+		SignerPrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		API: config.ApiOptions{
 			Port: 0,
 		},

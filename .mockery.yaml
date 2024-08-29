@@ -8,7 +8,7 @@ packages:
     interfaces:
       NodesContract:
       NodeRegistry:
-  github.com/xmtp/xmtpd/pkg/indexer/blockchain:
+  github.com/xmtp/xmtpd/pkg/blockchain:
     interfaces:
       ChainClient:
   github.com/xmtp/xmtpd/pkg/indexer/storer:

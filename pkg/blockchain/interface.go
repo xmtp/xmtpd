@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -26,4 +27,13 @@ type ChainClient interface {
 	ethereum.BlockNumberReader
 	ethereum.LogFilterer
 	ethereum.ChainIDReader
+}
+
+type IGroupMessagePublisher interface {
+	Publish(ctx context.Context, groupID [32]byte, message []byte) error
+}
+
+type TransactionSigner interface {
+	FromAddress() common.Address
+	SignerFunc() bind.SignerFn
 }

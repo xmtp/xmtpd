@@ -25,6 +25,7 @@ type ApiServer struct {
 	ctx          context.Context
 	db           *sql.DB
 	grpcListener net.Listener
+	grpcServer   *grpc.Server
 	log          *zap.Logger
 	registrant   *registrant.Registrant
 	service      message_api.ReplicationApiServer
@@ -68,10 +69,11 @@ func NewAPIServer(
 		}),
 		// grpc.MaxRecvMsgSize(s.Config.Options.MaxMsgSize),
 	}
-	grpcServer := grpc.NewServer(options...)
+
+	s.grpcServer = grpc.NewServer(options...)
 
 	healthcheck := health.NewServer()
-	healthgrpc.RegisterHealthServer(grpcServer, healthcheck)
+	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)
 
 	replicationService, err := NewReplicationApiService(ctx, log, registrant, writerDB)
 	if err != nil {
@@ -81,8 +83,8 @@ func NewAPIServer(
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))
-		err := grpcServer.Serve(s.grpcListener)
-		if err != nil && !isErrUseOfClosedConnection(err) {
+		if err = s.grpcServer.Serve(s.grpcListener); err != nil &&
+			!isErrUseOfClosedConnection(err) {
 			s.log.Error("serving grpc", zap.Error(err))
 		}
 	})
@@ -94,12 +96,28 @@ func (s *ApiServer) Addr() net.Addr {
 	return s.grpcListener.Addr()
 }
 
+func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
+	ctx, cancel := context.WithCancel(context.Background())
+	// Attempt to use GracefulStop up until the timeout
+	go func() {
+		defer cancel()
+		s.grpcServer.GracefulStop()
+	}()
+	go func() {
+		defer cancel()
+		<-time.NewTimer(timeout).C
+	}()
+
+	<-ctx.Done()
+}
+
 func (s *ApiServer) Close() {
 	s.log.Info("closing")
-
+	if s.grpcServer != nil {
+		s.gracefulShutdown(10 * time.Second)
+	}
 	if s.grpcListener != nil {
-		err := s.grpcListener.Close()
-		if err != nil {
+		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {
 			s.log.Error("closing grpc listener", zap.Error(err))
 		}
 		s.grpcListener = nil

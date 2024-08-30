@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -46,15 +47,32 @@ func main() {
 			options.DB.WaitForDB,
 			options.DB.ReadTimeout,
 		)
+
 		if err != nil {
 			log.Fatal("initializing database", zap.Error(err))
+		}
+
+		privateKey, err := utils.ParseEcdsaPrivateKey(options.SignerPrivateKey)
+		if err != nil {
+			log.Fatal("parsing private key", zap.Error(err))
 		}
 
 		s, err := server.NewReplicationServer(
 			ctx,
 			log,
 			options,
-			registry.NewFixedNodeRegistry([]registry.Node{}),
+			// TODO:nm replace with real node registry
+			registry.NewFixedNodeRegistry(
+				[]registry.Node{
+					{
+						NodeID:        0,
+						SigningKey:    &privateKey.PublicKey,
+						IsHealthy:     true,
+						HttpAddress:   "http://example.com",
+						IsValidConfig: true,
+					},
+				},
+			),
 			db,
 		)
 		if err != nil {

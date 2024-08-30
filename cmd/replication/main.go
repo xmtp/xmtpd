@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"log"
 	"sync"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -28,9 +31,18 @@ func main() {
 		return
 	}
 
-	log, _, err := buildLogger(options)
+	logger, _, err := buildLogger(options)
 	if err != nil {
 		fatal("Could not build logger: %s", err)
+	}
+
+	if options.Tracing.Enable {
+		logger.Info("starting tracer")
+		tracing.Start(Commit, logger)
+		defer func() {
+			logger.Info("stopping tracer")
+			tracing.Stop()
+		}()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -46,7 +58,7 @@ func main() {
 		)
 
 		if err != nil {
-			log.Fatal("initializing database", zap.Error(err))
+			logger.Fatal("initializing database", zap.Error(err))
 		}
 
 		privateKey, err := utils.ParseEcdsaPrivateKey(options.SignerPrivateKey)
@@ -54,9 +66,26 @@ func main() {
 			log.Fatal("parsing private key", zap.Error(err))
 		}
 
+		var mtcs *metrics.Server
+		if options.Metrics.Enable {
+			promReg := prometheus.NewRegistry()
+			promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+			promReg.MustRegister(collectors.NewGoCollector())
+
+			mtcs, err = metrics.NewMetricsServer(ctx,
+				options.Metrics.Address,
+				options.Metrics.Port,
+				logger,
+				promReg,
+			)
+			if err != nil {
+				logger.Fatal("initializing metrics server", zap.Error(err))
+			}
+		}
+
 		s, err := server.NewReplicationServer(
 			ctx,
-			log,
+			logger,
 			options,
 			// TODO:nm replace with real node registry
 			registry.NewFixedNodeRegistry(
@@ -71,15 +100,17 @@ func main() {
 				},
 			),
 			db,
+			mtcs,
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))
 		}
+
 		s.WaitForShutdown()
 		doneC <- true
 	})
-
 	<-doneC
+
 	cancel()
 	wg.Wait()
 }
@@ -112,12 +143,12 @@ func buildLogger(options config.ServerOptions) (*zap.Logger, *zap.Config, error)
 			EncodeCaller: zapcore.ShortCallerEncoder,
 		},
 	}
-	log, err := cfg.Build()
+	logger, err := cfg.Build()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	log = log.Named("replication")
+	logger = logger.Named("replication")
 
-	return log, &cfg, nil
+	return logger, &cfg, nil
 }

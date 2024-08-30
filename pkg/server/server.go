@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"net"
 	"os"
 	"os/signal"
@@ -24,6 +25,7 @@ type ReplicationServer struct {
 	registrant   *registrant.Registrant
 	nodeRegistry registry.NodeRegistry
 	options      config.ServerOptions
+	metrics      *metrics.Server
 	writerDB     *sql.DB
 	// Can add reader DB later if needed
 }
@@ -34,6 +36,7 @@ func NewReplicationServer(
 	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
+	metrics *metrics.Server,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -42,6 +45,7 @@ func NewReplicationServer(
 		log:          log,
 		nodeRegistry: nodeRegistry,
 		writerDB:     writerDB,
+		metrics:      metrics,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 

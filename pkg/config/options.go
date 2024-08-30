@@ -25,19 +25,31 @@ type DbOptions struct {
 	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration"`
 }
 
+// MetricsOptions are settings used to start a prometheus server
+type MetricsOptions struct {
+	Enable  bool   `long:"enable"          env:"XMTPD_METRICS_ENABLE"          description:"Enable the metrics server"`
+	Address string `long:"metrics-address" env:"XMTPD_METRICS_METRICS_ADDRESS" description:"Listening address of the metrics server"   default:"127.0.0.1"`
+	Port    int    `long:"metrics-port"    env:"XMTPD_METRICS_METRICS_PORT"    description:"Listening HTTP port of the metrics server" default:"8008"`
+}
+
 type PayerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
 }
 
 type ServerOptions struct {
-	LogLevel string `short:"l" long:"log-level"    env:"XMTPD_LOG_LEVEL"    description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
-	//nolint:staticcheck
-	LogEncoding string `          long:"log-encoding" env:"XMTPD_LOG_ENCODING" description:"Log encoding format. Either console or json"                                                                                  default:"console" choice:"console"`
+	LogLevel         string `short:"l" long:"log-level"          env:"XMTPD_LOG_LEVEL"          description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
+	LogEncoding      string `          long:"log-encoding"       env:"XMTPD_LOG_ENCODING"       description:"Log encoding format. Either console or json"                                                                                  default:"console" choice:"console"`
+	SignerPrivateKey string `          long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"                                                                                                                               required:"true"`
 
-	SignerPrivateKey string `long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages" required:"true"`
+	API       ApiOptions       `group:"API Options"            namespace:"api"`
+	DB        DbOptions        `group:"Database Options"       namespace:"db"`
+	Contracts ContractsOptions `group:"Contracts Options"      namespace:"contracts"`
+	Metrics   MetricsOptions   `group:"Metrics Options"        namespace:"metrics"`
+	Payer     PayerOptions     `group:"Payer Options"          namespace:"payer"`
+	Tracing   TracingOptions   `group:"DD APM Tracing Options" namespace:"tracing"`
+}
 
-	API       ApiOptions       `group:"API Options"       namespace:"api"`
-	DB        DbOptions        `group:"Database Options"  namespace:"db"`
-	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
-	Payer     PayerOptions     `group:"Payer Options"     namespace:"payer"`
+// TracingOptions are settings controlling collection of DD APM traces and error tracking.
+type TracingOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_TRACING_ENABLE" description:"Enable DD APM trace collection"`
 }

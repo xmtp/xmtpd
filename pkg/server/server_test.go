@@ -29,7 +29,7 @@ func NewTestServer(
 		API: config.ApiOptions{
 			Port: 0,
 		},
-	}, registry, db)
+	}, registry, db, nil)
 	require.NoError(t, err)
 
 	return server

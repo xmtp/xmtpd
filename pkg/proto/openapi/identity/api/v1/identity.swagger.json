@@ -24,7 +24,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/xmtpidentityapiv1GetIdentityUpdatesResponse"
+              "$ref": "#/definitions/v1GetIdentityUpdatesResponse"
             }
           },
           "default": {
@@ -40,7 +40,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/xmtpidentityapiv1GetIdentityUpdatesRequest"
+              "$ref": "#/definitions/v1GetIdentityUpdatesRequest"
             }
           }
         ],
@@ -397,6 +397,19 @@
         }
       }
     },
+    "v1GetIdentityUpdatesRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetIdentityUpdatesRequestRequest"
+          }
+        }
+      },
+      "title": "Get all updates for an identity since the specified time"
+    },
     "v1GetIdentityUpdatesRequestRequest": {
       "type": "object",
       "properties": {
@@ -409,6 +422,19 @@
         }
       },
       "description": "Points to the last entry the client has received. The sequence_id should be\nset to 0 if the client has not received anything."
+    },
+    "v1GetIdentityUpdatesResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetIdentityUpdatesResponseResponse"
+          }
+        }
+      },
+      "title": "Returns all log entries for the requested identities"
     },
     "v1GetIdentityUpdatesResponseResponse": {
       "type": "object",
@@ -485,32 +511,6 @@
     "v1PublishIdentityUpdateResponse": {
       "type": "object",
       "title": "The response when an identity update is published"
-    },
-    "xmtpidentityapiv1GetIdentityUpdatesRequest": {
-      "type": "object",
-      "properties": {
-        "requests": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetIdentityUpdatesRequestRequest"
-          }
-        }
-      },
-      "title": "Get all updates for an identity since the specified time"
-    },
-    "xmtpidentityapiv1GetIdentityUpdatesResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetIdentityUpdatesResponseResponse"
-          }
-        }
-      },
-      "title": "Returns all log entries for the requested identities"
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

@@ -49,25 +49,20 @@
       },
       "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
     },
-    "ValidateInboxIdsRequestValidationRequest": {
+    "ValidateGroupMessagesResponseValidationResponse": {
       "type": "object",
       "properties": {
-        "credential": {
-          "$ref": "#/definitions/xmtpidentityMlsCredential"
+        "isOk": {
+          "type": "boolean"
         },
-        "installationPublicKey": {
-          "type": "string",
-          "format": "byte"
+        "errorMessage": {
+          "type": "string"
         },
-        "identityUpdates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/associationsIdentityUpdate"
-          }
+        "groupId": {
+          "type": "string"
         }
       },
-      "title": "a single validation request"
+      "title": "An individual response to one message"
     },
     "associationsAddAssociation": {
       "type": "object",
@@ -399,26 +394,24 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1ValidateGroupMessagesResponseValidationResponse"
+            "$ref": "#/definitions/ValidateGroupMessagesResponseValidationResponse"
           }
         }
       },
       "title": "Response to ValidateGroupMessagesRequest"
     },
-    "v1ValidateGroupMessagesResponseValidationResponse": {
+    "v1ValidateInboxIdKeyPackagesRequestKeyPackage": {
       "type": "object",
       "properties": {
-        "isOk": {
+        "keyPackageBytesTlsSerialized": {
+          "type": "string",
+          "format": "byte"
+        },
+        "isInboxIdCredential": {
           "type": "boolean"
-        },
-        "errorMessage": {
-          "type": "string"
-        },
-        "groupId": {
-          "type": "string"
         }
       },
-      "title": "An individual response to one message"
+      "title": "Wrapper for each key package"
     },
     "v1ValidateInboxIdKeyPackagesResponse": {
       "type": "object",
@@ -455,88 +448,6 @@
         }
       },
       "title": "one response corresponding to information about one key package"
-    },
-    "v1ValidateInboxIdsResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ValidateInboxIdsResponseValidationResponse"
-          },
-          "title": "List of validation responses"
-        }
-      },
-      "title": "Response to ValidateInboxIdRequest"
-    },
-    "v1ValidateInboxIdsResponseValidationResponse": {
-      "type": "object",
-      "properties": {
-        "isOk": {
-          "type": "boolean"
-        },
-        "errorMessage": {
-          "type": "string"
-        },
-        "inboxId": {
-          "type": "string"
-        }
-      },
-      "title": "a single validation response"
-    },
-    "v1ValidateKeyPackagesRequestKeyPackage": {
-      "type": "object",
-      "properties": {
-        "keyPackageBytesTlsSerialized": {
-          "type": "string",
-          "format": "byte"
-        },
-        "isInboxIdCredential": {
-          "type": "boolean"
-        }
-      },
-      "title": "Wrapper for each key package"
-    },
-    "v1ValidateKeyPackagesResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ValidateKeyPackagesResponseValidationResponse"
-          }
-        }
-      },
-      "title": "Response to ValidateKeyPackagesRequest"
-    },
-    "v1ValidateKeyPackagesResponseValidationResponse": {
-      "type": "object",
-      "properties": {
-        "isOk": {
-          "type": "boolean"
-        },
-        "errorMessage": {
-          "type": "string"
-        },
-        "installationId": {
-          "type": "string",
-          "format": "byte"
-        },
-        "accountAddress": {
-          "type": "string"
-        },
-        "credentialIdentityBytes": {
-          "type": "string",
-          "format": "byte"
-        },
-        "expiration": {
-          "type": "string",
-          "format": "uint64"
-        }
-      },
-      "title": "An individual response to one key package"
     },
     "xmtpidentityMlsCredential": {
       "type": "object",

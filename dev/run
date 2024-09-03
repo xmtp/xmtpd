@@ -4,4 +4,4 @@ set -eu
 
 . dev/local.env
 
-go run cmd/replication/main.go
+go run cmd/replication/main.go "$@"

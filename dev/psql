@@ -1,0 +1,3 @@
+#!/bin/bash
+
+PGPASSWORD=xmtp psql --host=localhost --port=8765 -U postgres

@@ -31,5 +31,3 @@ EXPOSE 5050
 COPY --from=builder /app/bin/xmtpd /usr/bin/
 
 ENTRYPOINT ["/usr/bin/xmtpd"]
-# By default just show help if called without arguments
-CMD ["--help"]

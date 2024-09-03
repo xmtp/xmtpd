@@ -34,7 +34,7 @@ type ServerOptions struct {
 	//nolint:staticcheck
 	LogEncoding string `          long:"log-encoding" env:"XMTPD_LOG_ENCODING" description:"Log encoding format. Either console or json"                                                                                  default:"console" choice:"console"`
 
-	SignerPrivateKey string `long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"`
+	SignerPrivateKey string `long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages" required:"true"`
 
 	API       ApiOptions       `group:"API Options"       namespace:"api"`
 	DB        DbOptions        `group:"Database Options"  namespace:"db"`

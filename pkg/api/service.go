@@ -3,12 +3,14 @@ package api
 import (
 	"context"
 	"database/sql"
+	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
@@ -23,11 +25,12 @@ const (
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx        context.Context
-	log        *zap.Logger
-	registrant *registrant.Registrant
-	store      *sql.DB
-	worker     *PublishWorker
+	ctx             context.Context
+	log             *zap.Logger
+	registrant      *registrant.Registrant
+	store           *sql.DB
+	publishWorker   *publishWorker
+	subscribeWorker *subscribeWorker
 }
 
 func NewReplicationApiService(
@@ -36,16 +39,22 @@ func NewReplicationApiService(
 	registrant *registrant.Registrant,
 	store *sql.DB,
 ) (*Service, error) {
-	worker, err := StartPublishWorker(ctx, log, registrant, store)
+	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
 	if err != nil {
 		return nil, err
 	}
+	subscribeWorker, err := startSubscribeWorker(ctx, log, store)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Service{
-		ctx:        ctx,
-		log:        log,
-		registrant: registrant,
-		store:      store,
-		worker:     worker,
+		ctx:             ctx,
+		log:             log,
+		registrant:      registrant,
+		store:           store,
+		publishWorker:   publishWorker,
+		subscribeWorker: subscribeWorker,
 	}, nil
 }
 
@@ -55,9 +64,65 @@ func (s *Service) Close() {
 
 func (s *Service) BatchSubscribeEnvelopes(
 	req *message_api.BatchSubscribeEnvelopesRequest,
-	server message_api.ReplicationApi_BatchSubscribeEnvelopesServer,
+	stream message_api.ReplicationApi_BatchSubscribeEnvelopesServer,
 ) error {
-	return status.Errorf(codes.Unimplemented, "method BatchSubscribeEnvelopes not implemented")
+	// TODO(rich): Figure out subscribe2
+	// TODO(rich): Allow subscription to be updated
+
+	log := s.log.Named("subscribe") // .With(zap.Strings("content_topics", req.ContentTopics))
+	log.Debug("started")
+	defer log.Debug("stopped")
+
+	requests := req.GetRequests()
+	if len(requests) == 0 {
+		return status.Errorf(codes.InvalidArgument, "missing requests")
+	}
+	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
+	// See: https://github.com/xmtp/libxmtp/pull/58
+	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not send header: %v", err)
+	}
+
+	ch, err := s.subscribeWorker.subscribe(requests)
+	defer func() {
+		// TODO(rich) Handle unsubscribe
+		// if sub != nil {
+		// 	sub.Unsubscribe()
+		// }
+		// metrics.EmitUnsubscribeTopics(stream.Context(), log, len(req.ContentTopics))
+	}()
+
+	var streamLock sync.Mutex
+	for exit := false; !exit; {
+		select {
+		case envs, open := <-ch:
+			if open {
+				func() {
+					streamLock.Lock()
+					defer streamLock.Unlock()
+					err := stream.Send(&message_api.BatchSubscribeEnvelopesResponse{
+						Envelopes: envs,
+					})
+					if err != nil {
+						log.Error("sending envelope to subscribe", zap.Error(err))
+					}
+				}()
+			} else {
+				// TODO(rich) Recover from backpressure
+				// channel got closed; likely due to backpressure of the sending channel.
+				log.Info("stream closed due to backpressure")
+				exit = true
+			}
+		case <-stream.Context().Done():
+			log.Debug("stream closed")
+			exit = true
+		case <-s.ctx.Done():
+			log.Info("service closed")
+			exit = true
+		}
+	}
+	return nil
 }
 
 func (s *Service) QueryEnvelopes(
@@ -94,6 +159,7 @@ func (s *Service) QueryEnvelopes(
 func (s *Service) queryReqToDBParams(
 	req *message_api.QueryEnvelopesRequest,
 ) (*queries.SelectGatewayEnvelopesParams, error) {
+	// TODO(rich) named logs
 	params := queries.SelectGatewayEnvelopesParams{
 		Topic:             nil,
 		OriginatorNodeID:  sql.NullInt32{},
@@ -109,6 +175,9 @@ func (s *Service) queryReqToDBParams(
 
 	switch filter := query.GetFilter().(type) {
 	case *message_api.EnvelopesQuery_Topic:
+		if len(filter.Topic) == 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "missing topic")
+		}
 		params.Topic = filter.Topic
 	case *message_api.EnvelopesQuery_OriginatorNodeId:
 		params.OriginatorNodeID = db.NullInt32(int32(filter.OriginatorNodeId))
@@ -162,7 +231,7 @@ func (s *Service) PublishEnvelope(
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not insert staged envelope: %v", err)
 	}
-	s.worker.NotifyStagedPublish()
+	s.publishWorker.notifyStagedPublish()
 
 	originatorEnv, err := s.registrant.SignStagedEnvelope(stagedEnv)
 	if err != nil {
@@ -196,7 +265,7 @@ func (s *Service) validatePayerInfo(
 }
 
 func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]byte, error) {
-	if clientEnv.GetAad().GetTargetOriginator() != uint32(s.registrant.NodeID()) {
+	if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
 	}
 

@@ -24,8 +24,10 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-SELECT
-	insert_gateway_envelope($1, $2, $3, $4)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
+	VALUES ($1, $2, $3, $4)
+ON CONFLICT
+	DO NOTHING
 `
 
 type InsertGatewayEnvelopeParams struct {
@@ -94,7 +96,7 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
 SELECT
-	id, originator_node_id, originator_sequence_id, topic, originator_envelope
+	originator_node_id, originator_sequence_id, topic, originator_envelope
 FROM
 	gateway_envelopes
 WHERE ($1::BYTEA IS NULL
@@ -104,16 +106,13 @@ AND ($2::INT IS NULL
 	OR originator_node_id = $2)
 AND ($3::BIGINT IS NULL
 	OR originator_sequence_id > $3)
-AND ($4::BIGINT IS NULL
-	OR id > $4)
-LIMIT $5::INT
+LIMIT $4::INT
 `
 
 type SelectGatewayEnvelopesParams struct {
 	Topic                []byte
 	OriginatorNodeID     sql.NullInt32
 	OriginatorSequenceID sql.NullInt64
-	GatewaySequenceID    sql.NullInt64
 	RowLimit             sql.NullInt32
 }
 
@@ -122,7 +121,6 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 		arg.Topic,
 		arg.OriginatorNodeID,
 		arg.OriginatorSequenceID,
-		arg.GatewaySequenceID,
 		arg.RowLimit,
 	)
 	if err != nil {
@@ -133,7 +131,6 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 	for rows.Next() {
 		var i GatewayEnvelope
 		if err := rows.Scan(
-			&i.ID,
 			&i.OriginatorNodeID,
 			&i.OriginatorSequenceID,
 			&i.Topic,

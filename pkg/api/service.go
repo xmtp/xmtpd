@@ -97,7 +97,6 @@ func (s *Service) queryReqToDBParams(
 		Topic:                []byte{},
 		OriginatorNodeID:     sql.NullInt32{},
 		OriginatorSequenceID: sql.NullInt64{},
-		GatewaySequenceID:    sql.NullInt64{},
 		RowLimit:             db.NullInt32(maxRequestedRows),
 	}
 

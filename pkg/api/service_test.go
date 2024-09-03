@@ -14,7 +14,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -225,8 +224,8 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Filter: &message_api.EnvelopesQuery_OriginatorId{
-					OriginatorId: 2,
+				Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
+					OriginatorNodeId: 2,
 				},
 				LastSeen: nil,
 			},
@@ -256,7 +255,8 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 	checkRowsMatchProtos(t, db_rows, []int{0, 1, 4}, resp.GetEnvelopes())
 }
 
-func TestQueryEnvelopesFromGatewaySID(t *testing.T) {
+func TestQueryEnvelopesFromLastSeen(t *testing.T) {
+	t.Skip("Not implemented yet")
 	svc, db, cleanup := newTestService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
@@ -266,13 +266,13 @@ func TestQueryEnvelopesFromGatewaySID(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Filter:   nil,
-				LastSeen: &message_api.EnvelopesQuery_GatewaySid{GatewaySid: utils.SID(1, 2)},
+				LastSeen: &message_api.VectorClock{},
 			},
 			Limit: 0,
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{2, 3, 4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
@@ -285,9 +285,8 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Filter: &message_api.EnvelopesQuery_Topic{
-					Topic: []byte("topicB"),
+					Topic: []byte("topicC"),
 				},
-				LastSeen: &message_api.EnvelopesQuery_GatewaySid{GatewaySid: utils.SID(1, 4)},
 			},
 			Limit: 0,
 		},
@@ -296,34 +295,15 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
 }
 
-func TestQueryEnvelopesWithWrongGatewaySID(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
-	defer cleanup()
-	_ = setupQueryTest(t, db)
-
-	_, err := svc.QueryEnvelopes(
-		context.Background(),
-		&message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				Filter:   nil,
-				LastSeen: &message_api.EnvelopesQuery_GatewaySid{GatewaySid: utils.SID(2, 2)},
-			},
-			Limit: 0,
-		},
-	)
-	require.ErrorContains(t, err, "gateway")
-}
-
 func checkRowsMatchProtos(
 	t *testing.T,
 	allRows []queries.InsertGatewayEnvelopeParams,
 	matchingIndices []int,
-	protos []*message_api.GatewayEnvelope,
+	protos []*message_api.OriginatorEnvelope,
 ) {
 	require.Len(t, protos, len(matchingIndices))
 	for i, p := range protos {
 		row := allRows[matchingIndices[i]]
-		require.Equal(t, utils.SID(1, int64(matchingIndices[i]+1)), p.GetGatewaySid())
-		require.Equal(t, row.OriginatorEnvelope, testutils.Marshal(t, p.GetOriginatorEnvelope()))
+		require.Equal(t, row.OriginatorEnvelope, testutils.Marshal(t, p))
 	}
 }

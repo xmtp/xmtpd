@@ -8,7 +8,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -74,7 +73,7 @@ func (s *Service) QueryEnvelopes(
 		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 	}
 
-	envs := make([]*message_api.GatewayEnvelope, 0, len(rows))
+	envs := make([]*message_api.OriginatorEnvelope, 0, len(rows))
 	for _, row := range rows {
 		originatorEnv := &message_api.OriginatorEnvelope{}
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
@@ -83,14 +82,7 @@ func (s *Service) QueryEnvelopes(
 			s.log.Error("could not unmarshal originator envelope", zap.Error(err))
 			continue
 		}
-		gatewaySID, err := s.registrant.SID(row.ID)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not generate SID for envelope")
-		}
-		envs = append(envs, &message_api.GatewayEnvelope{
-			GatewaySid:         gatewaySID,
-			OriginatorEnvelope: originatorEnv,
-		})
+		envs = append(envs, originatorEnv)
 	}
 
 	return &message_api.QueryEnvelopesResponse{
@@ -117,24 +109,12 @@ func (s *Service) queryReqToDBParams(
 	switch filter := query.GetFilter().(type) {
 	case *message_api.EnvelopesQuery_Topic:
 		params.Topic = filter.Topic
-	case *message_api.EnvelopesQuery_OriginatorId:
-		params.OriginatorNodeID = db.NullInt32(int32(filter.OriginatorId))
+	case *message_api.EnvelopesQuery_OriginatorNodeId:
+		params.OriginatorNodeID = db.NullInt32(int32(filter.OriginatorNodeId))
 	default:
 	}
 
-	switch lastSeen := query.GetLastSeen().(type) {
-	case *message_api.EnvelopesQuery_GatewaySid:
-		if utils.NodeID(lastSeen.GatewaySid) != s.registrant.NodeID() {
-			return nil, status.Errorf(codes.InvalidArgument, "wrong gateway SID")
-		}
-		params.GatewaySequenceID = db.NullInt64(utils.SequenceID(lastSeen.GatewaySid))
-	case *message_api.EnvelopesQuery_OriginatorSid:
-		// TODO(rich): Properly handle clients switching between nodes. This filters on the
-		// node ID which is not what we want.
-		params.OriginatorNodeID = db.NullInt32(int32(utils.NodeID(lastSeen.OriginatorSid)))
-		params.OriginatorSequenceID = db.NullInt64(utils.SequenceID(lastSeen.OriginatorSid))
-	default:
-	}
+	// TODO(rich): Handle last_seen properly
 
 	limit := int32(req.GetLimit())
 	if limit > 0 && limit <= maxRequestedRows {

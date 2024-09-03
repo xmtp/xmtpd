@@ -20,9 +20,9 @@ func CreateClientEnvelope() *message_api.ClientEnvelope {
 	return &message_api.ClientEnvelope{
 		Payload: nil,
 		Aad: &message_api.AuthenticatedData{
-			TargetOriginator:   1,
-			TargetTopic:        []byte{0x5},
-			LastOriginatorSids: []uint64{},
+			TargetOriginator: 1,
+			TargetTopic:      []byte{0x5},
+			LastSeen:         &message_api.VectorClock{},
 		},
 	}
 }

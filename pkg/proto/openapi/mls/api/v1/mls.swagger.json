@@ -49,39 +49,6 @@
         ]
       }
     },
-    "/mls/v1/get-identity-updates": {
-      "post": {
-        "summary": "Used to check for changes related to members of a group.\nWould return an array of any new installations associated with the wallet\naddress, and any revocations that have happened.",
-        "operationId": "MlsApi_GetIdentityUpdates",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/xmtpmlsapiv1GetIdentityUpdatesResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/xmtpmlsapiv1GetIdentityUpdatesRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MlsApi"
-        ]
-      }
-    },
     "/mls/v1/query-group-messages": {
       "post": {
         "summary": "Query stored group messages",
@@ -140,73 +107,6 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/v1QueryWelcomeMessagesRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MlsApi"
-        ]
-      }
-    },
-    "/mls/v1/register-installation": {
-      "post": {
-        "summary": "Register a new installation, which would be validated before storage",
-        "operationId": "MlsApi_RegisterInstallation",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1RegisterInstallationResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1RegisterInstallationRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MlsApi"
-        ]
-      }
-    },
-    "/mls/v1/revoke-installation": {
-      "post": {
-        "summary": "Would delete all key packages associated with the installation and mark\nthe installation as having been revoked",
-        "operationId": "MlsApi_RevokeInstallation",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "type": "object",
-              "properties": {}
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1RevokeInstallationRequest"
             }
           }
         ],
@@ -403,91 +303,6 @@
     }
   },
   "definitions": {
-    "GetIdentityUpdatesResponseNewInstallationUpdate": {
-      "type": "object",
-      "properties": {
-        "installationKey": {
-          "type": "string",
-          "format": "byte"
-        },
-        "credentialIdentity": {
-          "type": "string",
-          "format": "byte"
-        }
-      },
-      "title": "A new installation key was seen for the first time by the nodes"
-    },
-    "GetIdentityUpdatesResponseRevokedInstallationUpdate": {
-      "type": "object",
-      "properties": {
-        "installationKey": {
-          "type": "string",
-          "format": "byte"
-        }
-      },
-      "title": "An installation was revoked"
-    },
-    "GetIdentityUpdatesResponseUpdate": {
-      "type": "object",
-      "properties": {
-        "timestampNs": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "newInstallation": {
-          "$ref": "#/definitions/GetIdentityUpdatesResponseNewInstallationUpdate"
-        },
-        "revokedInstallation": {
-          "$ref": "#/definitions/GetIdentityUpdatesResponseRevokedInstallationUpdate"
-        }
-      },
-      "title": "A wrapper for any update to the wallet"
-    },
-    "GetIdentityUpdatesResponseWalletUpdates": {
-      "type": "object",
-      "properties": {
-        "updates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/GetIdentityUpdatesResponseUpdate"
-          }
-        }
-      },
-      "title": "A wrapper for the updates for a single wallet"
-    },
-    "SignatureECDSACompact": {
-      "type": "object",
-      "properties": {
-        "bytes": {
-          "type": "string",
-          "format": "byte",
-          "title": "compact representation [ R || S ], 64 bytes"
-        },
-        "recovery": {
-          "type": "integer",
-          "format": "int64",
-          "title": "recovery bit"
-        }
-      },
-      "title": "ECDSA signature bytes and the recovery bit"
-    },
-    "SignatureWalletECDSACompact": {
-      "type": "object",
-      "properties": {
-        "bytes": {
-          "type": "string",
-          "format": "byte",
-          "title": "compact representation [ R || S ], 64 bytes"
-        },
-        "recovery": {
-          "type": "integer",
-          "format": "int64",
-          "title": "recovery bit"
-        }
-      },
-      "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
-    },
     "apiv1GroupMessage": {
       "type": "object",
       "properties": {
@@ -710,43 +525,6 @@
       },
       "title": "Response for welcome message queries"
     },
-    "v1RegisterInstallationRequest": {
-      "type": "object",
-      "properties": {
-        "keyPackage": {
-          "$ref": "#/definitions/v1KeyPackageUpload",
-          "title": "The Key Package contains all information needed to register an installation"
-        },
-        "isInboxIdCredential": {
-          "type": "boolean"
-        }
-      },
-      "title": "Register a new installation"
-    },
-    "v1RegisterInstallationResponse": {
-      "type": "object",
-      "properties": {
-        "installationKey": {
-          "type": "string",
-          "format": "byte"
-        }
-      },
-      "title": "The response to a RegisterInstallationRequest"
-    },
-    "v1RevokeInstallationRequest": {
-      "type": "object",
-      "properties": {
-        "installationKey": {
-          "type": "string",
-          "format": "byte"
-        },
-        "walletSignature": {
-          "$ref": "#/definitions/xmtpmessage_contentsSignature",
-          "title": "All revocations must be validated with a wallet signature over the\ninstallation_id being revoked (and some sort of standard prologue)"
-        }
-      },
-      "title": "Revoke an installation"
-    },
     "v1SendGroupMessagesRequest": {
       "type": "object",
       "properties": {
@@ -901,48 +679,6 @@
         }
       },
       "title": "Version 1 of the WelcomeMessage format"
-    },
-    "xmtpmessage_contentsSignature": {
-      "type": "object",
-      "properties": {
-        "ecdsaCompact": {
-          "$ref": "#/definitions/SignatureECDSACompact"
-        },
-        "walletEcdsaCompact": {
-          "$ref": "#/definitions/SignatureWalletECDSACompact"
-        }
-      },
-      "description": "Signature represents a generalized public key signature,\ndefined as a union to support cryptographic algorithm agility."
-    },
-    "xmtpmlsapiv1GetIdentityUpdatesRequest": {
-      "type": "object",
-      "properties": {
-        "accountAddresses": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "startTimeNs": {
-          "type": "string",
-          "format": "uint64"
-        }
-      },
-      "title": "Get all updates for an identity since the specified time"
-    },
-    "xmtpmlsapiv1GetIdentityUpdatesResponse": {
-      "type": "object",
-      "properties": {
-        "updates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/GetIdentityUpdatesResponseWalletUpdates"
-          },
-          "title": "A list of updates (or empty objects if no changes) in the original order\nof the request"
-        }
-      },
-      "title": "Used to get any new or revoked installations for a list of wallet addresses"
     }
   }
 }

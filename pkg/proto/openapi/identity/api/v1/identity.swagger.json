@@ -24,7 +24,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/xmtpidentityapiv1GetIdentityUpdatesResponse"
+              "$ref": "#/definitions/v1GetIdentityUpdatesResponse"
             }
           },
           "default": {
@@ -40,7 +40,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/xmtpidentityapiv1GetIdentityUpdatesRequest"
+              "$ref": "#/definitions/v1GetIdentityUpdatesRequest"
             }
           }
         ],
@@ -255,7 +255,7 @@
           "$ref": "#/definitions/message_contentsSignedPublicKey"
         },
         "signature": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         }
       },
       "description": "An existing address on xmtpv2 may have already signed a legacy identity key\nof type SignedPublicKey via the 'Create Identity' signature.\nFor migration to xmtpv3, the legacy key is permitted to sign on behalf of the\naddress to create a matching xmtpv3 installation key.\nThis signature type can ONLY be used for CreateXid and AddAssociation\npayloads, and can only be used once in xmtpv3."
@@ -272,6 +272,17 @@
         }
       },
       "title": "The identifier for a member of an XID"
+    },
+    "associationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
     },
     "associationsRecoverableEd25519Signature": {
       "type": "object",
@@ -325,22 +336,11 @@
       },
       "title": "Smart Contract Wallet signature"
     },
-    "identityassociationsRecoverableEcdsaSignature": {
-      "type": "object",
-      "properties": {
-        "bytes": {
-          "type": "string",
-          "format": "byte",
-          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
-        }
-      },
-      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
-    },
     "identityassociationsSignature": {
       "type": "object",
       "properties": {
         "erc191": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         },
         "erc6492": {
           "$ref": "#/definitions/associationsSmartContractWalletSignature"
@@ -397,6 +397,19 @@
         }
       }
     },
+    "v1GetIdentityUpdatesRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetIdentityUpdatesRequestRequest"
+          }
+        }
+      },
+      "title": "Get all updates for an identity since the specified time"
+    },
     "v1GetIdentityUpdatesRequestRequest": {
       "type": "object",
       "properties": {
@@ -409,6 +422,19 @@
         }
       },
       "description": "Points to the last entry the client has received. The sequence_id should be\nset to 0 if the client has not received anything."
+    },
+    "v1GetIdentityUpdatesResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetIdentityUpdatesResponseResponse"
+          }
+        }
+      },
+      "title": "Returns all log entries for the requested identities"
     },
     "v1GetIdentityUpdatesResponseResponse": {
       "type": "object",
@@ -485,32 +511,6 @@
     "v1PublishIdentityUpdateResponse": {
       "type": "object",
       "title": "The response when an identity update is published"
-    },
-    "xmtpidentityapiv1GetIdentityUpdatesRequest": {
-      "type": "object",
-      "properties": {
-        "requests": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetIdentityUpdatesRequestRequest"
-          }
-        }
-      },
-      "title": "Get all updates for an identity since the specified time"
-    },
-    "xmtpidentityapiv1GetIdentityUpdatesResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetIdentityUpdatesResponseResponse"
-          }
-        }
-      },
-      "title": "Returns all log entries for the requested identities"
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

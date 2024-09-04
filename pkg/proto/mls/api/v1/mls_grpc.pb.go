@@ -24,11 +24,8 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	MlsApi_SendGroupMessages_FullMethodName        = "/xmtp.mls.api.v1.MlsApi/SendGroupMessages"
 	MlsApi_SendWelcomeMessages_FullMethodName      = "/xmtp.mls.api.v1.MlsApi/SendWelcomeMessages"
-	MlsApi_RegisterInstallation_FullMethodName     = "/xmtp.mls.api.v1.MlsApi/RegisterInstallation"
 	MlsApi_UploadKeyPackage_FullMethodName         = "/xmtp.mls.api.v1.MlsApi/UploadKeyPackage"
 	MlsApi_FetchKeyPackages_FullMethodName         = "/xmtp.mls.api.v1.MlsApi/FetchKeyPackages"
-	MlsApi_RevokeInstallation_FullMethodName       = "/xmtp.mls.api.v1.MlsApi/RevokeInstallation"
-	MlsApi_GetIdentityUpdates_FullMethodName       = "/xmtp.mls.api.v1.MlsApi/GetIdentityUpdates"
 	MlsApi_QueryGroupMessages_FullMethodName       = "/xmtp.mls.api.v1.MlsApi/QueryGroupMessages"
 	MlsApi_QueryWelcomeMessages_FullMethodName     = "/xmtp.mls.api.v1.MlsApi/QueryWelcomeMessages"
 	MlsApi_SubscribeGroupMessages_FullMethodName   = "/xmtp.mls.api.v1.MlsApi/SubscribeGroupMessages"
@@ -44,19 +41,10 @@ type MlsApiClient interface {
 	SendGroupMessages(ctx context.Context, in *SendGroupMessagesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Send a batch of welcome messages
 	SendWelcomeMessages(ctx context.Context, in *SendWelcomeMessagesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Register a new installation, which would be validated before storage
-	RegisterInstallation(ctx context.Context, in *RegisterInstallationRequest, opts ...grpc.CallOption) (*RegisterInstallationResponse, error)
 	// Upload a new KeyPackage, which would be validated before storage
 	UploadKeyPackage(ctx context.Context, in *UploadKeyPackageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Get one or more Key Packages by installation_id
 	FetchKeyPackages(ctx context.Context, in *FetchKeyPackagesRequest, opts ...grpc.CallOption) (*FetchKeyPackagesResponse, error)
-	// Would delete all key packages associated with the installation and mark
-	// the installation as having been revoked
-	RevokeInstallation(ctx context.Context, in *RevokeInstallationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Used to check for changes related to members of a group.
-	// Would return an array of any new installations associated with the wallet
-	// address, and any revocations that have happened.
-	GetIdentityUpdates(ctx context.Context, in *GetIdentityUpdatesRequest, opts ...grpc.CallOption) (*GetIdentityUpdatesResponse, error)
 	// Query stored group messages
 	QueryGroupMessages(ctx context.Context, in *QueryGroupMessagesRequest, opts ...grpc.CallOption) (*QueryGroupMessagesResponse, error)
 	// Query stored group messages
@@ -93,15 +81,6 @@ func (c *mlsApiClient) SendWelcomeMessages(ctx context.Context, in *SendWelcomeM
 	return out, nil
 }
 
-func (c *mlsApiClient) RegisterInstallation(ctx context.Context, in *RegisterInstallationRequest, opts ...grpc.CallOption) (*RegisterInstallationResponse, error) {
-	out := new(RegisterInstallationResponse)
-	err := c.cc.Invoke(ctx, MlsApi_RegisterInstallation_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *mlsApiClient) UploadKeyPackage(ctx context.Context, in *UploadKeyPackageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, MlsApi_UploadKeyPackage_FullMethodName, in, out, opts...)
@@ -114,24 +93,6 @@ func (c *mlsApiClient) UploadKeyPackage(ctx context.Context, in *UploadKeyPackag
 func (c *mlsApiClient) FetchKeyPackages(ctx context.Context, in *FetchKeyPackagesRequest, opts ...grpc.CallOption) (*FetchKeyPackagesResponse, error) {
 	out := new(FetchKeyPackagesResponse)
 	err := c.cc.Invoke(ctx, MlsApi_FetchKeyPackages_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *mlsApiClient) RevokeInstallation(ctx context.Context, in *RevokeInstallationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, MlsApi_RevokeInstallation_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *mlsApiClient) GetIdentityUpdates(ctx context.Context, in *GetIdentityUpdatesRequest, opts ...grpc.CallOption) (*GetIdentityUpdatesResponse, error) {
-	out := new(GetIdentityUpdatesResponse)
-	err := c.cc.Invoke(ctx, MlsApi_GetIdentityUpdates_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -229,19 +190,10 @@ type MlsApiServer interface {
 	SendGroupMessages(context.Context, *SendGroupMessagesRequest) (*emptypb.Empty, error)
 	// Send a batch of welcome messages
 	SendWelcomeMessages(context.Context, *SendWelcomeMessagesRequest) (*emptypb.Empty, error)
-	// Register a new installation, which would be validated before storage
-	RegisterInstallation(context.Context, *RegisterInstallationRequest) (*RegisterInstallationResponse, error)
 	// Upload a new KeyPackage, which would be validated before storage
 	UploadKeyPackage(context.Context, *UploadKeyPackageRequest) (*emptypb.Empty, error)
 	// Get one or more Key Packages by installation_id
 	FetchKeyPackages(context.Context, *FetchKeyPackagesRequest) (*FetchKeyPackagesResponse, error)
-	// Would delete all key packages associated with the installation and mark
-	// the installation as having been revoked
-	RevokeInstallation(context.Context, *RevokeInstallationRequest) (*emptypb.Empty, error)
-	// Used to check for changes related to members of a group.
-	// Would return an array of any new installations associated with the wallet
-	// address, and any revocations that have happened.
-	GetIdentityUpdates(context.Context, *GetIdentityUpdatesRequest) (*GetIdentityUpdatesResponse, error)
 	// Query stored group messages
 	QueryGroupMessages(context.Context, *QueryGroupMessagesRequest) (*QueryGroupMessagesResponse, error)
 	// Query stored group messages
@@ -263,20 +215,11 @@ func (UnimplementedMlsApiServer) SendGroupMessages(context.Context, *SendGroupMe
 func (UnimplementedMlsApiServer) SendWelcomeMessages(context.Context, *SendWelcomeMessagesRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendWelcomeMessages not implemented")
 }
-func (UnimplementedMlsApiServer) RegisterInstallation(context.Context, *RegisterInstallationRequest) (*RegisterInstallationResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegisterInstallation not implemented")
-}
 func (UnimplementedMlsApiServer) UploadKeyPackage(context.Context, *UploadKeyPackageRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UploadKeyPackage not implemented")
 }
 func (UnimplementedMlsApiServer) FetchKeyPackages(context.Context, *FetchKeyPackagesRequest) (*FetchKeyPackagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchKeyPackages not implemented")
-}
-func (UnimplementedMlsApiServer) RevokeInstallation(context.Context, *RevokeInstallationRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RevokeInstallation not implemented")
-}
-func (UnimplementedMlsApiServer) GetIdentityUpdates(context.Context, *GetIdentityUpdatesRequest) (*GetIdentityUpdatesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetIdentityUpdates not implemented")
 }
 func (UnimplementedMlsApiServer) QueryGroupMessages(context.Context, *QueryGroupMessagesRequest) (*QueryGroupMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryGroupMessages not implemented")
@@ -339,24 +282,6 @@ func _MlsApi_SendWelcomeMessages_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MlsApi_RegisterInstallation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterInstallationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MlsApiServer).RegisterInstallation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MlsApi_RegisterInstallation_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MlsApiServer).RegisterInstallation(ctx, req.(*RegisterInstallationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _MlsApi_UploadKeyPackage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UploadKeyPackageRequest)
 	if err := dec(in); err != nil {
@@ -389,42 +314,6 @@ func _MlsApi_FetchKeyPackages_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MlsApiServer).FetchKeyPackages(ctx, req.(*FetchKeyPackagesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _MlsApi_RevokeInstallation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeInstallationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MlsApiServer).RevokeInstallation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MlsApi_RevokeInstallation_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MlsApiServer).RevokeInstallation(ctx, req.(*RevokeInstallationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _MlsApi_GetIdentityUpdates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetIdentityUpdatesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MlsApiServer).GetIdentityUpdates(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MlsApi_GetIdentityUpdates_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MlsApiServer).GetIdentityUpdates(ctx, req.(*GetIdentityUpdatesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -523,24 +412,12 @@ var MlsApi_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MlsApi_SendWelcomeMessages_Handler,
 		},
 		{
-			MethodName: "RegisterInstallation",
-			Handler:    _MlsApi_RegisterInstallation_Handler,
-		},
-		{
 			MethodName: "UploadKeyPackage",
 			Handler:    _MlsApi_UploadKeyPackage_Handler,
 		},
 		{
 			MethodName: "FetchKeyPackages",
 			Handler:    _MlsApi_FetchKeyPackages_Handler,
-		},
-		{
-			MethodName: "RevokeInstallation",
-			Handler:    _MlsApi_RevokeInstallation_Handler,
-		},
-		{
-			MethodName: "GetIdentityUpdates",
-			Handler:    _MlsApi_GetIdentityUpdates_Handler,
 		},
 		{
 			MethodName: "QueryGroupMessages",

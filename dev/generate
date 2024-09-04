@@ -9,7 +9,7 @@ mockery
 sqlc generate
 
 rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
-if ! buf generate https://github.com/xmtp/proto.git#subdir=proto; then
+if ! buf generate https://github.com/xmtp/proto.git#subdir=proto,branch=main; then
     echo "Failed to generate protobuf definitions"
     exit 1
 fi

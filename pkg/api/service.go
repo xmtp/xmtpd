@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -12,6 +13,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"go.uber.org/zap"
+)
+
+const (
+	maxRequestedRows int32 = 1000
 )
 
 type Service struct {
@@ -58,7 +63,65 @@ func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method QueryEnvelopes not implemented")
+	params, err := s.queryReqToDBParams(req)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.New(s.store).SelectGatewayEnvelopes(ctx, *params)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+	}
+
+	envs := make([]*message_api.OriginatorEnvelope, 0, len(rows))
+	for _, row := range rows {
+		originatorEnv := &message_api.OriginatorEnvelope{}
+		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
+		if err != nil {
+			// We expect to have already validated the envelope when it was inserted
+			s.log.Error("could not unmarshal originator envelope", zap.Error(err))
+			continue
+		}
+		envs = append(envs, originatorEnv)
+	}
+
+	return &message_api.QueryEnvelopesResponse{
+		Envelopes: envs,
+	}, nil
+}
+
+func (s *Service) queryReqToDBParams(
+	req *message_api.QueryEnvelopesRequest,
+) (*queries.SelectGatewayEnvelopesParams, error) {
+	params := queries.SelectGatewayEnvelopesParams{
+		Topic:                []byte{},
+		OriginatorNodeID:     sql.NullInt32{},
+		OriginatorSequenceID: sql.NullInt64{},
+		GatewaySequenceID:    sql.NullInt64{},
+		RowLimit:             db.NullInt32(maxRequestedRows),
+	}
+
+	query := req.GetQuery()
+	if query == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing query")
+	}
+
+	switch filter := query.GetFilter().(type) {
+	case *message_api.EnvelopesQuery_Topic:
+		params.Topic = filter.Topic
+	case *message_api.EnvelopesQuery_OriginatorNodeId:
+		params.OriginatorNodeID = db.NullInt32(int32(filter.OriginatorNodeId))
+	default:
+	}
+
+	// TODO(rich): Handle last_seen properly
+
+	limit := int32(req.GetLimit())
+	if limit > 0 && limit <= maxRequestedRows {
+		params.RowLimit = db.NullInt32(limit)
+	}
+
+	return &params, nil
 }
 
 func (s *Service) PublishEnvelope(

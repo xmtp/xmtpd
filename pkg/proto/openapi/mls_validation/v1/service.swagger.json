@@ -49,25 +49,20 @@
       },
       "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
     },
-    "ValidateInboxIdsRequestValidationRequest": {
+    "ValidateGroupMessagesResponseValidationResponse": {
       "type": "object",
       "properties": {
-        "credential": {
-          "$ref": "#/definitions/xmtpidentityMlsCredential"
+        "isOk": {
+          "type": "boolean"
         },
-        "installationPublicKey": {
-          "type": "string",
-          "format": "byte"
+        "errorMessage": {
+          "type": "string"
         },
-        "identityUpdates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/associationsIdentityUpdate"
-          }
+        "groupId": {
+          "type": "string"
         }
       },
-      "title": "a single validation request"
+      "title": "An individual response to one message"
     },
     "associationsAddAssociation": {
       "type": "object",
@@ -204,7 +199,7 @@
           "$ref": "#/definitions/message_contentsSignedPublicKey"
         },
         "signature": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         }
       },
       "description": "An existing address on xmtpv2 may have already signed a legacy identity key\nof type SignedPublicKey via the 'Create Identity' signature.\nFor migration to xmtpv3, the legacy key is permitted to sign on behalf of the\naddress to create a matching xmtpv3 installation key.\nThis signature type can ONLY be used for CreateXid and AddAssociation\npayloads, and can only be used once in xmtpv3."
@@ -245,6 +240,17 @@
         }
       },
       "title": "Map of members belonging to an inbox_id"
+    },
+    "associationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
     },
     "associationsRecoverableEd25519Signature": {
       "type": "object",
@@ -298,22 +304,20 @@
       },
       "title": "Smart Contract Wallet signature"
     },
-    "identityassociationsRecoverableEcdsaSignature": {
+    "identityMlsCredential": {
       "type": "object",
       "properties": {
-        "bytes": {
-          "type": "string",
-          "format": "byte",
-          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        "inboxId": {
+          "type": "string"
         }
       },
-      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
+      "title": "A credential that can be used in MLS leaf nodes"
     },
     "identityassociationsSignature": {
       "type": "object",
       "properties": {
         "erc191": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         },
         "erc6492": {
           "$ref": "#/definitions/associationsSmartContractWalletSignature"
@@ -399,26 +403,24 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1ValidateGroupMessagesResponseValidationResponse"
+            "$ref": "#/definitions/ValidateGroupMessagesResponseValidationResponse"
           }
         }
       },
       "title": "Response to ValidateGroupMessagesRequest"
     },
-    "v1ValidateGroupMessagesResponseValidationResponse": {
+    "v1ValidateInboxIdKeyPackagesRequestKeyPackage": {
       "type": "object",
       "properties": {
-        "isOk": {
+        "keyPackageBytesTlsSerialized": {
+          "type": "string",
+          "format": "byte"
+        },
+        "isInboxIdCredential": {
           "type": "boolean"
-        },
-        "errorMessage": {
-          "type": "string"
-        },
-        "groupId": {
-          "type": "string"
         }
       },
-      "title": "An individual response to one message"
+      "title": "Wrapper for each key package"
     },
     "v1ValidateInboxIdKeyPackagesResponse": {
       "type": "object",
@@ -443,7 +445,7 @@
           "type": "string"
         },
         "credential": {
-          "$ref": "#/definitions/xmtpidentityMlsCredential"
+          "$ref": "#/definitions/identityMlsCredential"
         },
         "installationPublicKey": {
           "type": "string",
@@ -455,97 +457,6 @@
         }
       },
       "title": "one response corresponding to information about one key package"
-    },
-    "v1ValidateInboxIdsResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ValidateInboxIdsResponseValidationResponse"
-          },
-          "title": "List of validation responses"
-        }
-      },
-      "title": "Response to ValidateInboxIdRequest"
-    },
-    "v1ValidateInboxIdsResponseValidationResponse": {
-      "type": "object",
-      "properties": {
-        "isOk": {
-          "type": "boolean"
-        },
-        "errorMessage": {
-          "type": "string"
-        },
-        "inboxId": {
-          "type": "string"
-        }
-      },
-      "title": "a single validation response"
-    },
-    "v1ValidateKeyPackagesRequestKeyPackage": {
-      "type": "object",
-      "properties": {
-        "keyPackageBytesTlsSerialized": {
-          "type": "string",
-          "format": "byte"
-        },
-        "isInboxIdCredential": {
-          "type": "boolean"
-        }
-      },
-      "title": "Wrapper for each key package"
-    },
-    "v1ValidateKeyPackagesResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ValidateKeyPackagesResponseValidationResponse"
-          }
-        }
-      },
-      "title": "Response to ValidateKeyPackagesRequest"
-    },
-    "v1ValidateKeyPackagesResponseValidationResponse": {
-      "type": "object",
-      "properties": {
-        "isOk": {
-          "type": "boolean"
-        },
-        "errorMessage": {
-          "type": "string"
-        },
-        "installationId": {
-          "type": "string",
-          "format": "byte"
-        },
-        "accountAddress": {
-          "type": "string"
-        },
-        "credentialIdentityBytes": {
-          "type": "string",
-          "format": "byte"
-        },
-        "expiration": {
-          "type": "string",
-          "format": "uint64"
-        }
-      },
-      "title": "An individual response to one key package"
-    },
-    "xmtpidentityMlsCredential": {
-      "type": "object",
-      "properties": {
-        "inboxId": {
-          "type": "string"
-        }
-      },
-      "title": "A credential that can be used in MLS leaf nodes"
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

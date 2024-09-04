@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mocks"
-	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -41,41 +40,14 @@ func newTestService(t *testing.T) (*Service, *sql.DB, func()) {
 	}
 }
 
-func createClientEnvelope() *message_api.ClientEnvelope {
-	return &message_api.ClientEnvelope{
-		Payload: nil,
-		Aad: &message_api.AuthenticatedData{
-			TargetOriginator:   1,
-			TargetTopic:        []byte{0x5},
-			LastOriginatorSids: []uint64{},
-		},
-	}
-}
-
-func createPayerEnvelope(
-	t *testing.T,
-	clientEnv ...*message_api.ClientEnvelope,
-) *message_api.PayerEnvelope {
-	if len(clientEnv) == 0 {
-		clientEnv = append(clientEnv, createClientEnvelope())
-	}
-	clientEnvBytes, err := proto.Marshal(clientEnv[0])
-	require.NoError(t, err)
-
-	return &message_api.PayerEnvelope{
-		UnsignedClientEnvelope: clientEnvBytes,
-		PayerSignature:         &associations.RecoverableEcdsaSignature{},
-	}
-}
-
-func TestSimplePublish(t *testing.T) {
+func TestPublishEnvelope(t *testing.T) {
 	svc, db, cleanup := newTestService(t)
 	defer cleanup()
 
 	resp, err := svc.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: createPayerEnvelope(t),
+			PayerEnvelope: testutils.CreatePayerEnvelope(t),
 		},
 	)
 	require.NoError(t, err)
@@ -109,11 +81,11 @@ func TestSimplePublish(t *testing.T) {
 	}, 500*time.Millisecond, 50*time.Millisecond)
 }
 
-func TestUnmarshalError(t *testing.T) {
+func TestUnmarshalErrorOnPublish(t *testing.T) {
 	svc, _, cleanup := newTestService(t)
 	defer cleanup()
 
-	envelope := createPayerEnvelope(t)
+	envelope := testutils.CreatePayerEnvelope(t)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
 	_, err := svc.PublishEnvelope(
 		context.Background(),
@@ -124,32 +96,214 @@ func TestUnmarshalError(t *testing.T) {
 	require.ErrorContains(t, err, "unmarshal")
 }
 
-func TestMismatchingOriginator(t *testing.T) {
+func TestMismatchingOriginatorOnPublish(t *testing.T) {
 	svc, _, cleanup := newTestService(t)
 	defer cleanup()
 
-	clientEnv := createClientEnvelope()
+	clientEnv := testutils.CreateClientEnvelope()
 	clientEnv.Aad.TargetOriginator = 2
 	_, err := svc.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: createPayerEnvelope(t, clientEnv),
+			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
 		},
 	)
 	require.ErrorContains(t, err, "originator")
 }
 
-func TestMissingTopic(t *testing.T) {
+func TestMissingTopicOnPublish(t *testing.T) {
 	svc, _, cleanup := newTestService(t)
 	defer cleanup()
 
-	clientEnv := createClientEnvelope()
+	clientEnv := testutils.CreateClientEnvelope()
 	clientEnv.Aad.TargetTopic = nil
 	_, err := svc.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: createPayerEnvelope(t, clientEnv),
+			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
 		},
 	)
 	require.ErrorContains(t, err, "topic")
+}
+
+func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopeParams {
+	db_rows := []queries.InsertGatewayEnvelopeParams{
+		{
+			// Auto-generated ID: 1
+			OriginatorNodeID:     1,
+			OriginatorSequenceID: 1,
+			Topic:                []byte("topicA"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 1, 1),
+			),
+		},
+		{
+			// Auto-generated ID: 2
+			OriginatorNodeID:     2,
+			OriginatorSequenceID: 1,
+			Topic:                []byte("topicA"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 2, 1),
+			),
+		},
+		{
+			// Auto-generated ID: 3
+			OriginatorNodeID:     1,
+			OriginatorSequenceID: 2,
+			Topic:                []byte("topicB"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 1, 2),
+			),
+		},
+		{
+			// Auto-generated ID: 4
+			OriginatorNodeID:     2,
+			OriginatorSequenceID: 2,
+			Topic:                []byte("topicB"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 2, 2),
+			),
+		},
+		{
+			// Auto-generated ID: 5
+			OriginatorNodeID:     1,
+			OriginatorSequenceID: 3,
+			Topic:                []byte("topicA"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 1, 3),
+			),
+		},
+	}
+	testutils.InsertGatewayEnvelopes(t, db, db_rows)
+	return db_rows
+}
+
+func TestQueryAllEnvelopes(t *testing.T) {
+	svc, db, cleanup := newTestService(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, db)
+
+	resp, err := svc.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{0, 1, 2, 3, 4}, resp.GetEnvelopes())
+}
+
+func TestQueryPagedEnvelopes(t *testing.T) {
+	svc, db, cleanup := newTestService(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, db)
+
+	resp, err := svc.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{},
+			Limit: 2,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{0, 1}, resp.GetEnvelopes())
+}
+
+func TestQueryEnvelopesByOriginator(t *testing.T) {
+	svc, db, cleanup := newTestService(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, db)
+
+	resp, err := svc.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
+					OriginatorNodeId: 2,
+				},
+				LastSeen: nil,
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{1, 3}, resp.GetEnvelopes())
+}
+
+func TestQueryEnvelopesByTopic(t *testing.T) {
+	svc, db, cleanup := newTestService(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, db)
+
+	resp, err := svc.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicA")},
+				LastSeen: nil,
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{0, 1, 4}, resp.GetEnvelopes())
+}
+
+func TestQueryEnvelopesFromLastSeen(t *testing.T) {
+	t.Skip("Not implemented yet")
+	svc, db, cleanup := newTestService(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, db)
+
+	resp, err := svc.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Filter:   nil,
+				LastSeen: &message_api.VectorClock{},
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
+}
+
+func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
+	svc, db, cleanup := newTestService(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, db)
+
+	resp, err := svc.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Filter: &message_api.EnvelopesQuery_Topic{
+					Topic: []byte("topicC"),
+				},
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
+}
+
+func checkRowsMatchProtos(
+	t *testing.T,
+	allRows []queries.InsertGatewayEnvelopeParams,
+	matchingIndices []int,
+	protos []*message_api.OriginatorEnvelope,
+) {
+	require.Len(t, protos, len(matchingIndices))
+	for i, p := range protos {
+		row := allRows[matchingIndices[i]]
+		require.Equal(t, row.OriginatorEnvelope, testutils.Marshal(t, p))
+	}
 }

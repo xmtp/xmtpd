@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/migrations"
 )
 
@@ -71,5 +72,26 @@ func NewDBs(t *testing.T, ctx context.Context, count int) ([]*sql.DB, func()) {
 			cleanups[i]()
 		}
 		ctlCleanup()
+	}
+}
+
+func InsertGatewayEnvelopes(
+	t *testing.T,
+	db *sql.DB,
+	rows []queries.InsertGatewayEnvelopeParams,
+	notifyChan ...chan bool,
+) {
+	q := queries.New(db)
+	for _, row := range rows {
+		inserted, err := q.InsertGatewayEnvelope(context.Background(), row)
+		require.Equal(t, int64(1), inserted)
+		require.NoError(t, err)
+
+		if len(notifyChan) > 0 {
+			select {
+			case notifyChan[0] <- true:
+			default:
+			}
+		}
 	}
 }

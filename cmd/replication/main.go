@@ -3,10 +3,7 @@ package main
 import (
 	"context"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -65,7 +62,7 @@ func main() {
 			registry.NewFixedNodeRegistry(
 				[]registry.Node{
 					{
-						NodeID:        0,
+						NodeID:        1,
 						SigningKey:    &privateKey.PublicKey,
 						IsHealthy:     true,
 						HttpAddress:   "http://example.com",
@@ -82,18 +79,7 @@ func main() {
 		doneC <- true
 	})
 
-	sigC := make(chan os.Signal, 1)
-	signal.Notify(sigC,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-	select {
-	case sig := <-sigC:
-		log.Info("ending on signal", zap.String("signal", sig.String()))
-	case <-doneC:
-	}
+	<-doneC
 	cancel()
 	wg.Wait()
 }

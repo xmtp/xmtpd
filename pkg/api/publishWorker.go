@@ -135,7 +135,7 @@ func (p *PublishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
-	deleted, err := q.DeleteStagedOriginatorEnvelope(context.Background(), stagedEnv.ID)
+	deleted, err := q.DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)
 	if p.ctx.Err() != nil {
 		return true
 	} else if err != nil {

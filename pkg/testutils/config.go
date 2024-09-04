@@ -47,7 +47,7 @@ func rootPath(t *testing.T) string {
 
 /*
 *
-Parse the JSON file at this location to
+Parse the JSON file at this location to get the deployed contract info
 *
 */
 func getDeployedTo(t *testing.T, fileName string) string {

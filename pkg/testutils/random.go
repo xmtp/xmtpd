@@ -1,11 +1,15 @@
 package testutils
 
 import (
+	"crypto/ecdsa"
 	cryptoRand "crypto/rand"
 	"math/rand"
 	"strings"
+	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/require"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -49,4 +53,11 @@ func RandomGroupID() [32]byte {
 	copy(groupID[:], RandomBytes(32))
 
 	return groupID
+}
+
+func RandomPrivateKey(t *testing.T) *ecdsa.PrivateKey {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	return key
 }

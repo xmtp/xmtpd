@@ -199,7 +199,7 @@
           "$ref": "#/definitions/message_contentsSignedPublicKey"
         },
         "signature": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         }
       },
       "description": "An existing address on xmtpv2 may have already signed a legacy identity key\nof type SignedPublicKey via the 'Create Identity' signature.\nFor migration to xmtpv3, the legacy key is permitted to sign on behalf of the\naddress to create a matching xmtpv3 installation key.\nThis signature type can ONLY be used for CreateXid and AddAssociation\npayloads, and can only be used once in xmtpv3."
@@ -240,6 +240,17 @@
         }
       },
       "title": "Map of members belonging to an inbox_id"
+    },
+    "associationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
     },
     "associationsRecoverableEd25519Signature": {
       "type": "object",
@@ -293,22 +304,20 @@
       },
       "title": "Smart Contract Wallet signature"
     },
-    "identityassociationsRecoverableEcdsaSignature": {
+    "identityMlsCredential": {
       "type": "object",
       "properties": {
-        "bytes": {
-          "type": "string",
-          "format": "byte",
-          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        "inboxId": {
+          "type": "string"
         }
       },
-      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
+      "title": "A credential that can be used in MLS leaf nodes"
     },
     "identityassociationsSignature": {
       "type": "object",
       "properties": {
         "erc191": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         },
         "erc6492": {
           "$ref": "#/definitions/associationsSmartContractWalletSignature"
@@ -436,7 +445,7 @@
           "type": "string"
         },
         "credential": {
-          "$ref": "#/definitions/xmtpidentityMlsCredential"
+          "$ref": "#/definitions/identityMlsCredential"
         },
         "installationPublicKey": {
           "type": "string",
@@ -448,15 +457,6 @@
         }
       },
       "title": "one response corresponding to information about one key package"
-    },
-    "xmtpidentityMlsCredential": {
-      "type": "object",
-      "properties": {
-        "inboxId": {
-          "type": "string"
-        }
-      },
-      "title": "A credential that can be used in MLS leaf nodes"
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

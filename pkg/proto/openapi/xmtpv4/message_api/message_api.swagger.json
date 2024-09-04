@@ -135,7 +135,7 @@
       },
       "title": "Single subscription request for envelopes"
     },
-    "identityassociationsRecoverableEcdsaSignature": {
+    "associationsRecoverableEcdsaSignature": {
       "type": "object",
       "properties": {
         "bytes": {
@@ -242,7 +242,7 @@
           "title": "Protobuf serialized"
         },
         "originatorSignature": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         },
         "blockchainProof": {
           "$ref": "#/definitions/xmtpv4BlockchainProof"
@@ -259,7 +259,7 @@
           "title": "Protobuf serialized"
         },
         "payerSignature": {
-          "$ref": "#/definitions/identityassociationsRecoverableEcdsaSignature"
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
         }
       },
       "title": "Wraps client envelope with payer signature"

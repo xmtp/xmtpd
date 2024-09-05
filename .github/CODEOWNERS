@@ -1,0 +1,3 @@
+# Global rule:
+*     @xmtp/backend
+*.md  @xmtp/documentation

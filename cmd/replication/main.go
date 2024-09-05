@@ -2,15 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"log"
 	"sync"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -66,23 +63,6 @@ func main() {
 			log.Fatal("parsing private key", zap.Error(err))
 		}
 
-		var mtcs *metrics.Server
-		if options.Metrics.Enable {
-			promReg := prometheus.NewRegistry()
-			promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-			promReg.MustRegister(collectors.NewGoCollector())
-
-			mtcs, err = metrics.NewMetricsServer(ctx,
-				options.Metrics.Address,
-				options.Metrics.Port,
-				logger,
-				promReg,
-			)
-			if err != nil {
-				logger.Fatal("initializing metrics server", zap.Error(err))
-			}
-		}
-
 		s, err := server.NewReplicationServer(
 			ctx,
 			logger,
@@ -100,7 +80,6 @@ func main() {
 				},
 			),
 			db,
-			mtcs,
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))

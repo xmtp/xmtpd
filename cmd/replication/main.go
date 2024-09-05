@@ -28,9 +28,18 @@ func main() {
 		return
 	}
 
-	log, _, err := buildLogger(options)
+	logger, _, err := buildLogger(options)
 	if err != nil {
 		fatal("Could not build logger: %s", err)
+	}
+
+	if options.Tracing.Enable {
+		logger.Info("starting tracer")
+		tracing.Start(Commit, logger)
+		defer func() {
+			logger.Info("stopping tracer")
+			tracing.Stop()
+		}()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -46,7 +55,7 @@ func main() {
 		)
 
 		if err != nil {
-			log.Fatal("initializing database", zap.Error(err))
+			logger.Fatal("initializing database", zap.Error(err))
 		}
 
 		privateKey, err := utils.ParseEcdsaPrivateKey(options.SignerPrivateKey)
@@ -56,7 +65,7 @@ func main() {
 
 		s, err := server.NewReplicationServer(
 			ctx,
-			log,
+			logger,
 			options,
 			// TODO:nm replace with real node registry
 			registry.NewFixedNodeRegistry(
@@ -75,11 +84,12 @@ func main() {
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))
 		}
+
 		s.WaitForShutdown()
 		doneC <- true
 	})
-
 	<-doneC
+
 	cancel()
 	wg.Wait()
 }
@@ -112,12 +122,12 @@ func buildLogger(options config.ServerOptions) (*zap.Logger, *zap.Config, error)
 			EncodeCaller: zapcore.ShortCallerEncoder,
 		},
 	}
-	log, err := cfg.Build()
+	logger, err := cfg.Build()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	log = log.Named("replication")
+	logger = logger.Named("replication")
 
-	return log, &cfg, nil
+	return logger, &cfg, nil
 }

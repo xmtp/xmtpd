@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"database/sql"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"net"
 	"os"
 	"os/signal"
@@ -24,6 +27,7 @@ type ReplicationServer struct {
 	registrant   *registrant.Registrant
 	nodeRegistry registry.NodeRegistry
 	options      config.ServerOptions
+	metrics      *metrics.Server
 	writerDB     *sql.DB
 	// Can add reader DB later if needed
 }
@@ -37,11 +41,30 @@ func NewReplicationServer(
 ) (*ReplicationServer, error) {
 	var err error
 
+	var mtcs *metrics.Server
+	if options.Metrics.Enable {
+		promReg := prometheus.NewRegistry()
+		promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+		promReg.MustRegister(collectors.NewGoCollector())
+
+		mtcs, err = metrics.NewMetricsServer(ctx,
+			options.Metrics.Address,
+			options.Metrics.Port,
+			log,
+			promReg,
+		)
+		if err != nil {
+			log.Fatal("initializing metrics server", zap.Error(err))
+			return nil, err
+		}
+	}
+
 	s := &ReplicationServer{
 		options:      options,
 		log:          log,
 		nodeRegistry: nodeRegistry,
 		writerDB:     writerDB,
+		metrics:      mtcs,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
@@ -76,6 +99,13 @@ func (s *ReplicationServer) WaitForShutdown() {
 }
 
 func (s *ReplicationServer) Shutdown() {
+	// Close metrics server.
+	if s.metrics != nil {
+		if err := s.metrics.Close(); err != nil {
+			s.log.Error("stopping metrics", zap.Error(err))
+		}
+	}
+
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}

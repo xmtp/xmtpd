@@ -17,6 +17,7 @@ type AddressLog struct {
 }
 
 type GatewayEnvelope struct {
+	GatewayTime          time.Time
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	Topic                []byte

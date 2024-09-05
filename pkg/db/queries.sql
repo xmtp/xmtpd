@@ -19,17 +19,30 @@ ON CONFLICT
 	DO NOTHING;
 
 -- name: SelectGatewayEnvelopes :many
+WITH cursors AS (
+	SELECT
+		UNNEST(@cursor_node_ids::INT[]) AS cursor_node_id,
+		UNNEST(@cursor_sequence_ids::BIGINT[]) AS cursor_sequence_id
+)
 SELECT
-	*
+	gateway_envelopes.*
 FROM
 	gateway_envelopes
+	-- Assumption: There is only one cursor per node ID. Caller must verify this
+	LEFT JOIN cursors ON gateway_envelopes.originator_node_id = cursors.cursor_node_id
 WHERE (sqlc.narg('topic')::BYTEA IS NULL
 	OR length(@topic) = 0
 	OR topic = @topic)
 AND (sqlc.narg('originator_node_id')::INT IS NULL
 	OR originator_node_id = @originator_node_id)
-AND (sqlc.narg('originator_sequence_id')::BIGINT IS NULL
-	OR originator_sequence_id > @originator_sequence_id)
+AND (cursor_sequence_id IS NULL
+	OR originator_sequence_id > cursor_sequence_id)
+ORDER BY
+	-- Assumption: envelopes are inserted in sequence_id order per originator, therefore
+	-- gateway_time preserves sequence_id order
+	gateway_time,
+	originator_node_id,
+	originator_sequence_id ASC
 LIMIT sqlc.narg('row_limit')::INT;
 
 -- name: InsertStagedOriginatorEnvelope :one

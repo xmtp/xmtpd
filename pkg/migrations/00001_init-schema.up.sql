@@ -9,6 +9,7 @@ CREATE TABLE node_info(
 
 -- Includes all envelopes, whether they were originated locally or not
 CREATE TABLE gateway_envelopes(
+	gateway_time TIMESTAMP NOT NULL DEFAULT now(),
 	originator_node_id INT NOT NULL,
 	originator_sequence_id BIGINT NOT NULL,
 	topic BYTEA NOT NULL,

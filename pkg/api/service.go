@@ -94,10 +94,9 @@ func (s *Service) queryReqToDBParams(
 	req *message_api.QueryEnvelopesRequest,
 ) (*queries.SelectGatewayEnvelopesParams, error) {
 	params := queries.SelectGatewayEnvelopesParams{
-		Topic:                []byte{},
-		OriginatorNodeID:     sql.NullInt32{},
-		OriginatorSequenceID: sql.NullInt64{},
-		RowLimit:             db.NullInt32(maxRequestedRows),
+		Topic:            []byte{},
+		OriginatorNodeID: sql.NullInt32{},
+		RowLimit:         db.NullInt32(maxRequestedRows),
 	}
 
 	query := req.GetQuery()

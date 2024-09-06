@@ -109,4 +109,4 @@ We use [sqlc](https://docs.sqlc.dev/en/latest/index.html) to generate the code f
 dev/generate
 ```
 
-If needed, there is a sqlc [playground](https://play.sqlc.dev/p/f6eebe941750560934cefa943c77f63497debc828c487e8d1771fb6d83773246) for experimenting with how the query syntax translates into Go code.
+If needed, you may use `dev/psql` to test more complex SQL syntax. To determine the level of support in sqlc, there is a sqlc [playground](https://play.sqlc.dev/p/f6eebe941750560934cefa943c77f63497debc828c487e8d1771fb6d83773246) for experimenting with how the query syntax translates into Go code.

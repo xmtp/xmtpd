@@ -9,37 +9,16 @@ CREATE TABLE node_info(
 
 -- Includes all envelopes, whether they were originated locally or not
 CREATE TABLE gateway_envelopes(
-	-- used to construct gateway_sid
-	id BIGSERIAL PRIMARY KEY,
+	gateway_time TIMESTAMP NOT NULL DEFAULT now(),
 	originator_node_id INT NOT NULL,
 	originator_sequence_id BIGINT NOT NULL,
 	topic BYTEA NOT NULL,
-	originator_envelope BYTEA NOT NULL
+	originator_envelope BYTEA NOT NULL,
+	PRIMARY KEY (originator_node_id, originator_sequence_id)
 );
 
 -- Client queries
 CREATE INDEX idx_gateway_envelopes_topic ON gateway_envelopes(topic);
-
--- Node queries
-CREATE UNIQUE INDEX idx_gateway_envelopes_originator_sid ON gateway_envelopes(originator_node_id, originator_sequence_id);
-
-CREATE FUNCTION insert_gateway_envelope(originator_node_id INT, originator_sequence_id BIGINT, topic BYTEA, originator_envelope BYTEA)
-	RETURNS SETOF gateway_envelopes
-	AS $$
-BEGIN
-	-- Ensures that the generated sequence ID matches the insertion order
-	-- Only released at the end of the enclosing transaction - beware if called within a long transaction
-	PERFORM
-		pg_advisory_xact_lock(hashtext('gateway_envelopes_sequence'));
-	RETURN QUERY INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
-		VALUES(originator_node_id, originator_sequence_id, topic, originator_envelope)
-	ON CONFLICT
-		DO NOTHING
-	RETURNING
-		*;
-END;
-$$
-LANGUAGE plpgsql;
 
 -- Newly published envelopes will be queued here first (and assigned an originator
 -- sequence ID), before being inserted in-order into the gateway_envelopes table.
@@ -55,6 +34,8 @@ CREATE FUNCTION insert_staged_originator_envelope(topic BYTEA, payer_envelope BY
 	RETURNS SETOF staged_originator_envelopes
 	AS $$
 BEGIN
+	-- Ensures that the generated sequence ID matches the insertion order
+	-- Only released at the end of the enclosing transaction - beware if called within a long transaction
 	PERFORM
 		pg_advisory_xact_lock(hashtext('staged_originator_envelopes_sequence'));
 	RETURN QUERY INSERT INTO staged_originator_envelopes(topic, payer_envelope)

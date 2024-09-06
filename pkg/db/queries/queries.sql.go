@@ -8,6 +8,8 @@ package queries
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
 
 const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
@@ -24,8 +26,10 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-SELECT
-	insert_gateway_envelope($1, $2, $3, $4)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
+	VALUES ($1, $2, $3, $4)
+ON CONFLICT
+	DO NOTHING
 `
 
 type InsertGatewayEnvelopeParams struct {
@@ -93,37 +97,48 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 }
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
+WITH cursors AS (
+	SELECT
+		UNNEST($4::INT[]) AS cursor_node_id,
+		UNNEST($5::BIGINT[]) AS cursor_sequence_id
+)
 SELECT
-	id, originator_node_id, originator_sequence_id, topic, originator_envelope
+	gateway_envelopes.gateway_time, gateway_envelopes.originator_node_id, gateway_envelopes.originator_sequence_id, gateway_envelopes.topic, gateway_envelopes.originator_envelope
 FROM
 	gateway_envelopes
+	-- Assumption: There is only one cursor per node ID. Caller must verify this
+	LEFT JOIN cursors ON gateway_envelopes.originator_node_id = cursors.cursor_node_id
 WHERE ($1::BYTEA IS NULL
 	OR length($1) = 0
 	OR topic = $1)
 AND ($2::INT IS NULL
 	OR originator_node_id = $2)
-AND ($3::BIGINT IS NULL
-	OR originator_sequence_id > $3)
-AND ($4::BIGINT IS NULL
-	OR id > $4)
-LIMIT $5::INT
+AND (cursor_sequence_id IS NULL
+	OR originator_sequence_id > cursor_sequence_id)
+ORDER BY
+	-- Assumption: envelopes are inserted in sequence_id order per originator, therefore
+	-- gateway_time preserves sequence_id order
+	gateway_time,
+	originator_node_id,
+	originator_sequence_id ASC
+LIMIT $3::INT
 `
 
 type SelectGatewayEnvelopesParams struct {
-	Topic                []byte
-	OriginatorNodeID     sql.NullInt32
-	OriginatorSequenceID sql.NullInt64
-	GatewaySequenceID    sql.NullInt64
-	RowLimit             sql.NullInt32
+	Topic             []byte
+	OriginatorNodeID  sql.NullInt32
+	RowLimit          sql.NullInt32
+	CursorNodeIds     []int32
+	CursorSequenceIds []int64
 }
 
 func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayEnvelopesParams) ([]GatewayEnvelope, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopes,
 		arg.Topic,
 		arg.OriginatorNodeID,
-		arg.OriginatorSequenceID,
-		arg.GatewaySequenceID,
 		arg.RowLimit,
+		pq.Array(arg.CursorNodeIds),
+		pq.Array(arg.CursorSequenceIds),
 	)
 	if err != nil {
 		return nil, err
@@ -133,7 +148,7 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 	for rows.Next() {
 		var i GatewayEnvelope
 		if err := rows.Scan(
-			&i.ID,
+			&i.GatewayTime,
 			&i.OriginatorNodeID,
 			&i.OriginatorSequenceID,
 			&i.Topic,

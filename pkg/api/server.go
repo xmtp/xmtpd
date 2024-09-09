@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"google.golang.org/grpc/reflection"
 	"net"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ func NewAPIServer(
 	log *zap.Logger,
 	port int,
 	registrant *registrant.Registrant,
+	enableReflection bool,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
@@ -71,6 +73,12 @@ func NewAPIServer(
 	}
 
 	s.grpcServer = grpc.NewServer(options...)
+
+	if enableReflection {
+		// Register reflection service on gRPC server.
+		reflection.Register(s.grpcServer)
+		s.log.Info("enabling gRPC Server Reflection")
+	}
 
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)

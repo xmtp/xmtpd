@@ -9,7 +9,9 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.21.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jessevdk/go-flags v1.6.1
+	github.com/lib/pq v1.10.9
 	github.com/pires/go-proxyproto v0.7.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/segmentio/golines v0.12.2
 	github.com/sqlc-dev/sqlc v1.27.0
 	github.com/stretchr/testify v1.9.0
@@ -219,7 +221,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/ktrysmt/go-bitbucket v0.6.4 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -271,7 +272,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v1.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect

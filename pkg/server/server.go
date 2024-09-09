@@ -78,7 +78,14 @@ func NewReplicationServer(
 		return nil, err
 	}
 
-	s.apiServer, err = api.NewAPIServer(s.ctx, s.writerDB, log, options.API.Port, s.registrant)
+	s.apiServer, err = api.NewAPIServer(
+		s.ctx,
+		s.writerDB,
+		log,
+		options.API.Port,
+		s.registrant,
+		options.Reflection.Enable,
+	)
 	if err != nil {
 		return nil, err
 	}

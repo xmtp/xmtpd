@@ -41,7 +41,7 @@ contract NodesTest is Test {
 
         address operatorAddress = vm.randomAddress();
 
-        uint16 nodeId = nodes.addNode(
+        uint32 nodeId = nodes.addNode(
             operatorAddress,
             node.signingKeyPub,
             node.httpAddress
@@ -62,7 +62,7 @@ contract NodesTest is Test {
         address operator2 = vm.randomAddress();
         address operator3 = vm.randomAddress();
 
-        uint16 node1Id = nodes.addNode(
+        uint32 node1Id = nodes.addNode(
             operator1,
             node1.signingKeyPub,
             node1.httpAddress
@@ -82,7 +82,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint16 nodeId = nodes.addNode(
+        uint32 nodeId = nodes.addNode(
             operator,
             node.signingKeyPub,
             node.httpAddress
@@ -99,7 +99,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint16 nodeId = nodes.addNode(
+        uint32 nodeId = nodes.addNode(
             operator,
             node.signingKeyPub,
             node.httpAddress
@@ -113,7 +113,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint16 nodeId = nodes.addNode(
+        uint32 nodeId = nodes.addNode(
             operator,
             node.signingKeyPub,
             node.httpAddress
@@ -127,7 +127,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint16 nodeId = nodes.addNode(
+        uint32 nodeId = nodes.addNode(
             operator,
             node.signingKeyPub,
             node.httpAddress
@@ -147,7 +147,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint16 nodeId = nodes.addNode(
+        uint32 nodeId = nodes.addNode(
             operator,
             node.signingKeyPub,
             node.httpAddress

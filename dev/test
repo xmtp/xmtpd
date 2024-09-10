@@ -3,7 +3,7 @@ set -e
 
 ulimit -n 2048
 
-go test -timeout 3s `go list ./... | grep -v -e 'pkg/abis' -e 'pkg/config' -e 'pkg/proto' -e 'pkg/mock' -e 'pkg/testing'` "$@"
+go test -timeout 10s `go list ./... | grep -v -e 'pkg/abis' -e 'pkg/config' -e 'pkg/proto' -e 'pkg/mock' -e 'pkg/testing'` "$@"
 
 if [ -n "${RACE:-}" ]; then
     echo

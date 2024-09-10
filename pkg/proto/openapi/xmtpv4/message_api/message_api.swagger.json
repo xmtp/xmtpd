@@ -207,7 +207,7 @@
           "type": "string",
           "format": "uint64"
         },
-        "publisherId": {
+        "publisherNodeId": {
           "type": "integer",
           "format": "int64"
         }
@@ -309,9 +309,9 @@
     "xmtpv4VectorClock": {
       "type": "object",
       "properties": {
-        "originatorSids": {
-          "type": "array",
-          "items": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
             "type": "string",
             "format": "uint64"
           }

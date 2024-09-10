@@ -19,7 +19,7 @@ type PublishWorker struct {
 	notifier     chan<- bool
 	registrant   *registrant.Registrant
 	store        *sql.DB
-	subscription db.DBSubscription[queries.StagedOriginatorEnvelope]
+	subscription db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
 }
 
 func StartPublishWorker(

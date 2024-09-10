@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	maxRequestedRows int32 = 1000
+	maxRequestedRows     uint32 = 1000
+	maxVectorClockLength int    = 100
 )
 
 type Service struct {
@@ -94,9 +95,11 @@ func (s *Service) queryReqToDBParams(
 	req *message_api.QueryEnvelopesRequest,
 ) (*queries.SelectGatewayEnvelopesParams, error) {
 	params := queries.SelectGatewayEnvelopesParams{
-		Topic:            []byte{},
-		OriginatorNodeID: sql.NullInt32{},
-		RowLimit:         db.NullInt32(maxRequestedRows),
+		Topic:             nil,
+		OriginatorNodeID:  sql.NullInt32{},
+		RowLimit:          sql.NullInt32{},
+		CursorNodeIds:     nil,
+		CursorSequenceIds: nil,
 	}
 
 	query := req.GetQuery()
@@ -112,11 +115,19 @@ func (s *Service) queryReqToDBParams(
 	default:
 	}
 
-	// TODO(rich): Handle last_seen properly
+	vc := query.GetLastSeen().GetNodeIdToSequenceId()
+	if len(vc) > maxVectorClockLength {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			"vector clock length exceeds maximum of %d",
+			maxVectorClockLength,
+		)
+	}
+	db.SetVectorClock(&params, vc)
 
-	limit := int32(req.GetLimit())
+	limit := req.GetLimit()
 	if limit > 0 && limit <= maxRequestedRows {
-		params.RowLimit = db.NullInt32(limit)
+		params.RowLimit = db.NullInt32(int32(limit))
 	}
 
 	return &params, nil
@@ -194,7 +205,7 @@ func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]b
 		return nil, status.Errorf(codes.InvalidArgument, "missing target topic")
 	}
 
-	// TODO(rich): Verify all originators have synced past `last_originator_sids`
+	// TODO(rich): Verify all originators have synced past `last_seen`
 	// TODO(rich): Check that the blockchain sequence ID is equal to the latest on the group
 	// TODO(rich): Perform any payload-specific validation (e.g. identity updates)
 

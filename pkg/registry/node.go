@@ -3,7 +3,7 @@ package registry
 import "crypto/ecdsa"
 
 type Node struct {
-	NodeID        uint16
+	NodeID        uint32
 	SigningKey    *ecdsa.PublicKey
 	HttpAddress   string
 	IsHealthy     bool

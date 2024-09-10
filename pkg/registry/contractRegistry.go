@@ -34,11 +34,11 @@ type SmartContractRegistry struct {
 	// How frequently to poll the smart contract
 	refreshInterval time.Duration
 	// Mapping of nodes from ID -> Node
-	nodes      map[uint16]Node
+	nodes      map[uint32]Node
 	nodesMutex sync.RWMutex
 	// Notifiers for new nodes and changed nodes
 	newNodesNotifier          *notifier[[]Node]
-	changedNodeNotifiers      map[uint16]*notifier[Node]
+	changedNodeNotifiers      map[uint32]*notifier[Node]
 	changedNodeNotifiersMutex sync.RWMutex
 }
 
@@ -61,8 +61,8 @@ func NewSmartContractRegistry(
 		refreshInterval:      options.RefreshInterval,
 		logger:               logger.Named("smartContractRegistry"),
 		newNodesNotifier:     newNotifier[[]Node](),
-		nodes:                make(map[uint16]Node),
-		changedNodeNotifiers: make(map[uint16]*notifier[Node]),
+		nodes:                make(map[uint32]Node),
+		changedNodeNotifiers: make(map[uint32]*notifier[Node]),
 	}, nil
 }
 
@@ -90,7 +90,7 @@ func (s *SmartContractRegistry) OnNewNodes() (<-chan []Node, CancelSubscription)
 }
 
 func (s *SmartContractRegistry) OnChangedNode(
-	nodeId uint16,
+	nodeId uint32,
 ) (<-chan Node, CancelSubscription) {
 	s.changedNodeNotifiersMutex.Lock()
 	defer s.changedNodeNotifiersMutex.Unlock()

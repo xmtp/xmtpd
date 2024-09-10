@@ -78,7 +78,7 @@ func (_c *MockNodeRegistry_GetNodes_Call) RunAndReturn(run func() ([]registry.No
 }
 
 // OnChangedNode provides a mock function with given fields: _a0
-func (_m *MockNodeRegistry) OnChangedNode(_a0 uint16) (<-chan registry.Node, registry.CancelSubscription) {
+func (_m *MockNodeRegistry) OnChangedNode(_a0 uint32) (<-chan registry.Node, registry.CancelSubscription) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -87,10 +87,10 @@ func (_m *MockNodeRegistry) OnChangedNode(_a0 uint16) (<-chan registry.Node, reg
 
 	var r0 <-chan registry.Node
 	var r1 registry.CancelSubscription
-	if rf, ok := ret.Get(0).(func(uint16) (<-chan registry.Node, registry.CancelSubscription)); ok {
+	if rf, ok := ret.Get(0).(func(uint32) (<-chan registry.Node, registry.CancelSubscription)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(uint16) <-chan registry.Node); ok {
+	if rf, ok := ret.Get(0).(func(uint32) <-chan registry.Node); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -98,7 +98,7 @@ func (_m *MockNodeRegistry) OnChangedNode(_a0 uint16) (<-chan registry.Node, reg
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(uint16) registry.CancelSubscription); ok {
+	if rf, ok := ret.Get(1).(func(uint32) registry.CancelSubscription); ok {
 		r1 = rf(_a0)
 	} else {
 		if ret.Get(1) != nil {
@@ -115,14 +115,14 @@ type MockNodeRegistry_OnChangedNode_Call struct {
 }
 
 // OnChangedNode is a helper method to define mock.On call
-//   - _a0 uint16
+//   - _a0 uint32
 func (_e *MockNodeRegistry_Expecter) OnChangedNode(_a0 interface{}) *MockNodeRegistry_OnChangedNode_Call {
 	return &MockNodeRegistry_OnChangedNode_Call{Call: _e.mock.On("OnChangedNode", _a0)}
 }
 
-func (_c *MockNodeRegistry_OnChangedNode_Call) Run(run func(_a0 uint16)) *MockNodeRegistry_OnChangedNode_Call {
+func (_c *MockNodeRegistry_OnChangedNode_Call) Run(run func(_a0 uint32)) *MockNodeRegistry_OnChangedNode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(uint16))
+		run(args[0].(uint32))
 	})
 	return _c
 }
@@ -132,7 +132,7 @@ func (_c *MockNodeRegistry_OnChangedNode_Call) Return(_a0 <-chan registry.Node, 
 	return _c
 }
 
-func (_c *MockNodeRegistry_OnChangedNode_Call) RunAndReturn(run func(uint16) (<-chan registry.Node, registry.CancelSubscription)) *MockNodeRegistry_OnChangedNode_Call {
+func (_c *MockNodeRegistry_OnChangedNode_Call) RunAndReturn(run func(uint32) (<-chan registry.Node, registry.CancelSubscription)) *MockNodeRegistry_OnChangedNode_Call {
 	_c.Call.Return(run)
 	return _c
 }

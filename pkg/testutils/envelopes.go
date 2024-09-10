@@ -45,7 +45,7 @@ func CreatePayerEnvelope(
 func CreateOriginatorEnvelope(
 	t *testing.T,
 	originatorNodeID uint32,
-	originatorSequenceID int64,
+	originatorSequenceID uint64,
 	payerEnv ...*message_api.PayerEnvelope,
 ) *message_api.OriginatorEnvelope {
 	if len(payerEnv) == 0 {
@@ -53,8 +53,8 @@ func CreateOriginatorEnvelope(
 	}
 
 	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{
-		OriginatorNodeId:     uint32(originatorNodeID),
-		OriginatorSequenceId: uint64(originatorSequenceID),
+		OriginatorNodeId:     originatorNodeID,
+		OriginatorSequenceId: originatorSequenceID,
 		OriginatorNs:         0,
 		PayerEnvelope:        payerEnv[0],
 	}

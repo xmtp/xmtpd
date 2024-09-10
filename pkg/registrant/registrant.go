@@ -64,7 +64,7 @@ func (r *Registrant) SignStagedEnvelope(
 		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
 	}
 	unsignedEnv := message_api.UnsignedOriginatorEnvelope{
-		OriginatorNodeId:     uint32(r.record.NodeID),
+		OriginatorNodeId:     r.record.NodeID,
 		OriginatorSequenceId: uint64(stagedEnv.ID),
 		OriginatorNs:         stagedEnv.OriginatorTime.UnixNano(),
 		PayerEnvelope:        payerEnv,

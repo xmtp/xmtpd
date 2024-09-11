@@ -8,7 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type PollableDBQuery[ValueType any] func(ctx context.Context, lastSeenID int64, numRows int32) (results []ValueType, lastID int64, err error)
+type PollableDBQuery[ValueType any, CursorType any] func(
+	ctx context.Context,
+	lastSeen CursorType,
+	numRows int32,
+) (results []ValueType, nextCursor CursorType, err error)
 
 // Poll whenever notified, or at an interval if not notified
 type PollingOptions struct {
@@ -17,33 +21,33 @@ type PollingOptions struct {
 	NumRows  int32
 }
 
-type DBSubscription[ValueType any] struct {
-	ctx        context.Context
-	log        *zap.Logger
-	lastSeenID int64
-	options    PollingOptions
-	query      PollableDBQuery[ValueType]
-	updates    chan<- []ValueType
+type DBSubscription[ValueType any, CursorType any] struct {
+	ctx      context.Context
+	log      *zap.Logger
+	lastSeen CursorType
+	options  PollingOptions
+	query    PollableDBQuery[ValueType, CursorType]
+	updates  chan<- []ValueType
 }
 
-func NewDBSubscription[ValueType any](
+func NewDBSubscription[ValueType any, CursorType any](
 	ctx context.Context,
 	log *zap.Logger,
-	query PollableDBQuery[ValueType],
-	lastSeenID int64,
+	query PollableDBQuery[ValueType, CursorType],
+	lastSeen CursorType,
 	options PollingOptions,
-) *DBSubscription[ValueType] {
-	return &DBSubscription[ValueType]{
-		ctx:        ctx,
-		log:        log,
-		lastSeenID: lastSeenID,
-		options:    options,
-		query:      query,
-		updates:    nil,
+) *DBSubscription[ValueType, CursorType] {
+	return &DBSubscription[ValueType, CursorType]{
+		ctx:      ctx,
+		log:      log,
+		lastSeen: lastSeen,
+		options:  options,
+		query:    query,
+		updates:  nil,
 	}
 }
 
-func (s *DBSubscription[ValueType]) Start() (<-chan []ValueType, error) {
+func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, error) {
 	if s.updates != nil {
 		return nil, fmt.Errorf("Already started")
 	}
@@ -75,25 +79,24 @@ func (s *DBSubscription[ValueType]) Start() (<-chan []ValueType, error) {
 	return updates, nil
 }
 
-func (s *DBSubscription[ValueType]) poll() {
+func (s *DBSubscription[ValueType, CursorType]) poll() {
 	// Repeatedly query page by page until no more results
 	for {
-		results, lastID, err := s.query(s.ctx, s.lastSeenID, s.options.NumRows)
+		results, lastID, err := s.query(s.ctx, s.lastSeen, s.options.NumRows)
 		if s.ctx.Err() != nil {
 			break
 		} else if err != nil {
 			s.log.Error(
 				"Error querying for DB subscription",
-				zap.Error(err),
-				zap.Int64("lastSeenID", s.lastSeenID),
+				zap.Any("lastSeen", s.lastSeen),
 				zap.Int32("numRows", s.options.NumRows),
 			)
-			// Did not update lastSeenID; will retry on next poll
+			// Did not update lastSeen; will retry on next poll
 			break
 		} else if len(results) == 0 {
 			break
 		}
-		s.lastSeenID = lastID
+		s.lastSeen = lastID
 		s.updates <- results
 		if int32(len(results)) < s.options.NumRows {
 			break

@@ -14,9 +14,9 @@ All nodes on the network periodically check this contract to determine which nod
 contract Nodes is ERC721, Ownable {
     constructor() ERC721("XMTP Node Operator", "XMTP") Ownable(msg.sender) {}
 
-    // uint16 counter so that we cannot create more than 65k IDs
+    // uint32 counter so that we cannot create more than max IDs
     // The ERC721 standard expects the tokenID to be uint256 for standard methods unfortunately
-    uint16 private _nodeIdCounter;
+    uint32 private _nodeIdCounter;
 
     // A node, as stored in the internal mapping
     struct Node {
@@ -26,7 +26,7 @@ contract Nodes is ERC721, Ownable {
     }
 
     struct NodeWithId {
-        uint16 nodeId;
+        uint32 nodeId;
         Node node;
     }
 
@@ -42,8 +42,8 @@ contract Nodes is ERC721, Ownable {
         address to,
         bytes calldata signingKeyPub,
         string calldata httpAddress
-    ) public onlyOwner returns (uint16) {
-        uint16 nodeId = _nodeIdCounter;
+    ) public onlyOwner returns (uint32) {
+        uint32 nodeId = _nodeIdCounter;
         _mint(to, nodeId);
         _nodes[nodeId] = Node(signingKeyPub, httpAddress, true);
         _emitNodeUpdate(nodeId);
@@ -101,7 +101,7 @@ contract Nodes is ERC721, Ownable {
     Get a list of healthy nodes with their ID and metadata
      */
     function healthyNodes() public view returns (NodeWithId[] memory) {
-        uint16 totalNodeCount = _nodeIdCounter;
+        uint32 totalNodeCount = _nodeIdCounter;
         uint256 healthyCount = 0;
 
         // First, count the number of healthy nodes
@@ -116,7 +116,7 @@ contract Nodes is ERC721, Ownable {
         uint256 currentIndex = 0;
 
         // Populate the array with healthy nodes
-        for (uint16 i = 0; i < totalNodeCount; i++) {
+        for (uint32 i = 0; i < totalNodeCount; i++) {
             if (_nodeExists(i) && _nodes[i].isHealthy) {
                 healthyNodesList[currentIndex] = NodeWithId({
                     nodeId: i,
@@ -133,10 +133,10 @@ contract Nodes is ERC721, Ownable {
     Get all nodes regardless of their health status
      */
     function allNodes() public view returns (NodeWithId[] memory) {
-        uint16 totalNodeCount = _nodeIdCounter;
+        uint32 totalNodeCount = _nodeIdCounter;
         NodeWithId[] memory allNodesList = new NodeWithId[](totalNodeCount);
 
-        for (uint16 i = 0; i < totalNodeCount; i++) {
+        for (uint32 i = 0; i < totalNodeCount; i++) {
             allNodesList[i] = NodeWithId({nodeId: i, node: _nodes[i]});
         }
 

@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -45,8 +44,8 @@ func CreatePayerEnvelope(
 
 func CreateOriginatorEnvelope(
 	t *testing.T,
-	originatorNodeID uint16,
-	originatorSequenceID int64,
+	originatorNodeID uint32,
+	originatorSequenceID uint64,
 	payerEnv ...*message_api.PayerEnvelope,
 ) *message_api.OriginatorEnvelope {
 	if len(payerEnv) == 0 {
@@ -54,9 +53,10 @@ func CreateOriginatorEnvelope(
 	}
 
 	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{
-		OriginatorSid: utils.SID(originatorNodeID, originatorSequenceID),
-		OriginatorNs:  0,
-		PayerEnvelope: payerEnv[0],
+		OriginatorNodeId:     originatorNodeID,
+		OriginatorSequenceId: originatorSequenceID,
+		OriginatorNs:         0,
+		PayerEnvelope:        payerEnv[0],
 	}
 
 	unsignedBytes, err := proto.Marshal(unsignedEnv)

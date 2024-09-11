@@ -111,7 +111,7 @@ func TestStopOnContextCancel(t *testing.T) {
 		RunAndReturn(func(*bind.CallOpts) ([]abis.NodesNodeWithId, error) {
 			return []abis.NodesNodeWithId{
 				{
-					NodeId: uint16(rand.Intn(1000)),
+					NodeId: uint32(rand.Intn(1000)),
 					Node:   abis.NodesNode{HttpAddress: "http://foo.com"},
 				},
 			}, nil

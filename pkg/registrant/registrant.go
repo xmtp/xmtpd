@@ -47,19 +47,12 @@ func NewRegistrant(
 	}, nil
 }
 
-func (r *Registrant) SID(localID int64) (uint64, error) {
-	if !utils.IsValidSequenceID(localID) {
-		return 0, fmt.Errorf("Invalid local ID %d, likely due to ID exhaustion", localID)
-	}
-	return utils.SID(r.record.NodeID, localID), nil
-}
-
 func (r *Registrant) signKeccak256(data []byte) ([]byte, error) {
 	hash := crypto.Keccak256(data)
 	return crypto.Sign(hash, r.privateKey)
 }
 
-func (r *Registrant) NodeID() uint16 {
+func (r *Registrant) NodeID() uint32 {
 	return r.record.NodeID
 }
 
@@ -70,14 +63,11 @@ func (r *Registrant) SignStagedEnvelope(
 	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
 		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
 	}
-	sid, err := r.SID(stagedEnv.ID)
-	if err != nil {
-		return nil, err
-	}
 	unsignedEnv := message_api.UnsignedOriginatorEnvelope{
-		OriginatorSid: sid,
-		OriginatorNs:  stagedEnv.OriginatorTime.UnixNano(),
-		PayerEnvelope: payerEnv,
+		OriginatorNodeId:     r.record.NodeID,
+		OriginatorSequenceId: uint64(stagedEnv.ID),
+		OriginatorNs:         stagedEnv.OriginatorTime.UnixNano(),
+		PayerEnvelope:        payerEnv,
 	}
 	unsignedBytes, err := proto.Marshal(&unsignedEnv)
 	if err != nil {

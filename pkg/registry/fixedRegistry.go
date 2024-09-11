@@ -6,7 +6,7 @@ import "sync"
 type FixedNodeRegistry struct {
 	nodes                     []Node
 	newNodeNotifier           *notifier[[]Node]
-	changedNodeNotifiers      map[uint16]*notifier[Node]
+	changedNodeNotifiers      map[uint32]*notifier[Node]
 	changedNodeNotifiersMutex sync.Mutex
 }
 
@@ -27,7 +27,7 @@ func (f *FixedNodeRegistry) OnNewNodes() (<-chan []Node, CancelSubscription) {
 }
 
 func (f *FixedNodeRegistry) OnChangedNode(
-	nodeId uint16,
+	nodeId uint32,
 ) (<-chan Node, CancelSubscription) {
 	f.changedNodeNotifiersMutex.Lock()
 	defer f.changedNodeNotifiersMutex.Unlock()

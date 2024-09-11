@@ -39,21 +39,20 @@ func insertInitialRows(t *testing.T, db *sql.DB) {
 	})
 }
 
-func envelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope] {
-	return func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.GatewayEnvelope, int64, error) {
+func envelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope, VectorClock] {
+	return func(ctx context.Context, lastSeen VectorClock, numRows int32) ([]queries.GatewayEnvelope, VectorClock, error) {
 		envs, err := queries.New(db).
-			SelectGatewayEnvelopes(ctx, queries.SelectGatewayEnvelopesParams{
+			SelectGatewayEnvelopes(ctx, *SetVectorClock(&queries.SelectGatewayEnvelopesParams{
 				OriginatorNodeID: NullInt32(1),
 				RowLimit:         NullInt32(numRows),
-			})
+			}, lastSeen))
 		if err != nil {
-			return nil, 0, err
+			return nil, lastSeen, err
 		}
-		if len(envs) > 0 {
-			// TODO(rich) fix cursor
-			lastSeenID = envs[len(envs)-1].OriginatorSequenceID
+		for _, env := range envs {
+			lastSeen[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
 		}
-		return envs, lastSeenID, nil
+		return envs, lastSeen, nil
 	}
 }
 
@@ -83,14 +82,14 @@ func insertAdditionalRows(t *testing.T, db *sql.DB, notifyChan ...chan bool) {
 func validateUpdates(t *testing.T, updates <-chan []queries.GatewayEnvelope, ctxCancel func()) {
 	envs := <-updates
 	require.Equal(t, 1, len(envs))
-	// TODO(rich) fix cursor
-	// require.Equal(t, int64(3), envs[0].OriginatorSequenceID)
+	require.Equal(t, int32(1), envs[0].OriginatorNodeID)
+	require.Equal(t, int64(2), envs[0].OriginatorSequenceID)
 	require.Equal(t, []byte("envelope3"), envs[0].OriginatorEnvelope)
 
 	envs = <-updates
 	require.Equal(t, 1, len(envs))
-	// TODO(rich) fix cursor
-	// require.Equal(t, int64(5), envs[0].OriginatorSequenceID)
+	require.Equal(t, int32(1), envs[0].OriginatorNodeID)
+	require.Equal(t, int64(3), envs[0].OriginatorSequenceID)
 	require.Equal(t, []byte("envelope5"), envs[0].OriginatorEnvelope)
 
 	ctxCancel()
@@ -100,21 +99,20 @@ func validateUpdates(t *testing.T, updates <-chan []queries.GatewayEnvelope, ctx
 
 // flakyEnvelopesQuery returns a query that fails every other time
 // to simulate a transient database error
-func flakyEnvelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope] {
+func flakyEnvelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope, VectorClock] {
 	numQueries := 0
 	query := envelopesQuery(db)
-	return func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.GatewayEnvelope, int64, error) {
+	return func(ctx context.Context, lastSeen VectorClock, numRows int32) ([]queries.GatewayEnvelope, VectorClock, error) {
 		numQueries++
 		if numQueries%2 == 1 {
-			return nil, 0, fmt.Errorf("flaky query")
+			return nil, lastSeen, fmt.Errorf("flaky query")
 		}
 
-		return query(ctx, lastSeenID, numRows)
+		return query(ctx, lastSeen, numRows)
 	}
 }
 
 func TestIntervalSubscription(t *testing.T) {
-	t.Skip("TODO(rich) fix cursor")
 	db, log, cleanup := setup(t)
 	defer cleanup()
 
@@ -126,7 +124,7 @@ func TestIntervalSubscription(t *testing.T) {
 		ctx,
 		log,
 		envelopesQuery(db),
-		1, // lastSeenID
+		VectorClock{1: 1},
 		PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,
@@ -140,7 +138,6 @@ func TestIntervalSubscription(t *testing.T) {
 }
 
 func TestNotifiedSubscription(t *testing.T) {
-	t.Skip("TODO(rich) fix cursor")
 	db, log, cleanup := setup(t)
 	defer cleanup()
 
@@ -153,7 +150,7 @@ func TestNotifiedSubscription(t *testing.T) {
 		ctx,
 		log,
 		envelopesQuery(db),
-		1, // lastSeenID
+		VectorClock{1: 1},
 		PollingOptions{
 			Notifier: notifyChan,
 			Interval: 30 * time.Second,
@@ -168,7 +165,6 @@ func TestNotifiedSubscription(t *testing.T) {
 }
 
 func TestTemporaryDBError(t *testing.T) {
-	t.Skip("TODO(rich) fix cursor")
 	db, log, cleanup := setup(t)
 	defer cleanup()
 
@@ -180,7 +176,7 @@ func TestTemporaryDBError(t *testing.T) {
 		ctx,
 		log,
 		flakyEnvelopesQuery(db),
-		1, // lastSeenID
+		VectorClock{1: 1},
 		PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,

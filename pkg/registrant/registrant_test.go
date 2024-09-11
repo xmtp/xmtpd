@@ -199,23 +199,6 @@ func TestSignStagedEnvelopeInvalidEnvelope(t *testing.T) {
 	require.ErrorContains(t, err, "unmarshal")
 }
 
-func TestSignStagedEnvelopeSIDExhaustion(t *testing.T) {
-	_, r, cleanup := setupWithRegistrant(t)
-	defer cleanup()
-	payerBytes, err := proto.Marshal(&message_api.PayerEnvelope{})
-	require.NoError(t, err)
-
-	_, err = r.SignStagedEnvelope(
-		queries.StagedOriginatorEnvelope{
-			ID:             0b0000000000000001000000000000000000000000000000000000000000000000,
-			OriginatorTime: time.Now(),
-			PayerEnvelope:  payerBytes,
-		},
-	)
-
-	require.ErrorContains(t, err, "exhaustion")
-}
-
 func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	deps, r, cleanup := setupWithRegistrant(t)
 	defer cleanup()
@@ -245,6 +228,7 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 
 	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{}
 	require.NoError(t, proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnv))
-	require.Equal(t, unsignedEnv.GetOriginatorSid(), uint64(1<<48|50))
+	require.Equal(t, unsignedEnv.GetOriginatorNodeId(), uint32(1))
+	require.Equal(t, unsignedEnv.GetOriginatorSequenceId(), uint64(50))
 	require.Equal(t, unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope()[0], uint8(3))
 }

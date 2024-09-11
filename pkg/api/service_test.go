@@ -129,7 +129,6 @@ func TestMissingTopicOnPublish(t *testing.T) {
 func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopeParams {
 	db_rows := []queries.InsertGatewayEnvelopeParams{
 		{
-			// Auto-generated ID: 1
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
 			Topic:                []byte("topicA"),
@@ -139,7 +138,6 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			),
 		},
 		{
-			// Auto-generated ID: 2
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
 			Topic:                []byte("topicA"),
@@ -149,7 +147,6 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			),
 		},
 		{
-			// Auto-generated ID: 3
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
 			Topic:                []byte("topicB"),
@@ -159,7 +156,6 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			),
 		},
 		{
-			// Auto-generated ID: 4
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
 			Topic:                []byte("topicB"),
@@ -169,7 +165,6 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			),
 		},
 		{
-			// Auto-generated ID: 5
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
 			Topic:                []byte("topicA"),
@@ -256,7 +251,6 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	t.Skip("Not implemented yet")
 	svc, db, cleanup := newTestService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
@@ -266,13 +260,13 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Filter:   nil,
-				LastSeen: &message_api.VectorClock{},
+				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
 			},
 			Limit: 0,
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, db_rows, []int{1, 3, 4}, resp.GetEnvelopes())
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {

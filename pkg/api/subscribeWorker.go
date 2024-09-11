@@ -22,6 +22,9 @@ const (
 
 type subscriber = chan<- []*message_api.OriginatorEnvelope
 
+// A worker that listens for new envelopes in the DB and sends them to subscribers
+// Assumes that there are many listeners - non-blocking updates are sent on buffered channels
+// and may be dropped if full
 type subscribeWorker struct {
 	ctx context.Context
 	log *zap.Logger
@@ -39,8 +42,7 @@ func startSubscribeWorker(
 	store *sql.DB,
 ) (*subscribeWorker, error) {
 	q := queries.New(store)
-	// Get vector clock from DB
-	query := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
+	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := q.
 			SelectGatewayEnvelopes(
 				ctx,
@@ -51,19 +53,26 @@ func startSubscribeWorker(
 			return nil, lastSeen, err
 		}
 		for _, env := range envs {
+			// TODO(rich) Handle out-of-order envelopes
 			lastSeen[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
 		}
 		return envs, lastSeen, nil
 	}
+
+	vc, err := q.SelectVectorClock(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	subscription := db.NewDBSubscription(
 		ctx,
 		log,
-		query,
-		db.VectorClock{}, // TODO(rich) fetch from DB
+		pollableQuery,
+		db.ToVectorClock(vc),
 		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
-			NumRows:  100,
-		}, // TODO(rich) Make numRows nullable
+			NumRows:  10000,
+		},
 	)
 	dbChan, err := subscription.Start()
 	if err != nil {
@@ -89,6 +98,7 @@ func (s *subscribeWorker) start() {
 		case <-s.ctx.Done():
 			return
 		case new_batch := <-s.dbSubscription:
+			// Log batch size, performance
 			for _, row := range new_batch {
 				s.dispatch(&row)
 			}

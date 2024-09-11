@@ -85,6 +85,10 @@ func (s *Service) BatchSubscribeEnvelopes(
 	}
 
 	ch, err := s.subscribeWorker.subscribe(requests)
+	if err != nil {
+		// TODO(rich) Tidy error interface, validate before sending header
+		return err
+	}
 	defer func() {
 		// TODO(rich) Handle unsubscribe
 		// if sub != nil {

@@ -28,3 +28,11 @@ func SetVectorClock(
 	}
 	return q
 }
+
+func ToVectorClock(rows []queries.SelectVectorClockRow) VectorClock {
+	vc := make(VectorClock)
+	for _, row := range rows {
+		vc[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
+	}
+	return vc
+}

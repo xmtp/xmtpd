@@ -37,18 +37,8 @@ type PayerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
 }
 
-type ServerOptions struct {
-	LogLevel         string `short:"l" long:"log-level"          env:"XMTPD_LOG_LEVEL"          description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
-	LogEncoding      string `          long:"log-encoding"       env:"XMTPD_LOG_ENCODING"       description:"Log encoding format. Either console or json"                                                                                  default:"console" choice:"console"`
-	SignerPrivateKey string `          long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"                                                                                                                               required:"true"`
-
-	API        ApiOptions        `group:"API Options"            namespace:"api"`
-	DB         DbOptions         `group:"Database Options"       namespace:"db"`
-	Contracts  ContractsOptions  `group:"Contracts Options"      namespace:"contracts"`
-	Metrics    MetricsOptions    `group:"Metrics Options"        namespace:"metrics"`
-	Payer      PayerOptions      `group:"Payer Options"          namespace:"payer"`
-	Reflection ReflectionOptions `group:"Reflection Options"     namespace:"reflection"`
-	Tracing    TracingOptions    `group:"DD APM Tracing Options" namespace:"tracing"`
+type MlsValidationOptions struct {
+	GrpcAddress string `long:"grpc-address" env:"XMTPD_MLS_VALIDATION_GRPC_ADDRESS" description:"Address of the MLS validation service"`
 }
 
 // TracingOptions are settings controlling collection of DD APM traces and error tracking.
@@ -59,4 +49,19 @@ type TracingOptions struct {
 // ReflectionOptions are settings controlling collection of GRPC reflection settings.
 type ReflectionOptions struct {
 	Enable bool `long:"enable" env:"XMTPD_REFLECTION_ENABLE" description:"Enable GRPC reflection"`
+}
+
+type ServerOptions struct {
+	LogLevel         string `short:"l" long:"log-level"          env:"XMTPD_LOG_LEVEL"          description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
+	LogEncoding      string `          long:"log-encoding"       env:"XMTPD_LOG_ENCODING"       description:"Log encoding format. Either console or json"                                                                                  default:"console" choice:"console"`
+	SignerPrivateKey string `          long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"                                                                                                                               required:"true"`
+
+	API           ApiOptions           `group:"API Options"            namespace:"api"`
+	DB            DbOptions            `group:"Database Options"       namespace:"db"`
+	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
+	Metrics       MetricsOptions       `group:"Metrics Options"        namespace:"metrics"`
+	Payer         PayerOptions         `group:"Payer Options"          namespace:"payer"`
+	Reflection    ReflectionOptions    `group:"Reflection Options"     namespace:"reflection"`
+	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
+	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
 }

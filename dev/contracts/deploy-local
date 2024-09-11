@@ -15,3 +15,4 @@ function deploy_contract() {
 
 deploy_contract src/GroupMessages.sol GroupMessages
 deploy_contract src/Nodes.sol Nodes
+deploy_contract src/IdentityUpdates.sol IdentityUpdates

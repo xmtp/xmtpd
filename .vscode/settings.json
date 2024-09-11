@@ -8,6 +8,7 @@
   },
   // Instructions from https://github.com/segmentio/golines
   "emeraldwalk.runonsave": {
+    "shell": "bash",
     "commands": [
       {
         "match": "\\.go$",

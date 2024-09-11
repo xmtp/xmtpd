@@ -82,3 +82,7 @@ func DeployNodesContract(t *testing.T) string {
 func DeployGroupMessagesContract(t *testing.T) string {
 	return deployContract(t, "./src/GroupMessages.sol", "GroupMessages")
 }
+
+func DeployIdentityUpdatesContract(t *testing.T) string {
+	return deployContract(t, "./src/IdentityUpdates.sol", "IdentityUpdates")
+}

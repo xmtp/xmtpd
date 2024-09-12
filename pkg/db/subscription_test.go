@@ -1,4 +1,4 @@
-package db
+package db_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
@@ -15,15 +16,15 @@ import (
 
 func setup(t *testing.T) (*sql.DB, *zap.Logger, func()) {
 	ctx := context.Background()
-	db, _, dbCleanup := testutils.NewDB(t, ctx)
+	store, _, storeCleanup := testutils.NewDB(t, ctx)
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	return db, log, dbCleanup
+	return store, log, storeCleanup
 }
 
-func insertInitialRows(t *testing.T, db *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
+func insertInitialRows(t *testing.T, store *sql.DB) {
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
@@ -39,12 +40,12 @@ func insertInitialRows(t *testing.T, db *sql.DB) {
 	})
 }
 
-func envelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope, VectorClock] {
-	return func(ctx context.Context, lastSeen VectorClock, numRows int32) ([]queries.GatewayEnvelope, VectorClock, error) {
-		envs, err := queries.New(db).
-			SelectGatewayEnvelopes(ctx, *SetVectorClock(&queries.SelectGatewayEnvelopesParams{
-				OriginatorNodeID: NullInt32(1),
-				RowLimit:         NullInt32(numRows),
+func envelopesQuery(store *sql.DB) db.PollableDBQuery[queries.GatewayEnvelope, db.VectorClock] {
+	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
+		envs, err := queries.New(store).
+			SelectGatewayEnvelopes(ctx, *db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{
+				OriginatorNodeID: db.NullInt32(1),
+				RowLimit:         db.NullInt32(numRows),
 			}, lastSeen))
 		if err != nil {
 			return nil, lastSeen, err
@@ -56,8 +57,8 @@ func envelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope, VectorC
 	}
 }
 
-func insertAdditionalRows(t *testing.T, db *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
+func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
@@ -99,10 +100,12 @@ func validateUpdates(t *testing.T, updates <-chan []queries.GatewayEnvelope, ctx
 
 // flakyEnvelopesQuery returns a query that fails every other time
 // to simulate a transient database error
-func flakyEnvelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope, VectorClock] {
+func flakyEnvelopesQuery(
+	store *sql.DB,
+) db.PollableDBQuery[queries.GatewayEnvelope, db.VectorClock] {
 	numQueries := 0
-	query := envelopesQuery(db)
-	return func(ctx context.Context, lastSeen VectorClock, numRows int32) ([]queries.GatewayEnvelope, VectorClock, error) {
+	query := envelopesQuery(store)
+	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		numQueries++
 		if numQueries%2 == 1 {
 			return nil, lastSeen, fmt.Errorf("flaky query")
@@ -113,19 +116,19 @@ func flakyEnvelopesQuery(db *sql.DB) PollableDBQuery[queries.GatewayEnvelope, Ve
 }
 
 func TestIntervalSubscription(t *testing.T) {
-	db, log, cleanup := setup(t)
+	store, log, cleanup := setup(t)
 	defer cleanup()
 
-	insertInitialRows(t, db)
+	insertInitialRows(t, store)
 
 	// Create a subscription that polls every 100ms
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	subscription := NewDBSubscription(
+	subscription := db.NewDBSubscription(
 		ctx,
 		log,
-		envelopesQuery(db),
-		VectorClock{1: 1},
-		PollingOptions{
+		envelopesQuery(store),
+		db.VectorClock{1: 1},
+		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,
 		},
@@ -133,25 +136,25 @@ func TestIntervalSubscription(t *testing.T) {
 	updates, err := subscription.Start()
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, store)
 	validateUpdates(t, updates, ctxCancel)
 }
 
 func TestNotifiedSubscription(t *testing.T) {
-	db, log, cleanup := setup(t)
+	store, log, cleanup := setup(t)
 	defer cleanup()
 
-	insertInitialRows(t, db)
+	insertInitialRows(t, store)
 
 	// Create a subscription that polls every 100ms
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	notifyChan := make(chan bool)
-	subscription := NewDBSubscription(
+	subscription := db.NewDBSubscription(
 		ctx,
 		log,
-		envelopesQuery(db),
-		VectorClock{1: 1},
-		PollingOptions{
+		envelopesQuery(store),
+		db.VectorClock{1: 1},
+		db.PollingOptions{
 			Notifier: notifyChan,
 			Interval: 30 * time.Second,
 			NumRows:  1,
@@ -160,24 +163,24 @@ func TestNotifiedSubscription(t *testing.T) {
 	updates, err := subscription.Start()
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, db, notifyChan)
+	insertAdditionalRows(t, store, notifyChan)
 	validateUpdates(t, updates, ctxCancel)
 }
 
 func TestTemporaryDBError(t *testing.T) {
-	db, log, cleanup := setup(t)
+	store, log, cleanup := setup(t)
 	defer cleanup()
 
-	insertInitialRows(t, db)
+	insertInitialRows(t, store)
 
 	// Create a subscription that polls every 100ms
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	subscription := NewDBSubscription(
+	subscription := db.NewDBSubscription(
 		ctx,
 		log,
-		flakyEnvelopesQuery(db),
-		VectorClock{1: 1},
-		PollingOptions{
+		flakyEnvelopesQuery(store),
+		db.VectorClock{1: 1},
+		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,
 		},
@@ -185,6 +188,6 @@ func TestTemporaryDBError(t *testing.T) {
 	updates, err := subscription.Start()
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, store)
 	validateUpdates(t, updates, ctxCancel)
 }

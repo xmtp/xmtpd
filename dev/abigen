@@ -11,8 +11,10 @@ cd contracts
 mkdir -p ../build
 forge inspect ./src/Nodes.sol:Nodes abi > ../build/Nodes.abi.json
 forge inspect ./src/GroupMessages.sol:GroupMessages abi > ../build/GroupMessages.abi.json
+forge inspect ./src/IdentityUpdates.sol:IdentityUpdates abi > ../build/IdentityUpdates.abi.json
 
 cd ..
 # Generate Go code out of the ABI files
 abigen --abi ./build/Nodes.abi.json --pkg abis --type Nodes --out ./pkg/abis/nodes.go
 abigen --abi ./build/GroupMessages.abi.json --pkg abis --type GroupMessages --out ./pkg/abis/groupMessages.go
+abigen --abi ./build/IdentityUpdates.abi.json --pkg abis --type IdentityUpdates --out ./pkg/abis/identityUpdates.go

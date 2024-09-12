@@ -69,11 +69,18 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 	rootDir := rootPath(t)
 
 	return config.ContractsOptions{
-		RpcUrl:                  BLOCKCHAIN_RPC_URL,
-		MessagesContractAddress: getDeployedTo(t, path.Join(rootDir, "./build/GroupMessages.json")),
-		NodesContractAddress:    getDeployedTo(t, path.Join(rootDir, "./build/Nodes.json")),
-		RefreshInterval:         100 * time.Millisecond,
-		ChainID:                 31337,
+		RpcUrl: BLOCKCHAIN_RPC_URL,
+		MessagesContractAddress: getDeployedTo(
+			t,
+			path.Join(rootDir, "./build/GroupMessages.json"),
+		),
+		NodesContractAddress: getDeployedTo(t, path.Join(rootDir, "./build/Nodes.json")),
+		IdentityUpdatesContractAddress: getDeployedTo(
+			t,
+			path.Join(rootDir, "./build/IdentityUpdates.json"),
+		),
+		RefreshInterval: 100 * time.Millisecond,
+		ChainID:         31337,
 	}
 }
 

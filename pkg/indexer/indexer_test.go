@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
-	"github.com/xmtp/xmtpd/pkg/mocks"
+	mocks "github.com/xmtp/xmtpd/pkg/mocks/storer"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 

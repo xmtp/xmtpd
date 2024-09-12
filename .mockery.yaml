@@ -4,6 +4,9 @@ mockname: "Mock{{.InterfaceName}}"
 outpkg: mocks
 filename: "mock_{{.InterfaceName}}.go"
 packages:
+  github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1:
+    interfaces:
+      ValidationApiClient:
   github.com/xmtp/xmtpd/pkg/registry:
     interfaces:
       NodesContract:

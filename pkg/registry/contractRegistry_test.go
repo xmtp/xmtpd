@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/mocks"
+	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/mocks"
+	mocks "github.com/xmtp/xmtpd/pkg/mocks/mls_validationv1"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	proto "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
 	"github.com/xmtp/xmtpd/pkg/testutils"

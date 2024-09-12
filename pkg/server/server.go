@@ -3,13 +3,14 @@ package server
 import (
 	"context"
 	"database/sql"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -54,7 +55,8 @@ func NewReplicationServer(
 			promReg,
 		)
 		if err != nil {
-			log.Fatal("initializing metrics server", zap.Error(err))
+
+			log.Error("initializing metrics server", zap.Error(err))
 			return nil, err
 		}
 	}

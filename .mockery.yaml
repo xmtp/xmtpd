@@ -1,9 +1,12 @@
 with-expecter: True
-dir: pkg/mocks
 mockname: "Mock{{.InterfaceName}}"
-outpkg: mocks
+outpkg: "{{.PackageName}}"
+dir: "pkg/mocks/{{.PackageName}}"
 filename: "mock_{{.InterfaceName}}.go"
 packages:
+  github.com/xmtp/xmtpd/pkg/mlsvalidate:
+    interfaces:
+      MLSValidationService:
   github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1:
     interfaces:
       ValidationApiClient:

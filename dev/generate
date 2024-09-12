@@ -3,7 +3,7 @@
 set -euo pipefail
 
 go generate ./...
-rm -f pkg/mocks/*
+rm -rf pkg/mocks/*
 ./dev/abigen
 mockery
 sqlc generate

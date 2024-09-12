@@ -5,7 +5,7 @@ import (
 	big "math/big"
 	"testing"
 
-	"github.com/xmtp/xmtpd/pkg/mocks"
+	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 
 	ethereum "github.com/ethereum/go-ethereum"

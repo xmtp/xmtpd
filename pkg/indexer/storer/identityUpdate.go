@@ -10,42 +10,46 @@ import (
 	"go.uber.org/zap"
 )
 
-type GroupMessageStorer struct {
-	contract *abis.GroupMessages
+type IdentityUpdateStorer struct {
+	contract *abis.IdentityUpdates
 	queries  *queries.Queries
 	logger   *zap.Logger
 }
 
-func NewGroupMessageStorer(
+func NewIdentityUpdateStorer(
 	queries *queries.Queries,
 	logger *zap.Logger,
-	contract *abis.GroupMessages,
-) *GroupMessageStorer {
-	return &GroupMessageStorer{
+	contract *abis.IdentityUpdates,
+) *IdentityUpdateStorer {
+	return &IdentityUpdateStorer{
 		queries:  queries,
-		logger:   logger.Named("GroupMessageStorer"),
+		logger:   logger.Named("IdentityUpdateStorer"),
 		contract: contract,
 	}
 }
 
-// Validate and store a group message log event
-func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogStorageError {
-	msgSent, err := s.contract.ParseMessageSent(event)
+// Validate and store an identity update log event
+func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) LogStorageError {
+	msgSent, err := s.contract.ParseIdentityUpdateCreated(event)
 	if err != nil {
 		return NewLogStorageError(err, false)
 	}
 
 	// TODO:nm figure out topic structure
-	topic := BuildGroupMessageTopic(msgSent.GroupId)
+	topic := BuildInboxTopic(msgSent.InboxId)
 
-	s.logger.Debug("Inserting message from contract", zap.String("topic", topic))
+	s.logger.Debug("Inserting identity update from contract", zap.String("topic", topic))
+
+	/**
+	TODO:nm validate the identity update
+	**/
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 		// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
 		OriginatorNodeID:     0,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                []byte(topic),
-		OriginatorEnvelope:   msgSent.Message, // TODO:nm parse originator envelope and do some validation
+		OriginatorEnvelope:   msgSent.Update, // TODO:nm parse originator envelope and do some validation
 	}); err != nil {
 		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
 		return NewLogStorageError(err, true)
@@ -54,7 +58,6 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 	return nil
 }
 
-func BuildGroupMessageTopic(groupId [32]byte) string {
-	// We should think about simplifying the topics, since backwards compatibility shouldn't really matter here
-	return fmt.Sprintf("1/m/%x", groupId)
+func BuildInboxTopic(inboxId [32]byte) string {
+	return fmt.Sprintf("1/i/%x", inboxId)
 }

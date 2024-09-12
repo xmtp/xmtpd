@@ -48,6 +48,36 @@ func BuildMessageSentLog(
 	}
 }
 
+func BuildIdentityUpdateEvent(inboxId [32]byte, update []byte, sequenceID uint64) ([]byte, error) {
+	abi, err := abis.IdentityUpdatesMetaData.GetAbi()
+	if err != nil {
+		return nil, err
+	}
+	return abi.Events["IdentityUpdateCreated"].Inputs.Pack(inboxId, update, sequenceID)
+}
+
+// Build a log message for an IdentityUpdateCreated event
+func BuildIdentityUpdateLog(
+	t *testing.T,
+	inboxId [32]byte,
+	update []byte,
+	sequenceID uint64,
+) types.Log {
+	eventData, err := BuildIdentityUpdateEvent(inboxId, update, sequenceID)
+	require.NoError(t, err)
+
+	abi, err := abis.IdentityUpdatesMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic, err := utils.GetEventTopic(abi, "IdentityUpdateCreated")
+	require.NoError(t, err)
+
+	return types.Log{
+		Topics: []common.Hash{topic},
+		Data:   eventData,
+	}
+}
+
 /*
 *
 Deploy a contract and return the contract's address. Will return a different address for each run, making it suitable for testing

@@ -29,18 +29,7 @@ func StartIndexer(
 	}
 	builder := blockchain.NewRpcLogStreamBuilder(client, logger)
 
-	messagesTopic, err := buildMessagesTopic()
-	if err != nil {
-		return err
-	}
-
-	messagesChannel := builder.ListenForContractEvent(
-		0,
-		common.HexToAddress(cfg.MessagesContractAddress),
-		[]common.Hash{messagesTopic},
-	)
-
-	streamer, err := builder.Build()
+	streamer, err := configureLogStream(builder, cfg)
 	if err != nil {
 		return err
 	}
@@ -52,12 +41,69 @@ func StartIndexer(
 
 	go indexLogs(
 		ctx,
-		messagesChannel,
+		streamer.messagesChannel,
 		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
 		storer.NewGroupMessageStorer(queries, logger, messagesContract),
 	)
 
-	return streamer.Start(ctx)
+	identityUpdatesContract, err := identityUpdatesContract(cfg, client)
+	if err != nil {
+		return err
+	}
+
+	go indexLogs(
+		ctx,
+		streamer.identityUpdatesChannel,
+		logger.Named("indexLogs").
+			With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress)),
+		storer.NewIdentityUpdateStorer(queries, logger, identityUpdatesContract),
+	)
+
+	return streamer.streamer.Start(ctx)
+}
+
+type builtStreamer struct {
+	streamer               *blockchain.RpcLogStreamer
+	messagesChannel        <-chan types.Log
+	identityUpdatesChannel <-chan types.Log
+}
+
+func configureLogStream(
+	builder *blockchain.RpcLogStreamBuilder,
+	cfg config.ContractsOptions,
+) (*builtStreamer, error) {
+	messagesTopic, err := buildMessagesTopic()
+	if err != nil {
+		return nil, err
+	}
+
+	messagesChannel := builder.ListenForContractEvent(
+		0,
+		common.HexToAddress(cfg.MessagesContractAddress),
+		[]common.Hash{messagesTopic},
+	)
+
+	identityUpdatesTopic, err := buildIdentityUpdatesTopic()
+	if err != nil {
+		return nil, err
+	}
+
+	identityUpdatesChannel := builder.ListenForContractEvent(
+		0,
+		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
+		[]common.Hash{identityUpdatesTopic},
+	)
+
+	streamer, err := builder.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return &builtStreamer{
+		streamer:               streamer,
+		messagesChannel:        messagesChannel,
+		identityUpdatesChannel: identityUpdatesChannel,
+	}, nil
 }
 
 /*
@@ -103,12 +149,30 @@ func buildMessagesTopic() (common.Hash, error) {
 	return utils.GetEventTopic(abi, "MessageSent")
 }
 
+func buildIdentityUpdatesTopic() (common.Hash, error) {
+	abi, err := abis.IdentityUpdatesMetaData.GetAbi()
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return utils.GetEventTopic(abi, "IdentityUpdateCreated")
+}
+
 func messagesContract(
 	cfg config.ContractsOptions,
 	client *ethclient.Client,
 ) (*abis.GroupMessages, error) {
 	return abis.NewGroupMessages(
 		common.HexToAddress(cfg.MessagesContractAddress),
+		client,
+	)
+}
+
+func identityUpdatesContract(
+	cfg config.ContractsOptions,
+	client *ethclient.Client,
+) (*abis.IdentityUpdates, error) {
+	return abis.NewIdentityUpdates(
+		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		client,
 	)
 }

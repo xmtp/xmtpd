@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"google.golang.org/grpc/reflection"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc/reflection"
 
 	"github.com/pires/go-proxyproto"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -88,6 +89,7 @@ func NewAPIServer(
 		return nil, err
 	}
 	s.service = replicationService
+	message_api.RegisterReplicationApiServer(s.grpcServer, s.service)
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))

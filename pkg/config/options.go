@@ -51,11 +51,25 @@ type ReflectionOptions struct {
 	Enable bool `long:"enable" env:"XMTPD_REFLECTION_ENABLE" description:"Enable GRPC reflection"`
 }
 
-type ServerOptions struct {
-	LogLevel         string `short:"l" long:"log-level"          env:"XMTPD_LOG_LEVEL"          description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
-	LogEncoding      string `          long:"log-encoding"       env:"XMTPD_LOG_ENCODING"       description:"Log encoding format. Either console or json"                                                                                  default:"console" choice:"console"`
-	SignerPrivateKey string `          long:"signer-private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"                                                                                                                               required:"true"`
+type LogOptions struct {
+	LogLevel    string `short:"l" long:"log-level"    env:"XMTPD_LOG_LEVEL"    description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
+	LogEncoding string `          long:"log-encoding" env:"XMTPD_LOG_ENCODING" description:"Log encoding format. Either console or json"                                                                                  default:"console"`
+}
 
+type SignerOptions struct {
+	PrivateKey string `long:"private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages" required:"true"`
+}
+
+type GenerateKeyOptions struct{}
+
+type RegisterNodeOptions struct {
+	HttpAddress     string `long:"http-address"      description:"HTTP address to register for the node"                            required:"true"`
+	OwnerAddress    string `long:"owner-address"     description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"                    required:"true"`
+	SigningKey      string `long:"signing-key"       description:"Signing key of the node to register"                              required:"true"`
+}
+
+type ServerOptions struct {
 	API           ApiOptions           `group:"API Options"            namespace:"api"`
 	DB            DbOptions            `group:"Database Options"       namespace:"db"`
 	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
@@ -64,4 +78,6 @@ type ServerOptions struct {
 	Reflection    ReflectionOptions    `group:"Reflection Options"     namespace:"reflection"`
 	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
 	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
+	Log           LogOptions           `group:"Log Options"            namespace:"log"`
+	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`
 }

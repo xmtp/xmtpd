@@ -13,7 +13,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var Commit string
@@ -28,7 +27,7 @@ func main() {
 		return
 	}
 
-	logger, _, err := buildLogger(options)
+	logger, _, err := utils.BuildLogger(options.Log)
 	if err != nil {
 		fatal("Could not build logger: %s", err)
 	}
@@ -58,27 +57,32 @@ func main() {
 			logger.Fatal("initializing database", zap.Error(err))
 		}
 
-		privateKey, err := utils.ParseEcdsaPrivateKey(options.SignerPrivateKey)
+		privateKey, err := utils.ParseEcdsaPrivateKey(options.Signer.PrivateKey)
 		if err != nil {
-			log.Fatal("parsing private key", zap.Error(err))
+			logger.Fatal("parsing private key", zap.Error(err))
+		}
+
+		fixedRegistry := registry.NewFixedNodeRegistry(
+			[]registry.Node{
+				{
+					NodeID:        1,
+					SigningKey:    &privateKey.PublicKey,
+					IsHealthy:     true,
+					HttpAddress:   "http://example.com",
+					IsValidConfig: true,
+				},
+			},
+		)
+
+		if err != nil {
+			log.Fatal("initializing smart contract registry", zap.Error(err))
 		}
 
 		s, err := server.NewReplicationServer(
 			ctx,
 			logger,
 			options,
-			// TODO:nm replace with real node registry
-			registry.NewFixedNodeRegistry(
-				[]registry.Node{
-					{
-						NodeID:        1,
-						SigningKey:    &privateKey.PublicKey,
-						IsHealthy:     true,
-						HttpAddress:   "http://example.com",
-						IsValidConfig: true,
-					},
-				},
-			),
+			fixedRegistry,
 			db,
 		)
 		if err != nil {
@@ -96,38 +100,4 @@ func main() {
 
 func fatal(msg string, args ...any) {
 	log.Fatalf(msg, args...)
-}
-
-func buildLogger(options config.ServerOptions) (*zap.Logger, *zap.Config, error) {
-	atom := zap.NewAtomicLevel()
-	level := zapcore.InfoLevel
-	err := level.Set(options.LogLevel)
-	if err != nil {
-		return nil, nil, err
-	}
-	atom.SetLevel(level)
-
-	cfg := zap.Config{
-		Encoding:         options.LogEncoding,
-		Level:            atom,
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-		EncoderConfig: zapcore.EncoderConfig{
-			MessageKey:   "message",
-			LevelKey:     "level",
-			EncodeLevel:  zapcore.CapitalLevelEncoder,
-			TimeKey:      "time",
-			EncodeTime:   zapcore.ISO8601TimeEncoder,
-			NameKey:      "caller",
-			EncodeCaller: zapcore.ShortCallerEncoder,
-		},
-	}
-	logger, err := cfg.Build()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	logger = logger.Named("replication")
-
-	return logger, &cfg, nil
 }

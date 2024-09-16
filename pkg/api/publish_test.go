@@ -13,7 +13,7 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 
 	resp, err := svc.PublishEnvelope(
@@ -54,7 +54,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	svc, _, cleanup := testutils.NewTestService(t)
+	svc, _, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 
 	envelope := testutils.CreatePayerEnvelope(t)
@@ -69,7 +69,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	svc, _, cleanup := testutils.NewTestService(t)
+	svc, _, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 
 	clientEnv := testutils.CreateClientEnvelope()
@@ -84,7 +84,7 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 }
 
 func TestMissingTopicOnPublish(t *testing.T) {
-	svc, _, cleanup := testutils.NewTestService(t)
+	svc, _, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 
 	clientEnv := testutils.CreateClientEnvelope()

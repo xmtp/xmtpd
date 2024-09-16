@@ -28,6 +28,7 @@ func StartPublishWorker(
 	reg *registrant.Registrant,
 	store *sql.DB,
 ) (*PublishWorker, error) {
+	log = log.Named("publishWorker")
 	q := queries.New(store)
 	query := func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.StagedOriginatorEnvelope, int64, error) {
 		results, err := q.SelectStagedOriginatorEnvelopes(

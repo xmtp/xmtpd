@@ -64,7 +64,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 }
 
 func TestQueryAllEnvelopes(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
@@ -80,7 +80,7 @@ func TestQueryAllEnvelopes(t *testing.T) {
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
@@ -96,7 +96,7 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
@@ -117,7 +117,7 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
@@ -136,7 +136,7 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
@@ -155,7 +155,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestService(t)
+	svc, db, cleanup := testutils.NewTestAPIService(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 

@@ -13,10 +13,10 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	svc, db, cleanup := testutils.NewTestAPIService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 
-	resp, err := svc.PublishEnvelope(
+	resp, err := api.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
 			PayerEnvelope: testutils.CreatePayerEnvelope(t),
@@ -54,12 +54,12 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	svc, _, cleanup := testutils.NewTestAPIService(t)
+	api, _, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 
 	envelope := testutils.CreatePayerEnvelope(t)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
-	_, err := svc.PublishEnvelope(
+	_, err := api.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
 			PayerEnvelope: envelope,
@@ -69,12 +69,12 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	svc, _, cleanup := testutils.NewTestAPIService(t)
+	api, _, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 
 	clientEnv := testutils.CreateClientEnvelope()
 	clientEnv.Aad.TargetOriginator = 2
-	_, err := svc.PublishEnvelope(
+	_, err := api.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
 			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
@@ -84,12 +84,12 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 }
 
 func TestMissingTopicOnPublish(t *testing.T) {
-	svc, _, cleanup := testutils.NewTestAPIService(t)
+	api, _, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 
 	clientEnv := testutils.CreateClientEnvelope()
 	clientEnv.Aad.TargetTopic = nil
-	_, err := svc.PublishEnvelope(
+	_, err := api.PublishEnvelope(
 		context.Background(),
 		&message_api.PublishEnvelopeRequest{
 			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),

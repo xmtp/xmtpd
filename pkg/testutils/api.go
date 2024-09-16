@@ -41,31 +41,6 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	}
 }
 
-func NewTestAPIService(t *testing.T) (*api.Service, *sql.DB, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-	log := NewLog(t)
-	db, _, dbCleanup := NewDB(t, ctx)
-	privKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	privKeyStr := "0x" + HexEncode(crypto.FromECDSA(privKey))
-	mockRegistry := mocks.NewMockNodeRegistry(t)
-	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
-		{NodeID: 1, SigningKey: &privKey.PublicKey},
-	}, nil)
-	registrant, err := registrant.NewRegistrant(ctx, queries.New(db), mockRegistry, privKeyStr)
-	require.NoError(t, err)
-
-	svc, err := api.NewReplicationApiService(ctx, log, registrant, db)
-	require.NoError(t, err)
-
-	return svc, db, func() {
-		log.Info("-------- Cleaning up service and DB ----------")
-		cancel()
-		svc.Close()
-		dbCleanup()
-	}
-}
-
 func NewTestAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
 	svc, db, cleanup := NewTestAPIServer(t)
 	conn, err := svc.DialGRPC(context.Background())

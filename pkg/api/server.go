@@ -109,8 +109,7 @@ func (s *ApiServer) Addr() net.Addr {
 func (s *ApiServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
 	// https://github.com/grpc/grpc/blob/master/doc/naming.md
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpcListener.Addr().String())
-	return grpc.DialContext(
-		ctx,
+	return grpc.NewClient(
 		dialAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(),

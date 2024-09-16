@@ -3,8 +3,8 @@ package api_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -12,45 +12,67 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-var allRows = []queries.InsertGatewayEnvelopeParams{
-	// Initial rows
-	{
-		OriginatorNodeID:     1,
-		OriginatorSequenceID: 1,
-		Topic:                []byte("topicA"),
-		OriginatorEnvelope:   []byte("envelope1"),
-	},
-	{
-		OriginatorNodeID:     2,
-		OriginatorSequenceID: 1,
-		Topic:                []byte("topicA"),
-		OriginatorEnvelope:   []byte("envelope2"),
-	},
-	// Later rows
-	{
-		OriginatorNodeID:     1,
-		OriginatorSequenceID: 2,
-		Topic:                []byte("topicA"),
-		OriginatorEnvelope:   []byte("envelope3"),
-	},
-	{
-		OriginatorNodeID:     2,
-		OriginatorSequenceID: 2,
-		Topic:                []byte("topicA"),
-		OriginatorEnvelope:   []byte("envelope4"),
-	},
-	{
-		OriginatorNodeID:     1,
-		OriginatorSequenceID: 3,
-		Topic:                []byte("topicA"),
-		OriginatorEnvelope:   []byte("envelope5"),
-	},
+var allRows []queries.InsertGatewayEnvelopeParams
+
+func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
+	allRows = []queries.InsertGatewayEnvelopeParams{
+		// Initial rows
+		{
+			OriginatorNodeID:     1,
+			OriginatorSequenceID: 1,
+			Topic:                []byte("topicA"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 1, 1),
+			),
+		},
+		{
+			OriginatorNodeID:     2,
+			OriginatorSequenceID: 1,
+			Topic:                []byte("topicA"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 2, 1),
+			),
+		},
+		// Later rows
+		{
+			OriginatorNodeID:     1,
+			OriginatorSequenceID: 2,
+			Topic:                []byte("topicB"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 1, 2),
+			),
+		},
+		{
+			OriginatorNodeID:     2,
+			OriginatorSequenceID: 2,
+			Topic:                []byte("topicB"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 2, 2),
+			),
+		},
+		{
+			OriginatorNodeID:     1,
+			OriginatorSequenceID: 3,
+			Topic:                []byte("topicA"),
+			OriginatorEnvelope: testutils.Marshal(
+				t,
+				testutils.CreateOriginatorEnvelope(t, 1, 3),
+			),
+		},
+	}
+	return testutils.NewTestAPIClient(t)
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
+	// For the sake of the test, make sure the subscribeWorker has time to receive the rows
+	time.Sleep(1 * time.Second)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
@@ -65,43 +87,24 @@ func validateUpdates(
 	expectedIndices []int,
 ) {
 	for i := 0; i < len(expectedIndices); {
-		fmt.Println("waiting for update")
 		envs, err := stream.Recv()
-		fmt.Printf("got update of length %d\n", len(envs.Envelopes))
 		require.NoError(t, err)
 		for _, env := range envs.Envelopes {
-			expected := allRows[expectedIndices[i]].OriginatorEnvelope
-			require.Equal(t, expected, testutils.Marshal(t, env))
+			expected := allRows[expectedIndices[i]]
+			actual := testutils.UnmarshalUnsignedOriginatorEnvelope(
+				t,
+				env.UnsignedOriginatorEnvelope,
+			)
+			require.Equal(t, uint32(expected.OriginatorNodeID), actual.OriginatorNodeId)
+			require.Equal(t, uint64(expected.OriginatorSequenceID), actual.OriginatorSequenceId)
+			require.Equal(t, expected.OriginatorEnvelope, testutils.Marshal(t, env))
 			i++
 		}
 	}
 }
 
-func TestQAllEnvelopes(t *testing.T) {
-	t.Skip("skipping test")
-	client, db, cleanup := testutils.NewTestAPIClient(t)
-	defer cleanup()
-	insertInitialRows(t, db)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	res, err := client.QueryEnvelopes(
-		ctx,
-		&message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				Filter:   nil,
-				LastSeen: &message_api.VectorClock{},
-			},
-		},
-	)
-	require.NoError(t, err)
-
-	insertAdditionalRows(t, db)
-	require.Equal(t, 5, len(res.Envelopes))
-}
-
 func TestSubscribeAllEnvelopes(t *testing.T) {
-	client, db, cleanup := testutils.NewTestAPIClient(t)
+	client, db, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
 

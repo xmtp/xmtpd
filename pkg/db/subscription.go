@@ -87,7 +87,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 			break
 		} else if err != nil {
 			s.log.Error(
-				"Error querying for DB subscription",
+				fmt.Sprintf("Error querying for DB subscription: %v", err),
 				zap.Any("lastSeen", s.lastSeen),
 				zap.Int32("numRows", s.options.NumRows),
 			)

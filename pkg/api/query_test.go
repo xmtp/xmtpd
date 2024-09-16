@@ -1,130 +1,15 @@
-package api
+package api_test
 
 import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/registrant"
-	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"google.golang.org/protobuf/proto"
 )
-
-func newTestService(t *testing.T) (*Service, *sql.DB, func()) {
-	ctx := context.Background()
-	log := testutils.NewLog(t)
-	db, _, dbCleanup := testutils.NewDB(t, ctx)
-	privKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	privKeyStr := "0x" + testutils.HexEncode(crypto.FromECDSA(privKey))
-	mockRegistry := mocks.NewMockNodeRegistry(t)
-	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
-		{NodeID: 1, SigningKey: &privKey.PublicKey},
-	}, nil)
-	registrant, err := registrant.NewRegistrant(ctx, queries.New(db), mockRegistry, privKeyStr)
-	require.NoError(t, err)
-
-	svc, err := NewReplicationApiService(ctx, log, registrant, db)
-	require.NoError(t, err)
-
-	return svc, db, func() {
-		svc.Close()
-		dbCleanup()
-	}
-}
-
-func TestPublishEnvelope(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
-	defer cleanup()
-
-	resp, err := svc.PublishEnvelope(
-		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: testutils.CreatePayerEnvelope(t),
-		},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{}
-	require.NoError(
-		t,
-		proto.Unmarshal(resp.GetOriginatorEnvelope().GetUnsignedOriginatorEnvelope(), unsignedEnv),
-	)
-	clientEnv := &message_api.ClientEnvelope{}
-	require.NoError(
-		t,
-		proto.Unmarshal(unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope(), clientEnv),
-	)
-	require.Equal(t, uint8(0x5), clientEnv.Aad.GetTargetTopic()[0])
-
-	// Check that the envelope was published to the database after a delay
-	require.Eventually(t, func() bool {
-		envs, err := queries.New(db).
-			SelectGatewayEnvelopes(context.Background(), queries.SelectGatewayEnvelopesParams{})
-		require.NoError(t, err)
-
-		if len(envs) != 1 {
-			return false
-		}
-
-		originatorEnv := &message_api.OriginatorEnvelope{}
-		require.NoError(t, proto.Unmarshal(envs[0].OriginatorEnvelope, originatorEnv))
-		return proto.Equal(originatorEnv, resp.GetOriginatorEnvelope())
-	}, 500*time.Millisecond, 50*time.Millisecond)
-}
-
-func TestUnmarshalErrorOnPublish(t *testing.T) {
-	svc, _, cleanup := newTestService(t)
-	defer cleanup()
-
-	envelope := testutils.CreatePayerEnvelope(t)
-	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
-	_, err := svc.PublishEnvelope(
-		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: envelope,
-		},
-	)
-	require.ErrorContains(t, err, "unmarshal")
-}
-
-func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	svc, _, cleanup := newTestService(t)
-	defer cleanup()
-
-	clientEnv := testutils.CreateClientEnvelope()
-	clientEnv.Aad.TargetOriginator = 2
-	_, err := svc.PublishEnvelope(
-		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
-		},
-	)
-	require.ErrorContains(t, err, "originator")
-}
-
-func TestMissingTopicOnPublish(t *testing.T) {
-	svc, _, cleanup := newTestService(t)
-	defer cleanup()
-
-	clientEnv := testutils.CreateClientEnvelope()
-	clientEnv.Aad.TargetTopic = nil
-	_, err := svc.PublishEnvelope(
-		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
-		},
-	)
-	require.ErrorContains(t, err, "topic")
-}
 
 func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopeParams {
 	db_rows := []queries.InsertGatewayEnvelopeParams{
@@ -179,11 +64,11 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 }
 
 func TestQueryAllEnvelopes(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
-	resp, err := svc.QueryEnvelopes(
+	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
@@ -195,11 +80,11 @@ func TestQueryAllEnvelopes(t *testing.T) {
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
-	resp, err := svc.QueryEnvelopes(
+	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
@@ -211,11 +96,11 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
-	resp, err := svc.QueryEnvelopes(
+	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -232,11 +117,11 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
-	resp, err := svc.QueryEnvelopes(
+	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -251,11 +136,11 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
-	resp, err := svc.QueryEnvelopes(
+	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -270,11 +155,11 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	svc, db, cleanup := newTestService(t)
+	api, db, cleanup := testutils.NewTestAPIClient(t)
 	defer cleanup()
 	db_rows := setupQueryTest(t, db)
 
-	resp, err := svc.QueryEnvelopes(
+	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{

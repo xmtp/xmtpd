@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -eu
+
+go run cmd/cli/main.go "$@"

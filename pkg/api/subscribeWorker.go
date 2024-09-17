@@ -18,6 +18,8 @@ import (
 const (
 	subscriptionBufferSize    = 1024
 	maxSubscriptionsPerClient = 10000
+	SubscribeWorkerPollTime   = 100 * time.Millisecond
+	subscribeWorkerPollRows   = 10000
 )
 
 type subscriber = chan<- []*message_api.OriginatorEnvelope
@@ -71,8 +73,8 @@ func startSubscribeWorker(
 		pollableQuery,
 		db.ToVectorClock(vc),
 		db.PollingOptions{
-			Interval: 100 * time.Millisecond,
-			NumRows:  10000,
+			Interval: SubscribeWorkerPollTime,
+			NumRows:  subscribeWorkerPollRows,
 		},
 	)
 	dbChan, err := subscription.Start()

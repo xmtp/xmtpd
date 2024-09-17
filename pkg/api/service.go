@@ -73,10 +73,6 @@ func (s *Service) BatchSubscribeEnvelopes(
 	log.Debug("started")
 	defer log.Debug("stopped")
 
-	requests := req.GetRequests()
-	if len(requests) == 0 {
-		return status.Errorf(codes.InvalidArgument, "missing requests")
-	}
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
 	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
@@ -84,11 +80,17 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.Internal, "could not send header: %v", err)
 	}
 
+	requests := req.GetRequests()
+	if len(requests) == 0 {
+		return status.Errorf(codes.InvalidArgument, "missing requests")
+	}
+
 	ch, err := s.subscribeWorker.subscribe(requests)
 	if err != nil {
 		// TODO(rich) Tidy error interface, validate before sending header
 		return err
 	}
+
 	defer func() {
 		// TODO(rich) Handle unsubscribe
 		// if sub != nil {

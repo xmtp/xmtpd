@@ -66,9 +66,7 @@ func (s *Service) BatchSubscribeEnvelopes(
 	req *message_api.BatchSubscribeEnvelopesRequest,
 	stream message_api.ReplicationApi_BatchSubscribeEnvelopesServer,
 ) error {
-	log := s.log.Named("subscribe") // .With(zap.Strings("content_topics", req.ContentTopics))
-	log.Debug("started")
-	defer log.Debug("stopped")
+	log := s.log.Named("subscribe")
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
@@ -122,6 +120,7 @@ func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
+	log := s.log.Named("query")
 	params, err := s.queryReqToDBParams(req)
 	if err != nil {
 		return nil, err
@@ -138,7 +137,7 @@ func (s *Service) QueryEnvelopes(
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
-			s.log.Error("could not unmarshal originator envelope", zap.Error(err))
+			log.Error("could not unmarshal originator envelope", zap.Error(err))
 			continue
 		}
 		envs = append(envs, originatorEnv)
@@ -152,7 +151,6 @@ func (s *Service) QueryEnvelopes(
 func (s *Service) queryReqToDBParams(
 	req *message_api.QueryEnvelopesRequest,
 ) (*queries.SelectGatewayEnvelopesParams, error) {
-	// TODO(rich) named logs
 	params := queries.SelectGatewayEnvelopesParams{
 		Topic:             nil,
 		OriginatorNodeID:  sql.NullInt32{},

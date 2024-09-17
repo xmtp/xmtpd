@@ -102,7 +102,6 @@ func (s *subscribeWorker) start() {
 		case <-s.ctx.Done():
 			return
 		case new_batch := <-s.dbSubscription:
-			// Log batch size, performance
 			for _, row := range new_batch {
 				s.dispatch(&row)
 			}

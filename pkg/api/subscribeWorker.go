@@ -22,7 +22,7 @@ const (
 	subscribeWorkerPollRows   = 10000
 )
 
-type subscriber = chan<- []*message_api.OriginatorEnvelope
+type listener = chan<- []*message_api.OriginatorEnvelope
 
 // A worker that listens for new envelopes in the DB and sends them to subscribers
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
@@ -33,9 +33,9 @@ type subscribeWorker struct {
 
 	dbSubscription <-chan []queries.GatewayEnvelope
 	// Assumption: listeners cannot be in multiple slices
-	globalListeners     []subscriber
-	originatorListeners map[uint32][]subscriber
-	topicListeners      map[string][]subscriber
+	globalListeners     []listener
+	originatorListeners map[uint32][]listener
+	topicListeners      map[string][]listener
 }
 
 func startSubscribeWorker(
@@ -85,9 +85,9 @@ func startSubscribeWorker(
 		ctx:                 ctx,
 		log:                 log,
 		dbSubscription:      dbChan,
-		globalListeners:     make([]subscriber, 0),
-		originatorListeners: make(map[uint32][]subscriber),
-		topicListeners:      make(map[string][]subscriber),
+		globalListeners:     make([]listener, 0),
+		originatorListeners: make(map[uint32][]listener),
+		topicListeners:      make(map[string][]listener),
 	}
 
 	go worker.start()
@@ -140,8 +140,7 @@ func (s *subscribeWorker) dispatch(
 	}
 }
 
-// TODO(rich) clearer naming - broadcast/listen, publish/subscribe, in/out
-func (s *subscribeWorker) subscribe(
+func (s *subscribeWorker) addListeners(
 	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
 ) (<-chan []*message_api.OriginatorEnvelope, error) {
 	// TODO(rich) count how many subscriptions the server has
@@ -194,12 +193,10 @@ func (s *subscribeWorker) subscribe(
 			)
 		}
 		for topic := range topics {
-			// TODO(rich) Handle uncreated slice
 			s.topicListeners[topic] = append(s.topicListeners[topic], ch)
 		}
 	} else if len(originators) > 0 {
 		for originator := range originators {
-			// TODO(rich) Handle uncreated slice
 			s.originatorListeners[originator] = append(s.originatorListeners[originator], ch)
 		}
 	}

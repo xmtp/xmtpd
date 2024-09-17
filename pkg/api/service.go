@@ -66,9 +66,6 @@ func (s *Service) BatchSubscribeEnvelopes(
 	req *message_api.BatchSubscribeEnvelopesRequest,
 	stream message_api.ReplicationApi_BatchSubscribeEnvelopesServer,
 ) error {
-	// TODO(rich): Figure out subscribe2
-	// TODO(rich): Allow subscription to be updated
-
 	log := s.log.Named("subscribe") // .With(zap.Strings("content_topics", req.ContentTopics))
 	log.Debug("started")
 	defer log.Debug("stopped")
@@ -85,7 +82,7 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "missing requests")
 	}
 
-	ch, err := s.subscribeWorker.subscribe(requests)
+	ch, err := s.subscribeWorker.addListeners(requests)
 	if err != nil {
 		// TODO(rich) Tidy error interface, validate before sending header
 		return err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -20,6 +21,7 @@ const (
 	maxSubscriptionsPerClient = 10000
 	SubscribeWorkerPollTime   = 100 * time.Millisecond
 	subscribeWorkerPollRows   = 10000
+	maxTopicLength            = 128
 )
 
 type listener = chan<- []*message_api.OriginatorEnvelope
@@ -51,7 +53,6 @@ func startSubscribeWorker(
 				ctx,
 				*db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{}, lastSeen),
 			)
-		// TODO(rich) log size of envs
 		if err != nil {
 			return nil, lastSeen, err
 		}
@@ -112,7 +113,6 @@ func (s *subscribeWorker) start() {
 func (s *subscribeWorker) dispatch(
 	row *queries.GatewayEnvelope,
 ) {
-	// TODO(rich) log how long this takes
 	bytes := row.OriginatorEnvelope
 	env := &message_api.OriginatorEnvelope{}
 	err := proto.Unmarshal(bytes, env)
@@ -123,7 +123,7 @@ func (s *subscribeWorker) dispatch(
 	for _, listener := range s.originatorListeners[uint32(row.OriginatorNodeID)] {
 		select {
 		case listener <- []*message_api.OriginatorEnvelope{env}:
-		default: // TODO(rich) log here
+		default: // TODO(rich) Close and clean up channel
 		}
 	}
 	for _, listener := range s.topicListeners[hex.EncodeToString(row.Topic)] {
@@ -143,7 +143,6 @@ func (s *subscribeWorker) dispatch(
 func (s *subscribeWorker) addListeners(
 	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
 ) (<-chan []*message_api.OriginatorEnvelope, error) {
-	// TODO(rich) count how many subscriptions the server has
 	subscribeAll := false
 	topics := make(map[string]bool, len(requests))
 	originators := make(map[uint32]bool, len(requests))
@@ -161,12 +160,11 @@ func (s *subscribeWorker) addListeners(
 			}
 			switch filter := enum.(type) {
 			case *message_api.EnvelopesQuery_Topic:
-				if len(filter.Topic) == 0 {
-					return nil, status.Errorf(codes.InvalidArgument, "missing topic")
+				if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
+					return nil, status.Errorf(codes.InvalidArgument, "invalid topic")
 				}
 				topics[hex.EncodeToString(filter.Topic)] = true
 			case *message_api.EnvelopesQuery_OriginatorNodeId:
-				// TODO(rich) validate filter
 				originators[filter.OriginatorNodeId] = true
 			default:
 				subscribeAll = true
@@ -178,19 +176,13 @@ func (s *subscribeWorker) addListeners(
 
 	if subscribeAll {
 		if len(topics) > 0 || len(originators) > 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"cannot filter by topic or originator when subscribing to all",
-			)
+			return nil, fmt.Errorf("cannot filter by topic or originator when subscribing to all")
 		}
 		// TODO(rich) thread safety
 		s.globalListeners = append(s.globalListeners, ch)
 	} else if len(topics) > 0 {
 		if len(originators) > 0 {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"cannot filter by both topic and originator in same subscription request",
-			)
+			return nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
 		}
 		for topic := range topics {
 			s.topicListeners[topic] = append(s.topicListeners[topic], ch)

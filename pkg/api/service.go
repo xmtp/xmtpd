@@ -84,17 +84,8 @@ func (s *Service) BatchSubscribeEnvelopes(
 
 	ch, err := s.subscribeWorker.addListeners(requests)
 	if err != nil {
-		// TODO(rich) Tidy error interface, validate before sending header
-		return err
+		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
-
-	defer func() {
-		// TODO(rich) Handle unsubscribe
-		// if sub != nil {
-		// 	sub.Unsubscribe()
-		// }
-		// metrics.EmitUnsubscribeTopics(stream.Context(), log, len(req.ContentTopics))
-	}()
 
 	var streamLock sync.Mutex
 	for exit := false; !exit; {
@@ -113,7 +104,6 @@ func (s *Service) BatchSubscribeEnvelopes(
 				}()
 			} else {
 				// TODO(rich) Recover from backpressure
-				// channel got closed; likely due to backpressure of the sending channel.
 				log.Info("stream closed due to backpressure")
 				exit = true
 			}

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -24,7 +26,49 @@ const (
 	maxTopicLength            = 128
 )
 
-type listener = chan<- []*message_api.OriginatorEnvelope
+type listener struct {
+	ch          chan<- []*message_api.OriginatorEnvelope
+	topics      map[string]struct{}
+	originators map[uint32]struct{}
+	isGlobal    bool
+	closed      atomic.Bool
+}
+
+// Maps from a key to a set of listeners
+type listenerMap[K comparable] struct {
+	sync.Map // map[K]*sync.Map, where inner sync.Map is map[*listener]struct{}
+}
+
+func (lm *listenerMap[K]) addListener(key K, l *listener) {
+	value, _ := lm.LoadOrStore(key, &sync.Map{})
+	innerMap := value.(*sync.Map)
+	innerMap.Store(l, struct{}{})
+}
+
+func (lm *listenerMap[K]) removeListener(key K, l *listener) {
+	for {
+		value, ok := lm.Load(key)
+		if !ok || value == nil {
+			return // Key doesn't exist, nothing to do
+		}
+		innerMap := value.(*sync.Map)
+		innerMap.Delete(l)
+
+		if !isEmptySyncMap(innerMap) || lm.CompareAndDelete(key, value) {
+			return
+		}
+	}
+}
+
+// isEmptySyncMap checks if a sync.Map is empty
+func isEmptySyncMap(m *sync.Map) bool {
+	empty := true
+	m.Range(func(_, _ interface{}) bool {
+		empty = false
+		return false // stop iteration
+	})
+	return empty
+}
 
 // A worker that listens for new envelopes in the DB and sends them to subscribers
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
@@ -35,9 +79,9 @@ type subscribeWorker struct {
 
 	dbSubscription <-chan []queries.GatewayEnvelope
 	// Assumption: listeners cannot be in multiple slices
-	globalListeners     []listener
-	originatorListeners map[uint32][]listener
-	topicListeners      map[string][]listener
+	topicListeners      listenerMap[string]
+	originatorListeners listenerMap[uint32]
+	globalListeners     sync.Map // map[*listener]struct{}
 }
 
 func startSubscribeWorker(
@@ -86,9 +130,9 @@ func startSubscribeWorker(
 		ctx:                 ctx,
 		log:                 log,
 		dbSubscription:      dbChan,
-		globalListeners:     make([]listener, 0),
-		originatorListeners: make(map[uint32][]listener),
-		topicListeners:      make(map[string][]listener),
+		globalListeners:     sync.Map{},
+		originatorListeners: listenerMap[uint32]{},
+		topicListeners:      listenerMap[string]{},
 	}
 
 	go worker.start()
@@ -109,45 +153,58 @@ func (s *subscribeWorker) start() {
 	}
 }
 
-func (s *subscribeWorker) dispatch(
-	row *queries.GatewayEnvelope,
-) {
-	bytes := row.OriginatorEnvelope
+func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
 	env := &message_api.OriginatorEnvelope{}
-	err := proto.Unmarshal(bytes, env)
+	err := proto.Unmarshal(row.OriginatorEnvelope, env)
 	if err != nil {
 		s.log.Error("Failed to unmarshal envelope", zap.Error(err))
 		return
 	}
-	for _, listener := range s.originatorListeners[uint32(row.OriginatorNodeID)] {
-		select {
-		case listener <- []*message_api.OriginatorEnvelope{env}:
-		default: // TODO(rich) Close and clean up channel
-		}
+
+	originatorID := uint32(row.OriginatorNodeID)
+	if listenersMap, ok := s.originatorListeners.Load(originatorID); ok {
+		s.dispatchToListeners(listenersMap.(*sync.Map), env)
 	}
-	for _, listener := range s.topicListeners[hex.EncodeToString(row.Topic)] {
+
+	topic := hex.EncodeToString(row.Topic)
+	if listenersMap, ok := s.topicListeners.Load(topic); ok {
+		s.dispatchToListeners(listenersMap.(*sync.Map), env)
+	}
+
+	s.dispatchToListeners(&s.globalListeners, env)
+}
+
+func (s *subscribeWorker) dispatchToListeners(
+	listeners *sync.Map,
+	env *message_api.OriginatorEnvelope,
+) {
+	listeners.Range(func(key, _ any) bool {
+		l := key.(*listener)
 		select {
-		case listener <- []*message_api.OriginatorEnvelope{env}:
+		case l.ch <- []*message_api.OriginatorEnvelope{env}:
+			// Successfully sent
 		default:
+			// Channel is full or closed
+			s.log.Info("Channel full or closed, removing listener", zap.Any("listener", l.ch))
+			go s.removeListener(l)
 		}
-	}
-	for _, listener := range s.globalListeners {
-		select {
-		case listener <- []*message_api.OriginatorEnvelope{env}:
-		default:
-		}
-	}
+		return true
+	})
 }
 
 func (s *subscribeWorker) listen(
 	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
-) (<-chan []*message_api.OriginatorEnvelope, error) {
-	subscribeAll := false
-	topics := make(map[string]bool, len(requests))
-	originators := make(map[uint32]bool, len(requests))
+) (<-chan []*message_api.OriginatorEnvelope, func(), error) {
+	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
+	l := &listener{
+		ch:          ch,
+		topics:      make(map[string]struct{}),
+		originators: make(map[uint32]struct{}),
+		isGlobal:    false,
+	}
 
 	if len(requests) > maxSubscriptionsPerClient {
-		return nil, fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
 			len(requests),
 		)
@@ -155,41 +212,58 @@ func (s *subscribeWorker) listen(
 	for _, req := range requests {
 		enum := req.GetQuery().GetFilter()
 		if enum == nil {
-			subscribeAll = true
+			l.isGlobal = true
 		}
 		switch filter := enum.(type) {
 		case *message_api.EnvelopesQuery_Topic:
 			if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid topic")
+				return nil, nil, status.Errorf(codes.InvalidArgument, "invalid topic")
 			}
-			topics[hex.EncodeToString(filter.Topic)] = true
+			l.topics[hex.EncodeToString(filter.Topic)] = struct{}{}
 		case *message_api.EnvelopesQuery_OriginatorNodeId:
-			originators[filter.OriginatorNodeId] = true
+			l.originators[filter.OriginatorNodeId] = struct{}{}
 		default:
-			subscribeAll = true
+			l.isGlobal = true
 		}
 	}
 
-	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
-
-	if subscribeAll {
-		if len(topics) > 0 || len(originators) > 0 {
-			return nil, fmt.Errorf("cannot filter by topic or originator when subscribing to all")
+	if l.isGlobal {
+		if len(l.topics) > 0 || len(l.originators) > 0 {
+			return nil, nil, fmt.Errorf(
+				"cannot filter by topic or originator when subscribing to all",
+			)
 		}
-		// TODO(rich) thread safety
-		s.globalListeners = append(s.globalListeners, ch)
-	} else if len(topics) > 0 {
-		if len(originators) > 0 {
-			return nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
+		s.globalListeners.Store(l, struct{}{})
+	} else if len(l.topics) > 0 {
+		if len(l.originators) > 0 {
+			return nil, nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
 		}
-		for topic := range topics {
-			s.topicListeners[topic] = append(s.topicListeners[topic], ch)
+		for topic := range l.topics {
+			s.topicListeners.addListener(topic, l)
 		}
-	} else if len(originators) > 0 {
-		for originator := range originators {
-			s.originatorListeners[originator] = append(s.originatorListeners[originator], ch)
+	} else if len(l.originators) > 0 {
+		for originator := range l.originators {
+			s.originatorListeners.addListener(originator, l)
 		}
 	}
 
-	return ch, nil
+	return ch, func() { s.removeListener(l) }, nil
+}
+
+func (s *subscribeWorker) removeListener(l *listener) {
+	if l.closed.CompareAndSwap(false, true) {
+		close(l.ch)
+
+		if l.isGlobal {
+			s.globalListeners.Delete(l)
+		}
+
+		for topic := range l.topics {
+			s.topicListeners.removeListener(topic, l)
+		}
+
+		for origin := range l.originators {
+			s.originatorListeners.removeListener(origin, l)
+		}
+	}
 }

@@ -79,10 +79,11 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "missing requests")
 	}
 
-	ch, err := s.subscribeWorker.listen(requests)
+	ch, cleanup, err := s.subscribeWorker.listen(requests)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
+	defer cleanup()
 
 	for {
 		select {

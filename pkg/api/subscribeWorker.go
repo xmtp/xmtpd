@@ -45,7 +45,7 @@ func startSubscribeWorker(
 	log *zap.Logger,
 	store *sql.DB,
 ) (*subscribeWorker, error) {
-	log = log.Named("subscribeWorker")
+	log = log.With(zap.String("method", "subscribeWorker"))
 	q := queries.New(store)
 	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := q.
@@ -139,7 +139,7 @@ func (s *subscribeWorker) dispatch(
 	}
 }
 
-func (s *subscribeWorker) addListeners(
+func (s *subscribeWorker) listen(
 	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
 ) (<-chan []*message_api.OriginatorEnvelope, error) {
 	subscribeAll := false
@@ -151,6 +151,9 @@ func (s *subscribeWorker) addListeners(
 		// subscribe to all instead of throwing an error. We rely on the client's existing
 		// filtering logic rather than forcing clients to respond to an error.
 		subscribeAll = true
+		s.log.Info(
+			"Client subscribed to too many topics or originators; treating as subscribe to all",
+			zap.Int("num_requests", len(requests)))
 	} else {
 		for _, req := range requests {
 			enum := req.GetQuery().GetFilter()

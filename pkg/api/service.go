@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"database/sql"
-	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -66,7 +65,7 @@ func (s *Service) BatchSubscribeEnvelopes(
 	req *message_api.BatchSubscribeEnvelopesRequest,
 	stream message_api.ReplicationApi_BatchSubscribeEnvelopesServer,
 ) error {
-	log := s.log.Named("subscribe")
+	log := s.log.With(zap.String("method", "batchSubscribe"))
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
@@ -80,47 +79,41 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "missing requests")
 	}
 
-	ch, err := s.subscribeWorker.addListeners(requests)
+	ch, err := s.subscribeWorker.listen(requests)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
 
-	var streamLock sync.Mutex
-	for exit := false; !exit; {
+	for {
 		select {
 		case envs, open := <-ch:
 			if open {
-				func() {
-					streamLock.Lock()
-					defer streamLock.Unlock()
-					err := stream.Send(&message_api.BatchSubscribeEnvelopesResponse{
-						Envelopes: envs,
-					})
-					if err != nil {
-						log.Error("sending envelope to subscribe", zap.Error(err))
-					}
-				}()
+				err := stream.Send(&message_api.BatchSubscribeEnvelopesResponse{
+					Envelopes: envs,
+				})
+				if err != nil {
+					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
+				}
 			} else {
 				// TODO(rich) Recover from backpressure
 				log.Info("stream closed due to backpressure")
-				exit = true
+				return nil
 			}
 		case <-stream.Context().Done():
 			log.Debug("stream closed")
-			exit = true
+			return nil
 		case <-s.ctx.Done():
 			log.Info("service closed")
-			exit = true
+			return nil
 		}
 	}
-	return nil
 }
 
 func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
-	log := s.log.Named("query")
+	log := s.log.With(zap.String("method", "query"))
 	params, err := s.queryReqToDBParams(req)
 	if err != nil {
 		return nil, err

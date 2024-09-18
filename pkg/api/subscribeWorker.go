@@ -32,40 +32,53 @@ type listener struct {
 	isGlobal    bool
 }
 
+type listenerSet struct {
+	sync.Map // map[*listener]struct{}
+}
+
+func (ls *listenerSet) addListener(l *listener) {
+	ls.Store(l, struct{}{})
+}
+
+func (ls *listenerSet) removeListener(l *listener) {
+	ls.Delete(l)
+}
+
+func (ls *listenerSet) isEmpty() bool {
+	empty := true
+	ls.Range(func(_, _ interface{}) bool {
+		empty = false
+		return false // stop iteration
+	})
+	return empty
+}
+
 // Maps from a key to a set of listeners
-type listenerMap[K comparable] struct {
-	sync.Map // map[K]*sync.Map, where inner sync.Map is map[*listener]struct{}
+type listenersMap[K comparable] struct {
+	sync.Map // map[K]*listenerSet
 }
 
-func (lm *listenerMap[K]) addListener(key K, l *listener) {
-	value, _ := lm.LoadOrStore(key, &sync.Map{})
-	innerMap := value.(*sync.Map)
-	innerMap.Store(l, struct{}{})
+func (lm *listenersMap[K]) addListener(key K, l *listener) {
+	value, _ := lm.LoadOrStore(key, &listenerSet{})
+	set := value.(*listenerSet)
+	set.addListener(l)
 }
 
-func (lm *listenerMap[K]) removeListener(key K, l *listener) {
+func (lm *listenersMap[K]) removeListener(key K, l *listener) {
 	for {
 		value, ok := lm.Load(key)
 		if !ok || value == nil {
 			return // Key doesn't exist, nothing to do
 		}
-		innerMap := value.(*sync.Map)
-		innerMap.Delete(l)
+		set := value.(*listenerSet)
+		set.removeListener(l)
 
-		if !isEmptySyncMap(innerMap) || lm.CompareAndDelete(key, value) {
+		if !set.isEmpty() || lm.CompareAndDelete(key, value) {
 			return
 		}
+		// Another goroutine either removed the key already or added a listener,
+		// try again. Should only retry once at most.
 	}
-}
-
-// isEmptySyncMap checks if a sync.Map is empty
-func isEmptySyncMap(m *sync.Map) bool {
-	empty := true
-	m.Range(func(_, _ interface{}) bool {
-		empty = false
-		return false // stop iteration
-	})
-	return empty
 }
 
 // A worker that listens for new envelopes in the DB and sends them to subscribers
@@ -77,9 +90,9 @@ type subscribeWorker struct {
 
 	dbSubscription <-chan []queries.GatewayEnvelope
 	// Assumption: listeners cannot be in multiple slices
-	topicListeners      listenerMap[string]
-	originatorListeners listenerMap[uint32]
-	globalListeners     sync.Map // map[*listener]struct{}
+	globalListeners     listenerSet
+	originatorListeners listenersMap[uint32]
+	topicListeners      listenersMap[string]
 }
 
 func startSubscribeWorker(
@@ -128,9 +141,9 @@ func startSubscribeWorker(
 		ctx:                 ctx,
 		log:                 log,
 		dbSubscription:      dbChan,
-		globalListeners:     sync.Map{},
-		originatorListeners: listenerMap[uint32]{},
-		topicListeners:      listenerMap[string]{},
+		globalListeners:     listenerSet{},
+		originatorListeners: listenersMap[uint32]{},
+		topicListeners:      listenersMap[string]{},
 	}
 
 	go worker.start()
@@ -160,20 +173,20 @@ func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
 	}
 
 	originatorID := uint32(row.OriginatorNodeID)
-	if listenersMap, ok := s.originatorListeners.Load(originatorID); ok {
-		s.dispatchToListeners(listenersMap.(*sync.Map), env)
+	if listeners, ok := s.originatorListeners.Load(originatorID); ok {
+		s.dispatchToListeners(listeners.(*listenerSet), env)
 	}
 
 	topic := hex.EncodeToString(row.Topic)
-	if listenersMap, ok := s.topicListeners.Load(topic); ok {
-		s.dispatchToListeners(listenersMap.(*sync.Map), env)
+	if listeners, ok := s.topicListeners.Load(topic); ok {
+		s.dispatchToListeners(listeners.(*listenerSet), env)
 	}
 
 	s.dispatchToListeners(&s.globalListeners, env)
 }
 
 func (s *subscribeWorker) dispatchToListeners(
-	listeners *sync.Map,
+	listeners *listenerSet,
 	env *message_api.OriginatorEnvelope,
 ) {
 	listeners.Range(func(key, _ any) bool {

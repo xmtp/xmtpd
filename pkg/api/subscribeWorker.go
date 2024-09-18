@@ -6,15 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -27,11 +24,12 @@ const (
 )
 
 type listener struct {
+	ctx         context.Context
 	ch          chan<- []*message_api.OriginatorEnvelope
+	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
 	isGlobal    bool
-	closed      atomic.Bool
 }
 
 // Maps from a key to a set of listeners
@@ -180,80 +178,32 @@ func (s *subscribeWorker) dispatchToListeners(
 ) {
 	listeners.Range(func(key, _ any) bool {
 		l := key.(*listener)
+		if l.closed {
+			return true
+		}
+		// Assumption: listener channel is never closed by a different goroutine
 		select {
-		case l.ch <- []*message_api.OriginatorEnvelope{env}:
-			// Successfully sent
+		case <-l.ctx.Done():
+			s.log.Debug("Stream closed, removing listener", zap.Any("listener", l.ch))
+			s.closeListener(l)
 		default:
-			// Channel is full or closed
-			s.log.Info("Channel full or closed, removing listener", zap.Any("listener", l.ch))
-			go s.removeListener(l)
+			select {
+			case l.ch <- []*message_api.OriginatorEnvelope{env}:
+			default:
+				s.log.Info("Channel full, removing listener", zap.Any("listener", l.ch))
+				s.closeListener(l)
+			}
 		}
 		return true
 	})
 }
 
-func (s *subscribeWorker) listen(
-	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
-) (<-chan []*message_api.OriginatorEnvelope, func(), error) {
-	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
-	l := &listener{
-		ch:          ch,
-		topics:      make(map[string]struct{}),
-		originators: make(map[uint32]struct{}),
-		isGlobal:    false,
-	}
+func (s *subscribeWorker) closeListener(l *listener) {
+	// Assumption: this method may not be called across multiple goroutines
+	l.closed = true
+	close(l.ch)
 
-	if len(requests) > maxSubscriptionsPerClient {
-		return nil, nil, fmt.Errorf(
-			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
-			len(requests),
-		)
-	}
-	for _, req := range requests {
-		enum := req.GetQuery().GetFilter()
-		if enum == nil {
-			l.isGlobal = true
-		}
-		switch filter := enum.(type) {
-		case *message_api.EnvelopesQuery_Topic:
-			if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
-				return nil, nil, status.Errorf(codes.InvalidArgument, "invalid topic")
-			}
-			l.topics[hex.EncodeToString(filter.Topic)] = struct{}{}
-		case *message_api.EnvelopesQuery_OriginatorNodeId:
-			l.originators[filter.OriginatorNodeId] = struct{}{}
-		default:
-			l.isGlobal = true
-		}
-	}
-
-	if l.isGlobal {
-		if len(l.topics) > 0 || len(l.originators) > 0 {
-			return nil, nil, fmt.Errorf(
-				"cannot filter by topic or originator when subscribing to all",
-			)
-		}
-		s.globalListeners.Store(l, struct{}{})
-	} else if len(l.topics) > 0 {
-		if len(l.originators) > 0 {
-			return nil, nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
-		}
-		for topic := range l.topics {
-			s.topicListeners.addListener(topic, l)
-		}
-	} else if len(l.originators) > 0 {
-		for originator := range l.originators {
-			s.originatorListeners.addListener(originator, l)
-		}
-	}
-
-	return ch, func() { s.removeListener(l) }, nil
-}
-
-func (s *subscribeWorker) removeListener(l *listener) {
-	if l.closed.CompareAndSwap(false, true) {
-		close(l.ch)
-
+	go func() {
 		if l.isGlobal {
 			s.globalListeners.Delete(l)
 		}
@@ -265,5 +215,72 @@ func (s *subscribeWorker) removeListener(l *listener) {
 		for origin := range l.originators {
 			s.originatorListeners.removeListener(origin, l)
 		}
+	}()
+}
+
+func (s *subscribeWorker) listen(
+	ctx context.Context,
+	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
+) (<-chan []*message_api.OriginatorEnvelope, error) {
+	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
+	l := &listener{
+		ctx:         ctx,
+		ch:          ch,
+		topics:      make(map[string]struct{}),
+		originators: make(map[uint32]struct{}),
+		isGlobal:    false,
 	}
+
+	if len(requests) > maxSubscriptionsPerClient {
+		return nil, fmt.Errorf(
+			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
+			len(requests),
+		)
+	}
+	for _, req := range requests {
+		enum := req.GetQuery().GetFilter()
+		if enum == nil {
+			l.isGlobal = true
+		}
+		switch filter := enum.(type) {
+		case *message_api.EnvelopesQuery_Topic:
+			topic := hex.EncodeToString(filter.Topic)
+			if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
+				return nil, fmt.Errorf("invalid topic: %s", topic)
+			}
+			if _, exists := l.topics[topic]; exists {
+				return nil, fmt.Errorf("multiple requests for same topic: %s", topic)
+			}
+			l.topics[topic] = struct{}{}
+		case *message_api.EnvelopesQuery_OriginatorNodeId:
+			if _, exists := l.originators[filter.OriginatorNodeId]; exists {
+				return nil, fmt.Errorf("multiple requests for same originator: %d", filter.OriginatorNodeId)
+			}
+			l.originators[filter.OriginatorNodeId] = struct{}{}
+		default:
+			l.isGlobal = true
+		}
+	}
+
+	if l.isGlobal {
+		if len(l.topics) > 0 || len(l.originators) > 0 {
+			return nil, fmt.Errorf(
+				"cannot filter by topic or originator when subscribing to all",
+			)
+		}
+		s.globalListeners.Store(l, struct{}{})
+	} else if len(l.topics) > 0 {
+		if len(l.originators) > 0 {
+			return nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
+		}
+		for topic := range l.topics {
+			s.topicListeners.addListener(topic, l)
+		}
+	} else if len(l.originators) > 0 {
+		for originator := range l.originators {
+			s.originatorListeners.addListener(originator, l)
+		}
+	}
+
+	return ch, nil
 }

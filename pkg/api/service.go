@@ -79,11 +79,10 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "missing requests")
 	}
 
-	ch, cleanup, err := s.subscribeWorker.listen(requests)
+	ch, err := s.subscribeWorker.listen(stream.Context(), requests)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
-	defer cleanup()
 
 	for {
 		select {
@@ -97,7 +96,7 @@ func (s *Service) BatchSubscribeEnvelopes(
 				}
 			} else {
 				// TODO(rich) Recover from backpressure
-				log.Info("stream closed due to backpressure")
+				log.Debug("channel closed by worker")
 				return nil
 			}
 		case <-stream.Context().Done():

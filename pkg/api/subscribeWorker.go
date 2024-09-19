@@ -228,9 +228,11 @@ func (s *subscribeWorker) closeListener(l *listener) {
 	go func() {
 		if l.isGlobal {
 			s.globalListeners.Delete(l)
+		} else if len(l.topics) > 0 {
+			s.topicListeners.removeListener(l.topics, l)
+		} else if len(l.originators) > 0 {
+			s.originatorListeners.removeListener(l.originators, l)
 		}
-		s.topicListeners.removeListener(l.topics, l)
-		s.originatorListeners.removeListener(l.originators, l)
 	}()
 }
 

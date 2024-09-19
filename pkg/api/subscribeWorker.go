@@ -44,7 +44,7 @@ func (ls *listenerSet) removeListener(l *listener) {
 	ls.Delete(l)
 }
 
-func (ls *listenerSet) IsEmpty() bool {
+func (ls *listenerSet) isEmpty() bool {
 	empty := true
 	ls.Range(func(_, _ interface{}) bool {
 		empty = false
@@ -55,23 +55,42 @@ func (ls *listenerSet) IsEmpty() bool {
 
 // Maps from a key to a set of listeners
 type listenersMap[K comparable] struct {
-	sync.Map // map[K]*listenerSet
+	data sync.Map     // map[K]*listenerSet
+	mu   sync.RWMutex // ensures mutations are consistent
 }
 
-func (lm *listenersMap[K]) addListener(key K, l *listener) {
-	value, _ := lm.LoadOrStore(key, &listenerSet{})
-	set := value.(*listenerSet)
-	set.addListener(l)
-}
-
-func (lm *listenersMap[K]) removeListener(key K, l *listener) {
-	value, ok := lm.Load(key)
-	if !ok || value == nil {
-		return // Key doesn't exist, nothing to do
+func (lm *listenersMap[K]) addListener(keys map[K]struct{}, l *listener) {
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+	for key := range keys {
+		value, _ := lm.data.LoadOrStore(key, &listenerSet{})
+		set := value.(*listenerSet)
+		set.addListener(l)
 	}
-	set := value.(*listenerSet)
-	set.removeListener(l)
-	// TODO(rich): Delete keys that hold empty sets
+}
+
+func (lm *listenersMap[K]) removeListener(keys map[K]struct{}, l *listener) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	for key := range keys {
+		value, ok := lm.data.Load(key)
+		if !ok || value == nil {
+			return // Key doesn't exist, nothing to do
+		}
+		set := value.(*listenerSet)
+		set.removeListener(l)
+		if set.isEmpty() {
+			lm.data.Delete(key)
+		}
+	}
+}
+
+func (lm *listenersMap[K]) getListeners(key K) *listenerSet {
+	// No lock needed, because we are not mutating lm.data
+	if value, ok := lm.data.Load(key); ok {
+		return value.(*listenerSet)
+	}
+	return nil
 }
 
 // A worker that listens for new envelopes in the DB and sends them to subscribers
@@ -165,16 +184,10 @@ func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
 		return
 	}
 
-	originatorID := uint32(row.OriginatorNodeID)
-	if listeners, ok := s.originatorListeners.Load(originatorID); ok {
-		s.dispatchToListeners(listeners.(*listenerSet), env)
-	}
-
-	topic := hex.EncodeToString(row.Topic)
-	if listeners, ok := s.topicListeners.Load(topic); ok {
-		s.dispatchToListeners(listeners.(*listenerSet), env)
-	}
-
+	originatorListeners := s.originatorListeners.getListeners(uint32(row.OriginatorNodeID))
+	topicListeners := s.topicListeners.getListeners(hex.EncodeToString(row.Topic))
+	s.dispatchToListeners(originatorListeners, env)
+	s.dispatchToListeners(topicListeners, env)
 	s.dispatchToListeners(&s.globalListeners, env)
 }
 
@@ -182,6 +195,9 @@ func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
 	env *message_api.OriginatorEnvelope,
 ) {
+	if listeners == nil {
+		return
+	}
 	listeners.Range(func(key, _ any) bool {
 		l := key.(*listener)
 		if l.closed {
@@ -213,14 +229,8 @@ func (s *subscribeWorker) closeListener(l *listener) {
 		if l.isGlobal {
 			s.globalListeners.Delete(l)
 		}
-
-		for topic := range l.topics {
-			s.topicListeners.removeListener(topic, l)
-		}
-
-		for origin := range l.originators {
-			s.originatorListeners.removeListener(origin, l)
-		}
+		s.topicListeners.removeListener(l.topics, l)
+		s.originatorListeners.removeListener(l.originators, l)
 	}()
 }
 
@@ -279,13 +289,9 @@ func (s *subscribeWorker) listen(
 		if len(l.originators) > 0 {
 			return nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
 		}
-		for topic := range l.topics {
-			s.topicListeners.addListener(topic, l)
-		}
+		s.topicListeners.addListener(l.topics, l)
 	} else if len(l.originators) > 0 {
-		for originator := range l.originators {
-			s.originatorListeners.addListener(originator, l)
-		}
+		s.originatorListeners.addListener(l.originators, l)
 	}
 
 	return ch, nil

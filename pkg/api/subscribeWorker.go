@@ -44,7 +44,7 @@ func (ls *listenerSet) removeListener(l *listener) {
 	ls.Delete(l)
 }
 
-func (ls *listenerSet) isEmpty() bool {
+func (ls *listenerSet) IsEmpty() bool {
 	empty := true
 	ls.Range(func(_, _ interface{}) bool {
 		empty = false
@@ -65,20 +65,13 @@ func (lm *listenersMap[K]) addListener(key K, l *listener) {
 }
 
 func (lm *listenersMap[K]) removeListener(key K, l *listener) {
-	for {
-		value, ok := lm.Load(key)
-		if !ok || value == nil {
-			return // Key doesn't exist, nothing to do
-		}
-		set := value.(*listenerSet)
-		set.removeListener(l)
-
-		if !set.isEmpty() || lm.CompareAndDelete(key, value) {
-			return
-		}
-		// Another goroutine either removed the key already or added a listener,
-		// try again. Should only retry once at most.
+	value, ok := lm.Load(key)
+	if !ok || value == nil {
+		return // Key doesn't exist, nothing to do
 	}
+	set := value.(*listenerSet)
+	set.removeListener(l)
+	// TODO(rich): Delete keys that hold empty sets
 }
 
 // A worker that listens for new envelopes in the DB and sends them to subscribers

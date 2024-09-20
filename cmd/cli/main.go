@@ -23,6 +23,7 @@ type globalOptions struct {
 type CLI struct {
 	globalOptions
 	Command      string
+	GetPubKey    config.GetPubKeyOptions
 	GenerateKey  config.GenerateKeyOptions
 	RegisterNode config.RegisterNodeOptions
 }
@@ -40,6 +41,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var options globalOptions
 	var generateKeyOptions config.GenerateKeyOptions
 	var registerNodeOptions config.RegisterNodeOptions
+	var getPubKeyOptions config.GetPubKeyOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
@@ -47,6 +49,9 @@ func parseOptions(args []string) (*CLI, error) {
 	}
 	if _, err := parser.AddCommand("register-node", "Register a node", "", &registerNodeOptions); err != nil {
 		return nil, fmt.Errorf("Could not add register-node command: %s", err)
+	}
+	if _, err := parser.AddCommand("get-pub-key", "Get the public key for a private key", "", &getPubKeyOptions); err != nil {
+		return nil, fmt.Errorf("Could not add get-pub-key command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -62,11 +67,22 @@ func parseOptions(args []string) (*CLI, error) {
 	return &CLI{
 		options,
 		parser.Active.Name,
+		getPubKeyOptions,
 		generateKeyOptions,
 		registerNodeOptions,
 	}, nil
 }
 
+func getPubKey(logger *zap.Logger, options *CLI) {
+	privKey, err := utils.ParseEcdsaPrivateKey(options.GetPubKey.PrivateKey)
+	if err != nil {
+		logger.Fatal("could not parse private key", zap.Error(err))
+	}
+	logger.Info(
+		"parsed private key",
+		zap.String("pub-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
+	)
+}
 func registerNode(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
 	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
@@ -93,7 +109,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	signingKeyPub, err := utils.ParseEcdsaPublicKey(options.RegisterNode.SigningKey)
+	signingKeyPub, err := utils.ParseEcdsaPublicKey(options.RegisterNode.SigningKeyPub)
 	if err != nil {
 		logger.Fatal("could not decompress public key", zap.Error(err))
 	}
@@ -143,6 +159,9 @@ func main() {
 	switch options.Command {
 	case "generate-key":
 		generateKey(logger)
+		return
+	case "get-pub-key":
+		getPubKey(logger, options)
 		return
 	case "register-node":
 		registerNode(logger, options)

@@ -147,30 +147,26 @@ func (s *subscribeWorker) listen(
 	originators := make(map[uint32]bool, len(requests))
 
 	if len(requests) > maxSubscriptionsPerClient {
-		// When a client subscribes to too many originators or topics, we treat it as a request to
-		// subscribe to all instead of throwing an error. We rely on the client's existing
-		// filtering logic rather than forcing clients to respond to an error.
-		subscribeAll = true
-		s.log.Info(
-			"Client subscribed to too many topics or originators; treating as subscribe to all",
-			zap.Int("num_requests", len(requests)))
-	} else {
-		for _, req := range requests {
-			enum := req.GetQuery().GetFilter()
-			if enum == nil {
-				subscribeAll = true
+		return nil, fmt.Errorf(
+			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
+			len(requests),
+		)
+	}
+	for _, req := range requests {
+		enum := req.GetQuery().GetFilter()
+		if enum == nil {
+			subscribeAll = true
+		}
+		switch filter := enum.(type) {
+		case *message_api.EnvelopesQuery_Topic:
+			if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid topic")
 			}
-			switch filter := enum.(type) {
-			case *message_api.EnvelopesQuery_Topic:
-				if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
-					return nil, status.Errorf(codes.InvalidArgument, "invalid topic")
-				}
-				topics[hex.EncodeToString(filter.Topic)] = true
-			case *message_api.EnvelopesQuery_OriginatorNodeId:
-				originators[filter.OriginatorNodeId] = true
-			default:
-				subscribeAll = true
-			}
+			topics[hex.EncodeToString(filter.Topic)] = true
+		case *message_api.EnvelopesQuery_OriginatorNodeId:
+			originators[filter.OriginatorNodeId] = true
+		default:
+			subscribeAll = true
 		}
 	}
 

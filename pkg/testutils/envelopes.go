@@ -15,6 +15,19 @@ func Marshal(t *testing.T, msg proto.Message) []byte {
 	return bytes
 }
 
+func UnmarshalUnsignedOriginatorEnvelope(
+	t *testing.T,
+	bytes []byte,
+) *message_api.UnsignedOriginatorEnvelope {
+	unsignedOriginatorEnvelope := &message_api.UnsignedOriginatorEnvelope{}
+	err := proto.Unmarshal(
+		bytes,
+		unsignedOriginatorEnvelope,
+	)
+	require.NoError(t, err)
+	return unsignedOriginatorEnvelope
+}
+
 func CreateClientEnvelope() *message_api.ClientEnvelope {
 	return &message_api.ClientEnvelope{
 		Payload: nil,

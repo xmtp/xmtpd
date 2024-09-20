@@ -84,6 +84,13 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
 
+	// TODO(rich) Pull from DB here and feed into stream. Need to make sure you pull one more time after first message comes in.
+	//		- How to construct an efficient query that is not gigantic?
+	// Pull until less than a page length
+	// Update vector clock per-request.
+	// When pulling from channel, discard dupes.
+	// If channel is closed, reset vector clock and restart.
+
 	for {
 		select {
 		case envs, open := <-ch:

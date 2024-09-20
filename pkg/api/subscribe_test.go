@@ -104,7 +104,6 @@ func validateUpdates(
 }
 
 func TestSubscribeEnvelopesAll(t *testing.T) {
-	t.Skip("TODO(rich) thread safety for race tests")
 	client, db, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
@@ -131,7 +130,6 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
-	t.Skip("TODO(rich) thread safety for race tests")
 	client, db, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
@@ -164,7 +162,6 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesByOriginator(t *testing.T) {
-	t.Skip("TODO(rich) thread safety for race tests")
 	client, db, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
@@ -197,7 +194,6 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestSimultaneousSubscriptions(t *testing.T) {
-	t.Skip("TODO(rich) thread safety for race tests")
 	client, db, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
@@ -256,7 +252,6 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
-	t.Skip("TODO(rich) thread safety for race tests")
 	client, _, cleanup := setupTest(t)
 	defer cleanup()
 

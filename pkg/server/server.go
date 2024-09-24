@@ -3,10 +3,13 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -93,6 +96,61 @@ func NewReplicationServer(
 	}
 
 	log.Info("Replication server started", zap.Int("port", options.API.Port))
+
+	nodes, err := nodeRegistry.GetNodes()
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range nodes {
+		if node.NodeID == s.registrant.NodeID() || node.NodeID == 0 {
+			continue
+		}
+		for {
+			//addr := "dns://" + node.HttpAddress
+			addr := node.HttpAddress
+			log.Info(fmt.Sprintf("attempting to connect to %s", addr))
+			conn, err := s.apiServer.DialGRPC(addr)
+			if err != nil {
+				time.Sleep(100 * time.Millisecond)
+				log.Info("Replication server failed to connect to peer. Retrying...")
+				continue
+			}
+			client := message_api.NewReplicationApiClient(conn)
+			stream, err := client.BatchSubscribeEnvelopes(
+				ctx,
+				&message_api.BatchSubscribeEnvelopesRequest{
+					Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
+						{
+							Query: &message_api.EnvelopesQuery{
+								Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
+									OriginatorNodeId: node.NodeID,
+								},
+								LastSeen: nil,
+							},
+						},
+					},
+				},
+			)
+			if err != nil {
+				time.Sleep(100 * time.Millisecond)
+				log.Info(fmt.Sprintf(
+					"Replication server failed to batch subscribe to peer. Retrying... %v",
+					err),
+				)
+				continue
+			}
+			go func(stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient) {
+				envs, err := stream.Recv()
+				if err != nil {
+					panic("goroutine does not like us")
+				}
+				for _, env := range envs.Envelopes {
+					print(env)
+				}
+			}(stream)
+			break
+		}
+	}
 	return s, nil
 }
 

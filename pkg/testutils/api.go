@@ -41,7 +41,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 
 func NewTestAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
 	svc, db, cleanup := NewTestAPIServer(t)
-	conn, err := svc.DialGRPC(context.Background())
+	conn, err := svc.DialGRPCTest(context.Background())
 	require.NoError(t, err)
 	client := message_api.NewReplicationApiClient(conn)
 

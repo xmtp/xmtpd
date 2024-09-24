@@ -111,13 +111,13 @@ func NewReplicationServer(
 			log.Info(fmt.Sprintf("attempting to connect to %s", addr))
 			conn, err := s.apiServer.DialGRPC(addr)
 			if err != nil {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(1000 * time.Millisecond)
 				log.Info("Replication server failed to connect to peer. Retrying...")
 				continue
 			}
 			client := message_api.NewReplicationApiClient(conn)
 			stream, err := client.BatchSubscribeEnvelopes(
-				ctx,
+				s.ctx,
 				&message_api.BatchSubscribeEnvelopesRequest{
 					Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
 						{
@@ -132,13 +132,16 @@ func NewReplicationServer(
 				},
 			)
 			if err != nil {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(1000 * time.Millisecond)
 				log.Info(fmt.Sprintf(
 					"Replication server failed to batch subscribe to peer. Retrying... %v",
 					err),
 				)
 				continue
 			}
+
+			log.Info(fmt.Sprintf("Successfully connected to peer at %s", addr))
+
 			go func(stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient) {
 				envs, err := stream.Recv()
 				if err != nil {
@@ -160,7 +163,14 @@ func (s *ReplicationServer) Addr() net.Addr {
 
 func (s *ReplicationServer) WaitForShutdown() {
 	termChannel := make(chan os.Signal, 1)
-	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+	signal.Notify(
+		termChannel,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGHUP,
+		syscall.SIGQUIT,
+		syscall.SIGABRT,
+	)
 	<-termChannel
 	s.Shutdown()
 }

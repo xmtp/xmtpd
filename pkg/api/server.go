@@ -31,7 +31,7 @@ type ApiServer struct {
 	log          *zap.Logger
 	registrant   *registrant.Registrant
 	service      message_api.ReplicationApiServer
-	wg           sync.WaitGroup
+	Wg           sync.WaitGroup
 }
 
 func NewAPIServer(
@@ -56,7 +56,7 @@ func NewAPIServer(
 		},
 		log:        log.Named("api"),
 		registrant: registrant,
-		wg:         sync.WaitGroup{},
+		Wg:         sync.WaitGroup{},
 	}
 
 	// TODO: Add interceptors
@@ -91,12 +91,13 @@ func NewAPIServer(
 	s.service = replicationService
 	message_api.RegisterReplicationApiServer(s.grpcServer, s.service)
 
-	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
+	tracing.GoPanicWrap(s.ctx, &s.Wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))
 		if err = s.grpcServer.Serve(s.grpcListener); err != nil &&
 			!isErrUseOfClosedConnection(err) {
 			s.log.Error("serving grpc", zap.Error(err))
 		}
+		log.Info("grpc thread has exited")
 	})
 
 	return s, nil
@@ -135,15 +136,15 @@ func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 	go func() {
 		defer cancel()
 		<-time.NewTimer(timeout).C
+		s.grpcServer.Stop()
 	}()
-
 	<-ctx.Done()
 }
 
 func (s *ApiServer) Close() {
 	s.log.Info("closing")
 	if s.grpcServer != nil {
-		s.gracefulShutdown(10 * time.Second)
+		s.gracefulShutdown(1 * time.Second)
 	}
 	if s.grpcListener != nil {
 		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {
@@ -151,8 +152,7 @@ func (s *ApiServer) Close() {
 		}
 		s.grpcListener = nil
 	}
-
-	s.wg.Wait()
+	s.Wg.Wait()
 	s.log.Info("closed")
 }
 

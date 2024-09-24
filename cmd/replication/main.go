@@ -87,12 +87,15 @@ func main() {
 			log.Fatal("initializing server", zap.Error(err))
 		}
 
+		log.Println("waiting for shutdown")
 		s.WaitForShutdown()
+		log.Println("received shutdown signal. done!")
 		doneC <- true
 	})
 	<-doneC
-
+	log.Println("going to call cancel")
 	cancel()
+	log.Println("called cancel")
 	wg.Wait()
 }
 

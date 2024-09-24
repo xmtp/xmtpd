@@ -8,4 +8,4 @@ set -eu
 
 export XMTPD_SIGNER_PRIVATE_KEY="0xa9daf3edaf1e5eca26d2c99e9c03a263574df497113361fe65b828f6a4663975"
 export XMTPD_DB_WRITER_CONNECTION_STRING="postgres://postgres:xmtp@localhost:8766/postgres?sslmode=disable"
-go run cmd/replication/main.go "$@"
+go run cmd/replication/main.go -p 5051 "$@"

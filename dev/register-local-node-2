@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -eu
+
+. dev/local.env
+
+dev/cli register-node \
+    --http-address=passthrough://localhost/[::]:5051 \
+    --owner-address=0xf0490b45884803924Ca84C2051ef435991D7350D \
+    --admin-private-key=$PRIVATE_KEY \
+    --signing-key-pub=0x0378a53d8856f73f87ccb7e7d5d34f86f9301b434d08773355c3cf1a518e6fe4fc

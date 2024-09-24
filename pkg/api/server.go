@@ -126,6 +126,8 @@ func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 	go func() {
 		defer cancel()
 		<-time.NewTimer(timeout).C
+		s.log.Info("Graceful shutdown timed out. Stopping...")
+		s.grpcServer.Stop()
 	}()
 
 	<-ctx.Done()

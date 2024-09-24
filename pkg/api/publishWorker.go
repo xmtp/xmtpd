@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type PublishWorker struct {
+type publishWorker struct {
 	ctx          context.Context
 	log          *zap.Logger
 	listener     <-chan []queries.StagedOriginatorEnvelope
@@ -22,13 +22,13 @@ type PublishWorker struct {
 	subscription db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
 }
 
-func StartPublishWorker(
+func startPublishWorker(
 	ctx context.Context,
 	log *zap.Logger,
 	reg *registrant.Registrant,
 	store *sql.DB,
-) (*PublishWorker, error) {
-	log = log.Named("publishWorker")
+) (*publishWorker, error) {
+	log = log.With(zap.String("method", "publishWorker"))
 	q := queries.New(store)
 	query := func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.StagedOriginatorEnvelope, int64, error) {
 		results, err := q.SelectStagedOriginatorEnvelopes(
@@ -59,7 +59,7 @@ func StartPublishWorker(
 		return nil, err
 	}
 
-	worker := &PublishWorker{
+	worker := &publishWorker{
 		ctx:          ctx,
 		log:          log,
 		notifier:     notifier,
@@ -73,14 +73,14 @@ func StartPublishWorker(
 	return worker, nil
 }
 
-func (p *PublishWorker) NotifyStagedPublish() {
+func (p *publishWorker) notifyStagedPublish() {
 	select {
 	case p.notifier <- true:
 	default:
 	}
 }
 
-func (p *PublishWorker) start() {
+func (p *publishWorker) start() {
 	for {
 		select {
 		case <-p.ctx.Done():
@@ -97,7 +97,7 @@ func (p *PublishWorker) start() {
 	}
 }
 
-func (p *PublishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
+func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
 	logger := p.log.With(zap.Int64("sequenceID", stagedEnv.ID))
 	originatorEnv, err := p.registrant.SignStagedEnvelope(stagedEnv)
 	if err != nil {

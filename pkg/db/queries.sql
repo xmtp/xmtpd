@@ -66,3 +66,12 @@ LIMIT @num_rows;
 DELETE FROM staged_originator_envelopes
 WHERE id = @id;
 
+-- name: SelectVectorClock :many
+SELECT
+	originator_node_id,
+	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+GROUP BY
+	originator_node_id;
+

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pingcap/log"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -34,7 +33,6 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	require.NoError(t, err)
 
 	return svr, db, func() {
-		log.Info("-------- Cleaning up server and DB ----------")
 		cancel()
 		svr.Close()
 		dbCleanup()
@@ -48,7 +46,6 @@ func NewTestAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, 
 	client := message_api.NewReplicationApiClient(conn)
 
 	return client, db, func() {
-		log.Info("-------- Closing client connection ----------")
 		conn.Close()
 		require.NoError(t, err)
 		cleanup()

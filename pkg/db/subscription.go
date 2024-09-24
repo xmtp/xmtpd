@@ -21,6 +21,8 @@ type PollingOptions struct {
 	NumRows  int32
 }
 
+// A subscription that polls a DB for updates
+// Assumes there is only one listener (updates block on a single unbuffered channel)
 type DBSubscription[ValueType any, CursorType any] struct {
 	ctx      context.Context
 	log      *zap.Logger

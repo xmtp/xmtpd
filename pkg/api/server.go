@@ -97,7 +97,6 @@ func NewAPIServer(
 			!isErrUseOfClosedConnection(err) {
 			s.log.Error("serving grpc", zap.Error(err))
 		}
-		log.Info("grpc thread has exited")
 	})
 
 	return s, nil

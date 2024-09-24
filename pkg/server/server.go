@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +35,7 @@ type ReplicationServer struct {
 	options      config.ServerOptions
 	metrics      *metrics.Server
 	writerDB     *sql.DB
+	Wg           sync.WaitGroup
 	// Can add reader DB later if needed
 }
 
@@ -105,56 +108,68 @@ func NewReplicationServer(
 		if node.NodeID == s.registrant.NodeID() || node.NodeID == 0 {
 			continue
 		}
-		for {
-			//addr := "dns://" + node.HttpAddress
-			addr := node.HttpAddress
-			log.Info(fmt.Sprintf("attempting to connect to %s", addr))
-			conn, err := s.apiServer.DialGRPC(addr)
-			if err != nil {
-				time.Sleep(1000 * time.Millisecond)
-				log.Info("Replication server failed to connect to peer. Retrying...")
-				continue
-			}
-			client := message_api.NewReplicationApiClient(conn)
-			stream, err := client.BatchSubscribeEnvelopes(
-				s.ctx,
-				&message_api.BatchSubscribeEnvelopesRequest{
-					Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-						{
-							Query: &message_api.EnvelopesQuery{
-								Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
-									OriginatorNodeId: node.NodeID,
+		subscribeToNode(node, log, s)
+	}
+	return s, nil
+}
+
+func subscribeToNode(node registry.Node, log *zap.Logger, s *ReplicationServer) {
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.Wg,
+		fmt.Sprintf("node-subscribe-%d", node.NodeID),
+		func(ctx context.Context) {
+			for {
+				addr := node.HttpAddress
+				log.Info(fmt.Sprintf("attempting to connect to %s", addr))
+				conn, err := s.apiServer.DialGRPC(addr)
+				if err != nil {
+					time.Sleep(1000 * time.Millisecond)
+					log.Info("Replication server failed to connect to peer. Retrying...")
+					continue
+				}
+				client := message_api.NewReplicationApiClient(conn)
+				stream, err := client.BatchSubscribeEnvelopes(
+					s.ctx,
+					&message_api.BatchSubscribeEnvelopesRequest{
+						Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
+							{
+								Query: &message_api.EnvelopesQuery{
+									Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
+										OriginatorNodeId: node.NodeID,
+									},
+									LastSeen: nil,
 								},
-								LastSeen: nil,
 							},
 						},
 					},
-				},
-			)
-			if err != nil {
-				time.Sleep(1000 * time.Millisecond)
-				log.Info(fmt.Sprintf(
-					"Replication server failed to batch subscribe to peer. Retrying... %v",
-					err),
 				)
-				continue
-			}
-
-			log.Info(fmt.Sprintf("Successfully connected to peer at %s", addr))
-
-			go func(stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient) {
-				envs, err := stream.Recv()
 				if err != nil {
-					panic("goroutine does not like us")
+					time.Sleep(1000 * time.Millisecond)
+					log.Info(fmt.Sprintf(
+						"Replication server failed to batch subscribe to peer. Retrying... %v",
+						err),
+					)
+					continue
 				}
-				for _, env := range envs.Envelopes {
-					print(env)
+
+				log.Info(fmt.Sprintf("Successfully connected to peer at %s", addr))
+				for {
+					envs, err := stream.Recv()
+					if err != nil {
+						log.Info(fmt.Sprintf(
+							"Replication server subscription closed. Retrying... %v",
+							err),
+						)
+						break
+					}
+					for _, env := range envs.Envelopes {
+						log.Info(fmt.Sprintf("Replication server received envelope %s", env))
+					}
 				}
-			}(stream)
-			break
-		}
-	}
-	return s, nil
+			}
+		},
+	)
 }
 
 func (s *ReplicationServer) Addr() net.Addr {

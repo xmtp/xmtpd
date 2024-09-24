@@ -6,7 +6,7 @@ git submodule update --init --recursive
 
 if ! which forge &>/dev/null; then curl -L https://foundry.paradigm.xyz | bash ; fi
 if ! which migrate &>/dev/null; then go install github.com/golang-migrate/migrate/v4/cmd/migrate; fi
-if ! which golangci-lint &>/dev/null; then brew install golangci-lint; fi
+if ! which golangci-lint &>/dev/null; then curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.56.0; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which mockery &>/dev/null; then go install github.com/vektra/mockery/v2; fi
 if ! which sqlc &> /dev/null; then go install github.com/sqlc-dev/sqlc/cmd/sqlc; fi

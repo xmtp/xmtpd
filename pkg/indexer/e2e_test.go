@@ -9,6 +9,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
@@ -18,8 +19,9 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	cfg := testutils.GetContractsOptions(t)
 	querier := queries.New(db)
+	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
-	err := StartIndexer(ctx, logger, querier, cfg)
+	err := StartIndexer(ctx, logger, querier, cfg, validationService)
 	require.NoError(t, err)
 
 	return querier, ctx, func() {

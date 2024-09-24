@@ -34,6 +34,10 @@ type IGroupMessagePublisher interface {
 	Publish(ctx context.Context, groupID [32]byte, message []byte) error
 }
 
+type IIdentityUpdatePublisher interface {
+	Publish(ctx context.Context, groupID [32]byte, identityUpdate []byte) error
+}
+
 type TransactionSigner interface {
 	FromAddress() common.Address
 	SignerFunc() bind.SignerFn

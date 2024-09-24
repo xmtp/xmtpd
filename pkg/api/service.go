@@ -250,7 +250,12 @@ func (s *Service) validatePayerInfo(
 
 func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]byte, error) {
 	if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			"invalid target originator %d, originator ID is %d",
+			clientEnv.GetAad().GetTargetOriginator(),
+			s.registrant.NodeID(),
+		)
 	}
 
 	topic := clientEnv.GetAad().GetTargetTopic()

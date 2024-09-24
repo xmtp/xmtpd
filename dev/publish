@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -eu
+
+go run cmd/publish/main.go "$@"

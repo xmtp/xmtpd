@@ -22,6 +22,10 @@ const (
 	IDENTITY_UPDATE_ORIGINATOR_ID = 1
 )
 
+const (
+	IDENTITY_UPDATE_ORIGINATOR_ID = 1
+)
+
 type IdentityUpdateStorer struct {
 	contract          *abis.IdentityUpdates
 	queries           *queries.Queries
@@ -64,7 +68,7 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 
 	associationState, err := s.validateIdentityUpdate(ctx, msgSent.InboxId, msgSent.Update)
 	if err != nil {
-		log.Error("Error validating identity update", zap.Error(err), zap.Any("msgSent", msgSent))
+		log.Error("Error validating identity update", zap.Error(err))
 		return NewLogStorageError(err, true)
 	}
 

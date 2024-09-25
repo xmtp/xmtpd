@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -29,6 +30,9 @@ func NewMessagePublisher(
 	signer TransactionSigner,
 	contractOptions config.ContractsOptions,
 ) (*MessagePublisher, error) {
+	if client == nil {
+		return nil, errors.New("client is nil")
+	}
 	messagesContract, err := abis.NewGroupMessages(
 		common.HexToAddress(contractOptions.MessagesContractAddress),
 		client,
@@ -50,6 +54,7 @@ func NewMessagePublisher(
 			With(zap.String("contractAddress", contractOptions.MessagesContractAddress)),
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
+		client:                 client,
 	}, nil
 }
 

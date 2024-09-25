@@ -27,12 +27,12 @@ const (
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx             context.Context
-	log             *zap.Logger
-	registrant      *registrant.Registrant
-	store           *sql.DB
-	publishWorker   *publishWorker
-	subscribeWorker *subscribeWorker
+	ctx              context.Context
+	log              *zap.Logger
+	registrant       *registrant.Registrant
+	store            *sql.DB
+	publishWorker    *publishWorker
+	subscribeWorker  *subscribeWorker
 	messagePublisher blockchain.IMessagePublisher
 }
 
@@ -54,12 +54,12 @@ func NewReplicationApiService(
 	}
 
 	return &Service{
-		ctx:             ctx,
-		log:             log,
-		registrant:      registrant,
-		store:           store,
-		publishWorker:   publishWorker,
-		subscribeWorker: subscribeWorker,
+		ctx:              ctx,
+		log:              log,
+		registrant:       registrant,
+		store:            store,
+		publishWorker:    publishWorker,
+		subscribeWorker:  subscribeWorker,
 		messagePublisher: messagePublisher,
 	}, nil
 }
@@ -303,8 +303,8 @@ func (s *Service) validatePayerInfo(
 	payerEnv *message_api.PayerEnvelope,
 ) (*message_api.ClientEnvelope, error) {
 	clientBytes := payerEnv.GetUnsignedClientEnvelope()
-	sig := payerEnv.GetPayerSignature()
-	if (clientBytes == nil) || (sig == nil) {
+	// sig := payerEnv.GetPayerSignature()
+	if clientBytes == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing envelope or signature")
 	}
 	// TODO(rich): Verify payer signature
@@ -323,14 +323,9 @@ func (s *Service) validatePayerInfo(
 }
 
 func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]byte, error) {
-	if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"invalid target originator %d, originator ID is %d",
-			clientEnv.GetAad().GetTargetOriginator(),
-			s.registrant.NodeID(),
-		)
-	}
+	// if clientEnv.GetAad().GetTargetOriginator() != uint32(s.registrant.NodeID()) {
+	// 	return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
+	// }
 
 	topic := clientEnv.GetAad().GetTargetTopic()
 	if len(topic) == 0 {

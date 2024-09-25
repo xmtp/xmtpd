@@ -18,7 +18,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -85,6 +87,21 @@ func NewReplicationServer(
 		queries.New(s.writerDB),
 		nodeRegistry,
 		options.Signer.PrivateKey,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	validationService, err := mlsvalidate.NewMlsValidationService(ctx, options.MlsValidation)
+	if err != nil {
+		return nil, err
+	}
+	err = indexer.StartIndexer(
+		s.ctx,
+		log,
+		queries.New(s.writerDB),
+		options.Contracts,
+		validationService,
 	)
 	if err != nil {
 		return nil, err

@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/xmtp/xmtpd/pkg/api"
@@ -39,6 +40,7 @@ func NewReplicationServer(
 	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
+	messagePublisher blockchain.IMessagePublisher,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -87,6 +89,7 @@ func NewReplicationServer(
 		options.API.Port,
 		s.registrant,
 		options.Reflection.Enable,
+		messagePublisher,
 	)
 	if err != nil {
 		return nil, err

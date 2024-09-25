@@ -54,6 +54,7 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 
 	associationState, err := s.validateIdentityUpdate(ctx, msgSent.InboxId, msgSent.Update)
 	if err != nil {
+		log.Error("Error validating identity update", zap.Error(err))
 		return NewLogStorageError(err, true)
 	}
 

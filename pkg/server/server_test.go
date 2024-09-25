@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
@@ -23,6 +24,7 @@ func NewTestServer(
 	privateKey *ecdsa.PrivateKey,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
+	messagePublisher := blockchain.NewMockIMessagePublisher(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
 		Signer: config.SignerOptions{
@@ -31,7 +33,7 @@ func NewTestServer(
 		API: config.ApiOptions{
 			Port: 0,
 		},
-	}, registry, db)
+	}, registry, db, messagePublisher)
 	require.NoError(t, err)
 
 	return server

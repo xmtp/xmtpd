@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pires/go-proxyproto"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -41,6 +42,7 @@ func NewAPIServer(
 	port int,
 	registrant *registrant.Registrant,
 	enableReflection bool,
+	messagePublisher blockchain.IMessagePublisher,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
@@ -84,7 +86,13 @@ func NewAPIServer(
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)
 
-	replicationService, err := NewReplicationApiService(ctx, log, registrant, writerDB)
+	replicationService, err := NewReplicationApiService(
+		ctx,
+		log,
+		registrant,
+		writerDB,
+		messagePublisher,
+	)
 	if err != nil {
 		return nil, err
 	}

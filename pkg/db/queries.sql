@@ -51,6 +51,14 @@ SELECT
 FROM
 	insert_staged_originator_envelope(@topic, @payer_envelope);
 
+-- name: GetLatestSequenceId :one
+SELECT
+	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = @originator_node_id;
+
 -- name: SelectStagedOriginatorEnvelopes :many
 SELECT
 	*
@@ -119,3 +127,4 @@ WHERE (address, inbox_id, association_sequence_id) =(
 	GROUP BY
 		address,
 		inbox_id);
+

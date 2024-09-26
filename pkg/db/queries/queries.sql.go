@@ -75,6 +75,22 @@ func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]Get
 	return items, nil
 }
 
+const getLatestSequenceId = `-- name: GetLatestSequenceId :one
+SELECT
+	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = $1
+`
+
+func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getLatestSequenceId, originatorNodeID)
+	var originator_sequence_id int64
+	err := row.Scan(&originator_sequence_id)
+	return originator_sequence_id, err
+}
+
 const insertAddressLog = `-- name: InsertAddressLog :one
 INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
 	VALUES ($1, decode($2, 'hex'), $3, $4)

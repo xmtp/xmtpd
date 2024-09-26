@@ -50,6 +50,14 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		return NewLogStorageError(err, false)
 	}
 
+	latestSequenceId, err := s.queries.GetLatestSequenceId(ctx, IDENTITY_UPDATE_ORIGINATOR_ID)
+	if err != nil {
+		return NewLogStorageError(err, true)
+	}
+	if uint64(latestSequenceId) >= msgSent.SequenceId {
+		return nil
+	}
+
 	topic := BuildInboxTopic(msgSent.InboxId)
 
 	s.logger.Info("Inserting identity update from contract", zap.String("topic", topic))
@@ -96,8 +104,13 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		s.logger.Error("Error building originator envelope", zap.Error(err))
 		return NewLogStorageError(err, true)
 	}
+	signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(originatorEnvelope)
+	if err != nil {
+		s.logger.Error("Error building signed originator envelope", zap.Error(err))
+		return NewLogStorageError(err, true)
+	}
 
-	originatorEnvelopeBytes, err := proto.Marshal(originatorEnvelope)
+	originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
 	if err != nil {
 		s.logger.Error("Error marshalling originator envelope", zap.Error(err))
 		return NewLogStorageError(err, true)
@@ -176,5 +189,18 @@ func buildClientEnvelope(update []byte) (*message_api.ClientEnvelope, error) {
 		Payload: &message_api.ClientEnvelope_IdentityUpdate{
 			IdentityUpdate: &identityUpdate,
 		},
+	}, nil
+}
+
+func buildSignedOriginatorEnvelope(
+	originatorEnvelope *message_api.UnsignedOriginatorEnvelope,
+) (*message_api.OriginatorEnvelope, error) {
+	envelopeBytes, err := proto.Marshal(originatorEnvelope)
+	if err != nil {
+		return nil, err
+	}
+
+	return &message_api.OriginatorEnvelope{
+		UnsignedOriginatorEnvelope: envelopeBytes,
 	}, nil
 }

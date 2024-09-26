@@ -15,6 +15,11 @@ function deploy_contract() {
         "$1:$2"
 }
 
+export VERIFIER_URL=https://explorer-testnet-staging-88dqtxdinc.t.conduit.xyz/api
+# Block explorer: https://explorer-testnet-staging-88dqtxdinc.t.conduit.xyz/
+export RPC_URL=https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz
+export PRIVATE_KEY="0xf79af7f0dc50a6414afc52f12783812f066418292018da818d683c66e8edd8c2"
+
 deploy_contract src/GroupMessages.sol GroupMessages
 deploy_contract src/Nodes.sol Nodes
 deploy_contract src/IdentityUpdates.sol IdentityUpdates

@@ -303,7 +303,6 @@ func (s *Service) validatePayerInfo(
 	payerEnv *message_api.PayerEnvelope,
 ) (*message_api.ClientEnvelope, error) {
 	clientBytes := payerEnv.GetUnsignedClientEnvelope()
-	// sig := payerEnv.GetPayerSignature()
 	if clientBytes == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing envelope or signature")
 	}
@@ -323,9 +322,14 @@ func (s *Service) validatePayerInfo(
 }
 
 func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]byte, error) {
-	// if clientEnv.GetAad().GetTargetOriginator() != uint32(s.registrant.NodeID()) {
-	// 	return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
-	// }
+	//if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
+	//	return nil, status.Errorf(
+	//		codes.InvalidArgument,
+	//		"invalid target originator %d, originator ID is %d",
+	//		clientEnv.GetAad().GetTargetOriginator(),
+	//		s.registrant.NodeID(),
+	//	)
+	//}
 
 	topic := clientEnv.GetAad().GetTargetTopic()
 	if len(topic) == 0 {

@@ -114,7 +114,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 				continue
 			}
 
-			logger.Info("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
+			logger.Debug("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
 			if len(logs) == 0 {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
 			}

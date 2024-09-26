@@ -4,14 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"net"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -111,12 +113,12 @@ func NewReplicationServer(
 		if node.NodeID == s.registrant.NodeID() || node.NodeID == 0 {
 			continue
 		}
-		subscribeToNode(node, log, s)
+		subscribeToNode(node, log, s, s.writerDB)
 	}
 	return s, nil
 }
 
-func subscribeToNode(node registry.Node, log *zap.Logger, s *ReplicationServer) {
+func subscribeToNode(node registry.Node, log *zap.Logger, s *ReplicationServer, store *sql.DB) {
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.Wg,
@@ -168,6 +170,52 @@ func subscribeToNode(node registry.Node, log *zap.Logger, s *ReplicationServer) 
 					}
 					for _, env := range envs.Envelopes {
 						log.Info(fmt.Sprintf("Replication server received envelope %s", env))
+						originatorBytes, err := proto.Marshal(env)
+						if err != nil {
+							log.Error("Failed to marshal originator envelope", zap.Error(err))
+						}
+
+						unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
+						err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
+						if err != nil {
+							log.Error(
+								"Failed to unmarshal unsigned originator envelope",
+								zap.Error(err),
+							)
+						}
+
+						clientEnvelope := &message_api.ClientEnvelope{}
+						err = proto.Unmarshal(
+							unsignedEnvelope.GetPayerEnvelope().GetUnsignedClientEnvelope(),
+							clientEnvelope,
+						)
+						if err != nil {
+							log.Error(
+								"Failed to unmarshal client envelope",
+								zap.Error(err),
+							)
+						}
+
+						q := queries.New(store)
+
+						// On unique constraint conflicts, no error is thrown, but numRows is 0
+						inserted, err := q.InsertGatewayEnvelope(
+							s.ctx,
+							queries.InsertGatewayEnvelopeParams{
+								OriginatorNodeID: int32(unsignedEnvelope.GetOriginatorNodeId()),
+								OriginatorSequenceID: int64(
+									unsignedEnvelope.GetOriginatorSequenceId(),
+								),
+								Topic:              clientEnvelope.GetAad().GetTargetTopic(),
+								OriginatorEnvelope: originatorBytes,
+							},
+						)
+						if err != nil {
+							log.Error("Failed to insert gateway envelope", zap.Error(err))
+						} else if inserted == 0 {
+							// Envelope was already inserted by another worker
+							log.Error("Envelope already inserted")
+						}
 					}
 				}
 			}

@@ -44,7 +44,8 @@ func StartIndexer(
 	go indexLogs(
 		ctx,
 		streamer.messagesChannel,
-		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
+		logger.Named("indexLogs-groupmessage").
+			With(zap.String("contractAddress", cfg.MessagesContractAddress)),
 		storer.NewGroupMessageStorer(queries, logger, messagesContract),
 	)
 
@@ -56,7 +57,7 @@ func StartIndexer(
 	go indexLogs(
 		ctx,
 		streamer.identityUpdatesChannel,
-		logger.Named("indexLogs").
+		logger.Named("indexLogs-identityupdate").
 			With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress)),
 		storer.NewIdentityUpdateStorer(queries, logger, identityUpdatesContract, validationService),
 	)

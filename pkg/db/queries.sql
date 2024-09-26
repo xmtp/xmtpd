@@ -53,7 +53,7 @@ FROM
 
 -- name: GetLatestSequenceId :one
 SELECT
-	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+    COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
 FROM
 	gateway_envelopes
 WHERE

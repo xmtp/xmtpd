@@ -3,4 +3,4 @@ set -e
 . dev/docker/env
 
 docker_compose build
-docker_compose up -d --remove-orphans
+docker_compose up -d --remove-orphans --wait

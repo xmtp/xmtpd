@@ -51,6 +51,14 @@ SELECT
 FROM
 	insert_staged_originator_envelope(@topic, @payer_envelope);
 
+-- name: GetLatestSequenceId :one
+SELECT
+    COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = @originator_node_id;
+
 -- name: SelectStagedOriginatorEnvelopes :many
 SELECT
 	*
@@ -74,4 +82,49 @@ FROM
 	gateway_envelopes
 GROUP BY
 	originator_node_id;
+
+-- name: GetAddressLogs :many
+SELECT
+	a.address,
+	encode(a.inbox_id, 'hex') AS inbox_id,
+	a.association_sequence_id
+FROM
+	address_log a
+	INNER JOIN (
+		SELECT
+			address,
+			MAX(association_sequence_id) AS max_association_sequence_id
+		FROM
+			address_log
+		WHERE
+			address = ANY (@addresses::TEXT[])
+			AND revocation_sequence_id IS NULL
+		GROUP BY
+			address) b ON a.address = b.address
+	AND a.association_sequence_id = b.max_association_sequence_id;
+
+-- name: InsertAddressLog :one
+INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
+	VALUES (@address, decode(@inbox_id, 'hex'), @association_sequence_id, @revocation_sequence_id)
+RETURNING
+	*;
+
+-- name: RevokeAddressFromLog :exec
+UPDATE
+	address_log
+SET
+	revocation_sequence_id = @revocation_sequence_id
+WHERE (address, inbox_id, association_sequence_id) =(
+	SELECT
+		address,
+		inbox_id,
+		MAX(association_sequence_id)
+	FROM
+		address_log AS a
+	WHERE
+		a.address = @address
+		AND a.inbox_id = decode(@inbox_id, 'hex')
+	GROUP BY
+		address,
+		inbox_id);
 

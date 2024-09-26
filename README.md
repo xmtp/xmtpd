@@ -18,6 +18,7 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 
 - [Go 1.22](https://go.dev/doc/install) -- On macOS install with `brew install go@1.22`
 - [Docker](https://www.docker.com/get-started/)
+- A [buf account](https://buf.build) -- Once created, run `buf registry login` on your terminal
 
 Note that a dependency of this repo will not compile with version of go newer than 1.22.
 

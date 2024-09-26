@@ -56,5 +56,5 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 
 func BuildGroupMessageTopic(groupId [32]byte) string {
 	// We should think about simplifying the topics, since backwards compatibility shouldn't really matter here
-	return fmt.Sprintf("1/m/%x", groupId)
+	return fmt.Sprintf("m/%x", groupId)
 }

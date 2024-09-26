@@ -5,11 +5,14 @@ import (
 	"fmt"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 )
 
 type MLSValidationServiceImpl struct {
@@ -55,6 +58,52 @@ func (s *MLSValidationServiceImpl) GetAssociationState(
 		AssociationState: response.GetAssociationState(),
 		StateDiff:        response.GetStateDiff(),
 	}, nil
+}
+
+func (s *MLSValidationServiceImpl) GetAssociationStateFromEnvelopes(
+	ctx context.Context,
+	oldUpdateEnvelopes []queries.GatewayEnvelope,
+	newUpdateBytes []byte,
+) (*AssociationStateResult, error) {
+	oldUpdates := make([]*associations.IdentityUpdate, len(oldUpdateEnvelopes))
+	for i, update := range oldUpdateEnvelopes {
+		originatorEnvelope, err := utils.UnmarshalOriginatorEnvelope(update.OriginatorEnvelope)
+		if err != nil {
+			return nil, err
+		}
+		unsignedEnvelope, err := utils.UnmarshalUnsignedEnvelope(
+			originatorEnvelope.UnsignedOriginatorEnvelope,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if unsignedEnvelope.PayerEnvelope == nil {
+			return nil, fmt.Errorf("payer envelope is nil")
+		}
+
+		clientEnvelope, err := utils.UnmarshalClientEnvelope(
+			unsignedEnvelope.PayerEnvelope.UnsignedClientEnvelope,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		identityUpdate := clientEnvelope.GetIdentityUpdate()
+		if identityUpdate == nil {
+			return nil, fmt.Errorf("identity update is nil")
+		}
+
+		oldUpdates[i] = identityUpdate
+	}
+
+	newUpdate := &associations.IdentityUpdate{}
+	err := proto.Unmarshal(newUpdateBytes, newUpdate)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.GetAssociationState(ctx, oldUpdates, []*associations.IdentityUpdate{newUpdate})
 }
 
 func (s *MLSValidationServiceImpl) ValidateKeyPackages(

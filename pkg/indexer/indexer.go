@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -22,6 +23,7 @@ func StartIndexer(
 	logger *zap.Logger,
 	queries *queries.Queries,
 	cfg config.ContractsOptions,
+	validationService mlsvalidate.MLSValidationService,
 ) error {
 	client, err := blockchain.NewClient(ctx, cfg.RpcUrl)
 	if err != nil {
@@ -42,7 +44,8 @@ func StartIndexer(
 	go indexLogs(
 		ctx,
 		streamer.messagesChannel,
-		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
+		logger.Named("indexLogs-groupmessage").
+			With(zap.String("contractAddress", cfg.MessagesContractAddress)),
 		storer.NewGroupMessageStorer(queries, logger, messagesContract),
 	)
 
@@ -54,9 +57,9 @@ func StartIndexer(
 	go indexLogs(
 		ctx,
 		streamer.identityUpdatesChannel,
-		logger.Named("indexLogs").
+		logger.Named("indexLogs-identityupdate").
 			With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress)),
-		storer.NewIdentityUpdateStorer(queries, logger, identityUpdatesContract),
+		storer.NewIdentityUpdateStorer(queries, logger, identityUpdatesContract, validationService),
 	)
 
 	return streamer.streamer.Start(ctx)

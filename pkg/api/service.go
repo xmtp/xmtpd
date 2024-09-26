@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -24,12 +27,13 @@ const (
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx             context.Context
-	log             *zap.Logger
-	registrant      *registrant.Registrant
-	store           *sql.DB
-	publishWorker   *publishWorker
-	subscribeWorker *subscribeWorker
+	ctx              context.Context
+	log              *zap.Logger
+	registrant       *registrant.Registrant
+	store            *sql.DB
+	publishWorker    *publishWorker
+	subscribeWorker  *subscribeWorker
+	messagePublisher blockchain.IMessagePublisher
 }
 
 func NewReplicationApiService(
@@ -37,6 +41,8 @@ func NewReplicationApiService(
 	log *zap.Logger,
 	registrant *registrant.Registrant,
 	store *sql.DB,
+	messagePublisher blockchain.IMessagePublisher,
+
 ) (*Service, error) {
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
 	if err != nil {
@@ -48,12 +54,13 @@ func NewReplicationApiService(
 	}
 
 	return &Service{
-		ctx:             ctx,
-		log:             log,
-		registrant:      registrant,
-		store:           store,
-		publishWorker:   publishWorker,
-		subscribeWorker: subscribeWorker,
+		ctx:              ctx,
+		log:              log,
+		registrant:       registrant,
+		store:            store,
+		publishWorker:    publishWorker,
+		subscribeWorker:  subscribeWorker,
+		messagePublisher: messagePublisher,
 	}, nil
 }
 
@@ -200,7 +207,17 @@ func (s *Service) PublishEnvelope(
 		return nil, err
 	}
 
-	// TODO(rich): If it is a commit, publish it to blockchain instead
+	identityUpdate := clientEnv.GetIdentityUpdate()
+	if identityUpdate != nil {
+		err = s.publishIdentityUpdate(ctx, identityUpdate)
+		if err != nil {
+			s.log.Error("could not publish identity update", zap.Error(err))
+			return nil, status.Errorf(codes.Internal, "could not publish identity update: %v", err)
+		}
+		return nil, nil
+	}
+
+	// TODO(rich): If it is a commit, and not an identity update, publish it to blockchain instead
 
 	payerBytes, err := proto.Marshal(req.GetPayerEnvelope())
 	if err != nil {
@@ -225,12 +242,68 @@ func (s *Service) PublishEnvelope(
 	return &message_api.PublishEnvelopeResponse{OriginatorEnvelope: originatorEnv}, nil
 }
 
+func (s *Service) publishIdentityUpdate(
+	ctx context.Context,
+	identityUpdate *associations.IdentityUpdate,
+) error {
+	identityUpdateBytes, err := proto.Marshal(identityUpdate)
+	if err != nil {
+		return err
+	}
+	inboxId, err := utils.ParseInboxId(identityUpdate.InboxId)
+	if err != nil {
+		return err
+	}
+	return s.messagePublisher.PublishIdentityUpdate(
+		ctx,
+		inboxId,
+		identityUpdateBytes,
+	)
+}
+
+func (s *Service) GetInboxIds(
+	ctx context.Context,
+	req *message_api.GetInboxIdsRequest,
+) (*message_api.GetInboxIdsResponse, error) {
+	logger := s.log.With(zap.String("method", "GetInboxIds"))
+	queries := queries.New(s.store)
+	addresses := []string{}
+	for _, request := range req.Requests {
+		addresses = append(addresses, request.GetAddress())
+	}
+
+	addressLogEntries, err := queries.GetAddressLogs(ctx, addresses)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*message_api.GetInboxIdsResponse_Response, len(addresses))
+
+	for index, address := range addresses {
+		resp := message_api.GetInboxIdsResponse_Response{}
+		resp.Address = address
+
+		for _, logEntry := range addressLogEntries {
+			if logEntry.Address == address {
+				inboxId := logEntry.InboxID
+				resp.InboxId = &inboxId
+			}
+		}
+		out[index] = &resp
+	}
+
+	logger.Info("got inbox ids", zap.Int("numResponses", len(out)))
+
+	return &message_api.GetInboxIdsResponse{
+		Responses: out,
+	}, nil
+}
+
 func (s *Service) validatePayerInfo(
 	payerEnv *message_api.PayerEnvelope,
 ) (*message_api.ClientEnvelope, error) {
 	clientBytes := payerEnv.GetUnsignedClientEnvelope()
-	sig := payerEnv.GetPayerSignature()
-	if (clientBytes == nil) || (sig == nil) {
+	if clientBytes == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing envelope or signature")
 	}
 	// TODO(rich): Verify payer signature
@@ -249,9 +322,14 @@ func (s *Service) validatePayerInfo(
 }
 
 func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]byte, error) {
-	if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
-	}
+	//if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
+	//	return nil, status.Errorf(
+	//		codes.InvalidArgument,
+	//		"invalid target originator %d, originator ID is %d",
+	//		clientEnv.GetAad().GetTargetOriginator(),
+	//		s.registrant.NodeID(),
+	//	)
+	//}
 
 	topic := clientEnv.GetAad().GetTargetTopic()
 	if len(topic) == 0 {

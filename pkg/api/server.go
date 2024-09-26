@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pires/go-proxyproto"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -31,7 +32,7 @@ type ApiServer struct {
 	log          *zap.Logger
 	registrant   *registrant.Registrant
 	service      message_api.ReplicationApiServer
-	wg           sync.WaitGroup
+	Wg           sync.WaitGroup
 }
 
 func NewAPIServer(
@@ -41,6 +42,7 @@ func NewAPIServer(
 	port int,
 	registrant *registrant.Registrant,
 	enableReflection bool,
+	messagePublisher blockchain.IMessagePublisher,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
@@ -56,7 +58,7 @@ func NewAPIServer(
 		},
 		log:        log.Named("api"),
 		registrant: registrant,
-		wg:         sync.WaitGroup{},
+		Wg:         sync.WaitGroup{},
 	}
 
 	// TODO: Add interceptors
@@ -84,14 +86,20 @@ func NewAPIServer(
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)
 
-	replicationService, err := NewReplicationApiService(ctx, log, registrant, writerDB)
+	replicationService, err := NewReplicationApiService(
+		ctx,
+		log,
+		registrant,
+		writerDB,
+		messagePublisher,
+	)
 	if err != nil {
 		return nil, err
 	}
 	s.service = replicationService
 	message_api.RegisterReplicationApiServer(s.grpcServer, s.service)
 
-	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
+	tracing.GoPanicWrap(s.ctx, &s.Wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))
 		if err = s.grpcServer.Serve(s.grpcListener); err != nil &&
 			!isErrUseOfClosedConnection(err) {
@@ -106,9 +114,18 @@ func (s *ApiServer) Addr() net.Addr {
 	return s.grpcListener.Addr()
 }
 
-func (s *ApiServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
+func (s *ApiServer) DialGRPCTest(ctx context.Context) (*grpc.ClientConn, error) {
 	// https://github.com/grpc/grpc/blob/master/doc/naming.md
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpcListener.Addr().String())
+	println(dialAddr)
+	return grpc.NewClient(
+		dialAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(),
+	)
+}
+
+func (s *ApiServer) DialGRPC(dialAddr string) (*grpc.ClientConn, error) {
 	return grpc.NewClient(
 		dialAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -129,14 +146,13 @@ func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 		s.log.Info("Graceful shutdown timed out. Stopping...")
 		s.grpcServer.Stop()
 	}()
-
 	<-ctx.Done()
 }
 
 func (s *ApiServer) Close() {
 	s.log.Info("closing")
 	if s.grpcServer != nil {
-		s.gracefulShutdown(10 * time.Second)
+		s.gracefulShutdown(1 * time.Second)
 	}
 	if s.grpcListener != nil {
 		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {
@@ -144,8 +160,7 @@ func (s *ApiServer) Close() {
 		}
 		s.grpcListener = nil
 	}
-
-	s.wg.Wait()
+	s.Wg.Wait()
 	s.log.Info("closed")
 }
 

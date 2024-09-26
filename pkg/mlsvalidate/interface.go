@@ -3,6 +3,7 @@ package mlsvalidate
 import (
 	"context"
 
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	identity_proto "github.com/xmtp/xmtpd/pkg/proto/identity"
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
@@ -36,5 +37,10 @@ type MLSValidationService interface {
 		ctx context.Context,
 		oldUpdates []*associations.IdentityUpdate,
 		newUpdates []*associations.IdentityUpdate,
+	) (*AssociationStateResult, error)
+	GetAssociationStateFromEnvelopes(
+		ctx context.Context,
+		oldUpdates []queries.GatewayEnvelope,
+		newUpdateBytes []byte,
 	) (*AssociationStateResult, error)
 }

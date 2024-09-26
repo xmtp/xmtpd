@@ -30,10 +30,6 @@ type ChainClient interface {
 	ethereum.ChainIDReader
 }
 
-type IGroupMessagePublisher interface {
-	Publish(ctx context.Context, groupID [32]byte, message []byte) error
-}
-
 type TransactionSigner interface {
 	FromAddress() common.Address
 	SignerFunc() bind.SignerFn
@@ -46,4 +42,9 @@ type NodeRegistry interface {
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
 	) error
+}
+
+type IMessagePublisher interface {
+	PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) error
+	PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) error
 }

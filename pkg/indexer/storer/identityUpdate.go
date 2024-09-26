@@ -50,7 +50,6 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		return NewLogStorageError(err, false)
 	}
 
-	// TODO:nm figure out topic structure
 	topic := BuildInboxTopic(msgSent.InboxId)
 
 	s.logger.Info("Inserting identity update from contract", zap.String("topic", topic))
@@ -92,7 +91,7 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		}
 	}
 
-	originatorEnvelope, err := buildOriginatorEnvelope(topic, msgSent.SequenceId, msgSent.Update)
+	originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update)
 	if err != nil {
 		s.logger.Error("Error building originator envelope", zap.Error(err))
 		return NewLogStorageError(err, true)
@@ -143,14 +142,19 @@ func BuildInboxTopic(inboxId [32]byte) string {
 }
 
 func buildOriginatorEnvelope(
-	topic string,
 	sequenceId uint64,
 	update []byte,
 ) (*message_api.UnsignedOriginatorEnvelope, error) {
-	clientEnvelopeBytes, err := proto.Marshal(buildClientEnvelope(topic, update))
+	clientEnv, err := buildClientEnvelope(update)
 	if err != nil {
 		return nil, err
 	}
+
+	clientEnvelopeBytes, err := proto.Marshal(clientEnv)
+	if err != nil {
+		return nil, err
+	}
+
 	return &message_api.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
 		OriginatorSequenceId: sequenceId,
@@ -161,13 +165,16 @@ func buildOriginatorEnvelope(
 	}, nil
 }
 
-func buildClientEnvelope(topic string, update []byte) *message_api.ClientEnvelope {
-	var identityUpdate *associations.IdentityUpdate
-	proto.Unmarshal(update, identityUpdate)
+func buildClientEnvelope(update []byte) (*message_api.ClientEnvelope, error) {
+	var identityUpdate associations.IdentityUpdate
+	if err := proto.Unmarshal(update, &identityUpdate); err != nil {
+		return nil, err
+	}
+
 	return &message_api.ClientEnvelope{
 		Aad: nil,
 		Payload: &message_api.ClientEnvelope_IdentityUpdate{
-			IdentityUpdate: identityUpdate,
+			IdentityUpdate: &identityUpdate,
 		},
-	}
+	}, nil
 }

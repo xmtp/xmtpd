@@ -5,7 +5,8 @@ set -eu
 . dev/local.env
 
 dev/cli register-node \
-    --http-address=dns:0.tcp.ngrok.io:13210 \
+    --http-address=dns:0.tcp.ngrok.io:16948 \
     --owner-address=0xf0490b45884803924Ca84C2051ef435991D7350D \
-    --admin-private-key=$PRIVATE_KEY \
-    --signing-key-pub=0x02a4d829952dc9e73d6d4687823e95b3f56fc69736b38158655bbf9fee6d825c81
+    --admin-private-key=$XMTPD_PAYER_PRIVATE_KEY \
+    --signing-key-pub=0x02a4d829952dc9e73d6d4687823e95b3f56fc69736b38158655bbf9fee6d825c81 \
+    --contracts.chain-id=34498

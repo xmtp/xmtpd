@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
@@ -26,9 +27,10 @@ func buildIdentityUpdateStorer(t *testing.T) (*IdentityUpdateStorer, func()) {
 		common.HexToAddress(contractAddress),
 		client,
 	)
+	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
 	require.NoError(t, err)
-	storer := NewIdentityUpdateStorer(queryImpl, testutils.NewLog(t), contract)
+	storer := NewIdentityUpdateStorer(queryImpl, testutils.NewLog(t), contract, validationService)
 
 	return storer, func() {
 		cancel()

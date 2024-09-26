@@ -9,6 +9,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
@@ -18,8 +19,9 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	cfg := testutils.GetContractsOptions(t)
 	querier := queries.New(db)
+	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
-	err := StartIndexer(ctx, logger, querier, cfg)
+	err := StartIndexer(ctx, logger, querier, cfg, validationService)
 	require.NoError(t, err)
 
 	return querier, ctx, func() {
@@ -28,7 +30,7 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 	}
 }
 
-func messagePublisher(t *testing.T, ctx context.Context) *blockchain.GroupMessagePublisher {
+func messagePublisher(t *testing.T, ctx context.Context) *blockchain.MessagePublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	contractsCfg := testutils.GetContractsOptions(t)
 	var signer blockchain.TransactionSigner
@@ -38,7 +40,7 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.GroupMessag
 	client, err := blockchain.NewClient(ctx, contractsCfg.RpcUrl)
 	require.NoError(t, err)
 
-	publisher, err := blockchain.NewGroupMessagePublisher(
+	publisher, err := blockchain.NewMessagePublisher(
 		testutils.NewLog(t),
 		client,
 		signer,
@@ -59,7 +61,7 @@ func TestStoreMessages(t *testing.T) {
 	topic := []byte(storer.BuildGroupMessageTopic(groupID))
 
 	// Publish the message onto the blockchain
-	require.NoError(t, publisher.Publish(ctx, groupID, message))
+	require.NoError(t, publisher.PublishGroupMessage(ctx, groupID, message))
 
 	// Poll the DB until the stored message shows up
 	require.Eventually(t, func() bool {

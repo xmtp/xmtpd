@@ -9,11 +9,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	api, db, cleanup := testutils.NewTestAPIClient(t)
+	api, db, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
 	resp, err := api.PublishEnvelope(
@@ -54,7 +55,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	api, _, cleanup := testutils.NewTestAPIClient(t)
+	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
 	envelope := testutils.CreatePayerEnvelope(t)
@@ -69,7 +70,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	api, _, cleanup := testutils.NewTestAPIClient(t)
+	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
 	clientEnv := testutils.CreateClientEnvelope()
@@ -84,7 +85,7 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 }
 
 func TestMissingTopicOnPublish(t *testing.T) {
-	api, _, cleanup := testutils.NewTestAPIClient(t)
+	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
 	clientEnv := testutils.CreateClientEnvelope()

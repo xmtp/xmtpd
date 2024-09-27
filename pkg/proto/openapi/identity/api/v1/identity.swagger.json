@@ -57,7 +57,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetInboxIdsResponse"
+              "$ref": "#/definitions/apiv1GetInboxIdsResponse"
             }
           },
           "default": {
@@ -73,7 +73,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1GetInboxIdsRequest"
+              "$ref": "#/definitions/apiv1GetInboxIdsRequest"
             }
           }
         ],
@@ -165,6 +165,53 @@
         }
       },
       "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
+    },
+    "apiv1GetInboxIdsRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/apiv1GetInboxIdsRequestRequest"
+          }
+        }
+      },
+      "title": "Request to retrieve the XIDs for the given addresses"
+    },
+    "apiv1GetInboxIdsRequestRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        }
+      },
+      "title": "A single request for a given address"
+    },
+    "apiv1GetInboxIdsResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/apiv1GetInboxIdsResponseResponse"
+          }
+        }
+      },
+      "title": "Response with the XIDs for the requested addresses"
+    },
+    "apiv1GetInboxIdsResponseResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "inboxId": {
+          "type": "string"
+        }
+      },
+      "title": "A single response for a given address"
     },
     "associationsAddAssociation": {
       "type": "object",
@@ -451,53 +498,6 @@
         }
       },
       "title": "The update log for a single identity, starting after the last cursor"
-    },
-    "v1GetInboxIdsRequest": {
-      "type": "object",
-      "properties": {
-        "requests": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetInboxIdsRequestRequest"
-          }
-        }
-      },
-      "title": "Request to retrieve the XIDs for the given addresses"
-    },
-    "v1GetInboxIdsRequestRequest": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        }
-      },
-      "title": "A single request for a given address"
-    },
-    "v1GetInboxIdsResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetInboxIdsResponseResponse"
-          }
-        }
-      },
-      "title": "Response with the XIDs for the requested addresses"
-    },
-    "v1GetInboxIdsResponseResponse": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        },
-        "inboxId": {
-          "type": "string"
-        }
-      },
-      "title": "A single response for a given address"
     },
     "v1PublishIdentityUpdateRequest": {
       "type": "object",

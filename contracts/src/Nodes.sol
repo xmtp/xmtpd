@@ -136,8 +136,11 @@ contract Nodes is ERC721, Ownable {
         uint32 totalNodeCount = _nodeIdCounter - _startingNodeId;
         NodeWithId[] memory allNodesList = new NodeWithId[](totalNodeCount);
 
-        for (uint32 i = _startingNodeId; i < totalNodeCount; i++) {
-            allNodesList[i] = NodeWithId({nodeId: i, node: _nodes[i]});
+        for (uint32 i = 0; i < totalNodeCount; i++) {
+            allNodesList[i] = NodeWithId({
+                nodeId: _startingNodeId + i,
+                node: _nodes[_startingNodeId + i]
+            });
         }
 
         return allNodesList;

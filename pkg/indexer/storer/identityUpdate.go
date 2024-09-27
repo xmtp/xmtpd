@@ -22,10 +22,6 @@ const (
 	IDENTITY_UPDATE_ORIGINATOR_ID = 1
 )
 
-const (
-	IDENTITY_UPDATE_ORIGINATOR_ID = 1
-)
-
 type IdentityUpdateStorer struct {
 	contract          *abis.IdentityUpdates
 	queries           *queries.Queries

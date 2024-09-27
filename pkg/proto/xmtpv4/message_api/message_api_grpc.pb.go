@@ -37,7 +37,6 @@ type ReplicationApiClient interface {
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	// Publish envelope
 	PublishEnvelope(ctx context.Context, in *PublishEnvelopeRequest, opts ...grpc.CallOption) (*PublishEnvelopeResponse, error)
-	// Get inbox ids
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
 }
 
@@ -118,7 +117,6 @@ type ReplicationApiServer interface {
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	// Publish envelope
 	PublishEnvelope(context.Context, *PublishEnvelopeRequest) (*PublishEnvelopeResponse, error)
-	// Get inbox ids
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
 	mustEmbedUnimplementedReplicationApiServer()
 }

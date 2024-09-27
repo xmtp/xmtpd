@@ -120,3 +120,11 @@ WHERE (address, inbox_id, association_sequence_id) =(
 		address,
 		inbox_id);
 
+-- name: GetLatestSequenceId :one
+SELECT
+	COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = @originator_node_id;
+

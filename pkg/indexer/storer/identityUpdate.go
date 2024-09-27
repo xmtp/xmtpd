@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pingcap/log"
@@ -11,8 +12,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -47,13 +50,21 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		return NewLogStorageError(err, false)
 	}
 
-	// TODO:nm figure out topic structure
+	latestSequenceId, err := s.queries.GetLatestSequenceId(ctx, IDENTITY_UPDATE_ORIGINATOR_ID)
+	if err != nil {
+		return NewLogStorageError(err, true)
+	}
+	if uint64(latestSequenceId) >= msgSent.SequenceId {
+		return nil
+	}
+
 	topic := BuildInboxTopic(msgSent.InboxId)
 
-	s.logger.Debug("Inserting identity update from contract", zap.String("topic", topic))
+	s.logger.Info("Inserting identity update from contract", zap.String("topic", topic))
 
 	associationState, err := s.validateIdentityUpdate(ctx, msgSent.InboxId, msgSent.Update)
 	if err != nil {
+		log.Error("Error validating identity update", zap.Error(err), zap.Any("msgSent", msgSent))
 		return NewLogStorageError(err, true)
 	}
 
@@ -88,12 +99,29 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		}
 	}
 
+	originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update)
+	if err != nil {
+		s.logger.Error("Error building originator envelope", zap.Error(err))
+		return NewLogStorageError(err, true)
+	}
+	signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(originatorEnvelope)
+	if err != nil {
+		s.logger.Error("Error building signed originator envelope", zap.Error(err))
+		return NewLogStorageError(err, true)
+	}
+
+	originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
+	if err != nil {
+		s.logger.Error("Error marshalling originator envelope", zap.Error(err))
+		return NewLogStorageError(err, true)
+	}
+
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 		// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
 		OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                []byte(topic),
-		OriginatorEnvelope:   msgSent.Update, // TODO:nm parse originator envelope and do some validation
+		OriginatorEnvelope:   originatorEnvelopeBytes,
 	}); err != nil {
 		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
 		return NewLogStorageError(err, true)
@@ -124,4 +152,55 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 
 func BuildInboxTopic(inboxId [32]byte) string {
 	return fmt.Sprintf("i/%x", inboxId)
+}
+
+func buildOriginatorEnvelope(
+	sequenceId uint64,
+	update []byte,
+) (*message_api.UnsignedOriginatorEnvelope, error) {
+	clientEnv, err := buildClientEnvelope(update)
+	if err != nil {
+		return nil, err
+	}
+
+	clientEnvelopeBytes, err := proto.Marshal(clientEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	return &message_api.UnsignedOriginatorEnvelope{
+		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
+		OriginatorSequenceId: sequenceId,
+		OriginatorNs:         time.Now().UnixNano(),
+		PayerEnvelope: &message_api.PayerEnvelope{
+			UnsignedClientEnvelope: clientEnvelopeBytes,
+		},
+	}, nil
+}
+
+func buildClientEnvelope(update []byte) (*message_api.ClientEnvelope, error) {
+	var identityUpdate associations.IdentityUpdate
+	if err := proto.Unmarshal(update, &identityUpdate); err != nil {
+		return nil, err
+	}
+
+	return &message_api.ClientEnvelope{
+		Aad: nil,
+		Payload: &message_api.ClientEnvelope_IdentityUpdate{
+			IdentityUpdate: &identityUpdate,
+		},
+	}, nil
+}
+
+func buildSignedOriginatorEnvelope(
+	originatorEnvelope *message_api.UnsignedOriginatorEnvelope,
+) (*message_api.OriginatorEnvelope, error) {
+	envelopeBytes, err := proto.Marshal(originatorEnvelope)
+	if err != nil {
+		return nil, err
+	}
+
+	return &message_api.OriginatorEnvelope{
+		UnsignedOriginatorEnvelope: envelopeBytes,
+	}, nil
 }

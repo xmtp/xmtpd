@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
 )
 
 var allRows []queries.InsertGatewayEnvelopeParams
@@ -65,7 +66,8 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 			),
 		},
 	}
-	return testutils.NewTestAPIClient(t)
+
+	return testUtilsApi.NewTestAPIClient(t)
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {

@@ -10,7 +10,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -39,6 +42,7 @@ func NewReplicationServer(
 	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
+	messagePublisher blockchain.IMessagePublisher,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -80,6 +84,21 @@ func NewReplicationServer(
 		return nil, err
 	}
 
+	validationService, err := mlsvalidate.NewMlsValidationService(ctx, options.MlsValidation)
+	if err != nil {
+		return nil, err
+	}
+	err = indexer.StartIndexer(
+		s.ctx,
+		log,
+		queries.New(s.writerDB),
+		options.Contracts,
+		validationService,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	s.apiServer, err = api.NewAPIServer(
 		s.ctx,
 		s.writerDB,
@@ -87,6 +106,7 @@ func NewReplicationServer(
 		options.API.Port,
 		s.registrant,
 		options.Reflection.Enable,
+		messagePublisher,
 	)
 	if err != nil {
 		return nil, err

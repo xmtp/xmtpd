@@ -28,5 +28,5 @@ func ParseEcdsaPublicKey(key string) (*ecdsa.PublicKey, error) {
 }
 
 func EcdsaPublicKeyToString(key *ecdsa.PublicKey) string {
-	return "0x" + common.Bytes2Hex(crypto.CompressPubkey(key))
+	return "0x" + hex.EncodeToString(crypto.FromECDSAPub(key))
 }

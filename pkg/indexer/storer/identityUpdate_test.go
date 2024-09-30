@@ -15,6 +15,8 @@ import (
 	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func buildIdentityUpdateStorer(
@@ -61,13 +63,16 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	// Using the RandomInboxId function, since they are both 32 bytes and we treat inbox IDs as
 	// strings outside the blockchain
 	inboxId := testutils.RandomGroupID()
-	message := testutils.RandomBytes(30)
-
+	identityUpdate := associations.IdentityUpdate{
+		InboxId: utils.HexEncode(inboxId[:]),
+	}
+	message, err := proto.Marshal(&identityUpdate)
+	require.NoError(t, err)
 	sequenceID := uint64(1)
 
 	logMessage := testutils.BuildIdentityUpdateLog(t, inboxId, message, sequenceID)
 
-	err := storer.StoreLog(
+	err = storer.StoreLog(
 		ctx,
 		logMessage,
 	)

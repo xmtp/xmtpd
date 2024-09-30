@@ -227,3 +227,41 @@ func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg Selec
 	}
 	return items, nil
 }
+
+const selectVectorClock = `-- name: SelectVectorClock :many
+SELECT
+	originator_node_id,
+	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+GROUP BY
+	originator_node_id
+`
+
+type SelectVectorClockRow struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+}
+
+func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectVectorClock)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectVectorClockRow
+	for rows.Next() {
+		var i SelectVectorClockRow
+		if err := rows.Scan(&i.OriginatorNodeID, &i.OriginatorSequenceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

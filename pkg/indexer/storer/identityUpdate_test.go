@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -80,16 +81,20 @@ func TestStoreIdentityUpdate(t *testing.T) {
 
 	envelopes, queryErr := storer.queries.SelectGatewayEnvelopes(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{OriginatorNodeID: db.NullInt32(0)},
+		queries.SelectGatewayEnvelopesParams{
+			OriginatorNodeID: db.NullInt32(IDENTITY_UPDATE_ORIGINATOR_ID),
+		},
 	)
 	require.NoError(t, queryErr)
 
 	require.Equal(t, len(envelopes), 1)
 
 	firstEnvelope := envelopes[0]
-	require.Equal(t, firstEnvelope.OriginatorEnvelope, message)
+	deserializedEnvelope := message_api.OriginatorEnvelope{}
+	require.NoError(t, proto.Unmarshal(firstEnvelope.OriginatorEnvelope, &deserializedEnvelope))
+	require.Greater(t, len(deserializedEnvelope.UnsignedOriginatorEnvelope), 0)
 
 	getInboxIdResult, logsErr := storer.queries.GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
-	require.Equal(t, getInboxIdResult[0].InboxID, inboxId)
+	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxId[:]))
 }

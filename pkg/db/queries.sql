@@ -120,7 +120,6 @@ WHERE (address, inbox_id, association_sequence_id) =(
 		address,
 		inbox_id);
 
-<< << << < HEAD
 -- name: GetLatestSequenceId :one
 SELECT
 	COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
@@ -129,5 +128,3 @@ FROM
 WHERE
 	originator_node_id = @originator_node_id;
 
-== == == = >> >> >> > a734598(ADD
-	AND remove members)

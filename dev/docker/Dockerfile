@@ -16,12 +16,9 @@ RUN go build -ldflags="-X 'main.Commit=$GIT_COMMIT'" -o bin/xmtpd cmd/replicatio
 
 FROM alpine:3.12
 
-ARG GIT_COMMIT=unknown
-
 LABEL maintainer="engineering@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"
 LABEL description="XMTP Node Software"
-LABEL commit=$GIT_COMMIT
 
 # color, nocolor, json
 ENV GOLOG_LOG_FMT=nocolor

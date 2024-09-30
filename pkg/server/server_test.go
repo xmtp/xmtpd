@@ -27,6 +27,12 @@ func NewTestServer(
 	messagePublisher := blockchain.NewMockIMessagePublisher(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
+		Contracts: config.ContractsOptions{
+			RpcUrl: "http://localhost:8545",
+		},
+		MlsValidation: config.MlsValidationOptions{
+			GrpcAddress: "localhost:60051",
+		},
 		Signer: config.SignerOptions{
 			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		},
@@ -49,12 +55,11 @@ func TestCreateServer(t *testing.T) {
 
 	registry := mocks.NewMockNodeRegistry(t)
 	registry.On("GetNodes").Return([]r.Node{
-		{NodeID: 1, SigningKey: &privateKey1.PublicKey},
-		{NodeID: 2, SigningKey: &privateKey2.PublicKey},
+		{NodeID: 1, SigningKey: &privateKey1.PublicKey, HttpAddress: "http://localhost:1111"},
+		{NodeID: 2, SigningKey: &privateKey2.PublicKey, HttpAddress: "http://localhost:2222"},
 	}, nil)
 
 	server1 := NewTestServer(t, dbs[0], registry, privateKey1)
 	server2 := NewTestServer(t, dbs[1], registry, privateKey2)
-
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 }

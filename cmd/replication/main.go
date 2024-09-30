@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 
@@ -25,6 +26,14 @@ func main() {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			fatal("Could not parse options: %s", err)
 		}
+		return
+	}
+
+	if Commit != "" {
+		fmt.Printf("Version: %s\n", Commit)
+	}
+
+	if options.Version {
 		return
 	}
 

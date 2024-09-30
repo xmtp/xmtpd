@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+set -e
+
+DOCKER_IMAGE_TAG="${DOCKER_IMAGE_TAG:-dev}"
+DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-xmtp/xmtpd}"
+GIT_COMMIT="$(git rev-parse --short HEAD)"
+
+docker buildx build \
+    --build-arg="GIT_COMMIT=${GIT_COMMIT}" \
+    --tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
+    -f dev/docker/Dockerfile \
+    .

@@ -4,4 +4,4 @@ set -eu
 
 . dev/local.env
 
-go run cmd/replication/main.go "$@"
+go run -ldflags="-X main.Commit=$(git rev-parse --short HEAD)" cmd/replication/main.go "$@"

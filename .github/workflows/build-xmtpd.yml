@@ -19,10 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - uses: benjlevesque/short-sha@v3.0
-        id: short-sha
-        with:
-          length: 7
       - name: Log in to the container registry
         uses: docker/login-action@v3
         with:
@@ -51,4 +47,4 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: "GIT_COMMIT=${{steps.short-sha.outputs.sha}}"
+          build-args: "GIT_COMMIT=$${{ github.event.pull_request.head.sha }}"

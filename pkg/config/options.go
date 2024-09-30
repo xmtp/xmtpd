@@ -62,11 +62,15 @@ type SignerOptions struct {
 
 type GenerateKeyOptions struct{}
 
+type GetPubKeyOptions struct {
+	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`
+}
+
 type RegisterNodeOptions struct {
 	HttpAddress     string `long:"http-address"      description:"HTTP address to register for the node"                            required:"true"`
 	OwnerAddress    string `long:"owner-address"     description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
 	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"                    required:"true"`
-	SigningKey      string `long:"signing-key"       description:"Signing key of the node to register"                              required:"true"`
+	SigningKeyPub   string `long:"signing-key-pub"   description:"Signing key of the node to register"                              required:"true"`
 }
 
 type ServerOptions struct {

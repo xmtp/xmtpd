@@ -13,10 +13,10 @@ All nodes on the network periodically check this contract to determine which nod
  */
 contract Nodes is ERC721, Ownable {
     constructor() ERC721("XMTP Node Operator", "XMTP") Ownable(msg.sender) {}
-
+    uint32 private _startingNodeId = 100;
     // uint32 counter so that we cannot create more than max IDs
     // The ERC721 standard expects the tokenID to be uint256 for standard methods unfortunately
-    uint32 private _nodeIdCounter;
+    uint32 private _nodeIdCounter = _startingNodeId;
 
     // A node, as stored in the internal mapping
     struct Node {
@@ -105,7 +105,7 @@ contract Nodes is ERC721, Ownable {
         uint256 healthyCount = 0;
 
         // First, count the number of healthy nodes
-        for (uint256 i = 0; i < totalNodeCount; i++) {
+        for (uint256 i = _startingNodeId; i < totalNodeCount; i++) {
             if (_nodeExists(i) && _nodes[i].isHealthy) {
                 healthyCount++;
             }
@@ -116,7 +116,7 @@ contract Nodes is ERC721, Ownable {
         uint256 currentIndex = 0;
 
         // Populate the array with healthy nodes
-        for (uint32 i = 0; i < totalNodeCount; i++) {
+        for (uint32 i = _startingNodeId; i < totalNodeCount; i++) {
             if (_nodeExists(i) && _nodes[i].isHealthy) {
                 healthyNodesList[currentIndex] = NodeWithId({
                     nodeId: i,
@@ -136,7 +136,7 @@ contract Nodes is ERC721, Ownable {
         uint32 totalNodeCount = _nodeIdCounter;
         NodeWithId[] memory allNodesList = new NodeWithId[](totalNodeCount);
 
-        for (uint32 i = 0; i < totalNodeCount; i++) {
+        for (uint32 i = _startingNodeId; i < totalNodeCount; i++) {
             allNodesList[i] = NodeWithId({nodeId: i, node: _nodes[i]});
         }
 

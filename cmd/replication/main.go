@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -57,32 +58,29 @@ func main() {
 			logger.Fatal("initializing database", zap.Error(err))
 		}
 
-		privateKey, err := utils.ParseEcdsaPrivateKey(options.Signer.PrivateKey)
+		ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
 		if err != nil {
-			logger.Fatal("parsing private key", zap.Error(err))
+			logger.Fatal("initializing blockchain client", zap.Error(err))
 		}
 
-		fixedRegistry := registry.NewFixedNodeRegistry(
-			[]registry.Node{
-				{
-					NodeID:        1,
-					SigningKey:    &privateKey.PublicKey,
-					IsHealthy:     true,
-					HttpAddress:   "http://example.com",
-					IsValidConfig: true,
-				},
-			},
+		chainRegistry, err := registry.NewSmartContractRegistry(
+			ethclient,
+			logger,
+			options.Contracts,
 		)
-
 		if err != nil {
-			log.Fatal("initializing smart contract registry", zap.Error(err))
+			logger.Fatal("initializing smart contract registry", zap.Error(err))
+		}
+		err = chainRegistry.Start(ctx)
+		if err != nil {
+			logger.Fatal("starting smart contract registry", zap.Error(err))
 		}
 
 		s, err := server.NewReplicationServer(
 			ctx,
 			logger,
 			options,
-			fixedRegistry,
+			chainRegistry,
 			db,
 		)
 		if err != nil {

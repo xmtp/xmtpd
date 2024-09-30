@@ -1,0 +1,20 @@
+#!/bin/bash
+# Deploy the smart contracts to the deployed testnet
+set -euo
+
+cd ./contracts
+
+# Deploy the contract to the chain with the specified RPC URL and attempt to verify the SC code
+function deploy_contract() {
+    forge create \
+        --rpc-url $RPC_URL \
+        --verify \
+        --verifier=blockscout \
+        --verifier-url=$VERIFIER_URL \
+        --private-key $PRIVATE_KEY \
+        "$1:$2"
+}
+
+deploy_contract src/GroupMessages.sol GroupMessages
+deploy_contract src/Nodes.sol Nodes
+deploy_contract src/IdentityUpdates.sol IdentityUpdates

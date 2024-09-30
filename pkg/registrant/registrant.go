@@ -101,6 +101,9 @@ func getRegistryRecord(
 	}
 
 	i := slices.IndexFunc(records, func(e registry.Node) bool {
+		if e.NodeID == 0 {
+			return false
+		}
 		return e.SigningKey.Equal(&privateKey.PublicKey)
 	})
 	if i == -1 {

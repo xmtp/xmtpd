@@ -18,6 +18,7 @@
   "paths": {
     "/mls/v2/get-inbox-ids": {
       "post": {
+        "summary": "Get inbox ids",
         "operationId": "ReplicationApi_GetInboxIds",
         "responses": {
           "200": {

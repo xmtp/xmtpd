@@ -137,7 +137,7 @@ func (s *SmartContractRegistry) refreshData() error {
 	newNodes := []Node{}
 	for _, node := range fromContract {
 		// nodes realistically start at 100, but the contract fills the array with empty nodes
-		if node.NodeID == 0 || node.SigningKey == nil {
+		if !node.IsValidConfig {
 			continue
 		}
 		existingValue, ok := s.nodes[node.NodeID]

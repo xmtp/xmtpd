@@ -21,7 +21,7 @@
       <option name="workingDir" value="" />
       <envs />
     </TaskOptions>
-    <TaskOptions isEnabled="true">
+    <TaskOptions isEnabled="false">
       <option name="arguments" value="run --fast $FileDir$" />
       <option name="checkSyntaxErrors" value="true" />
       <option name="description" />

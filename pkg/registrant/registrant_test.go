@@ -3,6 +3,7 @@ package registrant_test
 import (
 	"context"
 	"crypto/ecdsa"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 
 type deps struct {
 	ctx         context.Context
+	log         *zap.Logger
 	db          *queries.Queries
 	registry    *mocks.MockNodeRegistry
 	privKey1    *ecdsa.PrivateKey
@@ -29,6 +31,7 @@ type deps struct {
 
 func setup(t *testing.T) (deps, func()) {
 	ctx := context.Background()
+	log := testutils.NewLog(t)
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	db, _, dbCleanup := testutils.NewDB(t, ctx)
 	queries := queries.New(db)
@@ -42,6 +45,7 @@ func setup(t *testing.T) (deps, func()) {
 
 	return deps{
 		ctx:         ctx,
+		log:         log,
 		db:          queries,
 		registry:    mockRegistry,
 		privKey1:    privKey1,
@@ -60,6 +64,7 @@ func setupWithRegistrant(t *testing.T) (deps, *registrant.Registrant, func()) {
 
 	r, err := registrant.NewRegistrant(
 		deps.ctx,
+		deps.log,
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
@@ -73,7 +78,13 @@ func TestNewRegistrantBadPrivateKey(t *testing.T) {
 	deps, cleanup := setup(t)
 	defer cleanup()
 
-	_, err := registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, "badkey")
+	_, err := registrant.NewRegistrant(
+		deps.ctx,
+		testutils.NewLog(t),
+		deps.db,
+		deps.registry,
+		"badkey",
+	)
 	require.ErrorContains(t, err, "parse")
 }
 
@@ -86,7 +97,13 @@ func TestNewRegistrantNotInRegistry(t *testing.T) {
 		{NodeID: 3, SigningKey: &deps.privKey3.PublicKey},
 	}, nil)
 
-	_, err := registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
+	_, err := registrant.NewRegistrant(
+		deps.ctx,
+		deps.log,
+		deps.db,
+		deps.registry,
+		deps.privKey1Str,
+	)
 	require.ErrorContains(t, err, "registry")
 }
 
@@ -100,7 +117,13 @@ func TestNewRegistrantNewDatabase(t *testing.T) {
 		{NodeID: 1, SigningKey: &deps.privKey1.PublicKey},
 	}, nil)
 
-	_, err := registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
+	_, err := registrant.NewRegistrant(
+		deps.ctx,
+		deps.log,
+		deps.db,
+		deps.registry,
+		deps.privKey1Str,
+	)
 	require.NoError(t, err)
 }
 
@@ -121,7 +144,13 @@ func TestNewRegistrantExistingDatabase(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
+	_, err = registrant.NewRegistrant(
+		deps.ctx,
+		deps.log,
+		deps.db,
+		deps.registry,
+		deps.privKey1Str,
+	)
 	require.NoError(t, err)
 }
 
@@ -142,7 +171,13 @@ func TestNewRegistrantMismatchingDatabaseNodeId(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
+	_, err = registrant.NewRegistrant(
+		deps.ctx,
+		deps.log,
+		deps.db,
+		deps.registry,
+		deps.privKey1Str,
+	)
 	require.ErrorContains(t, err, "does not match")
 }
 
@@ -163,7 +198,13 @@ func TestNewRegistrantMismatchingDatabasePublicKey(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = registrant.NewRegistrant(deps.ctx, deps.db, deps.registry, deps.privKey1Str)
+	_, err = registrant.NewRegistrant(
+		deps.ctx,
+		deps.log,
+		deps.db,
+		deps.registry,
+		deps.privKey1Str,
+	)
 	require.ErrorContains(t, err, "does not match")
 }
 
@@ -177,6 +218,7 @@ func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
 
 	_, err := registrant.NewRegistrant(
 		deps.ctx,
+		deps.log,
 		deps.db,
 		deps.registry,
 		testutils.HexEncode(crypto.FromECDSA(deps.privKey1)),

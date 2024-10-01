@@ -16,7 +16,6 @@ jobs:
       - uses: bufbuild/buf-setup-action@v1.40.1
       - name: Generate Protos
         run: dev/gen_protos
-      - run: git diff
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:

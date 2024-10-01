@@ -72,6 +72,7 @@ func NewReplicationServer(
 
 	s.registrant, err = registrant.NewRegistrant(
 		s.ctx,
+		log,
 		queries.New(s.writerDB),
 		nodeRegistry,
 		options.Signer.PrivateKey,

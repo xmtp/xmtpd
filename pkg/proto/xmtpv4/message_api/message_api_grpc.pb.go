@@ -24,6 +24,7 @@ const (
 	ReplicationApi_BatchSubscribeEnvelopes_FullMethodName = "/xmtp.xmtpv4.ReplicationApi/BatchSubscribeEnvelopes"
 	ReplicationApi_QueryEnvelopes_FullMethodName          = "/xmtp.xmtpv4.ReplicationApi/QueryEnvelopes"
 	ReplicationApi_PublishEnvelope_FullMethodName         = "/xmtp.xmtpv4.ReplicationApi/PublishEnvelope"
+	ReplicationApi_GetInboxIds_FullMethodName             = "/xmtp.xmtpv4.ReplicationApi/GetInboxIds"
 )
 
 // ReplicationApiClient is the client API for ReplicationApi service.
@@ -36,6 +37,8 @@ type ReplicationApiClient interface {
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	// Publish envelope
 	PublishEnvelope(ctx context.Context, in *PublishEnvelopeRequest, opts ...grpc.CallOption) (*PublishEnvelopeResponse, error)
+	// Get inbox ids
+	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
 }
 
 type replicationApiClient struct {
@@ -96,6 +99,15 @@ func (c *replicationApiClient) PublishEnvelope(ctx context.Context, in *PublishE
 	return out, nil
 }
 
+func (c *replicationApiClient) GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error) {
+	out := new(GetInboxIdsResponse)
+	err := c.cc.Invoke(ctx, ReplicationApi_GetInboxIds_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ReplicationApiServer is the server API for ReplicationApi service.
 // All implementations must embed UnimplementedReplicationApiServer
 // for forward compatibility
@@ -106,6 +118,8 @@ type ReplicationApiServer interface {
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	// Publish envelope
 	PublishEnvelope(context.Context, *PublishEnvelopeRequest) (*PublishEnvelopeResponse, error)
+	// Get inbox ids
+	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
 	mustEmbedUnimplementedReplicationApiServer()
 }
 
@@ -121,6 +135,9 @@ func (UnimplementedReplicationApiServer) QueryEnvelopes(context.Context, *QueryE
 }
 func (UnimplementedReplicationApiServer) PublishEnvelope(context.Context, *PublishEnvelopeRequest) (*PublishEnvelopeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublishEnvelope not implemented")
+}
+func (UnimplementedReplicationApiServer) GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInboxIds not implemented")
 }
 func (UnimplementedReplicationApiServer) mustEmbedUnimplementedReplicationApiServer() {}
 
@@ -192,6 +209,24 @@ func _ReplicationApi_PublishEnvelope_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ReplicationApi_GetInboxIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetInboxIdsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReplicationApiServer).GetInboxIds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReplicationApi_GetInboxIds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReplicationApiServer).GetInboxIds(ctx, req.(*GetInboxIdsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ReplicationApi_ServiceDesc is the grpc.ServiceDesc for ReplicationApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -206,6 +241,10 @@ var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PublishEnvelope",
 			Handler:    _ReplicationApi_PublishEnvelope_Handler,
+		},
+		{
+			MethodName: "GetInboxIds",
+			Handler:    _ReplicationApi_GetInboxIds_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

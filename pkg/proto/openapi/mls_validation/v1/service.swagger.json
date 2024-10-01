@@ -212,10 +212,6 @@
         },
         "addedByEntity": {
           "$ref": "#/definitions/associationsMemberIdentifier"
-        },
-        "clientTimestampNs": {
-          "type": "string",
-          "format": "uint64"
         }
       },
       "title": "single member that optionally indicates the member that added them"

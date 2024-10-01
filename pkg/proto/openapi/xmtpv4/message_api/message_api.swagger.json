@@ -16,6 +16,39 @@
     "application/json"
   ],
   "paths": {
+    "/mls/v2/get-inbox-ids": {
+      "post": {
+        "summary": "Get inbox ids",
+        "operationId": "ReplicationApi_GetInboxIds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/xmtpxmtpv4GetInboxIdsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/xmtpxmtpv4GetInboxIdsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
     "/mls/v2/publish-envelope": {
       "post": {
         "summary": "Publish envelope",
@@ -318,6 +351,53 @@
         }
       },
       "description": "The last seen entry per originator. Originators that have not been seen are omitted.\nEntries MUST be sorted in ascending order, so that smaller node ID's appear first."
+    },
+    "xmtpxmtpv4GetInboxIdsRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpxmtpv4GetInboxIdsRequestRequest"
+          }
+        }
+      },
+      "title": "Request to retrieve the XIDs for the given addresses"
+    },
+    "xmtpxmtpv4GetInboxIdsRequestRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        }
+      },
+      "title": "A single request for a given address"
+    },
+    "xmtpxmtpv4GetInboxIdsResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpxmtpv4GetInboxIdsResponseResponse"
+          }
+        }
+      },
+      "title": "Response with the XIDs for the requested addresses"
+    },
+    "xmtpxmtpv4GetInboxIdsResponseResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "inboxId": {
+          "type": "string"
+        }
+      },
+      "title": "A single response for a given address"
     }
   }
 }

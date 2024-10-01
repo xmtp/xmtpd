@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -eu
+
+export XMTPD_CONTRACTS_RPC_URL=https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz
+export XMTPD_DB_WRITER_CONNECTION_STRING=postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable
+export XMTPD_CONTRACTS_NODES_ADDRESS=0x0871F3F01955e846261ca04c5CA6718e655C1287
+export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS=0xFeAEDD8637ea7C2E83F9ef230C073e4ADf15fb83
+export XMTPD_CONTRACTS_MESSAGES_ADDRESS=0x56a8eefd52102e30f26f0e60ed3990A90D567fDd
+export XMTPD_MLS_VALIDATION_GRPC_ADDRESS=localhost:60051
+export XMTPD_SIGNER_PRIVATE_KEY=0x2242f51df656069fcee3759b98f6008d1805c09bb0465ab8b597eb5739ad312c
+
+go run -ldflags="-X main.Commit=$(git rev-parse HEAD)" cmd/replication/main.go "$@"

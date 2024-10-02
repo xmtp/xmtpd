@@ -95,30 +95,20 @@ FROM
 			address) b ON a.address = b.address
 	AND a.association_sequence_id = b.max_association_sequence_id;
 
--- name: InsertAddressLog :one
+-- name: InsertAddressLog :exec
 INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
 	VALUES (@address, decode(@inbox_id, 'hex'), @association_sequence_id, @revocation_sequence_id)
-RETURNING
-	*;
+ON CONFLICT
+	DO NOTHING;
 
 -- name: RevokeAddressFromLog :exec
 UPDATE
 	address_log
 SET
 	revocation_sequence_id = @revocation_sequence_id
-WHERE (address, inbox_id, association_sequence_id) =(
-	SELECT
-		address,
-		inbox_id,
-		MAX(association_sequence_id)
-	FROM
-		address_log AS a
-	WHERE
-		a.address = @address
-		AND a.inbox_id = decode(@inbox_id, 'hex')
-	GROUP BY
-		address,
-		inbox_id);
+WHERE
+	address = @address
+	AND inbox_id = decode(@inbox_id, 'hex');
 
 -- name: GetLatestSequenceId :one
 SELECT

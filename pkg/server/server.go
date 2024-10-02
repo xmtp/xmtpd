@@ -42,7 +42,7 @@ func NewReplicationServer(
 	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
-	messagePublisher blockchain.IMessagePublisher,
+	blockchainPublisher blockchain.IBlockchainPublisher,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -106,7 +106,7 @@ func NewReplicationServer(
 		options.API.Port,
 		s.registrant,
 		options.Reflection.Enable,
-		messagePublisher,
+		blockchainPublisher,
 	)
 	if err != nil {
 		return nil, err

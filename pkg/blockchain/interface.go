@@ -44,7 +44,7 @@ type NodeRegistry interface {
 	) error
 }
 
-type IMessagePublisher interface {
+type IBlockchainPublisher interface {
 	PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) error
 	PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) error
 }

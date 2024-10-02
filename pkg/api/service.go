@@ -33,7 +33,7 @@ type Service struct {
 	store            *sql.DB
 	publishWorker    *publishWorker
 	subscribeWorker  *subscribeWorker
-	messagePublisher blockchain.IMessagePublisher
+	messagePublisher blockchain.IBlockchainPublisher
 }
 
 func NewReplicationApiService(
@@ -41,7 +41,7 @@ func NewReplicationApiService(
 	log *zap.Logger,
 	registrant *registrant.Registrant,
 	store *sql.DB,
-	messagePublisher blockchain.IMessagePublisher,
+	messagePublisher blockchain.IBlockchainPublisher,
 
 ) (*Service, error) {
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store)

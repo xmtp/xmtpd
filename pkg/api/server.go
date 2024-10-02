@@ -42,7 +42,7 @@ func NewAPIServer(
 	port int,
 	registrant *registrant.Registrant,
 	enableReflection bool,
-	messagePublisher blockchain.IMessagePublisher,
+	messagePublisher blockchain.IBlockchainPublisher,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 

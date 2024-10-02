@@ -93,7 +93,7 @@ func main() {
 			logger.Fatal("initializing signer", zap.Error(err))
 		}
 
-		messagePublisher, err := blockchain.NewMessagePublisher(
+		blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 			logger,
 			ethclient,
 			signer,
@@ -109,7 +109,7 @@ func main() {
 			options,
 			chainRegistry,
 			db,
-			messagePublisher,
+			blockchainPublisher,
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))

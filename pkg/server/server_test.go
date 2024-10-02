@@ -24,7 +24,7 @@ func NewTestServer(
 	privateKey *ecdsa.PrivateKey,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
-	messagePublisher := blockchain.NewMockIMessagePublisher(t)
+	messagePublisher := blockchain.NewMockIBlockchainPublisher(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
 		Contracts: config.ContractsOptions{

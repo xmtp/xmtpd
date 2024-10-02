@@ -16,7 +16,7 @@ import (
 /*
 Can publish to the blockchain, signing messages using the provided signer
 */
-type MessagePublisher struct {
+type BlockchainPublisher struct {
 	signer                 TransactionSigner
 	client                 *ethclient.Client
 	messagesContract       *abis.GroupMessages
@@ -24,12 +24,12 @@ type MessagePublisher struct {
 	logger                 *zap.Logger
 }
 
-func NewMessagePublisher(
+func NewBlockchainPublisher(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractOptions config.ContractsOptions,
-) (*MessagePublisher, error) {
+) (*BlockchainPublisher, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
@@ -48,9 +48,9 @@ func NewMessagePublisher(
 		return nil, err
 	}
 
-	return &MessagePublisher{
+	return &BlockchainPublisher{
 		signer: signer,
-		logger: logger.Named("GroupMessagePublisher").
+		logger: logger.Named("GroupBlockchainPublisher").
 			With(zap.String("contractAddress", contractOptions.MessagesContractAddress)),
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
@@ -58,7 +58,7 @@ func NewMessagePublisher(
 	}, nil
 }
 
-func (m *MessagePublisher) PublishGroupMessage(
+func (m *BlockchainPublisher) PublishGroupMessage(
 	ctx context.Context,
 	groupID [32]byte,
 	message []byte,
@@ -82,7 +82,7 @@ func (m *MessagePublisher) PublishGroupMessage(
 	)
 }
 
-func (m *MessagePublisher) PublishIdentityUpdate(
+func (m *BlockchainPublisher) PublishIdentityUpdate(
 	ctx context.Context,
 	inboxId [32]byte,
 	identityUpdate []byte,

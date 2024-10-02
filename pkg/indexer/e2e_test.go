@@ -30,7 +30,7 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 	}
 }
 
-func messagePublisher(t *testing.T, ctx context.Context) *blockchain.MessagePublisher {
+func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	contractsCfg := testutils.GetContractsOptions(t)
 	var signer blockchain.TransactionSigner
@@ -40,7 +40,7 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.MessagePubl
 	client, err := blockchain.NewClient(ctx, contractsCfg.RpcUrl)
 	require.NoError(t, err)
 
-	publisher, err := blockchain.NewMessagePublisher(
+	publisher, err := blockchain.NewBlockchainPublisher(
 		testutils.NewLog(t),
 		client,
 		signer,

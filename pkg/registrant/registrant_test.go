@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -38,7 +39,7 @@ func setup(t *testing.T) (deps, func()) {
 	require.NoError(t, err)
 	privKey3, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	privKey1Str := "0x" + testutils.HexEncode(crypto.FromECDSA(privKey1))
+	privKey1Str := "0x" + utils.HexEncode(crypto.FromECDSA(privKey1))
 
 	return deps{
 		ctx:         ctx,
@@ -179,7 +180,7 @@ func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
 		deps.ctx,
 		deps.db,
 		deps.registry,
-		testutils.HexEncode(crypto.FromECDSA(deps.privKey1)),
+		utils.HexEncode(crypto.FromECDSA(deps.privKey1)),
 	)
 	require.NoError(t, err)
 }

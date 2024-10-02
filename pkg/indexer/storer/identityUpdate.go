@@ -55,6 +55,11 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		return NewLogStorageError(err, true)
 	}
 	if uint64(latestSequenceId) >= msgSent.SequenceId {
+		s.logger.Warn(
+			"Duplicate identity update",
+			zap.Uint64("latest_sequence_id", uint64(latestSequenceId)),
+			zap.Uint64("msg_sequence_id", msgSent.SequenceId),
+		)
 		return nil
 	}
 

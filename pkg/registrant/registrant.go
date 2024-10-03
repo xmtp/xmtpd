@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"go.uber.org/zap"
 	"slices"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,6 +24,7 @@ type Registrant struct {
 
 func NewRegistrant(
 	ctx context.Context,
+	log *zap.Logger,
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
@@ -36,6 +38,7 @@ func NewRegistrant(
 	if err != nil {
 		return nil, err
 	}
+	log.Debug(fmt.Sprintf("Running with public key %x", crypto.FromECDSAPub(record.SigningKey)))
 
 	if err = ensureDatabaseMatches(ctx, db, record); err != nil {
 		return nil, err

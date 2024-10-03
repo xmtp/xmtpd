@@ -129,13 +129,17 @@ func (s *SmartContractRegistry) refreshLoop() {
 }
 
 func (s *SmartContractRegistry) refreshData() error {
-	fromContract, err := s.loadFromContract()
+	fromContract, err := s.loadUnfilteredFromContract()
 	if err != nil {
 		return err
 	}
 
 	newNodes := []Node{}
 	for _, node := range fromContract {
+		// nodes realistically start at 100, but the contract fills the array with empty nodes
+		if !node.IsValidConfig {
+			continue
+		}
 		existingValue, ok := s.nodes[node.NodeID]
 		if !ok {
 			// New node found
@@ -153,7 +157,11 @@ func (s *SmartContractRegistry) refreshData() error {
 }
 
 func (s *SmartContractRegistry) processNewNodes(nodes []Node) {
-	s.logger.Info("processing new nodes", zap.Int("count", len(nodes)), zap.Any("nodes", nodes))
+	s.logger.Debug(
+		"processing new nodes",
+		zap.Int("count", len(nodes)),
+		zap.Any("nodes", nodes))
+
 	s.newNodesNotifier.trigger(nodes)
 
 	s.nodesMutex.Lock()
@@ -176,7 +184,7 @@ func (s *SmartContractRegistry) processChangedNode(node Node) {
 	}
 }
 
-func (s *SmartContractRegistry) loadFromContract() ([]Node, error) {
+func (s *SmartContractRegistry) loadUnfilteredFromContract() ([]Node, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, CONTRACT_CALL_TIMEOUT)
 	defer cancel()
 	nodes, err := s.contract.AllNodes(&bind.CallOpts{Context: ctx})

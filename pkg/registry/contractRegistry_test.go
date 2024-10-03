@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"context"
+	"encoding/hex"
 	"math/rand"
 	"testing"
 	"time"
@@ -16,6 +17,20 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
+const TEST_PUBKEY = "04760c4460e5336ac9bbd87952a3c7ec4363fc0a97bd31c86430806e287b437fd1b01abc6e1db640cf3106b520344af1d58b00b57823db3e1407cbc433e1b6d04d"
+
+func requireNodeEquals(t *testing.T, a, b r.Node) {
+	require.Condition(t, func() bool {
+		return a.NodeID == b.NodeID && a.HttpAddress == b.HttpAddress
+	})
+}
+func requireAllNodesEqual(t *testing.T, a, b []r.Node) {
+	require.Equal(t, len(a), len(b))
+	for i, node := range a {
+		requireNodeEquals(t, node, b[i])
+	}
+}
+
 func TestContractRegistryNewNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(
 		nil,
@@ -24,12 +39,22 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	enc, err := hex.DecodeString(TEST_PUBKEY)
+	require.NoError(t, err)
+
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
 		AllNodes(mock.Anything).
 		Return([]abis.NodesNodeWithId{
-			{NodeId: 1, Node: abis.NodesNode{HttpAddress: "http://foo.com"}},
-			{NodeId: 2, Node: abis.NodesNode{HttpAddress: "https://bar.com"}},
+			{
+				NodeId: 1,
+				Node: abis.NodesNode{
+					HttpAddress:   "http://foo.com",
+					SigningKeyPub: enc,
+				},
+			},
+			{NodeId: 2, Node: abis.NodesNode{HttpAddress: "https://bar.com",
+				SigningKeyPub: enc}},
 		}, nil)
 
 	registry.SetContractForTest(mockContract)
@@ -40,14 +65,11 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	defer cancel()
 	require.NoError(t, registry.Start(ctx))
 	newNodes := <-sub
-	require.Equal(
-		t,
-		[]r.Node{
-			{NodeID: 1, HttpAddress: "http://foo.com"},
-			{NodeID: 2, HttpAddress: "https://bar.com"},
-		},
-		newNodes,
-	)
+	requireAllNodesEqual(t, []r.Node{
+		{NodeID: 1, HttpAddress: "http://foo.com"},
+		{NodeID: 2, HttpAddress: "https://bar.com"},
+	},
+		newNodes)
 }
 
 func TestContractRegistryChangedNodes(t *testing.T) {
@@ -59,6 +81,9 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	require.NoError(t, err)
 
 	mockContract := mocks.NewMockNodesContract(t)
+
+	enc, err := hex.DecodeString(TEST_PUBKEY)
+	require.NoError(t, err)
 
 	hasSentInitialValues := false
 	// The first call, we'll set the address to foo.com.
@@ -72,7 +97,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 			httpAddress = "http://bar.com"
 		}
 		return []abis.NodesNodeWithId{
-			{NodeId: 1, Node: abis.NodesNode{HttpAddress: httpAddress}},
+			{NodeId: 1, Node: abis.NodesNode{HttpAddress: httpAddress, SigningKeyPub: enc}},
 		}, nil
 	})
 
@@ -105,6 +130,9 @@ func TestStopOnContextCancel(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	enc, err := hex.DecodeString(TEST_PUBKEY)
+	require.NoError(t, err)
+
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
 		AllNodes(mock.Anything).
@@ -112,7 +140,7 @@ func TestStopOnContextCancel(t *testing.T) {
 			return []abis.NodesNodeWithId{
 				{
 					NodeId: uint32(rand.Intn(1000)),
-					Node:   abis.NodesNode{HttpAddress: "http://foo.com"},
+					Node:   abis.NodesNode{HttpAddress: "http://foo.com", SigningKeyPub: enc},
 				},
 			}, nil
 		})

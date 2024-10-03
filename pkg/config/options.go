@@ -84,5 +84,5 @@ type ServerOptions struct {
 	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
 	Log           LogOptions           `group:"Log Options"            namespace:"log"`
 	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`
-	Version       bool                 `                                                          long:"version" description:"Output binary version and exit"`
+	Version       bool                 `                                                          short:"v" long:"version" description:"Output binary version and exit"`
 }

@@ -91,11 +91,11 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 	return originator_sequence_id, err
 }
 
-const insertAddressLog = `-- name: InsertAddressLog :one
+const insertAddressLog = `-- name: InsertAddressLog :exec
 INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
 	VALUES ($1, decode($2, 'hex'), $3, $4)
-RETURNING
-	address, inbox_id, association_sequence_id, revocation_sequence_id
+ON CONFLICT
+	DO NOTHING
 `
 
 type InsertAddressLogParams struct {
@@ -105,21 +105,14 @@ type InsertAddressLogParams struct {
 	RevocationSequenceID  sql.NullInt64
 }
 
-func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogParams) (AddressLog, error) {
-	row := q.db.QueryRowContext(ctx, insertAddressLog,
+func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogParams) error {
+	_, err := q.db.ExecContext(ctx, insertAddressLog,
 		arg.Address,
 		arg.InboxID,
 		arg.AssociationSequenceID,
 		arg.RevocationSequenceID,
 	)
-	var i AddressLog
-	err := row.Scan(
-		&i.Address,
-		&i.InboxID,
-		&i.AssociationSequenceID,
-		&i.RevocationSequenceID,
-	)
-	return i, err
+	return err
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
@@ -193,24 +186,14 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 	return i, err
 }
 
-const revokeAddressFromLog = `-- name: RevokeAddressFromLog :exec
+const revokeAddressFromLog = `-- name: RevokeAddressFromLog :execrows
 UPDATE
 	address_log
 SET
 	revocation_sequence_id = $1
-WHERE (address, inbox_id, association_sequence_id) =(
-	SELECT
-		address,
-		inbox_id,
-		MAX(association_sequence_id)
-	FROM
-		address_log AS a
-	WHERE
-		a.address = $2
-		AND a.inbox_id = decode($3, 'hex')
-	GROUP BY
-		address,
-		inbox_id)
+WHERE
+	address = $2
+	AND inbox_id = decode($3, 'hex')
 `
 
 type RevokeAddressFromLogParams struct {
@@ -219,9 +202,12 @@ type RevokeAddressFromLogParams struct {
 	InboxID              string
 }
 
-func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFromLogParams) error {
-	_, err := q.db.ExecContext(ctx, revokeAddressFromLog, arg.RevocationSequenceID, arg.Address, arg.InboxID)
-	return err
+func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFromLogParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeAddressFromLog, arg.RevocationSequenceID, arg.Address, arg.InboxID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many

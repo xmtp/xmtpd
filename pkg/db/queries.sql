@@ -101,7 +101,7 @@ INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_s
 ON CONFLICT
 	DO NOTHING;
 
--- name: RevokeAddressFromLog :exec
+-- name: RevokeAddressFromLog :execrows
 UPDATE
 	address_log
 SET

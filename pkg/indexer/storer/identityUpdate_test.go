@@ -25,7 +25,6 @@ func buildIdentityUpdateStorer(
 ) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	db, _, cleanup := testutils.NewDB(t, ctx)
-	queryImpl := queries.New(db)
 	config := testutils.GetContractsOptions(t)
 	contractAddress := config.IdentityUpdatesContractAddress
 
@@ -38,7 +37,7 @@ func buildIdentityUpdateStorer(
 	validationService := mlsvalidateMock.NewMockMLSValidationService(t)
 
 	require.NoError(t, err)
-	storer := NewIdentityUpdateStorer(queryImpl, testutils.NewLog(t), contract, validationService)
+	storer := NewIdentityUpdateStorer(db, testutils.NewLog(t), contract, validationService)
 
 	return storer, validationService, func() {
 		cancel()
@@ -79,7 +78,9 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	envelopes, queryErr := storer.queries.SelectGatewayEnvelopes(
+	querier := queries.New(storer.db)
+
+	envelopes, queryErr := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
 			OriginatorNodeID: db.NullInt32(IDENTITY_UPDATE_ORIGINATOR_ID),
@@ -94,7 +95,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(firstEnvelope.OriginatorEnvelope, &deserializedEnvelope))
 	require.Greater(t, len(deserializedEnvelope.UnsignedOriginatorEnvelope), 0)
 
-	getInboxIdResult, logsErr := storer.queries.GetAddressLogs(ctx, []string{newAddress})
+	getInboxIdResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
 	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxId[:]))
 }

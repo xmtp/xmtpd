@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,7 +22,7 @@ import (
 func StartIndexer(
 	ctx context.Context,
 	logger *zap.Logger,
-	queries *queries.Queries,
+	db *sql.DB,
 	cfg config.ContractsOptions,
 	validationService mlsvalidate.MLSValidationService,
 ) error {
@@ -30,6 +31,7 @@ func StartIndexer(
 		return err
 	}
 	builder := blockchain.NewRpcLogStreamBuilder(client, logger)
+	querier := queries.New(db)
 
 	streamer, err := configureLogStream(builder, cfg)
 	if err != nil {
@@ -45,7 +47,7 @@ func StartIndexer(
 		ctx,
 		streamer.messagesChannel,
 		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
-		storer.NewGroupMessageStorer(queries, logger, messagesContract),
+		storer.NewGroupMessageStorer(querier, logger, messagesContract),
 	)
 
 	identityUpdatesContract, err := identityUpdatesContract(cfg, client)
@@ -58,7 +60,7 @@ func StartIndexer(
 		streamer.identityUpdatesChannel,
 		logger.Named("indexLogs").
 			With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress)),
-		storer.NewIdentityUpdateStorer(queries, logger, identityUpdatesContract, validationService),
+		storer.NewIdentityUpdateStorer(db, logger, identityUpdatesContract, validationService),
 	)
 
 	return streamer.streamer.Start(ctx)

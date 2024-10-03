@@ -18,13 +18,12 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 	logger := testutils.NewLog(t)
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	cfg := testutils.GetContractsOptions(t)
-	querier := queries.New(db)
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
-	err := StartIndexer(ctx, logger, querier, cfg, validationService)
+	err := StartIndexer(ctx, logger, db, cfg, validationService)
 	require.NoError(t, err)
 
-	return querier, ctx, func() {
+	return queries.New(db), ctx, func() {
 		cleanup()
 		cancel()
 	}

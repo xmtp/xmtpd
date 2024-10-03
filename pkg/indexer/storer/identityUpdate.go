@@ -168,6 +168,7 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 		if logStorageErr, ok := err.(LogStorageError); ok {
 			return logStorageErr
 		}
+		// If the error was not a LogStorageError we can assume it's a DB error and it should be retried
 		return NewLogStorageError(err, true)
 	}
 

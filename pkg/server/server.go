@@ -91,7 +91,7 @@ func NewReplicationServer(
 	err = indexer.StartIndexer(
 		s.ctx,
 		log,
-		queries.New(s.writerDB),
+		s.writerDB,
 		options.Contracts,
 		validationService,
 	)

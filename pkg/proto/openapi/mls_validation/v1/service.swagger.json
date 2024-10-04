@@ -49,20 +49,25 @@
       },
       "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
     },
-    "ValidateGroupMessagesResponseValidationResponse": {
+    "ValidateInboxIdsRequestValidationRequest": {
       "type": "object",
       "properties": {
-        "isOk": {
-          "type": "boolean"
+        "credential": {
+          "$ref": "#/definitions/identityMlsCredential"
         },
-        "errorMessage": {
-          "type": "string"
+        "installationPublicKey": {
+          "type": "string",
+          "format": "byte"
         },
-        "groupId": {
-          "type": "string"
+        "identityUpdates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/associationsIdentityUpdate"
+          }
         }
       },
-      "title": "An individual response to one message"
+      "title": "a single validation request"
     },
     "associationsAddAssociation": {
       "type": "object",
@@ -300,10 +305,6 @@
           "type": "string",
           "format": "byte",
           "title": "The actual signature bytes"
-        },
-        "chainRpcUrl": {
-          "type": "string",
-          "title": "The RPC URL specifies a chain to verify the signature against"
         }
       },
       "title": "Smart Contract Wallet signature"
@@ -390,6 +391,19 @@
       },
       "title": "Response to GetAssociationStateRequest, containing the final association state\nfor an InboxID"
     },
+    "v1UnverifiedSmartContractWalletSignature": {
+      "type": "object",
+      "properties": {
+        "scwSignature": {
+          "$ref": "#/definitions/associationsSmartContractWalletSignature"
+        },
+        "hash": {
+          "type": "string",
+          "format": "byte",
+          "title": "SHA256 hash of the signature payload"
+        }
+      }
+    },
     "v1ValidateGroupMessagesRequestGroupMessage": {
       "type": "object",
       "properties": {
@@ -407,24 +421,26 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/ValidateGroupMessagesResponseValidationResponse"
+            "$ref": "#/definitions/v1ValidateGroupMessagesResponseValidationResponse"
           }
         }
       },
       "title": "Response to ValidateGroupMessagesRequest"
     },
-    "v1ValidateInboxIdKeyPackagesRequestKeyPackage": {
+    "v1ValidateGroupMessagesResponseValidationResponse": {
       "type": "object",
       "properties": {
-        "keyPackageBytesTlsSerialized": {
-          "type": "string",
-          "format": "byte"
-        },
-        "isInboxIdCredential": {
+        "isOk": {
           "type": "boolean"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "groupId": {
+          "type": "string"
         }
       },
-      "title": "Wrapper for each key package"
+      "title": "An individual response to one message"
     },
     "v1ValidateInboxIdKeyPackagesResponse": {
       "type": "object",
@@ -461,6 +477,111 @@
         }
       },
       "title": "one response corresponding to information about one key package"
+    },
+    "v1ValidateInboxIdsResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ValidateInboxIdsResponseValidationResponse"
+          },
+          "title": "List of validation responses"
+        }
+      },
+      "title": "Response to ValidateInboxIdRequest"
+    },
+    "v1ValidateInboxIdsResponseValidationResponse": {
+      "type": "object",
+      "properties": {
+        "isOk": {
+          "type": "boolean"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "inboxId": {
+          "type": "string"
+        }
+      },
+      "title": "a single validation response"
+    },
+    "v1ValidateKeyPackagesRequestKeyPackage": {
+      "type": "object",
+      "properties": {
+        "keyPackageBytesTlsSerialized": {
+          "type": "string",
+          "format": "byte"
+        },
+        "isInboxIdCredential": {
+          "type": "boolean"
+        }
+      },
+      "title": "Wrapper for each key package"
+    },
+    "v1ValidateKeyPackagesResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ValidateKeyPackagesResponseValidationResponse"
+          }
+        }
+      },
+      "title": "Response to ValidateKeyPackagesRequest"
+    },
+    "v1ValidateKeyPackagesResponseValidationResponse": {
+      "type": "object",
+      "properties": {
+        "isOk": {
+          "type": "boolean"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "installationId": {
+          "type": "string",
+          "format": "byte"
+        },
+        "accountAddress": {
+          "type": "string"
+        },
+        "credentialIdentityBytes": {
+          "type": "string",
+          "format": "byte"
+        },
+        "expiration": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "title": "An individual response to one key package"
+    },
+    "v1VerifySmartContractWalletSignaturesResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1VerifySmartContractWalletSignaturesResponseValidationResponse"
+          }
+        }
+      }
+    },
+    "v1VerifySmartContractWalletSignaturesResponseValidationResponse": {
+      "type": "object",
+      "properties": {
+        "isValid": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

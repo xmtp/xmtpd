@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
@@ -23,15 +24,22 @@ func NewTestServer(
 	privateKey *ecdsa.PrivateKey,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
+	messagePublisher := blockchain.NewMockIBlockchainPublisher(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
+		Contracts: config.ContractsOptions{
+			RpcUrl: "http://localhost:8545",
+		},
+		MlsValidation: config.MlsValidationOptions{
+			GrpcAddress: "localhost:60051",
+		},
 		Signer: config.SignerOptions{
 			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		},
 		API: config.ApiOptions{
 			Port: 0,
 		},
-	}, registry, db)
+	}, registry, db, messagePublisher)
 	require.NoError(t, err)
 
 	return server
@@ -47,12 +55,11 @@ func TestCreateServer(t *testing.T) {
 
 	registry := mocks.NewMockNodeRegistry(t)
 	registry.On("GetNodes").Return([]r.Node{
-		{NodeID: 1, SigningKey: &privateKey1.PublicKey},
-		{NodeID: 2, SigningKey: &privateKey2.PublicKey},
+		{NodeID: 1, SigningKey: &privateKey1.PublicKey, HttpAddress: "http://localhost:1111"},
+		{NodeID: 2, SigningKey: &privateKey2.PublicKey, HttpAddress: "http://localhost:2222"},
 	}, nil)
 
 	server1 := NewTestServer(t, dbs[0], registry, privateKey1)
 	server2 := NewTestServer(t, dbs[1], registry, privateKey2)
-
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 }

@@ -25,6 +25,96 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 	return result.RowsAffected()
 }
 
+const getAddressLogs = `-- name: GetAddressLogs :many
+SELECT
+	a.address,
+	encode(a.inbox_id, 'hex') AS inbox_id,
+	a.association_sequence_id
+FROM
+	address_log a
+	INNER JOIN (
+		SELECT
+			address,
+			MAX(association_sequence_id) AS max_association_sequence_id
+		FROM
+			address_log
+		WHERE
+			address = ANY ($1::TEXT[])
+			AND revocation_sequence_id IS NULL
+		GROUP BY
+			address) b ON a.address = b.address
+	AND a.association_sequence_id = b.max_association_sequence_id
+`
+
+type GetAddressLogsRow struct {
+	Address               string
+	InboxID               string
+	AssociationSequenceID sql.NullInt64
+}
+
+func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]GetAddressLogsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAddressLogs, pq.Array(addresses))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAddressLogsRow
+	for rows.Next() {
+		var i GetAddressLogsRow
+		if err := rows.Scan(&i.Address, &i.InboxID, &i.AssociationSequenceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getLatestSequenceId = `-- name: GetLatestSequenceId :one
+SELECT
+	COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = $1
+`
+
+func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getLatestSequenceId, originatorNodeID)
+	var originator_sequence_id int64
+	err := row.Scan(&originator_sequence_id)
+	return originator_sequence_id, err
+}
+
+const insertAddressLog = `-- name: InsertAddressLog :exec
+INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
+	VALUES ($1, decode($2, 'hex'), $3, $4)
+ON CONFLICT
+	DO NOTHING
+`
+
+type InsertAddressLogParams struct {
+	Address               string
+	InboxID               string
+	AssociationSequenceID sql.NullInt64
+	RevocationSequenceID  sql.NullInt64
+}
+
+func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogParams) error {
+	_, err := q.db.ExecContext(ctx, insertAddressLog,
+		arg.Address,
+		arg.InboxID,
+		arg.AssociationSequenceID,
+		arg.RevocationSequenceID,
+	)
+	return err
+}
+
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
 INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
 	VALUES ($1, $2, $3, $4)
@@ -94,6 +184,30 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 		&i.PayerEnvelope,
 	)
 	return i, err
+}
+
+const revokeAddressFromLog = `-- name: RevokeAddressFromLog :execrows
+UPDATE
+	address_log
+SET
+	revocation_sequence_id = $1
+WHERE
+	address = $2
+	AND inbox_id = decode($3, 'hex')
+`
+
+type RevokeAddressFromLogParams struct {
+	RevocationSequenceID sql.NullInt64
+	Address              string
+	InboxID              string
+}
+
+func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFromLogParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeAddressFromLog, arg.RevocationSequenceID, arg.Address, arg.InboxID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many

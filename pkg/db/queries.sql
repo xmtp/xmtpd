@@ -75,3 +75,46 @@ FROM
 GROUP BY
 	originator_node_id;
 
+-- name: GetAddressLogs :many
+SELECT
+	a.address,
+	encode(a.inbox_id, 'hex') AS inbox_id,
+	a.association_sequence_id
+FROM
+	address_log a
+	INNER JOIN (
+		SELECT
+			address,
+			MAX(association_sequence_id) AS max_association_sequence_id
+		FROM
+			address_log
+		WHERE
+			address = ANY (@addresses::TEXT[])
+			AND revocation_sequence_id IS NULL
+		GROUP BY
+			address) b ON a.address = b.address
+	AND a.association_sequence_id = b.max_association_sequence_id;
+
+-- name: InsertAddressLog :exec
+INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
+	VALUES (@address, decode(@inbox_id, 'hex'), @association_sequence_id, @revocation_sequence_id)
+ON CONFLICT
+	DO NOTHING;
+
+-- name: RevokeAddressFromLog :execrows
+UPDATE
+	address_log
+SET
+	revocation_sequence_id = @revocation_sequence_id
+WHERE
+	address = @address
+	AND inbox_id = decode(@inbox_id, 'hex');
+
+-- name: GetLatestSequenceId :one
+SELECT
+	COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = @originator_node_id;
+

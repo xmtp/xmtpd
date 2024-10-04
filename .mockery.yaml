@@ -17,6 +17,7 @@ packages:
   github.com/xmtp/xmtpd/pkg/blockchain:
     interfaces:
       ChainClient:
+      IBlockchainPublisher:
   github.com/xmtp/xmtpd/pkg/indexer/storer:
     interfaces:
       LogStorer:

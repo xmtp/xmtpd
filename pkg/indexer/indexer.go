@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -20,14 +22,16 @@ import (
 func StartIndexer(
 	ctx context.Context,
 	logger *zap.Logger,
-	queries *queries.Queries,
+	db *sql.DB,
 	cfg config.ContractsOptions,
+	validationService mlsvalidate.MLSValidationService,
 ) error {
 	client, err := blockchain.NewClient(ctx, cfg.RpcUrl)
 	if err != nil {
 		return err
 	}
 	builder := blockchain.NewRpcLogStreamBuilder(client, logger)
+	querier := queries.New(db)
 
 	streamer, err := configureLogStream(builder, cfg)
 	if err != nil {
@@ -43,7 +47,7 @@ func StartIndexer(
 		ctx,
 		streamer.messagesChannel,
 		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
-		storer.NewGroupMessageStorer(queries, logger, messagesContract),
+		storer.NewGroupMessageStorer(querier, logger, messagesContract),
 	)
 
 	identityUpdatesContract, err := identityUpdatesContract(cfg, client)
@@ -56,7 +60,7 @@ func StartIndexer(
 		streamer.identityUpdatesChannel,
 		logger.Named("indexLogs").
 			With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress)),
-		storer.NewIdentityUpdateStorer(queries, logger, identityUpdatesContract),
+		storer.NewIdentityUpdateStorer(db, logger, identityUpdatesContract, validationService),
 	)
 
 	return streamer.streamer.Start(ctx)

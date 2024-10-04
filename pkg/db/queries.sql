@@ -95,11 +95,15 @@ FROM
 			address) b ON a.address = b.address
 	AND a.association_sequence_id = b.max_association_sequence_id;
 
--- name: InsertAddressLog :exec
+-- name: InsertAddressLog :execrows
 INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
-	VALUES (@address, decode(@inbox_id, 'hex'), @association_sequence_id, @revocation_sequence_id)
-ON CONFLICT
-	DO NOTHING;
+	VALUES (@address, decode(@inbox_id, 'hex'), @association_sequence_id, NULL)
+ON CONFLICT (address, inbox_id)
+	DO UPDATE SET
+		revocation_sequence_id = NULL, association_sequence_id = @association_sequence_id
+	WHERE (address_log.revocation_sequence_id IS NULL
+		OR address_log.revocation_sequence_id < @association_sequence_id)
+		AND address_log.association_sequence_id < @association_sequence_id;
 
 -- name: RevokeAddressFromLog :execrows
 UPDATE

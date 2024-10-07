@@ -38,7 +38,8 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
       - name: Run Forge fmt
-        working-directory: contracts
+        # only format code, we do not want to format LIB
+        working-directory: contracts/src
         run: |
           forge --version
           forge fmt --check

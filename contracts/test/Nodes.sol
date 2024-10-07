@@ -53,6 +53,30 @@ contract NodesTest is Test {
         vm.assertEq(nodes.getNode(nodeId).isHealthy, true);
     }
 
+    function test_increments100() public {
+        Nodes.Node memory node1 = _randomNode(true);
+        Nodes.Node memory node2 = _randomNode(true);
+        Nodes.Node memory node3 = _randomNode(true);
+
+        address operator1 = vm.randomAddress();
+        address operator2 = vm.randomAddress();
+        address operator3 = vm.randomAddress();
+
+        uint32 nodeId = nodes.addNode(
+            operator1,
+            node1.signingKeyPub,
+            node1.httpAddress
+        );
+        vm.assertTrue(nodeId == 100);
+
+        nodeId = nodes.addNode(operator2, node2.signingKeyPub, node2.httpAddress);
+        vm.assertTrue(nodeId == 200);
+
+        nodeId = nodes.addNode(operator3, node3.signingKeyPub, node3.httpAddress);
+        vm.assertTrue(nodeId == 300);
+
+    }
+
     function test_canAddMultiple() public {
         Nodes.Node memory node1 = _randomNode(true);
         Nodes.Node memory node2 = _randomNode(true);
@@ -70,10 +94,16 @@ contract NodesTest is Test {
         nodes.addNode(operator2, node2.signingKeyPub, node2.httpAddress);
         nodes.addNode(operator3, node3.signingKeyPub, node3.httpAddress);
 
+
+        Nodes.NodeWithId[] memory allNodes = nodes.allNodes();
+        vm.assertTrue(allNodes.length == 3);
+
         Nodes.NodeWithId[] memory healthyNodes = nodes.healthyNodes();
         vm.assertTrue(healthyNodes.length == 3);
 
         nodes.updateHealth(node1Id, false);
+        allNodes = nodes.allNodes();
+        vm.assertTrue(allNodes.length == 3);
         healthyNodes = nodes.healthyNodes();
         vm.assertTrue(healthyNodes.length == 2);
     }

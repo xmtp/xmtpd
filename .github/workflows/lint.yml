@@ -37,9 +37,7 @@ jobs:
           submodules: recursive
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+      - run: forge --version
       - name: Run Forge fmt
         # only format code, we do not want to format LIB
-        working-directory: contracts/src
-        run: |
-          forge --version
-          forge fmt --check
+        run: forge fmt contracts/src --check

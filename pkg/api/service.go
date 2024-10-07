@@ -242,9 +242,9 @@ func (s *Service) maybePublishToBlockchain(
 	ctx context.Context,
 	clientEnv *message_api.ClientEnvelope,
 ) (didPublish bool, err error) {
-	identityUpdate := clientEnv.GetIdentityUpdate()
-	if identityUpdate != nil {
-		if err = s.publishIdentityUpdate(ctx, identityUpdate); err != nil {
+	payload, ok := clientEnv.GetPayload().(*message_api.ClientEnvelope_IdentityUpdate)
+	if ok && payload.IdentityUpdate != nil {
+		if err = s.publishIdentityUpdate(ctx, payload.IdentityUpdate); err != nil {
 			s.log.Error("could not publish identity update", zap.Error(err))
 			return false, status.Errorf(
 				codes.Internal,

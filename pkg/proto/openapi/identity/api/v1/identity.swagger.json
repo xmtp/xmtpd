@@ -24,7 +24,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetIdentityUpdatesResponse"
+              "$ref": "#/definitions/xmtpidentityapiv1GetIdentityUpdatesResponse"
             }
           },
           "default": {
@@ -40,7 +40,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1GetIdentityUpdatesRequest"
+              "$ref": "#/definitions/xmtpidentityapiv1GetIdentityUpdatesRequest"
             }
           }
         ],
@@ -107,6 +107,39 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/v1PublishIdentityUpdateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "IdentityApi"
+        ]
+      }
+    },
+    "/identity/v1/verify-smart-contract-wallet-signatures": {
+      "post": {
+        "summary": "Verify an unverified smart contract wallet signature",
+        "operationId": "IdentityApi_VerifySmartContractWalletSignatures",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VerifySmartContractWalletSignaturesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1VerifySmartContractWalletSignaturesRequest"
             }
           }
         ],
@@ -375,10 +408,6 @@
           "type": "string",
           "format": "byte",
           "title": "The actual signature bytes"
-        },
-        "chainRpcUrl": {
-          "type": "string",
-          "title": "The RPC URL specifies a chain to verify the signature against"
         }
       },
       "title": "Smart Contract Wallet signature"
@@ -444,19 +473,6 @@
         }
       }
     },
-    "v1GetIdentityUpdatesRequest": {
-      "type": "object",
-      "properties": {
-        "requests": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetIdentityUpdatesRequestRequest"
-          }
-        }
-      },
-      "title": "Get all updates for an identity since the specified time"
-    },
     "v1GetIdentityUpdatesRequestRequest": {
       "type": "object",
       "properties": {
@@ -469,19 +485,6 @@
         }
       },
       "description": "Points to the last entry the client has received. The sequence_id should be\nset to 0 if the client has not received anything."
-    },
-    "v1GetIdentityUpdatesResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetIdentityUpdatesResponseResponse"
-          }
-        }
-      },
-      "title": "Returns all log entries for the requested identities"
     },
     "v1GetIdentityUpdatesResponseResponse": {
       "type": "object",
@@ -511,6 +514,80 @@
     "v1PublishIdentityUpdateResponse": {
       "type": "object",
       "title": "The response when an identity update is published"
+    },
+    "v1UnverifiedSmartContractWalletSignature": {
+      "type": "object",
+      "properties": {
+        "scwSignature": {
+          "$ref": "#/definitions/associationsSmartContractWalletSignature"
+        },
+        "hash": {
+          "type": "string",
+          "format": "byte",
+          "title": "SHA256 hash of the signature payload"
+        }
+      }
+    },
+    "v1VerifySmartContractWalletSignaturesRequest": {
+      "type": "object",
+      "properties": {
+        "signatures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1UnverifiedSmartContractWalletSignature"
+          }
+        }
+      }
+    },
+    "v1VerifySmartContractWalletSignaturesResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1VerifySmartContractWalletSignaturesResponseValidationResponse"
+          }
+        }
+      }
+    },
+    "v1VerifySmartContractWalletSignaturesResponseValidationResponse": {
+      "type": "object",
+      "properties": {
+        "isValid": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "xmtpidentityapiv1GetIdentityUpdatesRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetIdentityUpdatesRequestRequest"
+          }
+        }
+      },
+      "title": "Get all updates for an identity since the specified time"
+    },
+    "xmtpidentityapiv1GetIdentityUpdatesResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetIdentityUpdatesResponseResponse"
+          }
+        }
+      },
+      "title": "Returns all log entries for the requested identities"
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

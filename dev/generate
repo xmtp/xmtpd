@@ -2,10 +2,7 @@
 
 set -euo pipefail
 
-if ! ./dev/gen_protos; then
-    exit 1
-fi
-
+./dev/gen_protos
 go generate ./...
 rm -rf pkg/mocks/*
 ./dev/abigen

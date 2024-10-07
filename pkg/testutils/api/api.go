@@ -3,6 +3,7 @@ package testutils
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,7 +17,19 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
+
+func DialGRPC(ctx context.Context, s *api.ApiServer) (*grpc.ClientConn, error) {
+	// https://github.com/grpc/grpc/blob/master/doc/naming.md
+	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.Addr().String())
+	return grpc.NewClient(
+		dialAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(),
+	)
+}
 
 func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -53,7 +66,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 
 func NewTestAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
 	svc, db, cleanup := NewTestAPIServer(t)
-	conn, err := svc.DialGRPC(context.Background())
+	conn, err := DialGRPC(context.Background(), svc)
 	require.NoError(t, err)
 	client := message_api.NewReplicationApiClient(conn)
 

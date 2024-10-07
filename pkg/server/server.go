@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	"github.com/xmtp/xmtpd/pkg/sync"
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -24,7 +25,9 @@ import (
 )
 
 type ReplicationServer struct {
-	apiServer    *api.ApiServer
+	apiServer  *api.ApiServer
+	syncServer *sync.SyncServer
+
 	ctx          context.Context
 	cancel       context.CancelFunc
 	log          *zap.Logger
@@ -100,6 +103,7 @@ func NewReplicationServer(
 		return nil, err
 	}
 
+	// TODO(rich): Add configuration to specify whether to run API/sync server
 	s.apiServer, err = api.NewAPIServer(
 		s.ctx,
 		s.writerDB,
@@ -108,6 +112,17 @@ func NewReplicationServer(
 		s.registrant,
 		options.Reflection.Enable,
 		blockchainPublisher,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	s.syncServer, err = sync.NewSyncServer(
+		s.ctx,
+		log,
+		s.nodeRegistry,
+		s.registrant,
+		s.writerDB,
 	)
 	if err != nil {
 		return nil, err

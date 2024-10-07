@@ -114,16 +114,6 @@ func (s *ApiServer) Addr() net.Addr {
 	return s.grpcListener.Addr()
 }
 
-func (s *ApiServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
-	// https://github.com/grpc/grpc/blob/master/doc/naming.md
-	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpcListener.Addr().String())
-	return grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
-}
-
 func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// Attempt to use GracefulStop up until the timeout

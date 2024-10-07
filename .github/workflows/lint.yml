@@ -28,3 +28,16 @@ jobs:
         uses: nickcharlton/diff-check@main
         with:
           command: dev/lint-golines
+  contracts:
+    name: Lint (Contracts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - run: forge --version
+      - name: Run Forge fmt
+        # only format code, we do not want to format LIB
+        run: forge fmt contracts/src --check

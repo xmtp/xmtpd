@@ -21,9 +21,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	IdentityApi_PublishIdentityUpdate_FullMethodName = "/xmtp.identity.api.v1.IdentityApi/PublishIdentityUpdate"
-	IdentityApi_GetIdentityUpdates_FullMethodName    = "/xmtp.identity.api.v1.IdentityApi/GetIdentityUpdates"
-	IdentityApi_GetInboxIds_FullMethodName           = "/xmtp.identity.api.v1.IdentityApi/GetInboxIds"
+	IdentityApi_PublishIdentityUpdate_FullMethodName               = "/xmtp.identity.api.v1.IdentityApi/PublishIdentityUpdate"
+	IdentityApi_GetIdentityUpdates_FullMethodName                  = "/xmtp.identity.api.v1.IdentityApi/GetIdentityUpdates"
+	IdentityApi_GetInboxIds_FullMethodName                         = "/xmtp.identity.api.v1.IdentityApi/GetInboxIds"
+	IdentityApi_VerifySmartContractWalletSignatures_FullMethodName = "/xmtp.identity.api.v1.IdentityApi/VerifySmartContractWalletSignatures"
 )
 
 // IdentityApiClient is the client API for IdentityApi service.
@@ -39,6 +40,8 @@ type IdentityApiClient interface {
 	GetIdentityUpdates(ctx context.Context, in *GetIdentityUpdatesRequest, opts ...grpc.CallOption) (*GetIdentityUpdatesResponse, error)
 	// Retrieve the XIDs for the given addresses
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
+	// Verify an unverified smart contract wallet signature
+	VerifySmartContractWalletSignatures(ctx context.Context, in *VerifySmartContractWalletSignaturesRequest, opts ...grpc.CallOption) (*VerifySmartContractWalletSignaturesResponse, error)
 }
 
 type identityApiClient struct {
@@ -76,6 +79,15 @@ func (c *identityApiClient) GetInboxIds(ctx context.Context, in *GetInboxIdsRequ
 	return out, nil
 }
 
+func (c *identityApiClient) VerifySmartContractWalletSignatures(ctx context.Context, in *VerifySmartContractWalletSignaturesRequest, opts ...grpc.CallOption) (*VerifySmartContractWalletSignaturesResponse, error) {
+	out := new(VerifySmartContractWalletSignaturesResponse)
+	err := c.cc.Invoke(ctx, IdentityApi_VerifySmartContractWalletSignatures_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IdentityApiServer is the server API for IdentityApi service.
 // All implementations must embed UnimplementedIdentityApiServer
 // for forward compatibility
@@ -89,6 +101,8 @@ type IdentityApiServer interface {
 	GetIdentityUpdates(context.Context, *GetIdentityUpdatesRequest) (*GetIdentityUpdatesResponse, error)
 	// Retrieve the XIDs for the given addresses
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
+	// Verify an unverified smart contract wallet signature
+	VerifySmartContractWalletSignatures(context.Context, *VerifySmartContractWalletSignaturesRequest) (*VerifySmartContractWalletSignaturesResponse, error)
 	mustEmbedUnimplementedIdentityApiServer()
 }
 
@@ -104,6 +118,9 @@ func (UnimplementedIdentityApiServer) GetIdentityUpdates(context.Context, *GetId
 }
 func (UnimplementedIdentityApiServer) GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInboxIds not implemented")
+}
+func (UnimplementedIdentityApiServer) VerifySmartContractWalletSignatures(context.Context, *VerifySmartContractWalletSignaturesRequest) (*VerifySmartContractWalletSignaturesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifySmartContractWalletSignatures not implemented")
 }
 func (UnimplementedIdentityApiServer) mustEmbedUnimplementedIdentityApiServer() {}
 
@@ -172,6 +189,24 @@ func _IdentityApi_GetInboxIds_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IdentityApi_VerifySmartContractWalletSignatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifySmartContractWalletSignaturesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityApiServer).VerifySmartContractWalletSignatures(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityApi_VerifySmartContractWalletSignatures_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityApiServer).VerifySmartContractWalletSignatures(ctx, req.(*VerifySmartContractWalletSignaturesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IdentityApi_ServiceDesc is the grpc.ServiceDesc for IdentityApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +225,10 @@ var IdentityApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInboxIds",
 			Handler:    _IdentityApi_GetInboxIds_Handler,
+		},
+		{
+			MethodName: "VerifySmartContractWalletSignatures",
+			Handler:    _IdentityApi_VerifySmartContractWalletSignatures_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

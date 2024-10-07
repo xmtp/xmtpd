@@ -2,9 +2,7 @@
 
 set -euo pipefail
 
-rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
-if ! buf generate https://github.com/xmtp/proto.git#subdir=proto,branch=main; then
-    echo "Failed to generate protobuf definitions"
+if ! ./dev/gen_protos; then
     exit 1
 fi
 
@@ -13,4 +11,3 @@ rm -rf pkg/mocks/*
 ./dev/abigen
 mockery
 sqlc generate
-./dev/gen_protos

@@ -5,6 +5,8 @@ package mls_validationv1
 import (
 	context "context"
 
+	apiv1 "github.com/xmtp/xmtpd/pkg/proto/identity/api/v1"
+
 	grpc "google.golang.org/grpc"
 
 	mls_validationv1 "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
@@ -174,7 +176,7 @@ func (_c *MockValidationApiClient_ValidateGroupMessages_Call) RunAndReturn(run f
 }
 
 // ValidateInboxIdKeyPackages provides a mock function with given fields: ctx, in, opts
-func (_m *MockValidationApiClient) ValidateInboxIdKeyPackages(ctx context.Context, in *mls_validationv1.ValidateInboxIdKeyPackagesRequest, opts ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdKeyPackagesResponse, error) {
+func (_m *MockValidationApiClient) ValidateInboxIdKeyPackages(ctx context.Context, in *mls_validationv1.ValidateKeyPackagesRequest, opts ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdKeyPackagesResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -190,10 +192,10 @@ func (_m *MockValidationApiClient) ValidateInboxIdKeyPackages(ctx context.Contex
 
 	var r0 *mls_validationv1.ValidateInboxIdKeyPackagesResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateInboxIdKeyPackagesRequest, ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdKeyPackagesResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdKeyPackagesResponse, error)); ok {
 		return rf(ctx, in, opts...)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateInboxIdKeyPackagesRequest, ...grpc.CallOption) *mls_validationv1.ValidateInboxIdKeyPackagesResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) *mls_validationv1.ValidateInboxIdKeyPackagesResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
@@ -201,7 +203,7 @@ func (_m *MockValidationApiClient) ValidateInboxIdKeyPackages(ctx context.Contex
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *mls_validationv1.ValidateInboxIdKeyPackagesRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)
@@ -217,14 +219,14 @@ type MockValidationApiClient_ValidateInboxIdKeyPackages_Call struct {
 
 // ValidateInboxIdKeyPackages is a helper method to define mock.On call
 //   - ctx context.Context
-//   - in *mls_validationv1.ValidateInboxIdKeyPackagesRequest
+//   - in *mls_validationv1.ValidateKeyPackagesRequest
 //   - opts ...grpc.CallOption
 func (_e *MockValidationApiClient_Expecter) ValidateInboxIdKeyPackages(ctx interface{}, in interface{}, opts ...interface{}) *MockValidationApiClient_ValidateInboxIdKeyPackages_Call {
 	return &MockValidationApiClient_ValidateInboxIdKeyPackages_Call{Call: _e.mock.On("ValidateInboxIdKeyPackages",
 		append([]interface{}{ctx, in}, opts...)...)}
 }
 
-func (_c *MockValidationApiClient_ValidateInboxIdKeyPackages_Call) Run(run func(ctx context.Context, in *mls_validationv1.ValidateInboxIdKeyPackagesRequest, opts ...grpc.CallOption)) *MockValidationApiClient_ValidateInboxIdKeyPackages_Call {
+func (_c *MockValidationApiClient_ValidateInboxIdKeyPackages_Call) Run(run func(ctx context.Context, in *mls_validationv1.ValidateKeyPackagesRequest, opts ...grpc.CallOption)) *MockValidationApiClient_ValidateInboxIdKeyPackages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
@@ -232,7 +234,7 @@ func (_c *MockValidationApiClient_ValidateInboxIdKeyPackages_Call) Run(run func(
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*mls_validationv1.ValidateInboxIdKeyPackagesRequest), variadicArgs...)
+		run(args[0].(context.Context), args[1].(*mls_validationv1.ValidateKeyPackagesRequest), variadicArgs...)
 	})
 	return _c
 }
@@ -242,7 +244,229 @@ func (_c *MockValidationApiClient_ValidateInboxIdKeyPackages_Call) Return(_a0 *m
 	return _c
 }
 
-func (_c *MockValidationApiClient_ValidateInboxIdKeyPackages_Call) RunAndReturn(run func(context.Context, *mls_validationv1.ValidateInboxIdKeyPackagesRequest, ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdKeyPackagesResponse, error)) *MockValidationApiClient_ValidateInboxIdKeyPackages_Call {
+func (_c *MockValidationApiClient_ValidateInboxIdKeyPackages_Call) RunAndReturn(run func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdKeyPackagesResponse, error)) *MockValidationApiClient_ValidateInboxIdKeyPackages_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ValidateInboxIds provides a mock function with given fields: ctx, in, opts
+func (_m *MockValidationApiClient) ValidateInboxIds(ctx context.Context, in *mls_validationv1.ValidateInboxIdsRequest, opts ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdsResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateInboxIds")
+	}
+
+	var r0 *mls_validationv1.ValidateInboxIdsResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateInboxIdsRequest, ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdsResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateInboxIdsRequest, ...grpc.CallOption) *mls_validationv1.ValidateInboxIdsResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*mls_validationv1.ValidateInboxIdsResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *mls_validationv1.ValidateInboxIdsRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockValidationApiClient_ValidateInboxIds_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateInboxIds'
+type MockValidationApiClient_ValidateInboxIds_Call struct {
+	*mock.Call
+}
+
+// ValidateInboxIds is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *mls_validationv1.ValidateInboxIdsRequest
+//   - opts ...grpc.CallOption
+func (_e *MockValidationApiClient_Expecter) ValidateInboxIds(ctx interface{}, in interface{}, opts ...interface{}) *MockValidationApiClient_ValidateInboxIds_Call {
+	return &MockValidationApiClient_ValidateInboxIds_Call{Call: _e.mock.On("ValidateInboxIds",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *MockValidationApiClient_ValidateInboxIds_Call) Run(run func(ctx context.Context, in *mls_validationv1.ValidateInboxIdsRequest, opts ...grpc.CallOption)) *MockValidationApiClient_ValidateInboxIds_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*mls_validationv1.ValidateInboxIdsRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *MockValidationApiClient_ValidateInboxIds_Call) Return(_a0 *mls_validationv1.ValidateInboxIdsResponse, _a1 error) *MockValidationApiClient_ValidateInboxIds_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockValidationApiClient_ValidateInboxIds_Call) RunAndReturn(run func(context.Context, *mls_validationv1.ValidateInboxIdsRequest, ...grpc.CallOption) (*mls_validationv1.ValidateInboxIdsResponse, error)) *MockValidationApiClient_ValidateInboxIds_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ValidateKeyPackages provides a mock function with given fields: ctx, in, opts
+func (_m *MockValidationApiClient) ValidateKeyPackages(ctx context.Context, in *mls_validationv1.ValidateKeyPackagesRequest, opts ...grpc.CallOption) (*mls_validationv1.ValidateKeyPackagesResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateKeyPackages")
+	}
+
+	var r0 *mls_validationv1.ValidateKeyPackagesResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) (*mls_validationv1.ValidateKeyPackagesResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) *mls_validationv1.ValidateKeyPackagesResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*mls_validationv1.ValidateKeyPackagesResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockValidationApiClient_ValidateKeyPackages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateKeyPackages'
+type MockValidationApiClient_ValidateKeyPackages_Call struct {
+	*mock.Call
+}
+
+// ValidateKeyPackages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *mls_validationv1.ValidateKeyPackagesRequest
+//   - opts ...grpc.CallOption
+func (_e *MockValidationApiClient_Expecter) ValidateKeyPackages(ctx interface{}, in interface{}, opts ...interface{}) *MockValidationApiClient_ValidateKeyPackages_Call {
+	return &MockValidationApiClient_ValidateKeyPackages_Call{Call: _e.mock.On("ValidateKeyPackages",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *MockValidationApiClient_ValidateKeyPackages_Call) Run(run func(ctx context.Context, in *mls_validationv1.ValidateKeyPackagesRequest, opts ...grpc.CallOption)) *MockValidationApiClient_ValidateKeyPackages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*mls_validationv1.ValidateKeyPackagesRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *MockValidationApiClient_ValidateKeyPackages_Call) Return(_a0 *mls_validationv1.ValidateKeyPackagesResponse, _a1 error) *MockValidationApiClient_ValidateKeyPackages_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockValidationApiClient_ValidateKeyPackages_Call) RunAndReturn(run func(context.Context, *mls_validationv1.ValidateKeyPackagesRequest, ...grpc.CallOption) (*mls_validationv1.ValidateKeyPackagesResponse, error)) *MockValidationApiClient_ValidateKeyPackages_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VerifySmartContractWalletSignatures provides a mock function with given fields: ctx, in, opts
+func (_m *MockValidationApiClient) VerifySmartContractWalletSignatures(ctx context.Context, in *apiv1.VerifySmartContractWalletSignaturesRequest, opts ...grpc.CallOption) (*apiv1.VerifySmartContractWalletSignaturesResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifySmartContractWalletSignatures")
+	}
+
+	var r0 *apiv1.VerifySmartContractWalletSignaturesResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *apiv1.VerifySmartContractWalletSignaturesRequest, ...grpc.CallOption) (*apiv1.VerifySmartContractWalletSignaturesResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *apiv1.VerifySmartContractWalletSignaturesRequest, ...grpc.CallOption) *apiv1.VerifySmartContractWalletSignaturesResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*apiv1.VerifySmartContractWalletSignaturesResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *apiv1.VerifySmartContractWalletSignaturesRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockValidationApiClient_VerifySmartContractWalletSignatures_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifySmartContractWalletSignatures'
+type MockValidationApiClient_VerifySmartContractWalletSignatures_Call struct {
+	*mock.Call
+}
+
+// VerifySmartContractWalletSignatures is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *apiv1.VerifySmartContractWalletSignaturesRequest
+//   - opts ...grpc.CallOption
+func (_e *MockValidationApiClient_Expecter) VerifySmartContractWalletSignatures(ctx interface{}, in interface{}, opts ...interface{}) *MockValidationApiClient_VerifySmartContractWalletSignatures_Call {
+	return &MockValidationApiClient_VerifySmartContractWalletSignatures_Call{Call: _e.mock.On("VerifySmartContractWalletSignatures",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *MockValidationApiClient_VerifySmartContractWalletSignatures_Call) Run(run func(ctx context.Context, in *apiv1.VerifySmartContractWalletSignaturesRequest, opts ...grpc.CallOption)) *MockValidationApiClient_VerifySmartContractWalletSignatures_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*apiv1.VerifySmartContractWalletSignaturesRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *MockValidationApiClient_VerifySmartContractWalletSignatures_Call) Return(_a0 *apiv1.VerifySmartContractWalletSignaturesResponse, _a1 error) *MockValidationApiClient_VerifySmartContractWalletSignatures_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockValidationApiClient_VerifySmartContractWalletSignatures_Call) RunAndReturn(run func(context.Context, *apiv1.VerifySmartContractWalletSignaturesRequest, ...grpc.CallOption) (*apiv1.VerifySmartContractWalletSignaturesResponse, error)) *MockValidationApiClient_VerifySmartContractWalletSignatures_Call {
 	_c.Call.Return(run)
 	return _c
 }

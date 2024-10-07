@@ -9,6 +9,7 @@ import (
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -89,12 +90,12 @@ func (s *MLSValidationServiceImpl) GetAssociationStateFromEnvelopes(
 			return nil, err
 		}
 
-		identityUpdate := clientEnvelope.GetIdentityUpdate()
-		if identityUpdate == nil {
+		payload, ok := clientEnvelope.GetPayload().(*message_api.ClientEnvelope_IdentityUpdate)
+		if !ok || payload.IdentityUpdate == nil {
 			return nil, fmt.Errorf("identity update is nil")
 		}
 
-		oldUpdates[i] = identityUpdate
+		oldUpdates[i] = payload.IdentityUpdate
 	}
 
 	newUpdate := &associations.IdentityUpdate{}
@@ -133,18 +134,18 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 
 func makeValidateKeyPackageRequest(
 	keyPackageBytes [][]byte,
-) *svc.ValidateInboxIdKeyPackagesRequest {
+) *svc.ValidateKeyPackagesRequest {
 	keyPackageRequests := make(
-		[]*svc.ValidateInboxIdKeyPackagesRequest_KeyPackage,
+		[]*svc.ValidateKeyPackagesRequest_KeyPackage,
 		len(keyPackageBytes),
 	)
 	for i, keyPackage := range keyPackageBytes {
-		keyPackageRequests[i] = &svc.ValidateInboxIdKeyPackagesRequest_KeyPackage{
+		keyPackageRequests[i] = &svc.ValidateKeyPackagesRequest_KeyPackage{
 			KeyPackageBytesTlsSerialized: keyPackage,
 			IsInboxIdCredential:          true,
 		}
 	}
-	return &svc.ValidateInboxIdKeyPackagesRequest{
+	return &svc.ValidateKeyPackagesRequest{
 		KeyPackages: keyPackageRequests,
 	}
 }

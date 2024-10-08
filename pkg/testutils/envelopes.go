@@ -28,14 +28,17 @@ func UnmarshalUnsignedOriginatorEnvelope(
 	return unsignedOriginatorEnvelope
 }
 
-func CreateClientEnvelope() *message_api.ClientEnvelope {
-	return &message_api.ClientEnvelope{
-		Payload: nil,
-		Aad: &message_api.AuthenticatedData{
-			TargetOriginator: 1,
+func CreateClientEnvelope(aad ...*message_api.AuthenticatedData) *message_api.ClientEnvelope {
+	if len(aad) == 0 {
+		aad = append(aad, &message_api.AuthenticatedData{
+			TargetOriginator: 100,
 			TargetTopic:      []byte{0x5},
 			LastSeen:         &message_api.VectorClock{},
-		},
+		})
+	}
+	return &message_api.ClientEnvelope{
+		Payload: nil,
+		Aad:     aad[0],
 	}
 }
 

@@ -515,16 +515,26 @@
       "type": "object",
       "title": "The response when an identity update is published"
     },
-    "v1UnverifiedSmartContractWalletSignature": {
+    "v1VerifySmartContractWalletSignatureRequestSignature": {
       "type": "object",
       "properties": {
-        "scwSignature": {
-          "$ref": "#/definitions/associationsSmartContractWalletSignature"
+        "accountId": {
+          "type": "string",
+          "title": "CAIP-10 string\nhttps://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Specify the block number to verify the signature against"
+        },
+        "signature": {
+          "type": "string",
+          "format": "byte",
+          "title": "The signature bytes"
         },
         "hash": {
           "type": "string",
-          "format": "byte",
-          "title": "SHA256 hash of the signature payload"
+          "format": "byte"
         }
       }
     },
@@ -535,7 +545,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1UnverifiedSmartContractWalletSignature"
+            "$ref": "#/definitions/v1VerifySmartContractWalletSignatureRequestSignature"
           }
         }
       }
@@ -557,6 +567,10 @@
       "properties": {
         "isValid": {
           "type": "boolean"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
         },
         "error": {
           "type": "string"

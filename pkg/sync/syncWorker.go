@@ -73,105 +73,133 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 		&s.wg,
 		fmt.Sprintf("node-subscribe-%d", node.NodeID),
 		func(ctx context.Context) {
+			var err error
 			for {
-				addr := node.HttpAddress
-				log.Info(fmt.Sprintf("attempting to connect to %s", addr))
-				conn, err := grpc.NewClient(
-					addr,
-					grpc.WithTransportCredentials(insecure.NewCredentials()),
-					grpc.WithDefaultCallOptions(),
-				)
 				if err != nil {
-					time.Sleep(1000 * time.Millisecond)
-					log.Info("Replication server failed to connect to peer. Retrying...")
+					log.Error(fmt.Sprintf("Error: %v, retrying...", err))
+					time.Sleep(1 * time.Second)
+				}
+				err = nil
+
+				conn, err := s.connectToNode(node)
+				if err != nil {
 					continue
 				}
-				client := message_api.NewReplicationApiClient(conn)
-				stream, err := client.BatchSubscribeEnvelopes(
-					s.ctx,
-					&message_api.BatchSubscribeEnvelopesRequest{
-						Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-							{
-								Query: &message_api.EnvelopesQuery{
-									Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
-										OriginatorNodeId: node.NodeID,
-									},
-									LastSeen: nil,
-								},
-							},
-						},
-					},
-				)
+				stream, err := s.setupStream(node, conn)
 				if err != nil {
-					time.Sleep(1000 * time.Millisecond)
-					log.Info(fmt.Sprintf(
-						"Replication server failed to batch subscribe to peer. Retrying... %v",
-						err),
-					)
 					continue
 				}
-
-				log.Info(fmt.Sprintf("Successfully connected to peer at %s", addr))
-				for {
-					envs, err := stream.Recv()
-					if err != nil {
-						log.Info(fmt.Sprintf(
-							"Replication server subscription closed. Retrying... %v",
-							err),
-						)
-						break
-					}
-					for _, env := range envs.Envelopes {
-						log.Info(fmt.Sprintf("Replication server received envelope %s", env))
-						originatorBytes, err := proto.Marshal(env)
-						if err != nil {
-							log.Error("Failed to marshal originator envelope", zap.Error(err))
-						}
-
-						unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
-						err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
-						if err != nil {
-							log.Error(
-								"Failed to unmarshal unsigned originator envelope",
-								zap.Error(err),
-							)
-						}
-
-						clientEnvelope := &message_api.ClientEnvelope{}
-						err = proto.Unmarshal(
-							unsignedEnvelope.GetPayerEnvelope().GetUnsignedClientEnvelope(),
-							clientEnvelope,
-						)
-						if err != nil {
-							log.Error(
-								"Failed to unmarshal client envelope",
-								zap.Error(err),
-							)
-						}
-
-						q := queries.New(s.store)
-
-						// On unique constraint conflicts, no error is thrown, but numRows is 0
-						inserted, err := q.InsertGatewayEnvelope(
-							s.ctx,
-							queries.InsertGatewayEnvelopeParams{
-								OriginatorNodeID: int32(unsignedEnvelope.GetOriginatorNodeId()),
-								OriginatorSequenceID: int64(
-									unsignedEnvelope.GetOriginatorSequenceId(),
-								),
-								Topic:              clientEnvelope.GetAad().GetTargetTopic(),
-								OriginatorEnvelope: originatorBytes,
-							},
-						)
-						if err != nil {
-							log.Error("Failed to insert gateway envelope", zap.Error(err))
-						} else if inserted == 0 {
-							// Envelope was already inserted by another worker
-							log.Error("Envelope already inserted")
-						}
-					}
+				err = s.listenToStream(stream)
+				if err != nil {
+					continue
 				}
 			}
 		},
 	)
+}
+
+func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
+	addr := node.HttpAddress
+	log.Info(fmt.Sprintf("attempting to connect to %s", addr))
+	conn, err := grpc.NewClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to peer: %v", err)
+	}
+	log.Info(fmt.Sprintf("Successfully connected to peer at %s", addr))
+	return conn, nil
+}
+
+func (s *syncWorker) setupStream(node registry.Node, conn *grpc.ClientConn) (message_api.ReplicationApi_BatchSubscribeEnvelopesClient, error) {
+	client := message_api.NewReplicationApiClient(conn)
+	stream, err := client.BatchSubscribeEnvelopes(
+		s.ctx,
+		&message_api.BatchSubscribeEnvelopesRequest{
+			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
+				{
+					Query: &message_api.EnvelopesQuery{
+						Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
+							OriginatorNodeId: node.NodeID,
+						},
+						LastSeen: nil,
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"Failed to batch subscribe to peer: %v",
+			err,
+		)
+	}
+	return stream, nil
+}
+
+func (s *syncWorker) listenToStream(stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient) error {
+	for {
+		envs, err := stream.Recv()
+		// TODO(rich) Handle normal stream closure properly
+		if err != nil {
+			return fmt.Errorf(
+				"Stream closed with error: %v",
+				err)
+		}
+		for _, env := range envs.Envelopes {
+			s.insertEnvelope(env)
+		}
+	}
+}
+
+func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
+	log.Info(fmt.Sprintf("Replication server received envelope %s", env))
+	// TODO(rich) Validation logic - share code with API service and publish worker
+	originatorBytes, err := proto.Marshal(env)
+	if err != nil {
+		log.Error("Failed to marshal originator envelope", zap.Error(err))
+	}
+
+	unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
+	err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
+	if err != nil {
+		log.Error(
+			"Failed to unmarshal unsigned originator envelope",
+			zap.Error(err),
+		)
+	}
+
+	clientEnvelope := &message_api.ClientEnvelope{}
+	err = proto.Unmarshal(
+		unsignedEnvelope.GetPayerEnvelope().GetUnsignedClientEnvelope(),
+		clientEnvelope,
+	)
+	if err != nil {
+		log.Error(
+			"Failed to unmarshal client envelope",
+			zap.Error(err),
+		)
+	}
+
+	q := queries.New(s.store)
+
+	inserted, err := q.InsertGatewayEnvelope(
+		s.ctx,
+		queries.InsertGatewayEnvelopeParams{
+			OriginatorNodeID: int32(unsignedEnvelope.GetOriginatorNodeId()),
+			OriginatorSequenceID: int64(
+				unsignedEnvelope.GetOriginatorSequenceId(),
+			),
+			Topic:              clientEnvelope.GetAad().GetTargetTopic(),
+			OriginatorEnvelope: originatorBytes,
+		},
+	)
+	if err != nil {
+		log.Error("Failed to insert gateway envelope", zap.Error(err))
+	} else if inserted == 0 {
+		// Envelope was already inserted by another worker
+		log.Error("Envelope already inserted")
+	}
 }

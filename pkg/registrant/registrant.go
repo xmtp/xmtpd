@@ -102,8 +102,6 @@ func getRegistryRecord(
 	if err != nil {
 		return nil, fmt.Errorf("unable to get nodes from registry: %v", err)
 	}
-	fmt.Println(records)
-	fmt.Println(privateKey.PublicKey)
 	i := slices.IndexFunc(records, func(e registry.Node) bool {
 		if e.NodeID == 0 {
 			return false

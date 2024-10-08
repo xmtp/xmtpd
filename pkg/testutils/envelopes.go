@@ -31,7 +31,7 @@ func UnmarshalUnsignedOriginatorEnvelope(
 func CreateClientEnvelope(aad ...*message_api.AuthenticatedData) *message_api.ClientEnvelope {
 	if len(aad) == 0 {
 		aad = append(aad, &message_api.AuthenticatedData{
-			TargetOriginator: 100,
+			TargetOriginator: 1,
 			TargetTopic:      []byte{0x5},
 			LastSeen:         &message_api.VectorClock{},
 		})

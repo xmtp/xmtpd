@@ -67,8 +67,8 @@ func TestCreateServer(t *testing.T) {
 
 	registry := mocks.NewMockNodeRegistry(t)
 	registry.On("GetNodes").Return([]r.Node{
-		{NodeID: server1NodeID, SigningKey: &privateKey1.PublicKey, HttpAddress: fmt.Sprintf("passthrough://localhost/[::]:%d", server1Port)},
-		{NodeID: server2NodeID, SigningKey: &privateKey2.PublicKey, HttpAddress: fmt.Sprintf("passthrough://localhost/[::]:%d", server2Port)},
+		{NodeID: server1NodeID, SigningKey: &privateKey1.PublicKey, HttpAddress: fmt.Sprintf("passthrough://localhost/[::]:%d", server1Port), IsHealthy: true},
+		{NodeID: server2NodeID, SigningKey: &privateKey2.PublicKey, HttpAddress: fmt.Sprintf("passthrough://localhost/[::]:%d", server2Port), IsHealthy: true},
 	}, nil)
 
 	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)

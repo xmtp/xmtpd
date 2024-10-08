@@ -55,7 +55,7 @@ func (s *syncWorker) start() error {
 		return err
 	}
 	for _, node := range nodes {
-		if node.NodeID == s.registrant.NodeID() {
+		if node.NodeID == s.registrant.NodeID() || !node.IsHealthy {
 			continue
 		}
 		s.subscribeToNode(node)

@@ -18,4 +18,4 @@ if ! which abigen &>/dev/null; then go install github.com/ethereum/go-ethereum/c
 dev/generate
 dev/docker/up
 dev/contracts/deploy-local 
-dev/register-local-node-2
+dev/register-local-node

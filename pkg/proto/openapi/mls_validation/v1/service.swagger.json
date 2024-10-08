@@ -391,19 +391,6 @@
       },
       "title": "Response to GetAssociationStateRequest, containing the final association state\nfor an InboxID"
     },
-    "v1UnverifiedSmartContractWalletSignature": {
-      "type": "object",
-      "properties": {
-        "scwSignature": {
-          "$ref": "#/definitions/associationsSmartContractWalletSignature"
-        },
-        "hash": {
-          "type": "string",
-          "format": "byte",
-          "title": "SHA256 hash of the signature payload"
-        }
-      }
-    },
     "v1ValidateGroupMessagesRequestGroupMessage": {
       "type": "object",
       "properties": {
@@ -560,6 +547,29 @@
       },
       "title": "An individual response to one key package"
     },
+    "v1VerifySmartContractWalletSignatureRequestSignature": {
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "title": "CAIP-10 string\nhttps://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Specify the block number to verify the signature against"
+        },
+        "signature": {
+          "type": "string",
+          "format": "byte",
+          "title": "The signature bytes"
+        },
+        "hash": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
     "v1VerifySmartContractWalletSignaturesResponse": {
       "type": "object",
       "properties": {
@@ -577,6 +587,10 @@
       "properties": {
         "isValid": {
           "type": "boolean"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
         },
         "error": {
           "type": "string"

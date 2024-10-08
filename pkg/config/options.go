@@ -34,7 +34,7 @@ type MetricsOptions struct {
 }
 
 type PayerOptions struct {
-	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
+	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions" required:"true"`
 }
 
 type MlsValidationOptions struct {
@@ -61,6 +61,10 @@ type SignerOptions struct {
 }
 
 type GenerateKeyOptions struct{}
+
+type GetAllNodesOptions struct {
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"`
+}
 
 type GetPubKeyOptions struct {
 	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`

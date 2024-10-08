@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -114,7 +115,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 				continue
 			}
 
-			logger.Info("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
+			logger.Debug("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
 			if len(logs) == 0 {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
 			}
@@ -132,10 +133,12 @@ func (r *RpcLogStreamer) getNextPage(
 	config contractConfig,
 	fromBlock int,
 ) (logs []types.Log, nextBlock *int, err error) {
+	contractAddress := config.contractAddress.Hex()
 	highestBlock, err := r.client.BlockNumber(r.ctx)
 	if err != nil {
 		return nil, nil, err
 	}
+	metrics.EmitCurrentBlock(contractAddress, int(highestBlock))
 
 	highestBlockCanProcess := int(highestBlock) - LAG_FROM_HIGHEST_BLOCK
 	numOfBlocksToProcess := highestBlockCanProcess - fromBlock + 1
@@ -152,12 +155,17 @@ func (r *RpcLogStreamer) getNextPage(
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
-	logs, err = r.client.FilterLogs(r.ctx, buildFilterQuery(config, int64(fromBlock), int64(to)))
+	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
+		return r.client.FilterLogs(r.ctx, buildFilterQuery(config, int64(fromBlock), int64(to)))
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
 
 	nextBlockNumber := to + 1
+
+	metrics.EmitNumLogsFound(contractAddress, len(logs))
 
 	return logs, &nextBlockNumber, nil
 }

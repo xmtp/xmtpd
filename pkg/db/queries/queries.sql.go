@@ -91,28 +91,29 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 	return originator_sequence_id, err
 }
 
-const insertAddressLog = `-- name: InsertAddressLog :exec
+const insertAddressLog = `-- name: InsertAddressLog :execrows
 INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
-	VALUES ($1, decode($2, 'hex'), $3, $4)
-ON CONFLICT
-	DO NOTHING
+	VALUES ($1, decode($2, 'hex'), $3, NULL)
+ON CONFLICT (address, inbox_id)
+	DO UPDATE SET
+		revocation_sequence_id = NULL, association_sequence_id = $3
+	WHERE (address_log.revocation_sequence_id IS NULL
+		OR address_log.revocation_sequence_id < $3)
+		AND address_log.association_sequence_id < $3
 `
 
 type InsertAddressLogParams struct {
 	Address               string
 	InboxID               string
 	AssociationSequenceID sql.NullInt64
-	RevocationSequenceID  sql.NullInt64
 }
 
-func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogParams) error {
-	_, err := q.db.ExecContext(ctx, insertAddressLog,
-		arg.Address,
-		arg.InboxID,
-		arg.AssociationSequenceID,
-		arg.RevocationSequenceID,
-	)
-	return err
+func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertAddressLog, arg.Address, arg.InboxID, arg.AssociationSequenceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows

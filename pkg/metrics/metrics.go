@@ -3,9 +3,10 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"net"
 	"net/http"
+
+	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/pires/go-proxyproto"
 	"github.com/prometheus/client_golang/prometheus"
@@ -60,7 +61,13 @@ func (s *Server) Close() error {
 
 func registerCollectors(reg prometheus.Registerer) {
 	//TODO: add metrics here
-	var cols []prometheus.Collector
+	cols := []prometheus.Collector{
+		numLogsFound,
+		currentBlock,
+		getLogsDuration,
+		getLogsRequests,
+	}
+
 	for _, col := range cols {
 		reg.MustRegister(col)
 	}

@@ -19,3 +19,4 @@ dev/generate
 dev/docker/up
 dev/contracts/deploy-local 
 dev/register-local-node
+dev/register-local-node-2

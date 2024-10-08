@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -eu
+
+. dev/local.env
+
+dev/cli get-all-nodes \
+    --admin-private-key=$PRIVATE_KEY

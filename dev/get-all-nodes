@@ -2,13 +2,7 @@
 
 set -eu
 
+. dev/local.env
 
-export XMTPD_CONTRACTS_RPC_URL="https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/"
-export XMTPD_CONTRACTS_CHAIN_ID=34498
-export XMTPD_CONTRACTS_NODES_ADDRESS=0x0871F3F01955e846261ca04c5CA6718e655C1287
-
-dev/cli register-node \
-    --http-address=grpc2.testnet.xmtp.network \
-    --owner-address=0xd27FDB90A393Ce0E390120aeB58b326AbA910BE0 \
-    --admin-private-key=f79af7f0dc50a6414afc52f12783812f066418292018da818d683c66e8edd8c2 \
-    --signing-key-pub=0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371
+dev/cli get-all-nodes \
+    --admin-private-key=$PRIVATE_KEY

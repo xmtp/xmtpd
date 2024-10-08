@@ -5,14 +5,15 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
-A NFT contract for XMTP Node Operators.
-
-The deployer of this contract is responsible for minting NFTs and assinging them to node operators.
-
-All nodes on the network periodically check this contract to determine which nodes they should connect to.
+ * A NFT contract for XMTP Node Operators.
+ *
+ * The deployer of this contract is responsible for minting NFTs and assinging them to node operators.
+ *
+ * All nodes on the network periodically check this contract to determine which nodes they should connect to.
  */
 contract Nodes is ERC721, Ownable {
     constructor() ERC721("XMTP Node Operator", "XMTP") Ownable(msg.sender) {}
+
     uint32 private _nodeIncrement = 100;
     // uint32 counter so that we cannot create more than max IDs
     // The ERC721 standard expects the tokenID to be uint256 for standard methods unfortunately
@@ -36,16 +37,16 @@ contract Nodes is ERC721, Ownable {
     mapping(uint256 => Node) private _nodes;
 
     /**
-    Mint a new node NFT and store the metadata in the smart contract
+     * Mint a new node NFT and store the metadata in the smart contract
      */
-    function addNode(
-        address to,
-        bytes calldata signingKeyPub,
-        string calldata httpAddress
-    ) public onlyOwner returns (uint32) {
+    function addNode(address to, bytes calldata signingKeyPub, string calldata httpAddress)
+        public
+        onlyOwner
+        returns (uint32)
+    {
         // the first node starts with 100
         _nodeCounter++;
-        uint32 nodeId = _nodeCounter*_nodeIncrement;
+        uint32 nodeId = _nodeCounter * _nodeIncrement;
         _mint(to, nodeId);
         _nodes[nodeId] = Node(signingKeyPub, httpAddress, true);
         _emitNodeUpdate(nodeId);
@@ -53,42 +54,29 @@ contract Nodes is ERC721, Ownable {
     }
 
     /**
-    Override the built in transferFrom function to block NFT owners from transferring
-    node ownership.
-
-    NFT owners are only allowed to update their HTTP address and MTLS cert.
+     * Override the built in transferFrom function to block NFT owners from transferring
+     * node ownership.
+     *
+     * NFT owners are only allowed to update their HTTP address and MTLS cert.
      */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override {
-        require(
-            _msgSender() == owner(),
-            "Only the contract owner can transfer Node ownership"
-        );
+    function transferFrom(address from, address to, uint256 tokenId) public override {
+        require(_msgSender() == owner(), "Only the contract owner can transfer Node ownership");
         super.transferFrom(from, to, tokenId);
     }
 
     /**
-    Allow a NFT holder to update the HTTP address of their node
+     * Allow a NFT holder to update the HTTP address of their node
      */
-    function updateHttpAddress(
-        uint256 tokenId,
-        string calldata httpAddress
-    ) public {
-        require(
-            _msgSender() == ownerOf(tokenId),
-            "Only the owner of the Node NFT can update its http address"
-        );
+    function updateHttpAddress(uint256 tokenId, string calldata httpAddress) public {
+        require(_msgSender() == ownerOf(tokenId), "Only the owner of the Node NFT can update its http address");
         _nodes[tokenId].httpAddress = httpAddress;
         _emitNodeUpdate(tokenId);
     }
 
     /**
-    The contract owner may update the health status of the node.
-
-    No one else is allowed to call this function.
+     * The contract owner may update the health status of the node.
+     *
+     * No one else is allowed to call this function.
      */
     function updateHealth(uint256 tokenId, bool isHealthy) public onlyOwner {
         // Make sure that the token exists
@@ -98,7 +86,7 @@ contract Nodes is ERC721, Ownable {
     }
 
     /**
-    Get a list of healthy nodes with their ID and metadata
+     * Get a list of healthy nodes with their ID and metadata
      */
     function healthyNodes() public view returns (NodeWithId[] memory) {
         uint256 healthyCount = 0;
@@ -119,10 +107,7 @@ contract Nodes is ERC721, Ownable {
         for (uint32 i = 0; i < _nodeCounter; i++) {
             uint32 nodeId = _nodeIncrement * (i + 1);
             if (_nodeExists(nodeId) && _nodes[nodeId].isHealthy) {
-                healthyNodesList[currentIndex] = NodeWithId({
-                    nodeId: nodeId,
-                    node: _nodes[nodeId]
-                });
+                healthyNodesList[currentIndex] = NodeWithId({nodeId: nodeId, node: _nodes[nodeId]});
                 currentIndex++;
             }
         }
@@ -131,7 +116,7 @@ contract Nodes is ERC721, Ownable {
     }
 
     /**
-    Get all nodes regardless of their health status
+     * Get all nodes regardless of their health status
      */
     function allNodes() public view returns (NodeWithId[] memory) {
         NodeWithId[] memory allNodesList = new NodeWithId[](_nodeCounter);
@@ -139,10 +124,7 @@ contract Nodes is ERC721, Ownable {
         for (uint32 i = 0; i < _nodeCounter; i++) {
             uint32 nodeId = _nodeIncrement * (i + 1);
             if (_nodeExists(nodeId)) {
-                allNodesList[i] = NodeWithId({
-                    nodeId: nodeId,
-                    node: _nodes[nodeId]
-                });
+                allNodesList[i] = NodeWithId({nodeId: nodeId, node: _nodes[nodeId]});
             }
         }
 
@@ -150,7 +132,7 @@ contract Nodes is ERC721, Ownable {
     }
 
     /**
-    Get a node's metadata by ID
+     * Get a node's metadata by ID
      */
     function getNode(uint256 tokenId) public view returns (Node memory) {
         _requireOwned(tokenId);

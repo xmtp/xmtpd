@@ -176,12 +176,14 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 	}
 
 	nodes, err := registryAdmin.GetAllNodes(ctx)
+	if err != nil {
+		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
+	}
 	logger.Info(
 		"got nodes",
 		zap.Int("size", len(nodes)),
 		zap.Any("nodes", nodes),
 	)
-
 }
 
 func main() {

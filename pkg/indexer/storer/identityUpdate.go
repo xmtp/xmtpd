@@ -90,17 +90,24 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 			for _, new_member := range associationState.StateDiff.NewMembers {
 				s.logger.Info("New member", zap.Any("member", new_member))
 				if address, ok := new_member.Kind.(*associations.MemberIdentifier_Address); ok {
-					err = querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
+					numRows, err := querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
 						Address: address.Address,
 						InboxID: inboxId,
 						AssociationSequenceID: sql.NullInt64{
 							Valid: true,
 							Int64: int64(msgSent.SequenceId),
 						},
-						RevocationSequenceID: sql.NullInt64{Valid: false},
 					})
 					if err != nil {
 						return NewLogStorageError(err, true)
+					}
+					if numRows == 0 {
+						s.logger.Warn(
+							"Could not insert address log",
+							zap.String("address", address.Address),
+							zap.String("inbox_id", inboxId),
+							zap.Int("sequence_id", int(msgSent.SequenceId)),
+						)
 					}
 				}
 			}

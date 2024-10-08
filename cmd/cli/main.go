@@ -26,6 +26,7 @@ type CLI struct {
 	GetPubKey    config.GetPubKeyOptions
 	GenerateKey  config.GenerateKeyOptions
 	RegisterNode config.RegisterNodeOptions
+	GetAllNodes  config.GetAllNodesOptions
 }
 
 /*
@@ -42,6 +43,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var generateKeyOptions config.GenerateKeyOptions
 	var registerNodeOptions config.RegisterNodeOptions
 	var getPubKeyOptions config.GetPubKeyOptions
+	var getAllNodesOptions config.GetAllNodesOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
@@ -52,6 +54,9 @@ func parseOptions(args []string) (*CLI, error) {
 	}
 	if _, err := parser.AddCommand("get-pub-key", "Get the public key for a private key", "", &getPubKeyOptions); err != nil {
 		return nil, fmt.Errorf("Could not add get-pub-key command: %s", err)
+	}
+	if _, err := parser.AddCommand("get-all-nodes", "Get all nodes from the registry", "", &getAllNodesOptions); err != nil {
+		return nil, fmt.Errorf("Could not add get-all-nodes command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -70,6 +75,7 @@ func parseOptions(args []string) (*CLI, error) {
 		getPubKeyOptions,
 		generateKeyOptions,
 		registerNodeOptions,
+		getAllNodesOptions,
 	}, nil
 }
 
@@ -125,7 +131,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	}
 	logger.Info(
 		"successfully added node",
-		zap.String("node-address", options.RegisterNode.OwnerAddress),
+		zap.String("owner-address", options.RegisterNode.OwnerAddress),
 		zap.String("node-http-address", options.RegisterNode.HttpAddress),
 		zap.String("node-signing-key-pub", utils.EcdsaPublicKeyToString(signingKeyPub)),
 	)
@@ -141,6 +147,41 @@ func generateKey(logger *zap.Logger) {
 		zap.String("private-key", utils.EcdsaPrivateKeyToString(privKey)),
 		zap.String("public-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
 	)
+}
+
+func getAllNodes(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.GetAllNodes.AdminPrivateKey,
+		options.Contracts.ChainID,
+	)
+
+	if err != nil {
+		logger.Fatal("could not create signer", zap.Error(err))
+	}
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	nodes, err := registryAdmin.GetAllNodes(ctx)
+	logger.Info(
+		"got nodes",
+		zap.Int("size", len(nodes)),
+		zap.Any("nodes", nodes),
+	)
+
 }
 
 func main() {
@@ -165,6 +206,9 @@ func main() {
 		return
 	case "register-node":
 		registerNode(logger, options)
+		return
+	case "get-all-nodes":
+		getAllNodes(logger, options)
 		return
 	}
 

@@ -81,3 +81,11 @@ func (n *NodeRegistryAdmin) AddNode(
 		tx.Hash(),
 	)
 }
+func (n *NodeRegistryAdmin) GetAllNodes(
+	ctx context.Context,
+) ([]abis.NodesNodeWithId, error) {
+
+	return n.contract.AllNodes(&bind.CallOpts{
+		Context: ctx,
+	})
+}

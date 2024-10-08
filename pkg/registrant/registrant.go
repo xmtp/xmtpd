@@ -31,7 +31,7 @@ func NewRegistrant(
 ) (*Registrant, error) {
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse private key: %v", err)
+		return nil, fmt.Errorf("unable to parse signer.private-key: %v", err)
 	}
 
 	record, err := getRegistryRecord(nodeRegistry, privateKey)
@@ -102,7 +102,8 @@ func getRegistryRecord(
 	if err != nil {
 		return nil, fmt.Errorf("unable to get nodes from registry: %v", err)
 	}
-
+	fmt.Println(records)
+	fmt.Println(privateKey.PublicKey)
 	i := slices.IndexFunc(records, func(e registry.Node) bool {
 		if e.NodeID == 0 {
 			return false

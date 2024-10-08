@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -129,6 +130,7 @@ func (s *SmartContractRegistry) refreshLoop() {
 }
 
 func (s *SmartContractRegistry) refreshData() error {
+	fmt.Println("refreshing...")
 	fromContract, err := s.loadUnfilteredFromContract()
 	if err != nil {
 		return err
@@ -136,6 +138,7 @@ func (s *SmartContractRegistry) refreshData() error {
 
 	newNodes := []Node{}
 	for _, node := range fromContract {
+		fmt.Println(node)
 		// nodes realistically start at 100, but the contract fills the array with empty nodes
 		if !node.IsValidConfig {
 			continue

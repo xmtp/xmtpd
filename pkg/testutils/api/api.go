@@ -3,6 +3,7 @@ package testutils
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,7 +17,29 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
+
+func NewAPIClient(
+	t *testing.T,
+	ctx context.Context,
+	addr string,
+) (message_api.ReplicationApiClient, func()) {
+	// https://github.com/grpc/grpc/blob/master/doc/naming.md
+	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
+	conn, err := grpc.NewClient(
+		dialAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(),
+	)
+	require.NoError(t, err)
+	client := message_api.NewReplicationApiClient(conn)
+	return client, func() {
+		err := conn.Close()
+		require.NoError(t, err)
+	}
+}
 
 func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,14 +75,10 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 }
 
 func NewTestAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
-	svc, db, cleanup := NewTestAPIServer(t)
-	conn, err := svc.DialGRPC(context.Background())
-	require.NoError(t, err)
-	client := message_api.NewReplicationApiClient(conn)
-
+	svc, db, svcCleanup := NewTestAPIServer(t)
+	client, clientCleanup := NewAPIClient(t, context.Background(), svc.Addr().String())
 	return client, db, func() {
-		conn.Close()
-		require.NoError(t, err)
-		cleanup()
+		clientCleanup()
+		svcCleanup()
 	}
 }

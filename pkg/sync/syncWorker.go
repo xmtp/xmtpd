@@ -74,18 +74,19 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 		fmt.Sprintf("node-subscribe-%d", node.NodeID),
 		func(ctx context.Context) {
 			var err error
+			var conn *grpc.ClientConn
+			var stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient
 			for {
 				if err != nil {
 					log.Error(fmt.Sprintf("Error: %v, retrying...", err))
 					time.Sleep(1 * time.Second)
 				}
-				err = nil
 
-				conn, err := s.connectToNode(node)
+				conn, err = s.connectToNode(node)
 				if err != nil {
 					continue
 				}
-				stream, err := s.setupStream(node, conn)
+				stream, err = s.setupStream(node, conn)
 				if err != nil {
 					continue
 				}

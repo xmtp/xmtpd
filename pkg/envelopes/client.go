@@ -37,7 +37,7 @@ func NewClientEnvelopeFromBytes(bytes []byte) (*ClientEnvelope, error) {
 	return NewClientEnvelope(&message)
 }
 
-func (c *ClientEnvelope) ToBytes() ([]byte, error) {
+func (c *ClientEnvelope) Bytes() ([]byte, error) {
 	bytes, err := proto.Marshal(c.proto)
 	if err != nil {
 		return nil, err

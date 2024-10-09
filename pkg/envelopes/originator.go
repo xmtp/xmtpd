@@ -28,7 +28,7 @@ func NewOriginatorEnvelope(proto *message_api.OriginatorEnvelope) (*OriginatorEn
 	}, nil
 }
 
-func (o *OriginatorEnvelope) ToBytes() ([]byte, error) {
+func (o *OriginatorEnvelope) Bytes() ([]byte, error) {
 	bytes, err := proto.Marshal(o.proto)
 	if err != nil {
 		return nil, err

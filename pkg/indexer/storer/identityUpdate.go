@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -70,9 +71,12 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 				return nil
 			}
 
-			topic := BuildInboxTopic(msgSent.InboxId)
+			messageTopic := topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, msgSent.InboxId[:])
 
-			s.logger.Info("Inserting identity update from contract", zap.String("topic", topic))
+			s.logger.Info(
+				"Inserting identity update from contract",
+				zap.String("topic", messageTopic.String()),
+			)
 
 			associationState, err := s.validateIdentityUpdate(
 				ctx,
@@ -160,7 +164,7 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 				// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
 				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
-				Topic:                []byte(topic),
+				Topic:                messageTopic.Bytes(),
 				OriginatorEnvelope:   originatorEnvelopeBytes,
 			}); err != nil {
 				s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))

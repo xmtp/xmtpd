@@ -38,6 +38,30 @@ func TestValidOriginatorEnvelope(t *testing.T) {
 	require.Equal(t, serializedClientEnv, serializedClientEnvAfterParse)
 }
 
+func TestSerialize(t *testing.T) {
+	originatorNodeId := uint32(1)
+	originatorSequenceId := uint64(1)
+
+	clientEnv := testutils.CreateClientEnvelope()
+	payerEnvelope := testutils.CreatePayerEnvelope(t, clientEnv)
+	originatorEnvelope := testutils.CreateOriginatorEnvelope(
+		t,
+		originatorNodeId,
+		originatorSequenceId,
+		payerEnvelope,
+	)
+
+	serializedFromProto, err := proto.Marshal(originatorEnvelope)
+	require.NoError(t, err)
+
+	originatorStruct, err := NewOriginatorEnvelope(originatorEnvelope)
+	require.NoError(t, err)
+	serializedFromStruct, err := originatorStruct.ToBytes()
+	require.NoError(t, err)
+
+	require.Equal(t, serializedFromProto, serializedFromStruct)
+}
+
 func TestInvalidOriginatorEnvelope(t *testing.T) {
 	_, err := NewOriginatorEnvelope(nil)
 	require.Error(t, err)

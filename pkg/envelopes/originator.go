@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"google.golang.org/protobuf/proto"
 )
 
 type OriginatorEnvelope struct {
@@ -25,6 +26,14 @@ func NewOriginatorEnvelope(proto *message_api.OriginatorEnvelope) (*OriginatorEn
 		proto:                      proto,
 		UnsignedOriginatorEnvelope: *unsigned,
 	}, nil
+}
+
+func (o *OriginatorEnvelope) ToBytes() ([]byte, error) {
+	bytes, err := proto.Marshal(o.proto)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }
 
 func (o *OriginatorEnvelope) Proto() *message_api.OriginatorEnvelope {

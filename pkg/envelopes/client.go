@@ -24,6 +24,8 @@ func NewClientEnvelope(proto *message_api.ClientEnvelope) (*ClientEnvelope, erro
 		return nil, errors.New("payload is missing")
 	}
 
+	// TODO:(nm) Validate topic
+
 	return &ClientEnvelope{proto: proto}, nil
 }
 
@@ -41,6 +43,10 @@ func (c *ClientEnvelope) ToBytes() ([]byte, error) {
 		return nil, err
 	}
 	return bytes, nil
+}
+
+func (c *ClientEnvelope) Aad() *message_api.AuthenticatedData {
+	return c.proto.Aad
 }
 
 func (c *ClientEnvelope) Proto() *message_api.ClientEnvelope {

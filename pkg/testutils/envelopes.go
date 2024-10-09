@@ -30,7 +30,7 @@ func UnmarshalUnsignedOriginatorEnvelope(
 
 func CreateClientEnvelope() *message_api.ClientEnvelope {
 	return &message_api.ClientEnvelope{
-		Payload: nil,
+		Payload: &message_api.ClientEnvelope_GroupMessage{},
 		Aad: &message_api.AuthenticatedData{
 			TargetOriginator: 1,
 			TargetTopic:      []byte{0x5},

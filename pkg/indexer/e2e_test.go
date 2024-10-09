@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/indexer/storer"
 	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
 func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
@@ -57,7 +57,7 @@ func TestStoreMessages(t *testing.T) {
 
 	message := testutils.RandomBytes(32)
 	groupID := testutils.RandomGroupID()
-	topic := []byte(storer.BuildGroupMessageTopic(groupID))
+	topic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
 
 	// Publish the message onto the blockchain
 	require.NoError(t, publisher.PublishGroupMessage(ctx, groupID, message))

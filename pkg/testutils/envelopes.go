@@ -37,7 +37,7 @@ func CreateClientEnvelope(aad ...*message_api.AuthenticatedData) *message_api.Cl
 		})
 	}
 	return &message_api.ClientEnvelope{
-		Payload: nil,
+		Payload: &message_api.ClientEnvelope_GroupMessage{},
 		Aad:     aad[0],
 	}
 }

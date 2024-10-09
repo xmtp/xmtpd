@@ -2,11 +2,11 @@ package storer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 )
 
@@ -35,16 +35,15 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 		return NewLogStorageError(err, false)
 	}
 
-	// TODO:nm figure out topic structure
-	topic := BuildGroupMessageTopic(msgSent.GroupId)
+	topicStruct := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, msgSent.GroupId[:])
 
-	s.logger.Debug("Inserting message from contract", zap.String("topic", topic))
+	s.logger.Debug("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 		// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
 		OriginatorNodeID:     0,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
-		Topic:                []byte(topic),
+		Topic:                topicStruct.Bytes(),
 		OriginatorEnvelope:   msgSent.Message, // TODO:nm parse originator envelope and do some validation
 	}); err != nil {
 		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
@@ -52,9 +51,4 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 	}
 
 	return nil
-}
-
-func BuildGroupMessageTopic(groupId [32]byte) string {
-	// We should think about simplifying the topics, since backwards compatibility shouldn't really matter here
-	return fmt.Sprintf("m/%x", groupId)
 }

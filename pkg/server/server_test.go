@@ -67,8 +67,20 @@ func TestCreateServer(t *testing.T) {
 
 	registry := mocks.NewMockNodeRegistry(t)
 	registry.On("GetNodes").Return([]r.Node{
-		{NodeID: server1NodeID, SigningKey: &privateKey1.PublicKey, HttpAddress: fmt.Sprintf("passthrough://localhost/[::]:%d", server1Port), IsHealthy: true},
-		{NodeID: server2NodeID, SigningKey: &privateKey2.PublicKey, HttpAddress: fmt.Sprintf("passthrough://localhost/[::]:%d", server2Port), IsHealthy: true},
+		{
+			NodeID:        server1NodeID,
+			SigningKey:    &privateKey1.PublicKey,
+			HttpAddress:   fmt.Sprintf("passthrough://localhost/[::]:%d", server1Port),
+			IsHealthy:     true,
+			IsValidConfig: true,
+		},
+		{
+			NodeID:        server2NodeID,
+			SigningKey:    &privateKey2.PublicKey,
+			HttpAddress:   fmt.Sprintf("passthrough://localhost/[::]:%d", server2Port),
+			IsHealthy:     true,
+			IsValidConfig: true,
+		},
 	}, nil)
 
 	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
@@ -81,19 +93,25 @@ func TestCreateServer(t *testing.T) {
 	defer cleanup2()
 
 	p1, err := client1.PublishEnvelope(ctx, &message_api.PublishEnvelopeRequest{
-		PayerEnvelope: testutils.CreatePayerEnvelope(t, testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
-			TargetOriginator: server1NodeID,
-			TargetTopic:      []byte{0x5},
-			LastSeen:         &message_api.VectorClock{},
-		})),
+		PayerEnvelope: testutils.CreatePayerEnvelope(
+			t,
+			testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
+				TargetOriginator: server1NodeID,
+				TargetTopic:      []byte{0x5},
+				LastSeen:         &message_api.VectorClock{},
+			}),
+		),
 	})
 	require.NoError(t, err)
 	p2, err := client2.PublishEnvelope(ctx, &message_api.PublishEnvelopeRequest{
-		PayerEnvelope: testutils.CreatePayerEnvelope(t, testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
-			TargetOriginator: server2NodeID,
-			TargetTopic:      []byte{0x5},
-			LastSeen:         &message_api.VectorClock{},
-		})),
+		PayerEnvelope: testutils.CreatePayerEnvelope(
+			t,
+			testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
+				TargetOriginator: server2NodeID,
+				TargetTopic:      []byte{0x5},
+				LastSeen:         &message_api.VectorClock{},
+			}),
+		),
 	})
 	require.NoError(t, err)
 

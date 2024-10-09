@@ -112,7 +112,7 @@ func startSubscribeWorker(
 	log *zap.Logger,
 	store *sql.DB,
 ) (*subscribeWorker, error) {
-	log = log.With(zap.String("method", "subscribeWorker"))
+	log = log.Named("subscribeWorker")
 	q := queries.New(store)
 	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := q.

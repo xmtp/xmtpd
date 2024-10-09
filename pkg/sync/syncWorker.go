@@ -37,7 +37,7 @@ func startSyncWorker(
 ) (*syncWorker, error) {
 	s := &syncWorker{
 		ctx:          ctx,
-		log:          log.With(zap.String("method", "syncWorker")),
+		log:          log.Named("syncWorker"),
 		nodeRegistry: nodeRegistry,
 		registrant:   registrant,
 		store:        store,
@@ -55,7 +55,7 @@ func (s *syncWorker) start() error {
 		return err
 	}
 	for _, node := range nodes {
-		if node.NodeID == s.registrant.NodeID() || !node.IsHealthy {
+		if node.NodeID == s.registrant.NodeID() || !node.IsHealthy || !node.IsValidConfig {
 			continue
 		}
 		s.subscribeToNode(node)
@@ -113,7 +113,10 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 	return conn, nil
 }
 
-func (s *syncWorker) setupStream(node registry.Node, conn *grpc.ClientConn) (message_api.ReplicationApi_BatchSubscribeEnvelopesClient, error) {
+func (s *syncWorker) setupStream(
+	node registry.Node,
+	conn *grpc.ClientConn,
+) (message_api.ReplicationApi_BatchSubscribeEnvelopesClient, error) {
 	client := message_api.NewReplicationApiClient(conn)
 	stream, err := client.BatchSubscribeEnvelopes(
 		s.ctx,
@@ -139,7 +142,9 @@ func (s *syncWorker) setupStream(node registry.Node, conn *grpc.ClientConn) (mes
 	return stream, nil
 }
 
-func (s *syncWorker) listenToStream(stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient) error {
+func (s *syncWorker) listenToStream(
+	stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient,
+) error {
 	for {
 		envs, err := stream.Recv()
 		// TODO(rich) Handle normal stream closure properly
@@ -156,10 +161,11 @@ func (s *syncWorker) listenToStream(stream message_api.ReplicationApi_BatchSubsc
 
 func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 	log.Info(fmt.Sprintf("Replication server received envelope %s", env))
-	// TODO(rich) Validation logic - share code with API service and publish worker
+	// TODO(nm) Validation logic - share code with API service and publish worker
 	originatorBytes, err := proto.Marshal(env)
 	if err != nil {
 		log.Error("Failed to marshal originator envelope", zap.Error(err))
+		return
 	}
 
 	unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
@@ -169,6 +175,7 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 			"Failed to unmarshal unsigned originator envelope",
 			zap.Error(err),
 		)
+		return
 	}
 
 	clientEnvelope := &message_api.ClientEnvelope{}
@@ -181,6 +188,7 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 			"Failed to unmarshal client envelope",
 			zap.Error(err),
 		)
+		return
 	}
 
 	q := queries.New(s.store)
@@ -198,8 +206,10 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 	)
 	if err != nil {
 		log.Error("Failed to insert gateway envelope", zap.Error(err))
+		return
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		log.Error("Envelope already inserted")
+		log.Warn("Envelope already inserted")
+		return
 	}
 }

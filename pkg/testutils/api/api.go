@@ -21,7 +21,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewAPIClient(t *testing.T, ctx context.Context, addr string) (message_api.ReplicationApiClient, func()) {
+func NewAPIClient(
+	t *testing.T,
+	ctx context.Context,
+	addr string,
+) (message_api.ReplicationApiClient, func()) {
 	// https://github.com/grpc/grpc/blob/master/doc/naming.md
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
 	conn, err := grpc.NewClient(

@@ -1,8 +1,7 @@
 # xmtpd
 
 [![Test](https://github.com/xmtp/xmtpd/actions/workflows/test.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/test.yml)
-[![Build](https://github.com/xmtp/xmtpd/actions/workflows/build.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/build.yml)
-[![Publish](https://github.com/xmtp/xmtpd/actions/workflows/publish-node.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/publish-node.yml)
+[![Build](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml)
 
 **⚠️ Experimental:** This software is in early development. Expect frequent changes and unresolved issues.
 
@@ -18,6 +17,7 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 
 - [Go 1.22](https://go.dev/doc/install) -- On macOS install with `brew install go@1.22`
 - [Docker](https://www.docker.com/get-started/)
+- [Foundry](https://github.com/foundry-rs/foundry)
 
 Note that a dependency of this repo will not compile with version of go newer than 1.22.
 
@@ -34,8 +34,6 @@ This starts the following background services in Docker:
 - A [Postgres](https://www.postgresql.org/) database that is used to store data needed to run the node
 
 - A [Prometheus](https://prometheus.io/) instance that enables you to view metrics and data about the node, such as resource usage and errors
-
-- A [Grafana](https://grafana.com/) instance that enables you to monitor the health and performance of the node
 
 To stop the background services running in Docker, run:
 
@@ -63,23 +61,12 @@ These tests provide a full suite of unit and integration tests for the `xmtpd` r
 
 ## Monitor the node
 
-The `xmtpd` node build provides two options for monitoring your node.
-
-- To access your local Prometheus instance to explore node metrics, run:
-
-  ```sh
-  open http://localhost:9090
-  ```
-
-  To learn how to query node data in Prometheus, see [Metric Types in Prometheus and PromQL](https://promlabs.com/blog/2020/09/25/metric-types-in-prometheus-and-promql) and [The Anatomy of a PromQL Query](https://promlabs.com/blog/2020/06/18/the-anatomy-of-a-promql-query/).
-
-- To access your local Grafana instance to explore and build node dashboards, run:
+To enable metrics you need to start the node with `--metrics.enable`.
+By default, we expose Prometheus metrics on port `8008`.
 
   ```sh
-  open http://localhost:3000
+  curl http://localhost:8008
   ```
-
-  To learn how to visualize node data in Grafana, see [Prometheus Histograms with Grafana Heatmaps](https://towardsdatascience.com/prometheus-histograms-with-grafana-heatmaps-d556c28612c7) and [How to visualize Prometheus histograms in Grafana](https://grafana.com/blog/2020/06/23/how-to-visualize-prometheus-histograms-in-grafana/).
 
 # Contributing
 
@@ -92,6 +79,8 @@ Submit and land a PR to https://github.com/xmtp/proto. Then run:
 ```sh
 dev/generate
 ```
+
+Or wait for the [nightly automation](https://github.com/xmtp/xmtpd/actions/workflows/nightly.yml) to finish.
 
 ## Modifying the database schema
 

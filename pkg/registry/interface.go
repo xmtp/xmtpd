@@ -23,6 +23,7 @@ and notifying listeners when the list of nodes changes.
 */
 type NodeRegistry interface {
 	GetNodes() ([]Node, error)
+	GetNode(uint32) (*Node, error)
 	OnNewNodes() (<-chan []Node, CancelSubscription)
 	OnChangedNode(uint32) (<-chan Node, CancelSubscription)
 }

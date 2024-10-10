@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -62,6 +63,9 @@ func (n *NodeRegistryAdmin) AddNode(
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
+	if n.signer == nil {
+		return fmt.Errorf("No signer provided")
+	}
 	tx, err := n.contract.AddNode(&bind.TransactOpts{
 		Context: ctx,
 		From:    n.signer.FromAddress(),
@@ -81,6 +85,7 @@ func (n *NodeRegistryAdmin) AddNode(
 		tx.Hash(),
 	)
 }
+
 func (n *NodeRegistryAdmin) GetAllNodes(
 	ctx context.Context,
 ) ([]abis.NodesNodeWithId, error) {
@@ -88,4 +93,50 @@ func (n *NodeRegistryAdmin) GetAllNodes(
 	return n.contract.AllNodes(&bind.CallOpts{
 		Context: ctx,
 	})
+}
+
+func (n *NodeRegistryAdmin) UpdateHealth(
+	ctx context.Context, nodeId int64, health bool,
+) error {
+	tx, err := n.contract.UpdateHealth(
+		&bind.TransactOpts{Context: ctx},
+		big.NewInt(nodeId),
+		health,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return WaitForTransaction(
+		ctx,
+		n.logger,
+		n.client,
+		2*time.Second,
+		250*time.Millisecond,
+		tx.Hash(),
+	)
+}
+
+func (n *NodeRegistryAdmin) UpdateHttpAddress(
+	ctx context.Context, nodeId int64, address string,
+) error {
+	tx, err := n.contract.UpdateHttpAddress(
+		&bind.TransactOpts{Context: ctx},
+		big.NewInt(nodeId),
+		address,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return WaitForTransaction(
+		ctx,
+		n.logger,
+		n.client,
+		2*time.Second,
+		250*time.Millisecond,
+		tx.Hash(),
+	)
 }

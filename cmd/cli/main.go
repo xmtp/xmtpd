@@ -22,11 +22,13 @@ type globalOptions struct {
 
 type CLI struct {
 	globalOptions
-	Command      string
-	GetPubKey    config.GetPubKeyOptions
-	GenerateKey  config.GenerateKeyOptions
-	RegisterNode config.RegisterNodeOptions
-	GetAllNodes  config.GetAllNodesOptions
+	Command       string
+	GetPubKey     config.GetPubKeyOptions
+	GenerateKey   config.GenerateKeyOptions
+	RegisterNode  config.RegisterNodeOptions
+	GetAllNodes   config.GetAllNodesOptions
+	UpdateHealth  config.UpdateHealthOptions
+	UpdateAddress config.UpdateAddressOptions
 }
 
 /*
@@ -44,6 +46,8 @@ func parseOptions(args []string) (*CLI, error) {
 	var registerNodeOptions config.RegisterNodeOptions
 	var getPubKeyOptions config.GetPubKeyOptions
 	var getAllNodesOptions config.GetAllNodesOptions
+	var updateHealthOptions config.UpdateHealthOptions
+	var updateAddressOptions config.UpdateAddressOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
@@ -57,6 +61,15 @@ func parseOptions(args []string) (*CLI, error) {
 	}
 	if _, err := parser.AddCommand("get-all-nodes", "Get all nodes from the registry", "", &getAllNodesOptions); err != nil {
 		return nil, fmt.Errorf("Could not add get-all-nodes command: %s", err)
+	}
+	if _, err := parser.AddCommand("mark-healthy", "Mark a node as healthy in the registry", "", &updateHealthOptions); err != nil {
+		return nil, fmt.Errorf("Could not add mark-healthy command: %s", err)
+	}
+	if _, err := parser.AddCommand("mark-unhealthy", "Mark a node as unhealthy in the registry", "", &updateHealthOptions); err != nil {
+		return nil, fmt.Errorf("Could not add mark-unhealthy command: %s", err)
+	}
+	if _, err := parser.AddCommand("update-address", "Update HTTP address of a node", "", &updateAddressOptions); err != nil {
+		return nil, fmt.Errorf("Could not add update-address command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -76,6 +89,8 @@ func parseOptions(args []string) (*CLI, error) {
 		generateKeyOptions,
 		registerNodeOptions,
 		getAllNodesOptions,
+		updateHealthOptions,
+		updateAddressOptions,
 	}, nil
 }
 
@@ -186,6 +201,74 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 	)
 }
 
+func updateHealth(logger *zap.Logger, options *CLI, health bool) {
+	ctx := context.Background()
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.UpdateHealth.AdminPrivateKey,
+		options.Contracts.ChainID,
+	)
+
+	if err != nil {
+		logger.Fatal("could not create signer", zap.Error(err))
+	}
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	err = registryAdmin.UpdateHealth(ctx, options.UpdateHealth.NodeId, health)
+	if err != nil {
+		logger.Fatal("could not update node health in registry", zap.Error(err))
+	}
+}
+
+func updateAddress(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.UpdateAddress.PrivateKey,
+		options.Contracts.ChainID,
+	)
+
+	if err != nil {
+		logger.Fatal("could not create signer", zap.Error(err))
+	}
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	err = registryAdmin.UpdateHttpAddress(
+		ctx,
+		options.UpdateAddress.NodeId,
+		options.UpdateAddress.Address,
+	)
+	if err != nil {
+		logger.Fatal("could not update node address in registry", zap.Error(err))
+	}
+}
+
 func main() {
 	options, err := parseOptions(os.Args[1:])
 	if err != nil {
@@ -211,6 +294,15 @@ func main() {
 		return
 	case "get-all-nodes":
 		getAllNodes(logger, options)
+		return
+	case "mark-healthy":
+		updateHealth(logger, options, true)
+		return
+	case "mark-unhealthy":
+		updateHealth(logger, options, false)
+		return
+	case "update-address":
+		updateAddress(logger, options)
 		return
 	}
 

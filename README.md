@@ -59,6 +59,15 @@ dev/test
 
 These tests provide a full suite of unit and integration tests for the `xmtpd` repo to help ensure and maintain correctness of the code over time and to avoid regressions as the code evolves. You can explore the tests by taking a look at any files with the suffix `_test.go`.
 
+## Monitor the node
+
+To enable metrics you need to start the node with `--metrics.enable`.
+By default, we expose Prometheus metrics on port `8008`.
+
+  ```sh
+  curl http://localhost:8008
+  ```
+
 # Contributing
 
 Please follow the [style guide](https://google.github.io/styleguide/go/decisions).

@@ -62,9 +62,7 @@ type SignerOptions struct {
 
 type GenerateKeyOptions struct{}
 
-type GetAllNodesOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"`
-}
+type GetAllNodesOptions struct{}
 
 type UpdateHealthOptions struct {
 	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`

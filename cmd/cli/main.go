@@ -171,29 +171,20 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
 
-	signer, err := blockchain.NewPrivateKeySigner(
-		options.GetAllNodes.AdminPrivateKey,
-		options.Contracts.ChainID,
-	)
-
-	if err != nil {
-		logger.Fatal("could not create signer", zap.Error(err))
-	}
-
-	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+	caller, err := blockchain.NewNodeRegistryCaller(
 		logger,
 		chainClient,
-		signer,
 		options.Contracts,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	nodes, err := registryAdmin.GetAllNodes(ctx)
+	nodes, err := caller.GetAllNodes(ctx)
 	if err != nil {
 		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
+
 	logger.Info(
 		"got nodes",
 		zap.Int("size", len(nodes)),

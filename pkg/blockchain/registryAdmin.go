@@ -86,7 +86,38 @@ func (n *NodeRegistryAdmin) AddNode(
 	)
 }
 
-func (n *NodeRegistryAdmin) GetAllNodes(
+/*
+*
+A NodeRegistryCaller is a struct responsible for calling public functions on the node registry
+*
+*/
+type NodeRegistryCaller struct {
+	client   *ethclient.Client
+	contract *abis.NodesCaller
+	logger   *zap.Logger
+}
+
+func NewNodeRegistryCaller(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	contractsOptions config.ContractsOptions,
+) (*NodeRegistryCaller, error) {
+	contract, err := abis.NewNodesCaller(
+		common.HexToAddress(contractsOptions.NodesContractAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NodeRegistryCaller{
+		client:   client,
+		logger:   logger.Named("NodeRegistryAdmin"),
+		contract: contract,
+	}, nil
+}
+
+func (n *NodeRegistryCaller) GetAllNodes(
 	ctx context.Context,
 ) ([]abis.NodesNodeWithId, error) {
 

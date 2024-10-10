@@ -38,6 +38,7 @@ func main() {
 	if err != nil {
 		fatal("Could not build logger: %s", err)
 	}
+	logger = logger.Named("replication")
 
 	logger.Info(fmt.Sprintf("Version: %s", Commit))
 	if options.Tracing.Enable {

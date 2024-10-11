@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"sync"
 	"time"
 
@@ -16,11 +15,9 @@ import (
 )
 
 const (
-	subscriptionBufferSize    = 1024
-	maxSubscriptionsPerClient = 10000
-	SubscribeWorkerPollTime   = 100 * time.Millisecond
-	subscribeWorkerPollRows   = 10000
-	maxTopicLength            = 128
+	subscriptionBufferSize  = 1024
+	SubscribeWorkerPollTime = 100 * time.Millisecond
+	subscribeWorkerPollRows = 10000
 )
 
 type listener struct {
@@ -30,6 +27,38 @@ type listener struct {
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
 	isGlobal    bool
+}
+
+func newListener(
+	ctx context.Context,
+	query *message_api.EnvelopesQuery,
+	ch chan<- []*message_api.OriginatorEnvelope,
+) *listener {
+	l := &listener{
+		ctx:         ctx,
+		ch:          ch,
+		topics:      make(map[string]struct{}),
+		originators: make(map[uint32]struct{}),
+		isGlobal:    false,
+	}
+	topics := query.GetTopics()
+	originators := query.GetOriginatorNodeIds()
+
+	if len(topics) == 0 && len(originators) == 0 {
+		l.isGlobal = true
+		return l
+	}
+
+	for _, topic := range topics {
+		topicStr := hex.EncodeToString(topic)
+		l.topics[topicStr] = struct{}{}
+	}
+
+	for _, originator := range originators {
+		l.originators[originator] = struct{}{}
+	}
+
+	return l
 }
 
 type listenerSet struct {
@@ -238,63 +267,18 @@ func (s *subscribeWorker) closeListener(l *listener) {
 
 func (s *subscribeWorker) listen(
 	ctx context.Context,
-	requests []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest,
-) (<-chan []*message_api.OriginatorEnvelope, error) {
+	query *message_api.EnvelopesQuery,
+) <-chan []*message_api.OriginatorEnvelope {
 	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
-	l := &listener{
-		ctx:         ctx,
-		ch:          ch,
-		topics:      make(map[string]struct{}),
-		originators: make(map[uint32]struct{}),
-		isGlobal:    false,
-	}
-
-	if len(requests) > maxSubscriptionsPerClient {
-		return nil, fmt.Errorf(
-			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
-			len(requests),
-		)
-	}
-	for _, req := range requests {
-		enum := req.GetQuery().GetFilter()
-		if enum == nil {
-			l.isGlobal = true
-		}
-		switch filter := enum.(type) {
-		case *message_api.EnvelopesQuery_Topic:
-			topic := hex.EncodeToString(filter.Topic)
-			if len(filter.Topic) == 0 || len(filter.Topic) > maxTopicLength {
-				return nil, fmt.Errorf("invalid topic: %s", topic)
-			}
-			if _, exists := l.topics[topic]; exists {
-				return nil, fmt.Errorf("multiple requests for same topic: %s", topic)
-			}
-			l.topics[topic] = struct{}{}
-		case *message_api.EnvelopesQuery_OriginatorNodeId:
-			if _, exists := l.originators[filter.OriginatorNodeId]; exists {
-				return nil, fmt.Errorf("multiple requests for same originator: %d", filter.OriginatorNodeId)
-			}
-			l.originators[filter.OriginatorNodeId] = struct{}{}
-		default:
-			l.isGlobal = true
-		}
-	}
+	l := newListener(ctx, query, ch)
 
 	if l.isGlobal {
-		if len(l.topics) > 0 || len(l.originators) > 0 {
-			return nil, fmt.Errorf(
-				"cannot filter by topic or originator when subscribing to all",
-			)
-		}
 		s.globalListeners.Store(l, struct{}{})
 	} else if len(l.topics) > 0 {
-		if len(l.originators) > 0 {
-			return nil, fmt.Errorf("cannot filter by both topic and originator in same subscription request")
-		}
 		s.topicListeners.addListener(l.topics, l)
 	} else if len(l.originators) > 0 {
 		s.originatorListeners.addListener(l.originators, l)
 	}
 
-	return ch, nil
+	return ch
 }

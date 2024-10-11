@@ -93,26 +93,26 @@ func TestCreateServer(t *testing.T) {
 	client2, cleanup2 := apiTestUtils.NewAPIClient(t, ctx, server2.Addr().String())
 	defer cleanup2()
 
-	p1, err := client1.PublishEnvelope(ctx, &message_api.PublishEnvelopeRequest{
-		PayerEnvelope: testutils.CreatePayerEnvelope(
+	p1, err := client1.PublishEnvelopes(ctx, &message_api.PublishEnvelopesRequest{
+		PayerEnvelopes: []*message_api.PayerEnvelope{testutils.CreatePayerEnvelope(
 			t,
 			testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
 				TargetOriginator: server1NodeID,
 				TargetTopic:      []byte{0x5},
 				LastSeen:         &message_api.VectorClock{},
 			}),
-		),
+		)},
 	})
 	require.NoError(t, err)
-	p2, err := client2.PublishEnvelope(ctx, &message_api.PublishEnvelopeRequest{
-		PayerEnvelope: testutils.CreatePayerEnvelope(
+	p2, err := client2.PublishEnvelopes(ctx, &message_api.PublishEnvelopesRequest{
+		PayerEnvelopes: []*message_api.PayerEnvelope{testutils.CreatePayerEnvelope(
 			t,
 			testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
 				TargetOriginator: server2NodeID,
 				TargetTopic:      []byte{0x5},
 				LastSeen:         &message_api.VectorClock{},
 			}),
-		),
+		)},
 	})
 	utils.Unused(p2)
 	require.NoError(t, err)
@@ -125,9 +125,7 @@ func TestCreateServer(t *testing.T) {
 	// require.Eventually(t, func() bool {
 	// 	q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 	// 		Query: &message_api.EnvelopesQuery{
-	// 			Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
-	// 				OriginatorNodeId: server2NodeID,
-	// 			},
+	// 			OriginatorNodeIds: []uint32{server2NodeID},
 	// 			LastSeen: &message_api.VectorClock{},
 	// 		},
 	// 		Limit: 10,
@@ -137,17 +135,15 @@ func TestCreateServer(t *testing.T) {
 	// 		return false
 	// 	}
 	// 	require.Len(t, q1.Envelopes, 1)
-	// 	require.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelope)
+	// 	require.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0])
 	// 	return true
 	// }, 500*time.Millisecond, 50*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		q2, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
-					OriginatorNodeId: server1NodeID,
-				},
-				LastSeen: &message_api.VectorClock{},
+				OriginatorNodeIds: []uint32{server1NodeID},
+				LastSeen:          &message_api.VectorClock{},
 			},
 			Limit: 10,
 		})
@@ -156,7 +152,7 @@ func TestCreateServer(t *testing.T) {
 			return false
 		}
 		require.Len(t, q2.Envelopes, 1)
-		require.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelope)
+		require.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0])
 		return true
 	}, 500*time.Millisecond, 50*time.Millisecond)
 }

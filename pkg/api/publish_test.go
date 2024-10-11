@@ -17,10 +17,10 @@ func TestPublishEnvelope(t *testing.T) {
 	api, db, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
-	resp, err := api.PublishEnvelope(
+	resp, err := api.PublishEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: testutils.CreatePayerEnvelope(t),
+		&message_api.PublishEnvelopesRequest{
+			PayerEnvelopes: []*message_api.PayerEnvelope{testutils.CreatePayerEnvelope(t)},
 		},
 	)
 	require.NoError(t, err)
@@ -29,7 +29,10 @@ func TestPublishEnvelope(t *testing.T) {
 	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{}
 	require.NoError(
 		t,
-		proto.Unmarshal(resp.GetOriginatorEnvelope().GetUnsignedOriginatorEnvelope(), unsignedEnv),
+		proto.Unmarshal(
+			resp.GetOriginatorEnvelopes()[0].GetUnsignedOriginatorEnvelope(),
+			unsignedEnv,
+		),
 	)
 	clientEnv := &message_api.ClientEnvelope{}
 	require.NoError(
@@ -50,7 +53,7 @@ func TestPublishEnvelope(t *testing.T) {
 
 		originatorEnv := &message_api.OriginatorEnvelope{}
 		require.NoError(t, proto.Unmarshal(envs[0].OriginatorEnvelope, originatorEnv))
-		return proto.Equal(originatorEnv, resp.GetOriginatorEnvelope())
+		return proto.Equal(originatorEnv, resp.GetOriginatorEnvelopes()[0])
 	}, 500*time.Millisecond, 50*time.Millisecond)
 }
 
@@ -60,10 +63,10 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 
 	envelope := testutils.CreatePayerEnvelope(t)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
-	_, err := api.PublishEnvelope(
+	_, err := api.PublishEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: envelope,
+		&message_api.PublishEnvelopesRequest{
+			PayerEnvelopes: []*message_api.PayerEnvelope{envelope},
 		},
 	)
 	require.ErrorContains(t, err, "unmarshal")
@@ -75,10 +78,12 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 
 	clientEnv := testutils.CreateClientEnvelope()
 	clientEnv.Aad.TargetOriginator = 2
-	_, err := api.PublishEnvelope(
+	_, err := api.PublishEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
+		&message_api.PublishEnvelopesRequest{
+			PayerEnvelopes: []*message_api.PayerEnvelope{
+				testutils.CreatePayerEnvelope(t, clientEnv),
+			},
 		},
 	)
 	require.ErrorContains(t, err, "originator")
@@ -90,10 +95,12 @@ func TestMissingTopicOnPublish(t *testing.T) {
 
 	clientEnv := testutils.CreateClientEnvelope()
 	clientEnv.Aad.TargetTopic = nil
-	_, err := api.PublishEnvelope(
+	_, err := api.PublishEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopeRequest{
-			PayerEnvelope: testutils.CreatePayerEnvelope(t, clientEnv),
+		&message_api.PublishEnvelopesRequest{
+			PayerEnvelopes: []*message_api.PayerEnvelope{
+				testutils.CreatePayerEnvelope(t, clientEnv),
+			},
 		},
 	)
 	require.ErrorContains(t, err, "topic")

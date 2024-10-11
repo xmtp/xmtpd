@@ -85,7 +85,7 @@ func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) 
 
 func validateUpdates(
 	t *testing.T,
-	stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient,
+	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	expectedIndices []int,
 ) {
 	for i := 0; i < len(expectedIndices); {
@@ -112,16 +112,11 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	stream, err := client.BatchSubscribeEnvelopes(
+	stream, err := client.SubscribeEnvelopes(
 		ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   nil,
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				LastSeen: nil,
 			},
 		},
 	)
@@ -138,22 +133,12 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	stream, err := client.BatchSubscribeEnvelopes(
+	stream, err := client.SubscribeEnvelopes(
 		ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicA")},
-						LastSeen: nil,
-					},
-				},
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicC")},
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:   [][]byte{[]byte("topicA"), []byte("topicC")},
+				LastSeen: nil,
 			},
 		},
 	)
@@ -170,22 +155,12 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	stream, err := client.BatchSubscribeEnvelopes(
+	stream, err := client.SubscribeEnvelopes(
 		ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_OriginatorNodeId{OriginatorNodeId: 1},
-						LastSeen: nil,
-					},
-				},
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_OriginatorNodeId{OriginatorNodeId: 3},
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{1, 3},
+				LastSeen:          nil,
 			},
 		},
 	)
@@ -202,46 +177,31 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	stream1, err := client.BatchSubscribeEnvelopes(
+	stream1, err := client.SubscribeEnvelopes(
 		ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   nil,
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{},
+		},
+	)
+	require.NoError(t, err)
+
+	stream2, err := client.SubscribeEnvelopes(
+		ctx,
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:   [][]byte{[]byte("topicB")},
+				LastSeen: nil,
 			},
 		},
 	)
 	require.NoError(t, err)
 
-	stream2, err := client.BatchSubscribeEnvelopes(
+	stream3, err := client.SubscribeEnvelopes(
 		ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicB")},
-						LastSeen: nil,
-					},
-				},
-			},
-		},
-	)
-	require.NoError(t, err)
-
-	stream3, err := client.BatchSubscribeEnvelopes(
-		ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_OriginatorNodeId{OriginatorNodeId: 2},
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{2},
+				LastSeen:          nil,
 			},
 		},
 	)
@@ -257,68 +217,13 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 	client, _, cleanup := setupTest(t)
 	defer cleanup()
 
-	stream, err := client.BatchSubscribeEnvelopes(
+	stream, err := client.SubscribeEnvelopes(
 		context.Background(),
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_OriginatorNodeId{OriginatorNodeId: 1},
-						LastSeen: nil,
-					},
-				},
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   nil,
-						LastSeen: nil,
-					},
-				},
-			},
-		},
-	)
-	require.NoError(t, err)
-	_, err = stream.Recv()
-	require.Error(t, err)
-
-	stream, err = client.BatchSubscribeEnvelopes(
-		context.Background(),
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   nil,
-						LastSeen: nil,
-					},
-				},
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicA")},
-						LastSeen: nil,
-					},
-				},
-			},
-		},
-	)
-	require.NoError(t, err)
-	_, err = stream.Recv()
-	require.Error(t, err)
-
-	stream, err = client.BatchSubscribeEnvelopes(
-		context.Background(),
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_OriginatorNodeId{OriginatorNodeId: 1},
-						LastSeen: nil,
-					},
-				},
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicA")},
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:            [][]byte{[]byte("topicA")},
+				OriginatorNodeIds: []uint32{1},
+				LastSeen:          nil,
 			},
 		},
 	)

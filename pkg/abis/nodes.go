@@ -736,7 +736,7 @@ func (_Nodes *NodesTransactorSession) TransferOwnership(newOwner common.Address)
 // UpdateHealth is a paid mutator transaction binding the contract method 0x8354196f.
 //
 // Solidity: function updateHealth(uint256 tokenId, bool isHealthy) returns()
-	func (_Nodes *NodesTransactor) UpdateHealth(opts *bind.TransactOpts, tokenId *big.Int, isHealthy bool) (*types.Transaction, error) {
+func (_Nodes *NodesTransactor) UpdateHealth(opts *bind.TransactOpts, tokenId *big.Int, isHealthy bool) (*types.Transaction, error) {
 	return _Nodes.contract.Transact(opts, "updateHealth", tokenId, isHealthy)
 }
 

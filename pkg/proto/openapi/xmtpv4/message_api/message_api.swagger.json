@@ -49,15 +49,15 @@
         ]
       }
     },
-    "/mls/v2/publish-envelope": {
+    "/mls/v2/publish-envelopes": {
       "post": {
         "summary": "Publish envelope",
-        "operationId": "ReplicationApi_PublishEnvelope",
+        "operationId": "ReplicationApi_PublishEnvelopes",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/xmtpv4PublishEnvelopeResponse"
+              "$ref": "#/definitions/xmtpv4PublishEnvelopesResponse"
             }
           },
           "default": {
@@ -73,7 +73,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/xmtpv4PublishEnvelopeRequest"
+              "$ref": "#/definitions/xmtpv4PublishEnvelopesRequest"
             }
           }
         ],
@@ -118,7 +118,7 @@
     "/mls/v2/subscribe-envelopes": {
       "post": {
         "summary": "Subscribe to envelopes",
-        "operationId": "ReplicationApi_BatchSubscribeEnvelopes",
+        "operationId": "ReplicationApi_SubscribeEnvelopes",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -126,13 +126,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/xmtpv4BatchSubscribeEnvelopesResponse"
+                  "$ref": "#/definitions/xmtpv4SubscribeEnvelopesResponse"
                 },
                 "error": {
                   "$ref": "#/definitions/rpcStatus"
                 }
               },
-              "title": "Stream result of xmtpv4BatchSubscribeEnvelopesResponse"
+              "title": "Stream result of xmtpv4SubscribeEnvelopesResponse"
             }
           },
           "default": {
@@ -148,7 +148,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/xmtpv4BatchSubscribeEnvelopesRequest"
+              "$ref": "#/definitions/xmtpv4SubscribeEnvelopesRequest"
             }
           }
         ],
@@ -159,15 +159,6 @@
     }
   },
   "definitions": {
-    "BatchSubscribeEnvelopesRequestSubscribeEnvelopesRequest": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "$ref": "#/definitions/xmtpv4EnvelopesQuery"
-        }
-      },
-      "title": "Single subscription request for envelopes"
-    },
     "associationsRecoverableEcdsaSignature": {
       "type": "object",
       "properties": {
@@ -207,32 +198,6 @@
         }
       }
     },
-    "xmtpv4BatchSubscribeEnvelopesRequest": {
-      "type": "object",
-      "properties": {
-        "requests": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/BatchSubscribeEnvelopesRequestSubscribeEnvelopesRequest"
-          }
-        }
-      },
-      "title": "Batch subscribe to envelopes"
-    },
-    "xmtpv4BatchSubscribeEnvelopesResponse": {
-      "type": "object",
-      "properties": {
-        "envelopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
-          }
-        }
-      },
-      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
-    },
     "xmtpv4BlockchainProof": {
       "type": "object",
       "properties": {
@@ -250,21 +215,27 @@
     "xmtpv4EnvelopesQuery": {
       "type": "object",
       "properties": {
-        "topic": {
-          "type": "string",
-          "format": "byte",
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          },
           "title": "Client queries"
         },
-        "originatorNodeId": {
-          "type": "integer",
-          "format": "int64",
+        "originatorNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
           "title": "Node queries"
         },
         "lastSeen": {
           "$ref": "#/definitions/xmtpv4VectorClock"
         }
       },
-      "title": "Query for envelopes, shared by query and subscribe endpoints"
+      "title": "Query for envelopes, shared by query and subscribe endpoints\nEither topics or originator_node_ids may be set, but not both"
     },
     "xmtpv4OriginatorEnvelope": {
       "type": "object",
@@ -297,19 +268,27 @@
       },
       "title": "Wraps client envelope with payer signature"
     },
-    "xmtpv4PublishEnvelopeRequest": {
+    "xmtpv4PublishEnvelopesRequest": {
       "type": "object",
       "properties": {
-        "payerEnvelope": {
-          "$ref": "#/definitions/xmtpv4PayerEnvelope"
+        "payerEnvelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4PayerEnvelope"
+          }
         }
       }
     },
-    "xmtpv4PublishEnvelopeResponse": {
+    "xmtpv4PublishEnvelopesResponse": {
       "type": "object",
       "properties": {
-        "originatorEnvelope": {
-          "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
+        "originatorEnvelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
+          }
         }
       }
     },
@@ -338,6 +317,28 @@
         }
       },
       "title": "Query envelopes response"
+    },
+    "xmtpv4SubscribeEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/definitions/xmtpv4EnvelopesQuery"
+        }
+      },
+      "title": "Batch subscribe to envelopes"
+    },
+    "xmtpv4SubscribeEnvelopesResponse": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4OriginatorEnvelope"
+          }
+        }
+      },
+      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
     },
     "xmtpv4VectorClock": {
       "type": "object",

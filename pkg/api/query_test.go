@@ -153,6 +153,69 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 	checkRowsMatchProtos(t, db_rows, []int{1, 3, 4}, resp.GetEnvelopes())
 }
 
+func TestQueryTopicFromLastSeen(t *testing.T) {
+	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, store)
+
+	resp, err := api.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics: []db.Topic{db.Topic("topicA")},
+				LastSeen: &message_api.VectorClock{
+					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
+				},
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{4}, resp.GetEnvelopes())
+}
+
+func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
+	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, store)
+
+	resp, err := api.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics: []db.Topic{db.Topic("topicA"), db.Topic("topicB")},
+				LastSeen: &message_api.VectorClock{
+					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
+				},
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{3, 4}, resp.GetEnvelopes())
+}
+
+func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
+	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
+	defer cleanup()
+	db_rows := setupQueryTest(t, store)
+
+	resp, err := api.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{1, 2},
+				LastSeen: &message_api.VectorClock{
+					NodeIdToSequenceId: map[uint32]uint64{1: 1, 2: 1},
+				},
+			},
+			Limit: 0,
+		},
+	)
+	require.NoError(t, err)
+	checkRowsMatchProtos(t, db_rows, []int{2, 3, 4}, resp.GetEnvelopes())
+}
+
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
@@ -169,6 +232,24 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 	)
 	require.NoError(t, err)
 	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
+}
+
+func TestInvalidQuery(t *testing.T) {
+	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
+	defer cleanup()
+	_ = setupQueryTest(t, store)
+
+	_, err := api.QueryEnvelopes(
+		context.Background(),
+		&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:            []db.Topic{db.Topic("topicA")},
+				OriginatorNodeIds: []uint32{1},
+			},
+			Limit: 0,
+		},
+	)
+	require.Error(t, err)
 }
 
 func checkRowsMatchProtos(

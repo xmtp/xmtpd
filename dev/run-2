@@ -4,9 +4,7 @@ set -eu
 
 . dev/local.env
 
-# second node keys
-#  {"private-key": "0x3c3040ee266ccd22f14c555b71093ea586e46226f1ed8d37cf9fb239d2b4ad79", "public-key": "0x03da7f733d870237f6dfd0074aea27edaf7b840d68e88641fb2a687de16bbe6a2b"}
-export XMTPD_SIGNER_PRIVATE_KEY="0x3c3040ee266ccd22f14c555b71093ea586e46226f1ed8d37cf9fb239d2b4ad79"
+export XMTPD_SIGNER_PRIVATE_KEY=$ANVIL_ACC_2_PRIVATE_KEY
 export XMTPD_PAYER_PRIVATE_KEY=$XMTPD_SIGNER_PRIVATE_KEY
 export XMTPD_DB_WRITER_CONNECTION_STRING="postgres://postgres:xmtp@localhost:8766/postgres?sslmode=disable"
 

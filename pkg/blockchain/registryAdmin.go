@@ -130,7 +130,11 @@ func (n *NodeRegistryAdmin) UpdateHealth(
 	ctx context.Context, nodeId int64, health bool,
 ) error {
 	tx, err := n.contract.UpdateHealth(
-		&bind.TransactOpts{Context: ctx},
+		&bind.TransactOpts{
+			Context: ctx,
+			From:    n.signer.FromAddress(),
+			Signer:  n.signer.SignerFunc(),
+		},
 		big.NewInt(nodeId),
 		health,
 	)
@@ -153,7 +157,11 @@ func (n *NodeRegistryAdmin) UpdateHttpAddress(
 	ctx context.Context, nodeId int64, address string,
 ) error {
 	tx, err := n.contract.UpdateHttpAddress(
-		&bind.TransactOpts{Context: ctx},
+		&bind.TransactOpts{
+			Context: ctx,
+			From:    n.signer.FromAddress(),
+			Signer:  n.signer.SignerFunc(),
+		},
 		big.NewInt(nodeId),
 		address,
 	)

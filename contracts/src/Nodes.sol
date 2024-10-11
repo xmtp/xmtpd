@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {console} from "../lib/forge-std/src/console.sol";
 
 /**
  * A NFT contract for XMTP Node Operators.
@@ -68,6 +69,7 @@ contract Nodes is ERC721, Ownable {
      * Allow a NFT holder to update the HTTP address of their node
      */
     function updateHttpAddress(uint256 tokenId, string calldata httpAddress) public {
+        console.log(tokenId, ownerOf(tokenId), _msgSender());
         require(_msgSender() == ownerOf(tokenId), "Only the owner of the Node NFT can update its http address");
         _nodes[tokenId].httpAddress = httpAddress;
         _emitNodeUpdate(tokenId);

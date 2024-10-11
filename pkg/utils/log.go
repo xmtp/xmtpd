@@ -35,7 +35,5 @@ func BuildLogger(options config.LogOptions) (*zap.Logger, *zap.Config, error) {
 		return nil, nil, err
 	}
 
-	logger = logger.Named("replication")
-
 	return logger, &cfg, nil
 }

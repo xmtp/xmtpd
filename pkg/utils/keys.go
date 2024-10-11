@@ -30,3 +30,7 @@ func ParseEcdsaPublicKey(key string) (*ecdsa.PublicKey, error) {
 func EcdsaPublicKeyToString(key *ecdsa.PublicKey) string {
 	return "0x" + common.Bytes2Hex(crypto.CompressPubkey(key))
 }
+
+func EcdsaPublicKeyToAddress(key *ecdsa.PublicKey) string {
+	return "0x" + common.Bytes2Hex(crypto.PubkeyToAddress(*key).Bytes())
+}

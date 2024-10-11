@@ -4,8 +4,10 @@ set -eu
 
 . dev/local.env
 
+export NODE_ADDRESS=$ANVIL_ACC_1_ADDRESS
+
 dev/cli register-node \
     --http-address=http://localhost:5050 \
-    --owner-address=0xf0490b45884803924Ca84C2051ef435991D7350D \
+    --owner-address=$NODE_ADDRESS \
     --admin-private-key=$PRIVATE_KEY \
     --signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY

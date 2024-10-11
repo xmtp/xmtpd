@@ -62,8 +62,17 @@ type SignerOptions struct {
 
 type GenerateKeyOptions struct{}
 
-type GetAllNodesOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"`
+type GetAllNodesOptions struct{}
+
+type UpdateHealthOptions struct {
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
+	NodeId          int64  `long:"node-id"           description:"NodeId to update"`
+}
+
+type UpdateAddressOptions struct {
+	PrivateKey string `long:"private-key" description:"Private key of node to be updated"`
+	NodeId     int64  `long:"node-id"     description:"NodeId to update"`
+	Address    string `long:"address"     description:"New HTTP address"`
 }
 
 type GetPubKeyOptions struct {

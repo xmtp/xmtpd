@@ -102,7 +102,9 @@ func getPubKey(logger *zap.Logger, options *CLI) {
 	logger.Info(
 		"parsed private key",
 		zap.String("pub-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
+		zap.String("address", utils.EcdsaPublicKeyToAddress(privKey.Public().(*ecdsa.PublicKey))),
 	)
+	privKey.Public()
 }
 func registerNode(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()

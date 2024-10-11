@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -21,6 +22,8 @@ import (
 
 const (
 	maxRequestedRows     uint32 = 1000
+	maxQueriesPerRequest int    = 10000
+	maxTopicLength       int    = 128
 	maxVectorClockLength int    = 100
 )
 
@@ -68,11 +71,11 @@ func (s *Service) Close() {
 	s.log.Info("closed")
 }
 
-func (s *Service) BatchSubscribeEnvelopes(
-	req *message_api.BatchSubscribeEnvelopesRequest,
-	stream message_api.ReplicationApi_BatchSubscribeEnvelopesServer,
+func (s *Service) SubscribeEnvelopes(
+	req *message_api.SubscribeEnvelopesRequest,
+	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 ) error {
-	log := s.log.With(zap.String("method", "batchSubscribe"))
+	log := s.log.With(zap.String("method", "subscribe"))
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
@@ -81,21 +84,17 @@ func (s *Service) BatchSubscribeEnvelopes(
 		return status.Errorf(codes.Internal, "could not send header: %v", err)
 	}
 
-	requests := req.GetRequests()
-	if len(requests) == 0 {
-		return status.Errorf(codes.InvalidArgument, "missing requests")
-	}
-
-	ch, err := s.subscribeWorker.listen(stream.Context(), requests)
-	if err != nil {
+	query := req.GetQuery()
+	if err := s.validateQuery(query); err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
 
+	ch := s.subscribeWorker.listen(stream.Context(), query)
 	for {
 		select {
 		case envs, open := <-ch:
 			if open {
-				err := stream.Send(&message_api.BatchSubscribeEnvelopesResponse{
+				err := stream.Send(&message_api.SubscribeEnvelopesResponse{
 					Envelopes: envs,
 				})
 				if err != nil {
@@ -148,6 +147,38 @@ func (s *Service) QueryEnvelopes(
 	}, nil
 }
 
+func (s *Service) validateQuery(
+	query *message_api.EnvelopesQuery,
+) error {
+	if query == nil {
+		return fmt.Errorf("missing query")
+	}
+
+	topics := query.GetTopics()
+	originators := query.GetOriginatorNodeIds()
+	if len(topics) != 0 && len(originators) != 0 {
+		return fmt.Errorf(
+			"cannot filter by both topic and originator in same subscription request",
+		)
+	}
+
+	numQueries := len(topics) + len(originators)
+	if numQueries > maxQueriesPerRequest {
+		return fmt.Errorf(
+			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
+			numQueries,
+		)
+	}
+
+	for _, topic := range topics {
+		if len(topic) == 0 || len(topic) > maxTopicLength {
+			return fmt.Errorf("invalid topic: %s", topic)
+		}
+	}
+
+	return nil
+}
+
 func (s *Service) queryReqToDBParams(
 	req *message_api.QueryEnvelopesRequest,
 ) (*queries.SelectGatewayEnvelopesParams, error) {
@@ -160,19 +191,15 @@ func (s *Service) queryReqToDBParams(
 	}
 
 	query := req.GetQuery()
-	if query == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "missing query")
+	if err := s.validateQuery(query); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
 	}
 
-	switch filter := query.GetFilter().(type) {
-	case *message_api.EnvelopesQuery_Topic:
-		if len(filter.Topic) == 0 {
-			return nil, status.Errorf(codes.InvalidArgument, "missing topic")
-		}
-		params.Topic = filter.Topic
-	case *message_api.EnvelopesQuery_OriginatorNodeId:
-		params.OriginatorNodeID = db.NullInt32(int32(filter.OriginatorNodeId))
-	default:
+	// TODO(rich): Properly support batch queries
+	if len(query.GetTopics()) > 0 {
+		params.Topic = query.GetTopics()[0]
+	} else if len(query.GetOriginatorNodeIds()) > 0 {
+		params.OriginatorNodeID = db.NullInt32(int32(query.GetOriginatorNodeIds()[0]))
 	}
 
 	vc := query.GetLastSeen().GetNodeIdToSequenceId()
@@ -193,11 +220,14 @@ func (s *Service) queryReqToDBParams(
 	return &params, nil
 }
 
-func (s *Service) PublishEnvelope(
+func (s *Service) PublishEnvelopes(
 	ctx context.Context,
-	req *message_api.PublishEnvelopeRequest,
-) (*message_api.PublishEnvelopeResponse, error) {
-	clientEnv, err := s.validatePayerInfo(req.GetPayerEnvelope())
+	req *message_api.PublishEnvelopesRequest,
+) (*message_api.PublishEnvelopesResponse, error) {
+	if len(req.GetPayerEnvelopes()) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payer envelope")
+	}
+	clientEnv, err := s.validatePayerInfo(req.GetPayerEnvelopes()[0])
 	if err != nil {
 		return nil, err
 	}
@@ -212,10 +242,11 @@ func (s *Service) PublishEnvelope(
 		return nil, err
 	}
 	if didPublish {
-		return &message_api.PublishEnvelopeResponse{}, nil
+		return &message_api.PublishEnvelopesResponse{}, nil
 	}
 
-	payerBytes, err := proto.Marshal(req.GetPayerEnvelope())
+	// TODO(rich): Properly support batch publishing
+	payerBytes, err := proto.Marshal(req.GetPayerEnvelopes()[0])
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not marshal envelope: %v", err)
 	}
@@ -235,7 +266,9 @@ func (s *Service) PublishEnvelope(
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}
 
-	return &message_api.PublishEnvelopeResponse{OriginatorEnvelope: originatorEnv}, nil
+	return &message_api.PublishEnvelopesResponse{
+		OriginatorEnvelopes: []*message_api.OriginatorEnvelope{originatorEnv},
+	}, nil
 }
 
 func (s *Service) maybePublishToBlockchain(

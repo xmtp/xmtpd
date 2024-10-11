@@ -75,7 +75,7 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 		func(ctx context.Context) {
 			var err error
 			var conn *grpc.ClientConn
-			var stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient
+			var stream message_api.ReplicationApi_SubscribeEnvelopesClient
 			for {
 				if err != nil {
 					log.Error(fmt.Sprintf("Error: %v, retrying...", err))
@@ -117,20 +117,14 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 func (s *syncWorker) setupStream(
 	node registry.Node,
 	conn *grpc.ClientConn,
-) (message_api.ReplicationApi_BatchSubscribeEnvelopesClient, error) {
+) (message_api.ReplicationApi_SubscribeEnvelopesClient, error) {
 	client := message_api.NewReplicationApiClient(conn)
-	stream, err := client.BatchSubscribeEnvelopes(
+	stream, err := client.SubscribeEnvelopes(
 		s.ctx,
-		&message_api.BatchSubscribeEnvelopesRequest{
-			Requests: []*message_api.BatchSubscribeEnvelopesRequest_SubscribeEnvelopesRequest{
-				{
-					Query: &message_api.EnvelopesQuery{
-						Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
-							OriginatorNodeId: node.NodeID,
-						},
-						LastSeen: nil,
-					},
-				},
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{node.NodeID},
+				LastSeen:          nil,
 			},
 		},
 	)
@@ -144,7 +138,7 @@ func (s *syncWorker) setupStream(
 }
 
 func (s *syncWorker) listenToStream(
-	stream message_api.ReplicationApi_BatchSubscribeEnvelopesClient,
+	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 ) error {
 	for {
 		envs, err := stream.Recv()

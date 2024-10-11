@@ -105,10 +105,8 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Filter: &message_api.EnvelopesQuery_OriginatorNodeId{
-					OriginatorNodeId: 2,
-				},
-				LastSeen: nil,
+				OriginatorNodeIds: []uint32{2},
+				LastSeen:          nil,
 			},
 			Limit: 0,
 		},
@@ -126,7 +124,7 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Filter:   &message_api.EnvelopesQuery_Topic{Topic: []byte("topicA")},
+				Topics:   [][]byte{[]byte("topicA")},
 				LastSeen: nil,
 			},
 			Limit: 0,
@@ -145,7 +143,6 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Filter:   nil,
 				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
 			},
 			Limit: 0,
@@ -164,9 +161,7 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Filter: &message_api.EnvelopesQuery_Topic{
-					Topic: []byte("topicC"),
-				},
+				Topics: [][]byte{[]byte("topicC")},
 			},
 			Limit: 0,
 		},

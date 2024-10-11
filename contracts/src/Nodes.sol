@@ -68,7 +68,6 @@ contract Nodes is ERC721, Ownable {
      * Allow a NFT holder to update the HTTP address of their node
      */
     function updateHttpAddress(uint256 tokenId, string calldata httpAddress) public {
-        console.log(tokenId, ownerOf(tokenId), _msgSender());
         require(_msgSender() == ownerOf(tokenId), "Only the owner of the Node NFT can update its http address");
         _nodes[tokenId].httpAddress = httpAddress;
         _emitNodeUpdate(tokenId);

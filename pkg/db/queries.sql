@@ -30,20 +30,18 @@ FROM
 	gateway_envelopes
 	-- Assumption: There is only one cursor per node ID. Caller must verify this
 	LEFT JOIN cursors ON gateway_envelopes.originator_node_id = cursors.cursor_node_id
-WHERE (sqlc.narg('topic')::BYTEA IS NULL
-	OR length(@topic) = 0
-	OR topic = @topic)
-AND (sqlc.narg('originator_node_id')::INT IS NULL
-	OR originator_node_id = @originator_node_id)
-AND (cursor_sequence_id IS NULL
-	OR originator_sequence_id > cursor_sequence_id)
+WHERE (COALESCE(ARRAY_LENGTH(@topics::BYTEA[], 1), 0) = 0
+	OR topic = ANY (@topics))
+AND (COALESCE(ARRAY_LENGTH(@originator_node_ids::INT[], 1), 0) = 0
+	OR originator_node_id = ANY (@originator_node_ids))
+AND originator_sequence_id > COALESCE(cursor_sequence_id, 0)
 ORDER BY
 	-- Assumption: envelopes are inserted in sequence_id order per originator, therefore
 	-- gateway_time preserves sequence_id order
 	gateway_time,
 	originator_node_id,
 	originator_sequence_id ASC
-LIMIT sqlc.narg('row_limit')::INT;
+LIMIT NULLIF(@row_limit::INT, 0);
 
 -- name: InsertStagedOriginatorEnvelope :one
 SELECT

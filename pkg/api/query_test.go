@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -116,15 +117,15 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	api, db, cleanup := apiTestUtils.NewTestAPIClient(t)
+	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, db)
+	db_rows := setupQueryTest(t, store)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   [][]byte{[]byte("topicA")},
+				Topics:   []db.Topic{db.Topic("topicA")},
 				LastSeen: nil,
 			},
 			Limit: 0,
@@ -153,15 +154,15 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	api, db, cleanup := apiTestUtils.NewTestAPIClient(t)
+	api, store, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, db)
+	db_rows := setupQueryTest(t, store)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics: [][]byte{[]byte("topicC")},
+				Topics: []db.Topic{db.Topic("topicC")},
 			},
 			Limit: 0,
 		},

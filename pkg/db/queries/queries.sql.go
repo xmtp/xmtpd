@@ -223,11 +223,10 @@ FROM
 	gateway_envelopes
 	-- Assumption: There is only one cursor per node ID. Caller must verify this
 	LEFT JOIN cursors ON gateway_envelopes.originator_node_id = cursors.cursor_node_id
-WHERE ($1::BYTEA IS NULL
-	OR length($1) = 0
-	OR topic = $1)
-AND ($2::INT IS NULL
-	OR originator_node_id = $2)
+WHERE (COALESCE(ARRAY_LENGTH($1::BYTEA[], 1), 0) = 0
+	OR topic = ANY ($1))
+AND (COALESCE(ARRAY_LENGTH($2::INT[], 1), 0) = 0
+	OR originator_node_id = ANY ($2))
 AND (cursor_sequence_id IS NULL
 	OR originator_sequence_id > cursor_sequence_id)
 ORDER BY
@@ -236,21 +235,21 @@ ORDER BY
 	gateway_time,
 	originator_node_id,
 	originator_sequence_id ASC
-LIMIT $3::INT
+LIMIT NULLIF($3::INT, 0)
 `
 
 type SelectGatewayEnvelopesParams struct {
-	Topic             []byte
-	OriginatorNodeID  sql.NullInt32
-	RowLimit          sql.NullInt32
+	Topics            [][]byte
+	OriginatorNodeIds []int32
+	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
 }
 
 func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayEnvelopesParams) ([]GatewayEnvelope, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopes,
-		arg.Topic,
-		arg.OriginatorNodeID,
+		pq.Array(arg.Topics),
+		pq.Array(arg.OriginatorNodeIds),
 		arg.RowLimit,
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),

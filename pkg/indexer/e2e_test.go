@@ -67,7 +67,7 @@ func TestStoreMessages(t *testing.T) {
 		envelopes, err := querier.SelectGatewayEnvelopes(
 			context.Background(),
 			queries.SelectGatewayEnvelopesParams{
-				Topic: topic,
+				Topics: [][]byte{topic},
 			},
 		)
 		require.NoError(t, err)

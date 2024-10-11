@@ -195,9 +195,9 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
-			Topic:            []byte(BuildInboxTopic(inboxId)),
-			OriginatorNodeID: sql.NullInt32{Int32: IDENTITY_UPDATE_ORIGINATOR_ID, Valid: true},
-			RowLimit:         sql.NullInt32{Int32: 256, Valid: true},
+			Topics:            []db.Topic{db.Topic(BuildInboxTopic(inboxId))},
+			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
+			RowLimit:          256,
 		},
 	)
 	if err != nil {

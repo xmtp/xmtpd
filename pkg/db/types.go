@@ -7,6 +7,7 @@ import (
 )
 
 type VectorClock = map[uint32]uint64
+type Topic = []byte
 
 func NullInt32(v int32) sql.NullInt32 {
 	return sql.NullInt32{Int32: v, Valid: true}

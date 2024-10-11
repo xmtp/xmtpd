@@ -176,46 +176,38 @@ func (s *Service) validateQuery(
 		}
 	}
 
+	vc := query.GetLastSeen().GetNodeIdToSequenceId()
+	if len(vc) > maxVectorClockLength {
+		return fmt.Errorf(
+			"vector clock length exceeds maximum of %d",
+			maxVectorClockLength,
+		)
+	}
+
 	return nil
 }
 
 func (s *Service) queryReqToDBParams(
 	req *message_api.QueryEnvelopesRequest,
 ) (*queries.SelectGatewayEnvelopesParams, error) {
-	params := queries.SelectGatewayEnvelopesParams{
-		Topic:             nil,
-		OriginatorNodeID:  sql.NullInt32{},
-		RowLimit:          sql.NullInt32{},
-		CursorNodeIds:     nil,
-		CursorSequenceIds: nil,
-	}
-
 	query := req.GetQuery()
 	if err := s.validateQuery(query); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
 	}
 
-	// TODO(rich): Properly support batch queries
-	if len(query.GetTopics()) > 0 {
-		params.Topic = query.GetTopics()[0]
-	} else if len(query.GetOriginatorNodeIds()) > 0 {
-		params.OriginatorNodeID = db.NullInt32(int32(query.GetOriginatorNodeIds()[0]))
+	params := queries.SelectGatewayEnvelopesParams{
+		Topics:            query.GetTopics(),
+		OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
+		RowLimit:          int32(req.GetLimit()),
+		CursorNodeIds:     nil,
+		CursorSequenceIds: nil,
 	}
 
-	vc := query.GetLastSeen().GetNodeIdToSequenceId()
-	if len(vc) > maxVectorClockLength {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"vector clock length exceeds maximum of %d",
-			maxVectorClockLength,
-		)
+	for _, o := range query.GetOriginatorNodeIds() {
+		params.OriginatorNodeIds = append(params.OriginatorNodeIds, int32(o))
 	}
-	db.SetVectorClock(&params, vc)
 
-	limit := req.GetLimit()
-	if limit > 0 && limit <= maxRequestedRows {
-		params.RowLimit = db.NullInt32(int32(limit))
-	}
+	db.SetVectorClock(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
 	return &params, nil
 }

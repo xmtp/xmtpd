@@ -212,47 +212,27 @@ func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFro
 }
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
-WITH cursors AS (
-	SELECT
-		UNNEST($4::INT[]) AS cursor_node_id,
-		UNNEST($5::BIGINT[]) AS cursor_sequence_id
-)
 SELECT
-	gateway_envelopes.gateway_time, gateway_envelopes.originator_node_id, gateway_envelopes.originator_sequence_id, gateway_envelopes.topic, gateway_envelopes.originator_envelope
+	gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope
 FROM
-	gateway_envelopes
-	-- Assumption: There is only one cursor per node ID. Caller must verify this
-	LEFT JOIN cursors ON gateway_envelopes.originator_node_id = cursors.cursor_node_id
-WHERE (COALESCE(ARRAY_LENGTH($1::BYTEA[], 1), 0) = 0
-	OR topic = ANY ($1))
-AND (COALESCE(ARRAY_LENGTH($2::INT[], 1), 0) = 0
-	OR originator_node_id = ANY ($2))
-AND (cursor_sequence_id IS NULL
-	OR originator_sequence_id > cursor_sequence_id)
-ORDER BY
-	-- Assumption: envelopes are inserted in sequence_id order per originator, therefore
-	-- gateway_time preserves sequence_id order
-	gateway_time,
-	originator_node_id,
-	originator_sequence_id ASC
-LIMIT NULLIF($3::INT, 0)
+	select_gateway_envelopes($1::INT[], $2::BIGINT[], $3::BYTEA[], $4::INT[], $5::INT)
 `
 
 type SelectGatewayEnvelopesParams struct {
+	CursorNodeIds     []int32
+	CursorSequenceIds []int64
 	Topics            [][]byte
 	OriginatorNodeIds []int32
 	RowLimit          int32
-	CursorNodeIds     []int32
-	CursorSequenceIds []int64
 }
 
 func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayEnvelopesParams) ([]GatewayEnvelope, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopes,
+		pq.Array(arg.CursorNodeIds),
+		pq.Array(arg.CursorSequenceIds),
 		pq.Array(arg.Topics),
 		pq.Array(arg.OriginatorNodeIds),
 		arg.RowLimit,
-		pq.Array(arg.CursorNodeIds),
-		pq.Array(arg.CursorSequenceIds),
 	)
 	if err != nil {
 		return nil, err

@@ -16,6 +16,8 @@ jobs:
       packages: write
     env:
       DOCKER_METADATA_PR_HEAD_SHA: true
+    outputs:
+      digest: steps.push.outputs.digest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +51,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: "GIT_COMMIT=${{ github.event_name != 'pull_request' && github.sha || github.event.pull_request.head.sha }}"
   deploy:
-    name: Deploys new images to infra
+    name: Deploy new images to infra
     runs-on: ubuntu-latest
     needs: push_to_registry
     #if: github.ref == 'refs/heads/main'
@@ -63,5 +65,5 @@ jobs:
           terraform-org: xmtp
           terraform-workspace: testnet
           variable-name: xmtpd_server_docker_image
-          variable-value: "ghcr.io/xmtp/xmtpd@${{ steps.push.outputs.digest }}"
+          variable-value: "ghcr.io/xmtp/xmtpd@${{ needs.push_to_registry.outputs.digest }}"
           variable-value-required-prefix: "ghcr.io/xmtp/xmtpd@sha256:"

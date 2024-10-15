@@ -28,6 +28,7 @@ func NewRegistrant(
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
+	overrideNodeId bool,
 ) (*Registrant, error) {
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
@@ -38,9 +39,10 @@ func NewRegistrant(
 	if err != nil {
 		return nil, err
 	}
+	log.Info(fmt.Sprintf("This node is NodeId: %d", record.NodeID))
 	log.Debug(fmt.Sprintf("Running with public key %x", crypto.FromECDSAPub(record.SigningKey)))
 
-	if err = ensureDatabaseMatches(ctx, db, record); err != nil {
+	if err = ensureDatabaseMatches(ctx, log, db, record, overrideNodeId); err != nil {
 		return nil, err
 	}
 
@@ -118,7 +120,13 @@ func getRegistryRecord(
 // Prevents mistakes such as:
 // - Running multiple nodes with different private keys against the same DB
 // - Changing a server's configuration while pointing to data in an existing DB
-func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *registry.Node) error {
+func ensureDatabaseMatches(
+	ctx context.Context,
+	log *zap.Logger,
+	db *queries.Queries,
+	record *registry.Node,
+	overrideNodeId bool,
+) error {
 	numRows, err := db.InsertNodeInfo(
 		ctx,
 		queries.InsertNodeInfoParams{
@@ -136,7 +144,43 @@ func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *reg
 			return fmt.Errorf("unable to retrieve node info from database: %v", err)
 		}
 		if nodeInfo.NodeID != int32(record.NodeID) {
-			return fmt.Errorf("registry node ID does not match ID in database")
+			if !overrideNodeId {
+				return fmt.Errorf(
+					fmt.Sprintf(
+						"registry node ID (%d) does not match ID in database (%d)",
+						record.NodeID,
+						nodeInfo.NodeID,
+					),
+				)
+			}
+
+			log.Warn(
+				fmt.Sprintf(
+					"WARNING: enabled --db.force-override and a mismatching nodeID was detected. Attempting to update DB...",
+				),
+			)
+			numRows, err = db.UpdateNodeInfo(
+				ctx,
+				queries.UpdateNodeInfoParams{
+					NodeID:    nodeInfo.NodeID,
+					NewNodeID: int32(record.NodeID),
+				},
+			)
+			if err != nil {
+				return fmt.Errorf("Could not update nodeId in the database: %v", err)
+			}
+			if numRows == 0 {
+				return fmt.Errorf("Could not update nodeId in the database: Zero rows affected")
+			}
+
+			log.Warn(
+				fmt.Sprintf(
+					"NodeId has been changed from %d to %d.",
+					nodeInfo.NodeID,
+					record.NodeID,
+				),
+			)
+
 		}
 		if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
 			return fmt.Errorf("registry public key does not match public key in database")

@@ -380,3 +380,25 @@ func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow
 	}
 	return items, nil
 }
+
+const updateNodeInfo = `-- name: UpdateNodeInfo :execrows
+UPDATE
+    node_info
+SET
+    node_id = $1
+WHERE
+    node_id = $2
+`
+
+type UpdateNodeInfoParams struct {
+	NewNodeID int32
+	NodeID    int32
+}
+
+func (q *Queries) UpdateNodeInfo(ctx context.Context, arg UpdateNodeInfoParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateNodeInfo, arg.NewNodeID, arg.NodeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

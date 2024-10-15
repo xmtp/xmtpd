@@ -122,3 +122,10 @@ FROM
 WHERE
 	originator_node_id = @originator_node_id;
 
+-- name: UpdateNodeInfo :execrows
+UPDATE
+    node_info
+SET
+    node_id = @new_node_id
+WHERE
+    node_id = @node_id;

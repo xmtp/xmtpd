@@ -146,18 +146,14 @@ func ensureDatabaseMatches(
 		if nodeInfo.NodeID != int32(record.NodeID) {
 			if !overrideNodeId {
 				return fmt.Errorf(
-					fmt.Sprintf(
-						"registry node ID (%d) does not match ID in database (%d)",
-						record.NodeID,
-						nodeInfo.NodeID,
-					),
+					"registry node ID (%d) does not match ID in database (%d)",
+					record.NodeID,
+					nodeInfo.NodeID,
 				)
 			}
 
 			log.Warn(
-				fmt.Sprintf(
-					"WARNING: enabled --db.force-override and a mismatching nodeID was detected. Attempting to update DB...",
-				),
+				"WARNING: enabled --db.force-override and a mismatching nodeID was detected. Attempting to update DB...",
 			)
 			numRows, err = db.UpdateNodeInfo(
 				ctx,

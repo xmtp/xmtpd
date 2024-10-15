@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -57,7 +56,7 @@ func TestStoreGroupMessages(t *testing.T) {
 
 	envelopes, queryErr := storer.queries.SelectGatewayEnvelopes(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{OriginatorNodeID: db.NullInt32(0)},
+		queries.SelectGatewayEnvelopesParams{OriginatorNodeIds: []int32{0}},
 	)
 	require.NoError(t, queryErr)
 
@@ -93,7 +92,7 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 
 	envelopes, queryErr := storer.queries.SelectGatewayEnvelopes(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{OriginatorNodeID: db.NullInt32(0)},
+		queries.SelectGatewayEnvelopesParams{OriginatorNodeIds: []int32{0}},
 	)
 	require.NoError(t, queryErr)
 

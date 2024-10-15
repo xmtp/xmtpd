@@ -44,8 +44,8 @@ func envelopesQuery(store *sql.DB) db.PollableDBQuery[queries.GatewayEnvelope, d
 	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := queries.New(store).
 			SelectGatewayEnvelopes(ctx, *db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{
-				OriginatorNodeID: db.NullInt32(1),
-				RowLimit:         db.NullInt32(numRows),
+				OriginatorNodeIds: []int32{1},
+				RowLimit:          numRows,
 			}, lastSeen))
 		if err != nil {
 			return nil, lastSeen, err

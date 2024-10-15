@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
@@ -83,7 +82,8 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	envelopes, queryErr := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
-			OriginatorNodeID: db.NullInt32(IDENTITY_UPDATE_ORIGINATOR_ID),
+			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
+			RowLimit:          10,
 		},
 	)
 	require.NoError(t, queryErr)

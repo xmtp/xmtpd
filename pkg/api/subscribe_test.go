@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -127,9 +128,9 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
-	client, db, cleanup := setupTest(t)
+	client, store, cleanup := setupTest(t)
 	defer cleanup()
-	insertInitialRows(t, db)
+	insertInitialRows(t, store)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -137,14 +138,14 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   [][]byte{[]byte("topicA"), []byte("topicC")},
+				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
 				LastSeen: nil,
 			},
 		},
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, store)
 	validateUpdates(t, stream, []int{4})
 }
 
@@ -171,9 +172,9 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestSimultaneousSubscriptions(t *testing.T) {
-	client, db, cleanup := setupTest(t)
+	client, store, cleanup := setupTest(t)
 	defer cleanup()
-	insertInitialRows(t, db)
+	insertInitialRows(t, store)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -189,7 +190,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   [][]byte{[]byte("topicB")},
+				Topics:   []db.Topic{db.Topic("topicB")},
 				LastSeen: nil,
 			},
 		},
@@ -207,7 +208,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, store)
 	validateUpdates(t, stream1, []int{2, 3, 4})
 	validateUpdates(t, stream2, []int{2, 3})
 	validateUpdates(t, stream3, []int{3})
@@ -221,7 +222,7 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 		context.Background(),
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:            [][]byte{[]byte("topicA")},
+				Topics:            []db.Topic{db.Topic("topicA")},
 				OriginatorNodeIds: []uint32{1},
 				LastSeen:          nil,
 			},

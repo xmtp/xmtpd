@@ -163,6 +163,7 @@ func generateKey(logger *zap.Logger) {
 		"generated private key",
 		zap.String("private-key", utils.EcdsaPrivateKeyToString(privKey)),
 		zap.String("public-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
+		zap.String("address", utils.EcdsaPublicKeyToAddress(privKey.Public().(*ecdsa.PublicKey))),
 	)
 }
 

@@ -50,6 +50,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: "GIT_COMMIT=${{ github.event_name != 'pull_request' && github.sha || github.event.pull_request.head.sha }}"
+      - name: Print Digest
+        id: push
+        run: echo "digest ${{ steps.push.outputs.digest }}"
   deploy:
     name: Deploy new images to infra
     runs-on: ubuntu-latest

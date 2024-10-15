@@ -89,6 +89,12 @@ func (s *Service) SubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
 
+	// TODO(rich) Pull from DB here and feed into stream. Need to make sure you pull one more time after first tick.
+	// Pull until less than a page length
+	// Update vector clock as you send down payloads.
+	// When pulling from channel, discard dupes.
+	// If channel is closed, reset vector clock and restart.
+
 	ch := s.subscribeWorker.listen(stream.Context(), query)
 	for {
 		select {
@@ -120,14 +126,10 @@ func (s *Service) QueryEnvelopes(
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
 	log := s.log.With(zap.String("method", "query"))
-	params, err := s.queryReqToDBParams(req)
+
+	rows, err := s.fetchEnvelopes(ctx, req.GetQuery(), int32(req.GetLimit()))
 	if err != nil {
 		return nil, err
-	}
-
-	rows, err := queries.New(s.store).SelectGatewayEnvelopes(ctx, *params)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 	}
 
 	envs := make([]*message_api.OriginatorEnvelope, 0, len(rows))
@@ -187,10 +189,12 @@ func (s *Service) validateQuery(
 	return nil
 }
 
-func (s *Service) queryReqToDBParams(
-	req *message_api.QueryEnvelopesRequest,
-) (*queries.SelectGatewayEnvelopesParams, error) {
-	query := req.GetQuery()
+func (s *Service) fetchEnvelopes(
+	ctx context.Context,
+	query *message_api.EnvelopesQuery,
+	rowLimit int32,
+) ([]queries.GatewayEnvelope, error) {
+	// TODO(rich) make this efficient when querying multiple times
 	if err := s.validateQuery(query); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
 	}
@@ -198,7 +202,7 @@ func (s *Service) queryReqToDBParams(
 	params := queries.SelectGatewayEnvelopesParams{
 		Topics:            query.GetTopics(),
 		OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
-		RowLimit:          int32(req.GetLimit()),
+		RowLimit:          rowLimit,
 		CursorNodeIds:     nil,
 		CursorSequenceIds: nil,
 	}
@@ -209,7 +213,12 @@ func (s *Service) queryReqToDBParams(
 
 	db.SetVectorClock(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-	return &params, nil
+	rows, err := queries.New(s.store).SelectGatewayEnvelopes(ctx, params)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+	}
+
+	return rows, nil
 }
 
 func (s *Service) PublishEnvelopes(

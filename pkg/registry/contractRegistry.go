@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -112,6 +113,17 @@ func (s *SmartContractRegistry) GetNodes() ([]Node, error) {
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
+}
+
+func (s *SmartContractRegistry) GetNode(nodeId uint32) (*Node, error) {
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
+
+	node, ok := s.nodes[nodeId]
+	if !ok {
+		return nil, errors.New("node not found")
+	}
+	return &node, nil
 }
 
 func (s *SmartContractRegistry) refreshLoop() {

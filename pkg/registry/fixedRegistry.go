@@ -1,6 +1,9 @@
 package registry
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 // TODO: Delete this or move to a test file
 type FixedNodeRegistry struct {
@@ -16,6 +19,15 @@ func NewFixedNodeRegistry(nodes []Node) *FixedNodeRegistry {
 
 func (r *FixedNodeRegistry) GetNodes() ([]Node, error) {
 	return r.nodes, nil
+}
+
+func (r *FixedNodeRegistry) GetNode(nodeId uint32) (*Node, error) {
+	for _, node := range r.nodes {
+		if node.NodeID == nodeId {
+			return &node, nil
+		}
+	}
+	return nil, errors.New("node not found")
 }
 
 func (f *FixedNodeRegistry) AddNode(node Node) {

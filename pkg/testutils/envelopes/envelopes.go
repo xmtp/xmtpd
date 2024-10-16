@@ -6,14 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/protobuf/proto"
 )
-
-func Marshal(t *testing.T, msg proto.Message) []byte {
-	bytes, err := proto.Marshal(msg)
-	require.NoError(t, err)
-	return bytes
-}
 
 func UnmarshalUnsignedOriginatorEnvelope(
 	t *testing.T,
@@ -32,8 +27,9 @@ func CreateClientEnvelope(aad ...*message_api.AuthenticatedData) *message_api.Cl
 	if len(aad) == 0 {
 		aad = append(aad, &message_api.AuthenticatedData{
 			TargetOriginator: 1,
-			TargetTopic:      []byte{0x5},
-			LastSeen:         &message_api.VectorClock{},
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+				Bytes(),
+			LastSeen: &message_api.VectorClock{},
 		})
 	}
 	return &message_api.ClientEnvelope{

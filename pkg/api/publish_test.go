@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
+	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -17,10 +18,12 @@ func TestPublishEnvelope(t *testing.T) {
 	api, db, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t)
+
 	resp, err := api.PublishEnvelopes(
 		context.Background(),
 		&message_api.PublishEnvelopesRequest{
-			PayerEnvelopes: []*message_api.PayerEnvelope{testutils.CreatePayerEnvelope(t)},
+			PayerEnvelopes: []*message_api.PayerEnvelope{payerEnvelope},
 		},
 	)
 	require.NoError(t, err)
@@ -39,7 +42,9 @@ func TestPublishEnvelope(t *testing.T) {
 		t,
 		proto.Unmarshal(unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope(), clientEnv),
 	)
-	require.Equal(t, uint8(0x5), clientEnv.Aad.GetTargetTopic()[0])
+
+	_, err = topic.ParseTopic(clientEnv.Aad.GetTargetTopic())
+	require.NoError(t, err)
 
 	// Check that the envelope was published to the database after a delay
 	require.Eventually(t, func() bool {
@@ -61,7 +66,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
-	envelope := testutils.CreatePayerEnvelope(t)
+	envelope := envelopeTestUtils.CreatePayerEnvelope(t)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
 	_, err := api.PublishEnvelopes(
 		context.Background(),
@@ -69,20 +74,20 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 			PayerEnvelopes: []*message_api.PayerEnvelope{envelope},
 		},
 	)
-	require.ErrorContains(t, err, "unmarshal")
+	require.ErrorContains(t, err, "invalid wire-format data")
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
 	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
-	clientEnv := testutils.CreateClientEnvelope()
+	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	clientEnv.Aad.TargetOriginator = 2
 	_, err := api.PublishEnvelopes(
 		context.Background(),
 		&message_api.PublishEnvelopesRequest{
 			PayerEnvelopes: []*message_api.PayerEnvelope{
-				testutils.CreatePayerEnvelope(t, clientEnv),
+				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
 			},
 		},
 	)
@@ -93,13 +98,13 @@ func TestMissingTopicOnPublish(t *testing.T) {
 	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
 	defer cleanup()
 
-	clientEnv := testutils.CreateClientEnvelope()
+	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	clientEnv.Aad.TargetTopic = nil
 	_, err := api.PublishEnvelopes(
 		context.Background(),
 		&message_api.PublishEnvelopesRequest{
 			PayerEnvelopes: []*message_api.PayerEnvelope{
-				testutils.CreatePayerEnvelope(t, clientEnv),
+				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
 			},
 		},
 	)

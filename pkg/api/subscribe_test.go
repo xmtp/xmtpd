@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
+	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 )
 
 var allRows []queries.InsertGatewayEnvelopeParams
@@ -26,7 +27,7 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 1, 1),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 1),
 			),
 		},
 		{
@@ -35,7 +36,7 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 2, 1),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 2, 1),
 			),
 		},
 		// Later rows
@@ -45,7 +46,7 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 			Topic:                []byte("topicB"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 1, 2),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 2),
 			),
 		},
 		{
@@ -54,7 +55,7 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 			Topic:                []byte("topicB"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 2, 2),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 2, 2),
 			),
 		},
 		{
@@ -63,7 +64,7 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 1, 3),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 3),
 			),
 		},
 	}
@@ -94,7 +95,7 @@ func validateUpdates(
 		require.NoError(t, err)
 		for _, env := range envs.Envelopes {
 			expected := allRows[expectedIndices[i]]
-			actual := testutils.UnmarshalUnsignedOriginatorEnvelope(
+			actual := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 				t,
 				env.UnsignedOriginatorEnvelope,
 			)

@@ -73,8 +73,8 @@ func (s *Service) Close() {
 	s.log.Info("closed")
 }
 
-// / Pulls from DB and sends to client, updating the query's last seen cursor, until
-// / the stream has caught up to the latest in the database.
+// Pulls from DB and sends to client, updating the query's last seen cursor, until
+// the stream has caught up to the latest in the database.
 func (s *Service) catchUpFromCursor(
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 	query *message_api.EnvelopesQuery,
@@ -90,12 +90,12 @@ func (s *Service) catchUpFromCursor(
 	}
 
 	for {
-		envs, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
+		rows, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
 		if err != nil {
 			return err
 		}
-		payloads := make([]*OriginatorEnvelopeWithInfo, 0, len(envs))
-		for _, env := range envs {
+		payloads := make([]*OriginatorEnvelopeWithInfo, 0, len(rows))
+		for _, env := range rows {
 			p := &OriginatorEnvelopeWithInfo{
 				Envelope:             &message_api.OriginatorEnvelope{},
 				OriginatorNodeID:     uint32(env.OriginatorNodeID),
@@ -113,7 +113,7 @@ func (s *Service) catchUpFromCursor(
 		if err != nil {
 			return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
 		}
-		if len(envs) < int(maxRequestedRows) {
+		if len(rows) < int(maxRequestedRows) {
 			// There were no more envelopes in DB at time of fetch
 			break
 		}
@@ -180,7 +180,7 @@ func (s *Service) SubscribeEnvelopes(
 					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
 				}
 			} else {
-				// TODO(rich) Reset listener and catch up from cursor
+				// TODO(rich) Reset whole subscribe flow from new cursor
 				log.Debug("channel closed by worker")
 				return nil
 			}

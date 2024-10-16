@@ -3,6 +3,8 @@ package blockchain
 import (
 	"context"
 	"math/big"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -106,11 +108,14 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 		default:
 			logs, nextBlock, err := r.getNextPage(watcher, fromBlock)
 			if err != nil {
-				logger.Error(
-					"Error getting next page",
-					zap.Int("fromBlock", fromBlock),
-					zap.Error(err),
-				)
+				// Log is extremely noisy during test teardown
+				if !strings.HasSuffix(os.Args[0], ".test") {
+					logger.Error(
+						"Error getting next page",
+						zap.Int("fromBlock", fromBlock),
+						zap.Error(err),
+					)
+				}
 				time.Sleep(ERROR_SLEEP_TIME)
 				continue
 			}

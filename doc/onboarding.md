@@ -36,7 +36,7 @@ $ XMTPD_LOG_ENCODING=json ./dev/cli get-pub-key --private-key 0xa9b48d687f450ea9
 
 TBD.
 
-Only the members of @ephemerahq/backend can register nodes.
+Before official testnet launch, only the members of @ephemerahq/backend can register nodes.
 
 ## Step 3) Register Node with smart contract
 

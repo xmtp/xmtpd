@@ -46,7 +46,6 @@ func GetCredentialsForAddress(
 		return nil, fmt.Errorf("no system CA certificates available")
 	}
 
-	// Create a credentials object with the loaded client certificate and system's CA cert pool
 	creds := credentials.NewTLS(&tls.Config{
 		RootCAs: certPool, // System CA pool
 	})

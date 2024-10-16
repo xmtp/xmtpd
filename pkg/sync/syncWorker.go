@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -165,18 +164,18 @@ func (s *syncWorker) listenToStream(
 }
 
 func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
-	log.Info(fmt.Sprintf("Replication server received envelope %s", env))
+	s.log.Info(fmt.Sprintf("Replication server received envelope %s", env))
 	// TODO(nm) Validation logic - share code with API service and publish worker
 	originatorBytes, err := proto.Marshal(env)
 	if err != nil {
-		log.Error("Failed to marshal originator envelope", zap.Error(err))
+		s.log.Error("Failed to marshal originator envelope", zap.Error(err))
 		return
 	}
 
 	unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
 	err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
 	if err != nil {
-		log.Error(
+		s.log.Error(
 			"Failed to unmarshal unsigned originator envelope",
 			zap.Error(err),
 		)
@@ -189,7 +188,7 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 		clientEnvelope,
 	)
 	if err != nil {
-		log.Error(
+		s.log.Error(
 			"Failed to unmarshal client envelope",
 			zap.Error(err),
 		)
@@ -210,11 +209,11 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 		},
 	)
 	if err != nil {
-		log.Error("Failed to insert gateway envelope", zap.Error(err))
+		s.log.Error("Failed to insert gateway envelope", zap.Error(err))
 		return
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		log.Warn("Envelope already inserted")
+		s.log.Warn("Envelope already inserted")
 		return
 	}
 }

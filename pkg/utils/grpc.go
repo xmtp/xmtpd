@@ -28,7 +28,7 @@ func HttpAddressToGrpcTarget(httpAddress string) (string, bool, error) {
 		return fmt.Sprintf("%s:%s", url.Hostname(), url.Port()), isTLS, nil
 	}
 
-	return fmt.Sprintf("%s", url.Hostname()), isTLS, nil
+	return url.Hostname(), isTLS, nil
 }
 
 func GetCredentialsForAddress(

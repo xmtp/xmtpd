@@ -79,7 +79,7 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 			var stream message_api.ReplicationApi_SubscribeEnvelopesClient
 			for {
 				if err != nil {
-					log.Error(fmt.Sprintf("Error: %v, retrying...", err))
+					s.log.Error(fmt.Sprintf("Error: %v, retrying...", err))
 					time.Sleep(1 * time.Second)
 				}
 
@@ -101,12 +101,12 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
-	log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
+	s.log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
 	target, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
 	}
-	log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
+	s.log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
 	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -115,7 +115,7 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", node.HttpAddress, err)
 	}
-	log.Info(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
+	s.log.Info(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
 	return conn, nil
 }
 

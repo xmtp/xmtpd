@@ -81,36 +81,68 @@ func (s *Service) catchUpFromCursor(
 ) error {
 	// TODO(rich): Pull one more time after first tick.
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor != nil {
-		for {
-			envs, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
-			if err != nil {
-				return err
-			}
-			originatorEnvs := make([]*message_api.OriginatorEnvelope, 0, len(envs))
-			for _, env := range envs {
-				originatorEnv := &message_api.OriginatorEnvelope{}
-				err := proto.Unmarshal(env.OriginatorEnvelope, originatorEnv)
-				if err != nil {
-					// We expect to have already validated the envelope when it was inserted
-					log.Error("could not unmarshal originator envelope", zap.Error(err))
-					continue
-				}
-				originatorEnvs = append(originatorEnvs, originatorEnv)
-				cursor[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
-			}
-			err = stream.Send(&message_api.SubscribeEnvelopesResponse{
-				Envelopes: originatorEnvs,
-			})
-			if err != nil {
-				return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
-			}
-			if len(originatorEnvs) < int(maxRequestedRows) {
-				break
-			}
-			// TODO(rich): Determine default rate limits and set query interval to match
-			time.Sleep(50 * time.Millisecond)
+	if cursor == nil {
+		cursor = make(map[uint32]uint64)
+		query.LastSeen = &message_api.VectorClock{
+			NodeIdToSequenceId: cursor,
 		}
+		return nil
+	}
+
+	for {
+		envs, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
+		if err != nil {
+			return err
+		}
+		payloads := make([]*OriginatorEnvelopeWithInfo, 0, len(envs))
+		for _, env := range envs {
+			p := &OriginatorEnvelopeWithInfo{
+				Envelope:             &message_api.OriginatorEnvelope{},
+				OriginatorNodeID:     uint32(env.OriginatorNodeID),
+				OriginatorSequenceID: uint64(env.OriginatorSequenceID),
+			}
+			err := proto.Unmarshal(env.OriginatorEnvelope, p.Envelope)
+			if err != nil {
+				// We expect to have already validated the envelope when it was inserted
+				log.Error("could not unmarshal originator envelope", zap.Error(err))
+				continue
+			}
+			payloads = append(payloads, p)
+		}
+		err = s.sendEnvelopes(stream, query, payloads)
+		if err != nil {
+			return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
+		}
+		if len(envs) < int(maxRequestedRows) {
+			// There were no more envelopes in DB at time of fetch
+			break
+		}
+		// TODO(rich): Determine default rate limits and set query interval to match
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil
+}
+
+func (s *Service) sendEnvelopes(
+	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
+	query *message_api.EnvelopesQuery,
+	payloads []*OriginatorEnvelopeWithInfo,
+) error {
+	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
+	for _, p := range payloads {
+		if cursor[uint32(p.OriginatorNodeID)] >= p.OriginatorSequenceID {
+			continue
+		}
+
+		// TODO(rich): Either batch send envelopes, or modify stream proto to
+		// send one envelope at a time.
+		err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+			Envelopes: []*message_api.OriginatorEnvelope{p.Envelope},
+		})
+		if err != nil {
+			return status.Errorf(codes.Internal, "error sending envelope: %v", err)
+		}
+		cursor[uint32(p.OriginatorNodeID)] = p.OriginatorSequenceID
 	}
 	return nil
 }
@@ -139,24 +171,16 @@ func (s *Service) SubscribeEnvelopes(
 		return err
 	}
 
-	// TODO(rich) Pull from DB here and feed into stream. Need to make sure you pull one more time after first tick.
-	// Pull until less than a page length
-	// Update vector clock as you send down payloads.
-	// When pulling from channel, discard dupes.
-	// If channel is closed, reset vector clock and restart.
-
 	for {
 		select {
-		case envs, open := <-ch:
+		case payloads, open := <-ch:
 			if open {
-				err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-					Envelopes: envs,
-				})
+				err := s.sendEnvelopes(stream, query, payloads)
 				if err != nil {
 					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
 				}
 			} else {
-				// TODO(rich) Recover from backpressure
+				// TODO(rich) Reset listener and catch up from cursor
 				log.Debug("channel closed by worker")
 				return nil
 			}

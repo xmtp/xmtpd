@@ -164,7 +164,7 @@ func (s *syncWorker) listenToStream(
 }
 
 func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
-	s.log.Info(fmt.Sprintf("Replication server received envelope %s", env))
+	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
 	// TODO(nm) Validation logic - share code with API service and publish worker
 	originatorBytes, err := proto.Marshal(env)
 	if err != nil {

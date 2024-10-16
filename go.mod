@@ -24,6 +24,8 @@ require (
 	gopkg.in/DataDog/dd-trace-go.v1 v1.66.0
 )
 
+require github.com/golang-jwt/jwt/v5 v5.2.1
+
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.34.2-20240717164558-a6c49f84cc0f.2 // indirect
 	buf.build/gen/go/bufbuild/registry/connectrpc/go v1.16.2-20240821192916-45ba72cdd479.1 // indirect

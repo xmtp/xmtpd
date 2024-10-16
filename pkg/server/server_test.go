@@ -71,14 +71,14 @@ func TestCreateServer(t *testing.T) {
 		{
 			NodeID:        server1NodeID,
 			SigningKey:    &privateKey1.PublicKey,
-			HttpAddress:   fmt.Sprintf("passthrough://localhost/[::]:%d", server1Port),
+			HttpAddress:   fmt.Sprintf("http://localhost:%d", server1Port),
 			IsHealthy:     true,
 			IsValidConfig: true,
 		},
 		{
 			NodeID:        server2NodeID,
 			SigningKey:    &privateKey2.PublicKey,
-			HttpAddress:   fmt.Sprintf("passthrough://localhost/[::]:%d", server2Port),
+			HttpAddress:   fmt.Sprintf("http://localhost:%d", server2Port),
 			IsHealthy:     true,
 			IsValidConfig: true,
 		},
@@ -140,7 +140,7 @@ func TestCreateServer(t *testing.T) {
 	// }, 500*time.Millisecond, 50*time.Millisecond)
 
 	require.Eventually(t, func() bool {
-		q2, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
+		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{server1NodeID},
 				LastSeen:          &message_api.VectorClock{},

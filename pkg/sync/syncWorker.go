@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -100,8 +101,12 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
-	addr := node.HttpAddress
-	log.Info(fmt.Sprintf("attempting to connect to %s", addr))
+	log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
+	addr, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
+	}
+	log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, addr))
 	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

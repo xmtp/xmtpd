@@ -102,20 +102,20 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
 	log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
-	addr, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
+	target, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
 	}
-	log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, addr))
+	log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
 	conn, err := grpc.NewClient(
-		addr,
+		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to peer: %v", err)
+		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", node.HttpAddress, err)
 	}
-	log.Info(fmt.Sprintf("Successfully connected to peer at %s", addr))
+	log.Info(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
 	return conn, nil
 }
 

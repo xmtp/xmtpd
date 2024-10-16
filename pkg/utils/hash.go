@@ -18,3 +18,10 @@ func HashJWTSignatureInput(textToSign []byte) []byte {
 		textToSign,
 	)
 }
+
+func HashOriginatorSignatureInput(unsignedOriginatorEnvelope []byte) []byte {
+	return ethcrypto.Keccak256(
+		[]byte(constants.ORIGINATOR_DOMAIN_SEPARATION_LABEL),
+		unsignedOriginatorEnvelope,
+	)
+}

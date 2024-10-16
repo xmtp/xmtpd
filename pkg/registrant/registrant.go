@@ -5,8 +5,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"go.uber.org/zap"
 	"slices"
+
+	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -50,8 +51,7 @@ func NewRegistrant(
 	}, nil
 }
 
-func (r *Registrant) signKeccak256(data []byte) ([]byte, error) {
-	hash := crypto.Keccak256(data)
+func (r *Registrant) sign(hash []byte) ([]byte, error) {
 	return crypto.Sign(hash, r.privateKey)
 }
 
@@ -77,7 +77,7 @@ func (r *Registrant) SignStagedEnvelope(
 		return nil, err
 	}
 
-	sig, err := r.signKeccak256(unsignedBytes)
+	sig, err := r.sign(utils.HashOriginatorSignatureInput(unsignedBytes))
 	if err != nil {
 		return nil, err
 	}

@@ -57,9 +57,8 @@ jobs:
     needs: push_to_registry
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Print Digest
-        id: print
-        run: echo "digest ${{ needs.push_to_registry.outputs.digest }}"
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Deploy (dev)
         uses: xmtp-labs/terraform-deployer@v1
         timeout-minutes: 45

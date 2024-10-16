@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -16,7 +15,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -102,20 +100,26 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
 	s.log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
-	target, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
+	target, isTLS, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
 	}
 	s.log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
+
+	creds, err := utils.GetCredentialsForAddress(isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get credentials: %v", err)
+	}
+
 	conn, err := grpc.NewClient(
 		target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", node.HttpAddress, err)
+		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", target, err)
 	}
-	s.log.Info(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
+	s.log.Info(fmt.Sprintf("Successfully connected to peer at %s", target))
 	return conn, nil
 }
 
@@ -160,18 +164,18 @@ func (s *syncWorker) listenToStream(
 }
 
 func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
-	log.Info(fmt.Sprintf("Replication server received envelope %s", env))
+	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
 	// TODO(nm) Validation logic - share code with API service and publish worker
 	originatorBytes, err := proto.Marshal(env)
 	if err != nil {
-		log.Error("Failed to marshal originator envelope", zap.Error(err))
+		s.log.Error("Failed to marshal originator envelope", zap.Error(err))
 		return
 	}
 
 	unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
 	err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
 	if err != nil {
-		log.Error(
+		s.log.Error(
 			"Failed to unmarshal unsigned originator envelope",
 			zap.Error(err),
 		)
@@ -184,7 +188,7 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 		clientEnvelope,
 	)
 	if err != nil {
-		log.Error(
+		s.log.Error(
 			"Failed to unmarshal client envelope",
 			zap.Error(err),
 		)
@@ -205,11 +209,11 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 		},
 	)
 	if err != nil {
-		log.Error("Failed to insert gateway envelope", zap.Error(err))
+		s.log.Error("Failed to insert gateway envelope", zap.Error(err))
 		return
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		log.Warn("Envelope already inserted")
+		s.log.Warn("Envelope already inserted")
 		return
 	}
 }

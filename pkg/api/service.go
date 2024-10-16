@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
+	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -21,10 +23,10 @@ import (
 )
 
 const (
-	maxRequestedRows     uint32 = 1000
-	maxQueriesPerRequest int    = 10000
-	maxTopicLength       int    = 128
-	maxVectorClockLength int    = 100
+	maxRequestedRows     int32 = 1000
+	maxQueriesPerRequest int   = 10000
+	maxTopicLength       int   = 128
+	maxVectorClockLength int   = 100
 )
 
 type Service struct {
@@ -71,6 +73,48 @@ func (s *Service) Close() {
 	s.log.Info("closed")
 }
 
+// / Pulls from DB and sends to client, updating the query's last seen cursor, until
+// / the stream has caught up to the latest in the database.
+func (s *Service) catchUpFromCursor(
+	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
+	query *message_api.EnvelopesQuery,
+) error {
+	// TODO(rich): Pull one more time after first tick.
+	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
+	if cursor != nil {
+		for {
+			envs, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
+			if err != nil {
+				return err
+			}
+			originatorEnvs := make([]*message_api.OriginatorEnvelope, 0, len(envs))
+			for _, env := range envs {
+				originatorEnv := &message_api.OriginatorEnvelope{}
+				err := proto.Unmarshal(env.OriginatorEnvelope, originatorEnv)
+				if err != nil {
+					// We expect to have already validated the envelope when it was inserted
+					log.Error("could not unmarshal originator envelope", zap.Error(err))
+					continue
+				}
+				originatorEnvs = append(originatorEnvs, originatorEnv)
+				cursor[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
+			}
+			err = stream.Send(&message_api.SubscribeEnvelopesResponse{
+				Envelopes: originatorEnvs,
+			})
+			if err != nil {
+				return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
+			}
+			if len(originatorEnvs) < int(maxRequestedRows) {
+				break
+			}
+			// TODO(rich): Determine default rate limits and set query interval to match
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	return nil
+}
+
 func (s *Service) SubscribeEnvelopes(
 	req *message_api.SubscribeEnvelopesRequest,
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
@@ -89,13 +133,18 @@ func (s *Service) SubscribeEnvelopes(
 		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
 	}
 
+	ch := s.subscribeWorker.listen(stream.Context(), query)
+	err = s.catchUpFromCursor(stream, query)
+	if err != nil {
+		return err
+	}
+
 	// TODO(rich) Pull from DB here and feed into stream. Need to make sure you pull one more time after first tick.
 	// Pull until less than a page length
 	// Update vector clock as you send down payloads.
 	// When pulling from channel, discard dupes.
 	// If channel is closed, reset vector clock and restart.
 
-	ch := s.subscribeWorker.listen(stream.Context(), query)
 	for {
 		select {
 		case envs, open := <-ch:
@@ -127,7 +176,11 @@ func (s *Service) QueryEnvelopes(
 ) (*message_api.QueryEnvelopesResponse, error) {
 	log := s.log.With(zap.String("method", "query"))
 
-	rows, err := s.fetchEnvelopes(ctx, req.GetQuery(), int32(req.GetLimit()))
+	limit := int32(req.GetLimit())
+	if limit == 0 {
+		limit = maxRequestedRows
+	}
+	rows, err := s.fetchEnvelopes(ctx, req.GetQuery(), limit)
 	if err != nil {
 		return nil, err
 	}

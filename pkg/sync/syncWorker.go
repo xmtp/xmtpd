@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -111,10 +112,13 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 		return nil, fmt.Errorf("Failed to get credentials: %v", err)
 	}
 
+	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
 	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(),
+		grpc.WithUnaryInterceptor(interceptor.Unary()),
+		grpc.WithStreamInterceptor(interceptor.Stream()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", target, err)

@@ -13,8 +13,10 @@ import (
 
 	"github.com/pires/go-proxyproto"
 	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -32,7 +34,6 @@ type ApiServer struct {
 	grpcServer   *grpc.Server
 	log          *zap.Logger
 	registrant   *registrant.Registrant
-	service      message_api.ReplicationApiServer
 	wg           sync.WaitGroup
 }
 
@@ -97,8 +98,14 @@ func NewAPIServer(
 	if err != nil {
 		return nil, err
 	}
-	s.service = replicationService
-	message_api.RegisterReplicationApiServer(s.grpcServer, s.service)
+
+	message_api.RegisterReplicationApiServer(s.grpcServer, replicationService)
+
+	payerService, err := payer.NewPayerApiService(ctx, log)
+	if err != nil {
+		return nil, err
+	}
+	payer_api.RegisterPayerApiServer(s.grpcServer, payerService)
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))

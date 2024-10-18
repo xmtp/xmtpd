@@ -20,9 +20,15 @@ const (
 	subscribeWorkerPollRows = 10000
 )
 
+type OriginatorEnvelopeWithInfo struct {
+	Envelope             *message_api.OriginatorEnvelope
+	OriginatorNodeID     uint32
+	OriginatorSequenceID uint64
+}
+
 type listener struct {
 	ctx         context.Context
-	ch          chan<- []*message_api.OriginatorEnvelope
+	ch          chan<- []*OriginatorEnvelopeWithInfo
 	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
@@ -32,7 +38,7 @@ type listener struct {
 func newListener(
 	ctx context.Context,
 	query *message_api.EnvelopesQuery,
-	ch chan<- []*message_api.OriginatorEnvelope,
+	ch chan<- []*OriginatorEnvelopeWithInfo,
 ) *listener {
 	l := &listener{
 		ctx:         ctx,
@@ -198,6 +204,7 @@ func (s *subscribeWorker) start() {
 		case <-s.ctx.Done():
 			return
 		case new_batch := <-s.dbSubscription:
+			// TODO(rich): Emit tick event here
 			for _, row := range new_batch {
 				s.dispatch(&row)
 			}
@@ -206,8 +213,12 @@ func (s *subscribeWorker) start() {
 }
 
 func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
-	env := &message_api.OriginatorEnvelope{}
-	err := proto.Unmarshal(row.OriginatorEnvelope, env)
+	payload := &OriginatorEnvelopeWithInfo{
+		Envelope:             &message_api.OriginatorEnvelope{},
+		OriginatorNodeID:     uint32(row.OriginatorNodeID),
+		OriginatorSequenceID: uint64(row.OriginatorSequenceID),
+	}
+	err := proto.Unmarshal(row.OriginatorEnvelope, payload.Envelope)
 	if err != nil {
 		s.log.Error("Failed to unmarshal envelope", zap.Error(err))
 		return
@@ -215,14 +226,14 @@ func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
 
 	originatorListeners := s.originatorListeners.getListeners(uint32(row.OriginatorNodeID))
 	topicListeners := s.topicListeners.getListeners(hex.EncodeToString(row.Topic))
-	s.dispatchToListeners(originatorListeners, env)
-	s.dispatchToListeners(topicListeners, env)
-	s.dispatchToListeners(&s.globalListeners, env)
+	s.dispatchToListeners(originatorListeners, payload)
+	s.dispatchToListeners(topicListeners, payload)
+	s.dispatchToListeners(&s.globalListeners, payload)
 }
 
 func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
-	env *message_api.OriginatorEnvelope,
+	payload *OriginatorEnvelopeWithInfo,
 ) {
 	if listeners == nil {
 		return
@@ -239,7 +250,7 @@ func (s *subscribeWorker) dispatchToListeners(
 			s.closeListener(l)
 		default:
 			select {
-			case l.ch <- []*message_api.OriginatorEnvelope{env}:
+			case l.ch <- []*OriginatorEnvelopeWithInfo{payload}:
 			default:
 				s.log.Info("Channel full, removing listener", zap.Any("listener", l.ch))
 				s.closeListener(l)
@@ -268,8 +279,8 @@ func (s *subscribeWorker) closeListener(l *listener) {
 func (s *subscribeWorker) listen(
 	ctx context.Context,
 	query *message_api.EnvelopesQuery,
-) <-chan []*message_api.OriginatorEnvelope {
-	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
+) <-chan []*OriginatorEnvelopeWithInfo {
+	ch := make(chan []*OriginatorEnvelopeWithInfo, subscriptionBufferSize)
 	l := newListener(ctx, query, ch)
 
 	if l.isGlobal {

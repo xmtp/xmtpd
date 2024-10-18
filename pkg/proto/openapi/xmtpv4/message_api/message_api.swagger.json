@@ -173,13 +173,9 @@
     "envelopesBlockchainProof": {
       "type": "object",
       "properties": {
-        "blockNumber": {
+        "transactionHash": {
           "type": "string",
-          "format": "uint64"
-        },
-        "publisherNodeId": {
-          "type": "integer",
-          "format": "int64"
+          "format": "byte"
         }
       },
       "title": "An alternative to a signature for blockchain payloads"

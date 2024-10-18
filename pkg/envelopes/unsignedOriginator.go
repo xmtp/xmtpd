@@ -3,19 +3,19 @@ package envelopes
 import (
 	"errors"
 
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"google.golang.org/protobuf/proto"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type UnsignedOriginatorEnvelope struct {
-	proto         *message_api.UnsignedOriginatorEnvelope
+	proto         *envelopesProto.UnsignedOriginatorEnvelope
 	PayerEnvelope PayerEnvelope
 }
 
 // Construct an UnsignedOriginatorEnvelope and perform validations on any child fields.
 // Does not verify signatures
 func NewUnsignedOriginatorEnvelope(
-	proto *message_api.UnsignedOriginatorEnvelope,
+	proto *envelopesProto.UnsignedOriginatorEnvelope,
 ) (*UnsignedOriginatorEnvelope, error) {
 	if proto == nil {
 		return nil, errors.New("proto is nil")
@@ -45,13 +45,13 @@ func (u *UnsignedOriginatorEnvelope) OriginatorNs() int64 {
 }
 
 func NewUnsignedOriginatorEnvelopeFromBytes(bytes []byte) (*UnsignedOriginatorEnvelope, error) {
-	var message message_api.UnsignedOriginatorEnvelope
-	if err := proto.Unmarshal(bytes, &message); err != nil {
+	message, err := utils.UnmarshalUnsignedEnvelope(bytes)
+	if err != nil {
 		return nil, err
 	}
-	return NewUnsignedOriginatorEnvelope(&message)
+	return NewUnsignedOriginatorEnvelope(message)
 }
 
-func (u *UnsignedOriginatorEnvelope) Proto() *message_api.UnsignedOriginatorEnvelope {
+func (u *UnsignedOriginatorEnvelope) Proto() *envelopesProto.UnsignedOriginatorEnvelope {
 	return u.proto
 }

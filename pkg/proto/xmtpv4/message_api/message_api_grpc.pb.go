@@ -21,10 +21,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ReplicationApi_SubscribeEnvelopes_FullMethodName = "/xmtp.xmtpv4.ReplicationApi/SubscribeEnvelopes"
-	ReplicationApi_QueryEnvelopes_FullMethodName     = "/xmtp.xmtpv4.ReplicationApi/QueryEnvelopes"
-	ReplicationApi_PublishEnvelopes_FullMethodName   = "/xmtp.xmtpv4.ReplicationApi/PublishEnvelopes"
-	ReplicationApi_GetInboxIds_FullMethodName        = "/xmtp.xmtpv4.ReplicationApi/GetInboxIds"
+	ReplicationApi_SubscribeEnvelopes_FullMethodName    = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeEnvelopes"
+	ReplicationApi_QueryEnvelopes_FullMethodName        = "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes"
+	ReplicationApi_PublishPayerEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/PublishPayerEnvelopes"
+	ReplicationApi_GetInboxIds_FullMethodName           = "/xmtp.xmtpv4.message_api.ReplicationApi/GetInboxIds"
 )
 
 // ReplicationApiClient is the client API for ReplicationApi service.
@@ -36,7 +36,7 @@ type ReplicationApiClient interface {
 	// Query envelopes
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	// Publish envelope
-	PublishEnvelopes(ctx context.Context, in *PublishEnvelopesRequest, opts ...grpc.CallOption) (*PublishEnvelopesResponse, error)
+	PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error)
 	// Get inbox ids
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
 }
@@ -90,9 +90,9 @@ func (c *replicationApiClient) QueryEnvelopes(ctx context.Context, in *QueryEnve
 	return out, nil
 }
 
-func (c *replicationApiClient) PublishEnvelopes(ctx context.Context, in *PublishEnvelopesRequest, opts ...grpc.CallOption) (*PublishEnvelopesResponse, error) {
-	out := new(PublishEnvelopesResponse)
-	err := c.cc.Invoke(ctx, ReplicationApi_PublishEnvelopes_FullMethodName, in, out, opts...)
+func (c *replicationApiClient) PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error) {
+	out := new(PublishPayerEnvelopesResponse)
+	err := c.cc.Invoke(ctx, ReplicationApi_PublishPayerEnvelopes_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ type ReplicationApiServer interface {
 	// Query envelopes
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	// Publish envelope
-	PublishEnvelopes(context.Context, *PublishEnvelopesRequest) (*PublishEnvelopesResponse, error)
+	PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error)
 	// Get inbox ids
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
 	mustEmbedUnimplementedReplicationApiServer()
@@ -133,8 +133,8 @@ func (UnimplementedReplicationApiServer) SubscribeEnvelopes(*SubscribeEnvelopesR
 func (UnimplementedReplicationApiServer) QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryEnvelopes not implemented")
 }
-func (UnimplementedReplicationApiServer) PublishEnvelopes(context.Context, *PublishEnvelopesRequest) (*PublishEnvelopesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PublishEnvelopes not implemented")
+func (UnimplementedReplicationApiServer) PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublishPayerEnvelopes not implemented")
 }
 func (UnimplementedReplicationApiServer) GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInboxIds not implemented")
@@ -191,20 +191,20 @@ func _ReplicationApi_QueryEnvelopes_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ReplicationApi_PublishEnvelopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PublishEnvelopesRequest)
+func _ReplicationApi_PublishPayerEnvelopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublishPayerEnvelopesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ReplicationApiServer).PublishEnvelopes(ctx, in)
+		return srv.(ReplicationApiServer).PublishPayerEnvelopes(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ReplicationApi_PublishEnvelopes_FullMethodName,
+		FullMethod: ReplicationApi_PublishPayerEnvelopes_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ReplicationApiServer).PublishEnvelopes(ctx, req.(*PublishEnvelopesRequest))
+		return srv.(ReplicationApiServer).PublishPayerEnvelopes(ctx, req.(*PublishPayerEnvelopesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -231,7 +231,7 @@ func _ReplicationApi_GetInboxIds_Handler(srv interface{}, ctx context.Context, d
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "xmtp.xmtpv4.ReplicationApi",
+	ServiceName: "xmtp.xmtpv4.message_api.ReplicationApi",
 	HandlerType: (*ReplicationApiServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -239,8 +239,8 @@ var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ReplicationApi_QueryEnvelopes_Handler,
 		},
 		{
-			MethodName: "PublishEnvelopes",
-			Handler:    _ReplicationApi_PublishEnvelopes_Handler,
+			MethodName: "PublishPayerEnvelopes",
+			Handler:    _ReplicationApi_PublishPayerEnvelopes_Handler,
 		},
 		{
 			MethodName: "GetInboxIds",

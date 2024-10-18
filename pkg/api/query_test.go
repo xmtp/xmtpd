@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -145,7 +146,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
+				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
 			},
 			Limit: 0,
 		},
@@ -164,7 +165,7 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{db.Topic("topicA")},
-				LastSeen: &message_api.VectorClock{
+				LastSeen: &envelopes.VectorClock{
 					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
 				},
 			},
@@ -185,7 +186,7 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{db.Topic("topicA"), db.Topic("topicB")},
-				LastSeen: &message_api.VectorClock{
+				LastSeen: &envelopes.VectorClock{
 					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
 				},
 			},
@@ -206,7 +207,7 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{1, 2},
-				LastSeen: &message_api.VectorClock{
+				LastSeen: &envelopes.VectorClock{
 					NodeIdToSequenceId: map[uint32]uint64{1: 1, 2: 1},
 				},
 			},
@@ -257,7 +258,7 @@ func checkRowsMatchProtos(
 	t *testing.T,
 	allRows []queries.InsertGatewayEnvelopeParams,
 	matchingIndices []int,
-	protos []*message_api.OriginatorEnvelope,
+	protos []*envelopes.OriginatorEnvelope,
 ) {
 	require.Len(t, protos, len(matchingIndices))
 	for i, p := range protos {

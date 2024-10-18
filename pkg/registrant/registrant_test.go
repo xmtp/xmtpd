@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -247,7 +247,7 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	deps, r, cleanup := setupWithRegistrant(t)
 	defer cleanup()
 	payerBytes, err := proto.Marshal(
-		&message_api.PayerEnvelope{UnsignedClientEnvelope: []byte{3}},
+		&envelopes.PayerEnvelope{UnsignedClientEnvelope: []byte{3}},
 	)
 	require.NoError(t, err)
 
@@ -270,7 +270,7 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, signingKey.Equal(&deps.privKey1.PublicKey))
 
-	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{}
+	unsignedEnv := &envelopes.UnsignedOriginatorEnvelope{}
 	require.NoError(t, proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnv))
 	require.Equal(t, unsignedEnv.GetOriginatorNodeId(), uint32(1))
 	require.Equal(t, unsignedEnv.GetOriginatorSequenceId(), uint64(50))

@@ -9,7 +9,7 @@ import (
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -90,7 +90,7 @@ func (s *MLSValidationServiceImpl) GetAssociationStateFromEnvelopes(
 			return nil, err
 		}
 
-		payload, ok := clientEnvelope.GetPayload().(*message_api.ClientEnvelope_IdentityUpdate)
+		payload, ok := clientEnvelope.GetPayload().(*envelopes.ClientEnvelope_IdentityUpdate)
 		if !ok || payload.IdentityUpdate == nil {
 			return nil, fmt.Errorf("identity update is nil")
 		}

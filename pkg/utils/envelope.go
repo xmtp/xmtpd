@@ -1,12 +1,12 @@
 package utils
 
 import (
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"google.golang.org/protobuf/proto"
 )
 
-func UnmarshalOriginatorEnvelope(envelope []byte) (*message_api.OriginatorEnvelope, error) {
-	originatorEnvelope := &message_api.OriginatorEnvelope{}
+func UnmarshalOriginatorEnvelope(envelope []byte) (*envelopes.OriginatorEnvelope, error) {
+	originatorEnvelope := &envelopes.OriginatorEnvelope{}
 	err := proto.Unmarshal(envelope, originatorEnvelope)
 	if err != nil {
 		return nil, err
@@ -16,8 +16,8 @@ func UnmarshalOriginatorEnvelope(envelope []byte) (*message_api.OriginatorEnvelo
 
 func UnmarshalUnsignedEnvelope(
 	unsignedEnvelopeBytes []byte,
-) (*message_api.UnsignedOriginatorEnvelope, error) {
-	unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
+) (*envelopes.UnsignedOriginatorEnvelope, error) {
+	unsignedEnvelope := &envelopes.UnsignedOriginatorEnvelope{}
 	err := proto.Unmarshal(unsignedEnvelopeBytes, unsignedEnvelope)
 	if err != nil {
 		return nil, err
@@ -25,8 +25,8 @@ func UnmarshalUnsignedEnvelope(
 	return unsignedEnvelope, nil
 }
 
-func UnmarshalClientEnvelope(envelope []byte) (*message_api.ClientEnvelope, error) {
-	clientEnvelope := &message_api.ClientEnvelope{}
+func UnmarshalClientEnvelope(envelope []byte) (*envelopes.ClientEnvelope, error) {
+	clientEnvelope := &envelopes.ClientEnvelope{}
 	err := proto.Unmarshal(envelope, clientEnvelope)
 	if err != nil {
 		return nil, err

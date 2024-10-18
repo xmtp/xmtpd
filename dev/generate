@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-./dev/gen_protos
+./dev/gen-protos
 sqlc generate
 go generate ./...
 rm -rf pkg/mocks/*

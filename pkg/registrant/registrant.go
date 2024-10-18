@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -70,12 +70,12 @@ func (r *Registrant) TokenFactory() *authn.TokenFactory {
 
 func (r *Registrant) SignStagedEnvelope(
 	stagedEnv queries.StagedOriginatorEnvelope,
-) (*message_api.OriginatorEnvelope, error) {
-	payerEnv := &message_api.PayerEnvelope{}
+) (*envelopes.OriginatorEnvelope, error) {
+	payerEnv := &envelopes.PayerEnvelope{}
 	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
 		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
 	}
-	unsignedEnv := message_api.UnsignedOriginatorEnvelope{
+	unsignedEnv := envelopes.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     r.record.NodeID,
 		OriginatorSequenceId: uint64(stagedEnv.ID),
 		OriginatorNs:         stagedEnv.OriginatorTime.UnixNano(),
@@ -91,9 +91,9 @@ func (r *Registrant) SignStagedEnvelope(
 		return nil, err
 	}
 
-	signedEnv := message_api.OriginatorEnvelope{
+	signedEnv := envelopes.OriginatorEnvelope{
 		UnsignedOriginatorEnvelope: unsignedBytes,
-		Proof: &message_api.OriginatorEnvelope_OriginatorSignature{
+		Proof: &envelopes.OriginatorEnvelope_OriginatorSignature{
 			OriginatorSignature: &associations.RecoverableEcdsaSignature{
 				Bytes: sig,
 			},

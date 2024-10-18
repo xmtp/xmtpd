@@ -3,9 +3,10 @@ package registrant_test
 import (
 	"context"
 	"crypto/ecdsa"
-	"go.uber.org/zap"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -263,7 +264,7 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	require.NotEmpty(t, env.GetOriginatorSignature().Bytes)
 
 	signingKey, err := crypto.SigToPub(
-		crypto.Keccak256(env.GetUnsignedOriginatorEnvelope()),
+		utils.HashOriginatorSignatureInput(env.GetUnsignedOriginatorEnvelope()),
 		env.GetOriginatorSignature().Bytes,
 	)
 	require.NoError(t, err)

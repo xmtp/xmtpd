@@ -9,10 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -54,16 +57,32 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	}, nil)
 	registrant, err := registrant.NewRegistrant(ctx, log, queries.New(db), mockRegistry, privKeyStr)
 	require.NoError(t, err)
-	mockMessagePublsiher := blockchain.NewMockIBlockchainPublisher(t)
+	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)
+
+	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
+		replicationService, err := message.NewReplicationApiService(
+			ctx,
+			log,
+			registrant,
+			db,
+			mockMessagePublisher,
+		)
+		require.NoError(t, err)
+		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
+
+		payerService, err := payer.NewPayerApiService(ctx, log, mockRegistry)
+		require.NoError(t, err)
+		payer_api.RegisterPayerApiServer(grpcServer, payerService)
+
+		return nil
+	}
 
 	svr, err := api.NewAPIServer(
 		ctx,
-		db,
 		log,
-		0, /*port*/
-		registrant,
+		0,    /*port*/
 		true, /*enableReflection*/
-		mockMessagePublsiher,
+		serviceRegistrationFunc,
 	)
 	require.NoError(t, err)
 

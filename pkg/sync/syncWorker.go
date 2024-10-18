@@ -14,7 +14,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -102,29 +101,23 @@ func (s *syncWorker) subscribeToNode(node registry.Node) {
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
 	s.log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
-	target, isTLS, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
-	}
-	s.log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
-
-	creds, err := utils.GetCredentialsForAddress(isTLS)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get credentials: %v", err)
-	}
 
 	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(creds),
-		grpc.WithDefaultCallOptions(),
+	dialOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(interceptor.Unary()),
 		grpc.WithStreamInterceptor(interceptor.Stream()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", target, err)
 	}
-	s.log.Info(fmt.Sprintf("Successfully connected to peer at %s", target))
+	conn, err := node.BuildClient(dialOpts...)
+	if err != nil {
+		s.log.Error(
+			"Failed to connect to peer",
+			zap.String("peer", node.HttpAddress),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", node.HttpAddress, err)
+	}
+
+	s.log.Info(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
 	return conn, nil
 }
 

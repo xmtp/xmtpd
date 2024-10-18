@@ -3,8 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -91,13 +89,11 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 			break
 		} else if err != nil {
 			// Log is extremely noisy during test teardown
-			if !strings.HasSuffix(os.Args[0], ".test") {
-				s.log.Error(
-					fmt.Sprintf("Error querying for DB subscription: %v", err),
-					zap.Any("lastSeen", s.lastSeen),
-					zap.Int32("numRows", s.options.NumRows),
-				)
-			}
+			s.log.Error(
+				fmt.Sprintf("Error querying for DB subscription: %v", err),
+				zap.Any("lastSeen", s.lastSeen),
+				zap.Int32("numRows", s.options.NumRows),
+			)
 			// Did not update lastSeen; will retry on next poll
 			break
 		} else if len(results) == 0 {

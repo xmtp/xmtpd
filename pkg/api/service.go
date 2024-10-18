@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -78,6 +77,7 @@ func (s *Service) Close() {
 func (s *Service) catchUpFromCursor(
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 	query *message_api.EnvelopesQuery,
+	logger *zap.Logger,
 ) error {
 	// TODO(rich): Pull one more time after first tick.
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
@@ -104,7 +104,7 @@ func (s *Service) catchUpFromCursor(
 			err := proto.Unmarshal(env.OriginatorEnvelope, p.Envelope)
 			if err != nil {
 				// We expect to have already validated the envelope when it was inserted
-				log.Error("could not unmarshal originator envelope", zap.Error(err))
+				logger.Error("could not unmarshal originator envelope", zap.Error(err))
 				continue
 			}
 			payloads = append(payloads, p)
@@ -166,7 +166,7 @@ func (s *Service) SubscribeEnvelopes(
 	}
 
 	ch := s.subscribeWorker.listen(stream.Context(), query)
-	err = s.catchUpFromCursor(stream, query)
+	err = s.catchUpFromCursor(stream, query, log)
 	if err != nil {
 		return err
 	}

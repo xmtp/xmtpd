@@ -3,9 +3,14 @@ package envelopes
 import (
 	"testing"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -13,9 +18,9 @@ func TestValidOriginatorEnvelope(t *testing.T) {
 	originatorNodeId := uint32(1)
 	originatorSequenceId := uint64(1)
 
-	clientEnv := testutils.CreateClientEnvelope()
-	payerEnvelope := testutils.CreatePayerEnvelope(t, clientEnv)
-	originatorEnvelope := testutils.CreateOriginatorEnvelope(
+	clientEnv := envelopeTestUtils.CreateClientEnvelope()
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, clientEnv)
+	originatorEnvelope := envelopeTestUtils.CreateOriginatorEnvelope(
 		t,
 		originatorNodeId,
 		originatorSequenceId,
@@ -42,9 +47,9 @@ func TestSerialize(t *testing.T) {
 	originatorNodeId := uint32(1)
 	originatorSequenceId := uint64(1)
 
-	clientEnv := testutils.CreateClientEnvelope()
-	payerEnvelope := testutils.CreatePayerEnvelope(t, clientEnv)
-	originatorEnvelope := testutils.CreateOriginatorEnvelope(
+	clientEnv := envelopeTestUtils.CreateClientEnvelope()
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, clientEnv)
+	originatorEnvelope := envelopeTestUtils.CreateOriginatorEnvelope(
 		t,
 		originatorNodeId,
 		originatorSequenceId,
@@ -96,4 +101,77 @@ func TestInvalidClientEnvelope(t *testing.T) {
 	empty := &message_api.ClientEnvelope{}
 	_, err = NewClientEnvelope(empty)
 	require.Error(t, err)
+}
+
+func buildAad(topic *topic.Topic) *message_api.AuthenticatedData {
+	return &message_api.AuthenticatedData{
+		TargetOriginator: 1,
+		TargetTopic:      topic.Bytes(),
+		LastSeen:         &message_api.VectorClock{},
+	}
+}
+
+func TestPayloadType(t *testing.T) {
+	// Group Message envelope with matching topic
+	clientEnvelope, err := NewClientEnvelope(&message_api.ClientEnvelope{
+		Payload: &message_api.ClientEnvelope_GroupMessage{},
+		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3})),
+	})
+	require.NoError(t, err)
+	require.True(t, clientEnvelope.TopicMatchesPayload())
+
+	clientEnvelope, err = NewClientEnvelope(&message_api.ClientEnvelope{
+		Payload: &message_api.ClientEnvelope_UploadKeyPackage{},
+		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3})),
+	})
+	require.NoError(t, err)
+	require.True(t, clientEnvelope.TopicMatchesPayload())
+
+	// Mismatched topic and payload
+	clientEnvelope, err = NewClientEnvelope(&message_api.ClientEnvelope{
+		Payload: &message_api.ClientEnvelope_GroupMessage{},
+		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3})),
+	})
+	require.NoError(t, err)
+	require.False(t, clientEnvelope.TopicMatchesPayload())
+
+}
+
+func TestRecoverSigner(t *testing.T) {
+	payerPrivateKey := testutils.RandomPrivateKey(t)
+	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t)
+
+	payerSignature, err := utils.SignPayerEnvelope(
+		rawPayerEnv.UnsignedClientEnvelope,
+		payerPrivateKey,
+	)
+	require.NoError(t, err)
+	rawPayerEnv.PayerSignature = &associations.RecoverableEcdsaSignature{
+		Bytes: payerSignature,
+	}
+
+	payerEnv, err := NewPayerEnvelope(rawPayerEnv)
+	require.NoError(t, err)
+
+	signer, err := payerEnv.RecoverSigner()
+	require.NoError(t, err)
+	require.Equal(t, ethcrypto.PubkeyToAddress(payerPrivateKey.PublicKey).Hex(), signer.Hex())
+
+	// Now test with an incorrect signature
+	wrongPayerSignature, err := utils.SignPayerEnvelope(
+		testutils.RandomBytes(128),
+		payerPrivateKey,
+	)
+	require.NoError(t, err)
+	rawPayerEnv.PayerSignature = &associations.RecoverableEcdsaSignature{
+		Bytes: wrongPayerSignature,
+	}
+	payerEnv, err = NewPayerEnvelope(rawPayerEnv)
+	require.NoError(t, err)
+
+	// This will recover an incorrect signer address because the inputs to the signature
+	// do not match the unsigned client envelope
+	newSigner, err := payerEnv.RecoverSigner()
+	require.NoError(t, err)
+	require.NotEqual(t, signer.Hex(), newSigner.Hex())
 }

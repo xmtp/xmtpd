@@ -20,6 +20,64 @@ func (_m *MockNodeRegistry) EXPECT() *MockNodeRegistry_Expecter {
 	return &MockNodeRegistry_Expecter{mock: &_m.Mock}
 }
 
+// GetNode provides a mock function with given fields: _a0
+func (_m *MockNodeRegistry) GetNode(_a0 uint32) (*registry.Node, error) {
+	ret := _m.Called(_a0)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNode")
+	}
+
+	var r0 *registry.Node
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint32) (*registry.Node, error)); ok {
+		return rf(_a0)
+	}
+	if rf, ok := ret.Get(0).(func(uint32) *registry.Node); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*registry.Node)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(uint32) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNodeRegistry_GetNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNode'
+type MockNodeRegistry_GetNode_Call struct {
+	*mock.Call
+}
+
+// GetNode is a helper method to define mock.On call
+//   - _a0 uint32
+func (_e *MockNodeRegistry_Expecter) GetNode(_a0 interface{}) *MockNodeRegistry_GetNode_Call {
+	return &MockNodeRegistry_GetNode_Call{Call: _e.mock.On("GetNode", _a0)}
+}
+
+func (_c *MockNodeRegistry_GetNode_Call) Run(run func(_a0 uint32)) *MockNodeRegistry_GetNode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(uint32))
+	})
+	return _c
+}
+
+func (_c *MockNodeRegistry_GetNode_Call) Return(_a0 *registry.Node, _a1 error) *MockNodeRegistry_GetNode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNodeRegistry_GetNode_Call) RunAndReturn(run func(uint32) (*registry.Node, error)) *MockNodeRegistry_GetNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNodes provides a mock function with given fields:
 func (_m *MockNodeRegistry) GetNodes() ([]registry.Node, error) {
 	ret := _m.Called()

@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"go.uber.org/zap"
 	"slices"
 
+	"go.uber.org/zap"
+
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -18,8 +20,9 @@ import (
 )
 
 type Registrant struct {
-	record     *registry.Node
-	privateKey *ecdsa.PrivateKey
+	record       *registry.Node
+	privateKey   *ecdsa.PrivateKey
+	tokenFactory *authn.TokenFactory
 }
 
 func NewRegistrant(
@@ -44,19 +47,25 @@ func NewRegistrant(
 		return nil, err
 	}
 
+	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID)
+
 	return &Registrant{
-		record:     record,
-		privateKey: privateKey,
+		record:       record,
+		privateKey:   privateKey,
+		tokenFactory: tokenFactory,
 	}, nil
 }
 
-func (r *Registrant) signKeccak256(data []byte) ([]byte, error) {
-	hash := crypto.Keccak256(data)
+func (r *Registrant) sign(hash []byte) ([]byte, error) {
 	return crypto.Sign(hash, r.privateKey)
 }
 
 func (r *Registrant) NodeID() uint32 {
 	return r.record.NodeID
+}
+
+func (r *Registrant) TokenFactory() *authn.TokenFactory {
+	return r.tokenFactory
 }
 
 func (r *Registrant) SignStagedEnvelope(
@@ -77,7 +86,7 @@ func (r *Registrant) SignStagedEnvelope(
 		return nil, err
 	}
 
-	sig, err := r.signKeccak256(unsignedBytes)
+	sig, err := r.sign(utils.HashOriginatorSignatureInput(unsignedBytes))
 	if err != nil {
 		return nil, err
 	}

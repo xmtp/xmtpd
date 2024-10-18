@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
+	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 )
 
 func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopeParams {
@@ -21,7 +22,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 1, 1),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 1),
 			),
 		},
 		{
@@ -30,7 +31,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 2, 1),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 2, 1),
 			),
 		},
 		{
@@ -39,7 +40,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			Topic:                []byte("topicB"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 1, 2),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 2),
 			),
 		},
 		{
@@ -48,7 +49,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			Topic:                []byte("topicB"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 2, 2),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 2, 2),
 			),
 		},
 		{
@@ -57,7 +58,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			Topic:                []byte("topicA"),
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				testutils.CreateOriginatorEnvelope(t, 1, 3),
+				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 3),
 			),
 		},
 	}

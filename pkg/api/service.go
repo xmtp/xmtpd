@@ -8,6 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -219,17 +220,13 @@ func (s *Service) PublishEnvelopes(
 	if len(req.GetPayerEnvelopes()) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payer envelope")
 	}
-	clientEnv, err := s.validatePayerInfo(req.GetPayerEnvelopes()[0])
+
+	payerEnv, err := s.validatePayerEnvelope(req.GetPayerEnvelopes()[0])
 	if err != nil {
 		return nil, err
 	}
 
-	topic, err := s.validateClientInfo(clientEnv)
-	if err != nil {
-		return nil, err
-	}
-
-	didPublish, err := s.maybePublishToBlockchain(ctx, clientEnv)
+	didPublish, err := s.maybePublishToBlockchain(ctx, &payerEnv.ClientEnvelope)
 	if err != nil {
 		return nil, err
 	}
@@ -238,14 +235,16 @@ func (s *Service) PublishEnvelopes(
 	}
 
 	// TODO(rich): Properly support batch publishing
-	payerBytes, err := proto.Marshal(req.GetPayerEnvelopes()[0])
+	payerBytes, err := payerEnv.Bytes()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not marshal envelope: %v", err)
 	}
 
+	targetTopic := payerEnv.ClientEnvelope.TargetTopic()
+
 	stagedEnv, err := queries.New(s.store).
 		InsertStagedOriginatorEnvelope(ctx, queries.InsertStagedOriginatorEnvelopeParams{
-			Topic:         topic,
+			Topic:         targetTopic.Bytes(),
 			PayerEnvelope: payerBytes,
 		})
 	if err != nil {
@@ -265,9 +264,9 @@ func (s *Service) PublishEnvelopes(
 
 func (s *Service) maybePublishToBlockchain(
 	ctx context.Context,
-	clientEnv *message_api.ClientEnvelope,
+	clientEnv *envelopes.ClientEnvelope,
 ) (didPublish bool, err error) {
-	payload, ok := clientEnv.GetPayload().(*message_api.ClientEnvelope_IdentityUpdate)
+	payload, ok := clientEnv.Payload().(*message_api.ClientEnvelope_IdentityUpdate)
 	if ok && payload.IdentityUpdate != nil {
 		if err = s.publishIdentityUpdate(ctx, payload.IdentityUpdate); err != nil {
 			s.log.Error("could not publish identity update", zap.Error(err))
@@ -340,42 +339,34 @@ func (s *Service) GetInboxIds(
 	}, nil
 }
 
-func (s *Service) validatePayerInfo(
-	payerEnv *message_api.PayerEnvelope,
-) (*message_api.ClientEnvelope, error) {
-	clientBytes := payerEnv.GetUnsignedClientEnvelope()
-	sig := payerEnv.GetPayerSignature()
-	if clientBytes == nil || sig == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "missing envelope or signature")
-	}
-	// TODO(rich): Verify payer signature
-
-	clientEnv := &message_api.ClientEnvelope{}
-	err := proto.Unmarshal(clientBytes, clientEnv)
+func (s *Service) validatePayerEnvelope(
+	rawEnv *message_api.PayerEnvelope,
+) (*envelopes.PayerEnvelope, error) {
+	payerEnv, err := envelopes.NewPayerEnvelope(rawEnv)
 	if err != nil {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"could not unmarshal client envelope: %v",
-			err,
-		)
+		return nil, err
 	}
 
-	return clientEnv, nil
+	if err := s.validateClientInfo(&payerEnv.ClientEnvelope); err != nil {
+		return nil, err
+	}
+
+	return payerEnv, nil
 }
 
-func (s *Service) validateClientInfo(clientEnv *message_api.ClientEnvelope) ([]byte, error) {
-	if clientEnv.GetAad().GetTargetOriginator() != s.registrant.NodeID() {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
+func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error {
+	aad := clientEnv.Aad()
+	if aad.GetTargetOriginator() != s.registrant.NodeID() {
+		return status.Errorf(codes.InvalidArgument, "invalid target originator")
 	}
 
-	topic := clientEnv.GetAad().GetTargetTopic()
-	if len(topic) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "missing target topic")
+	if !clientEnv.TopicMatchesPayload() {
+		return status.Errorf(codes.InvalidArgument, "topic does not match payload")
 	}
 
 	// TODO(rich): Verify all originators have synced past `last_seen`
 	// TODO(rich): Check that the blockchain sequence ID is equal to the latest on the group
 	// TODO(rich): Perform any payload-specific validation (e.g. identity updates)
 
-	return topic, nil
+	return nil
 }

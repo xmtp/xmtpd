@@ -19,6 +19,8 @@ import (
 	s "github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
+	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -93,23 +95,26 @@ func TestCreateServer(t *testing.T) {
 	client2, cleanup2 := apiTestUtils.NewAPIClient(t, ctx, server2.Addr().String())
 	defer cleanup2()
 
+	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+		Bytes()
+
 	p1, err := client1.PublishEnvelopes(ctx, &message_api.PublishEnvelopesRequest{
-		PayerEnvelopes: []*message_api.PayerEnvelope{testutils.CreatePayerEnvelope(
+		PayerEnvelopes: []*message_api.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 			t,
-			testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
+			envelopeTestUtils.CreateClientEnvelope(&message_api.AuthenticatedData{
 				TargetOriginator: server1NodeID,
-				TargetTopic:      []byte{0x5},
+				TargetTopic:      targetTopic,
 				LastSeen:         &message_api.VectorClock{},
 			}),
 		)},
 	})
 	require.NoError(t, err)
 	p2, err := client2.PublishEnvelopes(ctx, &message_api.PublishEnvelopesRequest{
-		PayerEnvelopes: []*message_api.PayerEnvelope{testutils.CreatePayerEnvelope(
+		PayerEnvelopes: []*message_api.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 			t,
-			testutils.CreateClientEnvelope(&message_api.AuthenticatedData{
+			envelopeTestUtils.CreateClientEnvelope(&message_api.AuthenticatedData{
 				TargetOriginator: server2NodeID,
-				TargetTopic:      []byte{0x5},
+				TargetTopic:      targetTopic,
 				LastSeen:         &message_api.VectorClock{},
 			}),
 		)},

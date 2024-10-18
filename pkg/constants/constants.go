@@ -4,4 +4,5 @@ const (
 	JWT_DOMAIN_SEPARATION_LABEL        = "jwt|"
 	PAYER_DOMAIN_SEPARATION_LABEL      = "payer|"
 	ORIGINATOR_DOMAIN_SEPARATION_LABEL = "originator|"
+	NODE_AUTHORIZATION_HEADER_NAME     = "node-authorization"
 )

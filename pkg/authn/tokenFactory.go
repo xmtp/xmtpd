@@ -14,17 +14,17 @@ const (
 
 type TokenFactory struct {
 	privateKey *ecdsa.PrivateKey
-	nodeID     int32
+	nodeID     uint32
 }
 
-func NewTokenFactory(privateKey *ecdsa.PrivateKey, nodeID int32) *TokenFactory {
+func NewTokenFactory(privateKey *ecdsa.PrivateKey, nodeID uint32) *TokenFactory {
 	return &TokenFactory{
 		privateKey: privateKey,
 		nodeID:     nodeID,
 	}
 }
 
-func (f *TokenFactory) CreateToken(forNodeID int32) (*Token, error) {
+func (f *TokenFactory) CreateToken(forNodeID uint32) (*Token, error) {
 	now := time.Now()
 	expiresAt := now.Add(TOKEN_DURATION)
 

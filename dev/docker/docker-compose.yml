@@ -5,17 +5,19 @@ services:
       POSTGRES_PASSWORD: xmtp
     ports:
       - 8765:5432
+
   db2:
     image: postgres:16
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:
       - 8766:5432
+
   chain:
     platform: linux/amd64
-    build:
-      context: .
-      dockerfile: ./anvil.Dockerfile
+    image: ghcr.io/foundry-rs/foundry
+    entrypoint: ["anvil", "--host", "0.0.0.0"]
+    working_dir: /anvil
     ports:
       - 7545:8545
 

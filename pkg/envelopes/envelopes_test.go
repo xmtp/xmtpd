@@ -3,10 +3,14 @@ package envelopes
 import (
 	"testing"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -131,4 +135,43 @@ func TestPayloadType(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, clientEnvelope.TopicMatchesPayload())
 
+}
+
+func TestRecoverSigner(t *testing.T) {
+	payerPrivateKey := testutils.RandomPrivateKey(t)
+	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t)
+
+	payerSignature, err := utils.SignPayerEnvelope(
+		rawPayerEnv.UnsignedClientEnvelope,
+		payerPrivateKey,
+	)
+	require.NoError(t, err)
+	rawPayerEnv.PayerSignature = &associations.RecoverableEcdsaSignature{
+		Bytes: payerSignature,
+	}
+
+	payerEnv, err := NewPayerEnvelope(rawPayerEnv)
+	require.NoError(t, err)
+
+	signer, err := payerEnv.RecoverSigner()
+	require.NoError(t, err)
+	require.Equal(t, ethcrypto.PubkeyToAddress(payerPrivateKey.PublicKey).Hex(), signer.Hex())
+
+	// Now test with an incorrect signature
+	wrongPayerSignature, err := utils.SignPayerEnvelope(
+		testutils.RandomBytes(128),
+		payerPrivateKey,
+	)
+	require.NoError(t, err)
+	rawPayerEnv.PayerSignature = &associations.RecoverableEcdsaSignature{
+		Bytes: wrongPayerSignature,
+	}
+	payerEnv, err = NewPayerEnvelope(rawPayerEnv)
+	require.NoError(t, err)
+
+	// This will recover an incorrect signer address because the inputs to the signature
+	// do not match the unsigned client envelope
+	newSigner, err := payerEnv.RecoverSigner()
+	require.NoError(t, err)
+	require.NotEqual(t, signer.Hex(), newSigner.Hex())
 }

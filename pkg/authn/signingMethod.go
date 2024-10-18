@@ -7,14 +7,14 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 const (
-	ALGORITHM               = "ES256K"
-	SIG_LENGTH              = 65
-	R_LENGTH                = 32
-	S_LENGTH                = 32
-	DOMAIN_SEPARATION_LABEL = "jwt"
+	ALGORITHM  = "ES256K"
+	SIG_LENGTH = 65
+	R_LENGTH   = 32
+	S_LENGTH   = 32
 )
 
 var (
@@ -36,7 +36,7 @@ func (sm *SigningMethodSecp256k1) Verify(signingString string, sig []byte, key i
 		return ErrWrongKeyFormat
 	}
 
-	hashedString := hashStringWithDomainSeparation(signingString)
+	hashedString := utils.HashJWTSignatureInput([]byte(signingString))
 
 	if len(sig) != SIG_LENGTH {
 		return ErrBadSignature
@@ -58,7 +58,7 @@ func (sm *SigningMethodSecp256k1) Sign(signingString string, key interface{}) ([
 		return nil, ErrWrongKeyFormat
 	}
 
-	hashedString := hashStringWithDomainSeparation(signingString)
+	hashedString := utils.HashJWTSignatureInput([]byte(signingString))
 
 	sig, err := ethcrypto.Sign(hashedString, priv)
 	if err != nil {
@@ -74,10 +74,6 @@ func (sm *SigningMethodSecp256k1) Sign(signingString string, key interface{}) ([
 
 func (sm *SigningMethodSecp256k1) Alg() string {
 	return ALGORITHM
-}
-
-func hashStringWithDomainSeparation(signingString string) []byte {
-	return ethcrypto.Keccak256([]byte(DOMAIN_SEPARATION_LABEL + signingString))
 }
 
 func init() {

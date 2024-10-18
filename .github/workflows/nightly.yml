@@ -1,7 +1,7 @@
 name: Nightly Automation
 on:
   schedule:
-    - cron:  '0 10 * * *'
+    - cron: "0 10 * * *"
   workflow_dispatch:
 jobs:
   nightly-protos:
@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-go@v5
       - uses: bufbuild/buf-setup-action@v1.40.1
       - name: Generate Protos
-        run: dev/gen_protos
+        run: dev/gen-protos
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:

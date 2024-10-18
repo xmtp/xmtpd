@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
@@ -98,27 +99,33 @@ func TestCreateServer(t *testing.T) {
 	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 		Bytes()
 
-	p1, err := client1.PublishEnvelopes(ctx, &message_api.PublishEnvelopesRequest{
-		PayerEnvelopes: []*message_api.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-			t,
-			envelopeTestUtils.CreateClientEnvelope(&message_api.AuthenticatedData{
-				TargetOriginator: server1NodeID,
-				TargetTopic:      targetTopic,
-				LastSeen:         &message_api.VectorClock{},
-			}),
-		)},
-	})
+	p1, err := client1.PublishPayerEnvelopes(
+		ctx,
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
+				t,
+				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+					TargetOriginator: server1NodeID,
+					TargetTopic:      targetTopic,
+					LastSeen:         &envelopes.VectorClock{},
+				}),
+			)},
+		},
+	)
 	require.NoError(t, err)
-	p2, err := client2.PublishEnvelopes(ctx, &message_api.PublishEnvelopesRequest{
-		PayerEnvelopes: []*message_api.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-			t,
-			envelopeTestUtils.CreateClientEnvelope(&message_api.AuthenticatedData{
-				TargetOriginator: server2NodeID,
-				TargetTopic:      targetTopic,
-				LastSeen:         &message_api.VectorClock{},
-			}),
-		)},
-	})
+	p2, err := client2.PublishPayerEnvelopes(
+		ctx,
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
+				t,
+				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+					TargetOriginator: server2NodeID,
+					TargetTopic:      targetTopic,
+					LastSeen:         &envelopes.VectorClock{},
+				}),
+			)},
+		},
+	)
 	utils.Unused(p2)
 	require.NoError(t, err)
 
@@ -148,7 +155,7 @@ func TestCreateServer(t *testing.T) {
 		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{server1NodeID},
-				LastSeen:          &message_api.VectorClock{},
+				LastSeen:          &envelopes.VectorClock{},
 			},
 			Limit: 10,
 		})

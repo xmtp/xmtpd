@@ -9,6 +9,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -22,7 +23,7 @@ const (
 
 type listener struct {
 	ctx         context.Context
-	ch          chan<- []*message_api.OriginatorEnvelope
+	ch          chan<- []*envelopesProto.OriginatorEnvelope
 	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
@@ -32,7 +33,7 @@ type listener struct {
 func newListener(
 	ctx context.Context,
 	query *message_api.EnvelopesQuery,
-	ch chan<- []*message_api.OriginatorEnvelope,
+	ch chan<- []*envelopesProto.OriginatorEnvelope,
 ) *listener {
 	l := &listener{
 		ctx:         ctx,
@@ -206,7 +207,7 @@ func (s *subscribeWorker) start() {
 }
 
 func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
-	env := &message_api.OriginatorEnvelope{}
+	env := &envelopesProto.OriginatorEnvelope{}
 	err := proto.Unmarshal(row.OriginatorEnvelope, env)
 	if err != nil {
 		s.log.Error("Failed to unmarshal envelope", zap.Error(err))
@@ -222,7 +223,7 @@ func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
 
 func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
-	env *message_api.OriginatorEnvelope,
+	env *envelopesProto.OriginatorEnvelope,
 ) {
 	if listeners == nil {
 		return
@@ -239,7 +240,7 @@ func (s *subscribeWorker) dispatchToListeners(
 			s.closeListener(l)
 		default:
 			select {
-			case l.ch <- []*message_api.OriginatorEnvelope{env}:
+			case l.ch <- []*envelopesProto.OriginatorEnvelope{env}:
 			default:
 				s.log.Info("Channel full, removing listener", zap.Any("listener", l.ch))
 				s.closeListener(l)
@@ -268,8 +269,8 @@ func (s *subscribeWorker) closeListener(l *listener) {
 func (s *subscribeWorker) listen(
 	ctx context.Context,
 	query *message_api.EnvelopesQuery,
-) <-chan []*message_api.OriginatorEnvelope {
-	ch := make(chan []*message_api.OriginatorEnvelope, subscriptionBufferSize)
+) <-chan []*envelopesProto.OriginatorEnvelope {
+	ch := make(chan []*envelopesProto.OriginatorEnvelope, subscriptionBufferSize)
 	l := newListener(ctx, query, ch)
 
 	if l.isGlobal {

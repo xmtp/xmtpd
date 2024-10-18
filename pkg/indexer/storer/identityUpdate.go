@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -214,7 +214,7 @@ func BuildInboxTopic(inboxId [32]byte) string {
 func buildOriginatorEnvelope(
 	sequenceId uint64,
 	update []byte,
-) (*message_api.UnsignedOriginatorEnvelope, error) {
+) (*envelopesProto.UnsignedOriginatorEnvelope, error) {
 	clientEnv, err := buildClientEnvelope(update)
 	if err != nil {
 		return nil, err
@@ -225,39 +225,39 @@ func buildOriginatorEnvelope(
 		return nil, err
 	}
 
-	return &message_api.UnsignedOriginatorEnvelope{
+	return &envelopesProto.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
 		OriginatorSequenceId: sequenceId,
 		OriginatorNs:         time.Now().UnixNano(),
-		PayerEnvelope: &message_api.PayerEnvelope{
+		PayerEnvelope: &envelopesProto.PayerEnvelope{
 			UnsignedClientEnvelope: clientEnvelopeBytes,
 		},
 	}, nil
 }
 
-func buildClientEnvelope(update []byte) (*message_api.ClientEnvelope, error) {
+func buildClientEnvelope(update []byte) (*envelopesProto.ClientEnvelope, error) {
 	var identityUpdate associations.IdentityUpdate
 	if err := proto.Unmarshal(update, &identityUpdate); err != nil {
 		return nil, err
 	}
 
-	return &message_api.ClientEnvelope{
+	return &envelopesProto.ClientEnvelope{
 		Aad: nil,
-		Payload: &message_api.ClientEnvelope_IdentityUpdate{
+		Payload: &envelopesProto.ClientEnvelope_IdentityUpdate{
 			IdentityUpdate: &identityUpdate,
 		},
 	}, nil
 }
 
 func buildSignedOriginatorEnvelope(
-	originatorEnvelope *message_api.UnsignedOriginatorEnvelope,
-) (*message_api.OriginatorEnvelope, error) {
+	originatorEnvelope *envelopesProto.UnsignedOriginatorEnvelope,
+) (*envelopesProto.OriginatorEnvelope, error) {
 	envelopeBytes, err := proto.Marshal(originatorEnvelope)
 	if err != nil {
 		return nil, err
 	}
 
-	return &message_api.OriginatorEnvelope{
+	return &envelopesProto.OriginatorEnvelope{
 		UnsignedOriginatorEnvelope: envelopeBytes,
 	}, nil
 }

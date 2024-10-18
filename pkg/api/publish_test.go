@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
@@ -20,16 +21,16 @@ func TestPublishEnvelope(t *testing.T) {
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t)
 
-	resp, err := api.PublishEnvelopes(
+	resp, err := api.PublishPayerEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopesRequest{
-			PayerEnvelopes: []*message_api.PayerEnvelope{payerEnvelope},
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
 		},
 	)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	unsignedEnv := &message_api.UnsignedOriginatorEnvelope{}
+	unsignedEnv := &envelopes.UnsignedOriginatorEnvelope{}
 	require.NoError(
 		t,
 		proto.Unmarshal(
@@ -37,7 +38,7 @@ func TestPublishEnvelope(t *testing.T) {
 			unsignedEnv,
 		),
 	)
-	clientEnv := &message_api.ClientEnvelope{}
+	clientEnv := &envelopes.ClientEnvelope{}
 	require.NoError(
 		t,
 		proto.Unmarshal(unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope(), clientEnv),
@@ -56,7 +57,7 @@ func TestPublishEnvelope(t *testing.T) {
 			return false
 		}
 
-		originatorEnv := &message_api.OriginatorEnvelope{}
+		originatorEnv := &envelopes.OriginatorEnvelope{}
 		require.NoError(t, proto.Unmarshal(envs[0].OriginatorEnvelope, originatorEnv))
 		return proto.Equal(originatorEnv, resp.GetOriginatorEnvelopes()[0])
 	}, 500*time.Millisecond, 50*time.Millisecond)
@@ -68,10 +69,10 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(t)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
-	_, err := api.PublishEnvelopes(
+	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopesRequest{
-			PayerEnvelopes: []*message_api.PayerEnvelope{envelope},
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{envelope},
 		},
 	)
 	require.ErrorContains(t, err, "invalid wire-format data")
@@ -83,10 +84,10 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	clientEnv.Aad.TargetOriginator = 2
-	_, err := api.PublishEnvelopes(
+	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopesRequest{
-			PayerEnvelopes: []*message_api.PayerEnvelope{
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
 				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
 			},
 		},
@@ -100,10 +101,10 @@ func TestMissingTopicOnPublish(t *testing.T) {
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	clientEnv.Aad.TargetTopic = nil
-	_, err := api.PublishEnvelopes(
+	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
-		&message_api.PublishEnvelopesRequest{
-			PayerEnvelopes: []*message_api.PayerEnvelope{
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
 				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
 			},
 		},

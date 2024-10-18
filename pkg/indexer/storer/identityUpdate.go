@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/abis"
@@ -148,7 +149,10 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 				s.logger.Error("Error building originator envelope", zap.Error(err))
 				return NewLogStorageError(err, true)
 			}
-			signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(originatorEnvelope)
+			signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
+				originatorEnvelope,
+				event.TxHash,
+			)
 			if err != nil {
 				s.logger.Error("Error building signed originator envelope", zap.Error(err))
 				return NewLogStorageError(err, true)
@@ -251,6 +255,7 @@ func buildClientEnvelope(update []byte) (*envelopesProto.ClientEnvelope, error) 
 
 func buildSignedOriginatorEnvelope(
 	originatorEnvelope *envelopesProto.UnsignedOriginatorEnvelope,
+	transactionHash common.Hash,
 ) (*envelopesProto.OriginatorEnvelope, error) {
 	envelopeBytes, err := proto.Marshal(originatorEnvelope)
 	if err != nil {
@@ -259,5 +264,10 @@ func buildSignedOriginatorEnvelope(
 
 	return &envelopesProto.OriginatorEnvelope{
 		UnsignedOriginatorEnvelope: envelopeBytes,
+		Proof: &envelopesProto.OriginatorEnvelope_BlockchainProof{
+			BlockchainProof: &envelopesProto.BlockchainProof{
+				TransactionHash: transactionHash[:],
+			},
+		},
 	}, nil
 }

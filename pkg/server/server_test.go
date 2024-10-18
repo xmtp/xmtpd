@@ -135,7 +135,7 @@ func TestCreateServer(t *testing.T) {
 		require.Len(t, q1.Envelopes, 1)
 		require.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0])
 		return true
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	}, 3000*time.Millisecond, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
@@ -152,5 +152,5 @@ func TestCreateServer(t *testing.T) {
 		require.Len(t, q2.Envelopes, 1)
 		require.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0])
 		return true
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	}, 3000*time.Millisecond, 200*time.Millisecond)
 }

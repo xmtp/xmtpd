@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pires/go-proxyproto"
+	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -86,7 +87,7 @@ func NewAPIServer(
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)
 
-	replicationService, err := NewReplicationApiService(
+	replicationService, err := message.NewReplicationApiService(
 		ctx,
 		log,
 		registrant,

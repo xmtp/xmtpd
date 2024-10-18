@@ -1,4 +1,4 @@
-package api_test
+package message_test
 
 import (
 	"context"

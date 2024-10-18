@@ -1,4 +1,4 @@
-package api_test
+package message_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -76,7 +76,7 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
-	time.Sleep(api.SubscribeWorkerPollTime + 100*time.Millisecond)
+	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {

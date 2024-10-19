@@ -12,6 +12,14 @@ type OriginatorEnvelope struct {
 	UnsignedOriginatorEnvelope UnsignedOriginatorEnvelope
 }
 
+func NewOriginatorEnvelopeFromBytes(bytes []byte) (*OriginatorEnvelope, error) {
+	var message message_api.OriginatorEnvelope
+	if err := proto.Unmarshal(bytes, &message); err != nil {
+		return nil, err
+	}
+	return NewOriginatorEnvelope(&message)
+}
+
 func NewOriginatorEnvelope(proto *message_api.OriginatorEnvelope) (*OriginatorEnvelope, error) {
 	if proto == nil {
 		return nil, errors.New("proto is nil")
@@ -38,4 +46,12 @@ func (o *OriginatorEnvelope) Bytes() ([]byte, error) {
 
 func (o *OriginatorEnvelope) Proto() *message_api.OriginatorEnvelope {
 	return o.proto
+}
+
+func (o *OriginatorEnvelope) OriginatorNodeID() uint32 {
+	return o.UnsignedOriginatorEnvelope.OriginatorNodeID()
+}
+
+func (o *OriginatorEnvelope) OriginatorSequenceID() uint64 {
+	return o.UnsignedOriginatorEnvelope.OriginatorSequenceID()
 }

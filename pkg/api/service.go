@@ -95,22 +95,17 @@ func (s *Service) catchUpFromCursor(
 		if err != nil {
 			return err
 		}
-		payloads := make([]*OriginatorEnvelopeWithInfo, 0, len(rows))
-		for _, env := range rows {
-			p := &OriginatorEnvelopeWithInfo{
-				Envelope:             &message_api.OriginatorEnvelope{},
-				OriginatorNodeID:     uint32(env.OriginatorNodeID),
-				OriginatorSequenceID: uint64(env.OriginatorSequenceID),
-			}
-			err := proto.Unmarshal(env.OriginatorEnvelope, p.Envelope)
+		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
+		for _, r := range rows {
+			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
 			if err != nil {
 				// We expect to have already validated the envelope when it was inserted
 				logger.Error("could not unmarshal originator envelope", zap.Error(err))
 				continue
 			}
-			payloads = append(payloads, p)
+			envs = append(envs, env)
 		}
-		err = s.sendEnvelopes(stream, query, payloads)
+		err = s.sendEnvelopes(stream, query, envs)
 		if err != nil {
 			return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
 		}
@@ -127,23 +122,23 @@ func (s *Service) catchUpFromCursor(
 func (s *Service) sendEnvelopes(
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 	query *message_api.EnvelopesQuery,
-	payloads []*OriginatorEnvelopeWithInfo,
+	envs []*envelopes.OriginatorEnvelope,
 ) error {
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	for _, p := range payloads {
-		if cursor[uint32(p.OriginatorNodeID)] >= p.OriginatorSequenceID {
+	for _, env := range envs {
+		if cursor[uint32(env.OriginatorNodeID())] >= env.OriginatorSequenceID() {
 			continue
 		}
 
 		// TODO(rich): Either batch send envelopes, or modify stream proto to
 		// send one envelope at a time.
 		err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-			Envelopes: []*message_api.OriginatorEnvelope{p.Envelope},
+			Envelopes: []*message_api.OriginatorEnvelope{env.Proto()},
 		})
 		if err != nil {
 			return status.Errorf(codes.Internal, "error sending envelope: %v", err)
 		}
-		cursor[uint32(p.OriginatorNodeID)] = p.OriginatorSequenceID
+		cursor[uint32(env.OriginatorNodeID())] = env.OriginatorSequenceID()
 	}
 	return nil
 }
@@ -174,9 +169,9 @@ func (s *Service) SubscribeEnvelopes(
 
 	for {
 		select {
-		case payloads, open := <-ch:
+		case envs, open := <-ch:
 			if open {
-				err := s.sendEnvelopes(stream, query, payloads)
+				err := s.sendEnvelopes(stream, query, envs)
 				if err != nil {
 					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
 				}

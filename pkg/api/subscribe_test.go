@@ -100,13 +100,7 @@ func validateUpdates(
 				env.UnsignedOriginatorEnvelope,
 			)
 			require.Equal(t, uint32(expected.OriginatorNodeID), actual.OriginatorNodeId)
-			require.Equal(
-				t,
-				uint64(expected.OriginatorSequenceID),
-				actual.OriginatorSequenceId,
-				"i is %d",
-				i,
-			)
+			require.Equal(t, uint64(expected.OriginatorSequenceID), actual.OriginatorSequenceId)
 			require.Equal(t, expected.OriginatorEnvelope, testutils.Marshal(t, env))
 			i++
 		}

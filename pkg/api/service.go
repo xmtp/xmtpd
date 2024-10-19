@@ -80,13 +80,9 @@ func (s *Service) catchUpFromCursor(
 	query *message_api.EnvelopesQuery,
 	logger *zap.Logger,
 ) error {
-	// TODO(rich): Pull one more time after first tick.
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen = &message_api.VectorClock{
-			NodeIdToSequenceId: cursor,
-		}
+		// Requester only wants new envelopes
 		return nil
 	}
 
@@ -125,6 +121,12 @@ func (s *Service) sendEnvelopes(
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
+	if cursor == nil {
+		cursor = make(map[uint32]uint64)
+		query.LastSeen = &message_api.VectorClock{
+			NodeIdToSequenceId: cursor,
+		}
+	}
 	for _, env := range envs {
 		if cursor[uint32(env.OriginatorNodeID())] >= env.OriginatorSequenceID() {
 			continue
@@ -166,6 +168,8 @@ func (s *Service) SubscribeEnvelopes(
 	if err != nil {
 		return err
 	}
+
+	// TODO(rich): Pull from DB one more time after first tick of subscribe worker.
 
 	for {
 		select {

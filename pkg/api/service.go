@@ -78,6 +78,7 @@ func (s *Service) SubscribeEnvelopes(
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 ) error {
 	log := s.log.With(zap.String("method", "subscribe"))
+	log.Debug("SubscribeEnvelopes", zap.Any("request", req))
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
@@ -127,14 +128,24 @@ func (s *Service) catchUpFromCursor(
 	query *message_api.EnvelopesQuery,
 	logger *zap.Logger,
 ) error {
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
+	log := logger.With(zap.String("stage", "catchUpFromCursor"))
+	if query.GetLastSeen() == nil {
+		log.Debug("Skipping catch up")
 		// Requester only wants new envelopes
 		return nil
 	}
 
+	cursor := query.LastSeen.GetNodeIdToSequenceId()
+	// GRPC does not distinguish between empty map and nil
+	if cursor == nil {
+		cursor = make(map[uint32]uint64)
+		query.LastSeen.NodeIdToSequenceId = cursor
+	}
+
+	log.Debug("Catching up from cursor", zap.Any("cursor", cursor))
 	for {
 		rows, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
+		log.Debug("Fetched envelopes", zap.Any("rows", rows))
 		if err != nil {
 			return err
 		}

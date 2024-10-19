@@ -100,7 +100,13 @@ func validateUpdates(
 				env.UnsignedOriginatorEnvelope,
 			)
 			require.Equal(t, uint32(expected.OriginatorNodeID), actual.OriginatorNodeId)
-			require.Equal(t, uint64(expected.OriginatorSequenceID), actual.OriginatorSequenceId)
+			require.Equal(
+				t,
+				uint64(expected.OriginatorSequenceID),
+				actual.OriginatorSequenceId,
+				"i is %d",
+				i,
+			)
 			require.Equal(t, expected.OriginatorEnvelope, testutils.Marshal(t, env))
 			i++
 		}
@@ -213,6 +219,50 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	validateUpdates(t, stream1, []int{2, 3, 4})
 	validateUpdates(t, stream2, []int{2, 3})
 	validateUpdates(t, stream3, []int{3})
+}
+
+func TestSubscribeEnvelopesFromCursor(t *testing.T) {
+	client, store, cleanup := setupTest(t)
+	defer cleanup()
+	insertInitialRows(t, store)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := client.SubscribeEnvelopes(
+		ctx,
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	insertAdditionalRows(t, store)
+	validateUpdates(t, stream, []int{1, 4})
+}
+
+func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
+	client, store, cleanup := setupTest(t)
+	defer cleanup()
+	insertInitialRows(t, store)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := client.SubscribeEnvelopes(
+		ctx,
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	insertAdditionalRows(t, store)
+	validateUpdates(t, stream, []int{0, 1, 4})
 }
 
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {

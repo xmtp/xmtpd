@@ -103,7 +103,7 @@ func TestCreateServer(t *testing.T) {
 			envelopeTestUtils.CreateClientEnvelope(&message_api.AuthenticatedData{
 				TargetOriginator: server1NodeID,
 				TargetTopic:      targetTopic,
-				LastSeen:         &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
+				LastSeen:         &message_api.VectorClock{},
 			}),
 		)},
 	})
@@ -114,7 +114,7 @@ func TestCreateServer(t *testing.T) {
 			envelopeTestUtils.CreateClientEnvelope(&message_api.AuthenticatedData{
 				TargetOriginator: server2NodeID,
 				TargetTopic:      targetTopic,
-				LastSeen:         &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
+				LastSeen:         &message_api.VectorClock{},
 			}),
 		)},
 	})

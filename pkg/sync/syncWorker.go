@@ -137,6 +137,11 @@ func (s *syncWorker) setupStream(
 		return nil, err
 	}
 	vc := db.ToVectorClock(result)
+	s.log.Info(
+		"Vector clock for sync subscription",
+		zap.Any("nodeID", node.NodeID),
+		zap.Any("vc", vc),
+	)
 	client := message_api.NewReplicationApiClient(conn)
 	stream, err := client.SubscribeEnvelopes(
 		s.ctx,

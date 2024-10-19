@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -148,7 +149,7 @@ func (s *syncWorker) setupStream(
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{node.NodeID},
-				LastSeen: &message_api.VectorClock{
+				LastSeen: &envelopes.VectorClock{
 					NodeIdToSequenceId: vc,
 				},
 			},
@@ -180,7 +181,7 @@ func (s *syncWorker) listenToStream(
 	}
 }
 
-func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
+func (s *syncWorker) insertEnvelope(env *envelopes.OriginatorEnvelope) {
 	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
 	// TODO(nm) Validation logic - share code with API service and publish worker
 	originatorBytes, err := proto.Marshal(env)
@@ -189,7 +190,7 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 		return
 	}
 
-	unsignedEnvelope := &message_api.UnsignedOriginatorEnvelope{}
+	unsignedEnvelope := &envelopes.UnsignedOriginatorEnvelope{}
 	err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
 	if err != nil {
 		s.log.Error(
@@ -199,7 +200,7 @@ func (s *syncWorker) insertEnvelope(env *message_api.OriginatorEnvelope) {
 		return
 	}
 
-	clientEnvelope := &message_api.ClientEnvelope{}
+	clientEnvelope := &envelopes.ClientEnvelope{}
 	err = proto.Unmarshal(
 		unsignedEnvelope.GetPayerEnvelope().GetUnsignedClientEnvelope(),
 		clientEnvelope,

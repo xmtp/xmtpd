@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -22,7 +22,7 @@ import (
 // Create a mock implementation of the ReplicationApiServer interface
 // but that embeds `UnimplementedReplicationApiServer` (which mockery won't do for us)
 type mockReplicationApiServer struct {
-	api.Service
+	message.Service
 	expectedToken string
 }
 

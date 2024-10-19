@@ -5,17 +5,17 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
 type PayerEnvelope struct {
-	proto          *message_api.PayerEnvelope
+	proto          *envelopesProto.PayerEnvelope
 	ClientEnvelope ClientEnvelope
 }
 
-func NewPayerEnvelope(proto *message_api.PayerEnvelope) (*PayerEnvelope, error) {
+func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, error) {
 	if proto == nil {
 		return nil, errors.New("proto is nil")
 	}
@@ -27,7 +27,7 @@ func NewPayerEnvelope(proto *message_api.PayerEnvelope) (*PayerEnvelope, error) 
 	return &PayerEnvelope{proto: proto, ClientEnvelope: *clientEnv}, nil
 }
 
-func (p *PayerEnvelope) Proto() *message_api.PayerEnvelope {
+func (p *PayerEnvelope) Proto() *envelopesProto.PayerEnvelope {
 	return p.proto
 }
 

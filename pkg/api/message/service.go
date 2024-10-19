@@ -1,4 +1,4 @@
-package api
+package message
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -181,7 +182,7 @@ func (s *Service) sendEnvelopes(
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	if cursor == nil {
 		cursor = make(map[uint32]uint64)
-		query.LastSeen = &message_api.VectorClock{
+		query.LastSeen = &envelopesProto.VectorClock{
 			NodeIdToSequenceId: cursor,
 		}
 	}
@@ -193,7 +194,7 @@ func (s *Service) sendEnvelopes(
 		// TODO(rich): Either batch send envelopes, or modify stream proto to
 		// send one envelope at a time.
 		err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-			Envelopes: []*message_api.OriginatorEnvelope{env.Proto()},
+			Envelopes: []*envelopesProto.OriginatorEnvelope{env.Proto()},
 		})
 		if err != nil {
 			return status.Errorf(codes.Internal, "error sending envelope: %v", err)
@@ -221,9 +222,9 @@ func (s *Service) QueryEnvelopes(
 		return nil, err
 	}
 
-	envs := make([]*message_api.OriginatorEnvelope, 0, len(rows))
+	envs := make([]*envelopesProto.OriginatorEnvelope, 0, len(rows))
 	for _, row := range rows {
-		originatorEnv := &message_api.OriginatorEnvelope{}
+		originatorEnv := &envelopesProto.OriginatorEnvelope{}
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
@@ -305,10 +306,10 @@ func (s *Service) fetchEnvelopes(
 	return rows, nil
 }
 
-func (s *Service) PublishEnvelopes(
+func (s *Service) PublishPayerEnvelopes(
 	ctx context.Context,
-	req *message_api.PublishEnvelopesRequest,
-) (*message_api.PublishEnvelopesResponse, error) {
+	req *message_api.PublishPayerEnvelopesRequest,
+) (*message_api.PublishPayerEnvelopesResponse, error) {
 	if len(req.GetPayerEnvelopes()) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payer envelope")
 	}
@@ -323,7 +324,7 @@ func (s *Service) PublishEnvelopes(
 		return nil, err
 	}
 	if didPublish {
-		return &message_api.PublishEnvelopesResponse{}, nil
+		return &message_api.PublishPayerEnvelopesResponse{}, nil
 	}
 
 	// TODO(rich): Properly support batch publishing
@@ -349,8 +350,8 @@ func (s *Service) PublishEnvelopes(
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}
 
-	return &message_api.PublishEnvelopesResponse{
-		OriginatorEnvelopes: []*message_api.OriginatorEnvelope{originatorEnv},
+	return &message_api.PublishPayerEnvelopesResponse{
+		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
 	}, nil
 }
 
@@ -358,7 +359,7 @@ func (s *Service) maybePublishToBlockchain(
 	ctx context.Context,
 	clientEnv *envelopes.ClientEnvelope,
 ) (didPublish bool, err error) {
-	payload, ok := clientEnv.Payload().(*message_api.ClientEnvelope_IdentityUpdate)
+	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
 	if ok && payload.IdentityUpdate != nil {
 		if err = s.publishIdentityUpdate(ctx, payload.IdentityUpdate); err != nil {
 			s.log.Error("could not publish identity update", zap.Error(err))
@@ -432,7 +433,7 @@ func (s *Service) GetInboxIds(
 }
 
 func (s *Service) validatePayerEnvelope(
-	rawEnv *message_api.PayerEnvelope,
+	rawEnv *envelopesProto.PayerEnvelope,
 ) (*envelopes.PayerEnvelope, error) {
 	payerEnv, err := envelopes.NewPayerEnvelope(rawEnv)
 	if err != nil {

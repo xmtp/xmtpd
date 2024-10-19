@@ -1,0 +1,503 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "xmtpv4/payer_api/payer_api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "PayerApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/mls/v2/payer/publish-client-envelopes": {
+      "post": {
+        "summary": "Publish envelope",
+        "operationId": "PayerApi_PublishClientEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/payer_apiPublishClientEnvelopesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/payer_apiPublishClientEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PayerApi"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "SignatureECDSACompact": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "compact representation [ R || S ], 64 bytes"
+        },
+        "recovery": {
+          "type": "integer",
+          "format": "int64",
+          "title": "recovery bit"
+        }
+      },
+      "title": "ECDSA signature bytes and the recovery bit"
+    },
+    "SignatureWalletECDSACompact": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "compact representation [ R || S ], 64 bytes"
+        },
+        "recovery": {
+          "type": "integer",
+          "format": "int64",
+          "title": "recovery bit"
+        }
+      },
+      "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
+    },
+    "associationsAddAssociation": {
+      "type": "object",
+      "properties": {
+        "newMemberIdentifier": {
+          "$ref": "#/definitions/associationsMemberIdentifier"
+        },
+        "existingMemberSignature": {
+          "$ref": "#/definitions/identityassociationsSignature"
+        },
+        "newMemberSignature": {
+          "$ref": "#/definitions/identityassociationsSignature"
+        }
+      },
+      "description": "Adds a new member for an XID - either an addressable member such as a\nwallet, or an installation acting on behalf of an address.\nA key-pair that has been associated with one role MUST not be permitted to be\nassociated with a different role."
+    },
+    "associationsChangeRecoveryAddress": {
+      "type": "object",
+      "properties": {
+        "newRecoveryAddress": {
+          "type": "string"
+        },
+        "existingRecoveryAddressSignature": {
+          "$ref": "#/definitions/identityassociationsSignature"
+        }
+      },
+      "description": "Changes the recovery address for an XID. The recovery address is not required\nto be a member of the XID. In addition to being able to add members, the\nrecovery address can also revoke members."
+    },
+    "associationsCreateInbox": {
+      "type": "object",
+      "properties": {
+        "initialAddress": {
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "initialAddressSignature": {
+          "$ref": "#/definitions/identityassociationsSignature",
+          "title": "Must be an addressable member"
+        }
+      },
+      "description": "The first entry of any XID log. The XID must be deterministically derivable\nfrom the address and nonce.\nThe recovery address defaults to the initial associated_address unless\nthere is a subsequent ChangeRecoveryAddress in the log."
+    },
+    "associationsIdentityAction": {
+      "type": "object",
+      "properties": {
+        "createInbox": {
+          "$ref": "#/definitions/associationsCreateInbox"
+        },
+        "add": {
+          "$ref": "#/definitions/associationsAddAssociation"
+        },
+        "revoke": {
+          "$ref": "#/definitions/associationsRevokeAssociation"
+        },
+        "changeRecoveryAddress": {
+          "$ref": "#/definitions/associationsChangeRecoveryAddress"
+        }
+      },
+      "title": "A single identity operation"
+    },
+    "associationsIdentityUpdate": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/associationsIdentityAction"
+          }
+        },
+        "clientTimestampNs": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "inboxId": {
+          "type": "string"
+        }
+      },
+      "description": "One or more identity actions that were signed together.\nExample: [CreateXid, AddAssociation, ChangeRecoveryAddress]\n1. The batched signature text is created by concatenating the signature text\n   of each association together with a separator, '\\n\\n\\n'.\n2. The user signs this concatenated result.\n3. The resulting signature is added to each association proto where relevant.\n   The same signature may be used for multiple associations in the array."
+    },
+    "associationsLegacyDelegatedSignature": {
+      "type": "object",
+      "properties": {
+        "delegatedKey": {
+          "$ref": "#/definitions/message_contentsSignedPublicKey"
+        },
+        "signature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        }
+      },
+      "description": "An existing address on xmtpv2 may have already signed a legacy identity key\nof type SignedPublicKey via the 'Create Identity' signature.\nFor migration to xmtpv3, the legacy key is permitted to sign on behalf of the\naddress to create a matching xmtpv3 installation key.\nThis signature type can ONLY be used for CreateXid and AddAssociation\npayloads, and can only be used once in xmtpv3."
+    },
+    "associationsMemberIdentifier": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "installationPublicKey": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "The identifier for a member of an XID"
+    },
+    "associationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
+    },
+    "associationsRecoverableEd25519Signature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "64 bytes [R(32 bytes) || S(32 bytes)]"
+        },
+        "publicKey": {
+          "type": "string",
+          "format": "byte",
+          "title": "32 bytes"
+        }
+      },
+      "title": "EdDSA signature for 25519"
+    },
+    "associationsRevokeAssociation": {
+      "type": "object",
+      "properties": {
+        "memberToRevoke": {
+          "$ref": "#/definitions/associationsMemberIdentifier"
+        },
+        "recoveryAddressSignature": {
+          "$ref": "#/definitions/identityassociationsSignature"
+        }
+      },
+      "description": "Revokes a member from an XID. The recovery address must sign the revocation."
+    },
+    "associationsSmartContractWalletSignature": {
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "title": "CAIP-10 string\nhttps://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Specify the block number to verify the signature against"
+        },
+        "signature": {
+          "type": "string",
+          "format": "byte",
+          "title": "The actual signature bytes"
+        }
+      },
+      "title": "Smart Contract Wallet signature"
+    },
+    "envelopesAuthenticatedData": {
+      "type": "object",
+      "properties": {
+        "targetOriginator": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "targetTopic": {
+          "type": "string",
+          "format": "byte"
+        },
+        "lastSeen": {
+          "$ref": "#/definitions/envelopesVectorClock"
+        }
+      },
+      "description": "Data visible to the server that has been authenticated by the client."
+    },
+    "envelopesBlockchainProof": {
+      "type": "object",
+      "properties": {
+        "transactionHash": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "An alternative to a signature for blockchain payloads"
+    },
+    "envelopesClientEnvelope": {
+      "type": "object",
+      "properties": {
+        "aad": {
+          "$ref": "#/definitions/envelopesAuthenticatedData"
+        },
+        "groupMessage": {
+          "$ref": "#/definitions/v1GroupMessageInput"
+        },
+        "welcomeMessage": {
+          "$ref": "#/definitions/v1WelcomeMessageInput"
+        },
+        "uploadKeyPackage": {
+          "$ref": "#/definitions/v1UploadKeyPackageRequest"
+        },
+        "identityUpdate": {
+          "$ref": "#/definitions/associationsIdentityUpdate"
+        }
+      }
+    },
+    "envelopesOriginatorEnvelope": {
+      "type": "object",
+      "properties": {
+        "unsignedOriginatorEnvelope": {
+          "type": "string",
+          "format": "byte",
+          "title": "Protobuf serialized"
+        },
+        "originatorSignature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        },
+        "blockchainProof": {
+          "$ref": "#/definitions/envelopesBlockchainProof"
+        }
+      },
+      "title": "Signed originator envelope"
+    },
+    "envelopesVectorClock": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted.\nEntries MUST be sorted in ascending order, so that smaller node ID's appear first."
+    },
+    "identityassociationsSignature": {
+      "type": "object",
+      "properties": {
+        "erc191": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        },
+        "erc6492": {
+          "$ref": "#/definitions/associationsSmartContractWalletSignature"
+        },
+        "installationKey": {
+          "$ref": "#/definitions/associationsRecoverableEd25519Signature"
+        },
+        "delegatedErc191": {
+          "$ref": "#/definitions/associationsLegacyDelegatedSignature"
+        }
+      },
+      "title": "A wrapper for all possible signature types"
+    },
+    "message_contentsSignedPublicKey": {
+      "type": "object",
+      "properties": {
+        "keyBytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "embeds an UnsignedPublicKey"
+        },
+        "signature": {
+          "$ref": "#/definitions/xmtpmessage_contentsSignature",
+          "title": "signs key_bytes"
+        }
+      },
+      "title": "SignedPublicKey"
+    },
+    "payer_apiPublishClientEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesClientEnvelope"
+          }
+        }
+      }
+    },
+    "payer_apiPublishClientEnvelopesResponse": {
+      "type": "object",
+      "properties": {
+        "originatorEnvelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesOriginatorEnvelope"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1GroupMessageInput": {
+      "type": "object",
+      "properties": {
+        "v1": {
+          "$ref": "#/definitions/v1GroupMessageInputV1"
+        }
+      },
+      "title": "Input type for a group message"
+    },
+    "v1GroupMessageInputV1": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "byte",
+          "title": "Serialized MlsProtocolMessage"
+        },
+        "senderHmac": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "Version 1 of the GroupMessageInput payload format"
+    },
+    "v1KeyPackageUpload": {
+      "type": "object",
+      "properties": {
+        "keyPackageTlsSerialized": {
+          "type": "string",
+          "format": "byte",
+          "description": "The owner's wallet address would be extracted from the identity\ncredential in the key package, and all signatures would be validated."
+        }
+      },
+      "description": "This would be a serialized MLS key package that the node would\n parse, validate, and then store.",
+      "title": "A wrapper around the Key Package bytes"
+    },
+    "v1UploadKeyPackageRequest": {
+      "type": "object",
+      "properties": {
+        "keyPackage": {
+          "$ref": "#/definitions/v1KeyPackageUpload",
+          "title": "An individual key package upload request"
+        },
+        "isInboxIdCredential": {
+          "type": "boolean"
+        }
+      },
+      "title": "Upload a new key packages"
+    },
+    "v1WelcomeMessageInput": {
+      "type": "object",
+      "properties": {
+        "v1": {
+          "$ref": "#/definitions/v1WelcomeMessageInputV1"
+        }
+      },
+      "title": "Input type for a welcome message"
+    },
+    "v1WelcomeMessageInputV1": {
+      "type": "object",
+      "properties": {
+        "installationKey": {
+          "type": "string",
+          "format": "byte"
+        },
+        "data": {
+          "type": "string",
+          "format": "byte"
+        },
+        "hpkePublicKey": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "Version 1 of the WelcomeMessageInput format"
+    },
+    "xmtpmessage_contentsSignature": {
+      "type": "object",
+      "properties": {
+        "ecdsaCompact": {
+          "$ref": "#/definitions/SignatureECDSACompact"
+        },
+        "walletEcdsaCompact": {
+          "$ref": "#/definitions/SignatureWalletECDSACompact"
+        }
+      },
+      "description": "Signature represents a generalized public key signature,\ndefined as a union to support cryptographic algorithm agility."
+    }
+  }
+}

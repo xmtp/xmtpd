@@ -3,24 +3,24 @@ package envelopes
 import (
 	"errors"
 
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"google.golang.org/protobuf/proto"
 )
 
 type OriginatorEnvelope struct {
-	proto                      *message_api.OriginatorEnvelope
+	proto                      *envelopesProto.OriginatorEnvelope
 	UnsignedOriginatorEnvelope UnsignedOriginatorEnvelope
 }
 
 func NewOriginatorEnvelopeFromBytes(bytes []byte) (*OriginatorEnvelope, error) {
-	var message message_api.OriginatorEnvelope
+	var message envelopesProto.OriginatorEnvelope
 	if err := proto.Unmarshal(bytes, &message); err != nil {
 		return nil, err
 	}
 	return NewOriginatorEnvelope(&message)
 }
 
-func NewOriginatorEnvelope(proto *message_api.OriginatorEnvelope) (*OriginatorEnvelope, error) {
+func NewOriginatorEnvelope(proto *envelopesProto.OriginatorEnvelope) (*OriginatorEnvelope, error) {
 	if proto == nil {
 		return nil, errors.New("proto is nil")
 	}
@@ -44,7 +44,7 @@ func (o *OriginatorEnvelope) Bytes() ([]byte, error) {
 	return bytes, nil
 }
 
-func (o *OriginatorEnvelope) Proto() *message_api.OriginatorEnvelope {
+func (o *OriginatorEnvelope) Proto() *envelopesProto.OriginatorEnvelope {
 	return o.proto
 }
 

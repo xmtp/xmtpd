@@ -1,4 +1,4 @@
-package api_test
+package message_test
 
 import (
 	"context"
@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -76,7 +77,7 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
-	time.Sleep(api.SubscribeWorkerPollTime + 100*time.Millisecond)
+	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
@@ -227,7 +228,7 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
-				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
+				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
 			},
 		},
 	)
@@ -249,7 +250,7 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
-				LastSeen: &message_api.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
+				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
 			},
 		},
 	)

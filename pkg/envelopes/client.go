@@ -3,17 +3,18 @@ package envelopes
 import (
 	"errors"
 
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
 type ClientEnvelope struct {
-	proto       *message_api.ClientEnvelope
+	proto       *envelopesProto.ClientEnvelope
 	targetTopic topic.Topic
 }
 
-func NewClientEnvelope(proto *message_api.ClientEnvelope) (*ClientEnvelope, error) {
+func NewClientEnvelope(proto *envelopesProto.ClientEnvelope) (*ClientEnvelope, error) {
 	if proto == nil {
 		return nil, errors.New("proto is nil")
 	}
@@ -35,11 +36,11 @@ func NewClientEnvelope(proto *message_api.ClientEnvelope) (*ClientEnvelope, erro
 }
 
 func NewClientEnvelopeFromBytes(bytes []byte) (*ClientEnvelope, error) {
-	var message message_api.ClientEnvelope
-	if err := proto.Unmarshal(bytes, &message); err != nil {
+	message, err := utils.UnmarshalClientEnvelope(bytes)
+	if err != nil {
 		return nil, err
 	}
-	return NewClientEnvelope(&message)
+	return NewClientEnvelope(message)
 }
 
 func (c *ClientEnvelope) Bytes() ([]byte, error) {
@@ -58,11 +59,11 @@ func (c *ClientEnvelope) Payload() interface{} {
 	return c.proto.Payload
 }
 
-func (c *ClientEnvelope) Aad() *message_api.AuthenticatedData {
+func (c *ClientEnvelope) Aad() *envelopesProto.AuthenticatedData {
 	return c.proto.Aad
 }
 
-func (c *ClientEnvelope) Proto() *message_api.ClientEnvelope {
+func (c *ClientEnvelope) Proto() *envelopesProto.ClientEnvelope {
 	return c.proto
 }
 
@@ -72,13 +73,13 @@ func (c *ClientEnvelope) TopicMatchesPayload() bool {
 	payload := c.proto.Payload
 
 	switch payload.(type) {
-	case *message_api.ClientEnvelope_WelcomeMessage:
+	case *envelopesProto.ClientEnvelope_WelcomeMessage:
 		return targetTopicKind == topic.TOPIC_KIND_WELCOME_MESSAGES_V1
-	case *message_api.ClientEnvelope_GroupMessage:
+	case *envelopesProto.ClientEnvelope_GroupMessage:
 		return targetTopicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1
-	case *message_api.ClientEnvelope_IdentityUpdate:
+	case *envelopesProto.ClientEnvelope_IdentityUpdate:
 		return targetTopicKind == topic.TOPIC_KIND_IDENTITY_UPDATES_V1
-	case *message_api.ClientEnvelope_UploadKeyPackage:
+	case *envelopesProto.ClientEnvelope_UploadKeyPackage:
 		return targetTopicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1
 	default:
 		return false

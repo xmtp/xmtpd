@@ -73,6 +73,53 @@ func (s *Service) Close() {
 	s.log.Info("closed")
 }
 
+func (s *Service) SubscribeEnvelopes(
+	req *message_api.SubscribeEnvelopesRequest,
+	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
+) error {
+	log := s.log.With(zap.String("method", "subscribe"))
+
+	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
+	// See: https://github.com/xmtp/libxmtp/pull/58
+	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not send header: %v", err)
+	}
+
+	query := req.GetQuery()
+	if err := s.validateQuery(query); err != nil {
+		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
+	}
+
+	ch := s.subscribeWorker.listen(stream.Context(), query)
+	err = s.catchUpFromCursor(stream, query, log)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case envs, open := <-ch:
+			if open {
+				err := s.sendEnvelopes(stream, query, envs)
+				if err != nil {
+					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
+				}
+			} else {
+				// TODO(rich) Reset whole subscribe flow from new cursor
+				log.Debug("channel closed by worker")
+				return nil
+			}
+		case <-stream.Context().Done():
+			log.Debug("stream closed")
+			return nil
+		case <-s.ctx.Done():
+			log.Info("service closed")
+			return nil
+		}
+	}
+}
+
 // Pulls from DB and sends to client, updating the query's last seen cursor, until
 // the stream has caught up to the latest in the database.
 func (s *Service) catchUpFromCursor(
@@ -145,60 +192,14 @@ func (s *Service) sendEnvelopes(
 	return nil
 }
 
-func (s *Service) SubscribeEnvelopes(
-	req *message_api.SubscribeEnvelopesRequest,
-	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
-) error {
-	log := s.log.With(zap.String("method", "subscribe"))
-
-	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
-	// See: https://github.com/xmtp/libxmtp/pull/58
-	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
-	if err != nil {
-		return status.Errorf(codes.Internal, "could not send header: %v", err)
-	}
-
-	query := req.GetQuery()
-	if err := s.validateQuery(query); err != nil {
-		return status.Errorf(codes.InvalidArgument, "invalid subscription request: %v", err)
-	}
-
-	ch := s.subscribeWorker.listen(stream.Context(), query)
-	err = s.catchUpFromCursor(stream, query, log)
-	if err != nil {
-		return err
-	}
-
-	// TODO(rich): Pull from DB one more time after first tick of subscribe worker.
-
-	for {
-		select {
-		case envs, open := <-ch:
-			if open {
-				err := s.sendEnvelopes(stream, query, envs)
-				if err != nil {
-					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
-				}
-			} else {
-				// TODO(rich) Reset whole subscribe flow from new cursor
-				log.Debug("channel closed by worker")
-				return nil
-			}
-		case <-stream.Context().Done():
-			log.Debug("stream closed")
-			return nil
-		case <-s.ctx.Done():
-			log.Info("service closed")
-			return nil
-		}
-	}
-}
-
 func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
 	log := s.log.With(zap.String("method", "query"))
+	if err := s.validateQuery(req.GetQuery()); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
+	}
 
 	limit := int32(req.GetLimit())
 	if limit == 0 {
@@ -271,11 +272,6 @@ func (s *Service) fetchEnvelopes(
 	query *message_api.EnvelopesQuery,
 	rowLimit int32,
 ) ([]queries.GatewayEnvelope, error) {
-	// TODO(rich) make this efficient when querying multiple times
-	if err := s.validateQuery(query); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
-	}
-
 	params := queries.SelectGatewayEnvelopesParams{
 		Topics:            query.GetTopics(),
 		OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),

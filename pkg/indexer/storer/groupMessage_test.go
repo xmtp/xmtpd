@@ -10,7 +10,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -46,24 +49,37 @@ func TestStoreGroupMessages(t *testing.T) {
 	message := testutils.RandomBytes(30)
 	sequenceID := uint64(1)
 
-	logMessage := testutils.BuildMessageSentLog(t, groupID, message, sequenceID)
+	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
 
-	err := storer.StoreLog(
+	logMessage := testutils.BuildMessageSentLog(t, groupID, clientEnvelope, sequenceID)
+	var err error
+	err = storer.StoreLog(
 		ctx,
 		logMessage,
 	)
 	require.NoError(t, err)
 
-	envelopes, queryErr := storer.queries.SelectGatewayEnvelopes(
+	gatewayEnvelopes, err := storer.queries.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{OriginatorNodeIds: []int32{0}},
 	)
-	require.NoError(t, queryErr)
+	require.NoError(t, err)
 
-	require.Equal(t, len(envelopes), 1)
+	require.Equal(t, len(gatewayEnvelopes), 1)
 
-	firstEnvelope := envelopes[0]
-	require.Equal(t, firstEnvelope.OriginatorEnvelope, message)
+	firstEnvelope := gatewayEnvelopes[0]
+	originatorEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(
+		firstEnvelope.OriginatorEnvelope,
+	)
+	require.NoError(t, err)
+	require.True(
+		t,
+		originatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TopicMatchesPayload(),
+	)
+	targetTopic := originatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TargetTopic()
+	require.Equal(t, targetTopic.Kind(), topic.TOPIC_KIND_GROUP_MESSAGES_V1)
+	require.Equal(t, targetTopic.Identifier(), groupID[:])
+	require.Equal(t, firstEnvelope.OriginatorSequenceID, int64(sequenceID))
 }
 
 func TestStoreGroupMessageDuplicate(t *testing.T) {
@@ -76,7 +92,9 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	message := testutils.RandomBytes(30)
 	sequenceID := uint64(1)
 
-	logMessage := testutils.BuildMessageSentLog(t, groupID, message, sequenceID)
+	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
+
+	logMessage := testutils.BuildMessageSentLog(t, groupID, clientEnvelope, sequenceID)
 
 	err := storer.StoreLog(
 		ctx,

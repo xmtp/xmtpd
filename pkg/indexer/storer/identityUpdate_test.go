@@ -10,13 +10,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"github.com/xmtp/xmtpd/pkg/topic"
+	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -67,24 +66,17 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	identityUpdate := associations.IdentityUpdate{
 		InboxId: utils.HexEncode(inboxId[:]),
 	}
-	clientEnvelope, err := envelopes.NewClientEnvelope(&envelopesProto.ClientEnvelope{
-		Aad: &envelopesProto.AuthenticatedData{
-			TargetOriginator: IDENTITY_UPDATE_ORIGINATOR_ID,
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxId[:]).
-				Bytes(),
-		},
-		Payload: &envelopesProto.ClientEnvelope_IdentityUpdate{
-			IdentityUpdate: &identityUpdate,
-		},
-	})
-	require.NoError(t, err)
-	clientEnvelopeBytes, err := clientEnvelope.Bytes()
-	require.NoError(t, err)
+
 	sequenceID := uint64(1)
 
-	logMessage := testutils.BuildIdentityUpdateLog(t, inboxId, clientEnvelopeBytes, sequenceID)
+	logMessage := testutils.BuildIdentityUpdateLog(
+		t,
+		inboxId,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		sequenceID,
+	)
 
-	err = storer.StoreLog(
+	err := storer.StoreLog(
 		ctx,
 		logMessage,
 	)

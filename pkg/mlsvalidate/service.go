@@ -6,14 +6,13 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	"github.com/xmtp/xmtpd/pkg/utils"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/proto"
 )
 
 type MLSValidationServiceImpl struct {
@@ -64,44 +63,25 @@ func (s *MLSValidationServiceImpl) GetAssociationState(
 func (s *MLSValidationServiceImpl) GetAssociationStateFromEnvelopes(
 	ctx context.Context,
 	oldUpdateEnvelopes []queries.GatewayEnvelope,
-	newUpdateBytes []byte,
+	newUpdate *associations.IdentityUpdate,
 ) (*AssociationStateResult, error) {
 	oldUpdates := make([]*associations.IdentityUpdate, len(oldUpdateEnvelopes))
 	for i, update := range oldUpdateEnvelopes {
-		originatorEnvelope, err := utils.UnmarshalOriginatorEnvelope(update.OriginatorEnvelope)
-		if err != nil {
-			return nil, err
-		}
-		unsignedEnvelope, err := utils.UnmarshalUnsignedEnvelope(
-			originatorEnvelope.UnsignedOriginatorEnvelope,
+		originatorEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(
+			update.OriginatorEnvelope,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		if unsignedEnvelope.PayerEnvelope == nil {
-			return nil, fmt.Errorf("payer envelope is nil")
-		}
+		payloadInterface := originatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload()
 
-		clientEnvelope, err := utils.UnmarshalClientEnvelope(
-			unsignedEnvelope.PayerEnvelope.UnsignedClientEnvelope,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		payload, ok := clientEnvelope.GetPayload().(*envelopes.ClientEnvelope_IdentityUpdate)
+		payload, ok := payloadInterface.(*envelopesProto.ClientEnvelope_IdentityUpdate)
 		if !ok || payload.IdentityUpdate == nil {
 			return nil, fmt.Errorf("identity update is nil")
 		}
 
 		oldUpdates[i] = payload.IdentityUpdate
-	}
-
-	newUpdate := &associations.IdentityUpdate{}
-	err := proto.Unmarshal(newUpdateBytes, newUpdate)
-	if err != nil {
-		return nil, err
 	}
 
 	return s.GetAssociationState(ctx, oldUpdates, []*associations.IdentityUpdate{newUpdate})

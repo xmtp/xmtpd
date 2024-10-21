@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	maxRequestedRows     int32 = 1000
-	maxQueriesPerRequest int   = 10000
-	maxTopicLength       int   = 128
-	maxVectorClockLength int   = 100
+	maxRequestedRows     int32         = 1000
+	maxQueriesPerRequest int           = 10000
+	maxTopicLength       int           = 128
+	maxVectorClockLength int           = 100
+	pagingInterval       time.Duration = 100 * time.Millisecond
 )
 
 type Service struct {
@@ -162,8 +163,7 @@ func (s *Service) catchUpFromCursor(
 			// There were no more envelopes in DB at time of fetch
 			break
 		}
-		// TODO(rich): Determine default rate limits and set query interval to match
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(pagingInterval)
 	}
 	return nil
 }

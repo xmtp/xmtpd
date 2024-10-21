@@ -5,15 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -32,13 +29,12 @@ const (
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx              context.Context
-	log              *zap.Logger
-	registrant       *registrant.Registrant
-	store            *sql.DB
-	publishWorker    *publishWorker
-	subscribeWorker  *subscribeWorker
-	messagePublisher blockchain.IBlockchainPublisher
+	ctx             context.Context
+	log             *zap.Logger
+	registrant      *registrant.Registrant
+	store           *sql.DB
+	publishWorker   *publishWorker
+	subscribeWorker *subscribeWorker
 }
 
 func NewReplicationApiService(
@@ -46,7 +42,6 @@ func NewReplicationApiService(
 	log *zap.Logger,
 	registrant *registrant.Registrant,
 	store *sql.DB,
-	messagePublisher blockchain.IBlockchainPublisher,
 
 ) (*Service, error) {
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
@@ -59,13 +54,12 @@ func NewReplicationApiService(
 	}
 
 	return &Service{
-		ctx:              ctx,
-		log:              log,
-		registrant:       registrant,
-		store:            store,
-		publishWorker:    publishWorker,
-		subscribeWorker:  subscribeWorker,
-		messagePublisher: messagePublisher,
+		ctx:             ctx,
+		log:             log,
+		registrant:      registrant,
+		store:           store,
+		publishWorker:   publishWorker,
+		subscribeWorker: subscribeWorker,
 	}, nil
 }
 
@@ -227,14 +221,6 @@ func (s *Service) PublishPayerEnvelopes(
 		return nil, err
 	}
 
-	didPublish, err := s.maybePublishToBlockchain(ctx, &payerEnv.ClientEnvelope)
-	if err != nil {
-		return nil, err
-	}
-	if didPublish {
-		return &message_api.PublishPayerEnvelopesResponse{}, nil
-	}
-
 	// TODO(rich): Properly support batch publishing
 	payerBytes, err := payerEnv.Bytes()
 	if err != nil {
@@ -261,45 +247,6 @@ func (s *Service) PublishPayerEnvelopes(
 	return &message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
 	}, nil
-}
-
-func (s *Service) maybePublishToBlockchain(
-	ctx context.Context,
-	clientEnv *envelopes.ClientEnvelope,
-) (didPublish bool, err error) {
-	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
-	if ok && payload.IdentityUpdate != nil {
-		if err = s.publishIdentityUpdate(ctx, payload.IdentityUpdate); err != nil {
-			s.log.Error("could not publish identity update", zap.Error(err))
-			return false, status.Errorf(
-				codes.Internal,
-				"could not publish identity update: %v",
-				err,
-			)
-		}
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (s *Service) publishIdentityUpdate(
-	ctx context.Context,
-	identityUpdate *associations.IdentityUpdate,
-) error {
-	identityUpdateBytes, err := proto.Marshal(identityUpdate)
-	if err != nil {
-		return err
-	}
-	inboxId, err := utils.ParseInboxId(identityUpdate.InboxId)
-	if err != nil {
-		return err
-	}
-	return s.messagePublisher.PublishIdentityUpdate(
-		ctx,
-		inboxId,
-		identityUpdateBytes,
-	)
 }
 
 func (s *Service) GetInboxIds(

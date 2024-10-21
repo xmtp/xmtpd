@@ -62,14 +62,14 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 	ctx context.Context,
 	groupID [32]byte,
 	message []byte,
-) error {
+) (common.Hash, error) {
 	tx, err := m.messagesContract.AddMessage(&bind.TransactOpts{
 		Context: ctx,
 		From:    m.signer.FromAddress(),
 		Signer:  m.signer.SignerFunc(),
 	}, groupID, message)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	return WaitForTransaction(
@@ -86,14 +86,14 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 	ctx context.Context,
 	inboxId [32]byte,
 	identityUpdate []byte,
-) error {
+) (common.Hash, error) {
 	tx, err := m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
 		Context: ctx,
 		From:    m.signer.FromAddress(),
 		Signer:  m.signer.SignerFunc(),
 	}, inboxId, identityUpdate)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	return WaitForTransaction(

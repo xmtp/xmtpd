@@ -35,6 +35,7 @@ type MetricsOptions struct {
 
 type PayerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions" required:"true"`
+	EnableAPI  bool   `long:"enable-api"  env:"XMTPD_PAYER_ENABLE_API"  description:"Enable the payer API"`
 }
 
 type MlsValidationOptions struct {

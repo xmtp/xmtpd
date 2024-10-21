@@ -6,7 +6,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
-func SignPayerEnvelope(
+func SignClientEnvelope(
 	unsignedClientEnvelope []byte,
 	payerPrivateKey *ecdsa.PrivateKey,
 ) ([]byte, error) {

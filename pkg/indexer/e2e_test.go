@@ -60,7 +60,8 @@ func TestStoreMessages(t *testing.T) {
 	topic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
 
 	// Publish the message onto the blockchain
-	require.NoError(t, publisher.PublishGroupMessage(ctx, groupID, message))
+	_, err := publisher.PublishGroupMessage(ctx, groupID, message)
+	require.NoError(t, err)
 
 	// Poll the DB until the stored message shows up
 	require.Eventually(t, func() bool {

@@ -19,6 +19,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/sync"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
 
 	"github.com/xmtp/xmtpd/pkg/api"
@@ -115,18 +116,29 @@ func NewReplicationServer(
 			log,
 			s.registrant,
 			writerDB,
-			blockchainPublisher,
 		)
 		if err != nil {
 			return err
 		}
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-		payerService, err := payer.NewPayerApiService(ctx, log, s.nodeRegistry)
-		if err != nil {
-			return err
+		if options.Payer.EnableAPI {
+			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(options.Payer.PrivateKey)
+			if err != nil {
+				return err
+			}
+			payerService, err := payer.NewPayerApiService(
+				ctx,
+				log,
+				s.nodeRegistry,
+				payerPrivateKey,
+				blockchainPublisher,
+			)
+			if err != nil {
+				return err
+			}
+			payer_api.RegisterPayerApiServer(grpcServer, payerService)
 		}
-		payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
 		return nil
 	}

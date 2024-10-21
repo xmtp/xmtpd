@@ -12,17 +12,15 @@ func ParseInboxId(inboxIdString string) ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	// Ensure the decoded bytes are exactly 32 bytes long
-	if len(decoded) != 32 {
-		return [32]byte{}, fmt.Errorf(
-			"invalid inbox ID length: expected 32 bytes, got %d",
-			len(decoded),
-		)
+	return BytesToId(decoded)
+}
+
+func BytesToId(bytes []byte) ([32]byte, error) {
+	if len(bytes) != 32 {
+		return [32]byte{}, fmt.Errorf("invalid bytes length: expected 32 bytes, got %d", len(bytes))
 	}
 
-	// Convert to [32]byte
 	var result [32]byte
-	copy(result[:], decoded)
-
+	copy(result[:], bytes)
 	return result, nil
 }

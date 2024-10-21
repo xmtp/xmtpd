@@ -17,7 +17,7 @@ func init() {
 func NewLog(t testing.TB) *zap.Logger {
 	cfg := zap.NewDevelopmentConfig()
 	if !debug {
-		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+		cfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	}
 	log, err := cfg.Build()
 	require.NoError(t, err)

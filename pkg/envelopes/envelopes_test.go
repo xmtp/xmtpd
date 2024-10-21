@@ -141,7 +141,7 @@ func TestRecoverSigner(t *testing.T) {
 	payerPrivateKey := testutils.RandomPrivateKey(t)
 	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t)
 
-	payerSignature, err := utils.SignPayerEnvelope(
+	payerSignature, err := utils.SignClientEnvelope(
 		rawPayerEnv.UnsignedClientEnvelope,
 		payerPrivateKey,
 	)
@@ -158,7 +158,7 @@ func TestRecoverSigner(t *testing.T) {
 	require.Equal(t, ethcrypto.PubkeyToAddress(payerPrivateKey.PublicKey).Hex(), signer.Hex())
 
 	// Now test with an incorrect signature
-	wrongPayerSignature, err := utils.SignPayerEnvelope(
+	wrongPayerSignature, err := utils.SignClientEnvelope(
 		testutils.RandomBytes(128),
 		payerPrivateKey,
 	)

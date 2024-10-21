@@ -10,7 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abis"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 // Build an abi encoded MessageSent event struct
@@ -30,10 +32,12 @@ func BuildMessageSentEvent(
 func BuildMessageSentLog(
 	t *testing.T,
 	groupID [32]byte,
-	message []byte,
+	clientEnvelope *envelopesProto.ClientEnvelope,
 	sequenceID uint64,
 ) types.Log {
-	eventData, err := BuildMessageSentEvent(groupID, message, sequenceID)
+	messageBytes, err := proto.Marshal(clientEnvelope)
+	require.NoError(t, err)
+	eventData, err := BuildMessageSentEvent(groupID, messageBytes, sequenceID)
 	require.NoError(t, err)
 
 	abi, err := abis.GroupMessagesMetaData.GetAbi()
@@ -60,10 +64,12 @@ func BuildIdentityUpdateEvent(inboxId [32]byte, update []byte, sequenceID uint64
 func BuildIdentityUpdateLog(
 	t *testing.T,
 	inboxId [32]byte,
-	update []byte,
+	clientEnvelope *envelopesProto.ClientEnvelope,
 	sequenceID uint64,
 ) types.Log {
-	eventData, err := BuildIdentityUpdateEvent(inboxId, update, sequenceID)
+	messageBytes, err := proto.Marshal(clientEnvelope)
+	require.NoError(t, err)
+	eventData, err := BuildIdentityUpdateEvent(inboxId, messageBytes, sequenceID)
 	require.NoError(t, err)
 
 	abi, err := abis.IdentityUpdatesMetaData.GetAbi()

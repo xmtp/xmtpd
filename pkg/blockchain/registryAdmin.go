@@ -76,7 +76,7 @@ func (n *NodeRegistryAdmin) AddNode(
 		return err
 	}
 
-	return WaitForTransaction(
+	_, err = WaitForTransaction(
 		ctx,
 		n.logger,
 		n.client,
@@ -84,6 +84,8 @@ func (n *NodeRegistryAdmin) AddNode(
 		250*time.Millisecond,
 		tx.Hash(),
 	)
+
+	return err
 }
 
 /*
@@ -143,7 +145,7 @@ func (n *NodeRegistryAdmin) UpdateHealth(
 		return err
 	}
 
-	return WaitForTransaction(
+	_, err = WaitForTransaction(
 		ctx,
 		n.logger,
 		n.client,
@@ -151,6 +153,8 @@ func (n *NodeRegistryAdmin) UpdateHealth(
 		250*time.Millisecond,
 		tx.Hash(),
 	)
+
+	return err
 }
 
 func (n *NodeRegistryAdmin) UpdateHttpAddress(
@@ -170,7 +174,7 @@ func (n *NodeRegistryAdmin) UpdateHttpAddress(
 		return err
 	}
 
-	return WaitForTransaction(
+	_, err = WaitForTransaction(
 		ctx,
 		n.logger,
 		n.client,
@@ -178,4 +182,6 @@ func (n *NodeRegistryAdmin) UpdateHttpAddress(
 		250*time.Millisecond,
 		tx.Hash(),
 	)
+
+	return err
 }

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"strings"
@@ -12,12 +11,6 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pires/go-proxyproto"
-	"github.com/xmtp/xmtpd/pkg/api/message"
-	"github.com/xmtp/xmtpd/pkg/api/payer"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
-	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -27,24 +20,22 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+type RegistrationFunc func(server *grpc.Server) error
+
 type ApiServer struct {
 	ctx          context.Context
-	db           *sql.DB
 	grpcListener net.Listener
 	grpcServer   *grpc.Server
 	log          *zap.Logger
-	registrant   *registrant.Registrant
 	wg           sync.WaitGroup
 }
 
 func NewAPIServer(
 	ctx context.Context,
-	writerDB *sql.DB,
 	log *zap.Logger,
 	port int,
-	registrant *registrant.Registrant,
 	enableReflection bool,
-	messagePublisher blockchain.IBlockchainPublisher,
+	registrationFunc RegistrationFunc,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
@@ -53,18 +44,15 @@ func NewAPIServer(
 	}
 	s := &ApiServer{
 		ctx: ctx,
-		db:  writerDB,
 		grpcListener: &proxyproto.Listener{
 			Listener:          grpcListener,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		log:        log.Named("api"),
-		registrant: registrant,
-		wg:         sync.WaitGroup{},
+		log: log.Named("api"),
+		wg:  sync.WaitGroup{},
 	}
 
 	// TODO: Add interceptors
-
 	options := []grpc.ServerOption{
 		grpc.Creds(insecure.NewCredentials()),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
@@ -78,6 +66,9 @@ func NewAPIServer(
 	}
 
 	s.grpcServer = grpc.NewServer(options...)
+	if err := registrationFunc(s.grpcServer); err != nil {
+		return nil, err
+	}
 
 	if enableReflection {
 		// Register reflection service on gRPC server.
@@ -87,25 +78,6 @@ func NewAPIServer(
 
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)
-
-	replicationService, err := message.NewReplicationApiService(
-		ctx,
-		log,
-		registrant,
-		writerDB,
-		messagePublisher,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	message_api.RegisterReplicationApiServer(s.grpcServer, replicationService)
-
-	payerService, err := payer.NewPayerApiService(ctx, log)
-	if err != nil {
-		return nil, err
-	}
-	payer_api.RegisterPayerApiServer(s.grpcServer, payerService)
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))

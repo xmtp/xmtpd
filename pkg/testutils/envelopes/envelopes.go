@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/protobuf/proto"
@@ -35,6 +36,44 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 	return &envelopes.ClientEnvelope{
 		Payload: &envelopes.ClientEnvelope_GroupMessage{},
 		Aad:     aad[0],
+	}
+}
+
+func CreateGroupMessageClientEnvelope(
+	groupID [32]byte,
+	message []byte,
+) *envelopes.ClientEnvelope {
+	return &envelopes.ClientEnvelope{
+		Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
+				Bytes(),
+			TargetOriginator: 0,
+		},
+		Payload: &envelopes.ClientEnvelope_GroupMessage{
+			GroupMessage: &mlsv1.GroupMessageInput{
+				Version: &mlsv1.GroupMessageInput_V1_{
+					V1: &mlsv1.GroupMessageInput_V1{
+						Data: message,
+					},
+				},
+			},
+		},
+	}
+}
+
+func CreateIdentityUpdateClientEnvelope(
+	inboxID [32]byte,
+	update *associations.IdentityUpdate,
+) *envelopes.ClientEnvelope {
+	return &envelopes.ClientEnvelope{
+		Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxID[:]).
+				Bytes(),
+			TargetOriginator: 0,
+		},
+		Payload: &envelopes.ClientEnvelope_IdentityUpdate{
+			IdentityUpdate: update,
+		},
 	}
 }
 

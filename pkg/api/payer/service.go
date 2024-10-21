@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,14 +13,20 @@ import (
 type Service struct {
 	payer_api.UnimplementedPayerApiServer
 
-	ctx context.Context
-	log *zap.Logger
+	ctx           context.Context
+	log           *zap.Logger
+	clientManager *ClientManager
 }
 
-func NewPayerApiService(ctx context.Context, log *zap.Logger) (*Service, error) {
+func NewPayerApiService(
+	ctx context.Context,
+	log *zap.Logger,
+	registry registry.NodeRegistry,
+) (*Service, error) {
 	return &Service{
-		ctx: ctx,
-		log: log,
+		ctx:           ctx,
+		log:           log,
+		clientManager: NewClientManager(log, registry),
 	}, nil
 }
 

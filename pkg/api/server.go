@@ -37,7 +37,7 @@ func NewAPIServer(
 	enableReflection bool,
 	registrationFunc RegistrationFunc,
 ) (*ApiServer, error) {
-	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	grpcListener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 
 	if err != nil {
 		return nil, err
@@ -51,6 +51,7 @@ func NewAPIServer(
 		log: log.Named("api"),
 		wg:  sync.WaitGroup{},
 	}
+	s.log.Info("Creating API server")
 
 	// TODO: Add interceptors
 	options := []grpc.ServerOption{

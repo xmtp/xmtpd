@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -125,13 +126,25 @@ func (s *syncWorker) setupStream(
 	node registry.Node,
 	conn *grpc.ClientConn,
 ) (message_api.ReplicationApi_SubscribeEnvelopesClient, error) {
+	result, err := queries.New(s.store).SelectVectorClock(s.ctx)
+	if err != nil {
+		return nil, err
+	}
+	vc := db.ToVectorClock(result)
+	s.log.Info(
+		"Vector clock for sync subscription",
+		zap.Any("nodeID", node.NodeID),
+		zap.Any("vc", vc),
+	)
 	client := message_api.NewReplicationApiClient(conn)
 	stream, err := client.SubscribeEnvelopes(
 		s.ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{node.NodeID},
-				LastSeen:          nil,
+				LastSeen: &envelopes.VectorClock{
+					NodeIdToSequenceId: vc,
+				},
 			},
 		},
 	)

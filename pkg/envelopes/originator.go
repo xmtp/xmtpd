@@ -48,3 +48,11 @@ func (o *OriginatorEnvelope) Bytes() ([]byte, error) {
 func (o *OriginatorEnvelope) Proto() *envelopesProto.OriginatorEnvelope {
 	return o.proto
 }
+
+func (o *OriginatorEnvelope) OriginatorNodeID() uint32 {
+	return o.UnsignedOriginatorEnvelope.OriginatorNodeID()
+}
+
+func (o *OriginatorEnvelope) OriginatorSequenceID() uint64 {
+	return o.UnsignedOriginatorEnvelope.OriginatorSequenceID()
+}

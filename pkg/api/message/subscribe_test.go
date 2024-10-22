@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -213,6 +214,50 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	validateUpdates(t, stream1, []int{2, 3, 4})
 	validateUpdates(t, stream2, []int{2, 3})
 	validateUpdates(t, stream3, []int{3})
+}
+
+func TestSubscribeEnvelopesFromCursor(t *testing.T) {
+	client, store, cleanup := setupTest(t)
+	defer cleanup()
+	insertInitialRows(t, store)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := client.SubscribeEnvelopes(
+		ctx,
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	insertAdditionalRows(t, store)
+	validateUpdates(t, stream, []int{1, 4})
+}
+
+func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
+	client, store, cleanup := setupTest(t)
+	defer cleanup()
+	insertInitialRows(t, store)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := client.SubscribeEnvelopes(
+		ctx,
+		&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	insertAdditionalRows(t, store)
+	validateUpdates(t, stream, []int{0, 1, 4})
 }
 
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {

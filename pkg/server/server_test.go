@@ -90,9 +90,9 @@ func TestCreateServer(t *testing.T) {
 	server2 := NewTestServer(t, server2Port, dbs[1], registry, privateKey2)
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 
-	client1, cleanup1 := apiTestUtils.NewAPIClient(t, ctx, server1.Addr().String())
+	client1, cleanup1 := apiTestUtils.NewReplicationAPIClient(t, ctx, server1.Addr().String())
 	defer cleanup1()
-	client2, cleanup2 := apiTestUtils.NewAPIClient(t, ctx, server2.Addr().String())
+	client2, cleanup2 := apiTestUtils.NewReplicationAPIClient(t, ctx, server2.Addr().String())
 	defer cleanup2()
 
 	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).

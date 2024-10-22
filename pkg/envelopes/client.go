@@ -16,7 +16,7 @@ type ClientEnvelope struct {
 
 func NewClientEnvelope(proto *envelopesProto.ClientEnvelope) (*ClientEnvelope, error) {
 	if proto == nil {
-		return nil, errors.New("proto is nil")
+		return nil, errors.New("client envelope proto is nil")
 	}
 
 	if proto.Aad == nil {

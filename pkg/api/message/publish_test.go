@@ -16,7 +16,7 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	api, db, cleanup := apiTestUtils.NewTestAPIClient(t)
+	api, db, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t)
@@ -64,7 +64,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
+	api, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(t)
@@ -79,7 +79,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
+	api, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
@@ -96,7 +96,7 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 }
 
 func TestMissingTopicOnPublish(t *testing.T) {
-	api, _, cleanup := apiTestUtils.NewTestAPIClient(t)
+	api, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()

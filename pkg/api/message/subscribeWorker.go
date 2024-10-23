@@ -128,6 +128,12 @@ func (lm *listenersMap[K]) getListeners(key K) *listenerSet {
 	return nil
 }
 
+func (lm *listenersMap[K]) rangeKeys(fn func(key K, listeners *listenerSet) bool) {
+	lm.data.Range(func(key, value any) bool {
+		return fn(key.(K), value.(*listenerSet))
+	})
+}
+
 // A worker that listens for new envelopes in the DB and sends them to subscribers
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
 // and may be dropped if full
@@ -223,22 +229,26 @@ func (s *subscribeWorker) start() {
 }
 
 func (s *subscribeWorker) dispatchToOriginators(envs []*envelopes.OriginatorEnvelope) {
-	// Group envs by originator - can treat self-originated envelopes as a special case
-	// 	- Compile list of originators up-front, or check as we go?
-	for _, env := range envs {
-		listeners := s.originatorListeners.getListeners(env.OriginatorNodeID())
-		s.dispatchToListeners(listeners, []*envelopes.OriginatorEnvelope{env})
-	}
+	// We use nested loops here because the number of originators is expected to be small
+	// Possible future optimization: Set up set up multiple DB subscriptions instead of one,
+	// and have the DB group by originator, topic, and global.
+	s.originatorListeners.rangeKeys(func(originator uint32, listeners *listenerSet) bool {
+		filteredEnvs := make([]*envelopes.OriginatorEnvelope, 0, len(envs))
+		for _, env := range envs {
+			if env.OriginatorNodeID() == originator {
+				filteredEnvs = append(filteredEnvs, env)
+			}
+		}
+		s.dispatchToListeners(listeners, filteredEnvs)
+		return true
+	})
 }
 
 func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope) {
+	// We iterate envelopes one-by-one, because we expect the number of envelopers
+	// per-topic to be small in each tick
 	for _, env := range envs {
 		listeners := s.topicListeners.getListeners(env.TargetTopic().String())
-		s.log.Debug(
-			"Dispatching envelope",
-			zap.String("topic", env.TargetTopic().String()),
-			zap.Bool("hasListeners", listeners != nil && !listeners.isEmpty()),
-		)
 		s.dispatchToListeners(listeners, []*envelopes.OriginatorEnvelope{env})
 	}
 }

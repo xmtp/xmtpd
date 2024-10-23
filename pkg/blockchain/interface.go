@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/xmtp/xmtpd/pkg/abis"
 )
 
 // Construct a raw blockchain listener that can be used to listen for events across many contract event types
@@ -49,6 +50,10 @@ type IBlockchainPublisher interface {
 		ctx context.Context,
 		inboxId [32]byte,
 		identityUpdate []byte,
-	) (common.Hash, error)
-	PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) (common.Hash, error)
+	) (*abis.IdentityUpdatesIdentityUpdateCreated, error)
+	PublishGroupMessage(
+		ctx context.Context,
+		groupdId [32]byte,
+		message []byte,
+	) (*abis.GroupMessagesMessageSent, error)
 }

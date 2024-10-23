@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -188,21 +189,28 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		hash, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload)
+		var logMessage *abis.GroupMessagesMessageSent
+		if logMessage, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload); err != nil {
+			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
+		}
+		if logMessage == nil {
+			return nil, status.Errorf(codes.Internal, "received nil logMessage")
+		}
+		hash = logMessage.Raw.TxHash
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		hash, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload)
+		var logMessage *abis.IdentityUpdatesIdentityUpdateCreated
+		if logMessage, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload); err != nil {
+			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
+		}
+		if logMessage == nil {
+			return nil, status.Errorf(codes.Internal, "received nil logMessage")
+		}
+		hash = logMessage.Raw.TxHash
 	default:
 		return nil, status.Errorf(
 			codes.InvalidArgument,
 			"Unknown blockchain message for topic %s",
 			targetTopic.String(),
-		)
-	}
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"error publishing group message: %v",
-			err,
 		)
 	}
 

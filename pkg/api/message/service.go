@@ -111,7 +111,7 @@ func (s *Service) SubscribeEnvelopes(
 			log.Debug("stream closed")
 			return nil
 		case <-s.ctx.Done():
-			log.Info("service closed")
+			log.Debug("service closed")
 			return nil
 		}
 	}

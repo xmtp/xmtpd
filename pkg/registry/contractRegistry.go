@@ -104,6 +104,31 @@ func (s *SmartContractRegistry) OnChangedNode(
 	return notifier.register()
 }
 
+func (s *SmartContractRegistry) RegisterNode(
+	nodeId uint32,
+	op func(Node, <-chan Node, CancelSubscription) error,
+) (*Node, error) {
+	s.changedNodeNotifiersMutex.Lock()
+	defer s.changedNodeNotifiersMutex.Unlock()
+
+	node, ok := s.nodes[nodeId]
+	if !ok {
+		return nil, errors.New("node not found")
+	}
+
+	notifier, ok := s.changedNodeNotifiers[node.NodeID]
+	if !ok {
+		notifier = newNotifier[Node]()
+		s.changedNodeNotifiers[nodeId] = notifier
+	}
+	ch, cancel := notifier.register()
+	err := op(node, ch, cancel)
+	if err != nil {
+		return nil, err
+	}
+	return &node, nil
+}
+
 func (s *SmartContractRegistry) GetNodes() ([]Node, error) {
 	s.nodesMutex.RLock()
 	defer s.nodesMutex.RUnlock()

@@ -43,7 +43,7 @@ func NewSyncServer(
 }
 
 func (s *SyncServer) Close() {
-	s.log.Info("closing")
+	s.log.Debug("closing")
 	s.worker.close()
-	s.log.Info("closed")
+	s.log.Debug("closed")
 }

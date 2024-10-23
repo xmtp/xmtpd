@@ -67,7 +67,7 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 			timer.Reset(s.options.Interval)
 			select {
 			case <-s.ctx.Done():
-				s.log.Info("Context done; stopping subscription")
+				s.log.Debug("Context done; stopping subscription")
 				close(s.updates)
 				return
 			case <-s.options.Notifier:

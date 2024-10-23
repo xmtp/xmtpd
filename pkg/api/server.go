@@ -140,19 +140,19 @@ func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 }
 
 func (s *ApiServer) Close() {
-	s.log.Info("closing")
+	s.log.Debug("closing")
 	if s.grpcServer != nil {
 		s.gracefulShutdown(10 * time.Second)
 	}
 	if s.grpcListener != nil {
 		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {
-			s.log.Error("closing grpc listener", zap.Error(err))
+			s.log.Error("Error while closing grpc listener", zap.Error(err))
 		}
 		s.grpcListener = nil
 	}
 
 	s.wg.Wait()
-	s.log.Info("closed")
+	s.log.Debug("closed")
 }
 
 func isErrUseOfClosedConnection(err error) bool {

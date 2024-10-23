@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -23,13 +22,14 @@ import (
 )
 
 type syncWorker struct {
-	ctx          context.Context
-	log          *zap.Logger
-	nodeRegistry registry.NodeRegistry
-	registrant   *registrant.Registrant
-	store        *sql.DB
-	wg           sync.WaitGroup
-	channels     map[uint32]chan struct{}
+	ctx                context.Context
+	log                *zap.Logger
+	nodeRegistry       registry.NodeRegistry
+	registrant         *registrant.Registrant
+	store              *sql.DB
+	wg                 sync.WaitGroup
+	subscriptions      map[interface{}]struct{}
+	subscriptionsMutex sync.RWMutex
 }
 
 type ExitLoopError struct {
@@ -48,13 +48,13 @@ func startSyncWorker(
 	store *sql.DB,
 ) (*syncWorker, error) {
 	s := &syncWorker{
-		ctx:          ctx,
-		log:          log.Named("syncWorker"),
-		nodeRegistry: nodeRegistry,
-		registrant:   registrant,
-		store:        store,
-		wg:           sync.WaitGroup{},
-		channels:     make(map[uint32]chan struct{}),
+		ctx:           ctx,
+		log:           log.Named("syncWorker"),
+		nodeRegistry:  nodeRegistry,
+		registrant:    registrant,
+		store:         store,
+		wg:            sync.WaitGroup{},
+		subscriptions: make(map[interface{}]struct{}),
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -63,113 +63,154 @@ func startSyncWorker(
 }
 
 func (s *syncWorker) start() error {
-	nodes, err := s.nodeRegistry.GetNodes()
-	if err != nil {
-		return err
-	}
 	// NOTE: subscriptions can be internally de-duplicated
 	// to avoid race conditions, we first set up the listener for new nodes and then all the existing ones
 	s.subscribeToRegistry()
 
+	nodes, err := s.nodeRegistry.GetNodes()
+	if err != nil {
+		return err
+	}
+
 	for _, node := range nodes {
-		s.subscribeToNode(node)
+		s.subscribeToNode(node.NodeID)
 	}
 
 	return nil
 }
 
 func (s *syncWorker) close() {
-	s.log.Info("Closing sync worker")
-	for _, ch := range s.channels {
-		close(ch)
-	}
-
-	//TODO mkysel:stream.Recv() does not seem to get cancelled properly via ctx
-	//s.wg.Wait()
-
-	s.log.Info("Closed sync worker")
+	s.log.Debug("Closing sync worker")
+	s.wg.Wait()
+	s.log.Debug("Closed sync worker")
 }
 
 func (s *syncWorker) subscribeToRegistry() {
-	newNodesCh, cancelNewNodes := s.nodeRegistry.OnNewNodes()
-	go func() {
-		defer cancelNewNodes() // Ensure to clean up resources when done
-		for newNodes := range newNodesCh {
-			s.log.Info("New nodes received:", zap.Any("nodes", newNodes))
-			for _, node := range newNodes {
-				s.subscribeToNode(node)
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		"node-registry-listener",
+		func(ctx context.Context) {
+			newNodesCh, cancelNewNodes := s.nodeRegistry.OnNewNodes()
+			defer cancelNewNodes()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case newNodes, ok := <-newNodesCh:
+					if !ok {
+						// data channel closed
+						return
+					}
+					s.log.Info("New nodes received:", zap.Any("nodes", newNodes))
+					for _, node := range newNodes {
+						s.subscribeToNode(node.NodeID)
+					}
+
+				}
 			}
-		}
-	}()
+
+		})
 }
 
-func (s *syncWorker) subscribeToNode(node registry.Node) {
-	if node.NodeID == s.registrant.NodeID() || !node.IsHealthy || !node.IsValidConfig {
-		return
-	}
-	if _, exists := s.channels[node.NodeID]; exists {
+func (s *syncWorker) subscribeToNode(nodeid uint32) {
+	s.subscriptionsMutex.Lock()
+	defer s.subscriptionsMutex.Unlock()
+
+	if _, exists := s.subscriptions[nodeid]; exists {
 		// we already have a subscription to this node
 		return
 	}
 
-	cancel := make(chan struct{})
-	s.channels[node.NodeID] = cancel
+	s.subscriptions[nodeid] = struct{}{}
 
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
-		fmt.Sprintf("node-subscribe-%d", node.NodeID),
+		fmt.Sprintf("node-subscribe-%d", nodeid),
 		func(ctx context.Context) {
-			var err error
-			var conn *grpc.ClientConn
-			var stream message_api.ReplicationApi_SubscribeEnvelopesClient
 			for {
 				select {
-				case <-cancel:
-					s.log.Info(
-						fmt.Sprintf(
-							"Received cancel signal, exiting loop for node %d",
-							node.NodeID,
-						),
-					)
+				case <-ctx.Done():
 					return
 				default:
+					err := s.subscribeToNodeInner(ctx, nodeid)
 					if err != nil {
-						var exitError *ExitLoopError
-						if errors.As(err, &exitError) {
-							s.log.Info("Terminating listener")
-							return
-						}
-						//s.log.Error(fmt.Sprintf("Error: %v, retrying...", err))
-						time.Sleep(1 * time.Second)
+						return
 					}
-
-					conn, err = s.connectToNode(node)
-					if err != nil {
-						continue
-					}
-					stream, err = s.setupStream(node, conn)
-					if err != nil {
-						continue
-					}
-					err = s.listenToStream(stream, cancel)
-					if err != nil {
-						continue
-					}
+					s.log.Debug(fmt.Sprintf("Reloading configuration for %d", nodeid))
 				}
-
 			}
-		},
-	)
+		})
+}
+
+func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) error {
+
+	notifierCtx, notifierCancel := context.WithCancel(ctx)
+
+	registrationRoutine := func(node registry.Node, registryChan <-chan registry.Node, cancelSub registry.CancelSubscription) error {
+		if node.NodeID == s.registrant.NodeID() || !node.IsHealthy || !node.IsValidConfig {
+			return fmt.Errorf("Invalid Node. No need for subscription")
+		}
+
+		tracing.GoPanicWrap(
+			s.ctx,
+			&s.wg,
+			fmt.Sprintf("node-subscribe-%d-notifier", node.NodeID),
+			func(ctx context.Context) {
+				defer cancelSub()
+				select {
+				case <-ctx.Done():
+					notifierCancel()
+				case <-registryChan:
+					s.log.Info(
+						"Node has been updated in the registry, terminating and rebuilding",
+					)
+					notifierCancel()
+				}
+			},
+		)
+
+		return nil
+	}
+	node, err := s.nodeRegistry.RegisterNode(nodeid, registrationRoutine)
+	if err != nil {
+		return err
+	}
+
+	var conn *grpc.ClientConn
+	var stream message_api.ReplicationApi_SubscribeEnvelopesClient
+	for {
+		select {
+		case <-notifierCtx.Done():
+			s.log.Debug("Node configuration has changed. Closing stream and connection")
+			return nil
+		default:
+			if err != nil {
+				s.log.Error(fmt.Sprintf("Error: %v, retrying...", err))
+				time.Sleep(1 * time.Second)
+			}
+
+			conn, err = s.connectToNode(*node)
+			if err != nil {
+				continue
+			}
+			stream, err = s.setupStream(notifierCtx, *node, conn)
+			if err != nil {
+				continue
+			}
+			err = s.listenToStream(notifierCtx, stream)
+		}
+	}
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
-	//s.log.Info(fmt.Sprintf("Attempting to connect to %s", node.HttpAddress))
+	s.log.Info(fmt.Sprintf("Attempting to connect to %s...", node.HttpAddress))
 	target, isTLS, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
 	}
-	//s.log.Info(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
+	s.log.Debug(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
 
 	creds, err := utils.GetCredentialsForAddress(isTLS)
 	if err != nil {
@@ -187,17 +228,18 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", target, err)
 	}
-	//s.log.Info(fmt.Sprintf("Successfully connected to peer at %s", target))
+	s.log.Debug(fmt.Sprintf("Successfully connected to peer at %s", target))
 	return conn, nil
 }
 
 func (s *syncWorker) setupStream(
+	ctx context.Context,
 	node registry.Node,
 	conn *grpc.ClientConn,
 ) (message_api.ReplicationApi_SubscribeEnvelopesClient, error) {
 	client := message_api.NewReplicationApiClient(conn)
 	stream, err := client.SubscribeEnvelopes(
-		s.ctx,
+		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{node.NodeID},
@@ -215,29 +257,25 @@ func (s *syncWorker) setupStream(
 }
 
 func (s *syncWorker) listenToStream(
+	ctx context.Context,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
-	cancel chan struct{},
 ) error {
 	for {
-		select {
-		case <-cancel:
-			s.log.Info("Received cancel signal, terminating stream listener")
-			return &ExitLoopError{}
-		default:
-			envs, err := stream.Recv()
-			if err == io.EOF {
-				return nil
-			}
-			if err != nil {
-				return fmt.Errorf(
-					"Stream closed with error: %v",
-					err)
-			}
-			for _, env := range envs.Envelopes {
-				s.insertEnvelope(env)
-			}
+		// Recv is a blocking operation that can only be interrupted by cancelling ctx
+		envs, err := stream.Recv()
+		if err == io.EOF {
+			return fmt.Errorf("Stream closed with EOF")
+		}
+		if err != nil {
+			return fmt.Errorf(
+				"Stream closed with error: %v",
+				err)
+		}
+		for _, env := range envs.Envelopes {
+			s.insertEnvelope(env)
 		}
 	}
+
 }
 
 func (s *syncWorker) insertEnvelope(env *envelopes.OriginatorEnvelope) {

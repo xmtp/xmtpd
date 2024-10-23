@@ -180,20 +180,21 @@ func (s *Service) sendEnvelopes(
 			NodeIdToSequenceId: cursor,
 		}
 	}
+	envsToSend := make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
 	for _, env := range envs {
 		if cursor[uint32(env.OriginatorNodeID())] >= env.OriginatorSequenceID() {
 			continue
 		}
 
-		// TODO(rich): Either batch send envelopes, or modify stream proto to
-		// send one envelope at a time.
-		err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-			Envelopes: []*envelopesProto.OriginatorEnvelope{env.Proto()},
-		})
-		if err != nil {
-			return status.Errorf(codes.Internal, "error sending envelope: %v", err)
-		}
+		envsToSend = append(envsToSend, env.Proto())
 		cursor[uint32(env.OriginatorNodeID())] = env.OriginatorSequenceID()
+	}
+
+	err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+		Envelopes: envsToSend,
+	})
+	if err != nil {
+		return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -54,4 +55,8 @@ func NewUnsignedOriginatorEnvelopeFromBytes(bytes []byte) (*UnsignedOriginatorEn
 
 func (u *UnsignedOriginatorEnvelope) Proto() *envelopesProto.UnsignedOriginatorEnvelope {
 	return u.proto
+}
+
+func (u *UnsignedOriginatorEnvelope) TargetTopic() topic.Topic {
+	return u.PayerEnvelope.TargetTopic()
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -54,4 +55,8 @@ func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
 	address := ethcrypto.PubkeyToAddress(*signer)
 
 	return &address, nil
+}
+
+func (p *PayerEnvelope) TargetTopic() topic.Topic {
+	return p.ClientEnvelope.TargetTopic()
 }

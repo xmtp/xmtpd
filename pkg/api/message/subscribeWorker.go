@@ -3,7 +3,6 @@ package message
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 )
 
@@ -31,6 +31,7 @@ type listener struct {
 
 func newListener(
 	ctx context.Context,
+	logger *zap.Logger,
 	query *message_api.EnvelopesQuery,
 	ch chan<- []*envelopes.OriginatorEnvelope,
 ) *listener {
@@ -49,9 +50,14 @@ func newListener(
 		return l
 	}
 
-	for _, topic := range topics {
-		topicStr := hex.EncodeToString(topic)
-		l.topics[topicStr] = struct{}{}
+	for _, t := range topics {
+		validatedTopic, err := topic.ParseTopic(t)
+		if err != nil {
+			logger.Warn("Skipping invalid topic", zap.Binary("topicBytes", t))
+			continue
+		}
+		logger.Debug("Adding topic listener", zap.String("topic", validatedTopic.String()))
+		l.topics[validatedTopic.String()] = struct{}{}
 	}
 
 	for _, originator := range originators {
@@ -142,6 +148,7 @@ func startSubscribeWorker(
 	store *sql.DB,
 ) (*subscribeWorker, error) {
 	log = log.Named("subscribeWorker")
+	log.Info("Starting subscribe worker")
 	q := queries.New(store)
 	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := q.
@@ -198,30 +205,51 @@ func (s *subscribeWorker) start() {
 		case <-s.ctx.Done():
 			return
 		case new_batch := <-s.dbSubscription:
+			s.log.Debug("Received new batch", zap.Int("numEnvelopes", len(new_batch)))
+			envs := make([]*envelopes.OriginatorEnvelope, 0, len(new_batch))
 			for _, row := range new_batch {
-				s.dispatch(&row)
+				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
+				if err != nil {
+					s.log.Error("Failed to unmarshal envelope", zap.Error(err))
+					continue
+				}
+				envs = append(envs, env)
 			}
+			s.dispatchToOriginators(envs)
+			s.dispatchToTopics(envs)
+			s.dispatchToGlobals(envs)
 		}
 	}
 }
 
-func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
-	env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
-	if err != nil {
-		s.log.Error("Failed to unmarshal envelope", zap.Error(err))
-		return
+func (s *subscribeWorker) dispatchToOriginators(envs []*envelopes.OriginatorEnvelope) {
+	// Group envs by originator - can treat self-originated envelopes as a special case
+	// 	- Compile list of originators up-front, or check as we go?
+	for _, env := range envs {
+		listeners := s.originatorListeners.getListeners(env.OriginatorNodeID())
+		s.dispatchToListeners(listeners, []*envelopes.OriginatorEnvelope{env})
 	}
+}
 
-	originatorListeners := s.originatorListeners.getListeners(uint32(row.OriginatorNodeID))
-	topicListeners := s.topicListeners.getListeners(hex.EncodeToString(row.Topic))
-	s.dispatchToListeners(originatorListeners, env)
-	s.dispatchToListeners(topicListeners, env)
-	s.dispatchToListeners(&s.globalListeners, env)
+func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope) {
+	for _, env := range envs {
+		listeners := s.topicListeners.getListeners(env.TargetTopic().String())
+		s.log.Debug(
+			"Dispatching envelope",
+			zap.String("topic", env.TargetTopic().String()),
+			zap.Bool("hasListeners", listeners != nil && !listeners.isEmpty()),
+		)
+		s.dispatchToListeners(listeners, []*envelopes.OriginatorEnvelope{env})
+	}
+}
+
+func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
+	s.dispatchToListeners(&s.globalListeners, envs)
 }
 
 func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
-	env *envelopes.OriginatorEnvelope,
+	envs []*envelopes.OriginatorEnvelope,
 ) {
 	if listeners == nil {
 		return
@@ -238,7 +266,7 @@ func (s *subscribeWorker) dispatchToListeners(
 			s.closeListener(l)
 		default:
 			select {
-			case l.ch <- []*envelopes.OriginatorEnvelope{env}:
+			case l.ch <- envs:
 			default:
 				s.log.Info("Channel full, removing listener", zap.Any("listener", l.ch))
 				s.closeListener(l)
@@ -269,7 +297,7 @@ func (s *subscribeWorker) listen(
 	query *message_api.EnvelopesQuery,
 ) <-chan []*envelopes.OriginatorEnvelope {
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
-	l := newListener(ctx, query, ch)
+	l := newListener(ctx, s.log, query, ch)
 
 	if l.isGlobal {
 		s.globalListeners.Store(l, struct{}{})

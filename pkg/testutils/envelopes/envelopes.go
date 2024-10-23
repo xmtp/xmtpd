@@ -119,3 +119,20 @@ func CreateOriginatorEnvelope(
 		Proof:                      nil,
 	}
 }
+
+func CreateOriginatorEnvelopeWithTopic(
+	t *testing.T,
+	originatorNodeID uint32,
+	originatorSequenceID uint64,
+	topic []byte,
+) *envelopes.OriginatorEnvelope {
+	payerEnv := CreatePayerEnvelope(t, CreateClientEnvelope(
+		&envelopes.AuthenticatedData{
+			TargetTopic:      topic,
+			TargetOriginator: originatorNodeID,
+			LastSeen:         nil,
+		},
+	))
+
+	return CreateOriginatorEnvelope(t, originatorNodeID, originatorSequenceID, payerEnv)
+}

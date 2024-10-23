@@ -106,7 +106,7 @@ func (s *SmartContractRegistry) OnChangedNode(
 
 func (s *SmartContractRegistry) RegisterNode(
 	nodeId uint32,
-	op func(Node, <-chan Node, CancelSubscription) error,
+	op func(Node, <-chan Node, CancelSubscription),
 ) (*Node, error) {
 	s.changedNodeNotifiersMutex.Lock()
 	defer s.changedNodeNotifiersMutex.Unlock()
@@ -122,10 +122,9 @@ func (s *SmartContractRegistry) RegisterNode(
 		s.changedNodeNotifiers[nodeId] = notifier
 	}
 	ch, cancel := notifier.register()
-	err := op(node, ch, cancel)
-	if err != nil {
-		return nil, err
-	}
+
+	op(node, ch, cancel)
+
 	return &node, nil
 }
 

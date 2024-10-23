@@ -28,6 +28,6 @@ type NodeRegistry interface {
 	OnChangedNode(uint32) (<-chan Node, CancelSubscription)
 	RegisterNode(
 		nodeId uint32,
-		op func(Node, <-chan Node, CancelSubscription) error,
+		op func(Node, <-chan Node, CancelSubscription),
 	) (*Node, error)
 }

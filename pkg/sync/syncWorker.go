@@ -106,7 +106,6 @@ func (s *syncWorker) subscribeToRegistry() {
 					for _, node := range newNodes {
 						s.subscribeToNode(node.NodeID)
 					}
-
 				}
 			}
 
@@ -114,6 +113,10 @@ func (s *syncWorker) subscribeToRegistry() {
 }
 
 func (s *syncWorker) subscribeToNode(nodeid uint32) {
+	if nodeid == s.registrant.NodeID() {
+		return
+	}
+
 	s.subscriptionsMutex.Lock()
 	defer s.subscriptionsMutex.Unlock()
 
@@ -132,27 +135,21 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 			for {
 				select {
 				case <-ctx.Done():
+					// no need to unregister the subscription, we are shutting down
 					return
 				default:
-					err := s.subscribeToNodeInner(ctx, nodeid)
-					if err != nil {
-						return
-					}
-					s.log.Debug(fmt.Sprintf("Reloading configuration for %d", nodeid))
+					s.subscribeToNodeInner(ctx, nodeid)
+
 				}
 			}
 		})
 }
 
-func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) error {
+func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) {
 
 	notifierCtx, notifierCancel := context.WithCancel(ctx)
 
-	registrationRoutine := func(node registry.Node, registryChan <-chan registry.Node, cancelSub registry.CancelSubscription) error {
-		if node.NodeID == s.registrant.NodeID() || !node.IsHealthy || !node.IsValidConfig {
-			return fmt.Errorf("Invalid Node. No need for subscription")
-		}
-
+	registrationRoutine := func(node registry.Node, registryChan <-chan registry.Node, cancelSub registry.CancelSubscription) {
 		tracing.GoPanicWrap(
 			s.ctx,
 			&s.wg,
@@ -161,21 +158,30 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) er
 				defer cancelSub()
 				select {
 				case <-ctx.Done():
+					// this indicates that the node is shutting down
+					// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
 					notifierCancel()
 				case <-registryChan:
+					// this indicates that the registry has changed, and we need to rebuild the connection
 					s.log.Info(
-						"Node has been updated in the registry, terminating and rebuilding",
+						"Node has been updated in the registry, terminating and rebuilding...",
 					)
 					notifierCancel()
 				}
 			},
 		)
-
-		return nil
 	}
 	node, err := s.nodeRegistry.RegisterNode(nodeid, registrationRoutine)
 	if err != nil {
-		return err
+		return
+	}
+
+	if !node.IsHealthy || !node.IsValidConfig {
+		// keep the goroutine idle
+		// this will exit the goroutine during shutdown or if the config changed
+		<-notifierCtx.Done()
+		s.log.Debug("Node configuration has changed. Closing stream and connection")
+		return
 	}
 
 	var conn *grpc.ClientConn
@@ -183,8 +189,9 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) er
 	for {
 		select {
 		case <-notifierCtx.Done():
-			s.log.Debug("Node configuration has changed. Closing stream and connection")
-			return nil
+			// either registry has changed or we are shutting down
+			s.log.Debug("Context is done. Closing stream and connection")
+			return
 		default:
 			if err != nil {
 				s.log.Error(fmt.Sprintf("Error: %v, retrying...", err))
@@ -199,7 +206,7 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) er
 			if err != nil {
 				continue
 			}
-			err = s.listenToStream(notifierCtx, stream)
+			err = s.listenToStream(stream)
 		}
 	}
 }
@@ -231,7 +238,7 @@ func (s *syncWorker) setupStream(
 	node registry.Node,
 	conn *grpc.ClientConn,
 ) (message_api.ReplicationApi_SubscribeEnvelopesClient, error) {
-	result, err := queries.New(s.store).SelectVectorClock(s.ctx)
+	result, err := queries.New(s.store).SelectVectorClock(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -263,11 +270,10 @@ func (s *syncWorker) setupStream(
 }
 
 func (s *syncWorker) listenToStream(
-	ctx context.Context,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 ) error {
 	for {
-		// Recv is a blocking operation that can only be interrupted by cancelling ctx
+		// Recv() is a blocking operation that can only be interrupted by cancelling ctx
 		envs, err := stream.Recv()
 		if err == io.EOF {
 			return fmt.Errorf("Stream closed with EOF")

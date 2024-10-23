@@ -151,8 +151,13 @@ func (s *ReplicationServer) Shutdown() {
 		}
 	}
 
+	if s.syncServer != nil {
+		s.syncServer.Close()
+	}
+
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}
+
 	s.cancel()
 }

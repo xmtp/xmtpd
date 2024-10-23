@@ -8,9 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"google.golang.org/protobuf/proto"
 )
 
 func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
@@ -59,12 +62,17 @@ func TestStoreMessages(t *testing.T) {
 	groupID := testutils.RandomGroupID()
 	topic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
 
+	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
+	clientEnvelopeBytes, err := proto.Marshal(clientEnvelope)
+	require.NoError(t, err)
+
 	// Publish the message onto the blockchain
-	require.NoError(t, publisher.PublishGroupMessage(ctx, groupID, message))
+	_, err = publisher.PublishGroupMessage(ctx, groupID, clientEnvelopeBytes)
+	require.NoError(t, err)
 
 	// Poll the DB until the stored message shows up
 	require.Eventually(t, func() bool {
-		envelopes, err := querier.SelectGatewayEnvelopes(
+		results, err := querier.SelectGatewayEnvelopes(
 			context.Background(),
 			queries.SelectGatewayEnvelopesParams{
 				Topics: [][]byte{topic},
@@ -72,12 +80,15 @@ func TestStoreMessages(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		if len(envelopes) == 0 {
+		if len(results) == 0 {
 			return false
 		}
 
-		firstEnvelope := envelopes[0]
-		require.Equal(t, firstEnvelope.OriginatorEnvelope, message)
+		firstEnvelope := results[0]
+		_, err = envelopes.NewOriginatorEnvelopeFromBytes(
+			firstEnvelope.OriginatorEnvelope,
+		)
+		require.NoError(t, err)
 		require.Equal(t, firstEnvelope.Topic, topic)
 
 		return true

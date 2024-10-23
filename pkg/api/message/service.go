@@ -4,16 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
-	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -23,22 +21,22 @@ import (
 )
 
 const (
-	maxRequestedRows     uint32 = 1000
-	maxQueriesPerRequest int    = 10000
-	maxTopicLength       int    = 128
-	maxVectorClockLength int    = 100
+	maxRequestedRows     int32         = 1000
+	maxQueriesPerRequest int           = 10000
+	maxTopicLength       int           = 128
+	maxVectorClockLength int           = 100
+	pagingInterval       time.Duration = 100 * time.Millisecond
 )
 
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx              context.Context
-	log              *zap.Logger
-	registrant       *registrant.Registrant
-	store            *sql.DB
-	publishWorker    *publishWorker
-	subscribeWorker  *subscribeWorker
-	messagePublisher blockchain.IBlockchainPublisher
+	ctx             context.Context
+	log             *zap.Logger
+	registrant      *registrant.Registrant
+	store           *sql.DB
+	publishWorker   *publishWorker
+	subscribeWorker *subscribeWorker
 }
 
 func NewReplicationApiService(
@@ -46,7 +44,6 @@ func NewReplicationApiService(
 	log *zap.Logger,
 	registrant *registrant.Registrant,
 	store *sql.DB,
-	messagePublisher blockchain.IBlockchainPublisher,
 
 ) (*Service, error) {
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
@@ -59,13 +56,12 @@ func NewReplicationApiService(
 	}
 
 	return &Service{
-		ctx:              ctx,
-		log:              log,
-		registrant:       registrant,
-		store:            store,
-		publishWorker:    publishWorker,
-		subscribeWorker:  subscribeWorker,
-		messagePublisher: messagePublisher,
+		ctx:             ctx,
+		log:             log,
+		registrant:      registrant,
+		store:           store,
+		publishWorker:   publishWorker,
+		subscribeWorker: subscribeWorker,
 	}, nil
 }
 
@@ -78,6 +74,7 @@ func (s *Service) SubscribeEnvelopes(
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 ) error {
 	log := s.log.With(zap.String("method", "subscribe"))
+	log.Debug("SubscribeEnvelopes", zap.Any("request", req))
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
@@ -92,18 +89,21 @@ func (s *Service) SubscribeEnvelopes(
 	}
 
 	ch := s.subscribeWorker.listen(stream.Context(), query)
+	err = s.catchUpFromCursor(stream, query, log)
+	if err != nil {
+		return err
+	}
+
 	for {
 		select {
 		case envs, open := <-ch:
 			if open {
-				err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-					Envelopes: envs,
-				})
+				err := s.sendEnvelopes(stream, query, envs)
 				if err != nil {
 					return status.Errorf(codes.Internal, "error sending envelope: %v", err)
 				}
 			} else {
-				// TODO(rich) Recover from backpressure
+				// TODO(rich) Reset whole subscribe flow from new cursor
 				log.Debug("channel closed by worker")
 				return nil
 			}
@@ -117,19 +117,103 @@ func (s *Service) SubscribeEnvelopes(
 	}
 }
 
+// Pulls from DB and sends to client, updating the query's last seen cursor, until
+// the stream has caught up to the latest in the database.
+func (s *Service) catchUpFromCursor(
+	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
+	query *message_api.EnvelopesQuery,
+	logger *zap.Logger,
+) error {
+	log := logger.With(zap.String("stage", "catchUpFromCursor"))
+	if query.GetLastSeen() == nil {
+		log.Debug("Skipping catch up")
+		// Requester only wants new envelopes
+		return nil
+	}
+
+	cursor := query.LastSeen.GetNodeIdToSequenceId()
+	// GRPC does not distinguish between empty map and nil
+	if cursor == nil {
+		cursor = make(map[uint32]uint64)
+		query.LastSeen.NodeIdToSequenceId = cursor
+	}
+
+	log.Debug("Catching up from cursor", zap.Any("cursor", cursor))
+	for {
+		rows, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
+		log.Debug("Fetched envelopes", zap.Any("rows", rows))
+		if err != nil {
+			return err
+		}
+		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
+		for _, r := range rows {
+			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
+			if err != nil {
+				// We expect to have already validated the envelope when it was inserted
+				logger.Error("could not unmarshal originator envelope", zap.Error(err))
+				continue
+			}
+			envs = append(envs, env)
+		}
+		err = s.sendEnvelopes(stream, query, envs)
+		if err != nil {
+			return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
+		}
+		if len(rows) < int(maxRequestedRows) {
+			// There were no more envelopes in DB at time of fetch
+			break
+		}
+		time.Sleep(pagingInterval)
+	}
+	return nil
+}
+
+func (s *Service) sendEnvelopes(
+	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
+	query *message_api.EnvelopesQuery,
+	envs []*envelopes.OriginatorEnvelope,
+) error {
+	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
+	if cursor == nil {
+		cursor = make(map[uint32]uint64)
+		query.LastSeen = &envelopesProto.VectorClock{
+			NodeIdToSequenceId: cursor,
+		}
+	}
+	for _, env := range envs {
+		if cursor[uint32(env.OriginatorNodeID())] >= env.OriginatorSequenceID() {
+			continue
+		}
+
+		// TODO(rich): Either batch send envelopes, or modify stream proto to
+		// send one envelope at a time.
+		err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+			Envelopes: []*envelopesProto.OriginatorEnvelope{env.Proto()},
+		})
+		if err != nil {
+			return status.Errorf(codes.Internal, "error sending envelope: %v", err)
+		}
+		cursor[uint32(env.OriginatorNodeID())] = env.OriginatorSequenceID()
+	}
+	return nil
+}
+
 func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
 	log := s.log.With(zap.String("method", "query"))
-	params, err := s.queryReqToDBParams(req)
-	if err != nil {
-		return nil, err
+	if err := s.validateQuery(req.GetQuery()); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
 	}
 
-	rows, err := queries.New(s.store).SelectGatewayEnvelopes(ctx, *params)
+	limit := int32(req.GetLimit())
+	if limit == 0 {
+		limit = maxRequestedRows
+	}
+	rows, err := s.fetchEnvelopes(ctx, req.GetQuery(), limit)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+		return nil, err
 	}
 
 	envs := make([]*envelopesProto.OriginatorEnvelope, 0, len(rows))
@@ -189,18 +273,15 @@ func (s *Service) validateQuery(
 	return nil
 }
 
-func (s *Service) queryReqToDBParams(
-	req *message_api.QueryEnvelopesRequest,
-) (*queries.SelectGatewayEnvelopesParams, error) {
-	query := req.GetQuery()
-	if err := s.validateQuery(query); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
-	}
-
+func (s *Service) fetchEnvelopes(
+	ctx context.Context,
+	query *message_api.EnvelopesQuery,
+	rowLimit int32,
+) ([]queries.GatewayEnvelope, error) {
 	params := queries.SelectGatewayEnvelopesParams{
 		Topics:            query.GetTopics(),
 		OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
-		RowLimit:          int32(req.GetLimit()),
+		RowLimit:          rowLimit,
 		CursorNodeIds:     nil,
 		CursorSequenceIds: nil,
 	}
@@ -211,7 +292,12 @@ func (s *Service) queryReqToDBParams(
 
 	db.SetVectorClock(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-	return &params, nil
+	rows, err := queries.New(s.store).SelectGatewayEnvelopes(ctx, params)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+	}
+
+	return rows, nil
 }
 
 func (s *Service) PublishPayerEnvelopes(
@@ -225,14 +311,6 @@ func (s *Service) PublishPayerEnvelopes(
 	payerEnv, err := s.validatePayerEnvelope(req.GetPayerEnvelopes()[0])
 	if err != nil {
 		return nil, err
-	}
-
-	didPublish, err := s.maybePublishToBlockchain(ctx, &payerEnv.ClientEnvelope)
-	if err != nil {
-		return nil, err
-	}
-	if didPublish {
-		return &message_api.PublishPayerEnvelopesResponse{}, nil
 	}
 
 	// TODO(rich): Properly support batch publishing
@@ -261,45 +339,6 @@ func (s *Service) PublishPayerEnvelopes(
 	return &message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
 	}, nil
-}
-
-func (s *Service) maybePublishToBlockchain(
-	ctx context.Context,
-	clientEnv *envelopes.ClientEnvelope,
-) (didPublish bool, err error) {
-	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
-	if ok && payload.IdentityUpdate != nil {
-		if err = s.publishIdentityUpdate(ctx, payload.IdentityUpdate); err != nil {
-			s.log.Error("could not publish identity update", zap.Error(err))
-			return false, status.Errorf(
-				codes.Internal,
-				"could not publish identity update: %v",
-				err,
-			)
-		}
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (s *Service) publishIdentityUpdate(
-	ctx context.Context,
-	identityUpdate *associations.IdentityUpdate,
-) error {
-	identityUpdateBytes, err := proto.Marshal(identityUpdate)
-	if err != nil {
-		return err
-	}
-	inboxId, err := utils.ParseInboxId(identityUpdate.InboxId)
-	if err != nil {
-		return err
-	}
-	return s.messagePublisher.PublishIdentityUpdate(
-		ctx,
-		inboxId,
-		identityUpdateBytes,
-	)
 }
 
 func (s *Service) GetInboxIds(

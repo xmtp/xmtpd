@@ -88,6 +88,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 		if s.ctx.Err() != nil {
 			break
 		} else if err != nil {
+			// Log is extremely noisy during test teardown
 			s.log.Error(
 				fmt.Sprintf("Error querying for DB subscription: %v", err),
 				zap.Any("lastSeen", s.lastSeen),

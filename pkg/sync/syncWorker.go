@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -15,7 +16,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -206,29 +206,23 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) er
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
 	s.log.Info(fmt.Sprintf("Attempting to connect to %s...", node.HttpAddress))
-	target, isTLS, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
-	}
-	s.log.Debug(fmt.Sprintf("Mapped %s to %s", node.HttpAddress, target))
-
-	creds, err := utils.GetCredentialsForAddress(isTLS)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get credentials: %v", err)
-	}
 
 	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(creds),
-		grpc.WithDefaultCallOptions(),
+	dialOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(interceptor.Unary()),
 		grpc.WithStreamInterceptor(interceptor.Stream()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", target, err)
 	}
-	s.log.Debug(fmt.Sprintf("Successfully connected to peer at %s", target))
+	conn, err := node.BuildClient(dialOpts...)
+	if err != nil {
+		s.log.Error(
+			"Failed to connect to peer",
+			zap.String("peer", node.HttpAddress),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", node.HttpAddress, err)
+	}
+
+	s.log.Debug(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
 	return conn, nil
 }
 
@@ -237,13 +231,25 @@ func (s *syncWorker) setupStream(
 	node registry.Node,
 	conn *grpc.ClientConn,
 ) (message_api.ReplicationApi_SubscribeEnvelopesClient, error) {
+	result, err := queries.New(s.store).SelectVectorClock(s.ctx)
+	if err != nil {
+		return nil, err
+	}
+	vc := db.ToVectorClock(result)
+	s.log.Info(
+		"Vector clock for sync subscription",
+		zap.Any("nodeID", node.NodeID),
+		zap.Any("vc", vc),
+	)
 	client := message_api.NewReplicationApiClient(conn)
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{node.NodeID},
-				LastSeen:          nil,
+				LastSeen: &envelopes.VectorClock{
+					NodeIdToSequenceId: vc,
+				},
 			},
 		},
 	)

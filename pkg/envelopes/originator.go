@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -28,6 +29,14 @@ func NewOriginatorEnvelope(proto *envelopesProto.OriginatorEnvelope) (*Originato
 	}, nil
 }
 
+func NewOriginatorEnvelopeFromBytes(bytes []byte) (*OriginatorEnvelope, error) {
+	proto, err := utils.UnmarshalOriginatorEnvelope(bytes)
+	if err != nil {
+		return nil, err
+	}
+	return NewOriginatorEnvelope(proto)
+}
+
 func (o *OriginatorEnvelope) Bytes() ([]byte, error) {
 	bytes, err := proto.Marshal(o.proto)
 	if err != nil {
@@ -38,4 +47,12 @@ func (o *OriginatorEnvelope) Bytes() ([]byte, error) {
 
 func (o *OriginatorEnvelope) Proto() *envelopesProto.OriginatorEnvelope {
 	return o.proto
+}
+
+func (o *OriginatorEnvelope) OriginatorNodeID() uint32 {
+	return o.UnsignedOriginatorEnvelope.OriginatorNodeID()
+}
+
+func (o *OriginatorEnvelope) OriginatorSequenceID() uint64 {
+	return o.UnsignedOriginatorEnvelope.OriginatorSequenceID()
 }

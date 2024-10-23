@@ -22,7 +22,6 @@ import (
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 const server1NodeID = 100
@@ -126,30 +125,24 @@ func TestCreateServer(t *testing.T) {
 			)},
 		},
 	)
-	utils.Unused(p2)
 	require.NoError(t, err)
 
-	// TODO(rich) synchronize test with stream setup
-	// Client1 is initialized before Client2 and needs to wait for Client2 to be ready before
-	// stream will succeed, and will retry a few times. If the publish on client2 goes through before
-	// client1 is set up, the condition below will never succeed. Easiest solution is to implement
-	// subscriptions starting from a cursor.
-	// require.Eventually(t, func() bool {
-	// 	q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-	// 		Query: &message_api.EnvelopesQuery{
-	// 			OriginatorNodeIds: []uint32{server2NodeID},
-	// 			LastSeen: &message_api.VectorClock{},
-	// 		},
-	// 		Limit: 10,
-	// 	})
-	// 	require.NoError(t, err)
-	// 	if len(q1.Envelopes) == 0 {
-	// 		return false
-	// 	}
-	// 	require.Len(t, q1.Envelopes, 1)
-	// 	require.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0])
-	// 	return true
-	// }, 500*time.Millisecond, 50*time.Millisecond)
+	require.Eventually(t, func() bool {
+		q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{server2NodeID},
+				LastSeen:          &envelopes.VectorClock{},
+			},
+			Limit: 10,
+		})
+		require.NoError(t, err)
+		if len(q1.Envelopes) == 0 {
+			return false
+		}
+		require.Len(t, q1.Envelopes, 1)
+		require.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0])
+		return true
+	}, 3000*time.Millisecond, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
@@ -166,5 +159,5 @@ func TestCreateServer(t *testing.T) {
 		require.Len(t, q2.Envelopes, 1)
 		require.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0])
 		return true
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	}, 3000*time.Millisecond, 200*time.Millisecond)
 }

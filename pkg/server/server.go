@@ -10,11 +10,17 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/sync"
+	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -92,6 +98,7 @@ func NewReplicationServer(
 	if err != nil {
 		return nil, err
 	}
+
 	err = indexer.StartIndexer(
 		s.ctx,
 		log,
@@ -103,15 +110,46 @@ func NewReplicationServer(
 		return nil, err
 	}
 
+	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
+		replicationService, err := message.NewReplicationApiService(
+			ctx,
+			log,
+			s.registrant,
+			writerDB,
+		)
+		if err != nil {
+			return err
+		}
+		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
+
+		if options.Payer.EnableAPI {
+			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(options.Payer.PrivateKey)
+			if err != nil {
+				return err
+			}
+			payerService, err := payer.NewPayerApiService(
+				ctx,
+				log,
+				s.nodeRegistry,
+				payerPrivateKey,
+				blockchainPublisher,
+			)
+			if err != nil {
+				return err
+			}
+			payer_api.RegisterPayerApiServer(grpcServer, payerService)
+		}
+
+		return nil
+	}
+
 	// TODO(rich): Add configuration to specify whether to run API/sync server
 	s.apiServer, err = api.NewAPIServer(
 		s.ctx,
-		s.writerDB,
 		log,
 		options.API.Port,
-		s.registrant,
 		options.Reflection.Enable,
-		blockchainPublisher,
+		serviceRegistrationFunc,
 	)
 	if err != nil {
 		return nil, err

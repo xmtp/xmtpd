@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -65,13 +66,17 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	identityUpdate := associations.IdentityUpdate{
 		InboxId: utils.HexEncode(inboxId[:]),
 	}
-	message, err := proto.Marshal(&identityUpdate)
-	require.NoError(t, err)
+
 	sequenceID := uint64(1)
 
-	logMessage := testutils.BuildIdentityUpdateLog(t, inboxId, message, sequenceID)
+	logMessage := testutils.BuildIdentityUpdateLog(
+		t,
+		inboxId,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		sequenceID,
+	)
 
-	err = storer.StoreLog(
+	err := storer.StoreLog(
 		ctx,
 		logMessage,
 	)

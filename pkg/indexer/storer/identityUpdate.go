@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -79,11 +80,17 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 				zap.String("topic", messageTopic.String()),
 			)
 
+			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
+			if err != nil {
+				s.logger.Error("Error parsing client envelope", zap.Error(err))
+				return NewLogStorageError(err, false)
+			}
+
 			associationState, err := s.validateIdentityUpdate(
 				ctx,
 				querier,
 				msgSent.InboxId,
-				msgSent.Update,
+				clientEnvelope,
 			)
 			if err != nil {
 				log.Error("Error validating identity update", zap.Error(err))
@@ -144,13 +151,8 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 				}
 			}
 
-			originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update)
-			if err != nil {
-				s.logger.Error("Error building originator envelope", zap.Error(err))
-				return NewLogStorageError(err, true)
-			}
 			signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
-				originatorEnvelope,
+				buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update),
 				event.TxHash,
 			)
 			if err != nil {
@@ -194,7 +196,7 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	ctx context.Context,
 	querier *queries.Queries,
 	inboxId [32]byte,
-	update []byte,
+	clientEnvelope *envelopes.ClientEnvelope,
 ) (*mlsvalidate.AssociationStateResult, error) {
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopes(
 		ctx,
@@ -208,7 +210,16 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 		return nil, err
 	}
 
-	return s.validationService.GetAssociationStateFromEnvelopes(ctx, gatewayEnvelopes, update)
+	identityUpdate, ok := clientEnvelope.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
+	if !ok {
+		return nil, fmt.Errorf("client envelope payload is not an identity update")
+	}
+
+	return s.validationService.GetAssociationStateFromEnvelopes(
+		ctx,
+		gatewayEnvelopes,
+		identityUpdate.IdentityUpdate,
+	)
 }
 
 func BuildInboxTopic(inboxId [32]byte) string {
@@ -217,18 +228,8 @@ func BuildInboxTopic(inboxId [32]byte) string {
 
 func buildOriginatorEnvelope(
 	sequenceId uint64,
-	update []byte,
-) (*envelopesProto.UnsignedOriginatorEnvelope, error) {
-	clientEnv, err := buildClientEnvelope(update)
-	if err != nil {
-		return nil, err
-	}
-
-	clientEnvelopeBytes, err := proto.Marshal(clientEnv)
-	if err != nil {
-		return nil, err
-	}
-
+	clientEnvelopeBytes []byte,
+) *envelopesProto.UnsignedOriginatorEnvelope {
 	return &envelopesProto.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
 		OriginatorSequenceId: sequenceId,
@@ -236,21 +237,7 @@ func buildOriginatorEnvelope(
 		PayerEnvelope: &envelopesProto.PayerEnvelope{
 			UnsignedClientEnvelope: clientEnvelopeBytes,
 		},
-	}, nil
-}
-
-func buildClientEnvelope(update []byte) (*envelopesProto.ClientEnvelope, error) {
-	var identityUpdate associations.IdentityUpdate
-	if err := proto.Unmarshal(update, &identityUpdate); err != nil {
-		return nil, err
 	}
-
-	return &envelopesProto.ClientEnvelope{
-		Aad: nil,
-		Payload: &envelopesProto.ClientEnvelope_IdentityUpdate{
-			IdentityUpdate: &identityUpdate,
-		},
-	}, nil
 }
 
 func buildSignedOriginatorEnvelope(

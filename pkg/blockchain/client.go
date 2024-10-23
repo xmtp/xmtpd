@@ -22,7 +22,7 @@ func WaitForTransaction(
 	timeout time.Duration,
 	pollSleep time.Duration,
 	hash common.Hash,
-) error {
+) (common.Hash, error) {
 	// Enforce the timeout with a context so that slow requests get aborted if the function has
 	// run out of time
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
@@ -37,11 +37,11 @@ func WaitForTransaction(
 		if err != nil {
 			logger.Error("waiting for transaction", zap.String("hash", hash.String()))
 		} else if !isPending {
-			return nil
+			return hash, nil
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timed out")
+			return common.Hash{}, fmt.Errorf("timed out")
 		case <-ticker.C:
 			continue
 		}

@@ -70,7 +70,7 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 		},
 	}
 
-	return testUtilsApi.NewTestAPIClient(t)
+	return testUtilsApi.NewTestReplicationAPIClient(t)
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {

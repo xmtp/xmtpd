@@ -41,14 +41,14 @@ func NewTopic(kind TopicKind, identifier []byte) *Topic {
 	}
 }
 
-func (t *Topic) Bytes() []byte {
+func (t Topic) Bytes() []byte {
 	result := make([]byte, 1+len(t.identifier))
 	result[0] = byte(t.kind)
 	copy(result[1:], t.identifier)
 	return result
 }
 
-func (t *Topic) String() string {
+func (t Topic) String() string {
 	return fmt.Sprintf("%s/%x", t.kind.String(), t.identifier)
 }
 
@@ -69,10 +69,10 @@ func ParseTopic(topic []byte) (*Topic, error) {
 	return newTopic, nil
 }
 
-func (t *Topic) Kind() TopicKind {
+func (t Topic) Kind() TopicKind {
 	return t.kind
 }
 
-func (t *Topic) Identifier() []byte {
+func (t Topic) Identifier() []byte {
 	return t.identifier
 }

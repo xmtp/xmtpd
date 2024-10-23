@@ -15,7 +15,7 @@ type OriginatorEnvelope struct {
 
 func NewOriginatorEnvelope(proto *envelopesProto.OriginatorEnvelope) (*OriginatorEnvelope, error) {
 	if proto == nil {
-		return nil, errors.New("proto is nil")
+		return nil, errors.New("originator envelope proto is nil")
 	}
 
 	unsigned, err := NewUnsignedOriginatorEnvelopeFromBytes(proto.UnsignedOriginatorEnvelope)

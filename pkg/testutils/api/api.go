@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewAPIClient(
+func NewReplicationAPIClient(
 	t *testing.T,
 	ctx context.Context,
 	addr string,
@@ -44,6 +44,25 @@ func NewAPIClient(
 	}
 }
 
+func NewPayerAPIClient(
+	t *testing.T,
+	ctx context.Context,
+	addr string,
+) (payer_api.PayerApiClient, func()) {
+	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
+	conn, err := grpc.NewClient(
+		dialAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(),
+	)
+	require.NoError(t, err)
+	client := payer_api.NewPayerApiClient(conn)
+	return client, func() {
+		err := conn.Close()
+		require.NoError(t, err)
+	}
+}
+
 func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := testutils.NewLog(t)
@@ -53,7 +72,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	privKeyStr := "0x" + utils.HexEncode(crypto.FromECDSA(privKey))
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
-		{NodeID: 1, SigningKey: &privKey.PublicKey},
+		{NodeID: 100, SigningKey: &privKey.PublicKey},
 	}, nil)
 	registrant, err := registrant.NewRegistrant(ctx, log, queries.New(db), mockRegistry, privKeyStr)
 	require.NoError(t, err)
@@ -98,9 +117,9 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	}
 }
 
-func NewTestAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
+func NewTestReplicationAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
 	svc, db, svcCleanup := NewTestAPIServer(t)
-	client, clientCleanup := NewAPIClient(t, context.Background(), svc.Addr().String())
+	client, clientCleanup := NewReplicationAPIClient(t, context.Background(), svc.Addr().String())
 	return client, db, func() {
 		clientCleanup()
 		svcCleanup()

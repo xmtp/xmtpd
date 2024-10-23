@@ -27,7 +27,7 @@ func UnmarshalUnsignedOriginatorEnvelope(
 func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.ClientEnvelope {
 	if len(aad) == 0 {
 		aad = append(aad, &envelopes.AuthenticatedData{
-			TargetOriginator: 1,
+			TargetOriginator: 100,
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 				Bytes(),
 			LastSeen: &envelopes.VectorClock{},
@@ -42,12 +42,13 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 func CreateGroupMessageClientEnvelope(
 	groupID [32]byte,
 	message []byte,
+	targetOriginator uint32,
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{
 		Aad: &envelopes.AuthenticatedData{
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
 				Bytes(),
-			TargetOriginator: 0,
+			TargetOriginator: targetOriginator,
 		},
 		Payload: &envelopes.ClientEnvelope_GroupMessage{
 			GroupMessage: &mlsv1.GroupMessageInput{

@@ -3,9 +3,11 @@ package registry
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"time"
 
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 type DialOptionFunc func(node Node) []grpc.DialOption
@@ -49,6 +51,11 @@ func (node *Node) BuildClient(
 	dialOpts := append([]grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                10 * time.Second,
+			Timeout:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	}, extraDialOpts...)
 
 	conn, err := grpc.NewClient(

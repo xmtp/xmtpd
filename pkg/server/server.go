@@ -90,6 +90,7 @@ func NewReplicationServer(
 		queries.New(s.writerDB),
 		nodeRegistry,
 		options.Signer.PrivateKey,
+		options.DB.ForceOverride,
 	)
 	if err != nil {
 		return nil, err

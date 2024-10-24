@@ -11,8 +11,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 )
+
+var topicA = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicA")).Bytes()
 
 func setup(t *testing.T) (*sql.DB, *zap.Logger, func()) {
 	ctx := context.Background()
@@ -28,13 +31,13 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope1"),
 		},
 		{
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope2"),
 		},
 	})
@@ -62,19 +65,19 @@ func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) 
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope3"),
 		},
 		{
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope4"),
 		},
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope5"),
 		},
 	}, notifyChan...)

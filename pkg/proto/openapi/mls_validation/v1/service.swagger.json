@@ -221,6 +221,10 @@
         "clientTimestampNs": {
           "type": "string",
           "format": "uint64"
+        },
+        "addedOnChainId": {
+          "type": "string",
+          "format": "uint64"
         }
       },
       "title": "single member that optionally indicates the member that added them"

@@ -37,6 +37,8 @@ jobs:
           submodules: recursive
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: 'nightly-2044faec64f99a21f0e5f0094458a973612d0712'
       - run: forge --version
       - name: Run Forge fmt
         # only format code, we do not want to format LIB

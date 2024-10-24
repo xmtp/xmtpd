@@ -254,6 +254,65 @@ func (_c *MockNodeRegistry_OnNewNodes_Call) RunAndReturn(run func() (<-chan []re
 	return _c
 }
 
+// RegisterNode provides a mock function with given fields: nodeId, op
+func (_m *MockNodeRegistry) RegisterNode(nodeId uint32, op func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) (*registry.Node, error) {
+	ret := _m.Called(nodeId, op)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RegisterNode")
+	}
+
+	var r0 *registry.Node
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) (*registry.Node, error)); ok {
+		return rf(nodeId, op)
+	}
+	if rf, ok := ret.Get(0).(func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) *registry.Node); ok {
+		r0 = rf(nodeId, op)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*registry.Node)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) error); ok {
+		r1 = rf(nodeId, op)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNodeRegistry_RegisterNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterNode'
+type MockNodeRegistry_RegisterNode_Call struct {
+	*mock.Call
+}
+
+// RegisterNode is a helper method to define mock.On call
+//   - nodeId uint32
+//   - op func(registry.Node , <-chan registry.Node , registry.CancelSubscription)
+func (_e *MockNodeRegistry_Expecter) RegisterNode(nodeId interface{}, op interface{}) *MockNodeRegistry_RegisterNode_Call {
+	return &MockNodeRegistry_RegisterNode_Call{Call: _e.mock.On("RegisterNode", nodeId, op)}
+}
+
+func (_c *MockNodeRegistry_RegisterNode_Call) Run(run func(nodeId uint32, op func(registry.Node, <-chan registry.Node, registry.CancelSubscription))) *MockNodeRegistry_RegisterNode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(uint32), args[1].(func(registry.Node, <-chan registry.Node, registry.CancelSubscription)))
+	})
+	return _c
+}
+
+func (_c *MockNodeRegistry_RegisterNode_Call) Return(_a0 *registry.Node, _a1 error) *MockNodeRegistry_RegisterNode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNodeRegistry_RegisterNode_Call) RunAndReturn(run func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) (*registry.Node, error)) *MockNodeRegistry_RegisterNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockNodeRegistry creates a new instance of MockNodeRegistry. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockNodeRegistry(t interface {

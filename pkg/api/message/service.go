@@ -66,7 +66,7 @@ func NewReplicationApiService(
 }
 
 func (s *Service) Close() {
-	s.log.Info("closed")
+	s.log.Debug("closed")
 }
 
 func (s *Service) SubscribeEnvelopes(

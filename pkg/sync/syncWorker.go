@@ -28,7 +28,7 @@ type syncWorker struct {
 	registrant         *registrant.Registrant
 	store              *sql.DB
 	wg                 sync.WaitGroup
-	subscriptions      map[interface{}]struct{}
+	subscriptions      map[uint32]struct{}
 	subscriptionsMutex sync.RWMutex
 }
 
@@ -54,7 +54,7 @@ func startSyncWorker(
 		registrant:    registrant,
 		store:         store,
 		wg:            sync.WaitGroup{},
-		subscriptions: make(map[interface{}]struct{}),
+		subscriptions: make(map[uint32]struct{}),
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -135,11 +135,9 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 			for {
 				select {
 				case <-ctx.Done():
-					// no need to unregister the subscription, we are shutting down
 					return
 				default:
 					s.subscribeToNodeInner(ctx, nodeid)
-
 				}
 			}
 		})
@@ -149,41 +147,24 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) {
 
 	notifierCtx, notifierCancel := context.WithCancel(ctx)
 
-	registrationRoutine := func(node registry.Node, registryChan <-chan registry.Node, cancelSub registry.CancelSubscription) {
-		tracing.GoPanicWrap(
-			s.ctx,
-			&s.wg,
-			fmt.Sprintf("node-subscribe-%d-notifier", node.NodeID),
-			func(ctx context.Context) {
-				defer cancelSub()
-				select {
-				case <-ctx.Done():
-					// this indicates that the node is shutting down
-					// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
-					notifierCancel()
-				case <-registryChan:
-					// this indicates that the registry has changed, and we need to rebuild the connection
-					s.log.Info(
-						"Node has been updated in the registry, terminating and rebuilding...",
-					)
-					notifierCancel()
-				}
-			},
-		)
-	}
-	node, err := s.nodeRegistry.RegisterNode(nodeid, registrationRoutine)
+	node, err := s.setupNodeRegistration(notifierCancel, nodeid)
 	if err != nil {
 		return
 	}
 
 	if !node.IsHealthy || !node.IsValidConfig {
-		// keep the goroutine idle
-		// this will exit the goroutine during shutdown or if the config changed
-		<-notifierCtx.Done()
-		s.log.Debug("Node configuration has changed. Closing stream and connection")
+		s.handleUnhealthyNode(notifierCtx)
 		return
 	}
 
+	s.handleNodeConnection(notifierCtx, err, node)
+}
+
+func (s *syncWorker) handleNodeConnection(
+	notifierCtx context.Context,
+	err error,
+	node *registry.Node,
+) {
 	var conn *grpc.ClientConn
 	var stream message_api.ReplicationApi_SubscribeEnvelopesClient
 	for {
@@ -209,6 +190,44 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) {
 			err = s.listenToStream(stream)
 		}
 	}
+}
+
+func (s *syncWorker) handleUnhealthyNode(notifierCtx context.Context) {
+	// keep the goroutine idle
+	// this will exit the goroutine during shutdown or if the config changed
+	<-notifierCtx.Done()
+	s.log.Debug("Node configuration has changed. Closing stream and connection")
+	return
+}
+
+func (s *syncWorker) setupNodeRegistration(
+	notifierCancel context.CancelFunc,
+	nodeid uint32,
+) (*registry.Node, error) {
+	registrationRoutine := func(node registry.Node, registryChan <-chan registry.Node, cancelSub registry.CancelSubscription) {
+		tracing.GoPanicWrap(
+			s.ctx,
+			&s.wg,
+			fmt.Sprintf("node-subscribe-%d-notifier", node.NodeID),
+			func(ctx context.Context) {
+				defer cancelSub()
+				select {
+				case <-ctx.Done():
+					// this indicates that the node is shutting down
+					// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
+					notifierCancel()
+				case <-registryChan:
+					// this indicates that the registry has changed, and we need to rebuild the connection
+					s.log.Info(
+						"Node has been updated in the registry, terminating and rebuilding...",
+					)
+					notifierCancel()
+				}
+			},
+		)
+	}
+	node, err := s.nodeRegistry.RegisterNode(nodeid, registrationRoutine)
+	return node, err
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {

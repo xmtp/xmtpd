@@ -13,6 +13,39 @@ type FixedNodeRegistry struct {
 	changedNodeNotifiersMutex sync.Mutex
 }
 
+func (r *FixedNodeRegistry) findNodeByID(id uint32) *Node {
+	for _, node := range r.nodes {
+		if node.NodeID == id {
+			return &node
+		}
+	}
+	return nil
+}
+
+func (r *FixedNodeRegistry) RegisterNode(
+	nodeId uint32,
+	op func(Node, <-chan Node, CancelSubscription),
+) (*Node, error) {
+	r.changedNodeNotifiersMutex.Lock()
+	defer r.changedNodeNotifiersMutex.Unlock()
+
+	node := r.findNodeByID(nodeId)
+	if node == nil {
+		return nil, errors.New("node not found")
+	}
+
+	notifier, ok := r.changedNodeNotifiers[node.NodeID]
+	if !ok {
+		notifier = newNotifier[Node]()
+		r.changedNodeNotifiers[nodeId] = notifier
+	}
+	ch, cancel := notifier.register()
+
+	op(*node, ch, cancel)
+
+	return node, nil
+}
+
 func NewFixedNodeRegistry(nodes []Node) *FixedNodeRegistry {
 	return &FixedNodeRegistry{nodes: nodes}
 }

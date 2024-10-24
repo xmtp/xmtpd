@@ -182,15 +182,21 @@ func (s *ReplicationServer) WaitForShutdown() {
 }
 
 func (s *ReplicationServer) Shutdown() {
+	// cancel the context first so that all listeners/servers start shutting down
+	s.cancel()
+
 	// Close metrics server.
 	if s.metrics != nil {
 		if err := s.metrics.Close(); err != nil {
-			s.log.Error("stopping metrics", zap.Error(err))
+			s.log.Error("Error while stopping metrics", zap.Error(err))
 		}
+	}
+
+	if s.syncServer != nil {
+		s.syncServer.Close()
 	}
 
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}
-	s.cancel()
 }

@@ -142,7 +142,7 @@ func indexLogs(
 
 		}
 	}
-	logger.Info("finished")
+	logger.Debug("finished")
 }
 
 func buildMessagesTopic() (common.Hash, error) {

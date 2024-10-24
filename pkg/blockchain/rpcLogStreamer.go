@@ -101,7 +101,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 	for {
 		select {
 		case <-r.ctx.Done():
-			logger.Info("Stopping watcher")
+			logger.Debug("Stopping watcher")
 			return
 		default:
 			logs, nextBlock, err := r.getNextPage(watcher, fromBlock)

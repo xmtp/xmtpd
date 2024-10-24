@@ -23,6 +23,7 @@ func NewSyncServer(
 	nodeRegistry registry.NodeRegistry,
 	registrant *registrant.Registrant,
 	store *sql.DB,
+
 ) (*SyncServer, error) {
 	worker, err := startSyncWorker(ctx, log, nodeRegistry, registrant, store)
 	if err != nil {
@@ -42,7 +43,7 @@ func NewSyncServer(
 }
 
 func (s *SyncServer) Close() {
-	s.log.Info("closing")
+	s.log.Debug("closing")
 	s.worker.close()
-	s.log.Info("closed")
+	s.log.Debug("closed")
 }

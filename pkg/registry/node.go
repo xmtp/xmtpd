@@ -52,7 +52,7 @@ func (node *Node) BuildClient(
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                10 * time.Second,
+			Time:                30 * time.Second,
 			Timeout:             10 * time.Second,
 			PermitWithoutStream: true,
 		}),

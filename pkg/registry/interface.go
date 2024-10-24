@@ -16,8 +16,6 @@ type NodesContract interface {
 // Unregister the callback
 type CancelSubscription func()
 
-type RegisterNodeFunc func(Node, <-chan Node, CancelSubscription)
-
 /*
 *
 The NodeRegistry is responsible for fetching the list of nodes from the registry contract
@@ -28,5 +26,4 @@ type NodeRegistry interface {
 	GetNode(uint32) (*Node, error)
 	OnNewNodes() (<-chan []Node, CancelSubscription)
 	OnChangedNode(uint32) (<-chan Node, CancelSubscription)
-	RegisterNode(uint32, RegisterNodeFunc) (*Node, error)
 }

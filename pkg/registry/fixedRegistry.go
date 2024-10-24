@@ -13,30 +13,6 @@ type FixedNodeRegistry struct {
 	changedNodeNotifiersMutex sync.Mutex
 }
 
-func (r *FixedNodeRegistry) RegisterNode(
-	nodeId uint32,
-	op RegisterNodeFunc,
-) (*Node, error) {
-	r.changedNodeNotifiersMutex.Lock()
-	defer r.changedNodeNotifiersMutex.Unlock()
-
-	node, err := r.GetNode(nodeId)
-	if err != nil {
-		return nil, err
-	}
-
-	notifier, ok := r.changedNodeNotifiers[node.NodeID]
-	if !ok {
-		notifier = newNotifier[Node]()
-		r.changedNodeNotifiers[nodeId] = notifier
-	}
-	ch, cancel := notifier.register()
-
-	op(*node, ch, cancel)
-
-	return node, nil
-}
-
 func NewFixedNodeRegistry(nodes []Node) *FixedNodeRegistry {
 	return &FixedNodeRegistry{nodes: nodes}
 }

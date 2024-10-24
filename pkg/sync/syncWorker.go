@@ -209,30 +209,34 @@ func (s *syncWorker) setupNodeRegistration(
 	notifierCancel context.CancelFunc,
 	nodeid uint32,
 ) (*registry.Node, error) {
-	registrationRoutine := func(node registry.Node, registryChan <-chan registry.Node, cancelSub registry.CancelSubscription) {
-		tracing.GoPanicWrap(
-			s.ctx,
-			&s.wg,
-			fmt.Sprintf("node-subscribe-%d-notifier", node.NodeID),
-			func(ctx context.Context) {
-				defer cancelSub()
-				select {
-				case <-ctx.Done():
-					// this indicates that the node is shutting down
-					// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
-					notifierCancel()
-				case <-registryChan:
-					// this indicates that the registry has changed, and we need to rebuild the connection
-					s.log.Info(
-						"Node has been updated in the registry, terminating and rebuilding...",
-					)
-					notifierCancel()
-				}
-			},
-		)
-	}
-	node, err := s.nodeRegistry.RegisterNode(nodeid, registrationRoutine)
-	return node, err
+	registryChan, cancelSub := s.nodeRegistry.OnChangedNode(nodeid)
+
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		fmt.Sprintf("node-subscribe-%d-notifier", nodeid),
+		func(ctx context.Context) {
+			defer cancelSub()
+			select {
+			case <-ctx.Done():
+				// this indicates that the node is shutting down
+				// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
+				notifierCancel()
+			case <-registryChan:
+				// this indicates that the registry has changed, and we need to rebuild the connection
+				s.log.Info(
+					"Node has been updated in the registry, terminating and rebuilding...",
+				)
+				notifierCancel()
+			}
+		},
+	)
+
+	// the nodeRegistry lock gets release between OnChangedNode and GetNode so we might end up in situation
+	// where a change gets processed in between
+	// this would lead to an unnecessary rebuild of the connection, which is infrequent and okay
+
+	return s.nodeRegistry.GetNode(nodeid)
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {

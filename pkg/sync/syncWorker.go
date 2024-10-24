@@ -197,7 +197,6 @@ func (s *syncWorker) handleUnhealthyNode(notifierCtx context.Context) {
 	// this will exit the goroutine during shutdown or if the config changed
 	<-notifierCtx.Done()
 	s.log.Debug("Node configuration has changed. Closing stream and connection")
-	return
 }
 
 func (s *syncWorker) setupNodeRegistration(

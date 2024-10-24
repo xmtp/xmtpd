@@ -106,7 +106,7 @@ func (s *SmartContractRegistry) OnChangedNode(
 
 func (s *SmartContractRegistry) RegisterNode(
 	nodeId uint32,
-	op func(Node, <-chan Node, CancelSubscription),
+	op RegisterNodeFunc,
 ) (*Node, error) {
 	s.changedNodeNotifiersMutex.Lock()
 	defer s.changedNodeNotifiersMutex.Unlock()

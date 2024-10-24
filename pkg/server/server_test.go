@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
 
@@ -59,7 +60,7 @@ func NewTestServer(
 }
 
 func TestCreateServer(t *testing.T) {
-	t.Skip("TODO mkysel: test broken")
+	//t.Skip("TODO mkysel: test broken")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dbs, dbCleanup := testutils.NewDBs(t, ctx, 2)
@@ -86,6 +87,29 @@ func TestCreateServer(t *testing.T) {
 			IsValidConfig: true,
 		},
 	}, nil)
+
+	nodesChan := make(chan []r.Node)
+	cancelFunc := func() {
+		close(nodesChan) // Close the channel when cancel is called
+	}
+	registry.On("OnNewNodes").Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(cancelFunc))
+
+	registry.On("RegisterNode", uint32(server1NodeID), mock.AnythingOfType("registry.RegisterNodeFunc")).
+		Return(&r.Node{
+			NodeID:        server1NodeID,
+			SigningKey:    &privateKey1.PublicKey,
+			HttpAddress:   fmt.Sprintf("http://localhost:%d", server1Port),
+			IsHealthy:     true,
+			IsValidConfig: true,
+		}, nil)
+	registry.On("RegisterNode", uint32(server2NodeID), mock.AnythingOfType("registry.RegisterNodeFunc")).
+		Return(&r.Node{
+			NodeID:        server2NodeID,
+			SigningKey:    &privateKey2.PublicKey,
+			HttpAddress:   fmt.Sprintf("http://localhost:%d", server2Port),
+			IsHealthy:     true,
+			IsValidConfig: true,
+		}, nil)
 
 	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
 	server2 := NewTestServer(t, server2Port, dbs[1], registry, privateKey2)

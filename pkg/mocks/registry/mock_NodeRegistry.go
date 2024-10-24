@@ -254,9 +254,9 @@ func (_c *MockNodeRegistry_OnNewNodes_Call) RunAndReturn(run func() (<-chan []re
 	return _c
 }
 
-// RegisterNode provides a mock function with given fields: nodeId, op
-func (_m *MockNodeRegistry) RegisterNode(nodeId uint32, op func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) (*registry.Node, error) {
-	ret := _m.Called(nodeId, op)
+// RegisterNode provides a mock function with given fields: _a0, _a1
+func (_m *MockNodeRegistry) RegisterNode(_a0 uint32, _a1 registry.RegisterNodeFunc) (*registry.Node, error) {
+	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RegisterNode")
@@ -264,19 +264,19 @@ func (_m *MockNodeRegistry) RegisterNode(nodeId uint32, op func(registry.Node, <
 
 	var r0 *registry.Node
 	var r1 error
-	if rf, ok := ret.Get(0).(func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) (*registry.Node, error)); ok {
-		return rf(nodeId, op)
+	if rf, ok := ret.Get(0).(func(uint32, registry.RegisterNodeFunc) (*registry.Node, error)); ok {
+		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) *registry.Node); ok {
-		r0 = rf(nodeId, op)
+	if rf, ok := ret.Get(0).(func(uint32, registry.RegisterNodeFunc) *registry.Node); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*registry.Node)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) error); ok {
-		r1 = rf(nodeId, op)
+	if rf, ok := ret.Get(1).(func(uint32, registry.RegisterNodeFunc) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -290,15 +290,15 @@ type MockNodeRegistry_RegisterNode_Call struct {
 }
 
 // RegisterNode is a helper method to define mock.On call
-//   - nodeId uint32
-//   - op func(registry.Node , <-chan registry.Node , registry.CancelSubscription)
-func (_e *MockNodeRegistry_Expecter) RegisterNode(nodeId interface{}, op interface{}) *MockNodeRegistry_RegisterNode_Call {
-	return &MockNodeRegistry_RegisterNode_Call{Call: _e.mock.On("RegisterNode", nodeId, op)}
+//   - _a0 uint32
+//   - _a1 registry.RegisterNodeFunc
+func (_e *MockNodeRegistry_Expecter) RegisterNode(_a0 interface{}, _a1 interface{}) *MockNodeRegistry_RegisterNode_Call {
+	return &MockNodeRegistry_RegisterNode_Call{Call: _e.mock.On("RegisterNode", _a0, _a1)}
 }
 
-func (_c *MockNodeRegistry_RegisterNode_Call) Run(run func(nodeId uint32, op func(registry.Node, <-chan registry.Node, registry.CancelSubscription))) *MockNodeRegistry_RegisterNode_Call {
+func (_c *MockNodeRegistry_RegisterNode_Call) Run(run func(_a0 uint32, _a1 registry.RegisterNodeFunc)) *MockNodeRegistry_RegisterNode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(uint32), args[1].(func(registry.Node, <-chan registry.Node, registry.CancelSubscription)))
+		run(args[0].(uint32), args[1].(registry.RegisterNodeFunc))
 	})
 	return _c
 }
@@ -308,7 +308,7 @@ func (_c *MockNodeRegistry_RegisterNode_Call) Return(_a0 *registry.Node, _a1 err
 	return _c
 }
 
-func (_c *MockNodeRegistry_RegisterNode_Call) RunAndReturn(run func(uint32, func(registry.Node, <-chan registry.Node, registry.CancelSubscription)) (*registry.Node, error)) *MockNodeRegistry_RegisterNode_Call {
+func (_c *MockNodeRegistry_RegisterNode_Call) RunAndReturn(run func(uint32, registry.RegisterNodeFunc) (*registry.Node, error)) *MockNodeRegistry_RegisterNode_Call {
 	_c.Call.Return(run)
 	return _c
 }

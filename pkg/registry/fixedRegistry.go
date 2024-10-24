@@ -24,7 +24,7 @@ func (r *FixedNodeRegistry) findNodeByID(id uint32) *Node {
 
 func (r *FixedNodeRegistry) RegisterNode(
 	nodeId uint32,
-	op func(Node, <-chan Node, CancelSubscription),
+	op RegisterNodeFunc,
 ) (*Node, error) {
 	r.changedNodeNotifiersMutex.Lock()
 	defer r.changedNodeNotifiersMutex.Unlock()

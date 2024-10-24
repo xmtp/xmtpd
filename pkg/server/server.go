@@ -52,6 +52,7 @@ func NewReplicationServer(
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
 	blockchainPublisher blockchain.IBlockchainPublisher,
+	listenAddress string,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -147,7 +148,7 @@ func NewReplicationServer(
 	s.apiServer, err = api.NewAPIServer(
 		s.ctx,
 		log,
-		options.API.Port,
+		listenAddress,
 		options.Reflection.Enable,
 		serviceRegistrationFunc,
 	)

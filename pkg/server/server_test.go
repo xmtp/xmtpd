@@ -52,7 +52,7 @@ func NewTestServer(
 		API: config.ApiOptions{
 			Port: port,
 		},
-	}, registry, db, messagePublisher)
+	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port))
 	require.NoError(t, err)
 
 	return server

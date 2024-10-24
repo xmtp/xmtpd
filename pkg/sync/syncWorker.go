@@ -157,16 +157,19 @@ func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) {
 		return
 	}
 
-	s.handleNodeConnection(notifierCtx, err, node)
+	s.handleNodeConnection(notifierCtx, node)
 }
 
 func (s *syncWorker) handleNodeConnection(
 	notifierCtx context.Context,
-	err error,
 	node *registry.Node,
 ) {
 	var conn *grpc.ClientConn
 	var stream message_api.ReplicationApi_SubscribeEnvelopesClient
+	var err error
+
+	//mkysel we should eventually implement a better backoff strategy
+	var backoff = time.Second
 	for {
 		select {
 		case <-notifierCtx.Done():
@@ -176,7 +179,10 @@ func (s *syncWorker) handleNodeConnection(
 		default:
 			if err != nil {
 				s.log.Error(fmt.Sprintf("Error: %v, retrying...", err))
-				time.Sleep(1 * time.Second)
+				time.Sleep(backoff)
+				backoff = min(backoff*2, 30*time.Second)
+			} else {
+				backoff = time.Second
 			}
 
 			conn, err = s.connectToNode(*node)

@@ -17,7 +17,7 @@ type PayerEnvelope struct {
 
 func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, error) {
 	if proto == nil {
-		return nil, errors.New("proto is nil")
+		return nil, errors.New("payer envelope proto is nil")
 	}
 
 	clientEnv, err := NewClientEnvelopeFromBytes(proto.UnsignedClientEnvelope)

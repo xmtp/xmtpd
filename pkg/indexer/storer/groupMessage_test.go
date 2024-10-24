@@ -49,7 +49,7 @@ func TestStoreGroupMessages(t *testing.T) {
 	message := testutils.RandomBytes(30)
 	sequenceID := uint64(1)
 
-	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
+	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message, 0)
 
 	logMessage := testutils.BuildMessageSentLog(t, groupID, clientEnvelope, sequenceID)
 	var err error
@@ -92,7 +92,7 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	message := testutils.RandomBytes(30)
 	sequenceID := uint64(1)
 
-	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
+	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message, 0)
 
 	logMessage := testutils.BuildMessageSentLog(t, groupID, clientEnvelope, sequenceID)
 

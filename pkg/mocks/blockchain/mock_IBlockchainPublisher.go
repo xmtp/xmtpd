@@ -3,9 +3,9 @@
 package blockchain
 
 import (
-	context "context"
+	abis "github.com/xmtp/xmtpd/pkg/abis"
 
-	common "github.com/ethereum/go-ethereum/common"
+	context "context"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -24,23 +24,23 @@ func (_m *MockIBlockchainPublisher) EXPECT() *MockIBlockchainPublisher_Expecter 
 }
 
 // PublishGroupMessage provides a mock function with given fields: ctx, groupdId, message
-func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) (common.Hash, error) {
+func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) (*abis.GroupMessagesMessageSent, error) {
 	ret := _m.Called(ctx, groupdId, message)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PublishGroupMessage")
 	}
 
-	var r0 common.Hash
+	var r0 *abis.GroupMessagesMessageSent
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (common.Hash, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*abis.GroupMessagesMessageSent, error)); ok {
 		return rf(ctx, groupdId, message)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) common.Hash); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *abis.GroupMessagesMessageSent); ok {
 		r0 = rf(ctx, groupdId, message)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(common.Hash)
+			r0 = ret.Get(0).(*abis.GroupMessagesMessageSent)
 		}
 	}
 
@@ -73,34 +73,34 @@ func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Return(_a0 common.Hash, _a1 error) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Return(_a0 *abis.GroupMessagesMessageSent, _a1 error) *MockIBlockchainPublisher_PublishGroupMessage_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (common.Hash, error)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*abis.GroupMessagesMessageSent, error)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // PublishIdentityUpdate provides a mock function with given fields: ctx, inboxId, identityUpdate
-func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) (common.Hash, error) {
+func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) (*abis.IdentityUpdatesIdentityUpdateCreated, error) {
 	ret := _m.Called(ctx, inboxId, identityUpdate)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PublishIdentityUpdate")
 	}
 
-	var r0 common.Hash
+	var r0 *abis.IdentityUpdatesIdentityUpdateCreated
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (common.Hash, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*abis.IdentityUpdatesIdentityUpdateCreated, error)); ok {
 		return rf(ctx, inboxId, identityUpdate)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) common.Hash); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *abis.IdentityUpdatesIdentityUpdateCreated); ok {
 		r0 = rf(ctx, inboxId, identityUpdate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(common.Hash)
+			r0 = ret.Get(0).(*abis.IdentityUpdatesIdentityUpdateCreated)
 		}
 	}
 
@@ -133,12 +133,12 @@ func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Run(run func(ctx 
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Return(_a0 common.Hash, _a1 error) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
+func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Return(_a0 *abis.IdentityUpdatesIdentityUpdateCreated, _a1 error) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (common.Hash, error)) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
+func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*abis.IdentityUpdatesIdentityUpdateCreated, error)) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }

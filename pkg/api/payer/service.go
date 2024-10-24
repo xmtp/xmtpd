@@ -3,8 +3,10 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/xmtp/xmtpd/pkg/abis"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -18,6 +20,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type Service struct {
@@ -59,8 +62,8 @@ func (s *Service) PublishClientEnvelopes(
 
 	// For each originator found in the request, publish all matching envelopes to the node
 	for originatorId, payloadsWithIndex := range grouped.forNodes {
+		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorId))
 		originatorEnvelopes, err := s.publishToNodes(ctx, originatorId, payloadsWithIndex)
-
 		if err != nil {
 			s.log.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Error(codes.Internal, "error publishing payer envelopes")
@@ -73,6 +76,10 @@ func (s *Service) PublishClientEnvelopes(
 	}
 
 	for _, payload := range grouped.forBlockchain {
+		s.log.Info(
+			"publishing to blockchain",
+			zap.String("topic", payload.payload.TargetTopic().String()),
+		)
 		var originatorEnvelope *envelopesProto.OriginatorEnvelope
 		if originatorEnvelope, err = s.publishToBlockchain(ctx, payload.payload); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
@@ -80,7 +87,9 @@ func (s *Service) PublishClientEnvelopes(
 		out[payload.originalIndex] = originatorEnvelope
 	}
 
-	return nil, status.Errorf(codes.Unimplemented, "method PublishClientEnvelopes not implemented")
+	return &payer_api.PublishClientEnvelopesResponse{
+		OriginatorEnvelopes: out,
+	}, nil
 }
 
 // A struct that groups client envelopes by their intended destination
@@ -94,7 +103,7 @@ type groupedEnvelopes struct {
 func (s *Service) groupEnvelopes(
 	rawEnvelopes []*envelopesProto.ClientEnvelope,
 ) (*groupedEnvelopes, error) {
-	out := groupedEnvelopes{}
+	out := groupedEnvelopes{forNodes: make(map[uint32][]clientEnvelopeWithIndex)}
 
 	for i, rawClientEnvelope := range rawEnvelopes {
 		clientEnvelope, err := envelopes.NewClientEnvelope(rawClientEnvelope)
@@ -185,12 +194,40 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
+	var unsignedOriginatorEnvelope *envelopesProto.UnsignedOriginatorEnvelope
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		hash, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload)
+		var logMessage *abis.GroupMessagesMessageSent
+		if logMessage, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload); err != nil {
+			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
+		}
+		if logMessage == nil {
+			return nil, status.Errorf(codes.Internal, "received nil logMessage")
+		}
+
+		hash = logMessage.Raw.TxHash
+		unsignedOriginatorEnvelope = buildUnsignedOriginatorEnvelopeFromChain(
+			clientEnvelope.Aad().TargetOriginator,
+			logMessage.SequenceId,
+			logMessage.Message,
+		)
+
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		hash, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload)
+		var logMessage *abis.IdentityUpdatesIdentityUpdateCreated
+		if logMessage, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload); err != nil {
+			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
+		}
+		if logMessage == nil {
+			return nil, status.Errorf(codes.Internal, "received nil logMessage")
+		}
+
+		hash = logMessage.Raw.TxHash
+		unsignedOriginatorEnvelope = buildUnsignedOriginatorEnvelopeFromChain(
+			clientEnvelope.Aad().TargetOriginator,
+			logMessage.SequenceId,
+			logMessage.Update,
+		)
 	default:
 		return nil, status.Errorf(
 			codes.InvalidArgument,
@@ -198,22 +235,39 @@ func (s *Service) publishToBlockchain(
 			targetTopic.String(),
 		)
 	}
+
+	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			"error publishing group message: %v",
+			"error marshalling unsigned originator envelope: %v",
 			err,
 		)
 	}
 
 	return &envelopesProto.OriginatorEnvelope{
-		UnsignedOriginatorEnvelope: payload,
+		UnsignedOriginatorEnvelope: unsignedBytes,
 		Proof: &envelopesProto.OriginatorEnvelope_BlockchainProof{
 			BlockchainProof: &envelopesProto.BlockchainProof{
 				TransactionHash: hash.Bytes(),
 			},
 		},
 	}, nil
+}
+
+func buildUnsignedOriginatorEnvelopeFromChain(
+	targetOriginator uint32,
+	sequenceID uint64,
+	clientEnvelope []byte,
+) *envelopesProto.UnsignedOriginatorEnvelope {
+	return &envelopesProto.UnsignedOriginatorEnvelope{
+		OriginatorNodeId:     targetOriginator,
+		OriginatorSequenceId: sequenceID,
+		OriginatorNs:         time.Now().UnixNano(), // TODO: get this data from the chain
+		PayerEnvelope: &envelopesProto.PayerEnvelope{
+			UnsignedClientEnvelope: clientEnvelope,
+		},
+	}
 }
 
 func (s *Service) signAllClientEnvelopes(
@@ -256,7 +310,7 @@ func shouldSendToBlockchain(targetTopic topic.Topic, aad *envelopesProto.Authent
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		return true
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		return aad.TargetOriginator < constants.MAX_BLOCKCHAIN_ORIGINATOR_ID
+		return aad.TargetOriginator < uint32(constants.MAX_BLOCKCHAIN_ORIGINATOR_ID)
 	default:
 		return false
 	}

@@ -18,7 +18,7 @@ func NewUnsignedOriginatorEnvelope(
 	proto *envelopesProto.UnsignedOriginatorEnvelope,
 ) (*UnsignedOriginatorEnvelope, error) {
 	if proto == nil {
-		return nil, errors.New("proto is nil")
+		return nil, errors.New("unsigned originator envelopeproto is nil")
 	}
 
 	payer, err := NewPayerEnvelope(proto.PayerEnvelope)

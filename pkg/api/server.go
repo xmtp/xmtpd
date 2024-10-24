@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -33,11 +32,11 @@ type ApiServer struct {
 func NewAPIServer(
 	ctx context.Context,
 	log *zap.Logger,
-	port int,
+	listenAddress string,
 	enableReflection bool,
 	registrationFunc RegistrationFunc,
 ) (*ApiServer, error) {
-	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	grpcListener, err := net.Listen("tcp", listenAddress)
 
 	if err != nil {
 		return nil, err

@@ -109,6 +109,7 @@ func main() {
 			chainRegistry,
 			db,
 			blockchainPublisher,
+			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))

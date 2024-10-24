@@ -168,6 +168,7 @@ func (s *syncWorker) listenToStream(
 				"Stream closed with error: %v",
 				err)
 		}
+		s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))
 		for _, env := range envs.Envelopes {
 			s.insertEnvelope(env)
 		}

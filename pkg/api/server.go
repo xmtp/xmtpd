@@ -37,7 +37,7 @@ func NewAPIServer(
 	enableReflection bool,
 	registrationFunc RegistrationFunc,
 ) (*ApiServer, error) {
-	grpcListener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 
 	if err != nil {
 		return nil, err

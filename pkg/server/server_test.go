@@ -90,19 +90,17 @@ func TestCreateServer(t *testing.T) {
 
 	nodesChan := make(chan []r.Node)
 	cancelOnNewFunc := func() {
-		close(nodesChan) // Close the channel when cancel is called
+		close(nodesChan)
 	}
 	registry.On("OnNewNodes").
 		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(cancelOnNewFunc))
 
 	nodeChan := make(chan r.Node)
 
-	// Define a cancel function that matches the CancelSubscription type
 	cancelOnChangedFunc := func() {
-		close(nodeChan) // Close the channel when cancel is called
+		close(nodeChan)
 	}
 
-	// Mock the OnChangedNode method to return the channel and cancel function
 	registry.On("OnChangedNode", mock.AnythingOfType("uint32")).
 		Return((<-chan r.Node)(nodeChan), r.CancelSubscription(cancelOnChangedFunc))
 

@@ -261,7 +261,7 @@ func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
 	envs []*envelopes.OriginatorEnvelope,
 ) {
-	if listeners == nil {
+	if listeners == nil || len(envs) == 0 {
 		return
 	}
 	listeners.Range(func(key, _ any) bool {

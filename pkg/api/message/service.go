@@ -189,7 +189,9 @@ func (s *Service) sendEnvelopes(
 		envsToSend = append(envsToSend, env.Proto())
 		cursor[uint32(env.OriginatorNodeID())] = env.OriginatorSequenceID()
 	}
-
+	if len(envsToSend) == 0 {
+		return nil
+	}
 	err := stream.Send(&message_api.SubscribeEnvelopesResponse{
 		Envelopes: envsToSend,
 	})

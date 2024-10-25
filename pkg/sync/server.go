@@ -24,7 +24,6 @@ func NewSyncServer(
 	nodeRegistry registry.NodeRegistry,
 	registrant *registrant.Registrant,
 	store *sql.DB,
-
 ) (*SyncServer, error) {
 	worker, err := startSyncWorker(ctx, log, nodeRegistry, registrant, store)
 	if err != nil {

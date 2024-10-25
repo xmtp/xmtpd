@@ -32,7 +32,7 @@ func requireAllNodesEqual(t *testing.T, a, b []r.Node) {
 }
 
 func TestContractRegistryNewNodes(t *testing.T) {
-	registry, err := r.NewSmartContractRegistry(
+	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 100 * time.Millisecond},
@@ -61,9 +61,8 @@ func TestContractRegistryNewNodes(t *testing.T) {
 
 	sub, cancelSub := registry.OnNewNodes()
 	defer cancelSub()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	require.NoError(t, registry.Start(ctx))
+	require.NoError(t, registry.Start())
+	defer registry.Stop()
 	newNodes := <-sub
 	requireAllNodesEqual(t, []r.Node{
 		{NodeID: 1, HttpAddress: "http://foo.com"},
@@ -73,7 +72,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 }
 
 func TestContractRegistryChangedNodes(t *testing.T) {
-	registry, err := r.NewSmartContractRegistry(
+	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
@@ -115,15 +114,14 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	require.NoError(t, registry.Start(ctx))
+	require.NoError(t, registry.Start())
+	defer registry.Stop()
 	time.Sleep(100 * time.Millisecond)
 	require.Equal(t, getCurrentCount(), 1)
 }
 
 func TestStopOnContextCancel(t *testing.T) {
-	registry, err := r.NewSmartContractRegistry(
+	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
 		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
@@ -151,12 +149,12 @@ func TestStopOnContextCancel(t *testing.T) {
 	defer cancelSub()
 	getCurrentCount := r.CountChannel(sub)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	require.NoError(t, registry.Start(ctx))
+	require.NoError(t, registry.Start())
+
 	time.Sleep(100 * time.Millisecond)
 	require.Greater(t, getCurrentCount(), 0)
 	// Cancel the context
-	cancel()
+	registry.Stop()
 	// Wait for a little bit to give the cancellation time to take effect
 	time.Sleep(10 * time.Millisecond)
 	currentNodeCount := getCurrentCount()

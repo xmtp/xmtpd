@@ -15,6 +15,7 @@ type SyncServer struct {
 	registrant *registrant.Registrant
 	store      *sql.DB
 	worker     *syncWorker
+	cancel     context.CancelFunc
 }
 
 func NewSyncServer(
@@ -43,7 +44,7 @@ func NewSyncServer(
 }
 
 func (s *SyncServer) Close() {
-	s.log.Debug("closing")
+	s.log.Debug("Closing")
 	s.worker.close()
-	s.log.Debug("closed")
+	s.log.Debug("Closed")
 }

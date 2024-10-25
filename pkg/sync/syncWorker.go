@@ -30,6 +30,7 @@ type syncWorker struct {
 	wg                 sync.WaitGroup
 	subscriptions      map[uint32]struct{}
 	subscriptionsMutex sync.RWMutex
+	cancel             context.CancelFunc
 }
 
 type ExitLoopError struct {
@@ -47,6 +48,9 @@ func startSyncWorker(
 	registrant *registrant.Registrant,
 	store *sql.DB,
 ) (*syncWorker, error) {
+
+	ctx, cancel := context.WithCancel(ctx)
+
 	s := &syncWorker{
 		ctx:           ctx,
 		log:           log.Named("syncWorker"),
@@ -55,6 +59,7 @@ func startSyncWorker(
 		store:         store,
 		wg:            sync.WaitGroup{},
 		subscriptions: make(map[uint32]struct{}),
+		cancel:        cancel,
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -81,6 +86,7 @@ func (s *syncWorker) start() error {
 
 func (s *syncWorker) close() {
 	s.log.Debug("Closing sync worker")
+	s.cancel()
 	s.wg.Wait()
 	s.log.Debug("Closed sync worker")
 }

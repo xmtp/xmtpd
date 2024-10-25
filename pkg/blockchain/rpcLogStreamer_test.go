@@ -32,13 +32,13 @@ func buildStreamer(
 		topics:          []common.Hash{topic},
 		channel:         channel,
 	}
-	return NewRpcLogStreamer(client, log, []contractConfig{cfg}), channel
+	return NewRpcLogStreamer(context.Background(), client, log, []contractConfig{cfg}), channel
 }
 
 func TestBuilder(t *testing.T) {
 	testclient, err := NewClient(context.Background(), testutils.GetContractsOptions(t).RpcUrl)
 	require.NoError(t, err)
-	builder := NewRpcLogStreamBuilder(testclient, testutils.NewLog(t))
+	builder := NewRpcLogStreamBuilder(context.Background(), testclient, testutils.NewLog(t))
 
 	listenerChannel := builder.ListenForContractEvent(
 		1,

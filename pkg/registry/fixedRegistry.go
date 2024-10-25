@@ -51,3 +51,7 @@ func (f *FixedNodeRegistry) OnChangedNode(
 	}
 	return registry.register()
 }
+
+func (f *FixedNodeRegistry) Cancel() {
+	return
+}

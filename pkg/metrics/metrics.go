@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
 
@@ -18,6 +19,7 @@ type Server struct {
 	ctx  context.Context
 	log  *zap.Logger
 	http net.Listener
+	wg   sync.WaitGroup
 }
 
 func NewMetricsServer(
@@ -30,6 +32,7 @@ func NewMetricsServer(
 	s := &Server{
 		ctx: ctx,
 		log: log.Named("metrics"),
+		wg:  sync.WaitGroup{},
 	}
 
 	addr := fmt.Sprintf("%s:%d", address, port)
@@ -44,7 +47,7 @@ func NewMetricsServer(
 		Handler: promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}),
 	}
 
-	go tracing.PanicWrap(ctx, "metrics server", func(_ context.Context) {
+	tracing.GoPanicWrap(s.ctx, &s.wg, "metrics-server", func(ctx context.Context) {
 		s.log.Info("serving metrics http", zap.String("address", s.http.Addr().String()))
 		err = srv.Serve(s.http)
 		if err != nil {
@@ -55,8 +58,11 @@ func NewMetricsServer(
 	return s, nil
 }
 
-func (s *Server) Close() error {
-	return s.http.Close()
+func (s *Server) Close() {
+	s.log.Debug("Closing")
+	_ = s.http.Close()
+	s.wg.Wait()
+	s.log.Debug("Closed")
 }
 
 func registerCollectors(reg prometheus.Registerer) {

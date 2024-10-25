@@ -110,7 +110,6 @@ func (r *RpcLogStreamer) Start() {
 				r.watchContract(watcher)
 			})
 	}
-	return
 }
 
 func (r *RpcLogStreamer) watchContract(watcher contractConfig) {

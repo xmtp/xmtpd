@@ -15,7 +15,6 @@ type SyncServer struct {
 	registrant *registrant.Registrant
 	store      *sql.DB
 	worker     *syncWorker
-	cancel     context.CancelFunc
 }
 
 func NewSyncServer(

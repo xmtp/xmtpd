@@ -174,7 +174,7 @@ func (s *syncWorker) handleNodeConnection(
 	var stream message_api.ReplicationApi_SubscribeEnvelopesClient
 	var err error
 
-	//mkysel we should eventually implement a better backoff strategy
+	// TODO(mkysel) we should eventually implement a better backoff strategy
 	var backoff = time.Second
 	for {
 		select {

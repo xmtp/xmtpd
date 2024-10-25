@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -55,4 +56,8 @@ func (o *OriginatorEnvelope) OriginatorNodeID() uint32 {
 
 func (o *OriginatorEnvelope) OriginatorSequenceID() uint64 {
 	return o.UnsignedOriginatorEnvelope.OriginatorSequenceID()
+}
+
+func (o *OriginatorEnvelope) TargetTopic() topic.Topic {
+	return o.UnsignedOriginatorEnvelope.TargetTopic()
 }

@@ -15,8 +15,14 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
+var (
+	topicA = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicA")).Bytes()
+	topicB = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicB")).Bytes()
+	topicC = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicC")).Bytes()
+)
 var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
@@ -25,47 +31,47 @@ func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func())
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 1),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 1, topicA),
 			),
 		},
 		{
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelope(t, 2, 1),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 1, topicA),
 			),
 		},
 		// Later rows
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
-			Topic:                []byte("topicB"),
+			Topic:                topicB,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 2),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 2, topicB),
 			),
 		},
 		{
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
-			Topic:                []byte("topicB"),
+			Topic:                topicB,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelope(t, 2, 2),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 2, topicB),
 			),
 		},
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
-			Topic:                []byte("topicA"),
+			Topic:                topicA,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelope(t, 1, 3),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 3, topicA),
 			),
 		},
 	}
@@ -140,7 +146,7 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				Topics:   []db.Topic{topicA, topicC},
 				LastSeen: nil,
 			},
 		},
@@ -192,7 +198,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   []db.Topic{db.Topic("topicB")},
+				Topics:   []db.Topic{topicB},
 				LastSeen: nil,
 			},
 		},
@@ -227,7 +233,7 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				Topics:   []db.Topic{topicA, topicC},
 				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
 			},
 		},
@@ -249,7 +255,7 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:   []db.Topic{db.Topic("topicA"), []byte("topicC")},
+				Topics:   []db.Topic{topicA, topicC},
 				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
 			},
 		},
@@ -268,7 +274,7 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 		context.Background(),
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				Topics:            []db.Topic{db.Topic("topicA")},
+				Topics:            []db.Topic{topicA},
 				OriginatorNodeIds: []uint32{1},
 				LastSeen:          nil,
 			},

@@ -49,6 +49,10 @@ func NewRegistrant(
 
 	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID)
 
+	log.Info(
+		"Registrant identified",
+		zap.Uint32("nodeId", record.NodeID),
+	)
 	return &Registrant{
 		record:       record,
 		privateKey:   privateKey,

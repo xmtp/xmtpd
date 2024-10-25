@@ -5,6 +5,7 @@ package tracing
 import (
 	"context"
 	"os"
+	"runtime/pprof"
 	"sync"
 
 	"go.uber.org/zap"
@@ -109,10 +110,19 @@ func SpanTag(span Span, key string, value interface{}) {
 // GoPanicWrap extends PanicWrap by running the body in a goroutine and
 // synchronizing the goroutine exit with the WaitGroup.
 // The body must respect cancellation of the Context.
-func GoPanicWrap(ctx context.Context, wg *sync.WaitGroup, name string, body func(context.Context)) {
+func GoPanicWrap(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	name string,
+	body func(context.Context),
+	labels ...string,
+) {
 	wg.Add(1)
-	go func() {
+
+	expandedLabels := append(labels, "name", name)
+
+	go pprof.Do(ctx, pprof.Labels(expandedLabels...), func(ctx context.Context) {
 		defer wg.Done()
 		PanicWrap(ctx, name, body)
-	}()
+	})
 }

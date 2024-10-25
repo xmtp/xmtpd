@@ -3,7 +3,6 @@ package message
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 )
 
@@ -31,6 +31,7 @@ type listener struct {
 
 func newListener(
 	ctx context.Context,
+	logger *zap.Logger,
 	query *message_api.EnvelopesQuery,
 	ch chan<- []*envelopes.OriginatorEnvelope,
 ) *listener {
@@ -49,9 +50,14 @@ func newListener(
 		return l
 	}
 
-	for _, topic := range topics {
-		topicStr := hex.EncodeToString(topic)
-		l.topics[topicStr] = struct{}{}
+	for _, t := range topics {
+		validatedTopic, err := topic.ParseTopic(t)
+		if err != nil {
+			logger.Warn("Skipping invalid topic", zap.Binary("topicBytes", t))
+			continue
+		}
+		logger.Debug("Adding topic listener", zap.String("topic", validatedTopic.String()))
+		l.topics[validatedTopic.String()] = struct{}{}
 	}
 
 	for _, originator := range originators {
@@ -122,6 +128,12 @@ func (lm *listenersMap[K]) getListeners(key K) *listenerSet {
 	return nil
 }
 
+func (lm *listenersMap[K]) rangeKeys(fn func(key K, listeners *listenerSet) bool) {
+	lm.data.Range(func(key, value any) bool {
+		return fn(key.(K), value.(*listenerSet))
+	})
+}
+
 // A worker that listens for new envelopes in the DB and sends them to subscribers
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
 // and may be dropped if full
@@ -142,6 +154,7 @@ func startSubscribeWorker(
 	store *sql.DB,
 ) (*subscribeWorker, error) {
 	log = log.Named("subscribeWorker")
+	log.Info("Starting subscribe worker")
 	q := queries.New(store)
 	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := q.
@@ -198,32 +211,57 @@ func (s *subscribeWorker) start() {
 		case <-s.ctx.Done():
 			return
 		case new_batch := <-s.dbSubscription:
+			s.log.Debug("Received new batch", zap.Int("numEnvelopes", len(new_batch)))
+			envs := make([]*envelopes.OriginatorEnvelope, 0, len(new_batch))
 			for _, row := range new_batch {
-				s.dispatch(&row)
+				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
+				if err != nil {
+					s.log.Error("Failed to unmarshal envelope", zap.Error(err))
+					continue
+				}
+				envs = append(envs, env)
 			}
+			s.dispatchToOriginators(envs)
+			s.dispatchToTopics(envs)
+			s.dispatchToGlobals(envs)
 		}
 	}
 }
 
-func (s *subscribeWorker) dispatch(row *queries.GatewayEnvelope) {
-	env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
-	if err != nil {
-		s.log.Error("Failed to unmarshal envelope", zap.Error(err))
-		return
-	}
+func (s *subscribeWorker) dispatchToOriginators(envs []*envelopes.OriginatorEnvelope) {
+	// We use nested loops here because the number of originators is expected to be small
+	// Possible future optimization: Set up set up multiple DB subscriptions instead of one,
+	// and have the DB group by originator, topic, and global.
+	s.originatorListeners.rangeKeys(func(originator uint32, listeners *listenerSet) bool {
+		filteredEnvs := make([]*envelopes.OriginatorEnvelope, 0, len(envs))
+		for _, env := range envs {
+			if env.OriginatorNodeID() == originator {
+				filteredEnvs = append(filteredEnvs, env)
+			}
+		}
+		s.dispatchToListeners(listeners, filteredEnvs)
+		return true
+	})
+}
 
-	originatorListeners := s.originatorListeners.getListeners(uint32(row.OriginatorNodeID))
-	topicListeners := s.topicListeners.getListeners(hex.EncodeToString(row.Topic))
-	s.dispatchToListeners(originatorListeners, env)
-	s.dispatchToListeners(topicListeners, env)
-	s.dispatchToListeners(&s.globalListeners, env)
+func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope) {
+	// We iterate envelopes one-by-one, because we expect the number of envelopers
+	// per-topic to be small in each tick
+	for _, env := range envs {
+		listeners := s.topicListeners.getListeners(env.TargetTopic().String())
+		s.dispatchToListeners(listeners, []*envelopes.OriginatorEnvelope{env})
+	}
+}
+
+func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
+	s.dispatchToListeners(&s.globalListeners, envs)
 }
 
 func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
-	env *envelopes.OriginatorEnvelope,
+	envs []*envelopes.OriginatorEnvelope,
 ) {
-	if listeners == nil {
+	if listeners == nil || len(envs) == 0 {
 		return
 	}
 	listeners.Range(func(key, _ any) bool {
@@ -238,7 +276,7 @@ func (s *subscribeWorker) dispatchToListeners(
 			s.closeListener(l)
 		default:
 			select {
-			case l.ch <- []*envelopes.OriginatorEnvelope{env}:
+			case l.ch <- envs:
 			default:
 				s.log.Info("Channel full, removing listener", zap.Any("listener", l.ch))
 				s.closeListener(l)
@@ -269,7 +307,7 @@ func (s *subscribeWorker) listen(
 	query *message_api.EnvelopesQuery,
 ) <-chan []*envelopes.OriginatorEnvelope {
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
-	l := newListener(ctx, query, ch)
+	l := newListener(ctx, s.log, query, ch)
 
 	if l.isGlobal {
 		s.globalListeners.Store(l, struct{}{})

@@ -104,8 +104,8 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	svr, err := api.NewAPIServer(
 		ctx,
 		log,
-		0,    /*port*/
-		true, /*enableReflection*/
+		"localhost:0", /*listenAddress*/
+		true,          /*enableReflection*/
 		serviceRegistrationFunc,
 	)
 	require.NoError(t, err)

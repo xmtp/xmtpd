@@ -143,42 +143,38 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 				case <-ctx.Done():
 					return
 				default:
-					s.subscribeToNodeInner(ctx, nodeid)
+					config := s.setupNodeRegistration(ctx, nodeid)
+					s.subscribeToNodeRegistration(config)
 				}
 			}
 		})
 }
 
-func (s *syncWorker) subscribeToNodeInner(ctx context.Context, nodeid uint32) {
-
-	notifierCtx, notifierCancel := context.WithCancel(ctx)
-
-	node, err := s.setupNodeRegistration(notifierCancel, nodeid)
+func (s *syncWorker) subscribeToNodeRegistration(
+	registration NodeRegistration,
+) {
+	node, err := s.nodeRegistry.GetNode(registration.nodeid)
 	if err != nil {
+		// this should never happen
+		s.log.Error(fmt.Sprintf("Unexpected state: Failed to get node from registry: %v", err))
+		s.handleUnhealthyNode(registration)
 		return
 	}
 
 	if !node.IsHealthy || !node.IsValidConfig {
-		s.handleUnhealthyNode(notifierCtx)
+		s.handleUnhealthyNode(registration)
 		return
 	}
 
-	s.handleNodeConnection(notifierCtx, node)
-}
-
-func (s *syncWorker) handleNodeConnection(
-	notifierCtx context.Context,
-	node *registry.Node,
-) {
 	var conn *grpc.ClientConn
 	var stream message_api.ReplicationApi_SubscribeEnvelopesClient
-	var err error
+	err = nil
 
 	// TODO(mkysel) we should eventually implement a better backoff strategy
 	var backoff = time.Second
 	for {
 		select {
-		case <-notifierCtx.Done():
+		case <-registration.ctx.Done():
 			// either registry has changed or we are shutting down
 			s.log.Debug("Context is done. Closing stream and connection")
 			return
@@ -195,7 +191,7 @@ func (s *syncWorker) handleNodeConnection(
 			if err != nil {
 				continue
 			}
-			stream, err = s.setupStream(notifierCtx, *node, conn)
+			stream, err = s.setupStream(registration.ctx, *node, conn)
 			if err != nil {
 				continue
 			}
@@ -204,17 +200,24 @@ func (s *syncWorker) handleNodeConnection(
 	}
 }
 
-func (s *syncWorker) handleUnhealthyNode(notifierCtx context.Context) {
+func (s *syncWorker) handleUnhealthyNode(registration NodeRegistration) {
 	// keep the goroutine idle
 	// this will exit the goroutine during shutdown or if the config changed
-	<-notifierCtx.Done()
+	<-registration.ctx.Done()
 	s.log.Debug("Node configuration has changed. Closing stream and connection")
 }
 
+type NodeRegistration struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	nodeid uint32
+}
+
 func (s *syncWorker) setupNodeRegistration(
-	notifierCancel context.CancelFunc,
+	ctx context.Context,
 	nodeid uint32,
-) (*registry.Node, error) {
+) NodeRegistration {
+	notifierCtx, notifierCancel := context.WithCancel(ctx)
 	registryChan, cancelSub := s.nodeRegistry.OnChangedNode(nodeid)
 
 	tracing.GoPanicWrap(
@@ -238,11 +241,7 @@ func (s *syncWorker) setupNodeRegistration(
 		},
 	)
 
-	// the nodeRegistry lock gets release between OnChangedNode and GetNode so we might end up in situation
-	// where a change gets processed in between
-	// this would lead to an unnecessary rebuild of the connection, which is infrequent and okay
-
-	return s.nodeRegistry.GetNode(nodeid)
+	return NodeRegistration{ctx: notifierCtx, cancel: notifierCancel, nodeid: nodeid}
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {

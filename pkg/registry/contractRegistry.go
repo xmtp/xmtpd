@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"errors"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ Given how infrequently this list changes, that trade-off seems acceptable.
 */
 type SmartContractRegistry struct {
 	ctx      context.Context
+	wg       sync.WaitGroup
 	contract NodesContract
 	logger   *zap.Logger
 	// How frequently to poll the smart contract
@@ -41,13 +43,16 @@ type SmartContractRegistry struct {
 	newNodesNotifier          *notifier[[]Node]
 	changedNodeNotifiers      map[uint32]*notifier[Node]
 	changedNodeNotifiersMutex sync.RWMutex
+	cancel                    context.CancelFunc
 }
 
 func NewSmartContractRegistry(
+	ctx context.Context,
 	ethclient bind.ContractCaller,
 	logger *zap.Logger,
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
+
 	contract, err := abis.NewNodesCaller(
 		common.HexToAddress(options.NodesContractAddress),
 		ethclient,
@@ -57,13 +62,17 @@ func NewSmartContractRegistry(
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &SmartContractRegistry{
+		ctx:                  ctx,
 		contract:             contract,
 		refreshInterval:      options.RefreshInterval,
 		logger:               logger.Named("smartContractRegistry"),
 		newNodesNotifier:     newNotifier[[]Node](),
 		nodes:                make(map[uint32]Node),
 		changedNodeNotifiers: make(map[uint32]*notifier[Node]),
+		cancel:               cancel,
 	}, nil
 }
 
@@ -74,14 +83,18 @@ Loads the initial state from the contract and starts a background refresh loop.
 To stop refreshing callers should cancel the context
 *
 */
-func (s *SmartContractRegistry) Start(ctx context.Context) error {
-	s.ctx = ctx
+func (s *SmartContractRegistry) Start() error {
 	// If we can't load the data at least once, fail to start the service
 	if err := s.refreshData(); err != nil {
 		return err
 	}
 
-	go s.refreshLoop()
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		"smart-contract-registry",
+		func(ctx context.Context) { s.refreshLoop() },
+	)
 
 	return nil
 }
@@ -236,4 +249,9 @@ func convertNode(rawNode abis.NodesNodeWithId) Node {
 		IsHealthy:     rawNode.Node.IsHealthy,
 		IsValidConfig: isValidConfig,
 	}
+}
+
+func (f *SmartContractRegistry) Stop() {
+	f.cancel()
+	f.wg.Wait()
 }

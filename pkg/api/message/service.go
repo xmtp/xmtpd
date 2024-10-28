@@ -66,7 +66,7 @@ func NewReplicationApiService(
 }
 
 func (s *Service) Close() {
-	s.log.Info("closed")
+	s.log.Debug("closed")
 }
 
 func (s *Service) SubscribeEnvelopes(
@@ -111,7 +111,7 @@ func (s *Service) SubscribeEnvelopes(
 			log.Debug("stream closed")
 			return nil
 		case <-s.ctx.Done():
-			log.Info("service closed")
+			log.Debug("service closed")
 			return nil
 		}
 	}

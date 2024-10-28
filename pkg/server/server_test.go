@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
 
@@ -24,8 +25,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const server1NodeID = 100
-const server2NodeID = 200
+const server1NodeID = uint32(100)
+const server2NodeID = uint32(200)
 const server1Port = 1111
 const server2Port = 2222
 
@@ -68,8 +69,7 @@ func TestCreateServer(t *testing.T) {
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	registry := mocks.NewMockNodeRegistry(t)
-	registry.On("GetNodes").Return([]r.Node{
+	nodes := []r.Node{
 		{
 			NodeID:        server1NodeID,
 			SigningKey:    &privateKey1.PublicKey,
@@ -83,8 +83,29 @@ func TestCreateServer(t *testing.T) {
 			HttpAddress:   fmt.Sprintf("http://localhost:%d", server2Port),
 			IsHealthy:     true,
 			IsValidConfig: true,
-		},
-	}, nil)
+		}}
+
+	registry := mocks.NewMockNodeRegistry(t)
+	registry.On("GetNodes").Return(nodes, nil)
+
+	nodesChan := make(chan []r.Node)
+	cancelOnNewFunc := func() {
+		close(nodesChan)
+	}
+	registry.On("OnNewNodes").
+		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(cancelOnNewFunc))
+
+	nodeChan := make(chan r.Node)
+
+	cancelOnChangedFunc := func() {
+		close(nodeChan)
+	}
+
+	registry.On("OnChangedNode", mock.AnythingOfType("uint32")).
+		Return((<-chan r.Node)(nodeChan), r.CancelSubscription(cancelOnChangedFunc))
+
+	registry.On("GetNode", server1NodeID).Return(&nodes[0], nil)
+	registry.On("GetNode", server2NodeID).Return(&nodes[1], nil)
 
 	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
 	server2 := NewTestServer(t, server2Port, dbs[1], registry, privateKey2)

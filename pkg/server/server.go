@@ -39,6 +39,7 @@ type ReplicationServer struct {
 	log          *zap.Logger
 	registrant   *registrant.Registrant
 	nodeRegistry registry.NodeRegistry
+	indx         *indexer.Indexer
 	options      config.ServerOptions
 	metrics      *metrics.Server
 	writerDB     *sql.DB
@@ -100,9 +101,8 @@ func NewReplicationServer(
 		return nil, err
 	}
 
-	err = indexer.StartIndexer(
-		s.ctx,
-		log,
+	s.indx = indexer.NewIndexer(ctx, log)
+	err = s.indx.StartIndexer(
 		s.writerDB,
 		options.Contracts,
 		validationService,
@@ -183,15 +183,25 @@ func (s *ReplicationServer) WaitForShutdown() {
 }
 
 func (s *ReplicationServer) Shutdown() {
-	// Close metrics server.
 	if s.metrics != nil {
-		if err := s.metrics.Close(); err != nil {
-			s.log.Error("stopping metrics", zap.Error(err))
-		}
+		s.metrics.Close()
+	}
+
+	if s.syncServer != nil {
+		s.syncServer.Close()
+	}
+
+	if s.nodeRegistry != nil {
+		s.nodeRegistry.Stop()
+	}
+
+	if s.indx != nil {
+		s.indx.Close()
 	}
 
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}
+
 	s.cancel()
 }

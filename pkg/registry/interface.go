@@ -26,4 +26,5 @@ type NodeRegistry interface {
 	GetNode(uint32) (*Node, error)
 	OnNewNodes() (<-chan []Node, CancelSubscription)
 	OnChangedNode(uint32) (<-chan Node, CancelSubscription)
+	Stop()
 }

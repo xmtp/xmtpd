@@ -3,6 +3,8 @@ package indexer
 import (
 	"context"
 	"database/sql"
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,52 +20,102 @@ import (
 	"go.uber.org/zap"
 )
 
-// Start the indexer and run until the context is canceled
-func StartIndexer(
+type Indexer struct {
+	ctx      context.Context
+	log      *zap.Logger
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	streamer *builtStreamer
+}
+
+func NewIndexer(
 	ctx context.Context,
-	logger *zap.Logger,
+	log *zap.Logger,
+
+) *Indexer {
+	ctx, cancel := context.WithCancel(ctx)
+	return &Indexer{
+		ctx:      ctx,
+		log:      log.Named("indexer"),
+		cancel:   cancel,
+		streamer: nil,
+	}
+}
+
+func (s *Indexer) Close() {
+	s.log.Debug("Closing")
+	if s.streamer != nil {
+		s.streamer.streamer.Stop()
+	}
+	s.cancel()
+	s.wg.Wait()
+	s.log.Debug("Closed")
+}
+
+func (i *Indexer) StartIndexer(
 	db *sql.DB,
 	cfg config.ContractsOptions,
-	validationService mlsvalidate.MLSValidationService,
-) error {
-	client, err := blockchain.NewClient(ctx, cfg.RpcUrl)
+	validationService mlsvalidate.MLSValidationService) error {
+	client, err := blockchain.NewClient(i.ctx, cfg.RpcUrl)
 	if err != nil {
 		return err
 	}
-	builder := blockchain.NewRpcLogStreamBuilder(client, logger)
+	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, client, i.log)
 	querier := queries.New(db)
 
-	streamer, err := configureLogStream(builder, cfg)
+	streamer, err := configureLogStream(i.ctx, builder, cfg)
 	if err != nil {
 		return err
 	}
+	i.streamer = streamer
 
 	messagesContract, err := messagesContract(cfg, client)
 	if err != nil {
 		return err
 	}
 
-	go indexLogs(
-		ctx,
-		streamer.messagesChannel,
-		logger.Named("indexLogs").With(zap.String("contractAddress", cfg.MessagesContractAddress)),
-		storer.NewGroupMessageStorer(querier, logger, messagesContract),
-	)
+	tracing.GoPanicWrap(
+		i.ctx,
+		&i.wg,
+		"indexer-messages",
+		func(ctx context.Context) {
+			indexingLogger := i.log.Named("messages").
+				With(zap.String("contractAddress", cfg.MessagesContractAddress))
+
+			indexLogs(
+				ctx,
+				streamer.messagesChannel,
+				indexingLogger,
+				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
+			)
+		})
 
 	identityUpdatesContract, err := identityUpdatesContract(cfg, client)
 	if err != nil {
 		return err
 	}
 
-	go indexLogs(
-		ctx,
-		streamer.identityUpdatesChannel,
-		logger.Named("indexLogs").
-			With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress)),
-		storer.NewIdentityUpdateStorer(db, logger, identityUpdatesContract, validationService),
-	)
+	tracing.GoPanicWrap(
+		i.ctx,
+		&i.wg,
+		"indexer-identities",
+		func(ctx context.Context) {
+			indexingLogger := i.log.Named("identity").
+				With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress))
+			indexLogs(
+				ctx,
+				streamer.identityUpdatesChannel, indexingLogger,
+				storer.NewIdentityUpdateStorer(
+					db,
+					indexingLogger,
+					identityUpdatesContract,
+					validationService,
+				),
+			)
+		})
 
-	return streamer.streamer.Start(ctx)
+	i.streamer.streamer.Start()
+	return nil
 }
 
 type builtStreamer struct {
@@ -73,6 +125,7 @@ type builtStreamer struct {
 }
 
 func configureLogStream(
+	ctx context.Context,
 	builder *blockchain.RpcLogStreamBuilder,
 	cfg config.ContractsOptions,
 ) (*builtStreamer, error) {
@@ -142,7 +195,7 @@ func indexLogs(
 
 		}
 	}
-	logger.Info("finished")
+	logger.Debug("finished")
 }
 
 func buildMessagesTopic() (common.Hash, error) {

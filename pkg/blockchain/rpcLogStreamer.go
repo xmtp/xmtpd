@@ -2,7 +2,10 @@ package blockchain
 
 import (
 	"context"
+	"fmt"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -25,13 +28,18 @@ const (
 // The builder that allows you to configure contract events to listen for
 type RpcLogStreamBuilder struct {
 	// All the listeners
+	ctx             context.Context
 	contractConfigs []contractConfig
 	logger          *zap.Logger
 	ethclient       *ethclient.Client
 }
 
-func NewRpcLogStreamBuilder(client *ethclient.Client, logger *zap.Logger) *RpcLogStreamBuilder {
-	return &RpcLogStreamBuilder{ethclient: client, logger: logger}
+func NewRpcLogStreamBuilder(
+	ctx context.Context,
+	client *ethclient.Client,
+	logger *zap.Logger,
+) *RpcLogStreamBuilder {
+	return &RpcLogStreamBuilder{ctx: ctx, ethclient: client, logger: logger}
 }
 
 func (c *RpcLogStreamBuilder) ListenForContractEvent(
@@ -48,7 +56,7 @@ func (c *RpcLogStreamBuilder) ListenForContractEvent(
 }
 
 func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
-	return NewRpcLogStreamer(c.ethclient, c.logger, c.contractConfigs), nil
+	return NewRpcLogStreamer(c.ctx, c.ethclient, c.logger, c.contractConfigs), nil
 }
 
 // Struct defining all the information required to filter events from logs
@@ -71,27 +79,37 @@ type RpcLogStreamer struct {
 	watchers []contractConfig
 	ctx      context.Context
 	logger   *zap.Logger
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
 }
 
 func NewRpcLogStreamer(
+	ctx context.Context,
 	client ChainClient,
 	logger *zap.Logger,
 	watchers []contractConfig,
 ) *RpcLogStreamer {
+	ctx, cancel := context.WithCancel(ctx)
 	return &RpcLogStreamer{
+		ctx:      ctx,
 		client:   client,
 		watchers: watchers,
 		logger:   logger.Named("rpcLogStreamer"),
+		cancel:   cancel,
+		wg:       sync.WaitGroup{},
 	}
 }
 
-func (r *RpcLogStreamer) Start(ctx context.Context) error {
-	r.ctx = ctx
-
+func (r *RpcLogStreamer) Start() {
 	for _, watcher := range r.watchers {
-		go r.watchContract(watcher)
+		tracing.GoPanicWrap(
+			r.ctx,
+			&r.wg,
+			fmt.Sprintf("rpcLogStreamer-watcher-%v", watcher.contractAddress),
+			func(ctx context.Context) {
+				r.watchContract(watcher)
+			})
 	}
-	return nil
 }
 
 func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
@@ -101,7 +119,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 	for {
 		select {
 		case <-r.ctx.Done():
-			logger.Info("Stopping watcher")
+			logger.Debug("Stopping watcher")
 			return
 		default:
 			logs, nextBlock, err := r.getNextPage(watcher, fromBlock)
@@ -187,4 +205,8 @@ func buildFilterQuery(
 		Addresses: addresses,
 		Topics:    topics,
 	}
+}
+func (r *RpcLogStreamer) Stop() {
+	r.cancel()
+	r.wg.Wait()
 }

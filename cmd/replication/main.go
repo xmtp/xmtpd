@@ -72,6 +72,7 @@ func main() {
 		}
 
 		chainRegistry, err := registry.NewSmartContractRegistry(
+			ctx,
 			ethclient,
 			logger,
 			options.Contracts,
@@ -79,7 +80,7 @@ func main() {
 		if err != nil {
 			logger.Fatal("initializing smart contract registry", zap.Error(err))
 		}
-		err = chainRegistry.Start(ctx)
+		err = chainRegistry.Start()
 		if err != nil {
 			logger.Fatal("starting smart contract registry", zap.Error(err))
 		}

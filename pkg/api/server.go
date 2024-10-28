@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/grpc/reflection"
 
+	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pires/go-proxyproto"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -17,6 +18,10 @@ import (
 	"google.golang.org/grpc/health"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
+)
+
+var (
+	prometheusOnce sync.Once
 )
 
 type RegistrationFunc func(server *grpc.Server) error
@@ -52,8 +57,16 @@ func NewAPIServer(
 	}
 	s.log.Info("Creating API server")
 
-	// TODO: Add interceptors
+	prometheusOnce.Do(func() {
+		prometheus.EnableHandlingTimeHistogram()
+	})
+
+	unary := []grpc.UnaryServerInterceptor{prometheus.UnaryServerInterceptor}
+	stream := []grpc.StreamServerInterceptor{prometheus.StreamServerInterceptor}
+
 	options := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(unary...),
+		grpc.ChainStreamInterceptor(stream...),
 		grpc.Creds(insecure.NewCredentials()),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time: 5 * time.Minute,

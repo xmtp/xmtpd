@@ -46,9 +46,6 @@ type ReplicationServer struct {
 	// Can add reader DB later if needed
 }
 
-type ShutdownHandle struct {
-}
-
 func NewReplicationServer(
 	ctx context.Context,
 	log *zap.Logger,

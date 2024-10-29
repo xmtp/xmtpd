@@ -115,7 +115,7 @@ func (r *RpcLogStreamer) Start() {
 }
 
 func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
-	fromBlock := int(watcher.fromBlock)
+	fromBlock := watcher.fromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
 	startTime := time.Now()
 	defer close(watcher.channel)
@@ -144,6 +144,8 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 				}
 				continue
 			}
+			// reset self-termination timer
+			startTime = time.Now()
 
 			logger.Debug("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
 			if len(logs) == 0 {

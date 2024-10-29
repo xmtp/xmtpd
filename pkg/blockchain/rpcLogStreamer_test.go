@@ -4,6 +4,7 @@ import (
 	"context"
 	big "math/big"
 	"testing"
+	"time"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -43,7 +44,7 @@ func TestBuilder(t *testing.T) {
 	listenerChannel := builder.ListenForContractEvent(
 		1,
 		testutils.RandomAddress(),
-		[]common.Hash{testutils.RandomLogTopic()},
+		[]common.Hash{testutils.RandomLogTopic()}, 5*time.Minute,
 	)
 	require.NotNil(t, listenerChannel)
 

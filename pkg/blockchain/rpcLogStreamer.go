@@ -46,11 +46,12 @@ func (c *RpcLogStreamBuilder) ListenForContractEvent(
 	fromBlock int,
 	contractAddress common.Address,
 	topics []common.Hash,
+	maxDisconnectTime time.Duration,
 ) <-chan types.Log {
 	eventChannel := make(chan types.Log, 100)
 	c.contractConfigs = append(
 		c.contractConfigs,
-		contractConfig{fromBlock, contractAddress, topics, eventChannel},
+		contractConfig{fromBlock, contractAddress, topics, eventChannel, maxDisconnectTime},
 	)
 	return eventChannel
 }
@@ -61,10 +62,11 @@ func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
 
 // Struct defining all the information required to filter events from logs
 type contractConfig struct {
-	fromBlock       int
-	contractAddress common.Address
-	topics          []common.Hash
-	channel         chan<- types.Log
+	fromBlock         int
+	contractAddress   common.Address
+	topics            []common.Hash
+	channel           chan<- types.Log
+	maxDisconnectTime time.Duration
 }
 
 /*
@@ -113,8 +115,9 @@ func (r *RpcLogStreamer) Start() {
 }
 
 func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
-	fromBlock := int(watcher.fromBlock)
+	fromBlock := watcher.fromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
+	startTime := time.Now()
 	defer close(watcher.channel)
 	for {
 		select {
@@ -130,8 +133,19 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 					zap.Error(err),
 				)
 				time.Sleep(ERROR_SLEEP_TIME)
+
+				if time.Since(startTime) > watcher.maxDisconnectTime {
+					logger.Error(
+						"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
+					)
+					panic(
+						"Max disconnect time exceeded. Node might drift too far away from expected state",
+					)
+				}
 				continue
 			}
+			// reset self-termination timer
+			startTime = time.Now()
 
 			logger.Debug("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
 			if len(logs) == 0 {

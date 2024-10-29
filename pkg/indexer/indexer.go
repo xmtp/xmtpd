@@ -138,6 +138,7 @@ func configureLogStream(
 		0,
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
+		cfg.MaxChainDisconnectTime,
 	)
 
 	identityUpdatesTopic, err := buildIdentityUpdatesTopic()
@@ -149,6 +150,7 @@ func configureLogStream(
 		0,
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
+		cfg.MaxChainDisconnectTime,
 	)
 
 	streamer, err := builder.Build()

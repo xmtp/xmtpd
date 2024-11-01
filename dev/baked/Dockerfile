@@ -7,7 +7,9 @@ WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update &&  \
-    apt-get install -y curl git jq
+    apt-get install -y curl git jq && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN curl -L https://foundry.paradigm.xyz | bash && \
     source ~/.bashrc && \
@@ -16,6 +18,8 @@ RUN curl -L https://foundry.paradigm.xyz | bash && \
 
 COPY . .
 
+# It seems that anvil flushes the file to disk on shutdown and it takes a few ms to be persisted
+# That gives us the pkill+sleep requirement
 RUN dev/docker/anvil-background && \
     dev/contracts/deploy-local && \
     dev/register-local-node && \

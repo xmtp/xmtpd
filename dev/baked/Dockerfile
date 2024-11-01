@@ -11,7 +11,7 @@ RUN apt-get update &&  \
 
 RUN curl -L https://foundry.paradigm.xyz | bash && \
     source ~/.bashrc && \
-    foundryup &&  \
+    foundryup -v nightly-2044faec64f99a21f0e5f0094458a973612d0712 &&  \
     cp ~/.foundry/bin/* /usr/local/bin
 
 COPY . .
@@ -24,7 +24,7 @@ RUN dev/docker/anvil-background && \
 
 # ACTUAL IMAGE -------------------------------------------------------
 
-FROM ghcr.io/foundry-rs/foundry
+FROM ghcr.io/foundry-rs/foundry:nightly-2044faec64f99a21f0e5f0094458a973612d0712
 
 LABEL maintainer="engineering@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"

@@ -24,18 +24,14 @@ RUN dev/docker/anvil-background && \
 
 # ACTUAL IMAGE -------------------------------------------------------
 
-FROM debian:bookworm
+FROM ghcr.io/foundry-rs/foundry
 
 LABEL maintainer="engineering@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"
-LABEL description="XMTP Node Software"
+LABEL description="Foundry with XMTPD Node contracts and registrations"
 
-# color, nocolor, json
-ENV GOLOG_LOG_FMT=nocolor
+EXPOSE 8545
 
-EXPOSE 5050
-
-COPY --from=builder /usr/local/bin/anvil /usr/bin/
 COPY --from=builder /app/anvil-baked-state anvil-baked-state
 
-CMD ["anvil", "--state", "anvil-baked-state"]
+CMD ["anvil", "--state", "anvil-baked-state", "--host", "0.0.0.0"]

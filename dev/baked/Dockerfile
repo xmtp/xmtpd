@@ -20,11 +20,12 @@ RUN dev/docker/anvil-background && \
     dev/contracts/deploy-local && \
     dev/register-local-node && \
     dev/register-local-node-2 && \
+    pkill -f anvil && \
     sleep 5
 
 # ACTUAL IMAGE -------------------------------------------------------
 
-FROM ghcr.io/foundry-rs/foundry:nightly-2044faec64f99a21f0e5f0094458a973612d0712
+FROM ghcr.io/foundry-rs/foundry
 
 LABEL maintainer="engineering@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"

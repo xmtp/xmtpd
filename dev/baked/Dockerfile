@@ -23,6 +23,10 @@ RUN dev/docker/anvil-background && \
     pkill -f anvil && \
     sleep 5
 
+RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' build/Nodes.json)"" >> contracts.env && \
+    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.deployedTo' build/GroupMessages.json)""  >> contracts.env && \
+    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.deployedTo' build/IdentityUpdates.json)""  >> contracts.env
+
 # ACTUAL IMAGE -------------------------------------------------------
 
 FROM ghcr.io/foundry-rs/foundry
@@ -34,5 +38,6 @@ LABEL description="Foundry with XMTPD Node contracts and registrations"
 EXPOSE 8545
 
 COPY --from=builder /app/anvil-baked-state anvil-baked-state
+COPY --from=builder /app/contracts.env contracts.env
 
-CMD ["anvil", "--state", "anvil-baked-state", "--host", "0.0.0.0"]
+ENTRYPOINT ["anvil", "--state", "anvil-baked-state"]

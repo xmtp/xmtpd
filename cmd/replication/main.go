@@ -22,15 +22,17 @@ var Commit string = "unknown"
 var options config.ServerOptions
 
 func main() {
-	if _, err := flags.Parse(&options); err != nil {
-		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
-			fatal("Could not parse options: %s", err)
-		}
-		return
-	}
+	_, err := flags.Parse(&options)
 
 	if options.Version {
 		fmt.Printf("Version: %s\n", Commit)
+		return
+	}
+
+	if err != nil {
+		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
+			fatal("Could not parse options: %s", err)
+		}
 		return
 	}
 

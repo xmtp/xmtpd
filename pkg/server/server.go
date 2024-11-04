@@ -112,18 +112,23 @@ func NewReplicationServer(
 	}
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		replicationService, err := message.NewReplicationApiService(
-			ctx,
-			log,
-			s.registrant,
-			writerDB,
-		)
-		if err != nil {
-			return err
-		}
-		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-		if options.Payer.EnableAPI {
+		if options.Replication.Enable {
+			replicationService, err := message.NewReplicationApiService(
+				ctx,
+				log,
+				s.registrant,
+				writerDB,
+			)
+			if err != nil {
+				return err
+			}
+			message_api.RegisterReplicationApiServer(grpcServer, replicationService)
+
+			log.Info("Replication service enabled")
+		}
+
+		if options.Payer.Enable {
 			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(options.Payer.PrivateKey)
 			if err != nil {
 				return err
@@ -139,35 +144,43 @@ func NewReplicationServer(
 				return err
 			}
 			payer_api.RegisterPayerApiServer(grpcServer, payerService)
+
+			log.Info("Payer service enabled")
 		}
 
 		return nil
 	}
 
-	// TODO(rich): Add configuration to specify whether to run API/sync server
-	s.apiServer, err = api.NewAPIServer(
-		s.ctx,
-		log,
-		listenAddress,
-		options.Reflection.Enable,
-		serviceRegistrationFunc,
-	)
-	if err != nil {
-		return nil, err
+	if options.Payer.Enable || options.Replication.Enable {
+		s.apiServer, err = api.NewAPIServer(
+			s.ctx,
+			log,
+			listenAddress,
+			options.Reflection.Enable,
+			serviceRegistrationFunc,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Info("API server started", zap.Int("port", options.API.Port))
 	}
 
-	s.syncServer, err = sync.NewSyncServer(
-		s.ctx,
-		log,
-		s.nodeRegistry,
-		s.registrant,
-		s.writerDB,
-	)
-	if err != nil {
-		return nil, err
+	if options.Sync.Enable {
+		s.syncServer, err = sync.NewSyncServer(
+			s.ctx,
+			log,
+			s.nodeRegistry,
+			s.registrant,
+			s.writerDB,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Info("Sync server started")
 	}
 
-	log.Info("Replication server started", zap.Int("port", options.API.Port))
 	return s, nil
 }
 

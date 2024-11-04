@@ -1,5 +1,6 @@
 # BUILD IMAGE --------------------------------------------------------
 ARG GO_VERSION=1.22
+ARG FOUNDRY_VERSION=nightly
 FROM golang:${GO_VERSION}-bookworm as builder
 
 WORKDIR /app
@@ -13,7 +14,7 @@ RUN apt-get update &&  \
 
 RUN curl -L https://foundry.paradigm.xyz | bash && \
     source ~/.bashrc && \
-    foundryup -v nightly-2044faec64f99a21f0e5f0094458a973612d0712 &&  \
+    foundryup -v "${FOUNDRY_VERSION}" &&  \
     cp ~/.foundry/bin/* /usr/local/bin
 
 COPY . .

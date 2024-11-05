@@ -54,6 +54,16 @@ func NewTestServer(
 		API: config.ApiOptions{
 			Port: port,
 		},
+		Sync: config.SyncOptions{
+			Enable: true,
+		},
+		Replication: config.ReplicationOptions{
+			Enable: true,
+		},
+		//TODO(mkysel): this is not fully mocked yet
+		//Payer: config.PayerOptions{
+		//	Enable: true,
+		//},
 	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port))
 	require.NoError(t, err)
 

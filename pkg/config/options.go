@@ -36,7 +36,15 @@ type MetricsOptions struct {
 
 type PayerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions" required:"true"`
-	EnableAPI  bool   `long:"enable-api"  env:"XMTPD_PAYER_ENABLE_API"  description:"Enable the payer API"`
+	Enable     bool   `long:"enable"      env:"XMTPD_PAYER_ENABLE"      description:"Enable the payer API"`
+}
+
+type ReplicationOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_REPLICATION_ENABLE" description:"Enable the replication API"`
+}
+
+type SyncOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_SYNC_ENABLE" description:"Enable the sync server"`
 }
 
 type MlsValidationOptions struct {
@@ -90,14 +98,16 @@ type RegisterNodeOptions struct {
 
 type ServerOptions struct {
 	API           ApiOptions           `group:"API Options"            namespace:"api"`
-	DB            DbOptions            `group:"Database Options"       namespace:"db"`
 	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
+	DB            DbOptions            `group:"Database Options"       namespace:"db"`
+	Log           LogOptions           `group:"Log Options"            namespace:"log"`
 	Metrics       MetricsOptions       `group:"Metrics Options"        namespace:"metrics"`
+	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
 	Payer         PayerOptions         `group:"Payer Options"          namespace:"payer"`
 	Reflection    ReflectionOptions    `group:"Reflection Options"     namespace:"reflection"`
-	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
-	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
-	Log           LogOptions           `group:"Log Options"            namespace:"log"`
+	Replication   ReplicationOptions   `group:"Replication Options"    namespace:"replication"`
 	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`
+	Sync          SyncOptions          `group:"Sync Options"           namespace:"sync"`
+	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
 	Version       bool                 `                                                          short:"v" long:"version" description:"Output binary version and exit"`
 }

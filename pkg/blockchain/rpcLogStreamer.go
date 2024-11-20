@@ -3,10 +3,11 @@ package blockchain
 import (
 	"context"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,10 +18,10 @@ import (
 )
 
 const (
-	BACKFILL_BLOCKS = 1000
+	BACKFILL_BLOCKS = uint64(1000)
 	// Don't index very new blocks to account for reorgs
 	// Setting to 0 since we are talking about L2s with low reorg risk
-	LAG_FROM_HIGHEST_BLOCK = 0
+	LAG_FROM_HIGHEST_BLOCK = uint64(0)
 	ERROR_SLEEP_TIME       = 100 * time.Millisecond
 	NO_LOGS_SLEEP_TIME     = 1 * time.Second
 )
@@ -43,7 +44,7 @@ func NewRpcLogStreamBuilder(
 }
 
 func (c *RpcLogStreamBuilder) ListenForContractEvent(
-	fromBlock int,
+	fromBlock uint64,
 	contractAddress common.Address,
 	topics []common.Hash,
 	maxDisconnectTime time.Duration,
@@ -62,7 +63,7 @@ func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
 
 // Struct defining all the information required to filter events from logs
 type contractConfig struct {
-	fromBlock         int
+	fromBlock         uint64
 	contractAddress   common.Address
 	topics            []common.Hash
 	channel           chan<- types.Log
@@ -129,7 +130,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 			if err != nil {
 				logger.Error(
 					"Error getting next page",
-					zap.Int("fromBlock", fromBlock),
+					zap.Uint64("fromBlock", fromBlock),
 					zap.Error(err),
 				)
 				time.Sleep(ERROR_SLEEP_TIME)
@@ -147,7 +148,11 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 			// reset self-termination timer
 			startTime = time.Now()
 
-			logger.Debug("Got logs", zap.Int("numLogs", len(logs)), zap.Int("fromBlock", fromBlock))
+			logger.Debug(
+				"Got logs",
+				zap.Int("numLogs", len(logs)),
+				zap.Uint64("fromBlock", fromBlock),
+			)
 			if len(logs) == 0 {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
 			}
@@ -163,8 +168,8 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 
 func (r *RpcLogStreamer) getNextPage(
 	config contractConfig,
-	fromBlock int,
-) (logs []types.Log, nextBlock *int, err error) {
+	fromBlock uint64,
+) (logs []types.Log, nextBlock *uint64, err error) {
 	contractAddress := config.contractAddress.Hex()
 	highestBlock, err := r.client.BlockNumber(r.ctx)
 	if err != nil {
@@ -172,10 +177,14 @@ func (r *RpcLogStreamer) getNextPage(
 	}
 	metrics.EmitCurrentBlock(contractAddress, int(highestBlock))
 
-	highestBlockCanProcess := int(highestBlock) - LAG_FROM_HIGHEST_BLOCK
+	highestBlockCanProcess := highestBlock - LAG_FROM_HIGHEST_BLOCK
+	if fromBlock > highestBlockCanProcess {
+		r.logger.Debug("Chain is up to date. Skipping update")
+		return []types.Log{}, nil, nil
+	}
 	numOfBlocksToProcess := highestBlockCanProcess - fromBlock + 1
 
-	var to int
+	var to uint64
 	// Make sure we stay within a reasonable page size
 	if numOfBlocksToProcess > BACKFILL_BLOCKS {
 		// quick mode

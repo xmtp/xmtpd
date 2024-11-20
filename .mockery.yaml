@@ -14,6 +14,9 @@ packages:
     interfaces:
       NodesContract:
       NodeRegistry:
+  github.com/xmtp/xmtpd/pkg/indexer:
+    interfaces:
+      IBlockTracker:
   github.com/xmtp/xmtpd/pkg/blockchain:
     interfaces:
       ChainClient:

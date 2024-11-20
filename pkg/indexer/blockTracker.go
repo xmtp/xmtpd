@@ -35,7 +35,7 @@ func NewBlockTracker(
 		queries:         queries,
 	}
 
-	latestBlock, err := getLatestBlock(ctx, contractAddress, queries)
+	latestBlock, err := loadLatestBlock(ctx, contractAddress, queries)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (bt *BlockTracker) updateDB(ctx context.Context, block uint64) error {
 	})
 }
 
-func getLatestBlock(
+func loadLatestBlock(
 	ctx context.Context,
 	contractAddress string,
 	querier *queries.Queries,

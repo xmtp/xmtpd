@@ -3,9 +3,10 @@ package indexer
 import (
 	"context"
 	"database/sql"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"sync"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -63,7 +64,7 @@ func (i *Indexer) StartIndexer(
 	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, client, i.log)
 	querier := queries.New(db)
 
-	streamer, err := configureLogStream(i.ctx, builder, cfg)
+	streamer, err := configureLogStream(i.ctx, builder, cfg, querier)
 	if err != nil {
 		return err
 	}
@@ -87,6 +88,7 @@ func (i *Indexer) StartIndexer(
 				streamer.messagesChannel,
 				indexingLogger,
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
+				streamer.messagesBlockTracker,
 			)
 		})
 
@@ -111,6 +113,7 @@ func (i *Indexer) StartIndexer(
 					identityUpdatesContract,
 					validationService,
 				),
+				streamer.identityUpdatesBlockTracker,
 			)
 		})
 
@@ -119,23 +122,31 @@ func (i *Indexer) StartIndexer(
 }
 
 type builtStreamer struct {
-	streamer               *blockchain.RpcLogStreamer
-	messagesChannel        <-chan types.Log
-	identityUpdatesChannel <-chan types.Log
+	streamer                    *blockchain.RpcLogStreamer
+	messagesChannel             <-chan types.Log
+	identityUpdatesChannel      <-chan types.Log
+	identityUpdatesBlockTracker *BlockTracker
+	messagesBlockTracker        *BlockTracker
 }
 
 func configureLogStream(
 	ctx context.Context,
 	builder *blockchain.RpcLogStreamBuilder,
 	cfg config.ContractsOptions,
+	querier *queries.Queries,
 ) (*builtStreamer, error) {
 	messagesTopic, err := buildMessagesTopic()
 	if err != nil {
 		return nil, err
 	}
 
+	messagesTracker, err := NewBlockTracker(ctx, cfg.MessagesContractAddress, querier)
+	if err != nil {
+		return nil, err
+	}
+
 	messagesChannel := builder.ListenForContractEvent(
-		0,
+		messagesTracker.GetLatestBlock(),
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
 		cfg.MaxChainDisconnectTime,
@@ -146,8 +157,13 @@ func configureLogStream(
 		return nil, err
 	}
 
+	identityUpdatesTracker, err := NewBlockTracker(ctx, cfg.IdentityUpdatesContractAddress, querier)
+	if err != nil {
+		return nil, err
+	}
+
 	identityUpdatesChannel := builder.ListenForContractEvent(
-		0,
+		identityUpdatesTracker.GetLatestBlock(),
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
 		cfg.MaxChainDisconnectTime,
@@ -159,9 +175,11 @@ func configureLogStream(
 	}
 
 	return &builtStreamer{
-		streamer:               streamer,
-		messagesChannel:        messagesChannel,
-		identityUpdatesChannel: identityUpdatesChannel,
+		streamer:                    streamer,
+		messagesChannel:             messagesChannel,
+		identityUpdatesChannel:      identityUpdatesChannel,
+		identityUpdatesBlockTracker: identityUpdatesTracker,
+		messagesBlockTracker:        messagesTracker,
 	}, nil
 }
 
@@ -177,6 +195,7 @@ func indexLogs(
 	eventChannel <-chan types.Log,
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
+	blockTracker IBlockTracker,
 ) {
 	var err storer.LogStorageError
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
@@ -192,6 +211,9 @@ func indexLogs(
 				}
 			} else {
 				logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
+				if trackerErr := blockTracker.UpdateLatestBlock(ctx, event.BlockNumber); trackerErr != nil {
+					logger.Error("error updating block tracker", zap.Error(trackerErr))
+				}
 			}
 			break Retry
 

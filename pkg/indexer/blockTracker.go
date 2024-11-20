@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -87,6 +88,14 @@ func getLatestBlock(
 			return 0, nil
 		}
 		return 0, err
+	}
+
+	if latestBlock < 0 {
+		return 0, fmt.Errorf(
+			"invalid block number %d for contract %s",
+			latestBlock,
+			contractAddress,
+		)
 	}
 
 	return uint64(latestBlock), nil

@@ -24,6 +24,11 @@ type GatewayEnvelope struct {
 	OriginatorEnvelope   []byte
 }
 
+type LatestBlock struct {
+	ContractAddress string
+	BlockNumber     int64
+}
+
 type NodeInfo struct {
 	NodeID      int32
 	PublicKey   []byte

@@ -101,3 +101,20 @@ FROM
 WHERE
 	originator_node_id = @originator_node_id;
 
+-- name: SetLatestBlock :exec
+INSERT INTO latest_block(contract_address, block_number)
+	VALUES (@contract_address, @block_number)
+ON CONFLICT (contract_address)
+	DO UPDATE SET
+		block_number = @block_number
+	WHERE
+		@block_number > latest_block.block_number;
+
+-- name: GetLatestBlock :one
+SELECT
+	block_number
+FROM
+	latest_block
+WHERE
+	contract_address = @contract_address;
+

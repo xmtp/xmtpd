@@ -20,7 +20,7 @@ import (
 func buildStreamer(
 	t *testing.T,
 	client ChainClient,
-	fromBlock int,
+	fromBlock uint64,
 	address common.Address,
 	topic common.Hash,
 ) (*RpcLogStreamer, chan types.Log) {
@@ -56,8 +56,8 @@ func TestBuilder(t *testing.T) {
 func TestRpcLogStreamer(t *testing.T) {
 	address := testutils.RandomAddress()
 	topic := testutils.RandomLogTopic()
-	fromBlock := 1
-	lastBlock := 10
+	fromBlock := uint64(1)
+	lastBlock := uint64(10)
 	logMessage := types.Log{
 		Address: address,
 		Topics:  []common.Hash{topic},
@@ -84,7 +84,7 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	logs, nextPage, err := streamer.getNextPage(cfg, fromBlock)
 	require.NoError(t, err)
-	expectedNextPage := 11
+	expectedNextPage := uint64(11)
 	require.Equal(t, &expectedNextPage, nextPage)
 	require.Equal(t, 1, len(logs))
 	require.Equal(t, logs[0].Address, address)

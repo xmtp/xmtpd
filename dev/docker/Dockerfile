@@ -25,6 +25,8 @@ ENV GOLOG_LOG_FMT=nocolor
 
 EXPOSE 5050
 
+RUN apk add --no-cache curl
+
 COPY --from=builder /app/bin/xmtpd /usr/bin/
 
 ENTRYPOINT ["/usr/bin/xmtpd"]

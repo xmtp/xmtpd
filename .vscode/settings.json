@@ -16,5 +16,6 @@
       }
     ]
   },
-  "solidity.defaultCompiler": "localNodeModule"
+  "solidity.compileUsingRemoteVersion": "v0.8.28",
+  "solidity.formatter": "forge"
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity 0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
 import {Nodes} from "../src/Nodes.sol";
@@ -25,15 +25,8 @@ contract NodesTest is Test {
         return string(_genBytes(length));
     }
 
-    function _randomNode(
-        bool isHealthy
-    ) internal pure returns (Nodes.Node memory) {
-        return
-            Nodes.Node({
-                signingKeyPub: _genBytes(32),
-                httpAddress: _genString(32),
-                isHealthy: isHealthy
-            });
+    function _randomNode(bool isHealthy) internal pure returns (Nodes.Node memory) {
+        return Nodes.Node({signingKeyPub: _genBytes(32), httpAddress: _genString(32), isHealthy: isHealthy});
     }
 
     function test_canAddNode() public {
@@ -41,11 +34,7 @@ contract NodesTest is Test {
 
         address operatorAddress = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operatorAddress,
-            node.signingKeyPub,
-            node.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operatorAddress, node.signingKeyPub, node.httpAddress);
 
         vm.assertEq(nodes.ownerOf(nodeId), operatorAddress);
         vm.assertEq(nodes.getNode(nodeId).signingKeyPub, node.signingKeyPub);
@@ -62,11 +51,7 @@ contract NodesTest is Test {
         address operator2 = vm.randomAddress();
         address operator3 = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operator1,
-            node1.signingKeyPub,
-            node1.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operator1, node1.signingKeyPub, node1.httpAddress);
         vm.assertTrue(nodeId == 100);
 
         nodeId = nodes.addNode(operator2, node2.signingKeyPub, node2.httpAddress);
@@ -74,7 +59,6 @@ contract NodesTest is Test {
 
         nodeId = nodes.addNode(operator3, node3.signingKeyPub, node3.httpAddress);
         vm.assertTrue(nodeId == 300);
-
     }
 
     function test_canAddMultiple() public {
@@ -86,14 +70,9 @@ contract NodesTest is Test {
         address operator2 = vm.randomAddress();
         address operator3 = vm.randomAddress();
 
-        uint32 node1Id = nodes.addNode(
-            operator1,
-            node1.signingKeyPub,
-            node1.httpAddress
-        );
+        uint32 node1Id = nodes.addNode(operator1, node1.signingKeyPub, node1.httpAddress);
         nodes.addNode(operator2, node2.signingKeyPub, node2.httpAddress);
         nodes.addNode(operator3, node3.signingKeyPub, node3.httpAddress);
-
 
         Nodes.NodeWithId[] memory allNodes = nodes.allNodes();
         vm.assertTrue(allNodes.length == 3);
@@ -112,11 +91,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operator,
-            node.signingKeyPub,
-            node.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         nodes.updateHealth(nodeId, false);
 
@@ -129,11 +104,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operator,
-            node.signingKeyPub,
-            node.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(operator);
         nodes.updateHealth(nodeId, false);
@@ -143,11 +114,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operator,
-            node.signingKeyPub,
-            node.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(operator);
         nodes.safeTransferFrom(operator, vm.randomAddress(), uint256(nodeId));
@@ -157,11 +124,7 @@ contract NodesTest is Test {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operator,
-            node.signingKeyPub,
-            node.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(operator);
         nodes.updateHttpAddress(nodeId, "new-http-address");
@@ -170,18 +133,12 @@ contract NodesTest is Test {
     }
 
     function testFail_cannotChangeOtherHttpAddress() public {
-        vm.expectRevert(
-            "Only the owner of the Node NFT can update its http address"
-        );
+        vm.expectRevert("Only the owner of the Node NFT can update its http address");
 
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
-        uint32 nodeId = nodes.addNode(
-            operator,
-            node.signingKeyPub,
-            node.httpAddress
-        );
+        uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(vm.randomAddress());
         nodes.updateHttpAddress(nodeId, "new-http-address");

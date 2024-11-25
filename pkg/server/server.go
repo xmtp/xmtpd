@@ -101,14 +101,17 @@ func NewReplicationServer(
 		return nil, err
 	}
 
-	s.indx = indexer.NewIndexer(ctx, log)
-	err = s.indx.StartIndexer(
-		s.writerDB,
-		options.Contracts,
-		validationService,
-	)
-	if err != nil {
-		return nil, err
+	if options.Indexer.Enable {
+		s.indx = indexer.NewIndexer(ctx, log)
+		err = s.indx.StartIndexer(
+			s.writerDB,
+			options.Contracts,
+			validationService,
+		)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {

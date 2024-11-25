@@ -75,6 +75,22 @@ func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]Get
 	return items, nil
 }
 
+const getLatestBlock = `-- name: GetLatestBlock :one
+SELECT
+	block_number
+FROM
+	latest_block
+WHERE
+	contract_address = $1
+`
+
+func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getLatestBlock, contractAddress)
+	var block_number int64
+	err := row.Scan(&block_number)
+	return block_number, err
+}
+
 const getLatestSequenceId = `-- name: GetLatestSequenceId :one
 SELECT
 	COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
@@ -358,4 +374,24 @@ func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow
 		return nil, err
 	}
 	return items, nil
+}
+
+const setLatestBlock = `-- name: SetLatestBlock :exec
+INSERT INTO latest_block(contract_address, block_number)
+	VALUES ($1, $2)
+ON CONFLICT (contract_address)
+	DO UPDATE SET
+		block_number = $2
+	WHERE
+		$2 > latest_block.block_number
+`
+
+type SetLatestBlockParams struct {
+	ContractAddress string
+	BlockNumber     int64
+}
+
+func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) error {
+	_, err := q.db.ExecContext(ctx, setLatestBlock, arg.ContractAddress, arg.BlockNumber)
+	return err
 }

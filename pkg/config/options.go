@@ -27,6 +27,10 @@ type DbOptions struct {
 	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration"`
 }
 
+type IndexerOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_INDEXER_ENABLE" description:"Enable the indexer"`
+}
+
 // MetricsOptions are settings used to start a prometheus server
 type MetricsOptions struct {
 	Enable  bool   `long:"enable"          env:"XMTPD_METRICS_ENABLE"          description:"Enable the metrics server"`
@@ -101,6 +105,7 @@ type ServerOptions struct {
 	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
 	DB            DbOptions            `group:"Database Options"       namespace:"db"`
 	Log           LogOptions           `group:"Log Options"            namespace:"log"`
+	Indexer       IndexerOptions       `group:"Indexer Options"        namespace:"indexer"`
 	Metrics       MetricsOptions       `group:"Metrics Options"        namespace:"metrics"`
 	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
 	Payer         PayerOptions         `group:"Payer Options"          namespace:"payer"`

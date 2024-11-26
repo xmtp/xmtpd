@@ -112,6 +112,8 @@ func NewReplicationServer(
 		if err != nil {
 			return nil, err
 		}
+
+		log.Info("Indexer service enabled")
 	}
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
@@ -181,7 +183,7 @@ func NewReplicationServer(
 			return nil, err
 		}
 
-		log.Info("Sync server started")
+		log.Info("Sync service enabled")
 	}
 
 	return s, nil

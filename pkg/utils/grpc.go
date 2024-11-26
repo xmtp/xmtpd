@@ -4,9 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/url"
+
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"net/url"
 )
 
 // / Maps from a URL, as defined in https://pkg.go.dev/net/url#URL, to a gRPC target,

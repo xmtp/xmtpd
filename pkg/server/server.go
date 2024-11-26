@@ -96,7 +96,7 @@ func NewReplicationServer(
 		return nil, err
 	}
 
-	validationService, err := mlsvalidate.NewMlsValidationService(ctx, options.MlsValidation)
+	validationService, err := mlsvalidate.NewMlsValidationService(ctx, log, options.MlsValidation)
 	if err != nil {
 		return nil, err
 	}

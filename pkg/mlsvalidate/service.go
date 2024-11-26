@@ -11,8 +11,9 @@ import (
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type MLSValidationServiceImpl struct {
@@ -21,11 +22,27 @@ type MLSValidationServiceImpl struct {
 
 func NewMlsValidationService(
 	ctx context.Context,
+	log *zap.Logger,
 	cfg config.MlsValidationOptions,
 ) (*MLSValidationServiceImpl, error) {
+	target, isTLS, err := utils.HttpAddressToGrpcTarget(cfg.GrpcAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
+	}
+
+	creds, err := utils.GetCredentialsForAddress(isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get credentials: %v", err)
+	}
+
+	log.Info(
+		"Connecting to mls validation service",
+		zap.String("url", cfg.GrpcAddress),
+		zap.String("target", target),
+	)
 	conn, err := grpc.NewClient(
-		cfg.GrpcAddress,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		target,
+		grpc.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		return nil, err

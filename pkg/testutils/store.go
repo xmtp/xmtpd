@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	localTestDBDSNPrefix = "postgres://postgres:xmtp@localhost:8765"
-	localTestDBDSNSuffix = "?sslmode=disable"
+	LocalTestDBDSNPrefix = "postgres://postgres:xmtp@localhost:8765"
+	LocalTestDBDSNSuffix = "?sslmode=disable"
 )
 
 func openDB(t testing.TB, dsn string) (*sql.DB, string, func()) {
@@ -28,7 +28,7 @@ func openDB(t testing.TB, dsn string) (*sql.DB, string, func()) {
 }
 
 func newCtlDB(t testing.TB) (*sql.DB, string, func()) {
-	return openDB(t, localTestDBDSNPrefix+localTestDBDSNSuffix)
+	return openDB(t, LocalTestDBDSNPrefix+LocalTestDBDSNSuffix)
 }
 
 func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string, func()) {
@@ -36,7 +36,7 @@ func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, s
 	_, err := ctlDB.Exec("CREATE DATABASE " + dbName)
 	require.NoError(t, err)
 
-	db, dsn, cleanup := openDB(t, localTestDBDSNPrefix+"/"+dbName+localTestDBDSNSuffix)
+	db, dsn, cleanup := openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
 	require.NoError(t, migrations.Migrate(ctx, db))
 
 	return db, dsn, func() {

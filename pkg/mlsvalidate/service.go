@@ -35,7 +35,11 @@ func NewMlsValidationService(
 		return nil, fmt.Errorf("Failed to get credentials: %v", err)
 	}
 
-	log.Info("Connecting to mls validation service", zap.String("url", cfg.GrpcAddress), zap.String("target", target))
+	log.Info(
+		"Connecting to mls validation service",
+		zap.String("url", cfg.GrpcAddress),
+		zap.String("target", target),
+	)
 	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(creds),

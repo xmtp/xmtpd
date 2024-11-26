@@ -8,6 +8,7 @@ cd ./contracts
 function deploy_contract() {
     forge create \
         --rpc-url $RPC_URL \
+        --broadcast \
         --chain=241320161 \
         --compiler-version=0.8.28 \
         --verify \

@@ -57,9 +57,10 @@ func main() {
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
-		db, err := db.NewDB(
+		db, err := db.NewNamespacedDB(
 			ctx,
 			options.DB.WriterConnectionString,
+			utils.BuildNamespace(options),
 			options.DB.WaitForDB,
 			options.DB.ReadTimeout,
 		)

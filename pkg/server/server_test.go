@@ -6,9 +6,10 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -46,7 +47,7 @@ func NewTestServer(
 			MaxChainDisconnectTime: 5 * time.Minute,
 		},
 		MlsValidation: config.MlsValidationOptions{
-			GrpcAddress: "localhost:60051",
+			GrpcAddress: "http://localhost:60051",
 		},
 		Signer: config.SignerOptions{
 			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),

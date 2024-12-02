@@ -71,7 +71,8 @@ func isValidNamespace(namespace string) error {
 	// PostgreSQL identifiers must start with a letter or underscore
 	if !allowedNamespaceRe.MatchString(namespace) {
 		return fmt.Errorf(
-			"namespace must start with a letter or underscore and contain only letters, numbers, and underscores",
+			"namespace must start with a letter or underscore and contain only letters, numbers, and underscores. Instead is %s",
+			namespace,
 		)
 	}
 	return nil

@@ -1,6 +1,8 @@
 #!/bin/bash
 # Deploy the smart contracts to the local anvil node
 
+set -euo pipefail
+
 source dev/contracts/.env
 
 # Make sure the build directory exists
@@ -10,7 +12,7 @@ cd ./contracts
 
 # Deploy a contract and save the output (which includes the contract address) to a JSON file to be used in tests
 function deploy_contract() {
-    forge create --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$1:$2" > ../build/$2.json
+    forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$1:$2" > ../build/$2.json
 }
 
 deploy_contract src/GroupMessages.sol GroupMessages

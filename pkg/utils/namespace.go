@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/config"
 )
@@ -11,5 +13,5 @@ func BuildNamespace(options config.ServerOptions) string {
 		[]byte(options.Contracts.NodesContractAddress),
 	)
 
-	return HexEncode(hash)[:12]
+	return fmt.Sprintf("xmtpd_%s", HexEncode(hash)[:12])
 }

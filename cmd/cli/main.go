@@ -10,25 +10,19 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
-type globalOptions struct {
-	Contracts config.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
-	Log       config.LogOptions       `group:"Log Options"       namespace:"log"`
-}
-
 type CLI struct {
-	globalOptions
+	GlobalOptions
 	Command       string
-	GetPubKey     config.GetPubKeyOptions
-	GenerateKey   config.GenerateKeyOptions
-	RegisterNode  config.RegisterNodeOptions
-	GetAllNodes   config.GetAllNodesOptions
-	UpdateHealth  config.UpdateHealthOptions
-	UpdateAddress config.UpdateAddressOptions
+	GetPubKey     GetPubKeyOptions
+	GenerateKey   GenerateKeyOptions
+	RegisterNode  RegisterNodeOptions
+	GetAllNodes   GetAllNodesOptions
+	UpdateHealth  UpdateHealthOptions
+	UpdateAddress UpdateAddressOptions
 }
 
 /*
@@ -41,13 +35,13 @@ the options for each subcommand.
 *
 */
 func parseOptions(args []string) (*CLI, error) {
-	var options globalOptions
-	var generateKeyOptions config.GenerateKeyOptions
-	var registerNodeOptions config.RegisterNodeOptions
-	var getPubKeyOptions config.GetPubKeyOptions
-	var getAllNodesOptions config.GetAllNodesOptions
-	var updateHealthOptions config.UpdateHealthOptions
-	var updateAddressOptions config.UpdateAddressOptions
+	var options GlobalOptions
+	var generateKeyOptions GenerateKeyOptions
+	var registerNodeOptions RegisterNodeOptions
+	var getPubKeyOptions GetPubKeyOptions
+	var getAllNodesOptions GetAllNodesOptions
+	var updateHealthOptions UpdateHealthOptions
+	var updateAddressOptions UpdateAddressOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {

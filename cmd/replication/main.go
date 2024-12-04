@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"sync"
@@ -57,7 +58,9 @@ func main() {
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
-		db, err := db.NewNamespacedDB(
+		var dbInstance *sql.DB
+		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
+			dbInstance, err := db.NewNamespacedDB(
 			ctx,
 			options.DB.WriterConnectionString,
 			utils.BuildNamespace(options),
@@ -65,8 +68,9 @@ func main() {
 			options.DB.ReadTimeout,
 		)
 
-		if err != nil {
-			logger.Fatal("initializing database", zap.Error(err))
+			if err != nil {
+				logger.Fatal("initializing database", zap.Error(err))
+			}
 		}
 
 		ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
@@ -111,7 +115,7 @@ func main() {
 			logger,
 			options,
 			chainRegistry,
-			db,
+			dbInstance,
 			blockchainPublisher,
 			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
 		)

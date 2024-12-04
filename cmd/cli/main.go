@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"log"
 	"os"
 
@@ -15,14 +16,14 @@ import (
 )
 
 type CLI struct {
-	GlobalOptions
+	config.GlobalOptions
 	Command       string
-	GetPubKey     GetPubKeyOptions
-	GenerateKey   GenerateKeyOptions
-	RegisterNode  RegisterNodeOptions
-	GetAllNodes   GetAllNodesOptions
-	UpdateHealth  UpdateHealthOptions
-	UpdateAddress UpdateAddressOptions
+	GetPubKey     config.GetPubKeyOptions
+	GenerateKey   config.GenerateKeyOptions
+	RegisterNode  config.RegisterNodeOptions
+	GetAllNodes   config.GetAllNodesOptions
+	UpdateHealth  config.UpdateHealthOptions
+	UpdateAddress config.UpdateAddressOptions
 }
 
 /*
@@ -35,13 +36,13 @@ the options for each subcommand.
 *
 */
 func parseOptions(args []string) (*CLI, error) {
-	var options GlobalOptions
-	var generateKeyOptions GenerateKeyOptions
-	var registerNodeOptions RegisterNodeOptions
-	var getPubKeyOptions GetPubKeyOptions
-	var getAllNodesOptions GetAllNodesOptions
-	var updateHealthOptions UpdateHealthOptions
-	var updateAddressOptions UpdateAddressOptions
+	var options config.GlobalOptions
+	var generateKeyOptions config.GenerateKeyOptions
+	var registerNodeOptions config.RegisterNodeOptions
+	var getPubKeyOptions config.GetPubKeyOptions
+	var getAllNodesOptions config.GetAllNodesOptions
+	var updateHealthOptions config.UpdateHealthOptions
+	var updateAddressOptions config.UpdateAddressOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {

@@ -1,10 +1,8 @@
-package main
-
-import "github.com/xmtp/xmtpd/pkg/config"
+package config
 
 type GlobalOptions struct {
-	Contracts config.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
-	Log       config.LogOptions       `group:"Log Options"       namespace:"log"`
+	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
+	Log       LogOptions       `group:"Log Options"       namespace:"log"`
 }
 
 type GenerateKeyOptions struct{}

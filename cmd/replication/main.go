@@ -60,13 +60,13 @@ func main() {
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
 		var dbInstance *sql.DB
 		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
-			dbInstance, err := db.NewNamespacedDB(
-			ctx,
-			options.DB.WriterConnectionString,
-			utils.BuildNamespace(options),
-			options.DB.WaitForDB,
-			options.DB.ReadTimeout,
-		)
+			dbInstance, err = db.NewNamespacedDB(
+				ctx,
+				options.DB.WriterConnectionString,
+				utils.BuildNamespace(options),
+				options.DB.WaitForDB,
+				options.DB.ReadTimeout,
+			)
 
 			if err != nil {
 				logger.Fatal("initializing database", zap.Error(err))

@@ -25,16 +25,21 @@ var options config.ServerOptions
 func main() {
 	_, err := flags.Parse(&options)
 
-	if options.Version {
-		fmt.Printf("Version: %s\n", Commit)
-		return
-	}
-
 	if err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			fatal("Could not parse options: %s", err)
 		}
 		return
+	}
+
+	if options.Version {
+		fmt.Printf("Version: %s\n", Commit)
+		return
+	}
+
+	err = config.ValidateServerOptions(options)
+	if err != nil {
+		fatal("Could not validate options: %s", err)
 	}
 
 	logger, _, err := utils.BuildLogger(options.Log)

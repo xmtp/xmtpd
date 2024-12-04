@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -69,11 +70,13 @@ func ValidateServerOptions(options ServerOptions) error {
 		if len(missingSet) > 0 {
 
 			var errorMessages []string
-			errorMessages = append(errorMessages, "Missing required arguments:")
 			for err := range missingSet {
 				errorMessages = append(errorMessages, err)
 			}
-			errs = append(errs, strings.Join(errorMessages, ", "))
+			errs = append(
+				errs,
+				fmt.Sprintf("Missing required arguments: %s", strings.Join(errorMessages, ", ")),
+			)
 		}
 		if len(customSet) > 0 {
 			for err := range customSet {

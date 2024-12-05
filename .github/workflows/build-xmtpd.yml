@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Deploy (dev)
+      - name: Deploy Testnet
         uses: xmtp-labs/terraform-deployer@v1
         timeout-minutes: 45
         with:

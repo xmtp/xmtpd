@@ -20,10 +20,10 @@ type ContractsOptions struct {
 
 type DbOptions struct {
 	ReaderConnectionString string        `long:"reader-connection-string" env:"XMTPD_DB_READER_CONNECTION_STRING" description:"Reader connection string"`
-	WriterConnectionString string        `long:"writer-connection-string" env:"XMTPD_DB_WRITER_CONNECTION_STRING" description:"Writer connection string"                       required:"true"`
-	ReadTimeout            time.Duration `long:"read-timeout"             env:"XMTPD_DB_READ_TIMEOUT"             description:"Timeout for reading from the database"                          default:"10s"`
-	WriteTimeout           time.Duration `long:"write-timeout"            env:"XMTPD_DB_WRITE_TIMEOUT"            description:"Timeout for writing to the database"                            default:"10s"`
-	MaxOpenConns           int           `long:"max-open-conns"           env:"XMTPD_DB_MAX_OPEN_CONNS"           description:"Maximum number of open connections"                             default:"80"`
+	WriterConnectionString string        `long:"writer-connection-string" env:"XMTPD_DB_WRITER_CONNECTION_STRING" description:"Writer connection string"`
+	ReadTimeout            time.Duration `long:"read-timeout"             env:"XMTPD_DB_READ_TIMEOUT"             description:"Timeout for reading from the database"          default:"10s"`
+	WriteTimeout           time.Duration `long:"write-timeout"            env:"XMTPD_DB_WRITE_TIMEOUT"            description:"Timeout for writing to the database"            default:"10s"`
+	MaxOpenConns           int           `long:"max-open-conns"           env:"XMTPD_DB_MAX_OPEN_CONNS"           description:"Maximum number of open connections"             default:"80"`
 	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration"`
 }
 
@@ -39,7 +39,7 @@ type MetricsOptions struct {
 }
 
 type PayerOptions struct {
-	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions" required:"true"`
+	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
 	Enable     bool   `long:"enable"      env:"XMTPD_PAYER_ENABLE"      description:"Enable the payer API"`
 }
 
@@ -71,33 +71,7 @@ type LogOptions struct {
 }
 
 type SignerOptions struct {
-	PrivateKey string `long:"private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages" required:"true"`
-}
-
-type GenerateKeyOptions struct{}
-
-type GetAllNodesOptions struct{}
-
-type UpdateHealthOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
-	NodeId          int64  `long:"node-id"           description:"NodeId to update"`
-}
-
-type UpdateAddressOptions struct {
-	PrivateKey string `long:"private-key" description:"Private key of node to be updated"`
-	NodeId     int64  `long:"node-id"     description:"NodeId to update"`
-	Address    string `long:"address"     description:"New HTTP address"`
-}
-
-type GetPubKeyOptions struct {
-	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`
-}
-
-type RegisterNodeOptions struct {
-	HttpAddress     string `long:"http-address"      description:"HTTP address to register for the node"                            required:"true"`
-	OwnerAddress    string `long:"owner-address"     description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"                    required:"true"`
-	SigningKeyPub   string `long:"signing-key-pub"   description:"Signing key of the node to register"                              required:"true"`
+	PrivateKey string `long:"private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"`
 }
 
 type ServerOptions struct {

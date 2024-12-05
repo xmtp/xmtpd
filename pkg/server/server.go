@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"net"
 	"os"
 	"os/signal"
@@ -15,7 +16,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/sync"
@@ -42,8 +42,6 @@ type ReplicationServer struct {
 	indx         *indexer.Indexer
 	options      config.ServerOptions
 	metrics      *metrics.Server
-	writerDB     *sql.DB
-	// Can add reader DB later if needed
 }
 
 func NewReplicationServer(
@@ -80,31 +78,36 @@ func NewReplicationServer(
 		options:      options,
 		log:          log,
 		nodeRegistry: nodeRegistry,
-		writerDB:     writerDB,
 		metrics:      mtcs,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	s.registrant, err = registrant.NewRegistrant(
-		s.ctx,
-		log,
-		queries.New(s.writerDB),
-		nodeRegistry,
-		options.Signer.PrivateKey,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	validationService, err := mlsvalidate.NewMlsValidationService(ctx, log, options.MlsValidation)
-	if err != nil {
-		return nil, err
+	if options.Replication.Enable || options.Sync.Enable {
+		s.registrant, err = registrant.NewRegistrant(
+			s.ctx,
+			log,
+			queries.New(writerDB),
+			nodeRegistry,
+			options.Signer.PrivateKey,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if options.Indexer.Enable {
+		validationService, err := mlsvalidate.NewMlsValidationService(
+			ctx,
+			log,
+			options.MlsValidation,
+		)
+		if err != nil {
+			return nil, err
+		}
+
 		s.indx = indexer.NewIndexer(ctx, log)
 		err = s.indx.StartIndexer(
-			s.writerDB,
+			writerDB,
 			options.Contracts,
 			validationService,
 		)
@@ -116,8 +119,52 @@ func NewReplicationServer(
 		log.Info("Indexer service enabled")
 	}
 
-	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
+	if options.Payer.Enable || options.Replication.Enable {
+		err = startAPIServer(
+			s.ctx,
+			log,
+			options,
+			s,
+			writerDB,
+			blockchainPublisher,
+			listenAddress)
+		if err != nil {
+			return nil, err
+		}
 
+		log.Info("API server started", zap.Int("port", options.API.Port))
+	}
+
+	if options.Sync.Enable {
+		s.syncServer, err = sync.NewSyncServer(
+			s.ctx,
+			log,
+			s.nodeRegistry,
+			s.registrant,
+			writerDB,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Info("Sync service enabled")
+	}
+
+	return s, nil
+}
+
+func startAPIServer(
+	ctx context.Context,
+	log *zap.Logger,
+	options config.ServerOptions,
+	s *ReplicationServer,
+	writerDB *sql.DB,
+	blockchainPublisher blockchain.IBlockchainPublisher,
+	listenAddress string,
+) error {
+	var err error
+
+	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		if options.Replication.Enable {
 			replicationService, err := message.NewReplicationApiService(
 				ctx,
@@ -156,37 +203,18 @@ func NewReplicationServer(
 		return nil
 	}
 
-	if options.Payer.Enable || options.Replication.Enable {
-		s.apiServer, err = api.NewAPIServer(
-			s.ctx,
-			log,
-			listenAddress,
-			options.Reflection.Enable,
-			serviceRegistrationFunc,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		log.Info("API server started", zap.Int("port", options.API.Port))
+	s.apiServer, err = api.NewAPIServer(
+		s.ctx,
+		log,
+		listenAddress,
+		options.Reflection.Enable,
+		serviceRegistrationFunc,
+	)
+	if err != nil {
+		return err
 	}
 
-	if options.Sync.Enable {
-		s.syncServer, err = sync.NewSyncServer(
-			s.ctx,
-			log,
-			s.nodeRegistry,
-			s.registrant,
-			s.writerDB,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		log.Info("Sync service enabled")
-	}
-
-	return s, nil
+	return nil
 }
 
 func (s *ReplicationServer) Addr() net.Addr {

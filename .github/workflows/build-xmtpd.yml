@@ -8,8 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
+
   push_to_registry:
-    name: Push Docker Image to GitHub Packages
+    strategy:
+      matrix:
+        image: ["xmtpd", "xmtpd-cli"]
+    name: Push Docker Images to GitHub Packages
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -17,7 +21,7 @@ jobs:
     env:
       DOCKER_METADATA_PR_HEAD_SHA: true
     outputs:
-      digest: ${{ steps.push.outputs.digest }}
+      xmtpd_digest: ${{ steps.set_xmtpd_digest.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +36,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/xmtp/xmtpd
+          images: ghcr.io/xmtp/${{ matrix.image }}
           tags: |
             type=schedule
             type=ref,event=branch
@@ -51,6 +55,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: "GIT_COMMIT=${{ github.event_name != 'pull_request' && github.sha || github.event.pull_request.head.sha }}"
 
+      - name: Set xmtpd digest output
+        if: ${{ matrix.image == 'xmtpd' }}
+        id: set_xmtpd_digest
+        run: echo "digest=${{ steps.push.outputs.digest }}" >> $GITHUB_OUTPUT
+
+
   deploy:
     name: Deploy new images to infra
     runs-on: ubuntu-latest
@@ -59,7 +69,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Deploy (dev)
+      - name: Deploy Testnet
         uses: xmtp-labs/terraform-deployer@v1
         timeout-minutes: 45
         with:
@@ -68,5 +78,5 @@ jobs:
           terraform-org: xmtp
           terraform-workspace: testnet
           variable-name: xmtpd_server_docker_image
-          variable-value: "ghcr.io/xmtp/xmtpd@${{ needs.push_to_registry.outputs.digest }}"
+          variable-value: "ghcr.io/xmtp/xmtpd@${{ needs.push_to_registry.outputs.xmtpd_digest }}"
           variable-value-required-prefix: "ghcr.io/xmtp/xmtpd@sha256:"

@@ -2,4 +2,11 @@
 
 set -eu
 
+# Get the directory where the script is located
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+
+# Navigate to the top-level directory
+TOP_LEVEL_DIR=$(realpath "$SCRIPT_DIR/..")
+cd "$TOP_LEVEL_DIR"
+
 go run -ldflags="-X main.Commit=$(git rev-parse HEAD)" cmd/cli/main.go "$@"

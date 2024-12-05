@@ -58,9 +58,7 @@ jobs:
       - name: Set xmtpd digest output
         if: ${{ matrix.image == 'xmtpd' }}
         id: set_xmtpd_digest
-        run: echo "digest=${{ steps.push.outputs.digest }}" >> $GITHUB_ENV
-        outputs:
-          digest: ${{ steps.push.outputs.digest }}
+        run: echo "digest=${{ steps.push.outputs.digest }}" >> $GITHUB_OUTPUT
 
 
   deploy:

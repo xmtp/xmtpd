@@ -10,6 +10,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -18,7 +19,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 )
 
 type syncWorker struct {
@@ -31,6 +31,12 @@ type syncWorker struct {
 	subscriptions      map[uint32]struct{}
 	subscriptionsMutex sync.RWMutex
 	cancel             context.CancelFunc
+}
+
+type originatorStream struct {
+	nodeID       uint32
+	lastEnvelope *envUtils.OriginatorEnvelope
+	stream       message_api.ReplicationApi_SubscribeEnvelopesClient
 }
 
 type ExitLoopError struct {
@@ -167,7 +173,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 	}
 
 	var conn *grpc.ClientConn
-	var stream message_api.ReplicationApi_SubscribeEnvelopesClient
+	var stream *originatorStream
 	err = nil
 
 	// TODO(mkysel) we should eventually implement a better backoff strategy
@@ -187,6 +193,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 				backoff = time.Second
 			}
 
+			// Plumb through VC's here
 			conn, err = s.connectToNode(*node)
 			if err != nil {
 				continue
@@ -270,7 +277,7 @@ func (s *syncWorker) setupStream(
 	ctx context.Context,
 	node registry.Node,
 	conn *grpc.ClientConn,
-) (message_api.ReplicationApi_SubscribeEnvelopesClient, error) {
+) (*originatorStream, error) {
 	result, err := queries.New(s.store).SelectVectorClock(ctx)
 	if err != nil {
 		return nil, err
@@ -282,11 +289,12 @@ func (s *syncWorker) setupStream(
 		zap.Any("vc", vc),
 	)
 	client := message_api.NewReplicationApiClient(conn)
+	nodeID := node.NodeID
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{node.NodeID},
+				OriginatorNodeIds: []uint32{nodeID},
 				LastSeen: &envelopes.VectorClock{
 					NodeIdToSequenceId: vc,
 				},
@@ -299,15 +307,25 @@ func (s *syncWorker) setupStream(
 			err,
 		)
 	}
-	return stream, nil
+	originatorStream := &originatorStream{nodeID: nodeID, stream: stream}
+	for _, row := range result {
+		if uint32(row.OriginatorNodeID) == nodeID {
+			lastEnvelope, err := envUtils.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
+			if err != nil {
+				return nil, err
+			}
+			originatorStream.lastEnvelope = lastEnvelope
+		}
+	}
+	return originatorStream, nil
 }
 
 func (s *syncWorker) listenToStream(
-	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
+	stream *originatorStream,
 ) error {
 	for {
 		// Recv() is a blocking operation that can only be interrupted by cancelling ctx
-		envs, err := stream.Recv()
+		envs, err := stream.stream.Recv()
 		if err == io.EOF {
 			return fmt.Errorf("Stream closed with EOF")
 		}
@@ -317,56 +335,55 @@ func (s *syncWorker) listenToStream(
 				err)
 		}
 		s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))
-		for _, env := range envs.Envelopes {
+		for _, envProto := range envs.Envelopes {
+			env, err := envUtils.NewOriginatorEnvelope(envProto)
+			if err != nil {
+				s.log.Error("Failed to unmarshal originator envelope", zap.Error(err))
+				continue
+			}
+			if env.OriginatorNodeID() != stream.nodeID {
+				s.log.Error("Received envelope from wrong node", zap.Any("nodeID", env.OriginatorNodeID()))
+				continue
+			}
+
+			var lastSequenceID uint64 = 0
+			var lastNs int64 = 0
+			if stream.lastEnvelope != nil {
+				lastSequenceID = stream.lastEnvelope.OriginatorSequenceID()
+				lastNs = stream.lastEnvelope.OriginatorNs()
+			}
+			if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
+				// TODO(rich) Submit misbehavior report and continue
+				s.log.Error("Received out of order envelope")
+			}
+
+			if env.OriginatorSequenceID() > stream.lastEnvelope.OriginatorSequenceID() {
+				stream.lastEnvelope = env
+			}
 			s.insertEnvelope(env)
 		}
 	}
 
 }
 
-func (s *syncWorker) insertEnvelope(env *envelopes.OriginatorEnvelope) {
+func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
+	// Here also
 	// TODO(nm) Validation logic - share code with API service and publish worker
-	originatorBytes, err := proto.Marshal(env)
+	originatorBytes, err := env.Bytes()
 	if err != nil {
 		s.log.Error("Failed to marshal originator envelope", zap.Error(err))
 		return
 	}
 
-	unsignedEnvelope := &envelopes.UnsignedOriginatorEnvelope{}
-	err = proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnvelope)
-	if err != nil {
-		s.log.Error(
-			"Failed to unmarshal unsigned originator envelope",
-			zap.Error(err),
-		)
-		return
-	}
-
-	clientEnvelope := &envelopes.ClientEnvelope{}
-	err = proto.Unmarshal(
-		unsignedEnvelope.GetPayerEnvelope().GetUnsignedClientEnvelope(),
-		clientEnvelope,
-	)
-	if err != nil {
-		s.log.Error(
-			"Failed to unmarshal client envelope",
-			zap.Error(err),
-		)
-		return
-	}
-
 	q := queries.New(s.store)
-
 	inserted, err := q.InsertGatewayEnvelope(
 		s.ctx,
 		queries.InsertGatewayEnvelopeParams{
-			OriginatorNodeID: int32(unsignedEnvelope.GetOriginatorNodeId()),
-			OriginatorSequenceID: int64(
-				unsignedEnvelope.GetOriginatorSequenceId(),
-			),
-			Topic:              clientEnvelope.GetAad().GetTargetTopic(),
-			OriginatorEnvelope: originatorBytes,
+			OriginatorNodeID:     int32(env.OriginatorNodeID()),
+			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
+			Topic:                env.TargetTopic().Bytes(),
+			OriginatorEnvelope:   originatorBytes,
 		},
 	)
 	if err != nil {

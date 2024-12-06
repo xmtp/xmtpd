@@ -53,6 +53,7 @@ SELECT DISTINCT ON (originator_node_id)
 FROM
 	gateway_envelopes
 ORDER BY
+	originator_node_id,
 	originator_sequence_id DESC;
 
 -- name: GetAddressLogs :many

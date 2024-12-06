@@ -364,7 +364,7 @@ func (s *syncWorker) validateAndInsertEnvelope(stream *originatorStream, envProt
 		s.log.Error("Received out of order envelope")
 	}
 
-	if env.OriginatorSequenceID() > stream.lastEnvelope.OriginatorSequenceID() {
+	if env.OriginatorSequenceID() > lastSequenceID {
 		stream.lastEnvelope = env
 	}
 

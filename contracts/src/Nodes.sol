@@ -14,7 +14,7 @@ import "@openzeppelin-contracts-5.1.0/access/Ownable.sol";
 contract Nodes is ERC721, Ownable {
     constructor() ERC721("XMTP Node Operator", "XMTP") Ownable(msg.sender) {}
 
-    uint32 constant private NODE_INCREMENT = 100;
+    uint32 private constant NODE_INCREMENT = 100;
     // uint32 counter so that we cannot create more than max IDs
     // The ERC721 standard expects the tokenID to be uint256 for standard methods unfortunately
     uint32 private _nodeCounter = 0;

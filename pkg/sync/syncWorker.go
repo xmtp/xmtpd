@@ -341,7 +341,10 @@ func (s *syncWorker) listenToStream(
 	}
 }
 
-func (s *syncWorker) validateAndInsertEnvelope(stream *originatorStream, envProto *envelopes.OriginatorEnvelope) {
+func (s *syncWorker) validateAndInsertEnvelope(
+	stream *originatorStream,
+	envProto *envelopes.OriginatorEnvelope,
+) {
 	env, err := envUtils.NewOriginatorEnvelope(envProto)
 	if err != nil {
 		s.log.Error("Failed to unmarshal originator envelope", zap.Error(err))

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console} from "forge-std-1.9.4/src/Test.sol";
 import {IdentityUpdates} from "../src/IdentityUpdates.sol";
 
 contract IdentityUpdatesTest is Test {

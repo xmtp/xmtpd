@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console} from "forge-std-1.9.4/src/Test.sol";
+import {Ownable} from "@openzeppelin-contracts-5.1.0/access/Ownable.sol";
 import {Nodes} from "../src/Nodes.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract NodesTest is Test {
     Nodes public nodes;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin-contracts-5.1.0/token/ERC721/ERC721.sol";
+import "@openzeppelin-contracts-5.1.0/access/Ownable.sol";
 
 /**
  * A NFT contract for XMTP Node Operators.
@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Nodes is ERC721, Ownable {
     constructor() ERC721("XMTP Node Operator", "XMTP") Ownable(msg.sender) {}
 
-    uint32 private _nodeIncrement = 100;
+    uint32 constant private NODE_INCREMENT = 100;
     // uint32 counter so that we cannot create more than max IDs
     // The ERC721 standard expects the tokenID to be uint256 for standard methods unfortunately
     uint32 private _nodeCounter = 0;
@@ -46,7 +46,7 @@ contract Nodes is ERC721, Ownable {
     {
         // the first node starts with 100
         _nodeCounter++;
-        uint32 nodeId = _nodeCounter * _nodeIncrement;
+        uint32 nodeId = _nodeCounter * NODE_INCREMENT;
         _mint(to, nodeId);
         _nodes[nodeId] = Node(signingKeyPub, httpAddress, true);
         _emitNodeUpdate(nodeId);
@@ -93,7 +93,7 @@ contract Nodes is ERC721, Ownable {
 
         // First, count the number of healthy nodes
         for (uint256 i = 0; i < _nodeCounter; i++) {
-            uint256 nodeId = _nodeIncrement * (i + 1);
+            uint256 nodeId = NODE_INCREMENT * (i + 1);
             if (_nodeExists(nodeId) && _nodes[nodeId].isHealthy) {
                 healthyCount++;
             }
@@ -105,7 +105,7 @@ contract Nodes is ERC721, Ownable {
 
         // Populate the array with healthy nodes
         for (uint32 i = 0; i < _nodeCounter; i++) {
-            uint32 nodeId = _nodeIncrement * (i + 1);
+            uint32 nodeId = NODE_INCREMENT * (i + 1);
             if (_nodeExists(nodeId) && _nodes[nodeId].isHealthy) {
                 healthyNodesList[currentIndex] = NodeWithId({nodeId: nodeId, node: _nodes[nodeId]});
                 currentIndex++;
@@ -122,7 +122,7 @@ contract Nodes is ERC721, Ownable {
         NodeWithId[] memory allNodesList = new NodeWithId[](_nodeCounter);
 
         for (uint32 i = 0; i < _nodeCounter; i++) {
-            uint32 nodeId = _nodeIncrement * (i + 1);
+            uint32 nodeId = NODE_INCREMENT * (i + 1);
             if (_nodeExists(nodeId)) {
                 allNodesList[i] = NodeWithId({nodeId: nodeId, node: _nodes[nodeId]});
             }

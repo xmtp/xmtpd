@@ -47,16 +47,19 @@ jobs:
         id: set_dockerfile
         run: |
           if [[ "${{ matrix.image }}" == "xmtpd" ]]; then
-          echo "dockerfile=Dockerfile" >> $GITHUB_ENV
+          echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.image }}" == "xmtpd-cli" ]]; then
-          echo "dockerfile=Dockerfile-cli" >> $GITHUB_ENV
+          echo "dockerfile=Dockerfile-cli" >> $GITHUB_OUTPUT
+          else
+          echo "Unknown image: ${{ matrix.image }}"
+          exit 1
           fi
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         id: push
         with:
           context: .
-          file: ./dev/docker/${{ env.dockerfile }}
+          file: ./dev/docker/${{ steps.set_dockerfile.outputs.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

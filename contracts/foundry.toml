@@ -8,11 +8,6 @@ gas_reports = ["*"]
 optimizer = true
 optimizer_runs = 10_000
 
-remappings = [
-  "forge-std-1.9.4/=dependencies/forge-std-1.9.4/",
-  "@openzeppelin-contracts-5.1.0/=dependencies/@openzeppelin-contracts-5.1.0/",
-]
-
 [soldeer]
 recursive_deps = true
 

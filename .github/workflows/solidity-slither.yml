@@ -1,4 +1,4 @@
-name: Slither
+name: Contracts - Slither
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: forge soldeer update
 
-      - name: Show Foundry Configuration
+      - name: Build contracts
         run: forge build
 
       - name: Install Slither

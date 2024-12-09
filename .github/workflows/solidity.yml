@@ -1,0 +1,76 @@
+name: Solidity CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/**"
+  pull_request:
+    paths:
+      - "contracts/**"
+
+concurrency:
+  group: ci-solidity-${{ github.ref }}-1
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ./contracts
+
+jobs:
+  contracts-init:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install dependencies
+        run: forge soldeer update
+
+      - name: Build contracts
+        run: forge build
+
+      - name: Cache data
+        uses: actions/cache@v4
+        with:
+          path: contracts
+          key: ci-solidity-${{ github.ref }}
+
+      - id: forge
+        run: echo "FORGE_PATH=$(which forge)" >> $GITHUB_ENV
+
+      - name: Debug forge2 path
+        run: |
+          echo "Forge path: ${FORGE_PATH}"
+          ls -l ${FORGE_PATH}
+
+      - name: Upload forge
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge
+          path: ${FORGE_PATH}
+
+  contracts-test:
+    needs: contracts-init
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: contracts
+          key: ci-solidity-${{ github.ref }}-1
+
+      - name: Restore forge
+        uses: actions/download-artifact@v4
+        with:
+          name: forge
+
+      - name: Run Forge tests
+        run: forge test -vvv

@@ -339,18 +339,21 @@ func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg Selec
 }
 
 const selectVectorClock = `-- name: SelectVectorClock :many
-SELECT
+SELECT DISTINCT ON (originator_node_id)
 	originator_node_id,
-	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+	originator_sequence_id,
+	originator_envelope
 FROM
 	gateway_envelopes
-GROUP BY
-	originator_node_id
+ORDER BY
+	originator_node_id,
+	originator_sequence_id DESC
 `
 
 type SelectVectorClockRow struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
+	OriginatorEnvelope   []byte
 }
 
 func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow, error) {
@@ -362,7 +365,7 @@ func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow
 	var items []SelectVectorClockRow
 	for rows.Next() {
 		var i SelectVectorClockRow
-		if err := rows.Scan(&i.OriginatorNodeID, &i.OriginatorSequenceID); err != nil {
+		if err := rows.Scan(&i.OriginatorNodeID, &i.OriginatorSequenceID, &i.OriginatorEnvelope); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

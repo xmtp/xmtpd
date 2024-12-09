@@ -5,4 +5,7 @@ source dev/contracts/.env
 
 cd ./contracts
 
+# Update depencencies
+forge soldeer update
+
 forge create --legacy --json --broadcast --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$1:$2"

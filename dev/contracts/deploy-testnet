@@ -4,6 +4,9 @@ set -euo
 
 cd ./contracts
 
+# Update depencencies
+forge soldeer update
+
 # Deploy the contract to the chain with the specified RPC URL and attempt to verify the SC code
 function deploy_contract() {
     forge create \

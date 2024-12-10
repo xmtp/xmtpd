@@ -26,9 +26,9 @@ export PRIVATE_KEY=<secret>
 
 dev/cli register-node \
     --http-address=<node DNS> \
-    --owner-address=0xd27FDB90A393Ce0E390120aeB58b326AbA910BE0 \
+    --node-owner-address=0xd27FDB90A393Ce0E390120aeB58b326AbA910BE0 \
     --admin-private-key=$PRIVATE_KEY \
-    --signing-key-pub=<node pub key>
+    --node-signing-key-pub=<node pub key>
 ```
 
 You need to register all (both) nodes with their correct DNS entries and public keys.

@@ -5,25 +5,20 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"log"
 	"os"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 var Commit string = "unknown"
 
-type globalOptions struct {
-	Contracts config.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
-	Log       config.LogOptions       `group:"Log Options"       namespace:"log"`
-}
-
 type CLI struct {
-	globalOptions
+	config.GlobalOptions
 	Command       string
 	GetPubKey     config.GetPubKeyOptions
 	GenerateKey   config.GenerateKeyOptions
@@ -43,7 +38,7 @@ the options for each subcommand.
 *
 */
 func parseOptions(args []string) (*CLI, error) {
-	var options globalOptions
+	var options config.GlobalOptions
 	var generateKeyOptions config.GenerateKeyOptions
 	var registerNodeOptions config.RegisterNodeOptions
 	var getPubKeyOptions config.GetPubKeyOptions

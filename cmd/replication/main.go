@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"sync"
@@ -24,16 +25,21 @@ var options config.ServerOptions
 func main() {
 	_, err := flags.Parse(&options)
 
-	if options.Version {
-		fmt.Printf("Version: %s\n", Commit)
-		return
-	}
-
 	if err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			fatal("Could not parse options: %s", err)
 		}
 		return
+	}
+
+	if options.Version {
+		fmt.Printf("Version: %s\n", Commit)
+		return
+	}
+
+	err = config.ValidateServerOptions(options)
+	if err != nil {
+		fatal("Could not validate options: %s", err)
 	}
 
 	logger, _, err := utils.BuildLogger(options.Log)
@@ -57,16 +63,19 @@ func main() {
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
-		db, err := db.NewNamespacedDB(
-			ctx,
-			options.DB.WriterConnectionString,
-			utils.BuildNamespace(options),
-			options.DB.WaitForDB,
-			options.DB.ReadTimeout,
-		)
+		var dbInstance *sql.DB
+		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
+			dbInstance, err = db.NewNamespacedDB(
+				ctx,
+				options.DB.WriterConnectionString,
+				utils.BuildNamespace(options),
+				options.DB.WaitForDB,
+				options.DB.ReadTimeout,
+			)
 
-		if err != nil {
-			logger.Fatal("initializing database", zap.Error(err))
+			if err != nil {
+				logger.Fatal("initializing database", zap.Error(err))
+			}
 		}
 
 		ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
@@ -111,7 +120,7 @@ func main() {
 			logger,
 			options,
 			chainRegistry,
-			db,
+			dbInstance,
 			blockchainPublisher,
 			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
 		)

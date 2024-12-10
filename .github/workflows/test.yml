@@ -3,7 +3,11 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "contracts/**"
   pull_request:
+    paths-ignore:
+      - "contracts/**"
 jobs:
   test:
     name: Test (Node)
@@ -38,28 +42,3 @@ jobs:
           service: xmtp-node-go
           files: report.xml
           env: ci
-  contracts:
-    name: Test (Contracts)
-    strategy:
-      fail-fast: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Run Forge build
-        working-directory: contracts
-        run: |
-          forge --version
-          forge soldeer update
-          forge build --sizes
-
-      - name: Run Forge tests
-        working-directory: contracts
-        run: |
-          forge test -vvv
-        id: test

@@ -7,3 +7,5 @@ const (
 	NODE_AUTHORIZATION_HEADER_NAME     = "node-authorization"
 	MAX_BLOCKCHAIN_ORIGINATOR_ID       = 100
 )
+
+type VerifiedNodeRequestCtxKey struct{}

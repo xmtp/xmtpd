@@ -17,11 +17,6 @@ import (
 
 var Commit string = "unknown"
 
-type globalOptions struct {
-	Contracts config.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
-	Log       config.LogOptions       `group:"Log Options"       namespace:"log"`
-}
-
 type CLI struct {
 	config.GlobalOptions
 	Command       string

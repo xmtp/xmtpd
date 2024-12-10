@@ -15,6 +15,13 @@ import (
 	"go.uber.org/zap"
 )
 
+var Commit string = "unknown"
+
+type globalOptions struct {
+	Contracts config.ContractsOptions `group:"Contracts Options" namespace:"contracts"`
+	Log       config.LogOptions       `group:"Log Options"       namespace:"log"`
+}
+
 type CLI struct {
 	config.GlobalOptions
 	Command       string
@@ -259,6 +266,13 @@ func updateAddress(logger *zap.Logger, options *CLI) {
 }
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "-v" || arg == "--version" {
+			fmt.Printf("Version: %s\n", Commit)
+			return
+		}
+	}
+
 	options, err := parseOptions(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Could not parse options: %s", err)

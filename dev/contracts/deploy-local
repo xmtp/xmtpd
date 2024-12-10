@@ -10,6 +10,9 @@ mkdir -p ./build
 
 cd ./contracts
 
+# Update depencencies
+forge soldeer update
+
 # Deploy a contract and save the output (which includes the contract address) to a JSON file to be used in tests
 function deploy_contract() {
     forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$1:$2" > ../build/$2.json

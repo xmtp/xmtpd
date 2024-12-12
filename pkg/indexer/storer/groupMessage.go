@@ -62,7 +62,7 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 
 	signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
 		buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Message),
-		event.BlockHash,
+		event.TxHash,
 	)
 	if err != nil {
 		s.logger.Error("Error building signed originator envelope", zap.Error(err))

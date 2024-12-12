@@ -25,8 +25,8 @@ type GetPubKeyOptions struct {
 }
 
 type RegisterNodeOptions struct {
-	HttpAddress     string `long:"http-address"      description:"HTTP address to register for the node"                            required:"true"`
-	OwnerAddress    string `long:"owner-address"     description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node"                    required:"true"`
-	SigningKeyPub   string `long:"signing-key-pub"   description:"Signing key of the node to register"                              required:"true"`
+	HttpAddress     string `long:"http-address"         description:"HTTP address to register for the node"                            required:"true"`
+	OwnerAddress    string `long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
+	AdminPrivateKey string `long:"admin-private-key"    description:"Private key of the admin to register the node"                    required:"true"`
+	SigningKeyPub   string `long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
 }

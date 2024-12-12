@@ -48,9 +48,9 @@ export PRIVATE_KEY=<secret>
 
 dev/cli register-node \
     --http-address=<node DNS> \
-    --owner-address=<node address> \
+    --node-owner-address=<node address> \
     --admin-private-key=$PRIVATE_KEY \
-    --signing-key-pub=<node pub-key>
+    --node-signing-key-pub=<node pub-key>
 ```
 
 ## Step 4) Start the node

@@ -13,7 +13,7 @@ if ! which sqlc &> /dev/null; then go install github.com/sqlc-dev/sqlc/cmd/sqlc;
 if ! which buf &> /dev/null; then go install github.com/bufbuild/buf/cmd/buf; fi
 if ! which golines &>/dev/null; then go install github.com/segmentio/golines@latest; fi
 if ! which abigen &>/dev/null; then go install github.com/ethereum/go-ethereum/cmd/abigen; fi
-
+if ! which jq &>/dev/null; then brew install jq; fi
 
 dev/docker/up
 dev/contracts/deploy-local 

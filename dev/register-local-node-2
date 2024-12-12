@@ -9,6 +9,6 @@ export NODE_ADDRESS=$ANVIL_ACC_2_ADDRESS
 
 dev/cli register-node \
     --http-address=http://localhost:5051 \
-    --owner-address=$NODE_ADDRESS \
+    --node-owner-address=$NODE_ADDRESS \
     --admin-private-key=$PRIVATE_KEY \
-    --signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY
+    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY

@@ -5,9 +5,10 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/config"
 	"log"
 	"os"
+
+	"github.com/xmtp/xmtpd/pkg/config"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -145,7 +146,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	}
 	logger.Info(
 		"successfully added node",
-		zap.String("owner-address", options.RegisterNode.OwnerAddress),
+		zap.String("node-owner-address", options.RegisterNode.OwnerAddress),
 		zap.String("node-http-address", options.RegisterNode.HttpAddress),
 		zap.String("node-signing-key-pub", utils.EcdsaPublicKeyToString(signingKeyPub)),
 	)
@@ -303,5 +304,4 @@ func main() {
 		updateAddress(logger, options)
 		return
 	}
-
 }

@@ -9,4 +9,6 @@ SCRIPT_DIR=$(dirname "$(realpath "$0")")
 TOP_LEVEL_DIR=$(realpath "$SCRIPT_DIR/..")
 cd "$TOP_LEVEL_DIR"
 
+export XMTPD_LOG_ENCODING=json
+
 go run -ldflags="-X main.Commit=$(git rev-parse HEAD)" cmd/cli/main.go "$@"

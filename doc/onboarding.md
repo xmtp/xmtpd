@@ -8,7 +8,7 @@ It is important that both `public key` and `address` are correct as they are imm
 
 An easy way to generate a new private key is to use our CLI:
 ```bash
-$ XMTPD_LOG_ENCODING=json ./dev/cli generate-key | jq
+./dev/cli generate-key | jq
 {
   "level": "INFO",
   "time": "2024-10-15T13:21:14.036-0400",
@@ -21,7 +21,7 @@ $ XMTPD_LOG_ENCODING=json ./dev/cli generate-key | jq
 
 If you already have a private key, you can extract the relevant public details via:
 ```bash
-$ XMTPD_LOG_ENCODING=json ./dev/cli get-pub-key --private-key 0xa9b48d687f450ea99a5faaae1be096ddb49487cb28393d3906d7359ede6ea460 | jq
+./dev/cli get-pub-key --private-key 0xa9b48d687f450ea99a5faaae1be096ddb49487cb28393d3906d7359ede6ea460 | jq
 {
   "level": "INFO",
   "time": "2024-10-15T13:21:51.276-0400",

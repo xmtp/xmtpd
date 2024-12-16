@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin-contracts-5.1.0/token/ERC721/ERC721.sol";
-import "@openzeppelin-contracts-5.1.0/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * A NFT contract for XMTP Node Operators.

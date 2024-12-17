@@ -180,25 +180,34 @@ func (m *BlockchainPublisher) fetchNonce(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
+	m.logger.Debug(
+		"Generated nonce",
+		zap.Uint64("pending_nonce", pending),
+		zap.Uint64("atomic_nonce", next),
+	)
+
+	if next >= pending {
+		// normal case scenario
+		return next, nil
+
+	}
+
 	// in some cases the chain nonce jumps ahead, and we need to handle this case
 	// this won't catch all possible timing scenarios, but it should self-heal if the chain jumps
-	if next < pending {
-		m.mutexNonce.Lock()
-		defer m.mutexNonce.Unlock()
-		next = atomic.AddUint64(m.nonce, 1)
-		if next < pending {
-			m.logger.Info(
-				fmt.Sprintf(
-					"Skew detected. Bumping nonce tracker! Pending/Next:%d/%d",
-					pending,
-					next,
-				),
-			)
-			atomic.StoreUint64(m.nonce, pending)
-			return pending, nil
-		}
+	m.mutexNonce.Lock()
+	defer m.mutexNonce.Unlock()
+	currentNonce := atomic.LoadUint64(m.nonce)
+	if currentNonce < pending {
+		m.logger.Info(
+			"Nonce skew detected",
+			zap.Uint64("pending_nonce", pending),
+			zap.Uint64("current_nonce", currentNonce),
+		)
+		atomic.StoreUint64(m.nonce, pending)
+		return pending, nil
 	}
-	return next, nil
+
+	return atomic.AddUint64(m.nonce, 1), nil
 }
 
 func findLog[T any](

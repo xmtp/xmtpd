@@ -82,6 +82,7 @@ func (s *Service) PublishClientEnvelopes(
 		)
 		var originatorEnvelope *envelopesProto.OriginatorEnvelope
 		if originatorEnvelope, err = s.publishToBlockchain(ctx, payload.payload); err != nil {
+			s.log.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
 		}
 		out[payload.originalIndex] = originatorEnvelope

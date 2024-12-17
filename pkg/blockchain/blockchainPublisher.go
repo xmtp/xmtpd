@@ -3,7 +3,10 @@ package blockchain
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -24,7 +27,8 @@ type BlockchainPublisher struct {
 	messagesContract       *abis.GroupMessages
 	identityUpdateContract *abis.IdentityUpdates
 	logger                 *zap.Logger
-	mu                     sync.Mutex
+	mutexNonce             sync.Mutex
+	nonce                  *uint64
 }
 
 func NewBlockchainPublisher(
@@ -51,7 +55,6 @@ func NewBlockchainPublisher(
 	if err != nil {
 		return nil, err
 	}
-
 	return &BlockchainPublisher{
 		signer: signer,
 		logger: logger.Named("GroupBlockchainPublisher").
@@ -71,11 +74,14 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	nonce, err := m.fetchNonce(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := m.messagesContract.AddMessage(&bind.TransactOpts{
 		Context: ctx,
+		Nonce:   new(big.Int).SetUint64(nonce),
 		From:    m.signer.FromAddress(),
 		Signer:  m.signer.SignerFunc(),
 	}, groupID, message)
@@ -111,13 +117,15 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("identity update is empty")
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	nonce, err := m.fetchNonce(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
-		Context: ctx,
-		From:    m.signer.FromAddress(),
-		Signer:  m.signer.SignerFunc(),
+		Nonce:  new(big.Int).SetUint64(nonce),
+		From:   m.signer.FromAddress(),
+		Signer: m.signer.SignerFunc(),
 	}, inboxId, identityUpdate)
 	if err != nil {
 		return nil, err
@@ -143,6 +151,53 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		m.identityUpdateContract.ParseIdentityUpdateCreated,
 		"no identity update log found",
 	)
+}
+
+func (m *BlockchainPublisher) fetchNonce(ctx context.Context) (uint64, error) {
+	// NOTE:since pendingNonce starts at 0, and we have to return that value exactly,
+	// we can't easily use Once with unsigned integers
+	if m.nonce == nil {
+		m.mutexNonce.Lock()
+		defer m.mutexNonce.Unlock()
+		if m.nonce == nil {
+			// PendingNonceAt gives the next nonce that should be used
+			// if we are the first thread to initialize the nonce, we want to return PendingNonce+0
+			nonce, err := m.client.PendingNonceAt(ctx, m.signer.FromAddress())
+			if err != nil {
+				return 0, err
+			}
+			m.nonce = &nonce
+			m.logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", *m.nonce))
+			return *m.nonce, nil
+		}
+	}
+	// Once the nonce has been initialized we can depend on Atomic to return the next value
+	next := atomic.AddUint64(m.nonce, 1)
+
+	pending, err := m.client.PendingNonceAt(ctx, m.signer.FromAddress())
+	if err != nil {
+		return 0, err
+	}
+
+	// in some cases the chain nonce jumps ahead, and we need to handle this case
+	// this won't catch all possible timing scenarios, but it should self-heal if the chain jumps
+	if next < pending {
+		m.mutexNonce.Lock()
+		defer m.mutexNonce.Unlock()
+		next = atomic.AddUint64(m.nonce, 1)
+		if next < pending {
+			m.logger.Info(
+				fmt.Sprintf(
+					"Skew detected. Bumping nonce tracker! Pending/Next:%d/%d",
+					pending,
+					next,
+				),
+			)
+			atomic.StoreUint64(m.nonce, pending)
+			return pending, nil
+		}
+	}
+	return next, nil
 }
 
 func findLog[T any](

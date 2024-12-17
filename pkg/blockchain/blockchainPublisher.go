@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -23,6 +24,7 @@ type BlockchainPublisher struct {
 	messagesContract       *abis.GroupMessages
 	identityUpdateContract *abis.IdentityUpdates
 	logger                 *zap.Logger
+	mu                     sync.Mutex
 }
 
 func NewBlockchainPublisher(
@@ -68,6 +70,10 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 	if len(message) == 0 {
 		return nil, errors.New("message is empty")
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	tx, err := m.messagesContract.AddMessage(&bind.TransactOpts{
 		Context: ctx,
 		From:    m.signer.FromAddress(),
@@ -104,6 +110,10 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 	if len(identityUpdate) == 0 {
 		return nil, errors.New("identity update is empty")
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	tx, err := m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
 		Context: ctx,
 		From:    m.signer.FromAddress(),

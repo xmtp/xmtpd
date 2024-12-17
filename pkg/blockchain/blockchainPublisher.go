@@ -123,9 +123,10 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 	}
 
 	tx, err := m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
-		Nonce:  new(big.Int).SetUint64(nonce),
-		From:   m.signer.FromAddress(),
-		Signer: m.signer.SignerFunc(),
+		Context: ctx,
+		Nonce:   new(big.Int).SetUint64(nonce),
+		From:    m.signer.FromAddress(),
+		Signer:  m.signer.SignerFunc(),
 	}, inboxId, identityUpdate)
 	if err != nil {
 		return nil, err

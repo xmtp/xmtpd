@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
   push_to_registry:
     strategy:
       matrix:
@@ -70,7 +69,6 @@ jobs:
         id: set_xmtpd_digest
         run: echo "digest=${{ steps.push.outputs.digest }}" >> $GITHUB_OUTPUT
 
-
   deploy:
     name: Deploy new images to infra
     runs-on: ubuntu-latest
@@ -86,7 +84,7 @@ jobs:
           timeout: 45m
           terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
           terraform-org: xmtp
-          terraform-workspace: testnet
+          terraform-workspace: testnet-staging
           variable-name: xmtpd_server_docker_image
           variable-value: "ghcr.io/xmtp/xmtpd@${{ needs.push_to_registry.outputs.xmtpd_digest }}"
           variable-value-required-prefix: "ghcr.io/xmtp/xmtpd@sha256:"

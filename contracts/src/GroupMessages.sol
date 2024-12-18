@@ -11,14 +11,21 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     event MessageSent(bytes32 groupId, bytes message, uint64 sequenceId);
     event UpgradeAuthorized(address deployer, address newImplementation);
 
+    error InvalidMessage();
+
     uint64 private sequenceId;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     /// @notice Initializes the contract with the deployer as admin.
-    function initialize() public initializer {
+    function initialize(address _admin) public initializer {
+        require(_admin != address(0), "Admin address cannot be zero");
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __Pausable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
     /// @notice Pauses the contract.
@@ -35,6 +42,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     /// @param groupId The group ID.
     /// @param message The message in bytes.
     function addMessage(bytes32 groupId, bytes calldata message) public whenNotPaused {
+        /// @dev 78 bytes contains the minimum length of a valid message.
+        require(message.length >= 78, InvalidMessage());
+
         /// @dev Incrementing the sequence ID is safe here due to the extremely large limit of uint64.
         unchecked {
             sequenceId++;
@@ -46,6 +56,7 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     /// @dev Authorizes the upgrade of the contract.
     /// @param newImplementation The address of the new implementation.
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(newImplementation != address(0), "New implementation cannot be zero address");
         emit UpgradeAuthorized(msg.sender, newImplementation);
     }
 }

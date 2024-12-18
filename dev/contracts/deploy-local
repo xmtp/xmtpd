@@ -11,7 +11,7 @@ mkdir -p ./build
 cd ./contracts
 
 # Update depencencies
-forge soldeer update
+forge soldeer install
 
 # Deploy a contract and save the output (which includes the contract address) to a JSON file to be used in tests
 function deploy_contract() {

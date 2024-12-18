@@ -193,7 +193,6 @@ func (s *syncWorker) subscribeToNodeRegistration(
 				backoff = time.Second
 			}
 
-			// Plumb through VC's here
 			conn, err = s.connectToNode(*node)
 			if err != nil {
 				continue
@@ -321,11 +320,11 @@ func (s *syncWorker) setupStream(
 }
 
 func (s *syncWorker) listenToStream(
-	stream *originatorStream,
+	originatorStream *originatorStream,
 ) error {
 	for {
 		// Recv() is a blocking operation that can only be interrupted by cancelling ctx
-		envs, err := stream.stream.Recv()
+		envs, err := originatorStream.stream.Recv()
 		if err == io.EOF {
 			return fmt.Errorf("Stream closed with EOF")
 		}
@@ -336,7 +335,7 @@ func (s *syncWorker) listenToStream(
 		}
 		s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))
 		for _, env := range envs.Envelopes {
-			s.validateAndInsertEnvelope(stream, env)
+			s.validateAndInsertEnvelope(originatorStream, env)
 		}
 	}
 }

@@ -8,6 +8,9 @@ on:
 jobs:
   push_to_registry:
     name: Push Docker Image to GitHub Packages
+    strategy:
+      matrix:
+        image: [ "xmtpd", "xmtpd-cli" ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,12 +26,22 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+      - name: Set up Docker image file based on the matrix variable
+        id: set_dockerfile
+        run: |
+          if [[ "${{ matrix.image }}" == "xmtpd" ]]; then
+          echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.image }}" == "xmtpd-cli" ]]; then
+          echo "dockerfile=Dockerfile-cli" >> $GITHUB_OUTPUT
+          else
+          echo "Unknown image: ${{ matrix.image }}"
+          exit 1
+          fi
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/xmtp/xmtpd
+          images: ghcr.io/xmtp/${{ matrix.image }}
           tags: |
             type=ref,event=tag
             type=semver,pattern={{version}}
@@ -38,7 +51,7 @@ jobs:
         id: push
         with:
           context: .
-          file: ./dev/docker/Dockerfile
+          file: ./dev/docker/${{ steps.set_dockerfile.outputs.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

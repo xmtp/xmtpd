@@ -23,6 +23,8 @@ LABEL description="XMTPD CLI"
 # color, nocolor, json
 ENV GOLOG_LOG_FMT=nocolor
 
+ENV XMTPD_LOG_ENCODING=json
+
 COPY --from=builder /app/bin/xmtpd-cli /usr/bin/
 
 ENTRYPOINT ["/usr/bin/xmtpd-cli"]

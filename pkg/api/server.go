@@ -62,7 +62,10 @@ func NewAPIServer(
 		prometheus.EnableHandlingTimeHistogram()
 	})
 
-	loggingInterceptor := client.NewLoggingInterceptor(log)
+	loggingInterceptor, err := client.NewLoggingInterceptor(log)
+	if err != nil {
+		return nil, err
+	}
 
 	unary := []grpc.UnaryServerInterceptor{prometheus.UnaryServerInterceptor}
 	stream := []grpc.StreamServerInterceptor{prometheus.StreamServerInterceptor}

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"go.uber.org/zap"
 	"time"
 
@@ -15,14 +16,14 @@ type LoggingInterceptor struct {
 }
 
 // NewLoggingInterceptor creates a new instance of LoggingInterceptor.
-func NewLoggingInterceptor(logger *zap.Logger) *LoggingInterceptor {
+func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 	if logger == nil {
-		panic("logger is required")
+		return nil, fmt.Errorf("logger is required")
 	}
 
 	return &LoggingInterceptor{
 		logger: logger,
-	}
+	}, nil
 }
 
 // Unary intercepts unary RPC calls to log errors.

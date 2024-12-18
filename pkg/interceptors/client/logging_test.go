@@ -29,8 +29,9 @@ func (m *mockServerStream) Context() context.Context {
 func TestUnaryLoggingInterceptor(t *testing.T) {
 	logger, logs := createTestLogger()
 
-	interceptor := NewLoggingInterceptor(logger).Unary()
-	// Mock unary handler
+	interceptor, err := NewLoggingInterceptor(logger)
+	require.NoError(t, err)
+
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return nil, status.Errorf(codes.Internal, "mock internal error")
 	}
@@ -41,8 +42,8 @@ func TestUnaryLoggingInterceptor(t *testing.T) {
 	}
 	req := struct{}{}
 
-	// Call the interceptor
-	_, err := interceptor(ctx, req, info, handler)
+	interceptorUnary := interceptor.Unary()
+	_, err = interceptorUnary(ctx, req, info, handler)
 
 	require.Error(t, err)
 	require.Equal(t, 1, logs.Len(), "expected one log entry but got none")
@@ -67,9 +68,9 @@ func TestUnaryLoggingInterceptor(t *testing.T) {
 }
 func TestStreamLoggingInterceptor(t *testing.T) {
 	logger, logs := createTestLogger()
-	interceptor := NewLoggingInterceptor(logger).Stream()
+	interceptor, err := NewLoggingInterceptor(logger)
+	require.NoError(t, err)
 
-	// Mock stream handler
 	handler := func(srv interface{}, ss grpc.ServerStream) error {
 		return status.Errorf(codes.NotFound, "mock stream error")
 	}
@@ -80,8 +81,8 @@ func TestStreamLoggingInterceptor(t *testing.T) {
 
 	stream := &mockServerStream{}
 
-	// Call the interceptor
-	err := interceptor(nil, stream, info, handler)
+	incerceptorStream := interceptor.Stream()
+	err = incerceptorStream(nil, stream, info, handler)
 
 	require.Error(t, err)
 	require.Equal(t, 1, logs.Len(), "expected one log entry but got none")

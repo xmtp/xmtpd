@@ -2,7 +2,7 @@ package api
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/interceptors/client"
+	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"net"
 	"strings"
 	"sync"
@@ -62,7 +62,7 @@ func NewAPIServer(
 		prometheus.EnableHandlingTimeHistogram()
 	})
 
-	loggingInterceptor, err := client.NewLoggingInterceptor(log)
+	loggingInterceptor, err := server.NewLoggingInterceptor(log)
 	if err != nil {
 		return nil, err
 	}

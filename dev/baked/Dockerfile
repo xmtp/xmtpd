@@ -14,7 +14,7 @@ RUN apt-get update &&  \
 
 RUN curl -L https://foundry.paradigm.xyz | bash && \
     source ~/.bashrc && \
-    foundryup -v "${FOUNDRY_VERSION}" &&  \
+    foundryup -i "${FOUNDRY_VERSION}" &&  \
     cp ~/.foundry/bin/* /usr/local/bin
 
 COPY . .

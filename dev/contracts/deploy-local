@@ -1,23 +1,24 @@
 #!/bin/bash
 # Deploy the smart contracts to the local anvil node
-
 set -euo pipefail
-
 source dev/contracts/.env
+source dev/contracts/common
 
 # Make sure the build directory exists
 mkdir -p ./build
 
+# Move to working directory
 cd ./contracts
 
 # Update depencencies
-forge soldeer install
+forge soldeer update &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "ERROR: Failed to update dependencies"
+  exit 1
+fi
 
-# Deploy a contract and save the output (which includes the contract address) to a JSON file to be used in tests
-function deploy_contract() {
-    forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$1:$2" > ../build/$2.json
-}
+forge_deploy_script group_messages
+forge_deploy_script identity_updates
 
-deploy_contract src/GroupMessages.sol GroupMessages
+# TODO: This should be a function in the forge CLI
 deploy_contract src/Nodes.sol Nodes
-deploy_contract src/IdentityUpdates.sol IdentityUpdates

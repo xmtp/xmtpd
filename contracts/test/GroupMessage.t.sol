@@ -3,16 +3,14 @@ pragma solidity 0.8.28;
 
 import "forge-std/src/Vm.sol";
 import {Test, console} from "forge-std/src/Test.sol";
+import {Utils} from "test/utils/Utils.sol";
 import {GroupMessages} from "src/GroupMessages.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-contract GroupMessagesTest is Test {
-    bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 constant EIP1967_IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-    bytes32 constant GROUP_ID = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
-
+contract GroupMessagesTest is Test, GroupMessages, Utils {
     GroupMessages groupMessagesImpl;
     ERC1967Proxy proxy;
     GroupMessages groupMessages;
@@ -24,33 +22,79 @@ contract GroupMessagesTest is Test {
         groupMessagesImpl = new GroupMessages();
 
         proxy = new ERC1967Proxy(
-            address(groupMessagesImpl), 
-            abi.encodeWithSelector(GroupMessages.initialize.selector, admin)
+            address(groupMessagesImpl), abi.encodeWithSelector(GroupMessages.initialize.selector, admin)
         );
 
         groupMessages = GroupMessages(address(proxy));
     }
 
     function testAddMessageValid() public {
-        bytes memory message = new bytes(1024);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256)); // Set each byte to its index modulo 256
-        }
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
 
         vm.expectEmit(address(groupMessages));
-        emit GroupMessages.MessageSent(GROUP_ID, message, 1);
+        emit GroupMessages.MessageSent(ID, message, 1);
 
-        groupMessages.addMessage(GROUP_ID, message);
+        groupMessages.addMessage(ID, message);
     }
 
-    function testAddMessageInvalid() public {
-        bytes memory message = new bytes(77);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256));
-        }
+    function testAddMessageWithMaxPayload() public {
+        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE);
 
-        vm.expectRevert(GroupMessages.InvalidMessage.selector);
-        groupMessages.addMessage(GROUP_ID, message);
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 1);
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testAddMessageTooSmall() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE - 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GroupMessages.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+            )
+        );
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testAddMessageTooBig() public {
+        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GroupMessages.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+            )
+        );
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testAddMessageWhenPaused() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+
+        groupMessages.pause();
+        assertTrue(groupMessages.paused());
+
+        vm.expectRevert(abi.encodeWithSelector(PausableUpgradeable.EnforcedPause.selector));
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testSequenceIdIncrement() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 1);
+        groupMessages.addMessage(ID, message);
+
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 2);
+        groupMessages.addMessage(ID, message);
+
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 3);
+        groupMessages.addMessage(ID, message);
     }
 
     function testInvalidReinitialization() public {
@@ -63,14 +107,22 @@ contract GroupMessagesTest is Test {
         assertTrue(groupMessages.paused());
 
         vm.prank(unauthorized);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.unpause();
 
         groupMessages.unpause();
         assertFalse(groupMessages.paused());
 
         vm.prank(unauthorized);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.pause();
     }
 
@@ -85,11 +137,17 @@ contract GroupMessagesTest is Test {
         groupMessages.revokeRole(DEFAULT_ADMIN_ROLE, unauthorized);
 
         vm.prank(unauthorized);
-        vm.expectRevert(revertRoleData(unauthorized));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.pause();
 
         groupMessages.renounceRole(DEFAULT_ADMIN_ROLE, admin);
-        vm.expectRevert(revertRoleData(admin));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, admin, DEFAULT_ADMIN_ROLE)
+        );
         groupMessages.pause();
     }
 
@@ -97,11 +155,8 @@ contract GroupMessagesTest is Test {
         GroupMessages newGroupMessagesImpl = new GroupMessages();
         address newImplAddress = address(newGroupMessagesImpl);
         address oldImplAddress = address(groupMessagesImpl);
-        
-        bytes memory message = new bytes(78);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256));
-        }
+
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
 
         // Retrieve the implementation address directly from the proxy storage.
         bytes32 rawImplAddress = vm.load(address(groupMessages), EIP1967_IMPL_SLOT);
@@ -110,12 +165,16 @@ contract GroupMessagesTest is Test {
 
         // Initialize sequenceId to 1. The state should be preserved between upgrades.
         vm.expectEmit(address(groupMessages));
-        emit GroupMessages.MessageSent(GROUP_ID, message, 1);
-        groupMessages.addMessage(GROUP_ID, message);
+        emit GroupMessages.MessageSent(ID, message, 1);
+        groupMessages.addMessage(ID, message);
 
         // Unauthorized upgrade attempts should revert.
         vm.prank(unauthorized);
-        vm.expectRevert(revertRoleData(unauthorized));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.upgradeToAndCall(address(newGroupMessagesImpl), "");
 
         // Authorized upgrade should succeed and emit UpgradeAuthorized event.
@@ -130,11 +189,7 @@ contract GroupMessagesTest is Test {
 
         // Next sequenceId should be 2.
         vm.expectEmit(address(groupMessages));
-        emit GroupMessages.MessageSent(GROUP_ID, message, 2);
-        groupMessages.addMessage(GROUP_ID, message);
-    }
-
-    function revertRoleData(address _user) public pure returns (bytes memory) {
-        return abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _user, DEFAULT_ADMIN_ROLE);
+        emit GroupMessages.MessageSent(ID, message, 2);
+        groupMessages.addMessage(ID, message);
     }
 }

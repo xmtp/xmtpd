@@ -28,10 +28,11 @@ type BlockchainPublisher struct {
 	identityUpdateContract *abis.IdentityUpdates
 	logger                 *zap.Logger
 	mutexNonce             sync.Mutex
-	nonce                  *uint64
+	nonce                  uint64
 }
 
 func NewBlockchainPublisher(
+	ctx context.Context,
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
@@ -55,6 +56,18 @@ func NewBlockchainPublisher(
 	if err != nil {
 		return nil, err
 	}
+
+	nonce, err := client.PendingNonceAt(ctx, signer.FromAddress())
+	if err != nil {
+		return nil, err
+	}
+
+	// The nonce is the next ID to be used, not the current highest
+	// The nonce member variable represents the last recenty used, so it is pending-1
+	nonce = max(nonce-1, uint64(0))
+
+	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
+
 	return &BlockchainPublisher{
 		signer: signer,
 		logger: logger.Named("GroupBlockchainPublisher").
@@ -62,6 +75,7 @@ func NewBlockchainPublisher(
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
 		client:                 client,
+		nonce:                  nonce,
 	}, nil
 }
 
@@ -154,31 +168,15 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 	)
 }
 
+// once fetchNonce returns a nonce, it must be used
+// otherwise the chain might see a gap and deadlock
 func (m *BlockchainPublisher) fetchNonce(ctx context.Context) (uint64, error) {
-	// NOTE:since pendingNonce starts at 0, and we have to return that value exactly,
-	// we can't easily use Once with unsigned integers
-	if m.nonce == nil {
-		m.mutexNonce.Lock()
-		defer m.mutexNonce.Unlock()
-		if m.nonce == nil {
-			// PendingNonceAt gives the next nonce that should be used
-			// if we are the first thread to initialize the nonce, we want to return PendingNonce+0
-			nonce, err := m.client.PendingNonceAt(ctx, m.signer.FromAddress())
-			if err != nil {
-				return 0, err
-			}
-			m.nonce = &nonce
-			m.logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", *m.nonce))
-			return *m.nonce, nil
-		}
-	}
-	// Once the nonce has been initialized we can depend on Atomic to return the next value
-	next := atomic.AddUint64(m.nonce, 1)
-
 	pending, err := m.client.PendingNonceAt(ctx, m.signer.FromAddress())
 	if err != nil {
 		return 0, err
 	}
+
+	next := atomic.AddUint64(&m.nonce, 1)
 
 	m.logger.Debug(
 		"Generated nonce",
@@ -196,18 +194,18 @@ func (m *BlockchainPublisher) fetchNonce(ctx context.Context) (uint64, error) {
 	// this won't catch all possible timing scenarios, but it should self-heal if the chain jumps
 	m.mutexNonce.Lock()
 	defer m.mutexNonce.Unlock()
-	currentNonce := atomic.LoadUint64(m.nonce)
+	currentNonce := atomic.LoadUint64(&m.nonce)
 	if currentNonce < pending {
 		m.logger.Info(
 			"Nonce skew detected",
 			zap.Uint64("pending_nonce", pending),
 			zap.Uint64("current_nonce", currentNonce),
 		)
-		atomic.StoreUint64(m.nonce, pending)
+		atomic.StoreUint64(&m.nonce, pending)
 		return pending, nil
 	}
 
-	return atomic.AddUint64(m.nonce, 1), nil
+	return atomic.AddUint64(&m.nonce, 1), nil
 }
 
 func findLog[T any](

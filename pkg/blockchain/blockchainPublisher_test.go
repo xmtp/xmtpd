@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ func buildPublisher(t *testing.T) (*BlockchainPublisher, func()) {
 	client, err := NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	publisher, err := NewBlockchainPublisher(logger, client, signer, contractsOptions)
+	publisher, err := NewBlockchainPublisher(ctx, logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
 	return publisher, func() {
@@ -139,4 +140,31 @@ func TestPublishGroupMessage(t *testing.T) {
 			require.NotNil(t, logMessage.Raw.TxHash)
 		})
 	}
+}
+
+func TestPublishGroupMessageConcurrent(t *testing.T) {
+	publisher, cleanup := buildPublisher(t)
+	defer cleanup()
+
+	const parallelRuns = 100
+
+	var wg sync.WaitGroup
+	wg.Add(parallelRuns)
+
+	for i := 0; i < parallelRuns; i++ {
+		go func() {
+			defer wg.Done()
+
+			_, err := publisher.PublishGroupMessage(
+				context.Background(),
+				testutils.RandomGroupID(),
+				testutils.RandomBytes(100),
+			)
+			require.NoError(t, err)
+		}()
+	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
+
 }

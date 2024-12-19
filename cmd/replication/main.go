@@ -106,6 +106,7 @@ func main() {
 		}
 
 		blockchainPublisher, err := blockchain.NewBlockchainPublisher(
+			ctx,
 			logger,
 			ethclient,
 			signer,

@@ -46,13 +46,15 @@ DELETE FROM staged_originator_envelopes
 WHERE id = @id;
 
 -- name: SelectVectorClock :many
-SELECT
+SELECT DISTINCT ON (originator_node_id)
 	originator_node_id,
-	max(originator_sequence_id)::BIGINT AS originator_sequence_id
+	originator_sequence_id,
+	originator_envelope
 FROM
 	gateway_envelopes
-GROUP BY
-	originator_node_id;
+ORDER BY
+	originator_node_id,
+	originator_sequence_id DESC;
 
 -- name: GetAddressLogs :many
 SELECT

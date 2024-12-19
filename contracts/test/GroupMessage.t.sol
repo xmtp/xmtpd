@@ -197,7 +197,7 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         bytes memory message = new bytes(77);
         for (uint256 i = 0; i < message.length; i++) {
             message[i] = bytes1(uint8(i % 256));
-    }
+        }
 
         vm.expectRevert(GroupMessages.InvalidMessage.selector);
         groupMessages.addMessage(GROUP_ID, message);
@@ -210,12 +210,14 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
 
     function testPauseUnpause() public {
         groupMessages.pause();
+        assertTrue(groupMessages.paused());
 
         vm.prank(unauthorized);
         vm.expectRevert();
         groupMessages.unpause();
 
         groupMessages.unpause();
+        assertFalse(groupMessages.paused());
 
         vm.prank(unauthorized);
         vm.expectRevert();

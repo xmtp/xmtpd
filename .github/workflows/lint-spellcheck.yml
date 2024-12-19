@@ -1,4 +1,4 @@
-name: Lint
+name: Lint Spellcheck
 on:
   push:
     branches:

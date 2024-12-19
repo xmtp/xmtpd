@@ -16,7 +16,7 @@ on:
 permissions:
   contents: read
 jobs:
-  lint:
+  lint-go:
     name: Lint-Go
     runs-on: ubuntu-latest
     steps:

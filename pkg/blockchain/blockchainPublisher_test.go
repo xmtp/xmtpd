@@ -24,7 +24,7 @@ func buildPublisher(t *testing.T) (*BlockchainPublisher, func()) {
 	client, err := NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	publisher, err := NewBlockchainPublisher(logger, client, signer, contractsOptions)
+	publisher, err := NewBlockchainPublisher(ctx, logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
 	return publisher, func() {

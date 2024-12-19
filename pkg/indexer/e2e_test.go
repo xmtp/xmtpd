@@ -44,6 +44,7 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainP
 	require.NoError(t, err)
 
 	publisher, err := blockchain.NewBlockchainPublisher(
+		ctx,
 		testutils.NewLog(t),
 		client,
 		signer,

@@ -38,10 +38,7 @@ contract UpgradeIdentityUpdates is Script, Utils, Environment {
         string memory fileContent = readOutput(XMTP_IDENTITY_UPDATES_OUTPUT_JSON);
         proxy = IdentityUpdates(stdJson.readAddress(fileContent, ".addresses.identityUpdatesProxy"));
         require(address(proxy) != address(0), "proxy address not set");
-        require(
-            proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader),
-            "Upgrader must have admin role"
-        );
+        require(proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader), "Upgrader must have admin role");
     }
 
     function _serializeUpgradeData() internal {
@@ -50,10 +47,6 @@ contract UpgradeIdentityUpdates is Script, Utils, Environment {
             getOutputPath(XMTP_IDENTITY_UPDATES_OUTPUT_JSON),
             ".addresses.identityUpdatesImpl"
         );
-        vm.writeJson(
-            vm.toString(block.number),
-            getOutputPath(XMTP_IDENTITY_UPDATES_OUTPUT_JSON),
-            ".latestUpgradeBlock"
-        );
+        vm.writeJson(vm.toString(block.number), getOutputPath(XMTP_IDENTITY_UPDATES_OUTPUT_JSON), ".latestUpgradeBlock");
     }
 }

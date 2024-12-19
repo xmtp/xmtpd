@@ -29,10 +29,8 @@ contract DeployGroupMessages is Script, Utils, Environment {
         require(address(groupMessagesImpl) != address(0), "Implementation deployment failed");
 
         // Deploy the proxy contract.
-        proxy =
-            new ERC1967Proxy(
-                address(groupMessagesImpl), 
-                abi.encodeWithSelector(GroupMessages.initialize.selector, admin)
+        proxy = new ERC1967Proxy(
+            address(groupMessagesImpl), abi.encodeWithSelector(GroupMessages.initialize.selector, admin)
         );
 
         vm.stopBroadcast();

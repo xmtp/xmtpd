@@ -2,9 +2,9 @@
   "addresses": {
     "identityUpdatesDeployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "identityUpdatesImpl": "0x18E317A7D70d8fBf8e6E893616b52390EbBdb629",
-    "identityUpdatesProxy": "0x5067457698Fd6Fa1C6964e416b3f42713513B3dD",
+    "identityUpdatesProxy": "0x4b6aB5F819A515382B0dEB6935D793817bB4af28",
     "identityUpdatesProxyAdmin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
   },
-  "deploymentBlock": 100,
-  "latestUpgradeBlock": 108
+  "deploymentBlock": 102,
+  "latestUpgradeBlock": 102
 }

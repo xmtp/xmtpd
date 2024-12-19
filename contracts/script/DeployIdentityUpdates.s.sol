@@ -30,10 +30,7 @@ contract DeployIdentityUpdates is Script, Utils, Environment {
 
         // Deploy the proxy contract.
         proxy =
-            new ERC1967Proxy(
-                address(idUpdatesImpl), 
-                abi.encodeWithSelector(IdentityUpdates.initialize.selector, admin)
-        );
+            new ERC1967Proxy(address(idUpdatesImpl), abi.encodeWithSelector(IdentityUpdates.initialize.selector, admin));
 
         vm.stopBroadcast();
 

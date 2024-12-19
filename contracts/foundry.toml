@@ -12,6 +12,11 @@ remappings = [
     "@openzeppelin-contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
     "forge-std/=dependencies/forge-std-1.9.4/",
 ]
+fs_permissions = [
+    { access = "read-write", path = "script/output/31337"},
+    { access = "read-write", path = "script/output/11155111"},
+    { access = "read-write", path = "script/output/241320161"}
+]
 
 [soldeer]
 recursive_deps = true

@@ -11,6 +11,11 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     event MessageSent(bytes32 groupId, bytes message, uint64 sequenceId);
     event UpgradeAuthorized(address deployer, address newImplementation);
 
+    error InvalidIdentityUpdateSize(uint256 actualSize, uint256 minSize, uint256 maxSize);
+
+    uint256 private constant MIN_PAYLOAD_SIZE = 78;
+    uint256 private constant MAX_PAYLOAD_SIZE = 4_194_304;
+
     error InvalidMessage();
 
     uint64 private sequenceId;
@@ -42,8 +47,10 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     /// @param groupId The group ID.
     /// @param message The message in bytes.
     function addMessage(bytes32 groupId, bytes calldata message) public whenNotPaused {
-        /// @dev 78 bytes contains the minimum length of a valid message.
-        require(message.length >= 78, InvalidMessage());
+        require(
+            message.length >= MIN_PAYLOAD_SIZE && message.length <= MAX_PAYLOAD_SIZE,
+            InvalidMessage()
+        );
 
         /// @dev Incrementing the sequence ID is safe here due to the extremely large limit of uint64.
         unchecked {

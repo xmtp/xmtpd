@@ -37,6 +37,8 @@ contract IdentityUpdatesTest is Test {
             message[i] = bytes1(uint8(i % 256)); // Set each byte to its index modulo 256
         }
 
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(INBOX_ID, message, 1);
         identityUpdates.addIdentityUpdate(INBOX_ID, message);
     }
 
@@ -57,12 +59,14 @@ contract IdentityUpdatesTest is Test {
 
     function testPauseUnpause() public {
         identityUpdates.pause();
+        assertTrue(identityUpdates.paused());
 
         vm.prank(unauthorized);
         vm.expectRevert();
         identityUpdates.unpause();
 
         identityUpdates.unpause();
+        assertFalse(identityUpdates.paused());
 
         vm.prank(unauthorized);
         vm.expectRevert();

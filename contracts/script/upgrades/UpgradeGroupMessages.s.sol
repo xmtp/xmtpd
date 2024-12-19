@@ -3,34 +3,57 @@ pragma solidity 0.8.28;
 
 import "forge-std/src/Script.sol";
 import "forge-std/src/Vm.sol";
+import "../utils/Utils.sol";
+import "../utils/Environment.sol";
 import "src/GroupMessages.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract UpgradeGroupMessages is Script {
-    function run() external {
-        address proxyAddress = vm.envAddress("XMTP_GROUP_MESSAGES_PROXY_ADDRESS");
-        require(proxyAddress != address(0), "XMTP_GROUP_MESSAGES_PROXY_ADDRESS not set");
+contract UpgradeGroupMessages is Script, Utils, Environment {
+    GroupMessages newImplementation;
+    GroupMessages proxy;
 
+    address upgrader;
+
+    function run() external {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
-        address upgrader = vm.addr(privateKey);
+        upgrader = vm.addr(privateKey);
+
         vm.startBroadcast(privateKey);
 
-        // Step 1: Deploy the new implementation contract.
-        GroupMessages newImplementation = new GroupMessages();
+        _initializeProxy();
 
-        // Step 2: Initialize the proxy.
-        GroupMessages proxy = GroupMessages(proxyAddress);
+        // Deploy the new implementation contract.
+        newImplementation = new GroupMessages();
+        require(address(newImplementation) != address(0), "Implementation deployment failed");
 
-        // Step 3: Upgrade the proxy pointer to the new implementation.
+        // Upgrade the proxy pointer to the new implementation.
         proxy.upgradeToAndCall(address(newImplementation), "");
 
-        console.log(
-            '{"upgrader":"%s","proxy":"%s","newImplementation":"%s"}', 
-            upgrader, 
-            address(proxy), 
-            address(newImplementation)
-        );
-
         vm.stopBroadcast();
+
+        _serializeUpgradeData();
+    }
+
+    function _initializeProxy() internal {
+        string memory fileContent = readOutput(XMTP_GROUP_MESSAGES_OUTPUT_JSON);
+        proxy = GroupMessages(stdJson.readAddress(fileContent, ".addresses.groupMessagesProxy"));
+        require(address(proxy) != address(0), "proxy address not set");
+        require(
+            proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader),
+            "Upgrader must have admin role"
+        );
+    }
+
+    function _serializeUpgradeData() internal {
+        vm.writeJson(
+            vm.toString(address(newImplementation)),
+            getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON),
+            ".addresses.groupMessagesImpl"
+        );
+        vm.writeJson(
+            vm.toString(block.number),
+            getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON),
+            ".latestUpgradeBlock"
+        );
     }
 }

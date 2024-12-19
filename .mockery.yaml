@@ -4,6 +4,9 @@ outpkg: "{{.PackageName}}"
 dir: "pkg/mocks/{{.PackageName}}"
 filename: "mock_{{.InterfaceName}}.go"
 packages:
+  github.com/xmtp/xmtpd/pkg/authn:
+    interfaces:
+      JWTVerifier:
   github.com/xmtp/xmtpd/pkg/mlsvalidate:
     interfaces:
       MLSValidationService:

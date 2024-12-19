@@ -58,6 +58,10 @@ func (o *OriginatorEnvelope) OriginatorSequenceID() uint64 {
 	return o.UnsignedOriginatorEnvelope.OriginatorSequenceID()
 }
 
+func (o *OriginatorEnvelope) OriginatorNs() int64 {
+	return o.UnsignedOriginatorEnvelope.OriginatorNs()
+}
+
 func (o *OriginatorEnvelope) TargetTopic() topic.Topic {
 	return o.UnsignedOriginatorEnvelope.TargetTopic()
 }

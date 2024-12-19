@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"net"
 	"strings"
 	"sync"
@@ -61,6 +62,11 @@ func NewAPIServer(
 		prometheus.EnableHandlingTimeHistogram()
 	})
 
+	loggingInterceptor, err := server.NewLoggingInterceptor(log)
+	if err != nil {
+		return nil, err
+	}
+
 	unary := []grpc.UnaryServerInterceptor{prometheus.UnaryServerInterceptor}
 	stream := []grpc.StreamServerInterceptor{prometheus.StreamServerInterceptor}
 
@@ -75,6 +81,9 @@ func NewAPIServer(
 			PermitWithoutStream: true,
 			MinTime:             15 * time.Second,
 		}),
+		grpc.ChainUnaryInterceptor(loggingInterceptor.Unary()),
+		grpc.ChainStreamInterceptor(loggingInterceptor.Stream()),
+
 		// grpc.MaxRecvMsgSize(s.Config.Options.MaxMsgSize),
 	}
 

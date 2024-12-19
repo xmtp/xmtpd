@@ -38,10 +38,7 @@ contract UpgradeGroupMessages is Script, Utils, Environment {
         string memory fileContent = readOutput(XMTP_GROUP_MESSAGES_OUTPUT_JSON);
         proxy = GroupMessages(stdJson.readAddress(fileContent, ".addresses.groupMessagesProxy"));
         require(address(proxy) != address(0), "proxy address not set");
-        require(
-            proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader),
-            "Upgrader must have admin role"
-        );
+        require(proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader), "Upgrader must have admin role");
     }
 
     function _serializeUpgradeData() internal {
@@ -50,10 +47,6 @@ contract UpgradeGroupMessages is Script, Utils, Environment {
             getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON),
             ".addresses.groupMessagesImpl"
         );
-        vm.writeJson(
-            vm.toString(block.number),
-            getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON),
-            ".latestUpgradeBlock"
-        );
+        vm.writeJson(vm.toString(block.number), getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON), ".latestUpgradeBlock");
     }
 }

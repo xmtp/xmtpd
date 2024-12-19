@@ -3,16 +3,14 @@ pragma solidity 0.8.28;
 
 import "forge-std/src/Vm.sol";
 import {Test, console} from "forge-std/src/Test.sol";
+import {Utils} from "test/utils/Utils.sol";
 import {IdentityUpdates} from "src/IdentityUpdates.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-contract IdentityUpdatesTest is Test {
-    bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 constant EIP1967_IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-    bytes32 constant INBOX_ID = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
-
+contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
     IdentityUpdates identityUpdatesImpl;
     ERC1967Proxy proxy;
     IdentityUpdates identityUpdates;
@@ -24,32 +22,79 @@ contract IdentityUpdatesTest is Test {
         identityUpdatesImpl = new IdentityUpdates();
 
         proxy = new ERC1967Proxy(
-            address(identityUpdatesImpl), 
-            abi.encodeWithSelector(identityUpdates.initialize.selector, admin)
+            address(identityUpdatesImpl), abi.encodeWithSelector(identityUpdates.initialize.selector, admin)
         );
 
         identityUpdates = IdentityUpdates(address(proxy));
     }
 
-    function test_AddIdentityUpdateValid() public {
-        bytes memory message = new bytes(1024);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256)); // Set each byte to its index modulo 256
-        }
+    function testAddIdentityUpdateValid() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
 
         vm.expectEmit(address(identityUpdates));
-        emit IdentityUpdates.IdentityUpdateCreated(INBOX_ID, message, 1);
-        identityUpdates.addIdentityUpdate(INBOX_ID, message);
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
+
+        identityUpdates.addIdentityUpdate(ID, message);
     }
 
-    function testAddMessageInvalid() public {
-        bytes memory message = new bytes(103);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256));
-        }
+    function testAddIdentityUpdateWithMaxPayload() public {
+        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE);
 
-        vm.expectRevert(IdentityUpdates.InvalidIdentityUpdate.selector);
-        identityUpdates.addIdentityUpdate(INBOX_ID, message);
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
+
+        identityUpdates.addIdentityUpdate(ID, message);
+    }
+
+    function testAddIdentityUpdateTooSmall() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE - 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IdentityUpdates.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+            )
+        );
+
+        identityUpdates.addIdentityUpdate(ID, message);
+    }
+
+    function testAddIdentityUpdateTooBig() public {
+        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IdentityUpdates.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+            )
+        );
+
+        identityUpdates.addIdentityUpdate(ID, message);
+    }
+
+    function testAddIdentityUpdateWhenPaused() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+
+        identityUpdates.pause();
+        assertTrue(identityUpdates.paused());
+
+        vm.expectRevert(abi.encodeWithSelector(PausableUpgradeable.EnforcedPause.selector));
+
+        identityUpdates.addIdentityUpdate(ID, message);
+    }
+
+    function testSequenceIdIncrement() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
+        identityUpdates.addIdentityUpdate(ID, message);
+
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 2);
+        identityUpdates.addIdentityUpdate(ID, message);
+
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 3);
+        identityUpdates.addIdentityUpdate(ID, message);
     }
 
     function testInvalidReinitialization() public {
@@ -62,14 +107,22 @@ contract IdentityUpdatesTest is Test {
         assertTrue(identityUpdates.paused());
 
         vm.prank(unauthorized);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         identityUpdates.unpause();
 
         identityUpdates.unpause();
         assertFalse(identityUpdates.paused());
 
         vm.prank(unauthorized);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         identityUpdates.pause();
     }
 
@@ -84,11 +137,17 @@ contract IdentityUpdatesTest is Test {
         identityUpdates.revokeRole(DEFAULT_ADMIN_ROLE, unauthorized);
 
         vm.prank(unauthorized);
-        vm.expectRevert(revertRoleData(unauthorized));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         identityUpdates.pause();
 
         identityUpdates.renounceRole(DEFAULT_ADMIN_ROLE, admin);
-        vm.expectRevert(revertRoleData(admin));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, admin, DEFAULT_ADMIN_ROLE)
+        );
         identityUpdates.pause();
     }
 
@@ -96,11 +155,8 @@ contract IdentityUpdatesTest is Test {
         IdentityUpdates newIdentityUpdatesImpl = new IdentityUpdates();
         address newImplAddress = address(newIdentityUpdatesImpl);
         address oldImplAddress = address(identityUpdatesImpl);
-        
-        bytes memory message = new bytes(104);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256));
-        }
+
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
 
         // Retrieve the implementation address directly from the proxy storage.
         bytes32 rawImplAddress = vm.load(address(identityUpdates), EIP1967_IMPL_SLOT);
@@ -109,12 +165,16 @@ contract IdentityUpdatesTest is Test {
 
         // Initialize sequenceId to 1. The state should be preserved between upgrades.
         vm.expectEmit(address(identityUpdates));
-        emit IdentityUpdates.IdentityUpdateCreated(INBOX_ID, message, 1);
-        identityUpdates.addIdentityUpdate(INBOX_ID, message);
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
+        identityUpdates.addIdentityUpdate(ID, message);
 
         // Unauthorized upgrade attempts should revert.
         vm.prank(unauthorized);
-        vm.expectRevert(revertRoleData(unauthorized));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         identityUpdates.upgradeToAndCall(address(newIdentityUpdatesImpl), "");
 
         // Authorized upgrade should succeed and emit UpgradeAuthorized event.
@@ -129,11 +189,7 @@ contract IdentityUpdatesTest is Test {
 
         // Next sequenceId should be 2.
         vm.expectEmit(address(identityUpdates));
-        emit IdentityUpdates.IdentityUpdateCreated(INBOX_ID, message, 2);
-        identityUpdates.addIdentityUpdate(INBOX_ID, message);
-    }
-
-    function revertRoleData(address _user) public pure returns (bytes memory) {
-        return abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _user, DEFAULT_ADMIN_ROLE);
+        emit IdentityUpdates.IdentityUpdateCreated(ID, message, 2);
+        identityUpdates.addIdentityUpdate(ID, message);
     }
 }

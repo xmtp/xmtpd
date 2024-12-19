@@ -193,14 +193,64 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         groupMessages.addMessage(ID, message);
     }
 
-    function testAddMessageInvalid() public {
-        bytes memory message = new bytes(77);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256));
-        }
+    function testAddMessageWithMaxPayload() public {
+        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE);
 
-        vm.expectRevert(GroupMessages.InvalidMessage.selector);
-        groupMessages.addMessage(GROUP_ID, message);
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 1);
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testAddMessageTooSmall() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE - 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GroupMessages.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+            )
+        );
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testAddMessageTooBig() public {
+        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GroupMessages.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+            )
+        );
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testAddMessageWhenPaused() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+
+        groupMessages.pause();
+        assertTrue(groupMessages.paused());
+
+        vm.expectRevert(abi.encodeWithSelector(PausableUpgradeable.EnforcedPause.selector));
+
+        groupMessages.addMessage(ID, message);
+    }
+
+    function testSequenceIdIncrement() public {
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 1);
+        groupMessages.addMessage(ID, message);
+
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 2);
+        groupMessages.addMessage(ID, message);
+
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, message, 3);
+        groupMessages.addMessage(ID, message);
     }
 
     function testInvalidReinitialization() public {
@@ -213,14 +263,22 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         assertTrue(groupMessages.paused());
 
         vm.prank(unauthorized);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.unpause();
 
         groupMessages.unpause();
         assertFalse(groupMessages.paused());
 
         vm.prank(unauthorized);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.pause();
     }
 
@@ -235,11 +293,17 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         groupMessages.revokeRole(DEFAULT_ADMIN_ROLE, unauthorized);
 
         vm.prank(unauthorized);
-        vm.expectRevert(revertRoleData(unauthorized));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.pause();
 
         groupMessages.renounceRole(DEFAULT_ADMIN_ROLE, admin);
-        vm.expectRevert(revertRoleData(admin));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, admin, DEFAULT_ADMIN_ROLE)
+        );
         groupMessages.pause();
     }
 
@@ -247,11 +311,8 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         GroupMessages newGroupMessagesImpl = new GroupMessages();
         address newImplAddress = address(newGroupMessagesImpl);
         address oldImplAddress = address(groupMessagesImpl);
-        
-        bytes memory message = new bytes(78);
-        for (uint256 i = 0; i < message.length; i++) {
-            message[i] = bytes1(uint8(i % 256));
-        }
+
+        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
 
         // Retrieve the implementation address directly from the proxy storage.
         bytes32 rawImplAddress = vm.load(address(groupMessages), EIP1967_IMPL_SLOT);
@@ -260,12 +321,16 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
 
         // Initialize sequenceId to 1. The state should be preserved between upgrades.
         vm.expectEmit(address(groupMessages));
-        emit GroupMessages.MessageSent(GROUP_ID, message, 1);
-        groupMessages.addMessage(GROUP_ID, message);
+        emit GroupMessages.MessageSent(ID, message, 1);
+        groupMessages.addMessage(ID, message);
 
         // Unauthorized upgrade attempts should revert.
         vm.prank(unauthorized);
-        vm.expectRevert(revertRoleData(unauthorized));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+            )
+        );
         groupMessages.upgradeToAndCall(address(newGroupMessagesImpl), "");
 
         // Authorized upgrade should succeed and emit UpgradeAuthorized event.
@@ -280,11 +345,7 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
 
         // Next sequenceId should be 2.
         vm.expectEmit(address(groupMessages));
-        emit GroupMessages.MessageSent(GROUP_ID, message, 2);
-        groupMessages.addMessage(GROUP_ID, message);
-    }
-
-    function revertRoleData(address _user) public pure returns (bytes memory) {
-        return abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _user, DEFAULT_ADMIN_ROLE);
+        emit GroupMessages.MessageSent(ID, message, 2);
+        groupMessages.addMessage(ID, message);
     }
 }

@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "contracts/**"
   pull_request:
     paths:
       - "contracts/**"
+      - ".github/workflows/solidity.yml"
 
 concurrency:
   group: ci-solidity-${{ github.ref }}

@@ -3,11 +3,15 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "contracts/**"
   pull_request:
-    paths-ignore:
-      - "contracts/**"
+    paths:
+      - ".github/workflows/test.yml"
+      - "pkg/**"
+      - "cmd/**"
+      - "dev/**"
+      - "go.mod"
+      - "go.sum"
+      - "tools.go"
 jobs:
   test:
     name: Test (Node)

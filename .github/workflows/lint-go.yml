@@ -3,23 +3,24 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "contracts/**"
   pull_request:
-    paths-ignore:
-      - "contracts/**"
+    paths:
+      - ".github/workflows/lint-go.yml"
+      - "pkg/**"
+      - "cmd/**"
+      - "dev/**"
+      - "go.mod"
+      - "go.sum"
+      - "tools.go"
+      - ".golangci.yaml"
 permissions:
   contents: read
 jobs:
-  lint:
-    name: Lint
+  lint-go:
+    name: Lint-Go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: shellcheck
-        run: |
-          sudo apt-get -y install tree
-          dev/lint-shellcheck
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod

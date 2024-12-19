@@ -13,6 +13,9 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
 
     error InvalidIdentityUpdate();
 
+    uint256 private constant MIN_PAYLOAD_SIZE = 104;
+    uint256 private constant MAX_PAYLOAD_SIZE = 4_194_304;
+
     uint64 private sequenceId;
 
     /// @dev Reserved storage gap for future upgrades
@@ -42,8 +45,10 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     /// @param inboxId The inbox ID.
     /// @param update The identity update in bytes.
     function addIdentityUpdate(bytes32 inboxId, bytes calldata update) public whenNotPaused {
-        /// @dev 104 bytes contains the minimum length of a valid IdentityUpdate.
-        require(update.length >= 104, InvalidIdentityUpdate());
+        require(
+            update.length >= MIN_PAYLOAD_SIZE && update.length <= MAX_PAYLOAD_SIZE,
+            InvalidIdentityUpdate()
+        );
 
         /// @dev Incrementing the sequence ID is safe here due to the extremely large limit of uint64.
         unchecked {

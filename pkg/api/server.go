@@ -67,8 +67,20 @@ func NewAPIServer(
 		return nil, err
 	}
 
-	unary := []grpc.UnaryServerInterceptor{prometheus.UnaryServerInterceptor}
-	stream := []grpc.StreamServerInterceptor{prometheus.StreamServerInterceptor}
+	incomingInterceptor, err := server.NewIncomingInterceptor(log)
+	if err != nil {
+		return nil, err
+	}
+	unary := []grpc.UnaryServerInterceptor{
+		prometheus.UnaryServerInterceptor,
+		loggingInterceptor.Unary(),
+		incomingInterceptor.Unary(),
+	}
+	stream := []grpc.StreamServerInterceptor{
+		prometheus.StreamServerInterceptor,
+		loggingInterceptor.Stream(),
+		incomingInterceptor.Stream(),
+	}
 
 	options := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(unary...),
@@ -81,8 +93,6 @@ func NewAPIServer(
 			PermitWithoutStream: true,
 			MinTime:             15 * time.Second,
 		}),
-		grpc.ChainUnaryInterceptor(loggingInterceptor.Unary()),
-		grpc.ChainStreamInterceptor(loggingInterceptor.Stream()),
 
 		// grpc.MaxRecvMsgSize(s.Config.Options.MaxMsgSize),
 	}

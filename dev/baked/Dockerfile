@@ -29,8 +29,8 @@ RUN dev/docker/anvil-background && \
     sleep 5
 
 RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' build/Nodes.json)"" >> contracts.env && \
-    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.deployedTo' build/GroupMessages.json)""  >> contracts.env && \
-    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.deployedTo' build/IdentityUpdates.json)""  >> contracts.env
+    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.addresses.groupMessagesProxy' contracts/script/output/31337/GroupMessages.json)""  >> contracts.env && \
+    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.addresses.identityUpdatesProxy' contracts/script/output/31337/IdentityUpdates.json)""  >> contracts.env
 
 # ACTUAL IMAGE -------------------------------------------------------
 

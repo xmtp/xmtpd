@@ -1,0 +1,10 @@
+{
+  "addresses": {
+    "groupMessagesDeployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "groupMessagesImpl": "0xc0F115A19107322cFBf1cDBC7ea011C19EbDB4F8",
+    "groupMessagesProxy": "0xc96304e3c037f81dA488ed9dEa1D8F2a48278a75",
+    "groupMessagesProxyAdmin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  },
+  "deploymentBlock": 107,
+  "latestUpgradeBlock": 107
+}

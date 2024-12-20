@@ -16,6 +16,9 @@ if ! which abigen &>/dev/null; then go install github.com/ethereum/go-ethereum/c
 if ! which jq &>/dev/null; then brew install jq; fi
 
 dev/docker/up
+
+# Make sure the abis are updated
+dev/contracts/generate
 dev/contracts/deploy-local
 
 echo "Registering local node-1"

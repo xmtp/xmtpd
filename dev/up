@@ -26,6 +26,9 @@ if [[ ${abigen_version} != "1.14.12-stable" ]]; then
 fi
 
 dev/docker/up
+
+# Make sure the abis are updated
+dev/contracts/generate
 dev/contracts/deploy-local
 
 echo "Registering local node-1"

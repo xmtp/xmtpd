@@ -5,6 +5,9 @@
 *.so
 *.dylib
 
+# delve debugger
+__debug_*
+
 # build folder
 build/
 bin/

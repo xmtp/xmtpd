@@ -12,4 +12,4 @@ export XMTPD_PAYER_ENABLE=true
 export XMTPD_REPLICATION_ENABLE=true
 export XMTPD_SYNC_ENABLE=true
 
-go run -ldflags="-X main.Commit=$(git rev-parse HEAD)" cmd/replication/main.go -p 5051 "$@"
+go run -ldflags="-X main.Commit=dev-$(git rev-parse --short HEAD)" cmd/replication/main.go -p 5051 "$@"

@@ -53,6 +53,8 @@ jobs:
           echo "Unknown image: ${{ matrix.image }}"
           exit 1
           fi
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         id: push
@@ -62,7 +64,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: "GIT_COMMIT=${{ github.event_name != 'pull_request' && github.sha || github.event.pull_request.head.sha }}"
+          build-args: "GIT_COMMIT=dev-${{ steps.short-sha.outputs.sha }}"
 
       - name: Set xmtpd digest output
         if: ${{ matrix.image == 'xmtpd' }}

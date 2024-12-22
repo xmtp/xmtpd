@@ -13,9 +13,9 @@ remappings = [
     "forge-std/=dependencies/forge-std-1.9.4/",
 ]
 fs_permissions = [
-    { access = "read-write", path = "script/output/31337"},
-    { access = "read-write", path = "script/output/11155111"},
-    { access = "read-write", path = "script/output/241320161"}
+    { access = "read-write", path = "config/anvil_localnet"},
+    { access = "read-write", path = "config/xmtp_testnet"},
+    { access = "read-write", path = "config/unknown"}
 ]
 
 [soldeer]

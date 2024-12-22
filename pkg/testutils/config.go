@@ -96,12 +96,12 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 		RpcUrl: BLOCKCHAIN_RPC_URL,
 		MessagesContractAddress: getProxyAddress(
 			t,
-			path.Join(rootDir, "./contracts/script/output/31337/GroupMessages.json"),
+			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
 		),
 		NodesContractAddress: getDeployedTo(t, path.Join(rootDir, "./build/Nodes.json")),
 		IdentityUpdatesContractAddress: getProxyAddress(
 			t,
-			path.Join(rootDir, "./contracts/script/output/31337/IdentityUpdates.json"),
+			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
 		),
 		RefreshInterval: 100 * time.Millisecond,
 		ChainID:         31337,

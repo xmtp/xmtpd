@@ -76,7 +76,7 @@ The project includes deployer and upgrade scripts.
 
 ### Messages contracts
 
-- Configure the environment by providing an `.env` file, with this content:
+- Configure the environment by creating an `.env` file, with this content:
 
 ```shell
 ### Main configuration

@@ -11,7 +11,7 @@ function forge_deploy_script() {
             fi
 
             echo -e "✅ GroupMessages contract deployed.\n"
-            cat script/output/31337/GroupMessages.json
+            cat config/anvil_localnet/GroupMessages.json
             echo -e "\n"
             ;;
 
@@ -23,7 +23,7 @@ function forge_deploy_script() {
             fi
 
             echo -e "✅ IdentityUpdates contract deployed.\n"
-            cat script/output/31337/IdentityUpdates.json
+            cat config/anvil_localnet/IdentityUpdates.json
             echo -e "\n"
             ;;
 

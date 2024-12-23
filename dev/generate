@@ -6,5 +6,5 @@ set -euo pipefail
 sqlc generate
 go generate ./...
 rm -rf pkg/mocks/*
-./dev/abigen
+./dev/contracts/generate
 mockery

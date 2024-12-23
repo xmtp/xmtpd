@@ -27,15 +27,17 @@ function forge_deploy_script() {
             echo -e "\n"
             ;;
 
+        nodes)
+            # TODO: Migrate to forge script
+            forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$2:$3" > ../build/$3.json
+            echo -e "✅ Nodes contract deployed.\n"
+            cat ../build/$3.json
+            echo -e "\n"
+            ;;
+
         *)
             echo "Invalid option. Use 'group_messages' or 'identity_updates'."
             exit 1
             ;;
     esac
-}
-
-# Deploy a contract and save the output (which includes the contract address) to a JSON file to be used in tests
-# TODO: This should be a function in the forge CLI
-function deploy_contract() {
-    forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$1:$2" > ../build/$2.json
 }

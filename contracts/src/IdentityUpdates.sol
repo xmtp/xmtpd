@@ -30,9 +30,11 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     uint256 public constant MAX_PAYLOAD_SIZE = 4_194_304;
 
     // State variables
+    // slither-disable-next-line unused-state,constable-states
     uint64 private sequenceId;
 
     /// @dev Reserved storage gap for future upgrades
+    // slither-disable-next-line unused-state,naming-convention
     uint256[50] private __gap;
 
     // Initialization

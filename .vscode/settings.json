@@ -17,5 +17,6 @@
     ]
   },
   "solidity.compileUsingRemoteVersion": "v0.8.28",
-  "solidity.formatter": "forge"
+  "solidity.formatter": "forge",
+  "wake.compiler.solc.remappings": []
 }

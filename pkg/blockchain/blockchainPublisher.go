@@ -13,7 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -24,8 +25,8 @@ Can publish to the blockchain, signing messages using the provided signer
 type BlockchainPublisher struct {
 	signer                 TransactionSigner
 	client                 *ethclient.Client
-	messagesContract       *abis.GroupMessages
-	identityUpdateContract *abis.IdentityUpdates
+	messagesContract       *groupmessages.GroupMessages
+	identityUpdateContract *identityupdates.IdentityUpdates
 	logger                 *zap.Logger
 	mutexNonce             sync.Mutex
 	nonce                  uint64
@@ -41,7 +42,7 @@ func NewBlockchainPublisher(
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
-	messagesContract, err := abis.NewGroupMessages(
+	messagesContract, err := groupmessages.NewGroupMessages(
 		common.HexToAddress(contractOptions.MessagesContractAddress),
 		client,
 	)
@@ -49,7 +50,7 @@ func NewBlockchainPublisher(
 	if err != nil {
 		return nil, err
 	}
-	identityUpdateContract, err := abis.NewIdentityUpdates(
+	identityUpdateContract, err := identityupdates.NewIdentityUpdates(
 		common.HexToAddress(contractOptions.IdentityUpdatesContractAddress),
 		client,
 	)
@@ -83,7 +84,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 	ctx context.Context,
 	groupID [32]byte,
 	message []byte,
-) (*abis.GroupMessagesMessageSent, error) {
+) (*groupmessages.GroupMessagesMessageSent, error) {
 	if len(message) == 0 {
 		return nil, errors.New("message is empty")
 	}
@@ -126,7 +127,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 	ctx context.Context,
 	inboxId [32]byte,
 	identityUpdate []byte,
-) (*abis.IdentityUpdatesIdentityUpdateCreated, error) {
+) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
 	if len(identityUpdate) == 0 {
 		return nil, errors.New("identity update is empty")
 	}

@@ -22,7 +22,7 @@ COPY . .
 # It seems that anvil flushes the file to disk on shutdown and it takes a few ms to be persisted
 # That gives us the pkill+sleep requirement
 RUN dev/docker/anvil-background && \
-    dev/contracts/deploy-local && \
+    contracts/dev/deploy-local && \
     dev/register-local-node && \
     dev/register-local-node-2 && \
     pkill -f anvil && \

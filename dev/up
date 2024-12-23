@@ -28,8 +28,8 @@ fi
 dev/docker/up
 
 # Make sure the abis are updated
-dev/contracts/generate
-dev/contracts/deploy-local
+contracts/dev/generate
+contracts/dev/deploy-local
 
 echo "Registering local node-1"
 dev/register-local-node

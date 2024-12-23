@@ -1,18 +1,30 @@
 package testutils
 
 import (
-	"bytes"
-	"encoding/json"
-	"os/exec"
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
+)
+
+const (
+	ANVIL_LOCALNET_HOST            = "http://localhost:7545"
+	ANVIL_LOCALNET_CHAIN_ID        = 31337
+	LOCAL_PRIVATE_KEY              = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	NODES_CONTRACT_NAME            = "Nodes"
+	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
+	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
 )
 
 // Build an abi encoded MessageSent event struct
@@ -21,7 +33,7 @@ func BuildMessageSentEvent(
 	message []byte,
 	sequenceID uint64,
 ) ([]byte, error) {
-	abi, err := abis.GroupMessagesMetaData.GetAbi()
+	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +52,7 @@ func BuildMessageSentLog(
 	eventData, err := BuildMessageSentEvent(groupID, messageBytes, sequenceID)
 	require.NoError(t, err)
 
-	abi, err := abis.GroupMessagesMetaData.GetAbi()
+	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
 	require.NoError(t, err)
 
 	topic, err := utils.GetEventTopic(abi, "MessageSent")
@@ -53,7 +65,7 @@ func BuildMessageSentLog(
 }
 
 func BuildIdentityUpdateEvent(inboxId [32]byte, update []byte, sequenceID uint64) ([]byte, error) {
-	abi, err := abis.IdentityUpdatesMetaData.GetAbi()
+	abi, err := identityupdates.IdentityUpdatesMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +84,7 @@ func BuildIdentityUpdateLog(
 	eventData, err := BuildIdentityUpdateEvent(inboxId, messageBytes, sequenceID)
 	require.NoError(t, err)
 
-	abi, err := abis.IdentityUpdatesMetaData.GetAbi()
+	abi, err := identityupdates.IdentityUpdatesMetaData.GetAbi()
 	require.NoError(t, err)
 
 	topic, err := utils.GetEventTopic(abi, "IdentityUpdateCreated")
@@ -89,36 +101,45 @@ func BuildIdentityUpdateLog(
 Deploy a contract and return the contract's address. Will return a different address for each run, making it suitable for testing
 *
 */
-func deployContract(t *testing.T, filePath string, contractName string) string {
-	packageRoot := rootPath(t)
-	cmd := exec.Command("./dev/contracts/deploy-ephemeral", filePath, contractName)
-	cmd.Dir = packageRoot
+func deployContract(t *testing.T, contractName string) string {
+	client, err := ethclient.Dial(ANVIL_LOCALNET_HOST)
+	require.NoError(t, err)
 
-	var out bytes.Buffer
-	var errors bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errors
+	privateKey, err := crypto.HexToECDSA(LOCAL_PRIVATE_KEY)
+	require.NoError(t, err)
 
-	err := cmd.Run()
-	require.NoError(t, err, "Failed to execute deploy-ephemeral script", errors.String())
+	auth, err := bind.NewKeyedTransactorWithChainID(
+		privateKey,
+		big.NewInt(ANVIL_LOCALNET_CHAIN_ID),
+	)
+	require.NoError(t, err)
 
-	output := out.String()
-	t.Logf("deploy-ephemeral output: %s", output)
+	var addr common.Address
 
-	var parsed contractInfo
-	require.NoError(t, json.Unmarshal([]byte(output), &parsed))
+	switch contractName {
+	case NODES_CONTRACT_NAME:
+		addr, _, _, err = nodes.DeployNodes(auth, client)
+	case GROUP_MESSAGES_CONTRACT_NAME:
+		addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
+	case IDENTITY_UPDATES_CONTRACT_NAME:
+		addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
+	default:
+		t.Fatalf("Unknown contract name: %s", contractName)
+	}
 
-	return parsed.DeployedTo
+	require.NoError(t, err)
+
+	return addr.String()
 }
 
 func DeployNodesContract(t *testing.T) string {
-	return deployContract(t, "./src/Nodes.sol", "Nodes")
+	return deployContract(t, NODES_CONTRACT_NAME)
 }
 
 func DeployGroupMessagesContract(t *testing.T) string {
-	return deployContract(t, "./src/GroupMessages.sol", "GroupMessages")
+	return deployContract(t, GROUP_MESSAGES_CONTRACT_NAME)
 }
 
 func DeployIdentityUpdatesContract(t *testing.T) string {
-	return deployContract(t, "./src/IdentityUpdates.sol", "IdentityUpdates")
+	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME)
 }

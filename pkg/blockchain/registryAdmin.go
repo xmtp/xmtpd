@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -24,7 +24,7 @@ A NodeRegistryAdmin is a struct responsible for calling admin functions on the n
 type NodeRegistryAdmin struct {
 	client   *ethclient.Client
 	signer   TransactionSigner
-	contract *abis.Nodes
+	contract *nodes.Nodes
 	logger   *zap.Logger
 }
 
@@ -34,7 +34,7 @@ func NewNodeRegistryAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*NodeRegistryAdmin, error) {
-	contract, err := abis.NewNodes(
+	contract, err := nodes.NewNodes(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
 	)
@@ -95,7 +95,7 @@ A NodeRegistryCaller is a struct responsible for calling public functions on the
 */
 type NodeRegistryCaller struct {
 	client   *ethclient.Client
-	contract *abis.NodesCaller
+	contract *nodes.NodesCaller
 	logger   *zap.Logger
 }
 
@@ -104,7 +104,7 @@ func NewNodeRegistryCaller(
 	client *ethclient.Client,
 	contractsOptions config.ContractsOptions,
 ) (*NodeRegistryCaller, error) {
-	contract, err := abis.NewNodesCaller(
+	contract, err := nodes.NewNodesCaller(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
 	)
@@ -121,7 +121,7 @@ func NewNodeRegistryCaller(
 
 func (n *NodeRegistryCaller) GetAllNodes(
 	ctx context.Context,
-) ([]abis.NodesNodeWithId, error) {
+) ([]nodes.NodesNodeWithId, error) {
 
 	return n.contract.AllNodes(&bind.CallOpts{
 		Context: ctx,

@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -14,7 +14,7 @@ import (
 )
 
 type GroupMessageStorer struct {
-	contract *abis.GroupMessages
+	contract *groupmessages.GroupMessages
 	queries  *queries.Queries
 	logger   *zap.Logger
 }
@@ -22,7 +22,7 @@ type GroupMessageStorer struct {
 func NewGroupMessageStorer(
 	queries *queries.Queries,
 	logger *zap.Logger,
-	contract *abis.GroupMessages,
+	contract *groupmessages.GroupMessages,
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
 		queries:  queries,

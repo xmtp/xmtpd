@@ -1,14 +1,17 @@
 #!/bin/bash
 # Deploy the smart contracts to the local anvil node
 set -euo pipefail
-source dev/contracts/.env
-source dev/contracts/common
 
 # Make sure the build directory exists
 mkdir -p ./build
 
-# Move to working directory
-cd ./contracts
+# Always work from the contracts directory
+script_dir=$(dirname "$(realpath "$0")")
+repo_root=$(realpath "${script_dir}/../")
+cd "${repo_root}"
+
+source dev/lib/env
+source dev/lib/common
 
 # Update depencencies
 forge soldeer update &> /dev/null
@@ -19,6 +22,4 @@ fi
 
 forge_deploy_script group_messages
 forge_deploy_script identity_updates
-
-# TODO: This should be a function in the forge CLI
-deploy_contract src/Nodes.sol Nodes
+forge_deploy_script nodes src/Nodes.sol Nodes

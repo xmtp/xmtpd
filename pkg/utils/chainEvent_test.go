@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
 )
 
 const (
@@ -14,7 +14,7 @@ const (
 )
 
 func TestGetEventSignature(t *testing.T) {
-	abi, _ := abis.GroupMessagesMetaData.GetAbi()
+	abi, _ := groupmessages.GroupMessagesMetaData.GetAbi()
 
 	signature, err := GetEventSig(abi, "MessageSent")
 	require.NoError(t, err)
@@ -22,7 +22,7 @@ func TestGetEventSignature(t *testing.T) {
 }
 
 func TestGetEventTopic(t *testing.T) {
-	abi, _ := abis.GroupMessagesMetaData.GetAbi()
+	abi, _ := groupmessages.GroupMessagesMetaData.GetAbi()
 
 	topic, err := GetEventTopic(abi, "MessageSent")
 	require.NoError(t, err)

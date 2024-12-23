@@ -22,15 +22,15 @@ COPY . .
 # It seems that anvil flushes the file to disk on shutdown and it takes a few ms to be persisted
 # That gives us the pkill+sleep requirement
 RUN dev/docker/anvil-background && \
-    dev/contracts/deploy-local && \
+    contracts/dev/deploy-local && \
     dev/register-local-node && \
     dev/register-local-node-2 && \
     pkill -f anvil && \
     sleep 5
 
 RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' build/Nodes.json)"" >> contracts.env && \
-    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.deployedTo' build/GroupMessages.json)""  >> contracts.env && \
-    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.deployedTo' build/IdentityUpdates.json)""  >> contracts.env
+    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.addresses.groupMessagesProxy' contracts/config/anvil_localnet/GroupMessages.json)""  >> contracts.env && \
+    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.addresses.identityUpdatesProxy' contracts/config/anvil_localnet/IdentityUpdates.json)""  >> contracts.env
 
 # ACTUAL IMAGE -------------------------------------------------------
 

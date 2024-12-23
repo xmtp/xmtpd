@@ -12,8 +12,18 @@ if ! which mockery &>/dev/null; then go install github.com/vektra/mockery/v2; fi
 if ! which sqlc &> /dev/null; then go install github.com/sqlc-dev/sqlc/cmd/sqlc; fi
 if ! which buf &> /dev/null; then go install github.com/bufbuild/buf/cmd/buf; fi
 if ! which golines &>/dev/null; then go install github.com/segmentio/golines@latest; fi
-if ! which abigen &>/dev/null; then go install github.com/ethereum/go-ethereum/cmd/abigen; fi
 if ! which jq &>/dev/null; then brew install jq; fi
+
+# Pin abigen version at can introduce breaking changes between releases, rendering different ABIs.
+if ! which abigen &>/dev/null; then
+    go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.12
+fi
+
+abigen_version=$(abigen --version | awk '{print $3}')
+if [[ ${abigen_version} != "1.14.12-stable" ]]; then
+    echo "ERROR: abigen version is not 1.14.12. Please install the correct version."
+    exit 1
+fi
 
 dev/docker/up
 dev/contracts/deploy-local 

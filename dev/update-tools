@@ -6,6 +6,5 @@ go mod tidy
 go install github.com/vektra/mockery/v2
 go install github.com/sqlc-dev/sqlc/cmd/sqlc
 go install github.com/segmentio/golines@latest
-go install github.com/ethereum/go-ethereum/cmd/abigen
 go install github.com/golang-migrate/migrate/v4/cmd/migrate
 go install github.com/bufbuild/buf/cmd/buf

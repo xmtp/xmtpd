@@ -65,7 +65,7 @@ func NewTestServer(
 		//Payer: config.PayerOptions{
 		//	Enable: true,
 		//},
-	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port))
+	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port), nil)
 	require.NoError(t, err)
 
 	return server

@@ -30,7 +30,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+      - name: Git describe
+        id: ghd
+        uses: proudust/gh-describe@v2
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
@@ -62,7 +64,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: "GIT_COMMIT=dev-${{ github.event_name != 'pull_request' && github.sha || github.event.pull_request.head.sha }}"
+          build-args: "VERSION=${{ steps.ghd.outputs.describe }}"
 
       - name: Set xmtpd digest output
         if: ${{ matrix.image == 'xmtpd' }}

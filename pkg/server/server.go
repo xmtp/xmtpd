@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"github.com/Masterminds/semver/v3"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"net"
 	"os"
@@ -52,6 +53,7 @@ func NewReplicationServer(
 	writerDB *sql.DB,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	listenAddress string,
+	serverVersion *semver.Version,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -89,6 +91,7 @@ func NewReplicationServer(
 			queries.New(writerDB),
 			nodeRegistry,
 			options.Signer.PrivateKey,
+			serverVersion,
 		)
 		if err != nil {
 			return nil, err

@@ -30,15 +30,23 @@ func NewRegistryVerifier(registry registry.NodeRegistry, myNodeID uint32) *Regis
 func (v *RegistryVerifier) Verify(tokenString string) error {
 	var token *jwt.Token
 	var err error
-	if token, err = jwt.Parse(tokenString, v.getMatchingPublicKey); err != nil {
+
+	if token, err = jwt.ParseWithClaims(
+		tokenString,
+		&XmtpdClaims{},
+		v.getMatchingPublicKey,
+	); err != nil {
 		return err
 	}
-
 	if err = v.validateAudience(token); err != nil {
 		return err
 	}
 
 	if err = validateExpiry(token); err != nil {
+		return err
+	}
+
+	if err = v.validateClaims(token); err != nil {
 		return err
 	}
 
@@ -83,6 +91,20 @@ func (v *RegistryVerifier) validateAudience(token *jwt.Token) error {
 	}
 
 	return fmt.Errorf("could not find node ID in audience %v", audience)
+}
+
+func (v *RegistryVerifier) validateClaims(token *jwt.Token) error {
+	claims, ok := token.Claims.(*XmtpdClaims)
+	if !ok {
+		return fmt.Errorf("invalid token claims type")
+	}
+
+	// Check if the token is valid
+	if !token.Valid {
+		return fmt.Errorf("invalid token")
+	}
+
+	return ValidateVersionClaimIsCompatible(claims)
 }
 
 // Parse the subject claim of the JWT and return the node ID as a uint32

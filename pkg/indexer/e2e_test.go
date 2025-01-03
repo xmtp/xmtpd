@@ -60,7 +60,7 @@ func TestStoreMessages(t *testing.T) {
 	publisher := messagePublisher(t, ctx)
 	defer cleanup()
 
-	message := testutils.RandomBytes(32)
+	message := testutils.RandomBytes(78)
 	groupID := testutils.RandomGroupID()
 	topic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
 

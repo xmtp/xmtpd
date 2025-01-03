@@ -11,7 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -223,7 +224,7 @@ func indexLogs(
 }
 
 func buildMessagesTopic() (common.Hash, error) {
-	abi, err := abis.GroupMessagesMetaData.GetAbi()
+	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -231,7 +232,7 @@ func buildMessagesTopic() (common.Hash, error) {
 }
 
 func buildIdentityUpdatesTopic() (common.Hash, error) {
-	abi, err := abis.IdentityUpdatesMetaData.GetAbi()
+	abi, err := identityupdates.IdentityUpdatesMetaData.GetAbi()
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -241,8 +242,8 @@ func buildIdentityUpdatesTopic() (common.Hash, error) {
 func messagesContract(
 	cfg config.ContractsOptions,
 	client *ethclient.Client,
-) (*abis.GroupMessages, error) {
-	return abis.NewGroupMessages(
+) (*groupmessages.GroupMessages, error) {
+	return groupmessages.NewGroupMessages(
 		common.HexToAddress(cfg.MessagesContractAddress),
 		client,
 	)
@@ -251,8 +252,8 @@ func messagesContract(
 func identityUpdatesContract(
 	cfg config.ContractsOptions,
 	client *ethclient.Client,
-) (*abis.IdentityUpdates, error) {
-	return abis.NewIdentityUpdates(
+) (*identityupdates.IdentityUpdates, error) {
+	return identityupdates.NewIdentityUpdates(
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		client,
 	)

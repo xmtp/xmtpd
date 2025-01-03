@@ -28,7 +28,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: "nightly-ac81a53d1d5823919ffbadd3c65f081927aa11f2"
-      - run: dev/contracts/deploy-local
+      - run: contracts/dev/deploy-local
       - name: Run Tests
         run: |
           export GOPATH="${HOME}/go/"

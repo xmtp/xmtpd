@@ -47,7 +47,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		{
 			name:           "happy path",
 			inboxId:        testutils.RandomGroupID(),
-			identityUpdate: testutils.RandomBytes(100),
+			identityUpdate: testutils.RandomBytes(104),
 			ctx:            context.Background(),
 			wantErr:        false,
 		},

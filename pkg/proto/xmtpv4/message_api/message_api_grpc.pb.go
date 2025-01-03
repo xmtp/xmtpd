@@ -31,13 +31,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ReplicationApiClient interface {
-	// Subscribe to envelopes
 	SubscribeEnvelopes(ctx context.Context, in *SubscribeEnvelopesRequest, opts ...grpc.CallOption) (ReplicationApi_SubscribeEnvelopesClient, error)
-	// Query envelopes
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
-	// Publish envelope
 	PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error)
-	// Get inbox ids
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
 }
 
@@ -112,13 +108,9 @@ func (c *replicationApiClient) GetInboxIds(ctx context.Context, in *GetInboxIdsR
 // All implementations must embed UnimplementedReplicationApiServer
 // for forward compatibility
 type ReplicationApiServer interface {
-	// Subscribe to envelopes
 	SubscribeEnvelopes(*SubscribeEnvelopesRequest, ReplicationApi_SubscribeEnvelopesServer) error
-	// Query envelopes
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
-	// Publish envelope
 	PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error)
-	// Get inbox ids
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
 	mustEmbedUnimplementedReplicationApiServer()
 }

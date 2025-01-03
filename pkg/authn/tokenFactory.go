@@ -15,12 +15,14 @@ const (
 type TokenFactory struct {
 	privateKey *ecdsa.PrivateKey
 	nodeID     uint32
+	version    string
 }
 
-func NewTokenFactory(privateKey *ecdsa.PrivateKey, nodeID uint32) *TokenFactory {
+func NewTokenFactory(privateKey *ecdsa.PrivateKey, nodeID uint32, version string) *TokenFactory {
 	return &TokenFactory{
 		privateKey: privateKey,
 		nodeID:     nodeID,
+		version:    version,
 	}
 }
 
@@ -28,12 +30,18 @@ func (f *TokenFactory) CreateToken(forNodeID uint32) (*Token, error) {
 	now := time.Now()
 	expiresAt := now.Add(TOKEN_DURATION)
 
-	token := jwt.NewWithClaims(&SigningMethodSecp256k1{}, &jwt.RegisteredClaims{
-		Subject:   strconv.Itoa(int(f.nodeID)),
-		Audience:  []string{strconv.Itoa(int(forNodeID))},
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
-		IssuedAt:  jwt.NewNumericDate(now),
-	})
+	claims := &XmtpdClaims{
+		Version: &f.version,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   strconv.Itoa(int(f.nodeID)),
+			Audience:  []string{strconv.Itoa(int(forNodeID))},
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
+
+	// Create a new token with custom claims
+	token := jwt.NewWithClaims(&SigningMethodSecp256k1{}, claims)
 
 	signedString, err := token.SignedString(f.privateKey)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 
 func TestTokenFactory(t *testing.T) {
 	privateKey := testutils.RandomPrivateKey(t)
-	factory := NewTokenFactory(privateKey, 100)
+	factory := NewTokenFactory(privateKey, 100, "")
 
 	token, err := factory.CreateToken(200)
 	require.NoError(t, err)

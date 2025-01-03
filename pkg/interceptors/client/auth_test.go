@@ -55,7 +55,7 @@ func TestAuthInterceptor(t *testing.T) {
 	privateKey := testutils.RandomPrivateKey(t)
 	myNodeID := uint32(100)
 	targetNodeID := uint32(200)
-	tokenFactory := authn.NewTokenFactory(privateKey, myNodeID)
+	tokenFactory := authn.NewTokenFactory(privateKey, myNodeID, "")
 	interceptor := NewAuthInterceptor(tokenFactory, targetNodeID)
 	token, err := interceptor.getToken()
 	require.NoError(t, err)

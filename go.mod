@@ -27,6 +27,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 )

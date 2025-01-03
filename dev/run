@@ -8,4 +8,4 @@ export XMTPD_PAYER_ENABLE=true
 export XMTPD_REPLICATION_ENABLE=true
 export XMTPD_SYNC_ENABLE=true
 
-go run -ldflags="-X main.Version=$(git describe HEAD --tags)" cmd/replication/main.go "$@"
+go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/replication/main.go "$@"

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	"slices"
 
 	"go.uber.org/zap"
@@ -31,7 +32,7 @@ func NewRegistrant(
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
-	version string,
+	version *semver.Version,
 ) (*Registrant, error) {
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {

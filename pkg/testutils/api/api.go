@@ -81,7 +81,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 		queries.New(db),
 		mockRegistry,
 		privKeyStr,
-		"",
+		nil,
 	)
 	require.NoError(t, err)
 	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)

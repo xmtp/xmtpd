@@ -12,12 +12,12 @@ const (
 )
 
 type XmtpdClaims struct {
-	Version *string `json:"version,omitempty"`
+	Version *semver.Version `json:"version,omitempty"`
 	jwt.RegisteredClaims
 }
 
 func ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
-	if claims.Version == nil || *claims.Version == "" {
+	if claims.Version == nil {
 		return nil
 	}
 
@@ -26,13 +26,7 @@ func ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
 		return err
 	}
 
-	v, err := semver.NewVersion(*claims.Version)
-
-	if err != nil {
-		return err
-	}
-
-	if ok := c.Check(v); !ok {
+	if ok := c.Check(claims.Version); !ok {
 		return fmt.Errorf("version %s is not compatible", *claims.Version)
 	}
 

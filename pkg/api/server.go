@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/authn"
+	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"google.golang.org/grpc/reflection"
 
@@ -41,6 +43,7 @@ func NewAPIServer(
 	listenAddress string,
 	enableReflection bool,
 	registrationFunc RegistrationFunc,
+	jwtVerifier authn.JWTVerifier,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", listenAddress)
 
@@ -67,8 +70,18 @@ func NewAPIServer(
 		return nil, err
 	}
 
-	unary := []grpc.UnaryServerInterceptor{prometheus.UnaryServerInterceptor}
-	stream := []grpc.StreamServerInterceptor{prometheus.StreamServerInterceptor}
+	unary := []grpc.UnaryServerInterceptor{
+		prometheus.UnaryServerInterceptor,
+	}
+	stream := []grpc.StreamServerInterceptor{
+		prometheus.StreamServerInterceptor,
+	}
+
+	if jwtVerifier != nil {
+		interceptor := server.NewAuthInterceptor(jwtVerifier, log)
+		unary = append(unary, interceptor.Unary())
+		stream = append(stream, interceptor.Stream())
+	}
 
 	options := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(unary...),

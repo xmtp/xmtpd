@@ -11,4 +11,4 @@ cd "$TOP_LEVEL_DIR"
 
 export XMTPD_LOG_ENCODING=json
 
-go run -ldflags="-X main.Commit=$(git rev-parse HEAD)" cmd/cli/main.go "$@"
+go run -ldflags="-X main.Version=dev-$(git rev-parse HEAD)" cmd/cli/main.go "$@"

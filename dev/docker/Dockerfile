@@ -10,7 +10,7 @@ COPY . .
 
 # Build the final node binary
 ARG GIT_COMMIT=unknown
-RUN go build -ldflags="-X 'main.Commit=$GIT_COMMIT'" -o bin/xmtpd cmd/replication/main.go
+RUN go build -ldflags="-X 'main.Version=$GIT_COMMIT'" -o bin/xmtpd cmd/replication/main.go
 
 # ACTUAL IMAGE -------------------------------------------------------
 

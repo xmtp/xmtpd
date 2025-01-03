@@ -124,6 +124,7 @@ func main() {
 			dbInstance,
 			blockchainPublisher,
 			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
+			Commit,
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))

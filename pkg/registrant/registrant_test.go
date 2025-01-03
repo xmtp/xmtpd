@@ -29,6 +29,7 @@ type deps struct {
 	privKey1Str string
 	privKey2    *ecdsa.PrivateKey
 	privKey3    *ecdsa.PrivateKey
+	version     string
 }
 
 func setup(t *testing.T) (deps, func()) {
@@ -54,6 +55,7 @@ func setup(t *testing.T) (deps, func()) {
 		privKey1Str: privKey1Str,
 		privKey2:    privKey2,
 		privKey3:    privKey3,
+		version:     "",
 	}, dbCleanup
 }
 
@@ -70,6 +72,7 @@ func setupWithRegistrant(t *testing.T) (deps, *registrant.Registrant, func()) {
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
+		deps.version,
 	)
 	require.NoError(t, err)
 
@@ -86,6 +89,7 @@ func TestNewRegistrantBadPrivateKey(t *testing.T) {
 		deps.db,
 		deps.registry,
 		"badkey",
+		deps.version,
 	)
 	require.ErrorContains(t, err, "parse")
 }
@@ -105,6 +109,7 @@ func TestNewRegistrantNotInRegistry(t *testing.T) {
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
+		deps.version,
 	)
 	require.ErrorContains(t, err, "registry")
 }
@@ -125,6 +130,7 @@ func TestNewRegistrantNewDatabase(t *testing.T) {
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
+		deps.version,
 	)
 	require.NoError(t, err)
 }
@@ -152,6 +158,7 @@ func TestNewRegistrantExistingDatabase(t *testing.T) {
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
+		deps.version,
 	)
 	require.NoError(t, err)
 }
@@ -179,6 +186,7 @@ func TestNewRegistrantMismatchingDatabaseNodeId(t *testing.T) {
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
+		deps.version,
 	)
 	require.ErrorContains(t, err, "does not match")
 }
@@ -206,6 +214,7 @@ func TestNewRegistrantMismatchingDatabasePublicKey(t *testing.T) {
 		deps.db,
 		deps.registry,
 		deps.privKey1Str,
+		deps.version,
 	)
 	require.ErrorContains(t, err, "does not match")
 }
@@ -224,6 +233,7 @@ func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
 		deps.db,
 		deps.registry,
 		utils.HexEncode(crypto.FromECDSA(deps.privKey1)),
+		deps.version,
 	)
 	require.NoError(t, err)
 }

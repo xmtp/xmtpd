@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Test, console} from "forge-std-1.9.4/src/Test.sol";
-import {Ownable} from "@openzeppelin-contracts-5.1.0/access/Ownable.sol";
+import {Test, console} from "forge-std/src/Test.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Nodes} from "../src/Nodes.sol";
 
 contract NodesTest is Test {

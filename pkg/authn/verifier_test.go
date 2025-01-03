@@ -53,7 +53,7 @@ func buildJwt(
 func TestVerifier(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), "")
+	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
 	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
@@ -79,7 +79,7 @@ func TestVerifier(t *testing.T) {
 func TestWrongAudience(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), "")
+	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
 	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
@@ -97,7 +97,7 @@ func TestWrongAudience(t *testing.T) {
 func TestUnknownNode(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), "")
+	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
 	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(nil, errors.New("node not found"))
@@ -112,7 +112,7 @@ func TestUnknownNode(t *testing.T) {
 func TestWrongPublicKey(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), "")
+	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
 	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
 

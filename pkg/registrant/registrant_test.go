@@ -3,6 +3,7 @@ package registrant_test
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/Masterminds/semver/v3"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ type deps struct {
 	privKey1Str string
 	privKey2    *ecdsa.PrivateKey
 	privKey3    *ecdsa.PrivateKey
-	version     string
+	version     *semver.Version
 }
 
 func setup(t *testing.T) (deps, func()) {
@@ -55,7 +56,7 @@ func setup(t *testing.T) (deps, func()) {
 		privKey1Str: privKey1Str,
 		privKey2:    privKey2,
 		privKey3:    privKey3,
-		version:     "",
+		version:     nil,
 	}, dbCleanup
 }
 

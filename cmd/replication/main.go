@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	"log"
 	"sync"
 
@@ -18,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var Commit string = "unknown"
+var Version string = "unknown"
 
 var options config.ServerOptions
 
@@ -33,7 +34,7 @@ func main() {
 	}
 
 	if options.Version {
-		fmt.Printf("Version: %s\n", Commit)
+		fmt.Printf("Version: %s\n", Version)
 		return
 	}
 
@@ -48,10 +49,16 @@ func main() {
 	}
 	logger = logger.Named("replication")
 
-	logger.Info(fmt.Sprintf("Version: %s", Commit))
+	logger.Info(fmt.Sprintf("Version: %s", Version))
+
+	version, err := semver.NewVersion(Version)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Could not parse semver version: %s", err))
+	}
+
 	if options.Tracing.Enable {
 		logger.Info("starting tracer")
-		tracing.Start(Commit, logger)
+		tracing.Start(Version, logger)
 		defer func() {
 			logger.Info("stopping tracer")
 			tracing.Stop()
@@ -124,7 +131,7 @@ func main() {
 			dbInstance,
 			blockchainPublisher,
 			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
-			Commit,
+			version,
 		)
 		if err != nil {
 			log.Fatal("initializing server", zap.Error(err))

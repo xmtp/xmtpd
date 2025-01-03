@@ -14,20 +14,20 @@ const (
 )
 
 type TokenFactory struct {
-	privateKey *ecdsa.PrivateKey
-	nodeID     uint32
-	version    *semver.Version
+	privateKey    *ecdsa.PrivateKey
+	nodeID        uint32
+	serverVersion *semver.Version
 }
 
 func NewTokenFactory(
 	privateKey *ecdsa.PrivateKey,
 	nodeID uint32,
-	version *semver.Version,
+	serverVersion *semver.Version,
 ) *TokenFactory {
 	return &TokenFactory{
-		privateKey: privateKey,
-		nodeID:     nodeID,
-		version:    version,
+		privateKey:    privateKey,
+		nodeID:        nodeID,
+		serverVersion: serverVersion,
 	}
 }
 
@@ -36,7 +36,7 @@ func (f *TokenFactory) CreateToken(forNodeID uint32) (*Token, error) {
 	expiresAt := now.Add(TOKEN_DURATION)
 
 	claims := &XmtpdClaims{
-		Version: f.version,
+		Version: f.serverVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   strconv.Itoa(int(f.nodeID)),
 			Audience:  []string{strconv.Itoa(int(forNodeID))},

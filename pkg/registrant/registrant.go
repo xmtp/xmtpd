@@ -32,7 +32,7 @@ func NewRegistrant(
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
-	version *semver.Version,
+	serverVersion *semver.Version,
 ) (*Registrant, error) {
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
@@ -49,7 +49,7 @@ func NewRegistrant(
 		return nil, err
 	}
 
-	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID, version)
+	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID, serverVersion)
 
 	log.Info(
 		"Registrant identified",

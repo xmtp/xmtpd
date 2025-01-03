@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	// XMTPD_COMPATIBLE_VERSION_CONSTRAINT major or minor version bumps indicate backwards incompatible changes
+	// XMTPD_COMPATIBLE_VERSION_CONSTRAINT major or minor serverVersion bumps indicate backwards incompatible changes
 	XMTPD_COMPATIBLE_VERSION_CONSTRAINT = "~ 0.1.3"
 )
 
@@ -26,8 +26,15 @@ func ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
 		return err
 	}
 
-	if ok := c.Check(claims.Version); !ok {
-		return fmt.Errorf("version %s is not compatible", *claims.Version)
+	// SemVer implementations generally do not consider pre-releases to be valid next releases
+	// we use SemVer here to allow incoming connections, for which in-development nodes are acceptable
+	// see discussion in https://github.com/Masterminds/semver/issues/21
+	sanitizedVersion, err := claims.Version.SetPrerelease("")
+	if err != nil {
+		return err
+	}
+	if ok := c.Check(&sanitizedVersion); !ok {
+		return fmt.Errorf("serverVersion %s is not compatible", *claims.Version)
 	}
 
 	return nil

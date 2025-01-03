@@ -53,7 +53,7 @@ func NewReplicationServer(
 	writerDB *sql.DB,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	listenAddress string,
-	version *semver.Version,
+	serverVersion *semver.Version,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -91,7 +91,7 @@ func NewReplicationServer(
 			queries.New(writerDB),
 			nodeRegistry,
 			options.Signer.PrivateKey,
-			version,
+			serverVersion,
 		)
 		if err != nil {
 			return nil, err

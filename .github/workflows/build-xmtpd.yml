@@ -64,7 +64,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: "GIT_COMMIT=${{ steps.ghd.outputs.describe }}"
+          build-args: "VERSION=${{ steps.ghd.outputs.describe }}"
 
       - name: Set xmtpd digest output
         if: ${{ matrix.image == 'xmtpd' }}

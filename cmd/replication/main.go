@@ -53,7 +53,7 @@ func main() {
 
 	version, err := semver.NewVersion(Version)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Could not parse semver version: %s", err))
+		logger.Error(fmt.Sprintf("Could not parse semver version (%s): %s", Version, err))
 	}
 
 	if options.Tracing.Enable {

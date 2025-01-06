@@ -9,9 +9,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -31,12 +33,13 @@ const (
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
-	ctx             context.Context
-	log             *zap.Logger
-	registrant      *registrant.Registrant
-	store           *sql.DB
-	publishWorker   *publishWorker
-	subscribeWorker *subscribeWorker
+	ctx               context.Context
+	log               *zap.Logger
+	registrant        *registrant.Registrant
+	store             *sql.DB
+	publishWorker     *publishWorker
+	subscribeWorker   *subscribeWorker
+	validationService mlsvalidate.MLSValidationService
 }
 
 func NewReplicationApiService(
@@ -44,7 +47,7 @@ func NewReplicationApiService(
 	log *zap.Logger,
 	registrant *registrant.Registrant,
 	store *sql.DB,
-
+	validationService mlsvalidate.MLSValidationService,
 ) (*Service, error) {
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
 	if err != nil {
@@ -56,12 +59,13 @@ func NewReplicationApiService(
 	}
 
 	return &Service{
-		ctx:             ctx,
-		log:             log,
-		registrant:      registrant,
-		store:           store,
-		publishWorker:   publishWorker,
-		subscribeWorker: subscribeWorker,
+		ctx:               ctx,
+		log:               log,
+		registrant:        registrant,
+		store:             store,
+		publishWorker:     publishWorker,
+		subscribeWorker:   subscribeWorker,
+		validationService: validationService,
 	}, nil
 }
 
@@ -323,6 +327,13 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 
 	targetTopic := payerEnv.ClientEnvelope.TargetTopic()
+	topicKind := targetTopic.Kind()
+
+	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
+		if err = s.validateKeyPackage(ctx, &payerEnv.ClientEnvelope); err != nil {
+			return nil, err
+		}
+	}
 
 	stagedEnv, err := queries.New(s.store).
 		InsertStagedOriginatorEnvelope(ctx, queries.InsertStagedOriginatorEnvelopeParams{
@@ -395,6 +406,34 @@ func (s *Service) validatePayerEnvelope(
 	}
 
 	return payerEnv, nil
+}
+
+func (s *Service) validateKeyPackage(
+	ctx context.Context,
+	clientEnv *envelopes.ClientEnvelope,
+) error {
+	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_UploadKeyPackage)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "invalid payload type")
+	}
+
+	validationResult, err := s.validationService.ValidateKeyPackages(
+		ctx,
+		[][]byte{payload.UploadKeyPackage.KeyPackage.KeyPackageTlsSerialized},
+	)
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not validate key package: %v", err)
+	}
+
+	if len(validationResult) == 0 {
+		return status.Errorf(codes.Internal, "no validation results")
+	}
+
+	if !validationResult[0].IsOk {
+		return status.Errorf(codes.InvalidArgument, "key package validation failed")
+	}
+
+	return nil
 }
 
 func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error {

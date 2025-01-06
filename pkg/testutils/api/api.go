@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
@@ -78,6 +79,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	registrant, err := registrant.NewRegistrant(ctx, log, queries.New(db), mockRegistry, privKeyStr)
 	require.NoError(t, err)
 	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)
+	mockValidationService := mlsvalidateMocks.NewMockMLSValidationService(t)
 
 	jwtVerifier := authn.NewRegistryVerifier(mockRegistry, registrant.NodeID())
 
@@ -87,6 +89,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 			log,
 			registrant,
 			db,
+			mockValidationService,
 		)
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)

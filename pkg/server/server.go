@@ -36,14 +36,15 @@ type ReplicationServer struct {
 	apiServer  *api.ApiServer
 	syncServer *sync.SyncServer
 
-	ctx          context.Context
-	cancel       context.CancelFunc
-	log          *zap.Logger
-	registrant   *registrant.Registrant
-	nodeRegistry registry.NodeRegistry
-	indx         *indexer.Indexer
-	options      config.ServerOptions
-	metrics      *metrics.Server
+	ctx               context.Context
+	cancel            context.CancelFunc
+	log               *zap.Logger
+	registrant        *registrant.Registrant
+	nodeRegistry      registry.NodeRegistry
+	indx              *indexer.Indexer
+	options           config.ServerOptions
+	metrics           *metrics.Server
+	validationService mlsvalidate.MLSValidationService
 }
 
 func NewReplicationServer(
@@ -98,7 +99,7 @@ func NewReplicationServer(
 	}
 
 	if options.Indexer.Enable {
-		validationService, err := mlsvalidate.NewMlsValidationService(
+		s.validationService, err = mlsvalidate.NewMlsValidationService(
 			ctx,
 			log,
 			options.MlsValidation,
@@ -111,7 +112,7 @@ func NewReplicationServer(
 		err = s.indx.StartIndexer(
 			writerDB,
 			options.Contracts,
-			validationService,
+			s.validationService,
 		)
 
 		if err != nil {
@@ -168,11 +169,23 @@ func startAPIServer(
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		if options.Replication.Enable {
+			if s.validationService == nil {
+				s.validationService, err = mlsvalidate.NewMlsValidationService(
+					ctx,
+					log,
+					options.MlsValidation,
+				)
+				if err != nil {
+					return err
+				}
+			}
+
 			replicationService, err := message.NewReplicationApiService(
 				ctx,
 				log,
 				s.registrant,
 				writerDB,
+				s.validationService,
 			)
 			if err != nil {
 				return err

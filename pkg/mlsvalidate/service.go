@@ -118,12 +118,19 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 	out := make([]KeyPackageValidationResult, len(response.Responses))
 	for i, response := range response.Responses {
 		if !response.IsOk {
-			return nil, fmt.Errorf("validation failed with error %s", response.ErrorMessage)
-		}
-		out[i] = KeyPackageValidationResult{
-			InstallationKey: response.InstallationPublicKey,
-			Credential:      nil,
-			Expiration:      response.Expiration,
+			out[i] = KeyPackageValidationResult{
+				IsOk:            false,
+				InstallationKey: nil,
+				Credential:      nil,
+				Expiration:      0,
+			}
+		} else {
+			out[i] = KeyPackageValidationResult{
+				IsOk:            true,
+				InstallationKey: response.InstallationPublicKey,
+				Credential:      nil,
+				Expiration:      response.Expiration,
+			}
 		}
 	}
 	return out, nil

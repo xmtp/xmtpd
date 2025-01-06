@@ -22,7 +22,7 @@ func getLatestTag(t *testing.T) string {
 
 	// Run the command
 	err := cmd.Run()
-	require.NoError(t, err)
+	require.NoError(t, err, out.String())
 	return strings.TrimSpace(out.String())
 }
 

@@ -2,7 +2,6 @@ package authn
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -33,17 +32,6 @@ func getLatestVersion(t *testing.T) semver.Version {
 	require.NoError(t, err)
 
 	return *v
-}
-func buildFactoryWithVersion(
-	t *testing.T,
-	signerPrivateKey *ecdsa.PrivateKey,
-	nodeId uint32,
-	version string,
-) *TokenFactory {
-	v, err := semver.NewVersion(version)
-	require.NoError(t, err)
-
-	return NewTokenFactory(signerPrivateKey, nodeId, v)
 }
 
 func newVersionNoError(t *testing.T, version string, pre string, meta string) semver.Version {

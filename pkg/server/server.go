@@ -3,11 +3,13 @@ package server
 import (
 	"context"
 	"database/sql"
-	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/xmtp/xmtpd/pkg/authn"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -203,12 +205,19 @@ func startAPIServer(
 		return nil
 	}
 
+	var jwtVerifier authn.JWTVerifier
+
+	if s.nodeRegistry != nil && s.registrant != nil {
+		jwtVerifier = authn.NewRegistryVerifier(s.nodeRegistry, s.registrant.NodeID())
+	}
+
 	s.apiServer, err = api.NewAPIServer(
 		s.ctx,
 		log,
 		listenAddress,
 		options.Reflection.Enable,
 		serviceRegistrationFunc,
+		jwtVerifier,
 	)
 	if err != nil {
 		return err

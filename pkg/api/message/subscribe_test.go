@@ -25,7 +25,9 @@ var (
 )
 var allRows []queries.InsertGatewayEnvelopeParams
 
-func setupTest(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
+func setupTest(
+	t *testing.T,
+) (message_api.ReplicationApiClient, *sql.DB, testUtilsApi.ApiServerMocks, func()) {
 	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
 		{
@@ -115,7 +117,7 @@ func validateUpdates(
 }
 
 func TestSubscribeEnvelopesAll(t *testing.T) {
-	client, db, cleanup := setupTest(t)
+	client, db, _, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
 
@@ -136,7 +138,7 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
-	client, store, cleanup := setupTest(t)
+	client, store, _, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, store)
 
@@ -158,7 +160,7 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesByOriginator(t *testing.T) {
-	client, db, cleanup := setupTest(t)
+	client, db, _, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, db)
 
@@ -180,7 +182,7 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestSimultaneousSubscriptions(t *testing.T) {
-	client, store, cleanup := setupTest(t)
+	client, store, _, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, store)
 
@@ -223,7 +225,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesFromCursor(t *testing.T) {
-	client, store, cleanup := setupTest(t)
+	client, store, _, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, store)
 
@@ -245,7 +247,7 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
-	client, store, cleanup := setupTest(t)
+	client, store, _, cleanup := setupTest(t)
 	defer cleanup()
 	insertInitialRows(t, store)
 
@@ -267,7 +269,7 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
-	client, _, cleanup := setupTest(t)
+	client, _, _, cleanup := setupTest(t)
 	defer cleanup()
 
 	stream, err := client.SubscribeEnvelopes(

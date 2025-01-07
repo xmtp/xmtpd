@@ -77,11 +77,14 @@ func main() {
 				logger.Fatal("initializing database", zap.Error(err))
 			}
 		}
+		logger.Debug("Successfully initialized database")
 
 		ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
 		if err != nil {
 			logger.Fatal("initializing blockchain client", zap.Error(err))
 		}
+
+		logger.Debug("Successfully initialized blockchain client")
 
 		chainRegistry, err := registry.NewSmartContractRegistry(
 			ctx,
@@ -89,6 +92,9 @@ func main() {
 			logger,
 			options.Contracts,
 		)
+
+		logger.Debug("Successfully initialized smart contract registry")
+
 		if err != nil {
 			logger.Fatal("initializing smart contract registry", zap.Error(err))
 		}
@@ -105,6 +111,8 @@ func main() {
 			logger.Fatal("initializing signer", zap.Error(err))
 		}
 
+		logger.Debug("Successfully initialized signer")
+
 		blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 			ctx,
 			logger,
@@ -115,6 +123,8 @@ func main() {
 		if err != nil {
 			logger.Fatal("initializing message publisher", zap.Error(err))
 		}
+
+		logger.Debug("Successfully initialized message publisher")
 
 		s, err := server.NewReplicationServer(
 			ctx,

@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/pkg/config"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
@@ -45,15 +45,15 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
 		AllNodes(mock.Anything).
-		Return([]abis.NodesNodeWithId{
+		Return([]nodes.NodesNodeWithId{
 			{
 				NodeId: 1,
-				Node: abis.NodesNode{
+				Node: nodes.NodesNode{
 					HttpAddress:   "http://foo.com",
 					SigningKeyPub: enc,
 				},
 			},
-			{NodeId: 2, Node: abis.NodesNode{HttpAddress: "https://bar.com",
+			{NodeId: 2, Node: nodes.NodesNode{HttpAddress: "https://bar.com",
 				SigningKeyPub: enc}},
 		}, nil)
 
@@ -88,15 +88,15 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	// The first call, we'll set the address to foo.com.
 	// Subsequent calls will set the address to bar.com
 	mockContract.EXPECT().
-		AllNodes(mock.Anything).RunAndReturn(func(*bind.CallOpts) ([]abis.NodesNodeWithId, error) {
+		AllNodes(mock.Anything).RunAndReturn(func(*bind.CallOpts) ([]nodes.NodesNodeWithId, error) {
 		httpAddress := "http://foo.com"
 		if !hasSentInitialValues {
 			hasSentInitialValues = true
 		} else {
 			httpAddress = "http://bar.com"
 		}
-		return []abis.NodesNodeWithId{
-			{NodeId: 1, Node: abis.NodesNode{HttpAddress: httpAddress, SigningKeyPub: enc}},
+		return []nodes.NodesNodeWithId{
+			{NodeId: 1, Node: nodes.NodesNode{HttpAddress: httpAddress, SigningKeyPub: enc}},
 		}, nil
 	})
 
@@ -134,11 +134,11 @@ func TestStopOnContextCancel(t *testing.T) {
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
 		AllNodes(mock.Anything).
-		RunAndReturn(func(*bind.CallOpts) ([]abis.NodesNodeWithId, error) {
-			return []abis.NodesNodeWithId{
+		RunAndReturn(func(*bind.CallOpts) ([]nodes.NodesNodeWithId, error) {
+			return []nodes.NodesNodeWithId{
 				{
 					NodeId: uint32(rand.Intn(1000)),
-					Node:   abis.NodesNode{HttpAddress: "http://foo.com", SigningKeyPub: enc},
+					Node:   nodes.NodesNode{HttpAddress: "http://foo.com", SigningKeyPub: enc},
 				},
 			}, nil
 		})

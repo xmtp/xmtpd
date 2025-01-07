@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -199,7 +200,7 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		var logMessage *abis.GroupMessagesMessageSent
+		var logMessage *groupmessages.GroupMessagesMessageSent
 		if logMessage, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
 		}
@@ -215,7 +216,7 @@ func (s *Service) publishToBlockchain(
 		)
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		var logMessage *abis.IdentityUpdatesIdentityUpdateCreated
+		var logMessage *identityupdates.IdentityUpdatesIdentityUpdateCreated
 		if logMessage, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
 		}

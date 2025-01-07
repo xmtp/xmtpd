@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -26,7 +26,7 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 
 	client, err := blockchain.NewClient(ctx, config.RpcUrl)
 	require.NoError(t, err)
-	contract, err := abis.NewGroupMessages(
+	contract, err := groupmessages.NewGroupMessages(
 		common.HexToAddress(contractAddress),
 		client,
 	)
@@ -122,7 +122,7 @@ func TestStoreGroupMessageMalformed(t *testing.T) {
 	storer, cleanup := buildGroupMessageStorer(t)
 	defer cleanup()
 
-	abi, err := abis.GroupMessagesMetaData.GetAbi()
+	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
 	require.NoError(t, err)
 
 	topic, err := utils.GetEventTopic(abi, "MessageSent")

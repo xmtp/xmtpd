@@ -1,0 +1,70 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Default directories (can be overridden with environment variables)
+source_dir="${SOURCE_DIR:-src}"
+build_dir="${BUILD_DIR:-build}"
+output_dir="${OUTPUT_DIR:-pkg}"
+
+# Ensure required directories exist and clean up old artifacts
+function setup_directories() {
+    mkdir -p "${build_dir}" "${output_dir}"
+}
+
+# Generate bindings for a given contract
+function generate_bindings() {
+    local filename="$1"
+    local package="$(echo "${filename}" | tr '[:upper:]' '[:lower:]')"
+    local source_artifact="${source_dir}/${filename}.sol"
+    local build_artifact="${build_dir}/${filename}"
+    local output_artifact="${output_dir}/${package}/${filename}.go"
+
+    rm -f "${build_artifact}".*.json
+    mkdir -p "${output_dir}/${package}"
+    rm -f "${output_dir}/${package}"/*.go
+
+    # Generate ABI and bytecode
+    if ! forge inspect "${source_artifact}:${filename}" abi > "${build_artifact}.abi.json"; then
+        echo "ERROR: Failed to generate ABI for ${filename}" >&2
+        exit 1
+    fi
+
+    if ! forge inspect "${source_artifact}:${filename}" bytecode > "${build_artifact}.bin.json"; then
+        echo "ERROR: Failed to generate bytecode for ${filename}" >&2
+        exit 1
+    fi
+
+    # Generate Go bindings
+    if ! abigen --abi "${build_artifact}.abi.json" \
+                --bin "${build_artifact}.bin.json" \
+                --pkg "${package}" \
+                --type "${filename}" \
+                --out "${output_artifact}" > /dev/null 2>&1; then
+        echo "ERROR: Failed to generate bindings for ${filename}" >&2
+        exit 1
+    fi
+}
+
+function main() {
+    # Always work from the contracts directory
+    script_dir=$(dirname "$(realpath "$0")")
+    repo_root=$(realpath "${script_dir}/../")
+    cd "${repo_root}"
+
+    setup_directories
+
+    # Define contracts (pass as arguments or use a default list)
+    local contracts=("$@")
+    if [ "${#contracts[@]}" -eq 0 ]; then
+        contracts=("Nodes" "GroupMessages" "IdentityUpdates")
+    fi
+
+    # Generate bindings for each contract
+    for contract in "${contracts[@]}"; do
+        echo "Processing contract: ${contract}"
+        generate_bindings "${contract}"
+    done
+}
+
+main "$@"

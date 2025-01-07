@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
@@ -30,7 +30,7 @@ func buildIdentityUpdateStorer(
 
 	client, err := blockchain.NewClient(ctx, config.RpcUrl)
 	require.NoError(t, err)
-	contract, err := abis.NewIdentityUpdates(
+	contract, err := identityupdates.NewIdentityUpdates(
 		common.HexToAddress(contractAddress),
 		client,
 	)

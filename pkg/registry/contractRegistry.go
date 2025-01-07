@@ -3,15 +3,16 @@ package registry
 import (
 	"context"
 	"errors"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/tracing"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -53,7 +54,7 @@ func NewSmartContractRegistry(
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
 
-	contract, err := abis.NewNodesCaller(
+	contract, err := nodes.NewNodesCaller(
 		common.HexToAddress(options.NodesContractAddress),
 		ethclient,
 	)
@@ -228,7 +229,7 @@ func (s *SmartContractRegistry) SetContractForTest(contract NodesContract) {
 	s.contract = contract
 }
 
-func convertNode(rawNode abis.NodesNodeWithId) Node {
+func convertNode(rawNode nodes.NodesNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the
 	// node as unhealthy in this case

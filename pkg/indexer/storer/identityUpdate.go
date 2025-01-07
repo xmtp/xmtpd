@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pingcap/log"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -27,7 +27,7 @@ const (
 )
 
 type IdentityUpdateStorer struct {
-	contract          *abis.IdentityUpdates
+	contract          *identityupdates.IdentityUpdates
 	db                *sql.DB
 	logger            *zap.Logger
 	validationService mlsvalidate.MLSValidationService
@@ -36,7 +36,7 @@ type IdentityUpdateStorer struct {
 func NewIdentityUpdateStorer(
 	db *sql.DB,
 	logger *zap.Logger,
-	contract *abis.IdentityUpdates,
+	contract *identityupdates.IdentityUpdates,
 	validationService mlsvalidate.MLSValidationService,
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{

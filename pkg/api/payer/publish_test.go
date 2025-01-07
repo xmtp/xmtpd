@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abis"
+	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
@@ -73,7 +73,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 	mockMessagePublisher.EXPECT().
 		PublishIdentityUpdate(mock.Anything, mock.Anything, mock.Anything).
-		Return(&abis.IdentityUpdatesIdentityUpdateCreated{
+		Return(&identityupdates.IdentityUpdatesIdentityUpdateCreated{
 			Raw: types.Log{
 				TxHash: txnHash,
 			},

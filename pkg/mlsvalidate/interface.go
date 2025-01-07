@@ -10,6 +10,7 @@ import (
 )
 
 type KeyPackageValidationResult struct {
+	IsOk            bool
 	InstallationKey []byte
 	Credential      *identity_proto.MlsCredential
 	Expiration      uint64

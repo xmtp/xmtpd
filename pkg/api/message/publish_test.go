@@ -5,8 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	apiv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -16,7 +19,7 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	api, db, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t)
@@ -64,7 +67,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	api, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(t)
@@ -79,7 +82,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	api, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
@@ -96,7 +99,7 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 }
 
 func TestMissingTopicOnPublish(t *testing.T) {
-	api, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
@@ -110,4 +113,82 @@ func TestMissingTopicOnPublish(t *testing.T) {
 		},
 	)
 	require.ErrorContains(t, err, "topic")
+}
+
+func TestKeyPackageValidationSuccess(t *testing.T) {
+	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+		TargetOriginator: 100,
+		LastSeen:         &envelopes.VectorClock{},
+	})
+	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
+		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
+			KeyPackage: &apiv1.KeyPackageUpload{
+				KeyPackageTlsSerialized: []byte{1, 2, 3},
+			},
+		},
+	}
+
+	apiMocks.MockValidationService.EXPECT().
+		ValidateKeyPackages(mock.Anything, mock.Anything).
+		Return(
+			[]mlsvalidate.KeyPackageValidationResult{
+				{
+					IsOk: true,
+				},
+			},
+			nil,
+		)
+
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
+				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
+			},
+		},
+	)
+	require.Nil(t, err)
+}
+
+func TestKeyPackageValidationFail(t *testing.T) {
+	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+		TargetOriginator: 100,
+		LastSeen:         &envelopes.VectorClock{},
+	})
+	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
+		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
+			KeyPackage: &apiv1.KeyPackageUpload{
+				KeyPackageTlsSerialized: []byte{1, 2, 3},
+			},
+		},
+	}
+
+	apiMocks.MockValidationService.EXPECT().
+		ValidateKeyPackages(mock.Anything, mock.Anything).
+		Return(
+			[]mlsvalidate.KeyPackageValidationResult{
+				{
+					IsOk: false,
+				},
+			},
+			nil,
+		)
+
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
+				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
+			},
+		},
+	)
+	require.Error(t, err)
 }

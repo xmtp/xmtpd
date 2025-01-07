@@ -20,9 +20,9 @@ func formatAddress(addr string) string {
 }
 
 func TestClientManager(t *testing.T) {
-	server1, _, cleanup1 := apiTestUtils.NewTestAPIServer(t)
+	server1, _, _, cleanup1 := apiTestUtils.NewTestAPIServer(t)
 	defer cleanup1()
-	server2, _, cleanup2 := apiTestUtils.NewTestAPIServer(t)
+	server2, _, _, cleanup2 := apiTestUtils.NewTestAPIServer(t)
 	defer cleanup2()
 
 	nodeRegistry := registry.NewFixedNodeRegistry([]registry.Node{

@@ -106,7 +106,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishToNodes(t *testing.T) {
-	originatorServer, _, originatorCleanup := apiTestUtils.NewTestAPIServer(t)
+	originatorServer, _, _, originatorCleanup := apiTestUtils.NewTestAPIServer(t)
 	defer originatorCleanup()
 
 	ctx := context.Background()

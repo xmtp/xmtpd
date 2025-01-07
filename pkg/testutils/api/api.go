@@ -65,7 +65,13 @@ func NewPayerAPIClient(
 	}
 }
 
-func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
+type ApiServerMocks struct {
+	MockRegistry          *mocks.MockNodeRegistry
+	MockValidationService *mlsvalidateMocks.MockMLSValidationService
+	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
+}
+
+func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := testutils.NewLog(t)
 	db, _, dbCleanup := testutils.NewDB(t, ctx)
@@ -117,17 +123,25 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, func()) {
 	)
 	require.NoError(t, err)
 
-	return svr, db, func() {
+	allMocks := ApiServerMocks{
+		MockRegistry:          mockRegistry,
+		MockValidationService: mockValidationService,
+		MockMessagePublisher:  mockMessagePublisher,
+	}
+
+	return svr, db, allMocks, func() {
 		cancel()
 		svr.Close()
 		dbCleanup()
 	}
 }
 
-func NewTestReplicationAPIClient(t *testing.T) (message_api.ReplicationApiClient, *sql.DB, func()) {
-	svc, db, svcCleanup := NewTestAPIServer(t)
+func NewTestReplicationAPIClient(
+	t *testing.T,
+) (message_api.ReplicationApiClient, *sql.DB, ApiServerMocks, func()) {
+	svc, db, allMocks, svcCleanup := NewTestAPIServer(t)
 	client, clientCleanup := NewReplicationAPIClient(t, context.Background(), svc.Addr().String())
-	return client, db, func() {
+	return client, db, allMocks, func() {
 		clientCleanup()
 		svcCleanup()
 	}

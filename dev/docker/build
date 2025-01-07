@@ -6,6 +6,7 @@ DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-ghcr.io/xmtp/xmtpd}"
 GIT_COMMIT="$(git describe HEAD --tags --long)"
 
 docker buildx build \
+--platform linux/arm64 \
     --build-arg="GIT_COMMIT=${GIT_COMMIT}" \
     --tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
     -f dev/docker/Dockerfile \

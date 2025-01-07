@@ -60,7 +60,7 @@ jobs:
           context: .
           file: ./dev/docker/${{ steps.set_dockerfile.outputs.dockerfile }}
           push: true
-          tags: martin-dev
+          tags: ghcr.io/xmtp/${{ matrix.image }}:martin-dev
           labels: ${{ steps.meta.outputs.labels }}
           build-args: "GIT_COMMIT=dev-${{ github.event_name != 'pull_request' && github.sha || github.event.pull_request.head.sha }}"
 

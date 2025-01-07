@@ -94,11 +94,15 @@ func TestClaimsVerifier(t *testing.T) {
 		{"next-patch-version", currentVersion.IncPatch(), false},
 		{"next-minor-version", currentVersion.IncMinor(), true},
 		{"next-major-version", currentVersion.IncMajor(), true},
-		{"last-supported-version", newVersionNoError(t, "0.1.3", "", ""), false},
-		{"with-prerelease-version", newVersionNoError(t, "0.1.3", "17-gdeadbeef", ""), false},
+		{"last-supported-version", newVersionNoError(t, currentVersion.String(), "", ""), false},
+		{
+			"with-prerelease-version",
+			newVersionNoError(t, currentVersion.String(), "17-gdeadbeef", ""),
+			false,
+		},
 		{
 			"with-metadata-version",
-			newVersionNoError(t, "0.1.3", "", "branch-dev"),
+			newVersionNoError(t, currentVersion.String(), "", "branch-dev"),
 			false,
 		},
 	}

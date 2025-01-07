@@ -29,6 +29,7 @@ require (
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/valyala/fastjson v1.6.4
 )
 
 require (

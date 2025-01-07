@@ -7,10 +7,21 @@ libs = ["dependencies"]
 gas_reports = ["*"]
 optimizer = true
 optimizer_runs = 10_000
+remappings = [
+    "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+    "@openzeppelin-contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+    "forge-std/=dependencies/forge-std-1.9.4/",
+]
+fs_permissions = [
+    { access = "read-write", path = "config/anvil_localnet"},
+    { access = "read-write", path = "config/xmtp_testnet"},
+    { access = "read-write", path = "config/unknown"}
+]
 
 [soldeer]
 recursive_deps = true
 
 [dependencies]
 forge-std = "1.9.4"
+"@openzeppelin-contracts-upgradeable" = "5.1.0"
 "@openzeppelin-contracts" = "5.1.0"

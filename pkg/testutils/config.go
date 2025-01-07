@@ -5,10 +5,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fastjson"
 	"github.com/xmtp/xmtpd/pkg/config"
 )
 
@@ -48,6 +50,7 @@ func rootPath(t *testing.T) string {
 /*
 *
 Parse the JSON file at this location to get the deployed contract info
+TODO: deprecate in favor of getProxyAddress
 *
 */
 func getDeployedTo(t *testing.T, fileName string) string {
@@ -65,19 +68,40 @@ func getDeployedTo(t *testing.T, fileName string) string {
 	return info.DeployedTo
 }
 
+/*
+*
+Parse the JSON file at this location to get the deployed contract proxy address
+*
+*/
+func getProxyAddress(t *testing.T, fileName string) string {
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Fatalf("Failed to read json: %v", err)
+	}
+
+	switch {
+	case strings.Contains(fileName, "GroupMessages.json"):
+		return fastjson.GetString(data, "addresses", "groupMessagesProxy")
+	case strings.Contains(fileName, "IdentityUpdates.json"):
+		return fastjson.GetString(data, "addresses", "identityUpdatesProxy")
+	default:
+		return ""
+	}
+}
+
 func GetContractsOptions(t *testing.T) config.ContractsOptions {
 	rootDir := rootPath(t)
 
 	return config.ContractsOptions{
 		RpcUrl: BLOCKCHAIN_RPC_URL,
-		MessagesContractAddress: getDeployedTo(
+		MessagesContractAddress: getProxyAddress(
 			t,
-			path.Join(rootDir, "./build/GroupMessages.json"),
+			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
 		),
 		NodesContractAddress: getDeployedTo(t, path.Join(rootDir, "./build/Nodes.json")),
-		IdentityUpdatesContractAddress: getDeployedTo(
+		IdentityUpdatesContractAddress: getProxyAddress(
 			t,
-			path.Join(rootDir, "./build/IdentityUpdates.json"),
+			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
 		),
 		RefreshInterval: 100 * time.Millisecond,
 		ChainID:         31337,

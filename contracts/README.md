@@ -1,66 +1,112 @@
-## Foundry
+# XMTP Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+- [XMTP Contracts](#xmtp-contracts)
+  - [Messages Contracts](#messages-contracts)
+  - [XMTP Node Registry](#xmtp-node-registry)
+  - [Usage](#usage)
+    - [Prerequisites](#prerequisites)
+    - [Install](#install)
+    - [Test](#test)
+    - [Run static analysis](#run-static-analysis)
+  - [Scripts](#scripts)
+    - [Messages contracts](#messages-contracts-1)
+    - [Node registry](#node-registry)
 
-Foundry consists of:
+**⚠️ Experimental:** This software is in early development. Expect frequent changes and unresolved issues.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+This repository contains all the smart contracts that underpin the XMTP decentralized network.
 
-## Documentation
+## Messages Contracts
 
-https://book.getfoundry.sh/
+The messages contracts manage the blockchain state for `GroupMessages` and `IdentityUpdates` sent by clients to the network.
+
+These contracts ensure transparency and provide a historical record of state changes.
+
+## XMTP Node Registry
+
+The `XMTP Node Registry` maintains a blockchain-based record of all node operators participating in the XMTP network. This registry serves as a source of truth for the network's active node participants, contributing to the network's integrity.
+
+The registry is currently implemented following the [ERC721](https://eips.ethereum.org/EIPS/eip-721) standard.
 
 ## Usage
 
-### Build
+The project is built with the `Foundry` framework, and dependency management is handled using `soldeer`.
+
+Additionally, it uses `slither` for static analysis.
+
+### Prerequisites
+
+[Install foundry](https://book.getfoundry.sh/getting-started/installation)
+
+[Install slither](https://github.com/crytic/slither?tab=readme-ov-file#how-to-install)
+
+### Install
+
+As the project uses `soldeer`, update the dependencies by running:
 
 ```shell
-$ forge build
+forge soldeer update
+```
+
+Build the contracts:
+
+```shell
+forge build
 ```
 
 ### Test
 
+To run the unit tests:
+
 ```shell
-$ forge test
+forge test
 ```
 
-### Format
+### Run static analysis
+
+Run the analysis with `slither`:
 
 ```shell
-$ forge fmt
+slither .
 ```
 
-### Gas Snapshots
+## Scripts
+
+The project includes deployer and upgrade scripts.
+
+### Messages contracts
+
+- Configure the environment by creating an `.env` file, with this content:
 
 ```shell
-$ forge snapshot
+### Main configuration
+PRIVATE_KEY=0xYourPrivateKey # Private key of the EOA deploying the contracts
+
+### XMTP deployment configuration
+XMTP_GROUP_MESSAGES_ADMIN_ADDRESS=0x12345abcdf # the EOA assuming the admin role in the GroupMessages contract.
+XMTP_IDENTITY_UPDATES_ADMIN_ADDRESS=0x12345abcdf # the EOA assuming the admin role in the IdentityUpdates contract.
 ```
 
-### Anvil
+- Run the desired script with:
 
 ```shell
-$ anvil
+forge script --rpc-url <RPC_URL> --broadcast <PATH_TO_SCRIPT>
 ```
 
-### Deploy
+Example:
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+forge script --rpc-url http://localhost:7545 --broadcast script/DeployGroupMessages.s.sol
 ```
 
-### Cast
+The scripts output the deployment and upgrade in the `output` folder.
+
+### Node registry
+
+**⚠️:** The node registry hasn't been fully migrated to forge scripts.
+
+- Deploy with `forge create`:
 
 ```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "src/Nodes.sol:Nodes"
 ```

@@ -1,10 +1,10 @@
 {
   "addresses": {
     "groupMessagesDeployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "groupMessagesImpl": "0x5f246ADDCF057E0f778CD422e20e413be70f9a0c",
-    "groupMessagesProxy": "0xaD82Ecf79e232B0391C5479C7f632aA1EA701Ed1",
+    "groupMessagesImpl": "0xc5a5C42992dECbae36851359345FE25997F5C42d",
+    "groupMessagesProxy": "0x67d269191c92Caf3cD7723F116c85e6E9bf55933",
     "groupMessagesProxyAdmin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
   },
-  "deploymentBlock": 160,
-  "latestUpgradeBlock": 160
+  "deploymentBlock": 28,
+  "latestUpgradeBlock": 28
 }

@@ -60,6 +60,8 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	logger.Debug("Starting init process")
+
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {

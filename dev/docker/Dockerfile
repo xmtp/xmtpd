@@ -14,7 +14,7 @@ RUN go build -ldflags="-X 'main.Commit=$GIT_COMMIT'" -o bin/xmtpd cmd/replicatio
 
 # ACTUAL IMAGE -------------------------------------------------------
 
-FROM alpine:3.12
+FROM alpine:3.21
 
 LABEL maintainer="engineering@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"

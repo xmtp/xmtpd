@@ -153,7 +153,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
+				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
 			},
 			Limit: 0,
 		},
@@ -172,7 +172,7 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicA},
-				LastSeen: &envelopes.VectorClock{
+				LastSeen: &envelopes.Cursor{
 					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
 				},
 			},
@@ -193,7 +193,7 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicA, topicB},
-				LastSeen: &envelopes.VectorClock{
+				LastSeen: &envelopes.Cursor{
 					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
 				},
 			},
@@ -214,7 +214,7 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{1, 2},
-				LastSeen: &envelopes.VectorClock{
+				LastSeen: &envelopes.Cursor{
 					NodeIdToSequenceId: map[uint32]uint64{1: 1, 2: 1},
 				},
 			},

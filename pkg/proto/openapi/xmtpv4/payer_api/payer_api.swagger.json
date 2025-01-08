@@ -261,7 +261,7 @@
           "format": "byte"
         },
         "lastSeen": {
-          "$ref": "#/definitions/envelopesVectorClock"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       },
       "description": "Data visible to the server that has been authenticated by the client."
@@ -312,19 +312,6 @@
         }
       },
       "title": "Signed originator envelope"
-    },
-    "envelopesVectorClock": {
-      "type": "object",
-      "properties": {
-        "nodeIdToSequenceId": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "uint64"
-          }
-        }
-      },
-      "description": "The last seen entry per originator. Originators that have not been seen are omitted.\nEntries MUST be sorted in ascending order, so that smaller node ID's appear first."
     },
     "identityassociationsSignature": {
       "type": "object",
@@ -498,6 +485,19 @@
         }
       },
       "description": "Signature represents a generalized public key signature,\ndefined as a union to support cryptographic algorithm agility."
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
     }
   }
 }

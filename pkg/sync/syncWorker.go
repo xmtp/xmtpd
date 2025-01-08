@@ -294,7 +294,7 @@ func (s *syncWorker) setupStream(
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{nodeID},
-				LastSeen: &envelopes.VectorClock{
+				LastSeen: &envelopes.Cursor{
 					NodeIdToSequenceId: vc,
 				},
 			},

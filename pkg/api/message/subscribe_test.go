@@ -236,7 +236,7 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:   []db.Topic{topicA, topicC},
-				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
+				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
 			},
 		},
 	)
@@ -258,7 +258,7 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:   []db.Topic{topicA, topicC},
-				LastSeen: &envelopes.VectorClock{NodeIdToSequenceId: map[uint32]uint64{}},
+				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{}},
 			},
 		},
 	)

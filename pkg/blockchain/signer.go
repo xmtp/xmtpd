@@ -32,7 +32,7 @@ func NewPrivateKeySigner(privateKeyString string, chainID int) (*PrivateKeySigne
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("Failed to cast to ECDSA public key %v", err)
+		return nil, fmt.Errorf("failed to cast to ECDSA public key %v", err)
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
@@ -42,7 +42,7 @@ func NewPrivateKeySigner(privateKeyString string, chainID int) (*PrivateKeySigne
 		big.NewInt(int64(chainID)),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create transactor: %v", err)
+		return nil, fmt.Errorf("failed to create transactor: %v", err)
 	}
 
 	return &PrivateKeySigner{

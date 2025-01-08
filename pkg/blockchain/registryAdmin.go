@@ -57,14 +57,14 @@ func (n *NodeRegistryAdmin) AddNode(
 	httpAddress string,
 ) error {
 	if !common.IsHexAddress(owner) {
-		return fmt.Errorf("Invalid owner address provided %s", owner)
+		return fmt.Errorf("invalid owner address provided %s", owner)
 	}
 
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
 	if n.signer == nil {
-		return fmt.Errorf("No signer provided")
+		return fmt.Errorf("no signer provided")
 	}
 	tx, err := n.contract.AddNode(&bind.TransactOpts{
 		Context: ctx,

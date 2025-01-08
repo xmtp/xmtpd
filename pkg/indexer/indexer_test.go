@@ -19,10 +19,15 @@ func TestIndexLogsSuccess(t *testing.T) {
 	channel := make(chan types.Log, 10)
 	defer close(channel)
 	newBlockNumber := uint64(10)
+	newBlockHash := common.HexToHash(
+		"0x0000000000000000000000000000000000000000000000000000000000000000",
+	)
 
 	logStorer := storerMocks.NewMockLogStorer(t)
 	blockTracker := indexerMocks.NewMockIBlockTracker(t)
-	blockTracker.EXPECT().UpdateLatestBlock(mock.Anything, newBlockNumber).Return(nil)
+	blockTracker.EXPECT().
+		UpdateLatestBlock(mock.Anything, newBlockNumber, newBlockHash.Bytes()).
+		Return(nil)
 
 	event := types.Log{
 		Address:     common.HexToAddress("0x123"),

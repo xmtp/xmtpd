@@ -27,6 +27,7 @@ type GatewayEnvelope struct {
 type LatestBlock struct {
 	ContractAddress string
 	BlockNumber     int64
+	BlockHash       []byte
 }
 
 type NodeInfo struct {

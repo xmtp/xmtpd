@@ -180,7 +180,7 @@ func (s *Service) sendEnvelopes(
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	if cursor == nil {
 		cursor = make(map[uint32]uint64)
-		query.LastSeen = &envelopesProto.VectorClock{
+		query.LastSeen = &envelopesProto.Cursor{
 			NodeIdToSequenceId: cursor,
 		}
 	}

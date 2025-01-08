@@ -139,7 +139,7 @@ func TestCreateServer(t *testing.T) {
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: server1NodeID,
 					TargetTopic:      targetTopic,
-					LastSeen:         &envelopes.VectorClock{},
+					LastSeen:         &envelopes.Cursor{},
 				}),
 			)},
 		},
@@ -153,7 +153,7 @@ func TestCreateServer(t *testing.T) {
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: server2NodeID,
 					TargetTopic:      targetTopic,
-					LastSeen:         &envelopes.VectorClock{},
+					LastSeen:         &envelopes.Cursor{},
 				}),
 			)},
 		},
@@ -164,7 +164,7 @@ func TestCreateServer(t *testing.T) {
 		q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{server2NodeID},
-				LastSeen:          &envelopes.VectorClock{},
+				LastSeen:          &envelopes.Cursor{},
 			},
 			Limit: 10,
 		})
@@ -181,7 +181,7 @@ func TestCreateServer(t *testing.T) {
 		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{server1NodeID},
-				LastSeen:          &envelopes.VectorClock{},
+				LastSeen:          &envelopes.Cursor{},
 			},
 			Limit: 10,
 		})

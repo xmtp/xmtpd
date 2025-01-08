@@ -201,6 +201,15 @@
     }
   },
   "definitions": {
+    "message_apiv1Cursor": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "$ref": "#/definitions/v1IndexCursor"
+        }
+      },
+      "title": "Wrapper for potentially multiple types of cursor"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -254,15 +263,6 @@
         }
       },
       "title": "Response containing a list of QueryResponse messages"
-    },
-    "v1Cursor": {
-      "type": "object",
-      "properties": {
-        "index": {
-          "$ref": "#/definitions/v1IndexCursor"
-        }
-      },
-      "title": "Wrapper for potentially multiple types of cursor"
     },
     "v1Envelope": {
       "type": "object",
@@ -378,7 +378,7 @@
           "title": "Note: this is a uint32, while go-waku's pageSize is a uint64"
         },
         "cursor": {
-          "$ref": "#/definitions/v1Cursor"
+          "$ref": "#/definitions/message_apiv1Cursor"
         },
         "direction": {
           "$ref": "#/definitions/xmtpmessage_apiv1SortDirection"

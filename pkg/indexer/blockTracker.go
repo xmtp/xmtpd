@@ -30,6 +30,10 @@ type Block struct {
 	hash   common.Hash
 }
 
+var (
+	ErrEmptyBlockHash = errors.New("block hash is empty")
+)
+
 // Return a new BlockTracker initialized to the latest block from the DB
 func NewBlockTracker(
 	ctx context.Context,
@@ -63,7 +67,7 @@ func (bt *BlockTracker) GetLatestBlockHash() []byte {
 func (bt *BlockTracker) UpdateLatestBlock(
 	ctx context.Context,
 	block uint64,
-	hash []byte,
+	hashBytes []byte,
 ) error {
 	// Quick check without lock
 	if block <= bt.latestBlock.number.Load() {
@@ -78,18 +82,22 @@ func (bt *BlockTracker) UpdateLatestBlock(
 		return nil
 	}
 
-	if err := bt.updateDB(ctx, block, hash); err != nil {
+	newHash := common.Hash(hashBytes)
+
+	if newHash == (common.Hash{}) {
+		return ErrEmptyBlockHash
+	}
+
+	if newHash == bt.latestBlock.hash {
+		return nil
+	}
+
+	if err := bt.updateDB(ctx, block, newHash.Bytes()); err != nil {
 		return err
 	}
 
-	hashBytes := common.Hash(hash)
-
-	if hashBytes == (common.Hash{}) {
-		return fmt.Errorf("invalid block hash %s", hashBytes.String())
-	}
-
 	bt.latestBlock.number.Store(block)
-	bt.latestBlock.hash = hashBytes
+	bt.latestBlock.hash = newHash
 
 	return nil
 }

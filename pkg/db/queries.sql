@@ -110,7 +110,8 @@ ON CONFLICT (contract_address)
 	DO UPDATE SET
 		block_number = @block_number, block_hash = @block_hash
 	WHERE
-		@block_number > latest_block.block_number;
+		@block_number > latest_block.block_number
+		AND @block_hash != latest_block.block_hash);
 
 -- name: GetLatestBlock :one
 SELECT

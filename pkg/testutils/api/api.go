@@ -82,7 +82,14 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 100, SigningKey: &privKey.PublicKey},
 	}, nil)
-	registrant, err := registrant.NewRegistrant(ctx, log, queries.New(db), mockRegistry, privKeyStr)
+	registrant, err := registrant.NewRegistrant(
+		ctx,
+		log,
+		queries.New(db),
+		mockRegistry,
+		privKeyStr,
+		nil,
+	)
 	require.NoError(t, err)
 	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)
 	mockValidationService := mlsvalidateMocks.NewMockMLSValidationService(t)

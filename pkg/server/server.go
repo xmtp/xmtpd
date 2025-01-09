@@ -8,28 +8,28 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/xmtp/xmtpd/pkg/authn"
-	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-
+	"github.com/Masterminds/semver/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/xmtp/xmtpd/pkg/api/message"
-	"github.com/xmtp/xmtpd/pkg/api/payer"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/indexer"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
-	"github.com/xmtp/xmtpd/pkg/sync"
-	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
 	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/payer"
+	"github.com/xmtp/xmtpd/pkg/authn"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/indexer"
+	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/sync"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type ReplicationServer struct {
@@ -55,6 +55,7 @@ func NewReplicationServer(
 	writerDB *sql.DB,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	listenAddress string,
+	serverVersion *semver.Version,
 ) (*ReplicationServer, error) {
 	var err error
 
@@ -92,6 +93,7 @@ func NewReplicationServer(
 			queries.New(writerDB),
 			nodeRegistry,
 			options.Signer.PrivateKey,
+			serverVersion,
 		)
 		if err != nil {
 			return nil, err

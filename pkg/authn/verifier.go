@@ -27,7 +27,7 @@ func NewRegistryVerifier(registry registry.NodeRegistry, myNodeID uint32) *Regis
 	return &RegistryVerifier{registry: registry, myNodeID: myNodeID}
 }
 
-func (v *RegistryVerifier) Verify(tokenString string) error {
+func (v *RegistryVerifier) Verify(tokenString string) (uint32, error) {
 	var token *jwt.Token
 	var err error
 
@@ -36,21 +36,21 @@ func (v *RegistryVerifier) Verify(tokenString string) error {
 		&XmtpdClaims{},
 		v.getMatchingPublicKey,
 	); err != nil {
-		return err
+		return 0, err
 	}
 	if err = v.validateAudience(token); err != nil {
-		return err
+		return 0, err
 	}
 
 	if err = validateExpiry(token); err != nil {
-		return err
+		return 0, err
 	}
 
 	if err = v.validateClaims(token); err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return getSubjectNodeId(token)
 }
 
 func (v *RegistryVerifier) getMatchingPublicKey(token *jwt.Token) (interface{}, error) {

@@ -1,5 +1,5 @@
 package authn
 
 type JWTVerifier interface {
-	Verify(tokenString string) error
+	Verify(tokenString string) (uint32, error)
 }

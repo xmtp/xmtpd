@@ -13,12 +13,32 @@ cd "${repo_root}"
 source dev/lib/env
 source dev/lib/common
 
-# Update depencencies
-forge soldeer update &> /dev/null
+# Ensure there are no old artifacts
+forge clean
+
+echo -e "⧖ Updating dependencies"
+forge soldeer update -q
 if [ $? -ne 0 ]; then
   echo "ERROR: Failed to update dependencies"
   exit 1
 fi
+echo -e "✔ Dependencies updated successfully\n"
+
+echo -e "⧖ Building contracts"
+forge build -q
+if [ $? -ne 0 ]; then
+  echo "ERROR: Failed to build contracts"
+  exit 1
+fi
+echo -e "✔ Contracts built successfully\n"
+
+echo -e "⧖ Running contract tests"
+forge test -q
+if [ $? -ne 0 ]; then
+  echo "ERROR: Tests failed"
+  exit 1
+fi
+echo -e "✔ Tests passed successfully\n"
 
 forge_deploy_script group_messages
 forge_deploy_script identity_updates

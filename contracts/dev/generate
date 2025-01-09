@@ -62,9 +62,10 @@ function main() {
 
     # Generate bindings for each contract
     for contract in "${contracts[@]}"; do
-        echo "Processing contract: ${contract}"
+        echo "⧖ Generating ABIs for contract: ${contract}"
         generate_bindings "${contract}"
     done
+    echo -e "✔ ABIs generated successfully!\n"
 }
 
 main "$@"

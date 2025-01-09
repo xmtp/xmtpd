@@ -31,8 +31,8 @@ dev/docker/up
 contracts/dev/generate
 contracts/dev/deploy-local
 
-echo "Registering local node-1"
+echo -e "⧖ Registering local node-1"
 dev/register-local-node
 
-echo "Registering local node-2"
+echo -e "⧖ Registering local node-2"
 dev/register-local-node-2

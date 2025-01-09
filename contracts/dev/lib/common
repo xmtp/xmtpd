@@ -4,35 +4,32 @@ set -euo pipefail
 function forge_deploy_script() {
     case $1 in
         group_messages)
-            forge script --rpc-url "${DOCKER_RPC_URL}" --broadcast script/DeployGroupMessages.s.sol &> /dev/null
+            echo "⧖ Deploying GroupMessages contract"
+            forge script --quiet --rpc-url "${DOCKER_RPC_URL}" --broadcast script/DeployGroupMessages.s.sol
             if [ $? -ne 0 ]; then
                 echo "Failed to deploy group messages contract"
                 exit 1
             fi
 
-            echo -e "✅ GroupMessages contract deployed.\n"
-            cat config/anvil_localnet/GroupMessages.json
-            echo -e "\n"
+            echo -e "✔ GroupMessages contract deployed. Deployment details in contracts/config/anvil_localnet/GroupMessages.json\n"
             ;;
 
         identity_updates)
-            forge script --rpc-url "${DOCKER_RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol &> /dev/null
+            echo "⧖ Deploying IdentityUpdates contract"
+            forge script --quiet --rpc-url "${DOCKER_RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol
             if [ $? -ne 0 ]; then
                 echo "Failed to deploy identity updates contract"
                 exit 1
             fi
 
-            echo -e "✅ IdentityUpdates contract deployed.\n"
-            cat config/anvil_localnet/IdentityUpdates.json
-            echo -e "\n"
+            echo -e "✔ IdentityUpdates contract deployed. Deployment details in contracts/config/anvil_localnet/IdentityUpdates.json\n"
             ;;
 
         nodes)
             # TODO: Migrate to forge script
+            echo "⧖ Deploying Nodes contract"
             forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$2:$3" > ../build/$3.json
-            echo -e "✅ Nodes contract deployed.\n"
-            cat ../build/$3.json
-            echo -e "\n"
+            echo -e "✔ Nodes contract deployed. Deployment details in contracts/config/anvil_localnet/$3.json\n"
             ;;
 
         *)

@@ -70,7 +70,7 @@ func TestClaimsVerifierNoVersion(t *testing.T) {
 
 			token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 			require.NoError(t, err)
-			verificationError := verifier.Verify(token.SignedString)
+			_, verificationError := verifier.Verify(token.SignedString)
 			if tt.wantErr {
 				require.Error(t, verificationError)
 			} else {
@@ -119,7 +119,7 @@ func TestClaimsVerifier(t *testing.T) {
 
 			token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 			require.NoError(t, err)
-			verificationError := verifier.Verify(token.SignedString)
+			_, verificationError := verifier.Verify(token.SignedString)
 			if tt.wantErr {
 				require.Error(t, verificationError)
 			} else {

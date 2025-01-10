@@ -18,7 +18,7 @@ func (_m *MockJWTVerifier) EXPECT() *MockJWTVerifier_Expecter {
 }
 
 // Verify provides a mock function with given fields: tokenString
-func (_m *MockJWTVerifier) Verify(tokenString string) error {
+func (_m *MockJWTVerifier) Verify(tokenString string) (uint32, error) {
 	ret := _m.Called(tokenString)
 
 	if len(ret) == 0 {
@@ -32,7 +32,7 @@ func (_m *MockJWTVerifier) Verify(tokenString string) error {
 		r0 = ret.Error(0)
 	}
 
-	return r0
+	return 0, r0
 }
 
 // MockJWTVerifier_Verify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Verify'

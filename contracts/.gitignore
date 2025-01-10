@@ -10,7 +10,7 @@ out/
 /broadcast/**/dry-run/
 
 # Ignores development deployments
-contracts/config/anvil_localnet/*.json
+contracts/config/anvil_localnet/*
 *.tmp.log
 
 # Docs

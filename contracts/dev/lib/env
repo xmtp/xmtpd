@@ -1,6 +1,7 @@
 # This is the first default private key for anvil. Nothing sensitive here.
 export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-export DOCKER_RPC_URL=http://localhost:7545
+export RPC_URL=http://localhost:7545
+export VERIFIER_URL=
 
 ### XMTP deployment configuration ###
 # This is the address derivated from the private key above. Not sensitive.

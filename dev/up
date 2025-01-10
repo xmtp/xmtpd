@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-go mod tidy
-git submodule update --init --recursive
-
 if ! which forge &>/dev/null; then echo "ERROR: Missing foundry binaries. Run 'curl -L https://foundry.paradigm.xyz | bash' and follow the instructions" && exit 1; fi
 if ! which migrate &>/dev/null; then go install github.com/golang-migrate/migrate/v4/cmd/migrate; fi
 if ! which golangci-lint &>/dev/null; then curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.56.0; fi
@@ -25,14 +22,20 @@ if [[ ${abigen_version} != "1.14.12-stable" ]]; then
     exit 1
 fi
 
+echo -e "→ Generate smart contracts bindings"
+contracts/dev/generate
+
+echo -e "→ Update Go dependencies"
+go mod tidy
+
+echo -e "→ Start docker containers"
 dev/docker/up
 
-# Make sure the abis are updated
-contracts/dev/generate
+echo -e "→ Deploy smart contracts"
 contracts/dev/deploy-local
 
-echo "Registering local node-1"
+echo -e "→ Register local node-1"
 dev/register-local-node
 
-echo "Registering local node-2"
+echo -e "→ Register local node-2"
 dev/register-local-node-2

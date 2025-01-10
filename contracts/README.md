@@ -108,5 +108,5 @@ The scripts output the deployment and upgrade in the `output` folder.
 - Deploy with `forge create`:
 
 ```shell
-forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "src/Nodes.sol:Nodes"
+forge create --broadcast --legacy --json --rpc-url $RPC_URL --private-key $PRIVATE_KEY "src/Nodes.sol:Nodes"
 ```

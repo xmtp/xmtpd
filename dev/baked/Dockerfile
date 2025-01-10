@@ -28,7 +28,7 @@ RUN dev/docker/anvil-background && \
     pkill -f anvil && \
     sleep 5
 
-RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' build/Nodes.json)"" >> contracts.env && \
+RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' contracts/config/anvil_localnet/Nodes.json)"" >> contracts.env && \
     echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.addresses.groupMessagesProxy' contracts/config/anvil_localnet/GroupMessages.json)""  >> contracts.env && \
     echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.addresses.identityUpdatesProxy' contracts/config/anvil_localnet/IdentityUpdates.json)""  >> contracts.env
 

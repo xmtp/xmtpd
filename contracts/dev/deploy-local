@@ -1,25 +1,32 @@
 #!/bin/bash
-# Deploy the smart contracts to the local anvil node
 set -euo pipefail
 
-# Make sure the build directory exists
-mkdir -p ./build
+############################################
+# Work always from the contracts directory #
+############################################
+export source_dir="${SOURCE_DIR:-src}"
+export build_dir="${BUILD_DIR:-build}"
+export output_dir="${OUTPUT_DIR:-pkg}"
+export localnet_dir="${LOCALNET_DIR:-config/anvil_localnet}"
 
-# Always work from the contracts directory
 script_dir=$(dirname "$(realpath "$0")")
 repo_root=$(realpath "${script_dir}/../")
 cd "${repo_root}"
 
+mkdir -p "${build_dir}" \
+         "${output_dir}" \
+         "${localnet_dir}"
+
 source dev/lib/env
 source dev/lib/common
 
-# Update depencencies
-forge soldeer update &> /dev/null
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to update dependencies"
-  exit 1
-fi
-
+############################################
+# Deploy the smart contracts to ${RPC_URL} #
+############################################
+forge_clean
+forge_soldeer_update
+forge_build_contracts
+forge_test_contracts
 forge_deploy_script group_messages
 forge_deploy_script identity_updates
 forge_deploy_script nodes src/Nodes.sol Nodes

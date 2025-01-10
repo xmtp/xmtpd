@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	"slices"
 
 	"go.uber.org/zap"
@@ -31,6 +32,7 @@ func NewRegistrant(
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
+	serverVersion *semver.Version,
 ) (*Registrant, error) {
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
@@ -47,7 +49,7 @@ func NewRegistrant(
 		return nil, err
 	}
 
-	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID)
+	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID, serverVersion)
 
 	log.Info(
 		"Registrant identified",

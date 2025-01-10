@@ -26,7 +26,7 @@ var (
 /*
 *
 The JWT signing method for secp256k1. Inspired by https://github.com/ureeves/jwt-go-secp256k1/blob/master/secp256k1.go
-but updated to work with the latest version of jwt-go.
+but updated to work with the latest serverVersion of jwt-go.
 */
 type SigningMethodSecp256k1 struct{}
 

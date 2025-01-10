@@ -43,3 +43,7 @@ build/*
 
 # Generated files
 .idea/**/contentModel.xml
+
+# Ignores development deployments
+contracts/config/anvil_localnet/*
+*.tmp.log

@@ -38,8 +38,8 @@ func TestUpdateLatestBlock(t *testing.T) {
 	tracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
 
-	blockHigh := testutils.IntToHash(100).Bytes()
-	blockLow := testutils.IntToHash(50).Bytes()
+	blockHigh := testutils.Int64ToHash(100).Bytes()
+	blockLow := testutils.Int64ToHash(50).Bytes()
 
 	// Test updating to a higher block
 	err = tracker.UpdateLatestBlock(ctx, 100, blockHigh)
@@ -94,7 +94,7 @@ func TestConcurrentUpdates(t *testing.T) {
 				err := tracker.UpdateLatestBlock(
 					ctx,
 					blockNum,
-					testutils.IntToHash(int64(blockNum)).Bytes(),
+					testutils.Int64ToHash(int64(blockNum)).Bytes(),
 				)
 				require.NoError(t, err)
 			}
@@ -108,7 +108,7 @@ func TestConcurrentUpdates(t *testing.T) {
 	blockNumber, blockHash := tracker.GetLatestBlock()
 	require.Equal(t, expectedFinalBlock, blockNumber)
 
-	expectedFinalHash := testutils.IntToHash(int64(expectedFinalBlock)).Bytes()
+	expectedFinalHash := testutils.Int64ToHash(int64(expectedFinalBlock)).Bytes()
 	require.Equal(t, expectedFinalHash, blockHash)
 
 	// Verify persistence
@@ -134,8 +134,8 @@ func TestMultipleContractAddresses(t *testing.T) {
 	tracker2, err := NewBlockTracker(ctx, address2, querier)
 	require.NoError(t, err)
 
-	blockHash1 := testutils.IntToHash(100).Bytes()
-	blockHash2 := testutils.IntToHash(200).Bytes()
+	blockHash1 := testutils.Int64ToHash(100).Bytes()
+	blockHash2 := testutils.Int64ToHash(200).Bytes()
 
 	// Update trackers independently
 	err = tracker1.UpdateLatestBlock(ctx, 100, blockHash1)

@@ -22,7 +22,7 @@ func (_m *MockIBlockTracker) EXPECT() *MockIBlockTracker_Expecter {
 }
 
 // GetLatestBlock provides a mock function with given fields:
-func (_m *MockIBlockTracker) GetLatestBlock() uint64 {
+func (_m *MockIBlockTracker) GetLatestBlock() (uint64, []byte) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
@@ -30,13 +30,25 @@ func (_m *MockIBlockTracker) GetLatestBlock() uint64 {
 	}
 
 	var r0 uint64
+	var r1 []byte
+	if rf, ok := ret.Get(0).(func() (uint64, []byte)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() uint64); ok {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func() []byte); ok {
+		r1 = rf()
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
+	}
+
+	return r0, r1
 }
 
 // MockIBlockTracker_GetLatestBlock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBlock'
@@ -56,27 +68,27 @@ func (_c *MockIBlockTracker_GetLatestBlock_Call) Run(run func()) *MockIBlockTrac
 	return _c
 }
 
-func (_c *MockIBlockTracker_GetLatestBlock_Call) Return(_a0 uint64) *MockIBlockTracker_GetLatestBlock_Call {
-	_c.Call.Return(_a0)
+func (_c *MockIBlockTracker_GetLatestBlock_Call) Return(_a0 uint64, _a1 []byte) *MockIBlockTracker_GetLatestBlock_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIBlockTracker_GetLatestBlock_Call) RunAndReturn(run func() uint64) *MockIBlockTracker_GetLatestBlock_Call {
+func (_c *MockIBlockTracker_GetLatestBlock_Call) RunAndReturn(run func() (uint64, []byte)) *MockIBlockTracker_GetLatestBlock_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateLatestBlock provides a mock function with given fields: ctx, block
-func (_m *MockIBlockTracker) UpdateLatestBlock(ctx context.Context, block uint64) error {
-	ret := _m.Called(ctx, block)
+// UpdateLatestBlock provides a mock function with given fields: ctx, block, hash
+func (_m *MockIBlockTracker) UpdateLatestBlock(ctx context.Context, block uint64, hash []byte) error {
+	ret := _m.Called(ctx, block, hash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateLatestBlock")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
-		r0 = rf(ctx, block)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte) error); ok {
+		r0 = rf(ctx, block, hash)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -92,13 +104,14 @@ type MockIBlockTracker_UpdateLatestBlock_Call struct {
 // UpdateLatestBlock is a helper method to define mock.On call
 //   - ctx context.Context
 //   - block uint64
-func (_e *MockIBlockTracker_Expecter) UpdateLatestBlock(ctx interface{}, block interface{}) *MockIBlockTracker_UpdateLatestBlock_Call {
-	return &MockIBlockTracker_UpdateLatestBlock_Call{Call: _e.mock.On("UpdateLatestBlock", ctx, block)}
+//   - hash []byte
+func (_e *MockIBlockTracker_Expecter) UpdateLatestBlock(ctx interface{}, block interface{}, hash interface{}) *MockIBlockTracker_UpdateLatestBlock_Call {
+	return &MockIBlockTracker_UpdateLatestBlock_Call{Call: _e.mock.On("UpdateLatestBlock", ctx, block, hash)}
 }
 
-func (_c *MockIBlockTracker_UpdateLatestBlock_Call) Run(run func(ctx context.Context, block uint64)) *MockIBlockTracker_UpdateLatestBlock_Call {
+func (_c *MockIBlockTracker_UpdateLatestBlock_Call) Run(run func(ctx context.Context, block uint64, hash []byte)) *MockIBlockTracker_UpdateLatestBlock_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64))
+		run(args[0].(context.Context), args[1].(uint64), args[2].([]byte))
 	})
 	return _c
 }
@@ -108,7 +121,7 @@ func (_c *MockIBlockTracker_UpdateLatestBlock_Call) Return(_a0 error) *MockIBloc
 	return _c
 }
 
-func (_c *MockIBlockTracker_UpdateLatestBlock_Call) RunAndReturn(run func(context.Context, uint64) error) *MockIBlockTracker_UpdateLatestBlock_Call {
+func (_c *MockIBlockTracker_UpdateLatestBlock_Call) RunAndReturn(run func(context.Context, uint64, []byte) error) *MockIBlockTracker_UpdateLatestBlock_Call {
 	_c.Call.Return(run)
 	return _c
 }

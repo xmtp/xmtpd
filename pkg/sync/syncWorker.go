@@ -265,7 +265,7 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 			zap.String("peer", node.HttpAddress),
 			zap.Error(err),
 		)
-		return nil, fmt.Errorf("Failed to connect to peer at %s: %v", node.HttpAddress, err)
+		return nil, fmt.Errorf("failed to connect to peer at %s: %v", node.HttpAddress, err)
 	}
 
 	s.log.Debug(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
@@ -302,7 +302,7 @@ func (s *syncWorker) setupStream(
 	)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"Failed to batch subscribe to peer: %v",
+			"failed to batch subscribe to peer: %v",
 			err,
 		)
 	}
@@ -326,11 +326,11 @@ func (s *syncWorker) listenToStream(
 		// Recv() is a blocking operation that can only be interrupted by cancelling ctx
 		envs, err := originatorStream.stream.Recv()
 		if err == io.EOF {
-			return fmt.Errorf("Stream closed with EOF")
+			return fmt.Errorf("stream closed with EOF")
 		}
 		if err != nil {
 			return fmt.Errorf(
-				"Stream closed with error: %v",
+				"stream closed with error: %v",
 				err)
 		}
 		s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))

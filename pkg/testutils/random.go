@@ -62,3 +62,8 @@ func RandomPrivateKey(t *testing.T) *ecdsa.PrivateKey {
 
 	return key
 }
+
+func RandomBlockHash() common.Hash {
+	bytes := RandomBytes(32)
+	return common.BytesToHash(bytes)
+}

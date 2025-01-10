@@ -33,7 +33,6 @@ type Indexer struct {
 func NewIndexer(
 	ctx context.Context,
 	log *zap.Logger,
-
 ) *Indexer {
 	ctx, cancel := context.WithCancel(ctx)
 	return &Indexer{
@@ -57,7 +56,8 @@ func (s *Indexer) Close() {
 func (i *Indexer) StartIndexer(
 	db *sql.DB,
 	cfg config.ContractsOptions,
-	validationService mlsvalidate.MLSValidationService) error {
+	validationService mlsvalidate.MLSValidationService,
+) error {
 	client, err := blockchain.NewClient(i.ctx, cfg.RpcUrl)
 	if err != nil {
 		return err
@@ -146,8 +146,9 @@ func configureLogStream(
 		return nil, err
 	}
 
+	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
 	messagesChannel := builder.ListenForContractEvent(
-		messagesTracker.GetLatestBlock(),
+		latestBlockNumber,
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
 		cfg.MaxChainDisconnectTime,
@@ -163,8 +164,9 @@ func configureLogStream(
 		return nil, err
 	}
 
+	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
 	identityUpdatesChannel := builder.ListenForContractEvent(
-		identityUpdatesTracker.GetLatestBlock(),
+		latestBlockNumber,
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
 		cfg.MaxChainDisconnectTime,
@@ -212,7 +214,7 @@ func indexLogs(
 				}
 			} else {
 				logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
-				if trackerErr := blockTracker.UpdateLatestBlock(ctx, event.BlockNumber); trackerErr != nil {
+				if trackerErr := blockTracker.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
 					logger.Error("error updating block tracker", zap.Error(trackerErr))
 				}
 			}

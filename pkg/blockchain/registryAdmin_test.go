@@ -55,7 +55,7 @@ func TestAddNodeBadOwner(t *testing.T) {
 	owner := testutils.RandomString(10)
 
 	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
-	require.ErrorContains(t, err, "Invalid owner address")
+	require.ErrorContains(t, err, "invalid owner address provided")
 }
 
 func TestAddNodeUnauthorized(t *testing.T) {

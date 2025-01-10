@@ -1,8 +1,10 @@
 package indexer
 
-import "context"
+import (
+	"context"
+)
 
 type IBlockTracker interface {
-	GetLatestBlock() uint64
-	UpdateLatestBlock(ctx context.Context, block uint64) error
+	GetLatestBlock() (uint64, []byte)
+	UpdateLatestBlock(ctx context.Context, block uint64, hash []byte) error
 }

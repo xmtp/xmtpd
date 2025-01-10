@@ -77,18 +77,24 @@ func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]Get
 
 const getLatestBlock = `-- name: GetLatestBlock :one
 SELECT
-	block_number
+	block_number,
+	block_hash
 FROM
 	latest_block
 WHERE
 	contract_address = $1
 `
 
-func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (int64, error) {
+type GetLatestBlockRow struct {
+	BlockNumber int64
+	BlockHash   []byte
+}
+
+func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (GetLatestBlockRow, error) {
 	row := q.db.QueryRowContext(ctx, getLatestBlock, contractAddress)
-	var block_number int64
-	err := row.Scan(&block_number)
-	return block_number, err
+	var i GetLatestBlockRow
+	err := row.Scan(&i.BlockNumber, &i.BlockHash)
+	return i, err
 }
 
 const getLatestSequenceId = `-- name: GetLatestSequenceId :one
@@ -380,21 +386,23 @@ func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow
 }
 
 const setLatestBlock = `-- name: SetLatestBlock :exec
-INSERT INTO latest_block(contract_address, block_number)
-	VALUES ($1, $2)
+INSERT INTO latest_block(contract_address, block_number, block_hash)
+	VALUES ($1, $2, $3)
 ON CONFLICT (contract_address)
 	DO UPDATE SET
-		block_number = $2
+		block_number = $2, block_hash = $3
 	WHERE
 		$2 > latest_block.block_number
+		AND $3 != latest_block.block_hash
 `
 
 type SetLatestBlockParams struct {
 	ContractAddress string
 	BlockNumber     int64
+	BlockHash       []byte
 }
 
 func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) error {
-	_, err := q.db.ExecContext(ctx, setLatestBlock, arg.ContractAddress, arg.BlockNumber)
+	_, err := q.db.ExecContext(ctx, setLatestBlock, arg.ContractAddress, arg.BlockNumber, arg.BlockHash)
 	return err
 }

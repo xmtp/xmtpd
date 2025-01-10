@@ -12,6 +12,9 @@ __debug_*
 build/
 bin/
 
+# contracts development config
+contracts/config/anvil_localnet/
+
 # Test binary, built with `go test -c`
 *.test
 

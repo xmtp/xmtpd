@@ -1,40 +1,103 @@
 #!/bin/bash
 set -euo pipefail
 
+function get_chain_id() {
+    hex_chain_id=$(curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_chainId","id":1}' ${RPC_URL} | jq -r '.result')
+    export chain_id=$((hex_chain_id))
+}
+
 function forge_deploy_script() {
+    get_chain_id
     case $1 in
         group_messages)
-            echo "⧖ Deploying GroupMessages contract"
-            forge script --quiet --rpc-url "${DOCKER_RPC_URL}" --broadcast script/DeployGroupMessages.s.sol
+            echo "⧖ Deploying GroupMessages to chainId ${chain_id} using RPC ${RPC_URL}"
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployGroupMessages.s.sol
             if [ $? -ne 0 ]; then
                 echo "Failed to deploy group messages contract"
                 exit 1
             fi
 
-            echo -e "✔ GroupMessages contract deployed. Deployment details in contracts/config/anvil_localnet/GroupMessages.json\n"
+            echo -e "\033[32m✔\033[0m GroupMessages deployed. Deployment details in contracts/config/anvil_localnet/GroupMessages.json\n"
             ;;
 
         identity_updates)
-            echo "⧖ Deploying IdentityUpdates contract"
-            forge script --quiet --rpc-url "${DOCKER_RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol
+            echo "⧖ Deploying IdentityUpdates to chainId ${chain_id} using RPC ${RPC_URL}"
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol
             if [ $? -ne 0 ]; then
                 echo "Failed to deploy identity updates contract"
                 exit 1
             fi
 
-            echo -e "✔ IdentityUpdates contract deployed. Deployment details in contracts/config/anvil_localnet/IdentityUpdates.json\n"
+            echo -e "\033[32m✔\033[0m IdentityUpdates deployed. Deployment details in contracts/config/anvil_localnet/IdentityUpdates.json\n"
             ;;
 
         nodes)
             # TODO: Migrate to forge script
-            echo "⧖ Deploying Nodes contract"
-            forge create --broadcast --legacy --json --rpc-url $DOCKER_RPC_URL --private-key $PRIVATE_KEY "$2:$3" > ../build/$3.json
-            echo -e "✔ Nodes contract deployed. Deployment details in contracts/config/anvil_localnet/$3.json\n"
+            echo "⧖ Deploying Nodes to chainId ${chain_id} using RPC ${RPC_URL}"
+            forge create --broadcast --legacy --json --rpc-url $RPC_URL --private-key $PRIVATE_KEY "$2:$3" > build/$3.json
+            echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/build/$3.json\n"
             ;;
 
         *)
-            echo "Invalid option. Use 'group_messages' or 'identity_updates'."
+            echo "Invalid option. Use 'group_messages', 'identity_updates' or 'nodes'."
             exit 1
             ;;
     esac
 }
+
+function forge_clean() {
+    echo -e "⧖ Cleaning old artifacts"
+
+    forge clean &> .forge_clean.tmp.log
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to clean old artifacts"
+        cat .forge_clean.tmp.log
+        exit 1
+    fi
+    rm .forge_clean.tmp.log
+
+    echo -e "\033[32m✔\033[0m Old artifacts cleaned successfully\n"
+}
+
+function forge_soldeer_update() {
+    echo -e "⧖ Updating dependencies"
+
+    forge soldeer update &> .forge_soldeer_update.tmp.log
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to update dependencies"
+        cat .forge_soldeer_update.tmp.log
+        exit 1
+    fi
+    rm .forge_soldeer_update.tmp.log
+
+    echo -e "\033[32m✔\033[0m Dependencies updated successfully\n"
+}
+
+function forge_build_contracts() {
+    echo -e "⧖ Building contracts"
+
+    forge build &> .forge_build.tmp.log
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to build contracts"
+        cat .forge_build.tmp.log
+        exit 1
+    fi
+    rm .forge_build.tmp.log
+
+    echo -e "\033[32m✔\033[0m Contracts built successfully\n"
+}
+
+function forge_test_contracts() {
+    echo -e "⧖ Running contract tests"
+
+    forge test &> .forge_test.tmp.log
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Tests failed"
+        cat .forge_test.tmp.log
+        exit 1
+    fi
+    rm .forge_test.tmp.log
+
+    echo -e "\033[32m✔\033[0m Tests passed successfully\n"
+}
+

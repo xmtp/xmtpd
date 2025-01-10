@@ -1,10 +1,10 @@
 {
   "addresses": {
     "identityUpdatesDeployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "identityUpdatesImpl": "0x3eEAEf0dddbda233651dc839591b992795Ba7168",
-    "identityUpdatesProxy": "0x346422cF9c620668089453838EDD1a30F9b1A273",
+    "identityUpdatesImpl": "0x5895dAbE895b0243B345CF30df9d7070F478C47F",
+    "identityUpdatesProxy": "0xc351De5746211E2B7688D7650A8bF7D91C809c0D",
     "identityUpdatesProxyAdmin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
   },
-  "deploymentBlock": 641,
-  "latestUpgradeBlock": 641
+  "deploymentBlock": 777,
+  "latestUpgradeBlock": 777
 }

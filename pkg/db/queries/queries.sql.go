@@ -393,6 +393,7 @@ ON CONFLICT (contract_address)
 		block_number = $2, block_hash = $3
 	WHERE
 		$2 > latest_block.block_number
+		AND $3 != latest_block.block_hash
 `
 
 type SetLatestBlockParams struct {

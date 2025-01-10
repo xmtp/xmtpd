@@ -146,8 +146,9 @@ func configureLogStream(
 		return nil, err
 	}
 
+	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
 	messagesChannel := builder.ListenForContractEvent(
-		messagesTracker.GetLatestBlockNumber(),
+		latestBlockNumber,
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
 		cfg.MaxChainDisconnectTime,
@@ -163,8 +164,9 @@ func configureLogStream(
 		return nil, err
 	}
 
+	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
 	identityUpdatesChannel := builder.ListenForContractEvent(
-		identityUpdatesTracker.GetLatestBlockNumber(),
+		latestBlockNumber,
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
 		cfg.MaxChainDisconnectTime,

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -20,9 +21,11 @@ func TestInitialize(t *testing.T) {
 	querier := queries.New(db)
 
 	tracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	blockNumber, blockHash := tracker.GetLatestBlock()
 	require.NoError(t, err)
 	require.NotNil(t, tracker)
-	require.Equal(t, uint64(0), tracker.GetLatestBlockNumber())
+	require.Equal(t, uint64(0), blockNumber)
+	require.Equal(t, common.Hash{}.Bytes(), blockHash)
 }
 
 func TestUpdateLatestBlock(t *testing.T) {
@@ -40,27 +43,31 @@ func TestUpdateLatestBlock(t *testing.T) {
 
 	// Test updating to a higher block
 	err = tracker.UpdateLatestBlock(ctx, 100, blockHigh)
+	blockNumber, blockHash := tracker.GetLatestBlock()
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), tracker.GetLatestBlockNumber())
-	require.Equal(t, blockHigh, tracker.GetLatestBlockHash())
+	require.Equal(t, uint64(100), blockNumber)
+	require.Equal(t, blockHigh, blockHash)
 
 	// Test updating to a lower block (should not update)
 	err = tracker.UpdateLatestBlock(ctx, 50, blockLow)
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), tracker.GetLatestBlockNumber())
-	require.Equal(t, blockHigh, tracker.GetLatestBlockHash())
+	blockNumber, blockHash = tracker.GetLatestBlock()
+	require.Equal(t, uint64(100), blockNumber)
+	require.Equal(t, blockHigh, blockHash)
 
 	// Test updating to the same block (should not update)
 	err = tracker.UpdateLatestBlock(ctx, 100, blockHigh)
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), tracker.GetLatestBlockNumber())
-	require.Equal(t, blockHigh, tracker.GetLatestBlockHash())
+	blockNumber, blockHash = tracker.GetLatestBlock()
+	require.Equal(t, uint64(100), blockNumber)
+	require.Equal(t, blockHigh, blockHash)
 
 	// Verify persistence
 	newTracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
-	require.Equal(t, uint64(100), newTracker.GetLatestBlockNumber())
-	require.Equal(t, blockHigh, newTracker.GetLatestBlockHash())
+	blockNumber, blockHash = newTracker.GetLatestBlock()
+	require.Equal(t, uint64(100), blockNumber)
+	require.Equal(t, blockHigh, blockHash)
 }
 
 func TestConcurrentUpdates(t *testing.T) {
@@ -98,16 +105,18 @@ func TestConcurrentUpdates(t *testing.T) {
 
 	// The final block number should be the highest one attempted
 	expectedFinalBlock := uint64((numGoroutines-1)*updatesPerGoroutine + (updatesPerGoroutine - 1))
-	require.Equal(t, expectedFinalBlock, tracker.GetLatestBlockNumber())
+	blockNumber, blockHash := tracker.GetLatestBlock()
+	require.Equal(t, expectedFinalBlock, blockNumber)
 
 	expectedFinalHash := testutils.IntToHash(int64(expectedFinalBlock)).Bytes()
-	require.Equal(t, expectedFinalHash, tracker.GetLatestBlockHash())
+	require.Equal(t, expectedFinalHash, blockHash)
 
 	// Verify persistence
 	newTracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
-	require.Equal(t, expectedFinalBlock, newTracker.GetLatestBlockNumber())
-	require.Equal(t, expectedFinalHash, newTracker.GetLatestBlockHash())
+	blockNumber, blockHash = newTracker.GetLatestBlock()
+	require.Equal(t, expectedFinalBlock, blockNumber)
+	require.Equal(t, expectedFinalHash, blockHash)
 }
 
 func TestMultipleContractAddresses(t *testing.T) {
@@ -135,10 +144,12 @@ func TestMultipleContractAddresses(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify different addresses maintain separate block numbers
-	require.Equal(t, uint64(100), tracker1.GetLatestBlockNumber())
-	require.Equal(t, blockHash1, tracker1.GetLatestBlockHash())
-	require.Equal(t, uint64(200), tracker2.GetLatestBlockNumber())
-	require.Equal(t, blockHash2, tracker2.GetLatestBlockHash())
+	blockNumber, blockHash := tracker1.GetLatestBlock()
+	require.Equal(t, uint64(100), blockNumber)
+	require.Equal(t, blockHash1, blockHash)
+	blockNumber, blockHash = tracker2.GetLatestBlock()
+	require.Equal(t, uint64(200), blockNumber)
+	require.Equal(t, blockHash2, blockHash)
 
 	// Verify persistence for both addresses
 	newTracker1, err := NewBlockTracker(ctx, address1, querier)
@@ -146,8 +157,10 @@ func TestMultipleContractAddresses(t *testing.T) {
 	newTracker2, err := NewBlockTracker(ctx, address2, querier)
 	require.NoError(t, err)
 
-	require.Equal(t, uint64(100), newTracker1.GetLatestBlockNumber())
-	require.Equal(t, blockHash1, newTracker1.GetLatestBlockHash())
-	require.Equal(t, uint64(200), newTracker2.GetLatestBlockNumber())
-	require.Equal(t, blockHash2, newTracker2.GetLatestBlockHash())
+	blockNumber, blockHash = newTracker1.GetLatestBlock()
+	require.Equal(t, uint64(100), blockNumber)
+	require.Equal(t, blockHash1, blockHash)
+	blockNumber, blockHash = newTracker2.GetLatestBlock()
+	require.Equal(t, uint64(200), blockNumber)
+	require.Equal(t, blockHash2, blockHash)
 }

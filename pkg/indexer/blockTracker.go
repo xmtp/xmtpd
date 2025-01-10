@@ -54,14 +54,10 @@ func NewBlockTracker(
 	return bt, nil
 }
 
-func (bt *BlockTracker) GetLatestBlockNumber() uint64 {
-	return bt.latestBlock.number.Load()
-}
-
-func (bt *BlockTracker) GetLatestBlockHash() []byte {
+func (bt *BlockTracker) GetLatestBlock() (uint64, []byte) {
 	bt.mu.Lock()
 	defer bt.mu.Unlock()
-	return bt.latestBlock.hash.Bytes()
+	return bt.latestBlock.number.Load(), bt.latestBlock.hash.Bytes()
 }
 
 func (bt *BlockTracker) UpdateLatestBlock(

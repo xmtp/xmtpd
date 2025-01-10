@@ -5,7 +5,6 @@ import (
 )
 
 type IBlockTracker interface {
-	GetLatestBlockNumber() uint64
-	GetLatestBlockHash() []byte
+	GetLatestBlock() (uint64, []byte)
 	UpdateLatestBlock(ctx context.Context, block uint64, hash []byte) error
 }

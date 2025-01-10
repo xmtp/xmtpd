@@ -111,7 +111,7 @@ ON CONFLICT (contract_address)
 		block_number = @block_number, block_hash = @block_hash
 	WHERE
 		@block_number > latest_block.block_number
-		AND @block_hash != latest_block.block_hash);
+		AND @block_hash != latest_block.block_hash;
 
 -- name: GetLatestBlock :one
 SELECT

@@ -98,7 +98,10 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
 		),
-		NodesContractAddress: getDeployedTo(t, path.Join(rootDir, "./build/Nodes.json")),
+		NodesContractAddress: getDeployedTo(
+			t,
+			path.Join(rootDir, "./contracts/config/anvil_localnet/Nodes.json"),
+		),
 		IdentityUpdatesContractAddress: getProxyAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),

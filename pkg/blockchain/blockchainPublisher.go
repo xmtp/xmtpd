@@ -65,7 +65,9 @@ func NewBlockchainPublisher(
 
 	// The nonce is the next ID to be used, not the current highest
 	// The nonce member variable represents the last recenty used, so it is pending-1
-	nonce = max(nonce-1, uint64(0))
+	if nonce > 0 {
+		nonce--
+	}
 
 	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
 

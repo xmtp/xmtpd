@@ -152,24 +152,3 @@ func NewNamespacedDB(
 
 	return db, nil
 }
-
-func NewDB(
-	ctx context.Context,
-	dsn string,
-	waitForDB, statementTimeout time.Duration,
-) (*sql.DB, error) {
-	config, err := parseConfig(dsn, statementTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	db, err := newPGXDB(ctx, config, waitForDB)
-	if err != nil {
-		return nil, err
-	}
-	err = migrations.Migrate(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}

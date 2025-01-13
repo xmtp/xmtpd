@@ -19,15 +19,14 @@ const MAX_NAMESPACE_LENGTH = 32
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 func waitUntilDBReady(ctx context.Context, db *pgxpool.Pool, waitTime time.Duration) error {
-	waitUntil := time.Now().Add(waitTime)
+	pingCtx, cancel := context.WithTimeout(ctx, waitTime)
+	defer cancel()
 
-	err := db.Ping(ctx)
-
-	for err != nil && time.Now().Before(waitUntil) {
-		time.Sleep(3 * time.Second)
-		err = db.Ping(ctx)
+	err := db.Ping(pingCtx)
+	if err != nil {
+		return fmt.Errorf("database is not ready within %s: %w", waitTime, err)
 	}
-	return err
+	return nil
 }
 
 func parseConfig(dsn string, statementTimeout time.Duration) (*pgxpool.Config, error) {
@@ -127,7 +126,7 @@ func NewNamespacedDB(
 	ctx context.Context,
 	dsn string,
 	namespace string,
-	waitForDB, statementTimeout time.Duration,
+	waitForDB time.Duration, statementTimeout time.Duration,
 ) (*sql.DB, error) {
 	// Parse the DSN to get the config
 	config, err := parseConfig(dsn, statementTimeout)
@@ -151,26 +150,5 @@ func NewNamespacedDB(
 		return nil, err
 	}
 
-	return db, nil
-}
-
-func NewDB(
-	ctx context.Context,
-	dsn string,
-	waitForDB, statementTimeout time.Duration,
-) (*sql.DB, error) {
-	config, err := parseConfig(dsn, statementTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	db, err := newPGXDB(ctx, config, waitForDB)
-	if err != nil {
-		return nil, err
-	}
-	err = migrations.Migrate(ctx, db)
-	if err != nil {
-		return nil, err
-	}
 	return db, nil
 }

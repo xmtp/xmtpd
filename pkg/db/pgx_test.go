@@ -112,9 +112,7 @@ func BlackHoleServer(ctx context.Context, port string) error {
 		// Simulate "black hole" by keeping the connection open without any response.
 		go func(c net.Conn) {
 			defer c.Close()
-			select {
-			case <-ctx.Done():
-			}
+			<-ctx.Done()
 		}(conn)
 	}
 

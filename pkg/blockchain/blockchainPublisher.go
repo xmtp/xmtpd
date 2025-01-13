@@ -63,11 +63,12 @@ func NewBlockchainPublisher(
 		return nil, err
 	}
 
+	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
+
 	// The nonce is the next ID to be used, not the current highest
 	// The nonce member variable represents the last recenty used, so it is pending-1
-	nonce = max(nonce-1, uint64(0))
-
-	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
+	// If the nonce is 0, it will underflow to 18446744073709551615, which at +1 generates the correct next nonce of 0
+	nonce--
 
 	return &BlockchainPublisher{
 		signer: signer,

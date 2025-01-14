@@ -20,6 +20,8 @@ defaults:
 jobs:
   init:
     runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.set-cache-key.outputs.cache-key }}
     strategy:
       fail-fast: true
 
@@ -29,6 +31,10 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Set cache key
+        id: set-cache-key
+        run: echo "cache-key=ci-solidity-${{ hashFiles('**/*.sol') }}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: forge soldeer update
@@ -40,16 +46,16 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: contracts
-          key: ci-solidity-${{ github.ref }}
+          key: ${{ steps.set-cache-key.outputs.cache-key }}
 
       - id: forge
-        run: echo "FORGE_PATH=$(which forge)" >> $GITHUB_OUTPUT
+        run: echo "forge_path=$(which forge)" >> "$GITHUB_OUTPUT"
 
       - name: Upload forge
         uses: actions/upload-artifact@v4
         with:
           name: forge
-          path: ${{ steps.forge.outputs.FORGE_PATH }}
+          path: ${{ steps.forge.outputs.forge_path }}
 
   test:
     needs: init
@@ -59,7 +65,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: contracts
-          key: ci-solidity-${{ github.ref }}
+          key: ${{ needs.init.outputs.cache-key }}
 
       - name: Restore forge
         uses: actions/download-artifact@v4
@@ -80,7 +86,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: contracts
-          key: ci-solidity-${{ github.ref }}
+          key: ${{ needs.init.outputs.cache-key }}
 
       - name: Restore forge
         uses: actions/download-artifact@v4
@@ -101,7 +107,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: contracts
-          key: ci-solidity-${{ github.ref }}
+          key: ${{ needs.init.outputs.cache-key }}
 
       - name: Restore forge
         uses: actions/download-artifact@v4
@@ -135,7 +141,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: contracts
-          key: ci-solidity-${{ github.ref }}
+          key: ${{ needs.init.outputs.cache-key }}
 
       - name: Restore forge
         uses: actions/download-artifact@v4

@@ -1,6 +1,6 @@
 ALTER TABLE gateway_envelopes
 	ADD COLUMN block_number BIGINT NOT NULL,
-	ADD COLUMN block_hash BYTEA,
+	ADD COLUMN block_hash BYTEA NOT NULL,
 	ADD COLUMN version INT NOT NULL DEFAULT 1,
 	ADD COLUMN is_canonical BOOLEAN NOT NULL DEFAULT TRUE;
 

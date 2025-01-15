@@ -75,7 +75,7 @@ type contractConfig struct {
 	contractAddress   common.Address
 	topics            []common.Hash
 	eventChannel      chan<- types.Log
-	reorgChannel      <-chan uint64
+	reorgChannel      chan uint64
 	maxDisconnectTime time.Duration
 }
 
@@ -129,6 +129,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
 	startTime := time.Now()
 	defer close(watcher.eventChannel)
+	defer close(watcher.reorgChannel)
 	for {
 		select {
 		case <-r.ctx.Done():

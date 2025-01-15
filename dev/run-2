@@ -11,5 +11,6 @@ export XMTPD_DB_WRITER_CONNECTION_STRING="postgres://postgres:xmtp@localhost:876
 export XMTPD_PAYER_ENABLE=true
 export XMTPD_REPLICATION_ENABLE=true
 export XMTPD_SYNC_ENABLE=true
+export XMTPD_INDEXER_ENABLE=true
 
 go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/replication/main.go -p 5051 "$@"

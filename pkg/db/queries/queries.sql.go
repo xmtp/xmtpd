@@ -139,8 +139,8 @@ func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogPara
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
-	VALUES ($1, $2, $3, $4)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, block_number, block_hash, version, is_canonical)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT
 	DO NOTHING
 `
@@ -150,6 +150,10 @@ type InsertGatewayEnvelopeParams struct {
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
+	BlockNumber          int64
+	BlockHash            []byte
+	Version              int32
+	IsCanonical          bool
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
@@ -158,6 +162,10 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 		arg.OriginatorSequenceID,
 		arg.Topic,
 		arg.OriginatorEnvelope,
+		arg.BlockNumber,
+		arg.BlockHash,
+		arg.Version,
+		arg.IsCanonical,
 	)
 	if err != nil {
 		return 0, err
@@ -235,7 +243,7 @@ func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFro
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
 SELECT
-	gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope
+	gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, block_number, block_hash, version, is_canonical
 FROM
 	select_gateway_envelopes($1::INT[], $2::BIGINT[], $3::BYTEA[], $4::INT[], $5::INT)
 `
@@ -269,6 +277,10 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 			&i.OriginatorSequenceID,
 			&i.Topic,
 			&i.OriginatorEnvelope,
+			&i.BlockNumber,
+			&i.BlockHash,
+			&i.Version,
+			&i.IsCanonical,
 		); err != nil {
 			return nil, err
 		}

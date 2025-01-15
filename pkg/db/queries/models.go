@@ -22,6 +22,10 @@ type GatewayEnvelope struct {
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
+	BlockNumber          int64
+	BlockHash            []byte
+	Version              int32
+	IsCanonical          bool
 }
 
 type LatestBlock struct {

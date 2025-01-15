@@ -31,7 +31,7 @@ func buildStreamer(
 		fromBlock:       fromBlock,
 		contractAddress: address,
 		topics:          []common.Hash{topic},
-		channel:         channel,
+		eventChannel:    channel,
 	}
 	return NewRpcLogStreamer(context.Background(), client, log, []contractConfig{cfg}), channel
 }
@@ -79,7 +79,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		fromBlock:       fromBlock,
 		contractAddress: address,
 		topics:          []common.Hash{topic},
-		channel:         make(chan types.Log),
+		eventChannel:    make(chan types.Log),
 	}
 
 	logs, nextPage, err := streamer.getNextPage(cfg, fromBlock)

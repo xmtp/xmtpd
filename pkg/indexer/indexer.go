@@ -1,8 +1,11 @@
 package indexer
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
+	"math/big"
 	"sync"
 	"time"
 
@@ -86,7 +89,9 @@ func (i *Indexer) StartIndexer(
 
 			indexLogs(
 				ctx,
+				client,
 				streamer.messagesChannel,
+				streamer.messagesReorgChannel,
 				indexingLogger,
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
@@ -107,7 +112,10 @@ func (i *Indexer) StartIndexer(
 				With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress))
 			indexLogs(
 				ctx,
-				streamer.identityUpdatesChannel, indexingLogger,
+				client,
+				streamer.identityUpdatesChannel,
+				streamer.identityUpdatesReorgChannel,
+				indexingLogger,
 				storer.NewIdentityUpdateStorer(
 					db,
 					indexingLogger,
@@ -125,7 +133,9 @@ func (i *Indexer) StartIndexer(
 type builtStreamer struct {
 	streamer                    *blockchain.RpcLogStreamer
 	messagesChannel             <-chan types.Log
+	messagesReorgChannel        chan<- uint64
 	identityUpdatesChannel      <-chan types.Log
+	identityUpdatesReorgChannel chan<- uint64
 	identityUpdatesBlockTracker *BlockTracker
 	messagesBlockTracker        *BlockTracker
 }
@@ -147,7 +157,7 @@ func configureLogStream(
 	}
 
 	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
-	messagesChannel := builder.ListenForContractEvent(
+	messagesChannel, messagesReorgChannel := builder.ListenForContractEvent(
 		latestBlockNumber,
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
@@ -165,7 +175,7 @@ func configureLogStream(
 	}
 
 	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
-	identityUpdatesChannel := builder.ListenForContractEvent(
+	identityUpdatesChannel, identityUpdatesReorgChannel := builder.ListenForContractEvent(
 		latestBlockNumber,
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
@@ -180,7 +190,9 @@ func configureLogStream(
 	return &builtStreamer{
 		streamer:                    streamer,
 		messagesChannel:             messagesChannel,
+		messagesReorgChannel:        messagesReorgChannel,
 		identityUpdatesChannel:      identityUpdatesChannel,
+		identityUpdatesReorgChannel: identityUpdatesReorgChannel,
 		identityUpdatesBlockTracker: identityUpdatesTracker,
 		messagesBlockTracker:        messagesTracker,
 	}, nil
@@ -195,20 +207,59 @@ The only non-retriable errors should be things like malformed events or failed v
 */
 func indexLogs(
 	ctx context.Context,
+	client *ethclient.Client,
 	eventChannel <-chan types.Log,
+	reorgChannel chan<- uint64,
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
 	blockTracker IBlockTracker,
 ) {
-	var err storer.LogStorageError
+	var errStorage storer.LogStorageError
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
 	for event := range eventChannel {
+		storedBlockNumber, storedBlockHash := blockTracker.GetLatestBlock()
+
+		// TODO: Calculate the blocks safe distance in the L3 or risk tolerance we assume
+		// idea - SafeBlockDistance uint64 `env:"SAFE_BLOCK_DISTANCE" envDefault:"100"`
+		if event.BlockNumber > storedBlockNumber && event.BlockNumber-storedBlockNumber < 100 {
+			latestBlockHash, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+			if err != nil {
+				logger.Error("error getting block",
+					zap.Uint64("blockNumber", storedBlockNumber),
+					zap.Error(err),
+				)
+
+				continue
+			}
+
+			if !bytes.Equal(storedBlockHash, latestBlockHash.Hash().Bytes()) {
+				logger.Warn("blockchain reorg detected",
+					zap.Uint64("storedBlockNumber", storedBlockNumber),
+					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
+					zap.String("onchainBlockHash", latestBlockHash.Hash().String()),
+				)
+
+				// TODO: Implement reorg handling:
+				// 1. Find the common ancestor block using historical gateway_envelopes block numbers and hashes
+				// 2. Verify current event.BlockNumber's parent hash matches expected chain
+				// 3. Handle the reorg from ancestor to the latest block:
+				//    3.1. Mark existing db logs after common ancestor with:
+				//         - is_canonical: false
+				//    3.2. Use (is_canonical == true) as key for queries to detect the latest event
+				// 4. Send the block number to the reorg channel to trigger pulling the canonical blocks
+				//    4.1. New logs get marked with:
+				//         - is_canonical: true
+				//         - version = version + 1
+				// reorgChannel <- event.BlockNumber
+			}
+		}
+
 	Retry:
 		for {
-			err = logStorer.StoreLog(ctx, event)
-			if err != nil {
-				logger.Error("error storing log", zap.Error(err))
-				if err.ShouldRetry() {
+			errStorage = logStorer.StoreLog(ctx, event)
+			if errStorage != nil {
+				logger.Error("error storing log", zap.Error(errStorage))
+				if errStorage.ShouldRetry() {
 					time.Sleep(100 * time.Millisecond)
 					continue Retry
 				}

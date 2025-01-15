@@ -78,6 +78,10 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 	s.logger.Debug("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
+		BlockNumber: int64(event.BlockNumber),
+		BlockHash:   event.BlockHash.Bytes(),
+		Version:     1,    // TODO: Make this dynamic
+		IsCanonical: true, // TODO: Make this dynamic
 		// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
 		OriginatorNodeID:     0,
 		OriginatorSequenceID: int64(msgSent.SequenceId),

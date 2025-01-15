@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -13,13 +14,14 @@ import (
 )
 
 type publishWorker struct {
-	ctx          context.Context
-	log          *zap.Logger
-	listener     <-chan []queries.StagedOriginatorEnvelope
-	notifier     chan<- bool
-	registrant   *registrant.Registrant
-	store        *sql.DB
-	subscription db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
+	ctx           context.Context
+	log           *zap.Logger
+	listener      <-chan []queries.StagedOriginatorEnvelope
+	notifier      chan<- bool
+	registrant    *registrant.Registrant
+	store         *sql.DB
+	subscription  db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
+	lastProcessed atomic.Int64
 }
 
 func startPublishWorker(
@@ -92,6 +94,7 @@ func (p *publishWorker) start() {
 					// continue to the next envelope until this one is processed
 					time.Sleep(time.Second)
 				}
+				p.lastProcessed.Store(stagedEnv.ID)
 			}
 		}
 	}

@@ -481,7 +481,7 @@ func (s *Service) waitForGatewayPublish(
 				zap.Int64("envelope_id", stagedEnv.ID),
 				zap.Int64("wait_time", time.Since(startTime).Milliseconds()),
 			)
-			break
+			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

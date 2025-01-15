@@ -350,7 +350,7 @@ func (s *Service) PublishPayerEnvelopes(
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}
 
-	s.waitForGatewayPublish(stagedEnv)
+	s.waitForGatewayPublish(ctx, stagedEnv)
 
 	return &message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
@@ -455,18 +455,34 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 	return nil
 }
 
-func (s *Service) waitForGatewayPublish(stagedEnv queries.StagedOriginatorEnvelope) {
+func (s *Service) waitForGatewayPublish(
+	ctx context.Context,
+	stagedEnv queries.StagedOriginatorEnvelope,
+) {
 	startTime := time.Now()
+	timeout := time.After(30 * time.Second)
 
-	for {
+	select {
+	case <-timeout:
+		s.log.Warn("Timeout waiting for publisher",
+			zap.Int64("envelope_id", stagedEnv.ID),
+			zap.Int64("last_processed", s.publishWorker.lastProcessed.Load()))
+		return
+	case <-ctx.Done():
+		s.log.Warn("Context cancelled while waiting for publisher",
+			zap.Int64("envelope_id", stagedEnv.ID),
+			zap.Int64("last_processed", s.publishWorker.lastProcessed.Load()))
+		return
+	default:
 		// Check if the last processed ID has reached or exceeded the current ID
 		if s.publishWorker.lastProcessed.Load() >= stagedEnv.ID {
+			s.log.Debug(
+				"Finished waiting for publisher",
+				zap.Int64("envelope_id", stagedEnv.ID),
+				zap.Int64("wait_time", time.Since(startTime).Milliseconds()),
+			)
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	s.log.Debug(
-		"Finished waiting for publisher",
-		zap.Int64("wait_time", time.Since(startTime).Milliseconds()),
-	)
 }

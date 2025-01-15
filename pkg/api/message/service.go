@@ -350,6 +350,8 @@ func (s *Service) PublishPayerEnvelopes(
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}
 
+	s.waitForGatewayPublish(stagedEnv)
+
 	return &message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
 	}, nil
@@ -451,4 +453,20 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 	// TODO(rich): Perform any payload-specific validation (e.g. identity updates)
 
 	return nil
+}
+
+func (s *Service) waitForGatewayPublish(stagedEnv queries.StagedOriginatorEnvelope) {
+	startTime := time.Now()
+
+	for {
+		// Check if the last processed ID has reached or exceeded the current ID
+		if s.publishWorker.lastProcessed.Load() >= stagedEnv.ID {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.log.Debug(
+		"Finished waiting for publisher",
+		zap.Int64("wait_time", time.Since(startTime).Milliseconds()),
+	)
 }

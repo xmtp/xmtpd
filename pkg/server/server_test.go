@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -28,8 +29,19 @@ import (
 
 const server1NodeID = uint32(100)
 const server2NodeID = uint32(200)
-const server1Port = 1111
-const server2Port = 2222
+
+func getNextOpenPort() (int, error) {
+	// Listen on a random available port
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return 0, fmt.Errorf("could not find open port: %w", err)
+	}
+	defer listener.Close()
+
+	// Extract the port number from the listener
+	addr := listener.Addr().(*net.TCPAddr)
+	return addr.Port, nil
+}
 
 func NewTestServer(
 	t *testing.T,
@@ -61,10 +73,10 @@ func NewTestServer(
 		Replication: config.ReplicationOptions{
 			Enable: true,
 		},
-		//TODO(mkysel): this is not fully mocked yet
-		//Payer: config.PayerOptions{
-		//	Enable: true,
-		//},
+		Payer: config.PayerOptions{
+			Enable:     true,
+			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
+		},
 	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port), nil)
 	require.NoError(t, err)
 
@@ -79,6 +91,11 @@ func TestCreateServer(t *testing.T) {
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	privateKey2, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	server1Port, err := getNextOpenPort()
+	require.NoError(t, err)
+	server2Port, err := getNextOpenPort()
 	require.NoError(t, err)
 
 	nodes := []r.Node{
@@ -193,4 +210,70 @@ func TestCreateServer(t *testing.T) {
 		require.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0])
 		return true
 	}, 3000*time.Millisecond, 200*time.Millisecond)
+}
+
+func TestReadOwnWritesGuarantee(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dbs, dbCleanup := testutils.NewDBs(t, ctx, 1)
+	defer dbCleanup()
+	privateKey1, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	server1Port, err := getNextOpenPort()
+	require.NoError(t, err)
+
+	nodes := []r.Node{
+		{
+			NodeID:        server1NodeID,
+			SigningKey:    &privateKey1.PublicKey,
+			HttpAddress:   fmt.Sprintf("http://localhost:%d", server1Port),
+			IsHealthy:     true,
+			IsValidConfig: true,
+		}}
+
+	registry := mocks.NewMockNodeRegistry(t)
+	registry.On("GetNodes").Return(nodes, nil)
+
+	nodesChan := make(chan []r.Node)
+	cancelOnNewFunc := func() {
+		close(nodesChan)
+	}
+	registry.On("OnNewNodes").
+		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(cancelOnNewFunc))
+
+	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
+
+	client1, cleanup1 := apiTestUtils.NewReplicationAPIClient(t, ctx, server1.Addr().String())
+	defer cleanup1()
+
+	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+		Bytes()
+
+	_, err = client1.PublishPayerEnvelopes(
+		ctx,
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
+				t,
+				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+					TargetOriginator: server1NodeID,
+					TargetTopic:      targetTopic,
+					LastSeen:         &envelopes.Cursor{},
+				}),
+			)},
+		},
+	)
+	require.NoError(t, err)
+
+	// query the same server immediately after writing
+	// the server should return the write on the first attempt
+
+	q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
+		Query: &message_api.EnvelopesQuery{
+			OriginatorNodeIds: []uint32{server1NodeID},
+			LastSeen:          &envelopes.Cursor{},
+		},
+		Limit: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, q1.Envelopes, 1)
 }

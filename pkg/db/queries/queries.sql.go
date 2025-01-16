@@ -75,6 +75,29 @@ func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]Get
 	return items, nil
 }
 
+const getEnvelopeVersion = `-- name: GetEnvelopeVersion :one
+SELECT
+	version
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = $1
+	AND originator_sequence_id = $2
+	AND is_canonical = TRUE
+`
+
+type GetEnvelopeVersionParams struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+}
+
+func (q *Queries) GetEnvelopeVersion(ctx context.Context, arg GetEnvelopeVersionParams) (sql.NullInt32, error) {
+	row := q.db.QueryRowContext(ctx, getEnvelopeVersion, arg.OriginatorNodeID, arg.OriginatorSequenceID)
+	var version sql.NullInt32
+	err := row.Scan(&version)
+	return version, err
+}
+
 const getLatestBlock = `-- name: GetLatestBlock :one
 SELECT
 	block_number,
@@ -150,10 +173,10 @@ type InsertGatewayEnvelopeParams struct {
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
-	BlockNumber          int64
+	BlockNumber          sql.NullInt64
 	BlockHash            []byte
-	Version              int32
-	IsCanonical          bool
+	Version              sql.NullInt32
+	IsCanonical          sql.NullBool
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
@@ -215,6 +238,27 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 		&i.PayerEnvelope,
 	)
 	return i, err
+}
+
+const invalidateEnvelope = `-- name: InvalidateEnvelope :exec
+UPDATE
+	gateway_envelopes
+SET
+	is_canonical = FALSE
+WHERE
+	originator_node_id = $1
+	AND originator_sequence_id = $2
+	AND is_canonical = TRUE
+`
+
+type InvalidateEnvelopeParams struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+}
+
+func (q *Queries) InvalidateEnvelope(ctx context.Context, arg InvalidateEnvelopeParams) error {
+	_, err := q.db.ExecContext(ctx, invalidateEnvelope, arg.OriginatorNodeID, arg.OriginatorSequenceID)
+	return err
 }
 
 const revokeAddressFromLog = `-- name: RevokeAddressFromLog :execrows

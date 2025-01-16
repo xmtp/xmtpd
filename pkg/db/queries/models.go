@@ -22,10 +22,10 @@ type GatewayEnvelope struct {
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
-	BlockNumber          int64
+	BlockNumber          sql.NullInt64
 	BlockHash            []byte
-	Version              int32
-	IsCanonical          bool
+	Version              sql.NullInt32
+	IsCanonical          sql.NullBool
 }
 
 type LatestBlock struct {

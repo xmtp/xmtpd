@@ -2,6 +2,7 @@ package storer
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -11,6 +12,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+)
+
+const (
+	// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
+	GROUP_MESSAGE_ORIGINATOR_ID = 0
 )
 
 type GroupMessageStorer struct {
@@ -32,7 +38,11 @@ func NewGroupMessageStorer(
 }
 
 // Validate and store a group message log event
-func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogStorageError {
+func (s *GroupMessageStorer) StoreLog(
+	ctx context.Context,
+	event types.Log,
+	appendLog bool,
+) LogStorageError {
 	msgSent, err := s.contract.ParseMessageSent(event)
 	if err != nil {
 		return NewLogStorageError(err, false)
@@ -75,15 +85,37 @@ func (s *GroupMessageStorer) StoreLog(ctx context.Context, event types.Log) LogS
 		return NewLogStorageError(err, false)
 	}
 
+	version := sql.NullInt32{Int32: 1, Valid: true}
+
+	if appendLog {
+		version, err = GetVersionForAppend(
+			ctx,
+			s.queries,
+			s.logger,
+			GROUP_MESSAGE_ORIGINATOR_ID,
+			int64(msgSent.SequenceId),
+		)
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return NewLogStorageError(err, true)
+			}
+			if errors.Is(err, sql.ErrNoRows) {
+				s.logger.Debug("No rows found for envelope, inserting new",
+					zap.Int("originator_node_id", GROUP_MESSAGE_ORIGINATOR_ID),
+					zap.Int64("originator_sequence_id", int64(msgSent.SequenceId)),
+				)
+			}
+		}
+	}
+
 	s.logger.Debug("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-		BlockNumber: int64(event.BlockNumber),
-		BlockHash:   event.BlockHash.Bytes(),
-		Version:     1,    // TODO: Make this dynamic
-		IsCanonical: true, // TODO: Make this dynamic
-		// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
-		OriginatorNodeID:     0,
+		BlockNumber:          sql.NullInt64{Int64: int64(event.BlockNumber), Valid: true},
+		BlockHash:            event.BlockHash.Bytes(),
+		Version:              version,
+		IsCanonical:          sql.NullBool{Bool: true, Valid: true},
+		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                topicStruct.Bytes(),
 		OriginatorEnvelope:   originatorEnvelopeBytes,

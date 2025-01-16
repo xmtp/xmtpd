@@ -3,6 +3,7 @@ package storer
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 )
 
 const (
+	// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
 	IDENTITY_UPDATE_ORIGINATOR_ID = 1
 )
 
@@ -48,7 +50,11 @@ func NewIdentityUpdateStorer(
 }
 
 // Validate and store an identity update log event
-func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) LogStorageError {
+func (s *IdentityUpdateStorer) StoreLog(
+	ctx context.Context,
+	event types.Log,
+	appendLog bool,
+) LogStorageError {
 	msgSent, err := s.contract.ParseIdentityUpdateCreated(event)
 	if err != nil {
 		return NewLogStorageError(err, false)
@@ -166,8 +172,34 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 				return NewLogStorageError(err, true)
 			}
 
+			version := sql.NullInt32{Int32: 1, Valid: true}
+
+			if appendLog {
+				version, err = GetVersionForAppend(
+					ctx,
+					querier,
+					s.logger,
+					IDENTITY_UPDATE_ORIGINATOR_ID,
+					int64(msgSent.SequenceId),
+				)
+				if err != nil {
+					if !errors.Is(err, sql.ErrNoRows) {
+						return NewLogStorageError(err, true)
+					}
+					if errors.Is(err, sql.ErrNoRows) {
+						s.logger.Debug("No rows found for envelope, inserting new",
+							zap.Int("originator_node_id", IDENTITY_UPDATE_ORIGINATOR_ID),
+							zap.Int64("originator_sequence_id", int64(msgSent.SequenceId)),
+						)
+					}
+				}
+			}
+
 			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-				// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
+				BlockNumber:          sql.NullInt64{Int64: int64(event.BlockNumber), Valid: true},
+				BlockHash:            event.BlockHash.Bytes(),
+				Version:              version,
+				IsCanonical:          sql.NullBool{Bool: true, Valid: true},
 				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
 				Topic:                messageTopic.Bytes(),

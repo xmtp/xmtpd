@@ -92,6 +92,7 @@ func (i *Indexer) StartIndexer(
 				client,
 				streamer.messagesChannel,
 				streamer.messagesReorgChannel,
+				cfg.SafeBlockDistance,
 				indexingLogger,
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
@@ -115,6 +116,7 @@ func (i *Indexer) StartIndexer(
 				client,
 				streamer.identityUpdatesChannel,
 				streamer.identityUpdatesReorgChannel,
+				cfg.SafeBlockDistance,
 				indexingLogger,
 				storer.NewIdentityUpdateStorer(
 					db,
@@ -207,22 +209,24 @@ The only non-retriable errors should be things like malformed events or failed v
 */
 func indexLogs(
 	ctx context.Context,
-	client *ethclient.Client,
+	client blockchain.ChainClient,
 	eventChannel <-chan types.Log,
 	reorgChannel chan<- uint64,
+	safeBlockDistance uint64,
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
 	blockTracker IBlockTracker,
 ) {
 	var errStorage storer.LogStorageError
+
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
 	for event := range eventChannel {
 		storedBlockNumber, storedBlockHash := blockTracker.GetLatestBlock()
 
 		// TODO: Calculate the blocks safe distance in the L3 or risk tolerance we assume
-		// idea - SafeBlockDistance uint64 `env:"SAFE_BLOCK_DISTANCE" envDefault:"100"`
-		if event.BlockNumber > storedBlockNumber && event.BlockNumber-storedBlockNumber < 100 {
-			latestBlockHash, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+		if event.BlockNumber > storedBlockNumber &&
+			event.BlockNumber-storedBlockNumber < safeBlockDistance {
+			latestBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
 			if err != nil {
 				logger.Error("error getting block",
 					zap.Uint64("blockNumber", storedBlockNumber),
@@ -232,11 +236,11 @@ func indexLogs(
 				continue
 			}
 
-			if !bytes.Equal(storedBlockHash, latestBlockHash.Hash().Bytes()) {
+			if !bytes.Equal(storedBlockHash, latestBlock.Hash().Bytes()) {
 				logger.Warn("blockchain reorg detected",
 					zap.Uint64("storedBlockNumber", storedBlockNumber),
 					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
-					zap.String("onchainBlockHash", latestBlockHash.Hash().String()),
+					zap.String("onchainBlockHash", latestBlock.Hash().String()),
 				)
 
 				// TODO: Implement reorg handling:
@@ -256,7 +260,7 @@ func indexLogs(
 
 	Retry:
 		for {
-			errStorage = logStorer.StoreLog(ctx, event)
+			errStorage = logStorer.StoreLog(ctx, event, false)
 			if errStorage != nil {
 				logger.Error("error storing log", zap.Error(errStorage))
 				if errStorage.ShouldRetry() {

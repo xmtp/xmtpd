@@ -122,3 +122,23 @@ FROM
 WHERE
 	contract_address = @contract_address;
 
+-- name: GetEnvelopeVersion :one
+SELECT
+	version
+FROM
+	gateway_envelopes
+WHERE
+	originator_node_id = $1
+	AND originator_sequence_id = $2
+	AND is_canonical = TRUE;
+
+-- name: InvalidateEnvelope :exec
+UPDATE
+	gateway_envelopes
+SET
+	is_canonical = FALSE
+WHERE
+	originator_node_id = $1
+	AND originator_sequence_id = $2
+	AND is_canonical = TRUE;
+

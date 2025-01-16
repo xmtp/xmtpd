@@ -228,6 +228,10 @@ func (r *RpcLogStreamer) getNextPage(
 	return logs, &nextBlockNumber, nil
 }
 
+func (r *RpcLogStreamer) Client() ChainClient {
+	return r.client
+}
+
 func buildFilterQuery(
 	contractConfig contractConfig,
 	fromBlock int64,

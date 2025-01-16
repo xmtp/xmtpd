@@ -10,59 +10,118 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/indexer"
 	storerMocks "github.com/xmtp/xmtpd/pkg/mocks/storer"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
+const testSafeBlockDistance = uint64(10)
+
 func TestIndexLogsSuccess(t *testing.T) {
 	channel := make(chan types.Log, 10)
-	defer close(channel)
+	reorgChannel := make(chan uint64, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		close(channel)
+		close(reorgChannel)
+	}()
+
 	newBlockNumber := uint64(10)
 	newBlockHash := common.HexToHash(
 		"0x0000000000000000000000000000000000000000000000000000000000000000",
 	)
 
-	logStorer := storerMocks.NewMockLogStorer(t)
+	event := types.Log{
+		Address:     common.HexToAddress("0x123"),
+		BlockNumber: newBlockNumber,
+		BlockHash:   newBlockHash,
+	}
+
+	channel <- event
+
+	mockClient := blockchainMocks.NewMockChainClient(t)
+
 	blockTracker := indexerMocks.NewMockIBlockTracker(t)
 	blockTracker.EXPECT().
 		UpdateLatestBlock(mock.Anything, newBlockNumber, newBlockHash.Bytes()).
 		Return(nil)
+	blockTracker.EXPECT().
+		GetLatestBlock().
+		Return(newBlockNumber, newBlockHash.Bytes())
 
-	event := types.Log{
-		Address:     common.HexToAddress("0x123"),
-		BlockNumber: newBlockNumber,
-	}
-	logStorer.EXPECT().StoreLog(mock.Anything, event).Times(1).Return(nil)
-	channel <- event
+	logStorer := storerMocks.NewMockLogStorer(t)
+	logStorer.EXPECT().
+		StoreLog(mock.Anything, event, false).
+		Return(nil)
 
-	go indexLogs(context.Background(), channel, testutils.NewLog(t), logStorer, blockTracker)
+	go indexLogs(
+		ctx,
+		mockClient,
+		channel,
+		reorgChannel,
+		testSafeBlockDistance,
+		testutils.NewLog(t),
+		logStorer,
+		blockTracker,
+	)
+
 	time.Sleep(100 * time.Millisecond)
 }
 
 func TestIndexLogsRetryableError(t *testing.T) {
 	channel := make(chan types.Log, 10)
-	defer close(channel)
+	reorgChannel := make(chan uint64, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		close(channel)
+		close(reorgChannel)
+	}()
 
-	logStorer := storerMocks.NewMockLogStorer(t)
-	blockTracker := indexerMocks.NewMockIBlockTracker(t)
+	newBlockNumber := uint64(10)
+	newBlockHash := common.HexToHash(
+		"0x0000000000000000000000000000000000000000000000000000000000000000",
+	)
 
 	event := types.Log{
-		Address: common.HexToAddress("0x123"),
+		Address:     common.HexToAddress("0x123"),
+		BlockNumber: newBlockNumber,
+		BlockHash:   newBlockHash,
 	}
+
+	mockClient := blockchainMocks.NewMockChainClient(t)
+	logStorer := storerMocks.NewMockLogStorer(t)
+
+	blockTracker := indexerMocks.NewMockIBlockTracker(t)
+	blockTracker.EXPECT().
+		GetLatestBlock().
+		Return(newBlockNumber, newBlockHash.Bytes())
 
 	// Will fail for the first call with a retryable error and a non-retryable error on the second call
 	attemptNumber := 0
 
 	logStorer.EXPECT().
-		StoreLog(mock.Anything, event).
-		RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
+		StoreLog(mock.Anything, event, false).
+		RunAndReturn(func(ctx context.Context, log types.Log, isCanonical bool) storer.LogStorageError {
 			attemptNumber++
 			return storer.NewLogStorageError(errors.New("retryable error"), attemptNumber < 2)
 		})
+
 	channel <- event
 
-	go indexLogs(context.Background(), channel, testutils.NewLog(t), logStorer, blockTracker)
+	go indexLogs(
+		ctx,
+		mockClient,
+		channel,
+		reorgChannel,
+		testSafeBlockDistance,
+		testutils.NewLog(t),
+		logStorer,
+		blockTracker,
+	)
+
 	time.Sleep(200 * time.Millisecond)
 
 	logStorer.AssertNumberOfCalls(t, "StoreLog", 2)

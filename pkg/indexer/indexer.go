@@ -89,7 +89,7 @@ func (i *Indexer) StartIndexer(
 
 			indexLogs(
 				ctx,
-				client,
+				streamer.streamer.Client(),
 				streamer.messagesChannel,
 				streamer.messagesReorgChannel,
 				cfg.SafeBlockDistance,
@@ -113,7 +113,7 @@ func (i *Indexer) StartIndexer(
 				With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress))
 			indexLogs(
 				ctx,
-				client,
+				streamer.streamer.Client(),
 				streamer.identityUpdatesChannel,
 				streamer.identityUpdatesReorgChannel,
 				cfg.SafeBlockDistance,

@@ -41,7 +41,7 @@ func TestBuilder(t *testing.T) {
 	require.NoError(t, err)
 	builder := NewRpcLogStreamBuilder(context.Background(), testclient, testutils.NewLog(t))
 
-	listenerChannel := builder.ListenForContractEvent(
+	listenerChannel, _ := builder.ListenForContractEvent(
 		1,
 		testutils.RandomAddress(),
 		[]common.Hash{testutils.RandomLogTopic()}, 5*time.Minute,

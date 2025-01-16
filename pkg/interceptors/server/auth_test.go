@@ -36,7 +36,7 @@ func TestUnaryInterceptor(t *testing.T) {
 				return metadata.NewIncomingContext(context.Background(), md)
 			},
 			setupVerifier: func() {
-				mockVerifier.EXPECT().Verify("valid_token").Return(100, nil)
+				mockVerifier.EXPECT().Verify("valid_token").Return(uint32(0), nil)
 			},
 			wantError:        nil,
 			wantVerifiedNode: true,
@@ -71,7 +71,7 @@ func TestUnaryInterceptor(t *testing.T) {
 			setupVerifier: func() {
 				mockVerifier.EXPECT().
 					Verify("invalid_token").
-					Return(0, errors.New("invalid signature"))
+					Return(uint32(0), errors.New("invalid signature"))
 			},
 			wantError: status.Error(
 				codes.Unauthenticated,
@@ -131,7 +131,7 @@ func TestStreamInterceptor(t *testing.T) {
 				return metadata.NewIncomingContext(context.Background(), md)
 			},
 			setupVerifier: func() {
-				mockVerifier.EXPECT().Verify("valid_token").Return(100, nil)
+				mockVerifier.EXPECT().Verify("valid_token").Return(uint32(0), nil)
 			},
 			wantError:        nil,
 			wantVerifiedNode: true,
@@ -156,7 +156,7 @@ func TestStreamInterceptor(t *testing.T) {
 			setupVerifier: func() {
 				mockVerifier.EXPECT().
 					Verify("invalid_token").
-					Return(0, errors.New("invalid signature"))
+					Return(uint32(0), errors.New("invalid signature"))
 			},
 			wantError: status.Error(
 				codes.Unauthenticated,

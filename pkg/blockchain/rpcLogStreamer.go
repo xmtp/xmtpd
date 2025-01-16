@@ -129,7 +129,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
 	startTime := time.Now()
 	defer close(watcher.eventChannel)
-	defer close(watcher.reorgChannel)
+
 	for {
 		select {
 		case <-r.ctx.Done():

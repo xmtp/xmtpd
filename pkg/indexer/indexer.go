@@ -46,14 +46,20 @@ func NewIndexer(
 	}
 }
 
-func (s *Indexer) Close() {
-	s.log.Debug("Closing")
-	if s.streamer != nil {
-		s.streamer.streamer.Stop()
+func (i *Indexer) Close() {
+	i.log.Debug("Closing")
+	if i.streamer != nil {
+		if i.streamer.messagesReorgChannel != nil {
+			close(i.streamer.messagesReorgChannel)
+		}
+		if i.streamer.identityUpdatesReorgChannel != nil {
+			close(i.streamer.identityUpdatesReorgChannel)
+		}
+		i.streamer.streamer.Stop()
 	}
-	s.cancel()
-	s.wg.Wait()
-	s.log.Debug("Closed")
+	i.cancel()
+	i.wg.Wait()
+	i.log.Debug("Closed")
 }
 
 func (i *Indexer) StartIndexer(

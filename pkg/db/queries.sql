@@ -13,8 +13,8 @@ WHERE
 	singleton_id = 1;
 
 -- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, block_number, block_hash, version, is_canonical)
-	VALUES (@originator_node_id, @originator_sequence_id, @topic, @originator_envelope, @block_number, @block_hash, @version, @is_canonical)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
+	VALUES (@originator_node_id, @originator_sequence_id, @topic, @originator_envelope)
 ON CONFLICT
 	DO NOTHING;
 
@@ -122,23 +122,25 @@ FROM
 WHERE
 	contract_address = @contract_address;
 
--- name: GetEnvelopeVersion :one
-SELECT
-	version
-FROM
-	gateway_envelopes
-WHERE
-	originator_node_id = $1
-	AND originator_sequence_id = $2
-	AND is_canonical = TRUE;
+-- name: InsertBlockchainMessage :exec
+INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
+	VALUES (@block_number, @block_hash, @originator_node_id, @originator_sequence_id, @is_canonical);
 
--- name: InvalidateEnvelope :exec
-UPDATE
-	gateway_envelopes
-SET
-	is_canonical = FALSE
+-- name: GetBlocksInRange :many
+-- Returns blocks in descending order (newest to oldest)
+-- StartBlock should be the lower bound (older block)
+-- EndBlock should be the upper bound (newer block)
+-- Example: GetBlocksInRange(1000, 2000) gets blocks 2000 down to 1000
+SELECT DISTINCT ON (block_number)
+	block_number,
+	block_hash
+FROM
+	blockchain_messages
 WHERE
-	originator_node_id = $1
-	AND originator_sequence_id = $2
-	AND is_canonical = TRUE;
+	block_number BETWEEN @start_block AND @end_block
+	AND block_hash IS NOT NULL
+	AND is_canonical = TRUE
+ORDER BY
+	block_number ASC,
+	block_hash;
 

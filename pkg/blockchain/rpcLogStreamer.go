@@ -136,11 +136,10 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 			logger.Debug("Stopping watcher")
 			return
 		case reorgBlock := <-watcher.reorgChannel:
-			// TODO: Implement reorg handling
-			// fromBlock = reorgBlock
+			fromBlock = reorgBlock
 			logger.Info(
-				"Reorganization handling initiated from block",
-				zap.Uint64("block", reorgBlock),
+				"Blockchain reorg detected, resuming from block",
+				zap.Uint64("fromBlock", fromBlock),
 			)
 		default:
 			logs, nextBlock, err := r.getNextPage(watcher, fromBlock)

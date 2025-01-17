@@ -101,6 +101,7 @@ func (i *Indexer) StartIndexer(
 				indexingLogger,
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
+				streamer.reorgHandler,
 			)
 		})
 
@@ -129,6 +130,7 @@ func (i *Indexer) StartIndexer(
 					validationService,
 				),
 				streamer.identityUpdatesBlockTracker,
+				streamer.reorgHandler,
 			)
 		})
 
@@ -138,6 +140,7 @@ func (i *Indexer) StartIndexer(
 
 type builtStreamer struct {
 	streamer                    *blockchain.RpcLogStreamer
+	reorgHandler                ChainReorgHandler
 	messagesChannel             <-chan types.Log
 	messagesReorgChannel        chan<- uint64
 	identityUpdatesChannel      <-chan types.Log
@@ -193,8 +196,11 @@ func configureLogStream(
 		return nil, err
 	}
 
+	reorgHandler := NewChainReorgHandler(ctx, streamer.Client(), querier)
+
 	return &builtStreamer{
 		streamer:                    streamer,
+		reorgHandler:                reorgHandler,
 		messagesChannel:             messagesChannel,
 		messagesReorgChannel:        messagesReorgChannel,
 		identityUpdatesChannel:      identityUpdatesChannel,
@@ -219,6 +225,7 @@ func indexLogs(
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
 	blockTracker IBlockTracker,
+	reorgHandler ChainReorgHandler,
 ) {
 	var (
 		errStorage         storer.LogStorageError
@@ -226,61 +233,100 @@ func indexLogs(
 		storedBlockHash    []byte
 		lastBlockSeen      uint64
 		reorgCheckInterval uint64 = 10 // TODO: Adapt based on blocks per batch
+		reorgCheckAt       uint64
 		reorgDetectedAt    uint64
-		reorgLastCheckAt   uint64
+		reorgBeginsAt      uint64
+		reorgFinishesAt    uint64
+		reorgInProgress    bool
 	)
 
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
 	for event := range eventChannel {
-		// When a reorg is detected, discard the events higher than the block number of the reorg
+		// 1.1 Handle active reorg state first
 		if reorgDetectedAt > 0 {
+			// Under a reorg, future events are no-op
 			if event.BlockNumber >= reorgDetectedAt {
-				logger.Debug("discarding event due to reorg",
-					zap.Uint64("event_block", event.BlockNumber),
-					zap.Uint64("reorg_block", reorgDetectedAt))
+				logger.Debug("discarding future event due to reorg",
+					zap.Uint64("eventBlockNumber", event.BlockNumber),
+					zap.Uint64("reorgBlockNumber", reorgBeginsAt))
 				continue
 			}
-			logger.Info("resumed processing after reorg",
-				zap.Uint64("block_number", event.BlockNumber),
-				zap.Uint64("reorg_block", reorgDetectedAt))
+			logger.Info("starting processing reorg",
+				zap.Uint64("eventBlockNumber", event.BlockNumber),
+				zap.Uint64("reorgBlockNumber", reorgBeginsAt))
+
+			// When all future events have been discarded, it means we've reached the reorg point
+			storedBlockNumber, storedBlockHash = blockTracker.GetLatestBlock()
+			lastBlockSeen = event.BlockNumber
 			reorgDetectedAt = 0
+			reorgInProgress = true
 		}
 
+		// 1.2 Handle deactivation of reorg state
+		if reorgInProgress && event.BlockNumber > reorgFinishesAt {
+			logger.Info("finished processing reorg",
+				zap.Uint64("eventBlockNumber", event.BlockNumber),
+				zap.Uint64("reorgFinishesAt", reorgFinishesAt))
+			reorgInProgress = false
+		}
+
+		// 2. Get the latest block from tracker once per block
 		if lastBlockSeen > 0 && lastBlockSeen != event.BlockNumber {
 			storedBlockNumber, storedBlockHash = blockTracker.GetLatestBlock()
 		}
-
 		lastBlockSeen = event.BlockNumber
 
-		if storedBlockNumber > 0 &&
+		// 3. Check for reorgs, when:
+		// - There are no reorgs in progress
+		// - There's a stored block
+		// - The event block number is greater than the stored block number
+		// - The check interval has passed
+		if !reorgInProgress &&
+			storedBlockNumber > 0 &&
 			event.BlockNumber > storedBlockNumber &&
-			event.BlockNumber >= reorgLastCheckAt+reorgCheckInterval {
-			blockByNumber, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
+			onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
 			if err != nil {
-				logger.Error("error getting block",
+				logger.Error("error querying block from the blockchain",
 					zap.Uint64("blockNumber", storedBlockNumber),
 					zap.Error(err),
 				)
 				continue
 			}
 
-			reorgLastCheckAt = event.BlockNumber
+			reorgCheckAt = event.BlockNumber
+			logger.Debug("periodic blockchain reorg check",
+				zap.Uint64("blockNumber", reorgCheckAt),
+			)
 
-			if !bytes.Equal(storedBlockHash, blockByNumber.Hash().Bytes()) {
+			if !bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
 				logger.Warn("blockchain reorg detected",
 					zap.Uint64("storedBlockNumber", storedBlockNumber),
 					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
-					zap.String("onchainBlockHash", blockByNumber.Hash().String()),
+					zap.String("onchainBlockHash", onchainBlock.Hash().String()),
 				)
-				reorgChannel <- storedBlockNumber
+
+				reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindCommonAncestor(
+					storedBlockNumber,
+				)
+				if err != nil {
+					logger.Error("error finding common ancestor", zap.Error(err))
+					continue
+				}
+
 				reorgDetectedAt = storedBlockNumber
+				reorgBeginsAt = reorgBlockNumber
+				reorgFinishesAt = storedBlockNumber
+
+				blockTracker.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash)
+				reorgChannel <- reorgBlockNumber
 				continue
 			}
 		}
 
 	Retry:
 		for {
-			errStorage = logStorer.StoreLog(ctx, event, false)
+			errStorage = logStorer.StoreLog(ctx, event, reorgInProgress)
 			if errStorage != nil {
 				logger.Error("error storing log", zap.Error(errStorage))
 				if errStorage.ShouldRetry() {

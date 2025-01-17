@@ -75,27 +75,52 @@ func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]Get
 	return items, nil
 }
 
-const getEnvelopeVersion = `-- name: GetEnvelopeVersion :one
-SELECT
-	version
+const getBlocksInRange = `-- name: GetBlocksInRange :many
+SELECT DISTINCT ON (block_number)
+	block_number,
+	block_hash
 FROM
-	gateway_envelopes
+	blockchain_messages
 WHERE
-	originator_node_id = $1
-	AND originator_sequence_id = $2
+	block_number BETWEEN $1 AND $2
+	AND block_hash IS NOT NULL
 	AND is_canonical = TRUE
+ORDER BY
+	block_number DESC,
+	block_hash
 `
 
-type GetEnvelopeVersionParams struct {
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
+type GetBlocksInRangeParams struct {
+	StartBlock int64
+	EndBlock   int64
 }
 
-func (q *Queries) GetEnvelopeVersion(ctx context.Context, arg GetEnvelopeVersionParams) (sql.NullInt32, error) {
-	row := q.db.QueryRowContext(ctx, getEnvelopeVersion, arg.OriginatorNodeID, arg.OriginatorSequenceID)
-	var version sql.NullInt32
-	err := row.Scan(&version)
-	return version, err
+type GetBlocksInRangeRow struct {
+	BlockNumber int64
+	BlockHash   []byte
+}
+
+func (q *Queries) GetBlocksInRange(ctx context.Context, arg GetBlocksInRangeParams) ([]GetBlocksInRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, getBlocksInRange, arg.StartBlock, arg.EndBlock)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBlocksInRangeRow
+	for rows.Next() {
+		var i GetBlocksInRangeRow
+		if err := rows.Scan(&i.BlockNumber, &i.BlockHash); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLatestBlock = `-- name: GetLatestBlock :one
@@ -161,9 +186,33 @@ func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogPara
 	return result.RowsAffected()
 }
 
+const insertBlockchainMessage = `-- name: InsertBlockchainMessage :exec
+INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
+	VALUES ($1, $2, $3, $4, $5)
+`
+
+type InsertBlockchainMessageParams struct {
+	BlockNumber          int64
+	BlockHash            []byte
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	IsCanonical          bool
+}
+
+func (q *Queries) InsertBlockchainMessage(ctx context.Context, arg InsertBlockchainMessageParams) error {
+	_, err := q.db.ExecContext(ctx, insertBlockchainMessage,
+		arg.BlockNumber,
+		arg.BlockHash,
+		arg.OriginatorNodeID,
+		arg.OriginatorSequenceID,
+		arg.IsCanonical,
+	)
+	return err
+}
+
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, block_number, block_hash, version, is_canonical)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope)
+	VALUES ($1, $2, $3, $4)
 ON CONFLICT
 	DO NOTHING
 `
@@ -173,10 +222,6 @@ type InsertGatewayEnvelopeParams struct {
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
-	BlockNumber          sql.NullInt64
-	BlockHash            []byte
-	Version              sql.NullInt32
-	IsCanonical          sql.NullBool
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
@@ -185,10 +230,6 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 		arg.OriginatorSequenceID,
 		arg.Topic,
 		arg.OriginatorEnvelope,
-		arg.BlockNumber,
-		arg.BlockHash,
-		arg.Version,
-		arg.IsCanonical,
 	)
 	if err != nil {
 		return 0, err
@@ -240,27 +281,6 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 	return i, err
 }
 
-const invalidateEnvelope = `-- name: InvalidateEnvelope :exec
-UPDATE
-	gateway_envelopes
-SET
-	is_canonical = FALSE
-WHERE
-	originator_node_id = $1
-	AND originator_sequence_id = $2
-	AND is_canonical = TRUE
-`
-
-type InvalidateEnvelopeParams struct {
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
-}
-
-func (q *Queries) InvalidateEnvelope(ctx context.Context, arg InvalidateEnvelopeParams) error {
-	_, err := q.db.ExecContext(ctx, invalidateEnvelope, arg.OriginatorNodeID, arg.OriginatorSequenceID)
-	return err
-}
-
 const revokeAddressFromLog = `-- name: RevokeAddressFromLog :execrows
 UPDATE
 	address_log
@@ -287,7 +307,7 @@ func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFro
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
 SELECT
-	gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, block_number, block_hash, version, is_canonical
+	gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope
 FROM
 	select_gateway_envelopes($1::INT[], $2::BIGINT[], $3::BYTEA[], $4::INT[], $5::INT)
 `
@@ -321,10 +341,6 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 			&i.OriginatorSequenceID,
 			&i.Topic,
 			&i.OriginatorEnvelope,
-			&i.BlockNumber,
-			&i.BlockHash,
-			&i.Version,
-			&i.IsCanonical,
 		); err != nil {
 			return nil, err
 		}

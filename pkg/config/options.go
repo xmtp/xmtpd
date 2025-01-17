@@ -16,8 +16,6 @@ type ContractsOptions struct {
 	ChainID                        int           `long:"chain-id"                  env:"XMTPD_CONTRACTS_CHAIN_ID"                  description:"Chain ID for the appchain"                                    default:"31337"`
 	RefreshInterval                time.Duration `long:"refresh-interval"          env:"XMTPD_CONTRACTS_REFRESH_INTERVAL"          description:"Refresh interval for the nodes registry"                      default:"60s"`
 	MaxChainDisconnectTime         time.Duration `long:"max-chain-disconnect-time" env:"XMTPD_CONTRACTS_MAX_CHAIN_DISCONNECT_TIME" description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
-	// TODO: Calculate the blocks safe distance in the L3 or risk tolerance we assume
-	SafeBlockDistance uint64 `long:"safe-block-distance"       env:"XMTPD_CONTRACTS_SAFE_BLOCK_DISTANCE"       description:"Safe block distance"                                          default:"0"`
 }
 
 type DbOptions struct {

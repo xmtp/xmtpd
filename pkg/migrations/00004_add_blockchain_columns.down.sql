@@ -1,12 +1,6 @@
--- Drop everything in reverse order
-DROP INDEX IF EXISTS idx_gateway_envelopes_reorg;
+-- Drop index first
+DROP INDEX IF EXISTS idx_blockchain_messages_canonical;
 
-ALTER TABLE gateway_envelopes
-	DROP CONSTRAINT IF EXISTS blockchain_message_constraint;
-
-ALTER TABLE gateway_envelopes
-	DROP COLUMN IF EXISTS block_number,
-	DROP COLUMN IF EXISTS block_hash,
-	DROP COLUMN IF EXISTS version,
-	DROP COLUMN IF EXISTS is_canonical;
+-- Then drop the table
+DROP TABLE IF EXISTS blockchain_messages;
 

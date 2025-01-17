@@ -16,8 +16,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-const testSafeBlockDistance = uint64(10)
-
 func TestIndexLogsSuccess(t *testing.T) {
 	channel := make(chan types.Log, 10)
 	reorgChannel := make(chan uint64, 1)
@@ -61,7 +59,6 @@ func TestIndexLogsSuccess(t *testing.T) {
 		mockClient,
 		channel,
 		reorgChannel,
-		testSafeBlockDistance,
 		testutils.NewLog(t),
 		logStorer,
 		blockTracker,
@@ -116,7 +113,6 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		mockClient,
 		channel,
 		reorgChannel,
-		testSafeBlockDistance,
 		testutils.NewLog(t),
 		logStorer,
 		blockTracker,

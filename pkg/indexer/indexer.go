@@ -98,7 +98,6 @@ func (i *Indexer) StartIndexer(
 				streamer.streamer.Client(),
 				streamer.messagesChannel,
 				streamer.messagesReorgChannel,
-				cfg.SafeBlockDistance,
 				indexingLogger,
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
@@ -122,7 +121,6 @@ func (i *Indexer) StartIndexer(
 				streamer.streamer.Client(),
 				streamer.identityUpdatesChannel,
 				streamer.identityUpdatesReorgChannel,
-				cfg.SafeBlockDistance,
 				indexingLogger,
 				storer.NewIdentityUpdateStorer(
 					db,
@@ -218,49 +216,65 @@ func indexLogs(
 	client blockchain.ChainClient,
 	eventChannel <-chan types.Log,
 	reorgChannel chan<- uint64,
-	safeBlockDistance uint64,
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
 	blockTracker IBlockTracker,
 ) {
-	var errStorage storer.LogStorageError
+	var (
+		errStorage         storer.LogStorageError
+		storedBlockNumber  uint64
+		storedBlockHash    []byte
+		lastBlockSeen      uint64
+		reorgCheckInterval uint64 = 10 // TODO: Adapt based on blocks per batch
+		reorgDetectedAt    uint64
+		reorgLastCheckAt   uint64
+	)
 
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
 	for event := range eventChannel {
-		storedBlockNumber, storedBlockHash := blockTracker.GetLatestBlock()
+		// When a reorg is detected, discard the events higher than the block number of the reorg
+		if reorgDetectedAt > 0 {
+			if event.BlockNumber >= reorgDetectedAt {
+				logger.Debug("discarding event due to reorg",
+					zap.Uint64("event_block", event.BlockNumber),
+					zap.Uint64("reorg_block", reorgDetectedAt))
+				continue
+			}
+			logger.Info("resumed processing after reorg",
+				zap.Uint64("block_number", event.BlockNumber),
+				zap.Uint64("reorg_block", reorgDetectedAt))
+			reorgDetectedAt = 0
+		}
 
-		// TODO: Calculate the blocks safe distance in the L3 or risk tolerance we assume
-		if event.BlockNumber > storedBlockNumber &&
-			event.BlockNumber-storedBlockNumber < safeBlockDistance {
-			latestBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+		if lastBlockSeen > 0 && lastBlockSeen != event.BlockNumber {
+			storedBlockNumber, storedBlockHash = blockTracker.GetLatestBlock()
+		}
+
+		lastBlockSeen = event.BlockNumber
+
+		if storedBlockNumber > 0 &&
+			event.BlockNumber > storedBlockNumber &&
+			event.BlockNumber >= reorgLastCheckAt+reorgCheckInterval {
+			blockByNumber, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
 			if err != nil {
 				logger.Error("error getting block",
 					zap.Uint64("blockNumber", storedBlockNumber),
 					zap.Error(err),
 				)
-
 				continue
 			}
 
-			if !bytes.Equal(storedBlockHash, latestBlock.Hash().Bytes()) {
+			reorgLastCheckAt = event.BlockNumber
+
+			if !bytes.Equal(storedBlockHash, blockByNumber.Hash().Bytes()) {
 				logger.Warn("blockchain reorg detected",
 					zap.Uint64("storedBlockNumber", storedBlockNumber),
 					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
-					zap.String("onchainBlockHash", latestBlock.Hash().String()),
+					zap.String("onchainBlockHash", blockByNumber.Hash().String()),
 				)
-
-				// TODO: Implement reorg handling:
-				// 1. Find the common ancestor block using historical gateway_envelopes block numbers and hashes
-				// 2. Verify current event.BlockNumber's parent hash matches expected chain
-				// 3. Handle the reorg from ancestor to the latest block:
-				//    3.1. Mark existing db logs after common ancestor with:
-				//         - is_canonical: false
-				//    3.2. Use (is_canonical == true) as key for queries to detect the latest event
-				// 4. Send the block number to the reorg channel to trigger pulling the canonical blocks
-				//    4.1. New logs get marked with:
-				//         - is_canonical: true
-				//         - version = version + 1
-				// reorgChannel <- event.BlockNumber
+				reorgChannel <- storedBlockNumber
+				reorgDetectedAt = storedBlockNumber
+				continue
 			}
 		}
 
@@ -280,7 +294,6 @@ func indexLogs(
 				}
 			}
 			break Retry
-
 		}
 	}
 	logger.Debug("finished")

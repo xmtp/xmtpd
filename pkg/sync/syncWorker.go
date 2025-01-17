@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
+	"github.com/xmtp/xmtpd/pkg/misbehavior"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -31,6 +32,7 @@ type syncWorker struct {
 	subscriptions      map[uint32]struct{}
 	subscriptionsMutex sync.RWMutex
 	cancel             context.CancelFunc
+	misbehaviorService misbehavior.MisbehaviorService
 }
 
 type originatorStream struct {
@@ -58,14 +60,15 @@ func startSyncWorker(
 	ctx, cancel := context.WithCancel(ctx)
 
 	s := &syncWorker{
-		ctx:           ctx,
-		log:           log.Named("syncWorker"),
-		nodeRegistry:  nodeRegistry,
-		registrant:    registrant,
-		store:         store,
-		wg:            sync.WaitGroup{},
-		subscriptions: make(map[uint32]struct{}),
-		cancel:        cancel,
+		ctx:                ctx,
+		log:                log.Named("syncWorker"),
+		nodeRegistry:       nodeRegistry,
+		registrant:         registrant,
+		store:              store,
+		wg:                 sync.WaitGroup{},
+		subscriptions:      make(map[uint32]struct{}),
+		cancel:             cancel,
+		misbehaviorService: misbehavior.NewLoggingMisbehaviorService(log),
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -362,8 +365,10 @@ func (s *syncWorker) validateAndInsertEnvelope(
 		lastNs = stream.lastEnvelope.OriginatorNs()
 	}
 	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
-		// TODO(rich) Submit misbehavior report and continue
-		s.log.Error("Received out of order envelope")
+		err = s.submitOutOfOrderReport(stream.nodeID, stream.lastEnvelope, env)
+		if err != nil {
+			s.log.Error("Failed to submit out of order report", zap.Error(err))
+		}
 	}
 
 	if env.OriginatorSequenceID() > lastSequenceID {
@@ -373,6 +378,28 @@ func (s *syncWorker) validateAndInsertEnvelope(
 	// TODO Validation logic - share code with API service and publish worker
 	// Signatures, topic type, etc
 	s.insertEnvelope(env)
+}
+
+func (s *syncWorker) submitOutOfOrderReport(
+	nodeID uint32,
+	lastEnvelope *envUtils.OriginatorEnvelope,
+	currentEnvelope *envUtils.OriginatorEnvelope,
+) error {
+	report, err := misbehavior.NewSafetyFailureReport(
+		nodeID,
+		message_api.Misbehavior_MISBEHAVIOR_OUT_OF_ORDER,
+		true,
+		[]*envUtils.OriginatorEnvelope{lastEnvelope, currentEnvelope},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = s.misbehaviorService.SafetyFailure(report)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {

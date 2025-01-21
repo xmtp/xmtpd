@@ -17,7 +17,7 @@ type AddressLog struct {
 }
 
 type BlockchainMessage struct {
-	BlockNumber          int64
+	BlockNumber          uint64
 	BlockHash            []byte
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64

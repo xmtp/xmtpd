@@ -130,7 +130,7 @@ INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, or
 -- Returns blocks in descending order (newest to oldest)
 -- StartBlock should be the lower bound (older block)
 -- EndBlock should be the upper bound (newer block)
--- Example: GetBlocksInRange(1000, 2000) gets blocks 2000 down to 1000
+-- Example: GetBlocksInRange(1000, 2000), returns 1000, 1001, 1002, ..., 2000
 SELECT DISTINCT ON (block_number)
 	block_number,
 	block_hash

@@ -86,20 +86,24 @@ WHERE
 	AND block_hash IS NOT NULL
 	AND is_canonical = TRUE
 ORDER BY
-	block_number DESC,
+	block_number ASC,
 	block_hash
 `
 
 type GetBlocksInRangeParams struct {
-	StartBlock int64
-	EndBlock   int64
+	StartBlock uint64
+	EndBlock   uint64
 }
 
 type GetBlocksInRangeRow struct {
-	BlockNumber int64
+	BlockNumber uint64
 	BlockHash   []byte
 }
 
+// Returns blocks in descending order (newest to oldest)
+// StartBlock should be the lower bound (older block)
+// EndBlock should be the upper bound (newer block)
+// Example: GetBlocksInRange(1000, 2000), returns 1000, 1001, 1002, ..., 2000
 func (q *Queries) GetBlocksInRange(ctx context.Context, arg GetBlocksInRangeParams) ([]GetBlocksInRangeRow, error) {
 	rows, err := q.db.QueryContext(ctx, getBlocksInRange, arg.StartBlock, arg.EndBlock)
 	if err != nil {
@@ -192,7 +196,7 @@ INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, or
 `
 
 type InsertBlockchainMessageParams struct {
-	BlockNumber          int64
+	BlockNumber          uint64
 	BlockHash            []byte
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64

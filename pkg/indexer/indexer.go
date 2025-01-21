@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"math/big"
 	"sync"
 	"time"
@@ -295,7 +296,7 @@ func indexLogs(
 			}
 
 			reorgCheckAt = event.BlockNumber
-			logger.Debug("periodic blockchain reorg check",
+			logger.Debug("blockchain reorg periodic check",
 				zap.Uint64("blockNumber", reorgCheckAt),
 			)
 
@@ -306,11 +307,11 @@ func indexLogs(
 					zap.String("onchainBlockHash", onchainBlock.Hash().String()),
 				)
 
-				reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindCommonAncestor(
+				reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindReorgPoint(
 					storedBlockNumber,
 				)
-				if err != nil {
-					logger.Error("error finding common ancestor", zap.Error(err))
+				if err != nil && !errors.Is(err, ErrNoBlocksFound) {
+					logger.Error("reorg point not found", zap.Error(err))
 					continue
 				}
 
@@ -318,7 +319,10 @@ func indexLogs(
 				reorgBeginsAt = reorgBlockNumber
 				reorgFinishesAt = storedBlockNumber
 
-				blockTracker.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash)
+				if trackerErr := blockTracker.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash); trackerErr != nil {
+					logger.Error("error updating block tracker", zap.Error(trackerErr))
+				}
+
 				reorgChannel <- reorgBlockNumber
 				continue
 			}

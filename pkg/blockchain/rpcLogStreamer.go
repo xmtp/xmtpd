@@ -198,7 +198,7 @@ func (r *RpcLogStreamer) getNextPage(
 		r.logger.Debug("Chain is up to date. Skipping update")
 		return []types.Log{}, nil, nil
 	}
-	numOfBlocksToProcess := highestBlockCanProcess - fromBlock + 1
+	numOfBlocksToProcess := (highestBlockCanProcess - fromBlock) + 1
 
 	var to uint64
 	// Make sure we stay within a reasonable page size

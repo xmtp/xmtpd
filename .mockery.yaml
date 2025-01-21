@@ -20,6 +20,7 @@ packages:
   github.com/xmtp/xmtpd/pkg/indexer:
     interfaces:
       IBlockTracker:
+      ChainReorgHandler:
   github.com/xmtp/xmtpd/pkg/blockchain:
     interfaces:
       ChainClient:

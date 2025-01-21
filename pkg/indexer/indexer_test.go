@@ -45,9 +45,8 @@ func TestIndexLogsSuccess(t *testing.T) {
 	blockTracker.EXPECT().
 		UpdateLatestBlock(mock.Anything, newBlockNumber, newBlockHash.Bytes()).
 		Return(nil)
-	blockTracker.EXPECT().
-		GetLatestBlock().
-		Return(newBlockNumber, newBlockHash.Bytes())
+
+	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)
 
 	logStorer := storerMocks.NewMockLogStorer(t)
 	logStorer.EXPECT().
@@ -62,6 +61,7 @@ func TestIndexLogsSuccess(t *testing.T) {
 		testutils.NewLog(t),
 		logStorer,
 		blockTracker,
+		reorgHandler,
 	)
 
 	time.Sleep(100 * time.Millisecond)
@@ -90,11 +90,8 @@ func TestIndexLogsRetryableError(t *testing.T) {
 
 	mockClient := blockchainMocks.NewMockChainClient(t)
 	logStorer := storerMocks.NewMockLogStorer(t)
-
 	blockTracker := indexerMocks.NewMockIBlockTracker(t)
-	blockTracker.EXPECT().
-		GetLatestBlock().
-		Return(newBlockNumber, newBlockHash.Bytes())
+	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)
 
 	// Will fail for the first call with a retryable error and a non-retryable error on the second call
 	attemptNumber := 0
@@ -116,6 +113,7 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		testutils.NewLog(t),
 		logStorer,
 		blockTracker,
+		reorgHandler,
 	)
 
 	time.Sleep(200 * time.Millisecond)

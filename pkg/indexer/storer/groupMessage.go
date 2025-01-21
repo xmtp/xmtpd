@@ -2,7 +2,6 @@ package storer
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -85,36 +84,13 @@ func (s *GroupMessageStorer) StoreLog(
 		return NewLogStorageError(err, false)
 	}
 
-	version := sql.NullInt32{Int32: 1, Valid: true}
-
 	if appendLog {
-		version, err = GetVersionForAppend(
-			ctx,
-			s.queries,
-			s.logger,
-			GROUP_MESSAGE_ORIGINATOR_ID,
-			int64(msgSent.SequenceId),
-		)
-		if err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return NewLogStorageError(err, true)
-			}
-			if errors.Is(err, sql.ErrNoRows) {
-				s.logger.Debug("No rows found for envelope, inserting new",
-					zap.Int("originator_node_id", GROUP_MESSAGE_ORIGINATOR_ID),
-					zap.Int64("originator_sequence_id", int64(msgSent.SequenceId)),
-				)
-			}
-		}
+		// placeholder
 	}
 
 	s.logger.Debug("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-		BlockNumber:          sql.NullInt64{Int64: int64(event.BlockNumber), Valid: true},
-		BlockHash:            event.BlockHash.Bytes(),
-		Version:              version,
-		IsCanonical:          sql.NullBool{Bool: true, Valid: true},
 		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                topicStruct.Bytes(),

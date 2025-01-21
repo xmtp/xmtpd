@@ -13,3 +13,4 @@ CREATE INDEX idx_blockchain_messages_canonical ON blockchain_messages(block_numb
 WHERE
 	is_canonical = TRUE;
 
+-- TODO: Check for better indexes

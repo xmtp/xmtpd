@@ -107,7 +107,7 @@ func buildAad(topic *topic.Topic) *envelopesProto.AuthenticatedData {
 	return &envelopesProto.AuthenticatedData{
 		TargetOriginator: 1,
 		TargetTopic:      topic.Bytes(),
-		LastSeen:         &envelopesProto.Cursor{},
+		DependsOn:        &envelopesProto.Cursor{},
 	}
 }
 

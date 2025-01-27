@@ -122,3 +122,11 @@ FROM
 WHERE
 	contract_address = @contract_address;
 
+-- name: GetLatestCursor :many
+SELECT
+    originator_node_id,
+    MAX(originator_sequence_id)::BIGINT AS max_sequence_id
+FROM
+    gateway_envelopes
+GROUP BY
+    originator_node_id;

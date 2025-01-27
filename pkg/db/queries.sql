@@ -129,7 +129,7 @@ ON CONFLICT
 	DO NOTHING;
 
 -- name: GetBlocksInRange :many
--- Returns blocks in descending order (newest to oldest)
+-- Returns blocks in ascending order (oldest to newest)
 -- StartBlock should be the lower bound (older block)
 -- EndBlock should be the upper bound (newer block)
 -- Example: GetBlocksInRange(1000, 2000), returns 1000, 1001, 1002, ..., 2000

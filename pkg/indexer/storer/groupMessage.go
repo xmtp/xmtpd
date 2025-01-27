@@ -40,7 +40,6 @@ func NewGroupMessageStorer(
 func (s *GroupMessageStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
-	appendLog bool,
 ) LogStorageError {
 	msgSent, err := s.contract.ParseMessageSent(event)
 	if err != nil {
@@ -84,10 +83,6 @@ func (s *GroupMessageStorer) StoreLog(
 		return NewLogStorageError(err, false)
 	}
 
-	if appendLog {
-		// placeholder
-	}
-
 	s.logger.Debug("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
@@ -97,6 +92,17 @@ func (s *GroupMessageStorer) StoreLog(
 		OriginatorEnvelope:   originatorEnvelopeBytes,
 	}); err != nil {
 		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
+		return NewLogStorageError(err, true)
+	}
+
+	if err = s.queries.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
+		BlockNumber:          event.BlockNumber,
+		BlockHash:            event.BlockHash.Bytes(),
+		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,
+		OriginatorSequenceID: int64(msgSent.SequenceId),
+		IsCanonical:          true, // New messages are always canonical
+	}); err != nil {
+		s.logger.Error("Error inserting blockchain message", zap.Error(err))
 		return NewLogStorageError(err, true)
 	}
 

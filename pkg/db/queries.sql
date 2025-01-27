@@ -124,7 +124,9 @@ WHERE
 
 -- name: InsertBlockchainMessage :exec
 INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
-	VALUES (@block_number, @block_hash, @originator_node_id, @originator_sequence_id, @is_canonical);
+	VALUES (@block_number, @block_hash, @originator_node_id, @originator_sequence_id, @is_canonical)
+ON CONFLICT
+	DO NOTHING;
 
 -- name: GetBlocksInRange :many
 -- Returns blocks in descending order (newest to oldest)
@@ -143,4 +145,12 @@ WHERE
 ORDER BY
 	block_number ASC,
 	block_hash;
+
+-- name: UpdateBlocksCanonicalityInRange :exec
+UPDATE
+	blockchain_messages
+SET
+	is_canonical = FALSE
+WHERE
+	block_number >= @reorg_block_number;
 

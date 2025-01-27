@@ -84,25 +84,38 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 		}
 
 		// Oldest block matches, reorg happened in this range
-		return r.searchInRange(storedBlocks)
+		blockNumber, blockHash, err := r.searchInRange(storedBlocks)
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to search reorg block in range: %w", err)
+		}
+
+		if err := r.queries.UpdateBlocksCanonicalityInRange(r.ctx, blockNumber); err != nil {
+			return 0, nil, fmt.Errorf("failed to update block range canonicality: %w", err)
+		}
+
+		return blockNumber, blockHash, nil
 	}
 }
 
 func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint64, []byte, error) {
+	if len(blocks) == 0 {
+		return 0, nil, ErrNoBlocksFound
+	}
+
 	left, right := 0, len(blocks)-1
 	for left <= right {
 		mid := (left + right) / 2
-		block := blocks[mid]
+		storedBlock := blocks[mid]
 
 		chainBlock, err := r.client.BlockByNumber(
 			r.ctx,
-			big.NewInt(int64(block.BlockNumber)),
+			big.NewInt(int64(storedBlock.BlockNumber)),
 		)
 		if err != nil {
-			return 0, nil, fmt.Errorf("%w %d: %v", ErrGetBlock, block.BlockNumber, err)
+			return 0, nil, fmt.Errorf("%w %d: %v", ErrGetBlock, storedBlock.BlockNumber, err)
 		}
 
-		if bytes.Equal(block.BlockHash, chainBlock.Hash().Bytes()) {
+		if bytes.Equal(storedBlock.BlockHash, chainBlock.Hash().Bytes()) {
 			// Found a matching block, check if next block differs to confirm reorg point
 			if mid < len(blocks)-1 {
 				nextBlock := blocks[mid+1]
@@ -115,10 +128,8 @@ func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint
 				}
 
 				if !bytes.Equal(nextBlock.BlockHash, nextChainBlock.Hash().Bytes()) {
-					return block.BlockNumber, chainBlock.Hash().Bytes(), nil
+					return storedBlock.BlockNumber, chainBlock.Hash().Bytes(), nil
 				}
-			} else if mid == len(blocks)-1 {
-				return block.BlockNumber, chainBlock.Hash().Bytes(), nil
 			}
 
 			// If next block doesn't differ, search upper half
@@ -129,8 +140,9 @@ func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint
 		}
 	}
 
-	// TODO: This should never happen, start from 0?
-	return 0, nil, fmt.Errorf("reorg point not found")
+	// This should never happen. If it happens, return the first block in the range.
+	block := blocks[0]
+	return block.BlockNumber, block.BlockHash, nil
 }
 
 func blockRange(from uint64) (startBlock uint64, endBlock uint64) {

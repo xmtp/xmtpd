@@ -52,7 +52,6 @@ func NewIdentityUpdateStorer(
 func (s *IdentityUpdateStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
-	appendLog bool,
 ) LogStorageError {
 	msgSent, err := s.contract.ParseIdentityUpdateCreated(event)
 	if err != nil {
@@ -171,10 +170,6 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return NewLogStorageError(err, true)
 			}
 
-			if appendLog {
-				// placeholder
-			}
-
 			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
@@ -182,6 +177,17 @@ func (s *IdentityUpdateStorer) StoreLog(
 				OriginatorEnvelope:   originatorEnvelopeBytes,
 			}); err != nil {
 				s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
+				return NewLogStorageError(err, true)
+			}
+
+			if err = querier.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
+				BlockNumber:          event.BlockNumber,
+				BlockHash:            event.BlockHash.Bytes(),
+				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
+				OriginatorSequenceID: int64(msgSent.SequenceId),
+				IsCanonical:          true, // New messages are always canonical
+			}); err != nil {
+				s.logger.Error("Error inserting blockchain message", zap.Error(err))
 				return NewLogStorageError(err, true)
 			}
 

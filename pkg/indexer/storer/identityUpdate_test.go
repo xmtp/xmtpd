@@ -79,7 +79,6 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	err := storer.StoreLog(
 		ctx,
 		logMessage,
-		false,
 	)
 	require.NoError(t, err)
 

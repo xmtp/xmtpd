@@ -56,7 +56,6 @@ func TestStoreGroupMessages(t *testing.T) {
 	err = storer.StoreLog(
 		ctx,
 		logMessage,
-		false,
 	)
 	require.NoError(t, err)
 
@@ -100,14 +99,12 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	err := storer.StoreLog(
 		ctx,
 		logMessage,
-		false,
 	)
 	require.NoError(t, err)
 	// Store the log a second time
 	err = storer.StoreLog(
 		ctx,
 		logMessage,
-		false,
 	)
 	require.NoError(t, err)
 
@@ -136,7 +133,7 @@ func TestStoreGroupMessageMalformed(t *testing.T) {
 		Data:   []byte("foo"),
 	}
 
-	storageErr := storer.StoreLog(ctx, logMessage, false)
+	storageErr := storer.StoreLog(ctx, logMessage)
 	require.Error(t, storageErr)
 	require.False(t, storageErr.ShouldRetry())
 }

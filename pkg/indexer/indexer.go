@@ -330,7 +330,7 @@ func indexLogs(
 
 	Retry:
 		for {
-			errStorage = logStorer.StoreLog(ctx, event, reorgInProgress)
+			errStorage = logStorer.StoreLog(ctx, event)
 			if errStorage != nil {
 				logger.Error("error storing log", zap.Error(errStorage))
 				if errStorage.ShouldRetry() {

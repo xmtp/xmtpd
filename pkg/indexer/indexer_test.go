@@ -50,7 +50,7 @@ func TestIndexLogsSuccess(t *testing.T) {
 
 	logStorer := storerMocks.NewMockLogStorer(t)
 	logStorer.EXPECT().
-		StoreLog(mock.Anything, event, false).
+		StoreLog(mock.Anything, event).
 		Return(nil)
 
 	go indexLogs(
@@ -97,8 +97,8 @@ func TestIndexLogsRetryableError(t *testing.T) {
 	attemptNumber := 0
 
 	logStorer.EXPECT().
-		StoreLog(mock.Anything, event, false).
-		RunAndReturn(func(ctx context.Context, log types.Log, isCanonical bool) storer.LogStorageError {
+		StoreLog(mock.Anything, event).
+		RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
 			attemptNumber++
 			return storer.NewLogStorageError(errors.New("retryable error"), attemptNumber < 2)
 		})

@@ -122,7 +122,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
 		TargetOriginator: 100,
-		LastSeen:         &envelopes.Cursor{},
+		DependsOn:        &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
 		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
@@ -161,7 +161,7 @@ func TestKeyPackageValidationFail(t *testing.T) {
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
 		TargetOriginator: 100,
-		LastSeen:         &envelopes.Cursor{},
+		DependsOn:        &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
 		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{

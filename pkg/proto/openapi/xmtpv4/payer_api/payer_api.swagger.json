@@ -260,7 +260,7 @@
           "type": "string",
           "format": "byte"
         },
-        "lastSeen": {
+        "dependsOn": {
           "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       },

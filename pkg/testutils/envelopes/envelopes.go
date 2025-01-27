@@ -30,7 +30,7 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 			TargetOriginator: 100,
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 				Bytes(),
-			LastSeen: &envelopes.Cursor{},
+			DependsOn: &envelopes.Cursor{},
 		})
 	}
 	return &envelopes.ClientEnvelope{
@@ -130,7 +130,7 @@ func CreateOriginatorEnvelopeWithTopic(
 		&envelopes.AuthenticatedData{
 			TargetTopic:      topic,
 			TargetOriginator: originatorNodeID,
-			LastSeen:         nil,
+			DependsOn:        nil,
 		},
 	))
 

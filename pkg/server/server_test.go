@@ -156,7 +156,7 @@ func TestCreateServer(t *testing.T) {
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: server1NodeID,
 					TargetTopic:      targetTopic,
-					LastSeen:         &envelopes.Cursor{},
+					DependsOn:        &envelopes.Cursor{},
 				}),
 			)},
 		},
@@ -170,7 +170,7 @@ func TestCreateServer(t *testing.T) {
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: server2NodeID,
 					TargetTopic:      targetTopic,
-					LastSeen:         &envelopes.Cursor{},
+					DependsOn:        &envelopes.Cursor{},
 				}),
 			)},
 		},
@@ -257,7 +257,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: server1NodeID,
 					TargetTopic:      targetTopic,
-					LastSeen:         &envelopes.Cursor{},
+					DependsOn:        &envelopes.Cursor{},
 				}),
 			)},
 		},

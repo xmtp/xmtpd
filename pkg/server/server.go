@@ -221,7 +221,7 @@ func startAPIServer(
 
 		if options.Metadata.Enable {
 
-			replicationService, err := metadata.NewMetadataApiService(
+			metadataService, err := metadata.NewMetadataApiService(
 				ctx,
 				log,
 				writerDB,
@@ -229,7 +229,7 @@ func startAPIServer(
 			if err != nil {
 				return err
 			}
-			metadata_api.RegisterMetadataApiServer(grpcServer, replicationService)
+			metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
 
 			log.Info("Metadata service enabled")
 		}

@@ -51,6 +51,16 @@ func (s *Service) SubscribeSyncCursor(
 		return status.Errorf(codes.Internal, "could not send header: %v", err)
 	}
 
+	// send the initial cursor
+	// the subscriber will only send a new message if there was a change
+	cursor := s.cu.GetCursor()
+	err = stream.Send(&metadata_api.GetSyncCursorResponse{
+		LatestSync: cursor,
+	})
+	if err != nil {
+		return status.Errorf(codes.Internal, "error sending cursor: %v", err)
+	}
+
 	clientID := fmt.Sprintf("client-%d", time.Now().UnixNano())
 	updateChan := make(chan struct{}, 1)
 	s.cu.AddSubscriber(clientID, updateChan)

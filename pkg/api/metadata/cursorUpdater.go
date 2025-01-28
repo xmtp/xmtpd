@@ -42,21 +42,35 @@ func (cu *CursorUpdater) start() {
 		case <-cu.ctx.Done():
 			return
 		case <-ticker.C:
-			err := cu.read()
+			updated, err := cu.read()
 			if err != nil {
 				//TODO proper error handling
 				return
 			}
-			cu.notifySubscribers()
+			if updated {
+				cu.notifySubscribers()
+			}
 		}
 	}
 }
 
-func (cu *CursorUpdater) read() error {
+func equalCursors(a, b map[uint32]uint64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, valA := range a {
+		if valB, ok := b[key]; !ok || valA != valB {
+			return false
+		}
+	}
+	return true
+}
+
+func (cu *CursorUpdater) read() (bool, error) {
 
 	rows, err := queries.New(cu.store).GetLatestCursor(cu.ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	nodeIdToSequenceId := make(map[uint32]uint64)
@@ -67,9 +81,12 @@ func (cu *CursorUpdater) read() error {
 	cu.cursorMu.Lock()
 	defer cu.cursorMu.Unlock()
 
-	cu.cursor = nodeIdToSequenceId
+	if !equalCursors(cu.cursor, nodeIdToSequenceId) {
+		cu.cursor = nodeIdToSequenceId
+		return true, nil
+	}
 
-	return nil
+	return false, nil
 }
 
 func (cu *CursorUpdater) notifySubscribers() {

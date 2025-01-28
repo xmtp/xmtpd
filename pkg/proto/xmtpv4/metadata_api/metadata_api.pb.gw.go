@@ -57,6 +57,27 @@ func local_request_MetadataApi_GetSyncCursor_0(ctx context.Context, marshaler ru
 
 }
 
+func request_MetadataApi_SubscribeSyncCursor_0(ctx context.Context, marshaler runtime.Marshaler, client MetadataApiClient, req *http.Request, pathParams map[string]string) (MetadataApi_SubscribeSyncCursorClient, runtime.ServerMetadata, error) {
+	var protoReq GetSyncCursorRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.SubscribeSyncCursor(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
 // RegisterMetadataApiHandlerServer registers the http handlers for service MetadataApi to "mux".
 // UnaryRPC     :call MetadataApiServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
@@ -71,7 +92,7 @@ func RegisterMetadataApiHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/xmtp.xmtpv4.payer_api.MetadataApi/GetSyncCursor", runtime.WithHTTPPathPattern("/mls/v2/metadata/get-sync-cursor"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/xmtp.xmtpv4.metadata_api.MetadataApi/GetSyncCursor", runtime.WithHTTPPathPattern("/mls/v2/metadata/get-sync-cursor"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -86,6 +107,13 @@ func RegisterMetadataApiHandlerServer(ctx context.Context, mux *runtime.ServeMux
 
 		forward_MetadataApi_GetSyncCursor_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
+	})
+
+	mux.Handle("POST", pattern_MetadataApi_SubscribeSyncCursor_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
+		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+		return
 	})
 
 	return nil
@@ -135,7 +163,7 @@ func RegisterMetadataApiHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.payer_api.MetadataApi/GetSyncCursor", runtime.WithHTTPPathPattern("/mls/v2/metadata/get-sync-cursor"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.metadata_api.MetadataApi/GetSyncCursor", runtime.WithHTTPPathPattern("/mls/v2/metadata/get-sync-cursor"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -151,13 +179,39 @@ func RegisterMetadataApiHandlerClient(ctx context.Context, mux *runtime.ServeMux
 
 	})
 
+	mux.Handle("POST", pattern_MetadataApi_SubscribeSyncCursor_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.metadata_api.MetadataApi/SubscribeSyncCursor", runtime.WithHTTPPathPattern("/mls/v2/metadata/subscribe-sync-cursor"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_MetadataApi_SubscribeSyncCursor_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MetadataApi_SubscribeSyncCursor_0(annotatedContext, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
 var (
 	pattern_MetadataApi_GetSyncCursor_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"mls", "v2", "metadata", "get-sync-cursor"}, ""))
+
+	pattern_MetadataApi_SubscribeSyncCursor_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"mls", "v2", "metadata", "subscribe-sync-cursor"}, ""))
 )
 
 var (
 	forward_MetadataApi_GetSyncCursor_0 = runtime.ForwardResponseMessage
+
+	forward_MetadataApi_SubscribeSyncCursor_0 = runtime.ForwardResponseStream
 )

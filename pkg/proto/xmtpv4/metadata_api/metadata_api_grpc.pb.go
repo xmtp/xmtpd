@@ -21,7 +21,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	MetadataApi_GetSyncCursor_FullMethodName = "/xmtp.xmtpv4.payer_api.MetadataApi/GetSyncCursor"
+	MetadataApi_GetSyncCursor_FullMethodName       = "/xmtp.xmtpv4.metadata_api.MetadataApi/GetSyncCursor"
+	MetadataApi_SubscribeSyncCursor_FullMethodName = "/xmtp.xmtpv4.metadata_api.MetadataApi/SubscribeSyncCursor"
 )
 
 // MetadataApiClient is the client API for MetadataApi service.
@@ -29,6 +30,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MetadataApiClient interface {
 	GetSyncCursor(ctx context.Context, in *GetSyncCursorRequest, opts ...grpc.CallOption) (*GetSyncCursorResponse, error)
+	SubscribeSyncCursor(ctx context.Context, in *GetSyncCursorRequest, opts ...grpc.CallOption) (MetadataApi_SubscribeSyncCursorClient, error)
 }
 
 type metadataApiClient struct {
@@ -48,11 +50,44 @@ func (c *metadataApiClient) GetSyncCursor(ctx context.Context, in *GetSyncCursor
 	return out, nil
 }
 
+func (c *metadataApiClient) SubscribeSyncCursor(ctx context.Context, in *GetSyncCursorRequest, opts ...grpc.CallOption) (MetadataApi_SubscribeSyncCursorClient, error) {
+	stream, err := c.cc.NewStream(ctx, &MetadataApi_ServiceDesc.Streams[0], MetadataApi_SubscribeSyncCursor_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &metadataApiSubscribeSyncCursorClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type MetadataApi_SubscribeSyncCursorClient interface {
+	Recv() (*GetSyncCursorResponse, error)
+	grpc.ClientStream
+}
+
+type metadataApiSubscribeSyncCursorClient struct {
+	grpc.ClientStream
+}
+
+func (x *metadataApiSubscribeSyncCursorClient) Recv() (*GetSyncCursorResponse, error) {
+	m := new(GetSyncCursorResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // MetadataApiServer is the server API for MetadataApi service.
 // All implementations must embed UnimplementedMetadataApiServer
 // for forward compatibility
 type MetadataApiServer interface {
 	GetSyncCursor(context.Context, *GetSyncCursorRequest) (*GetSyncCursorResponse, error)
+	SubscribeSyncCursor(*GetSyncCursorRequest, MetadataApi_SubscribeSyncCursorServer) error
 	mustEmbedUnimplementedMetadataApiServer()
 }
 
@@ -62,6 +97,9 @@ type UnimplementedMetadataApiServer struct {
 
 func (UnimplementedMetadataApiServer) GetSyncCursor(context.Context, *GetSyncCursorRequest) (*GetSyncCursorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSyncCursor not implemented")
+}
+func (UnimplementedMetadataApiServer) SubscribeSyncCursor(*GetSyncCursorRequest, MetadataApi_SubscribeSyncCursorServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeSyncCursor not implemented")
 }
 func (UnimplementedMetadataApiServer) mustEmbedUnimplementedMetadataApiServer() {}
 
@@ -94,11 +132,32 @@ func _MetadataApi_GetSyncCursor_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetadataApi_SubscribeSyncCursor_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetSyncCursorRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(MetadataApiServer).SubscribeSyncCursor(m, &metadataApiSubscribeSyncCursorServer{stream})
+}
+
+type MetadataApi_SubscribeSyncCursorServer interface {
+	Send(*GetSyncCursorResponse) error
+	grpc.ServerStream
+}
+
+type metadataApiSubscribeSyncCursorServer struct {
+	grpc.ServerStream
+}
+
+func (x *metadataApiSubscribeSyncCursorServer) Send(m *GetSyncCursorResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // MetadataApi_ServiceDesc is the grpc.ServiceDesc for MetadataApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var MetadataApi_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "xmtp.xmtpv4.payer_api.MetadataApi",
+	ServiceName: "xmtp.xmtpv4.metadata_api.MetadataApi",
 	HandlerType: (*MetadataApiServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -106,6 +165,12 @@ var MetadataApi_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MetadataApi_GetSyncCursor_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "SubscribeSyncCursor",
+			Handler:       _MetadataApi_SubscribeSyncCursor_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "xmtpv4/metadata_api/metadata_api.proto",
 }

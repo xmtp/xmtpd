@@ -23,7 +23,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/payer_apiGetSyncCursorResponse"
+              "$ref": "#/definitions/metadata_apiGetSyncCursorResponse"
             }
           },
           "default": {
@@ -39,7 +39,48 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/payer_apiGetSyncCursorRequest"
+              "$ref": "#/definitions/metadata_apiGetSyncCursorRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MetadataApi"
+        ]
+      }
+    },
+    "/mls/v2/metadata/subscribe-sync-cursor": {
+      "post": {
+        "operationId": "MetadataApi_SubscribeSyncCursor",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/metadata_apiGetSyncCursorResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of metadata_apiGetSyncCursorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetSyncCursorRequest"
             }
           }
         ],
@@ -50,10 +91,10 @@
     }
   },
   "definitions": {
-    "payer_apiGetSyncCursorRequest": {
+    "metadata_apiGetSyncCursorRequest": {
       "type": "object"
     },
-    "payer_apiGetSyncCursorResponse": {
+    "metadata_apiGetSyncCursorResponse": {
       "type": "object",
       "properties": {
         "latestSync": {

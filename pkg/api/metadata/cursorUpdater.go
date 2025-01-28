@@ -64,8 +64,8 @@ func (cu *CursorUpdater) read() error {
 		nodeIdToSequenceId[uint32(row.OriginatorNodeID)] = uint64(row.MaxSequenceID)
 	}
 
-	cu.cursorMu.RLock()
-	defer cu.cursorMu.RUnlock()
+	cu.cursorMu.Lock()
+	defer cu.cursorMu.Unlock()
 
 	cu.cursor = nodeIdToSequenceId
 

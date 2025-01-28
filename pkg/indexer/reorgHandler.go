@@ -98,10 +98,6 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 }
 
 func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint64, []byte, error) {
-	if len(blocks) == 0 {
-		return 0, nil, ErrNoBlocksFound
-	}
-
 	left, right := 0, len(blocks)-1
 	for left <= right {
 		mid := (left + right) / 2

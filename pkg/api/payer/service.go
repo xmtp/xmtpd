@@ -32,6 +32,7 @@ type Service struct {
 	clientManager       *ClientManager
 	blockchainPublisher blockchain.IBlockchainPublisher
 	payerPrivateKey     *ecdsa.PrivateKey
+	nodeCursorTracker   *NodeCursorTracker
 }
 
 func NewPayerApiService(
@@ -41,12 +42,14 @@ func NewPayerApiService(
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 ) (*Service, error) {
+	clientManager := NewClientManager(log, registry)
 	return &Service{
 		ctx:                 ctx,
 		log:                 log,
-		clientManager:       NewClientManager(log, registry),
+		clientManager:       clientManager,
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
+		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, clientManager),
 	}, nil
 }
 
@@ -174,6 +177,9 @@ func (s *Service) publishToBlockchain(
 ) (*envelopesProto.OriginatorEnvelope, error) {
 	targetTopic := clientEnvelope.TargetTopic()
 	identifier := targetTopic.Identifier()
+	expectedNode := clientEnvelope.Aad().TargetOriginator
+	desiredOriginatorId := uint32(1) //TODO: determine this from the chain
+	desiredSequenceId := uint64(0)
 	kind := targetTopic.Kind()
 
 	// Get the group ID as [32]byte
@@ -214,6 +220,7 @@ func (s *Service) publishToBlockchain(
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
+		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		var logMessage *identityupdates.IdentityUpdatesIdentityUpdateCreated
@@ -230,6 +237,8 @@ func (s *Service) publishToBlockchain(
 			logMessage.SequenceId,
 			logMessage.Update,
 		)
+		desiredSequenceId = logMessage.SequenceId
+
 	default:
 		return nil, status.Errorf(
 			codes.InvalidArgument,
@@ -245,6 +254,15 @@ func (s *Service) publishToBlockchain(
 			"error marshalling unsigned originator envelope: %v",
 			err,
 		)
+	}
+	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
+		ctx,
+		expectedNode,
+		desiredOriginatorId,
+		desiredSequenceId,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &envelopesProto.OriginatorEnvelope{

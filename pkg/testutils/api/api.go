@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -17,6 +18,7 @@ import (
 	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -59,6 +61,25 @@ func NewPayerAPIClient(
 	)
 	require.NoError(t, err)
 	client := payer_api.NewPayerApiClient(conn)
+	return client, func() {
+		err := conn.Close()
+		require.NoError(t, err)
+	}
+}
+
+func NewMetadataAPIClient(
+	t *testing.T,
+	ctx context.Context,
+	addr string,
+) (metadata_api.MetadataApiClient, func()) {
+	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
+	conn, err := grpc.NewClient(
+		dialAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(),
+	)
+	require.NoError(t, err)
+	client := metadata_api.NewMetadataApiClient(conn)
 	return client, func() {
 		err := conn.Close()
 		require.NoError(t, err)
@@ -117,6 +138,10 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 		require.NoError(t, err)
 		payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
+		metadataService, err := metadata.NewMetadataApiService(ctx, log, db)
+		require.NoError(t, err)
+		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
+
 		return nil
 	}
 
@@ -148,6 +173,17 @@ func NewTestReplicationAPIClient(
 ) (message_api.ReplicationApiClient, *sql.DB, ApiServerMocks, func()) {
 	svc, db, allMocks, svcCleanup := NewTestAPIServer(t)
 	client, clientCleanup := NewReplicationAPIClient(t, context.Background(), svc.Addr().String())
+	return client, db, allMocks, func() {
+		clientCleanup()
+		svcCleanup()
+	}
+}
+
+func NewTestMetadataAPIClient(
+	t *testing.T,
+) (metadata_api.MetadataApiClient, *sql.DB, ApiServerMocks, func()) {
+	svc, db, allMocks, svcCleanup := NewTestAPIServer(t)
+	client, clientCleanup := NewMetadataAPIClient(t, context.Background(), svc.Addr().String())
 	return client, db, allMocks, func() {
 		clientCleanup()
 		svcCleanup()

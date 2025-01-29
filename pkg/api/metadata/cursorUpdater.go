@@ -72,7 +72,6 @@ func equalCursors(a, b map[uint32]uint64) bool {
 }
 
 func (cu *CursorUpdater) read() (bool, error) {
-
 	rows, err := queries.New(cu.store).GetLatestCursor(cu.ctx)
 	if err != nil {
 		return false, err

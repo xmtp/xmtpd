@@ -1,0 +1,147 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "xmtpv4/metadata_api/metadata_api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "MetadataApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/mls/v2/metadata/get-sync-cursor": {
+      "post": {
+        "operationId": "MetadataApi_GetSyncCursor",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetSyncCursorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetSyncCursorRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MetadataApi"
+        ]
+      }
+    },
+    "/mls/v2/metadata/subscribe-sync-cursor": {
+      "post": {
+        "operationId": "MetadataApi_SubscribeSyncCursor",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/metadata_apiGetSyncCursorResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of metadata_apiGetSyncCursorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetSyncCursorRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MetadataApi"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "metadata_apiGetSyncCursorRequest": {
+      "type": "object"
+    },
+    "metadata_apiGetSyncCursorResponse": {
+      "type": "object",
+      "properties": {
+        "latestSync": {
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
+    }
+  }
+}

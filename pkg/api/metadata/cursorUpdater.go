@@ -23,9 +23,9 @@ type CursorUpdater struct {
 func NewCursorUpdater(ctx context.Context, log *zap.Logger, store *sql.DB) *CursorUpdater {
 	subscribers := make(map[string][]chan struct{})
 	cu := CursorUpdater{
-		ctx: ctx,
-		log: log.Named("cursor-updater"),
-		store: store,
+		ctx:         ctx,
+		log:         log.Named("cursor-updater"),
+		store:       store,
 		subscribers: subscribers,
 	}
 

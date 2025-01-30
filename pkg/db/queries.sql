@@ -122,6 +122,15 @@ FROM
 WHERE
 	contract_address = @contract_address;
 
+-- name: GetLatestCursor :many
+SELECT
+    originator_node_id,
+    MAX(originator_sequence_id)::BIGINT AS max_sequence_id
+FROM
+    gateway_envelopes
+GROUP BY
+    originator_node_id;
+
 -- name: InsertBlockchainMessage :exec
 INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
 	VALUES (@block_number, @block_hash, @originator_node_id, @originator_sequence_id, @is_canonical)

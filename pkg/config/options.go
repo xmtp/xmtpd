@@ -51,6 +51,10 @@ type SyncOptions struct {
 	Enable bool `long:"enable" env:"XMTPD_SYNC_ENABLE" description:"Enable the sync server"`
 }
 
+type MetadataOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_METADATA_ENABLE" description:"Enable the metadata API"`
+}
+
 type MlsValidationOptions struct {
 	GrpcAddress string `long:"grpc-address" env:"XMTPD_MLS_VALIDATION_GRPC_ADDRESS" description:"Address of the MLS validation service"`
 }
@@ -80,6 +84,7 @@ type ServerOptions struct {
 	DB            DbOptions            `group:"Database Options"       namespace:"db"`
 	Log           LogOptions           `group:"Log Options"            namespace:"log"`
 	Indexer       IndexerOptions       `group:"Indexer Options"        namespace:"indexer"`
+	Metadata      MetadataOptions      `group:"Metadata Options"       namespace:"metadata"`
 	Metrics       MetricsOptions       `group:"Metrics Options"        namespace:"metrics"`
 	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
 	Payer         PayerOptions         `group:"Payer Options"          namespace:"payer"`

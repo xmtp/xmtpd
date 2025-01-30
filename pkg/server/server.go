@@ -16,6 +16,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -25,6 +26,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -124,7 +126,7 @@ func NewReplicationServer(
 		log.Info("Indexer service enabled")
 	}
 
-	if options.Payer.Enable || options.Replication.Enable {
+	if options.Payer.Enable || options.Replication.Enable || options.Metadata.Enable {
 		err = startAPIServer(
 			s.ctx,
 			log,
@@ -215,6 +217,21 @@ func startAPIServer(
 			payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
 			log.Info("Payer service enabled")
+		}
+
+		if options.Metadata.Enable {
+
+			metadataService, err := metadata.NewMetadataApiService(
+				ctx,
+				log,
+				writerDB,
+			)
+			if err != nil {
+				return err
+			}
+			metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
+
+			log.Info("Metadata service enabled")
 		}
 
 		return nil

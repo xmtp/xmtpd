@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
-import "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title XMTP Group Messages Contract
 contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable {
     /// @notice Emitted when a message is sent.
     /// @param groupId The group ID.
-    /// @param message The message in bytes. Contains the full mls group message payload.
+    /// @param message The message in bytes. Contains the full MLS group message payload.
     /// @param sequenceId The unique sequence ID of the message.
     event MessageSent(bytes32 groupId, bytes message, uint64 sequenceId);
 

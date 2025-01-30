@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
 	IDENTITY_UPDATE_ORIGINATOR_ID = 1
 )
 
@@ -48,7 +49,10 @@ func NewIdentityUpdateStorer(
 }
 
 // Validate and store an identity update log event
-func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) LogStorageError {
+func (s *IdentityUpdateStorer) StoreLog(
+	ctx context.Context,
+	event types.Log,
+) LogStorageError {
 	msgSent, err := s.contract.ParseIdentityUpdateCreated(event)
 	if err != nil {
 		return NewLogStorageError(err, false)
@@ -167,13 +171,23 @@ func (s *IdentityUpdateStorer) StoreLog(ctx context.Context, event types.Log) Lo
 			}
 
 			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-				// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
 				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
 				Topic:                messageTopic.Bytes(),
 				OriginatorEnvelope:   originatorEnvelopeBytes,
 			}); err != nil {
 				s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
+				return NewLogStorageError(err, true)
+			}
+
+			if err = querier.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
+				BlockNumber:          event.BlockNumber,
+				BlockHash:            event.BlockHash.Bytes(),
+				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
+				OriginatorSequenceID: int64(msgSent.SequenceId),
+				IsCanonical:          true, // New messages are always canonical
+			}); err != nil {
+				s.logger.Error("Error inserting blockchain message", zap.Error(err))
 				return NewLogStorageError(err, true)
 			}
 

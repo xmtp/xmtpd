@@ -1,8 +1,12 @@
 package indexer
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
+	"errors"
+	"math/big"
 	"sync"
 	"time"
 
@@ -43,14 +47,20 @@ func NewIndexer(
 	}
 }
 
-func (s *Indexer) Close() {
-	s.log.Debug("Closing")
-	if s.streamer != nil {
-		s.streamer.streamer.Stop()
+func (i *Indexer) Close() {
+	i.log.Debug("Closing")
+	if i.streamer != nil {
+		if i.streamer.messagesReorgChannel != nil {
+			close(i.streamer.messagesReorgChannel)
+		}
+		if i.streamer.identityUpdatesReorgChannel != nil {
+			close(i.streamer.identityUpdatesReorgChannel)
+		}
+		i.streamer.streamer.Stop()
 	}
-	s.cancel()
-	s.wg.Wait()
-	s.log.Debug("Closed")
+	i.cancel()
+	i.wg.Wait()
+	i.log.Debug("Closed")
 }
 
 func (i *Indexer) StartIndexer(
@@ -86,10 +96,13 @@ func (i *Indexer) StartIndexer(
 
 			indexLogs(
 				ctx,
+				streamer.streamer.Client(),
 				streamer.messagesChannel,
+				streamer.messagesReorgChannel,
 				indexingLogger,
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
+				streamer.reorgHandler,
 			)
 		})
 
@@ -107,7 +120,10 @@ func (i *Indexer) StartIndexer(
 				With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress))
 			indexLogs(
 				ctx,
-				streamer.identityUpdatesChannel, indexingLogger,
+				streamer.streamer.Client(),
+				streamer.identityUpdatesChannel,
+				streamer.identityUpdatesReorgChannel,
+				indexingLogger,
 				storer.NewIdentityUpdateStorer(
 					db,
 					indexingLogger,
@@ -115,6 +131,7 @@ func (i *Indexer) StartIndexer(
 					validationService,
 				),
 				streamer.identityUpdatesBlockTracker,
+				streamer.reorgHandler,
 			)
 		})
 
@@ -124,8 +141,11 @@ func (i *Indexer) StartIndexer(
 
 type builtStreamer struct {
 	streamer                    *blockchain.RpcLogStreamer
+	reorgHandler                ChainReorgHandler
 	messagesChannel             <-chan types.Log
+	messagesReorgChannel        chan<- uint64
 	identityUpdatesChannel      <-chan types.Log
+	identityUpdatesReorgChannel chan<- uint64
 	identityUpdatesBlockTracker *BlockTracker
 	messagesBlockTracker        *BlockTracker
 }
@@ -147,7 +167,7 @@ func configureLogStream(
 	}
 
 	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
-	messagesChannel := builder.ListenForContractEvent(
+	messagesChannel, messagesReorgChannel := builder.ListenForContractEvent(
 		latestBlockNumber,
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
@@ -165,7 +185,7 @@ func configureLogStream(
 	}
 
 	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
-	identityUpdatesChannel := builder.ListenForContractEvent(
+	identityUpdatesChannel, identityUpdatesReorgChannel := builder.ListenForContractEvent(
 		latestBlockNumber,
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
@@ -177,10 +197,15 @@ func configureLogStream(
 		return nil, err
 	}
 
+	reorgHandler := NewChainReorgHandler(ctx, streamer.Client(), querier)
+
 	return &builtStreamer{
 		streamer:                    streamer,
+		reorgHandler:                reorgHandler,
 		messagesChannel:             messagesChannel,
+		messagesReorgChannel:        messagesReorgChannel,
 		identityUpdatesChannel:      identityUpdatesChannel,
+		identityUpdatesReorgChannel: identityUpdatesReorgChannel,
 		identityUpdatesBlockTracker: identityUpdatesTracker,
 		messagesBlockTracker:        messagesTracker,
 	}, nil
@@ -195,20 +220,120 @@ The only non-retriable errors should be things like malformed events or failed v
 */
 func indexLogs(
 	ctx context.Context,
+	client blockchain.ChainClient,
 	eventChannel <-chan types.Log,
+	reorgChannel chan<- uint64,
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
 	blockTracker IBlockTracker,
+	reorgHandler ChainReorgHandler,
 ) {
-	var err storer.LogStorageError
+	var (
+		errStorage         storer.LogStorageError
+		storedBlockNumber  uint64
+		storedBlockHash    []byte
+		lastBlockSeen      uint64
+		reorgCheckInterval uint64 = 10 // TODO: Adapt based on blocks per batch
+		reorgCheckAt       uint64
+		reorgDetectedAt    uint64
+		reorgBeginsAt      uint64
+		reorgFinishesAt    uint64
+		reorgInProgress    bool
+	)
+
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
 	for event := range eventChannel {
+		// 1.1 Handle active reorg state first
+		if reorgDetectedAt > 0 {
+			// Under a reorg, future events are no-op
+			if event.BlockNumber >= reorgDetectedAt {
+				logger.Debug("discarding future event due to reorg",
+					zap.Uint64("eventBlockNumber", event.BlockNumber),
+					zap.Uint64("reorgBlockNumber", reorgBeginsAt))
+				continue
+			}
+			logger.Info("starting processing reorg",
+				zap.Uint64("eventBlockNumber", event.BlockNumber),
+				zap.Uint64("reorgBlockNumber", reorgBeginsAt))
+
+			// When all future events have been discarded, it means we've reached the reorg point
+			storedBlockNumber, storedBlockHash = blockTracker.GetLatestBlock()
+			lastBlockSeen = event.BlockNumber
+			reorgDetectedAt = 0
+			reorgInProgress = true
+		}
+
+		// 1.2 Handle deactivation of reorg state
+		if reorgInProgress && event.BlockNumber > reorgFinishesAt {
+			logger.Info("finished processing reorg",
+				zap.Uint64("eventBlockNumber", event.BlockNumber),
+				zap.Uint64("reorgFinishesAt", reorgFinishesAt))
+			reorgInProgress = false
+		}
+
+		// 2. Get the latest block from tracker once per block
+		if lastBlockSeen > 0 && lastBlockSeen != event.BlockNumber {
+			storedBlockNumber, storedBlockHash = blockTracker.GetLatestBlock()
+		}
+		lastBlockSeen = event.BlockNumber
+
+		// 3. Check for reorgs, when:
+		// - There are no reorgs in progress
+		// - There's a stored block
+		// - The event block number is greater than the stored block number
+		// - The check interval has passed
+		if !reorgInProgress &&
+			storedBlockNumber > 0 &&
+			event.BlockNumber > storedBlockNumber &&
+			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
+			onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+			if err != nil {
+				logger.Error("error querying block from the blockchain",
+					zap.Uint64("blockNumber", storedBlockNumber),
+					zap.Error(err),
+				)
+				continue
+			}
+
+			reorgCheckAt = event.BlockNumber
+			logger.Debug("blockchain reorg periodic check",
+				zap.Uint64("blockNumber", reorgCheckAt),
+			)
+
+			if !bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
+				logger.Warn("blockchain reorg detected",
+					zap.Uint64("storedBlockNumber", storedBlockNumber),
+					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
+					zap.String("onchainBlockHash", onchainBlock.Hash().String()),
+				)
+
+				reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindReorgPoint(
+					storedBlockNumber,
+				)
+				if err != nil && !errors.Is(err, ErrNoBlocksFound) {
+					logger.Error("reorg point not found", zap.Error(err))
+					continue
+				}
+
+				reorgDetectedAt = storedBlockNumber
+				reorgBeginsAt = reorgBlockNumber
+				reorgFinishesAt = storedBlockNumber
+
+				if trackerErr := blockTracker.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash); trackerErr != nil {
+					logger.Error("error updating block tracker", zap.Error(trackerErr))
+				}
+
+				reorgChannel <- reorgBlockNumber
+				continue
+			}
+		}
+
 	Retry:
 		for {
-			err = logStorer.StoreLog(ctx, event)
-			if err != nil {
-				logger.Error("error storing log", zap.Error(err))
-				if err.ShouldRetry() {
+			errStorage = logStorer.StoreLog(ctx, event)
+			if errStorage != nil {
+				logger.Error("error storing log", zap.Error(errStorage))
+				if errStorage.ShouldRetry() {
 					time.Sleep(100 * time.Millisecond)
 					continue Retry
 				}
@@ -219,7 +344,6 @@ func indexLogs(
 				}
 			}
 			break Retry
-
 		}
 	}
 	logger.Debug("finished")

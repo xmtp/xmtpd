@@ -130,3 +130,36 @@ FROM
     gateway_envelopes
 GROUP BY
     originator_node_id;
+
+-- name: InsertBlockchainMessage :exec
+INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
+	VALUES (@block_number, @block_hash, @originator_node_id, @originator_sequence_id, @is_canonical)
+ON CONFLICT
+	DO NOTHING;
+
+-- name: GetBlocksInRange :many
+-- Returns blocks in ascending order (oldest to newest)
+-- StartBlock should be the lower bound (older block)
+-- EndBlock should be the upper bound (newer block)
+-- Example: GetBlocksInRange(1000, 2000), returns 1000, 1001, 1002, ..., 2000
+SELECT DISTINCT ON (block_number)
+	block_number,
+	block_hash
+FROM
+	blockchain_messages
+WHERE
+	block_number BETWEEN @start_block AND @end_block
+	AND block_hash IS NOT NULL
+	AND is_canonical = TRUE
+ORDER BY
+	block_number ASC,
+	block_hash;
+
+-- name: UpdateBlocksCanonicalityInRange :exec
+UPDATE
+	blockchain_messages
+SET
+	is_canonical = FALSE
+WHERE
+	block_number >= @reorg_block_number;
+

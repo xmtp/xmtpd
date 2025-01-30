@@ -31,7 +31,7 @@ func buildStreamer(
 		fromBlock:       fromBlock,
 		contractAddress: address,
 		topics:          []common.Hash{topic},
-		channel:         channel,
+		eventChannel:    channel,
 	}
 	return NewRpcLogStreamer(context.Background(), client, log, []contractConfig{cfg}), channel
 }
@@ -41,7 +41,7 @@ func TestBuilder(t *testing.T) {
 	require.NoError(t, err)
 	builder := NewRpcLogStreamBuilder(context.Background(), testclient, testutils.NewLog(t))
 
-	listenerChannel := builder.ListenForContractEvent(
+	listenerChannel, _ := builder.ListenForContractEvent(
 		1,
 		testutils.RandomAddress(),
 		[]common.Hash{testutils.RandomLogTopic()}, 5*time.Minute,
@@ -79,7 +79,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		fromBlock:       fromBlock,
 		contractAddress: address,
 		topics:          []common.Hash{topic},
-		channel:         make(chan types.Log),
+		eventChannel:    make(chan types.Log),
 	}
 
 	logs, nextPage, err := streamer.getNextPage(cfg, fromBlock)

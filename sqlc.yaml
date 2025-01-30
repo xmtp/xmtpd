@@ -7,3 +7,6 @@ sql:
       go:
         package: "queries"
         out: "pkg/db/queries"
+        overrides:
+          - column: "blockchain_messages.block_number"
+            go_type: "uint64"

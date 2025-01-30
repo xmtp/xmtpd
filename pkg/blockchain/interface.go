@@ -30,6 +30,7 @@ type ChainClient interface {
 	ethereum.BlockNumberReader
 	ethereum.LogFilterer
 	ethereum.ChainIDReader
+	ethereum.ChainReader
 }
 
 type TransactionSigner interface {

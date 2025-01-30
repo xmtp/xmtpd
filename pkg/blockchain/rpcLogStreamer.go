@@ -48,13 +48,21 @@ func (c *RpcLogStreamBuilder) ListenForContractEvent(
 	contractAddress common.Address,
 	topics []common.Hash,
 	maxDisconnectTime time.Duration,
-) <-chan types.Log {
+) (<-chan types.Log, chan<- uint64) {
 	eventChannel := make(chan types.Log, 100)
+	reorgChannel := make(chan uint64, 1)
 	c.contractConfigs = append(
 		c.contractConfigs,
-		contractConfig{fromBlock, contractAddress, topics, eventChannel, maxDisconnectTime},
+		contractConfig{
+			fromBlock,
+			contractAddress,
+			topics,
+			eventChannel,
+			reorgChannel,
+			maxDisconnectTime,
+		},
 	)
-	return eventChannel
+	return eventChannel, reorgChannel
 }
 
 func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
@@ -66,7 +74,8 @@ type contractConfig struct {
 	fromBlock         uint64
 	contractAddress   common.Address
 	topics            []common.Hash
-	channel           chan<- types.Log
+	eventChannel      chan<- types.Log
+	reorgChannel      chan uint64
 	maxDisconnectTime time.Duration
 }
 
@@ -119,12 +128,19 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 	fromBlock := watcher.fromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.contractAddress.Hex()))
 	startTime := time.Now()
-	defer close(watcher.channel)
+	defer close(watcher.eventChannel)
+
 	for {
 		select {
 		case <-r.ctx.Done():
 			logger.Debug("Stopping watcher")
 			return
+		case reorgBlock := <-watcher.reorgChannel:
+			fromBlock = reorgBlock
+			logger.Info(
+				"Blockchain reorg detected, resuming from block",
+				zap.Uint64("fromBlock", fromBlock),
+			)
 		default:
 			logs, nextBlock, err := r.getNextPage(watcher, fromBlock)
 			if err != nil {
@@ -157,7 +173,7 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
 			}
 			for _, log := range logs {
-				watcher.channel <- log
+				watcher.eventChannel <- log
 			}
 			if nextBlock != nil {
 				fromBlock = *nextBlock
@@ -182,7 +198,7 @@ func (r *RpcLogStreamer) getNextPage(
 		r.logger.Debug("Chain is up to date. Skipping update")
 		return []types.Log{}, nil, nil
 	}
-	numOfBlocksToProcess := highestBlockCanProcess - fromBlock + 1
+	numOfBlocksToProcess := (highestBlockCanProcess - fromBlock) + 1
 
 	var to uint64
 	// Make sure we stay within a reasonable page size
@@ -209,6 +225,10 @@ func (r *RpcLogStreamer) getNextPage(
 	metrics.EmitNumLogsFound(contractAddress, len(logs))
 
 	return logs, &nextBlockNumber, nil
+}
+
+func (r *RpcLogStreamer) Client() ChainClient {
+	return r.client
 }
 
 func buildFilterQuery(

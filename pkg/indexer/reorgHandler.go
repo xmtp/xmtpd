@@ -144,7 +144,7 @@ func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint
 func blockRange(from uint64) (startBlock uint64, endBlock uint64) {
 	endBlock = from
 
-	if endBlock > BLOCK_RANGE_SIZE {
+	if endBlock >= BLOCK_RANGE_SIZE {
 		startBlock = endBlock - BLOCK_RANGE_SIZE
 	}
 

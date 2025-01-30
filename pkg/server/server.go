@@ -210,6 +210,7 @@ func startAPIServer(
 				s.nodeRegistry,
 				payerPrivateKey,
 				blockchainPublisher,
+				nil,
 			)
 			if err != nil {
 				return err

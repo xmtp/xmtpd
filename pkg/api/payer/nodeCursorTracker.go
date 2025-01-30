@@ -8,15 +8,32 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type NodeCursorTracker struct {
-	ctx           context.Context
-	log           *zap.Logger
+type MetadataApiClientConstructor interface {
+	NewMetadataApiClient(nodeId uint32) (metadata_api.MetadataApiClient, error)
+}
+type DefaultMetadataApiClientConstructor struct {
 	clientManager *ClientManager
 }
 
+func (c *DefaultMetadataApiClientConstructor) NewMetadataApiClient(
+	nodeId uint32,
+) (metadata_api.MetadataApiClient, error) {
+	conn, err := c.clientManager.GetClient(nodeId)
+	if err != nil {
+		return nil, err
+	}
+	return metadata_api.NewMetadataApiClient(conn), nil
+}
+
+type NodeCursorTracker struct {
+	ctx               context.Context
+	log               *zap.Logger
+	metadataApiClient MetadataApiClientConstructor
+}
+
 func NewNodeCursorTracker(ctx context.Context,
-	log *zap.Logger, clientManager *ClientManager) *NodeCursorTracker {
-	return &NodeCursorTracker{ctx: ctx, log: log, clientManager: clientManager}
+	log *zap.Logger, metadataApiClient MetadataApiClientConstructor) *NodeCursorTracker {
+	return &NodeCursorTracker{ctx: ctx, log: log, metadataApiClient: metadataApiClient}
 }
 
 func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
@@ -27,11 +44,10 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 ) error {
 	// TODO(mkysel) ideally we wouldn't create and tear down the stream for every request
 
-	conn, err := ct.clientManager.GetClient(nodeId)
+	client, err := ct.metadataApiClient.NewMetadataApiClient(nodeId)
 	if err != nil {
 		return err
 	}
-	client := metadata_api.NewMetadataApiClient(conn)
 	stream, err := client.SubscribeSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
 	if err != nil {
 		return err

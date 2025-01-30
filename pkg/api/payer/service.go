@@ -41,15 +41,22 @@ func NewPayerApiService(
 	registry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
+	metadataApiClient *MetadataApiClientConstructor,
 ) (*Service, error) {
+	var metadataClient MetadataApiClientConstructor
 	clientManager := NewClientManager(log, registry)
+	if metadataApiClient == nil {
+		metadataClient = &DefaultMetadataApiClientConstructor{clientManager: clientManager}
+	} else {
+		metadataClient = *metadataApiClient
+	}
 	return &Service{
 		ctx:                 ctx,
 		log:                 log,
 		clientManager:       clientManager,
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
-		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, clientManager),
+		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, metadataClient),
 	}, nil
 }
 

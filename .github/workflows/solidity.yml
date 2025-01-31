@@ -2,8 +2,9 @@ name: Solidity
 
 on:
   push:
-    branches:
-      - main
+    paths:
+      - "contracts/**"
+      - ".github/workflows/solidity.yml"
   pull_request:
     paths:
       - "contracts/**"

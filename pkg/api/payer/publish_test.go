@@ -58,12 +58,8 @@ func (m *MockSubscribeSyncCursorClient) Recv() (*metadata_api.GetSyncCursorRespo
 		m.index++
 		return resp, nil
 	}
-
-	// block forever
-	select {
-	case <-m.ctx.Done():
-		return nil, m.ctx.Err()
-	}
+	<-m.ctx.Done()
+	return nil, m.ctx.Err()
 }
 
 func buildPayerService(

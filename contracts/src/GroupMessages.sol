@@ -22,12 +22,16 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     // Custom errors
     error ZeroAdminAddress();
     error InvalidPayloadSize(uint256 actualSize, uint256 minSize, uint256 maxSize);
+    error InvalidMaxPayloadSize();
+    error InvalidMinPayloadSize();
 
     /// @dev Minimum valid payload size (in bytes).
-    uint256 public constant MIN_PAYLOAD_SIZE = 78;
+    // slither-disable-next-line constable-states
+    uint256 public minPayloadSize;
 
-    /// @dev Maximum valid payload size (4 MB).
-    uint256 public constant MAX_PAYLOAD_SIZE = 4_194_304;
+    /// @dev Maximum valid payload size (in bytes).
+    // slither-disable-next-line constable-states
+    uint256 public maxPayloadSize;
 
     // State variables
     // slither-disable-next-line unused-state,constable-states
@@ -46,6 +50,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __Pausable_init();
+
+        minPayloadSize = 78;
+        maxPayloadSize = 4_194_304;
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
@@ -70,8 +77,8 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     /// @dev Ensures the message length is within the allowed range and increments the sequence ID.
     function addMessage(bytes32 groupId, bytes calldata message) public whenNotPaused {
         require(
-            message.length >= MIN_PAYLOAD_SIZE && message.length <= MAX_PAYLOAD_SIZE,
-            InvalidPayloadSize(message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE)
+            message.length >= minPayloadSize && message.length <= maxPayloadSize,
+            InvalidPayloadSize(message.length, minPayloadSize, maxPayloadSize)
         );
 
         // Increment sequence ID safely using unchecked to save gas.
@@ -80,6 +87,24 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         }
 
         emit MessageSent(groupId, message, sequenceId);
+    }
+
+    /// @notice Sets the minimum payload size
+    /// @param _minPayloadSize The new minimum payload size
+    /// @dev Ensures the new minimum is less than the maximum
+    function setMinPayloadSize(uint256 _minPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_minPayloadSize < maxPayloadSize, InvalidMinPayloadSize());
+        require(_minPayloadSize > 0, InvalidMinPayloadSize());
+        minPayloadSize = _minPayloadSize;
+    }
+
+    /// @notice Sets the maximum payload size
+    /// @param _maxPayloadSize The new maximum payload size
+    /// @dev Ensures the new maximum is greater than the minimum
+    function setMaxPayloadSize(uint256 _maxPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_maxPayloadSize > minPayloadSize, InvalidMaxPayloadSize());
+        require(_maxPayloadSize <= 4_194_304, InvalidMaxPayloadSize());
+        maxPayloadSize = _maxPayloadSize;
     }
 
     // Upgradeability

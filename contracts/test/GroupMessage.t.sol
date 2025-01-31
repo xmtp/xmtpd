@@ -29,7 +29,7 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
     }
 
     function testAddMessageValid() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(groupMessages.minPayloadSize());
 
         vm.expectEmit(address(groupMessages));
         emit GroupMessages.MessageSent(ID, message, 1);
@@ -38,7 +38,7 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
     }
 
     function testAddMessageWithMaxPayload() public {
-        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(groupMessages.maxPayloadSize());
 
         vm.expectEmit(address(groupMessages));
         emit GroupMessages.MessageSent(ID, message, 1);
@@ -47,11 +47,14 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
     }
 
     function testAddMessageTooSmall() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE - 1);
+        bytes memory message = _generatePayload(groupMessages.minPayloadSize() - 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                GroupMessages.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+                GroupMessages.InvalidPayloadSize.selector,
+                message.length,
+                groupMessages.minPayloadSize(),
+                groupMessages.maxPayloadSize()
             )
         );
 
@@ -59,11 +62,14 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
     }
 
     function testAddMessageTooBig() public {
-        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE + 1);
+        bytes memory message = _generatePayload(groupMessages.maxPayloadSize() + 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                GroupMessages.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+                GroupMessages.InvalidPayloadSize.selector,
+                message.length,
+                groupMessages.minPayloadSize(),
+                groupMessages.maxPayloadSize()
             )
         );
 
@@ -71,7 +77,7 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
     }
 
     function testAddMessageWhenPaused() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(groupMessages.minPayloadSize());
 
         groupMessages.pause();
         assertTrue(groupMessages.paused());
@@ -81,8 +87,100 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         groupMessages.addMessage(ID, message);
     }
 
+    function testSetMinPayloadSize() public {
+        // Store initial min payload size
+        uint256 initialMinSize = groupMessages.minPayloadSize();
+        uint256 newMinSize = initialMinSize + 1;
+
+        // Test unauthorized access
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                groupMessages.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        groupMessages.setMinPayloadSize(newMinSize);
+
+        // Test authorized access
+        groupMessages.setMinPayloadSize(newMinSize);
+        assertEq(groupMessages.minPayloadSize(), newMinSize);
+
+        // Verify that messages with old minPayloadSize now fail
+        bytes memory message = _generatePayload(initialMinSize);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GroupMessages.InvalidPayloadSize.selector,
+                message.length,
+                newMinSize,
+                groupMessages.maxPayloadSize()
+            )
+        );
+        groupMessages.addMessage(ID, message);
+
+        // Verify that messages with new minPayloadSize succeed
+        bytes memory validMessage = _generatePayload(newMinSize);
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, validMessage, 1);
+        groupMessages.addMessage(ID, validMessage);
+
+        vm.expectRevert(abi.encodeWithSelector(GroupMessages.InvalidMinPayloadSize.selector));
+        groupMessages.setMinPayloadSize(0);
+
+        vm.expectRevert(abi.encodeWithSelector(GroupMessages.InvalidMinPayloadSize.selector));
+        groupMessages.setMinPayloadSize(4194304);
+    }
+
+    function testSetmaxPayloadSize() public {
+        // Store initial max payload size
+        uint256 initialMaxSize = groupMessages.maxPayloadSize();
+        uint256 newMaxSize = 1000;
+
+        // Test unauthorized access
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                groupMessages.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        groupMessages.setMaxPayloadSize(newMaxSize);
+
+        // Test authorized access
+        groupMessages.setMaxPayloadSize(newMaxSize);
+        assertEq(groupMessages.maxPayloadSize(), newMaxSize);
+
+        // Verify that messages with old maxPayloadSize now fail
+        bytes memory message = _generatePayload(initialMaxSize);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GroupMessages.InvalidPayloadSize.selector,
+                message.length,
+                groupMessages.minPayloadSize(),
+                newMaxSize
+            )
+        );
+        groupMessages.addMessage(ID, message);
+
+        // Verify that messages with new maxPayloadSize succeed
+        bytes memory validMessage = _generatePayload(newMaxSize);
+        vm.expectEmit(address(groupMessages));
+        emit GroupMessages.MessageSent(ID, validMessage, 1);
+        groupMessages.addMessage(ID, validMessage);
+
+        // Max size should always be greater than min size
+        vm.expectRevert(abi.encodeWithSelector(GroupMessages.InvalidMaxPayloadSize.selector));
+        groupMessages.setMaxPayloadSize(78);
+
+        // Test setting max size above maxPayloadSize (should fail)
+        vm.expectRevert(abi.encodeWithSelector(GroupMessages.InvalidMaxPayloadSize.selector));
+        groupMessages.setMaxPayloadSize(4_194_305);
+    }
+
     function testSequenceIdIncrement() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(groupMessages.minPayloadSize());
 
         vm.expectEmit(address(groupMessages));
         emit GroupMessages.MessageSent(ID, message, 1);
@@ -156,7 +254,7 @@ contract GroupMessagesTest is Test, GroupMessages, Utils {
         address newImplAddress = address(newGroupMessagesImpl);
         address oldImplAddress = address(groupMessagesImpl);
 
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(groupMessages.minPayloadSize());
 
         // Retrieve the implementation address directly from the proxy storage.
         bytes32 rawImplAddress = vm.load(address(groupMessages), EIP1967_IMPL_SLOT);

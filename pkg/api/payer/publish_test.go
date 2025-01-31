@@ -121,6 +121,11 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	}
 
 	metaMocks.On("SubscribeSyncCursor", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			// Capture the context from the caller
+			capturedCtx := args.Get(0).(context.Context)
+			mockStream.ctx = capturedCtx // Store the captured context in the mock
+		}).
 		Return(mockStream, nil).
 		Once()
 

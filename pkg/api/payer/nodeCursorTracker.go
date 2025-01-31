@@ -69,7 +69,7 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 				// TODO(mkysel): proper handling of failures
 				return err
 			}
-			if err != nil || resp == nil || resp.LatestSync == nil {
+			if resp == nil || resp.LatestSync == nil {
 				return status.Errorf(codes.Internal, "error getting node cursor: %v", err)
 			}
 			derefMap := resp.LatestSync.NodeIdToSequenceId

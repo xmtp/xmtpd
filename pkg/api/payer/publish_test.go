@@ -2,10 +2,6 @@ package payer_test
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
-	"testing"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -19,6 +15,7 @@ import (
 	registryMocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -26,6 +23,7 @@ import (
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
+	"testing"
 )
 
 type FixedMetadataApiClientConstructor struct {
@@ -40,9 +38,14 @@ func (c *FixedMetadataApiClientConstructor) NewMetadataApiClient(
 
 type MockSubscribeSyncCursorClient struct {
 	metadata_api.MetadataApi_SubscribeSyncCursorClient
+	ctx     context.Context
 	updates []*metadata_api.GetSyncCursorResponse
 	err     error
 	index   int
+}
+
+func (m *MockSubscribeSyncCursorClient) CloseSend() error {
+	return nil // No-op for the mock
 }
 
 // Recv simulates receiving cursor updates over time.
@@ -55,9 +58,12 @@ func (m *MockSubscribeSyncCursorClient) Recv() (*metadata_api.GetSyncCursorRespo
 		m.index++
 		return resp, nil
 	}
-	// Simulate an open stream without new messages
-	time.Sleep(50 * time.Millisecond)
-	return nil, nil
+
+	// block forever
+	select {
+	case <-m.ctx.Done():
+		return nil, m.ctx.Err()
+	}
 }
 
 func buildPayerService(

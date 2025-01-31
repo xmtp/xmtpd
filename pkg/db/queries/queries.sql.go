@@ -100,7 +100,7 @@ type GetBlocksInRangeRow struct {
 	BlockHash   []byte
 }
 
-// Returns blocks in descending order (newest to oldest)
+// Returns blocks in ascending order (oldest to newest)
 // StartBlock should be the lower bound (older block)
 // EndBlock should be the upper bound (newer block)
 // Example: GetBlocksInRange(1000, 2000), returns 1000, 1001, 1002, ..., 2000
@@ -151,12 +151,12 @@ func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (G
 
 const getLatestCursor = `-- name: GetLatestCursor :many
 SELECT
-    originator_node_id,
-    MAX(originator_sequence_id)::BIGINT AS max_sequence_id
+	originator_node_id,
+	MAX(originator_sequence_id)::BIGINT AS max_sequence_id
 FROM
-    gateway_envelopes
+	gateway_envelopes
 GROUP BY
-    originator_node_id
+	originator_node_id
 `
 
 type GetLatestCursorRow struct {
@@ -525,14 +525,27 @@ func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) 
 
 const updateBlocksCanonicalityInRange = `-- name: UpdateBlocksCanonicalityInRange :exec
 UPDATE
-	blockchain_messages
+	blockchain_messages AS bm
 SET
 	is_canonical = FALSE
+FROM (
+	SELECT
+		block_number
+	FROM
+		blockchain_messages
+	WHERE
+		bm.block_number BETWEEN $1 AND $2
+	FOR UPDATE) AS locked_rows
 WHERE
-	block_number >= $1
+	bm.block_number = locked_rows.block_number
 `
 
-func (q *Queries) UpdateBlocksCanonicalityInRange(ctx context.Context, reorgBlockNumber uint64) error {
-	_, err := q.db.ExecContext(ctx, updateBlocksCanonicalityInRange, reorgBlockNumber)
+type UpdateBlocksCanonicalityInRangeParams struct {
+	StartBlockNumber uint64
+	EndBlockNumber   uint64
+}
+
+func (q *Queries) UpdateBlocksCanonicalityInRange(ctx context.Context, arg UpdateBlocksCanonicalityInRangeParams) error {
+	_, err := q.db.ExecContext(ctx, updateBlocksCanonicalityInRange, arg.StartBlockNumber, arg.EndBlockNumber)
 	return err
 }

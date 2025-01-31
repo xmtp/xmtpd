@@ -124,12 +124,12 @@ WHERE
 
 -- name: GetLatestCursor :many
 SELECT
-    originator_node_id,
-    MAX(originator_sequence_id)::BIGINT AS max_sequence_id
+	originator_node_id,
+	MAX(originator_sequence_id)::BIGINT AS max_sequence_id
 FROM
-    gateway_envelopes
+	gateway_envelopes
 GROUP BY
-    originator_node_id;
+	originator_node_id;
 
 -- name: InsertBlockchainMessage :exec
 INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
@@ -157,9 +157,17 @@ ORDER BY
 
 -- name: UpdateBlocksCanonicalityInRange :exec
 UPDATE
-	blockchain_messages
+	blockchain_messages AS bm
 SET
 	is_canonical = FALSE
+FROM (
+	SELECT
+		block_number
+	FROM
+		blockchain_messages
+	WHERE
+		bm.block_number BETWEEN @start_block_number AND @end_block_number
+	FOR UPDATE) AS locked_rows
 WHERE
-	block_number >= @reorg_block_number;
+	bm.block_number = locked_rows.block_number;
 

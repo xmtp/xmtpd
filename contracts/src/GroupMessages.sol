@@ -19,6 +19,16 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     /// @param newImplementation The address of the new implementation.
     event UpgradeAuthorized(address upgrader, address newImplementation);
 
+    /// @notice Emitted when the minimum payload size is updated.
+    /// @param oldSize The old minimum payload size.
+    /// @param newSize The new minimum payload size.
+    event MinPayloadSizeUpdated(uint256 oldSize, uint256 newSize);
+
+    /// @notice Emitted when the maximum payload size is updated.
+    /// @param oldSize The old maximum payload size.
+    /// @param newSize The new maximum payload size.
+    event MaxPayloadSizeUpdated(uint256 oldSize, uint256 newSize);
+
     // Custom errors
     error ZeroAdminAddress();
     error InvalidPayloadSize(uint256 actualSize, uint256 minSize, uint256 maxSize);
@@ -95,7 +105,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     function setMinPayloadSize(uint256 _minPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_minPayloadSize < maxPayloadSize, InvalidMinPayloadSize());
         require(_minPayloadSize > 0, InvalidMinPayloadSize());
+        uint256 oldSize = minPayloadSize;
         minPayloadSize = _minPayloadSize;
+        emit MinPayloadSizeUpdated(oldSize, _minPayloadSize);
     }
 
     /// @notice Sets the maximum payload size
@@ -104,7 +116,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     function setMaxPayloadSize(uint256 _maxPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_maxPayloadSize > minPayloadSize, InvalidMaxPayloadSize());
         require(_maxPayloadSize <= 4_194_304, InvalidMaxPayloadSize());
+        uint256 oldSize = maxPayloadSize;
         maxPayloadSize = _maxPayloadSize;
+        emit MaxPayloadSizeUpdated(oldSize, _maxPayloadSize);
     }
 
     // Upgradeability

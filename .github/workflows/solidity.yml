@@ -4,10 +4,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "contracts/**"
+      - ".github/workflows/solidity.yml"
   pull_request:
     paths:
       - "contracts/**"
       - ".github/workflows/solidity.yml"
+
+permissions:
+  contents: read
+  security-events: write
 
 concurrency:
   group: ci-solidity-${{ github.ref }}
@@ -102,6 +109,7 @@ jobs:
   slither:
     needs: init
     runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
     steps:
       - name: Restore cache
         uses: actions/cache/restore@v4

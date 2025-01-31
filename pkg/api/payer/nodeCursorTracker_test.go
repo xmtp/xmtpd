@@ -52,9 +52,98 @@ func TestCursorTrackerClientShutsDown(t *testing.T) {
 		testutils.CancelledContext(),
 		1,
 		desiredOriginator,
-		desiredSequence,
+		desiredSequence+100,
 	)
 	require.NoError(t, err)
+}
+
+func TestCursorTrackerClientShutsDownAfterExecution(t *testing.T) {
+	ctx := context.Background()
+
+	desiredOriginator := uint32(1)
+	desiredSequence := uint64(1)
+	tracker := constructTracker(t, ctx, []*metadata_api.GetSyncCursorResponse{
+		{
+			LatestSync: &envelopesProto.Cursor{
+				NodeIdToSequenceId: map[uint32]uint64{desiredOriginator: desiredSequence},
+			},
+		},
+	})
+
+	clientCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+	}()
+
+	err := tracker.BlockUntilDesiredCursorReached(
+		clientCtx,
+		1,
+		desiredOriginator,
+		desiredSequence+100,
+	)
+	require.NoError(t, err)
+}
+func TestCursorTrackerClientServerIsShutown(t *testing.T) {
+	ctx := context.Background()
+
+	desiredOriginator := uint32(1)
+	desiredSequence := uint64(1)
+
+	tracker := constructTracker(
+		t,
+		testutils.CancelledContext(),
+		[]*metadata_api.GetSyncCursorResponse{
+			{
+				LatestSync: &envelopesProto.Cursor{
+					NodeIdToSequenceId: map[uint32]uint64{desiredOriginator: desiredSequence},
+				},
+			},
+		},
+	)
+
+	err := tracker.BlockUntilDesiredCursorReached(
+		ctx,
+		1,
+		desiredOriginator,
+		desiredSequence+100,
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "node terminated")
+}
+
+func TestCursorTrackerClientServerShutsDown(t *testing.T) {
+	ctx := context.Background()
+
+	desiredOriginator := uint32(1)
+	desiredSequence := uint64(1)
+
+	serverCtx, cancel := context.WithCancel(ctx)
+
+	tracker := constructTracker(
+		t,
+		serverCtx,
+		[]*metadata_api.GetSyncCursorResponse{
+			{
+				LatestSync: &envelopesProto.Cursor{
+					NodeIdToSequenceId: map[uint32]uint64{desiredOriginator: desiredSequence},
+				},
+			},
+		},
+	)
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+	}()
+
+	err := tracker.BlockUntilDesiredCursorReached(
+		ctx,
+		1,
+		desiredOriginator,
+		desiredSequence+100,
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "node terminated")
 }
 
 func TestCursorTrackerOriginatorDoesNotExist(t *testing.T) {
@@ -79,7 +168,7 @@ func TestCursorTrackerOriginatorDoesNotExist(t *testing.T) {
 		5,
 		desiredSequence,
 	)
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestCursorTrackerSequenceDoesNotExist(t *testing.T) {
@@ -104,7 +193,7 @@ func TestCursorTrackerSequenceDoesNotExist(t *testing.T) {
 		desiredOriginator,
 		desiredSequence+100,
 	)
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestCursorTrackerThreeStages(t *testing.T) {

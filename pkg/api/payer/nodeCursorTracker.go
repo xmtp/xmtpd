@@ -2,6 +2,7 @@ package payer
 
 import (
 	"context"
+	"errors"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -52,35 +53,52 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	if err != nil {
 		return err
 	}
+
+	// Channel to receive responses/errors from stream.Recv()
+	respCh := make(chan *metadata_api.GetSyncCursorResponse)
+	errCh := make(chan error)
+
+	// Goroutine to read from the stream and send messages to channels
+	go func() {
+		defer close(respCh)
+		defer close(errCh)
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				errCh <- err
+				return
+			}
+			respCh <- resp
+		}
+	}()
+
 	for {
 		select {
 		case <-ct.ctx.Done():
-			// server is shutting down
-			return status.Errorf(codes.Canceled, "node terminated. Cancelled wait for cursor")
+			return status.Errorf(codes.Internal, "node terminated. Cancelled wait for cursor")
 		case <-ctx.Done():
-			// client has shut down
 			return nil
-		default:
-			resp, err := stream.Recv()
-			if err != nil {
-				if status.Code(err) == codes.Canceled {
-					return nil
-				}
-				// TODO(mkysel): proper handling of failures
-				return err
+		case err := <-errCh:
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return nil
 			}
+			if errors.Is(ct.ctx.Err(), context.Canceled) {
+				return status.Errorf(codes.Internal, "node terminated. Cancelled wait for cursor")
+			}
+			return err
+		case resp := <-respCh:
 			if resp == nil || resp.LatestSync == nil {
-				return status.Errorf(codes.Internal, "error getting node cursor: %v", err)
+				return status.Errorf(codes.Internal, "error getting node cursor: response is nil")
 			}
+
 			derefMap := resp.LatestSync.NodeIdToSequenceId
 			seqId, exists := derefMap[desiredOriginatorId]
 			if !exists {
-				continue // Wait for the originator ID to appear
+				continue
 			}
 
-			// Check if the sequence ID has reached the desired value
 			if seqId >= desiredSequenceId {
-				return nil // Desired state achieved
+				return nil
 			}
 		}
 	}

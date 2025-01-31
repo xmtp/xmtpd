@@ -286,7 +286,6 @@ func (s *ReplicationServer) Shutdown() {
 	if s.indx != nil {
 		s.indx.Close()
 	}
-
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}

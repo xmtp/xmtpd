@@ -59,12 +59,6 @@ func ValidateServerOptions(options ServerOptions) error {
 		}
 	}
 
-	if options.Metadata.Enable {
-		if options.DB.WriterConnectionString == "" {
-			missingSet["--DB.WriterConnectionString"] = struct{}{}
-		}
-	}
-
 	if options.Indexer.Enable {
 		if options.DB.WriterConnectionString == "" {
 			missingSet["--DB.WriterConnectionString"] = struct{}{}

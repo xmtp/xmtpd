@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * A NFT contract for XMTP Node Operators.
  *
- * The deployer of this contract is responsible for minting NFTs and assinging them to node operators.
+ * The deployer of this contract is responsible for minting NFTs and assigning them to node operators.
  *
  * All nodes on the network periodically check this contract to determine which nodes they should connect to.
  */

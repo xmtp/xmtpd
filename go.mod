@@ -18,7 +18,7 @@ require (
 	github.com/segmentio/golines v0.12.2
 	github.com/sqlc-dev/sqlc v1.28.0
 	github.com/stretchr/testify v1.10.0
-	github.com/vektra/mockery/v2 v2.51.1
+	github.com/vektra/mockery/v2 v2.52.1
 	go.uber.org/zap v1.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.70.0
@@ -309,7 +309,7 @@ require (
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rqlite/gorqlite v0.0.0-20230708021416-2acd02b70b79 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/rs/zerolog v1.29.0 // indirect
+	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect

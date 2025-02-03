@@ -145,7 +145,7 @@ func validateExpiry(token *jwt.Token) error {
 
 	// Tokens can only have a validity period of at most 2 hours
 	if exp.Sub(issuedAt.Time) > MAX_TOKEN_DURATION {
-		return fmt.Errorf("token is expiration time is greater than the max duration")
+		return fmt.Errorf("token expiration time is greater than the max duration")
 	}
 
 	// Tokens cannot be expired

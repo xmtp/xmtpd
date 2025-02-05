@@ -19,15 +19,29 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     /// @param newImplementation The address of the new implementation.
     event UpgradeAuthorized(address upgrader, address newImplementation);
 
+    /// @notice Emitted when the minimum payload size is updated.
+    /// @param oldSize The old minimum payload size.
+    /// @param newSize The new minimum payload size.
+    event MinPayloadSizeUpdated(uint256 oldSize, uint256 newSize);
+
+    /// @notice Emitted when the maximum payload size is updated.
+    /// @param oldSize The old maximum payload size.
+    /// @param newSize The new maximum payload size.
+    event MaxPayloadSizeUpdated(uint256 oldSize, uint256 newSize);
+
     // Custom errors
     error ZeroAdminAddress();
     error InvalidPayloadSize(uint256 actualSize, uint256 minSize, uint256 maxSize);
+    error InvalidMaxPayloadSize();
+    error InvalidMinPayloadSize();
 
     /// @dev Minimum valid payload size (in bytes).
-    uint256 public constant MIN_PAYLOAD_SIZE = 104;
+    // slither-disable-next-line constable-states
+    uint256 public minPayloadSize;
 
-    /// @dev Maximum valid payload size (4 MB).
-    uint256 public constant MAX_PAYLOAD_SIZE = 4_194_304;
+    /// @dev Maximum valid payload size (in bytes).
+    // slither-disable-next-line constable-states
+    uint256 public maxPayloadSize;
 
     // State variables
     // slither-disable-next-line unused-state,constable-states
@@ -46,6 +60,9 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __Pausable_init();
+
+        minPayloadSize = 104;
+        maxPayloadSize = 4_194_304;
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
     }
@@ -69,8 +86,8 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     /// @param update The identity update in bytes.
     function addIdentityUpdate(bytes32 inboxId, bytes calldata update) public whenNotPaused {
         require(
-            update.length >= MIN_PAYLOAD_SIZE && update.length <= MAX_PAYLOAD_SIZE,
-            InvalidPayloadSize(update.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE)
+            update.length >= minPayloadSize && update.length <= maxPayloadSize,
+            InvalidPayloadSize(update.length, minPayloadSize, maxPayloadSize)
         );
 
         // Increment sequence ID safely using unchecked to save gas.
@@ -79,6 +96,28 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
         }
 
         emit IdentityUpdateCreated(inboxId, update, sequenceId);
+    }
+
+    /// @notice Sets the minimum payload size
+    /// @param _minPayloadSize The new minimum payload size
+    /// @dev Ensures the new minimum is less than the maximum
+    function setMinPayloadSize(uint256 _minPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_minPayloadSize < maxPayloadSize, InvalidMinPayloadSize());
+        require(_minPayloadSize > 0, InvalidMinPayloadSize());
+        uint256 oldSize = minPayloadSize;
+        minPayloadSize = _minPayloadSize;
+        emit MinPayloadSizeUpdated(oldSize, _minPayloadSize);
+    }
+
+    /// @notice Sets the maximum payload size
+    /// @param _maxPayloadSize The new maximum payload size
+    /// @dev Ensures the new maximum is greater than the minimum
+    function setMaxPayloadSize(uint256 _maxPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_maxPayloadSize > minPayloadSize, InvalidMaxPayloadSize());
+        require(_maxPayloadSize <= 4_194_304, InvalidMaxPayloadSize());
+        uint256 oldSize = maxPayloadSize;
+        maxPayloadSize = _maxPayloadSize;
+        emit MaxPayloadSizeUpdated(oldSize, _maxPayloadSize);
     }
 
     // Upgradeability

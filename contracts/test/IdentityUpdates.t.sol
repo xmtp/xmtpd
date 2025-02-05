@@ -29,7 +29,7 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
     }
 
     function testAddIdentityUpdateValid() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(identityUpdates.minPayloadSize());
 
         vm.expectEmit(address(identityUpdates));
         emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
@@ -38,7 +38,7 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
     }
 
     function testAddIdentityUpdateWithMaxPayload() public {
-        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(identityUpdates.maxPayloadSize());
 
         vm.expectEmit(address(identityUpdates));
         emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
@@ -47,11 +47,14 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
     }
 
     function testAddIdentityUpdateTooSmall() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE - 1);
+        bytes memory message = _generatePayload(identityUpdates.minPayloadSize() - 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IdentityUpdates.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+                IdentityUpdates.InvalidPayloadSize.selector,
+                message.length,
+                identityUpdates.minPayloadSize(),
+                identityUpdates.maxPayloadSize()
             )
         );
 
@@ -59,11 +62,14 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
     }
 
     function testAddIdentityUpdateTooBig() public {
-        bytes memory message = _generatePayload(MAX_PAYLOAD_SIZE + 1);
+        bytes memory message = _generatePayload(identityUpdates.maxPayloadSize() + 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IdentityUpdates.InvalidPayloadSize.selector, message.length, MIN_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE
+                IdentityUpdates.InvalidPayloadSize.selector,
+                message.length,
+                identityUpdates.minPayloadSize(),
+                identityUpdates.maxPayloadSize()
             )
         );
 
@@ -71,7 +77,7 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
     }
 
     function testAddIdentityUpdateWhenPaused() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(identityUpdates.minPayloadSize());
 
         identityUpdates.pause();
         assertTrue(identityUpdates.paused());
@@ -81,8 +87,100 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
         identityUpdates.addIdentityUpdate(ID, message);
     }
 
+    function testSetMinPayloadSize() public {
+        // Store initial min payload size
+        uint256 initialMinSize = identityUpdates.minPayloadSize();
+        uint256 newMinSize = initialMinSize + 1;
+
+        // Test unauthorized access
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        identityUpdates.setMinPayloadSize(newMinSize);
+
+        // Test authorized access
+        identityUpdates.setMinPayloadSize(newMinSize);
+        assertEq(identityUpdates.minPayloadSize(), newMinSize);
+
+        // Verify that messages with old minPayloadSize now fail
+        bytes memory message = _generatePayload(initialMinSize);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IdentityUpdates.InvalidPayloadSize.selector,
+                message.length,
+                newMinSize,
+                identityUpdates.maxPayloadSize()
+            )
+        );
+        identityUpdates.addIdentityUpdate(ID, message);
+
+        // Verify that messages with new minPayloadSize succeed
+        bytes memory validMessage = _generatePayload(newMinSize);
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(ID, validMessage, 1);
+        identityUpdates.addIdentityUpdate(ID, validMessage);
+
+        vm.expectRevert(abi.encodeWithSelector(IdentityUpdates.InvalidMinPayloadSize.selector));
+        identityUpdates.setMinPayloadSize(0);
+
+        vm.expectRevert(abi.encodeWithSelector(IdentityUpdates.InvalidMinPayloadSize.selector));
+        identityUpdates.setMinPayloadSize(4194304);
+    }
+
+    function testSetMaxPayloadSize() public {
+        // Store initial max payload size
+        uint256 initialMaxSize = identityUpdates.maxPayloadSize();
+        uint256 newMaxSize = 1000;
+
+        // Test unauthorized access
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        identityUpdates.setMaxPayloadSize(newMaxSize);
+
+        // Test authorized access
+        identityUpdates.setMaxPayloadSize(newMaxSize);
+        assertEq(identityUpdates.maxPayloadSize(), newMaxSize);
+
+        // Verify that messages with old maxPayloadSize now fail
+        bytes memory message = _generatePayload(initialMaxSize);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IdentityUpdates.InvalidPayloadSize.selector,
+                message.length,
+                identityUpdates.minPayloadSize(),
+                newMaxSize
+            )
+        );
+        identityUpdates.addIdentityUpdate(ID, message);
+
+        // Verify that messages with new maxPayloadSize succeed
+        bytes memory validMessage = _generatePayload(newMaxSize);
+        vm.expectEmit(address(identityUpdates));
+        emit IdentityUpdates.IdentityUpdateCreated(ID, validMessage, 1);
+        identityUpdates.addIdentityUpdate(ID, validMessage);
+
+        // Max size should always be greater than min size
+        vm.expectRevert(abi.encodeWithSelector(IdentityUpdates.InvalidMaxPayloadSize.selector));
+        identityUpdates.setMaxPayloadSize(78);
+
+        // Test setting max size above maxPayloadSize (should fail)
+        vm.expectRevert(abi.encodeWithSelector(IdentityUpdates.InvalidMaxPayloadSize.selector));
+        identityUpdates.setMaxPayloadSize(4_194_305);
+    }
+
     function testSequenceIdIncrement() public {
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(identityUpdates.minPayloadSize());
 
         vm.expectEmit(address(identityUpdates));
         emit IdentityUpdates.IdentityUpdateCreated(ID, message, 1);
@@ -106,23 +204,27 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
         identityUpdates.pause();
         assertTrue(identityUpdates.paused());
 
-        vm.prank(unauthorized);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
             )
         );
+        vm.prank(unauthorized);
         identityUpdates.unpause();
 
         identityUpdates.unpause();
         assertFalse(identityUpdates.paused());
 
-        vm.prank(unauthorized);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
             )
         );
+        vm.prank(unauthorized);
         identityUpdates.pause();
     }
 
@@ -136,17 +238,23 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
 
         identityUpdates.revokeRole(DEFAULT_ADMIN_ROLE, unauthorized);
 
-        vm.prank(unauthorized);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
             )
         );
+        vm.prank(unauthorized);
         identityUpdates.pause();
 
         identityUpdates.renounceRole(DEFAULT_ADMIN_ROLE, admin);
         vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, admin, DEFAULT_ADMIN_ROLE)
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                admin,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
+            )
         );
         identityUpdates.pause();
     }
@@ -156,7 +264,7 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
         address newImplAddress = address(newIdentityUpdatesImpl);
         address oldImplAddress = address(identityUpdatesImpl);
 
-        bytes memory message = _generatePayload(MIN_PAYLOAD_SIZE);
+        bytes memory message = _generatePayload(identityUpdates.minPayloadSize());
 
         // Retrieve the implementation address directly from the proxy storage.
         bytes32 rawImplAddress = vm.load(address(identityUpdates), EIP1967_IMPL_SLOT);
@@ -169,12 +277,14 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
         identityUpdates.addIdentityUpdate(ID, message);
 
         // Unauthorized upgrade attempts should revert.
-        vm.prank(unauthorized);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                identityUpdates.DEFAULT_ADMIN_ROLE()
             )
         );
+        vm.prank(unauthorized);
         identityUpdates.upgradeToAndCall(address(newIdentityUpdatesImpl), "");
 
         // Authorized upgrade should succeed and emit UpgradeAuthorized event.

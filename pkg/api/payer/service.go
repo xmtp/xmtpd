@@ -198,7 +198,6 @@ func (s *Service) publishToBlockchain(
 ) (*envelopesProto.OriginatorEnvelope, error) {
 	targetTopic := clientEnvelope.TargetTopic()
 	identifier := targetTopic.Identifier()
-	expectedNode := clientEnvelope.Aad().TargetOriginator
 	desiredOriginatorId := uint32(1) //TODO: determine this from the chain
 	desiredSequenceId := uint64(0)
 	kind := targetTopic.Kind()
@@ -276,9 +275,23 @@ func (s *Service) publishToBlockchain(
 			err,
 		)
 	}
+
+	// backwards compatibility
+	var targetNodeId uint32
+	// nolint:staticcheck
+	if clientEnvelope.Aad().GetTargetOriginator() >= 100 {
+		targetNodeId = clientEnvelope.Aad().GetTargetOriginator()
+	} else {
+		node, err := s.nodeSelector.GetNode(targetTopic)
+		if err != nil {
+			return nil, err
+		}
+		targetNodeId = node
+	}
+
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
 		ctx,
-		expectedNode,
+		targetNodeId,
 		desiredOriginatorId,
 		desiredSequenceId,
 	)

@@ -94,7 +94,7 @@ func buildPayerService(
 
 func TestPublishIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
-	svc, mockMessagePublisher, _, metaMocks, cleanup := buildPayerService(t)
+	svc, mockMessagePublisher, registryMocks, metaMocks, cleanup := buildPayerService(t)
 	defer cleanup()
 
 	inboxId := testutils.RandomInboxId()
@@ -126,6 +126,10 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		}).
 		Return(mockStream, nil).
 		Once()
+
+	registryMocks.On("GetNodes").Return([]registry.Node{
+		{NodeID: 100},
+	}, nil)
 
 	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxIdBytes, identityUpdate)
 	envelopeBytes, err := proto.Marshal(envelope)

@@ -2,8 +2,6 @@ package payer_test
 
 import (
 	"context"
-	"testing"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -13,9 +11,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+	metadataMocks "github.com/xmtp/xmtpd/pkg/mocks/metadata_api"
 	registryMocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -23,11 +23,48 @@ import (
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
+	"testing"
 )
+
+type FixedMetadataApiClientConstructor struct {
+	mockClient *metadataMocks.MockMetadataApiClient
+}
+
+func (c *FixedMetadataApiClientConstructor) NewMetadataApiClient(
+	nodeId uint32,
+) (metadata_api.MetadataApiClient, error) {
+	return c.mockClient, nil
+}
+
+type MockSubscribeSyncCursorClient struct {
+	metadata_api.MetadataApi_SubscribeSyncCursorClient
+	ctx     context.Context
+	updates []*metadata_api.GetSyncCursorResponse
+	err     error
+	index   int
+}
+
+func (m *MockSubscribeSyncCursorClient) CloseSend() error {
+	return nil // No-op for the mock
+}
+
+// Recv simulates receiving cursor updates over time.
+func (m *MockSubscribeSyncCursorClient) Recv() (*metadata_api.GetSyncCursorResponse, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.index < len(m.updates) {
+		resp := m.updates[m.index]
+		m.index++
+		return resp, nil
+	}
+	<-m.ctx.Done()
+	return nil, m.ctx.Err()
+}
 
 func buildPayerService(
 	t *testing.T,
-) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, func()) {
+) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := testutils.NewLog(t)
 	privKey, err := crypto.GenerateKey()
@@ -37,23 +74,29 @@ func buildPayerService(
 	require.NoError(t, err)
 	mockMessagePublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
 
+	metaMocks := metadataMocks.NewMockMetadataApiClient(t)
+	metadataConstructor := &FixedMetadataApiClientConstructor{
+		mockClient: metaMocks,
+	}
+	var interf payer.MetadataApiClientConstructor = metadataConstructor
 	payerService, err := payer.NewPayerApiService(
 		ctx,
 		log,
 		mockRegistry,
 		privKey,
 		mockMessagePublisher,
+		&interf,
 	)
 	require.NoError(t, err)
 
-	return payerService, mockMessagePublisher, mockRegistry, func() {
+	return payerService, mockMessagePublisher, mockRegistry, metaMocks, func() {
 		cancel()
 	}
 }
 
 func TestPublishIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
-	svc, mockMessagePublisher, _, cleanup := buildPayerService(t)
+	svc, mockMessagePublisher, _, metaMocks, cleanup := buildPayerService(t)
 	defer cleanup()
 
 	inboxId := testutils.RandomInboxId()
@@ -66,6 +109,25 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	identityUpdate := &associations.IdentityUpdate{
 		InboxId: inboxId,
 	}
+
+	mockStream := &MockSubscribeSyncCursorClient{
+		updates: []*metadata_api.GetSyncCursorResponse{
+			{
+				LatestSync: &envelopesProto.Cursor{
+					NodeIdToSequenceId: map[uint32]uint64{1: sequenceId},
+				},
+			},
+		},
+	}
+
+	metaMocks.On("SubscribeSyncCursor", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			// Capture the context from the caller
+			capturedCtx := args.Get(0).(context.Context)
+			mockStream.ctx = capturedCtx // Store the captured context in the mock
+		}).
+		Return(mockStream, nil).
+		Once()
 
 	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxIdBytes, identityUpdate)
 	envelopeBytes, err := proto.Marshal(envelope)
@@ -110,7 +172,7 @@ func TestPublishToNodes(t *testing.T) {
 	defer originatorCleanup()
 
 	ctx := context.Background()
-	svc, _, mockRegistry, cleanup := buildPayerService(t)
+	svc, _, mockRegistry, _, cleanup := buildPayerService(t)
 	defer cleanup()
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{

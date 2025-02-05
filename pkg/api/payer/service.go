@@ -32,6 +32,7 @@ type Service struct {
 	clientManager       *ClientManager
 	blockchainPublisher blockchain.IBlockchainPublisher
 	payerPrivateKey     *ecdsa.PrivateKey
+	nodeCursorTracker   *NodeCursorTracker
 }
 
 func NewPayerApiService(
@@ -40,13 +41,22 @@ func NewPayerApiService(
 	registry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
+	metadataApiClient *MetadataApiClientConstructor,
 ) (*Service, error) {
+	var metadataClient MetadataApiClientConstructor
+	clientManager := NewClientManager(log, registry)
+	if metadataApiClient == nil {
+		metadataClient = &DefaultMetadataApiClientConstructor{clientManager: clientManager}
+	} else {
+		metadataClient = *metadataApiClient
+	}
 	return &Service{
 		ctx:                 ctx,
 		log:                 log,
-		clientManager:       NewClientManager(log, registry),
+		clientManager:       clientManager,
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
+		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, metadataClient),
 	}, nil
 }
 
@@ -174,6 +184,9 @@ func (s *Service) publishToBlockchain(
 ) (*envelopesProto.OriginatorEnvelope, error) {
 	targetTopic := clientEnvelope.TargetTopic()
 	identifier := targetTopic.Identifier()
+	expectedNode := clientEnvelope.Aad().TargetOriginator
+	desiredOriginatorId := uint32(1) //TODO: determine this from the chain
+	desiredSequenceId := uint64(0)
 	kind := targetTopic.Kind()
 
 	// Get the group ID as [32]byte
@@ -214,6 +227,7 @@ func (s *Service) publishToBlockchain(
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
+		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		var logMessage *identityupdates.IdentityUpdatesIdentityUpdateCreated
@@ -230,6 +244,8 @@ func (s *Service) publishToBlockchain(
 			logMessage.SequenceId,
 			logMessage.Update,
 		)
+		desiredSequenceId = logMessage.SequenceId
+
 	default:
 		return nil, status.Errorf(
 			codes.InvalidArgument,
@@ -245,6 +261,15 @@ func (s *Service) publishToBlockchain(
 			"error marshalling unsigned originator envelope: %v",
 			err,
 		)
+	}
+	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
+		ctx,
+		expectedNode,
+		desiredOriginatorId,
+		desiredSequenceId,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &envelopesProto.OriginatorEnvelope{

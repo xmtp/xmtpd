@@ -222,6 +222,7 @@ func startAPIServer(
 				s.nodeRegistry,
 				payerPrivateKey,
 				blockchainPublisher,
+				nil,
 			)
 			if err != nil {
 				return err
@@ -282,7 +283,6 @@ func (s *ReplicationServer) Shutdown() {
 	if s.indx != nil {
 		s.indx.Close()
 	}
-
 	if s.apiServer != nil {
 		s.apiServer.Close()
 	}

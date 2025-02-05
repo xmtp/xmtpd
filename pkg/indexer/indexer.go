@@ -233,7 +233,7 @@ func indexLogs(
 		storedBlockNumber  uint64
 		storedBlockHash    []byte
 		lastBlockSeen      uint64
-		reorgCheckInterval uint64 = 10 // TODO: Adapt based on blocks per batch
+		reorgCheckInterval uint64 = 10 // TODO(borja): Adapt based on blocks per batch
 		reorgCheckAt       uint64
 		reorgDetectedAt    uint64
 		reorgBeginsAt      uint64

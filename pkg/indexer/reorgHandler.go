@@ -27,7 +27,7 @@ var (
 	ErrGetBlock      = errors.New("failed to get block")
 )
 
-// TODO: Make this configurable?
+// TODO(borja): Make this configurable?
 const BLOCK_RANGE_SIZE uint64 = 1000
 
 func NewChainReorgHandler(
@@ -42,7 +42,7 @@ func NewChainReorgHandler(
 	}
 }
 
-// TODO: When reorg range has been calculated, alert clients (TBD)
+// TODO(borja): When reorg range has been calculated, alert clients (TBD)
 func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error) {
 	startBlock, endBlock := blockRange(detectedAt)
 
@@ -84,16 +84,19 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 		}
 
 		// Oldest block matches, reorg happened in this range
-		blockNumber, blockHash, err := r.searchInRange(storedBlocks)
+		startedAt, blockHash, err := r.searchInRange(storedBlocks)
 		if err != nil {
 			return 0, nil, fmt.Errorf("failed to search reorg block in range: %w", err)
 		}
 
-		if err := r.queries.UpdateBlocksCanonicalityInRange(r.ctx, blockNumber); err != nil {
+		if err := r.queries.UpdateBlocksCanonicalityInRange(r.ctx, queries.UpdateBlocksCanonicalityInRangeParams{
+			StartBlockNumber: startedAt,
+			EndBlockNumber:   detectedAt,
+		}); err != nil {
 			return 0, nil, fmt.Errorf("failed to update block range canonicality: %w", err)
 		}
 
-		return blockNumber, blockHash, nil
+		return startedAt, blockHash, nil
 	}
 }
 

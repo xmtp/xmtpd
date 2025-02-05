@@ -262,6 +262,9 @@
         },
         "dependsOn": {
           "$ref": "#/definitions/xmtpv4envelopesCursor"
+        },
+        "isCommit": {
+          "type": "boolean"
         }
       },
       "description": "Data visible to the server that has been authenticated by the client."

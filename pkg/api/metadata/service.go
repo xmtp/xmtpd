@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"go.uber.org/zap"
@@ -16,18 +15,18 @@ type Service struct {
 	metadata_api.UnimplementedMetadataApiServer
 	ctx context.Context
 	log *zap.Logger
-	cu  *CursorUpdater
+	cu  CursorUpdater
 }
 
 func NewMetadataApiService(
 	ctx context.Context,
 	log *zap.Logger,
-	store *sql.DB,
+	updater CursorUpdater,
 ) (*Service, error) {
 	return &Service{
 		ctx: ctx,
 		log: log,
-		cu:  NewCursorUpdater(ctx, log, store),
+		cu:  updater,
 	}, nil
 }
 

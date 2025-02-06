@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -15,7 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
+	metaProtos "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
@@ -40,6 +41,7 @@ type Service struct {
 	publishWorker     *publishWorker
 	subscribeWorker   *subscribeWorker
 	validationService mlsvalidate.MLSValidationService
+	cu                metadata.CursorUpdater
 }
 
 func NewReplicationApiService(
@@ -48,6 +50,7 @@ func NewReplicationApiService(
 	registrant *registrant.Registrant,
 	store *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
+	updater metadata.CursorUpdater,
 ) (*Service, error) {
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
 	if err != nil {
@@ -66,6 +69,7 @@ func NewReplicationApiService(
 		publishWorker:     publishWorker,
 		subscribeWorker:   subscribeWorker,
 		validationService: validationService,
+		cu:                updater,
 	}, nil
 }
 
@@ -82,7 +86,7 @@ func (s *Service) SubscribeEnvelopes(
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
-	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
+	err := stream.SendHeader(metaProtos.Pairs("subscribed", "true"))
 	if err != nil {
 		return status.Errorf(codes.Internal, "could not send header: %v", err)
 	}
@@ -449,7 +453,25 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 		return status.Errorf(codes.InvalidArgument, "topic does not match payload")
 	}
 
-	// TODO(rich): Verify all originators have synced past `last_seen`
+	if aad.GetDependsOn() != nil {
+		lastSeenCursor := s.cu.GetCursor()
+		for nodeId, seqId := range aad.GetDependsOn().NodeIdToSequenceId {
+			lastSeqId, exists := lastSeenCursor.NodeIdToSequenceId[nodeId]
+			if !exists {
+				return fmt.Errorf(
+					"node ID %d specified in DepenedsOn has not been seen by this node",
+					nodeId,
+				)
+			} else if seqId > lastSeqId {
+				return fmt.Errorf(
+					"sequence ID %d for node ID %d specified in DependsOn exceeds last seen sequence ID %d",
+					seqId,
+					nodeId,
+					lastSeqId,
+				)
+			}
+		}
+	}
 	// TODO(rich): Check that the blockchain sequence ID is equal to the latest on the group
 	// TODO(rich): Perform any payload-specific validation (e.g. identity updates)
 

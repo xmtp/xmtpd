@@ -75,17 +75,15 @@ func buildPayerService(
 	mockMessagePublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
 
 	metaMocks := metadataMocks.NewMockMetadataApiClient(t)
-	metadataConstructor := &FixedMetadataApiClientConstructor{
-		mockClient: metaMocks,
-	}
-	var interf payer.MetadataApiClientConstructor = metadataConstructor
 	payerService, err := payer.NewPayerApiService(
 		ctx,
 		log,
 		mockRegistry,
 		privKey,
 		mockMessagePublisher,
-		&interf,
+		&FixedMetadataApiClientConstructor{
+			mockClient: metaMocks,
+		},
 	)
 	require.NoError(t, err)
 

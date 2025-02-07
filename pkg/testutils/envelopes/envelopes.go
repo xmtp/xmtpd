@@ -25,9 +25,10 @@ func UnmarshalUnsignedOriginatorEnvelope(
 }
 
 func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.ClientEnvelope {
+	nodeId := uint32(100)
 	if len(aad) == 0 {
 		aad = append(aad, &envelopes.AuthenticatedData{
-			TargetOriginator: 100,
+			TargetOriginator: &nodeId,
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 				Bytes(),
 			DependsOn: &envelopes.Cursor{},
@@ -48,7 +49,7 @@ func CreateGroupMessageClientEnvelope(
 		Aad: &envelopes.AuthenticatedData{
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
 				Bytes(),
-			TargetOriginator: targetOriginator,
+			TargetOriginator: &targetOriginator,
 		},
 		Payload: &envelopes.ClientEnvelope_GroupMessage{
 			GroupMessage: &mlsv1.GroupMessageInput{
@@ -70,7 +71,7 @@ func CreateIdentityUpdateClientEnvelope(
 		Aad: &envelopes.AuthenticatedData{
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxID[:]).
 				Bytes(),
-			TargetOriginator: 0,
+			TargetOriginator: new(uint32),
 		},
 		Payload: &envelopes.ClientEnvelope_IdentityUpdate{
 			IdentityUpdate: update,
@@ -129,7 +130,7 @@ func CreateOriginatorEnvelopeWithTopic(
 	payerEnv := CreatePayerEnvelope(t, CreateClientEnvelope(
 		&envelopes.AuthenticatedData{
 			TargetTopic:      topic,
-			TargetOriginator: originatorNodeID,
+			TargetOriginator: &originatorNodeID,
 			DependsOn:        nil,
 		},
 	))

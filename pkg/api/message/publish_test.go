@@ -86,7 +86,9 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 	defer cleanup()
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	clientEnv.Aad.TargetOriginator = 2
+	nodeId := uint32(2)
+	// nolint:staticcheck
+	clientEnv.Aad.TargetOriginator = &nodeId
 	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
@@ -118,10 +120,11 @@ func TestMissingTopicOnPublish(t *testing.T) {
 func TestKeyPackageValidationSuccess(t *testing.T) {
 	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
+	nodeId := uint32(100)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		TargetOriginator: 100,
+		TargetOriginator: &nodeId,
 		DependsOn:        &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
@@ -157,10 +160,11 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 func TestKeyPackageValidationFail(t *testing.T) {
 	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
+	nodeId := uint32(100)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		TargetOriginator: 100,
+		TargetOriginator: &nodeId,
 		DependsOn:        &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{

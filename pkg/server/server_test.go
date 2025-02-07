@@ -144,6 +144,8 @@ func TestCreateServer(t *testing.T) {
 	defer cleanup1()
 	client2, cleanup2 := apiTestUtils.NewReplicationAPIClient(t, ctx, server2.Addr().String())
 	defer cleanup2()
+	nodeId1 := server1NodeID
+	nodeId2 := server2NodeID
 
 	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 		Bytes()
@@ -154,7 +156,7 @@ func TestCreateServer(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetOriginator: server1NodeID,
+					TargetOriginator: &nodeId1,
 					TargetTopic:      targetTopic,
 					DependsOn:        &envelopes.Cursor{},
 				}),
@@ -168,7 +170,7 @@ func TestCreateServer(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetOriginator: server2NodeID,
+					TargetOriginator: &nodeId2,
 					TargetTopic:      targetTopic,
 					DependsOn:        &envelopes.Cursor{},
 				}),
@@ -221,6 +223,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	require.NoError(t, err)
 	server1Port, err := getNextOpenPort()
 	require.NoError(t, err)
+	nodeId1 := server1NodeID
 
 	nodes := []r.Node{
 		{
@@ -255,7 +258,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetOriginator: server1NodeID,
+					TargetOriginator: &nodeId1,
 					TargetTopic:      targetTopic,
 					DependsOn:        &envelopes.Cursor{},
 				}),

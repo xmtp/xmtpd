@@ -189,6 +189,8 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 		{NodeID: 300},
 		{NodeID: 400},
 		{NodeID: 500},
+		{NodeID: 1200},
+		{NodeID: 8000},
 	}
 
 	mockRegistry := mocks.NewMockNodeRegistry(t)

@@ -23,7 +23,7 @@ func NewStableHashingNodeSelectorAlgorithm(
 	return &StableHashingNodeSelectorAlgorithm{reg: reg}
 }
 
-// hashKey hashes the topic to a stable uint32 hash
+// hashKey hashes the topic to a stable uint16 hash
 func HashKey(topic topic.Topic) uint32 {
 	hash := sha256.Sum256(topic.Bytes())
 	return binary.BigEndian.Uint32(hash[:4])
@@ -45,17 +45,20 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(topic topic.Topic) (uint32,
 
 	topicHash := HashKey(topic)
 
-	// we do not want to hash the entire available hash space, just consider up to the largest NodeID issued
-	topicHash = topicHash % nodes[len(nodes)-1].NodeID
+	numNodes := uint32(len(nodes))
+	maxHashSpace := ^uint32(0)
+	spacing := maxHashSpace / numNodes
 
-	// Use binary search to find the closest node
-	// search returns the smallest element where condition is TRUE
-	idx := sort.Search(
-		len(nodes),
-		func(i int) bool { return topicHash < nodes[i].NodeID },
-	)
+	// Compute virtual positions for each node
+	nodeLocations := make([]uint32, numNodes)
+	for i := range nodes {
+		nodeLocations[i] = uint32(i) * spacing
+	}
 
-	//println(topicHash, idx, nodes[idx].NodeID, topic.String())
+	// Binary search to find the first node with a virtual position >= topicHash
+	idx := sort.Search(len(nodeLocations), func(i int) bool {
+		return topicHash < nodeLocations[i]
+	})
 
-	return nodes[idx].NodeID, nil
+	return nodes[idx%len(nodeLocations)].NodeID, nil
 }

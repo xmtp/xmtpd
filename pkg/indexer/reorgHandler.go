@@ -68,6 +68,26 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 		}
 
 		oldestBlock := storedBlocks[0]
+
+		if oldestBlock.BlockHash == nil {
+			startAtZero, err := r.client.BlockByNumber(
+				r.ctx,
+				big.NewInt(0),
+			)
+			if err != nil {
+				return 0, nil, fmt.Errorf("%w %d: %v", ErrGetBlock, oldestBlock.BlockNumber, err)
+			}
+
+			if err := r.queries.UpdateBlocksCanonicalityInRange(r.ctx, queries.UpdateBlocksCanonicalityInRangeParams{
+				StartBlockNumber: 0,
+				EndBlockNumber:   detectedAt,
+			}); err != nil {
+				return 0, nil, fmt.Errorf("failed to update block range canonicality: %w", err)
+			}
+
+			return 0, startAtZero.Hash().Bytes(), nil
+		}
+
 		chainBlock, err := r.client.BlockByNumber(r.ctx, big.NewInt(int64(oldestBlock.BlockNumber)))
 		if err != nil {
 			return 0, nil, fmt.Errorf("%w %d: %v", ErrGetBlock, oldestBlock.BlockNumber, err)

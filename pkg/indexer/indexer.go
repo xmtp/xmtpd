@@ -300,7 +300,8 @@ func indexLogs(
 				zap.Uint64("blockNumber", reorgCheckAt),
 			)
 
-			if !bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
+			if storedBlockHash != nil &&
+				!bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
 				logger.Warn("blockchain reorg detected",
 					zap.Uint64("storedBlockNumber", storedBlockNumber),
 					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),

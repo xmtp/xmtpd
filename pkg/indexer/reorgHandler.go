@@ -27,8 +27,11 @@ var (
 	ErrGetBlock      = errors.New("failed to get block")
 )
 
-// TODO(borja): Make this configurable?
-const BLOCK_RANGE_SIZE uint64 = 1000
+// The indexer performs a reorg check every 60 blocks.
+// Setting BLOCK_RANGE_SIZE to 600 (10 cycles of 60 blocks)
+// allows us to retrieve a single page of blocks from the database,
+// which will likely contain the reorg point.
+const BLOCK_RANGE_SIZE uint64 = 600
 
 func NewChainReorgHandler(
 	ctx context.Context,
@@ -42,7 +45,8 @@ func NewChainReorgHandler(
 	}
 }
 
-// TODO(borja): When reorg range has been calculated, alert clients (TBD)
+// TODO(borja): When reorg range has been calculated, alert clients.
+// Tracked in https://github.com/xmtp/xmtpd/issues/437
 func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error) {
 	startBlock, endBlock := blockRange(detectedAt)
 

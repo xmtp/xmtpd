@@ -228,17 +228,21 @@ func indexLogs(
 	blockTracker IBlockTracker,
 	reorgHandler ChainReorgHandler,
 ) {
+	// L3 Orbit works with Arbitrum Elastic Block Time, which under maximum load produces a block every 0.25s.
+	// With a maximum throughput of 7M gas per second and a median transaction size of roughly 200k gas,
+	// checking for a reorg every 60 blocks (15 seconds) means that, theoretically, a maximum of 495 messages could be affected.
+	const reorgCheckInterval = 60
+
 	var (
-		errStorage         storer.LogStorageError
-		storedBlockNumber  uint64
-		storedBlockHash    []byte
-		lastBlockSeen      uint64
-		reorgCheckInterval uint64 = 10 // TODO(borja): Adapt based on blocks per batch
-		reorgCheckAt       uint64
-		reorgDetectedAt    uint64
-		reorgBeginsAt      uint64
-		reorgFinishesAt    uint64
-		reorgInProgress    bool
+		errStorage        storer.LogStorageError
+		storedBlockNumber uint64
+		storedBlockHash   []byte
+		lastBlockSeen     uint64
+		reorgCheckAt      uint64
+		reorgDetectedAt   uint64
+		reorgBeginsAt     uint64
+		reorgFinishesAt   uint64
+		reorgInProgress   bool
 	)
 
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled

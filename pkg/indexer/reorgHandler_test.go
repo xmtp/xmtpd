@@ -15,9 +15,9 @@ func Test_blockRange(t *testing.T) {
 	}{
 		{
 			name:           "block range with subtraction",
-			from:           1001,
+			from:           601,
 			wantStartBlock: 1,
-			wantEndBlock:   1001,
+			wantEndBlock:   601,
 		},
 		{
 			name:           "block range without subtraction",

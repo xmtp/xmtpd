@@ -32,6 +32,7 @@ type Service struct {
 	clientManager       *ClientManager
 	blockchainPublisher blockchain.IBlockchainPublisher
 	payerPrivateKey     *ecdsa.PrivateKey
+	nodeSelector        NodeSelectorAlgorithm
 	nodeCursorTracker   *NodeCursorTracker
 }
 
@@ -57,6 +58,7 @@ func NewPayerApiService(
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
 		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, metadataClient),
+		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: registry},
 	}, nil
 }
 
@@ -144,7 +146,19 @@ func (s *Service) groupEnvelopes(
 				newClientEnvelopeWithIndex(i, clientEnvelope),
 			)
 		} else {
-			out.forNodes[aad.TargetOriginator] = append(out.forNodes[aad.TargetOriginator], newClientEnvelopeWithIndex(i, clientEnvelope))
+			// backwards compatibility
+			var targetNodeId uint32
+			// nolint:staticcheck
+			if aad.GetTargetOriginator() != 0 {
+				targetNodeId = aad.GetTargetOriginator()
+			} else {
+				node, err := s.nodeSelector.GetNode(targetTopic)
+				if err != nil {
+					return nil, err
+				}
+				targetNodeId = node
+			}
+			out.forNodes[targetNodeId] = append(out.forNodes[targetNodeId], newClientEnvelopeWithIndex(i, clientEnvelope))
 		}
 	}
 
@@ -184,7 +198,6 @@ func (s *Service) publishToBlockchain(
 ) (*envelopesProto.OriginatorEnvelope, error) {
 	targetTopic := clientEnvelope.TargetTopic()
 	identifier := targetTopic.Identifier()
-	expectedNode := clientEnvelope.Aad().TargetOriginator
 	desiredOriginatorId := uint32(1) //TODO: determine this from the chain
 	desiredSequenceId := uint64(0)
 	kind := targetTopic.Kind()
@@ -223,7 +236,7 @@ func (s *Service) publishToBlockchain(
 
 		hash = logMessage.Raw.TxHash
 		unsignedOriginatorEnvelope = buildUnsignedOriginatorEnvelopeFromChain(
-			clientEnvelope.Aad().TargetOriginator,
+			desiredOriginatorId,
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
@@ -240,7 +253,7 @@ func (s *Service) publishToBlockchain(
 
 		hash = logMessage.Raw.TxHash
 		unsignedOriginatorEnvelope = buildUnsignedOriginatorEnvelopeFromChain(
-			clientEnvelope.Aad().TargetOriginator,
+			desiredOriginatorId,
 			logMessage.SequenceId,
 			logMessage.Update,
 		)
@@ -262,9 +275,23 @@ func (s *Service) publishToBlockchain(
 			err,
 		)
 	}
+
+	// backwards compatibility
+	var targetNodeId uint32
+	// nolint:staticcheck
+	if clientEnvelope.Aad().GetTargetOriginator() >= 100 {
+		targetNodeId = clientEnvelope.Aad().GetTargetOriginator()
+	} else {
+		node, err := s.nodeSelector.GetNode(targetTopic)
+		if err != nil {
+			return nil, err
+		}
+		targetNodeId = node
+	}
+
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
 		ctx,
-		expectedNode,
+		targetNodeId,
 		desiredOriginatorId,
 		desiredSequenceId,
 	)
@@ -337,7 +364,9 @@ func shouldSendToBlockchain(targetTopic topic.Topic, aad *envelopesProto.Authent
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		return true
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		return aad.TargetOriginator < uint32(constants.MAX_BLOCKCHAIN_ORIGINATOR_ID)
+		// nolint:staticcheck
+		return aad.GetIsCommit() || aad.GetTargetOriginator() != 0 &&
+			aad.GetTargetOriginator() < uint32(constants.MAX_BLOCKCHAIN_ORIGINATOR_ID)
 	default:
 		return false
 	}

@@ -440,6 +440,7 @@ func (s *Service) validateKeyPackage(
 
 func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error {
 	aad := clientEnv.Aad()
+	// nolint:staticcheck
 	if aad.GetTargetOriginator() != s.registrant.NodeID() {
 		return status.Errorf(codes.InvalidArgument, "invalid target originator")
 	}

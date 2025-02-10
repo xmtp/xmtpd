@@ -10,3 +10,4 @@ CREATE TABLE blockchain_messages(
 
 CREATE INDEX idx_blockchain_messages_block_canonical ON blockchain_messages(block_number, is_canonical);
 
+ALTER TABLE latest_block ADD COLUMN block_hash BYTEA;

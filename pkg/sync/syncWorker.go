@@ -191,12 +191,14 @@ func (s *syncWorker) subscribeToNodeRegistration(
 				backoff = time.Second
 			}
 
-			conn, err := s.connectToNode(*node)
+			var conn *grpc.ClientConn
+			conn, err = s.connectToNode(*node)
 			if err != nil {
 				continue
 			}
 
-			stream, err := s.setupStream(registration.ctx, *node, conn)
+			var stream *originatorStream
+			stream, err = s.setupStream(registration.ctx, *node, conn)
 			if err != nil {
 				_ = conn.Close()
 				continue

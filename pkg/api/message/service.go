@@ -459,7 +459,7 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 			lastSeqId, exists := lastSeenCursor.NodeIdToSequenceId[nodeId]
 			if !exists {
 				return fmt.Errorf(
-					"node ID %d specified in DepenedsOn has not been seen by this node",
+					"node ID %d specified in DependsOn has not been seen by this node",
 					nodeId,
 				)
 			} else if seqId > lastSeqId {

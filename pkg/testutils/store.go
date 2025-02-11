@@ -3,6 +3,9 @@ package testutils
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -16,6 +19,17 @@ const (
 	LocalTestDBDSNPrefix = "postgres://postgres:xmtp@localhost:8765"
 	LocalTestDBDSNSuffix = "?sslmode=disable"
 )
+
+func getCallerName(depth int) string {
+	pc, _, _, ok := runtime.Caller(depth)
+	if !ok {
+		return "unknown"
+	}
+	nameFull := runtime.FuncForPC(pc).Name()
+	nameEnd := filepath.Ext(nameFull)
+	name := strings.TrimPrefix(nameEnd, ".")
+	return strings.ToLower(name)
+}
 
 func openDB(t testing.TB, dsn string) (*sql.DB, string, func()) {
 	config, err := pgx.ParseConfig(dsn)
@@ -32,7 +46,8 @@ func newCtlDB(t testing.TB) (*sql.DB, string, func()) {
 }
 
 func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string, func()) {
-	dbName := "test_" + RandomStringLower(12)
+	dbName := "test_" + getCallerName(3) + "_" + RandomStringLower(12)
+	t.Logf("creating database %s ...", dbName)
 	_, err := ctlDB.Exec("CREATE DATABASE " + dbName)
 	require.NoError(t, err)
 

@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -118,27 +116,34 @@ func TestCreateServer(t *testing.T) {
 	registry.On("GetNodes").Return(nodes, nil)
 
 	nodesChan := make(chan []r.Node)
-	cancelOnNewFunc := func() {
-		close(nodesChan)
-	}
 	registry.On("OnNewNodes").
-		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(cancelOnNewFunc))
+		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(func() {}))
 
-	nodeChan := make(chan r.Node)
-
-	cancelOnChangedFunc := func() {
-		close(nodeChan)
-	}
-
-	registry.On("OnChangedNode", mock.AnythingOfType("uint32")).
-		Return((<-chan r.Node)(nodeChan), r.CancelSubscription(cancelOnChangedFunc))
+	nodeChan1 := make(chan r.Node)
+	nodeChan2 := make(chan r.Node)
+	registry.On("OnChangedNode", server1NodeID).
+		Return((<-chan r.Node)(nodeChan1), r.CancelSubscription(func() {
+			close(nodeChan1)
+		}))
+	registry.On("OnChangedNode", server2NodeID).
+		Return((<-chan r.Node)(nodeChan2), r.CancelSubscription(func() {
+			close(nodeChan2)
+		}))
 
 	registry.On("GetNode", server1NodeID).Return(&nodes[0], nil)
 	registry.On("GetNode", server2NodeID).Return(&nodes[1], nil)
 
+	registry.On("Stop").Return(nil)
+
 	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
 	server2 := NewTestServer(t, server2Port, dbs[1], registry, privateKey2)
+
 	require.NotEqual(t, server1.Addr(), server2.Addr())
+
+	defer func() {
+		server1.Shutdown(0)
+		server2.Shutdown(0)
+	}()
 
 	client1, cleanup1 := apiTestUtils.NewReplicationAPIClient(t, ctx, server1.Addr().String())
 	defer cleanup1()
@@ -238,13 +243,16 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	registry.On("GetNodes").Return(nodes, nil)
 
 	nodesChan := make(chan []r.Node)
-	cancelOnNewFunc := func() {
-		close(nodesChan)
-	}
 	registry.On("OnNewNodes").
-		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(cancelOnNewFunc))
+		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(func() {
+		}))
+
+	registry.On("Stop").Return(nil)
 
 	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
+	defer func() {
+		server1.Shutdown(0)
+	}()
 
 	client1, cleanup1 := apiTestUtils.NewReplicationAPIClient(t, ctx, server1.Addr().String())
 	defer cleanup1()

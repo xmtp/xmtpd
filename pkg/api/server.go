@@ -146,10 +146,14 @@ func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 	<-ctx.Done()
 }
 
-func (s *ApiServer) Close() {
+func (s *ApiServer) Close(timeout time.Duration) {
 	s.log.Debug("closing")
 	if s.grpcServer != nil {
-		s.gracefulShutdown(10 * time.Second)
+		if timeout != 0 {
+			s.gracefulShutdown(timeout)
+		} else {
+			s.grpcServer.Stop()
+		}
 	}
 	if s.grpcListener != nil {
 		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {

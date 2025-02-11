@@ -172,8 +172,6 @@ func (s *syncWorker) subscribeToNodeRegistration(
 		return
 	}
 
-	var conn *grpc.ClientConn
-	var stream *originatorStream
 	err = nil
 
 	// TODO(mkysel) we should eventually implement a better backoff strategy
@@ -193,15 +191,19 @@ func (s *syncWorker) subscribeToNodeRegistration(
 				backoff = time.Second
 			}
 
-			conn, err = s.connectToNode(*node)
+			conn, err := s.connectToNode(*node)
 			if err != nil {
 				continue
 			}
-			stream, err = s.setupStream(registration.ctx, *node, conn)
+
+			stream, err := s.setupStream(registration.ctx, *node, conn)
 			if err != nil {
+				_ = conn.Close()
 				continue
 			}
 			err = s.listenToStream(stream)
+			_ = stream.stream.CloseSend()
+			_ = conn.Close()
 		}
 	}
 }
@@ -322,20 +324,40 @@ func (s *syncWorker) setupStream(
 func (s *syncWorker) listenToStream(
 	originatorStream *originatorStream,
 ) error {
+	recvChan := make(chan *message_api.SubscribeEnvelopesResponse)
+	errChan := make(chan error)
+
+	go func() {
+		for {
+			envs, err := originatorStream.stream.Recv()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			recvChan <- envs
+		}
+	}()
+
 	for {
-		// Recv() is a blocking operation that can only be interrupted by cancelling ctx
-		envs, err := originatorStream.stream.Recv()
-		if err == io.EOF {
-			return fmt.Errorf("stream closed with EOF")
-		}
-		if err != nil {
-			return fmt.Errorf(
-				"stream closed with error: %v",
-				err)
-		}
-		s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))
-		for _, env := range envs.Envelopes {
-			s.validateAndInsertEnvelope(originatorStream, env)
+		select {
+		case <-s.ctx.Done():
+			s.log.Info("Context canceled, stopping stream listener")
+			return nil
+
+		case envs := <-recvChan:
+			s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))
+			for _, env := range envs.Envelopes {
+				s.validateAndInsertEnvelope(originatorStream, env)
+			}
+
+		case err := <-errChan:
+			if err == io.EOF {
+				s.log.Info("Stream closed with EOF")
+				// let the caller rebuild the stream if required
+				return nil
+			}
+			s.log.Error("Stream closed with error", zap.Error(err))
+			return err
 		}
 	}
 }

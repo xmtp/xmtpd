@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"regexp"
 	"time"
 
@@ -124,6 +125,7 @@ func createNamespace(
 // Creates a new database with the given namespace if it doesn't exist and returns the full DSN for the new database.
 func NewNamespacedDB(
 	ctx context.Context,
+	logger *zap.Logger,
 	dsn string,
 	namespace string,
 	waitForDB time.Duration, statementTimeout time.Duration,
@@ -137,6 +139,8 @@ func NewNamespacedDB(
 	if err = createNamespace(ctx, config, namespace, waitForDB); err != nil {
 		return nil, err
 	}
+
+	logger.Info("Successfully connected to DB", zap.String("namespace", namespace))
 
 	config.ConnConfig.Database = namespace
 

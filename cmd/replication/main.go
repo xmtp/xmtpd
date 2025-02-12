@@ -75,6 +75,7 @@ func main() {
 		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
 			dbInstance, err = db.NewNamespacedDB(
 				ctx,
+				logger,
 				options.DB.WriterConnectionString,
 				utils.BuildNamespace(options),
 				options.DB.WaitForDB,

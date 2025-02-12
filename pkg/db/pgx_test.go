@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"log"
 	"net"
 	"testing"
@@ -15,9 +16,12 @@ import (
 func TestNamespacedDB(t *testing.T) {
 	startingDsn := testutils.LocalTestDBDSNPrefix + "/foo" + testutils.LocalTestDBDSNSuffix
 	newDBName := "xmtp_" + testutils.RandomString(24)
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
 	// Create namespaced DB
 	namespacedDB, err := NewNamespacedDB(
 		context.Background(),
+		logger,
 		startingDsn,
 		newDBName,
 		time.Second,
@@ -40,9 +44,12 @@ func TestNamespacedDB(t *testing.T) {
 func TestNamespaceRepeat(t *testing.T) {
 	startingDsn := testutils.LocalTestDBDSNPrefix + "/foo" + testutils.LocalTestDBDSNSuffix
 	newDBName := "xmtp_" + testutils.RandomString(24)
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
 	// Create namespaced DB
 	db1, err := NewNamespacedDB(
 		context.Background(),
+		logger,
 		startingDsn,
 		newDBName,
 		time.Second,
@@ -55,6 +62,7 @@ func TestNamespaceRepeat(t *testing.T) {
 	// Create again with the same name
 	db2, err := NewNamespacedDB(
 		context.Background(),
+		logger,
 		startingDsn,
 		newDBName,
 		time.Second,
@@ -66,8 +74,11 @@ func TestNamespaceRepeat(t *testing.T) {
 }
 
 func TestNamespacedDBInvalidName(t *testing.T) {
-	_, err := NewNamespacedDB(
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+	_, err = NewNamespacedDB(
 		context.Background(),
+		logger,
 		testutils.LocalTestDBDSNPrefix+"/foo"+testutils.LocalTestDBDSNSuffix,
 		"invalid/name",
 		time.Second,
@@ -77,8 +88,11 @@ func TestNamespacedDBInvalidName(t *testing.T) {
 }
 
 func TestNamespacedDBInvalidDSN(t *testing.T) {
-	_, err := NewNamespacedDB(
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+	_, err = NewNamespacedDB(
 		context.Background(),
+		logger,
 		"invalid-dsn",
 		"dbname",
 		time.Second,
@@ -126,6 +140,9 @@ func TestBlackholeDNS(t *testing.T) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	listener.Close()
 
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+
 	dsn := fmt.Sprintf("postgres://user:password@localhost:%d/dbname?sslmode=disable", port)
 	const testTimeout = 5 * time.Second
 	const dbTimeout = 200 * time.Millisecond
@@ -146,6 +163,7 @@ func TestBlackholeDNS(t *testing.T) {
 
 	_, err = NewNamespacedDB(
 		testCtx,
+		logger,
 		dsn,
 		"dbname",
 		dbTimeout,

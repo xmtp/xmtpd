@@ -3,4 +3,4 @@ set -e
 
 . dev/docker/env
 
-docker_compose down
+docker_compose down --remove-orphans --volumes

@@ -25,6 +25,7 @@ type DbOptions struct {
 	WriteTimeout           time.Duration `long:"write-timeout"            env:"XMTPD_DB_WRITE_TIMEOUT"            description:"Timeout for writing to the database"            default:"10s"`
 	MaxOpenConns           int           `long:"max-open-conns"           env:"XMTPD_DB_MAX_OPEN_CONNS"           description:"Maximum number of open connections"             default:"80"`
 	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration" default:"30s"`
+	NameOverride           string        `long:"name-override"            env:"XMTPD_DB_NAME_OVERRIDE"            description:"Override the automatically generated DB name"                 hidden:"true"`
 }
 
 type IndexerOptions struct {

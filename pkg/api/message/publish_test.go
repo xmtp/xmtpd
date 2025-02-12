@@ -196,3 +196,52 @@ func TestKeyPackageValidationFail(t *testing.T) {
 	)
 	require.Error(t, err)
 }
+
+func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	err := publishPayerEnvelopeWithNodeIDAndCursor(t, api, 100, &envelopes.Cursor{
+		NodeIdToSequenceId: map[uint32]uint64{
+			1: 105,
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "DependsOn has not been seen by this node")
+}
+
+func publishPayerEnvelopeWithNodeIDAndCursor(
+	t *testing.T,
+	api message_api.ReplicationApiClient, nodeId uint32, cursor *envelopes.Cursor,
+) error {
+	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+		Bytes()
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
+				t,
+				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+					TargetOriginator: &nodeId,
+					TargetTopic:      targetTopic,
+					DependsOn:        cursor,
+				}),
+			)},
+		},
+	)
+
+	return err
+}
+
+func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	err := publishPayerEnvelopeWithNodeIDAndCursor(t, api, 100, &envelopes.Cursor{
+		NodeIdToSequenceId: map[uint32]uint64{
+			1600: 1,
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "DependsOn has not been seen by this node")
+}

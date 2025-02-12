@@ -5,41 +5,60 @@ import (
 	"database/sql"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 	"sync"
 	"time"
 )
 
-type CursorUpdater struct {
+type CursorUpdater interface {
+	GetCursor() *envelopes.Cursor
+	AddSubscriber(clientID string, updateChan chan struct{})
+	RemoveSubscriber(clientID string)
+	Stop()
+}
+
+type DBBasedCursorUpdater struct {
 	ctx           context.Context
 	log           *zap.Logger
 	store         *sql.DB
+	cancel        context.CancelFunc
+	wg            sync.WaitGroup
 	cursorMu      sync.RWMutex
 	cursor        map[uint32]uint64
 	subscribersMu sync.RWMutex
 	subscribers   map[string][]chan struct{}
 }
 
-func NewCursorUpdater(ctx context.Context, log *zap.Logger, store *sql.DB) *CursorUpdater {
+func NewCursorUpdater(ctx context.Context, log *zap.Logger, store *sql.DB) CursorUpdater {
 	subscribers := make(map[string][]chan struct{})
-	cu := CursorUpdater{
+	ctx, cancel := context.WithCancel(ctx)
+	cu := DBBasedCursorUpdater{
 		ctx:         ctx,
 		log:         log.Named("cursor-updater"),
 		store:       store,
+		cancel:      cancel,
+		wg:          sync.WaitGroup{},
 		subscribers: subscribers,
 	}
 
-	go cu.start()
+	tracing.GoPanicWrap(
+		cu.ctx,
+		&cu.wg,
+		"cursor-updater",
+		func(ctx context.Context) {
+			cu.start()
+		})
 	return &cu
 }
 
-func (cu *CursorUpdater) GetCursor() *envelopes.Cursor {
+func (cu *DBBasedCursorUpdater) GetCursor() *envelopes.Cursor {
 	cu.cursorMu.RLock()
 	defer cu.cursorMu.RUnlock()
 	return &envelopes.Cursor{NodeIdToSequenceId: cu.cursor}
 }
 
-func (cu *CursorUpdater) start() {
+func (cu *DBBasedCursorUpdater) start() {
 	ticker := time.NewTicker(100 * time.Millisecond) // Adjust the period as needed
 	defer ticker.Stop()
 	for {
@@ -71,7 +90,7 @@ func equalCursors(a, b map[uint32]uint64) bool {
 	return true
 }
 
-func (cu *CursorUpdater) read() (bool, error) {
+func (cu *DBBasedCursorUpdater) read() (bool, error) {
 	rows, err := queries.New(cu.store).GetLatestCursor(cu.ctx)
 	if err != nil {
 		return false, err
@@ -93,7 +112,7 @@ func (cu *CursorUpdater) read() (bool, error) {
 	return false, nil
 }
 
-func (cu *CursorUpdater) notifySubscribers() {
+func (cu *DBBasedCursorUpdater) notifySubscribers() {
 	cu.subscribersMu.Lock()
 	defer cu.subscribersMu.Unlock()
 
@@ -109,14 +128,18 @@ func (cu *CursorUpdater) notifySubscribers() {
 	}
 }
 
-func (cu *CursorUpdater) AddSubscriber(clientID string, updateChan chan struct{}) {
+func (cu *DBBasedCursorUpdater) AddSubscriber(clientID string, updateChan chan struct{}) {
 	cu.subscribersMu.Lock()
 	defer cu.subscribersMu.Unlock()
 	cu.subscribers[clientID] = append(cu.subscribers[clientID], updateChan)
 }
 
-func (cu *CursorUpdater) RemoveSubscriber(clientID string) {
+func (cu *DBBasedCursorUpdater) RemoveSubscriber(clientID string) {
 	cu.subscribersMu.Lock()
 	defer cu.subscribersMu.Unlock()
 	delete(cu.subscribers, clientID)
+}
+func (cu *DBBasedCursorUpdater) Stop() {
+	cu.cancel()
+	cu.wg.Wait()
 }

@@ -124,6 +124,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 			registrant,
 			db,
 			mockValidationService,
+			metadata.NewCursorUpdater(ctx, log, db),
 		)
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
@@ -139,7 +140,11 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 		require.NoError(t, err)
 		payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
-		metadataService, err := metadata.NewMetadataApiService(ctx, log, db)
+		metadataService, err := metadata.NewMetadataApiService(
+			ctx,
+			log,
+			metadata.NewCursorUpdater(ctx, log, db),
+		)
 		require.NoError(t, err)
 		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
 

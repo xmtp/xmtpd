@@ -48,6 +48,7 @@ type ReplicationServer struct {
 	options           config.ServerOptions
 	metrics           *metrics.Server
 	validationService mlsvalidate.MLSValidationService
+	cursorUpdater     metadata.CursorUpdater
 }
 
 func NewReplicationServer(
@@ -184,6 +185,7 @@ func startAPIServer(
 					return err
 				}
 			}
+			s.cursorUpdater = metadata.NewCursorUpdater(ctx, log, writerDB)
 
 			replicationService, err := message.NewReplicationApiService(
 				ctx,
@@ -191,6 +193,7 @@ func startAPIServer(
 				s.registrant,
 				writerDB,
 				s.validationService,
+				s.cursorUpdater,
 			)
 			if err != nil {
 				return err
@@ -202,7 +205,7 @@ func startAPIServer(
 			metadataService, err := metadata.NewMetadataApiService(
 				ctx,
 				log,
-				writerDB,
+				s.cursorUpdater,
 			)
 			if err != nil {
 				return err
@@ -279,6 +282,10 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 
 	if s.nodeRegistry != nil {
 		s.nodeRegistry.Stop()
+	}
+
+	if s.cursorUpdater != nil {
+		s.cursorUpdater.Stop()
 	}
 
 	if s.indx != nil {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -260,14 +261,14 @@ func (s *ReplicationServer) Addr() net.Addr {
 	return s.apiServer.Addr()
 }
 
-func (s *ReplicationServer) WaitForShutdown() {
+func (s *ReplicationServer) WaitForShutdown(timeout time.Duration) {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	<-termChannel
-	s.Shutdown()
+	s.Shutdown(timeout)
 }
 
-func (s *ReplicationServer) Shutdown() {
+func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 	if s.metrics != nil {
 		s.metrics.Close()
 	}
@@ -284,7 +285,7 @@ func (s *ReplicationServer) Shutdown() {
 		s.indx.Close()
 	}
 	if s.apiServer != nil {
-		s.apiServer.Close()
+		s.apiServer.Close(timeout)
 	}
 
 	s.cancel()

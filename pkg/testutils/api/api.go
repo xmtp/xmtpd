@@ -164,7 +164,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 
 	return svr, db, allMocks, func() {
 		cancel()
-		svr.Close()
+		svr.Close(0)
 		dbCleanup()
 	}
 }

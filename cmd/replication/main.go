@@ -7,6 +7,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -137,7 +138,7 @@ func main() {
 			log.Fatal("initializing server", zap.Error(err))
 		}
 
-		s.WaitForShutdown()
+		s.WaitForShutdown(10 * time.Second)
 		doneC <- true
 	})
 	<-doneC

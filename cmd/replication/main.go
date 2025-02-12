@@ -18,7 +18,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var Commit string = "unknown"
+var Version string = "unknown"
 
 var options config.ServerOptions
 
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	if options.Version {
-		fmt.Printf("Version: %s\n", Commit)
+		fmt.Printf("Version: %s\n", Version)
 		return
 	}
 
@@ -48,10 +48,10 @@ func main() {
 	}
 	logger = logger.Named("replication")
 
-	logger.Info(fmt.Sprintf("Version: %s", Commit))
+	logger.Info(fmt.Sprintf("Version: %s", Version))
 	if options.Tracing.Enable {
 		logger.Info("starting tracer")
-		tracing.Start(Commit, logger)
+		tracing.Start(Version, logger)
 		defer func() {
 			logger.Info("stopping tracer")
 			tracing.Stop()

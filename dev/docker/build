@@ -3,10 +3,10 @@ set -e
 
 DOCKER_IMAGE_TAG="${DOCKER_IMAGE_TAG:-dev}"
 DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-xmtp/xmtpd}"
-GIT_COMMIT="$(git rev-parse HEAD)"
+VERSION="$(git describe HEAD --tags --long)"
 
 docker buildx build \
-    --build-arg="GIT_COMMIT=${GIT_COMMIT}" \
+    --build-arg="VERSION=${VERSION}" \
     --tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
     -f dev/docker/Dockerfile \
     .

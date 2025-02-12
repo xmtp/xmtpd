@@ -20,7 +20,7 @@ const (
 	LocalTestDBDSNSuffix = "?sslmode=disable"
 )
 
-func getCallerName(depth int) string {
+func GetCallerName(depth int) string {
 	pc, _, _, ok := runtime.Caller(depth)
 	if !ok {
 		return "unknown"
@@ -46,7 +46,7 @@ func newCtlDB(t testing.TB) (*sql.DB, string, func()) {
 }
 
 func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string, func()) {
-	dbName := "test_" + getCallerName(3) + "_" + RandomStringLower(12)
+	dbName := "test_" + GetCallerName(3) + "_" + RandomStringLower(12)
 	t.Logf("creating database %s ...", dbName)
 	_, err := ctlDB.Exec("CREATE DATABASE " + dbName)
 	require.NoError(t, err)

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -47,11 +49,12 @@ func loadEnvFromShell() (map[string]string, error) {
 }
 
 func expandVars(vars map[string]string) {
-	vars["XMTPD_REFLECTION_ENABLE"] = "true"
-	vars["XMTPD_PAYER_ENABLE"] = "true"
 	vars["XMTPD_REPLICATION_ENABLE"] = "true"
-	vars["XMTPD_SYNC_ENABLE"] = "true"
 	vars["XMTPD_INDEXER_ENABLE"] = "true"
+
+	dbName := testutils.GetCallerName(3) + "_" + testutils.RandomStringLower(6)
+
+	vars["XMTPD_DB_NAME_OVERRIDE"] = dbName
 }
 
 func convertLocalhost(vars map[string]string) {
@@ -62,61 +65,77 @@ func convertLocalhost(vars map[string]string) {
 	}
 }
 
-func TestLoadEnvAndPassToDocker(t *testing.T) {
-	envVars, err := loadEnvFromShell()
+func dockerRmc(containerName string) error {
+	killCmd := exec.Command("docker", "rm", containerName)
+	return killCmd.Run()
+}
+
+func dockerKill(containerName string) error {
+	killCmd := exec.Command("docker", "kill", containerName)
+	return killCmd.Run()
+}
+
+func dockerLogs(containerName string) (string, error) {
+	logsCmd := exec.Command("docker", "logs", containerName)
+	var outBuf bytes.Buffer
+	logsCmd.Stdout = &outBuf
+	err := logsCmd.Run()
 	if err != nil {
-		t.Fatalf("Failed to load environment variables: %v", err)
+		return "", err
 	}
+	return outBuf.String(), nil
+}
+
+func constructVariables(t *testing.T) map[string]string {
+	envVars, err := loadEnvFromShell()
+	require.NoError(t, err)
 	expandVars(envVars)
 	convertLocalhost(envVars)
 
+	return envVars
+}
+
+func runContainer(
+	t *testing.T,
+	containerName string,
+	imageName string,
+	envVars map[string]string,
+) {
 	var dockerEnvArgs []string
 	for key, value := range envVars {
 		dockerEnvArgs = append(dockerEnvArgs, "-e", fmt.Sprintf("%s=%s", key, value))
 	}
-	containerName := "xmtpd_test_env"
 
-	dockerCmd := append([]string{"run"}, dockerEnvArgs...)
-	dockerCmd = append(dockerCmd, "--name", containerName, "ghcr.io/xmtp/xmtpd:0.1.3")
+	_ = dockerRmc(containerName)
 
-	t.Logf("Running docker command: %v", dockerCmd)
+	dockerCmd := append([]string{"run", "-d"}, dockerEnvArgs...)
+	dockerCmd = append(dockerCmd, "--name", containerName, imageName)
+
 	cmd := exec.Command("docker", dockerCmd...)
 
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
-	err = cmd.Start()
-	if err != nil {
-		t.Fatalf(
-			"Docker run failed: %v\nOutput: %s\nError: %s",
-			err,
-			outBuf.String(),
-			errBuf.String(),
-		)
-	}
+	err := cmd.Run()
+	require.NoError(t, err, "Error: %s", errBuf.String())
 
-	// Wait for 5 seconds
+	defer func() {
+		logs, err := dockerLogs(containerName)
+		if err != nil {
+			t.Logf("Failed to get docker logs: %v", err)
+		}
+		t.Logf("Docker logs:\n%s", logs)
+		_ = dockerKill(containerName)
+	}()
+
 	time.Sleep(5 * time.Second)
+}
 
-	// Collect logs
-	logsCmd := exec.Command("docker", "logs", containerName)
-	var logsBuf bytes.Buffer
-	logsCmd.Stdout = &logsBuf
-	logsCmd.Stderr = &errBuf
+func TestUpgradeFrom014(t *testing.T) {
 
-	err = logsCmd.Run()
-	if err != nil {
-		t.Fatalf("Failed to collect logs: %v\nError: %s", err, errBuf.String())
-	}
+	envVars := constructVariables(t)
+	runContainer(t, "xmtpd_test_014", "ghcr.io/xmtp/xmtpd:0.1.4", envVars)
 
-	// Kill the container
-	killCmd := exec.Command("docker", "kill", containerName)
-	err = killCmd.Run()
-	if err != nil {
-		t.Fatalf("Failed to kill Docker container: %v", err)
-	}
-
-	t.Logf("Logs:\n%s", logsBuf.String())
-
+	runContainer(t, "xmtpd_test_dev", "xmtp/xmtpd:dev", envVars)
 }

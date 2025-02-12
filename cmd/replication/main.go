@@ -65,10 +65,14 @@ func main() {
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
 		var dbInstance *sql.DB
 		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
+			namespace := options.DB.NameOverride
+			if namespace == "" {
+				namespace = utils.BuildNamespace(options)
+			}
 			dbInstance, err = db.NewNamespacedDB(
 				ctx,
 				options.DB.WriterConnectionString,
-				utils.BuildNamespace(options),
+				namespace,
 				options.DB.WaitForDB,
 				options.DB.ReadTimeout,
 			)

@@ -135,7 +135,11 @@ func (r *RpcLogStreamer) watchContract(watcher contractConfig) {
 		case <-r.ctx.Done():
 			logger.Debug("Stopping watcher")
 			return
-		case reorgBlock := <-watcher.reorgChannel:
+		case reorgBlock, open := <-watcher.reorgChannel:
+			if !open {
+				logger.Debug("Reorg channel closed")
+				return
+			}
 			fromBlock = reorgBlock
 			logger.Info(
 				"Blockchain reorg detected, resuming from block",

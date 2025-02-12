@@ -95,6 +95,34 @@ func constructVariables(t *testing.T) map[string]string {
 	return envVars
 }
 
+func streamDockerLogs(containerName string) (chan string, func(), error) {
+	logsCmd := exec.Command("docker", "logs", "-f", containerName)
+	stdoutPipe, err := logsCmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = logsCmd.Start()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logChan := make(chan string)
+	go func() {
+		scanner := bufio.NewScanner(stdoutPipe)
+		for scanner.Scan() {
+			logChan <- scanner.Text()
+		}
+		close(logChan)
+	}()
+
+	cancelFunc := func() {
+		_ = logsCmd.Process.Kill()
+	}
+
+	return logChan, cancelFunc, nil
+}
+
 func runContainer(
 	t *testing.T,
 	containerName string,
@@ -121,21 +149,38 @@ func runContainer(
 	require.NoError(t, err, "Error: %s", errBuf.String())
 
 	defer func() {
-		logs, err := dockerLogs(containerName)
-		if err != nil {
-			t.Logf("Failed to get docker logs: %v", err)
-		}
-		t.Logf("Docker logs:\n%s", logs)
 		_ = dockerKill(containerName)
 	}()
 
-	time.Sleep(5 * time.Second)
+	logChan, cancel, err := streamDockerLogs(containerName)
+	require.NoError(t, err, "Failed to start log streaming")
+	defer cancel()
+
+	timeout := time.After(5 * time.Second)
+
+	for {
+		select {
+		case line, ok := <-logChan:
+			if !ok {
+				t.Fatalf("Log stream closed before finding target log")
+			}
+			t.Logf(line)
+			if strings.Contains(line, "replication.api\tserving grpc") {
+				t.Logf("Service started successfully")
+				return
+			}
+		case <-timeout:
+			t.Fatalf("Timeout: 'replication.api\tserving grpc' not found in logs within 5 seconds")
+		}
+	}
 }
 
 func TestUpgradeFrom014(t *testing.T) {
 
 	envVars := constructVariables(t)
+	t.Logf("Starting old container")
 	runContainer(t, "xmtpd_test_014", "ghcr.io/xmtp/xmtpd:0.1.4", envVars)
 
+	t.Logf("Starting new container")
 	runContainer(t, "xmtpd_test_dev", "xmtp/xmtpd:dev", envVars)
 }

@@ -184,12 +184,28 @@ func runContainer(
 	}
 }
 
+func buildDevImage(t *testing.T) {
+	scriptPath := getScriptPath("../../dev/docker/build")
+	cmd := exec.Command(scriptPath)
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+
+	err := cmd.Run()
+
+	require.NoError(t, err, "build failed:\n%s\n%s", errBuf.String(), outBuf.String())
+
+}
+
 func TestUpgradeFrom014(t *testing.T) {
-	skipIfNotEnabled(t)
+	//skipIfNotEnabled(t)
 	envVars := constructVariables(t)
+
+	buildDevImage(t)
+
 	t.Logf("Starting old container")
 	runContainer(t, "xmtpd_test_014", "ghcr.io/xmtp/xmtpd:0.1.4", envVars)
 
 	t.Logf("Starting new container")
-	runContainer(t, "xmtpd_test_dev", "xmtp/xmtpd:dev", envVars)
+	runContainer(t, "xmtpd_test_dev", "ghcr.io/xmtp/xmtpd:dev", envVars)
 }

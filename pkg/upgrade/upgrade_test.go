@@ -17,9 +17,10 @@ import (
 
 const testFlag = "ENABLE_UPGRADE_TESTS"
 
-func skipIfNotEnabled(t *testing.T) {
+func skipIfNotEnabled() {
 	if _, isSet := os.LookupEnv(testFlag); !isSet {
-		t.Skip("Skipping upgrade test")
+		fmt.Printf("Skipping upgrade test. %s is not set\n", testFlag)
+		os.Exit(0)
 	}
 }
 
@@ -184,25 +185,36 @@ func runContainer(
 	}
 }
 
-func buildDevImage(t *testing.T) {
+func buildDevImage() {
 	scriptPath := getScriptPath("../../dev/docker/build")
 	cmd := exec.Command(scriptPath)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
-	err := cmd.Run()
-
-	require.NoError(t, err, "build failed:\n%s\n%s", errBuf.String(), outBuf.String())
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Error: %s", errBuf.String())
+		os.Exit(1)
+	}
 
 }
 
+// Setup code that runs once before all tests
+func setup() {
+	fmt.Println("Setting up before all tests...")
+	buildDevImage()
+}
+
+// TestMain runs once for the whole test suite
+func TestMain(m *testing.M) {
+	skipIfNotEnabled()
+	setup()
+	code := m.Run()
+	os.Exit(code)
+}
+
 func TestUpgradeFrom014(t *testing.T) {
-	//skipIfNotEnabled(t)
 	envVars := constructVariables(t)
-
-	buildDevImage(t)
-
 	t.Logf("Starting old container")
 	runContainer(t, "xmtpd_test_014", "ghcr.io/xmtp/xmtpd:0.1.4", envVars)
 

@@ -485,6 +485,9 @@ func (s *Service) waitForGatewayPublish(
 	startTime := time.Now()
 	timeout := time.After(30 * time.Second)
 
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-timeout:
@@ -497,7 +500,7 @@ func (s *Service) waitForGatewayPublish(
 				zap.Int64("envelope_id", stagedEnv.ID),
 				zap.Int64("last_processed", s.publishWorker.lastProcessed.Load()))
 			return
-		default:
+		case <-ticker.C:
 			// Check if the last processed ID has reached or exceeded the current ID
 			if s.publishWorker.lastProcessed.Load() >= stagedEnv.ID {
 				s.log.Debug(
@@ -507,7 +510,6 @@ func (s *Service) waitForGatewayPublish(
 				)
 				return
 			}
-			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }

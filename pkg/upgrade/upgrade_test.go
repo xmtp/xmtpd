@@ -85,17 +85,6 @@ func dockerKill(containerName string) error {
 	return killCmd.Run()
 }
 
-func dockerLogs(containerName string) (string, error) {
-	logsCmd := exec.Command("docker", "logs", containerName)
-	var outBuf bytes.Buffer
-	logsCmd.Stdout = &outBuf
-	err := logsCmd.Run()
-	if err != nil {
-		return "", err
-	}
-	return outBuf.String(), nil
-}
-
 func constructVariables(t *testing.T) map[string]string {
 	envVars, err := loadEnvFromShell()
 	require.NoError(t, err)
@@ -174,7 +163,7 @@ func runContainer(
 			if !ok {
 				t.Fatalf("Log stream closed before finding target log")
 			}
-			t.Logf(line)
+			t.Log(line)
 			if strings.Contains(line, "replication.api\tserving grpc") {
 				t.Logf("Service started successfully")
 				return

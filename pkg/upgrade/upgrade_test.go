@@ -135,7 +135,12 @@ func runContainer(
 
 	_ = dockerRmc(containerName)
 
-	dockerCmd := append([]string{"run", "-d"}, dockerEnvArgs...)
+	dockerCmd := []string{"run", "-d"}
+	if runtime.GOOS == "linux" {
+		dockerCmd = append(dockerCmd, "--add-host=host.docker.internal:host-gateway")
+	}
+
+	dockerCmd = append(dockerCmd, dockerEnvArgs...)
 	dockerCmd = append(dockerCmd, "--name", containerName, imageName)
 
 	cmd := exec.Command("docker", dockerCmd...)

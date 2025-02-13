@@ -1,0 +1,30 @@
+# Ignore Git files
+.git
+.gitignore
+.github
+
+# Ignore IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ignore Go test executables and other compiled files
+*.test
+*.out
+*.exe
+*.o
+*.a
+*.so
+
+# Ignore build directories
+build/
+bin/
+
+# Ignore all test files
+**/*_test.go
+
+doc/
+
+LICENSE
+README.md

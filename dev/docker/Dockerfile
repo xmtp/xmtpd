@@ -10,7 +10,7 @@ COPY . .
 
 # Build the final node binary
 ARG VERSION=unknown
-RUN go build -ldflags="-X 'main.Version=$VERSION'" -o bin/xmtpd cmd/replication/main.go
+RUN go build -ldflags="-X 'main.Version=$VERSION'"g -o bin/xmtpd cmd/replication/main.go
 
 # ACTUAL IMAGE -------------------------------------------------------
 

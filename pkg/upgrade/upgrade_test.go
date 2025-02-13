@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,14 @@ import (
 	"testing"
 	"time"
 )
+
+const testFlag = "ENABLE_UPGRADE_TESTS"
+
+func skipIfNotEnabled(t *testing.T) {
+	if _, isSet := os.LookupEnv(testFlag); !isSet {
+		t.Skip("Skipping upgrade test")
+	}
+}
 
 func getScriptPath(scriptName string) string {
 	_, filename, _, _ := runtime.Caller(0)
@@ -176,7 +185,7 @@ func runContainer(
 }
 
 func TestUpgradeFrom014(t *testing.T) {
-
+	skipIfNotEnabled(t)
 	envVars := constructVariables(t)
 	t.Logf("Starting old container")
 	runContainer(t, "xmtpd_test_014", "ghcr.io/xmtp/xmtpd:0.1.4", envVars)

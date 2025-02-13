@@ -24,12 +24,6 @@ bin/
 # Ignore all test files
 **/*_test.go
 
-dev/
-!dev/docker
-
-contracts/
-!contracts/pkg
-
 doc/
 
 LICENSE

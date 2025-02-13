@@ -13,17 +13,17 @@ func setup() {
 	fmt.Println("    Setting up before all tests...")
 
 	// Measure time for building dev image
-	fmt.Println("    Building dev image... This may take a while.")
+	fmt.Println("    ⧖ Building dev image... This may take a while.")
 	imageStart := time.Now()
 	err := buildDevImage()
 	if err != nil {
 		fmt.Printf("    Error building dev image: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("    ✅ Dev image built in %v\n", time.Since(imageStart))
+	fmt.Printf("    ✔ Dev image built in %v\n", time.Since(imageStart))
 
 	// Measure time for pulling old images
-	fmt.Println("    Pulling old images...")
+	fmt.Println("    ⧖ Pulling old images...")
 	pullStart := time.Now()
 	for _, image := range upgradeToLatest {
 		err := dockerPull(image)
@@ -32,7 +32,7 @@ func setup() {
 			os.Exit(1)
 		}
 	}
-	fmt.Printf("    ✅ All images pulled in %v\n", time.Since(pullStart))
+	fmt.Printf("    ✔ All images pulled in %v\n", time.Since(pullStart))
 
 	// Print total setup time
 	fmt.Printf("=== SETUP COMPLETE (%v)\n", time.Since(start))

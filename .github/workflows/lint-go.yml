@@ -33,14 +33,16 @@ jobs:
         uses: nickcharlton/diff-check@main
         with:
           command: dev/lint-golines
-      - name: Generate Mocks and sqlc
-        run: dev/generate
+        run: |
+          sqlc generate
+          go generate ./...
+          mockery
 
-      - name: Check for ABI changes
+      - name: Check for changes
         working-directory: ${{ github.workspace }}
         run: |
           if git diff --exit-code --ignore-space-change --ignore-all-space --ignore-cr-at-eol -- pgk; then
-            echo "No ABI changes detected."
+            echo "No changes detected."
           else
             echo "ERROR: Generated files are not up to date. Please run 'dev/generate' and commit the changes."
             exit 1

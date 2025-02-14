@@ -33,7 +33,7 @@ jobs:
         uses: nickcharlton/diff-check@main
         with:
           command: dev/lint-golines
-        run: |
+      - run: |
           sqlc generate
           go generate ./...
           mockery

@@ -36,17 +36,15 @@ jobs:
       - run: | 
           go install github.com/sqlc-dev/sqlc/cmd/sqlc
           go install github.com/vektra/mockery/v2
-      - run: |
-          sqlc generate
-          go generate ./...
-          mockery
-
-      - name: Check for changes
-        working-directory: ${{ github.workspace }}
-        run: |
-          if git diff --exit-code --ignore-space-change --ignore-all-space --ignore-cr-at-eol -- pgk; then
-            echo "No changes detected."
-          else
-            echo "ERROR: Generated files are not up to date. Please run 'dev/generate' and commit the changes."
-            exit 1
-          fi
+      - name: sqlc
+        uses: nickcharlton/diff-check@main
+        with:
+          command: sqlc generate
+      - name: generate
+        uses: nickcharlton/diff-check@main
+        with:
+          command: go generate ./...
+      - name: mockery
+        uses: nickcharlton/diff-check@main
+        with:
+          command: mockery

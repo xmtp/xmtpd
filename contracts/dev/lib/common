@@ -76,7 +76,7 @@ function forge_build_contracts() {
     echo -e "⧖ Building contracts"
 
     forge build &> .forge_build.tmp.log || BUILD_FAILED=true
-    if [ $? -ne 0 ]; then
+    if [[ -n "${BUILD_FAILED:-}" ]]; then
         echo "ERROR: Failed to build contracts"
         cat .forge_build.tmp.log
         exit 1

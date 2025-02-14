@@ -28,7 +28,6 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           args: --timeout=5m --config .golangci.yaml
-      - run: go install github.com/segmentio/golines
       - name: golines
         uses: nickcharlton/diff-check@main
         with:

@@ -15,11 +15,9 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 
 ## Prerequisites
 
-- [Go 1.22](https://go.dev/doc/install) -- On macOS install with `brew install go@1.22`
+- [Go 1.24](https://go.dev/doc/install) -- On macOS install with `brew install go@1.24`
 - [Docker](https://www.docker.com/get-started/)
 - [Foundry](https://github.com/foundry-rs/foundry)
-
-Note that a dependency of this repo will not compile with version of go newer than 1.22.
 
 ## Install and build dependencies
 

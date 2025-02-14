@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-ARG GO_VERSION=1.23
+ARG GO_VERSION=1.24
 ARG FOUNDRY_VERSION=0.3.0
 FROM golang:${GO_VERSION}-bookworm AS builder
 

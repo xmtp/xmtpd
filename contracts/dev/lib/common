@@ -10,8 +10,8 @@ function forge_deploy_script() {
     case $1 in
         group_messages)
             echo "⧖ Deploying GroupMessages to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployGroupMessages.s.sol
-            if [ $? -ne 0 ]; then
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployGroupMessages.s.sol || BUILD_FAILED=true
+            if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy group messages contract"
                 exit 1
             fi
@@ -21,8 +21,8 @@ function forge_deploy_script() {
 
         identity_updates)
             echo "⧖ Deploying IdentityUpdates to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol
-            if [ $? -ne 0 ]; then
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol || BUILD_FAILED=true
+            if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy identity updates contract"
                 exit 1
             fi

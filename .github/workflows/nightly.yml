@@ -12,7 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-      - uses: bufbuild/buf-setup-action@v1.40.1
       - name: Generate Protos
         run: dev/gen-protos
       - name: Create Pull Request

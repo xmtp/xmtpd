@@ -33,3 +33,18 @@ jobs:
         uses: nickcharlton/diff-check@main
         with:
           command: dev/lint-golines
+      - run: | 
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc
+          go install github.com/vektra/mockery/v2
+      - name: sqlc
+        uses: nickcharlton/diff-check@main
+        with:
+          command: sqlc generate
+      - name: generate
+        uses: nickcharlton/diff-check@main
+        with:
+          command: go generate ./...
+      - name: mockery
+        uses: nickcharlton/diff-check@main
+        with:
+          command: mockery

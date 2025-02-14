@@ -1,6 +1,6 @@
 # BUILD IMAGE --------------------------------------------------------
 ARG GO_VERSION=1.23
-ARG FOUNDRY_VERSION=nightly
+ARG FOUNDRY_VERSION=0.3.0
 FROM golang:${GO_VERSION}-bookworm AS builder
 
 WORKDIR /app

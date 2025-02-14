@@ -19,8 +19,6 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 - [Docker](https://www.docker.com/get-started/)
 - [Foundry](https://github.com/foundry-rs/foundry)
 
-Note that a dependency of this repo will not compile with version of go newer than 1.22.
-
 ## Install and build dependencies
 
 To install dependencies and build background services needed by the node, run:

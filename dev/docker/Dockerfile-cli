@@ -6,6 +6,11 @@ FROM golang:${GO_VERSION}-alpine AS builder
 RUN apk add --no-cache build-base
 
 WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
 COPY . .
 
 # Build the final node binary

@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 function get_chain_id() {
     hex_chain_id=$(curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_chainId","id":1}' ${RPC_URL} | jq -r '.result')
@@ -11,8 +10,8 @@ function forge_deploy_script() {
     case $1 in
         group_messages)
             echo "⧖ Deploying GroupMessages to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployGroupMessages.s.sol
-            if [ $? -ne 0 ]; then
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployGroupMessages.s.sol || BUILD_FAILED=true
+            if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy group messages contract"
                 exit 1
             fi
@@ -22,8 +21,8 @@ function forge_deploy_script() {
 
         identity_updates)
             echo "⧖ Deploying IdentityUpdates to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol
-            if [ $? -ne 0 ]; then
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol || BUILD_FAILED=true
+            if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy identity updates contract"
                 exit 1
             fi
@@ -48,8 +47,8 @@ function forge_deploy_script() {
 function forge_clean() {
     echo -e "⧖ Cleaning old artifacts"
 
-    forge clean &> .forge_clean.tmp.log
-    if [ $? -ne 0 ]; then
+    forge clean &> .forge_clean.tmp.log || BUILD_FAILED=true
+    if [[ -n "${BUILD_FAILED:-}" ]]; then
         echo "ERROR: Failed to clean old artifacts"
         cat .forge_clean.tmp.log
         exit 1
@@ -62,8 +61,8 @@ function forge_clean() {
 function forge_soldeer_update() {
     echo -e "⧖ Updating dependencies"
 
-    forge soldeer update &> .forge_soldeer_update.tmp.log
-    if [ $? -ne 0 ]; then
+    forge soldeer update &> .forge_soldeer_update.tmp.log || BUILD_FAILED=true
+    if [[ -n "${BUILD_FAILED:-}" ]]; then
         echo "ERROR: Failed to update dependencies"
         cat .forge_soldeer_update.tmp.log
         exit 1
@@ -76,8 +75,8 @@ function forge_soldeer_update() {
 function forge_build_contracts() {
     echo -e "⧖ Building contracts"
 
-    forge build &> .forge_build.tmp.log
-    if [ $? -ne 0 ]; then
+    forge build &> .forge_build.tmp.log || BUILD_FAILED=true
+    if [[ -n "${BUILD_FAILED:-}" ]]; then
         echo "ERROR: Failed to build contracts"
         cat .forge_build.tmp.log
         exit 1
@@ -90,8 +89,8 @@ function forge_build_contracts() {
 function forge_test_contracts() {
     echo -e "⧖ Running contract tests"
 
-    forge test &> .forge_test.tmp.log
-    if [ $? -ne 0 ]; then
+    forge test &> .forge_test.tmp.log || BUILD_FAILED=true
+    if [[ -n "${BUILD_FAILED:-}" ]]; then
         echo "ERROR: Tests failed"
         cat .forge_test.tmp.log
         exit 1

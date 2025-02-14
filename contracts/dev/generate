@@ -41,7 +41,7 @@ function generate_bindings() {
                 --bin "${build_artifact}.bin.json" \
                 --pkg "${package}" \
                 --type "${filename}" \
-                --out "${output_artifact}" > /dev/null 2>&1; then
+                --out "${output_artifact}"; then
         echo "ERROR: Failed to generate bindings for ${filename}" >&2
         exit 1
     fi

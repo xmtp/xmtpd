@@ -53,9 +53,9 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
 
     // Initialization
     /// @notice Initializes the contract with the deployer as admin.
-    /// @param _admin The address of the admin.
-    function initialize(address _admin) public initializer {
-        require(_admin != address(0), ZeroAdminAddress());
+    /// @param admin The address of the admin.
+    function initialize(address admin) public initializer {
+        require(admin != address(0), ZeroAdminAddress());
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -64,7 +64,7 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
         minPayloadSize = 104;
         maxPayloadSize = 4_194_304;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
     // Pausable functionality
@@ -99,25 +99,25 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     }
 
     /// @notice Sets the minimum payload size
-    /// @param _minPayloadSize The new minimum payload size
+    /// @param minPayloadSizeRequest The new minimum payload size
     /// @dev Ensures the new minimum is less than the maximum
-    function setMinPayloadSize(uint256 _minPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_minPayloadSize < maxPayloadSize, InvalidMinPayloadSize());
-        require(_minPayloadSize > 0, InvalidMinPayloadSize());
+    function setMinPayloadSize(uint256 minPayloadSizeRequest) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(minPayloadSizeRequest < maxPayloadSize, InvalidMinPayloadSize());
+        require(minPayloadSizeRequest > 0, InvalidMinPayloadSize());
         uint256 oldSize = minPayloadSize;
-        minPayloadSize = _minPayloadSize;
-        emit MinPayloadSizeUpdated(oldSize, _minPayloadSize);
+        minPayloadSize = minPayloadSizeRequest;
+        emit MinPayloadSizeUpdated(oldSize, minPayloadSizeRequest);
     }
 
     /// @notice Sets the maximum payload size
-    /// @param _maxPayloadSize The new maximum payload size
+    /// @param maxPayloadSizeRequest The new maximum payload size
     /// @dev Ensures the new maximum is greater than the minimum
-    function setMaxPayloadSize(uint256 _maxPayloadSize) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_maxPayloadSize > minPayloadSize, InvalidMaxPayloadSize());
-        require(_maxPayloadSize <= 4_194_304, InvalidMaxPayloadSize());
+    function setMaxPayloadSize(uint256 maxPayloadSizeRequest) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(maxPayloadSizeRequest > minPayloadSize, InvalidMaxPayloadSize());
+        require(maxPayloadSizeRequest <= 4_194_304, InvalidMaxPayloadSize());
         uint256 oldSize = maxPayloadSize;
-        maxPayloadSize = _maxPayloadSize;
-        emit MaxPayloadSizeUpdated(oldSize, _maxPayloadSize);
+        maxPayloadSize = maxPayloadSizeRequest;
+        emit MaxPayloadSizeUpdated(oldSize, maxPayloadSizeRequest);
     }
 
     // Upgradeability

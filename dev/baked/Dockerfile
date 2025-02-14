@@ -21,12 +21,13 @@ COPY . .
 
 # It seems that anvil flushes the file to disk on shutdown and it takes a few ms to be persisted
 # That gives us the pkill+sleep requirement
-RUN dev/docker/anvil-background && \
-    contracts/dev/deploy-local && \
-    dev/register-local-node && \
-    dev/register-local-node-2 && \
-    pkill -f anvil && \
-    sleep 5
+RUN set -euo pipefail; \
+    echo "Starting anvil-background..."; dev/docker/anvil-background || { echo "❌ Failed at anvil-background"; exit 1; }; \
+    echo "Deploying contracts locally..."; contracts/dev/deploy-local || { echo "❌ Failed at deploy-local"; exit 1; }; \
+    echo "Registering local node..."; dev/register-local-node || { echo "❌ Failed at register-local-node"; exit 1; }; \
+    echo "Registering local node 2..."; dev/register-local-node-2 || { echo "❌ Failed at register-local-node-2"; exit 1; }; \
+    echo "Stopping anvil process..."; pkill -f anvil || { echo "⚠️ Warning: pkill anvil failed, continuing..."; }; \
+    echo "Sleeping for 5 seconds..."; sleep 5
 
 RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' contracts/config/anvil_localnet/Nodes.json)"" >> contracts.env && \
     echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.addresses.groupMessagesProxy' contracts/config/anvil_localnet/GroupMessages.json)""  >> contracts.env && \

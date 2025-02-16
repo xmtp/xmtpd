@@ -3,8 +3,8 @@ pragma solidity 0.8.28;
 
 import "forge-std/src/Vm.sol";
 import {Test, console} from "forge-std/src/Test.sol";
-import {Utils} from "test/utils/Utils.sol";
-import {GroupMessages} from "src/GroupMessages.sol";
+import {Utils} from "./utils/Utils.sol";
+import {GroupMessages} from "../src/GroupMessages.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";

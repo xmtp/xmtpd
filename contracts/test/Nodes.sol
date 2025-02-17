@@ -99,24 +99,25 @@ contract NodesTest is Test {
         vm.assertEq(nodes.healthyNodes().length, 0);
     }
 
-    function testFail_ownerCannotUpdateHealth() public {
-        vm.expectRevert(Ownable.OwnableUnauthorizedAccount.selector);
+    function test_RevertWhen_OwnerCannotUpdateHealth() public {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
         uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(operator);
+        vm.expectRevert();
         nodes.updateHealth(nodeId, false);
     }
 
-    function testFail_ownerCannotTransfer() public {
+    function test_RevertWhen_OwnerCannotTransfer() public {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
         uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(operator);
+        vm.expectRevert();
         nodes.safeTransferFrom(operator, vm.randomAddress(), uint256(nodeId));
     }
 
@@ -132,15 +133,14 @@ contract NodesTest is Test {
         vm.assertEq(nodes.getNode(nodeId).httpAddress, "new-http-address");
     }
 
-    function testFail_cannotChangeOtherHttpAddress() public {
-        vm.expectRevert("Only the owner of the Node NFT can update its http address");
-
+    function test_RevertWhen_cannotChangeOtherHttpAddress() public {
         Nodes.Node memory node = _randomNode(true);
         address operator = vm.randomAddress();
 
         uint32 nodeId = nodes.addNode(operator, node.signingKeyPub, node.httpAddress);
 
         vm.prank(vm.randomAddress());
+        vm.expectRevert("Only the owner of the Node NFT can update its http address");
         nodes.updateHttpAddress(nodeId, "new-http-address");
     }
 }

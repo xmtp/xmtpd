@@ -8,7 +8,7 @@ import (
 
 const (
 	// XMTPD_COMPATIBLE_VERSION_CONSTRAINT major or minor serverVersion bumps indicate backwards incompatible changes
-	XMTPD_COMPATIBLE_VERSION_CONSTRAINT = "~ 0.1.3"
+	XMTPD_COMPATIBLE_VERSION_CONSTRAINT = "^0.2"
 )
 
 type XmtpdClaims struct {

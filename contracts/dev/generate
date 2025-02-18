@@ -37,7 +37,7 @@ function generate_bindings() {
     fi
 
     # Generate Go bindings
-    if ! abigen --abi "${build_artifact}.abi.json" \
+    if ! go tool --modfile=../tools/go.mod abigen --abi "${build_artifact}.abi.json" \
                 --bin "${build_artifact}.bin.json" \
                 --pkg "${package}" \
                 --type "${filename}" \

@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-go tool migrate create -dir pkg/migrations -seq -digits=5 -ext sql $1
+go tool -modfile=tools/go.mod migrate create -dir pkg/migrations -seq -digits=5 -ext sql $1

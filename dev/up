@@ -5,17 +5,6 @@ if ! which forge &>/dev/null; then echo "ERROR: Missing foundry binaries. Run 'c
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which jq &>/dev/null; then brew install jq; fi
 
-# Pin abigen version at can introduce breaking changes between releases, rendering different ABIs.
-if ! which abigen &>/dev/null; then
-    go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.12
-fi
-
-abigen_version=$(abigen --version | awk '{print $3}')
-if [[ ${abigen_version} != "1.14.12-stable" ]]; then
-    echo "ERROR: abigen version is not 1.14.12. Please install the correct version."
-    exit 1
-fi
-
 echo -e "→ Generate smart contracts bindings"
 contracts/dev/generate
 

@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var Commit string = "unknown"
+var Version string = "unknown"
 
 type CLI struct {
 	config.GlobalOptions
@@ -264,7 +264,7 @@ func updateAddress(logger *zap.Logger, options *CLI) {
 func main() {
 	for _, arg := range os.Args[1:] {
 		if arg == "-v" || arg == "--version" {
-			fmt.Printf("Version: %s\n", Commit)
+			fmt.Printf("Version: %s\n", Version)
 			return
 		}
 	}

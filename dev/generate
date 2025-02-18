@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ./dev/gen-protos
-sqlc generate
+go tool -modfile=tools/go.mod sqlc generate
 go generate ./...
 rm -rf pkg/mocks/*
 ./contracts/dev/generate
-mockery
+go tool -modfile=tools/go.mod mockery

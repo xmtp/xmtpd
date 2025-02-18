@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-golines -w --ignored-dirs=proto --ignored-dirs=mocks --ignored-dirs=abis --ignored-dirs=queries .
+go tool -modfile=tools/go.mod golines -w --ignored-dirs=proto --ignored-dirs=mocks --ignored-dirs=abis --ignored-dirs=queries .

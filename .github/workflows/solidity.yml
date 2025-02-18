@@ -167,4 +167,4 @@ jobs:
       - name: abigen
         uses: nickcharlton/diff-check@main
         with:
-          command: dev/generate
+          command: contracts/dev/generate

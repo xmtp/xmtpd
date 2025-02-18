@@ -75,7 +75,7 @@ func NewTestServer(
 			Enable:     true,
 			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		},
-	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port), nil)
+	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port), testutils.GetLatestVersion(t))
 	require.NoError(t, err)
 
 	return server

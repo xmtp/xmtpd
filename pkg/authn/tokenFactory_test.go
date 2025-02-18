@@ -1,7 +1,8 @@
-package authn
+package authn_test
 
 import (
 	"github.com/Masterminds/semver/v3"
+	"github.com/xmtp/xmtpd/pkg/authn"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 
 func TestTokenFactory(t *testing.T) {
 	privateKey := testutils.RandomPrivateKey(t)
-	factory := NewTokenFactory(privateKey, 100, nil)
+	factory := authn.NewTokenFactory(privateKey, 100, nil)
 
 	token, err := factory.CreateToken(200)
 	require.NoError(t, err)
@@ -38,7 +39,7 @@ func TestTokenFactoryWithVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			version, err := semver.NewVersion(tt.version)
 			require.NoError(t, err)
-			factory := NewTokenFactory(privateKey, 100, version)
+			factory := authn.NewTokenFactory(privateKey, 100, version)
 
 			token, err := factory.CreateToken(200)
 			require.NoError(t, err)

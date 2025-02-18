@@ -136,7 +136,9 @@ func NewReplicationServer(
 			s,
 			writerDB,
 			blockchainPublisher,
-			listenAddress)
+			listenAddress,
+			serverVersion,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -170,6 +172,7 @@ func startAPIServer(
 	writerDB *sql.DB,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	listenAddress string,
+	serverVersion *semver.Version,
 ) error {
 	var err error
 
@@ -242,7 +245,14 @@ func startAPIServer(
 	var jwtVerifier authn.JWTVerifier
 
 	if s.nodeRegistry != nil && s.registrant != nil {
-		jwtVerifier = authn.NewRegistryVerifier(s.nodeRegistry, s.registrant.NodeID())
+		jwtVerifier, err = authn.NewRegistryVerifier(
+			s.nodeRegistry,
+			s.registrant.NodeID(),
+			serverVersion,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	s.apiServer, err = api.NewAPIServer(

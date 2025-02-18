@@ -2,6 +2,7 @@ package authn
 
 import (
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	"strconv"
 	"time"
 
@@ -15,16 +16,26 @@ const (
 )
 
 type RegistryVerifier struct {
-	registry registry.NodeRegistry
-	myNodeID uint32
+	registry  registry.NodeRegistry
+	myNodeID  uint32
+	validator ClaimValidator
 }
 
 /*
 A RegistryVerifier connects to the NodeRegistry and verifies JWTs against the registered public keys
 based on the JWT's subject field
 */
-func NewRegistryVerifier(registry registry.NodeRegistry, myNodeID uint32) *RegistryVerifier {
-	return &RegistryVerifier{registry: registry, myNodeID: myNodeID}
+func NewRegistryVerifier(
+	registry registry.NodeRegistry,
+	myNodeID uint32,
+	serverVersion *semver.Version,
+) (*RegistryVerifier, error) {
+	validator, err := NewClaimValidator(serverVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RegistryVerifier{registry: registry, myNodeID: myNodeID, validator: *validator}, nil
 }
 
 func (v *RegistryVerifier) Verify(tokenString string) (uint32, error) {
@@ -104,7 +115,7 @@ func (v *RegistryVerifier) validateClaims(token *jwt.Token) error {
 		return fmt.Errorf("invalid token")
 	}
 
-	return ValidateVersionClaimIsCompatible(claims)
+	return v.validator.ValidateVersionClaimIsCompatible(claims)
 }
 
 // Parse the subject claim of the JWT and return the node ID as a uint32

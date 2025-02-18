@@ -15,6 +15,7 @@ cd "${repo_root}"
 mkdir -p "${build_dir}" "${output_dir}"
 
 function generate_bindings() {
+
     local filename="$1"
     local package="$(echo "${filename}" | tr '[:upper:]' '[:lower:]')"
     local source_artifact="${source_dir}/${filename}.sol"
@@ -24,6 +25,9 @@ function generate_bindings() {
     rm -f "${build_artifact}".*.json
     mkdir -p "${output_dir}/${package}"
     rm -f "${output_dir}/${package}"/*.go
+
+    echo "Forge: $(forge --version)"
+    echo "Abigen: $(go tool --modfile=../tools/go.mod abigen --version)"
 
     # Generate ABI and bytecode
     if ! forge inspect "${source_artifact}:${filename}" abi > "${build_artifact}.abi.json"; then
@@ -57,6 +61,8 @@ function main() {
     # Generate bindings for each contract
     for contract in "${contracts[@]}"; do
         echo "⧖ Generating ABIs for contract: ${contract}"
+        echo "Forge: $(forge --version)"
+        echo "Abigen: $(go tool --modfile=../tools/go.mod abigen --version)"
         generate_bindings "${contract}"
     done
     echo -e "\033[32m✔\033[0m ABIs generated successfully!\n"

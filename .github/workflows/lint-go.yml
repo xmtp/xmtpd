@@ -32,3 +32,15 @@ jobs:
         uses: nickcharlton/diff-check@main
         with:
           command: dev/lint-golines
+      - name: sqlc
+        uses: nickcharlton/diff-check@main
+        with:
+          command: go tool -modfile=tools/go.mod sqlc generate
+      - name: generate
+        uses: nickcharlton/diff-check@main
+        with:
+          command: go generate ./...
+      - name: mockery
+        uses: nickcharlton/diff-check@main
+        with:
+          command: go tool -modfile=tools/go.mod mockery

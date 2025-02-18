@@ -164,18 +164,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
 
-      - name: Install abigen
-        run: go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.12
-
-      - name: Generate ABIs
-        run: dev/generate
-
-      - name: Check for ABI changes
-        working-directory: ${{ github.workspace }}
-        run: |
-          if git diff --exit-code --ignore-space-change --ignore-all-space --ignore-cr-at-eol -- contracts/pkg; then
-            echo "No ABI changes detected."
-          else
-            echo "ERROR: Generated files are not up to date. Please run 'contracts/dev/generate' and commit the changes."
-            exit 1
-          fi
+      - name: abigen
+        uses: nickcharlton/diff-check@main
+        with:
+          command: dev/generate

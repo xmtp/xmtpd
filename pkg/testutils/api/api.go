@@ -115,7 +115,12 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)
 	mockValidationService := mlsvalidateMocks.NewMockMLSValidationService(t)
 
-	jwtVerifier := authn.NewRegistryVerifier(mockRegistry, registrant.NodeID())
+	jwtVerifier, err := authn.NewRegistryVerifier(
+		mockRegistry,
+		registrant.NodeID(),
+		testutils.GetLatestVersion(t),
+	)
+	require.NoError(t, err)
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		replicationService, err := message.NewReplicationApiService(

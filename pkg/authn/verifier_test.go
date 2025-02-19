@@ -1,8 +1,10 @@
-package authn
+package authn_test
 
 import (
 	"crypto/ecdsa"
 	"errors"
+	"github.com/Masterminds/semver/v3"
+	"github.com/xmtp/xmtpd/pkg/authn"
 	"strconv"
 	"testing"
 	"time"
@@ -21,10 +23,15 @@ const (
 
 func buildVerifier(
 	t *testing.T,
-	verifierNodeID uint32,
-) (*RegistryVerifier, *registryMocks.MockNodeRegistry) {
+	verifierNodeID uint32, version *semver.Version,
+) (*authn.RegistryVerifier, *registryMocks.MockNodeRegistry) {
 	mockRegistry := registryMocks.NewMockNodeRegistry(t)
-	verifier := NewRegistryVerifier(mockRegistry, verifierNodeID)
+	verifier, err := authn.NewRegistryVerifier(
+		mockRegistry,
+		verifierNodeID,
+		version,
+	)
+	require.NoError(t, err)
 
 	return verifier, mockRegistry
 }
@@ -37,7 +44,7 @@ func buildJwt(
 	issuedAt time.Time,
 	expiresAt time.Time,
 ) string {
-	token := jwt.NewWithClaims(&SigningMethodSecp256k1{}, &jwt.RegisteredClaims{
+	token := jwt.NewWithClaims(&authn.SigningMethodSecp256k1{}, &jwt.RegisteredClaims{
 		Subject:   strconv.Itoa(int(signerNodeID)),
 		Audience:  []string{strconv.Itoa(int(verifierNodeID))},
 		ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -53,9 +60,13 @@ func buildJwt(
 func TestVerifier(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
+	tokenFactory := authn.NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
 		SigningKey: &signerPrivateKey.PublicKey,
 		NodeID:     uint32(SIGNER_NODE_ID),
@@ -79,9 +90,13 @@ func TestVerifier(t *testing.T) {
 func TestWrongAudience(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
+	tokenFactory := authn.NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
 		SigningKey: &signerPrivateKey.PublicKey,
 		NodeID:     uint32(SIGNER_NODE_ID),
@@ -97,9 +112,13 @@ func TestWrongAudience(t *testing.T) {
 func TestUnknownNode(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
+	tokenFactory := authn.NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(nil, errors.New("node not found"))
 
 	token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
@@ -112,9 +131,13 @@ func TestUnknownNode(t *testing.T) {
 func TestWrongPublicKey(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	tokenFactory := NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
+	tokenFactory := authn.NewTokenFactory(signerPrivateKey, uint32(SIGNER_NODE_ID), nil)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 
 	wrongPublicKey := testutils.RandomPrivateKey(t).PublicKey
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
@@ -132,7 +155,11 @@ func TestWrongPublicKey(t *testing.T) {
 func TestExpiredToken(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
 		SigningKey: &signerPrivateKey.PublicKey,
 		NodeID:     uint32(SIGNER_NODE_ID),
@@ -154,7 +181,11 @@ func TestExpiredToken(t *testing.T) {
 func TestTokenDurationTooLong(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
 		SigningKey: &signerPrivateKey.PublicKey,
 		NodeID:     uint32(SIGNER_NODE_ID),
@@ -176,7 +207,11 @@ func TestTokenDurationTooLong(t *testing.T) {
 func TestTokenClockSkew(t *testing.T) {
 	signerPrivateKey := testutils.RandomPrivateKey(t)
 
-	verifier, nodeRegistry := buildVerifier(t, uint32(VERIFIER_NODE_ID))
+	verifier, nodeRegistry := buildVerifier(
+		t,
+		uint32(VERIFIER_NODE_ID),
+		testutils.GetLatestVersion(t),
+	)
 	nodeRegistry.EXPECT().GetNode(uint32(SIGNER_NODE_ID)).Return(&registry.Node{
 		SigningKey: &signerPrivateKey.PublicKey,
 		NodeID:     uint32(SIGNER_NODE_ID),

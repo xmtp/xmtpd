@@ -54,7 +54,11 @@ jobs:
       - name: Cache data
         uses: actions/cache/save@v4
         with:
-          path: contracts
+          path: |
+            contracts/build
+            contracts/cache
+            contracts/dependencies
+            contracts/out
           key: ${{ steps.set-cache-key.outputs.cache-key }}
 
       - id: forge
@@ -73,7 +77,11 @@ jobs:
       - name: Restore cache
         uses: actions/cache/restore@v4
         with:
-          path: contracts
+          path: |
+            contracts/build
+            contracts/cache
+            contracts/dependencies
+            contracts/out
           key: ${{ needs.init.outputs.cache-key }}
 
       - name: Restore forge

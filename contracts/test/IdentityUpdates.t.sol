@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import "forge-std/src/Vm.sol";
-import {Test, console} from "forge-std/src/Test.sol";
+import {Test} from "forge-std/src/Test.sol";
 import {Utils} from "test/utils/Utils.sol";
 import {IdentityUpdates} from "src/IdentityUpdates.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";

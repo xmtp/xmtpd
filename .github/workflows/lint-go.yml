@@ -29,18 +29,18 @@ jobs:
         with:
           args: --timeout=5m --config .golangci.yaml
       - name: golines
-        uses: nickcharlton/diff-check@main
+        uses: nickcharlton/diff-check@v1.0.0
         with:
           command: dev/lint-golines
       - name: sqlc
-        uses: nickcharlton/diff-check@main
+        uses: nickcharlton/diff-check@v1.0.0
         with:
           command: go tool -modfile=tools/go.mod sqlc generate
       - name: generate
-        uses: nickcharlton/diff-check@main
+        uses: nickcharlton/diff-check@v1.0.0
         with:
           command: go generate ./...
       - name: mockery
-        uses: nickcharlton/diff-check@main
+        uses: nickcharlton/diff-check@v1.0.0
         with:
           command: go tool -modfile=tools/go.mod mockery

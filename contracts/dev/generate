@@ -26,7 +26,7 @@ function generate_bindings() {
     rm -f "${output_dir}/${package}"/*.go
 
     # Generate ABI and bytecode
-    if ! forge inspect "${source_artifact}:${filename}" abi > "${build_artifact}.abi.json"; then
+    if ! forge inspect "${source_artifact}:${filename}" abi --json > "${build_artifact}.abi.json"; then
         echo "ERROR: Failed to generate ABI for ${filename}" >&2
         exit 1
     fi

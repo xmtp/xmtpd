@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-if ! which forge &>/dev/null; then echo "ERROR: Missing foundry binaries. Run 'curl -L https://foundry.paradigm.xyz | bash' and follow the instructions" && exit 1; fi
+if ! which forge &>/dev/null; then echo "ERROR: Missing foundry binaries. Run 'curl -L https://foundry.paradigm.xyz | bash' and follow the instructions to install foundry 1.0.0" && exit 1; fi
+if ! forge --version | grep -q "v1.0.0"; then echo "ERROR: Foundry version is not 1.0.0. Please install the correct version." && exit 1; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which jq &>/dev/null; then brew install jq; fi
 

@@ -1,6 +1,7 @@
-package authn
+package authn_test
 
 import (
+	"github.com/xmtp/xmtpd/pkg/authn"
 	"testing"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -12,7 +13,7 @@ func TestSign(t *testing.T) {
 	privateKey := testutils.RandomPrivateKey(t)
 	publicKey := privateKey.Public()
 
-	method := &SigningMethodSecp256k1{}
+	method := &authn.SigningMethodSecp256k1{}
 
 	signingString := "test"
 	signature, err := method.Sign(signingString, privateKey)
@@ -28,7 +29,7 @@ func TestWrongSigner(t *testing.T) {
 	badPrivateKey := testutils.RandomPrivateKey(t)
 	badPublicKey := badPrivateKey.Public()
 
-	method := &SigningMethodSecp256k1{}
+	method := &authn.SigningMethodSecp256k1{}
 
 	signingString := "test"
 	signature, err := method.Sign(signingString, goodPrivateKey)
@@ -42,7 +43,7 @@ func TestWrongSigningString(t *testing.T) {
 	privateKey := testutils.RandomPrivateKey(t)
 	publicKey := privateKey.Public()
 
-	method := &SigningMethodSecp256k1{}
+	method := &authn.SigningMethodSecp256k1{}
 
 	signingString := "test"
 	signature, err := method.Sign(signingString, privateKey)
@@ -57,7 +58,7 @@ func TestFullJWT(t *testing.T) {
 	claims := &jwt.RegisteredClaims{
 		Issuer: "test",
 	}
-	token := jwt.NewWithClaims(&SigningMethodSecp256k1{}, claims)
+	token := jwt.NewWithClaims(&authn.SigningMethodSecp256k1{}, claims)
 
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, err := token.SignedString(privateKey)

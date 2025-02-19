@@ -6,24 +6,36 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const (
-	// XMTPD_COMPATIBLE_VERSION_CONSTRAINT major or minor serverVersion bumps indicate backwards incompatible changes
-	XMTPD_COMPATIBLE_VERSION_CONSTRAINT = "^0.2"
-)
-
 type XmtpdClaims struct {
 	Version *semver.Version `json:"version,omitempty"`
 	jwt.RegisteredClaims
 }
+type ClaimValidator struct {
+	constraint semver.Constraints
+}
 
-func ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
-	if claims.Version == nil {
-		return nil
+func NewClaimValidator(serverVersion *semver.Version) (*ClaimValidator, error) {
+	if serverVersion == nil {
+		return nil, fmt.Errorf("serverVersion is nil")
+	}
+	sanitizedVersion, err := serverVersion.SetPrerelease("")
+	if err != nil {
+		return nil, err
 	}
 
-	c, err := semver.NewConstraint(XMTPD_COMPATIBLE_VERSION_CONSTRAINT)
+	// https://github.com/Masterminds/semver?tab=readme-ov-file#caret-range-comparisons-major
+	constraintStr := fmt.Sprintf("^%s", sanitizedVersion.String())
+
+	constraint, err := semver.NewConstraint(constraintStr)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	return &ClaimValidator{constraint: *constraint}, nil
+}
+func (cv *ClaimValidator) ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
+	if claims.Version == nil {
+		return nil
 	}
 
 	// SemVer implementations generally do not consider pre-releases to be valid next releases
@@ -33,7 +45,7 @@ func ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
 	if err != nil {
 		return err
 	}
-	if ok := c.Check(&sanitizedVersion); !ok {
+	if ok := cv.constraint.Check(&sanitizedVersion); !ok {
 		return fmt.Errorf("serverVersion %s is not compatible", *claims.Version)
 	}
 

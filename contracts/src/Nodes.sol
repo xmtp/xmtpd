@@ -24,6 +24,7 @@ contract Nodes is ERC721, Ownable {
         bytes signingKeyPub;
         string httpAddress;
         bool isHealthy;
+        bool isActive;
     }
 
     struct NodeWithId {
@@ -31,7 +32,10 @@ contract Nodes is ERC721, Ownable {
         Node node;
     }
 
+    event NodeCreated(uint256 nodeId, Node node);
     event NodeUpdated(uint256 nodeId, Node node);
+    event NodeActivated(uint256 nodeId);
+    event NodeDeactivated(uint256 nodeId);
 
     // Mapping of token ID to Node
     mapping(uint256 => Node) private _nodes;
@@ -48,8 +52,8 @@ contract Nodes is ERC721, Ownable {
         _nodeCounter++;
         uint32 nodeId = _nodeCounter * NODE_INCREMENT;
         _mint(to, nodeId);
-        _nodes[nodeId] = Node(signingKeyPub, httpAddress, true);
-        _emitNodeUpdate(nodeId);
+        _nodes[nodeId] = Node(signingKeyPub, httpAddress, true, false);
+        emit NodeCreated(nodeId, _nodes[nodeId]);
         return nodeId;
     }
 
@@ -70,7 +74,7 @@ contract Nodes is ERC721, Ownable {
     function updateHttpAddress(uint256 tokenId, string calldata httpAddress) public {
         require(_msgSender() == ownerOf(tokenId), "Only the owner of the Node NFT can update its http address");
         _nodes[tokenId].httpAddress = httpAddress;
-        _emitNodeUpdate(tokenId);
+        emit NodeUpdated(tokenId, _nodes[tokenId]);
     }
 
     /**
@@ -82,7 +86,17 @@ contract Nodes is ERC721, Ownable {
         // Make sure that the token exists
         _requireOwned(tokenId);
         _nodes[tokenId].isHealthy = isHealthy;
-        _emitNodeUpdate(tokenId);
+        emit NodeUpdated(tokenId, _nodes[tokenId]);
+    }
+
+    function updateActive(uint256 tokenId, bool isActive) public onlyOwner {
+        _requireOwned(tokenId);
+        _nodes[tokenId].isActive = isActive;
+        if (isActive) {
+            emit NodeActivated(tokenId);
+        } else {
+            emit NodeDeactivated(tokenId);
+        }
     }
 
     /**
@@ -137,10 +151,6 @@ contract Nodes is ERC721, Ownable {
     function getNode(uint256 tokenId) public view returns (Node memory) {
         _requireOwned(tokenId);
         return _nodes[tokenId];
-    }
-
-    function _emitNodeUpdate(uint256 tokenId) private {
-        emit NodeUpdated(tokenId, _nodes[tokenId]);
     }
 
     function _nodeExists(uint256 tokenId) private view returns (bool) {

@@ -9,7 +9,7 @@ contract Deployer is Script {
 
     function run() public {
         vm.startBroadcast();
-        new Nodes();
+        new Nodes(msg.sender);
 
         vm.broadcast();
     }

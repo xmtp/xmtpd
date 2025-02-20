@@ -87,7 +87,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 	require.ErrorContains(t, err, "invalid wire-format data")
 }
 
-func TestMismatchingOriginatorOnPublish(t *testing.T) {
+func TestMismatchingAADOriginatorOnPublishNoLongerFails(t *testing.T) {
 	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
@@ -96,6 +96,28 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	// nolint:staticcheck
 	clientEnv.Aad.TargetOriginator = &nid
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
+				envelopeTestUtils.CreatePayerEnvelope(
+					t,
+					envelopeTestUtils.DefaultClientEnvelopeNodeId,
+					clientEnv,
+				),
+			},
+		},
+	)
+	require.NoError(t, err)
+}
+
+func TestMismatchingOriginatorOnPublish(t *testing.T) {
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
+
+	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{

@@ -45,13 +45,11 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 func CreateGroupMessageClientEnvelope(
 	groupID [32]byte,
 	message []byte,
-	targetOriginator uint32,
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{
 		Aad: &envelopes.AuthenticatedData{
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
 				Bytes(),
-			TargetOriginator: &targetOriginator,
 		},
 		Payload: &envelopes.ClientEnvelope_GroupMessage{
 			GroupMessage: &mlsv1.GroupMessageInput{

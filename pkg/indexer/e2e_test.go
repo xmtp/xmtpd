@@ -62,9 +62,9 @@ func TestStoreMessages(t *testing.T) {
 
 	message := testutils.RandomBytes(78)
 	groupID := testutils.RandomGroupID()
-	topic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
+	msgTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
 
-	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message, 0)
+	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
 	clientEnvelopeBytes, err := proto.Marshal(clientEnvelope)
 	require.NoError(t, err)
 
@@ -77,7 +77,7 @@ func TestStoreMessages(t *testing.T) {
 		results, err := querier.SelectGatewayEnvelopes(
 			context.Background(),
 			queries.SelectGatewayEnvelopesParams{
-				Topics: [][]byte{topic},
+				Topics: [][]byte{msgTopic},
 			},
 		)
 		require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestStoreMessages(t *testing.T) {
 			firstEnvelope.OriginatorEnvelope,
 		)
 		require.NoError(t, err)
-		require.Equal(t, firstEnvelope.Topic, topic)
+		require.Equal(t, firstEnvelope.Topic, msgTopic)
 
 		return true
 	}, 5*time.Second, 100*time.Millisecond, "Failed to find indexed envelope")

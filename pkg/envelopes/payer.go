@@ -12,8 +12,9 @@ import (
 )
 
 type PayerEnvelope struct {
-	proto          *envelopesProto.PayerEnvelope
-	ClientEnvelope ClientEnvelope
+	proto            *envelopesProto.PayerEnvelope
+	ClientEnvelope   ClientEnvelope
+	TargetOriginator uint32
 }
 
 func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, error) {
@@ -25,7 +26,11 @@ func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, erro
 	if err != nil {
 		return nil, err
 	}
-	return &PayerEnvelope{proto: proto, ClientEnvelope: *clientEnv}, nil
+	return &PayerEnvelope{
+		proto:            proto,
+		ClientEnvelope:   *clientEnv,
+		TargetOriginator: proto.GetTargetOriginator(),
+	}, nil
 }
 
 func (p *PayerEnvelope) Proto() *envelopesProto.PayerEnvelope {

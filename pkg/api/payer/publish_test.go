@@ -181,11 +181,14 @@ func TestPublishToNodes(t *testing.T) {
 		HttpAddress: formatAddress(originatorServer.Addr().String()),
 	}, nil)
 
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		{NodeID: 100},
+	}, nil)
+
 	groupId := testutils.RandomGroupID()
 	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 		groupId,
 		[]byte("test message"),
-		100, // This is the expected originator ID of the test server
 	)
 
 	publishResponse, err := svc.PublishClientEnvelopes(
@@ -203,6 +206,8 @@ func TestPublishToNodes(t *testing.T) {
 	require.NoError(t, err)
 
 	targetTopic := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TargetTopic()
-
 	require.Equal(t, targetTopic.Identifier(), groupId[:])
+
+	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
+	require.EqualValues(t, 100, targetOriginator)
 }

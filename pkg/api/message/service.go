@@ -411,6 +411,10 @@ func (s *Service) validatePayerEnvelope(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
 	}
 
+	if _, err = payerEnv.RecoverSigner(); err != nil {
+		return nil, err
+	}
+
 	if err := s.validateClientInfo(&payerEnv.ClientEnvelope); err != nil {
 		return nil, err
 	}

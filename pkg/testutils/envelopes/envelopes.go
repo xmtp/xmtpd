@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -90,10 +92,18 @@ func CreatePayerEnvelope(
 	clientEnvBytes, err := proto.Marshal(clientEnv[0])
 	require.NoError(t, err)
 
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	payerSignature, err := utils.SignClientEnvelope(nodeID, clientEnvBytes, key)
+	require.NoError(t, err)
+
 	return &envelopes.PayerEnvelope{
 		UnsignedClientEnvelope: clientEnvBytes,
-		PayerSignature:         &associations.RecoverableEcdsaSignature{},
-		TargetOriginator:       nodeID,
+		PayerSignature: &associations.RecoverableEcdsaSignature{
+			Bytes: payerSignature,
+		},
+		TargetOriginator: nodeID,
 	}
 }
 

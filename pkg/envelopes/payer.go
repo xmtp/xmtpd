@@ -46,7 +46,7 @@ func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
 		return nil, errors.New("payer signature is missing")
 	}
 
-	hash := utils.HashPayerSignatureInput(p.proto.UnsignedClientEnvelope)
+	hash := utils.HashPayerSignatureInput(p.proto.TargetOriginator, p.proto.UnsignedClientEnvelope)
 	signer, err := ethcrypto.SigToPub(hash, payerSignature.Bytes)
 	if err != nil {
 		return nil, err

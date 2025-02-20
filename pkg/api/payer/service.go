@@ -177,7 +177,7 @@ func (s *Service) publishToNodes(
 	}
 	client := message_api.NewReplicationApiClient(conn)
 
-	payerEnvelopes, err := s.signAllClientEnvelopes(indexedEnvelopes)
+	payerEnvelopes, err := s.signAllClientEnvelopes(originatorID, indexedEnvelopes)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "error signing payer envelopes: %v", err)
 	}
@@ -324,12 +324,12 @@ func buildUnsignedOriginatorEnvelopeFromChain(
 	}
 }
 
-func (s *Service) signAllClientEnvelopes(
+func (s *Service) signAllClientEnvelopes(originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,
 ) ([]*envelopesProto.PayerEnvelope, error) {
 	out := make([]*envelopesProto.PayerEnvelope, len(indexedEnvelopes))
 	for i, indexedEnvelope := range indexedEnvelopes {
-		envelope, err := s.signClientEnvelope(indexedEnvelope.payload)
+		envelope, err := s.signClientEnvelope(originatorID, indexedEnvelope.payload)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +338,7 @@ func (s *Service) signAllClientEnvelopes(
 	return out, nil
 }
 
-func (s *Service) signClientEnvelope(
+func (s *Service) signClientEnvelope(originatorID uint32,
 	clientEnvelope *envelopes.ClientEnvelope,
 ) (*envelopesProto.PayerEnvelope, error) {
 	envelopeBytes, err := clientEnvelope.Bytes()
@@ -346,7 +346,7 @@ func (s *Service) signClientEnvelope(
 		return nil, err
 	}
 
-	payerSignature, err := utils.SignClientEnvelope(envelopeBytes, s.payerPrivateKey)
+	payerSignature, err := utils.SignClientEnvelope(originatorID, envelopeBytes, s.payerPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -356,6 +356,7 @@ func (s *Service) signClientEnvelope(
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
+		TargetOriginator: originatorID,
 	}, nil
 }
 

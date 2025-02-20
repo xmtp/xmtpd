@@ -19,7 +19,7 @@ func TestValidOriginatorEnvelope(t *testing.T) {
 	originatorSequenceId := uint64(1)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, clientEnv)
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, originatorNodeId, clientEnv)
 	originatorEnvelope := envelopeTestUtils.CreateOriginatorEnvelope(
 		t,
 		originatorNodeId,
@@ -48,7 +48,7 @@ func TestSerialize(t *testing.T) {
 	originatorSequenceId := uint64(1)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, clientEnv)
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, originatorNodeId, clientEnv)
 	originatorEnvelope := envelopeTestUtils.CreateOriginatorEnvelope(
 		t,
 		originatorNodeId,
@@ -138,10 +138,12 @@ func TestPayloadType(t *testing.T) {
 }
 
 func TestRecoverSigner(t *testing.T) {
+	nodeId := envelopeTestUtils.DefaultClientEnvelopeNodeId
 	payerPrivateKey := testutils.RandomPrivateKey(t)
-	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t)
+	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t, nodeId)
 
 	payerSignature, err := utils.SignClientEnvelope(
+		nodeId,
 		rawPayerEnv.UnsignedClientEnvelope,
 		payerPrivateKey,
 	)
@@ -159,6 +161,7 @@ func TestRecoverSigner(t *testing.T) {
 
 	// Now test with an incorrect signature
 	wrongPayerSignature, err := utils.SignClientEnvelope(
+		nodeId,
 		testutils.RandomBytes(128),
 		payerPrivateKey,
 	)

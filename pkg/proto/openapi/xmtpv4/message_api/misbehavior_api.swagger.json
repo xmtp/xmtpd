@@ -130,6 +130,10 @@
         },
         "payerSignature": {
           "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        },
+        "targetOriginator": {
+          "type": "integer",
+          "format": "int64"
         }
       },
       "title": "Wraps client envelope with payer signature"

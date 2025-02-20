@@ -160,6 +160,7 @@ func TestCreateServer(t *testing.T) {
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
+				nodeId1,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: &nodeId1,
 					TargetTopic:      targetTopic,
@@ -174,6 +175,7 @@ func TestCreateServer(t *testing.T) {
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
+				nodeId2,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: &nodeId2,
 					TargetTopic:      targetTopic,
@@ -265,6 +267,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
+				nodeId1,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: &nodeId1,
 					TargetTopic:      targetTopic,

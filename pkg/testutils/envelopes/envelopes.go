@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const DefaultClientEnvelopeNodeId = uint32(100)
+
 func UnmarshalUnsignedOriginatorEnvelope(
 	t *testing.T,
 	bytes []byte,
@@ -25,7 +27,7 @@ func UnmarshalUnsignedOriginatorEnvelope(
 }
 
 func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.ClientEnvelope {
-	nodeId := uint32(100)
+	nodeId := DefaultClientEnvelopeNodeId
 	if len(aad) == 0 {
 		aad = append(aad, &envelopes.AuthenticatedData{
 			TargetOriginator: &nodeId,
@@ -81,6 +83,7 @@ func CreateIdentityUpdateClientEnvelope(
 
 func CreatePayerEnvelope(
 	t *testing.T,
+	nodeID uint32,
 	clientEnv ...*envelopes.ClientEnvelope,
 ) *envelopes.PayerEnvelope {
 	if len(clientEnv) == 0 {
@@ -92,6 +95,7 @@ func CreatePayerEnvelope(
 	return &envelopes.PayerEnvelope{
 		UnsignedClientEnvelope: clientEnvBytes,
 		PayerSignature:         &associations.RecoverableEcdsaSignature{},
+		TargetOriginator:       nodeID,
 	}
 }
 
@@ -102,7 +106,7 @@ func CreateOriginatorEnvelope(
 	payerEnv ...*envelopes.PayerEnvelope,
 ) *envelopes.OriginatorEnvelope {
 	if len(payerEnv) == 0 {
-		payerEnv = append(payerEnv, CreatePayerEnvelope(t))
+		payerEnv = append(payerEnv, CreatePayerEnvelope(t, originatorNodeID))
 	}
 
 	unsignedEnv := &envelopes.UnsignedOriginatorEnvelope{
@@ -127,7 +131,7 @@ func CreateOriginatorEnvelopeWithTopic(
 	originatorSequenceID uint64,
 	topic []byte,
 ) *envelopes.OriginatorEnvelope {
-	payerEnv := CreatePayerEnvelope(t, CreateClientEnvelope(
+	payerEnv := CreatePayerEnvelope(t, originatorNodeID, CreateClientEnvelope(
 		&envelopes.AuthenticatedData{
 			TargetTopic:      topic,
 			TargetOriginator: &originatorNodeID,

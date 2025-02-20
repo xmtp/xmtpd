@@ -1,12 +1,17 @@
 package utils
 
 import (
+	"encoding/binary"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
 )
 
-func HashPayerSignatureInput(unsignedClientEnvelope []byte) []byte {
+func HashPayerSignatureInput(originatorID uint32, unsignedClientEnvelope []byte) []byte {
+	targetBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(targetBytes, originatorID)
 	return ethcrypto.Keccak256(
+		[]byte(constants.TARGET_ORIGINATOR_SEPARATION_LABEL),
+		targetBytes,
 		[]byte(constants.PAYER_DOMAIN_SEPARATION_LABEL),
 		unsignedClientEnvelope,
 	)

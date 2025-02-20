@@ -163,7 +163,11 @@ func (s *syncWorker) subscribeToNodeRegistration(
 	node, err := s.nodeRegistry.GetNode(registration.nodeid)
 	if err != nil {
 		// this should never happen
-		s.log.Error("Unexpected state: Failed to get node from registry", zap.Uint32("nodeid", registration.nodeid), zap.Error(err))
+		s.log.Error(
+			"Unexpected state: Failed to get node from registry",
+			zap.Uint32("nodeid", registration.nodeid),
+			zap.Error(err),
+		)
 		s.handleUnhealthyNode(registration)
 		return
 	}
@@ -181,11 +185,18 @@ func (s *syncWorker) subscribeToNodeRegistration(
 		select {
 		case <-registration.ctx.Done():
 			// either registry has changed or we are shutting down
-			s.log.Debug("Context is done. Closing stream and connection", zap.String("address", node.HttpAddress))
+			s.log.Debug(
+				"Context is done. Closing stream and connection",
+				zap.String("address", node.HttpAddress),
+			)
 			return
 		default:
 			if err != nil {
-				s.log.Error("Error connecting to node. Retrying...", zap.String("address", node.HttpAddress), zap.Error(err))
+				s.log.Error(
+					"Error connecting to node. Retrying...",
+					zap.String("address", node.HttpAddress),
+					zap.Error(err),
+				)
 				time.Sleep(backoff)
 				backoff = min(backoff*2, 30*time.Second)
 			} else {
@@ -356,7 +367,11 @@ func (s *syncWorker) listenToStream(
 			return nil
 
 		case envs := <-recvChan:
-			s.log.Debug("Received envelopes", zap.String("peer", node.HttpAddress), zap.Any("numEnvelopes", len(envs.Envelopes)))
+			s.log.Debug(
+				"Received envelopes",
+				zap.String("peer", node.HttpAddress),
+				zap.Any("numEnvelopes", len(envs.Envelopes)),
+			)
 			for _, env := range envs.Envelopes {
 				s.validateAndInsertEnvelope(originatorStream, env)
 			}
@@ -367,7 +382,11 @@ func (s *syncWorker) listenToStream(
 				// let the caller rebuild the stream if required
 				return nil
 			}
-			s.log.Error("Stream closed with error", zap.String("peer", node.HttpAddress), zap.Error(err))
+			s.log.Error(
+				"Stream closed with error",
+				zap.String("peer", node.HttpAddress),
+				zap.Error(err),
+			)
 			return err
 		}
 	}

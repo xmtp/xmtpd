@@ -160,6 +160,8 @@ contract Nodes is ERC721, INodes, AccessControl {
     /// @dev Only the contract owner may call this.
     /// @param newBaseURI The new base URI. Has to end with a trailing slash.
     function setBaseURI(string calldata newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(bytes(newBaseURI).length > 0, "Empty URI not allowed");
+        require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, "URI must end with /");
         _baseTokenURI = newBaseURI;
         emit BaseURIUpdated(newBaseURI);
     }
@@ -229,7 +231,7 @@ contract Nodes is ERC721, INodes, AccessControl {
         }
     }
 
-    // Required override for AccessControl
+    /// @dev Required override for AccessControl
     function supportsInterface(bytes4 interfaceId)
         public
         view

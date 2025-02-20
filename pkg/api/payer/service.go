@@ -76,7 +76,7 @@ func (s *Service) PublishClientEnvelopes(
 	// For each originator found in the request, publish all matching envelopes to the node
 	for originatorId, payloadsWithIndex := range grouped.forNodes {
 		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorId))
-		originatorEnvelopes, err := s.publishToNodes(ctx, originatorId, payloadsWithIndex)
+		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorId, payloadsWithIndex)
 		if err != nil {
 			s.log.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Error(codes.Internal, "error publishing payer envelopes")
@@ -165,6 +165,42 @@ func (s *Service) groupEnvelopes(
 	return &out, nil
 }
 
+func (s *Service) publishToNodeWithRetry(
+	ctx context.Context,
+	originatorID uint32,
+	indexedEnvelopes []clientEnvelopeWithIndex,
+) ([]*envelopesProto.OriginatorEnvelope, error) {
+	var banlist []uint32
+	var result []*envelopesProto.OriginatorEnvelope
+	var err error
+	var nodeID = originatorID
+
+	topic := indexedEnvelopes[0].payload.TargetTopic()
+
+	for retries := 0; retries < 5; retries++ {
+		result, err = s.publishToNodes(ctx, nodeID, indexedEnvelopes)
+		if err == nil {
+			return result, nil
+		}
+
+		s.log.Error(
+			"error publishing to node. Retrying with the next one",
+			zap.Uint32("failed_node", nodeID),
+			zap.Error(err),
+		)
+
+		// Add failed node to banlist and retry
+		banlist = append(banlist, nodeID)
+
+		nodeID, err = s.nodeSelector.GetNode(topic, banlist)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, err
+}
+
 func (s *Service) publishToNodes(
 	ctx context.Context,
 	originatorID uint32,
@@ -199,7 +235,7 @@ func (s *Service) publishToBlockchain(
 	targetTopic := clientEnvelope.TargetTopic()
 	identifier := targetTopic.Identifier()
 	desiredOriginatorId := uint32(1) //TODO: determine this from the chain
-	desiredSequenceId := uint64(0)
+	var desiredSequenceId uint64
 	kind := targetTopic.Kind()
 
 	// Get the group ID as [32]byte
@@ -296,7 +332,10 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceId,
 	)
 	if err != nil {
-		return nil, err
+		s.log.Error(
+			"Chosen node for cursor check is unreachable",
+			zap.Uint32("targetNodeId", targetNodeId),
+		)
 	}
 
 	return &envelopesProto.OriginatorEnvelope{

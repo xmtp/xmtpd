@@ -10,7 +10,7 @@ import (
 )
 
 type NodeSelectorAlgorithm interface {
-	GetNode(topic topic.Topic) (uint32, error)
+	GetNode(topic topic.Topic, banlist ...[]uint32) (uint32, error)
 }
 
 type StableHashingNodeSelectorAlgorithm struct {
@@ -30,7 +30,10 @@ func HashKey(topic topic.Topic) uint32 {
 }
 
 // GetNode selects a node for a given topic using stable hashing
-func (s *StableHashingNodeSelectorAlgorithm) GetNode(topic topic.Topic) (uint32, error) {
+func (s *StableHashingNodeSelectorAlgorithm) GetNode(
+	topic topic.Topic,
+	banlist ...[]uint32,
+) (uint32, error) {
 	nodes, err := s.reg.GetNodes()
 	if err != nil {
 		return 0, err
@@ -60,5 +63,23 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(topic topic.Topic) (uint32,
 		return topicHash < nodeLocations[i]
 	})
 
-	return nodes[idx%len(nodeLocations)].NodeID, nil
+	// Flatten banlist
+	banned := make(map[uint32]struct{})
+	for _, list := range banlist {
+		for _, id := range list {
+			banned[id] = struct{}{}
+		}
+	}
+
+	// Find the next available node
+	for i := 0; i < len(nodes); i++ {
+		candidateIdx := (idx + i) % len(nodeLocations)
+		candidateNodeID := nodes[candidateIdx].NodeID
+
+		if _, exists := banned[candidateNodeID]; !exists {
+			return candidateNodeID, nil
+		}
+	}
+
+	return 0, errors.New("no available nodes after considering banlist")
 }

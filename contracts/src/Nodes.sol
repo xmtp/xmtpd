@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./interfaces/INodes.sol";
@@ -19,7 +20,7 @@ import "./interfaces/INodes.sol";
  /// - updating the node operator's HTTP address and MTLS certificate.
  /// - updating the node operator's minimum monthly fee.
  /// - updating the node operator's API enabled flag.
-contract Nodes is ERC721, INodes, AccessControl {
+contract Nodes is AccessControlEnumerable, ERC721, INodes {
     using EnumerableSet for EnumerableSet.UintSet;
 
     bytes32 public constant NODE_MANAGER_ROLE = keccak256("NODE_MANAGER_ROLE");
@@ -158,8 +159,8 @@ contract Nodes is ERC721, INodes, AccessControl {
 
     /// @inheritdoc INodes
     function setBaseURI(string calldata newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(bytes(newBaseURI).length > 0, "Empty URI not allowed");
-        require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, "URI must end with /");
+        require(bytes(newBaseURI).length > 0, InvalidURI());
+        require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, InvalidURI());
         _baseTokenURI = newBaseURI;
         emit BaseURIUpdated(newBaseURI);
     }
@@ -229,13 +230,38 @@ contract Nodes is ERC721, INodes, AccessControl {
         }
     }
 
-    /// @dev Required override for AccessControl
+    /// @dev Override to support ERC721, IERC165, and AccessControlEnumerable.
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, IERC165, AccessControl)
+        override(ERC721, IERC165, AccessControlEnumerable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /// @dev Override to prevent removing the last admin.
+    function revokeRole(bytes32 role, address account)
+        public
+        virtual
+        override(AccessControl, IAccessControl)
+        onlyRole(getRoleAdmin(role))
+    {
+        if (role == DEFAULT_ADMIN_ROLE) {
+            require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) > 1, Unauthorized());
+        }
+        super.revokeRole(role, account);
+    }
+
+    /// @dev Override to prevent renouncing the last admin role.
+    function renounceRole(bytes32 role, address account)
+        public
+        virtual
+        override(AccessControl, IAccessControl)
+    {
+        if (role == DEFAULT_ADMIN_ROLE) {
+            require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) > 1, Unauthorized());
+        }
+        super.renounceRole(role, account);
     }
 }

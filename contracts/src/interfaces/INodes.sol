@@ -40,6 +40,9 @@ interface INodes is IERC721 {
     /// @notice Error thrown when the maximum number of active nodes is reached.
     error MaxActiveNodesReached();
 
+    /// @notice Error thrown when an invalid URI is provided.
+    error InvalidURI();
+
     /// @notice Struct representing a node in the registry.
     /// @param signingKeyPub The public key used for node signing/verification.
     /// @param httpAddress The HTTP endpoint address for the node.
@@ -139,7 +142,7 @@ interface INodes is IERC721 {
     event BaseURIUpdated(string newBaseURI);
 
     // ***************************************************************
-    // *                OWNER-ONLY FUNCTIONS                       *
+    // *                ADMIN-ONLY FUNCTIONS                         *
     // ***************************************************************
 
     /// @notice Adds a new node to the registry and mints its corresponding ERC721 token.

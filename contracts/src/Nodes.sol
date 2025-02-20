@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./interfaces/INodes.sol";
 
@@ -19,10 +19,12 @@ import "./interfaces/INodes.sol";
  /// - updating the node operator's HTTP address and MTLS certificate.
  /// - updating the node operator's minimum monthly fee.
  /// - updating the node operator's API enabled flag.
-contract Nodes is ERC721, INodes, Ownable {
+contract Nodes is ERC721, INodes, AccessControl {
     using EnumerableSet for EnumerableSet.UintSet;
 
     event BaseURIUpdated(string baseURI);
+
+    bytes32 public constant NODE_MANAGER_ROLE = keccak256("NODE_MANAGER_ROLE");
 
     /// @dev The maximum commission percentage that the node operator can receive.
     uint256 public constant MAX_BPS = 10000;
@@ -55,12 +57,16 @@ contract Nodes is ERC721, INodes, Ownable {
     // slither-disable-next-line constable-states
     uint256 public nodeOperatorCommissionPercent;
 
-    constructor() ERC721("XMTP Node Operator", "XMTP") Ownable(msg.sender) {}
+    constructor(address _initialAdmin) ERC721("XMTP Node Operator", "XMTP") {
+        require(_initialAdmin != address(0), InvalidAddress());
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
+        _grantRole(NODE_MANAGER_ROLE, _initialAdmin);
+    }
 
     /// @inheritdoc INodes
     function addNode(address to, bytes calldata signingKeyPub, string calldata httpAddress, uint256 minMonthlyFee)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
         returns (uint256)
     {
         require(to != address(0), InvalidAddress());
@@ -84,20 +90,15 @@ contract Nodes is ERC721, INodes, Ownable {
     function transferFrom(address from, address to, uint256 nodeId) 
         public 
         override(ERC721, IERC721) 
-        onlyOwner 
+        onlyRole(NODE_MANAGER_ROLE)
     {
-        // Deactivate node before transfer
-        if (_activeNodes.contains(nodeId)) {
-            _activeNodes.remove(nodeId);
-            _nodes[nodeId].isActive = false;
-            emit NodeActivateUpdated(nodeId, false);
-        }
+        _deactivateNode(nodeId);
         super.transferFrom(from, to, nodeId);
         emit NodeTransferred(nodeId, from, to);
     }
 
     /// @inheritdoc INodes
-    function updateHttpAddress(uint256 nodeId, string calldata httpAddress) external onlyOwner {
+    function updateHttpAddress(uint256 nodeId, string calldata httpAddress) external onlyRole(NODE_MANAGER_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         require(bytes(httpAddress).length > 0, InvalidHttpAddress());
         _nodes[nodeId].httpAddress = httpAddress;
@@ -105,21 +106,21 @@ contract Nodes is ERC721, INodes, Ownable {
     }
 
     /// @inheritdoc INodes
-    function updateIsReplicationEnabled(uint256 nodeId, bool isReplicationEnabled) external onlyOwner {
+    function updateIsReplicationEnabled(uint256 nodeId, bool isReplicationEnabled) external onlyRole(NODE_MANAGER_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         _nodes[nodeId].isReplicationEnabled = isReplicationEnabled;
         emit ReplicationEnabledUpdated(nodeId, isReplicationEnabled);
     }
 
     /// @inheritdoc INodes
-    function updateMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFee) external onlyOwner {
+    function updateMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFee) external onlyRole(NODE_MANAGER_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         _nodes[nodeId].minMonthlyFee = minMonthlyFee;
         emit MinMonthlyFeeUpdated(nodeId, minMonthlyFee);
     }
 
     /// @inheritdoc INodes
-    function updateActive(uint256 nodeId, bool isActive) public onlyOwner {
+    function updateActive(uint256 nodeId, bool isActive) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         if (isActive) {
             require(_activeNodes.length() < maxActiveNodes, MaxActiveNodesReached());
@@ -134,7 +135,7 @@ contract Nodes is ERC721, INodes, Ownable {
     /// @inheritdoc INodes
     function batchUpdateActive(uint256[] calldata nodeIds, bool[] calldata isActive) 
         external 
-        onlyOwner 
+        onlyRole(DEFAULT_ADMIN_ROLE) 
     {
         require(nodeIds.length == isActive.length);
         for (uint256 i = 0; i < nodeIds.length; i++) {
@@ -143,13 +144,13 @@ contract Nodes is ERC721, INodes, Ownable {
     }
 
     /// @inheritdoc INodes
-    function updateMaxActiveNodes(uint8 newMaxActiveNodes) external onlyOwner {
+    function updateMaxActiveNodes(uint8 newMaxActiveNodes) external onlyRole(DEFAULT_ADMIN_ROLE) {
         maxActiveNodes = newMaxActiveNodes;
         emit MaxActiveNodesUpdated(newMaxActiveNodes);
     }
 
     /// @inheritdoc INodes
-    function updateNodeOperatorCommissionPercent(uint256 newCommissionPercent) external onlyOwner {
+    function updateNodeOperatorCommissionPercent(uint256 newCommissionPercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(newCommissionPercent <= MAX_BPS, InvalidCommissionPercent());
         nodeOperatorCommissionPercent = newCommissionPercent;
         emit NodeOperatorCommissionPercentUpdated(newCommissionPercent);
@@ -158,7 +159,7 @@ contract Nodes is ERC721, INodes, Ownable {
     /// @notice Updates the base URI for the node NFTs.
     /// @dev Only the contract owner may call this.
     /// @param newBaseURI The new base URI. Has to end with a trailing slash.
-    function setBaseURI(string calldata newBaseURI) external onlyOwner {
+    function setBaseURI(string calldata newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _baseTokenURI = newBaseURI;
         emit BaseURIUpdated(newBaseURI);
     }
@@ -217,5 +218,24 @@ contract Nodes is ERC721, INodes, Ownable {
     /// @inheritdoc ERC721
     function _baseURI() internal view virtual override returns (string memory) {
         return _baseTokenURI;
+    }
+
+    /// @dev Helper function to deactivate a node
+    function _deactivateNode(uint256 nodeId) private {
+        if (_activeNodes.contains(nodeId)) {
+            _activeNodes.remove(nodeId);
+            _nodes[nodeId].isActive = false;
+            emit NodeActivateUpdated(nodeId, false);
+        }
+    }
+
+    // Required override for AccessControl
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, IERC165, AccessControl)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

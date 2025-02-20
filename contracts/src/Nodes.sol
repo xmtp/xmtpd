@@ -116,8 +116,8 @@ contract Nodes is ERC721, INodes, Ownable {
     /// @inheritdoc INodes
     function updateActive(uint256 nodeId, bool isActive) public onlyOwner {
         require(_nodeExists(nodeId), NodeDoesNotExist());
-        require(_activeNodes.length() < maxActiveNodes, MaxActiveNodesReached());
         if (isActive) {
+            require(_activeNodes.length() < maxActiveNodes, MaxActiveNodesReached());
             require(_activeNodes.add(nodeId), NodeAlreadyActive());
         } else {
             require(_activeNodes.remove(nodeId), NodeAlreadyInactive());

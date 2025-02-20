@@ -45,6 +45,7 @@ interface INodes is IERC721 {
     /// @param httpAddress The HTTP endpoint address for the node.
     /// @param isReplicationEnabled A flag indicating whether the node supports replication.
     /// @param isApiEnabled A flag indicating whether the node has its API enabled.
+    /// @param isActive A flag indicating whether the node is actively participating in the network.
     /// @param minMonthlyFee The minimum monthly fee collected by the node operator.
     struct Node {
         bytes signingKeyPub;
@@ -218,12 +219,12 @@ interface INodes is IERC721 {
     function nodeOperatorCommissionPercent() external view returns (uint256);
 
     /// @notice Retrieves a list of active nodes.
-    /// @dev Active nodes are those with `isReplicationEnabled` set to true.
+    /// @dev Active nodes are those with `isActive` set to true.
     /// @return activeNodes An array of Node structs representing active nodes.
     function getActiveNodes() external view returns (Node[] memory activeNodes);
 
     /// @notice Retrieves a list of active nodes IDs.
-    /// @dev Active nodes are those with `isReplicationEnabled` set to true.
+    /// @dev Active nodes are those with `isActive` set to true.
     /// @return activeNodesIDs An array of node IDs representing active nodes.
     function getActiveNodesIDs() external view returns (uint256[] memory activeNodesIDs);
 

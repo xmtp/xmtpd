@@ -159,10 +159,15 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 func (s *syncWorker) subscribeToNodeRegistration(
 	registration NodeRegistration,
 ) {
+
 	node, err := s.nodeRegistry.GetNode(registration.nodeid)
 	if err != nil {
 		// this should never happen
-		s.log.Error(fmt.Sprintf("Unexpected state: Failed to get node from registry: %v", err))
+		s.log.Error(
+			"Unexpected state: Failed to get node from registry",
+			zap.Uint32("nodeid", registration.nodeid),
+			zap.Error(err),
+		)
 		s.handleUnhealthyNode(registration)
 		return
 	}
@@ -180,11 +185,18 @@ func (s *syncWorker) subscribeToNodeRegistration(
 		select {
 		case <-registration.ctx.Done():
 			// either registry has changed or we are shutting down
-			s.log.Debug("Context is done. Closing stream and connection")
+			s.log.Debug(
+				"Context is done. Closing stream and connection",
+				zap.String("address", node.HttpAddress),
+			)
 			return
 		default:
 			if err != nil {
-				s.log.Error(fmt.Sprintf("Error: %v, retrying...", err))
+				s.log.Error(
+					"Error connecting to node. Retrying...",
+					zap.String("address", node.HttpAddress),
+					zap.Error(err),
+				)
 				time.Sleep(backoff)
 				backoff = min(backoff*2, 30*time.Second)
 			} else {
@@ -203,7 +215,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 				_ = conn.Close()
 				continue
 			}
-			err = s.listenToStream(stream)
+			err = s.listenToStream(registration.ctx, *node, stream)
 			_ = stream.stream.CloseSend()
 			_ = conn.Close()
 		}
@@ -272,7 +284,7 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 		return nil, fmt.Errorf("failed to connect to peer at %s: %v", node.HttpAddress, err)
 	}
 
-	s.log.Debug(fmt.Sprintf("Successfully connected to peer at %s", node.HttpAddress))
+	s.log.Debug(fmt.Sprintf("Successfully opened a connection to peer at %s", node.HttpAddress))
 	return conn, nil
 }
 
@@ -305,8 +317,14 @@ func (s *syncWorker) setupStream(
 		},
 	)
 	if err != nil {
+		s.log.Error(
+			"Failed to batch subscribe to peer",
+			zap.String("peer", node.HttpAddress),
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf(
-			"failed to batch subscribe to peer: %v",
+			"failed to batch subscribe to peer at %s: %v",
+			node.HttpAddress,
 			err,
 		)
 	}
@@ -324,6 +342,8 @@ func (s *syncWorker) setupStream(
 }
 
 func (s *syncWorker) listenToStream(
+	_ context.Context,
+	node registry.Node,
 	originatorStream *originatorStream,
 ) error {
 	recvChan := make(chan *message_api.SubscribeEnvelopesResponse)
@@ -347,7 +367,11 @@ func (s *syncWorker) listenToStream(
 			return nil
 
 		case envs := <-recvChan:
-			s.log.Debug("Received envelopes", zap.Any("numEnvelopes", len(envs.Envelopes)))
+			s.log.Debug(
+				"Received envelopes",
+				zap.String("peer", node.HttpAddress),
+				zap.Any("numEnvelopes", len(envs.Envelopes)),
+			)
 			for _, env := range envs.Envelopes {
 				s.validateAndInsertEnvelope(originatorStream, env)
 			}
@@ -358,7 +382,11 @@ func (s *syncWorker) listenToStream(
 				// let the caller rebuild the stream if required
 				return nil
 			}
-			s.log.Error("Stream closed with error", zap.Error(err))
+			s.log.Error(
+				"Stream closed with error",
+				zap.String("peer", node.HttpAddress),
+				zap.Error(err),
+			)
 			return err
 		}
 	}

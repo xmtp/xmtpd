@@ -22,11 +22,16 @@ import "./interfaces/INodes.sol";
 contract Nodes is ERC721, INodes, Ownable {
     using EnumerableSet for EnumerableSet.UintSet;
 
+    event BaseURIUpdated(string baseURI);
+
     /// @dev The maximum commission percentage that the node operator can receive.
     uint256 public constant MAX_BPS = 10000;
 
     /// @dev The increment for node IDs.
     uint32 private constant NODE_INCREMENT = 100;
+
+    /// @dev The base URI for the node NFTs.
+    string private _baseTokenURI;
 
     /// @dev Max number of active nodes.
     // slither-disable-next-line constable-states
@@ -150,6 +155,14 @@ contract Nodes is ERC721, INodes, Ownable {
         emit NodeOperatorCommissionPercentUpdated(newCommissionPercent);
     }   
 
+    /// @notice Updates the base URI for the node NFTs.
+    /// @dev Only the contract owner may call this.
+    /// @param newBaseURI The new base URI. Has to end with a trailing slash.
+    function setBaseURI(string calldata newBaseURI) external onlyOwner {
+        _baseTokenURI = newBaseURI;
+        emit BaseURIUpdated(newBaseURI);
+    }
+
     /// @inheritdoc INodes
     function updateIsApiEnabled(uint256 nodeId) external {
         require(_ownerOf(nodeId) == msg.sender, Unauthorized());
@@ -199,5 +212,10 @@ contract Nodes is ERC721, INodes, Ownable {
     /// @return True if the node exists, false otherwise.
     function _nodeExists(uint256 nodeId) private view returns (bool) {
         return _ownerOf(nodeId) != address(0);
+    }
+
+    /// @inheritdoc ERC721
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
     }
 }

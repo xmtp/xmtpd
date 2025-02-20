@@ -22,8 +22,6 @@ import "./interfaces/INodes.sol";
 contract Nodes is ERC721, INodes, AccessControl {
     using EnumerableSet for EnumerableSet.UintSet;
 
-    event BaseURIUpdated(string baseURI);
-
     bytes32 public constant NODE_MANAGER_ROLE = keccak256("NODE_MANAGER_ROLE");
 
     /// @dev The maximum commission percentage that the node operator can receive.
@@ -59,7 +57,9 @@ contract Nodes is ERC721, INodes, AccessControl {
 
     constructor(address _initialAdmin) ERC721("XMTP Node Operator", "XMTP") {
         require(_initialAdmin != address(0), InvalidAddress());
+
         _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
+        _setRoleAdmin(NODE_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
         _grantRole(NODE_MANAGER_ROLE, _initialAdmin);
     }
 
@@ -156,9 +156,7 @@ contract Nodes is ERC721, INodes, AccessControl {
         emit NodeOperatorCommissionPercentUpdated(newCommissionPercent);
     }   
 
-    /// @notice Updates the base URI for the node NFTs.
-    /// @dev Only the contract owner may call this.
-    /// @param newBaseURI The new base URI. Has to end with a trailing slash.
+    /// @inheritdoc INodes
     function setBaseURI(string calldata newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(bytes(newBaseURI).length > 0, "Empty URI not allowed");
         require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, "URI must end with /");

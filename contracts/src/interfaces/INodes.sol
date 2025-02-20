@@ -134,6 +134,10 @@ interface INodes is IERC721 {
     /// @param newMaxActiveNodes The new maximum number of active nodes.
     event MaxActiveNodesUpdated(uint8 newMaxActiveNodes);
 
+    /// @notice Emitted when the base URI is updated.
+    /// @param newBaseURI The new base URI.
+    event BaseURIUpdated(string newBaseURI);
+
     // ***************************************************************
     // *                OWNER-ONLY FUNCTIONS                       *
     // ***************************************************************
@@ -191,6 +195,11 @@ interface INodes is IERC721 {
     /// @dev Only the contract owner may call this.
     /// @param newMaxActiveNodes The new maximum number of active nodes.
     function updateMaxActiveNodes(uint8 newMaxActiveNodes) external;
+
+    /// @notice Updates the base URI for the node NFTs.
+    /// @dev Only the contract owner may call this.
+    /// @param newBaseURI The new base URI. Has to end with a trailing slash.
+    function setBaseURI(string calldata newBaseURI) external;
 
     // ***************************************************************
     // *                NODE OWNER FUNCTION                        *

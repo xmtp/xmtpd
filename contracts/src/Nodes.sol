@@ -138,7 +138,7 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
         external 
         onlyRole(DEFAULT_ADMIN_ROLE) 
     {
-        require(nodeIds.length == isActive.length);
+        require(nodeIds.length == isActive.length, InvalidInputLength());
         for (uint256 i = 0; i < nodeIds.length; i++) {
             updateActive(nodeIds[i], isActive[i]);
         }

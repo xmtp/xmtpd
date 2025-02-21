@@ -43,6 +43,9 @@ interface INodes is IERC721 {
     /// @notice Error thrown when an invalid URI is provided.
     error InvalidURI();
 
+    /// @notice Error thrown when the input length is invalid.
+    error InvalidInputLength();
+
     /// @notice Struct representing a node in the registry.
     /// @param signingKeyPub The public key used for node signing/verification.
     /// @param httpAddress The HTTP endpoint address for the node.

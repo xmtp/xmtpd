@@ -8,9 +8,9 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 type publishWorker struct {
@@ -110,13 +110,30 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		)
 		return false
 	}
-	originatorBytes, err := proto.Marshal(originatorEnv)
+	validatedEnvelope, err := envelopes.NewOriginatorEnvelope(originatorEnv)
+	if err != nil {
+		logger.Error("Failed to validate originator envelope", zap.Error(err))
+		return false
+	}
+	originatorBytes, err := validatedEnvelope.Bytes()
 	if err != nil {
 		logger.Error("Failed to marshal originator envelope", zap.Error(err))
 		return false
 	}
 
 	q := queries.New(p.store)
+
+	payerAddress, err := validatedEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
+	if err != nil {
+		logger.Error("Failed to recover payer address", zap.Error(err))
+		return false
+	}
+
+	payerId, err := q.FindOrCreatePayer(p.ctx, payerAddress.Hex())
+	if err != nil {
+		logger.Error("Failed to find or create payer", zap.Error(err))
+		return false
+	}
 
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
 	inserted, err := q.InsertGatewayEnvelope(
@@ -126,6 +143,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			OriginatorSequenceID: stagedEnv.ID,
 			Topic:                stagedEnv.Topic,
 			OriginatorEnvelope:   originatorBytes,
+			PayerID:              db.NullInt32(payerId),
 		},
 	)
 	if p.ctx.Err() != nil {

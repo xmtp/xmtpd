@@ -25,6 +25,23 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 	return result.RowsAffected()
 }
 
+const findOrCreatePayer = `-- name: FindOrCreatePayer :one
+INSERT INTO payers(address)
+	VALUES ($1)
+ON CONFLICT (address)
+	DO UPDATE SET
+		address = $1
+	RETURNING
+		id
+`
+
+func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32, error) {
+	row := q.db.QueryRowContext(ctx, findOrCreatePayer, address)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getAddressLogs = `-- name: GetAddressLogs :many
 SELECT
 	a.address,

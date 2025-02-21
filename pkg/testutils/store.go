@@ -110,3 +110,18 @@ func InsertGatewayEnvelopes(
 		}
 	}
 }
+
+func CreatePayer(t *testing.T, db *sql.DB, address ...string) int32 {
+	q := queries.New(db)
+	var payerAddress string
+	if len(address) > 0 {
+		payerAddress = address[0]
+	} else {
+		payerAddress = RandomString(42)
+	}
+
+	id, err := q.FindOrCreatePayer(context.Background(), payerAddress)
+	require.NoError(t, err)
+
+	return id
+}

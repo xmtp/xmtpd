@@ -3,13 +3,15 @@ package metadata_test
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+
 	"github.com/xmtp/xmtpd/pkg/api/message"
+	dbUtils "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -26,12 +28,16 @@ var allRows []queries.InsertGatewayEnvelopeParams
 func setupTest(
 	t *testing.T,
 ) (metadata_api.MetadataApiClient, *sql.DB, testUtilsApi.ApiServerMocks, func()) {
+	api, db, mocks, cleanup := testUtilsApi.NewTestMetadataAPIClient(t)
+	payerId := dbUtils.NullInt32(testutils.CreatePayer(t, db))
+
 	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 1, topicA),
@@ -41,6 +47,7 @@ func setupTest(
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 1, topicA),
@@ -51,6 +58,7 @@ func setupTest(
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 2, topicB),
@@ -60,6 +68,7 @@ func setupTest(
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 2, topicB),
@@ -69,6 +78,7 @@ func setupTest(
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 3, topicA),
@@ -76,7 +86,7 @@ func setupTest(
 		},
 	}
 
-	return testUtilsApi.NewTestMetadataAPIClient(t)
+	return api, db, mocks, cleanup
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {

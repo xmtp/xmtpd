@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
+	dbUtils "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -23,11 +24,13 @@ var (
 )
 
 func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopeParams {
+	payerId := dbUtils.NullInt32(testutils.CreatePayer(t, db))
 	db_rows := []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 1, topicA),
@@ -37,6 +40,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 1, topicA),
@@ -46,6 +50,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 2, topicB),
@@ -55,6 +60,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 2, topicB),
@@ -64,6 +70,7 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
+			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 3, topicA),

@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -49,7 +48,6 @@ func NewTestServer(
 	privateKey *ecdsa.PrivateKey,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
-	messagePublisher := blockchain.NewMockIBlockchainPublisher(t)
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
 		Contracts: config.ContractsOptions{
@@ -71,11 +69,7 @@ func NewTestServer(
 		Replication: config.ReplicationOptions{
 			Enable: true,
 		},
-		Payer: config.PayerOptions{
-			Enable:     true,
-			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
-		},
-	}, registry, db, messagePublisher, fmt.Sprintf("localhost:%d", port), testutils.GetLatestVersion(t))
+	}, registry, db, fmt.Sprintf("localhost:%d", port), testutils.GetLatestVersion(t))
 	require.NoError(t, err)
 
 	return server

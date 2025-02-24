@@ -110,32 +110,12 @@ func main() {
 			logger.Fatal("starting smart contract registry", zap.Error(err))
 		}
 
-		signer, err := blockchain.NewPrivateKeySigner(
-			options.Payer.PrivateKey,
-			options.Contracts.ChainID,
-		)
-		if err != nil {
-			logger.Fatal("initializing signer", zap.Error(err))
-		}
-
-		blockchainPublisher, err := blockchain.NewBlockchainPublisher(
-			ctx,
-			logger,
-			ethclient,
-			signer,
-			options.Contracts,
-		)
-		if err != nil {
-			logger.Fatal("initializing message publisher", zap.Error(err))
-		}
-
 		s, err := server.NewReplicationServer(
 			ctx,
 			logger,
 			options,
 			chainRegistry,
 			dbInstance,
-			blockchainPublisher,
 			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
 			version,
 		)

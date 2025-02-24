@@ -11,13 +11,13 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/pingcap/log v1.1.0
 	github.com/pires/go-proxyproto v0.8.0
-	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/client_golang v1.21.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.4
-	gopkg.in/DataDog/dd-trace-go.v1 v1.71.0
+	gopkg.in/DataDog/dd-trace-go.v1 v1.72.0
 )
 
 require (
@@ -96,7 +96,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20220216144756-c35f1ee13d7c // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.55.0 // indirect
+	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect

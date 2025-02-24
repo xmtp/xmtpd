@@ -39,11 +39,11 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v0.3.0
+          version: v1.0.0
 
       - name: Set cache key
         id: set-cache-key
-        run: echo "cache-key=ci-solidity-${{ hashFiles('**/*.sol') }}" >> "$GITHUB_OUTPUT"
+        run: echo "cache-key=ci-solidity-${{ hashFiles('contracts/**/*') }}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: forge soldeer update
@@ -54,7 +54,11 @@ jobs:
       - name: Cache data
         uses: actions/cache/save@v4
         with:
-          path: contracts
+          path: |
+            contracts/build
+            contracts/cache
+            contracts/dependencies
+            contracts/out
           key: ${{ steps.set-cache-key.outputs.cache-key }}
 
       - id: forge
@@ -70,10 +74,16 @@ jobs:
     needs: init
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Restore cache
         uses: actions/cache/restore@v4
         with:
-          path: contracts
+          path: |
+            contracts/build
+            contracts/cache
+            contracts/dependencies
+            contracts/out
           key: ${{ needs.init.outputs.cache-key }}
 
       - name: Restore forge
@@ -91,6 +101,8 @@ jobs:
     needs: init
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Restore cache
         uses: actions/cache/restore@v4
         with:
@@ -113,6 +125,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor != 'dependabot[bot]'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Restore cache
         uses: actions/cache/restore@v4
         with:
@@ -164,18 +178,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
 
-      - name: Install abigen
-        run: go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.12
-
-      - name: Generate ABIs
-        run: dev/generate
-
-      - name: Check for ABI changes
-        working-directory: ${{ github.workspace }}
-        run: |
-          if git diff --exit-code --ignore-space-change --ignore-all-space --ignore-cr-at-eol -- contracts/pkg; then
-            echo "No ABI changes detected."
-          else
-            echo "ERROR: Generated files are not up to date. Please run 'contracts/dev/generate' and commit the changes."
-            exit 1
-          fi
+      - name: abigen
+        uses: nickcharlton/diff-check@v1.0.0
+        with:
+          command: contracts/dev/generate

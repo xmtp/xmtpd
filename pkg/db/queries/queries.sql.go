@@ -272,8 +272,8 @@ func (q *Queries) InsertBlockchainMessage(ctx context.Context, arg InsertBlockch
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id)
-	VALUES ($1, $2, $3, $4, $5)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, gateway_time)
+	VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()))
 ON CONFLICT
 	DO NOTHING
 `
@@ -284,6 +284,7 @@ type InsertGatewayEnvelopeParams struct {
 	Topic                []byte
 	OriginatorEnvelope   []byte
 	PayerID              sql.NullInt32
+	GatewayTime          interface{}
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
@@ -293,6 +294,7 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 		arg.Topic,
 		arg.OriginatorEnvelope,
 		arg.PayerID,
+		arg.GatewayTime,
 	)
 	if err != nil {
 		return 0, err

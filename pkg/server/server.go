@@ -3,13 +3,16 @@ package server
 import (
 	"context"
 	"database/sql"
-	"github.com/xmtp/xmtpd/pkg/api/metadata"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/api/metadata"
+	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -194,6 +197,7 @@ func startAPIServer(
 				writerDB,
 				s.validationService,
 				s.cursorUpdater,
+				getRatesFetcher(),
 			)
 			if err != nil {
 				return err
@@ -328,4 +332,14 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 	}
 
 	s.cancel()
+}
+
+// TODO:nm Replace this with something that fetches rates from the blockchain
+// Will need a rates smart contract first
+func getRatesFetcher() fees.IRatesFetcher {
+	return fees.NewFixedRatesFetcher(&fees.Rates{
+		MessageFee:    currency.PicoDollar(100),
+		StorageFee:    currency.PicoDollar(100),
+		CongestionFee: currency.PicoDollar(100),
+	})
 }

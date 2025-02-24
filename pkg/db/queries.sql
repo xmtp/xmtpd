@@ -13,8 +13,8 @@ WHERE
 	singleton_id = 1;
 
 -- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id)
-	VALUES (@originator_node_id, @originator_sequence_id, @topic, @originator_envelope, @payer_id)
+INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, gateway_time)
+	VALUES (@originator_node_id, @originator_sequence_id, @topic, @originator_envelope, @payer_id, COALESCE(@gateway_time, NOW()))
 ON CONFLICT
 	DO NOTHING;
 

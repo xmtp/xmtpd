@@ -239,6 +239,7 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     /// @dev Helper function to deactivate a node
     function _deactivateNode(uint256 nodeId) private {
         if (_activeNodes.contains(nodeId)) {
+            // slither-disable-next-line unused-return
             _activeNodes.remove(nodeId);
             _nodes[nodeId].isActive = false;
             emit NodeActivateUpdated(nodeId, false);

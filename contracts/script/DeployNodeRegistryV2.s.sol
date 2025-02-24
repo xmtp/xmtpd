@@ -5,10 +5,10 @@ import {Script, console} from "forge-std/src/Script.sol";
 import {Environment} from "./utils/Environment.sol";
 import {Utils} from "./utils/Utils.sol";
 import "src/interfaces/INodes.sol";
-import "src/Nodes.sol";
+import "src/NodesV2.sol";
 
 contract DeployXMTPNodeRegistry is Script, Environment, Utils {
-    Nodes nodes;
+    NodesV2 nodes;
 
     address admin;
     address deployer;
@@ -23,7 +23,7 @@ contract DeployXMTPNodeRegistry is Script, Environment, Utils {
         deployer = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 
-        nodes = new Nodes(admin);
+        nodes = new NodesV2(admin);
         require(address(nodes) != address(0), "Nodes deployment failed");
 
         vm.stopBroadcast();

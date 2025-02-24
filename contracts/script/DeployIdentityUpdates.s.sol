@@ -18,9 +18,10 @@ contract DeployIdentityUpdates is Script, Utils, Environment {
     function run() external {
         admin = vm.envAddress("XMTP_IDENTITY_UPDATES_ADMIN_ADDRESS");
         require(admin != address(0), "XMTP_IDENTITY_UPDATES_ADMIN_ADDRESS not set");
-        require(admin.code.length == 0, "admin address is a contract, not an EOA");
 
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        require(privateKey != 0, "PRIVATE_KEY not set");
+
         deployer = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 

@@ -57,7 +57,6 @@ func NewReplicationServer(
 	options config.ServerOptions,
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
-	blockchainPublisher blockchain.IBlockchainPublisher,
 	listenAddress string,
 	serverVersion *semver.Version,
 ) (*ReplicationServer, error) {
@@ -135,7 +134,6 @@ func NewReplicationServer(
 			options,
 			s,
 			writerDB,
-			blockchainPublisher,
 			listenAddress,
 			serverVersion,
 		)
@@ -170,7 +168,6 @@ func startAPIServer(
 	options config.ServerOptions,
 	s *ReplicationServer,
 	writerDB *sql.DB,
-	blockchainPublisher blockchain.IBlockchainPublisher,
 	listenAddress string,
 	serverVersion *semver.Version,
 ) error {
@@ -223,6 +220,31 @@ func startAPIServer(
 			if err != nil {
 				return err
 			}
+
+			signer, err := blockchain.NewPrivateKeySigner(
+				options.Payer.PrivateKey,
+				options.Contracts.ChainID,
+			)
+			if err != nil {
+				log.Fatal("initializing signer", zap.Error(err))
+			}
+
+			ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+			if err != nil {
+				log.Fatal("initializing blockchain client", zap.Error(err))
+			}
+
+			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
+				ctx,
+				log,
+				ethclient,
+				signer,
+				options.Contracts,
+			)
+			if err != nil {
+				log.Fatal("initializing message publisher", zap.Error(err))
+			}
+
 			payerService, err := payer.NewPayerApiService(
 				ctx,
 				log,

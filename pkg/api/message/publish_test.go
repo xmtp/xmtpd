@@ -7,7 +7,9 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	envelopeUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	apiv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -293,4 +295,49 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "DependsOn has not been seen by this node")
+}
+
+func TestPublishEnvelopeFees(t *testing.T) {
+	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+	)
+
+	resp, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	returnedEnv, err := envelopeUtils.NewOriginatorEnvelope(resp.GetOriginatorEnvelopes()[0])
+	require.NoError(t, err)
+	// BaseFee will always be > 0
+	require.Greater(t, returnedEnv.UnsignedOriginatorEnvelope.BaseFee(), currency.PicoDollar(0))
+	// CongestionFee will be 0 for now.
+	// TODO:nm: Set this to the actual congestion fee
+	require.Equal(t, returnedEnv.UnsignedOriginatorEnvelope.CongestionFee(), currency.PicoDollar(0))
+
+	envs, err := queries.New(db).
+		SelectGatewayEnvelopes(context.Background(), queries.SelectGatewayEnvelopesParams{})
+	require.NoError(t, err)
+	require.Equal(t, len(envs), 1)
+
+	originatorEnv, err := envelopeUtils.NewOriginatorEnvelopeFromBytes(envs[0].OriginatorEnvelope)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		originatorEnv.UnsignedOriginatorEnvelope.BaseFee(),
+		returnedEnv.UnsignedOriginatorEnvelope.BaseFee(),
+	)
+	require.Equal(
+		t,
+		originatorEnv.UnsignedOriginatorEnvelope.CongestionFee(),
+		returnedEnv.UnsignedOriginatorEnvelope.CongestionFee(),
+	)
 }

@@ -5,13 +5,15 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"slices"
+
+	"github.com/Masterminds/semver/v3"
 
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/authn"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -76,16 +78,20 @@ func (r *Registrant) TokenFactory() *authn.TokenFactory {
 
 func (r *Registrant) SignStagedEnvelope(
 	stagedEnv queries.StagedOriginatorEnvelope,
+	baseFee currency.PicoDollar,
+	congestionFee currency.PicoDollar,
 ) (*envelopes.OriginatorEnvelope, error) {
 	payerEnv := &envelopes.PayerEnvelope{}
 	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
 		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
 	}
 	unsignedEnv := envelopes.UnsignedOriginatorEnvelope{
-		OriginatorNodeId:     r.record.NodeID,
-		OriginatorSequenceId: uint64(stagedEnv.ID),
-		OriginatorNs:         stagedEnv.OriginatorTime.UnixNano(),
-		PayerEnvelope:        payerEnv,
+		OriginatorNodeId:         r.record.NodeID,
+		OriginatorSequenceId:     uint64(stagedEnv.ID),
+		OriginatorNs:             stagedEnv.OriginatorTime.UnixNano(),
+		PayerEnvelope:            payerEnv,
+		BaseFeePicodollars:       uint64(baseFee),
+		CongestionFeePicodollars: uint64(congestionFee),
 	}
 	unsignedBytes, err := proto.Marshal(&unsignedEnv)
 	if err != nil {

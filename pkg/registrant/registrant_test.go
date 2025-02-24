@@ -3,9 +3,10 @@ package registrant_test
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/Masterminds/semver/v3"
 	"testing"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 
 	"go.uber.org/zap"
 
@@ -249,6 +250,8 @@ func TestSignStagedEnvelopeInvalidEnvelope(t *testing.T) {
 			OriginatorTime: time.Now(),
 			PayerEnvelope:  []byte{0b1},
 		},
+		0,
+		0,
 	)
 
 	require.ErrorContains(t, err, "unmarshal")
@@ -268,6 +271,8 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 			OriginatorTime: time.Now(),
 			PayerEnvelope:  payerBytes,
 		},
+		0,
+		0,
 	)
 
 	require.NoError(t, err)

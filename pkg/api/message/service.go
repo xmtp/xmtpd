@@ -407,6 +407,14 @@ func (s *Service) validatePayerEnvelope(
 		return nil, err
 	}
 
+	if payerEnv.TargetOriginator != s.registrant.NodeID() {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid target originator")
+	}
+
+	if _, err = payerEnv.RecoverSigner(); err != nil {
+		return nil, err
+	}
+
 	if err := s.validateClientInfo(&payerEnv.ClientEnvelope); err != nil {
 		return nil, err
 	}
@@ -444,10 +452,6 @@ func (s *Service) validateKeyPackage(
 
 func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error {
 	aad := clientEnv.Aad()
-	// nolint:staticcheck
-	if aad.GetTargetOriginator() != s.registrant.NodeID() {
-		return status.Errorf(codes.InvalidArgument, "invalid target originator")
-	}
 
 	if !clientEnv.TopicMatchesPayload() {
 		return status.Errorf(codes.InvalidArgument, "topic does not match payload")

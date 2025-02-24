@@ -12,8 +12,9 @@ import (
 )
 
 type PayerEnvelope struct {
-	proto          *envelopesProto.PayerEnvelope
-	ClientEnvelope ClientEnvelope
+	proto            *envelopesProto.PayerEnvelope
+	ClientEnvelope   ClientEnvelope
+	TargetOriginator uint32
 }
 
 func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, error) {
@@ -25,7 +26,11 @@ func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, erro
 	if err != nil {
 		return nil, err
 	}
-	return &PayerEnvelope{proto: proto, ClientEnvelope: *clientEnv}, nil
+	return &PayerEnvelope{
+		proto:            proto,
+		ClientEnvelope:   *clientEnv,
+		TargetOriginator: proto.GetTargetOriginator(),
+	}, nil
 }
 
 func (p *PayerEnvelope) Proto() *envelopesProto.PayerEnvelope {
@@ -46,7 +51,7 @@ func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
 		return nil, errors.New("payer signature is missing")
 	}
 
-	hash := utils.HashPayerSignatureInput(p.proto.UnsignedClientEnvelope)
+	hash := utils.HashPayerSignatureInput(p.proto.TargetOriginator, p.proto.UnsignedClientEnvelope)
 	signer, err := ethcrypto.SigToPub(hash, payerSignature.Bytes)
 	if err != nil {
 		return nil, err

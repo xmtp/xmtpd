@@ -22,7 +22,10 @@ func TestPublishEnvelope(t *testing.T) {
 	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
-	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t)
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+	)
 
 	resp, err := api.PublishPayerEnvelopes(
 		context.Background(),
@@ -70,7 +73,10 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
-	envelope := envelopeTestUtils.CreatePayerEnvelope(t)
+	envelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+	)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
 	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
@@ -81,19 +87,42 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 	require.ErrorContains(t, err, "invalid wire-format data")
 }
 
-func TestMismatchingOriginatorOnPublish(t *testing.T) {
+func TestMismatchingAADOriginatorOnPublishNoLongerFails(t *testing.T) {
 	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
+
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	nodeId := uint32(2)
 	// nolint:staticcheck
-	clientEnv.Aad.TargetOriginator = &nodeId
+	clientEnv.Aad.TargetOriginator = &nid
 	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
-				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
+				envelopeTestUtils.CreatePayerEnvelope(
+					t,
+					envelopeTestUtils.DefaultClientEnvelopeNodeId,
+					clientEnv,
+				),
+			},
+		},
+	)
+	require.NoError(t, err)
+}
+
+func TestMismatchingOriginatorOnPublish(t *testing.T) {
+	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	defer cleanup()
+
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
+
+	clientEnv := envelopeTestUtils.CreateClientEnvelope()
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
+				envelopeTestUtils.CreatePayerEnvelope(t, nid, clientEnv),
 			},
 		},
 	)
@@ -110,7 +139,11 @@ func TestMissingTopicOnPublish(t *testing.T) {
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
-				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
+				envelopeTestUtils.CreatePayerEnvelope(
+					t,
+					envelopeTestUtils.DefaultClientEnvelopeNodeId,
+					clientEnv,
+				),
 			},
 		},
 	)
@@ -120,11 +153,12 @@ func TestMissingTopicOnPublish(t *testing.T) {
 func TestKeyPackageValidationSuccess(t *testing.T) {
 	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	nodeId := uint32(100)
+
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		TargetOriginator: &nodeId,
+		TargetOriginator: &nid,
 		DependsOn:        &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
@@ -150,7 +184,11 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
-				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
+				envelopeTestUtils.CreatePayerEnvelope(
+					t,
+					envelopeTestUtils.DefaultClientEnvelopeNodeId,
+					clientEnv,
+				),
 			},
 		},
 	)
@@ -160,11 +198,12 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 func TestKeyPackageValidationFail(t *testing.T) {
 	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	nodeId := uint32(100)
+
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		TargetOriginator: &nodeId,
+		TargetOriginator: &nid,
 		DependsOn:        &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
@@ -190,7 +229,7 @@ func TestKeyPackageValidationFail(t *testing.T) {
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
-				envelopeTestUtils.CreatePayerEnvelope(t, clientEnv),
+				envelopeTestUtils.CreatePayerEnvelope(t, nid, clientEnv),
 			},
 		},
 	)
@@ -201,11 +240,16 @@ func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
 	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
-	err := publishPayerEnvelopeWithNodeIDAndCursor(t, api, 100, &envelopes.Cursor{
-		NodeIdToSequenceId: map[uint32]uint64{
-			1: 105,
+	err := publishPayerEnvelopeWithNodeIDAndCursor(
+		t,
+		api,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		&envelopes.Cursor{
+			NodeIdToSequenceId: map[uint32]uint64{
+				1: 105,
+			},
 		},
-	})
+	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "DependsOn has not been seen by this node")
 }
@@ -220,7 +264,7 @@ func publishPayerEnvelopeWithNodeIDAndCursor(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
+				t, nodeId,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
 					TargetOriginator: &nodeId,
 					TargetTopic:      targetTopic,
@@ -237,11 +281,16 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
 
-	err := publishPayerEnvelopeWithNodeIDAndCursor(t, api, 100, &envelopes.Cursor{
-		NodeIdToSequenceId: map[uint32]uint64{
-			1600: 1,
+	err := publishPayerEnvelopeWithNodeIDAndCursor(
+		t,
+		api,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		&envelopes.Cursor{
+			NodeIdToSequenceId: map[uint32]uint64{
+				1600: 1,
+			},
 		},
-	})
+	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "DependsOn has not been seen by this node")
 }

@@ -226,3 +226,40 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 	}
 
 }
+
+func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		{NodeID: 100},
+		{NodeID: 200},
+		{NodeID: 300},
+	}, nil)
+	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
+
+	selector := payer.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
+
+	node1, err := selector.GetNode(tpc1)
+	require.NoError(t, err)
+	require.EqualValues(t, 200, node1)
+
+	banlist := []uint32{node1}
+
+	reselectedNode, err := selector.GetNode(tpc1, banlist)
+	require.NoError(t, err)
+	require.NotEqualValues(t, node1, reselectedNode)
+	require.EqualValues(t, 300, reselectedNode)
+
+	banlist = append(banlist, reselectedNode)
+
+	reselectedNode, err = selector.GetNode(tpc1, banlist)
+	require.NoError(t, err)
+	require.NotEqualValues(t, node1, reselectedNode)
+	require.EqualValues(t, 100, reselectedNode)
+
+	banlist = append(banlist, reselectedNode)
+
+	// now we are out of nodes to try
+	reselectedNode, err = selector.GetNode(tpc1, banlist)
+	require.Error(t, err)
+	require.EqualValues(t, 0, reselectedNode)
+}

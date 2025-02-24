@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,6 +12,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/protobuf/proto"
 )
+
+const DefaultClientEnvelopeNodeId = uint32(100)
 
 func UnmarshalUnsignedOriginatorEnvelope(
 	t *testing.T,
@@ -25,7 +29,7 @@ func UnmarshalUnsignedOriginatorEnvelope(
 }
 
 func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.ClientEnvelope {
-	nodeId := uint32(100)
+	nodeId := DefaultClientEnvelopeNodeId
 	if len(aad) == 0 {
 		aad = append(aad, &envelopes.AuthenticatedData{
 			TargetOriginator: &nodeId,
@@ -43,13 +47,11 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 func CreateGroupMessageClientEnvelope(
 	groupID [32]byte,
 	message []byte,
-	targetOriginator uint32,
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{
 		Aad: &envelopes.AuthenticatedData{
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
 				Bytes(),
-			TargetOriginator: &targetOriginator,
 		},
 		Payload: &envelopes.ClientEnvelope_GroupMessage{
 			GroupMessage: &mlsv1.GroupMessageInput{
@@ -81,6 +83,7 @@ func CreateIdentityUpdateClientEnvelope(
 
 func CreatePayerEnvelope(
 	t *testing.T,
+	nodeID uint32,
 	clientEnv ...*envelopes.ClientEnvelope,
 ) *envelopes.PayerEnvelope {
 	if len(clientEnv) == 0 {
@@ -89,9 +92,18 @@ func CreatePayerEnvelope(
 	clientEnvBytes, err := proto.Marshal(clientEnv[0])
 	require.NoError(t, err)
 
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	payerSignature, err := utils.SignClientEnvelope(nodeID, clientEnvBytes, key)
+	require.NoError(t, err)
+
 	return &envelopes.PayerEnvelope{
 		UnsignedClientEnvelope: clientEnvBytes,
-		PayerSignature:         &associations.RecoverableEcdsaSignature{},
+		PayerSignature: &associations.RecoverableEcdsaSignature{
+			Bytes: payerSignature,
+		},
+		TargetOriginator: nodeID,
 	}
 }
 
@@ -102,7 +114,7 @@ func CreateOriginatorEnvelope(
 	payerEnv ...*envelopes.PayerEnvelope,
 ) *envelopes.OriginatorEnvelope {
 	if len(payerEnv) == 0 {
-		payerEnv = append(payerEnv, CreatePayerEnvelope(t))
+		payerEnv = append(payerEnv, CreatePayerEnvelope(t, originatorNodeID))
 	}
 
 	unsignedEnv := &envelopes.UnsignedOriginatorEnvelope{
@@ -127,7 +139,7 @@ func CreateOriginatorEnvelopeWithTopic(
 	originatorSequenceID uint64,
 	topic []byte,
 ) *envelopes.OriginatorEnvelope {
-	payerEnv := CreatePayerEnvelope(t, CreateClientEnvelope(
+	payerEnv := CreatePayerEnvelope(t, originatorNodeID, CreateClientEnvelope(
 		&envelopes.AuthenticatedData{
 			TargetTopic:      topic,
 			TargetOriginator: &originatorNodeID,

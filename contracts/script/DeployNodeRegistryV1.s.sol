@@ -10,7 +10,6 @@ contract Deployer is Script {
     function run() public {
         vm.startBroadcast();
         new Nodes();
-
         vm.broadcast();
     }
 }

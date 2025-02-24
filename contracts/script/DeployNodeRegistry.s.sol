@@ -18,6 +18,8 @@ contract DeployXMTPNodeRegistry is Script, Environment, Utils {
         require(admin != address(0), "XMTP_NODE_REGISTRY_ADMIN_ADDRESS not set");
 
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        require(privateKey != 0, "PRIVATE_KEY not set");
+
         deployer = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 

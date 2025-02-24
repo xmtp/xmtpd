@@ -20,6 +20,8 @@ contract DeployIdentityUpdates is Script, Utils, Environment {
         require(admin != address(0), "XMTP_IDENTITY_UPDATES_ADMIN_ADDRESS not set");
 
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        require(privateKey != 0, "PRIVATE_KEY not set");
+
         deployer = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
 

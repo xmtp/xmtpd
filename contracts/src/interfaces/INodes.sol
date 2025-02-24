@@ -144,6 +144,9 @@ interface INodes is IERC721 {
     /// @param newBaseURI The new base URI.
     event BaseURIUpdated(string newBaseURI);
 
+    /// @notice Error when trying to set max active nodes below current active count.
+    error MaxActiveNodesBelowCurrentCount();
+
     // ***************************************************************
     // *                ADMIN-ONLY FUNCTIONS                         *
     // ***************************************************************
@@ -220,18 +223,22 @@ interface INodes is IERC721 {
     // *                     GETTER FUNCTIONS                      *
     // ***************************************************************
 
+    /// @notice Retrieves the current node operator commission percentage.
+    /// @return commissionPercent The commission percentage.
+    function nodeOperatorCommissionPercent() external view returns (uint256 commissionPercent);
+
     /// @notice Gets all nodes regardless of their health status
     /// @return allNodesList An array of all nodes in the registry
-    function allNodes() external view returns (NodeWithId[] memory);
+    function getAllNodes() external view returns (NodeWithId[] memory allNodesList);
+
+    /// @notice Gets the total number of nodes in the registry.
+    /// @return nodeCount The total number of nodes.
+    function getAllNodesCount() external view returns (uint256 nodeCount);
 
     /// @notice Retrieves the details of a given node.
     /// @param nodeId The unique identifier of the node.
-    /// @return The Node struct containing the node's details.
-    function getNode(uint256 nodeId) external view returns (Node memory);
-
-    /// @notice Retrieves the current node operator commission percentage.
-    /// @return The commission percentage.
-    function nodeOperatorCommissionPercent() external view returns (uint256);
+    /// @return node The Node struct containing the node's details.
+    function getNode(uint256 nodeId) external view returns (Node memory node);
 
     /// @notice Retrieves a list of active nodes.
     /// @dev Active nodes are those with `isActive` set to true.
@@ -243,8 +250,12 @@ interface INodes is IERC721 {
     /// @return activeNodesIDs An array of node IDs representing active nodes.
     function getActiveNodesIDs() external view returns (uint256[] memory activeNodesIDs);
 
+    /// @notice Retrieves the total number of active nodes.
+    /// @return activeNodesCount The total number of active nodes.
+    function getActiveNodesCount() external view returns (uint256 activeNodesCount);
+
     /// @notice Retrieves if a node is active.
     /// @param nodeId The ID of the node NFT.
     /// @return isActive A boolean indicating if the node is active.
-    function nodeIsActive(uint256 nodeId) external view returns (bool);
+    function getNodeIsActive(uint256 nodeId) external view returns (bool isActive);
 }

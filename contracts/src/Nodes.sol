@@ -2,13 +2,12 @@
 pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./interfaces/INodes.sol";
 
 
- /// @title XMTP Node Registry.
+ /// @title XMTP Nodes Registry.
  /// @notice This contract is responsible for minting NFTs and assigning them to node operators.
  /// Each node is minted as an NFT with a unique ID (starting at 100 and increasing by 100 with each new node).
  /// In addition to the standard ERC721 functionality, the contract supports node-specific features,
@@ -20,9 +19,10 @@ import "./interfaces/INodes.sol";
  /// - updating the node operator's HTTP address and MTLS certificate.
  /// - updating the node operator's minimum monthly fee.
  /// - updating the node operator's API enabled flag.
-contract Nodes is AccessControlEnumerable, ERC721, INodes {
+contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     using EnumerableSet for EnumerableSet.UintSet;
 
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant NODE_MANAGER_ROLE = keccak256("NODE_MANAGER_ROLE");
 
     /// @dev The maximum commission percentage that the node operator can receive.
@@ -56,18 +56,22 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     // slither-disable-next-line constable-states
     uint256 public nodeOperatorCommissionPercent;
 
-    constructor(address _initialAdmin) ERC721("XMTP Node Operator", "XMTP") {
+    constructor(address _initialAdmin)
+        ERC721("XMTP Node Operator", "XMTP")
+        AccessControlDefaultAdminRules(2 days, _initialAdmin)
+    {
         require(_initialAdmin != address(0), InvalidAddress());
 
-        _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
+        _setRoleAdmin(ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(NODE_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
+        _grantRole(ADMIN_ROLE, _initialAdmin);
         _grantRole(NODE_MANAGER_ROLE, _initialAdmin);
     }
 
     /// @inheritdoc INodes
     function addNode(address to, bytes calldata signingKeyPub, string calldata httpAddress, uint256 minMonthlyFee)
         external
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(ADMIN_ROLE)
         returns (uint256)
     {
         require(to != address(0), InvalidAddress());
@@ -121,7 +125,7 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function updateActive(uint256 nodeId, bool isActive) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateActive(uint256 nodeId, bool isActive) public onlyRole(ADMIN_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         if (isActive) {
             require(_activeNodes.length() < maxActiveNodes, MaxActiveNodesReached());
@@ -136,7 +140,7 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     /// @inheritdoc INodes
     function batchUpdateActive(uint256[] calldata nodeIds, bool[] calldata isActive) 
         external 
-        onlyRole(DEFAULT_ADMIN_ROLE) 
+        onlyRole(ADMIN_ROLE) 
     {
         require(nodeIds.length == isActive.length, InvalidInputLength());
         for (uint256 i = 0; i < nodeIds.length; i++) {
@@ -145,20 +149,21 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function updateMaxActiveNodes(uint8 newMaxActiveNodes) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateMaxActiveNodes(uint8 newMaxActiveNodes) external onlyRole(ADMIN_ROLE) {
+        require(newMaxActiveNodes > _activeNodes.length(), MaxActiveNodesBelowCurrentCount());
         maxActiveNodes = newMaxActiveNodes;
         emit MaxActiveNodesUpdated(newMaxActiveNodes);
     }
 
     /// @inheritdoc INodes
-    function updateNodeOperatorCommissionPercent(uint256 newCommissionPercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateNodeOperatorCommissionPercent(uint256 newCommissionPercent) external onlyRole(ADMIN_ROLE) {
         require(newCommissionPercent <= MAX_BPS, InvalidCommissionPercent());
         nodeOperatorCommissionPercent = newCommissionPercent;
         emit NodeOperatorCommissionPercentUpdated(newCommissionPercent);
     }   
 
     /// @inheritdoc INodes
-    function setBaseURI(string calldata newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setBaseURI(string calldata newBaseURI) external onlyRole(ADMIN_ROLE) {
         require(bytes(newBaseURI).length > 0, InvalidURI());
         require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, InvalidURI());
         _baseTokenURI = newBaseURI;
@@ -173,8 +178,8 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function allNodes() public view returns (NodeWithId[] memory) {
-        NodeWithId[] memory allNodesList = new NodeWithId[](_nodeCounter);
+    function getAllNodes() public view returns (NodeWithId[] memory allNodesList) {
+        allNodesList = new NodeWithId[](_nodeCounter);
         for (uint32 i = 0; i < _nodeCounter; i++) {
             uint32 nodeId = NODE_INCREMENT * (i + 1);
             if (_nodeExists(nodeId)) {
@@ -185,7 +190,12 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function getNode(uint256 nodeId) public view returns (Node memory) {
+    function getAllNodesCount() public view returns (uint256 nodeCount) {
+        return _nodeCounter;
+    }
+
+    /// @inheritdoc INodes
+    function getNode(uint256 nodeId) public view returns (Node memory node) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         return _nodes[nodeId];
     }
@@ -205,7 +215,12 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function nodeIsActive(uint256 nodeId) external view returns (bool) {
+    function getActiveNodesCount() external view returns (uint256 activeNodesCount) {
+        return _activeNodes.length();
+    }
+
+    /// @inheritdoc INodes
+    function getNodeIsActive(uint256 nodeId) external view returns (bool isActive) {
         return _activeNodes.contains(nodeId);
     }
 
@@ -234,34 +249,9 @@ contract Nodes is AccessControlEnumerable, ERC721, INodes {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, IERC165, AccessControlEnumerable)
+        override(ERC721, IERC165, AccessControlDefaultAdminRules)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
-    }
-
-    /// @dev Override to prevent removing the last admin.
-    function revokeRole(bytes32 role, address account)
-        public
-        virtual
-        override(AccessControl, IAccessControl)
-        onlyRole(getRoleAdmin(role))
-    {
-        if (role == DEFAULT_ADMIN_ROLE) {
-            require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) > 1, Unauthorized());
-        }
-        super.revokeRole(role, account);
-    }
-
-    /// @dev Override to prevent renouncing the last admin role.
-    function renounceRole(bytes32 role, address account)
-        public
-        virtual
-        override(AccessControl, IAccessControl)
-    {
-        if (role == DEFAULT_ADMIN_ROLE) {
-            require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) > 1, Unauthorized());
-        }
-        super.renounceRole(role, account);
     }
 }

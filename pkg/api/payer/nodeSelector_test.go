@@ -261,4 +261,5 @@ func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 	// now we are out of nodes to try
 	reselectedNode, err = selector.GetNode(tpc1, banlist)
 	require.Error(t, err)
+	require.EqualValues(t, 0, reselectedNode)
 }

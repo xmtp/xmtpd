@@ -155,13 +155,19 @@ func (s *IdentityUpdateStorer) StoreLog(
 				}
 			}
 
+			originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update)
+			if err != nil {
+				s.logger.Error("Error building originator envelope", zap.Error(err))
+				return NewLogStorageError(err, false)
+			}
+
 			signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
-				buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update),
+				originatorEnvelope,
 				event.TxHash,
 			)
 			if err != nil {
 				s.logger.Error("Error building signed originator envelope", zap.Error(err))
-				return NewLogStorageError(err, true)
+				return NewLogStorageError(err, false)
 			}
 
 			originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
@@ -243,15 +249,21 @@ func BuildInboxTopic(inboxId [32]byte) string {
 func buildOriginatorEnvelope(
 	sequenceId uint64,
 	clientEnvelopeBytes []byte,
-) *envelopesProto.UnsignedOriginatorEnvelope {
+) (*envelopesProto.UnsignedOriginatorEnvelope, error) {
+	payerEnvelope := &envelopesProto.PayerEnvelope{
+		UnsignedClientEnvelope: clientEnvelopeBytes,
+	}
+	payerEnvelopeBytes, err := proto.Marshal(payerEnvelope)
+	if err != nil {
+		return nil, err
+	}
+
 	return &envelopesProto.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
 		OriginatorSequenceId: sequenceId,
 		OriginatorNs:         time.Now().UnixNano(),
-		PayerEnvelope: &envelopesProto.PayerEnvelope{
-			UnsignedClientEnvelope: clientEnvelopeBytes,
-		},
-	}
+		PayerEnvelopeBytes:   payerEnvelopeBytes,
+	}, nil
 }
 
 func buildSignedOriginatorEnvelope(

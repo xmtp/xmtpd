@@ -81,15 +81,11 @@ func (r *Registrant) SignStagedEnvelope(
 	baseFee currency.PicoDollar,
 	congestionFee currency.PicoDollar,
 ) (*envelopes.OriginatorEnvelope, error) {
-	payerEnv := &envelopes.PayerEnvelope{}
-	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
-		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
-	}
 	unsignedEnv := envelopes.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:         r.record.NodeID,
 		OriginatorSequenceId:     uint64(stagedEnv.ID),
 		OriginatorNs:             stagedEnv.OriginatorTime.UnixNano(),
-		PayerEnvelope:            payerEnv,
+		PayerEnvelopeBytes:       stagedEnv.PayerEnvelope,
 		BaseFeePicodollars:       uint64(baseFee),
 		CongestionFeePicodollars: uint64(congestionFee),
 	}

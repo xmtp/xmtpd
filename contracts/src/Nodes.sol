@@ -123,7 +123,7 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         _nodes[nodeId].isApiEnabled = !_nodes[nodeId].isApiEnabled;
 
         if (!_nodes[nodeId].isApiEnabled && _nodes[nodeId].isActive) {
-            updateActive(nodeId, false);
+            _deactivateNode(nodeId);
         }
 
         emit ApiEnabledUpdated(nodeId, _nodes[nodeId].isApiEnabled);
@@ -135,7 +135,7 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         _nodes[nodeId].isReplicationEnabled = isReplicationEnabled;
 
         if (!isReplicationEnabled && _nodes[nodeId].isActive) {
-            updateActive(nodeId, false);
+            _deactivateNode(nodeId);
         }
 
         emit ReplicationEnabledUpdated(nodeId, isReplicationEnabled);

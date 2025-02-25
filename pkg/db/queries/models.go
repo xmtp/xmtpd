@@ -44,6 +44,11 @@ type NodeInfo struct {
 	SingletonID int16
 }
 
+type Payer struct {
+	ID      int32
+	Address string
+}
+
 type StagedOriginatorEnvelope struct {
 	ID             int64
 	OriginatorTime time.Time

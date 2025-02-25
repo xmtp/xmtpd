@@ -171,3 +171,12 @@ FROM (
 WHERE
 	bm.block_number = locked_rows.block_number;
 
+-- name: FindOrCreatePayer :one
+INSERT INTO payers(address)
+	VALUES (@address)
+ON CONFLICT (address)
+	DO UPDATE SET
+		address = @address
+	RETURNING
+		id;
+

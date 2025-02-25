@@ -23,6 +23,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/fees"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -122,6 +123,8 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 	)
 	require.NoError(t, err)
 
+	ratesFetcher := fees.NewTestRatesFetcher()
+
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		replicationService, err := message.NewReplicationApiService(
 			ctx,
@@ -130,6 +133,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 			db,
 			mockValidationService,
 			metadata.NewCursorUpdater(ctx, log, db),
+			ratesFetcher,
 		)
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)

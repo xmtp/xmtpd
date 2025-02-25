@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/api/metadata"
+	"github.com/xmtp/xmtpd/pkg/fees"
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -42,6 +44,7 @@ type Service struct {
 	subscribeWorker   *subscribeWorker
 	validationService mlsvalidate.MLSValidationService
 	cu                metadata.CursorUpdater
+	feeCalculator     fees.IFeeCalculator
 }
 
 func NewReplicationApiService(
@@ -51,8 +54,10 @@ func NewReplicationApiService(
 	store *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
 	updater metadata.CursorUpdater,
+	rateFetcher fees.IRatesFetcher,
 ) (*Service, error) {
-	publishWorker, err := startPublishWorker(ctx, log, registrant, store)
+	feeCalculator := fees.NewFeeCalculator(rateFetcher)
+	publishWorker, err := startPublishWorker(ctx, log, registrant, store, feeCalculator)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +75,7 @@ func NewReplicationApiService(
 		subscribeWorker:   subscribeWorker,
 		validationService: validationService,
 		cu:                updater,
+		feeCalculator:     feeCalculator,
 	}, nil
 }
 
@@ -349,7 +355,12 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 	s.publishWorker.notifyStagedPublish()
 
-	originatorEnv, err := s.registrant.SignStagedEnvelope(stagedEnv)
+	baseFee, congestionFee, err := s.publishWorker.calculateFees(&stagedEnv)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not calculate fees: %v", err)
+	}
+
+	originatorEnv, err := s.registrant.SignStagedEnvelope(stagedEnv, baseFee, congestionFee)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}

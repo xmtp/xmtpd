@@ -104,6 +104,7 @@ func CreatePayerEnvelope(
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
+		TargetOriginator: nodeID,
 	}
 }
 

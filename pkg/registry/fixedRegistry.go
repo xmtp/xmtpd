@@ -13,6 +13,8 @@ type FixedNodeRegistry struct {
 	changedNodeNotifiersMutex sync.Mutex
 }
 
+var _ NodeRegistry = &FixedNodeRegistry{}
+
 func NewFixedNodeRegistry(nodes []Node) *FixedNodeRegistry {
 	return &FixedNodeRegistry{nodes: nodes}
 }

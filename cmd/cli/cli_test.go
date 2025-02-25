@@ -16,6 +16,8 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	signingKeyPub := utils.EcdsaPublicKeyToString(
 		testutils.RandomPrivateKey(t).Public().(*ecdsa.PublicKey),
 	)
+	minMonthlyFee := "100"
+
 	options, err := parseOptions(
 		[]string{
 			"register-node",
@@ -27,6 +29,8 @@ func TestRegisterNodeArgParse(t *testing.T) {
 			ownerAddress.Hex(),
 			"--node-signing-key-pub",
 			signingKeyPub,
+			"--min-monthly-fee",
+			minMonthlyFee,
 		},
 	)
 	require.NoError(t, err)
@@ -34,6 +38,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	require.Equal(t, options.RegisterNode.AdminPrivateKey, adminPrivateKey)
 	require.Equal(t, options.RegisterNode.OwnerAddress, ownerAddress.Hex())
 	require.Equal(t, options.RegisterNode.SigningKeyPub, signingKeyPub)
+	require.Equal(t, options.RegisterNode.MinMonthlyFee, minMonthlyFee)
 
 	// Test missing options
 	_, err = parseOptions([]string{"register-node"})
@@ -41,7 +46,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	require.Equal(
 		t,
 		err.Error(),
-		"could not parse options: the required flags `--admin-private-key', `--http-address', `--node-owner-address' and `--node-signing-key-pub' were not specified",
+		"could not parse options: the required flags `--admin-private-key', `--http-address', `--min-monthly-fee', `--node-owner-address' and `--node-signing-key-pub' were not specified",
 	)
 }
 

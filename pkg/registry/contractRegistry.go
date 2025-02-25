@@ -47,6 +47,8 @@ type SmartContractRegistry struct {
 	cancel                    context.CancelFunc
 }
 
+var _ NodeRegistry = &SmartContractRegistry{}
+
 func NewSmartContractRegistry(
 	ctx context.Context,
 	ethclient bind.ContractCaller,

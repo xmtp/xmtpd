@@ -95,14 +95,14 @@ func TestCreateServer(t *testing.T) {
 			NodeID:        server1NodeID,
 			SigningKey:    &privateKey1.PublicKey,
 			HttpAddress:   fmt.Sprintf("http://localhost:%d", server1Port),
-			IsHealthy:     true,
+			IsActive:      true,
 			IsValidConfig: true,
 		},
 		{
 			NodeID:        server2NodeID,
 			SigningKey:    &privateKey2.PublicKey,
 			HttpAddress:   fmt.Sprintf("http://localhost:%d", server2Port),
-			IsHealthy:     true,
+			IsActive:      true,
 			IsValidConfig: true,
 		}}
 
@@ -231,7 +231,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 			NodeID:        server1NodeID,
 			SigningKey:    &privateKey1.PublicKey,
 			HttpAddress:   fmt.Sprintf("http://localhost:%d", server1Port),
-			IsHealthy:     true,
+			IsActive:      true,
 			IsValidConfig: true,
 		}}
 

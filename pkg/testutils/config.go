@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
@@ -49,31 +48,10 @@ func rootPath(t *testing.T) string {
 
 /*
 *
-Parse the JSON file at this location to get the deployed contract info
-TODO: deprecate in favor of getProxyAddress
+Parse the JSON file at this location to get the deployed contract address
 *
 */
-func getDeployedTo(t *testing.T, fileName string) string {
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		t.Fatalf("Failed to read GroupMessages.json: %v", err)
-	}
-
-	var info contractInfo
-
-	if err := json.Unmarshal(data, &info); err != nil {
-		t.Fatalf("Failed to parse GroupMessages.json: %v", err)
-	}
-
-	return info.DeployedTo
-}
-
-/*
-*
-Parse the JSON file at this location to get the deployed contract proxy address
-*
-*/
-func getProxyAddress(t *testing.T, fileName string) string {
+func getDeploymentAddress(t *testing.T, fileName string) string {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("Failed to read json: %v", err)
@@ -84,6 +62,8 @@ func getProxyAddress(t *testing.T, fileName string) string {
 		return fastjson.GetString(data, "addresses", "groupMessagesProxy")
 	case strings.Contains(fileName, "IdentityUpdates.json"):
 		return fastjson.GetString(data, "addresses", "identityUpdatesProxy")
+	case strings.Contains(fileName, "XMTPNodeRegistry.json"):
+		return fastjson.GetString(data, "addresses", "XMTPNodeRegistry")
 	default:
 		return ""
 	}
@@ -94,15 +74,15 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 
 	return config.ContractsOptions{
 		RpcUrl: BLOCKCHAIN_RPC_URL,
-		MessagesContractAddress: getProxyAddress(
+		MessagesContractAddress: getDeploymentAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
 		),
-		NodesContractAddress: getDeployedTo(
+		NodesContractAddress: getDeploymentAddress(
 			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/Nodes.json"),
+			path.Join(rootDir, "./contracts/config/anvil_localnet/XMTPNodeRegistry.json"),
 		),
-		IdentityUpdatesContractAddress: getProxyAddress(
+		IdentityUpdatesContractAddress: getDeploymentAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
 		),

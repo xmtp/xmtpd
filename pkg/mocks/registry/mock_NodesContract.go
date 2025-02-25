@@ -22,24 +22,24 @@ func (_m *MockNodesContract) EXPECT() *MockNodesContract_Expecter {
 	return &MockNodesContract_Expecter{mock: &_m.Mock}
 }
 
-// AllNodes provides a mock function with given fields: opts
-func (_m *MockNodesContract) AllNodes(opts *bind.CallOpts) ([]nodes.NodesNodeWithId, error) {
+// GetActiveNodes provides a mock function with given fields: opts
+func (_m *MockNodesContract) GetActiveNodes(opts *bind.CallOpts) ([]nodes.INodesNodeWithId, error) {
 	ret := _m.Called(opts)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AllNodes")
+		panic("no return value specified for GetActiveNodes")
 	}
 
-	var r0 []nodes.NodesNodeWithId
+	var r0 []nodes.INodesNodeWithId
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*bind.CallOpts) ([]nodes.NodesNodeWithId, error)); ok {
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error)); ok {
 		return rf(opts)
 	}
-	if rf, ok := ret.Get(0).(func(*bind.CallOpts) []nodes.NodesNodeWithId); ok {
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts) []nodes.INodesNodeWithId); ok {
 		r0 = rf(opts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]nodes.NodesNodeWithId)
+			r0 = ret.Get(0).([]nodes.INodesNodeWithId)
 		}
 	}
 
@@ -52,30 +52,88 @@ func (_m *MockNodesContract) AllNodes(opts *bind.CallOpts) ([]nodes.NodesNodeWit
 	return r0, r1
 }
 
-// MockNodesContract_AllNodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AllNodes'
-type MockNodesContract_AllNodes_Call struct {
+// MockNodesContract_GetActiveNodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveNodes'
+type MockNodesContract_GetActiveNodes_Call struct {
 	*mock.Call
 }
 
-// AllNodes is a helper method to define mock.On call
+// GetActiveNodes is a helper method to define mock.On call
 //   - opts *bind.CallOpts
-func (_e *MockNodesContract_Expecter) AllNodes(opts interface{}) *MockNodesContract_AllNodes_Call {
-	return &MockNodesContract_AllNodes_Call{Call: _e.mock.On("AllNodes", opts)}
+func (_e *MockNodesContract_Expecter) GetActiveNodes(opts interface{}) *MockNodesContract_GetActiveNodes_Call {
+	return &MockNodesContract_GetActiveNodes_Call{Call: _e.mock.On("GetActiveNodes", opts)}
 }
 
-func (_c *MockNodesContract_AllNodes_Call) Run(run func(opts *bind.CallOpts)) *MockNodesContract_AllNodes_Call {
+func (_c *MockNodesContract_GetActiveNodes_Call) Run(run func(opts *bind.CallOpts)) *MockNodesContract_GetActiveNodes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(*bind.CallOpts))
 	})
 	return _c
 }
 
-func (_c *MockNodesContract_AllNodes_Call) Return(_a0 []nodes.NodesNodeWithId, _a1 error) *MockNodesContract_AllNodes_Call {
+func (_c *MockNodesContract_GetActiveNodes_Call) Return(_a0 []nodes.INodesNodeWithId, _a1 error) *MockNodesContract_GetActiveNodes_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockNodesContract_AllNodes_Call) RunAndReturn(run func(*bind.CallOpts) ([]nodes.NodesNodeWithId, error)) *MockNodesContract_AllNodes_Call {
+func (_c *MockNodesContract_GetActiveNodes_Call) RunAndReturn(run func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error)) *MockNodesContract_GetActiveNodes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllNodes provides a mock function with given fields: opts
+func (_m *MockNodesContract) GetAllNodes(opts *bind.CallOpts) ([]nodes.INodesNodeWithId, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllNodes")
+	}
+
+	var r0 []nodes.INodesNodeWithId
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts) []nodes.INodesNodeWithId); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]nodes.INodesNodeWithId)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*bind.CallOpts) error); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNodesContract_GetAllNodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllNodes'
+type MockNodesContract_GetAllNodes_Call struct {
+	*mock.Call
+}
+
+// GetAllNodes is a helper method to define mock.On call
+//   - opts *bind.CallOpts
+func (_e *MockNodesContract_Expecter) GetAllNodes(opts interface{}) *MockNodesContract_GetAllNodes_Call {
+	return &MockNodesContract_GetAllNodes_Call{Call: _e.mock.On("GetAllNodes", opts)}
+}
+
+func (_c *MockNodesContract_GetAllNodes_Call) Run(run func(opts *bind.CallOpts)) *MockNodesContract_GetAllNodes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*bind.CallOpts))
+	})
+	return _c
+}
+
+func (_c *MockNodesContract_GetAllNodes_Call) Return(_a0 []nodes.INodesNodeWithId, _a1 error) *MockNodesContract_GetAllNodes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNodesContract_GetAllNodes_Call) RunAndReturn(run func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error)) *MockNodesContract_GetAllNodes_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -6,9 +6,29 @@ set -eu
 
 export XMTPD_SIGNER_PUBLIC_KEY=$ANVIL_ACC_2_PUBLIC_KEY
 export NODE_ADDRESS=$ANVIL_ACC_2_ADDRESS
+export OPERATOR_PRIVATE_KEY=$ANVIL_ACC_2_PRIVATE_KEY
 
-dev/cli register-node \
+ADD_NODE_RESPONSE=$(dev/cli register-node \
     --http-address=http://localhost:5051 \
     --node-owner-address=$NODE_ADDRESS \
     --admin-private-key=$PRIVATE_KEY \
-    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY
+    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY)
+
+echo $ADD_NODE_RESPONSE
+NODE_ID=$(echo $ADD_NODE_RESPONSE | jq -r '."node-id"')
+
+dev/cli update-api-enabled \
+    --node-id=$NODE_ID \
+    --operator-private-key=$OPERATOR_PRIVATE_KEY
+
+dev/cli update-replication-enabled \
+    --node-id=$NODE_ID \
+    --admin-private-key=$PRIVATE_KEY \
+    --enable
+
+dev/cli update-active \
+    --node-id=$NODE_ID \
+    --admin-private-key=$PRIVATE_KEY \
+    --activate
+
+echo -e "\033[32m✔\033[0m Node $NODE_ID registered and activated"

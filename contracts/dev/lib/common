@@ -31,12 +31,15 @@ function forge_deploy_script() {
             ;;
 
         nodes)
-            # TODO: Migrate to forge script
             echo "⧖ Deploying Nodes to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge create --broadcast --legacy --json --rpc-url $RPC_URL --private-key $PRIVATE_KEY "$2:$3" > config/anvil_localnet/$3.json
-            echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/config/anvil_localnet/$3.json\n"
-            ;;
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployNodeRegistry.s.sol || BUILD_FAILED=true
+            if [[ -n "${BUILD_FAILED:-}" ]]; then
+                echo "Failed to deploy nodes contract"
+                exit 1
+            fi
 
+            echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/config/anvil_localnet/XMTPNodeRegistry.json\n"
+            ;;
         *)
             echo "Invalid option. Use 'group_messages', 'identity_updates' or 'nodes'."
             exit 1

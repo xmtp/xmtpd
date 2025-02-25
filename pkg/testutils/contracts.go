@@ -118,7 +118,7 @@ func deployContract(t *testing.T, contractName string) string {
 
 	switch contractName {
 	case NODES_CONTRACT_NAME:
-		addr, _, _, err = nodes.DeployNodes(auth, client)
+		addr, _, _, err = nodes.DeployNodes(auth, client, auth.From)
 	case GROUP_MESSAGES_CONTRACT_NAME:
 		addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
 	case IDENTITY_UPDATES_CONTRACT_NAME:

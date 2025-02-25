@@ -30,3 +30,20 @@ type RegisterNodeOptions struct {
 	AdminPrivateKey string `long:"admin-private-key"    description:"Private key of the admin to register the node"                    required:"true"`
 	SigningKeyPub   string `long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
 }
+
+type UpdateActiveOptions struct {
+	NodeId          int64  `long:"node-id"           description:"NodeId to update"`
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to register the node" required:"true"`
+	IsActive        bool   `long:"activate"          description:"Whether the node is active"`
+}
+
+type UpdateApiEnabledOptions struct {
+	NodeId             int64  `long:"node-id"              description:"NodeId to update"`
+	OperatorPrivateKey string `long:"operator-private-key" description:"Private key of the operator to update the node" required:"true"`
+}
+
+type UpdateReplicationEnabledOptions struct {
+	NodeId               int64  `long:"node-id"           description:"NodeId to update"`
+	AdminPrivateKey      string `long:"admin-private-key" description:"Private key of the admin to register the node" required:"true"`
+	IsReplicationEnabled bool   `long:"enable"            description:"Whether the node is replication enabled"`
+}

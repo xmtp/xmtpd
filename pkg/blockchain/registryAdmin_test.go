@@ -41,8 +41,9 @@ func TestAddNode(t *testing.T) {
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomAddress()
 
-	err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
+	nodeId, err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
 	require.NoError(t, err)
+	require.NotZero(t, nodeId)
 }
 
 func TestAddNodeBadOwner(t *testing.T) {
@@ -54,7 +55,7 @@ func TestAddNodeBadOwner(t *testing.T) {
 	// This is an invalid hex address
 	owner := testutils.RandomString(10)
 
-	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
+	_, err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
 	require.ErrorContains(t, err, "invalid owner address provided")
 }
 
@@ -75,6 +76,6 @@ func TestAddNodeUnauthorized(t *testing.T) {
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomAddress()
 
-	err = registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
+	_, err = registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
 	require.ErrorContains(t, err, "Out of gas")
 }

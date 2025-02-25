@@ -28,6 +28,8 @@ type NodeRegistryAdmin struct {
 	logger   *zap.Logger
 }
 
+var _ NodeRegistry = &NodeRegistryAdmin{}
+
 func NewNodeRegistryAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
@@ -55,22 +57,126 @@ func (n *NodeRegistryAdmin) AddNode(
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
-) error {
+) (nodeId uint32, err error) {
 	if !common.IsHexAddress(owner) {
-		return fmt.Errorf("invalid owner address provided %s", owner)
+		return 0, fmt.Errorf("invalid owner address provided %s", owner)
 	}
 
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
 	if n.signer == nil {
-		return fmt.Errorf("no signer provided")
+		return 0, fmt.Errorf("no signer provided")
 	}
 	tx, err := n.contract.AddNode(&bind.TransactOpts{
 		Context: ctx,
 		From:    n.signer.FromAddress(),
 		Signer:  n.signer.SignerFunc(),
-	}, ownerAddress, signingKey, httpAddress)
+	}, ownerAddress, signingKey, httpAddress, big.NewInt(0))
+
+	if err != nil {
+		return 0, err
+	}
+
+	receipt, err := WaitForTransaction(
+		ctx,
+		n.logger,
+		n.client,
+		2*time.Second,
+		250*time.Millisecond,
+		tx.Hash(),
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, log := range receipt.Logs {
+		event, err := n.contract.ParseNodeAdded(*log)
+		if err != nil {
+			continue
+		}
+
+		return uint32(event.NodeId.Uint64()), nil
+	}
+
+	return 0, fmt.Errorf("node added event not found")
+}
+
+func (n *NodeRegistryAdmin) UpdateActive(
+	ctx context.Context,
+	nodeId uint32,
+	isActive bool,
+) error {
+	if n.signer == nil {
+		return fmt.Errorf("no signer provided")
+	}
+
+	tx, err := n.contract.UpdateActive(&bind.TransactOpts{
+		Context: ctx,
+		From:    n.signer.FromAddress(),
+		Signer:  n.signer.SignerFunc(),
+	}, big.NewInt(int64(nodeId)), isActive)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = WaitForTransaction(
+		ctx,
+		n.logger,
+		n.client,
+		2*time.Second,
+		250*time.Millisecond,
+		tx.Hash(),
+	)
+
+	return err
+}
+
+func (n *NodeRegistryAdmin) UpdateIsApiEnabled(
+	ctx context.Context,
+	nodeId uint32,
+) error {
+	if n.signer == nil {
+		return fmt.Errorf("no signer provided")
+	}
+
+	tx, err := n.contract.UpdateIsApiEnabled(&bind.TransactOpts{
+		Context: ctx,
+		From:    n.signer.FromAddress(),
+		Signer:  n.signer.SignerFunc(),
+	}, big.NewInt(int64(nodeId)))
+
+	if err != nil {
+		return err
+	}
+
+	_, err = WaitForTransaction(
+		ctx,
+		n.logger,
+		n.client,
+		2*time.Second,
+		250*time.Millisecond,
+		tx.Hash(),
+	)
+
+	return err
+}
+
+func (n *NodeRegistryAdmin) UpdateIsReplicationEnabled(
+	ctx context.Context,
+	nodeId uint32,
+	isReplicationEnabled bool,
+) error {
+	if n.signer == nil {
+		return fmt.Errorf("no signer provided")
+	}
+
+	tx, err := n.contract.UpdateIsReplicationEnabled(&bind.TransactOpts{
+		Context: ctx,
+		From:    n.signer.FromAddress(),
+		Signer:  n.signer.SignerFunc(),
+	}, big.NewInt(int64(nodeId)), isReplicationEnabled)
 
 	if err != nil {
 		return err
@@ -121,40 +227,11 @@ func NewNodeRegistryCaller(
 
 func (n *NodeRegistryCaller) GetAllNodes(
 	ctx context.Context,
-) ([]nodes.NodesNodeWithId, error) {
+) ([]nodes.INodesNodeWithId, error) {
 
-	return n.contract.AllNodes(&bind.CallOpts{
+	return n.contract.GetAllNodes(&bind.CallOpts{
 		Context: ctx,
 	})
-}
-
-func (n *NodeRegistryAdmin) UpdateHealth(
-	ctx context.Context, nodeId int64, health bool,
-) error {
-	tx, err := n.contract.UpdateHealth(
-		&bind.TransactOpts{
-			Context: ctx,
-			From:    n.signer.FromAddress(),
-			Signer:  n.signer.SignerFunc(),
-		},
-		big.NewInt(nodeId),
-		health,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = WaitForTransaction(
-		ctx,
-		n.logger,
-		n.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-
-	return err
 }
 
 func (n *NodeRegistryAdmin) UpdateHttpAddress(

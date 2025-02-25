@@ -44,6 +44,20 @@ type NodeRegistry interface {
 		owner string,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
+	) (uint32, error)
+	UpdateIsApiEnabled(
+		ctx context.Context,
+		nodeId uint32,
+	) error
+	UpdateIsReplicationEnabled(
+		ctx context.Context,
+		nodeId uint32,
+		isReplicationEnabled bool,
+	) error
+	UpdateActive(
+		ctx context.Context,
+		nodeId uint32,
+		isActive bool,
 	) error
 }
 

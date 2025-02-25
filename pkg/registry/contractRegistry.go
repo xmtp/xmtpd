@@ -213,7 +213,7 @@ func (s *SmartContractRegistry) processChangedNode(node Node) {
 func (s *SmartContractRegistry) loadUnfilteredFromContract() ([]Node, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, CONTRACT_CALL_TIMEOUT)
 	defer cancel()
-	nodes, err := s.contract.AllNodes(&bind.CallOpts{Context: ctx})
+	nodes, err := s.contract.GetActiveNodes(&bind.CallOpts{Context: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -229,10 +229,10 @@ func (s *SmartContractRegistry) SetContractForTest(contract NodesContract) {
 	s.contract = contract
 }
 
-func convertNode(rawNode nodes.NodesNodeWithId) Node {
+func convertNode(rawNode nodes.INodesNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the
-	// node as unhealthy in this case
+	// node not active in this case.
 	signingKey, err := crypto.UnmarshalPubkey(rawNode.Node.SigningKeyPub)
 	isValidConfig := err == nil
 
@@ -243,11 +243,16 @@ func convertNode(rawNode nodes.NodesNodeWithId) Node {
 		isValidConfig = false
 	}
 
+	if !rawNode.Node.IsActive {
+		isValidConfig = false
+	}
+
 	return Node{
-		NodeID:        rawNode.NodeId,
+		NodeID:        uint32(rawNode.NodeId.Uint64()),
 		SigningKey:    signingKey,
 		HttpAddress:   httpAddress,
-		IsHealthy:     rawNode.Node.IsHealthy,
+		IsActive:      rawNode.Node.IsActive,
+		MinMonthlyFee: rawNode.Node.MinMonthlyFee,
 		IsValidConfig: isValidConfig,
 	}
 }

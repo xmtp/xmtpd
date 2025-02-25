@@ -29,4 +29,4 @@ forge_build_contracts
 forge_test_contracts
 forge_deploy_script group_messages
 forge_deploy_script identity_updates
-forge_deploy_script nodes src/Nodes.sol Nodes
+forge_deploy_script nodes

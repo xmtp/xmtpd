@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -154,11 +155,21 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not decompress public key", zap.Error(err))
 	}
 
+	minMonthlyFee, ok := big.NewInt(0).SetString(options.RegisterNode.MinMonthlyFee, 10)
+	if !ok {
+		logger.Fatal("could not parse min monthly fee", zap.Error(err))
+	}
+
+	if minMonthlyFee.Sign() < 0 {
+		logger.Fatal("min monthly fee cannot be negative")
+	}
+
 	nodeId, err := registryAdmin.AddNode(
 		ctx,
 		options.RegisterNode.OwnerAddress,
 		signingKeyPub,
 		options.RegisterNode.HttpAddress,
+		minMonthlyFee,
 	)
 	if err != nil {
 		logger.Fatal("could not add node", zap.Error(err))

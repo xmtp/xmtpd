@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -44,6 +45,7 @@ type NodeRegistry interface {
 		owner string,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
+		minMonthlyFee *big.Int,
 	) (uint32, error)
 	UpdateIsApiEnabled(
 		ctx context.Context,

@@ -12,7 +12,8 @@ ADD_NODE_RESPONSE=$(dev/cli register-node \
     --http-address=http://localhost:5051 \
     --node-owner-address=$NODE_ADDRESS \
     --admin-private-key=$PRIVATE_KEY \
-    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY)
+    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY \
+    --min-monthly-fee=0)
 
 echo $ADD_NODE_RESPONSE
 NODE_ID=$(echo $ADD_NODE_RESPONSE | jq -r '."node-id"')

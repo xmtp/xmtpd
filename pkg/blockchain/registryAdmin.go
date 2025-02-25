@@ -57,9 +57,14 @@ func (n *NodeRegistryAdmin) AddNode(
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
+	minMonthlyFee *big.Int,
 ) (nodeId uint32, err error) {
 	if !common.IsHexAddress(owner) {
 		return 0, fmt.Errorf("invalid owner address provided %s", owner)
+	}
+
+	if minMonthlyFee == nil || minMonthlyFee.Sign() == -1 {
+		return 0, fmt.Errorf("invalid min monthly fee provided %s", minMonthlyFee)
 	}
 
 	ownerAddress := common.HexToAddress(owner)
@@ -72,7 +77,7 @@ func (n *NodeRegistryAdmin) AddNode(
 		Context: ctx,
 		From:    n.signer.FromAddress(),
 		Signer:  n.signer.SignerFunc(),
-	}, ownerAddress, signingKey, httpAddress, big.NewInt(0))
+	}, ownerAddress, signingKey, httpAddress, minMonthlyFee)
 
 	if err != nil {
 		return 0, err

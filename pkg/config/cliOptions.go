@@ -29,6 +29,7 @@ type RegisterNodeOptions struct {
 	OwnerAddress    string `long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
 	AdminPrivateKey string `long:"admin-private-key"    description:"Private key of the admin to register the node"                    required:"true"`
 	SigningKeyPub   string `long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
+	MinMonthlyFee   string `long:"min-monthly-fee"      description:"Minimum monthly fee for the node"                                 required:"true"`
 }
 
 type UpdateActiveOptions struct {

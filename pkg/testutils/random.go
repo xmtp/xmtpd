@@ -67,3 +67,7 @@ func RandomBlockHash() common.Hash {
 	bytes := RandomBytes(32)
 	return common.BytesToHash(bytes)
 }
+
+func RandomInt32() int32 {
+	return rand.Int31()
+}

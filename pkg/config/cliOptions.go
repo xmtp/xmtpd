@@ -41,6 +41,7 @@ type UpdateActiveOptions struct {
 type UpdateApiEnabledOptions struct {
 	NodeId             int64  `long:"node-id"              description:"NodeId to update"`
 	OperatorPrivateKey string `long:"operator-private-key" description:"Private key of the operator to update the node" required:"true"`
+	IsApiEnabled       bool   `long:"enable"               description:"Whether the node is api enabled"`
 }
 
 type UpdateReplicationEnabledOptions struct {

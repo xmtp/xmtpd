@@ -220,6 +220,7 @@ func updateActive(logger *zap.Logger, options *CLI) {
 	logger.Info(
 		"successfully updated node active",
 		zap.Uint32("node-id", uint32(options.UpdateActive.NodeId)),
+		zap.Bool("is-active", options.UpdateActive.IsActive),
 	)
 }
 
@@ -252,6 +253,7 @@ func updateApiEnabled(logger *zap.Logger, options *CLI) {
 	err = registryAdmin.UpdateIsApiEnabled(
 		ctx,
 		uint32(options.UpdateApiEnabled.NodeId),
+		options.UpdateApiEnabled.IsApiEnabled,
 	)
 	if err != nil {
 		logger.Fatal("could not update node api enabled", zap.Error(err))
@@ -259,6 +261,7 @@ func updateApiEnabled(logger *zap.Logger, options *CLI) {
 	logger.Info(
 		"successfully updated node api enabled",
 		zap.Uint32("node-id", uint32(options.UpdateApiEnabled.NodeId)),
+		zap.Bool("is-api-enabled", options.UpdateApiEnabled.IsApiEnabled),
 	)
 }
 
@@ -299,6 +302,7 @@ func updateReplicationEnabled(logger *zap.Logger, options *CLI) {
 	logger.Info(
 		"successfully updated node replication enabled",
 		zap.Uint32("node-id", uint32(options.UpdateReplicationEnabled.NodeId)),
+		zap.Bool("is-replication-enabled", options.UpdateReplicationEnabled.IsReplicationEnabled),
 	)
 }
 

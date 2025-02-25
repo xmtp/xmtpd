@@ -141,6 +141,7 @@ func (n *NodeRegistryAdmin) UpdateActive(
 func (n *NodeRegistryAdmin) UpdateIsApiEnabled(
 	ctx context.Context,
 	nodeId uint32,
+	isApiEnabled bool,
 ) error {
 	if n.signer == nil {
 		return fmt.Errorf("no signer provided")
@@ -150,7 +151,7 @@ func (n *NodeRegistryAdmin) UpdateIsApiEnabled(
 		Context: ctx,
 		From:    n.signer.FromAddress(),
 		Signer:  n.signer.SignerFunc(),
-	}, big.NewInt(int64(nodeId)))
+	}, big.NewInt(int64(nodeId)), isApiEnabled)
 
 	if err != nil {
 		return err

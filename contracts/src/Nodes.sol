@@ -118,11 +118,11 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function updateIsApiEnabled(uint256 nodeId) external {
+    function updateIsApiEnabled(uint256 nodeId, bool isApiEnabled) external {
         require(_ownerOf(nodeId) == msg.sender, Unauthorized());
-        _nodes[nodeId].isApiEnabled = !_nodes[nodeId].isApiEnabled;
+        _nodes[nodeId].isApiEnabled = isApiEnabled;
 
-        if (!_nodes[nodeId].isApiEnabled && _nodes[nodeId].isActive) {
+        if (!isApiEnabled && _nodes[nodeId].isActive) {
             _deactivateNode(nodeId);
         }
 

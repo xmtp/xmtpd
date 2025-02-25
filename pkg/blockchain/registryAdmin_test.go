@@ -139,7 +139,7 @@ func TestUpdateIsApiEnabled(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = registry.UpdateIsApiEnabled(ctx, nodeId)
+	err = registry.UpdateIsApiEnabled(ctx, nodeId, true)
 	require.NoError(t, err)
 }
 
@@ -150,7 +150,7 @@ func TestUpdateIsApiEnabledUnauthorized(t *testing.T) {
 	nodeId, _, err := addRandomNode(t, ctx, registry)
 	require.NoError(t, err)
 
-	err = registry.UpdateIsApiEnabled(ctx, nodeId)
+	err = registry.UpdateIsApiEnabled(ctx, nodeId, true)
 
 	// 0x82b42900 is the signature of Unauthorized() error
 	require.Equal(t, err.Error(), "execution reverted: custom error 0x82b42900")
@@ -160,7 +160,7 @@ func TestUpdateIsApiEnabledBadNodeId(t *testing.T) {
 	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
-	err := registry.UpdateIsApiEnabled(ctx, 1)
+	err := registry.UpdateIsApiEnabled(ctx, 1, true)
 	require.Equal(t, err.Error(), "execution reverted: custom error 0x82b42900")
 }
 
@@ -190,7 +190,7 @@ func TestUpdateActive(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = registry.UpdateIsApiEnabled(ctx, nodeId)
+	err = registry.UpdateIsApiEnabled(ctx, nodeId, true)
 	require.NoError(t, err)
 
 	err = registry.UpdateIsReplicationEnabled(ctx, nodeId, true)

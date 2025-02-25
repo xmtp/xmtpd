@@ -20,7 +20,8 @@ NODE_ID=$(echo $ADD_NODE_RESPONSE | jq -r '."node-id"')
 
 dev/cli update-api-enabled \
     --node-id=$NODE_ID \
-    --operator-private-key=$OPERATOR_PRIVATE_KEY
+    --operator-private-key=$OPERATOR_PRIVATE_KEY \
+    --enable
 
 dev/cli update-replication-enabled \
     --node-id=$NODE_ID \
@@ -32,4 +33,4 @@ dev/cli update-active \
     --admin-private-key=$PRIVATE_KEY \
     --activate
 
-echo -e "\033[32m✔\033[0m Node $NODE_ID registered and activated"
+echo -e "\033[32m✔\033[0m Node $NODE_ID registered and activated\n"

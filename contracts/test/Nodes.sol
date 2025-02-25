@@ -412,7 +412,7 @@ contract NodesTest is Test, Utils {
         _addNode();
         nodes.updateIsReplicationEnabled(nodeId, true);
         vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
         vm.expectEmit(address(nodes));
         emit INodes.NodeActivateUpdated(nodeId, true);
         nodes.updateActive(nodeId, true);
@@ -468,7 +468,7 @@ contract NodesTest is Test, Utils {
         _addNode();
         nodes.updateIsReplicationEnabled(nodeId, true);
         vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
 
         nodes.updateActive(nodeId, true);
         vm.recordLogs();
@@ -585,7 +585,7 @@ contract NodesTest is Test, Utils {
         _addNode();
         nodes.updateIsReplicationEnabled(nodeId, true);
         vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
 
         nodes.updateMaxActiveNodes(1);
         nodes.updateActive(nodeId, true);
@@ -676,11 +676,10 @@ contract NodesTest is Test, Utils {
         vm.expectEmit(address(nodes));
         emit INodes.ApiEnabledUpdated(nodeId, true);
         vm.startPrank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
         assertEq(nodes.getNode(nodeId).isApiEnabled, true);
 
-        /// @dev Toggle again
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, false);
         assertEq(nodes.getNode(nodeId).isApiEnabled, false);
         vm.stopPrank();
     }
@@ -690,7 +689,7 @@ contract NodesTest is Test, Utils {
         vm.recordLogs();
         vm.expectRevert(INodes.Unauthorized.selector);
         /// @dev Default user is admin
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
         _checkNoLogsEmitted();
     }
 
@@ -770,7 +769,7 @@ contract NodesTest is Test, Utils {
         _addNode();
         nodes.updateIsReplicationEnabled(nodeId, true);
         vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
         nodes.updateActive(nodeId, true);
         vm.assertEq(nodes.getActiveNodesCount(), 1);
 
@@ -800,7 +799,7 @@ contract NodesTest is Test, Utils {
         _addNode();
         nodes.updateIsReplicationEnabled(nodeId, true);
         vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId);
+        nodes.updateIsApiEnabled(nodeId, true);
 
         nodes.updateActive(nodeId, true);
         vm.assertEq(nodes.getNodeIsActive(nodeId), true);
@@ -866,7 +865,7 @@ contract NodesTest is Test, Utils {
         for (uint256 i = 0; i < nodeIds.length; i++) {
             nodes.updateIsReplicationEnabled(nodeIds[i], true);
             vm.prank(operators[i]);
-            nodes.updateIsApiEnabled(nodeIds[i]);
+            nodes.updateIsApiEnabled(nodeIds[i], true);
         }
     }
 

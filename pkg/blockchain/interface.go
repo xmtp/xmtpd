@@ -50,6 +50,7 @@ type NodeRegistry interface {
 	UpdateIsApiEnabled(
 		ctx context.Context,
 		nodeId uint32,
+		isApiEnabled bool,
 	) error
 	UpdateIsReplicationEnabled(
 		ctx context.Context,

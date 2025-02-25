@@ -220,7 +220,8 @@ interface INodes is IERC721 {
     /// @notice Toggles the API enabled flag for the node owned by the caller.
     /// @dev Only the owner of the node NFT may call this.
     /// @param nodeId The unique identifier of the node.
-    function updateIsApiEnabled(uint256 nodeId) external;
+    /// @param isApiEnabled The new API enabled flag.
+    function updateIsApiEnabled(uint256 nodeId, bool isApiEnabled) external;
 
     // ***************************************************************
     // *                     GETTER FUNCTIONS                      *

@@ -30,6 +30,7 @@ type GatewayEnvelope struct {
 	OriginatorSequenceID int64
 	Topic                []byte
 	OriginatorEnvelope   []byte
+	PayerID              sql.NullInt32
 }
 
 type LatestBlock struct {

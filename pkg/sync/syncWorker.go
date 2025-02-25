@@ -435,6 +435,12 @@ func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 		return
 	}
 
+	payerId, err := s.getPayerID(env)
+	if err != nil {
+		s.log.Error("Failed to get payer ID", zap.Error(err))
+		return
+	}
+
 	q := queries.New(s.store)
 	inserted, err := q.InsertGatewayEnvelope(
 		s.ctx,
@@ -443,6 +449,7 @@ func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
 			Topic:                env.TargetTopic().Bytes(),
 			OriginatorEnvelope:   originatorBytes,
+			PayerID:              db.NullInt32(payerId),
 		},
 	)
 	if err != nil {
@@ -453,4 +460,19 @@ func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 		s.log.Warn("Envelope already inserted")
 		return
 	}
+}
+
+func (s *syncWorker) getPayerID(env *envUtils.OriginatorEnvelope) (int32, error) {
+	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
+	if err != nil {
+		return 0, err
+	}
+
+	q := queries.New(s.store)
+	payerId, err := q.FindOrCreatePayer(s.ctx, payerAddress.Hex())
+	if err != nil {
+		return 0, err
+	}
+
+	return payerId, nil
 }

@@ -13,20 +13,29 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 /// Note: The staking contract reference has been removed per updated requirements.
 interface INodes is IERC721 {
 
-    /// @notice Error thrown when an unauthorized address attempts to call a function.
-    error Unauthorized();
-
     /// @notice Error thrown when an invalid address is provided.
     error InvalidAddress();
 
-    /// @notice Error thrown when an invalid signing key is provided.
-    error InvalidSigningKey();
+    /// @notice Error thrown when an invalid commission percentage is provided.
+    error InvalidCommissionPercent();
 
     /// @notice Error thrown when an invalid HTTP address is provided.
     error InvalidHttpAddress();
 
-    /// @notice Error thrown when a node does not exist.
-    error NodeDoesNotExist();
+    /// @notice Error thrown when the input length is invalid.
+    error InvalidInputLength();
+
+    /// @notice Error thrown when a node config is invalid.
+    error InvalidNodeConfig();
+
+    /// @notice Error thrown when an invalid signing key is provided.
+    error InvalidSigningKey();
+
+    /// @notice Error thrown when an invalid URI is provided.
+    error InvalidURI();
+
+    /// @notice Error thrown when the maximum number of active nodes is reached.
+    error MaxActiveNodesReached();
 
     /// @notice Error thrown when a node is already active.
     error NodeAlreadyActive();
@@ -34,17 +43,11 @@ interface INodes is IERC721 {
     /// @notice Error thrown when a node is already inactive.
     error NodeAlreadyInactive();
 
-    /// @notice Error thrown when an invalid commission percentage is provided.
-    error InvalidCommissionPercent();
+    /// @notice Error thrown when a node does not exist.
+    error NodeDoesNotExist();
 
-    /// @notice Error thrown when the maximum number of active nodes is reached.
-    error MaxActiveNodesReached();
-
-    /// @notice Error thrown when an invalid URI is provided.
-    error InvalidURI();
-
-    /// @notice Error thrown when the input length is invalid.
-    error InvalidInputLength();
+    /// @notice Error thrown when an unauthorized address attempts to call a function.
+    error Unauthorized();
 
     /// @notice Struct representing a node in the registry.
     /// @param signingKeyPub The public key used for node signing/verification.
@@ -228,8 +231,8 @@ interface INodes is IERC721 {
     function nodeOperatorCommissionPercent() external view returns (uint256 commissionPercent);
 
     /// @notice Gets all nodes regardless of their health status
-    /// @return allNodesList An array of all nodes in the registry
-    function getAllNodes() external view returns (NodeWithId[] memory allNodesList);
+    /// @return allNodes An array of all nodes in the registry
+    function getAllNodes() external view returns (NodeWithId[] memory allNodes);
 
     /// @notice Gets the total number of nodes in the registry.
     /// @return nodeCount The total number of nodes.
@@ -243,7 +246,7 @@ interface INodes is IERC721 {
     /// @notice Retrieves a list of active nodes.
     /// @dev Active nodes are those with `isActive` set to true.
     /// @return activeNodes An array of Node structs representing active nodes.
-    function getActiveNodes() external view returns (Node[] memory activeNodes);
+    function getActiveNodes() external view returns (NodeWithId[] memory activeNodes);
 
     /// @notice Retrieves a list of active nodes IDs.
     /// @dev Active nodes are those with `isActive` set to true.

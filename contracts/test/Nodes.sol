@@ -3,9 +3,8 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
 import {Vm} from "forge-std/src/Vm.sol";
-import {console2} from "forge-std/src/console2.sol";
 import {Utils} from "test/utils/Utils.sol";
-import {NodesV2} from "src/NodesV2.sol";
+import {Nodes} from "src/Nodes.sol";
 import {INodes} from "src/interfaces/INodes.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IAccessControlDefaultAdminRules} from "@openzeppelin/contracts/access/extensions/IAccessControlDefaultAdminRules.sol";
@@ -15,7 +14,7 @@ import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.s
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 contract NodesTest is Test, Utils {
-    NodesV2 public nodes;
+    Nodes public nodes;
 
     address admin = address(this);
     address manager = vm.randomAddress();
@@ -27,11 +26,8 @@ contract NodesTest is Test, Utils {
     uint256 nodeId;
 
     function setUp() public {
-        nodes = new NodesV2(admin);
+        nodes = new Nodes(admin);
         nodes.grantRole(nodes.NODE_MANAGER_ROLE(), manager);
-        console2.log("admin", admin);
-        console2.log("manager", manager);
-        console2.log("unauthorized", unauthorized);
     }
 
     // ***************************************************************
@@ -414,10 +410,21 @@ contract NodesTest is Test, Utils {
 
     function test_updateActive() public {
         _addNode();
+        nodes.updateIsReplicationEnabled(nodeId, true);
+        vm.prank(nodeOperator);
+        nodes.updateIsApiEnabled(nodeId);
         vm.expectEmit(address(nodes));
         emit INodes.NodeActivateUpdated(nodeId, true);
         nodes.updateActive(nodeId, true);
         vm.assertEq(nodes.getNode(nodeId).isActive, true);
+    }
+
+    function test_RevertWhen_updateActiveInvalidNodeConfig() public {
+        _addNode();
+        vm.recordLogs();
+        vm.expectRevert(INodes.InvalidNodeConfig.selector);
+        nodes.updateActive(nodeId, true);
+        _checkNoLogsEmitted();
     }
 
     function test_RevertWhen_updateActiveNodeDoesNotExist() public {
@@ -459,6 +466,10 @@ contract NodesTest is Test, Utils {
 
     function test_RevertWhen_updateActiveNodeAlreadyActive() public {
         _addNode();
+        nodes.updateIsReplicationEnabled(nodeId, true);
+        vm.prank(nodeOperator);
+        nodes.updateIsApiEnabled(nodeId);
+
         nodes.updateActive(nodeId, true);
         vm.recordLogs();
         vm.expectRevert(INodes.NodeAlreadyActive.selector);
@@ -475,12 +486,14 @@ contract NodesTest is Test, Utils {
     }
 
     function test_batchUpdateActive() public {
-        (, uint256[] memory nodeIds) = _addMultipleNodes(3);
+        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
         bool[] memory isActive = new bool[](3);
 
         for (uint256 i = 0; i < 3; i++) {
             isActive[i] = true;
         }
+
+        _enableNodes(operators, nodeIds);
 
         vm.expectEmit(address(nodes));
         emit INodes.NodeActivateUpdated(nodeIds[0], true);
@@ -528,11 +541,13 @@ contract NodesTest is Test, Utils {
 
     function test_RevertWhen_batchUpdateActiveMaxActiveNodesReached() public {
         nodes.updateMaxActiveNodes(2);
-        (, uint256[] memory nodeIds) = _addMultipleNodes(3);
+        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
         bool[] memory isActive = new bool[](3);
         for (uint256 i = 0; i < 3; i++) {
             isActive[i] = true;
         }
+
+        _enableNodes(operators, nodeIds);
 
         vm.recordLogs();
         vm.expectRevert(INodes.MaxActiveNodesReached.selector);
@@ -568,6 +583,10 @@ contract NodesTest is Test, Utils {
 
     function test_RevertWhen_updateMaxActiveNodesDeactivateNodes() public {
         _addNode();
+        nodes.updateIsReplicationEnabled(nodeId, true);
+        vm.prank(nodeOperator);
+        nodes.updateIsApiEnabled(nodeId);
+
         nodes.updateMaxActiveNodes(1);
         nodes.updateActive(nodeId, true);
         vm.recordLogs();
@@ -719,23 +738,25 @@ contract NodesTest is Test, Utils {
     }
 
     function test_getActiveNodes() public {
-        (, uint256[] memory nodeIds) = _addMultipleNodes(3);
+        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
         bool[] memory isActive = new bool[](3);
         for (uint256 i = 0; i < 3; i++) {
             isActive[i] = true;
         }
+        _enableNodes(operators, nodeIds);
         nodes.batchUpdateActive(nodeIds, isActive);
 
-        INodes.Node[] memory activeNodes = nodes.getActiveNodes();
+        INodes.NodeWithId[] memory activeNodes = nodes.getActiveNodes();
         vm.assertTrue(activeNodes.length == 3);
     }
 
     function test_getActiveNodesIDs() public {
-        (, uint256[] memory nodeIds) = _addMultipleNodes(3);
+        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
         bool[] memory isActive = new bool[](3);
         for (uint256 i = 0; i < 3; i++) {
             isActive[i] = true;
         }
+        _enableNodes(operators, nodeIds);
         nodes.batchUpdateActive(nodeIds, isActive);
 
         uint256[] memory activeNodeIds = nodes.getActiveNodesIDs();
@@ -747,22 +768,27 @@ contract NodesTest is Test, Utils {
 
     function test_getActiveNodesCount() public {
         _addNode();
+        nodes.updateIsReplicationEnabled(nodeId, true);
+        vm.prank(nodeOperator);
+        nodes.updateIsApiEnabled(nodeId);
         nodes.updateActive(nodeId, true);
         vm.assertEq(nodes.getActiveNodesCount(), 1);
 
-        (, uint256[] memory nodeIds) = _addMultipleNodes(2);
+        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(2);
         bool[] memory isActive = new bool[](2);
         for (uint256 i = 0; i < 2; i++) {
             isActive[i] = true;
         }
+        _enableNodes(operators, nodeIds);
         nodes.batchUpdateActive(nodeIds, isActive);
         vm.assertEq(nodes.getActiveNodesCount(), 3);
 
-        (, uint256[] memory nodeIds2) = _addMultipleNodes(3);
+        (address[] memory operators2, uint256[] memory nodeIds2) = _addMultipleNodes(3);
         bool[] memory isActive2 = new bool[](3);
         for (uint256 i = 0; i < 3; i++) {
             isActive2[i] = true;
         }
+        _enableNodes(operators2, nodeIds2);
         nodes.batchUpdateActive(nodeIds2, isActive2);
         vm.assertEq(nodes.getActiveNodesCount(), 6);
 
@@ -772,10 +798,16 @@ contract NodesTest is Test, Utils {
 
     function test_getNodeIsActive() public {
         _addNode();
+        nodes.updateIsReplicationEnabled(nodeId, true);
+        vm.prank(nodeOperator);
+        nodes.updateIsApiEnabled(nodeId);
+
         nodes.updateActive(nodeId, true);
         vm.assertEq(nodes.getNodeIsActive(nodeId), true);
 
-        (, uint256[] memory nodeIds) = _addMultipleNodes(2);
+        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(2);
+        _enableNodes(operators, nodeIds);
+
         nodes.updateActive(nodeIds[0], true);
         vm.assertEq(nodes.getNodeIsActive(nodeIds[0]), true);
         vm.assertEq(nodes.getNodeIsActive(nodeIds[1]), false);
@@ -828,6 +860,14 @@ contract NodesTest is Test, Utils {
             nodeIds[i] = nodes.addNode(operators[i], node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
         }
         return (operators, nodeIds);
+    }
+
+    function _enableNodes(address[] memory operators, uint256[] memory nodeIds) internal {
+        for (uint256 i = 0; i < nodeIds.length; i++) {
+            nodes.updateIsReplicationEnabled(nodeIds[i], true);
+            vm.prank(operators[i]);
+            nodes.updateIsApiEnabled(nodeIds[i]);
+        }
     }
 
     function _randomNode() internal view returns (INodes.Node memory) {

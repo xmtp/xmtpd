@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registrant"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -147,16 +148,25 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		return false
 	}
 
+	originatorID := int32(p.registrant.NodeID())
+
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
-	inserted, err := q.InsertGatewayEnvelope(
+	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		p.ctx,
+		p.store,
 		queries.InsertGatewayEnvelopeParams{
-			OriginatorNodeID:     int32(p.registrant.NodeID()),
+			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: stagedEnv.ID,
 			Topic:                stagedEnv.Topic,
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
 			GatewayTime:          stagedEnv.OriginatorTime,
+		},
+		queries.IncrementUnsettledUsageParams{
+			PayerID:           payerId,
+			OriginatorID:      originatorID,
+			MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
+			SpendPicodollars:  int64(baseFee) + int64(congestionFee),
 		},
 	)
 	if p.ctx.Err() != nil {

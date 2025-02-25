@@ -180,3 +180,22 @@ ON CONFLICT (address)
 	RETURNING
 		id;
 
+-- name: IncrementUnsettledUsage :exec
+INSERT INTO unsettled_usage(payer_id, originator_id, minutes_since_epoch, spend_picodollars)
+	VALUES (@payer_id, @originator_id, @minutes_since_epoch, @spend_picodollars)
+ON CONFLICT (payer_id, originator_id, minutes_since_epoch)
+	DO UPDATE SET
+		spend_picodollars = unsettled_usage.spend_picodollars + @spend_picodollars;
+
+-- name: GetPayerUnsettledUsage :one
+SELECT
+	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars
+FROM
+	unsettled_usage
+WHERE
+	payer_id = @payer_id
+	AND (@minutes_since_epoch_gt::BIGINT = 0
+		OR minutes_since_epoch > @minutes_since_epoch_gt::BIGINT)
+	AND (@minutes_since_epoch_lt::BIGINT = 0
+		OR minutes_since_epoch < @minutes_since_epoch_lt::BIGINT);
+

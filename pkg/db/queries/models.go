@@ -56,3 +56,10 @@ type StagedOriginatorEnvelope struct {
 	Topic          []byte
 	PayerEnvelope  []byte
 }
+
+type UnsettledUsage struct {
+	PayerID           int32
+	OriginatorID      int32
+	MinutesSinceEpoch int32
+	SpendPicodollars  int64
+}

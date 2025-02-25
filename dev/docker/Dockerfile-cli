@@ -21,7 +21,7 @@ RUN go build -ldflags="-X 'main.Version=$VERSION'" -o bin/xmtpd-cli cmd/cli/main
 
 FROM alpine:3.21
 
-LABEL maintainer="engineering@xmtp.com"
+LABEL maintainer="eng@ephemerahq.com"
 LABEL source="https://github.com/xmtp/xmtpd"
 LABEL description="XMTPD CLI"
 

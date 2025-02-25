@@ -3,6 +3,7 @@ package registry
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -16,7 +17,8 @@ type Node struct {
 	NodeID        uint32
 	SigningKey    *ecdsa.PublicKey
 	HttpAddress   string
-	IsHealthy     bool
+	IsActive      bool
+	MinMonthlyFee *big.Int // TODO(borja): Use new fee pkg.
 	IsValidConfig bool
 }
 
@@ -31,7 +33,8 @@ func (n *Node) Equals(other Node) bool {
 	return n.NodeID == other.NodeID &&
 		n.HttpAddress == other.HttpAddress &&
 		equalsSigningKey &&
-		n.IsHealthy == other.IsHealthy &&
+		n.IsActive == other.IsActive &&
+		n.MinMonthlyFee.Cmp(other.MinMonthlyFee) == 0 &&
 		n.IsValidConfig == other.IsValidConfig
 }
 
@@ -40,12 +43,12 @@ func (node *Node) BuildClient(
 ) (*grpc.ClientConn, error) {
 	target, isTLS, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
+		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
 	}
 
 	creds, err := utils.GetCredentialsForAddress(isTLS)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get credentials: %v", err)
+		return nil, fmt.Errorf("failed to get credentials: %v", err)
 	}
 
 	dialOpts := append([]grpc.DialOption{
@@ -64,7 +67,7 @@ func (node *Node) BuildClient(
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create channel at %s: %v", target, err)
+		return nil, fmt.Errorf("failed to create channel at %s: %v", target, err)
 	}
 
 	return conn, nil

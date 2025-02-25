@@ -5,8 +5,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"slices"
+
+	"github.com/Masterminds/semver/v3"
 
 	"go.uber.org/zap"
 
@@ -77,15 +78,11 @@ func (r *Registrant) TokenFactory() *authn.TokenFactory {
 func (r *Registrant) SignStagedEnvelope(
 	stagedEnv queries.StagedOriginatorEnvelope,
 ) (*envelopes.OriginatorEnvelope, error) {
-	payerEnv := &envelopes.PayerEnvelope{}
-	if err := proto.Unmarshal(stagedEnv.PayerEnvelope, payerEnv); err != nil {
-		return nil, fmt.Errorf("Could not unmarshal payer envelope: %v", err)
-	}
 	unsignedEnv := envelopes.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     r.record.NodeID,
 		OriginatorSequenceId: uint64(stagedEnv.ID),
 		OriginatorNs:         stagedEnv.OriginatorTime.UnixNano(),
-		PayerEnvelope:        payerEnv,
+		PayerEnvelopeBytes:   stagedEnv.PayerEnvelope,
 	}
 	unsignedBytes, err := proto.Marshal(&unsignedEnv)
 	if err != nil {

@@ -3,9 +3,10 @@ package registrant_test
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/Masterminds/semver/v3"
 	"testing"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 
 	"go.uber.org/zap"
 
@@ -285,5 +286,9 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnv))
 	require.Equal(t, unsignedEnv.GetOriginatorNodeId(), uint32(1))
 	require.Equal(t, unsignedEnv.GetOriginatorSequenceId(), uint64(50))
-	require.Equal(t, unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope()[0], uint8(3))
+
+	var payerEnv *envelopes.PayerEnvelope
+	err = proto.Unmarshal(unsignedEnv.GetPayerEnvelopeBytes(), payerEnv)
+	require.NoError(t, err)
+	require.Equal(t, payerEnv.GetUnsignedClientEnvelope()[0], uint8(3))
 }

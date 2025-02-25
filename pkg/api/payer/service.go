@@ -271,11 +271,18 @@ func (s *Service) publishToBlockchain(
 		}
 
 		hash = logMessage.Raw.TxHash
-		unsignedOriginatorEnvelope = buildUnsignedOriginatorEnvelopeFromChain(
+		unsignedOriginatorEnvelope, err = buildUnsignedOriginatorEnvelopeFromChain(
 			desiredOriginatorId,
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.Internal,
+				"error building unsigned originator envelope: %v",
+				err,
+			)
+		}
 		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
@@ -288,11 +295,18 @@ func (s *Service) publishToBlockchain(
 		}
 
 		hash = logMessage.Raw.TxHash
-		unsignedOriginatorEnvelope = buildUnsignedOriginatorEnvelopeFromChain(
+		unsignedOriginatorEnvelope, err = buildUnsignedOriginatorEnvelopeFromChain(
 			desiredOriginatorId,
 			logMessage.SequenceId,
 			logMessage.Update,
 		)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.Internal,
+				"error building unsigned originator envelope: %v",
+				err,
+			)
+		}
 		desiredSequenceId = logMessage.SequenceId
 
 	default:
@@ -352,15 +366,21 @@ func buildUnsignedOriginatorEnvelopeFromChain(
 	targetOriginator uint32,
 	sequenceID uint64,
 	clientEnvelope []byte,
-) *envelopesProto.UnsignedOriginatorEnvelope {
+) (*envelopesProto.UnsignedOriginatorEnvelope, error) {
+	payerEnvelope := &envelopesProto.PayerEnvelope{
+		UnsignedClientEnvelope: clientEnvelope,
+	}
+	payerEnvelopeBytes, err := proto.Marshal(payerEnvelope)
+	if err != nil {
+		return nil, err
+	}
+
 	return &envelopesProto.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     targetOriginator,
 		OriginatorSequenceId: sequenceID,
 		OriginatorNs:         time.Now().UnixNano(), // TODO: get this data from the chain
-		PayerEnvelope: &envelopesProto.PayerEnvelope{
-			UnsignedClientEnvelope: clientEnvelope,
-		},
-	}
+		PayerEnvelopeBytes:   payerEnvelopeBytes,
+	}, nil
 }
 
 func (s *Service) signAllClientEnvelopes(originatorID uint32,

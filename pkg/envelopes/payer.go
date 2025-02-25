@@ -33,6 +33,14 @@ func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, erro
 	}, nil
 }
 
+func NewPayerEnvelopeFromBytes(bytes []byte) (*PayerEnvelope, error) {
+	msg := &envelopesProto.PayerEnvelope{}
+	if err := proto.Unmarshal(bytes, msg); err != nil {
+		return nil, err
+	}
+	return NewPayerEnvelope(msg)
+}
+
 func (p *PayerEnvelope) Proto() *envelopesProto.PayerEnvelope {
 	return p.proto
 }

@@ -22,12 +22,16 @@ func NewUnsignedOriginatorEnvelope(
 		return nil, errors.New("unsigned originator envelopeproto is nil")
 	}
 
-	payer, err := NewPayerEnvelope(proto.PayerEnvelope)
+	payer, err := NewPayerEnvelopeFromBytes(proto.PayerEnvelopeBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UnsignedOriginatorEnvelope{proto: proto, PayerEnvelope: *payer}, nil
+}
+
+func (u *UnsignedOriginatorEnvelope) PayerEnvelopeBytes() []byte {
+	return u.proto.PayerEnvelopeBytes
 }
 
 func (u *UnsignedOriginatorEnvelope) OriginatorNodeID() uint32 {

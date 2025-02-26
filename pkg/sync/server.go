@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
@@ -23,8 +24,9 @@ func NewSyncServer(
 	nodeRegistry registry.NodeRegistry,
 	registrant *registrant.Registrant,
 	store *sql.DB,
+	feeCalculator fees.IFeeCalculator,
 ) (*SyncServer, error) {
-	worker, err := startSyncWorker(ctx, log, nodeRegistry, registrant, store)
+	worker, err := startSyncWorker(ctx, log, nodeRegistry, registrant, store, feeCalculator)
 	if err != nil {
 		return nil, err
 	}

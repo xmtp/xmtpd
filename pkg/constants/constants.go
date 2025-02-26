@@ -7,6 +7,7 @@ const (
 	ORIGINATOR_DOMAIN_SEPARATION_LABEL = "originator|"
 	NODE_AUTHORIZATION_HEADER_NAME     = "node-authorization"
 	MAX_BLOCKCHAIN_ORIGINATOR_ID       = 100
+	DEFAULT_STORAGE_DURATION_DAYS      = 60
 )
 
 type VerifiedNodeRequestCtxKey struct{}

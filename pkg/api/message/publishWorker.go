@@ -6,9 +6,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"go.uber.org/zap"
 )
@@ -22,6 +25,7 @@ type publishWorker struct {
 	store         *sql.DB
 	subscription  db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
 	lastProcessed atomic.Int64
+	feeCalculator fees.IFeeCalculator
 }
 
 func startPublishWorker(
@@ -29,6 +33,7 @@ func startPublishWorker(
 	log *zap.Logger,
 	reg *registrant.Registrant,
 	store *sql.DB,
+	feeCalculator fees.IFeeCalculator,
 ) (*publishWorker, error) {
 	log = log.Named("publishWorker")
 	q := queries.New(store)
@@ -62,13 +67,14 @@ func startPublishWorker(
 	}
 
 	worker := &publishWorker{
-		ctx:          ctx,
-		log:          log,
-		notifier:     notifier,
-		subscription: *subscription,
-		listener:     listener,
-		registrant:   reg,
-		store:        store,
+		ctx:           ctx,
+		log:           log,
+		notifier:      notifier,
+		subscription:  *subscription,
+		listener:      listener,
+		registrant:    reg,
+		store:         store,
+		feeCalculator: feeCalculator,
 	}
 	go worker.start()
 
@@ -102,7 +108,13 @@ func (p *publishWorker) start() {
 
 func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
 	logger := p.log.With(zap.Int64("sequenceID", stagedEnv.ID))
-	originatorEnv, err := p.registrant.SignStagedEnvelope(stagedEnv)
+	baseFee, congestionFee, err := p.calculateFees(&stagedEnv)
+	if err != nil {
+		logger.Error("Failed to calculate fees", zap.Error(err))
+		return false
+	}
+
+	originatorEnv, err := p.registrant.SignStagedEnvelope(stagedEnv, baseFee, congestionFee)
 	if err != nil {
 		logger.Error(
 			"Failed to sign staged envelope",
@@ -144,6 +156,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			Topic:                stagedEnv.Topic,
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
+			GatewayTime:          stagedEnv.OriginatorTime,
 		},
 	)
 	if p.ctx.Err() != nil {
@@ -170,4 +183,30 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	return true
+}
+
+func (p *publishWorker) calculateFees(
+	stagedEnv *queries.StagedOriginatorEnvelope,
+) (currency.PicoDollar, currency.PicoDollar, error) {
+	baseFee, err := p.feeCalculator.CalculateBaseFee(
+		stagedEnv.OriginatorTime,
+		int64(len(stagedEnv.PayerEnvelope)),
+		constants.DEFAULT_STORAGE_DURATION_DAYS,
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// TODO:nm: Set this to the actual congestion fee
+	// For now we are setting congestion to 0
+	congestionFee, err := p.feeCalculator.CalculateCongestionFee(
+		stagedEnv.OriginatorTime,
+		0,
+	)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return baseFee, congestionFee, nil
 }

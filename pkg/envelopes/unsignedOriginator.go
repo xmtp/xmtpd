@@ -3,6 +3,7 @@ package envelopes
 import (
 	"errors"
 
+	"github.com/xmtp/xmtpd/pkg/currency"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -43,6 +44,16 @@ func (u *UnsignedOriginatorEnvelope) OriginatorSequenceID() uint64 {
 func (u *UnsignedOriginatorEnvelope) OriginatorNs() int64 {
 	// Skip nil check because it is in the constructor
 	return u.proto.OriginatorNs
+}
+
+func (u *UnsignedOriginatorEnvelope) BaseFee() currency.PicoDollar {
+	// Skip nil check because it is in the constructor
+	return currency.PicoDollar(u.proto.BaseFeePicodollars)
+}
+
+func (u *UnsignedOriginatorEnvelope) CongestionFee() currency.PicoDollar {
+	// Skip nil check because it is in the constructor
+	return currency.PicoDollar(u.proto.CongestionFeePicodollars)
 }
 
 func NewUnsignedOriginatorEnvelopeFromBytes(bytes []byte) (*UnsignedOriginatorEnvelope, error) {

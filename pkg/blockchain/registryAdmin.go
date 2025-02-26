@@ -114,7 +114,7 @@ func NewNodeRegistryCaller(
 
 	return &NodeRegistryCaller{
 		client:   client,
-		logger:   logger.Named("NodeRegistryAdmin"),
+		logger:   logger.Named("NodeRegistryCaller"),
 		contract: contract,
 	}, nil
 }
@@ -126,6 +126,15 @@ func (n *NodeRegistryCaller) GetAllNodes(
 	return n.contract.AllNodes(&bind.CallOpts{
 		Context: ctx,
 	})
+}
+
+func (n *NodeRegistryCaller) OwnerOf(
+	ctx context.Context,
+	nodeId int64,
+) (common.Address, error) {
+	return n.contract.OwnerOf(&bind.CallOpts{
+		Context: ctx,
+	}, big.NewInt(nodeId))
 }
 
 func (n *NodeRegistryAdmin) UpdateHealth(

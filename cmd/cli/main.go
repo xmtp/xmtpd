@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
 
 	"github.com/jessevdk/go-flags"
@@ -27,6 +28,7 @@ type CLI struct {
 	GetAllNodes   config.GetAllNodesOptions
 	UpdateHealth  config.UpdateHealthOptions
 	UpdateAddress config.UpdateAddressOptions
+	MigrateNodes  config.MigrateNodesOptions
 }
 
 /*
@@ -46,6 +48,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var getAllNodesOptions config.GetAllNodesOptions
 	var updateHealthOptions config.UpdateHealthOptions
 	var updateAddressOptions config.UpdateAddressOptions
+	var migrateNodesOptions config.MigrateNodesOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
@@ -69,6 +72,9 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("update-address", "Update HTTP address of a node", "", &updateAddressOptions); err != nil {
 		return nil, fmt.Errorf("Could not add update-address command: %s", err)
 	}
+	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
+		return nil, fmt.Errorf("Could not add dump nodes command: %s", err)
+	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			return nil, fmt.Errorf("Could not parse options: %s", err)
@@ -89,6 +95,7 @@ func parseOptions(args []string) (*CLI, error) {
 		getAllNodesOptions,
 		updateHealthOptions,
 		updateAddressOptions,
+		migrateNodesOptions,
 	}, nil
 }
 
@@ -181,7 +188,7 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	nodes, err := caller.GetAllNodes(ctx)
+	nodes, err := migrator.ReadFromRegistry(caller)
 	if err != nil {
 		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
@@ -191,6 +198,13 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 		zap.Int("size", len(nodes)),
 		zap.Any("nodes", nodes),
 	)
+
+	if options.GetAllNodes.OutFile != "" {
+		err = migrator.DumpNodesToFile(nodes, options.GetAllNodes.OutFile)
+		if err != nil {
+			logger.Fatal("could not dump nodes", zap.Error(err))
+		}
+	}
 }
 
 func updateHealth(logger *zap.Logger, options *CLI, health bool) {
@@ -261,6 +275,42 @@ func updateAddress(logger *zap.Logger, options *CLI) {
 	}
 }
 
+func migrateNodes(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	nodes, err := migrator.ImportNodesFromFile(options.MigrateNodes.InFile)
+	if err != nil {
+		logger.Fatal("could not import nodes from file", zap.Error(err))
+	}
+
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.MigrateNodes.AdminPrivateKey,
+		options.Contracts.ChainID,
+	)
+	if err != nil {
+		logger.Fatal("could not create signer", zap.Error(err))
+	}
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	err = migrator.WriteToRegistry(logger, nodes, registryAdmin)
+	if err != nil {
+		logger.Fatal("could not write nodes to registry", zap.Error(err))
+	}
+}
+
 func main() {
 	for _, arg := range os.Args[1:] {
 		if arg == "-v" || arg == "--version" {
@@ -302,6 +352,9 @@ func main() {
 		return
 	case "update-address":
 		updateAddress(logger, options)
+		return
+	case "migrate-nodes":
+		migrateNodes(logger, options)
 		return
 	}
 }

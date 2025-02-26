@@ -7,7 +7,14 @@ type GlobalOptions struct {
 
 type GenerateKeyOptions struct{}
 
-type GetAllNodesOptions struct{}
+type GetAllNodesOptions struct {
+	OutFile string `long:"out-file" description:"File to write the nodes to"`
+}
+
+type MigrateNodesOptions struct {
+	InFile          string `long:"in-file"           description:"File to read the nodes from"`
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
+}
 
 type UpdateHealthOptions struct {
 	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`

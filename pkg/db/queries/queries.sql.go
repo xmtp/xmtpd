@@ -220,6 +220,57 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 	return originator_sequence_id, err
 }
 
+const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
+SELECT
+	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars
+FROM
+	unsettled_usage
+WHERE
+	payer_id = $1
+	AND ($2::BIGINT = 0
+		OR minutes_since_epoch > $2::BIGINT)
+	AND ($3::BIGINT = 0
+		OR minutes_since_epoch < $3::BIGINT)
+`
+
+type GetPayerUnsettledUsageParams struct {
+	PayerID             int32
+	MinutesSinceEpochGt int64
+	MinutesSinceEpochLt int64
+}
+
+func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsettledUsageParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPayerUnsettledUsage, arg.PayerID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
+	var total_spend_picodollars int64
+	err := row.Scan(&total_spend_picodollars)
+	return total_spend_picodollars, err
+}
+
+const incrementUnsettledUsage = `-- name: IncrementUnsettledUsage :exec
+INSERT INTO unsettled_usage(payer_id, originator_id, minutes_since_epoch, spend_picodollars)
+	VALUES ($1, $2, $3, $4)
+ON CONFLICT (payer_id, originator_id, minutes_since_epoch)
+	DO UPDATE SET
+		spend_picodollars = unsettled_usage.spend_picodollars + $4
+`
+
+type IncrementUnsettledUsageParams struct {
+	PayerID           int32
+	OriginatorID      int32
+	MinutesSinceEpoch int32
+	SpendPicodollars  int64
+}
+
+func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnsettledUsageParams) error {
+	_, err := q.db.ExecContext(ctx, incrementUnsettledUsage,
+		arg.PayerID,
+		arg.OriginatorID,
+		arg.MinutesSinceEpoch,
+		arg.SpendPicodollars,
+	)
+	return err
+}
+
 const insertAddressLog = `-- name: InsertAddressLog :execrows
 INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
 	VALUES ($1, decode($2, 'hex'), $3, NULL)

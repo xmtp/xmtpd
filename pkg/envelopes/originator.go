@@ -2,6 +2,7 @@ package envelopes
 
 import (
 	"errors"
+	"time"
 
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -60,6 +61,10 @@ func (o *OriginatorEnvelope) OriginatorSequenceID() uint64 {
 
 func (o *OriginatorEnvelope) OriginatorNs() int64 {
 	return o.UnsignedOriginatorEnvelope.OriginatorNs()
+}
+
+func (o *OriginatorEnvelope) OriginatorTime() time.Time {
+	return utils.NsToDate(o.OriginatorNs())
 }
 
 func (o *OriginatorEnvelope) TargetTopic() topic.Topic {

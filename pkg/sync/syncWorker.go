@@ -17,6 +17,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -441,15 +442,29 @@ func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 		return
 	}
 
-	q := queries.New(s.store)
-	inserted, err := q.InsertGatewayEnvelope(
+	originatorID := int32(env.OriginatorNodeID())
+	originatorTime := utils.NsToDate(env.OriginatorNs())
+
+	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		s.ctx,
+		s.store,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     int32(env.OriginatorNodeID()),
 			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
 			Topic:                env.TargetTopic().Bytes(),
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
+		},
+		queries.IncrementUnsettledUsageParams{
+			PayerID:           payerId,
+			OriginatorID:      originatorID,
+			MinutesSinceEpoch: utils.MinutesSinceEpoch(originatorTime),
+			// TODO:(nm) Independently calculate fees
+			SpendPicodollars: int64(
+				env.UnsignedOriginatorEnvelope.BaseFee(),
+			) + int64(
+				env.UnsignedOriginatorEnvelope.CongestionFee(),
+			),
 		},
 	)
 	if err != nil {

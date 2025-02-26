@@ -1,15 +1,15 @@
 package testutils
 
 import (
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -89,6 +89,7 @@ func CreatePayerEnvelope(
 	if len(clientEnv) == 0 {
 		clientEnv = append(clientEnv, CreateClientEnvelope())
 	}
+
 	clientEnvBytes, err := proto.Marshal(clientEnv[0])
 	require.NoError(t, err)
 

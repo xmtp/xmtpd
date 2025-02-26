@@ -39,8 +39,8 @@ type RatesManagerRates struct {
 
 // RatesManagerMetaData contains all meta data concerning the RatesManager contract.
 var RatesManagerMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"RATES_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"acceptDefaultAdminTransfer\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addRates\",\"inputs\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"beginDefaultAdminTransfer\",\"inputs\":[{\"name\":\"newAdmin\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelDefaultAdminTransfer\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"changeDefaultAdminDelay\",\"inputs\":[{\"name\":\"newDelay\",\"type\":\"uint48\",\"internalType\":\"uint48\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"defaultAdmin\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"defaultAdminDelay\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint48\",\"internalType\":\"uint48\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"defaultAdminDelayIncreaseWait\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint48\",\"internalType\":\"uint48\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRates\",\"inputs\":[{\"name\":\"fromIndex\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"rates\",\"type\":\"tuple[]\",\"internalType\":\"structRatesManager.Rates[]\",\"components\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"internalType\":\"uint64\"}]},{\"name\":\"hasMore\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRatesCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingDefaultAdmin\",\"inputs\":[],\"outputs\":[{\"name\":\"newAdmin\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"schedule\",\"type\":\"uint48\",\"internalType\":\"uint48\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingDefaultAdminDelay\",\"inputs\":[],\"outputs\":[{\"name\":\"newDelay\",\"type\":\"uint48\",\"internalType\":\"uint48\"},{\"name\":\"schedule\",\"type\":\"uint48\",\"internalType\":\"uint48\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"rollbackDefaultAdminDelay\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"DefaultAdminDelayChangeCanceled\",\"inputs\":[],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DefaultAdminDelayChangeScheduled\",\"inputs\":[{\"name\":\"newDelay\",\"type\":\"uint48\",\"indexed\":false,\"internalType\":\"uint48\"},{\"name\":\"effectSchedule\",\"type\":\"uint48\",\"indexed\":false,\"internalType\":\"uint48\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DefaultAdminTransferCanceled\",\"inputs\":[],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DefaultAdminTransferScheduled\",\"inputs\":[{\"name\":\"newAdmin\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"acceptSchedule\",\"type\":\"uint48\",\"indexed\":false,\"internalType\":\"uint48\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RatesAdded\",\"inputs\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlEnforcedDefaultAdminDelay\",\"inputs\":[{\"name\":\"schedule\",\"type\":\"uint48\",\"internalType\":\"uint48\"}]},{\"type\":\"error\",\"name\":\"AccessControlEnforcedDefaultAdminRules\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlInvalidDefaultAdmin\",\"inputs\":[{\"name\":\"defaultAdmin\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"SafeCastOverflowedUintDowncast\",\"inputs\":[{\"name\":\"bits\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]",
-	Bin: "0x608060405234801561000f575f5ffd5b5062015180338061003957604051636116401160e11b81525f600482015260240160405180910390fd5b600180546001600160d01b0316600160d01b65ffffffffffff8516021790556100625f8261009b565b5061007e91505f516020611b385f395f51905f5290505f61010a565b6100955f516020611b385f395f51905f523361009b565b50610227565b5f826100f7575f6100b46002546001600160a01b031690565b6001600160a01b0316146100db57604051631fe1e13d60e11b815260040160405180910390fd5b600280546001600160a01b0319166001600160a01b0384161790555b6101018383610136565b90505b92915050565b8161012857604051631fe1e13d60e11b815260040160405180910390fd5b61013282826101dd565b5050565b5f828152602081815260408083206001600160a01b038516845290915281205460ff166101d6575f838152602081815260408083206001600160a01b03861684529091529020805460ff1916600117905561018e3390565b6001600160a01b0316826001600160a01b0316847f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d60405160405180910390a4506001610104565b505f610104565b5f82815260208190526040808220600101805490849055905190918391839186917fbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff9190a4505050565b611904806102345f395ff3fe608060405234801561000f575f5ffd5b5060043610610179575f3560e01c806384ef8ffc116100d2578063a217fddf11610088578063cf6eefb711610063578063cf6eefb714610372578063d547741f146103be578063d602b9fd146103d1575f5ffd5b8063a217fddf1461035b578063cc8463c814610362578063cefc14291461036a575f5ffd5b806391d14854116100b857806391d14854146102ca578063970b6d871461030d578063a1eda53c14610334575f5ffd5b806384ef8ffc146102835780638da5cb5b146102c2575f5ffd5b80632da7229111610132578063444121071161010d578063444121071461024a578063634e93da1461025d578063649a5ec714610270575f5ffd5b80632da722911461021c5780632f2ff15d1461022457806336568abe14610237575f5ffd5b8063081802b111610162578063081802b1146101c15780630aa6220b146101e2578063248a9ca3146101ec575f5ffd5b806301ffc9a71461017d578063022d63fb146101a5575b5f5ffd5b61019061018b3660046115fd565b6103d9565b60405190151581526020015b60405180910390f35b620697805b60405165ffffffffffff909116815260200161019c565b6101d46101cf36600461163c565b610434565b60405161019c929190611653565b6101ea6106c0565b005b61020e6101fa36600461163c565b5f9081526020819052604090206001015490565b60405190815260200161019c565b60035461020e565b6101ea610232366004611715565b6106d5565b6101ea610245366004611715565b61071a565b6101ea610258366004611756565b61081f565b6101ea61026b3660046117a7565b610aba565b6101ea61027e3660046117c0565b610acd565b60025473ffffffffffffffffffffffffffffffffffffffff165b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161019c565b61029d610ae0565b6101906102d8366004611715565b5f9182526020828152604080842073ffffffffffffffffffffffffffffffffffffffff93909316845291905290205460ff1690565b61020e7fe1f251c81ea8f25043f9fc7ec35c0a2a10dd591e11346051677e0580f5887a3381565b61033c610b05565b6040805165ffffffffffff93841681529290911660208301520161019c565b61020e5f81565b6101aa610b7f565b6101ea610c1c565b6001546040805173ffffffffffffffffffffffffffffffffffffffff831681527401000000000000000000000000000000000000000090920465ffffffffffff1660208301520161019c565b6101ea6103cc366004611715565b610c78565b6101ea610cb9565b5f7fffffffff0000000000000000000000000000000000000000000000000000000082167f3149878600000000000000000000000000000000000000000000000000000000148061042e575061042e82610ccb565b92915050565b6003546060905f90158015610447575082155b156104bc57604080515f80825260208201909252906104b2565b604080516080810182525f8082526020808301829052928201819052606082015282527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9092019101816104615790505b50935f9350915050565b600354831061052c576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601660248201527f66726f6d496e646578206f7574206f662072616e67650000000000000000000060448201526064015b60405180910390fd5b60325f610539828661183f565b60035490915081111561054b57506003545b5f6105568683611852565b90505f8167ffffffffffffffff811115610572576105726117e5565b6040519080825280602002602001820160405280156105e157816020015b604080516080810182525f8082526020808301829052928201819052606082015282527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9092019101816105905790505b5090505f5b828110156106ae5760036105fa828a61183f565b8154811061060a5761060a611865565b5f91825260209182902060408051608081018252929091015467ffffffffffffffff80821684526801000000000000000082048116948401949094527001000000000000000000000000000000008104841691830191909152780100000000000000000000000000000000000000000000000090049091166060820152825183908390811061069b5761069b611865565b60209081029190910101526001016105e6565b50600354909792109550909350505050565b5f6106ca81610d61565b6106d2610d6b565b50565b8161070c576040517f3fc3c27a00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6107168282610d77565b5050565b81158015610742575060025473ffffffffffffffffffffffffffffffffffffffff8281169116145b156108155760015473ffffffffffffffffffffffffffffffffffffffff81169074010000000000000000000000000000000000000000900465ffffffffffff1681151580610796575065ffffffffffff8116155b806107a957504265ffffffffffff821610155b156107ea576040517f19ca5ebb00000000000000000000000000000000000000000000000000000000815265ffffffffffff82166004820152602401610523565b5050600180547fffffffffffff000000000000ffffffffffffffffffffffffffffffffffffffff1690555b6107168282610da1565b7fe1f251c81ea8f25043f9fc7ec35c0a2a10dd591e11346051677e0580f5887a3361084981610d61565b60035415806108ab57506003805461086390600190611852565b8154811061087357610873611865565b5f9182526020909120015467ffffffffffffffff78010000000000000000000000000000000000000000000000009091048116908316115b610937576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152603160248201527f737461727454696d65206d7573742062652067726561746572207468616e207460448201527f6865206c61737420737461727454696d650000000000000000000000000000006064820152608401610523565b6040805160808101825267ffffffffffffffff80881682528681166020830190815286821683850190815286831660608501908152600380546001810182555f9190915294517fc2575a0e9e593c00f959f8c92f12db2869c3395a3b0502d05e2516446f71f85b9095018054935192519151851678010000000000000000000000000000000000000000000000000277ffffffffffffffffffffffffffffffffffffffffffffffff92861670010000000000000000000000000000000002929092166fffffffffffffffffffffffffffffffff93861668010000000000000000027fffffffffffffffffffffffffffffffff000000000000000000000000000000009095169690951695909517929092171691909117179055517f3bff7b1e021b47f5dfd21d1d3fe2daaf3b9cbaca733c6e15b3a0da546657f19a90610aab90879087908790879067ffffffffffffffff948516815292841660208401529083166040830152909116606082015260800190565b60405180910390a15050505050565b5f610ac481610d61565b61071682610dff565b5f610ad781610d61565b61071682610e7e565b5f610b0060025473ffffffffffffffffffffffffffffffffffffffff1690565b905090565b6002545f907a010000000000000000000000000000000000000000000000000000900465ffffffffffff168015158015610b4757504265ffffffffffff821610155b610b52575f5f610b77565b60025474010000000000000000000000000000000000000000900465ffffffffffff16815b915091509091565b6002545f907a010000000000000000000000000000000000000000000000000000900465ffffffffffff168015158015610bc057504265ffffffffffff8216105b610bf2576001547a010000000000000000000000000000000000000000000000000000900465ffffffffffff16610c16565b60025474010000000000000000000000000000000000000000900465ffffffffffff165b91505090565b60015473ffffffffffffffffffffffffffffffffffffffff16338114610c70576040517fc22c8022000000000000000000000000000000000000000000000000000000008152336004820152602401610523565b6106d2610eed565b81610caf576040517f3fc3c27a00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6107168282610fde565b5f610cc381610d61565b6106d2611002565b5f7fffffffff0000000000000000000000000000000000000000000000000000000082167f7965db0b00000000000000000000000000000000000000000000000000000000148061042e57507f01ffc9a7000000000000000000000000000000000000000000000000000000007fffffffff0000000000000000000000000000000000000000000000000000000083161461042e565b6106d2813361100c565b610d755f5f611091565b565b5f82815260208190526040902060010154610d9181610d61565b610d9b83836111ea565b50505050565b73ffffffffffffffffffffffffffffffffffffffff81163314610df0576040517f6697b23200000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b610dfa82826112af565b505050565b5f610e08610b7f565b610e1142611310565b610e1b9190611892565b9050610e27828261135f565b60405165ffffffffffff8216815273ffffffffffffffffffffffffffffffffffffffff8316907f3377dc44241e779dd06afab5b788a35ca5f3b778836e2990bdb26a2a4b2e5ed69060200160405180910390a25050565b5f610e88826113fa565b610e9142611310565b610e9b9190611892565b9050610ea78282611091565b6040805165ffffffffffff8085168252831660208201527ff1038c18cf84a56e432fdbfaf746924b7ea511dfe03a6506a0ceba4888788d9b910160405180910390a15050565b60015473ffffffffffffffffffffffffffffffffffffffff81169074010000000000000000000000000000000000000000900465ffffffffffff16801580610f3d57504265ffffffffffff821610155b15610f7e576040517f19ca5ebb00000000000000000000000000000000000000000000000000000000815265ffffffffffff82166004820152602401610523565b610fa65f610fa160025473ffffffffffffffffffffffffffffffffffffffff1690565b6112af565b50610fb15f836111ea565b5050600180547fffffffffffff000000000000000000000000000000000000000000000000000016905550565b5f82815260208190526040902060010154610ff881610d61565b610d9b83836112af565b610d755f5f61135f565b5f8281526020818152604080832073ffffffffffffffffffffffffffffffffffffffff8516845290915290205460ff16610716576040517fe2517d3f00000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff8216600482015260248101839052604401610523565b6002547a010000000000000000000000000000000000000000000000000000900465ffffffffffff168015611165574265ffffffffffff8216101561113c576002546001805479ffffffffffffffffffffffffffffffffffffffffffffffffffff167401000000000000000000000000000000000000000090920465ffffffffffff167a01000000000000000000000000000000000000000000000000000002919091179055611165565b6040517f2b1fa2edafe6f7b9e97c1a9e0c3660e645beb2dcaa2d45bdbf9beaf5472e1ec5905f90a15b506002805473ffffffffffffffffffffffffffffffffffffffff167401000000000000000000000000000000000000000065ffffffffffff9485160279ffffffffffffffffffffffffffffffffffffffffffffffffffff16177a0100000000000000000000000000000000000000000000000000009290931691909102919091179055565b5f8261129e575f61121060025473ffffffffffffffffffffffffffffffffffffffff1690565b73ffffffffffffffffffffffffffffffffffffffff161461125d576040517f3fc3c27a00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600280547fffffffffffffffffffffffff00000000000000000000000000000000000000001673ffffffffffffffffffffffffffffffffffffffff84161790555b6112a8838361144b565b9392505050565b5f821580156112d8575060025473ffffffffffffffffffffffffffffffffffffffff8381169116145b1561130657600280547fffffffffffffffffffffffff00000000000000000000000000000000000000001690555b6112a88383611544565b5f65ffffffffffff82111561135b576040517f6dfcc6500000000000000000000000000000000000000000000000000000000081526030600482015260248101839052604401610523565b5090565b600180547401000000000000000000000000000000000000000065ffffffffffff84811682027fffffffffffff0000000000000000000000000000000000000000000000000000841673ffffffffffffffffffffffffffffffffffffffff881617179093559004168015610dfa576040517f8886ebfc4259abdbc16601dd8fb5678e54878f47b3c34836cfc51154a9605109905f90a1505050565b5f5f611404610b7f565b90508065ffffffffffff168365ffffffffffff161161142c5761142783826118b0565b6112a8565b6112a865ffffffffffff8416620697805f8282188284100282186112a8565b5f8281526020818152604080832073ffffffffffffffffffffffffffffffffffffffff8516845290915281205460ff1661153d575f8381526020818152604080832073ffffffffffffffffffffffffffffffffffffffff86168452909152902080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff001660011790556114db3390565b73ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff16847f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d60405160405180910390a450600161042e565b505f61042e565b5f8281526020818152604080832073ffffffffffffffffffffffffffffffffffffffff8516845290915281205460ff161561153d575f8381526020818152604080832073ffffffffffffffffffffffffffffffffffffffff8616808552925280832080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0016905551339286917ff6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b9190a450600161042e565b5f6020828403121561160d575f5ffd5b81357fffffffff00000000000000000000000000000000000000000000000000000000811681146112a8575f5ffd5b5f6020828403121561164c575f5ffd5b5035919050565b604080825283519082018190525f9060208501906060840190835b818110156116da57835167ffffffffffffffff815116845267ffffffffffffffff602082015116602085015267ffffffffffffffff604082015116604085015267ffffffffffffffff60608201511660608501525060808301925060208401935060018101905061166e565b5050841515602085015291506112a89050565b803573ffffffffffffffffffffffffffffffffffffffff81168114611710575f5ffd5b919050565b5f5f60408385031215611726575f5ffd5b82359150611736602084016116ed565b90509250929050565b803567ffffffffffffffff81168114611710575f5ffd5b5f5f5f5f60808587031215611769575f5ffd5b6117728561173f565b93506117806020860161173f565b925061178e6040860161173f565b915061179c6060860161173f565b905092959194509250565b5f602082840312156117b7575f5ffd5b6112a8826116ed565b5f602082840312156117d0575f5ffd5b813565ffffffffffff811681146112a8575f5ffd5b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b8082018082111561042e5761042e611812565b8181038181111561042e5761042e611812565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52603260045260245ffd5b65ffffffffffff818116838216019081111561042e5761042e611812565b65ffffffffffff828116828216039081111561042e5761042e61181256fea26469706673582212204564120b3bee6ddc2c134598c7aa9396c886c4b6edd56f444b5c5e78a43af61564736f6c634300081c0033e1f251c81ea8f25043f9fc7ec35c0a2a10dd591e11346051677e0580f5887a33",
+	ABI: "[{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"RATES_MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"UPGRADE_INTERFACE_VERSION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"addRates\",\"inputs\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getRates\",\"inputs\":[{\"name\":\"fromIndex\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"rates\",\"type\":\"tuple[]\",\"internalType\":\"structRatesManager.Rates[]\",\"components\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"internalType\":\"uint64\"}]},{\"name\":\"hasMore\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRatesCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"admin\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"pause\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proxiableUUID\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unpause\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"upgradeToAndCall\",\"inputs\":[{\"name\":\"newImplementation\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Paused\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RatesAdded\",\"inputs\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Unpaused\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpgradeAuthorized\",\"inputs\":[{\"name\":\"upgrader\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"newImplementation\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"AddressEmptyCode\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC1967InvalidImplementation\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC1967NonPayable\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EnforcedPause\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ExpectedPause\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FailedCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FromIndexOutOfRange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidStartTime\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UUPSUnauthorizedCallContext\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UUPSUnsupportedProxiableUUID\",\"inputs\":[{\"name\":\"slot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"ZeroAdminAddress\",\"inputs\":[]}]",
+	Bin: "0x60a0604052306080523480156012575f5ffd5b50608051611d626100395f395f8181610f9f01528181610fc801526112e20152611d625ff3fe608060405260043610610123575f3560e01c806352d1902d116100a1578063a217fddf11610071578063c4d66de811610057578063c4d66de8146103b2578063d547741f146103d1578063e3396735146103f0575f5ffd5b8063a217fddf1461034a578063ad3cb1cc1461035d575f5ffd5b806352d1902d1461027c5780635c975abb146102905780638456cb59146102c657806391d14854146102da575f5ffd5b80632f2ff15d116100f65780633f4ba83a116100dc5780633f4ba83a14610236578063444121071461024a5780634f1ef28614610269575f5ffd5b80632f2ff15d146101f657806336568abe14610217575f5ffd5b806301ffc9a714610127578063081802b11461015b578063248a9ca3146101885780632da72291146101e3575b5f5ffd5b348015610132575f5ffd5b5061014661014136600461193b565b610423565b60405190151581526020015b60405180910390f35b348015610166575f5ffd5b5061017a61017536600461197a565b6104bb565b604051610152929190611991565b348015610193575f5ffd5b506101d56101a236600461197a565b5f9081527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800602052604090206001015490565b604051908152602001610152565b3480156101ee575f5ffd5b505f546101d5565b348015610201575f5ffd5b50610215610210366004611a53565b61070a565b005b348015610222575f5ffd5b50610215610231366004611a53565b610753565b348015610241575f5ffd5b506102156107b1565b348015610255575f5ffd5b50610215610264366004611a94565b6107c6565b610215610277366004611b12565b610a0a565b348015610287575f5ffd5b506101d5610a29565b34801561029b575f5ffd5b507fcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f033005460ff16610146565b3480156102d1575f5ffd5b50610215610a57565b3480156102e5575f5ffd5b506101466102f4366004611a53565b5f9182527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b6268006020908152604080842073ffffffffffffffffffffffffffffffffffffffff93909316845291905290205460ff1690565b348015610355575f5ffd5b506101d55f81565b348015610368575f5ffd5b506103a56040518060400160405280600581526020017f352e302e3000000000000000000000000000000000000000000000000000000081525081565b6040516101529190611c13565b3480156103bd575f5ffd5b506102156103cc366004611c66565b610a69565b3480156103dc575f5ffd5b506102156103eb366004611a53565b610ca3565b3480156103fb575f5ffd5b506101d57f64b4740f54156feb06b7a9f424e5bce966a52344cf27635887cf63c0ebf2a61e81565b5f7fffffffff0000000000000000000000000000000000000000000000000000000082167f7965db0b0000000000000000000000000000000000000000000000000000000014806104b557507f01ffc9a7000000000000000000000000000000000000000000000000000000007fffffffff000000000000000000000000000000000000000000000000000000008316145b92915050565b5f8054606091901580156104cd575082155b1561054257604080515f8082526020820190925290610538565b604080516080810182525f8082526020808301829052928201819052606082015282527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9092019101816104e75790505b50935f9350915050565b5f54831061057c576040517fea61fe7000000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f610588603285611cac565b5f5490915081111561059857505f545b5f6105a38583611cbf565b90505f8167ffffffffffffffff8111156105bf576105bf611ae5565b60405190808252806020026020018201604052801561062e57816020015b604080516080810182525f8082526020808301829052928201819052606082015282527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9092019101816105dd5790505b5090505f5b828110156106fa575f6106468289611cac565b8154811061065657610656611cd2565b5f91825260209182902060408051608081018252929091015467ffffffffffffffff8082168452680100000000000000008204811694840194909452700100000000000000000000000000000000810484169183019190915278010000000000000000000000000000000000000000000000009004909116606082015282518390839081106106e7576106e7611cd2565b6020908102919091010152600101610633565b505f549096921094509092505050565b5f8281527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800602052604090206001015461074381610ce6565b61074d8383610cf0565b50505050565b73ffffffffffffffffffffffffffffffffffffffff811633146107a2576040517f6697b23200000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6107ac8282610e0e565b505050565b5f6107bb81610ce6565b6107c3610eea565b50565b7f64b4740f54156feb06b7a9f424e5bce966a52344cf27635887cf63c0ebf2a61e6107f081610ce6565b5f541580159061085357505f805461080a90600190611cbf565b8154811061081a5761081a611cd2565b5f9182526020909120015467ffffffffffffffff7801000000000000000000000000000000000000000000000000909104811690831611155b1561088a576040517fb290253c00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6040805160808101825267ffffffffffffffff808816825286811660208301908152868216838501908152868316606085019081525f805460018101825590805294517f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5639095018054935192519151851678010000000000000000000000000000000000000000000000000277ffffffffffffffffffffffffffffffffffffffffffffffff92861670010000000000000000000000000000000002929092166fffffffffffffffffffffffffffffffff93861668010000000000000000027fffffffffffffffffffffffffffffffff000000000000000000000000000000009095169690951695909517929092171691909117179055517f3bff7b1e021b47f5dfd21d1d3fe2daaf3b9cbaca733c6e15b3a0da546657f19a906109fb90879087908790879067ffffffffffffffff948516815292841660208401529083166040830152909116606082015260800190565b60405180910390a15050505050565b610a12610f87565b610a1b8261108d565b610a258282611191565b5050565b5f610a326112ca565b507f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc90565b5f610a6181610ce6565b6107c3611339565b7ff0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00805468010000000000000000810460ff16159067ffffffffffffffff165f81158015610ab35750825b90505f8267ffffffffffffffff166001148015610acf5750303b155b905081158015610add575080155b15610b14576040517ff92ee8a900000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b84547fffffffffffffffffffffffffffffffffffffffffffffffff00000000000000001660011785558315610b755784547fffffffffffffffffffffffffffffffffffffffffffffff00ffffffffffffffff16680100000000000000001785555b73ffffffffffffffffffffffffffffffffffffffff8616610bc2576040517f3ef39b8100000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b610bca6113b2565b610bd26113b2565b610bda6113ba565b610c047f64b4740f54156feb06b7a9f424e5bce966a52344cf27635887cf63c0ebf2a61e5f6113ca565b610c0e5f87610cf0565b50610c397f64b4740f54156feb06b7a9f424e5bce966a52344cf27635887cf63c0ebf2a61e87610cf0565b508315610c9b5784547fffffffffffffffffffffffffffffffffffffffffffffff00ffffffffffffffff168555604051600181527fc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d29060200160405180910390a15b505050505050565b5f8281527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b6268006020526040902060010154610cdc81610ce6565b61074d8383610e0e565b6107c3813361146b565b5f8281527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b6268006020818152604080842073ffffffffffffffffffffffffffffffffffffffff8616855290915282205460ff16610e05575f8481526020828152604080832073ffffffffffffffffffffffffffffffffffffffff87168452909152902080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00166001179055610da13390565b73ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff16857f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d60405160405180910390a460019150506104b5565b5f9150506104b5565b5f8281527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b6268006020818152604080842073ffffffffffffffffffffffffffffffffffffffff8616855290915282205460ff1615610e05575f8481526020828152604080832073ffffffffffffffffffffffffffffffffffffffff8716808552925280832080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0016905551339287917ff6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b9190a460019150506104b5565b610ef2611511565b7fcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f0330080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff001681557f5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa335b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200160405180910390a150565b3073ffffffffffffffffffffffffffffffffffffffff7f000000000000000000000000000000000000000000000000000000000000000016148061105457507f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff1661103b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5473ffffffffffffffffffffffffffffffffffffffff1690565b73ffffffffffffffffffffffffffffffffffffffff1614155b1561108b576040517fe07c8dba00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b565b5f61109781610ce6565b73ffffffffffffffffffffffffffffffffffffffff821661113f576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602960248201527f4e657720696d706c656d656e746174696f6e2063616e6e6f74206265207a657260448201527f6f2061646472657373000000000000000000000000000000000000000000000060648201526084015b60405180910390fd5b6040805133815273ffffffffffffffffffffffffffffffffffffffff841660208201527fd30e1d298bf814ea43d22b4ce8298062b08609cd67496483769d836157dd52fa910160405180910390a15050565b8173ffffffffffffffffffffffffffffffffffffffff166352d1902d6040518163ffffffff1660e01b8152600401602060405180830381865afa925050508015611216575060408051601f3d9081017fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe016820190925261121391810190611cff565b60015b611264576040517f4c9c8ce300000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff83166004820152602401611136565b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc81146112c0576040517faa1d49a400000000000000000000000000000000000000000000000000000000815260048101829052602401611136565b6107ac838361156c565b3073ffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000161461108b576040517fe07c8dba00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6113416115ce565b7fcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f0330080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff001660011781557f62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a25833610f5c565b61108b61162a565b6113c261162a565b61108b611691565b7f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b6268005f611423845f9081527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800602052604090206001015490565b5f85815260208490526040808220600101869055519192508491839187917fbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff9190a450505050565b5f8281527f02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b6268006020908152604080832073ffffffffffffffffffffffffffffffffffffffff8516845290915290205460ff16610a25576040517fe2517d3f00000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff8216600482015260248101839052604401611136565b7fcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f033005460ff1661108b576040517f8dfc202b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b611575826116e2565b60405173ffffffffffffffffffffffffffffffffffffffff8316907fbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b905f90a28051156115c6576107ac82826117b0565b610a2561182f565b7fcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f033005460ff161561108b576040517fd93c066500000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b7ff0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a005468010000000000000000900460ff1661108b576040517fd7e6bcf800000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b61169961162a565b7fcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f0330080547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00169055565b8073ffffffffffffffffffffffffffffffffffffffff163b5f0361174a576040517f4c9c8ce300000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff82166004820152602401611136565b7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc80547fffffffffffffffffffffffff00000000000000000000000000000000000000001673ffffffffffffffffffffffffffffffffffffffff92909216919091179055565b60605f5f8473ffffffffffffffffffffffffffffffffffffffff16846040516117d99190611d16565b5f60405180830381855af49150503d805f8114611811576040519150601f19603f3d011682016040523d82523d5f602084013e611816565b606091505b5091509150611826858383611867565b95945050505050565b341561108b576040517fb398979f00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b60608261187c57611877826118f9565b6118f2565b81511580156118a0575073ffffffffffffffffffffffffffffffffffffffff84163b155b156118ef576040517f9996b31500000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff85166004820152602401611136565b50805b9392505050565b8051156119095780518082602001fd5b6040517fd6bda27500000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b5f6020828403121561194b575f5ffd5b81357fffffffff00000000000000000000000000000000000000000000000000000000811681146118f2575f5ffd5b5f6020828403121561198a575f5ffd5b5035919050565b604080825283519082018190525f9060208501906060840190835b81811015611a1857835167ffffffffffffffff815116845267ffffffffffffffff602082015116602085015267ffffffffffffffff604082015116604085015267ffffffffffffffff6060820151166060850152506080830192506020840193506001810190506119ac565b5050841515602085015291506118f29050565b803573ffffffffffffffffffffffffffffffffffffffff81168114611a4e575f5ffd5b919050565b5f5f60408385031215611a64575f5ffd5b82359150611a7460208401611a2b565b90509250929050565b803567ffffffffffffffff81168114611a4e575f5ffd5b5f5f5f5f60808587031215611aa7575f5ffd5b611ab085611a7d565b9350611abe60208601611a7d565b9250611acc60408601611a7d565b9150611ada60608601611a7d565b905092959194509250565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b5f5f60408385031215611b23575f5ffd5b611b2c83611a2b565b9150602083013567ffffffffffffffff811115611b47575f5ffd5b8301601f81018513611b57575f5ffd5b803567ffffffffffffffff811115611b7157611b71611ae5565b6040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0603f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8501160116810181811067ffffffffffffffff82111715611bdd57611bdd611ae5565b604052818152828201602001871015611bf4575f5ffd5b816020840160208301375f602083830101528093505050509250929050565b602081525f82518060208401528060208501604085015e5f6040828501015260407fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f83011684010191505092915050565b5f60208284031215611c76575f5ffd5b6118f282611a2b565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b808201808211156104b5576104b5611c7f565b818103818111156104b5576104b5611c7f565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52603260045260245ffd5b5f60208284031215611d0f575f5ffd5b5051919050565b5f82518060208501845e5f92019182525091905056fea26469706673582212208e14859721448338dfe1243a0d63121c43052e5410dd52ea8155ab1b83386cb464736f6c634300081c0033",
 }
 
 // RatesManagerABI is the input ABI used to generate the binding from.
@@ -241,12 +241,12 @@ func (_RatesManager *RatesManagerCallerSession) DEFAULTADMINROLE() ([32]byte, er
 	return _RatesManager.Contract.DEFAULTADMINROLE(&_RatesManager.CallOpts)
 }
 
-// RATESADMINROLE is a free data retrieval call binding the contract method 0x970b6d87.
+// RATESMANAGERROLE is a free data retrieval call binding the contract method 0xe3396735.
 //
-// Solidity: function RATES_ADMIN_ROLE() view returns(bytes32)
-func (_RatesManager *RatesManagerCaller) RATESADMINROLE(opts *bind.CallOpts) ([32]byte, error) {
+// Solidity: function RATES_MANAGER_ROLE() view returns(bytes32)
+func (_RatesManager *RatesManagerCaller) RATESMANAGERROLE(opts *bind.CallOpts) ([32]byte, error) {
 	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "RATES_ADMIN_ROLE")
+	err := _RatesManager.contract.Call(opts, &out, "RATES_MANAGER_ROLE")
 
 	if err != nil {
 		return *new([32]byte), err
@@ -258,111 +258,49 @@ func (_RatesManager *RatesManagerCaller) RATESADMINROLE(opts *bind.CallOpts) ([3
 
 }
 
-// RATESADMINROLE is a free data retrieval call binding the contract method 0x970b6d87.
+// RATESMANAGERROLE is a free data retrieval call binding the contract method 0xe3396735.
 //
-// Solidity: function RATES_ADMIN_ROLE() view returns(bytes32)
-func (_RatesManager *RatesManagerSession) RATESADMINROLE() ([32]byte, error) {
-	return _RatesManager.Contract.RATESADMINROLE(&_RatesManager.CallOpts)
+// Solidity: function RATES_MANAGER_ROLE() view returns(bytes32)
+func (_RatesManager *RatesManagerSession) RATESMANAGERROLE() ([32]byte, error) {
+	return _RatesManager.Contract.RATESMANAGERROLE(&_RatesManager.CallOpts)
 }
 
-// RATESADMINROLE is a free data retrieval call binding the contract method 0x970b6d87.
+// RATESMANAGERROLE is a free data retrieval call binding the contract method 0xe3396735.
 //
-// Solidity: function RATES_ADMIN_ROLE() view returns(bytes32)
-func (_RatesManager *RatesManagerCallerSession) RATESADMINROLE() ([32]byte, error) {
-	return _RatesManager.Contract.RATESADMINROLE(&_RatesManager.CallOpts)
+// Solidity: function RATES_MANAGER_ROLE() view returns(bytes32)
+func (_RatesManager *RatesManagerCallerSession) RATESMANAGERROLE() ([32]byte, error) {
+	return _RatesManager.Contract.RATESMANAGERROLE(&_RatesManager.CallOpts)
 }
 
-// DefaultAdmin is a free data retrieval call binding the contract method 0x84ef8ffc.
+// UPGRADEINTERFACEVERSION is a free data retrieval call binding the contract method 0xad3cb1cc.
 //
-// Solidity: function defaultAdmin() view returns(address)
-func (_RatesManager *RatesManagerCaller) DefaultAdmin(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function UPGRADE_INTERFACE_VERSION() view returns(string)
+func (_RatesManager *RatesManagerCaller) UPGRADEINTERFACEVERSION(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "defaultAdmin")
+	err := _RatesManager.contract.Call(opts, &out, "UPGRADE_INTERFACE_VERSION")
 
 	if err != nil {
-		return *new(common.Address), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
 }
 
-// DefaultAdmin is a free data retrieval call binding the contract method 0x84ef8ffc.
+// UPGRADEINTERFACEVERSION is a free data retrieval call binding the contract method 0xad3cb1cc.
 //
-// Solidity: function defaultAdmin() view returns(address)
-func (_RatesManager *RatesManagerSession) DefaultAdmin() (common.Address, error) {
-	return _RatesManager.Contract.DefaultAdmin(&_RatesManager.CallOpts)
+// Solidity: function UPGRADE_INTERFACE_VERSION() view returns(string)
+func (_RatesManager *RatesManagerSession) UPGRADEINTERFACEVERSION() (string, error) {
+	return _RatesManager.Contract.UPGRADEINTERFACEVERSION(&_RatesManager.CallOpts)
 }
 
-// DefaultAdmin is a free data retrieval call binding the contract method 0x84ef8ffc.
+// UPGRADEINTERFACEVERSION is a free data retrieval call binding the contract method 0xad3cb1cc.
 //
-// Solidity: function defaultAdmin() view returns(address)
-func (_RatesManager *RatesManagerCallerSession) DefaultAdmin() (common.Address, error) {
-	return _RatesManager.Contract.DefaultAdmin(&_RatesManager.CallOpts)
-}
-
-// DefaultAdminDelay is a free data retrieval call binding the contract method 0xcc8463c8.
-//
-// Solidity: function defaultAdminDelay() view returns(uint48)
-func (_RatesManager *RatesManagerCaller) DefaultAdminDelay(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "defaultAdminDelay")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// DefaultAdminDelay is a free data retrieval call binding the contract method 0xcc8463c8.
-//
-// Solidity: function defaultAdminDelay() view returns(uint48)
-func (_RatesManager *RatesManagerSession) DefaultAdminDelay() (*big.Int, error) {
-	return _RatesManager.Contract.DefaultAdminDelay(&_RatesManager.CallOpts)
-}
-
-// DefaultAdminDelay is a free data retrieval call binding the contract method 0xcc8463c8.
-//
-// Solidity: function defaultAdminDelay() view returns(uint48)
-func (_RatesManager *RatesManagerCallerSession) DefaultAdminDelay() (*big.Int, error) {
-	return _RatesManager.Contract.DefaultAdminDelay(&_RatesManager.CallOpts)
-}
-
-// DefaultAdminDelayIncreaseWait is a free data retrieval call binding the contract method 0x022d63fb.
-//
-// Solidity: function defaultAdminDelayIncreaseWait() view returns(uint48)
-func (_RatesManager *RatesManagerCaller) DefaultAdminDelayIncreaseWait(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "defaultAdminDelayIncreaseWait")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// DefaultAdminDelayIncreaseWait is a free data retrieval call binding the contract method 0x022d63fb.
-//
-// Solidity: function defaultAdminDelayIncreaseWait() view returns(uint48)
-func (_RatesManager *RatesManagerSession) DefaultAdminDelayIncreaseWait() (*big.Int, error) {
-	return _RatesManager.Contract.DefaultAdminDelayIncreaseWait(&_RatesManager.CallOpts)
-}
-
-// DefaultAdminDelayIncreaseWait is a free data retrieval call binding the contract method 0x022d63fb.
-//
-// Solidity: function defaultAdminDelayIncreaseWait() view returns(uint48)
-func (_RatesManager *RatesManagerCallerSession) DefaultAdminDelayIncreaseWait() (*big.Int, error) {
-	return _RatesManager.Contract.DefaultAdminDelayIncreaseWait(&_RatesManager.CallOpts)
+// Solidity: function UPGRADE_INTERFACE_VERSION() view returns(string)
+func (_RatesManager *RatesManagerCallerSession) UPGRADEINTERFACEVERSION() (string, error) {
+	return _RatesManager.Contract.UPGRADEINTERFACEVERSION(&_RatesManager.CallOpts)
 }
 
 // GetRates is a free data retrieval call binding the contract method 0x081802b1.
@@ -503,125 +441,66 @@ func (_RatesManager *RatesManagerCallerSession) HasRole(role [32]byte, account c
 	return _RatesManager.Contract.HasRole(&_RatesManager.CallOpts, role, account)
 }
 
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+// Paused is a free data retrieval call binding the contract method 0x5c975abb.
 //
-// Solidity: function owner() view returns(address)
-func (_RatesManager *RatesManagerCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function paused() view returns(bool)
+func (_RatesManager *RatesManagerCaller) Paused(opts *bind.CallOpts) (bool, error) {
 	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "owner")
+	err := _RatesManager.contract.Call(opts, &out, "paused")
 
 	if err != nil {
-		return *new(common.Address), err
+		return *new(bool), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
 
 	return out0, err
 
 }
 
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+// Paused is a free data retrieval call binding the contract method 0x5c975abb.
 //
-// Solidity: function owner() view returns(address)
-func (_RatesManager *RatesManagerSession) Owner() (common.Address, error) {
-	return _RatesManager.Contract.Owner(&_RatesManager.CallOpts)
+// Solidity: function paused() view returns(bool)
+func (_RatesManager *RatesManagerSession) Paused() (bool, error) {
+	return _RatesManager.Contract.Paused(&_RatesManager.CallOpts)
 }
 
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+// Paused is a free data retrieval call binding the contract method 0x5c975abb.
 //
-// Solidity: function owner() view returns(address)
-func (_RatesManager *RatesManagerCallerSession) Owner() (common.Address, error) {
-	return _RatesManager.Contract.Owner(&_RatesManager.CallOpts)
+// Solidity: function paused() view returns(bool)
+func (_RatesManager *RatesManagerCallerSession) Paused() (bool, error) {
+	return _RatesManager.Contract.Paused(&_RatesManager.CallOpts)
 }
 
-// PendingDefaultAdmin is a free data retrieval call binding the contract method 0xcf6eefb7.
+// ProxiableUUID is a free data retrieval call binding the contract method 0x52d1902d.
 //
-// Solidity: function pendingDefaultAdmin() view returns(address newAdmin, uint48 schedule)
-func (_RatesManager *RatesManagerCaller) PendingDefaultAdmin(opts *bind.CallOpts) (struct {
-	NewAdmin common.Address
-	Schedule *big.Int
-}, error) {
+// Solidity: function proxiableUUID() view returns(bytes32)
+func (_RatesManager *RatesManagerCaller) ProxiableUUID(opts *bind.CallOpts) ([32]byte, error) {
 	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "pendingDefaultAdmin")
+	err := _RatesManager.contract.Call(opts, &out, "proxiableUUID")
 
-	outstruct := new(struct {
-		NewAdmin common.Address
-		Schedule *big.Int
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new([32]byte), err
 	}
 
-	outstruct.NewAdmin = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-	outstruct.Schedule = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
 
-	return *outstruct, err
-
-}
-
-// PendingDefaultAdmin is a free data retrieval call binding the contract method 0xcf6eefb7.
-//
-// Solidity: function pendingDefaultAdmin() view returns(address newAdmin, uint48 schedule)
-func (_RatesManager *RatesManagerSession) PendingDefaultAdmin() (struct {
-	NewAdmin common.Address
-	Schedule *big.Int
-}, error) {
-	return _RatesManager.Contract.PendingDefaultAdmin(&_RatesManager.CallOpts)
-}
-
-// PendingDefaultAdmin is a free data retrieval call binding the contract method 0xcf6eefb7.
-//
-// Solidity: function pendingDefaultAdmin() view returns(address newAdmin, uint48 schedule)
-func (_RatesManager *RatesManagerCallerSession) PendingDefaultAdmin() (struct {
-	NewAdmin common.Address
-	Schedule *big.Int
-}, error) {
-	return _RatesManager.Contract.PendingDefaultAdmin(&_RatesManager.CallOpts)
-}
-
-// PendingDefaultAdminDelay is a free data retrieval call binding the contract method 0xa1eda53c.
-//
-// Solidity: function pendingDefaultAdminDelay() view returns(uint48 newDelay, uint48 schedule)
-func (_RatesManager *RatesManagerCaller) PendingDefaultAdminDelay(opts *bind.CallOpts) (struct {
-	NewDelay *big.Int
-	Schedule *big.Int
-}, error) {
-	var out []interface{}
-	err := _RatesManager.contract.Call(opts, &out, "pendingDefaultAdminDelay")
-
-	outstruct := new(struct {
-		NewDelay *big.Int
-		Schedule *big.Int
-	})
-	if err != nil {
-		return *outstruct, err
-	}
-
-	outstruct.NewDelay = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.Schedule = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-
-	return *outstruct, err
+	return out0, err
 
 }
 
-// PendingDefaultAdminDelay is a free data retrieval call binding the contract method 0xa1eda53c.
+// ProxiableUUID is a free data retrieval call binding the contract method 0x52d1902d.
 //
-// Solidity: function pendingDefaultAdminDelay() view returns(uint48 newDelay, uint48 schedule)
-func (_RatesManager *RatesManagerSession) PendingDefaultAdminDelay() (struct {
-	NewDelay *big.Int
-	Schedule *big.Int
-}, error) {
-	return _RatesManager.Contract.PendingDefaultAdminDelay(&_RatesManager.CallOpts)
+// Solidity: function proxiableUUID() view returns(bytes32)
+func (_RatesManager *RatesManagerSession) ProxiableUUID() ([32]byte, error) {
+	return _RatesManager.Contract.ProxiableUUID(&_RatesManager.CallOpts)
 }
 
-// PendingDefaultAdminDelay is a free data retrieval call binding the contract method 0xa1eda53c.
+// ProxiableUUID is a free data retrieval call binding the contract method 0x52d1902d.
 //
-// Solidity: function pendingDefaultAdminDelay() view returns(uint48 newDelay, uint48 schedule)
-func (_RatesManager *RatesManagerCallerSession) PendingDefaultAdminDelay() (struct {
-	NewDelay *big.Int
-	Schedule *big.Int
-}, error) {
-	return _RatesManager.Contract.PendingDefaultAdminDelay(&_RatesManager.CallOpts)
+// Solidity: function proxiableUUID() view returns(bytes32)
+func (_RatesManager *RatesManagerCallerSession) ProxiableUUID() ([32]byte, error) {
+	return _RatesManager.Contract.ProxiableUUID(&_RatesManager.CallOpts)
 }
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
@@ -655,27 +534,6 @@ func (_RatesManager *RatesManagerCallerSession) SupportsInterface(interfaceId [4
 	return _RatesManager.Contract.SupportsInterface(&_RatesManager.CallOpts, interfaceId)
 }
 
-// AcceptDefaultAdminTransfer is a paid mutator transaction binding the contract method 0xcefc1429.
-//
-// Solidity: function acceptDefaultAdminTransfer() returns()
-func (_RatesManager *RatesManagerTransactor) AcceptDefaultAdminTransfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _RatesManager.contract.Transact(opts, "acceptDefaultAdminTransfer")
-}
-
-// AcceptDefaultAdminTransfer is a paid mutator transaction binding the contract method 0xcefc1429.
-//
-// Solidity: function acceptDefaultAdminTransfer() returns()
-func (_RatesManager *RatesManagerSession) AcceptDefaultAdminTransfer() (*types.Transaction, error) {
-	return _RatesManager.Contract.AcceptDefaultAdminTransfer(&_RatesManager.TransactOpts)
-}
-
-// AcceptDefaultAdminTransfer is a paid mutator transaction binding the contract method 0xcefc1429.
-//
-// Solidity: function acceptDefaultAdminTransfer() returns()
-func (_RatesManager *RatesManagerTransactorSession) AcceptDefaultAdminTransfer() (*types.Transaction, error) {
-	return _RatesManager.Contract.AcceptDefaultAdminTransfer(&_RatesManager.TransactOpts)
-}
-
 // AddRates is a paid mutator transaction binding the contract method 0x44412107.
 //
 // Solidity: function addRates(uint64 messageFee, uint64 storageFee, uint64 congestionFee, uint64 startTime) returns()
@@ -695,69 +553,6 @@ func (_RatesManager *RatesManagerSession) AddRates(messageFee uint64, storageFee
 // Solidity: function addRates(uint64 messageFee, uint64 storageFee, uint64 congestionFee, uint64 startTime) returns()
 func (_RatesManager *RatesManagerTransactorSession) AddRates(messageFee uint64, storageFee uint64, congestionFee uint64, startTime uint64) (*types.Transaction, error) {
 	return _RatesManager.Contract.AddRates(&_RatesManager.TransactOpts, messageFee, storageFee, congestionFee, startTime)
-}
-
-// BeginDefaultAdminTransfer is a paid mutator transaction binding the contract method 0x634e93da.
-//
-// Solidity: function beginDefaultAdminTransfer(address newAdmin) returns()
-func (_RatesManager *RatesManagerTransactor) BeginDefaultAdminTransfer(opts *bind.TransactOpts, newAdmin common.Address) (*types.Transaction, error) {
-	return _RatesManager.contract.Transact(opts, "beginDefaultAdminTransfer", newAdmin)
-}
-
-// BeginDefaultAdminTransfer is a paid mutator transaction binding the contract method 0x634e93da.
-//
-// Solidity: function beginDefaultAdminTransfer(address newAdmin) returns()
-func (_RatesManager *RatesManagerSession) BeginDefaultAdminTransfer(newAdmin common.Address) (*types.Transaction, error) {
-	return _RatesManager.Contract.BeginDefaultAdminTransfer(&_RatesManager.TransactOpts, newAdmin)
-}
-
-// BeginDefaultAdminTransfer is a paid mutator transaction binding the contract method 0x634e93da.
-//
-// Solidity: function beginDefaultAdminTransfer(address newAdmin) returns()
-func (_RatesManager *RatesManagerTransactorSession) BeginDefaultAdminTransfer(newAdmin common.Address) (*types.Transaction, error) {
-	return _RatesManager.Contract.BeginDefaultAdminTransfer(&_RatesManager.TransactOpts, newAdmin)
-}
-
-// CancelDefaultAdminTransfer is a paid mutator transaction binding the contract method 0xd602b9fd.
-//
-// Solidity: function cancelDefaultAdminTransfer() returns()
-func (_RatesManager *RatesManagerTransactor) CancelDefaultAdminTransfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _RatesManager.contract.Transact(opts, "cancelDefaultAdminTransfer")
-}
-
-// CancelDefaultAdminTransfer is a paid mutator transaction binding the contract method 0xd602b9fd.
-//
-// Solidity: function cancelDefaultAdminTransfer() returns()
-func (_RatesManager *RatesManagerSession) CancelDefaultAdminTransfer() (*types.Transaction, error) {
-	return _RatesManager.Contract.CancelDefaultAdminTransfer(&_RatesManager.TransactOpts)
-}
-
-// CancelDefaultAdminTransfer is a paid mutator transaction binding the contract method 0xd602b9fd.
-//
-// Solidity: function cancelDefaultAdminTransfer() returns()
-func (_RatesManager *RatesManagerTransactorSession) CancelDefaultAdminTransfer() (*types.Transaction, error) {
-	return _RatesManager.Contract.CancelDefaultAdminTransfer(&_RatesManager.TransactOpts)
-}
-
-// ChangeDefaultAdminDelay is a paid mutator transaction binding the contract method 0x649a5ec7.
-//
-// Solidity: function changeDefaultAdminDelay(uint48 newDelay) returns()
-func (_RatesManager *RatesManagerTransactor) ChangeDefaultAdminDelay(opts *bind.TransactOpts, newDelay *big.Int) (*types.Transaction, error) {
-	return _RatesManager.contract.Transact(opts, "changeDefaultAdminDelay", newDelay)
-}
-
-// ChangeDefaultAdminDelay is a paid mutator transaction binding the contract method 0x649a5ec7.
-//
-// Solidity: function changeDefaultAdminDelay(uint48 newDelay) returns()
-func (_RatesManager *RatesManagerSession) ChangeDefaultAdminDelay(newDelay *big.Int) (*types.Transaction, error) {
-	return _RatesManager.Contract.ChangeDefaultAdminDelay(&_RatesManager.TransactOpts, newDelay)
-}
-
-// ChangeDefaultAdminDelay is a paid mutator transaction binding the contract method 0x649a5ec7.
-//
-// Solidity: function changeDefaultAdminDelay(uint48 newDelay) returns()
-func (_RatesManager *RatesManagerTransactorSession) ChangeDefaultAdminDelay(newDelay *big.Int) (*types.Transaction, error) {
-	return _RatesManager.Contract.ChangeDefaultAdminDelay(&_RatesManager.TransactOpts, newDelay)
 }
 
 // GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
@@ -781,25 +576,67 @@ func (_RatesManager *RatesManagerTransactorSession) GrantRole(role [32]byte, acc
 	return _RatesManager.Contract.GrantRole(&_RatesManager.TransactOpts, role, account)
 }
 
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
+// Initialize is a paid mutator transaction binding the contract method 0xc4d66de8.
 //
-// Solidity: function renounceRole(bytes32 role, address account) returns()
-func (_RatesManager *RatesManagerTransactor) RenounceRole(opts *bind.TransactOpts, role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _RatesManager.contract.Transact(opts, "renounceRole", role, account)
+// Solidity: function initialize(address admin) returns()
+func (_RatesManager *RatesManagerTransactor) Initialize(opts *bind.TransactOpts, admin common.Address) (*types.Transaction, error) {
+	return _RatesManager.contract.Transact(opts, "initialize", admin)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0xc4d66de8.
+//
+// Solidity: function initialize(address admin) returns()
+func (_RatesManager *RatesManagerSession) Initialize(admin common.Address) (*types.Transaction, error) {
+	return _RatesManager.Contract.Initialize(&_RatesManager.TransactOpts, admin)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0xc4d66de8.
+//
+// Solidity: function initialize(address admin) returns()
+func (_RatesManager *RatesManagerTransactorSession) Initialize(admin common.Address) (*types.Transaction, error) {
+	return _RatesManager.Contract.Initialize(&_RatesManager.TransactOpts, admin)
+}
+
+// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
+//
+// Solidity: function pause() returns()
+func (_RatesManager *RatesManagerTransactor) Pause(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _RatesManager.contract.Transact(opts, "pause")
+}
+
+// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
+//
+// Solidity: function pause() returns()
+func (_RatesManager *RatesManagerSession) Pause() (*types.Transaction, error) {
+	return _RatesManager.Contract.Pause(&_RatesManager.TransactOpts)
+}
+
+// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
+//
+// Solidity: function pause() returns()
+func (_RatesManager *RatesManagerTransactorSession) Pause() (*types.Transaction, error) {
+	return _RatesManager.Contract.Pause(&_RatesManager.TransactOpts)
 }
 
 // RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
 //
-// Solidity: function renounceRole(bytes32 role, address account) returns()
-func (_RatesManager *RatesManagerSession) RenounceRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _RatesManager.Contract.RenounceRole(&_RatesManager.TransactOpts, role, account)
+// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
+func (_RatesManager *RatesManagerTransactor) RenounceRole(opts *bind.TransactOpts, role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
+	return _RatesManager.contract.Transact(opts, "renounceRole", role, callerConfirmation)
 }
 
 // RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
 //
-// Solidity: function renounceRole(bytes32 role, address account) returns()
-func (_RatesManager *RatesManagerTransactorSession) RenounceRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _RatesManager.Contract.RenounceRole(&_RatesManager.TransactOpts, role, account)
+// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
+func (_RatesManager *RatesManagerSession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
+	return _RatesManager.Contract.RenounceRole(&_RatesManager.TransactOpts, role, callerConfirmation)
+}
+
+// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
+//
+// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
+func (_RatesManager *RatesManagerTransactorSession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
+	return _RatesManager.Contract.RenounceRole(&_RatesManager.TransactOpts, role, callerConfirmation)
 }
 
 // RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
@@ -823,30 +660,51 @@ func (_RatesManager *RatesManagerTransactorSession) RevokeRole(role [32]byte, ac
 	return _RatesManager.Contract.RevokeRole(&_RatesManager.TransactOpts, role, account)
 }
 
-// RollbackDefaultAdminDelay is a paid mutator transaction binding the contract method 0x0aa6220b.
+// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
 //
-// Solidity: function rollbackDefaultAdminDelay() returns()
-func (_RatesManager *RatesManagerTransactor) RollbackDefaultAdminDelay(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _RatesManager.contract.Transact(opts, "rollbackDefaultAdminDelay")
+// Solidity: function unpause() returns()
+func (_RatesManager *RatesManagerTransactor) Unpause(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _RatesManager.contract.Transact(opts, "unpause")
 }
 
-// RollbackDefaultAdminDelay is a paid mutator transaction binding the contract method 0x0aa6220b.
+// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
 //
-// Solidity: function rollbackDefaultAdminDelay() returns()
-func (_RatesManager *RatesManagerSession) RollbackDefaultAdminDelay() (*types.Transaction, error) {
-	return _RatesManager.Contract.RollbackDefaultAdminDelay(&_RatesManager.TransactOpts)
+// Solidity: function unpause() returns()
+func (_RatesManager *RatesManagerSession) Unpause() (*types.Transaction, error) {
+	return _RatesManager.Contract.Unpause(&_RatesManager.TransactOpts)
 }
 
-// RollbackDefaultAdminDelay is a paid mutator transaction binding the contract method 0x0aa6220b.
+// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
 //
-// Solidity: function rollbackDefaultAdminDelay() returns()
-func (_RatesManager *RatesManagerTransactorSession) RollbackDefaultAdminDelay() (*types.Transaction, error) {
-	return _RatesManager.Contract.RollbackDefaultAdminDelay(&_RatesManager.TransactOpts)
+// Solidity: function unpause() returns()
+func (_RatesManager *RatesManagerTransactorSession) Unpause() (*types.Transaction, error) {
+	return _RatesManager.Contract.Unpause(&_RatesManager.TransactOpts)
 }
 
-// RatesManagerDefaultAdminDelayChangeCanceledIterator is returned from FilterDefaultAdminDelayChangeCanceled and is used to iterate over the raw logs and unpacked data for DefaultAdminDelayChangeCanceled events raised by the RatesManager contract.
-type RatesManagerDefaultAdminDelayChangeCanceledIterator struct {
-	Event *RatesManagerDefaultAdminDelayChangeCanceled // Event containing the contract specifics and raw log
+// UpgradeToAndCall is a paid mutator transaction binding the contract method 0x4f1ef286.
+//
+// Solidity: function upgradeToAndCall(address newImplementation, bytes data) payable returns()
+func (_RatesManager *RatesManagerTransactor) UpgradeToAndCall(opts *bind.TransactOpts, newImplementation common.Address, data []byte) (*types.Transaction, error) {
+	return _RatesManager.contract.Transact(opts, "upgradeToAndCall", newImplementation, data)
+}
+
+// UpgradeToAndCall is a paid mutator transaction binding the contract method 0x4f1ef286.
+//
+// Solidity: function upgradeToAndCall(address newImplementation, bytes data) payable returns()
+func (_RatesManager *RatesManagerSession) UpgradeToAndCall(newImplementation common.Address, data []byte) (*types.Transaction, error) {
+	return _RatesManager.Contract.UpgradeToAndCall(&_RatesManager.TransactOpts, newImplementation, data)
+}
+
+// UpgradeToAndCall is a paid mutator transaction binding the contract method 0x4f1ef286.
+//
+// Solidity: function upgradeToAndCall(address newImplementation, bytes data) payable returns()
+func (_RatesManager *RatesManagerTransactorSession) UpgradeToAndCall(newImplementation common.Address, data []byte) (*types.Transaction, error) {
+	return _RatesManager.Contract.UpgradeToAndCall(&_RatesManager.TransactOpts, newImplementation, data)
+}
+
+// RatesManagerInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the RatesManager contract.
+type RatesManagerInitializedIterator struct {
+	Event *RatesManagerInitialized // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -860,7 +718,7 @@ type RatesManagerDefaultAdminDelayChangeCanceledIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *RatesManagerDefaultAdminDelayChangeCanceledIterator) Next() bool {
+func (it *RatesManagerInitializedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -869,7 +727,7 @@ func (it *RatesManagerDefaultAdminDelayChangeCanceledIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(RatesManagerDefaultAdminDelayChangeCanceled)
+			it.Event = new(RatesManagerInitialized)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -884,7 +742,7 @@ func (it *RatesManagerDefaultAdminDelayChangeCanceledIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(RatesManagerDefaultAdminDelayChangeCanceled)
+		it.Event = new(RatesManagerInitialized)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -900,40 +758,41 @@ func (it *RatesManagerDefaultAdminDelayChangeCanceledIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *RatesManagerDefaultAdminDelayChangeCanceledIterator) Error() error {
+func (it *RatesManagerInitializedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *RatesManagerDefaultAdminDelayChangeCanceledIterator) Close() error {
+func (it *RatesManagerInitializedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// RatesManagerDefaultAdminDelayChangeCanceled represents a DefaultAdminDelayChangeCanceled event raised by the RatesManager contract.
-type RatesManagerDefaultAdminDelayChangeCanceled struct {
-	Raw types.Log // Blockchain specific contextual infos
+// RatesManagerInitialized represents a Initialized event raised by the RatesManager contract.
+type RatesManagerInitialized struct {
+	Version uint64
+	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterDefaultAdminDelayChangeCanceled is a free log retrieval operation binding the contract event 0x2b1fa2edafe6f7b9e97c1a9e0c3660e645beb2dcaa2d45bdbf9beaf5472e1ec5.
+// FilterInitialized is a free log retrieval operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
-// Solidity: event DefaultAdminDelayChangeCanceled()
-func (_RatesManager *RatesManagerFilterer) FilterDefaultAdminDelayChangeCanceled(opts *bind.FilterOpts) (*RatesManagerDefaultAdminDelayChangeCanceledIterator, error) {
+// Solidity: event Initialized(uint64 version)
+func (_RatesManager *RatesManagerFilterer) FilterInitialized(opts *bind.FilterOpts) (*RatesManagerInitializedIterator, error) {
 
-	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "DefaultAdminDelayChangeCanceled")
+	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
-	return &RatesManagerDefaultAdminDelayChangeCanceledIterator{contract: _RatesManager.contract, event: "DefaultAdminDelayChangeCanceled", logs: logs, sub: sub}, nil
+	return &RatesManagerInitializedIterator{contract: _RatesManager.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-// WatchDefaultAdminDelayChangeCanceled is a free log subscription operation binding the contract event 0x2b1fa2edafe6f7b9e97c1a9e0c3660e645beb2dcaa2d45bdbf9beaf5472e1ec5.
+// WatchInitialized is a free log subscription operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
-// Solidity: event DefaultAdminDelayChangeCanceled()
-func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminDelayChangeCanceled(opts *bind.WatchOpts, sink chan<- *RatesManagerDefaultAdminDelayChangeCanceled) (event.Subscription, error) {
+// Solidity: event Initialized(uint64 version)
+func (_RatesManager *RatesManagerFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *RatesManagerInitialized) (event.Subscription, error) {
 
-	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "DefaultAdminDelayChangeCanceled")
+	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "Initialized")
 	if err != nil {
 		return nil, err
 	}
@@ -943,8 +802,8 @@ func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminDelayChangeCanceled(
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(RatesManagerDefaultAdminDelayChangeCanceled)
-				if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminDelayChangeCanceled", log); err != nil {
+				event := new(RatesManagerInitialized)
+				if err := _RatesManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -965,21 +824,21 @@ func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminDelayChangeCanceled(
 	}), nil
 }
 
-// ParseDefaultAdminDelayChangeCanceled is a log parse operation binding the contract event 0x2b1fa2edafe6f7b9e97c1a9e0c3660e645beb2dcaa2d45bdbf9beaf5472e1ec5.
+// ParseInitialized is a log parse operation binding the contract event 0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2.
 //
-// Solidity: event DefaultAdminDelayChangeCanceled()
-func (_RatesManager *RatesManagerFilterer) ParseDefaultAdminDelayChangeCanceled(log types.Log) (*RatesManagerDefaultAdminDelayChangeCanceled, error) {
-	event := new(RatesManagerDefaultAdminDelayChangeCanceled)
-	if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminDelayChangeCanceled", log); err != nil {
+// Solidity: event Initialized(uint64 version)
+func (_RatesManager *RatesManagerFilterer) ParseInitialized(log types.Log) (*RatesManagerInitialized, error) {
+	event := new(RatesManagerInitialized)
+	if err := _RatesManager.contract.UnpackLog(event, "Initialized", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// RatesManagerDefaultAdminDelayChangeScheduledIterator is returned from FilterDefaultAdminDelayChangeScheduled and is used to iterate over the raw logs and unpacked data for DefaultAdminDelayChangeScheduled events raised by the RatesManager contract.
-type RatesManagerDefaultAdminDelayChangeScheduledIterator struct {
-	Event *RatesManagerDefaultAdminDelayChangeScheduled // Event containing the contract specifics and raw log
+// RatesManagerPausedIterator is returned from FilterPaused and is used to iterate over the raw logs and unpacked data for Paused events raised by the RatesManager contract.
+type RatesManagerPausedIterator struct {
+	Event *RatesManagerPaused // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -993,7 +852,7 @@ type RatesManagerDefaultAdminDelayChangeScheduledIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *RatesManagerDefaultAdminDelayChangeScheduledIterator) Next() bool {
+func (it *RatesManagerPausedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1002,7 +861,7 @@ func (it *RatesManagerDefaultAdminDelayChangeScheduledIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(RatesManagerDefaultAdminDelayChangeScheduled)
+			it.Event = new(RatesManagerPaused)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1017,7 +876,7 @@ func (it *RatesManagerDefaultAdminDelayChangeScheduledIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(RatesManagerDefaultAdminDelayChangeScheduled)
+		it.Event = new(RatesManagerPaused)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1033,42 +892,41 @@ func (it *RatesManagerDefaultAdminDelayChangeScheduledIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *RatesManagerDefaultAdminDelayChangeScheduledIterator) Error() error {
+func (it *RatesManagerPausedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *RatesManagerDefaultAdminDelayChangeScheduledIterator) Close() error {
+func (it *RatesManagerPausedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// RatesManagerDefaultAdminDelayChangeScheduled represents a DefaultAdminDelayChangeScheduled event raised by the RatesManager contract.
-type RatesManagerDefaultAdminDelayChangeScheduled struct {
-	NewDelay       *big.Int
-	EffectSchedule *big.Int
-	Raw            types.Log // Blockchain specific contextual infos
+// RatesManagerPaused represents a Paused event raised by the RatesManager contract.
+type RatesManagerPaused struct {
+	Account common.Address
+	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterDefaultAdminDelayChangeScheduled is a free log retrieval operation binding the contract event 0xf1038c18cf84a56e432fdbfaf746924b7ea511dfe03a6506a0ceba4888788d9b.
+// FilterPaused is a free log retrieval operation binding the contract event 0x62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a258.
 //
-// Solidity: event DefaultAdminDelayChangeScheduled(uint48 newDelay, uint48 effectSchedule)
-func (_RatesManager *RatesManagerFilterer) FilterDefaultAdminDelayChangeScheduled(opts *bind.FilterOpts) (*RatesManagerDefaultAdminDelayChangeScheduledIterator, error) {
+// Solidity: event Paused(address account)
+func (_RatesManager *RatesManagerFilterer) FilterPaused(opts *bind.FilterOpts) (*RatesManagerPausedIterator, error) {
 
-	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "DefaultAdminDelayChangeScheduled")
+	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "Paused")
 	if err != nil {
 		return nil, err
 	}
-	return &RatesManagerDefaultAdminDelayChangeScheduledIterator{contract: _RatesManager.contract, event: "DefaultAdminDelayChangeScheduled", logs: logs, sub: sub}, nil
+	return &RatesManagerPausedIterator{contract: _RatesManager.contract, event: "Paused", logs: logs, sub: sub}, nil
 }
 
-// WatchDefaultAdminDelayChangeScheduled is a free log subscription operation binding the contract event 0xf1038c18cf84a56e432fdbfaf746924b7ea511dfe03a6506a0ceba4888788d9b.
+// WatchPaused is a free log subscription operation binding the contract event 0x62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a258.
 //
-// Solidity: event DefaultAdminDelayChangeScheduled(uint48 newDelay, uint48 effectSchedule)
-func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminDelayChangeScheduled(opts *bind.WatchOpts, sink chan<- *RatesManagerDefaultAdminDelayChangeScheduled) (event.Subscription, error) {
+// Solidity: event Paused(address account)
+func (_RatesManager *RatesManagerFilterer) WatchPaused(opts *bind.WatchOpts, sink chan<- *RatesManagerPaused) (event.Subscription, error) {
 
-	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "DefaultAdminDelayChangeScheduled")
+	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "Paused")
 	if err != nil {
 		return nil, err
 	}
@@ -1078,8 +936,8 @@ func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminDelayChangeScheduled
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(RatesManagerDefaultAdminDelayChangeScheduled)
-				if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminDelayChangeScheduled", log); err != nil {
+				event := new(RatesManagerPaused)
+				if err := _RatesManager.contract.UnpackLog(event, "Paused", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1100,290 +958,12 @@ func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminDelayChangeScheduled
 	}), nil
 }
 
-// ParseDefaultAdminDelayChangeScheduled is a log parse operation binding the contract event 0xf1038c18cf84a56e432fdbfaf746924b7ea511dfe03a6506a0ceba4888788d9b.
+// ParsePaused is a log parse operation binding the contract event 0x62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a258.
 //
-// Solidity: event DefaultAdminDelayChangeScheduled(uint48 newDelay, uint48 effectSchedule)
-func (_RatesManager *RatesManagerFilterer) ParseDefaultAdminDelayChangeScheduled(log types.Log) (*RatesManagerDefaultAdminDelayChangeScheduled, error) {
-	event := new(RatesManagerDefaultAdminDelayChangeScheduled)
-	if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminDelayChangeScheduled", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// RatesManagerDefaultAdminTransferCanceledIterator is returned from FilterDefaultAdminTransferCanceled and is used to iterate over the raw logs and unpacked data for DefaultAdminTransferCanceled events raised by the RatesManager contract.
-type RatesManagerDefaultAdminTransferCanceledIterator struct {
-	Event *RatesManagerDefaultAdminTransferCanceled // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *RatesManagerDefaultAdminTransferCanceledIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(RatesManagerDefaultAdminTransferCanceled)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(RatesManagerDefaultAdminTransferCanceled)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *RatesManagerDefaultAdminTransferCanceledIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *RatesManagerDefaultAdminTransferCanceledIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// RatesManagerDefaultAdminTransferCanceled represents a DefaultAdminTransferCanceled event raised by the RatesManager contract.
-type RatesManagerDefaultAdminTransferCanceled struct {
-	Raw types.Log // Blockchain specific contextual infos
-}
-
-// FilterDefaultAdminTransferCanceled is a free log retrieval operation binding the contract event 0x8886ebfc4259abdbc16601dd8fb5678e54878f47b3c34836cfc51154a9605109.
-//
-// Solidity: event DefaultAdminTransferCanceled()
-func (_RatesManager *RatesManagerFilterer) FilterDefaultAdminTransferCanceled(opts *bind.FilterOpts) (*RatesManagerDefaultAdminTransferCanceledIterator, error) {
-
-	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "DefaultAdminTransferCanceled")
-	if err != nil {
-		return nil, err
-	}
-	return &RatesManagerDefaultAdminTransferCanceledIterator{contract: _RatesManager.contract, event: "DefaultAdminTransferCanceled", logs: logs, sub: sub}, nil
-}
-
-// WatchDefaultAdminTransferCanceled is a free log subscription operation binding the contract event 0x8886ebfc4259abdbc16601dd8fb5678e54878f47b3c34836cfc51154a9605109.
-//
-// Solidity: event DefaultAdminTransferCanceled()
-func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminTransferCanceled(opts *bind.WatchOpts, sink chan<- *RatesManagerDefaultAdminTransferCanceled) (event.Subscription, error) {
-
-	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "DefaultAdminTransferCanceled")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(RatesManagerDefaultAdminTransferCanceled)
-				if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminTransferCanceled", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDefaultAdminTransferCanceled is a log parse operation binding the contract event 0x8886ebfc4259abdbc16601dd8fb5678e54878f47b3c34836cfc51154a9605109.
-//
-// Solidity: event DefaultAdminTransferCanceled()
-func (_RatesManager *RatesManagerFilterer) ParseDefaultAdminTransferCanceled(log types.Log) (*RatesManagerDefaultAdminTransferCanceled, error) {
-	event := new(RatesManagerDefaultAdminTransferCanceled)
-	if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminTransferCanceled", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// RatesManagerDefaultAdminTransferScheduledIterator is returned from FilterDefaultAdminTransferScheduled and is used to iterate over the raw logs and unpacked data for DefaultAdminTransferScheduled events raised by the RatesManager contract.
-type RatesManagerDefaultAdminTransferScheduledIterator struct {
-	Event *RatesManagerDefaultAdminTransferScheduled // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *RatesManagerDefaultAdminTransferScheduledIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(RatesManagerDefaultAdminTransferScheduled)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(RatesManagerDefaultAdminTransferScheduled)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *RatesManagerDefaultAdminTransferScheduledIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *RatesManagerDefaultAdminTransferScheduledIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// RatesManagerDefaultAdminTransferScheduled represents a DefaultAdminTransferScheduled event raised by the RatesManager contract.
-type RatesManagerDefaultAdminTransferScheduled struct {
-	NewAdmin       common.Address
-	AcceptSchedule *big.Int
-	Raw            types.Log // Blockchain specific contextual infos
-}
-
-// FilterDefaultAdminTransferScheduled is a free log retrieval operation binding the contract event 0x3377dc44241e779dd06afab5b788a35ca5f3b778836e2990bdb26a2a4b2e5ed6.
-//
-// Solidity: event DefaultAdminTransferScheduled(address indexed newAdmin, uint48 acceptSchedule)
-func (_RatesManager *RatesManagerFilterer) FilterDefaultAdminTransferScheduled(opts *bind.FilterOpts, newAdmin []common.Address) (*RatesManagerDefaultAdminTransferScheduledIterator, error) {
-
-	var newAdminRule []interface{}
-	for _, newAdminItem := range newAdmin {
-		newAdminRule = append(newAdminRule, newAdminItem)
-	}
-
-	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "DefaultAdminTransferScheduled", newAdminRule)
-	if err != nil {
-		return nil, err
-	}
-	return &RatesManagerDefaultAdminTransferScheduledIterator{contract: _RatesManager.contract, event: "DefaultAdminTransferScheduled", logs: logs, sub: sub}, nil
-}
-
-// WatchDefaultAdminTransferScheduled is a free log subscription operation binding the contract event 0x3377dc44241e779dd06afab5b788a35ca5f3b778836e2990bdb26a2a4b2e5ed6.
-//
-// Solidity: event DefaultAdminTransferScheduled(address indexed newAdmin, uint48 acceptSchedule)
-func (_RatesManager *RatesManagerFilterer) WatchDefaultAdminTransferScheduled(opts *bind.WatchOpts, sink chan<- *RatesManagerDefaultAdminTransferScheduled, newAdmin []common.Address) (event.Subscription, error) {
-
-	var newAdminRule []interface{}
-	for _, newAdminItem := range newAdmin {
-		newAdminRule = append(newAdminRule, newAdminItem)
-	}
-
-	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "DefaultAdminTransferScheduled", newAdminRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(RatesManagerDefaultAdminTransferScheduled)
-				if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminTransferScheduled", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDefaultAdminTransferScheduled is a log parse operation binding the contract event 0x3377dc44241e779dd06afab5b788a35ca5f3b778836e2990bdb26a2a4b2e5ed6.
-//
-// Solidity: event DefaultAdminTransferScheduled(address indexed newAdmin, uint48 acceptSchedule)
-func (_RatesManager *RatesManagerFilterer) ParseDefaultAdminTransferScheduled(log types.Log) (*RatesManagerDefaultAdminTransferScheduled, error) {
-	event := new(RatesManagerDefaultAdminTransferScheduled)
-	if err := _RatesManager.contract.UnpackLog(event, "DefaultAdminTransferScheduled", log); err != nil {
+// Solidity: event Paused(address account)
+func (_RatesManager *RatesManagerFilterer) ParsePaused(log types.Log) (*RatesManagerPaused, error) {
+	event := new(RatesManagerPaused)
+	if err := _RatesManager.contract.UnpackLog(event, "Paused", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -2007,6 +1587,419 @@ func (_RatesManager *RatesManagerFilterer) WatchRoleRevoked(opts *bind.WatchOpts
 func (_RatesManager *RatesManagerFilterer) ParseRoleRevoked(log types.Log) (*RatesManagerRoleRevoked, error) {
 	event := new(RatesManagerRoleRevoked)
 	if err := _RatesManager.contract.UnpackLog(event, "RoleRevoked", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RatesManagerUnpausedIterator is returned from FilterUnpaused and is used to iterate over the raw logs and unpacked data for Unpaused events raised by the RatesManager contract.
+type RatesManagerUnpausedIterator struct {
+	Event *RatesManagerUnpaused // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RatesManagerUnpausedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RatesManagerUnpaused)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RatesManagerUnpaused)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RatesManagerUnpausedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RatesManagerUnpausedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RatesManagerUnpaused represents a Unpaused event raised by the RatesManager contract.
+type RatesManagerUnpaused struct {
+	Account common.Address
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterUnpaused is a free log retrieval operation binding the contract event 0x5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa.
+//
+// Solidity: event Unpaused(address account)
+func (_RatesManager *RatesManagerFilterer) FilterUnpaused(opts *bind.FilterOpts) (*RatesManagerUnpausedIterator, error) {
+
+	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "Unpaused")
+	if err != nil {
+		return nil, err
+	}
+	return &RatesManagerUnpausedIterator{contract: _RatesManager.contract, event: "Unpaused", logs: logs, sub: sub}, nil
+}
+
+// WatchUnpaused is a free log subscription operation binding the contract event 0x5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa.
+//
+// Solidity: event Unpaused(address account)
+func (_RatesManager *RatesManagerFilterer) WatchUnpaused(opts *bind.WatchOpts, sink chan<- *RatesManagerUnpaused) (event.Subscription, error) {
+
+	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "Unpaused")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RatesManagerUnpaused)
+				if err := _RatesManager.contract.UnpackLog(event, "Unpaused", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseUnpaused is a log parse operation binding the contract event 0x5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa.
+//
+// Solidity: event Unpaused(address account)
+func (_RatesManager *RatesManagerFilterer) ParseUnpaused(log types.Log) (*RatesManagerUnpaused, error) {
+	event := new(RatesManagerUnpaused)
+	if err := _RatesManager.contract.UnpackLog(event, "Unpaused", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RatesManagerUpgradeAuthorizedIterator is returned from FilterUpgradeAuthorized and is used to iterate over the raw logs and unpacked data for UpgradeAuthorized events raised by the RatesManager contract.
+type RatesManagerUpgradeAuthorizedIterator struct {
+	Event *RatesManagerUpgradeAuthorized // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RatesManagerUpgradeAuthorizedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RatesManagerUpgradeAuthorized)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RatesManagerUpgradeAuthorized)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RatesManagerUpgradeAuthorizedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RatesManagerUpgradeAuthorizedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RatesManagerUpgradeAuthorized represents a UpgradeAuthorized event raised by the RatesManager contract.
+type RatesManagerUpgradeAuthorized struct {
+	Upgrader          common.Address
+	NewImplementation common.Address
+	Raw               types.Log // Blockchain specific contextual infos
+}
+
+// FilterUpgradeAuthorized is a free log retrieval operation binding the contract event 0xd30e1d298bf814ea43d22b4ce8298062b08609cd67496483769d836157dd52fa.
+//
+// Solidity: event UpgradeAuthorized(address upgrader, address newImplementation)
+func (_RatesManager *RatesManagerFilterer) FilterUpgradeAuthorized(opts *bind.FilterOpts) (*RatesManagerUpgradeAuthorizedIterator, error) {
+
+	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "UpgradeAuthorized")
+	if err != nil {
+		return nil, err
+	}
+	return &RatesManagerUpgradeAuthorizedIterator{contract: _RatesManager.contract, event: "UpgradeAuthorized", logs: logs, sub: sub}, nil
+}
+
+// WatchUpgradeAuthorized is a free log subscription operation binding the contract event 0xd30e1d298bf814ea43d22b4ce8298062b08609cd67496483769d836157dd52fa.
+//
+// Solidity: event UpgradeAuthorized(address upgrader, address newImplementation)
+func (_RatesManager *RatesManagerFilterer) WatchUpgradeAuthorized(opts *bind.WatchOpts, sink chan<- *RatesManagerUpgradeAuthorized) (event.Subscription, error) {
+
+	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "UpgradeAuthorized")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RatesManagerUpgradeAuthorized)
+				if err := _RatesManager.contract.UnpackLog(event, "UpgradeAuthorized", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseUpgradeAuthorized is a log parse operation binding the contract event 0xd30e1d298bf814ea43d22b4ce8298062b08609cd67496483769d836157dd52fa.
+//
+// Solidity: event UpgradeAuthorized(address upgrader, address newImplementation)
+func (_RatesManager *RatesManagerFilterer) ParseUpgradeAuthorized(log types.Log) (*RatesManagerUpgradeAuthorized, error) {
+	event := new(RatesManagerUpgradeAuthorized)
+	if err := _RatesManager.contract.UnpackLog(event, "UpgradeAuthorized", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// RatesManagerUpgradedIterator is returned from FilterUpgraded and is used to iterate over the raw logs and unpacked data for Upgraded events raised by the RatesManager contract.
+type RatesManagerUpgradedIterator struct {
+	Event *RatesManagerUpgraded // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *RatesManagerUpgradedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(RatesManagerUpgraded)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(RatesManagerUpgraded)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *RatesManagerUpgradedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *RatesManagerUpgradedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// RatesManagerUpgraded represents a Upgraded event raised by the RatesManager contract.
+type RatesManagerUpgraded struct {
+	Implementation common.Address
+	Raw            types.Log // Blockchain specific contextual infos
+}
+
+// FilterUpgraded is a free log retrieval operation binding the contract event 0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b.
+//
+// Solidity: event Upgraded(address indexed implementation)
+func (_RatesManager *RatesManagerFilterer) FilterUpgraded(opts *bind.FilterOpts, implementation []common.Address) (*RatesManagerUpgradedIterator, error) {
+
+	var implementationRule []interface{}
+	for _, implementationItem := range implementation {
+		implementationRule = append(implementationRule, implementationItem)
+	}
+
+	logs, sub, err := _RatesManager.contract.FilterLogs(opts, "Upgraded", implementationRule)
+	if err != nil {
+		return nil, err
+	}
+	return &RatesManagerUpgradedIterator{contract: _RatesManager.contract, event: "Upgraded", logs: logs, sub: sub}, nil
+}
+
+// WatchUpgraded is a free log subscription operation binding the contract event 0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b.
+//
+// Solidity: event Upgraded(address indexed implementation)
+func (_RatesManager *RatesManagerFilterer) WatchUpgraded(opts *bind.WatchOpts, sink chan<- *RatesManagerUpgraded, implementation []common.Address) (event.Subscription, error) {
+
+	var implementationRule []interface{}
+	for _, implementationItem := range implementation {
+		implementationRule = append(implementationRule, implementationItem)
+	}
+
+	logs, sub, err := _RatesManager.contract.WatchLogs(opts, "Upgraded", implementationRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(RatesManagerUpgraded)
+				if err := _RatesManager.contract.UnpackLog(event, "Upgraded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseUpgraded is a log parse operation binding the contract event 0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b.
+//
+// Solidity: event Upgraded(address indexed implementation)
+func (_RatesManager *RatesManagerFilterer) ParseUpgraded(log types.Log) (*RatesManagerUpgraded, error) {
+	event := new(RatesManagerUpgraded)
+	if err := _RatesManager.contract.UnpackLog(event, "Upgraded", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

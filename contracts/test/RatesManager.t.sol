@@ -3,10 +3,16 @@ pragma solidity 0.8.28;
 
 import "forge-std/src/Test.sol";
 import {RatesManager} from "../src/RatesManager.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 contract RatesTest is Test {
+    RatesManager ratesManagerImpl;
+    ERC1967Proxy proxy;
     RatesManager ratesManager;
+
     address admin = address(this);
     address unauthorized = address(0x1);
 
@@ -15,7 +21,12 @@ contract RatesTest is Test {
     uint64 constant congestionFee = 300;
 
     function setUp() public {
-        ratesManager = new RatesManager();
+        ratesManagerImpl = new RatesManager();
+
+        proxy =
+            new ERC1967Proxy(address(ratesManagerImpl), abi.encodeWithSelector(RatesManager.initialize.selector, admin));
+
+        ratesManager = RatesManager(address(proxy));
     }
 
     function addRate(uint64 startTime) internal {
@@ -44,7 +55,9 @@ contract RatesTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, unauthorized, ratesManager.RATES_ADMIN_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                ratesManager.RATES_MANAGER_ROLE()
             )
         );
         vm.prank(unauthorized);
@@ -57,7 +70,7 @@ contract RatesTest is Test {
 
         addRate(startTime1);
 
-        vm.expectRevert("startTime must be greater than the last startTime");
+        vm.expectRevert(abi.encodeWithSelector(RatesManager.InvalidStartTime.selector));
         addRate(startTime1);
         addRate(startTime2);
 

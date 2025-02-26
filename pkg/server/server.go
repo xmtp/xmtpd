@@ -155,6 +155,7 @@ func NewReplicationServer(
 			s.nodeRegistry,
 			s.registrant,
 			writerDB,
+			fees.NewFeeCalculator(getRatesFetcher()),
 		)
 		if err != nil {
 			return nil, err

@@ -199,3 +199,25 @@ WHERE
 	AND (@minutes_since_epoch_lt::BIGINT = 0
 		OR minutes_since_epoch < @minutes_since_epoch_lt::BIGINT);
 
+-- name: FillPayerSequence :exec
+INSERT INTO payer_sequences (available)
+    SELECT TRUE
+    FROM
+        generate_series(1, 10000);
+
+-- name: GetNextAvailablePayerSequence :one
+SELECT
+    id
+FROM
+    payer_sequences
+WHERE
+    available = TRUE
+ORDER BY
+    id
+    ASC LIMIT 1
+    FOR UPDATE SKIP LOCKED;
+
+
+-- name: DeleteAvailablePayerSequence :execrows
+DELETE FROM payer_sequences
+WHERE id = @id;

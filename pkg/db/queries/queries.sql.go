@@ -12,6 +12,19 @@ import (
 	"github.com/lib/pq"
 )
 
+const deleteAvailablePayerSequence = `-- name: DeleteAvailablePayerSequence :execrows
+DELETE FROM payer_sequences
+WHERE id = $1
+`
+
+func (q *Queries) DeleteAvailablePayerSequence(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAvailablePayerSequence, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
 DELETE FROM staged_originator_envelopes
 WHERE id = $1
@@ -23,6 +36,18 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const fillPayerSequence = `-- name: FillPayerSequence :exec
+INSERT INTO payer_sequences (available)
+    SELECT TRUE
+    FROM
+        generate_series(1, 10000)
+`
+
+func (q *Queries) FillPayerSequence(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, fillPayerSequence)
+	return err
 }
 
 const findOrCreatePayer = `-- name: FindOrCreatePayer :one
@@ -218,6 +243,26 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 	var originator_sequence_id int64
 	err := row.Scan(&originator_sequence_id)
 	return originator_sequence_id, err
+}
+
+const getNextAvailablePayerSequence = `-- name: GetNextAvailablePayerSequence :one
+SELECT
+    id
+FROM
+    payer_sequences
+WHERE
+    available = TRUE
+ORDER BY
+    id
+    ASC LIMIT 1
+    FOR UPDATE SKIP LOCKED
+`
+
+func (q *Queries) GetNextAvailablePayerSequence(ctx context.Context) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getNextAvailablePayerSequence)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one

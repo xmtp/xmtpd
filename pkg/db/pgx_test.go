@@ -1,8 +1,9 @@
-package db
+package db_test
 
 import (
 	"context"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"go.uber.org/zap"
 	"log"
 	"net"
@@ -19,7 +20,7 @@ func TestNamespacedDB(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	// Create namespaced DB
-	namespacedDB, err := NewNamespacedDB(
+	namespacedDB, err := db.NewNamespacedDB(
 		context.Background(),
 		logger,
 		startingDsn,
@@ -47,7 +48,7 @@ func TestNamespaceRepeat(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	// Create namespaced DB
-	db1, err := NewNamespacedDB(
+	db1, err := db.NewNamespacedDB(
 		context.Background(),
 		logger,
 		startingDsn,
@@ -60,7 +61,7 @@ func TestNamespaceRepeat(t *testing.T) {
 	t.Cleanup(func() { db1.Close() })
 
 	// Create again with the same name
-	db2, err := NewNamespacedDB(
+	db2, err := db.NewNamespacedDB(
 		context.Background(),
 		logger,
 		startingDsn,
@@ -76,7 +77,7 @@ func TestNamespaceRepeat(t *testing.T) {
 func TestNamespacedDBInvalidName(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
-	_, err = NewNamespacedDB(
+	_, err = db.NewNamespacedDB(
 		context.Background(),
 		logger,
 		testutils.LocalTestDBDSNPrefix+"/foo"+testutils.LocalTestDBDSNSuffix,
@@ -90,7 +91,7 @@ func TestNamespacedDBInvalidName(t *testing.T) {
 func TestNamespacedDBInvalidDSN(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
-	_, err = NewNamespacedDB(
+	_, err = db.NewNamespacedDB(
 		context.Background(),
 		logger,
 		"invalid-dsn",
@@ -161,7 +162,7 @@ func TestBlackholeDNS(t *testing.T) {
 	// Wait for server to start
 	time.Sleep(50 * time.Millisecond)
 
-	_, err = NewNamespacedDB(
+	_, err = db.NewNamespacedDB(
 		testCtx,
 		logger,
 		dsn,

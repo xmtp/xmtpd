@@ -46,7 +46,7 @@ contract NodesTest is Test, Utils {
         vm.assertEq(nodes.ownerOf(tmpNodeId), operatorAddress);
         vm.assertEq(nodes.getNode(tmpNodeId).signingKeyPub, node.signingKeyPub);
         vm.assertEq(nodes.getNode(tmpNodeId).httpAddress, node.httpAddress);
-        vm.assertEq(nodes.getNode(tmpNodeId).isActive, false);
+        vm.assertEq(nodes.getNode(tmpNodeId).isDisabled, false);
         vm.assertEq(nodes.getNode(tmpNodeId).isApiEnabled, false);
         vm.assertEq(nodes.getNode(tmpNodeId).isReplicationEnabled, false);
         vm.assertEq(nodes.getNode(tmpNodeId).minMonthlyFee, node.minMonthlyFee);

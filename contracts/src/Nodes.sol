@@ -260,6 +260,7 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
 
     /// @dev Helper function to add a node to the active nodes set.
     function _activateNode(uint256 nodeId) private {
+        require(_activeNodes.length() < maxActiveNodes, MaxActiveNodesReached());
         if (!_activeNodes.contains(nodeId)) {
             // slither-disable-next-line unused-return
             _activeNodes.add(nodeId);

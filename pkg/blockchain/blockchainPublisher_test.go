@@ -12,20 +12,20 @@ import (
 func buildPublisher(t *testing.T) (*BlockchainPublisher, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
+	appChainOptions, baseChainOptions := testutils.GetContractsOptions(t)
 	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+	baseChainOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
 	signer, err := NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
-		contractsOptions.ChainID,
+		baseChainOptions.ChainID,
 	)
 	require.NoError(t, err)
 
-	client, err := NewClient(ctx, contractsOptions.RpcUrl)
+	client, err := NewClient(ctx, baseChainOptions.RpcUrl)
 	require.NoError(t, err)
 
-	publisher, err := NewBlockchainPublisher(ctx, logger, client, signer, contractsOptions)
+	publisher, err := NewBlockchainPublisher(ctx, logger, client, signer, appChainOptions)
 	require.NoError(t, err)
 
 	return publisher, func() {

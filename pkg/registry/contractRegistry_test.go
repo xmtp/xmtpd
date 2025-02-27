@@ -35,7 +35,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{RefreshInterval: 100 * time.Millisecond},
+		config.BaseChainOptions{RefreshInterval: 100 * time.Millisecond},
 	)
 	require.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
+		config.BaseChainOptions{RefreshInterval: 10 * time.Millisecond},
 	)
 	require.NoError(t, err)
 
@@ -124,7 +124,7 @@ func TestStopOnContextCancel(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{RefreshInterval: 10 * time.Millisecond},
+		config.BaseChainOptions{RefreshInterval: 10 * time.Millisecond},
 	)
 	require.NoError(t, err)
 

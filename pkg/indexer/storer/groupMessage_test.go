@@ -21,10 +21,10 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
-	config := testutils.GetContractsOptions(t)
-	contractAddress := config.MessagesContractAddress
+	appChainOptions, _ := testutils.GetContractsOptions(t)
+	contractAddress := appChainOptions.MessagesContractAddress
 
-	client, err := blockchain.NewClient(ctx, config.RpcUrl)
+	client, err := blockchain.NewClient(ctx, appChainOptions.RpcUrl)
 	require.NoError(t, err)
 	contract, err := groupmessages.NewGroupMessages(
 		common.HexToAddress(contractAddress),

@@ -65,7 +65,7 @@ func (i *Indexer) Close() {
 
 func (i *Indexer) StartIndexer(
 	db *sql.DB,
-	cfg config.ContractsOptions,
+	cfg config.AppChainOptions,
 	validationService mlsvalidate.MLSValidationService,
 ) error {
 	client, err := blockchain.NewClient(i.ctx, cfg.RpcUrl)
@@ -153,7 +153,7 @@ type builtStreamer struct {
 func configureLogStream(
 	ctx context.Context,
 	builder *blockchain.RpcLogStreamBuilder,
-	cfg config.ContractsOptions,
+	cfg config.AppChainOptions,
 	querier *queries.Queries,
 ) (*builtStreamer, error) {
 	messagesTopic, err := buildMessagesTopic()
@@ -171,7 +171,7 @@ func configureLogStream(
 		latestBlockNumber,
 		common.HexToAddress(cfg.MessagesContractAddress),
 		[]common.Hash{messagesTopic},
-		cfg.MaxChainDisconnectTime,
+		cfg.MaxDisconnectTime,
 	)
 
 	identityUpdatesTopic, err := buildIdentityUpdatesTopic()
@@ -189,7 +189,7 @@ func configureLogStream(
 		latestBlockNumber,
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		[]common.Hash{identityUpdatesTopic},
-		cfg.MaxChainDisconnectTime,
+		cfg.MaxDisconnectTime,
 	)
 
 	streamer, err := builder.Build()
@@ -371,7 +371,7 @@ func buildIdentityUpdatesTopic() (common.Hash, error) {
 }
 
 func messagesContract(
-	cfg config.ContractsOptions,
+	cfg config.AppChainOptions,
 	client *ethclient.Client,
 ) (*groupmessages.GroupMessages, error) {
 	return groupmessages.NewGroupMessages(
@@ -381,7 +381,7 @@ func messagesContract(
 }
 
 func identityUpdatesContract(
-	cfg config.ContractsOptions,
+	cfg config.AppChainOptions,
 	client *ethclient.Client,
 ) (*identityupdates.IdentityUpdates, error) {
 	return identityupdates.NewIdentityUpdates(

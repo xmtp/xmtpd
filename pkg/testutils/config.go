@@ -89,26 +89,29 @@ func getProxyAddress(t *testing.T, fileName string) string {
 	}
 }
 
-func GetContractsOptions(t *testing.T) config.ContractsOptions {
+func GetContractsOptions(t *testing.T) (config.AppChainOptions, config.BaseChainOptions) {
 	rootDir := rootPath(t)
 
-	return config.ContractsOptions{
-		RpcUrl: BLOCKCHAIN_RPC_URL,
-		MessagesContractAddress: getProxyAddress(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
-		),
-		NodesContractAddress: getDeployedTo(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/Nodes.json"),
-		),
-		IdentityUpdatesContractAddress: getProxyAddress(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
-		),
-		RefreshInterval: 100 * time.Millisecond,
-		ChainID:         31337,
-	}
+	return config.AppChainOptions{
+			RpcUrl: BLOCKCHAIN_RPC_URL,
+			MessagesContractAddress: getProxyAddress(
+				t,
+				path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
+			),
+			IdentityUpdatesContractAddress: getProxyAddress(
+				t,
+				path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
+			),
+			ChainID: 31337,
+		}, config.BaseChainOptions{
+			RpcUrl: BLOCKCHAIN_RPC_URL,
+			NodesContractAddress: getDeployedTo(
+				t,
+				path.Join(rootDir, "./contracts/config/anvil_localnet/Nodes.json"),
+			),
+			RefreshInterval: 100 * time.Millisecond,
+			ChainID:         31337,
+		}
 }
 
 func GetPayerOptions(t *testing.T) config.PayerOptions {

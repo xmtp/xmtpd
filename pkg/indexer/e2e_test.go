@@ -20,11 +20,11 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	db, _, cleanup := testutils.NewDB(t, ctx)
-	cfg := testutils.GetContractsOptions(t)
+	appChainOptions, _ := testutils.GetContractsOptions(t)
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
 	indx := NewIndexer(ctx, logger)
-	err := indx.StartIndexer(db, cfg, validationService)
+	err := indx.StartIndexer(db, appChainOptions, validationService)
 	require.NoError(t, err)
 
 	return queries.New(db), ctx, func() {
@@ -35,12 +35,12 @@ func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
 
 func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
-	contractsCfg := testutils.GetContractsOptions(t)
+	appChainOptions, _ := testutils.GetContractsOptions(t)
 	var signer blockchain.TransactionSigner
-	signer, err := blockchain.NewPrivateKeySigner(payerCfg.PrivateKey, contractsCfg.ChainID)
+	signer, err := blockchain.NewPrivateKeySigner(payerCfg.PrivateKey, appChainOptions.ChainID)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsCfg.RpcUrl)
+	client, err := blockchain.NewClient(ctx, appChainOptions.RpcUrl)
 	require.NoError(t, err)
 
 	publisher, err := blockchain.NewBlockchainPublisher(
@@ -48,7 +48,7 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainP
 		testutils.NewLog(t),
 		client,
 		signer,
-		contractsCfg,
+		appChainOptions,
 	)
 	require.NoError(t, err)
 

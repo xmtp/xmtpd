@@ -180,14 +180,6 @@ interface IPayer {
     function deletePayer(address payer) external;
 
     /**
-     * @notice Allows a payer to delete their own account from the system.
-     * @dev Can only be called if the payer has zero balance and zero debt and is not in withdrawal.
-     *
-     * Emits `PayerDeleted`.
-     */
-    function deleteMyAccount() external;
-
-    /**
      * @notice Checks if a given address is an active payer.
      * @param payer The address to check.
      * @return isActive True if the address is an active payer, false otherwise.

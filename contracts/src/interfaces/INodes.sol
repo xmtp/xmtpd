@@ -233,7 +233,7 @@ interface INodes is IERC721 {
 
     /// @notice Gets all nodes regardless of their health status
     /// @return allNodes An array of all nodes in the registry
-    function allNodes() external view returns (NodeWithId[] memory allNodes);
+    function getAllNodes() external view returns (NodeWithId[] memory allNodes);
 
     /// @notice Gets the total number of nodes in the registry.
     /// @return nodeCount The total number of nodes.

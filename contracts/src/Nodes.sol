@@ -194,15 +194,15 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function allNodes() public view returns (NodeWithId[] memory nodes) {
-        nodes = new NodeWithId[](_nodeCounter);
+    function getAllNodes() public view returns (NodeWithId[] memory allNodes) {
+        allNodes = new NodeWithId[](_nodeCounter);
         for (uint32 i = 0; i < _nodeCounter; i++) {
             uint32 nodeId = NODE_INCREMENT * (i + 1);
             if (_nodeExists(nodeId)) {
-                nodes[i] = NodeWithId({nodeId: nodeId, node: _nodes[nodeId]});
+                allNodes[i] = NodeWithId({nodeId: nodeId, node: _nodes[nodeId]});
             }
         }
-        return nodes;
+        return allNodes;
     }
 
     /// @inheritdoc INodes

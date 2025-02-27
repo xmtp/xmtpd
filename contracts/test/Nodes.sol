@@ -700,14 +700,14 @@ contract NodesTest is Test, Utils {
     function test_getAllNodes() public {
         _addNode();
 
-        INodes.NodeWithId[] memory allNodes = nodes.allNodes();
+        INodes.NodeWithId[] memory allNodes = nodes.getAllNodes();
         vm.assertTrue(allNodes.length == 1);
     }
 
     function test_getAllNodesMultiple() public {
         _addMultipleNodes(10);
 
-        INodes.NodeWithId[] memory allNodes = nodes.allNodes();
+        INodes.NodeWithId[] memory allNodes = nodes.getAllNodes();
         vm.assertTrue(allNodes.length == 10);
     }
 

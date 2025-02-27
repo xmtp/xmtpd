@@ -4,8 +4,7 @@ pragma solidity 0.8.28;
 /**
  * @title IPayer
  * @notice Interface for managing payer USDC deposits, usage settlements,
- *         and a secure withdrawal process with optimized storage using
- *         batch hash commitments and EIP-1283 gas optimizations.
+ *         and a secure withdrawal process.
  */
 interface IPayer {
     //==============================================================
@@ -34,43 +33,10 @@ interface IPayer {
      * @param withdrawableTimestamp The timestamp when the withdrawal can be finalized.
      * @param amount The amount requested for withdrawal.
      */
-    struct WithdrawalRequest {
+    struct Withdrawal {
         uint256 requestTimestamp;
         uint256 withdrawableTimestamp;
         uint256 amount;
-    }
-
-    /**
-     * @dev Struct to store usage reporting data.
-     * @notice This struct is used primarily for event emission and off-chain tracking.
-     * @dev For storage efficiency, complete reports are NOT stored on-chain; only their
-     *      cryptographic hash commitments are stored.
-     * @param payer The address of the payer being charged.
-     * @param nodeId The ID of the node that provided service.
-     * @param fees The amount charged for this usage.
-     * @param timestamp When the usage occurred.
-     */
-    struct UsageReport {
-        address payer;
-        uint256 nodeId;
-        uint256 fees;
-        uint256 timestamp;
-    }
-
-    /**
-     * @dev Struct to store batch commitment information.
-     * @param batchHash Hash of the complete batch data (payers, fees, timestamp, nodeId).
-     * @param totalFees The total fees collected in this batch.
-     * @param nodeId The node operator who submitted this batch.
-     * @param timestamp When this batch was processed.
-     * @param blockNumber The block in which this commitment was stored.
-     */
-    struct BatchCommitment {
-        bytes32 batchHash;
-        uint256 totalFees;
-        uint256 nodeId;
-        uint256 timestamp;
-        uint256 blockNumber;
     }
 
     //==============================================================
@@ -87,31 +53,28 @@ interface IPayer {
     event PayerDeleted(address indexed payer, uint256 timestamp);
 
     /// @dev Emitted when a deposit is made to a payer's account.
-    event DepositMade(address indexed from, address indexed payer, uint256 amount);
+    event Deposit(address indexed payer, uint256 amount);
 
     /// @dev Emitted when a user donates to a payer's account.
-    event DonationMade(address indexed donor, address indexed payer, uint256 amount);
+    event Donation(address indexed donor, address indexed payer, uint256 amount);
 
     /// @dev Emitted when a payer initiates a withdrawal request.
-    event WithdrawRequested(address indexed payer, uint256 requestTimestamp, uint256 withdrawableTimestamp, uint256 amount);
+    event WithdrawalRequest(address indexed payer, uint256 requestTimestamp, uint256 withdrawableTimestamp, uint256 amount);
 
     /// @dev Emitted when a payer cancels a withdrawal request.
-    event WithdrawCancelled(address indexed payer);
+    event WithdrawalCancelled(address indexed payer);
 
     /// @dev Emitted when a payer's withdrawal is finalized.
-    event WithdrawFinalized(address indexed payer, uint256 amountReturned);
+    event WithdrawalFinalized(address indexed payer, uint256 amountReturned);
 
     /// @dev Emitted when usage is settled and fees are calculated.
     event UsageSettled(uint256 fees, address indexed payer, uint256 indexed nodeId, uint256 timestamp);
 
     /// @dev Emitted when batch usage is settled.
-    event BatchUsageSettled(bytes32 batchHash, uint256 totalFees, uint256 indexed nodeId, uint256 timestamp);
+    event BatchUsageSettled(uint256 totalFees, uint256 indexed nodeId, uint256 timestamp);
 
     /// @dev Emitted when fees are transferred to the rewards contract.
     event FeesTransferred(uint256 amount);
-
-    /// @dev Emitted when old batch commitments are cleared from storage.
-    event CommitmentsCleared(uint256 count, uint256 oldestTimestamp);
 
     /// @dev Emitted when the rewards contract address is updated.
     event RewardsContractUpdated(address indexed newRewardsContract);
@@ -122,24 +85,18 @@ interface IPayer {
     /// @dev Emitted when the minimum deposit amount is updated.
     event MinimumDepositUpdated(uint256 newMinimumDeposit);
 
-    /// @dev Emitted when the retention period for commitments is updated.
-    event CommitmentRetentionPeriodUpdated(uint256 newPeriod);
+    /// @dev Emitted when the pause is triggered by `account`.
+    event Paused(address account);
 
-    /// @dev Emitted when the contract is paused.
-    event Paused();
-
-    /// @dev Emitted when the contract is unpaused.
-    event Unpaused();
+    /// @dev Emitted when the pause is lifted by `account`.
+    event Unpaused(address account);
 
     //==============================================================
     //                             ERRORS
     //==============================================================
 
-    /// @dev Error thrown when an operation is attempted while the contract is paused.
-    error ContractPaused();
-
     /// @dev Error thrown when caller is not an authorized node operator.
-    error NotAuthorizedNodeOperator();
+    error UnauthorizedNodeOperator();
 
     /// @dev Error thrown when caller is not the rewards contract.
     error NotRewardsContract();
@@ -171,12 +128,6 @@ interface IPayer {
     /// @dev Error thrown when trying to delete a payer in withdrawal state.
     error PayerInWithdrawal();
 
-    /// @dev Error thrown when a batch hash is invalid.
-    error InvalidBatchHash();
-
-    /// @dev Error thrown when a batch commitment already exists.
-    error CommitmentAlreadyExists();
-
     //==============================================================
     //                      PAYER REGISTRATION & MANAGEMENT
     //==============================================================
@@ -195,7 +146,7 @@ interface IPayer {
      *         The caller must approve this contract to spend USDC beforehand.
      * @param amount The amount of USDC to deposit.
      *
-     * Emits `DepositMade`.
+     * Emits `Deposit`.
      */
     function deposit(uint256 amount) external;
 
@@ -205,7 +156,7 @@ interface IPayer {
      * @param payer The address of the payer receiving the donation.
      * @param amount The amount of USDC to donate.
      *
-     * Emits `DonationMade`.
+     * Emits `Donation`.
      */
     function donate(address payer, uint256 amount) external;
 
@@ -239,15 +190,15 @@ interface IPayer {
     /**
      * @notice Checks if a given address is an active payer.
      * @param payer The address to check.
-     * @return True if the address is an active payer, false otherwise.
+     * @return isActive True if the address is an active payer, false otherwise.
      */
-    function isActivePayer(address payer) external view returns (bool);
+    function getIsActivePayer(address payer) external view returns (bool isActive);
 
     /**
      * @notice Retrieves the minimum deposit amount required to register as a payer.
-     * @return The minimum deposit amount in USDC.
+     * @return minimumDeposit The minimum deposit amount in USDC.
      */
-    function getMinimumDeposit() external view returns (uint256);
+    function getMinimumDeposit() external view returns (uint256 minimumDeposit);
 
     /**
      * @notice Updates the minimum deposit amount required for registration.
@@ -255,7 +206,7 @@ interface IPayer {
      * 
      * Emits `MinimumDepositUpdated`.
      */
-    function updateMinimumDeposit(uint256 newMinimumDeposit) external;
+    function setMinimumDeposit(uint256 newMinimumDeposit) external;
 
     //==============================================================
     //                      PAYER BALANCE MANAGEMENT
@@ -264,9 +215,9 @@ interface IPayer {
     /**
      * @notice Retrieves the current total balance of a given payer.
      * @param payer The address of the payer.
-     * @return The current balance of the payer.
+     * @return balance The current balance of the payer.
      */
-    function getPayerBalance(address payer) external view returns (uint256);
+    function getPayerBalance(address payer) external view returns (uint256 balance);
 
     /**
      * @notice Initiates a withdrawal request for the caller.
@@ -274,33 +225,33 @@ interface IPayer {
      *         - Records a timestamp for the withdrawal lock period.
      * @param amount The amount to withdraw (can be less than or equal to current balance).
      *
-     * Emits `WithdrawRequested`.
+     * Emits `WithdrawalRequest`.
      */
-    function requestWithdraw(uint256 amount) external;
+    function requestWithdrawal(uint256 amount) external;
 
     /**
      * @notice Cancels a previously requested withdrawal, removing withdrawal mode.
      * @dev Only callable by the payer who initiated the withdrawal.
      *
-     * Emits `WithdrawCancelled`.
+     * Emits `WithdrawalCancelled`.
      */
-    function cancelWithdraw() external;
+    function cancelWithdrawal() external;
 
     /**
      * @notice Finalizes a payer's withdrawal after the lock period has elapsed.
      *         - Accounts for any pending usage during the lock.
      *         - Returns the unspent balance to the payer.
      *
-     * Emits `WithdrawFinalized`.
+     * Emits `WithdrawalFinalized`.
      */
-    function finalizeWithdraw() external;
+    function finalizeWithdrawal() external;
 
     /**
      * @notice Checks if a payer is currently in withdrawal mode and the timestamp
      *         when they initiated the withdrawal.
      * @param payer The address to check.
      * @return inWithdrawal True if in withdrawal mode, false otherwise.
-     * @return requestTimestamp The timestamp when `requestWithdraw()` was called.
+     * @return requestTimestamp The timestamp when `requestWithdrawal()` was called.
      * @return withdrawableTimestamp When the withdrawal can be finalized.
      * @return amount The amount requested for withdrawal.
      */
@@ -314,7 +265,7 @@ interface IPayer {
      *         can be finalized.
      * @return The lock period in seconds.
      */
-    function getLockPeriod() external view returns (uint256);
+    function getWithdrawalLockPeriod() external view returns (uint256);
 
     //==============================================================
     //                       USAGE SETTLEMENT
@@ -339,8 +290,7 @@ interface IPayer {
 
     /**
      * @notice Called by node operators to settle usage for multiple payers in a batch.
-     * @dev Uses EIP-1283 optimizations for storage efficiency and a simple hash commitment
-     *      for batch verification.
+     * @dev Uses EIP-1283 optimizations for storage efficiency.
      * @param payers Array of payer addresses being charged.
      * @param fees Array of USDC fees corresponding to each payer.
      * @param timestamp When this batch of usage occurred (can be backdated).
@@ -356,79 +306,11 @@ interface IPayer {
     ) external;
 
     /**
-     * @notice Verifies if a specific batch matches the stored commitment hash.
-     * @param batchHash The commitment hash stored on-chain.
-     * @param payers Array of payer addresses to verify.
-     * @param fees Array of fee amounts to verify.
-     * @param timestamp The timestamp to verify.
-     * @param nodeId The node ID to verify.
-     * @return True if the batch data matches the stored hash, false otherwise.
-     */
-    function verifyBatch(
-        bytes32 batchHash,
-        address[] calldata payers,
-        uint256[] calldata fees,
-        uint256 timestamp,
-        uint256 nodeId
-    ) external pure returns (bool);
-
-    /**
-     * @notice Computes the hash for a batch of usage data.
-     * @param payers Array of payer addresses.
-     * @param fees Array of fee amounts.
-     * @param timestamp The timestamp of the batch.
-     * @param nodeId The node ID that generated the batch.
-     * @return The computed batch hash.
-     */
-    function computeBatchHash(
-        address[] calldata payers,
-        uint256[] calldata fees,
-        uint256 timestamp,
-        uint256 nodeId
-    ) external pure returns (bytes32);
-
-    /**
-     * @notice Retrieves information about a batch commitment.
-     * @param batchHash The hash of the batch to query.
-     * @return exists Whether this commitment exists.
-     * @return totalFees Total fees in this batch.
-     * @return nodeId The node that created this batch.
-     * @return timestamp When the batch was processed.
-     * @return blockNumber The block where this commitment was stored.
-     */
-    function getBatchCommitmentInfo(bytes32 batchHash) external view returns (
-        bool exists,
-        uint256 totalFees,
-        uint256 nodeId,
-        uint256 timestamp,
-        uint256 blockNumber
-    );
-
-    /**
-     * @notice Clears old batch commitments to optimize storage (uses EIP-1283 refunds).
-     * @dev Only clears commitments older than the retention period.
-     * @param hashes Array of batch hashes to check and potentially clear.
-     * @param maxToClear Maximum number of commitments to clear in this call.
-     * @return cleared The number of commitments that were cleared.
-     *
-     * Emits `CommitmentsCleared`.
-     */
-    function clearOldCommitments(bytes32[] calldata hashes, uint256 maxToClear) external returns (uint256 cleared);
-
-    /**
-     * @notice Sets the retention period for batch commitments.
-     * @param newPeriod The new retention period in seconds.
-     *
-     * Emits `CommitmentRetentionPeriodUpdated`.
-     */
-    function setCommitmentRetentionPeriod(uint256 newPeriod) external;
-
-    /**
      * @notice Retrieves the total pending fees that have not yet been transferred
      *         to the rewards contract.
      * @return pending The total pending fees in USDC.
      */
-    function pendingFees() external view returns (uint256 pending);
+    function getPendingFees() external view returns (uint256 pending);
 
     /**
      * @notice Transfers all pending fees to the designated rewards contract for
@@ -444,12 +326,6 @@ interface IPayer {
      * @return The maximum allowed time difference in seconds.
      */
     function getMaxBackdatedTime() external view returns (uint256);
-
-    /**
-     * @notice Returns the current commitment retention period.
-     * @return The retention period in seconds.
-     */
-    function getCommitmentRetentionPeriod() external view returns (uint256);
 
     //==============================================================
     //                       OBSERVABILITY FUNCTIONS
@@ -479,45 +355,24 @@ interface IPayer {
      */
     function getActivePayerCount() external view returns (uint256 count);
 
-    /**
-     * @notice Returns the total amount of fees collected since contract deployment.
-     * @return amount The total amount of fees ever collected.
-     */
-    function getLifetimeFeesCollected() external view returns (uint256 amount);
-
-    /**
-     * @notice Returns the current amount locked in withdrawal requests.
-     * @return amount The total amount in pending withdrawal requests.
-     */
-    function getTotalWithdrawalRequests() external view returns (uint256 amount);
-
-    /**
+     /**
      * @notice Returns the timestamp of the last fee transfer to the rewards contract.
      * @return timestamp The last fee transfer timestamp.
      */
     function getLastFeeTransferTimestamp() external view returns (uint256 timestamp);
 
     /**
-     * @notice Returns historical usage statistics for a specific node.
-     * @param nodeId The ID of the node to query.
-     * @return totalFees Total fees generated by this node.
-     * @return lastSettlementTime The last time this node settled usage.
-     */
-    function getNodeStatistics(uint256 nodeId) external view returns (
-        uint256 totalFees,
-        uint256 lastSettlementTime
-    );
-
-    /**
-     * @notice Returns a list of payers with outstanding debt.
-     * @param offset The offset of the first payer to return.
+     * @notice Returns a paginated list of payers with outstanding debt.
+     * @param offset Number of payers to skip before starting to return results.
      * @param limit Maximum number of payers to return.
      * @return debtors Array of payer addresses with debt.
      * @return debtAmounts Corresponding debt amounts for each payer.
+     * @return totalCount Total number of payers with debt (regardless of pagination).
      */
     function getPayersInDebt(uint256 offset, uint256 limit) external view returns (
         address[] memory debtors,
-        uint256[] memory debtAmounts
+        uint256[] memory debtAmounts,
+        uint256 totalCount
     );
 
     /**
@@ -526,18 +381,6 @@ interface IPayer {
      * @return balance The USDC token balance of the contract.
      */
     function getContractBalance() external view returns (uint256 balance);
-
-    /**
-     * @notice Returns the total amount of fees transferred to rewards.
-     * @return amount The total amount of fees sent to rewards contract.
-     */
-    function getTotalFeesTransferred() external view returns (uint256 amount);
-
-    /**
-     * @notice Returns the number of active batch commitments stored.
-     * @return count The number of active batch commitments.
-     */
-    function getActiveBatchCommitmentCount() external view returns (uint256 count);
 
     //==============================================================
     //                       ADMINISTRATIVE FUNCTIONS
@@ -588,13 +431,7 @@ interface IPayer {
     /**
      * @notice Checks if a given address is an active node operator.
      * @param operator The address to check.
-     * @return True if the address is an active node operator, false otherwise.
+     * @return isActiveNodeOperator True if the address is an active node operator, false otherwise.
      */
-    function isActiveNodeOperator(address operator) external view returns (bool);
-
-    /**
-     * @notice Checks if the contract is currently paused.
-     * @return True if the contract is paused, false otherwise.
-     */
-    function isPaused() external view returns (bool);
+    function getIsActiveNodeOperator(address operator) external view returns (bool isActiveNodeOperator);
 }

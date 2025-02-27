@@ -327,7 +327,6 @@ interface IPayer {
      * @param payer The address of the payer being charged.
      * @param nodeId The ID of the node operator submitting the usage.
      * @param timestamp The timestamp when the usage occurred (can be backdated).
-     * @param commitmentHash Optional hash for additional off-chain data verification.
      *
      * Emits `UsageSettled`.
      */
@@ -335,8 +334,7 @@ interface IPayer {
         uint256 fees,
         address payer,
         uint256 nodeId,
-        uint256 timestamp,
-        bytes32 commitmentHash
+        uint256 timestamp
     ) external;
 
     /**
@@ -512,11 +510,12 @@ interface IPayer {
 
     /**
      * @notice Returns a list of payers with outstanding debt.
+     * @param offset The offset of the first payer to return.
      * @param limit Maximum number of payers to return.
      * @return debtors Array of payer addresses with debt.
      * @return debtAmounts Corresponding debt amounts for each payer.
      */
-    function getPayersInDebt(uint256 limit) external view returns (
+    function getPayersInDebt(uint256 offset, uint256 limit) external view returns (
         address[] memory debtors,
         uint256[] memory debtAmounts
     );

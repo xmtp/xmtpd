@@ -1,4 +1,4 @@
-package db
+package db_test
 
 import (
 	"context"

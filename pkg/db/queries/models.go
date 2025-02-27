@@ -50,6 +50,11 @@ type Payer struct {
 	Address string
 }
 
+type PayerSequence struct {
+	ID        int32
+	Available sql.NullBool
+}
+
 type StagedOriginatorEnvelope struct {
 	ID             int64
 	OriginatorTime time.Time

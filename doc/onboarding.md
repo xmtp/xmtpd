@@ -2,7 +2,7 @@
 
 **⚠️ Experimental:** warning, this file might be out of date!
 
-It is important that both `public key` and `address` are correct as they are immutable and can not be changed in the future.
+It is important that both `public key` and `address` are correct as they are immutable and cannot be changed in the future.
 
 ## Step 1) Get All Keys
 

@@ -91,7 +91,6 @@ func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 	) (interface{}, error) {
 		token, err := extractToken(ctx)
 		if err != nil {
-			i.logger.Debug("failed to find auth token. Allowing request to proceed", zap.Error(err))
 			return handler(ctx, req)
 		}
 
@@ -122,7 +121,6 @@ func (i *AuthInterceptor) Stream() grpc.StreamServerInterceptor {
 	) error {
 		token, err := extractToken(stream.Context())
 		if err != nil {
-			i.logger.Debug("failed to find auth token. Allowing request to proceed", zap.Error(err))
 			return handler(srv, stream)
 		}
 

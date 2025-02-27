@@ -68,6 +68,10 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         _grantRole(NODE_MANAGER_ROLE, _initialAdmin);
     }
 
+    // ***************************************************************
+    // *                ADMIN-ONLY FUNCTIONS                         *
+    // ***************************************************************
+
     /// @inheritdoc INodes
     function addNode(address to, bytes calldata signingKeyPub, string calldata httpAddress, uint256 minMonthlyFee)
         external
@@ -87,6 +91,51 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         return nodeId;
     }
 
+    /// @inheritdoc INodes
+    function disableNode(uint256 nodeId) public onlyRole(ADMIN_ROLE) {
+        require(_nodeExists(nodeId), NodeDoesNotExist());
+
+        // Always remove from active nodes when disabled
+        _deactivateNode(nodeId);
+        _nodes[nodeId].isDisabled = true;
+        _nodes[nodeId].isApiEnabled = false;
+        _nodes[nodeId].isReplicationEnabled = false;
+
+        emit NodeDisabled(nodeId);
+    }
+
+    /// @inheritdoc INodes
+    function enableNode(uint256 nodeId) external onlyRole(ADMIN_ROLE) {
+        require(_nodeExists(nodeId), NodeDoesNotExist());
+        _nodes[nodeId].isDisabled = false;
+    }
+
+    /// @inheritdoc INodes
+    function setMaxActiveNodes(uint8 newMaxActiveNodes) external onlyRole(ADMIN_ROLE) {
+        require(newMaxActiveNodes > _activeNodes.length(), MaxActiveNodesBelowCurrentCount());
+        maxActiveNodes = newMaxActiveNodes;
+        emit MaxActiveNodesUpdated(newMaxActiveNodes);
+    }
+
+    /// @inheritdoc INodes
+    function setNodeOperatorCommissionPercent(uint256 newCommissionPercent) external onlyRole(ADMIN_ROLE) {
+        require(newCommissionPercent <= MAX_BPS, InvalidCommissionPercent());
+        nodeOperatorCommissionPercent = newCommissionPercent;
+        emit NodeOperatorCommissionPercentUpdated(newCommissionPercent);
+    }   
+
+    /// @inheritdoc INodes
+    function setBaseURI(string calldata newBaseURI) external onlyRole(ADMIN_ROLE) {
+        require(bytes(newBaseURI).length > 0, InvalidURI());
+        require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, InvalidURI());
+        _baseTokenURI = newBaseURI;
+        emit BaseURIUpdated(newBaseURI);
+    }
+
+    // ***************************************************************
+    // *                NODE MANAGER FUNCTIONS                       *
+    // ***************************************************************
+
     /// @notice Transfers node ownership from one address to another
     /// @dev Only the contract owner may call this. Automatically deactivates the node
     /// @param from The current owner address
@@ -103,7 +152,7 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function updateHttpAddress(uint256 nodeId, string calldata httpAddress) external onlyRole(NODE_MANAGER_ROLE) {
+    function setHttpAddress(uint256 nodeId, string calldata httpAddress) external onlyRole(NODE_MANAGER_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         require(bytes(httpAddress).length > 0, InvalidHttpAddress());
         _nodes[nodeId].httpAddress = httpAddress;
@@ -111,86 +160,29 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function updateMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFee) external onlyRole(NODE_MANAGER_ROLE) {
+    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFee) external onlyRole(NODE_MANAGER_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
         _nodes[nodeId].minMonthlyFee = minMonthlyFee;
         emit MinMonthlyFeeUpdated(nodeId, minMonthlyFee);
     }
 
+    // ***************************************************************
+    // *                NODE OWNER FUNCTION                          *
+    // ***************************************************************
+
     /// @inheritdoc INodes
-    function updateIsApiEnabled(uint256 nodeId, bool isApiEnabled) external {
+    function setIsApiEnabled(uint256 nodeId, bool isApiEnabled) external whenNotDisabled(nodeId) {
         require(_ownerOf(nodeId) == msg.sender, Unauthorized());
         _nodes[nodeId].isApiEnabled = isApiEnabled;
-
-        if (!isApiEnabled && _nodes[nodeId].isActive) {
-            _deactivateNode(nodeId);
-        }
-
         emit ApiEnabledUpdated(nodeId, _nodes[nodeId].isApiEnabled);
     }
 
     /// @inheritdoc INodes
-    function updateIsReplicationEnabled(uint256 nodeId, bool isReplicationEnabled) external onlyRole(NODE_MANAGER_ROLE) {
-        require(_nodeExists(nodeId), NodeDoesNotExist());
+    function setIsReplicationEnabled(uint256 nodeId, bool isReplicationEnabled) external whenNotDisabled(nodeId) {
+        require(_ownerOf(nodeId) == msg.sender, Unauthorized());
         _nodes[nodeId].isReplicationEnabled = isReplicationEnabled;
-
-        if (!isReplicationEnabled && _nodes[nodeId].isActive) {
-            _deactivateNode(nodeId);
-        }
-
         emit ReplicationEnabledUpdated(nodeId, isReplicationEnabled);
-    }
-
-    /// @inheritdoc INodes
-    function updateActive(uint256 nodeId, bool isActive) public onlyRole(ADMIN_ROLE) {
-        require(_nodeExists(nodeId), NodeDoesNotExist());
-
-        Node memory node = _nodes[nodeId];
-        if (isActive && (!node.isApiEnabled || !node.isReplicationEnabled)) {
-            revert InvalidNodeConfig();
-        }
-
-        if (isActive) {
-            require(_activeNodes.length() < maxActiveNodes, MaxActiveNodesReached());
-            require(_activeNodes.add(nodeId), NodeAlreadyActive());
-        } else {
-            require(_activeNodes.remove(nodeId), NodeAlreadyInactive());
-        }
-        _nodes[nodeId].isActive = isActive;
-        emit NodeActivateUpdated(nodeId, isActive);
-    }
-
-    /// @inheritdoc INodes
-    function batchUpdateActive(uint256[] calldata nodeIds, bool[] calldata isActive) 
-        external 
-        onlyRole(ADMIN_ROLE) 
-    {
-        require(nodeIds.length == isActive.length, InvalidInputLength());
-        for (uint256 i = 0; i < nodeIds.length; i++) {
-            updateActive(nodeIds[i], isActive[i]);
-        }
-    }
-
-    /// @inheritdoc INodes
-    function updateMaxActiveNodes(uint8 newMaxActiveNodes) external onlyRole(ADMIN_ROLE) {
-        require(newMaxActiveNodes > _activeNodes.length(), MaxActiveNodesBelowCurrentCount());
-        maxActiveNodes = newMaxActiveNodes;
-        emit MaxActiveNodesUpdated(newMaxActiveNodes);
-    }
-
-    /// @inheritdoc INodes
-    function updateNodeOperatorCommissionPercent(uint256 newCommissionPercent) external onlyRole(ADMIN_ROLE) {
-        require(newCommissionPercent <= MAX_BPS, InvalidCommissionPercent());
-        nodeOperatorCommissionPercent = newCommissionPercent;
-        emit NodeOperatorCommissionPercentUpdated(newCommissionPercent);
-    }   
-
-    /// @inheritdoc INodes
-    function setBaseURI(string calldata newBaseURI) external onlyRole(ADMIN_ROLE) {
-        require(bytes(newBaseURI).length > 0, InvalidURI());
-        require(bytes(newBaseURI)[bytes(newBaseURI).length - 1] == 0x2f, InvalidURI());
-        _baseTokenURI = newBaseURI;
-        emit BaseURIUpdated(newBaseURI);
+        _activateNode(nodeId);
     }
 
     /// @inheritdoc INodes
@@ -243,6 +235,17 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         return _activeNodes.contains(nodeId);
     }
 
+    /// @inheritdoc INodes
+    function getNodeOperatorCommissionPercent() external view returns (uint256 commissionPercent) {
+        return nodeOperatorCommissionPercent;
+    }
+
+    /// @dev Modifier to check if a node is not disabled.
+    modifier whenNotDisabled(uint256 nodeId) {
+        require(!_nodes[nodeId].isDisabled, Unauthorized());
+        _;
+    }
+
     /// @dev Checks if a node exists.
     /// @param nodeId The ID of the node to check.
     /// @return True if the node exists, false otherwise.
@@ -255,13 +258,21 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         return _baseTokenURI;
     }
 
-    /// @dev Helper function to deactivate a node
+    /// @dev Helper function to add a node to the active nodes set.
+    function _activateNode(uint256 nodeId) private {
+        if (!_activeNodes.contains(nodeId)) {
+            // slither-disable-next-line unused-return
+            _activeNodes.add(nodeId);
+            emit NodeEnabled(nodeId);
+        }
+    }
+
+    /// @dev Helper function to remove a node from the active nodes set.
     function _deactivateNode(uint256 nodeId) private {
         if (_activeNodes.contains(nodeId)) {
             // slither-disable-next-line unused-return
             _activeNodes.remove(nodeId);
-            _nodes[nodeId].isActive = false;
-            emit NodeActivateUpdated(nodeId, false);
+            emit NodeDisabled(nodeId);
         }
     }
 

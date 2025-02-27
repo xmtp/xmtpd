@@ -5,7 +5,7 @@ import {Test} from "forge-std/src/Test.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 import {Utils} from "test/utils/Utils.sol";
 import {Nodes} from "src/Nodes.sol";
-import {INodes} from "src/interfaces/INodes.sol";
+import {INodes, INodesEvents, INodesErrors} from "src/interfaces/INodes.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IAccessControlDefaultAdminRules} from "@openzeppelin/contracts/access/extensions/IAccessControlDefaultAdminRules.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -40,7 +40,7 @@ contract NodesTest is Test, Utils {
         address operatorAddress = vm.randomAddress();
 
         vm.expectEmit(address(nodes));
-        emit INodes.NodeAdded(100, operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        emit INodesEvents.NodeAdded(100, operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
         uint256 tmpNodeId = nodes.addNode(operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
 
         vm.assertEq(nodes.ownerOf(tmpNodeId), operatorAddress);

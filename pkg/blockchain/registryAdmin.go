@@ -235,7 +235,7 @@ func (n *NodeRegistryCaller) GetAllNodes(
 	ctx context.Context,
 ) ([]nodes.INodesNodeWithId, error) {
 
-	return n.contract.GetAllNodes(&bind.CallOpts{
+	return n.contract.AllNodes(&bind.CallOpts{
 		Context: ctx,
 	})
 }

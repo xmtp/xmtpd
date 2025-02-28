@@ -265,7 +265,7 @@ interface IPayer {
 
     /**
      * @notice Called by node operators to settle usage and calculate fees owed.
-     * @dev This function is EIP-1283 optimized by using accumulators for multiple state updates.
+     * @dev This function is EIP-2200 optimized by using accumulators for multiple state updates.
      * @param fees The total USDC fees computed from this usage period.
      * @param payer The address of the payer being charged.
      * @param nodeId The ID of the node operator submitting the usage.
@@ -282,7 +282,7 @@ interface IPayer {
 
     /**
      * @notice Called by node operators to settle usage for multiple payers in a batch.
-     * @dev Uses EIP-1283 optimizations for storage efficiency.
+     * @dev Uses EIP-2200 optimizations for storage efficiency.
      * @param payers Array of payer addresses being charged.
      * @param fees Array of USDC fees corresponding to each payer.
      * @param timestamp When this batch of usage occurred (can be backdated).
@@ -306,7 +306,7 @@ interface IPayer {
 
     /**
      * @notice Transfers all pending fees to the designated rewards contract for
-     *         distribution using EIP-1283 optimizations.
+     *         distribution using EIP-2200 optimizations.
      * @dev Uses a single storage write for updating accumulated fees.
      *
      * Emits `FeesTransferred`.

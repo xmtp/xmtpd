@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -28,8 +26,7 @@ type BlockchainPublisher struct {
 	messagesContract       *groupmessages.GroupMessages
 	identityUpdateContract *identityupdates.IdentityUpdates
 	logger                 *zap.Logger
-	mutexNonce             sync.Mutex
-	nonce                  uint64
+	nonceManager           NonceManager
 }
 
 func NewBlockchainPublisher(
@@ -38,6 +35,7 @@ func NewBlockchainPublisher(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractOptions config.ContractsOptions,
+	nonceManager NonceManager,
 ) (*BlockchainPublisher, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
@@ -65,10 +63,10 @@ func NewBlockchainPublisher(
 
 	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
 
-	// The nonce is the next ID to be used, not the current highest
-	// The nonce member variable represents the last recently used, so it is pending-1
-	// If the nonce is 0, it will underflow to 18446744073709551615, which at +1 generates the correct next nonce of 0
-	nonce--
+	err = nonceManager.FastForwardNonce(ctx, nonce)
+	if err != nil {
+		return nil, err
+	}
 
 	return &BlockchainPublisher{
 		signer: signer,
@@ -77,7 +75,7 @@ func NewBlockchainPublisher(
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
 		client:                 client,
-		nonce:                  nonce,
+		nonceManager:           nonceManager,
 	}, nil
 }
 
@@ -90,20 +88,41 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
-	nonce, err := m.fetchNonce(ctx)
-	if err != nil {
-		return nil, err
+	var tx *types.Transaction
+	var nonceContext *NonceContext
+	var err error
+
+	for {
+		nonceContext, err = m.nonceManager.GetNonce(ctx)
+		if err != nil {
+			return nil, err
+		}
+		nonce := nonceContext.Nonce
+		tx, err = m.messagesContract.AddMessage(&bind.TransactOpts{
+			Context: ctx,
+			Nonce:   new(big.Int).SetUint64(nonce),
+			From:    m.signer.FromAddress(),
+			Signer:  m.signer.SignerFunc(),
+		}, groupID, message)
+		if err != nil {
+			if err.Error() == "nonce too low" {
+				err = nonceContext.Consume()
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+			nonceContext.Cancel()
+			return nil, err
+		}
+		break
 	}
 
-	tx, err := m.messagesContract.AddMessage(&bind.TransactOpts{
-		Context: ctx,
-		Nonce:   new(big.Int).SetUint64(nonce),
-		From:    m.signer.FromAddress(),
-		Signer:  m.signer.SignerFunc(),
-	}, groupID, message)
-	if err != nil {
-		return nil, err
-	}
+	defer func() {
+		if err != nil {
+			nonceContext.Cancel()
+		}
+	}()
 
 	receipt, err := WaitForTransaction(
 		ctx,
@@ -119,6 +138,11 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 
 	if receipt == nil {
 		return nil, errors.New("transaction receipt is nil")
+	}
+
+	err = nonceContext.Consume()
+	if err != nil {
+		return nil, err
 	}
 
 	return findLog(receipt, m.messagesContract.ParseMessageSent, "no message sent log found")
@@ -133,20 +157,41 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("identity update is empty")
 	}
 
-	nonce, err := m.fetchNonce(ctx)
-	if err != nil {
-		return nil, err
+	var tx *types.Transaction
+	var nonceContext *NonceContext
+	var err error
+
+	for {
+		nonceContext, err = m.nonceManager.GetNonce(ctx)
+		if err != nil {
+			return nil, err
+		}
+		nonce := nonceContext.Nonce
+		tx, err = m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
+			Context: ctx,
+			Nonce:   new(big.Int).SetUint64(nonce),
+			From:    m.signer.FromAddress(),
+			Signer:  m.signer.SignerFunc(),
+		}, inboxId, identityUpdate)
+		if err != nil {
+			if err.Error() == "nonce too low" {
+				err = nonceContext.Consume()
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+			nonceContext.Cancel()
+			return nil, err
+		}
+		break
 	}
 
-	tx, err := m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
-		Context: ctx,
-		Nonce:   new(big.Int).SetUint64(nonce),
-		From:    m.signer.FromAddress(),
-		Signer:  m.signer.SignerFunc(),
-	}, inboxId, identityUpdate)
-	if err != nil {
-		return nil, err
-	}
+	defer func() {
+		if err != nil {
+			nonceContext.Cancel()
+		}
+	}()
 
 	receipt, err := WaitForTransaction(
 		ctx,
@@ -163,51 +208,16 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("transaction receipt is nil")
 	}
 
+	err = nonceContext.Consume()
+	if err != nil {
+		return nil, err
+	}
+
 	return findLog(
 		receipt,
 		m.identityUpdateContract.ParseIdentityUpdateCreated,
 		"no identity update log found",
 	)
-}
-
-// once fetchNonce returns a nonce, it must be used
-// otherwise the chain might see a gap and deadlock
-func (m *BlockchainPublisher) fetchNonce(ctx context.Context) (uint64, error) {
-	pending, err := m.client.PendingNonceAt(ctx, m.signer.FromAddress())
-	if err != nil {
-		return 0, err
-	}
-
-	next := atomic.AddUint64(&m.nonce, 1)
-
-	m.logger.Debug(
-		"Generated nonce",
-		zap.Uint64("pending_nonce", pending),
-		zap.Uint64("atomic_nonce", next),
-	)
-
-	if next >= pending {
-		// normal case scenario
-		return next, nil
-
-	}
-
-	// in some cases the chain nonce jumps ahead, and we need to handle this case
-	// this won't catch all possible timing scenarios, but it should self-heal if the chain jumps
-	m.mutexNonce.Lock()
-	defer m.mutexNonce.Unlock()
-	currentNonce := atomic.LoadUint64(&m.nonce)
-	if currentNonce < pending {
-		m.logger.Info(
-			"Nonce skew detected",
-			zap.Uint64("pending_nonce", pending),
-			zap.Uint64("current_nonce", currentNonce),
-		)
-		atomic.StoreUint64(&m.nonce, pending)
-		return pending, nil
-	}
-
-	return atomic.AddUint64(&m.nonce, 1), nil
 }
 
 func findLog[T any](

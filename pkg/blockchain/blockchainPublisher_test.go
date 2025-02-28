@@ -1,7 +1,8 @@
-package blockchain
+package blockchain_test
 
 import (
 	"context"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"sync"
 	"testing"
 
@@ -9,23 +10,32 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-func buildPublisher(t *testing.T) (*BlockchainPublisher, func()) {
+func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	contractsOptions := testutils.GetContractsOptions(t)
 	// Set the nodes contract address to a random smart contract instead of the fixed deployment
 	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
-	signer, err := NewPrivateKeySigner(
+	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
 		contractsOptions.ChainID,
 	)
 	require.NoError(t, err)
 
-	client, err := NewClient(ctx, contractsOptions.RpcUrl)
+	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	publisher, err := NewBlockchainPublisher(ctx, logger, client, signer, contractsOptions)
+	nonceManager := NewTestNonceManager(logger)
+
+	publisher, err := blockchain.NewBlockchainPublisher(
+		ctx,
+		logger,
+		client,
+		signer,
+		contractsOptions,
+		nonceManager,
+	)
 	require.NoError(t, err)
 
 	return publisher, func() {

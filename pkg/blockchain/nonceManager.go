@@ -44,7 +44,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 
 	txQuerier := queries.New(s.db).WithTx(tx)
 
-	nonce, err := txQuerier.GetNextAvailablePayerSequence(ctx)
+	nonce, err := txQuerier.GetNextAvailableNonce(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 			_ = tx.Rollback()
 		},
 		Consume: func() error {
-			_, err = txQuerier.DeleteAvailablePayerSequence(ctx, nonce)
+			_, err = txQuerier.DeleteAvailableNonce(ctx, nonce)
 			if err != nil {
 				_ = tx.Rollback()
 				return err
@@ -72,7 +72,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 
 func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce uint64) (err error) {
 	querier := queries.New(s.db)
-	return querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	return querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: int64(startNonce),
 		NumElements:  1000,
 	})

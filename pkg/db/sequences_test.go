@@ -20,7 +20,7 @@ func TestFillRows(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -33,16 +33,16 @@ func TestEmptyRows(t *testing.T) {
 	defer cleanup()
 
 	querier := queries.New(db)
-	seq, err := querier.GetNextAvailablePayerSequence(ctx)
+	seq, err := querier.GetNextAvailableNonce(ctx)
 	require.Error(t, err)
 
-	err = querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
 	require.NoError(t, err)
 
-	seq, err = querier.GetNextAvailablePayerSequence(ctx)
+	seq, err = querier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
 }
@@ -50,14 +50,14 @@ func TestEmptyRows(t *testing.T) {
 func getNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64, error) {
 	return db2.RunInTxWithResult(ctx, db, &sql.TxOptions{},
 		func(ctx context.Context, querier *queries.Queries) (int64, error) {
-			seq, err := querier.GetNextAvailablePayerSequence(ctx)
+			seq, err := querier.GetNextAvailableNonce(ctx)
 			if err != nil {
 				return 0, err
 			}
 			t.Log("Acquired sequence ID: ", seq)
 			time.Sleep(10 * time.Millisecond)
 
-			_, err = querier.DeleteAvailablePayerSequence(ctx, seq)
+			_, err = querier.DeleteAvailableNonce(ctx, seq)
 			if err != nil {
 				return 0, err
 			}
@@ -70,7 +70,7 @@ func getNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64,
 func failNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64, error) {
 	return db2.RunInTxWithResult(ctx, db, &sql.TxOptions{},
 		func(ctx context.Context, querier *queries.Queries) (int64, error) {
-			seq, err := querier.GetNextAvailablePayerSequence(ctx)
+			seq, err := querier.GetNextAvailableNonce(ctx)
 			if err != nil {
 				return 0, err
 			}
@@ -89,7 +89,7 @@ func TestConcurrentReads(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -142,21 +142,21 @@ func TestRequestsUnused(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
 	require.NoError(t, err)
 
-	seq, err := querier.GetNextAvailablePayerSequence(ctx)
+	seq, err := querier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
 
-	seq, err = querier.GetNextAvailablePayerSequence(ctx)
+	seq, err = querier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
 
-	seq, err = querier.GetNextAvailablePayerSequence(ctx)
+	seq, err = querier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
 
@@ -168,7 +168,7 @@ func TestRequestsUsed(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -195,7 +195,7 @@ func TestRequestsFailed(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -224,7 +224,7 @@ func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
@@ -240,14 +240,14 @@ func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 	// hold this TX open
 	txQuerier := queries.New(db).WithTx(tx)
 
-	_, err = txQuerier.GetNextAvailablePayerSequence(ctx)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
-	_, err = txQuerier.GetNextAvailablePayerSequence(ctx)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
-	_, err = txQuerier.GetNextAvailablePayerSequence(ctx)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 
-	err = querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  30,
 	})
@@ -262,13 +262,13 @@ func TestFillerRerun(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
 	require.NoError(t, err)
 
-	err = querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
+	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  30,
 	})

@@ -12,13 +12,33 @@ import (
 	"github.com/lib/pq"
 )
 
-const deleteAvailablePayerSequence = `-- name: DeleteAvailablePayerSequence :execrows
+const deleteAvailableNonce = `-- name: DeleteAvailableNonce :execrows
 DELETE FROM nonce_table
 WHERE nonce = $1
 `
 
-func (q *Queries) DeleteAvailablePayerSequence(ctx context.Context, nonce int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAvailablePayerSequence, nonce)
+func (q *Queries) DeleteAvailableNonce(ctx context.Context, nonce int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAvailableNonce, nonce)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteObsoleteNonces = `-- name: DeleteObsoleteNonces :execrows
+WITH deletable AS (
+    SELECT n.nonce
+    FROM nonce_table n
+    WHERE n.nonce < $1
+    FOR UPDATE SKIP LOCKED
+)
+DELETE FROM nonce_table
+    USING deletable
+WHERE nonce_table.nonce = deletable.nonce
+`
+
+func (q *Queries) DeleteObsoleteNonces(ctx context.Context, nonce int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteObsoleteNonces, nonce)
 	if err != nil {
 		return 0, err
 	}
@@ -38,17 +58,17 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 	return result.RowsAffected()
 }
 
-const fillPayerSequence = `-- name: FillPayerSequence :exec
+const fillNonceSequence = `-- name: FillNonceSequence :exec
 SELECT fill_nonce_gap($1, $2)
 `
 
-type FillPayerSequenceParams struct {
+type FillNonceSequenceParams struct {
 	PendingNonce int64
 	NumElements  int32
 }
 
-func (q *Queries) FillPayerSequence(ctx context.Context, arg FillPayerSequenceParams) error {
-	_, err := q.db.ExecContext(ctx, fillPayerSequence, arg.PendingNonce, arg.NumElements)
+func (q *Queries) FillNonceSequence(ctx context.Context, arg FillNonceSequenceParams) error {
+	_, err := q.db.ExecContext(ctx, fillNonceSequence, arg.PendingNonce, arg.NumElements)
 	return err
 }
 
@@ -247,7 +267,7 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 	return originator_sequence_id, err
 }
 
-const getNextAvailablePayerSequence = `-- name: GetNextAvailablePayerSequence :one
+const getNextAvailableNonce = `-- name: GetNextAvailableNonce :one
 SELECT
     nonce
 FROM
@@ -258,8 +278,8 @@ ORDER BY
     FOR UPDATE SKIP LOCKED
 `
 
-func (q *Queries) GetNextAvailablePayerSequence(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getNextAvailablePayerSequence)
+func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getNextAvailableNonce)
 	var nonce int64
 	err := row.Scan(&nonce)
 	return nonce, err

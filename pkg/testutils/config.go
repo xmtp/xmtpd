@@ -84,6 +84,8 @@ func getProxyAddress(t *testing.T, fileName string) string {
 		return fastjson.GetString(data, "addresses", "groupMessagesProxy")
 	case strings.Contains(fileName, "IdentityUpdates.json"):
 		return fastjson.GetString(data, "addresses", "identityUpdatesProxy")
+	case strings.Contains(fileName, "XMTPNodeRegistry.json"):
+		return fastjson.GetString(data, "addresses", "XMTPNodeRegistry")
 	default:
 		return ""
 	}

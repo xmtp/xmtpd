@@ -37,6 +37,17 @@ function forge_deploy_script() {
             echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/config/anvil_localnet/$3.json\n"
             ;;
 
+        nodes_v2)
+            echo "⧖ Deploying NodesV2 to chainId ${chain_id} using RPC ${RPC_URL}"
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployNodeRegistryV2.s.sol || BUILD_FAILED=true
+            if [[ -n "${BUILD_FAILED:-}" ]]; then
+                echo "Failed to deploy NodesV2 contract"
+                exit 1
+            fi
+
+            echo -e "\033[32m✔\033[0m NodesV2 deployed. Deployment details in contracts/config/anvil_localnet/XMTPNodeRegistry.json\n"
+            ;;
+
         *)
             echo "Invalid option. Use 'group_messages', 'identity_updates' or 'nodes'."
             exit 1

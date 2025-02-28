@@ -1,7 +1,8 @@
-package indexer
+package indexer_test
 
 import (
 	"context"
+	"github.com/xmtp/xmtpd/pkg/indexer"
 	"sync"
 	"testing"
 
@@ -20,7 +21,8 @@ func TestInitialize(t *testing.T) {
 	defer cleanup()
 	querier := queries.New(db)
 
-	tracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	tracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	require.NoError(t, err)
 	blockNumber, blockHash := tracker.GetLatestBlock()
 	require.NoError(t, err)
 	require.NotNil(t, tracker)
@@ -35,7 +37,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 	defer cleanup()
 	querier := queries.New(db)
 
-	tracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	tracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
 
 	blockHigh := testutils.Int64ToHash(100).Bytes()
@@ -63,7 +65,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 	require.Equal(t, blockHigh, blockHash)
 
 	// Verify persistence
-	newTracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	newTracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
 	blockNumber, blockHash = newTracker.GetLatestBlock()
 	require.Equal(t, uint64(100), blockNumber)
@@ -77,7 +79,7 @@ func TestConcurrentUpdates(t *testing.T) {
 	defer cleanup()
 	querier := queries.New(db)
 
-	tracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	tracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
@@ -112,7 +114,7 @@ func TestConcurrentUpdates(t *testing.T) {
 	require.Equal(t, expectedFinalHash, blockHash)
 
 	// Verify persistence
-	newTracker, err := NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
+	newTracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
 	require.NoError(t, err)
 	blockNumber, blockHash = newTracker.GetLatestBlock()
 	require.Equal(t, expectedFinalBlock, blockNumber)
@@ -129,9 +131,9 @@ func TestMultipleContractAddresses(t *testing.T) {
 	address1 := "0x0000000000000000000000000000000000000001"
 	address2 := "0x0000000000000000000000000000000000000002"
 
-	tracker1, err := NewBlockTracker(ctx, address1, querier)
+	tracker1, err := indexer.NewBlockTracker(ctx, address1, querier)
 	require.NoError(t, err)
-	tracker2, err := NewBlockTracker(ctx, address2, querier)
+	tracker2, err := indexer.NewBlockTracker(ctx, address2, querier)
 	require.NoError(t, err)
 
 	blockHash1 := testutils.Int64ToHash(100).Bytes()
@@ -152,9 +154,9 @@ func TestMultipleContractAddresses(t *testing.T) {
 	require.Equal(t, blockHash2, blockHash)
 
 	// Verify persistence for both addresses
-	newTracker1, err := NewBlockTracker(ctx, address1, querier)
+	newTracker1, err := indexer.NewBlockTracker(ctx, address1, querier)
 	require.NoError(t, err)
-	newTracker2, err := NewBlockTracker(ctx, address2, querier)
+	newTracker2, err := indexer.NewBlockTracker(ctx, address2, querier)
 	require.NoError(t, err)
 
 	blockNumber, blockHash = newTracker1.GetLatestBlock()

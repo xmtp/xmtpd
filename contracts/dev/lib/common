@@ -49,7 +49,7 @@ function forge_deploy_script() {
             ;;
 
         *)
-            echo "Invalid option. Use 'group_messages', 'identity_updates' or 'nodes'."
+            echo "Invalid option. Use 'group_messages', 'identity_updates', 'nodes', or 'nodes_v2'."
             exit 1
             ;;
     esac

@@ -50,7 +50,8 @@ func rootPath(t *testing.T) string {
 /*
 *
 Parse the JSON file at this location to get the deployed contract info
-TODO: deprecate in favor of getProxyAddress
+TODO(borja): deprecate in favor of getContractAddress
+Delete when migration V1 -> V2 is done
 *
 */
 func getDeployedTo(t *testing.T, fileName string) string {
@@ -73,7 +74,7 @@ func getDeployedTo(t *testing.T, fileName string) string {
 Parse the JSON file at this location to get the deployed contract proxy address
 *
 */
-func getProxyAddress(t *testing.T, fileName string) string {
+func getContractAddress(t *testing.T, fileName string) string {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("Failed to read json: %v", err)
@@ -96,7 +97,7 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 
 	return config.ContractsOptions{
 		RpcUrl: BLOCKCHAIN_RPC_URL,
-		MessagesContractAddress: getProxyAddress(
+		MessagesContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
 		),
@@ -104,7 +105,7 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/Nodes.json"),
 		),
-		IdentityUpdatesContractAddress: getProxyAddress(
+		IdentityUpdatesContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
 		),

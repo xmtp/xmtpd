@@ -188,7 +188,7 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	nodes, err := migrator.ReadFromRegistry(caller)
+	nodes, err := migrator.ReadFromRegistryV1(caller)
 	if err != nil {
 		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
@@ -295,7 +295,7 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create signer", zap.Error(err))
 	}
 
-	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+	registryAdminV2, err := blockchain.NewNodeRegistryAdminV2(
 		logger,
 		chainClient,
 		signer,
@@ -305,7 +305,7 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	err = migrator.WriteToRegistry(logger, nodes, registryAdmin)
+	err = migrator.WriteToRegistryV2(logger, nodes, registryAdminV2)
 	if err != nil {
 		logger.Fatal("could not write nodes to registry", zap.Error(err))
 	}

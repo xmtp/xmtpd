@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-func setupTest(
+func setupRegistryV1(
 	t *testing.T,
 ) (*blockchain.NodeRegistryAdmin, *blockchain.NodeRegistryCaller, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -31,7 +31,7 @@ func setupTest(
 	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+	registryAdminV1, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		client,
 		signer,
@@ -46,7 +46,47 @@ func setupTest(
 	)
 	require.NoError(t, err)
 
-	return registryAdmin, registryCaller, func() {
+	return registryAdminV1, registryCaller, func() {
+		cancel()
+		client.Close()
+	}
+}
+
+func setupRegistryV2(
+	t *testing.T,
+) (*blockchain.NodeRegistryAdminV2, *blockchain.NodeRegistryCallerV2, func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	logger := testutils.NewLog(t)
+	contractsOptions := testutils.GetContractsOptions(t)
+
+	// Set the nodes contract address to a NodesV2 contract
+	contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		testutils.GetPayerOptions(t).PrivateKey,
+		contractsOptions.ChainID,
+	)
+	require.NoError(t, err)
+
+	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
+	require.NoError(t, err)
+
+	registryAdminV2, err := blockchain.NewNodeRegistryAdminV2(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
+	require.NoError(t, err)
+
+	registryCallerV2, err := blockchain.NewNodeRegistryCallerV2(
+		logger,
+		client,
+		contractsOptions,
+	)
+	require.NoError(t, err)
+
+	return registryAdminV2, registryCallerV2, func() {
 		cancel()
 		client.Close()
 	}
@@ -55,7 +95,7 @@ func setupTest(
 func registerRandomNode(
 	t *testing.T,
 	registryAdmin *blockchain.NodeRegistryAdmin,
-) SerializableNode {
+) SerializableNodeV1 {
 	ownerAddress := testutils.RandomAddress().Hex()
 	httpAddress := testutils.RandomString(30)
 	publicKey := testutils.RandomPrivateKey(t).PublicKey
@@ -64,7 +104,7 @@ func registerRandomNode(
 		return err == nil
 	}, 1*time.Second, 50*time.Millisecond)
 
-	return SerializableNode{
+	return SerializableNodeV1{
 		OwnerAddress:  ownerAddress,
 		HttpAddress:   httpAddress,
 		SigningKeyPub: utils.EcdsaPublicKeyToString(&publicKey),
@@ -74,13 +114,13 @@ func registerRandomNode(
 }
 
 func TestRegistryRead(t *testing.T) {
-	registryAdmin, registryCaller, cleanup := setupTest(t)
+	registryAdminV1, registryCaller, cleanup := setupRegistryV1(t)
 	defer cleanup()
 
-	node1 := registerRandomNode(t, registryAdmin)
-	node2 := registerRandomNode(t, registryAdmin)
+	node1 := registerRandomNode(t, registryAdminV1)
+	node2 := registerRandomNode(t, registryAdminV1)
 
-	nodes, err := ReadFromRegistry(registryCaller)
+	nodes, err := ReadFromRegistryV1(registryCaller)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
@@ -96,12 +136,12 @@ func TestRegistryRead(t *testing.T) {
 }
 
 func TestFileDump(t *testing.T) {
-	registryAdmin, registryCaller, cleanup := setupTest(t)
+	registryAdminV1, registryCaller, cleanup := setupRegistryV1(t)
 	defer cleanup()
 
-	_ = registerRandomNode(t, registryAdmin)
+	_ = registerRandomNode(t, registryAdminV1)
 
-	nodes, err := ReadFromRegistry(registryCaller)
+	nodes, err := ReadFromRegistryV1(registryCaller)
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -119,33 +159,40 @@ func TestFileDump(t *testing.T) {
 }
 
 func TestRegistryWrite(t *testing.T) {
-	registryAdmin, registryCaller, cleanup := setupTest(t)
-	defer cleanup()
+	registryAdminV1, registryCallerV1, cleanupV1 := setupRegistryV1(t)
+	defer cleanupV1()
 
-	node1 := registerRandomNode(t, registryAdmin)
-	node2 := registerRandomNode(t, registryAdmin)
+	node1 := registerRandomNode(t, registryAdminV1)
+	node2 := registerRandomNode(t, registryAdminV1)
 
-	nodes, err := ReadFromRegistry(registryCaller)
+	nodes, err := ReadFromRegistryV1(registryCallerV1)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
-	// Build a new registry admin with a different nodes contract
-	newRegistryAdmin, newRegistryCaller, newCleanup := setupTest(t)
-	defer newCleanup()
-	err = WriteToRegistry(testutils.NewLog(t), nodes, newRegistryAdmin)
+	// Build a NodesV2 registry
+	registryAdminV2, registryCallerV2, cleanupV2 := setupRegistryV2(t)
+	defer cleanupV2()
+
+	err = WriteToRegistryV2(testutils.NewLog(t), nodes, registryAdminV2)
 	require.NoError(t, err)
 
-	restoredNodes, err := ReadFromRegistry(newRegistryCaller)
+	restoredNodes, err := ReadFromRegistryV2(registryCallerV2)
 	require.NoError(t, err)
-	require.Equal(t, nodes, restoredNodes)
+	require.Equal(t, 2, len(restoredNodes))
 
+	// Old parameters should be the same.
 	require.Equal(t, node1.OwnerAddress, restoredNodes[0].OwnerAddress)
 	require.Equal(t, node1.HttpAddress, restoredNodes[0].HttpAddress)
 	require.Equal(t, node1.SigningKeyPub, restoredNodes[0].SigningKeyPub)
-	require.Equal(t, node1.IsHealthy, restoredNodes[0].IsHealthy)
-
 	require.Equal(t, node2.OwnerAddress, restoredNodes[1].OwnerAddress)
 	require.Equal(t, node2.HttpAddress, restoredNodes[1].HttpAddress)
 	require.Equal(t, node2.SigningKeyPub, restoredNodes[1].SigningKeyPub)
-	require.Equal(t, node2.IsHealthy, restoredNodes[1].IsHealthy)
+
+	// New parameters should be the default values.
+	require.Equal(t, "0", restoredNodes[0].MinMonthlyFee)
+	require.Equal(t, false, restoredNodes[0].IsReplicationEnabled)
+	require.Equal(t, false, restoredNodes[0].IsApiEnabled)
+	require.Equal(t, "0", restoredNodes[1].MinMonthlyFee)
+	require.Equal(t, false, restoredNodes[1].IsReplicationEnabled)
+	require.Equal(t, false, restoredNodes[1].IsApiEnabled)
 }

@@ -200,24 +200,19 @@ WHERE
 		OR minutes_since_epoch < @minutes_since_epoch_lt::BIGINT);
 
 -- name: FillPayerSequence :exec
-INSERT INTO payer_sequences (available)
-    SELECT TRUE
-    FROM
-        generate_series(1, 10000);
+SELECT fill_nonce_gap(@pending_nonce, @num_elements);
 
 -- name: GetNextAvailablePayerSequence :one
 SELECT
-    id
+    nonce
 FROM
-    payer_sequences
-WHERE
-    available = TRUE
+    nonce_table
 ORDER BY
-    id
+    nonce
     ASC LIMIT 1
     FOR UPDATE SKIP LOCKED;
 
 
 -- name: DeleteAvailablePayerSequence :execrows
-DELETE FROM payer_sequences
-WHERE id = @id;
+DELETE FROM nonce_table
+WHERE nonce = @nonce;

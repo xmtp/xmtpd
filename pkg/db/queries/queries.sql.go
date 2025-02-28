@@ -13,12 +13,12 @@ import (
 )
 
 const deleteAvailablePayerSequence = `-- name: DeleteAvailablePayerSequence :execrows
-DELETE FROM payer_sequences
-WHERE id = $1
+DELETE FROM nonce_table
+WHERE nonce = $1
 `
 
-func (q *Queries) DeleteAvailablePayerSequence(ctx context.Context, id int32) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAvailablePayerSequence, id)
+func (q *Queries) DeleteAvailablePayerSequence(ctx context.Context, nonce int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAvailablePayerSequence, nonce)
 	if err != nil {
 		return 0, err
 	}
@@ -39,14 +39,16 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 }
 
 const fillPayerSequence = `-- name: FillPayerSequence :exec
-INSERT INTO payer_sequences (available)
-    SELECT TRUE
-    FROM
-        generate_series(1, 10000)
+SELECT fill_nonce_gap($1, $2)
 `
 
-func (q *Queries) FillPayerSequence(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, fillPayerSequence)
+type FillPayerSequenceParams struct {
+	PendingNonce int64
+	NumElements  int32
+}
+
+func (q *Queries) FillPayerSequence(ctx context.Context, arg FillPayerSequenceParams) error {
+	_, err := q.db.ExecContext(ctx, fillPayerSequence, arg.PendingNonce, arg.NumElements)
 	return err
 }
 
@@ -247,22 +249,20 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 
 const getNextAvailablePayerSequence = `-- name: GetNextAvailablePayerSequence :one
 SELECT
-    id
+    nonce
 FROM
-    payer_sequences
-WHERE
-    available = TRUE
+    nonce_table
 ORDER BY
-    id
+    nonce
     ASC LIMIT 1
     FOR UPDATE SKIP LOCKED
 `
 
-func (q *Queries) GetNextAvailablePayerSequence(ctx context.Context) (int32, error) {
+func (q *Queries) GetNextAvailablePayerSequence(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getNextAvailablePayerSequence)
-	var id int32
-	err := row.Scan(&id)
-	return id, err
+	var nonce int64
+	err := row.Scan(&nonce)
+	return nonce, err
 }
 
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one

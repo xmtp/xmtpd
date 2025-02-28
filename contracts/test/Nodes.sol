@@ -20,8 +20,10 @@ contract NodesTest is Test, Utils {
     address manager = vm.randomAddress();
     address unauthorized = address(0x1);
 
-    /// @dev Use _addNode to populate addresses and IDs.
+    /// @dev Use _addNode to populate nodeOperator and nodeId.
+    /// @dev Use _enableNode to enable the node.
     /// @dev Use _addMultipleNodes to populate multiple nodes.
+    /// @dev Use _enableNodes to enable multiple nodes.
     address nodeOperator;
     uint256 nodeId;
 
@@ -55,7 +57,7 @@ contract NodesTest is Test, Utils {
     function test_RevertWhen_AddNodeWithZeroAddress() public {
         vm.recordLogs();
         INodes.Node memory node = _randomNode();
-        vm.expectRevert(INodes.InvalidAddress.selector);
+        vm.expectRevert(INodesErrors.InvalidAddress.selector);
         nodes.addNode(address(0), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
         _checkNoLogsEmitted();
     }
@@ -63,7 +65,7 @@ contract NodesTest is Test, Utils {
     function test_RevertWhen_AddNodeWithInvalidSigningKey() public {
         vm.recordLogs();
         INodes.Node memory node = _randomNode();
-        vm.expectRevert(INodes.InvalidSigningKey.selector);
+        vm.expectRevert(INodesErrors.InvalidSigningKey.selector);
         nodes.addNode(vm.randomAddress(), bytes(""), node.httpAddress, node.minMonthlyFee);
         _checkNoLogsEmitted();
     }
@@ -71,7 +73,7 @@ contract NodesTest is Test, Utils {
     function test_RevertWhen_AddNodeWithInvalidHttpAddress() public {
         vm.recordLogs();
         INodes.Node memory node = _randomNode();
-        vm.expectRevert(INodes.InvalidHttpAddress.selector);
+        vm.expectRevert(INodesErrors.InvalidHttpAddress.selector);
         nodes.addNode(vm.randomAddress(), node.signingKeyPub, "", node.minMonthlyFee);
         _checkNoLogsEmitted();
     }
@@ -109,6 +111,117 @@ contract NodesTest is Test, Utils {
         uint256 firstId = nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
         uint256 secondId = nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
         assertEq(secondId - firstId, 100);
+    }
+
+    // ***************************************************************
+    // *                    enable/disableNode                       *
+    // ***************************************************************
+
+    function test_disableNode() public {
+        _addNode();
+        _enableNode(nodeOperator, nodeId);
+        assertEq(nodes.getNode(nodeId).isDisabled, false);
+        assertEq(nodes.getNode(nodeId).isApiEnabled, true);
+        assertEq(nodes.getNode(nodeId).isReplicationEnabled, true);
+
+        vm.expectEmit(address(nodes));
+        emit INodesEvents.NodeDisabled(nodeId);
+        nodes.disableNode(nodeId);
+        assertEq(nodes.getNode(nodeId).isDisabled, true);
+        assertEq(nodes.getNode(nodeId).isApiEnabled, false);
+        assertEq(nodes.getNode(nodeId).isReplicationEnabled, false);
+
+        vm.expectEmit(address(nodes));
+        emit INodesEvents.NodeEnabled(nodeId);
+        nodes.enableNode(nodeId);
+        assertEq(nodes.getNode(nodeId).isDisabled, false);
+        assertEq(nodes.getNode(nodeId).isApiEnabled, false);
+        assertEq(nodes.getNode(nodeId).isReplicationEnabled, false);
+    }
+
+    function test_RevertWhen_disableNodeNodeDoesNotExist() public {
+        vm.recordLogs();
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.disableNode(1337);
+        _checkNoLogsEmitted();
+    }
+
+    function test_RevertWhen_disableNodeUnauthorized() public {
+        vm.recordLogs();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                nodes.ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        nodes.disableNode(nodeId);
+        _checkNoLogsEmitted();
+    }
+
+    // ***************************************************************
+    // *                    removeFromApiNodes                       *
+    // ***************************************************************
+
+    function test_removeFromApiNodes() public {
+        _addNode();
+        _enableNode(nodeOperator, nodeId);
+        nodes.removeFromApiNodes(nodeId);
+        assertEq(nodes.getNode(nodeId).isApiEnabled, false);
+    }
+
+    function test_RevertWhen_removeFromApiNodesNodeDoesNotExist() public {
+        vm.recordLogs();
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.removeFromApiNodes(1337);
+        _checkNoLogsEmitted();
+    }
+
+    function test_RevertWhen_removeFromApiNodesUnauthorized() public {
+        vm.recordLogs();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                nodes.ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        nodes.removeFromApiNodes(nodeId);
+        _checkNoLogsEmitted();
+    }
+
+    // ***************************************************************
+    // *                  removeFromReplicationNodes                 *
+    // ***************************************************************
+
+    function test_removeFromReplicationNodes() public {
+        _addNode();
+        _enableNode(nodeOperator, nodeId);
+        nodes.removeFromReplicationNodes(nodeId);
+        assertEq(nodes.getNode(nodeId).isReplicationEnabled, false);
+    }
+
+    function test_RevertWhen_removeFromReplicationNodesNodeDoesNotExist() public {
+        vm.recordLogs();
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.removeFromReplicationNodes(1337);
+        _checkNoLogsEmitted();
+    }
+
+    function test_RevertWhen_removeFromReplicationNodesUnauthorized() public {
+        vm.recordLogs();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                unauthorized,
+                nodes.ADMIN_ROLE()
+            )
+        );
+        vm.prank(unauthorized);
+        nodes.removeFromReplicationNodes(nodeId);
+        _checkNoLogsEmitted();
     }
 
     // ***************************************************************
@@ -249,33 +362,33 @@ contract NodesTest is Test, Utils {
     }
 
     // ***************************************************************
-    // *                        updateHttpAddress                    *
+    // *                      setHttpAddress                         *
     // ***************************************************************
 
-    function test_updateHttpAddress() public {
+    function test_setHttpAddress() public {
         _addNode();
         vm.expectEmit(address(nodes));
-        emit INodes.HttpAddressUpdated(nodeId, "http://example.com");
-        nodes.updateHttpAddress(nodeId, "http://example.com");
+        emit INodesEvents.HttpAddressUpdated(nodeId, "http://example.com");
+        nodes.setHttpAddress(nodeId, "http://example.com");
         vm.assertEq(nodes.getNode(nodeId).httpAddress, "http://example.com");
     }
 
-    function test_RevertWhen_updateHttpAddressNodeDoesNotExist() public {
+    function test_RevertWhen_setHttpAddressNodeDoesNotExist() public {
         vm.recordLogs();
-        vm.expectRevert(INodes.NodeDoesNotExist.selector);
-        nodes.updateHttpAddress(1337, "http://example.com");
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.setHttpAddress(1337, "http://example.com");
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateHttpAddressInvalidHttpAddress() public {
+    function test_RevertWhen_setHttpAddressInvalidHttpAddress() public {
         _addNode();
         vm.recordLogs();
-        vm.expectRevert(INodes.InvalidHttpAddress.selector);
-        nodes.updateHttpAddress(nodeId, "");
+        vm.expectRevert(INodesErrors.InvalidHttpAddress.selector);
+        nodes.setHttpAddress(nodeId, "");
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateHttpAddressUnauthorized() public {
+    function test_RevertWhen_setHttpAddressUnauthorized() public {
         _addNode();
         vm.recordLogs();
         vm.expectRevert(
@@ -286,11 +399,11 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(unauthorized);
-        nodes.updateHttpAddress(nodeId, "");
+        nodes.setHttpAddress(nodeId, "");
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateHttpAddressOwnerCannotUpdate() public {
+    function test_RevertWhen_setHttpAddressOwnerCannotUpdate() public {
         _addNode();
         vm.recordLogs();
         vm.expectRevert(
@@ -301,82 +414,126 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(nodeOperator);
-        nodes.updateHttpAddress(nodeId, "");
+        nodes.setHttpAddress(nodeId, "");
         _checkNoLogsEmitted();
     }
 
     // ***************************************************************
-    // *                  updateIsReplicationEnabled                 *
+    // *                     setIsApiEnabled                         *
     // ***************************************************************
 
-    function test_updateIsReplicationEnabled() public {
+    function test_setIsApiEnabled() public {
+        _addNode();
+        vm.assertEq(nodes.getNode(nodeId).isApiEnabled, false);
+
+        vm.expectEmit(address(nodes));
+        emit INodesEvents.ApiEnabled(nodeId);
+        vm.startPrank(nodeOperator);
+        nodes.setIsApiEnabled(nodeId, true);
+        assertEq(nodes.getNode(nodeId).isApiEnabled, true);
+
+        vm.expectEmit(address(nodes));
+        emit INodesEvents.ApiDisabled(nodeId);
+        nodes.setIsApiEnabled(nodeId, false);
+        assertEq(nodes.getNode(nodeId).isApiEnabled, false);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_setIsApiEnabledNodeDoesNotExist() public {
+        vm.recordLogs();
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.setIsApiEnabled(1337, true);
+        _checkNoLogsEmitted();
+    }
+
+    function test_RevertWhen_setIsApiEnabledNodeIsDisabled() public {
+        _addNode();
+
+        nodes.disableNode(nodeId);
+
+        vm.expectRevert(INodesErrors.NodeIsDisabled.selector);
+        vm.prank(nodeOperator);
+        nodes.setIsApiEnabled(nodeId, true);
+    }
+
+    function test_RevertWhen_setIsApiEnabledUnauthorized() public {
+        _addNode();
+        vm.recordLogs();
+        vm.expectRevert(INodesErrors.Unauthorized.selector);
+        vm.prank(unauthorized);
+        nodes.setIsApiEnabled(nodeId, true);
+        _checkNoLogsEmitted();
+    }
+
+    // ***************************************************************
+    // *                  setIsReplicationEnabled                    *
+    // ***************************************************************
+
+    function test_setIsReplicationEnabled() public {
         _addNode();
         vm.assertEq(nodes.getNode(nodeId).isReplicationEnabled, false);
+
         vm.expectEmit(address(nodes));
-        emit INodes.ReplicationEnabledUpdated(nodeId, true);
-        nodes.updateIsReplicationEnabled(nodeId, true);
+        emit INodesEvents.ReplicationEnabled(nodeId);
+        vm.startPrank(nodeOperator);
+        nodes.setIsReplicationEnabled(nodeId, true);
         vm.assertEq(nodes.getNode(nodeId).isReplicationEnabled, true);
+
+        vm.expectEmit(address(nodes));
+        emit INodesEvents.ReplicationDisabled(nodeId);
+        nodes.setIsReplicationEnabled(nodeId, false);
+        assertEq(nodes.getNode(nodeId).isReplicationEnabled, false);
+        vm.stopPrank();
     }
 
-    function test_RevertWhen_updateIsReplicationEnabledNodeDoesNotExist() public {
+    function test_RevertWhen_setIsReplicationEnabledNodeDoesNotExist() public {
         vm.recordLogs();
-        vm.expectRevert(INodes.NodeDoesNotExist.selector);
-        nodes.updateIsReplicationEnabled(1337, true);
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.setIsReplicationEnabled(1337, true);
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateIsReplicationEnabledUnauthorized() public {
+    function test_RevertWhen_setIsReplicationEnabledNodeIsDisabled() public {
         _addNode();
-        vm.recordLogs();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                unauthorized,
-                nodes.NODE_MANAGER_ROLE()
-            )
-        );
-        vm.prank(unauthorized);
-        nodes.updateIsReplicationEnabled(nodeId, true);
-        _checkNoLogsEmitted();
-    }
 
-    function test_RevertWhen_updateIsReplicationEnabledOwnerCannotUpdate() public {
-        _addNode();
-        vm.recordLogs();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                nodeOperator,
-                nodes.NODE_MANAGER_ROLE()
-            )
-        );
+        nodes.disableNode(nodeId);
+
+        vm.expectRevert(INodesErrors.NodeIsDisabled.selector);
         vm.prank(nodeOperator);
-        nodes.updateIsReplicationEnabled(nodeId, true);
+        nodes.setIsReplicationEnabled(nodeId, true);
+    }
+
+    function test_RevertWhen_setIsReplicationEnabledUnauthorized() public {
+        _addNode();
+        vm.recordLogs();
+        vm.expectRevert(INodesErrors.Unauthorized.selector);
+        vm.prank(unauthorized);
+        nodes.setIsReplicationEnabled(nodeId, true);
         _checkNoLogsEmitted();
     }
 
     // ***************************************************************
-    // *                        updateMinMonthlyFee                  *
+    // *                    setMinMonthlyFee                         *
     // ***************************************************************
 
-    function test_updateMinMonthlyFee() public {
+    function test_setMinMonthlyFee() public {
         _addNode();
         uint256 initialMonthlyFee = nodes.getNode(nodeId).minMonthlyFee;
         vm.expectEmit(address(nodes));
-        emit INodes.MinMonthlyFeeUpdated(nodeId, 1000);
-        nodes.updateMinMonthlyFee(nodeId, 1000);
+        emit INodesEvents.MinMonthlyFeeUpdated(nodeId, 1000);
+        nodes.setMinMonthlyFee(nodeId, 1000);
         vm.assertEq(nodes.getNode(nodeId).minMonthlyFee, 1000);
         vm.assertNotEq(nodes.getNode(nodeId).minMonthlyFee, initialMonthlyFee);
     }
 
-    function test_RevertWhen_updateMinMonthlyFeeNodeDoesNotExist() public {
+    function test_RevertWhen_setMinMonthlyFeeNodeDoesNotExist() public {
         vm.recordLogs();
-        vm.expectRevert(INodes.NodeDoesNotExist.selector);
-        nodes.updateMinMonthlyFee(1337, 1000);
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
+        nodes.setMinMonthlyFee(1337, 1000);
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateMinMonthlyFeeUnauthorized() public {
+    function test_RevertWhen_setMinMonthlyFeeUnauthorized() public {
         _addNode();
         vm.recordLogs();
         vm.expectRevert(
@@ -387,11 +544,11 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(unauthorized);
-        nodes.updateMinMonthlyFee(nodeId, 1000);
+        nodes.setMinMonthlyFee(nodeId, 1000);
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateMinMonthlyFeeOwnerCannotUpdate() public {
+    function test_RevertWhen_setMinMonthlyFeeOwnerCannotUpdate() public {
         _addNode();
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -401,173 +558,21 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(nodeOperator);
-        nodes.updateMinMonthlyFee(nodeId, 1000);
+        nodes.setMinMonthlyFee(nodeId, 1000);
     }
 
     // ***************************************************************
-    // *            updateActive, batchUpdateActive                  *
+    // *                    setMaxActiveNodes                        *
     // ***************************************************************
 
-    function test_updateActive() public {
-        _addNode();
-        nodes.updateIsReplicationEnabled(nodeId, true);
-        vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId, true);
+    function test_setMaxActiveNodes() public {
         vm.expectEmit(address(nodes));
-        emit INodes.NodeActivateUpdated(nodeId, true);
-        nodes.updateActive(nodeId, true);
-        vm.assertEq(nodes.getNode(nodeId).isActive, true);
-    }
-
-    function test_RevertWhen_updateActiveInvalidNodeConfig() public {
-        _addNode();
-        vm.recordLogs();
-        vm.expectRevert(INodes.InvalidNodeConfig.selector);
-        nodes.updateActive(nodeId, true);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_updateActiveNodeDoesNotExist() public {
-        vm.recordLogs();
-        vm.expectRevert(INodes.NodeDoesNotExist.selector);
-        nodes.updateActive(1337, true);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_updateActiveUnauthorized() public {
-        _addNode();
-        vm.recordLogs();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                manager,
-                nodes.ADMIN_ROLE()
-            )
-        );
-        vm.prank(manager);
-        nodes.updateActive(nodeId, true);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_updateActiveOwnerCannotUpdate() public {
-        _addNode();
-        vm.recordLogs();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                nodeOperator,
-                nodes.ADMIN_ROLE()
-            )
-        );
-        vm.prank(nodeOperator);
-        nodes.updateActive(nodeId, true);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_updateActiveNodeAlreadyActive() public {
-        _addNode();
-        nodes.updateIsReplicationEnabled(nodeId, true);
-        vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId, true);
-
-        nodes.updateActive(nodeId, true);
-        vm.recordLogs();
-        vm.expectRevert(INodes.NodeAlreadyActive.selector);
-        nodes.updateActive(nodeId, true);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_updateActiveNodeAlreadyInactive() public {
-        _addNode();
-        vm.recordLogs();
-        vm.expectRevert(INodes.NodeAlreadyInactive.selector);
-        nodes.updateActive(nodeId, false);
-        _checkNoLogsEmitted();
-    }
-
-    function test_batchUpdateActive() public {
-        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
-        bool[] memory isActive = new bool[](3);
-
-        for (uint256 i = 0; i < 3; i++) {
-            isActive[i] = true;
-        }
-
-        _enableNodes(operators, nodeIds);
-
-        vm.expectEmit(address(nodes));
-        emit INodes.NodeActivateUpdated(nodeIds[0], true);
-        emit INodes.NodeActivateUpdated(nodeIds[1], true);
-        emit INodes.NodeActivateUpdated(nodeIds[2], true);
-        nodes.batchUpdateActive(nodeIds, isActive);
-
-        uint256[] memory activeNodesIDs = nodes.getActiveNodesIDs();
-        vm.assertTrue(activeNodesIDs.length == 3);
-    }
-
-    function test_RevertWhen_batchUpdateActiveUnauthorized() public {
-        (, uint256[] memory nodeIds) = _addMultipleNodes(3);
-        bool[] memory isActive = new bool[](3);
-        for (uint256 i = 0; i < 3; i++) {
-            isActive[i] = true;
-        }
-
-        vm.recordLogs();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                unauthorized,
-                nodes.ADMIN_ROLE()
-            )
-        );
-        vm.prank(unauthorized);
-        nodes.batchUpdateActive(nodeIds, isActive);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_batchUpdateActiveInvalidInputLength() public {
-        nodes.updateMaxActiveNodes(2);
-        (, uint256[] memory nodeIds) = _addMultipleNodes(3);
-        bool[] memory isActive = new bool[](2);
-        for (uint256 i = 0; i < 2; i++) {
-            isActive[i] = true;
-        }
-
-        vm.recordLogs();
-        vm.expectRevert(INodes.InvalidInputLength.selector);
-        nodes.batchUpdateActive(nodeIds, isActive);
-        _checkNoLogsEmitted();
-    }
-
-    function test_RevertWhen_batchUpdateActiveMaxActiveNodesReached() public {
-        nodes.updateMaxActiveNodes(2);
-        (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
-        bool[] memory isActive = new bool[](3);
-        for (uint256 i = 0; i < 3; i++) {
-            isActive[i] = true;
-        }
-
-        _enableNodes(operators, nodeIds);
-
-        vm.recordLogs();
-        vm.expectRevert(INodes.MaxActiveNodesReached.selector);
-        nodes.batchUpdateActive(nodeIds, isActive);
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        vm.assertTrue(logs.length == 2, "Only 2 nodes should be added");
-    }
-
-    // ***************************************************************
-    // *                    updateMaxActiveNodes                     *
-    // ***************************************************************
-
-    function test_updateMaxActiveNodes() public {
-        vm.expectEmit(address(nodes));
-        emit INodes.MaxActiveNodesUpdated(10);
-        nodes.updateMaxActiveNodes(10);
+        emit INodesEvents.MaxActiveNodesUpdated(10);
+        nodes.setMaxActiveNodes(10);
         vm.assertEq(nodes.maxActiveNodes(), 10);
     }
 
-    function test_RevertWhen_updateMaxActiveNodesUnauthorized() public {
+    function test_RevertWhen_setMaxActiveNodesUnauthorized() public {
         vm.recordLogs();
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -577,36 +582,35 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(unauthorized);
-        nodes.updateMaxActiveNodes(10);
+        nodes.setMaxActiveNodes(10);
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateMaxActiveNodesDeactivateNodes() public {
+    function test_RevertWhen_setMaxActiveNodesBelowCurrentCount() public {
         _addNode();
-        nodes.updateIsReplicationEnabled(nodeId, true);
-        vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId, true);
+        _enableNode(nodeOperator, nodeId);
 
-        nodes.updateMaxActiveNodes(1);
-        nodes.updateActive(nodeId, true);
+        /// @dev It shouldn't fail to set the maxActiveNodes to the current count.
+        nodes.setMaxActiveNodes(1);
+
         vm.recordLogs();
-        vm.expectRevert(INodes.MaxActiveNodesBelowCurrentCount.selector);
-        nodes.updateMaxActiveNodes(0);
+        vm.expectRevert(INodesErrors.MaxActiveNodesBelowCurrentCount.selector);
+        nodes.setMaxActiveNodes(0);
         _checkNoLogsEmitted();
     }
 
     // ***************************************************************
-    // *             updateNodeOperatorCommissionPercent             *
+    // *             setNodeOperatorCommissionPercent                *
     // ***************************************************************  
 
-    function test_updateNodeOperatorCommissionPercent() public {
+    function test_setNodeOperatorCommissionPercent() public {
         vm.expectEmit(address(nodes));
-        emit INodes.NodeOperatorCommissionPercentUpdated(1000);
-        nodes.updateNodeOperatorCommissionPercent(1000);
+        emit INodesEvents.NodeOperatorCommissionPercentUpdated(1000);
+        nodes.setNodeOperatorCommissionPercent(1000);
         vm.assertEq(nodes.nodeOperatorCommissionPercent(), 1000);
     }
 
-    function test_RevertWhen_updateNodeOperatorCommissionPercentUnauthorized() public {
+    function test_RevertWhen_setNodeOperatorCommissionPercentUnauthorized() public {
         vm.recordLogs();
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -616,14 +620,14 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(unauthorized);
-        nodes.updateNodeOperatorCommissionPercent(1000);
+        nodes.setNodeOperatorCommissionPercent(1000);
         _checkNoLogsEmitted();
     }
 
-    function test_RevertWhen_updateNodeOperatorCommissionPercentInvalidCommissionPercent() public {
+    function test_RevertWhen_setNodeOperatorCommissionPercentInvalidCommissionPercent() public {
         vm.recordLogs();
-        vm.expectRevert(INodes.InvalidCommissionPercent.selector);
-        nodes.updateNodeOperatorCommissionPercent(10001);
+        vm.expectRevert(INodesErrors.InvalidCommissionPercent.selector);
+        nodes.setNodeOperatorCommissionPercent(10001);
         _checkNoLogsEmitted();
     }
 
@@ -634,7 +638,7 @@ contract NodesTest is Test, Utils {
     function test_setBaseURI() public {
         _addNode();
         vm.expectEmit(address(nodes));
-        emit INodes.BaseURIUpdated("http://example.com/");
+        emit INodesEvents.BaseURIUpdated("http://example.com/");
         nodes.setBaseURI("http://example.com/");
         vm.assertEq(nodes.tokenURI(100), "http://example.com/100");
     }
@@ -655,46 +659,20 @@ contract NodesTest is Test, Utils {
 
     function test_RevertWhen_setBaseURIEmptyURI() public {
         vm.recordLogs();
-        vm.expectRevert(INodes.InvalidURI.selector);
+        vm.expectRevert(INodesErrors.InvalidURI.selector);
         nodes.setBaseURI("");
         _checkNoLogsEmitted();
     }
 
     function test_RevertWhen_setBaseURINoTrailingSlash() public {
         vm.recordLogs();
-        vm.expectRevert(INodes.InvalidURI.selector);
+        vm.expectRevert(INodesErrors.InvalidURI.selector);
         nodes.setBaseURI("http://example.com");
         _checkNoLogsEmitted();
     }
 
     // ***************************************************************
-    // *                  updateIsApiEnabled                         *
-    // ***************************************************************  
-
-    function test_updateIsApiEnabled() public {
-        _addNode();
-        vm.expectEmit(address(nodes));
-        emit INodes.ApiEnabledUpdated(nodeId, true);
-        vm.startPrank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId, true);
-        assertEq(nodes.getNode(nodeId).isApiEnabled, true);
-
-        nodes.updateIsApiEnabled(nodeId, false);
-        assertEq(nodes.getNode(nodeId).isApiEnabled, false);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_updateIsApiEnabledOnlyNodeOperatorCanUpdate() public {
-        _addNode();
-        vm.recordLogs();
-        vm.expectRevert(INodes.Unauthorized.selector);
-        /// @dev Default user is admin
-        nodes.updateIsApiEnabled(nodeId, true);
-        _checkNoLogsEmitted();
-    }
-
-    // ***************************************************************
-    // *                        Getters                              *
+    // *                  getNode / getAllNodes                      *
     // ***************************************************************
 
     function test_getAllNodes() public {
@@ -727,51 +705,62 @@ contract NodesTest is Test, Utils {
         vm.assertEq(node.httpAddress, nodes.getNode(nodeId).httpAddress);
         vm.assertEq(node.isReplicationEnabled, nodes.getNode(nodeId).isReplicationEnabled);
         vm.assertEq(node.isApiEnabled, nodes.getNode(nodeId).isApiEnabled);
-        vm.assertEq(node.isActive, nodes.getNode(nodeId).isActive);
+        vm.assertEq(node.isDisabled, nodes.getNode(nodeId).isDisabled);
         vm.assertEq(node.minMonthlyFee, nodes.getNode(nodeId).minMonthlyFee);
     }
 
     function test_RevertWhen_getNodeNodeDoesNotExist() public {
-        vm.expectRevert(INodes.NodeDoesNotExist.selector);
+        vm.expectRevert(INodesErrors.NodeDoesNotExist.selector);
         nodes.getNode(1337);
     }
 
-    function test_getActiveNodes() public {
+    // ***************************************************************
+    // *      getActiveReplicationNodes / getActiveApiNodes          *
+    // ***************************************************************
+
+    function test_getActiveApiNodes() public {
         (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
         bool[] memory isActive = new bool[](3);
         for (uint256 i = 0; i < 3; i++) {
             isActive[i] = true;
         }
-        _enableNodes(operators, nodeIds);
-        nodes.batchUpdateActive(nodeIds, isActive);
 
-        INodes.NodeWithId[] memory activeNodes = nodes.getActiveNodes();
-        vm.assertTrue(activeNodes.length == 3);
+        _enableNodes(operators, nodeIds);
+
+        INodes.NodeWithId[] memory activeApiNodes = nodes.getActiveApiNodes();
+        vm.assertTrue(activeApiNodes.length == 3);
+
+        INodes.NodeWithId[] memory activeReplicationNodes = nodes.getActiveReplicationNodes();
+        vm.assertTrue(activeReplicationNodes.length == 3);
     }
 
-    function test_getActiveNodesIDs() public {
+    function test_getActiveApiNodesIDs() public {
         (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(3);
         bool[] memory isActive = new bool[](3);
         for (uint256 i = 0; i < 3; i++) {
             isActive[i] = true;
         }
-        _enableNodes(operators, nodeIds);
-        nodes.batchUpdateActive(nodeIds, isActive);
 
-        uint256[] memory activeNodeIds = nodes.getActiveNodesIDs();
+        _enableNodes(operators, nodeIds);
+
+        uint256[] memory activeNodeIds = nodes.getActiveApiNodesIDs();
         vm.assertTrue(activeNodeIds.length == 3);
         vm.assertEq(activeNodeIds[0], nodeIds[0]);
         vm.assertEq(activeNodeIds[1], nodeIds[1]);
         vm.assertEq(activeNodeIds[2], nodeIds[2]);
+
+        INodes.NodeWithId[] memory activeReplicationNodes = nodes.getActiveReplicationNodes();
+        vm.assertTrue(activeReplicationNodes.length == 3);
+        vm.assertEq(activeReplicationNodes[0].nodeId, nodeIds[0]);
+        vm.assertEq(activeReplicationNodes[1].nodeId, nodeIds[1]);
+        vm.assertEq(activeReplicationNodes[2].nodeId, nodeIds[2]);
     }
 
-    function test_getActiveNodesCount() public {
+    function test_getActiveApiNodesCount() public {
         _addNode();
-        nodes.updateIsReplicationEnabled(nodeId, true);
-        vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId, true);
-        nodes.updateActive(nodeId, true);
-        vm.assertEq(nodes.getActiveNodesCount(), 1);
+        _enableNode(nodeOperator, nodeId);
+        vm.assertEq(nodes.getActiveApiNodesCount(), 1);
+        vm.assertEq(nodes.getActiveReplicationNodesCount(), 1);
 
         (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(2);
         bool[] memory isActive = new bool[](2);
@@ -779,8 +768,8 @@ contract NodesTest is Test, Utils {
             isActive[i] = true;
         }
         _enableNodes(operators, nodeIds);
-        nodes.batchUpdateActive(nodeIds, isActive);
-        vm.assertEq(nodes.getActiveNodesCount(), 3);
+        vm.assertEq(nodes.getActiveApiNodesCount(), 3);
+        vm.assertEq(nodes.getActiveReplicationNodesCount(), 3);
 
         (address[] memory operators2, uint256[] memory nodeIds2) = _addMultipleNodes(3);
         bool[] memory isActive2 = new bool[](3);
@@ -788,28 +777,31 @@ contract NodesTest is Test, Utils {
             isActive2[i] = true;
         }
         _enableNodes(operators2, nodeIds2);
-        nodes.batchUpdateActive(nodeIds2, isActive2);
-        vm.assertEq(nodes.getActiveNodesCount(), 6);
+        vm.assertEq(nodes.getActiveApiNodesCount(), 6);
+        vm.assertEq(nodes.getActiveReplicationNodesCount(), 6);
+        
+        vm.prank(operators2[0]);
+        nodes.setIsApiEnabled(nodeIds2[0], false);
+        vm.assertEq(nodes.getActiveApiNodesCount(), 5);
 
-        nodes.updateActive(nodeIds[0], false);
-        vm.assertEq(nodes.getActiveNodesCount(), 5);
+        vm.prank(operators2[0]);
+        nodes.setIsReplicationEnabled(nodeIds2[0], false);
+        vm.assertEq(nodes.getActiveReplicationNodesCount(), 5);
     }
 
     function test_getNodeIsActive() public {
         _addNode();
-        nodes.updateIsReplicationEnabled(nodeId, true);
-        vm.prank(nodeOperator);
-        nodes.updateIsApiEnabled(nodeId, true);
-
-        nodes.updateActive(nodeId, true);
-        vm.assertEq(nodes.getNodeIsActive(nodeId), true);
+        _enableNode(nodeOperator, nodeId);
+        vm.assertEq(nodes.getApiNodeIsActive(nodeId), true);
+        vm.assertEq(nodes.getReplicationNodeIsActive(nodeId), true);
 
         (address[] memory operators, uint256[] memory nodeIds) = _addMultipleNodes(2);
-        _enableNodes(operators, nodeIds);
+        _enableNode(operators[0], nodeIds[0]);
 
-        nodes.updateActive(nodeIds[0], true);
-        vm.assertEq(nodes.getNodeIsActive(nodeIds[0]), true);
-        vm.assertEq(nodes.getNodeIsActive(nodeIds[1]), false);
+        vm.assertEq(nodes.getApiNodeIsActive(nodeIds[0]), true);
+        vm.assertEq(nodes.getApiNodeIsActive(nodeIds[1]), false);
+        vm.assertEq(nodes.getReplicationNodeIsActive(nodeIds[0]), true);
+        vm.assertEq(nodes.getReplicationNodeIsActive(nodeIds[1]), false);
     }
 
     // ***************************************************************
@@ -845,9 +837,9 @@ contract NodesTest is Test, Utils {
     // ***************************************************************
 
     function _addNode() internal {
-        INodes.Node memory node1 = _randomNode();
+        INodes.Node memory node = _randomNode();
         nodeOperator = vm.randomAddress();
-        nodeId = nodes.addNode(nodeOperator, node1.signingKeyPub, node1.httpAddress, node1.minMonthlyFee);
+        nodeId = nodes.addNode(nodeOperator, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
     }
 
     function _addMultipleNodes(uint256 numberOfNodes) internal returns (address[] memory operators, uint256[] memory nodeIds) {
@@ -861,11 +853,19 @@ contract NodesTest is Test, Utils {
         return (operators, nodeIds);
     }
 
+    function _enableNode(address operator, uint256 id) internal {
+        vm.startPrank(operator);
+        nodes.setIsReplicationEnabled(id, true);
+        nodes.setIsApiEnabled(id, true);
+        vm.stopPrank();
+    }
+
     function _enableNodes(address[] memory operators, uint256[] memory nodeIds) internal {
         for (uint256 i = 0; i < nodeIds.length; i++) {
-            nodes.updateIsReplicationEnabled(nodeIds[i], true);
-            vm.prank(operators[i]);
-            nodes.updateIsApiEnabled(nodeIds[i], true);
+            vm.startPrank(operators[i]);
+            nodes.setIsReplicationEnabled(nodeIds[i], true);
+            nodes.setIsApiEnabled(nodeIds[i], true);
+            vm.stopPrank();
         }
     }
 
@@ -875,7 +875,7 @@ contract NodesTest is Test, Utils {
             httpAddress: _genString(32), 
             isReplicationEnabled: false, 
             isApiEnabled: false, 
-            isActive: false,
+            isDisabled: false,
             minMonthlyFee: _genRandomInt(100, 10000)
         });
     }

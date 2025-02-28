@@ -7,6 +7,9 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 /// @title INodesErrors
 /// @notice This interface defines the errors emitted by the INodes contract.
 interface INodesErrors {
+    /// @notice Error thrown when a node is disabled.
+    error NodeIsDisabled();
+
     /// @notice Error thrown when an invalid address is provided.
     error InvalidAddress();
 
@@ -30,6 +33,9 @@ interface INodesErrors {
 
     /// @notice Error thrown when the maximum number of active nodes is reached.
     error MaxActiveNodesReached();
+
+    /// @notice Error when trying to set max active nodes below current active count.
+    error MaxActiveNodesBelowCurrentCount();
 
     /// @notice Error thrown when a node does not exist.
     error NodeDoesNotExist();
@@ -55,11 +61,11 @@ interface INodesEvents {
         uint256 minMonthlyFee
     );
 
-    /// @notice Emitted when a node is enabled.
+    /// @notice Emitted when a disabled status is removed from a node.
     /// @param nodeId The identifier of the node.
     event NodeEnabled(uint256 indexed nodeId);
 
-    /// @notice Emitted when a node is disabled.
+    /// @notice Emitted when a node is disabled by an administrator.
     /// @param nodeId The identifier of the node.
     event NodeDisabled(uint256 indexed nodeId);
 
@@ -74,21 +80,21 @@ interface INodesEvents {
         string newHttpAddress
     );
 
-    /// @notice Emitted when the replication flag for a node is updated.
+    /// @notice Emitted when the replication flag for a node is enabled.
     /// @param nodeId The identifier of the node.
-    /// @param isReplicationEnabled The updated replication flag.
-    event ReplicationEnabledUpdated(
-        uint256 indexed nodeId,
-        bool isReplicationEnabled
-    );
+    event ReplicationEnabled(uint256 indexed nodeId);
 
-    /// @notice Emitted when the API enabled flag for a node is updated.
+    /// @notice Emitted when the replication flag for a node is disabled.
     /// @param nodeId The identifier of the node.
-    /// @param isApiEnabled The updated API enabled flag.
-    event ApiEnabledUpdated(
-        uint256 indexed nodeId,
-        bool isApiEnabled
-    );
+    event ReplicationDisabled(uint256 indexed nodeId);
+
+    /// @notice Emitted when the API enabled flag for a node is enabled.
+    /// @param nodeId The identifier of the node.
+    event ApiEnabled(uint256 indexed nodeId);
+
+    /// @notice Emitted when the API enabled flag for a node is disabled.
+    /// @param nodeId The identifier of the node.
+    event ApiDisabled(uint256 indexed nodeId);
 
     /// @notice Emitted when the minimum monthly fee for a node is updated.
     /// @param nodeId The identifier of the node.
@@ -111,9 +117,6 @@ interface INodesEvents {
     /// @notice Emitted when the base URI is updated.
     /// @param newBaseURI The new base URI.
     event BaseURIUpdated(string newBaseURI);
-
-    /// @notice Error when trying to set max active nodes below current active count.
-    error MaxActiveNodesBelowCurrentCount();
 }
 
 /// @title INodes
@@ -169,7 +172,7 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     /// @param nodeId The unique identifier of the node.
     function disableNode(uint256 nodeId) external;
 
-    /// @notice Enables a node.
+    /// @notice Removes a node from the active API nodes set.
     /// @dev Only the contract owner may call this.
     /// enableNode sets isDisabled to false, it does not activate the node.
     /// The node must be activated separately.
@@ -240,22 +243,39 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     /// @return node The Node struct containing the node's details.
     function getNode(uint256 nodeId) external view returns (Node memory node);
 
-    /// @notice Retrieves a list of active nodes.
+    /// @notice Retrieves a list of active API nodes.
     /// @dev Active nodes are those with `isActive` set to true.
     /// @return activeNodes An array of Node structs representing active nodes.
-    function getActiveNodes() external view returns (NodeWithId[] memory activeNodes);
+    function getActiveApiNodes() external view returns (NodeWithId[] memory activeNodes);
 
-    /// @notice Retrieves a list of active nodes IDs.
-    /// @dev Active nodes are those with `isActive` set to true.
+    /// @notice Retrieves a list of active API nodes IDs.
     /// @return activeNodesIDs An array of node IDs representing active nodes.
-    function getActiveNodesIDs() external view returns (uint256[] memory activeNodesIDs);
+    function getActiveApiNodesIDs() external view returns (uint256[] memory activeNodesIDs);
 
-    /// @notice Retrieves the total number of active nodes.
-    /// @return activeNodesCount The total number of active nodes.
-    function getActiveNodesCount() external view returns (uint256 activeNodesCount);
+    /// @notice Retrieves the total number of active API nodes.
+    /// @return activeNodesCount The total number of active API nodes.
+    function getActiveApiNodesCount() external view returns (uint256 activeNodesCount);
 
-    /// @notice Retrieves if a node is active.
+    /// @notice Retrieves if a node API is active.
     /// @param nodeId The ID of the node NFT.
     /// @return isActive A boolean indicating if the node is active.
-    function getNodeIsActive(uint256 nodeId) external view returns (bool isActive);
-}
+    function getApiNodeIsActive(uint256 nodeId) external view returns (bool isActive);
+
+    /// @notice Retrieves a list of active replication nodes.
+    /// @dev Active nodes are those with `isActive` set to true.
+    /// @return activeNodes An array of Node structs representing active nodes.
+    function getActiveReplicationNodes() external view returns (NodeWithId[] memory activeNodes);
+
+    /// @notice Retrieves a list of active replication nodes IDs.
+    /// @return activeNodesIDs An array of node IDs representing active nodes.
+    function getActiveReplicationNodesIDs() external view returns (uint256[] memory activeNodesIDs);
+
+    /// @notice Retrieves the total number of active replication nodes.
+    /// @return activeNodesCount The total number of active replication nodes.
+    function getActiveReplicationNodesCount() external view returns (uint256 activeNodesCount);
+
+    /// @notice Retrieves if a node replication is active.
+    /// @param nodeId The ID of the node NFT.
+    /// @return isActive A boolean indicating if the node is active.
+    function getReplicationNodeIsActive(uint256 nodeId) external view returns (bool isActive);
+}   

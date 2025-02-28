@@ -30,8 +30,8 @@ func ValidateServerOptions(options ServerOptions) error {
 		customSet["--contracts.chain-id must be greater than 0"] = struct{}{}
 	}
 
-	if options.Contracts.RefreshInterval <= 0 {
-		customSet["--contracts.refresh-interval must be greater than 0"] = struct{}{}
+	if options.Contracts.RegistryRefreshInterval <= 0 {
+		customSet["--contracts.registry-refresh-interval must be greater than 0"] = struct{}{}
 	}
 
 	if options.Contracts.MaxChainDisconnectTime <= 0 {

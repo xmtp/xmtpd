@@ -86,6 +86,8 @@ func getProxyAddress(t *testing.T, fileName string) string {
 		return fastjson.GetString(data, "addresses", "identityUpdatesProxy")
 	case strings.Contains(fileName, "XMTPNodeRegistry.json"):
 		return fastjson.GetString(data, "addresses", "XMTPNodeRegistry")
+	case strings.Contains(fileName, "RatesManager.json"):
+		return fastjson.GetString(data, "addresses", "ratesManagerProxy")
 	default:
 		return ""
 	}
@@ -108,8 +110,13 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
 		),
-		RefreshInterval: 100 * time.Millisecond,
-		ChainID:         31337,
+		RatesManagerContractAddress: getProxyAddress(
+			t,
+			path.Join(rootDir, "./contracts/config/anvil_localnet/RatesManager.json"),
+		),
+		RegistryRefreshInterval: 100 * time.Millisecond,
+		RatesRefreshInterval:    100 * time.Millisecond,
+		ChainID:                 31337,
 	}
 }
 

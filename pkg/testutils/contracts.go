@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
+	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -28,6 +29,7 @@ const (
 	NODES_V2_CONTRACT_NAME         = "NodesV2"
 	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
 	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
+	RATES_MANAGER_CONTRACT_NAME    = "RatesManager"
 )
 
 // Build an abi encoded MessageSent event struct
@@ -146,6 +148,8 @@ func deployContract(t *testing.T, contractName string) string {
 			addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
 		case IDENTITY_UPDATES_CONTRACT_NAME:
 			addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
+		case RATES_MANAGER_CONTRACT_NAME:
+			addr, _, _, err = ratesmanager.DeployRatesManager(auth, client)
 		default:
 			t.Fatalf("Unknown contract name: %s", contractName)
 		}
@@ -177,4 +181,8 @@ func DeployGroupMessagesContract(t *testing.T) string {
 
 func DeployIdentityUpdatesContract(t *testing.T) string {
 	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME)
+}
+
+func DeployRatesManagerContract(t *testing.T) string {
+	return deployContract(t, RATES_MANAGER_CONTRACT_NAME)
 }

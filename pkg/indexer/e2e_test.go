@@ -1,7 +1,9 @@
-package indexer
+package indexer_test
 
 import (
 	"context"
+	"database/sql"
+	"github.com/xmtp/xmtpd/pkg/indexer"
 	"testing"
 	"time"
 
@@ -16,24 +18,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func startIndexing(t *testing.T) (*queries.Queries, context.Context, func()) {
+func startIndexing(t *testing.T) (*sql.DB, *queries.Queries, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	cfg := testutils.GetContractsOptions(t)
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
-	indx := NewIndexer(ctx, logger)
+	indx := indexer.NewIndexer(ctx, logger)
 	err := indx.StartIndexer(db, cfg, validationService)
 	require.NoError(t, err)
 
-	return queries.New(db), ctx, func() {
+	return db, queries.New(db), ctx, func() {
 		cleanup()
 		cancel()
 	}
 }
 
-func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainPublisher {
+func messagePublisher(t *testing.T, ctx context.Context, db *sql.DB) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	contractsCfg := testutils.GetContractsOptions(t)
 	var signer blockchain.TransactionSigner
@@ -43,13 +45,15 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainP
 	client, err := blockchain.NewClient(ctx, contractsCfg.RpcUrl)
 	require.NoError(t, err)
 
+	nonceManager := blockchain.NewSQLBackedNonceManager(db, testutils.NewLog(t))
+
 	publisher, err := blockchain.NewBlockchainPublisher(
 		ctx,
 		testutils.NewLog(t),
 		client,
 		signer,
 		contractsCfg,
-		nil,
+		nonceManager,
 	)
 	require.NoError(t, err)
 
@@ -57,8 +61,8 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainP
 }
 
 func TestStoreMessages(t *testing.T) {
-	querier, ctx, cleanup := startIndexing(t)
-	publisher := messagePublisher(t, ctx)
+	db, querier, ctx, cleanup := startIndexing(t)
+	publisher := messagePublisher(t, ctx, db)
 	defer cleanup()
 
 	message := testutils.RandomBytes(78)

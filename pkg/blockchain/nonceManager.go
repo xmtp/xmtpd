@@ -15,6 +15,7 @@ type NonceContext struct {
 type NonceManager interface {
 	GetNonce(ctx context.Context) (*NonceContext, error)
 	FastForwardNonce(ctx context.Context, nonce uint64) error
+	Replenish(ctx context.Context, nonce uint64) error
 }
 
 type SQLBackedNonceManager struct {
@@ -73,11 +74,15 @@ func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce uint6
 	querier := queries.New(s.db)
 	return querier.FillPayerSequence(ctx, queries.FillPayerSequenceParams{
 		PendingNonce: int64(startNonce),
-		NumElements:  100,
+		NumElements:  1000,
 	})
 }
 
+func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce uint64) error {
+	return s.FillNonces(ctx, nonce)
+}
+
 func (s *SQLBackedNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) error {
-	//querier := queries.New(s.db)
-	return nil
+	//todo mkysel, we could delete everything below the nonce
+	return s.FillNonces(ctx, nonce)
 }

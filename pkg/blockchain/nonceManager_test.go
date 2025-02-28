@@ -46,6 +46,10 @@ func (tm *TestNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) 
 	return nil
 }
 
+func (tm *TestNonceManager) Replenish(ctx context.Context, nonce uint64) error {
+	return nil
+}
+
 func TestGetNonce_Simple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

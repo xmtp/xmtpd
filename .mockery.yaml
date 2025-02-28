@@ -28,6 +28,7 @@ packages:
     interfaces:
       ChainClient:
       IBlockchainPublisher:
+      NonceManager:
   github.com/xmtp/xmtpd/pkg/indexer/storer:
     interfaces:
       LogStorer:

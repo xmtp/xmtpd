@@ -251,9 +251,7 @@ contract IdentityUpdatesTest is Test, IdentityUpdates, Utils {
         identityUpdates.renounceRole(DEFAULT_ADMIN_ROLE, admin);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                admin,
-                identityUpdates.DEFAULT_ADMIN_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, admin, identityUpdates.DEFAULT_ADMIN_ROLE()
             )
         );
         identityUpdates.pause();

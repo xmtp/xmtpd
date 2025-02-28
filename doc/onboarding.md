@@ -55,4 +55,4 @@ dev/cli register-node \
 
 ## Step 4) Start the node
 
-This step might differ for every operator. A good starting point is our [Deploy Doc](deploy.md)
+This step might differ for every operator. A good starting point is our [Deployment Guide](deploy.md)

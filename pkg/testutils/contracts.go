@@ -150,6 +150,11 @@ func deployContract(t *testing.T, contractName string) string {
 			addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
 		case RATES_MANAGER_CONTRACT_NAME:
 			addr, _, _, err = ratesmanager.DeployRatesManager(auth, client)
+			require.NoError(t, err)
+			var contract *ratesmanager.RatesManager
+			contract, err = ratesmanager.NewRatesManager(addr, client)
+			require.NoError(t, err)
+			_, err = contract.Initialize(auth, auth.From)
 		default:
 			t.Fatalf("Unknown contract name: %s", contractName)
 		}
@@ -159,10 +164,8 @@ func deployContract(t *testing.T, contractName string) string {
 		}
 
 		break
-
 	}
 
-	require.NoError(t, err)
 	return addr.String()
 
 }

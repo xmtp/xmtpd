@@ -27,6 +27,7 @@ type BlockchainPublisher struct {
 	identityUpdateContract *identityupdates.IdentityUpdates
 	logger                 *zap.Logger
 	nonceManager           NonceManager
+	replenishCancel        context.CancelFunc
 }
 
 func NewBlockchainPublisher(
@@ -68,6 +69,29 @@ func NewBlockchainPublisher(
 		return nil, err
 	}
 
+	timer := time.NewTimer(time.Second * 10)
+
+	replenishCtx, cancel := context.WithCancel(ctx)
+
+	go func() {
+		for {
+			select {
+			case <-replenishCtx.Done():
+				return
+			case <-timer.C:
+				nonce, err := client.PendingNonceAt(replenishCtx, signer.FromAddress())
+				if err != nil {
+					logger.Error("error getting pending nonce", zap.Error(err))
+					continue
+				}
+				err = nonceManager.Replenish(replenishCtx, nonce)
+				if err != nil {
+					logger.Error("error replenishing nonce", zap.Error(err))
+				}
+			}
+		}
+	}()
+
 	return &BlockchainPublisher{
 		signer: signer,
 		logger: logger.Named("GroupBlockchainPublisher").
@@ -76,6 +100,7 @@ func NewBlockchainPublisher(
 		identityUpdateContract: identityUpdateContract,
 		client:                 client,
 		nonceManager:           nonceManager,
+		replenishCancel:        cancel,
 	}, nil
 }
 
@@ -237,4 +262,9 @@ func findLog[T any](
 	}
 
 	return nil, errors.New(errorMsg)
+}
+
+func (m *BlockchainPublisher) Close() {
+	m.logger.Info("closing blockchain publisher")
+	m.replenishCancel()
 }

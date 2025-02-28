@@ -240,23 +240,6 @@ func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSignStagedEnvelopeInvalidEnvelope(t *testing.T) {
-	_, r, cleanup := setupWithRegistrant(t)
-	defer cleanup()
-
-	_, err := r.SignStagedEnvelope(
-		queries.StagedOriginatorEnvelope{
-			ID:             1,
-			OriginatorTime: time.Now(),
-			PayerEnvelope:  []byte{0b1},
-		},
-		0,
-		0,
-	)
-
-	require.ErrorContains(t, err, "unmarshal")
-}
-
 func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	deps, r, cleanup := setupWithRegistrant(t)
 	defer cleanup()
@@ -290,5 +273,9 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnv))
 	require.Equal(t, unsignedEnv.GetOriginatorNodeId(), uint32(1))
 	require.Equal(t, unsignedEnv.GetOriginatorSequenceId(), uint64(50))
-	require.Equal(t, unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope()[0], uint8(3))
+
+	payerEnv := &envelopes.PayerEnvelope{}
+	err = proto.Unmarshal(unsignedEnv.GetPayerEnvelopeBytes(), payerEnv)
+	require.NoError(t, err)
+	require.Equal(t, payerEnv.GetUnsignedClientEnvelope()[0], uint8(3))
 }

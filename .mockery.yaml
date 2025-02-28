@@ -10,6 +10,9 @@ packages:
   github.com/xmtp/xmtpd/pkg/authn:
     interfaces:
       JWTVerifier:
+  github.com/xmtp/xmtpd/pkg/fees:
+    interfaces:
+      RatesContract:
   github.com/xmtp/xmtpd/pkg/mlsvalidate:
     interfaces:
       MLSValidationService:

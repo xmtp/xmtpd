@@ -8,14 +8,19 @@ type ApiOptions struct {
 	Port int `short:"p" long:"port" description:"Port to listen on" env:"XMTPD_API_PORT" default:"5050"`
 }
 
-type ContractsOptions struct {
-	RpcUrl                         string        `long:"rpc-url"                   env:"XMTPD_CONTRACTS_RPC_URL"                   description:"Blockchain RPC URL"`
-	NodesContractAddress           string        `long:"nodes-address"             env:"XMTPD_CONTRACTS_NODES_ADDRESS"             description:"Node contract address"`
-	MessagesContractAddress        string        `long:"messages-address"          env:"XMTPD_CONTRACTS_MESSAGES_ADDRESS"          description:"Message contract address"`
-	IdentityUpdatesContractAddress string        `long:"identity-updates-address"  env:"XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS"  description:"Identity updates contract address"`
-	ChainID                        int           `long:"chain-id"                  env:"XMTPD_CONTRACTS_CHAIN_ID"                  description:"Chain ID for the appchain"                                    default:"31337"`
-	RefreshInterval                time.Duration `long:"refresh-interval"          env:"XMTPD_CONTRACTS_REFRESH_INTERVAL"          description:"Refresh interval for the nodes registry"                      default:"60s"`
-	MaxChainDisconnectTime         time.Duration `long:"max-chain-disconnect-time" env:"XMTPD_CONTRACTS_MAX_CHAIN_DISCONNECT_TIME" description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+type AppChainOptions struct {
+	RpcUrl                         string        `long:"rpc-url"                  env:"XMTPD_APP_CHAIN_RPC_URL"                  description:"AppChain RPC URL"`
+	ChainID                        int           `long:"chain-id"                 env:"XMTPD_APP_CHAIN_ID"                       description:"Chain ID for the appchain"                                    default:"31337"`
+	MessagesContractAddress        string        `long:"messages-address"         env:"XMTPD_APP_CHAIN_MESSAGES_ADDRESS"         description:"Message contract address"`
+	IdentityUpdatesContractAddress string        `long:"identity-updates-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATES_ADDRESS" description:"Identity updates contract address"`
+	MaxDisconnectTime              time.Duration `long:"max-disconnect-time"      env:"XMTPD_APP_CHAIN_MAX_DISCONNECT_TIME"      description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+}
+
+type BaseChainOptions struct {
+	RpcUrl               string        `long:"rpc-url"          env:"XMTPD_BASE_CHAIN_RPC_URL"          description:"BaseChain RPC URL"`
+	ChainID              int           `long:"chain-id"         env:"XMTPD_BASE_CHAIN_ID"               description:"Chain ID for the basechain"                  default:"31337"`
+	NodesContractAddress string        `long:"nodes-address"    env:"XMTPD_BASE_CHAIN_NODES_ADDRESS"    description:"XMTP Node Registry contract address"`
+	RefreshInterval      time.Duration `long:"refresh-interval" env:"XMTPD_BASE_CHAIN_REFRESH_INTERVAL" description:"Refresh interval for the XMTP Node Registry" default:"60s"`
 }
 
 type DbOptions struct {
@@ -77,7 +82,8 @@ type SignerOptions struct {
 
 type ServerOptions struct {
 	API           ApiOptions           `group:"API Options"            namespace:"api"`
-	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
+	AppChain      AppChainOptions      `group:"AppChain Options"       namespace:"app-chain"`
+	BaseChain     BaseChainOptions     `group:"BaseChain Options"      namespace:"base-chain"`
 	DB            DbOptions            `group:"Database Options"       namespace:"db"`
 	Log           LogOptions           `group:"Log Options"            namespace:"log"`
 	Indexer       IndexerOptions       `group:"Indexer Options"        namespace:"indexer"`

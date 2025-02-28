@@ -51,7 +51,7 @@ func NewSmartContractRegistry(
 	ctx context.Context,
 	ethclient bind.ContractCaller,
 	logger *zap.Logger,
-	options config.ContractsOptions,
+	options config.BaseChainOptions,
 ) (*SmartContractRegistry, error) {
 
 	contract, err := nodes.NewNodesCaller(

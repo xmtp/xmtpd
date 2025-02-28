@@ -37,7 +37,7 @@ func NewBlockchainPublisher(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractOptions config.ContractsOptions,
+	contractOptions config.AppChainOptions,
 ) (*BlockchainPublisher, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")

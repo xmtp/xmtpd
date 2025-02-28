@@ -37,7 +37,8 @@ func buildStreamer(
 }
 
 func TestBuilder(t *testing.T) {
-	testclient, err := NewClient(context.Background(), testutils.GetContractsOptions(t).RpcUrl)
+	appChainOptions, _ := testutils.GetContractsOptions(t)
+	testclient, err := NewClient(context.Background(), appChainOptions.RpcUrl)
 	require.NoError(t, err)
 	builder := NewRpcLogStreamBuilder(context.Background(), testclient, testutils.NewLog(t))
 

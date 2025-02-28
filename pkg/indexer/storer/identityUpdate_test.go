@@ -25,10 +25,10 @@ func buildIdentityUpdateStorer(
 ) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	db, _, cleanup := testutils.NewDB(t, ctx)
-	config := testutils.GetContractsOptions(t)
-	contractAddress := config.IdentityUpdatesContractAddress
+	appChainOptions, _ := testutils.GetContractsOptions(t)
+	contractAddress := appChainOptions.IdentityUpdatesContractAddress
 
-	client, err := blockchain.NewClient(ctx, config.RpcUrl)
+	client, err := blockchain.NewClient(ctx, appChainOptions.RpcUrl)
 	require.NoError(t, err)
 	contract, err := identityupdates.NewIdentityUpdates(
 		common.HexToAddress(contractAddress),

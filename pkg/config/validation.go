@@ -10,32 +10,40 @@ func ValidateServerOptions(options ServerOptions) error {
 	missingSet := make(map[string]struct{})
 	customSet := make(map[string]struct{})
 
-	if options.Contracts.RpcUrl == "" {
-		missingSet["--contracts.rpc-url"] = struct{}{}
+	if options.AppChain.RpcUrl == "" {
+		missingSet["--app-chain.rpc-url"] = struct{}{}
 	}
 
-	if options.Contracts.NodesContractAddress == "" {
-		missingSet["--contracts.nodes-address"] = struct{}{}
+	if options.AppChain.MessagesContractAddress == "" {
+		missingSet["--app-chain.messages-address"] = struct{}{}
 	}
 
-	if options.Contracts.MessagesContractAddress == "" {
-		missingSet["--contracts.messages-address"] = struct{}{}
+	if options.AppChain.IdentityUpdatesContractAddress == "" {
+		missingSet["--app-chain.identity-updates-address"] = struct{}{}
 	}
 
-	if options.Contracts.IdentityUpdatesContractAddress == "" {
-		missingSet["--contracts.identity-updates-address"] = struct{}{}
+	if options.AppChain.ChainID == 0 {
+		customSet["--app-chain.chain-id must be greater than 0"] = struct{}{}
 	}
 
-	if options.Contracts.ChainID == 0 {
-		customSet["--contracts.chain-id must be greater than 0"] = struct{}{}
+	if options.AppChain.MaxDisconnectTime <= 0 {
+		customSet["--app-chain.max-chain-disconnect-time must be greater than 0"] = struct{}{}
 	}
 
-	if options.Contracts.RefreshInterval <= 0 {
-		customSet["--contracts.refresh-interval must be greater than 0"] = struct{}{}
+	if options.BaseChain.RpcUrl == "" {
+		missingSet["--base-chain.rpc-url"] = struct{}{}
 	}
 
-	if options.Contracts.MaxChainDisconnectTime <= 0 {
-		customSet["--contracts.max-chain-disconnect-time must be greater than 0"] = struct{}{}
+	if options.BaseChain.NodesContractAddress == "" {
+		missingSet["--base-chain.nodes-address"] = struct{}{}
+	}
+
+	if options.BaseChain.ChainID == 0 {
+		customSet["--base-chain.chain-id must be greater than 0"] = struct{}{}
+	}
+
+	if options.BaseChain.RefreshInterval <= 0 {
+		customSet["--base-chain.refresh-interval must be greater than 0"] = struct{}{}
 	}
 
 	if options.Payer.Enable {

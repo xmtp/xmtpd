@@ -1,8 +1,8 @@
 package config
 
 type GlobalOptions struct {
-	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
-	Log       LogOptions       `group:"Log Options"       namespace:"log"`
+	Contracts AppChainOptions `group:"Contracts Options" namespace:"contracts"`
+	Log       LogOptions      `group:"Log Options"       namespace:"log"`
 }
 
 type GenerateKeyOptions struct{}

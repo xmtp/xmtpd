@@ -32,10 +32,10 @@ func NewNodeRegistryAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
+	baseChainOptions config.BaseChainOptions,
 ) (*NodeRegistryAdmin, error) {
 	contract, err := nodes.NewNodes(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
+		common.HexToAddress(baseChainOptions.NodesContractAddress),
 		client,
 	)
 	if err != nil {
@@ -102,10 +102,10 @@ type NodeRegistryCaller struct {
 func NewNodeRegistryCaller(
 	logger *zap.Logger,
 	client *ethclient.Client,
-	contractsOptions config.ContractsOptions,
+	baseChainOptions config.BaseChainOptions,
 ) (*NodeRegistryCaller, error) {
 	contract, err := nodes.NewNodesCaller(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
+		common.HexToAddress(baseChainOptions.NodesContractAddress),
 		client,
 	)
 	if err != nil {

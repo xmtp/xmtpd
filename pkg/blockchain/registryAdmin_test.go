@@ -12,20 +12,20 @@ import (
 func buildRegistry(t *testing.T) (*NodeRegistryAdmin, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
+	_, baseChainOptions := testutils.GetContractsOptions(t)
 	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+	baseChainOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
 	signer, err := NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
-		contractsOptions.ChainID,
+		baseChainOptions.ChainID,
 	)
 	require.NoError(t, err)
 
-	client, err := NewClient(ctx, contractsOptions.RpcUrl)
+	client, err := NewClient(ctx, baseChainOptions.RpcUrl)
 	require.NoError(t, err)
 
-	registry, err := NewNodeRegistryAdmin(logger, client, signer, contractsOptions)
+	registry, err := NewNodeRegistryAdmin(logger, client, signer, baseChainOptions)
 	require.NoError(t, err)
 
 	return registry, ctx, func() {
@@ -63,10 +63,10 @@ func TestAddNodeUnauthorized(t *testing.T) {
 	defer cleanup()
 
 	// Create a signer that won't work
-	contractsOptions := testutils.GetContractsOptions(t)
+	_, baseChainOptions := testutils.GetContractsOptions(t)
 	signer, err := NewPrivateKeySigner(
 		utils.EcdsaPrivateKeyToString(testutils.RandomPrivateKey(t)),
-		contractsOptions.ChainID,
+		baseChainOptions.ChainID,
 	)
 	require.NoError(t, err)
 	registry.signer = signer

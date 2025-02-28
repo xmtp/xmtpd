@@ -119,7 +119,7 @@ func NewReplicationServer(
 		s.indx = indexer.NewIndexer(ctx, log)
 		err = s.indx.StartIndexer(
 			writerDB,
-			options.Contracts,
+			options.AppChain,
 			s.validationService,
 		)
 
@@ -227,13 +227,13 @@ func startAPIServer(
 
 			signer, err := blockchain.NewPrivateKeySigner(
 				options.Payer.PrivateKey,
-				options.Contracts.ChainID,
+				options.AppChain.ChainID,
 			)
 			if err != nil {
 				log.Fatal("initializing signer", zap.Error(err))
 			}
 
-			ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+			ethclient, err := blockchain.NewClient(ctx, options.AppChain.RpcUrl)
 			if err != nil {
 				log.Fatal("initializing blockchain client", zap.Error(err))
 			}
@@ -243,7 +243,7 @@ func startAPIServer(
 				log,
 				ethclient,
 				signer,
-				options.Contracts,
+				options.AppChain,
 			)
 			if err != nil {
 				log.Fatal("initializing message publisher", zap.Error(err))

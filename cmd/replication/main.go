@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -91,16 +92,16 @@ func main() {
 			}
 		}
 
-		ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+		baseChainClient, err := blockchain.NewClient(ctx, options.BaseChain.RpcUrl)
 		if err != nil {
 			logger.Fatal("initializing blockchain client", zap.Error(err))
 		}
 
 		chainRegistry, err := registry.NewSmartContractRegistry(
 			ctx,
-			ethclient,
+			baseChainClient,
 			logger,
-			options.Contracts,
+			options.BaseChain,
 		)
 		if err != nil {
 			logger.Fatal("initializing smart contract registry", zap.Error(err))

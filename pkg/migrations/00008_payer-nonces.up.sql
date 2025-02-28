@@ -1,8 +1,19 @@
--- Create the sequence that starts at 0
-CREATE SEQUENCE sequence_id_seq MINVALUE 0 START WITH 0 INCREMENT BY 1 NO CYCLE;
-
--- Create the table using the sequence
-CREATE TABLE payer_sequences (
-    id BIGINT PRIMARY KEY DEFAULT nextval('sequence_id_seq'),
-    available BOOLEAN DEFAULT TRUE
+CREATE TABLE nonce_table (
+    nonce BIGINT PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE OR REPLACE FUNCTION fill_nonce_gap(pending_nonce BIGINT, num_elements INT)
+    RETURNS VOID AS $$
+BEGIN
+    WITH nonces AS (
+        -- Generate the required number of nonces
+        SELECT generate_series(pending_nonce, pending_nonce + num_elements - 1) AS nonce
+    )
+    INSERT INTO nonce_table (nonce)
+    SELECT nonce
+    FROM nonces n
+    WHERE NOT EXISTS (SELECT 1 FROM nonce_table nt WHERE nt.nonce = n.nonce) -- Skip existing ones
+    ON CONFLICT DO NOTHING; -- Ensure no duplicates
+END;
+$$ LANGUAGE plpgsql;

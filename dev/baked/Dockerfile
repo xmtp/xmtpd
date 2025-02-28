@@ -37,7 +37,7 @@ RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.deployedTo' contracts/
 
 FROM ghcr.io/foundry-rs/foundry
 
-LABEL maintainer="engineering@xmtp.com"
+LABEL maintainer="eng@ephemerahq.com"
 LABEL source="https://github.com/xmtp/xmtpd"
 LABEL description="Foundry with XMTPD Node contracts and registrations"
 

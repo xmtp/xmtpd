@@ -49,6 +49,7 @@ func messagePublisher(t *testing.T, ctx context.Context) *blockchain.BlockchainP
 		client,
 		signer,
 		contractsCfg,
+		nil,
 	)
 	require.NoError(t, err)
 

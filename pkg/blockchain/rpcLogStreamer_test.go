@@ -2,14 +2,14 @@ package blockchain
 
 import (
 	"context"
-	big "math/big"
+	"github.com/ethereum/go-ethereum"
+	"math/big"
 	"testing"
 	"time"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 
-	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"

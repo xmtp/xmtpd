@@ -18,16 +18,28 @@ import (
 	"go.uber.org/zap"
 )
 
-/*
-*
-A NodeRegistryAdmin is a struct responsible for calling admin functions on the node registry
-*
-*/
-type NodeRegistryAdmin struct {
-	client   *ethclient.Client
-	signer   TransactionSigner
-	contract *nodes.Nodes
-	logger   *zap.Logger
+type RegistryAdminVersion int
+
+const (
+	RegistryAdminV1 RegistryAdminVersion = iota
+	RegistryAdminV2
+)
+
+type INodeRegistryAdmin interface {
+	AddNode(
+		ctx context.Context,
+		owner string,
+		signingKeyPub *ecdsa.PublicKey,
+		httpAddress string,
+	) error
+	UpdateHealth(ctx context.Context, nodeId int64, health bool) error
+	UpdateHttpAddress(ctx context.Context, nodeId int64, address string) error
+}
+
+type baseNodeRegistryAdmin struct {
+	client *ethclient.Client
+	signer TransactionSigner
+	logger *zap.Logger
 }
 
 func NewNodeRegistryAdmin(
@@ -35,7 +47,36 @@ func NewNodeRegistryAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-) (*NodeRegistryAdmin, error) {
+	version RegistryAdminVersion,
+) (INodeRegistryAdmin, error) {
+	switch version {
+	case RegistryAdminV1:
+		return newNodeRegistryAdminV1(logger, client, signer, contractsOptions)
+	case RegistryAdminV2:
+		return newNodeRegistryAdminV2(logger, client, signer, contractsOptions)
+	default:
+		return nil, fmt.Errorf("unsupported registry version: %v", version)
+	}
+}
+
+/*
+*
+XMTP Node Registry Admin V1 - Deprecated
+*
+*/
+type nodeRegistryAdminV1 struct {
+	baseNodeRegistryAdmin
+	contract *nodes.Nodes
+}
+
+var _ INodeRegistryAdmin = &nodeRegistryAdminV1{}
+
+func newNodeRegistryAdminV1(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	signer TransactionSigner,
+	contractsOptions config.ContractsOptions,
+) (*nodeRegistryAdminV1, error) {
 	contract, err := nodes.NewNodes(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
@@ -44,17 +85,17 @@ func NewNodeRegistryAdmin(
 		return nil, err
 	}
 
-	return &NodeRegistryAdmin{
-		signer:   signer,
-		client:   client,
-		logger:   logger.Named("NodeRegistryAdmin"),
+	return &nodeRegistryAdminV1{
+		baseNodeRegistryAdmin: baseNodeRegistryAdmin{
+			signer: signer,
+			client: client,
+			logger: logger.Named("NodeRegistryAdminV1"),
+		},
 		contract: contract,
 	}, nil
 }
 
-// XMTP Node Registry V1 - Deprecated
-// TODO(borja): Remove once migration V1 -> V2 is done
-func (n *NodeRegistryAdmin) AddNode(
+func (n *nodeRegistryAdminV1) AddNode(
 	ctx context.Context,
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
@@ -109,56 +150,7 @@ func (n *NodeRegistryAdmin) AddNode(
 	return err
 }
 
-/*
-*
-A NodeRegistryCaller is a struct responsible for calling public functions on the node registry
-*
-*/
-type NodeRegistryCaller struct {
-	client   *ethclient.Client
-	contract *nodes.NodesCaller
-	logger   *zap.Logger
-}
-
-func NewNodeRegistryCaller(
-	logger *zap.Logger,
-	client *ethclient.Client,
-	contractsOptions config.ContractsOptions,
-) (*NodeRegistryCaller, error) {
-	contract, err := nodes.NewNodesCaller(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
-		client,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &NodeRegistryCaller{
-		client:   client,
-		logger:   logger.Named("NodeRegistryCaller"),
-		contract: contract,
-	}, nil
-}
-
-func (n *NodeRegistryCaller) GetAllNodes(
-	ctx context.Context,
-) ([]nodes.NodesNodeWithId, error) {
-
-	return n.contract.AllNodes(&bind.CallOpts{
-		Context: ctx,
-	})
-}
-
-func (n *NodeRegistryCaller) OwnerOf(
-	ctx context.Context,
-	nodeId int64,
-) (common.Address, error) {
-	return n.contract.OwnerOf(&bind.CallOpts{
-		Context: ctx,
-	}, big.NewInt(nodeId))
-}
-
-func (n *NodeRegistryAdmin) UpdateHealth(
+func (n *nodeRegistryAdminV1) UpdateHealth(
 	ctx context.Context, nodeId int64, health bool,
 ) error {
 	tx, err := n.contract.UpdateHealth(
@@ -187,7 +179,7 @@ func (n *NodeRegistryAdmin) UpdateHealth(
 	return err
 }
 
-func (n *NodeRegistryAdmin) UpdateHttpAddress(
+func (n *nodeRegistryAdminV1) UpdateHttpAddress(
 	ctx context.Context, nodeId int64, address string,
 ) error {
 	tx, err := n.contract.UpdateHttpAddress(
@@ -218,23 +210,22 @@ func (n *NodeRegistryAdmin) UpdateHttpAddress(
 
 /*
 *
-XMTP Node Registry V2
-TODO(borja): Remove once migration is complete.
+XMTP Node Registry Admin V2
 *
 */
-type NodeRegistryAdminV2 struct {
-	client   *ethclient.Client
-	signer   TransactionSigner
+type nodeRegistryAdminV2 struct {
+	baseNodeRegistryAdmin
 	contract *nodesv2.NodesV2
-	logger   *zap.Logger
 }
 
-func NewNodeRegistryAdminV2(
+var _ INodeRegistryAdmin = &nodeRegistryAdminV2{}
+
+func newNodeRegistryAdminV2(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-) (*NodeRegistryAdminV2, error) {
+) (*nodeRegistryAdminV2, error) {
 	contract, err := nodesv2.NewNodesV2(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
@@ -243,29 +234,27 @@ func NewNodeRegistryAdminV2(
 		return nil, err
 	}
 
-	return &NodeRegistryAdminV2{
-		signer:   signer,
-		client:   client,
-		logger:   logger.Named("NodeRegistryAdminV2"),
+	return &nodeRegistryAdminV2{
+		baseNodeRegistryAdmin: baseNodeRegistryAdmin{
+			signer: signer,
+			client: client,
+			logger: logger.Named("NodeRegistryAdminV2"),
+		},
 		contract: contract,
 	}, nil
 }
 
-func (n *NodeRegistryAdminV2) AddNodeV2(
+func (n *nodeRegistryAdminV2) AddNode(
 	ctx context.Context,
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
-	minMonthlyFee *big.Int,
 ) error {
 	if !common.IsHexAddress(owner) {
 		return fmt.Errorf("invalid owner address provided %s", owner)
 	}
 
-	if minMonthlyFee == nil {
-		minMonthlyFee = big.NewInt(0)
-	}
-
+	minMonthlyFee := big.NewInt(0)
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
@@ -313,51 +302,14 @@ func (n *NodeRegistryAdminV2) AddNodeV2(
 	return nil
 }
 
-/*
-*
-A NodeRegistryCaller is a struct responsible for calling public functions on the node registry
-*
-*/
-type NodeRegistryCallerV2 struct {
-	client   *ethclient.Client
-	contract *nodesv2.NodesV2Caller
-	logger   *zap.Logger
+func (n *nodeRegistryAdminV2) UpdateHealth(
+	ctx context.Context, nodeId int64, health bool,
+) error {
+	return fmt.Errorf("not implemented")
 }
 
-func NewNodeRegistryCallerV2(
-	logger *zap.Logger,
-	client *ethclient.Client,
-	contractsOptions config.ContractsOptions,
-) (*NodeRegistryCallerV2, error) {
-	contract, err := nodesv2.NewNodesV2Caller(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
-		client,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &NodeRegistryCallerV2{
-		client:   client,
-		logger:   logger.Named("NodeRegistryCallerV2"),
-		contract: contract,
-	}, nil
-}
-
-func (n *NodeRegistryCallerV2) GetAllNodes(
-	ctx context.Context,
-) ([]nodesv2.INodesNodeWithId, error) {
-
-	return n.contract.GetAllNodes(&bind.CallOpts{
-		Context: ctx,
-	})
-}
-
-func (n *NodeRegistryCallerV2) OwnerOf(
-	ctx context.Context,
-	nodeId int64,
-) (common.Address, error) {
-	return n.contract.OwnerOf(&bind.CallOpts{
-		Context: ctx,
-	}, big.NewInt(nodeId))
+func (n *nodeRegistryAdminV2) UpdateHttpAddress(
+	ctx context.Context, nodeId int64, address string,
+) error {
+	return nil
 }

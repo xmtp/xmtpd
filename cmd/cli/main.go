@@ -132,6 +132,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		chainClient,
 		signer,
 		options.Contracts,
+		blockchain.RegistryAdminV1,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
@@ -183,12 +184,13 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 		logger,
 		chainClient,
 		options.Contracts,
+		blockchain.RegistryCallerV1,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	nodes, err := migrator.ReadFromRegistryV1(caller)
+	nodes, err := migrator.ReadFromRegistry[migrator.SerializableNodeV1](caller)
 	if err != nil {
 		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
@@ -228,6 +230,7 @@ func updateHealth(logger *zap.Logger, options *CLI, health bool) {
 		chainClient,
 		signer,
 		options.Contracts,
+		blockchain.RegistryAdminV1,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
@@ -260,6 +263,7 @@ func updateAddress(logger *zap.Logger, options *CLI) {
 		chainClient,
 		signer,
 		options.Contracts,
+		blockchain.RegistryAdminV1,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
@@ -295,11 +299,12 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create signer", zap.Error(err))
 	}
 
-	registryAdminV2, err := blockchain.NewNodeRegistryAdminV2(
+	registryAdminV2, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		chainClient,
 		signer,
 		options.Contracts,
+		blockchain.RegistryAdminV2,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))

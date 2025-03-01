@@ -3,7 +3,7 @@ package migrator
 import (
 	"context"
 	"encoding/json"
-	"math/big"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -30,36 +30,119 @@ type SerializableNodeV2 struct {
 	IsApiEnabled         bool   `json:"is_api_enabled"`
 }
 
-func ReadFromRegistryV1(
-	chainCaller *blockchain.NodeRegistryCaller,
-) ([]SerializableNodeV1, error) {
-	nodes, err := chainCaller.GetAllNodes(context.Background())
-	if err != nil {
-		return nil, err
-	}
+type NodeVersion interface {
+	SerializableNodeV1 | SerializableNodeV2
+}
 
-	serializableNodes := make([]SerializableNodeV1, len(nodes))
-	for i, node := range nodes {
-		owner, err := chainCaller.OwnerOf(context.Background(), int64(node.NodeId))
+func ReadFromRegistry[T NodeVersion](
+	chainCaller blockchain.INodeRegistryCaller,
+) ([]T, error) {
+	var t T
+	var out []T
+
+	switch any(t).(type) {
+	case SerializableNodeV1:
+		nodes, err := chainCaller.GetAllNodesV1(context.Background())
 		if err != nil {
 			return nil, err
 		}
 
-		pubKey, err := crypto.UnmarshalPubkey(node.Node.SigningKeyPub)
+		serializableNodes := make([]SerializableNodeV1, len(nodes))
+		for i, node := range nodes {
+			owner, err := chainCaller.OwnerOf(context.Background(), int64(node.NodeId))
+			if err != nil {
+				return nil, err
+			}
+
+			pubKey, err := crypto.UnmarshalPubkey(node.Node.SigningKeyPub)
+			if err != nil {
+				return nil, err
+			}
+
+			serializableNodes[i] = SerializableNodeV1{
+				NodeID:        node.NodeId,
+				OwnerAddress:  owner.Hex(),
+				SigningKeyPub: utils.EcdsaPublicKeyToString(pubKey),
+				HttpAddress:   node.Node.HttpAddress,
+				IsHealthy:     node.Node.IsHealthy,
+			}
+		}
+
+		for _, node := range serializableNodes {
+			out = append(out, any(node).(T))
+		}
+
+	case SerializableNodeV2:
+		nodes, err := chainCaller.GetAllNodesV2(context.Background())
 		if err != nil {
 			return nil, err
 		}
 
-		serializableNodes[i] = SerializableNodeV1{
-			NodeID:        node.NodeId,
-			OwnerAddress:  owner.Hex(),
-			SigningKeyPub: utils.EcdsaPublicKeyToString(pubKey),
-			HttpAddress:   node.Node.HttpAddress,
-			IsHealthy:     node.Node.IsHealthy,
+		serializableNodes := make([]SerializableNodeV2, len(nodes))
+		for i, node := range nodes {
+			owner, err := chainCaller.OwnerOf(context.Background(), node.NodeId.Int64())
+			if err != nil {
+				return nil, err
+			}
+
+			pubKey, err := crypto.UnmarshalPubkey(node.Node.SigningKeyPub)
+			if err != nil {
+				return nil, err
+			}
+
+			serializableNodes[i] = SerializableNodeV2{
+				NodeID:               uint32(node.NodeId.Uint64()),
+				OwnerAddress:         owner.Hex(),
+				SigningKeyPub:        utils.EcdsaPublicKeyToString(pubKey),
+				HttpAddress:          node.Node.HttpAddress,
+				MinMonthlyFee:        node.Node.MinMonthlyFee.String(),
+				IsReplicationEnabled: node.Node.IsReplicationEnabled,
+				IsApiEnabled:         node.Node.IsApiEnabled,
+			}
+		}
+
+		for _, node := range serializableNodes {
+			out = append(out, any(node).(T))
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported node version: %T", out)
+	}
+
+	return out, nil
+}
+
+// Writes only happen to V2
+func WriteToRegistryV2(
+	logger *zap.Logger,
+	nodes []SerializableNodeV1,
+	chainAdmin blockchain.INodeRegistryAdmin,
+) error {
+	ctx := context.Background()
+
+	err := chainAdmin.UpdateHealth(ctx, 1, true)
+	if err != nil && err.Error() != "not implemented" {
+		return fmt.Errorf("writes are only allowed to Node Registry V2")
+	}
+
+	for _, node := range nodes {
+		signingKey, err := utils.ParseEcdsaPublicKey(node.SigningKeyPub)
+		if err != nil {
+			return err
+		}
+
+		err = chainAdmin.AddNode(
+			ctx,
+			node.OwnerAddress,
+			signingKey,
+			node.HttpAddress,
+		)
+		if err != nil {
+			return err
 		}
 	}
 
-	return serializableNodes, nil
+	return nil
 }
 
 func DumpNodesToFile(nodes []SerializableNodeV1, outFile string) error {
@@ -86,68 +169,4 @@ func ImportNodesFromFile(filePath string) ([]SerializableNodeV1, error) {
 	}
 
 	return nodes, nil
-}
-
-func ReadFromRegistryV2(
-	chainCaller *blockchain.NodeRegistryCallerV2,
-) ([]SerializableNodeV2, error) {
-	nodes, err := chainCaller.GetAllNodes(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	serializableNodes := make([]SerializableNodeV2, len(nodes))
-	for i, node := range nodes {
-		owner, err := chainCaller.OwnerOf(context.Background(), node.NodeId.Int64())
-		if err != nil {
-			return nil, err
-		}
-
-		pubKey, err := crypto.UnmarshalPubkey(node.Node.SigningKeyPub)
-		if err != nil {
-			return nil, err
-		}
-
-		serializableNodes[i] = SerializableNodeV2{
-			NodeID:               uint32(node.NodeId.Uint64()),
-			OwnerAddress:         owner.Hex(),
-			SigningKeyPub:        utils.EcdsaPublicKeyToString(pubKey),
-			HttpAddress:          node.Node.HttpAddress,
-			MinMonthlyFee:        node.Node.MinMonthlyFee.String(),
-			IsReplicationEnabled: node.Node.IsReplicationEnabled,
-			IsApiEnabled:         node.Node.IsApiEnabled,
-		}
-	}
-
-	return serializableNodes, nil
-}
-
-func WriteToRegistryV2(
-	logger *zap.Logger,
-	nodes []SerializableNodeV1,
-	chainAdmin *blockchain.NodeRegistryAdminV2,
-) error {
-	ctx := context.Background()
-
-	for _, node := range nodes {
-		signingKey, err := utils.ParseEcdsaPublicKey(node.SigningKeyPub)
-		if err != nil {
-			return err
-		}
-
-		minMonthlyFee := big.NewInt(0)
-
-		err = chainAdmin.AddNodeV2(
-			ctx,
-			node.OwnerAddress,
-			signingKey,
-			node.HttpAddress,
-			minMonthlyFee,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

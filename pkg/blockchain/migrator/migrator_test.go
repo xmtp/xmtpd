@@ -13,14 +13,22 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-func setupRegistryV1(
+func setupRegistry(
 	t *testing.T,
-) (*blockchain.NodeRegistryAdmin, *blockchain.NodeRegistryCaller, func()) {
+	adminVersion blockchain.RegistryAdminVersion,
+	callerVersion blockchain.RegistryCallerVersion,
+) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	contractsOptions := testutils.GetContractsOptions(t)
-	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+
+	if adminVersion == blockchain.RegistryAdminV1 {
+		contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+	}
+
+	if adminVersion == blockchain.RegistryAdminV2 {
+		contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
+	}
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -31,11 +39,12 @@ func setupRegistryV1(
 	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	registryAdminV1, err := blockchain.NewNodeRegistryAdmin(
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		client,
 		signer,
 		contractsOptions,
+		adminVersion,
 	)
 	require.NoError(t, err)
 
@@ -43,50 +52,11 @@ func setupRegistryV1(
 		logger,
 		client,
 		contractsOptions,
+		callerVersion,
 	)
 	require.NoError(t, err)
 
-	return registryAdminV1, registryCaller, func() {
-		cancel()
-		client.Close()
-	}
-}
-
-func setupRegistryV2(
-	t *testing.T,
-) (*blockchain.NodeRegistryAdminV2, *blockchain.NodeRegistryCallerV2, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
-
-	// Set the nodes contract address to a NodesV2 contract
-	contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
-
-	signer, err := blockchain.NewPrivateKeySigner(
-		testutils.GetPayerOptions(t).PrivateKey,
-		contractsOptions.ChainID,
-	)
-	require.NoError(t, err)
-
-	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
-	require.NoError(t, err)
-
-	registryAdminV2, err := blockchain.NewNodeRegistryAdminV2(
-		logger,
-		client,
-		signer,
-		contractsOptions,
-	)
-	require.NoError(t, err)
-
-	registryCallerV2, err := blockchain.NewNodeRegistryCallerV2(
-		logger,
-		client,
-		contractsOptions,
-	)
-	require.NoError(t, err)
-
-	return registryAdminV2, registryCallerV2, func() {
+	return registryAdmin, registryCaller, func() {
 		cancel()
 		client.Close()
 	}
@@ -94,7 +64,7 @@ func setupRegistryV2(
 
 func registerRandomNode(
 	t *testing.T,
-	registryAdmin *blockchain.NodeRegistryAdmin,
+	registryAdmin blockchain.INodeRegistryAdmin,
 ) SerializableNodeV1 {
 	ownerAddress := testutils.RandomAddress().Hex()
 	httpAddress := testutils.RandomString(30)
@@ -114,13 +84,17 @@ func registerRandomNode(
 }
 
 func TestRegistryRead(t *testing.T) {
-	registryAdminV1, registryCaller, cleanup := setupRegistryV1(t)
+	registryAdminV1, registryCaller, cleanup := setupRegistry(
+		t,
+		blockchain.RegistryAdminV1,
+		blockchain.RegistryCallerV1,
+	)
 	defer cleanup()
 
 	node1 := registerRandomNode(t, registryAdminV1)
 	node2 := registerRandomNode(t, registryAdminV1)
 
-	nodes, err := ReadFromRegistryV1(registryCaller)
+	nodes, err := ReadFromRegistry[SerializableNodeV1](registryCaller)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
@@ -136,12 +110,16 @@ func TestRegistryRead(t *testing.T) {
 }
 
 func TestFileDump(t *testing.T) {
-	registryAdminV1, registryCaller, cleanup := setupRegistryV1(t)
+	registryAdminV1, registryCaller, cleanup := setupRegistry(
+		t,
+		blockchain.RegistryAdminV1,
+		blockchain.RegistryCallerV1,
+	)
 	defer cleanup()
 
 	_ = registerRandomNode(t, registryAdminV1)
 
-	nodes, err := ReadFromRegistryV1(registryCaller)
+	nodes, err := ReadFromRegistry[SerializableNodeV1](registryCaller)
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -159,24 +137,32 @@ func TestFileDump(t *testing.T) {
 }
 
 func TestRegistryWrite(t *testing.T) {
-	registryAdminV1, registryCallerV1, cleanupV1 := setupRegistryV1(t)
+	registryAdminV1, registryCallerV1, cleanupV1 := setupRegistry(
+		t,
+		blockchain.RegistryAdminV1,
+		blockchain.RegistryCallerV1,
+	)
 	defer cleanupV1()
 
 	node1 := registerRandomNode(t, registryAdminV1)
 	node2 := registerRandomNode(t, registryAdminV1)
 
-	nodes, err := ReadFromRegistryV1(registryCallerV1)
+	nodes, err := ReadFromRegistry[SerializableNodeV1](registryCallerV1)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
 	// Build a NodesV2 registry
-	registryAdminV2, registryCallerV2, cleanupV2 := setupRegistryV2(t)
+	registryAdminV2, registryCallerV2, cleanupV2 := setupRegistry(
+		t,
+		blockchain.RegistryAdminV2,
+		blockchain.RegistryCallerV2,
+	)
 	defer cleanupV2()
 
 	err = WriteToRegistryV2(testutils.NewLog(t), nodes, registryAdminV2)
 	require.NoError(t, err)
 
-	restoredNodes, err := ReadFromRegistryV2(registryCallerV2)
+	restoredNodes, err := ReadFromRegistry[SerializableNodeV2](registryCallerV2)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(restoredNodes))
 

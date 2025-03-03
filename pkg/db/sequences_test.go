@@ -33,7 +33,7 @@ func TestEmptyRows(t *testing.T) {
 	defer cleanup()
 
 	querier := queries.New(db)
-	seq, err := querier.GetNextAvailableNonce(ctx)
+	_, err := querier.GetNextAvailableNonce(ctx)
 	require.Error(t, err)
 
 	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
@@ -42,7 +42,7 @@ func TestEmptyRows(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	seq, err = querier.GetNextAvailableNonce(ctx)
+	seq, err := querier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
 }
@@ -205,10 +205,10 @@ func TestRequestsFailed(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
 
-	seq, err = failNextPayerSequence(t, ctx, db)
+	_, err = failNextPayerSequence(t, ctx, db)
 	require.Error(t, err)
 
-	seq, err = failNextPayerSequence(t, ctx, db)
+	_, err = failNextPayerSequence(t, ctx, db)
 	require.Error(t, err)
 
 	seq, err = getNextPayerSequence(t, ctx, db)

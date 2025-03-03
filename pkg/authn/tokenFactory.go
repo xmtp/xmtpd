@@ -23,8 +23,8 @@ func NewTokenFactory(
 	privateKey *ecdsa.PrivateKey,
 	nodeID uint32,
 	serverVersion *semver.Version,
-) *TokenFactory {
-	return &TokenFactory{
+) TokenFactory {
+	return TokenFactory{
 		privateKey:    privateKey,
 		nodeID:        nodeID,
 		serverVersion: serverVersion,

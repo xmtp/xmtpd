@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -123,6 +124,11 @@ func NewAPIServer(
 	})
 
 	return s, nil
+}
+
+func (s *ApiServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
+	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpcListener.Addr().String())
+	return grpc.NewClient(dialAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
 func (s *ApiServer) Addr() net.Addr {

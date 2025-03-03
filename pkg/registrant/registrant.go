@@ -25,7 +25,7 @@ import (
 type Registrant struct {
 	record       *registry.Node
 	privateKey   *ecdsa.PrivateKey
-	tokenFactory *authn.TokenFactory
+	tokenFactory authn.TokenFactory
 }
 
 func NewRegistrant(
@@ -72,7 +72,7 @@ func (r *Registrant) NodeID() uint32 {
 	return r.record.NodeID
 }
 
-func (r *Registrant) TokenFactory() *authn.TokenFactory {
+func (r *Registrant) TokenFactory() authn.TokenFactory {
 	return r.tokenFactory
 }
 

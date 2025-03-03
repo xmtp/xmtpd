@@ -168,7 +168,7 @@ func NewReplicationServer(
 
 func startAPIServer(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	options config.ServerOptions,
 	s *ReplicationServer,
 	writerDB *sql.DB,
@@ -182,18 +182,18 @@ func startAPIServer(
 			if s.validationService == nil {
 				s.validationService, err = mlsvalidate.NewMlsValidationService(
 					ctx,
-					log,
+					logger,
 					options.MlsValidation,
 				)
 				if err != nil {
 					return err
 				}
 			}
-			s.cursorUpdater = metadata.NewCursorUpdater(ctx, log, writerDB)
+			s.cursorUpdater = metadata.NewCursorUpdater(ctx, logger, writerDB)
 
 			replicationService, err := message.NewReplicationApiService(
 				ctx,
-				log,
+				logger,
 				s.registrant,
 				writerDB,
 				s.validationService,
@@ -205,11 +205,11 @@ func startAPIServer(
 			}
 			message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-			log.Info("Replication service enabled")
+			logger.Info("Replication service enabled")
 
 			metadataService, err := metadata.NewMetadataApiService(
 				ctx,
-				log,
+				logger,
 				s.cursorUpdater,
 			)
 			if err != nil {
@@ -217,7 +217,7 @@ func startAPIServer(
 			}
 			metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
 
-			log.Info("Metadata service enabled")
+			logger.Info("Metadata service enabled")
 		}
 
 		if options.Payer.Enable {
@@ -231,32 +231,32 @@ func startAPIServer(
 				options.Contracts.ChainID,
 			)
 			if err != nil {
-				log.Fatal("initializing signer", zap.Error(err))
+				logger.Fatal("initializing signer", zap.Error(err))
 			}
 
 			ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
 			if err != nil {
-				log.Fatal("initializing blockchain client", zap.Error(err))
+				logger.Fatal("initializing blockchain client", zap.Error(err))
 			}
 
 			//TODO: mkysel do this properly
-			nonceManager := blockchain.NewSQLBackedNonceManager(writerDB, log)
+			nonceManager := blockchain.NewSQLBackedNonceManager(writerDB, logger)
 
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 				ctx,
-				log,
+				logger,
 				ethclient,
 				signer,
 				options.Contracts,
 				nonceManager,
 			)
 			if err != nil {
-				log.Fatal("initializing message publisher", zap.Error(err))
+				logger.Fatal("initializing message publisher", zap.Error(err))
 			}
 
 			payerService, err := payer.NewPayerApiService(
 				ctx,
-				log,
+				logger,
 				s.nodeRegistry,
 				payerPrivateKey,
 				blockchainPublisher,
@@ -267,7 +267,7 @@ func startAPIServer(
 			}
 			payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
-			log.Info("Payer service enabled")
+			logger.Info("Payer service enabled")
 		}
 
 		return nil
@@ -288,7 +288,7 @@ func startAPIServer(
 
 	s.apiServer, err = api.NewAPIServer(
 		s.ctx,
-		log,
+		logger,
 		listenAddress,
 		options.Reflection.Enable,
 		serviceRegistrationFunc,

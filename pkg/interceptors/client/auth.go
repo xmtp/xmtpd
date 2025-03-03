@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/authn"
@@ -15,19 +14,16 @@ import (
 
 // AuthInterceptor is a struct for holding the token and adding it to each request.
 type AuthInterceptor struct {
-	tokenFactory *authn.TokenFactory
+	tokenFactory authn.TokenFactory
 	targetNodeID uint32
 	currentToken *authn.Token
 }
 
 func NewAuthInterceptor(
-	tokenFactory *authn.TokenFactory,
+	tokenFactory authn.TokenFactory,
 	targetNodeID uint32,
 ) *AuthInterceptor {
-	// This should never happen
-	if tokenFactory == nil {
-		log.Fatal("tokenFactory is required")
-	}
+
 	return &AuthInterceptor{
 		tokenFactory: tokenFactory,
 		targetNodeID: targetNodeID,

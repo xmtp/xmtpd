@@ -3,6 +3,7 @@ package blockchain_test
 import (
 	"context"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"strings"
 	"sync"
 	"testing"
 
@@ -157,11 +158,11 @@ func TestPublishGroupMessageConcurrent(t *testing.T) {
 	defer cleanup()
 
 	const parallelRuns = 100
-
 	var wg sync.WaitGroup
-	wg.Add(parallelRuns)
+	errSet := sync.Map{}
 
 	for i := 0; i < parallelRuns; i++ {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
@@ -170,11 +171,23 @@ func TestPublishGroupMessageConcurrent(t *testing.T) {
 				testutils.RandomGroupID(),
 				testutils.RandomBytes(100),
 			)
-			require.NoError(t, err)
+			if err != nil {
+				errSet.Store(err.Error(), struct{}{})
+			}
 		}()
 	}
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 
+	// Collect and print unique errors
+	var uniqueErrors []string
+	errSet.Range(func(key, value interface{}) bool {
+		uniqueErrors = append(uniqueErrors, key.(string))
+		return true
+	})
+
+	if len(uniqueErrors) > 0 {
+		t.Errorf("Errors encountered:\n%s", strings.Join(uniqueErrors, "\n"))
+	}
 }

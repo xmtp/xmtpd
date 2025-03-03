@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/core"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -236,7 +237,8 @@ func withNonce[T any](ctx context.Context,
 		nonce := nonceContext.Nonce
 		tx, err = create(ctx, nonce)
 		if err != nil {
-			if errors.Is(err, core.ErrNonceTooLow) {
+			if errors.Is(err, core.ErrNonceTooLow) ||
+				strings.Contains(err.Error(), "nonce too low") {
 				logger.Debug(
 					"nonce too low, consuming and moving on...",
 					zap.Uint64("nonce", nonce.Uint64()),
@@ -248,6 +250,7 @@ func withNonce[T any](ctx context.Context,
 				}
 				continue
 			}
+
 			nonceContext.Cancel()
 			return nil, err
 		}

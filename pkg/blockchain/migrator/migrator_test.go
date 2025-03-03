@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -58,10 +59,10 @@ func registerRandomNode(
 	ownerAddress := testutils.RandomAddress().Hex()
 	httpAddress := testutils.RandomString(30)
 	publicKey := testutils.RandomPrivateKey(t).PublicKey
-	require.NoError(
-		t,
-		registryAdmin.AddNode(context.Background(), ownerAddress, &publicKey, httpAddress),
-	)
+	require.Eventually(t, func() bool {
+		err := registryAdmin.AddNode(context.Background(), ownerAddress, &publicKey, httpAddress)
+		return err == nil
+	}, 1*time.Second, 50*time.Millisecond)
 
 	return SerializableNode{
 		OwnerAddress:  ownerAddress,

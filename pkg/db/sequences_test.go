@@ -274,3 +274,111 @@ func TestFillerRerun(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestAbandonNonces(t *testing.T) {
+	ctx := context.Background()
+	db, _, cleanup := testutils.NewDB(t, ctx)
+	defer cleanup()
+
+	querier := queries.New(db)
+
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+		PendingNonce: 0,
+		NumElements:  10,
+	})
+	require.NoError(t, err)
+
+	_, err = querier.DeleteObsoleteNonces(ctx, 5)
+	require.NoError(t, err)
+
+	nonce, err := querier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+
+	require.EqualValues(t, 5, nonce)
+
+}
+
+func TestAbandonCanProceedWithOpenTxn(t *testing.T) {
+	ctx := context.Background()
+	db, _, cleanup := testutils.NewDB(t, ctx)
+	defer cleanup()
+
+	querier := queries.New(db)
+
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+		PendingNonce: 0,
+		NumElements:  10,
+	})
+	require.NoError(t, err)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	require.NoError(t, err)
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	// hold this TX open
+	txQuerier := queries.New(db).WithTx(tx)
+
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+
+	_, err = querier.DeleteObsoleteNonces(ctx, 5)
+	require.NoError(t, err)
+
+	nonce, err := querier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+
+	require.EqualValues(t, 5, nonce)
+
+}
+
+func TestAbandonSkipsOpenTxn(t *testing.T) {
+	ctx := context.Background()
+	db, _, cleanup := testutils.NewDB(t, ctx)
+	defer cleanup()
+
+	querier := queries.New(db)
+
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+		PendingNonce: 0,
+		NumElements:  10,
+	})
+	require.NoError(t, err)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	require.NoError(t, err)
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	// hold this TX open
+	txQuerier := queries.New(db).WithTx(tx)
+
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+
+	_, err = querier.DeleteObsoleteNonces(ctx, 5)
+	require.NoError(t, err)
+
+	err = tx.Rollback()
+	require.NoError(t, err)
+
+	// the nonce manager has at least once semantics
+	// it might return a nonce that is too low
+	nonce, err := querier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+
+	require.EqualValues(t, 0, nonce)
+
+}

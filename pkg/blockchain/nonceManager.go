@@ -78,11 +78,20 @@ func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce uint6
 	})
 }
 
+func (s *SQLBackedNonceManager) AbandonNonces(ctx context.Context, endNonce uint64) (err error) {
+	querier := queries.New(s.db)
+	_, err = querier.DeleteObsoleteNonces(ctx, int64(endNonce))
+	return err
+}
+
 func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce uint64) error {
 	return s.FillNonces(ctx, nonce)
 }
 
 func (s *SQLBackedNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) error {
-	//todo mkysel, we could delete everything below the nonce
-	return s.FillNonces(ctx, nonce)
+	err := s.FillNonces(ctx, nonce)
+	if err != nil {
+		return err
+	}
+	return s.AbandonNonces(ctx, nonce)
 }

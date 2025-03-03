@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core"
 	"math/big"
 	"time"
 
@@ -235,7 +236,7 @@ func withNonce[T any](ctx context.Context,
 		nonce := nonceContext.Nonce
 		tx, err = create(ctx, nonce)
 		if err != nil {
-			if err.Error() == "nonce too low" {
+			if errors.Is(err, core.ErrNonceTooLow) {
 				logger.Debug(
 					"nonce too low, consuming and moving on...",
 					zap.Uint64("nonce", nonce.Uint64()),

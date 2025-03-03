@@ -240,7 +240,7 @@ func startAPIServer(
 			}
 
 			//TODO: mkysel do this properly
-			nonceManager := blockchain.NewSQLBackedNonceManager(writerDB, log)
+			nonceManager := blockchain.NewSQLBackedNonceManager(writerDB, logger)
 
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 				ctx,

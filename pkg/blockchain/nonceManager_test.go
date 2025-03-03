@@ -61,7 +61,7 @@ func TestGetNonce_Simple(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
+	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	nonce, err := nonceManager.GetNonce(ctx)
@@ -81,7 +81,7 @@ func TestGetNonce_RevertMany(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
+	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
@@ -102,7 +102,7 @@ func TestGetNonce_ConsumeMany(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
+	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
@@ -124,7 +124,7 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
+	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup

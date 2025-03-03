@@ -113,7 +113,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
-	return withNonce(ctx, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+	return withNonce(ctx, m.logger, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
 		return m.messagesContract.AddMessage(&bind.TransactOpts{
 			Context: ctx,
 			Nonce:   &nonce,
@@ -150,7 +150,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("identity update is empty")
 	}
 
-	return withNonce(ctx, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+	return withNonce(ctx, m.logger, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
 		return m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
 			Context: ctx,
 			Nonce:   &nonce,
@@ -198,6 +198,7 @@ func findLog[T any](
 }
 
 func withNonce[T any](ctx context.Context,
+	logger *zap.Logger,
 	nonceManager NonceManager,
 	create func(context.Context, big.Int) (*types.Transaction, error),
 	wait func(context.Context, *types.Transaction) (*T, error),
@@ -215,8 +216,10 @@ func withNonce[T any](ctx context.Context,
 		tx, err = create(ctx, nonce)
 		if err != nil {
 			if err.Error() == "nonce too low" {
+				logger.Debug("nonce too low, consuming and moving on...", zap.Uint64("nonce", nonce.Uint64()))
 				err = nonceContext.Consume()
 				if err != nil {
+					nonceContext.Cancel()
 					return nil, err
 				}
 				continue

@@ -71,7 +71,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 
 }
 
-func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce big.Int) (err error) {
+func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.Int) (err error) {
 	querier := queries.New(s.db)
 	return querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: startNonce.Int64(),
@@ -79,20 +79,21 @@ func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce big.I
 	})
 }
 
-func (s *SQLBackedNonceManager) AbandonNonces(ctx context.Context, endNonce big.Int) (err error) {
+func (s *SQLBackedNonceManager) abandonNonces(ctx context.Context, endNonce big.Int) (err error) {
 	querier := queries.New(s.db)
 	_, err = querier.DeleteObsoleteNonces(ctx, endNonce.Int64())
 	return err
 }
 
 func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) error {
-	return s.FillNonces(ctx, nonce)
+	s.logger.Debug("Replenishing nonces...", zap.Uint64("nonce", nonce.Uint64()))
+	return s.fillNonces(ctx, nonce)
 }
 
 func (s *SQLBackedNonceManager) FastForwardNonce(ctx context.Context, nonce big.Int) error {
-	err := s.FillNonces(ctx, nonce)
+	err := s.fillNonces(ctx, nonce)
 	if err != nil {
 		return err
 	}
-	return s.AbandonNonces(ctx, nonce)
+	return s.abandonNonces(ctx, nonce)
 }

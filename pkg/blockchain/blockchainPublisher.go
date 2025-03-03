@@ -69,7 +69,7 @@ func NewBlockchainPublisher(
 		return nil, err
 	}
 
-	timer := time.NewTimer(time.Second * 10)
+	ticker := time.NewTicker(10 * time.Second)
 
 	replenishCtx, cancel := context.WithCancel(ctx)
 
@@ -78,7 +78,7 @@ func NewBlockchainPublisher(
 			select {
 			case <-replenishCtx.Done():
 				return
-			case <-timer.C:
+			case <-ticker.C:
 				nonce, err := client.PendingNonceAt(replenishCtx, signer.FromAddress())
 				if err != nil {
 					logger.Error("error getting pending nonce", zap.Error(err))

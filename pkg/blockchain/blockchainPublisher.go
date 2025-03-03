@@ -64,7 +64,7 @@ func NewBlockchainPublisher(
 
 	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
 
-	err = nonceManager.FastForwardNonce(ctx, nonce)
+	err = nonceManager.FastForwardNonce(ctx, *new(big.Int).SetUint64(nonce))
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func NewBlockchainPublisher(
 					logger.Error("error getting pending nonce", zap.Error(err))
 					continue
 				}
-				err = nonceManager.Replenish(replenishCtx, nonce)
+				err = nonceManager.Replenish(replenishCtx, *new(big.Int).SetUint64(nonce))
 				if err != nil {
 					logger.Error("error replenishing nonce", zap.Error(err))
 				}
@@ -125,7 +125,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		nonce := nonceContext.Nonce
 		tx, err = m.messagesContract.AddMessage(&bind.TransactOpts{
 			Context: ctx,
-			Nonce:   new(big.Int).SetUint64(nonce),
+			Nonce:   &nonce,
 			From:    m.signer.FromAddress(),
 			Signer:  m.signer.SignerFunc(),
 		}, groupID, message)
@@ -194,7 +194,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		nonce := nonceContext.Nonce
 		tx, err = m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
 			Context: ctx,
-			Nonce:   new(big.Int).SetUint64(nonce),
+			Nonce:   &nonce,
 			From:    m.signer.FromAddress(),
 			Signer:  m.signer.SignerFunc(),
 		}, inboxId, identityUpdate)

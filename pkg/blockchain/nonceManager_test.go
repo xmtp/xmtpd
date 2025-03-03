@@ -6,13 +6,14 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
+	"math/big"
 	"sync"
 	"testing"
 )
 
 type TestNonceManager struct {
 	mu     sync.Mutex
-	nonce  uint64
+	nonce  int64
 	logger *zap.Logger
 }
 
@@ -27,10 +28,10 @@ func (tm *TestNonceManager) GetNonce(ctx context.Context) (*blockchain.NonceCont
 	nonce := tm.nonce
 	tm.nonce++
 
-	tm.logger.Debug("Generated Nonce", zap.Uint64("nonce", nonce))
+	tm.logger.Debug("Generated Nonce", zap.Int64("nonce", nonce))
 
 	return &blockchain.NonceContext{
-		Nonce:  nonce,
+		Nonce:  *new(big.Int).SetInt64(nonce),
 		Cancel: func() {}, // No-op
 		Consume: func() error {
 			return nil // No-op
@@ -38,15 +39,15 @@ func (tm *TestNonceManager) GetNonce(ctx context.Context) (*blockchain.NonceCont
 	}, nil
 }
 
-func (tm *TestNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) error {
+func (tm *TestNonceManager) FastForwardNonce(ctx context.Context, nonce big.Int) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
-	tm.nonce = nonce
+	tm.nonce = nonce.Int64()
 
 	return nil
 }
 
-func (tm *TestNonceManager) Replenish(ctx context.Context, nonce uint64) error {
+func (tm *TestNonceManager) Replenish(ctx context.Context, nonce big.Int) error {
 	return nil
 }
 
@@ -60,14 +61,14 @@ func TestGetNonce_Simple(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, 0)
+	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	nonce, err := nonceManager.GetNonce(ctx)
 	require.NoError(t, err)
 	defer nonce.Cancel()
 
-	require.Equal(t, nonce.Nonce, uint64(0))
+	require.EqualValues(t, 0, nonce.Nonce.Int64())
 }
 
 func TestGetNonce_RevertMany(t *testing.T) {
@@ -80,13 +81,13 @@ func TestGetNonce_RevertMany(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, 0)
+	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		nonce, err := nonceManager.GetNonce(ctx)
 		require.NoError(t, err)
-		require.EqualValues(t, 0, nonce.Nonce)
+		require.EqualValues(t, 0, nonce.Nonce.Int64())
 		nonce.Cancel()
 	}
 }
@@ -101,13 +102,13 @@ func TestGetNonce_ConsumeMany(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, 0)
+	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		nonce, err := nonceManager.GetNonce(ctx)
 		require.NoError(t, err)
-		require.EqualValues(t, i, nonce.Nonce)
+		require.EqualValues(t, i, nonce.Nonce.Int64())
 		err = nonce.Consume()
 		require.NoError(t, err)
 	}
@@ -123,7 +124,7 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
-	err = nonceManager.FillNonces(ctx, 0)
+	err = nonceManager.FillNonces(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup

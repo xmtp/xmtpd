@@ -5,17 +5,18 @@ import (
 	"database/sql"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"go.uber.org/zap"
+	"math/big"
 )
 
 type NonceContext struct {
-	Nonce   uint64
+	Nonce   big.Int
 	Cancel  func()
 	Consume func() error
 }
 type NonceManager interface {
 	GetNonce(ctx context.Context) (*NonceContext, error)
-	FastForwardNonce(ctx context.Context, nonce uint64) error
-	Replenish(ctx context.Context, nonce uint64) error
+	FastForwardNonce(ctx context.Context, nonce big.Int) error
+	Replenish(ctx context.Context, nonce big.Int) error
 }
 
 type SQLBackedNonceManager struct {
@@ -52,7 +53,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 	s.logger.Debug("Generated Nonce", zap.Int64("nonce", nonce))
 
 	ret := &NonceContext{
-		Nonce: uint64(nonce),
+		Nonce: *new(big.Int).SetInt64(nonce),
 		Cancel: func() {
 			_ = tx.Rollback()
 		},
@@ -70,25 +71,25 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 
 }
 
-func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce uint64) (err error) {
+func (s *SQLBackedNonceManager) FillNonces(ctx context.Context, startNonce big.Int) (err error) {
 	querier := queries.New(s.db)
 	return querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
-		PendingNonce: int64(startNonce),
+		PendingNonce: startNonce.Int64(),
 		NumElements:  1000,
 	})
 }
 
-func (s *SQLBackedNonceManager) AbandonNonces(ctx context.Context, endNonce uint64) (err error) {
+func (s *SQLBackedNonceManager) AbandonNonces(ctx context.Context, endNonce big.Int) (err error) {
 	querier := queries.New(s.db)
-	_, err = querier.DeleteObsoleteNonces(ctx, int64(endNonce))
+	_, err = querier.DeleteObsoleteNonces(ctx, endNonce.Int64())
 	return err
 }
 
-func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce uint64) error {
+func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) error {
 	return s.FillNonces(ctx, nonce)
 }
 
-func (s *SQLBackedNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) error {
+func (s *SQLBackedNonceManager) FastForwardNonce(ctx context.Context, nonce big.Int) error {
 	err := s.FillNonces(ctx, nonce)
 	if err != nil {
 		return err

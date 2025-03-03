@@ -113,64 +113,32 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
-	var tx *types.Transaction
-	var nonceContext *NonceContext
-	var err error
-
-	for {
-		nonceContext, err = m.nonceManager.GetNonce(ctx)
-		if err != nil {
-			return nil, err
-		}
-		nonce := nonceContext.Nonce
-		tx, err = m.messagesContract.AddMessage(&bind.TransactOpts{
+	return withNonce(ctx, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+		return m.messagesContract.AddMessage(&bind.TransactOpts{
 			Context: ctx,
 			Nonce:   &nonce,
 			From:    m.signer.FromAddress(),
 			Signer:  m.signer.SignerFunc(),
 		}, groupID, message)
+	}, func(ctx context.Context, transaction *types.Transaction) (*groupmessages.GroupMessagesMessageSent, error) {
+		receipt, err := WaitForTransaction(
+			ctx,
+			m.logger,
+			m.client,
+			2*time.Second,
+			250*time.Millisecond,
+			transaction.Hash(),
+		)
 		if err != nil {
-			if err.Error() == "nonce too low" {
-				err = nonceContext.Consume()
-				if err != nil {
-					return nil, err
-				}
-				continue
-			}
-			nonceContext.Cancel()
 			return nil, err
 		}
-		break
-	}
 
-	defer func() {
-		if err != nil {
-			nonceContext.Cancel()
+		if receipt == nil {
+			return nil, errors.New("transaction receipt is nil")
 		}
-	}()
 
-	receipt, err := WaitForTransaction(
-		ctx,
-		m.logger,
-		m.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if receipt == nil {
-		return nil, errors.New("transaction receipt is nil")
-	}
-
-	err = nonceContext.Consume()
-	if err != nil {
-		return nil, err
-	}
-
-	return findLog(receipt, m.messagesContract.ParseMessageSent, "no message sent log found")
+		return findLog(receipt, m.messagesContract.ParseMessageSent, "no message sent log found")
+	})
 }
 
 func (m *BlockchainPublisher) PublishIdentityUpdate(
@@ -182,67 +150,32 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("identity update is empty")
 	}
 
-	var tx *types.Transaction
-	var nonceContext *NonceContext
-	var err error
-
-	for {
-		nonceContext, err = m.nonceManager.GetNonce(ctx)
-		if err != nil {
-			return nil, err
-		}
-		nonce := nonceContext.Nonce
-		tx, err = m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
+	return withNonce(ctx, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+		return m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
 			Context: ctx,
 			Nonce:   &nonce,
 			From:    m.signer.FromAddress(),
 			Signer:  m.signer.SignerFunc(),
 		}, inboxId, identityUpdate)
+	}, func(ctx context.Context, transaction *types.Transaction) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
+		receipt, err := WaitForTransaction(
+			ctx,
+			m.logger,
+			m.client,
+			2*time.Second,
+			250*time.Millisecond,
+			transaction.Hash(),
+		)
 		if err != nil {
-			if err.Error() == "nonce too low" {
-				err = nonceContext.Consume()
-				if err != nil {
-					return nil, err
-				}
-				continue
-			}
-			nonceContext.Cancel()
 			return nil, err
 		}
-		break
-	}
 
-	defer func() {
-		if err != nil {
-			nonceContext.Cancel()
+		if receipt == nil {
+			return nil, errors.New("transaction receipt is nil")
 		}
-	}()
 
-	receipt, err := WaitForTransaction(
-		ctx,
-		m.logger,
-		m.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-	if err != nil {
-		return nil, err
-	}
-	if receipt == nil {
-		return nil, errors.New("transaction receipt is nil")
-	}
-
-	err = nonceContext.Consume()
-	if err != nil {
-		return nil, err
-	}
-
-	return findLog(
-		receipt,
-		m.identityUpdateContract.ParseIdentityUpdateCreated,
-		"no identity update log found",
-	)
+		return findLog(receipt, m.identityUpdateContract.ParseIdentityUpdateCreated, "no message sent log found")
+	})
 }
 
 func findLog[T any](
@@ -262,6 +195,55 @@ func findLog[T any](
 	}
 
 	return nil, errors.New(errorMsg)
+}
+
+func withNonce[T any](ctx context.Context,
+	nonceManager NonceManager,
+	create func(context.Context, big.Int) (*types.Transaction, error),
+	wait func(context.Context, *types.Transaction) (*T, error),
+) (*T, error) {
+	var tx *types.Transaction
+	var nonceContext *NonceContext
+	var err error
+
+	for {
+		nonceContext, err = nonceManager.GetNonce(ctx)
+		if err != nil {
+			return nil, err
+		}
+		nonce := nonceContext.Nonce
+		tx, err = create(ctx, nonce)
+		if err != nil {
+			if err.Error() == "nonce too low" {
+				err = nonceContext.Consume()
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+			nonceContext.Cancel()
+			return nil, err
+		}
+		break
+	}
+
+	defer func() {
+		if err != nil {
+			nonceContext.Cancel()
+		}
+	}()
+
+	val, err := wait(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = nonceContext.Consume()
+	if err != nil {
+		return nil, err
+	}
+
+	return val, nil
 }
 
 func (m *BlockchainPublisher) Close() {

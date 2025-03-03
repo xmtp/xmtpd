@@ -70,9 +70,6 @@ interface IPayer {
     /// @dev Emitted when usage is settled and fees are calculated.
     event UsageSettled(uint256 fees, address indexed payer, uint256 indexed nodeId, uint256 timestamp);
 
-    /// @dev Emitted when batch usage is settled.
-    event BatchUsageSettled(uint256 totalFees, uint256 indexed nodeId, uint256 timestamp);
-
     /// @dev Emitted when fees are transferred to the rewards contract.
     event FeesTransferred(uint256 amount);
 
@@ -264,37 +261,27 @@ interface IPayer {
     //==============================================================
 
     /**
-     * @notice Called by node operators to settle usage and calculate fees owed.
-     * @dev This function is EIP-2200 optimized by using accumulators for multiple state updates.
-     * @param fees The total USDC fees computed from this usage period.
-     * @param payer The address of the payer being charged.
-     * @param nodeId The ID of the node operator submitting the usage.
-     * @param timestamp The timestamp when the usage occurred (can be backdated).
+     * @notice Settles a contiguous batch of usage data from a PayerReport.
+     * Uses an aggregated Merkle proof to verify that the provided batch of
+     * (payer, amount) entries is included in the report’s committed Merkle root.
      *
-     * Emits `UsageSettled`.
+     * @param originatorNode The node that submitted the report.
+     * @param reportIndex The index of the report.
+     * @param offset The starting index in the list of (payer, amount) entries.
+     * @param payers A contiguous array of payer addresses.
+     * @param amounts A contiguous array of usage amounts corresponding to each payer.
+     * @param proof An array of branch hashes for the aggregated Merkle proof.
+     *
+     * The contract computes the aggregated hash for the batch and, along with the
+     * provided proof and offset, reconstructs the Merkle path to verify inclusion.
      */
     function settleUsage(
-        uint256 fees,
-        address payer,
-        uint256 nodeId,
-        uint256 timestamp
-    ) external;
-
-    /**
-     * @notice Called by node operators to settle usage for multiple payers in a batch.
-     * @dev Uses EIP-2200 optimizations for storage efficiency.
-     * @param payers Array of payer addresses being charged.
-     * @param fees Array of USDC fees corresponding to each payer.
-     * @param timestamp When this batch of usage occurred (can be backdated).
-     * @param nodeId The ID of the node operator submitting the usage.
-     *
-     * Emits `BatchUsageSettled` and multiple `UsageSettled` events.
-     */
-    function settleUsageBatch(
+        address originatorNode,
+        uint256 reportIndex,
+        uint256 offset,
         address[] calldata payers,
-        uint256[] calldata fees,
-        uint256 timestamp,
-        uint256 nodeId
+        uint256[] calldata amounts,
+        bytes32[] calldata proof
     ) external;
 
     /**

@@ -113,32 +113,42 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
-	return withNonce(ctx, m.logger, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
-		return m.messagesContract.AddMessage(&bind.TransactOpts{
-			Context: ctx,
-			Nonce:   &nonce,
-			From:    m.signer.FromAddress(),
-			Signer:  m.signer.SignerFunc(),
-		}, groupID, message)
-	}, func(ctx context.Context, transaction *types.Transaction) (*groupmessages.GroupMessagesMessageSent, error) {
-		receipt, err := WaitForTransaction(
-			ctx,
-			m.logger,
-			m.client,
-			2*time.Second,
-			250*time.Millisecond,
-			transaction.Hash(),
-		)
-		if err != nil {
-			return nil, err
-		}
+	return withNonce(
+		ctx,
+		m.logger,
+		m.nonceManager,
+		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+			return m.messagesContract.AddMessage(&bind.TransactOpts{
+				Context: ctx,
+				Nonce:   &nonce,
+				From:    m.signer.FromAddress(),
+				Signer:  m.signer.SignerFunc(),
+			}, groupID, message)
+		},
+		func(ctx context.Context, transaction *types.Transaction) (*groupmessages.GroupMessagesMessageSent, error) {
+			receipt, err := WaitForTransaction(
+				ctx,
+				m.logger,
+				m.client,
+				2*time.Second,
+				250*time.Millisecond,
+				transaction.Hash(),
+			)
+			if err != nil {
+				return nil, err
+			}
 
-		if receipt == nil {
-			return nil, errors.New("transaction receipt is nil")
-		}
+			if receipt == nil {
+				return nil, errors.New("transaction receipt is nil")
+			}
 
-		return findLog(receipt, m.messagesContract.ParseMessageSent, "no message sent log found")
-	})
+			return findLog(
+				receipt,
+				m.messagesContract.ParseMessageSent,
+				"no message sent log found",
+			)
+		},
+	)
 }
 
 func (m *BlockchainPublisher) PublishIdentityUpdate(
@@ -150,32 +160,42 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("identity update is empty")
 	}
 
-	return withNonce(ctx, m.logger, m.nonceManager, func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
-		return m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
-			Context: ctx,
-			Nonce:   &nonce,
-			From:    m.signer.FromAddress(),
-			Signer:  m.signer.SignerFunc(),
-		}, inboxId, identityUpdate)
-	}, func(ctx context.Context, transaction *types.Transaction) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
-		receipt, err := WaitForTransaction(
-			ctx,
-			m.logger,
-			m.client,
-			2*time.Second,
-			250*time.Millisecond,
-			transaction.Hash(),
-		)
-		if err != nil {
-			return nil, err
-		}
+	return withNonce(
+		ctx,
+		m.logger,
+		m.nonceManager,
+		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+			return m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
+				Context: ctx,
+				Nonce:   &nonce,
+				From:    m.signer.FromAddress(),
+				Signer:  m.signer.SignerFunc(),
+			}, inboxId, identityUpdate)
+		},
+		func(ctx context.Context, transaction *types.Transaction) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
+			receipt, err := WaitForTransaction(
+				ctx,
+				m.logger,
+				m.client,
+				2*time.Second,
+				250*time.Millisecond,
+				transaction.Hash(),
+			)
+			if err != nil {
+				return nil, err
+			}
 
-		if receipt == nil {
-			return nil, errors.New("transaction receipt is nil")
-		}
+			if receipt == nil {
+				return nil, errors.New("transaction receipt is nil")
+			}
 
-		return findLog(receipt, m.identityUpdateContract.ParseIdentityUpdateCreated, "no message sent log found")
-	})
+			return findLog(
+				receipt,
+				m.identityUpdateContract.ParseIdentityUpdateCreated,
+				"no message sent log found",
+			)
+		},
+	)
 }
 
 func findLog[T any](
@@ -216,7 +236,10 @@ func withNonce[T any](ctx context.Context,
 		tx, err = create(ctx, nonce)
 		if err != nil {
 			if err.Error() == "nonce too low" {
-				logger.Debug("nonce too low, consuming and moving on...", zap.Uint64("nonce", nonce.Uint64()))
+				logger.Debug(
+					"nonce too low, consuming and moving on...",
+					zap.Uint64("nonce", nonce.Uint64()),
+				)
 				err = nonceContext.Consume()
 				if err != nil {
 					nonceContext.Cancel()

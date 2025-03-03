@@ -75,7 +75,7 @@ func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.I
 	querier := queries.New(s.db)
 	return querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: startNonce.Int64(),
-		NumElements:  1000,
+		NumElements:  10000,
 	})
 }
 

@@ -239,7 +239,6 @@ func startAPIServer(
 				logger.Fatal("initializing blockchain client", zap.Error(err))
 			}
 
-			//TODO: mkysel do this properly
 			nonceManager := blockchain.NewSQLBackedNonceManager(writerDB, logger)
 
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(

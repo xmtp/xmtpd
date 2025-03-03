@@ -34,13 +34,25 @@ func buildStreamer(
 		Topics:          []common.Hash{topic},
 		EventChannel:    channel,
 	}
-	return blockchain.NewRpcLogStreamer(context.Background(), client, log, []blockchain.ContractConfig{cfg}), channel
+	return blockchain.NewRpcLogStreamer(
+		context.Background(),
+		client,
+		log,
+		[]blockchain.ContractConfig{cfg},
+	), channel
 }
 
 func TestBuilder(t *testing.T) {
-	testclient, err := blockchain.NewClient(context.Background(), testutils.GetContractsOptions(t).RpcUrl)
+	testclient, err := blockchain.NewClient(
+		context.Background(),
+		testutils.GetContractsOptions(t).RpcUrl,
+	)
 	require.NoError(t, err)
-	builder := blockchain.NewRpcLogStreamBuilder(context.Background(), testclient, testutils.NewLog(t))
+	builder := blockchain.NewRpcLogStreamBuilder(
+		context.Background(),
+		testclient,
+		testutils.NewLog(t),
+	)
 
 	listenerChannel, _ := builder.ListenForContractEvent(
 		1,

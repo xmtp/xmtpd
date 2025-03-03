@@ -72,7 +72,8 @@ func main() {
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
 		var dbInstance *sql.DB
-		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
+		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable ||
+			options.Payer.Enable {
 			namespace := options.DB.NameOverride
 			if namespace == "" {
 				namespace = utils.BuildNamespace(options)

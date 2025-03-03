@@ -35,7 +35,11 @@ func startIndexing(t *testing.T) (*sql.DB, *queries.Queries, context.Context, fu
 	}
 }
 
-func messagePublisher(t *testing.T, ctx context.Context, db *sql.DB) *blockchain.BlockchainPublisher {
+func messagePublisher(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	contractsCfg := testutils.GetContractsOptions(t)
 	var signer blockchain.TransactionSigner

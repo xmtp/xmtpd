@@ -120,7 +120,7 @@ func main() {
 			version,
 		)
 		if err != nil {
-			log.Fatal("initializing server", zap.Error(err))
+			logger.Fatal("initializing server", zap.Error(err))
 		}
 
 		s.WaitForShutdown(10 * time.Second)

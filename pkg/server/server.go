@@ -42,17 +42,16 @@ type ReplicationServer struct {
 	apiServer  *api.ApiServer
 	syncServer *sync.SyncServer
 
-	ctx                 context.Context
-	cancel              context.CancelFunc
-	log                 *zap.Logger
-	registrant          *registrant.Registrant
-	nodeRegistry        registry.NodeRegistry
-	indx                *indexer.Indexer
-	options             config.ServerOptions
-	metrics             *metrics.Server
-	validationService   mlsvalidate.MLSValidationService
-	cursorUpdater       metadata.CursorUpdater
-	blockchainPublisher *blockchain.BlockchainPublisher
+	ctx               context.Context
+	cancel            context.CancelFunc
+	log               *zap.Logger
+	registrant        *registrant.Registrant
+	nodeRegistry      registry.NodeRegistry
+	indx              *indexer.Indexer
+	options           config.ServerOptions
+	metrics           *metrics.Server
+	validationService mlsvalidate.MLSValidationService
+	cursorUpdater     metadata.CursorUpdater
 }
 
 func NewReplicationServer(

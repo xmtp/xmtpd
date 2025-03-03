@@ -4,6 +4,7 @@ package blockchain
 
 import (
 	context "context"
+	big "math/big"
 
 	blockchain "github.com/xmtp/xmtpd/pkg/blockchain"
 
@@ -24,7 +25,7 @@ func (_m *MockNonceManager) EXPECT() *MockNonceManager_Expecter {
 }
 
 // FastForwardNonce provides a mock function with given fields: ctx, nonce
-func (_m *MockNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) error {
+func (_m *MockNonceManager) FastForwardNonce(ctx context.Context, nonce big.Int) error {
 	ret := _m.Called(ctx, nonce)
 
 	if len(ret) == 0 {
@@ -32,7 +33,7 @@ func (_m *MockNonceManager) FastForwardNonce(ctx context.Context, nonce uint64) 
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, big.Int) error); ok {
 		r0 = rf(ctx, nonce)
 	} else {
 		r0 = ret.Error(0)
@@ -48,14 +49,14 @@ type MockNonceManager_FastForwardNonce_Call struct {
 
 // FastForwardNonce is a helper method to define mock.On call
 //   - ctx context.Context
-//   - nonce uint64
+//   - nonce big.Int
 func (_e *MockNonceManager_Expecter) FastForwardNonce(ctx interface{}, nonce interface{}) *MockNonceManager_FastForwardNonce_Call {
 	return &MockNonceManager_FastForwardNonce_Call{Call: _e.mock.On("FastForwardNonce", ctx, nonce)}
 }
 
-func (_c *MockNonceManager_FastForwardNonce_Call) Run(run func(ctx context.Context, nonce uint64)) *MockNonceManager_FastForwardNonce_Call {
+func (_c *MockNonceManager_FastForwardNonce_Call) Run(run func(ctx context.Context, nonce big.Int)) *MockNonceManager_FastForwardNonce_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64))
+		run(args[0].(context.Context), args[1].(big.Int))
 	})
 	return _c
 }
@@ -65,7 +66,7 @@ func (_c *MockNonceManager_FastForwardNonce_Call) Return(_a0 error) *MockNonceMa
 	return _c
 }
 
-func (_c *MockNonceManager_FastForwardNonce_Call) RunAndReturn(run func(context.Context, uint64) error) *MockNonceManager_FastForwardNonce_Call {
+func (_c *MockNonceManager_FastForwardNonce_Call) RunAndReturn(run func(context.Context, big.Int) error) *MockNonceManager_FastForwardNonce_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -124,6 +125,53 @@ func (_c *MockNonceManager_GetNonce_Call) Return(_a0 *blockchain.NonceContext, _
 }
 
 func (_c *MockNonceManager_GetNonce_Call) RunAndReturn(run func(context.Context) (*blockchain.NonceContext, error)) *MockNonceManager_GetNonce_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Replenish provides a mock function with given fields: ctx, nonce
+func (_m *MockNonceManager) Replenish(ctx context.Context, nonce big.Int) error {
+	ret := _m.Called(ctx, nonce)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Replenish")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, big.Int) error); ok {
+		r0 = rf(ctx, nonce)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNonceManager_Replenish_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Replenish'
+type MockNonceManager_Replenish_Call struct {
+	*mock.Call
+}
+
+// Replenish is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nonce big.Int
+func (_e *MockNonceManager_Expecter) Replenish(ctx interface{}, nonce interface{}) *MockNonceManager_Replenish_Call {
+	return &MockNonceManager_Replenish_Call{Call: _e.mock.On("Replenish", ctx, nonce)}
+}
+
+func (_c *MockNonceManager_Replenish_Call) Run(run func(ctx context.Context, nonce big.Int)) *MockNonceManager_Replenish_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(big.Int))
+	})
+	return _c
+}
+
+func (_c *MockNonceManager_Replenish_Call) Return(_a0 error) *MockNonceManager_Replenish_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNonceManager_Replenish_Call) RunAndReturn(run func(context.Context, big.Int) error) *MockNonceManager_Replenish_Call {
 	_c.Call.Return(run)
 	return _c
 }

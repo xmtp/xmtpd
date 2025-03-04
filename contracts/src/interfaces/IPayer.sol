@@ -68,13 +68,13 @@ interface IPayer {
     event WithdrawalFinalized(address indexed payer, uint256 amountReturned);
 
     /// @dev Emitted when usage is settled and fees are calculated.
-    event UsageSettled(uint256 fees, address indexed payer, uint256 indexed nodeId, uint256 timestamp);
+    event UsageSettled(uint256 fees, address indexed payer, uint256 indexed originatorNode, uint256 timestamp);
 
-    /// @dev Emitted when fees are transferred to the rewards contract.
+    /// @dev Emitted when fees are transferred to the distribution contract.
     event FeesTransferred(uint256 amount);
 
-    /// @dev Emitted when the rewards contract address is updated.
-    event RewardsContractUpdated(address indexed newRewardsContract);
+    /// @dev Emitted when the distribution contract address is updated.
+    event DistributionContractUpdated(address indexed newDistributionContract);
 
     /// @dev Emitted when the nodes contract address is updated.
     event NodesContractUpdated(address indexed newNodesContract);
@@ -95,8 +95,8 @@ interface IPayer {
     /// @dev Error thrown when caller is not an authorized node operator.
     error UnauthorizedNodeOperator();
 
-    /// @dev Error thrown when caller is not the rewards contract.
-    error NotRewardsContract();
+    /// @dev Error thrown when caller is not the distribution contract.
+    error NotDistributionContract();
 
     /// @dev Error thrown when an address is invalid (usually zero address).
     error InvalidAddress();
@@ -286,19 +286,18 @@ interface IPayer {
 
     /**
      * @notice Retrieves the total pending fees that have not yet been transferred
-     *         to the rewards contract.
+     *         to the distribution contract.
      * @return pending The total pending fees in USDC.
      */
     function getPendingFees() external view returns (uint256 pending);
 
     /**
-     * @notice Transfers all pending fees to the designated rewards contract for
-     *         distribution using EIP-2200 optimizations.
+     * @notice Transfers all pending fees to the designated distribution contract.
      * @dev Uses a single storage write for updating accumulated fees.
      *
      * Emits `FeesTransferred`.
      */
-    function transferFeesToRewards() external;
+    function transferFeesToDistribution() external;
 
     /**
      * @notice Returns the maximum allowed time difference for backdated settlements.
@@ -366,12 +365,12 @@ interface IPayer {
     //==============================================================
 
     /**
-     * @notice Sets the address of the rewards contract.
-     * @param _rewardsContract The address of the new rewards contract.
+     * @notice Sets the address of the distribution contract.
+     * @param _distributionContract The address of the new distribution contract.
      *
-     * Emits `RewardsContractUpdated`.
+     * Emits `DistributionContractUpdated`.
      */
-    function setRewardsContract(address _rewardsContract) external;
+    function setDistributionContract(address _distributionContract) external;
 
     /**
      * @notice Sets the address of the nodes contract for operator verification.
@@ -382,16 +381,16 @@ interface IPayer {
     function setNodesContract(address _nodesContract) external;
 
     /**
-     * @notice Retrieves the address of the current rewards contract.
-     * @return The address of the rewards contract.
+     * @notice Retrieves the address of the current distribution contract.
+     * @return distributionContract The address of the distribution contract.
      */
-    function getRewardsContract() external view returns (address);
+    function getDistributionContract() external view returns (address distributionContract);
 
     /**
      * @notice Retrieves the address of the current nodes contract.
-     * @return The address of the nodes contract.
+     * @return nodesContract The address of the nodes contract.
      */
-    function getNodesContract() external view returns (address);
+    function getNodesContract() external view returns (address nodesContract);
 
     /**
      * @notice Pauses the contract functions in case of emergency.

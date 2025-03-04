@@ -3,19 +3,23 @@ pragma solidity 0.8.28;
 
 /**
  * @title IPayerReport
- * @notice Updated interface for a Rewards (PayerReport) contract that:
- *  1) Accepts fee transfers from the Payer contract.
- *  2) Stores 12-hour usage reports submitted by originator nodes. Each report
- *     now includes a commitment (Merkle root) to the detailed (payer, amount)
- *     data that can be verified later.
- *  3) Allows nodes to attest to the report’s correctness.
- *  4) Finalizes reports upon majority attestation, triggering settlement of usage.
- *  5) Enables batch settlement of usage via aggregated Merkle proofs.
- *  6) Periodically distributes accumulated rewards to active node operators.
- *
- * "Active slots" data is retrieved from the Auction contract (not shown here).
+ * @notice Interface for the PayerReport contract handling usage reports and batch settlements.
  */
 interface IPayerReport {
+    //==============================================================
+    //                             STRUCTS
+    //==============================================================
+
+    struct UsageReport {
+        address originatorNode;
+        uint256 startingSequenceID;
+        uint256 endingSequenceID;
+        uint256 lastMessageTimestamp;
+        uint256 reportTimestamp;
+        bytes32 reportMerkleRoot;
+        address[] payers;
+        uint256[] amountsSpent;
+    }
 
     //==============================================================
     //                          EVENTS
@@ -24,15 +28,17 @@ interface IPayerReport {
     /**
      * @dev Emitted when an originator node submits a usage report.
      * The report includes the Merkle root of the detailed (payer, amount) data.
+     * Note: Payers and amounts are not stored on-chain, only emitted in the event.
+     * Nodes listen to this event to get full details of the report.
      */
     event PayerReportSubmitted(
         address indexed originatorNode,
         uint256 indexed reportIndex,
+        bytes32 indexed reportMerkleRoot,
         uint256 startingSequenceID,
         uint256 endingSequenceID,
         uint256 lastMessageTimestamp,
         uint256 reportTimestamp,
-        bytes32 reportMerkleRoot,
         address[] payers,
         uint256[] amountsSpent
     );
@@ -42,7 +48,8 @@ interface IPayerReport {
      */
     event PayerReportAttested(
         address indexed originatorNode,
-        bytes32 reportMerkleRoot
+        uint256 indexed reportIndex,
+        bytes32 indexed reportMerkleRoot
     );
 
     /**
@@ -50,7 +57,18 @@ interface IPayerReport {
      */
     event PayerReportConfirmed(
         address indexed originatorNode,
-        bytes32 reportMerkleRoot
+        uint256 indexed reportIndex,
+        bytes32 indexed reportMerkleRoot
+    );
+
+    /**
+     * @dev Emitted when a batch of usage is settled.
+     */
+    event UsageSettled(
+        address indexed originatorNode,
+        uint256 indexed reportIndex,
+        uint256 offset,
+        uint256 batchLength
     );
 
     //==============================================================
@@ -60,27 +78,11 @@ interface IPayerReport {
     /**
      * @notice Submits a usage report for a node covering messages from
      *         startingSequenceID to endingSequenceID.
-     * @param originatorNode The node’s address/ID.
-     * @param startingSequenceID The first message included in the report.
-     * @param endingSequenceID The last message included in the report.
-     * @param lastMessageTimestamp The timestamp of the last message in the report.
-     * @param reportTimestamp The time the report was generated.
-     * @param reportMerkleRoot The Merkle root of the detailed (payer, amount) data.
-     * @param payers An array of payer addresses included in this usage window.
-     * @param amountsSpent The usage cost each payer owes.
+     * @param payerReport A struct containing the usage report details.
      *
      * Emits a PayerReportSubmitted event.
      */
-    function submitPayerReport(
-        address originatorNode,
-        uint256 startingSequenceID,
-        uint256 endingSequenceID,
-        uint256 lastMessageTimestamp,
-        uint256 reportTimestamp,
-        bytes32 reportMerkleRoot,
-        address[] calldata payers,
-        uint256[] calldata amountsSpent
-    ) external;
+    function submitPayerReport(UsageReport calldata payerReport) external;
 
     /**
      * @notice Allows nodes to attest to the correctness of a submitted usage report.
@@ -93,7 +95,7 @@ interface IPayerReport {
 
     /**
      * @notice Finalizes a usage report once majority attestation is reached.
-     * Settlement happens in batches, by calling the settleUsage function in Payer contract.
+     * Settlement happens in batches, by calling the settleUsage function in the Payer contract.
      * Emits a PayerReportConfirmed event.
      * @param originatorNode The node that submitted the report.
      * @param reportIndex The index of the report to confirm.
@@ -106,36 +108,53 @@ interface IPayerReport {
     /**
      * @notice Returns a list of all payer reports for a given originator node.
      * @param originatorNode The address of the originator node.
-     * @return startingSequenceID The first sequence ID in the report.
-     * @return reportsMerkleRoot The Merkle root for the detailed usage data.
+     * @return startingSequenceIDs The array of starting sequence IDs for each report.
+     * @return reportsMerkleRoots The array of Merkle roots for each report.
      */
-    function listPayerReports(address originatorNode) external view returns (uint256[] memory startingSequenceID, bytes32[] memory reportsMerkleRoot);
+    function listPayerReports(address originatorNode) external view returns (uint256[] memory startingSequenceIDs, bytes32[] memory reportsMerkleRoots);
 
     /**
      * @notice Returns summary info about a specific usage report.
      * @param originatorNode The node that submitted the report.
-     * @param reportIndex The report's index.
-     * @return startingSequenceID The first sequence ID in the report.
-     * @return endingSequenceID The last sequence ID in the report.
-     * @return lastMessageTimestamp The timestamp of the last message in the report.
-     * @return reportTimestamp The time the report was generated.
-     * @return attestationCount The number of attestations received.
-     * @return isConfirmed Whether the report is finalized.
-     * @return reportMerkleRoot The Merkle root for the detailed usage data.
+     * @param reportIndex The index of the report.
+     * @return payerReport A UsageReport struct with the report details.
      */
     function getPayerReport(
         address originatorNode,
         uint256 reportIndex
-    )
-        external
-        view
-        returns (
-            uint256 startingSequenceID,
-            uint256 endingSequenceID,
-            uint256 lastMessageTimestamp,
-            uint256 reportTimestamp,
-            uint256 attestationCount,
-            bool isConfirmed,
-            bytes32 reportMerkleRoot
-        );
+    ) external view returns (UsageReport memory payerReport);
+
+    /**
+     * @notice Settles a contiguous batch of usage data from a confirmed report.
+     * This function calls the settleUsage function in the Payer contract.
+     * 
+     * @param originatorNode The node that submitted the report.
+     * @param reportIndex The index of the report.
+     * @param offset The starting index of the batch in the report's data (managed offchain).
+     * @param payers A contiguous array of payer addresses.
+     * @param amounts A contiguous array of usage amounts corresponding to each payer.
+     * @param proof An aggregated Merkle proof containing branch hashes.
+     *
+     * Emits a UsageSettled event.
+     */
+    function settleUsageBatch(
+        address originatorNode,
+        uint256 reportIndex,
+        uint256 offset,
+        address[] calldata payers,
+        uint256[] calldata amounts,
+        bytes32[] calldata proof
+    ) external;
+
+    /**
+     * @notice Sets the maximum batch size for usage settlements.
+     * @param maxBatchSize The new maximum batch size.
+     */
+    function setMaxBatchSize(uint256 maxBatchSize) external;
+
+    /**
+     * @notice Returns the current maximum batch size.
+     * @return batchSize The current maximum batch size.
+     */
+    function getMaxBatchSize() external view returns (uint256 batchSize);
 }

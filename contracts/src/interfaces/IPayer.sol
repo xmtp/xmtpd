@@ -261,27 +261,21 @@ interface IPayer {
     //==============================================================
 
     /**
-     * @notice Settles a contiguous batch of usage data from a PayerReport.
-     * Uses an aggregated Merkle proof to verify that the provided batch of
-     * (payer, amount) entries is included in the report’s committed Merkle root.
-     *
-     * @param originatorNode The node that submitted the report.
-     * @param reportIndex The index of the report.
-     * @param offset The starting index in the list of (payer, amount) entries.
-     * @param payers A contiguous array of payer addresses.
-     * @param amounts A contiguous array of usage amounts corresponding to each payer.
-     * @param proof An array of branch hashes for the aggregated Merkle proof.
-     *
-     * The contract computes the aggregated hash for the batch and, along with the
-     * provided proof and offset, reconstructs the Merkle path to verify inclusion.
-     */
+    * @notice Settles usage for a contiguous batch of (payer, amount) entries.
+    * Assumes that the PayerReport contract has already verified the aggregated Merkle proof.
+    *
+    * @param originatorNode The node that submitted the report.
+    * @param reportIndex The index of the report.
+    * @param offset The starting index of the batch in the report's data.
+    * @param payers A contiguous array of payer addresses.
+    * @param amounts A contiguous array of usage amounts corresponding to each payer.
+    */
     function settleUsage(
         address originatorNode,
         uint256 reportIndex,
         uint256 offset,
         address[] calldata payers,
-        uint256[] calldata amounts,
-        bytes32[] calldata proof
+        uint256[] calldata amounts
     ) external;
 
     /**

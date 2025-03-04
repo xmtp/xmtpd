@@ -125,18 +125,20 @@ interface IPayerReport {
     ) external view returns (UsageReport memory payerReport);
 
     /**
-     * @notice Settles a contiguous batch of usage data from a confirmed report.
-     * This function calls the settleUsage function in the Payer contract.
-     * 
-     * @param originatorNode The node that submitted the report.
-     * @param reportIndex The index of the report.
-     * @param offset The starting index of the batch in the report's data (managed offchain).
-     * @param payers A contiguous array of payer addresses.
-     * @param amounts A contiguous array of usage amounts corresponding to each payer.
-     * @param proof An aggregated Merkle proof containing branch hashes.
-     *
-     * Emits a UsageSettled event.
-     */
+    * @notice Settles a contiguous batch of usage data from a confirmed report.
+    * Verifies an aggregated Merkle proof that the provided (payer, amount)
+    * batch is included in the report's committed Merkle root, then calls the
+    * settleUsage function in the Payer contract.
+    * 
+    * @param originatorNode The node that submitted the report.
+    * @param reportIndex The index of the report.
+    * @param offset The starting index of the batch in the report's data (managed offchain).
+    * @param payers A contiguous array of payer addresses.
+    * @param amounts A contiguous array of usage amounts corresponding to each payer.
+    * @param proof An aggregated Merkle proof containing branch hashes.
+    *
+    * Emits a UsageSettled event.
+    */
     function settleUsageBatch(
         address originatorNode,
         uint256 reportIndex,

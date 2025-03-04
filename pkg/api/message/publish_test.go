@@ -46,10 +46,16 @@ func TestPublishEnvelope(t *testing.T) {
 			unsignedEnv,
 		),
 	)
+	payerEnv := &envelopes.PayerEnvelope{}
+	require.NoError(
+		t,
+		proto.Unmarshal(unsignedEnv.GetPayerEnvelopeBytes(), payerEnv),
+	)
+
 	clientEnv := &envelopes.ClientEnvelope{}
 	require.NoError(
 		t,
-		proto.Unmarshal(unsignedEnv.GetPayerEnvelope().GetUnsignedClientEnvelope(), clientEnv),
+		proto.Unmarshal(payerEnv.GetUnsignedClientEnvelope(), clientEnv),
 	)
 
 	_, err = topic.ParseTopic(clientEnv.Aad.GetTargetTopic())

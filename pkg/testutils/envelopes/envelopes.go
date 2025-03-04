@@ -118,11 +118,14 @@ func CreateOriginatorEnvelope(
 		payerEnv = append(payerEnv, CreatePayerEnvelope(t, originatorNodeID))
 	}
 
+	marshaledPayerEnv, err := proto.Marshal(payerEnv[0])
+	require.NoError(t, err)
+
 	unsignedEnv := &envelopes.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:     originatorNodeID,
 		OriginatorSequenceId: originatorSequenceID,
 		OriginatorNs:         0,
-		PayerEnvelope:        payerEnv[0],
+		PayerEnvelopeBytes:   marshaledPayerEnv,
 	}
 
 	unsignedBytes, err := proto.Marshal(unsignedEnv)

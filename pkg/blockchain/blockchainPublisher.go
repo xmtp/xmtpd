@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -30,6 +32,7 @@ type BlockchainPublisher struct {
 	logger                 *zap.Logger
 	nonceManager           NonceManager
 	replenishCancel        context.CancelFunc
+	wg                     sync.WaitGroup
 }
 
 func NewBlockchainPublisher(
@@ -71,30 +74,9 @@ func NewBlockchainPublisher(
 		return nil, err
 	}
 
-	ticker := time.NewTicker(10 * time.Second)
-
 	replenishCtx, cancel := context.WithCancel(ctx)
 
-	go func() {
-		for {
-			select {
-			case <-replenishCtx.Done():
-				return
-			case <-ticker.C:
-				nonce, err := client.PendingNonceAt(replenishCtx, signer.FromAddress())
-				if err != nil {
-					logger.Error("error getting pending nonce", zap.Error(err))
-					continue
-				}
-				err = nonceManager.Replenish(replenishCtx, *new(big.Int).SetUint64(nonce))
-				if err != nil {
-					logger.Error("error replenishing nonce", zap.Error(err))
-				}
-			}
-		}
-	}()
-
-	return &BlockchainPublisher{
+	publisher := BlockchainPublisher{
 		signer: signer,
 		logger: logger.Named("GroupBlockchainPublisher").
 			With(zap.String("contractAddress", contractOptions.MessagesContractAddress)),
@@ -103,7 +85,33 @@ func NewBlockchainPublisher(
 		client:                 client,
 		nonceManager:           nonceManager,
 		replenishCancel:        cancel,
-	}, nil
+	}
+
+	tracing.GoPanicWrap(
+		replenishCtx,
+		&publisher.wg,
+		"replenish-nonces", func(innerCtx context.Context) {
+			ticker := time.NewTicker(10 * time.Second)
+			for {
+				select {
+				case <-innerCtx.Done():
+					return
+				case <-ticker.C:
+					nonce, err := client.PendingNonceAt(innerCtx, signer.FromAddress())
+					if err != nil {
+						logger.Error("error getting pending nonce", zap.Error(err))
+						continue
+					}
+					err = nonceManager.Replenish(innerCtx, *new(big.Int).SetUint64(nonce))
+					if err != nil {
+						logger.Error("error replenishing nonce", zap.Error(err))
+					}
+				}
+			}
+		},
+	)
+
+	return &publisher, nil
 }
 
 func (m *BlockchainPublisher) PublishGroupMessage(
@@ -284,4 +292,5 @@ func withNonce[T any](ctx context.Context,
 func (m *BlockchainPublisher) Close() {
 	m.logger.Info("closing blockchain publisher")
 	m.replenishCancel()
+	m.wg.Wait()
 }

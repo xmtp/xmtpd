@@ -39,6 +39,9 @@ func ValidateServerOptions(options ServerOptions) error {
 	}
 
 	if options.Payer.Enable {
+		if options.DB.WriterConnectionString == "" {
+			missingSet["--DB.WriterConnectionString"] = struct{}{}
+		}
 		if options.Payer.PrivateKey == "" {
 			missingSet["--payer.PrivateKey"] = struct{}{}
 		}

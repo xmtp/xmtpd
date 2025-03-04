@@ -3,6 +3,7 @@ package testutils
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -104,36 +105,62 @@ Deploy a contract and return the contract's address. Will return a different add
 *
 */
 func deployContract(t *testing.T, contractName string) string {
-	client, err := ethclient.Dial(ANVIL_LOCALNET_HOST)
-	require.NoError(t, err)
-
-	privateKey, err := crypto.HexToECDSA(LOCAL_PRIVATE_KEY)
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(
-		privateKey,
-		big.NewInt(ANVIL_LOCALNET_CHAIN_ID),
-	)
-	require.NoError(t, err)
+	retryMax := 10
+	var retry = 0
+	var err error
 
 	var addr common.Address
 
-	switch contractName {
-	case NODES_CONTRACT_NAME:
-		addr, _, _, err = nodes.DeployNodes(auth, client)
-	case NODES_V2_CONTRACT_NAME:
-		addr, _, _, err = nodesv2.DeployNodesV2(auth, client, auth.From)
-	case GROUP_MESSAGES_CONTRACT_NAME:
-		addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
-	case IDENTITY_UPDATES_CONTRACT_NAME:
-		addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
-	default:
-		t.Fatalf("Unknown contract name: %s", contractName)
+	for retry < retryMax {
+		if err != nil {
+			retry++
+			t.Logf("Error deploying contract, retrying: %v. Attempt (%d/%d)", err, retry, retryMax)
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		var client *ethclient.Client
+		client, err = ethclient.Dial(ANVIL_LOCALNET_HOST)
+		if err != nil {
+			continue
+		}
+
+		privateKey, err := crypto.HexToECDSA(LOCAL_PRIVATE_KEY)
+		if err != nil {
+			continue
+		}
+
+		auth, err := bind.NewKeyedTransactorWithChainID(
+			privateKey,
+			big.NewInt(ANVIL_LOCALNET_CHAIN_ID),
+		)
+		if err != nil {
+			continue
+		}
+
+		switch contractName {
+		case NODES_CONTRACT_NAME:
+			addr, _, _, err = nodes.DeployNodes(auth, client)
+		case NODES_V2_CONTRACT_NAME:
+			addr, _, _, err = nodesv2.DeployNodesV2(auth, client, auth.From)
+		case GROUP_MESSAGES_CONTRACT_NAME:
+			addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
+		case IDENTITY_UPDATES_CONTRACT_NAME:
+			addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
+		default:
+			t.Fatalf("Unknown contract name: %s", contractName)
+		}
+
+		if err != nil {
+			continue
+		}
+
+		break
+
 	}
 
 	require.NoError(t, err)
-
 	return addr.String()
+
 }
 
 func DeployNodesContract(t *testing.T) string {

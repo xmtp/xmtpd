@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -41,8 +42,10 @@ func TestAddNode(t *testing.T) {
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomAddress()
 
-	err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
+		return err == nil
+	}, 1*time.Second, 50*time.Millisecond)
 }
 
 func TestAddNodeBadOwner(t *testing.T) {

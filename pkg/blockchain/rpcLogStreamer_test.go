@@ -1,15 +1,16 @@
-package blockchain
+package blockchain_test
 
 import (
 	"context"
-	big "math/big"
+	"github.com/ethereum/go-ethereum"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"math/big"
 	"testing"
 	"time"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 
-	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
@@ -19,27 +20,39 @@ import (
 
 func buildStreamer(
 	t *testing.T,
-	client ChainClient,
+	client blockchain.ChainClient,
 	fromBlock uint64,
 	address common.Address,
 	topic common.Hash,
-) (*RpcLogStreamer, chan types.Log) {
+) (*blockchain.RpcLogStreamer, chan types.Log) {
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	channel := make(chan types.Log)
-	cfg := contractConfig{
-		fromBlock:       fromBlock,
-		contractAddress: address,
-		topics:          []common.Hash{topic},
-		eventChannel:    channel,
+	cfg := blockchain.ContractConfig{
+		FromBlock:       fromBlock,
+		ContractAddress: address,
+		Topics:          []common.Hash{topic},
+		EventChannel:    channel,
 	}
-	return NewRpcLogStreamer(context.Background(), client, log, []contractConfig{cfg}), channel
+	return blockchain.NewRpcLogStreamer(
+		context.Background(),
+		client,
+		log,
+		[]blockchain.ContractConfig{cfg},
+	), channel
 }
 
 func TestBuilder(t *testing.T) {
-	testclient, err := NewClient(context.Background(), testutils.GetContractsOptions(t).RpcUrl)
+	testclient, err := blockchain.NewClient(
+		context.Background(),
+		testutils.GetContractsOptions(t).RpcUrl,
+	)
 	require.NoError(t, err)
-	builder := NewRpcLogStreamBuilder(context.Background(), testclient, testutils.NewLog(t))
+	builder := blockchain.NewRpcLogStreamBuilder(
+		context.Background(),
+		testclient,
+		testutils.NewLog(t),
+	)
 
 	listenerChannel, _ := builder.ListenForContractEvent(
 		1,
@@ -75,14 +88,14 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	streamer, _ := buildStreamer(t, mockClient, fromBlock, address, topic)
 
-	cfg := contractConfig{
-		fromBlock:       fromBlock,
-		contractAddress: address,
-		topics:          []common.Hash{topic},
-		eventChannel:    make(chan types.Log),
+	cfg := blockchain.ContractConfig{
+		FromBlock:       fromBlock,
+		ContractAddress: address,
+		Topics:          []common.Hash{topic},
+		EventChannel:    make(chan types.Log),
 	}
 
-	logs, nextPage, err := streamer.getNextPage(cfg, fromBlock)
+	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)
 	require.NoError(t, err)
 	expectedNextPage := uint64(11)
 	require.Equal(t, &expectedNextPage, nextPage)

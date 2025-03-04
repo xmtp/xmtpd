@@ -1,7 +1,8 @@
-package db
+package db_test
 
 import (
 	"context"
+	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -22,7 +23,7 @@ func buildParams(
 		OriginatorSequenceID: sequenceID,
 		Topic:                testutils.RandomBytes(32),
 		OriginatorEnvelope:   testutils.RandomBytes(100),
-		PayerID:              NullInt32(payerID),
+		PayerID:              xmtpd_db.NullInt32(payerID),
 	}
 
 	incrementParams := queries.IncrementUnsettledUsageParams{
@@ -48,7 +49,7 @@ func TestInsertAndIncrement(t *testing.T) {
 
 	insertParams, incrementParams := buildParams(payerID, originatorID, sequenceID, 100)
 
-	numInserted, err := InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+	numInserted, err := xmtpd_db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		ctx,
 		db,
 		insertParams,
@@ -76,7 +77,7 @@ func TestPayerMustExist(t *testing.T) {
 
 	insertParams, incrementParams := buildParams(payerID, originatorID, sequenceID, 100)
 
-	_, err := InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+	_, err := xmtpd_db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		ctx,
 		db,
 		insertParams,
@@ -105,7 +106,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 
 	attemptInsert := func() {
 		defer wg.Done()
-		numInserted, err := InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+		numInserted, err := xmtpd_db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			ctx,
 			db,
 			insertParams,

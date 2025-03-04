@@ -1,7 +1,8 @@
-package db
+package db_test
 
 import (
 	"context"
+	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,6 @@ func TestInsertAddressLog(t *testing.T) {
 	defer cleanup()
 
 	querier := queries.New(db)
-
 	address := testutils.RandomString(20)
 	inboxId := testutils.RandomInboxId()
 
@@ -43,7 +43,7 @@ func TestInsertAddressLog(t *testing.T) {
 		queries.InsertAddressLogParams{
 			Address:               address,
 			InboxID:               inboxId,
-			AssociationSequenceID: NullInt64(1),
+			AssociationSequenceID: xmtpd_db.NullInt64(1),
 		},
 	)
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestInsertAddressLog(t *testing.T) {
 		queries.InsertAddressLogParams{
 			Address:               address,
 			InboxID:               inboxId,
-			AssociationSequenceID: NullInt64(2),
+			AssociationSequenceID: xmtpd_db.NullInt64(2),
 		},
 	)
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestInsertAddressLog(t *testing.T) {
 		queries.InsertAddressLogParams{
 			Address:               address,
 			InboxID:               inboxId,
-			AssociationSequenceID: NullInt64(1),
+			AssociationSequenceID: xmtpd_db.NullInt64(1),
 		},
 	)
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestRevokeAddressLog(t *testing.T) {
 		queries.InsertAddressLogParams{
 			Address:               address,
 			InboxID:               inboxId,
-			AssociationSequenceID: NullInt64(1),
+			AssociationSequenceID: xmtpd_db.NullInt64(1),
 		},
 	)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestRevokeAddressLog(t *testing.T) {
 		queries.RevokeAddressFromLogParams{
 			Address:              address,
 			InboxID:              inboxId,
-			RevocationSequenceID: NullInt64(2),
+			RevocationSequenceID: xmtpd_db.NullInt64(2),
 		},
 	)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestRevokeAddressLog(t *testing.T) {
 		queries.InsertAddressLogParams{
 			Address:               address,
 			InboxID:               inboxId,
-			AssociationSequenceID: NullInt64(3),
+			AssociationSequenceID: xmtpd_db.NullInt64(3),
 		},
 	)
 	require.NoError(t, err)

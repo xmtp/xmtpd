@@ -42,16 +42,17 @@ type ReplicationServer struct {
 	apiServer  *api.ApiServer
 	syncServer *sync.SyncServer
 
-	ctx               context.Context
-	cancel            context.CancelFunc
-	log               *zap.Logger
-	registrant        *registrant.Registrant
-	nodeRegistry      registry.NodeRegistry
-	indx              *indexer.Indexer
-	options           config.ServerOptions
-	metrics           *metrics.Server
-	validationService mlsvalidate.MLSValidationService
-	cursorUpdater     metadata.CursorUpdater
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	log                 *zap.Logger
+	registrant          *registrant.Registrant
+	nodeRegistry        registry.NodeRegistry
+	indx                *indexer.Indexer
+	options             config.ServerOptions
+	metrics             *metrics.Server
+	validationService   mlsvalidate.MLSValidationService
+	cursorUpdater       metadata.CursorUpdater
+	blockchainPublisher *blockchain.BlockchainPublisher
 }
 
 func NewReplicationServer(
@@ -238,12 +239,15 @@ func startAPIServer(
 				logger.Fatal("initializing blockchain client", zap.Error(err))
 			}
 
+			nonceManager := blockchain.NewSQLBackedNonceManager(writerDB, logger)
+
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 				ctx,
 				logger,
 				ethclient,
 				signer,
 				options.Contracts,
+				nonceManager,
 			)
 			if err != nil {
 				logger.Fatal("initializing message publisher", zap.Error(err))
@@ -322,6 +326,10 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 
 	if s.cursorUpdater != nil {
 		s.cursorUpdater.Stop()
+	}
+
+	if s.blockchainPublisher != nil {
+		s.blockchainPublisher.Close()
 	}
 
 	if s.indx != nil {

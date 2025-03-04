@@ -45,6 +45,11 @@ type NodeInfo struct {
 	SingletonID int16
 }
 
+type NonceTable struct {
+	Nonce     int64
+	CreatedAt sql.NullTime
+}
+
 type Payer struct {
 	ID      int32
 	Address string

@@ -8,6 +8,7 @@ import (
 var upgradeToLatest = map[string]string{
 	"0.1.4": "ghcr.io/xmtp/xmtpd:0.1.4",
 	"0.2.0": "ghcr.io/xmtp/xmtpd:0.2.0",
+	"0.2.1": "ghcr.io/xmtp/xmtpd:0.2.1",
 }
 
 func TestUpgradeToLatest(t *testing.T) {

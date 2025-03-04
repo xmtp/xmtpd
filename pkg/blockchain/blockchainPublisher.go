@@ -238,10 +238,15 @@ func withNonce[T any](ctx context.Context,
 		tx, err = create(ctx, nonce)
 		if err != nil {
 			if errors.Is(err, core.ErrNonceTooLow) ||
-				strings.Contains(err.Error(), "nonce too low") {
+				strings.Contains(
+					err.Error(),
+					"nonce too low",
+				) ||
+				strings.Contains(err.Error(), "replacement transaction underpriced") {
 				logger.Debug(
-					"nonce too low, consuming and moving on...",
+					"Nonce already used, consuming and moving on...",
 					zap.Uint64("nonce", nonce.Uint64()),
+					zap.Error(err),
 				)
 				err = nonceContext.Consume()
 				if err != nil {

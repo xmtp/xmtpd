@@ -15,6 +15,7 @@ remappings = [
 fs_permissions = [
     { access = "read-write", path = "config/anvil_localnet"},
     { access = "read-write", path = "config/xmtp_testnet"},
+    { access = "read-write", path = "config/base_sepolia"},
     { access = "read-write", path = "config/unknown"}
 ]
 

@@ -24,6 +24,7 @@ function deploy_contract() {
 deploy_contract src/GroupMessages.sol GroupMessages
 deploy_contract src/Nodes.sol Nodes
 deploy_contract src/IdentityUpdates.sol IdentityUpdates
+deploy_contract src/RatesManager.sol RatesManager
 
 # TODO: Migrate to forge script.
 # TODO: Step to verify the deployed implementation and proxy.

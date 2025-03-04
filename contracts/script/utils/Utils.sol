@@ -7,9 +7,11 @@ import "forge-std/src/StdJson.sol";
 contract Utils is Script {
     uint256 constant CHAIN_ID_ANVIL_LOCALNET = 31337;
     uint256 constant CHAIN_ID_XMTP_TESTNET = 241320161;
+    uint256 constant CHAIN_ID_BASE_SEPOLIA = 84532;
 
     string constant OUTPUT_ANVIL_LOCALNET = "anvil_localnet";
     string constant OUTPUT_XMTP_TESTNET = "xmtp_testnet";
+    string constant OUTPUT_BASE_SEPOLIA = "base_sepolia";
     string constant OUTPUT_UNKNOWN = "unknown";
 
     function readInput(string memory inputFileName) internal view returns (string memory) {
@@ -47,6 +49,8 @@ contract Utils is Script {
             return OUTPUT_ANVIL_LOCALNET;
         } else if (chainID == CHAIN_ID_XMTP_TESTNET) {
             return OUTPUT_XMTP_TESTNET;
+        } else if (chainID == CHAIN_ID_BASE_SEPOLIA) {
+            return OUTPUT_BASE_SEPOLIA;
         } else {
             return OUTPUT_UNKNOWN;
         }

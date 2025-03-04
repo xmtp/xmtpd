@@ -68,7 +68,7 @@ func NewSmartContractRegistry(
 	return &SmartContractRegistry{
 		ctx:                  ctx,
 		contract:             contract,
-		refreshInterval:      options.RefreshInterval,
+		refreshInterval:      options.RegistryRefreshInterval,
 		logger:               logger.Named("smartContractRegistry"),
 		newNodesNotifier:     newNotifier[[]Node](),
 		nodes:                make(map[uint32]Node),

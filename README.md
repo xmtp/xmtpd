@@ -13,6 +13,9 @@ Some of these requirements include reaching functional parity with the current n
 
 To keep up with and provide feedback about `xmtpd` development, see the [Issues tab](https://github.com/xmtp/xmtpd/issues) in this repo.
 
+> [!TIP]
+> Looking for info on how to get started as a registered node operator? See the [xmtpd-infrastructure](https://github.com/xmtp/xmtpd-infrastructure) repository, which provides infrastructure-as-code examples and tooling to help node operators deploy and manage xmtpd nodes.
+
 ## Prerequisites
 
 - [Go 1.24](https://go.dev/doc/install) -- On macOS install with `brew install go@1.24`

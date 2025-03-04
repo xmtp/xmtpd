@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - rel/**
     paths:
       - "contracts/**"
       - ".github/workflows/solidity.yml"

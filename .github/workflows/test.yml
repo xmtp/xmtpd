@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - rel/**
   pull_request:
     paths:
       - ".github/workflows/test.yml"

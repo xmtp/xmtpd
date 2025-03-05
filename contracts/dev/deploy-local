@@ -32,3 +32,4 @@ forge_deploy_script identity_updates
 forge_deploy_script nodes src/Nodes.sol Nodes
 forge_deploy_script nodes_v2
 forge_deploy_script rates_manager
+forge_deploy_script merkle src/StandardMerkleTree.sol StandardMerkleTree

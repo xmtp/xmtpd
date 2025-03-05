@@ -57,13 +57,13 @@ Delete when migration V1 -> V2 is done
 func getDeployedTo(t *testing.T, fileName string) string {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
-		t.Fatalf("Failed to read GroupMessages.json: %v", err)
+		t.Fatalf("Failed to read %s: %v", fileName, err)
 	}
 
 	var info contractInfo
 
 	if err := json.Unmarshal(data, &info); err != nil {
-		t.Fatalf("Failed to parse GroupMessages.json: %v", err)
+		t.Fatalf("Failed to parse %s: %v", fileName, err)
 	}
 
 	return info.DeployedTo
@@ -89,6 +89,8 @@ func getContractAddress(t *testing.T, fileName string) string {
 		return fastjson.GetString(data, "addresses", "XMTPNodeRegistry")
 	case strings.Contains(fileName, "RatesManager.json"):
 		return fastjson.GetString(data, "addresses", "ratesManagerProxy")
+	case strings.Contains(fileName, "StandardMerkleTree.json"):
+		return fastjson.GetString(data, "deployedTo")
 	default:
 		return ""
 	}
@@ -114,6 +116,10 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 		RatesManagerContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/RatesManager.json"),
+		),
+		MerkleContractAddress: getContractAddress(
+			t,
+			path.Join(rootDir, "./contracts/config/anvil_localnet/StandardMerkleTree.json"),
 		),
 		RegistryRefreshInterval: 100 * time.Millisecond,
 		RatesRefreshInterval:    100 * time.Millisecond,

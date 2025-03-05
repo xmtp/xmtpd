@@ -52,38 +52,38 @@ func parseOptions(args []string) (*CLI, error) {
 
 	parser := flags.NewParser(&options, flags.Default)
 	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
-		return nil, fmt.Errorf("Could not add generate-key command: %s", err)
+		return nil, fmt.Errorf("could not add generate-key command: %s", err)
 	}
 	if _, err := parser.AddCommand("register-node", "Register a node", "", &registerNodeOptions); err != nil {
-		return nil, fmt.Errorf("Could not add register-node command: %s", err)
+		return nil, fmt.Errorf("could not add register-node command: %s", err)
 	}
 	if _, err := parser.AddCommand("get-pub-key", "Get the public key for a private key", "", &getPubKeyOptions); err != nil {
-		return nil, fmt.Errorf("Could not add get-pub-key command: %s", err)
+		return nil, fmt.Errorf("could not add get-pub-key command: %s", err)
 	}
 	if _, err := parser.AddCommand("get-all-nodes", "Get all nodes from the registry", "", &getAllNodesOptions); err != nil {
-		return nil, fmt.Errorf("Could not add get-all-nodes command: %s", err)
+		return nil, fmt.Errorf("could not add get-all-nodes command: %s", err)
 	}
 	if _, err := parser.AddCommand("mark-healthy", "Mark a node as healthy in the registry", "", &updateHealthOptions); err != nil {
-		return nil, fmt.Errorf("Could not add mark-healthy command: %s", err)
+		return nil, fmt.Errorf("could not add mark-healthy command: %s", err)
 	}
 	if _, err := parser.AddCommand("mark-unhealthy", "Mark a node as unhealthy in the registry", "", &updateHealthOptions); err != nil {
-		return nil, fmt.Errorf("Could not add mark-unhealthy command: %s", err)
+		return nil, fmt.Errorf("could not add mark-unhealthy command: %s", err)
 	}
 	if _, err := parser.AddCommand("update-address", "Update HTTP address of a node", "", &updateAddressOptions); err != nil {
-		return nil, fmt.Errorf("Could not add update-address command: %s", err)
+		return nil, fmt.Errorf("could not add update-address command: %s", err)
 	}
 	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
-		return nil, fmt.Errorf("Could not add dump nodes command: %s", err)
+		return nil, fmt.Errorf("could not add dump nodes command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
-			return nil, fmt.Errorf("Could not parse options: %s", err)
+			return nil, fmt.Errorf("could not parse options: %s", err)
 		}
 		return nil, nil
 	}
 
 	if parser.Active == nil {
-		return nil, errors.New("No command provided")
+		return nil, errors.New("no command provided")
 	}
 
 	return &CLI{
@@ -326,7 +326,7 @@ func main() {
 
 	options, err := parseOptions(os.Args[1:])
 	if err != nil {
-		log.Fatalf("Could not parse options: %s", err)
+		log.Fatalf("could not parse options: %s", err)
 	}
 	if options == nil {
 		return
@@ -334,7 +334,7 @@ func main() {
 
 	logger, _, err := utils.BuildLogger(options.Log)
 	if err != nil {
-		log.Fatalf("Could not build logger: %s", err)
+		log.Fatalf("could not build logger: %s", err)
 	}
 	switch options.Command {
 	case "generate-key":

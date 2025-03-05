@@ -3,6 +3,7 @@ package registry_test
 import (
 	"context"
 	"encoding/hex"
+	"math/big"
 	"math/rand"
 	"testing"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
 	"github.com/xmtp/xmtpd/pkg/config"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
@@ -44,17 +45,22 @@ func TestContractRegistryNewNodes(t *testing.T) {
 
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
-		AllNodes(mock.Anything).
-		Return([]nodes.NodesNodeWithId{
+		GetAllNodes(mock.Anything).
+		Return([]nodesv2.INodesNodeWithId{
 			{
-				NodeId: 1,
-				Node: nodes.NodesNode{
+				NodeId: big.NewInt(1),
+				Node: nodesv2.INodesNode{
 					HttpAddress:   "http://foo.com",
 					SigningKeyPub: enc,
 				},
 			},
-			{NodeId: 2, Node: nodes.NodesNode{HttpAddress: "https://bar.com",
-				SigningKeyPub: enc}},
+			{
+				NodeId: big.NewInt(2),
+				Node: nodesv2.INodesNode{
+					HttpAddress:   "https://bar.com",
+					SigningKeyPub: enc,
+				},
+			},
 		}, nil)
 
 	registry.SetContractForTest(mockContract)
@@ -88,17 +94,21 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	// The first call, we'll set the address to foo.com.
 	// Subsequent calls will set the address to bar.com
 	mockContract.EXPECT().
-		AllNodes(mock.Anything).RunAndReturn(func(*bind.CallOpts) ([]nodes.NodesNodeWithId, error) {
-		httpAddress := "http://foo.com"
-		if !hasSentInitialValues {
-			hasSentInitialValues = true
-		} else {
-			httpAddress = "http://bar.com"
-		}
-		return []nodes.NodesNodeWithId{
-			{NodeId: 1, Node: nodes.NodesNode{HttpAddress: httpAddress, SigningKeyPub: enc}},
-		}, nil
-	})
+		GetAllNodes(mock.Anything).
+		RunAndReturn(func(*bind.CallOpts) ([]nodesv2.INodesNodeWithId, error) {
+			httpAddress := "http://foo.com"
+			if !hasSentInitialValues {
+				hasSentInitialValues = true
+			} else {
+				httpAddress = "http://bar.com"
+			}
+			return []nodesv2.INodesNodeWithId{
+				{
+					NodeId: big.NewInt(1),
+					Node:   nodesv2.INodesNode{HttpAddress: httpAddress, SigningKeyPub: enc},
+				},
+			}, nil
+		})
 
 	// Override the contract in the registry with a mock before calling Start
 	registry.SetContractForTest(mockContract)
@@ -133,12 +143,12 @@ func TestStopOnContextCancel(t *testing.T) {
 
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
-		AllNodes(mock.Anything).
-		RunAndReturn(func(*bind.CallOpts) ([]nodes.NodesNodeWithId, error) {
-			return []nodes.NodesNodeWithId{
+		GetAllNodes(mock.Anything).
+		RunAndReturn(func(*bind.CallOpts) ([]nodesv2.INodesNodeWithId, error) {
+			return []nodesv2.INodesNodeWithId{
 				{
-					NodeId: uint32(rand.Intn(1000)),
-					Node:   nodes.NodesNode{HttpAddress: "http://foo.com", SigningKeyPub: enc},
+					NodeId: big.NewInt(rand.Int63n(1000)),
+					Node:   nodesv2.INodesNode{HttpAddress: "http://foo.com", SigningKeyPub: enc},
 				},
 			}, nil
 		})

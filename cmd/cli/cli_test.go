@@ -41,7 +41,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	require.Equal(
 		t,
 		err.Error(),
-		"Could not parse options: the required flags `--admin-private-key', `--http-address', `--node-owner-address' and `--node-signing-key-pub' were not specified",
+		"could not parse options: the required flags `--admin-private-key', `--http-address', `--node-owner-address' and `--node-signing-key-pub' were not specified",
 	)
 }
 

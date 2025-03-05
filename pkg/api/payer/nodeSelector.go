@@ -4,9 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"sort"
+
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"sort"
 )
 
 type NodeSelectorAlgorithm interface {
@@ -53,9 +54,19 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 	spacing := maxHashSpace / numNodes
 
 	// Compute virtual positions for each node
+	// Skip nodes that are disabled or do not have an API enabled
 	nodeLocations := make([]uint32, numNodes)
-	for i := range nodes {
+	gotNodes := false
+	for i, node := range nodes {
+		if node.IsDisabled || !node.IsApiEnabled {
+			continue
+		}
 		nodeLocations[i] = uint32(i) * spacing
+		gotNodes = true
+	}
+
+	if !gotNodes {
+		return 0, errors.New("no available active nodes")
 	}
 
 	// Binary search to find the first node with a virtual position >= topicHash

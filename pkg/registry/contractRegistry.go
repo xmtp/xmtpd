@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -47,6 +47,9 @@ type SmartContractRegistry struct {
 	cancel                    context.CancelFunc
 }
 
+// Interface implementation guard.
+var _ NodeRegistry = &SmartContractRegistry{}
+
 func NewSmartContractRegistry(
 	ctx context.Context,
 	ethclient bind.ContractCaller,
@@ -54,7 +57,7 @@ func NewSmartContractRegistry(
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
 
-	contract, err := nodes.NewNodesCaller(
+	contract, err := nodesv2.NewNodesV2Caller(
 		common.HexToAddress(options.NodesContractAddress),
 		ethclient,
 	)
@@ -213,7 +216,7 @@ func (s *SmartContractRegistry) processChangedNode(node Node) {
 func (s *SmartContractRegistry) loadUnfilteredFromContract() ([]Node, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, CONTRACT_CALL_TIMEOUT)
 	defer cancel()
-	nodes, err := s.contract.AllNodes(&bind.CallOpts{Context: ctx})
+	nodes, err := s.contract.GetAllNodes(&bind.CallOpts{Context: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +232,7 @@ func (s *SmartContractRegistry) SetContractForTest(contract NodesContract) {
 	s.contract = contract
 }
 
-func convertNode(rawNode nodes.NodesNodeWithId) Node {
+func convertNode(rawNode nodesv2.INodesNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the
 	// node as unhealthy in this case
@@ -244,11 +247,14 @@ func convertNode(rawNode nodes.NodesNodeWithId) Node {
 	}
 
 	return Node{
-		NodeID:        rawNode.NodeId,
-		SigningKey:    signingKey,
-		HttpAddress:   httpAddress,
-		IsHealthy:     rawNode.Node.IsHealthy,
-		IsValidConfig: isValidConfig,
+		NodeID:               uint32(rawNode.NodeId.Uint64()),
+		SigningKey:           signingKey,
+		HttpAddress:          httpAddress,
+		IsReplicationEnabled: rawNode.Node.IsReplicationEnabled,
+		IsApiEnabled:         rawNode.Node.IsApiEnabled,
+		IsDisabled:           rawNode.Node.IsDisabled,
+		MinMonthlyFee:        rawNode.Node.MinMonthlyFee,
+		IsValidConfig:        isValidConfig,
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -88,8 +87,11 @@ func (n *nodeRegistryAdmin) AddNode(
 		return fmt.Errorf("no signer provided")
 	}
 
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.AddNode(
 				opts,
@@ -116,8 +118,11 @@ func (n *nodeRegistryAdmin) AddNode(
 }
 
 func (n *nodeRegistryAdmin) DisableNode(ctx context.Context, nodeId int64) error {
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.DisableNode(opts, big.NewInt(nodeId))
 		},
@@ -134,8 +139,11 @@ func (n *nodeRegistryAdmin) DisableNode(ctx context.Context, nodeId int64) error
 }
 
 func (n *nodeRegistryAdmin) EnableNode(ctx context.Context, nodeId int64) error {
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.EnableNode(opts, big.NewInt(nodeId))
 		},
@@ -152,8 +160,11 @@ func (n *nodeRegistryAdmin) EnableNode(ctx context.Context, nodeId int64) error 
 }
 
 func (n *nodeRegistryAdmin) RemoveFromApiNodes(ctx context.Context, nodeId int64) error {
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.RemoveFromApiNodes(opts, big.NewInt(nodeId))
 		},
@@ -170,8 +181,11 @@ func (n *nodeRegistryAdmin) RemoveFromApiNodes(ctx context.Context, nodeId int64
 }
 
 func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error {
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.RemoveFromReplicationNodes(opts, big.NewInt(nodeId))
 		},
@@ -188,8 +202,11 @@ func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, node
 }
 
 func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error {
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.SetMaxActiveNodes(opts, maxActiveNodes)
 		},
@@ -213,8 +230,11 @@ func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
 		return fmt.Errorf("invalid commission percent provided %d", commissionPercent)
 	}
 
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.SetNodeOperatorCommissionPercent(
 				opts,
@@ -238,8 +258,11 @@ func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
 }
 
 func (n *nodeRegistryAdmin) SetBaseURI(ctx context.Context, baseURI string) error {
-	return n.executeTransaction(
+	return ExecuteTransaction(
 		ctx,
+		n.signer,
+		n.logger,
+		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.contract.SetBaseURI(opts, baseURI)
 		},
@@ -253,50 +276,4 @@ func (n *nodeRegistryAdmin) SetBaseURI(ctx context.Context, baseURI string) erro
 			)
 		},
 	)
-}
-
-// executeTransaction is a helper function that:
-// - executes a transaction
-// - waits for it to be mined
-// - processes the event logs
-func (n *nodeRegistryAdmin) executeTransaction(
-	ctx context.Context,
-	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
-	eventParser func(*types.Log) (interface{}, error),
-	logHandler func(interface{}),
-) error {
-	if n.signer == nil {
-		return fmt.Errorf("no signer provided")
-	}
-
-	tx, err := txFunc(&bind.TransactOpts{
-		Context: ctx,
-		From:    n.signer.FromAddress(),
-		Signer:  n.signer.SignerFunc(),
-	})
-	if err != nil {
-		return err
-	}
-
-	receipt, err := WaitForTransaction(
-		ctx,
-		n.logger,
-		n.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-	if err != nil {
-		return err
-	}
-
-	for _, log := range receipt.Logs {
-		event, err := eventParser(log)
-		if err != nil {
-			continue
-		}
-		logHandler(event)
-	}
-
-	return nil
 }

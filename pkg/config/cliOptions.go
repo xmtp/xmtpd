@@ -5,6 +5,10 @@ type GlobalOptions struct {
 	Log       LogOptions       `group:"Log Options"       namespace:"log"`
 }
 
+type NodeManagerOptions struct {
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
+}
+
 type GenerateKeyOptions struct{}
 
 type GetAllNodesOptions struct {
@@ -14,11 +18,6 @@ type GetAllNodesOptions struct {
 type MigrateNodesOptions struct {
 	InFile          string `long:"in-file"           description:"File to read the nodes from"`
 	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
-}
-
-type UpdateHealthOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
-	NodeId          int64  `long:"node-id"           description:"NodeId to update"`
 }
 
 type UpdateAddressOptions struct {
@@ -32,8 +31,9 @@ type GetPubKeyOptions struct {
 }
 
 type RegisterNodeOptions struct {
+	AdminPrivateKey string `long:"admin-private-key"    description:"Private key of the admin to register the node"                    required:"true"`
 	HttpAddress     string `long:"http-address"         description:"HTTP address to register for the node"                            required:"true"`
 	OwnerAddress    string `long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
-	AdminPrivateKey string `long:"admin-private-key"    description:"Private key of the admin to register the node"                    required:"true"`
 	SigningKeyPub   string `long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
+	MinMonthlyFee   int64  `long:"min-monthly-fee"      description:"Minimum monthly fee to register the node"                         required:"false"`
 }

@@ -26,7 +26,6 @@ type CLI struct {
 	GenerateKey   config.GenerateKeyOptions
 	RegisterNode  config.RegisterNodeOptions
 	GetAllNodes   config.GetAllNodesOptions
-	UpdateHealth  config.UpdateHealthOptions
 	UpdateAddress config.UpdateAddressOptions
 	MigrateNodes  config.MigrateNodesOptions
 }
@@ -46,16 +45,19 @@ func parseOptions(args []string) (*CLI, error) {
 	var registerNodeOptions config.RegisterNodeOptions
 	var getPubKeyOptions config.GetPubKeyOptions
 	var getAllNodesOptions config.GetAllNodesOptions
-	var updateHealthOptions config.UpdateHealthOptions
 	var updateAddressOptions config.UpdateAddressOptions
 	var migrateNodesOptions config.MigrateNodesOptions
 
 	parser := flags.NewParser(&options, flags.Default)
-	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
-		return nil, fmt.Errorf("could not add generate-key command: %s", err)
-	}
+
 	if _, err := parser.AddCommand("register-node", "Register a node", "", &registerNodeOptions); err != nil {
 		return nil, fmt.Errorf("could not add register-node command: %s", err)
+	}
+	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
+		return nil, fmt.Errorf("could not add dump nodes command: %s", err)
+	}
+	if _, err := parser.AddCommand("generate-key", "Generate a public/private keypair", "", &generateKeyOptions); err != nil {
+		return nil, fmt.Errorf("could not add generate-key command: %s", err)
 	}
 	if _, err := parser.AddCommand("get-pub-key", "Get the public key for a private key", "", &getPubKeyOptions); err != nil {
 		return nil, fmt.Errorf("could not add get-pub-key command: %s", err)
@@ -63,17 +65,11 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("get-all-nodes", "Get all nodes from the registry", "", &getAllNodesOptions); err != nil {
 		return nil, fmt.Errorf("could not add get-all-nodes command: %s", err)
 	}
-	if _, err := parser.AddCommand("mark-healthy", "Mark a node as healthy in the registry", "", &updateHealthOptions); err != nil {
-		return nil, fmt.Errorf("could not add mark-healthy command: %s", err)
-	}
-	if _, err := parser.AddCommand("mark-unhealthy", "Mark a node as unhealthy in the registry", "", &updateHealthOptions); err != nil {
-		return nil, fmt.Errorf("could not add mark-unhealthy command: %s", err)
-	}
 	if _, err := parser.AddCommand("update-address", "Update HTTP address of a node", "", &updateAddressOptions); err != nil {
 		return nil, fmt.Errorf("could not add update-address command: %s", err)
 	}
 	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
-		return nil, fmt.Errorf("could not add dump nodes command: %s", err)
+		return nil, fmt.Errorf("could not add migrate-nodes command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -93,11 +89,16 @@ func parseOptions(args []string) (*CLI, error) {
 		generateKeyOptions,
 		registerNodeOptions,
 		getAllNodesOptions,
-		updateHealthOptions,
 		updateAddressOptions,
 		migrateNodesOptions,
 	}, nil
 }
+
+/*
+*
+Key commands
+*
+*/
 
 func getPubKey(logger *zap.Logger, options *CLI) {
 	privKey, err := utils.ParseEcdsaPrivateKey(options.GetPubKey.PrivateKey)
@@ -111,6 +112,26 @@ func getPubKey(logger *zap.Logger, options *CLI) {
 	)
 	privKey.Public()
 }
+
+func generateKey(logger *zap.Logger) {
+	privKey, err := utils.GenerateEcdsaPrivateKey()
+	if err != nil {
+		logger.Fatal("could not generate private key", zap.Error(err))
+	}
+	logger.Info(
+		"generated private key",
+		zap.String("private-key", utils.EcdsaPrivateKeyToString(privKey)),
+		zap.String("public-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
+		zap.String("address", utils.EcdsaPublicKeyToAddress(privKey.Public().(*ecdsa.PublicKey))),
+	)
+}
+
+/*
+*
+Admin commands
+*
+*/
+
 func registerNode(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
 	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
@@ -132,7 +153,6 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		chainClient,
 		signer,
 		options.Contracts,
-		blockchain.RegistryAdminV1,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
@@ -143,11 +163,22 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not decompress public key", zap.Error(err))
 	}
 
+	minMonthlyFee := int64(0)
+	if options.RegisterNode.MinMonthlyFee < 0 {
+		logger.Info(
+			"ignoring negative min monthly fee",
+			zap.Int64("min-monthly-fee", options.RegisterNode.MinMonthlyFee),
+		)
+	} else {
+		minMonthlyFee = options.RegisterNode.MinMonthlyFee
+	}
+
 	err = registryAdmin.AddNode(
 		ctx,
 		options.RegisterNode.OwnerAddress,
 		signingKeyPub,
 		options.RegisterNode.HttpAddress,
+		minMonthlyFee,
 	)
 	if err != nil {
 		logger.Fatal("could not add node", zap.Error(err))
@@ -158,125 +189,6 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		zap.String("node-http-address", options.RegisterNode.HttpAddress),
 		zap.String("node-signing-key-pub", utils.EcdsaPublicKeyToString(signingKeyPub)),
 	)
-}
-
-func generateKey(logger *zap.Logger) {
-	privKey, err := utils.GenerateEcdsaPrivateKey()
-	if err != nil {
-		logger.Fatal("could not generate private key", zap.Error(err))
-	}
-	logger.Info(
-		"generated private key",
-		zap.String("private-key", utils.EcdsaPrivateKeyToString(privKey)),
-		zap.String("public-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
-		zap.String("address", utils.EcdsaPublicKeyToAddress(privKey.Public().(*ecdsa.PublicKey))),
-	)
-}
-
-func getAllNodes(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
-	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
-	}
-
-	caller, err := blockchain.NewNodeRegistryCaller(
-		logger,
-		chainClient,
-		options.Contracts,
-		blockchain.RegistryCallerV1,
-	)
-	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
-	}
-
-	nodes, err := migrator.ReadFromRegistry[migrator.SerializableNodeV1](caller)
-	if err != nil {
-		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
-	}
-
-	logger.Info(
-		"got nodes",
-		zap.Int("size", len(nodes)),
-		zap.Any("nodes", nodes),
-	)
-
-	if options.GetAllNodes.OutFile != "" {
-		err = migrator.DumpNodesToFile(nodes, options.GetAllNodes.OutFile)
-		if err != nil {
-			logger.Fatal("could not dump nodes", zap.Error(err))
-		}
-	}
-}
-
-func updateHealth(logger *zap.Logger, options *CLI, health bool) {
-	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
-	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
-	}
-
-	signer, err := blockchain.NewPrivateKeySigner(
-		options.UpdateHealth.AdminPrivateKey,
-		options.Contracts.ChainID,
-	)
-
-	if err != nil {
-		logger.Fatal("could not create signer", zap.Error(err))
-	}
-
-	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
-		logger,
-		chainClient,
-		signer,
-		options.Contracts,
-		blockchain.RegistryAdminV1,
-	)
-	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.UpdateHealth(ctx, options.UpdateHealth.NodeId, health)
-	if err != nil {
-		logger.Fatal("could not update node health in registry", zap.Error(err))
-	}
-}
-
-func updateAddress(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
-	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
-	}
-
-	signer, err := blockchain.NewPrivateKeySigner(
-		options.UpdateAddress.PrivateKey,
-		options.Contracts.ChainID,
-	)
-
-	if err != nil {
-		logger.Fatal("could not create signer", zap.Error(err))
-	}
-
-	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
-		logger,
-		chainClient,
-		signer,
-		options.Contracts,
-		blockchain.RegistryAdminV1,
-	)
-	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.UpdateHttpAddress(
-		ctx,
-		options.UpdateAddress.NodeId,
-		options.UpdateAddress.Address,
-	)
-	if err != nil {
-		logger.Fatal("could not update node address in registry", zap.Error(err))
-	}
 }
 
 func migrateNodes(logger *zap.Logger, options *CLI) {
@@ -299,20 +211,60 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create signer", zap.Error(err))
 	}
 
-	registryAdminV2, err := blockchain.NewNodeRegistryAdmin(
+	newRegistry, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		chainClient,
 		signer,
 		options.Contracts,
-		blockchain.RegistryAdminV2,
 	)
 	if err != nil {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	err = migrator.WriteToRegistryV2(logger, nodes, registryAdminV2)
+	err = migrator.WriteToRegistry(logger, nodes, newRegistry)
 	if err != nil {
 		logger.Fatal("could not write nodes to registry", zap.Error(err))
+	}
+}
+
+/*
+*
+Getter commands
+*
+*/
+
+func getAllNodes(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	caller, err := blockchain.NewNodeRegistryCaller(
+		logger,
+		chainClient,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	nodes, err := migrator.ReadFromRegistry(caller)
+	if err != nil {
+		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
+	}
+
+	logger.Info(
+		"got nodes",
+		zap.Int("size", len(nodes)),
+		zap.Any("nodes", nodes),
+	)
+
+	if options.GetAllNodes.OutFile != "" {
+		err = migrator.DumpNodesToFile(nodes, options.GetAllNodes.OutFile)
+		if err != nil {
+			logger.Fatal("could not dump nodes", zap.Error(err))
+		}
 	}
 }
 
@@ -348,18 +300,6 @@ func main() {
 		return
 	case "get-all-nodes":
 		getAllNodes(logger, options)
-		return
-	case "mark-healthy":
-		updateHealth(logger, options, true)
-		return
-	case "mark-unhealthy":
-		updateHealth(logger, options, false)
-		return
-	case "update-address":
-		updateAddress(logger, options)
-		return
-	case "migrate-nodes":
-		migrateNodes(logger, options)
 		return
 	}
 }

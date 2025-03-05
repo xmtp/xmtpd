@@ -111,7 +111,7 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
 		),
-		RatesManagerContractAddress: getProxyAddress(
+		RatesManagerContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/RatesManager.json"),
 		),

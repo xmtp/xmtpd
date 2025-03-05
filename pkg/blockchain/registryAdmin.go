@@ -10,19 +10,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
-)
-
-type RegistryAdminVersion int
-
-const (
-	RegistryAdminV1 RegistryAdminVersion = iota
-	RegistryAdminV2
 )
 
 type INodeRegistryAdmin interface {
@@ -31,201 +24,32 @@ type INodeRegistryAdmin interface {
 		owner string,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
+		minMonthlyFee int64,
 	) error
-	UpdateHealth(ctx context.Context, nodeId int64, health bool) error
-	UpdateHttpAddress(ctx context.Context, nodeId int64, address string) error
+	DisableNode(ctx context.Context, nodeId int64) error
+	EnableNode(ctx context.Context, nodeId int64) error
+	RemoveFromApiNodes(ctx context.Context, nodeId int64) error
+	RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error
+	SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error
+	SetNodeOperatorCommissionPercent(ctx context.Context, commissionPercent int64) error
+	SetBaseURI(ctx context.Context, baseURI string) error
 }
 
-type baseNodeRegistryAdmin struct {
-	client *ethclient.Client
-	signer TransactionSigner
-	logger *zap.Logger
+type nodeRegistryAdmin struct {
+	client   *ethclient.Client
+	signer   TransactionSigner
+	logger   *zap.Logger
+	contract *nodesv2.NodesV2
 }
+
+var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
 
 func NewNodeRegistryAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	version RegistryAdminVersion,
-) (INodeRegistryAdmin, error) {
-	switch version {
-	case RegistryAdminV1:
-		return newNodeRegistryAdminV1(logger, client, signer, contractsOptions)
-	case RegistryAdminV2:
-		return newNodeRegistryAdminV2(logger, client, signer, contractsOptions)
-	default:
-		return nil, fmt.Errorf("unsupported registry version: %v", version)
-	}
-}
-
-/*
-*
-XMTP Node Registry Admin V1 - Deprecated
-*
-*/
-type nodeRegistryAdminV1 struct {
-	baseNodeRegistryAdmin
-	contract *nodes.Nodes
-}
-
-var _ INodeRegistryAdmin = &nodeRegistryAdminV1{}
-
-func newNodeRegistryAdminV1(
-	logger *zap.Logger,
-	client *ethclient.Client,
-	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
-) (*nodeRegistryAdminV1, error) {
-	contract, err := nodes.NewNodes(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
-		client,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &nodeRegistryAdminV1{
-		baseNodeRegistryAdmin: baseNodeRegistryAdmin{
-			signer: signer,
-			client: client,
-			logger: logger.Named("NodeRegistryAdminV1"),
-		},
-		contract: contract,
-	}, nil
-}
-
-func (n *nodeRegistryAdminV1) AddNode(
-	ctx context.Context,
-	owner string,
-	signingKeyPub *ecdsa.PublicKey,
-	httpAddress string,
-) error {
-	if !common.IsHexAddress(owner) {
-		return fmt.Errorf("invalid owner address provided %s", owner)
-	}
-
-	ownerAddress := common.HexToAddress(owner)
-	signingKey := crypto.FromECDSAPub(signingKeyPub)
-
-	if n.signer == nil {
-		return fmt.Errorf("no signer provided")
-	}
-	tx, err := n.contract.AddNode(&bind.TransactOpts{
-		Context: ctx,
-		From:    n.signer.FromAddress(),
-		Signer:  n.signer.SignerFunc(),
-	}, ownerAddress, signingKey, httpAddress)
-
-	if err != nil {
-		return err
-	}
-
-	receipt, err := WaitForTransaction(
-		ctx,
-		n.logger,
-		n.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	for _, log := range receipt.Logs {
-		nodeUpdated, err := n.contract.ParseNodeUpdated(*log)
-		if err != nil {
-			continue
-		}
-
-		n.logger.Info("node added to registry V1",
-			zap.Uint64("node_id", nodeUpdated.NodeId.Uint64()),
-			zap.String("http_address", nodeUpdated.Node.HttpAddress),
-			zap.String("signing_key_pub", hex.EncodeToString(nodeUpdated.Node.SigningKeyPub)),
-		)
-	}
-
-	return err
-}
-
-func (n *nodeRegistryAdminV1) UpdateHealth(
-	ctx context.Context, nodeId int64, health bool,
-) error {
-	tx, err := n.contract.UpdateHealth(
-		&bind.TransactOpts{
-			Context: ctx,
-			From:    n.signer.FromAddress(),
-			Signer:  n.signer.SignerFunc(),
-		},
-		big.NewInt(nodeId),
-		health,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = WaitForTransaction(
-		ctx,
-		n.logger,
-		n.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-
-	return err
-}
-
-func (n *nodeRegistryAdminV1) UpdateHttpAddress(
-	ctx context.Context, nodeId int64, address string,
-) error {
-	tx, err := n.contract.UpdateHttpAddress(
-		&bind.TransactOpts{
-			Context: ctx,
-			From:    n.signer.FromAddress(),
-			Signer:  n.signer.SignerFunc(),
-		},
-		big.NewInt(nodeId),
-		address,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = WaitForTransaction(
-		ctx,
-		n.logger,
-		n.client,
-		2*time.Second,
-		250*time.Millisecond,
-		tx.Hash(),
-	)
-
-	return err
-}
-
-/*
-*
-XMTP Node Registry Admin V2
-*
-*/
-type nodeRegistryAdminV2 struct {
-	baseNodeRegistryAdmin
-	contract *nodesv2.NodesV2
-}
-
-var _ INodeRegistryAdmin = &nodeRegistryAdminV2{}
-
-func newNodeRegistryAdminV2(
-	logger *zap.Logger,
-	client *ethclient.Client,
-	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
-) (*nodeRegistryAdminV2, error) {
+) (*nodeRegistryAdmin, error) {
 	contract, err := nodesv2.NewNodesV2(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
@@ -234,27 +58,29 @@ func newNodeRegistryAdminV2(
 		return nil, err
 	}
 
-	return &nodeRegistryAdminV2{
-		baseNodeRegistryAdmin: baseNodeRegistryAdmin{
-			signer: signer,
-			client: client,
-			logger: logger.Named("NodeRegistryAdminV2"),
-		},
+	return &nodeRegistryAdmin{
+		client:   client,
+		signer:   signer,
+		logger:   logger.Named("NodeRegistryAdmin"),
 		contract: contract,
 	}, nil
 }
 
-func (n *nodeRegistryAdminV2) AddNode(
+func (n *nodeRegistryAdmin) AddNode(
 	ctx context.Context,
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
+	minMonthlyFee int64,
 ) error {
 	if !common.IsHexAddress(owner) {
 		return fmt.Errorf("invalid owner address provided %s", owner)
 	}
 
-	minMonthlyFee := big.NewInt(0)
+	if minMonthlyFee < 0 {
+		return fmt.Errorf("invalid min monthly fee provided %d", minMonthlyFee)
+	}
+
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
@@ -262,13 +88,193 @@ func (n *nodeRegistryAdminV2) AddNode(
 		return fmt.Errorf("no signer provided")
 	}
 
-	tx, err := n.contract.AddNode(&bind.TransactOpts{
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.AddNode(
+				opts,
+				ownerAddress,
+				signingKey,
+				httpAddress,
+				big.NewInt(minMonthlyFee),
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseNodeAdded(*log)
+		},
+		func(event interface{}) {
+			nodeAdded := event.(*nodesv2.NodesV2NodeAdded)
+			n.logger.Info("node added to registry",
+				zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
+				zap.String("owner", nodeAdded.Owner.Hex()),
+				zap.String("http_address", nodeAdded.HttpAddress),
+				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningKeyPub)),
+				zap.String("min_monthly_fee", nodeAdded.MinMonthlyFee.String()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) DisableNode(ctx context.Context, nodeId int64) error {
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.DisableNode(opts, big.NewInt(nodeId))
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseNodeDisabled(*log)
+		},
+		func(event interface{}) {
+			nodeDisabled := event.(*nodesv2.NodesV2NodeDisabled)
+			n.logger.Info("node disabled",
+				zap.Uint64("node_id", nodeDisabled.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) EnableNode(ctx context.Context, nodeId int64) error {
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.EnableNode(opts, big.NewInt(nodeId))
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseNodeEnabled(*log)
+		},
+		func(event interface{}) {
+			nodeEnabled := event.(*nodesv2.NodesV2NodeEnabled)
+			n.logger.Info("node enabled",
+				zap.Uint64("node_id", nodeEnabled.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) RemoveFromApiNodes(ctx context.Context, nodeId int64) error {
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.RemoveFromApiNodes(opts, big.NewInt(nodeId))
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseApiDisabled(*log)
+		},
+		func(event interface{}) {
+			nodeRemovedFromApiNodes := event.(*nodesv2.NodesV2ApiDisabled)
+			n.logger.Info("node removed from active api nodes",
+				zap.Uint64("node_id", nodeRemovedFromApiNodes.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error {
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.RemoveFromReplicationNodes(opts, big.NewInt(nodeId))
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseReplicationDisabled(*log)
+		},
+		func(event interface{}) {
+			nodeRemovedFromReplicationNodes := event.(*nodesv2.NodesV2ReplicationDisabled)
+			n.logger.Info("node removed from active replication nodes",
+				zap.Uint64("node_id", nodeRemovedFromReplicationNodes.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error {
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetMaxActiveNodes(opts, maxActiveNodes)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseMaxActiveNodesUpdated(*log)
+		},
+		func(event interface{}) {
+			maxActiveNodesUpdated := event.(*nodesv2.NodesV2MaxActiveNodesUpdated)
+			n.logger.Info("max active nodes set",
+				zap.Uint8("max_active_nodes", maxActiveNodesUpdated.NewMaxActiveNodes),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
+	ctx context.Context,
+	commissionPercent int64,
+) error {
+	if commissionPercent < 0 || commissionPercent > 10000 {
+		return fmt.Errorf("invalid commission percent provided %d", commissionPercent)
+	}
+
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetNodeOperatorCommissionPercent(
+				opts,
+				big.NewInt(commissionPercent),
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseNodeOperatorCommissionPercentUpdated(*log)
+		},
+		func(event interface{}) {
+			nodeOperatorCommissionPercentUpdated := event.(*nodesv2.NodesV2NodeOperatorCommissionPercentUpdated)
+			n.logger.Info(
+				"node operator commission percent updated",
+				zap.Uint64(
+					"node_operator_commission_percent",
+					nodeOperatorCommissionPercentUpdated.NewCommissionPercent.Uint64(),
+				),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) SetBaseURI(ctx context.Context, baseURI string) error {
+	return n.executeTransaction(
+		ctx,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetBaseURI(opts, baseURI)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseBaseURIUpdated(*log)
+		},
+		func(event interface{}) {
+			baseURIUpdated := event.(*nodesv2.NodesV2BaseURIUpdated)
+			n.logger.Info("base uri updated",
+				zap.String("base_uri", baseURIUpdated.NewBaseURI),
+			)
+		},
+	)
+}
+
+// executeTransaction is a helper function that:
+// - executes a transaction
+// - waits for it to be mined
+// - processes the event logs
+func (n *nodeRegistryAdmin) executeTransaction(
+	ctx context.Context,
+	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
+	eventParser func(*types.Log) (interface{}, error),
+	logHandler func(interface{}),
+) error {
+	if n.signer == nil {
+		return fmt.Errorf("no signer provided")
+	}
+
+	tx, err := txFunc(&bind.TransactOpts{
 		Context: ctx,
 		From:    n.signer.FromAddress(),
 		Signer:  n.signer.SignerFunc(),
-	}, ownerAddress, signingKey, httpAddress, minMonthlyFee)
+	})
 	if err != nil {
-		fmt.Println("error adding node")
 		return err
 	}
 
@@ -280,36 +286,17 @@ func (n *nodeRegistryAdminV2) AddNode(
 		250*time.Millisecond,
 		tx.Hash(),
 	)
-
 	if err != nil {
 		return err
 	}
 
 	for _, log := range receipt.Logs {
-		nodeAdded, err := n.contract.ParseNodeAdded(*log)
+		event, err := eventParser(log)
 		if err != nil {
 			continue
 		}
-		n.logger.Info("node added to registry V2",
-			zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
-			zap.String("owner", nodeAdded.Owner.Hex()),
-			zap.String("http_address", nodeAdded.HttpAddress),
-			zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningKeyPub)),
-			zap.String("min_monthly_fee", nodeAdded.MinMonthlyFee.String()),
-		)
+		logHandler(event)
 	}
 
-	return nil
-}
-
-func (n *nodeRegistryAdminV2) UpdateHealth(
-	ctx context.Context, nodeId int64, health bool,
-) error {
-	return fmt.Errorf("not implemented")
-}
-
-func (n *nodeRegistryAdminV2) UpdateHttpAddress(
-	ctx context.Context, nodeId int64, address string,
-) error {
 	return nil
 }

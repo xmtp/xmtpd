@@ -10,15 +10,14 @@ interface IPayerReport {
     //                             STRUCTS
     //==============================================================
 
-    struct UsageReport {
+    struct PayerReport {
         address originatorNode;
         uint256 startingSequenceID;
         uint256 endingSequenceID;
         uint256 lastMessageTimestamp;
         uint256 reportTimestamp;
         bytes32 reportMerkleRoot;
-        address[] payers;
-        uint256[] amountsSpent;
+        uint16 batches;
     }
 
     //==============================================================
@@ -39,8 +38,7 @@ interface IPayerReport {
         uint256 endingSequenceID,
         uint256 lastMessageTimestamp,
         uint256 reportTimestamp,
-        address[] payers,
-        uint256[] amountsSpent
+        uint16 batches
     );
 
     /**
@@ -64,11 +62,19 @@ interface IPayerReport {
     /**
      * @dev Emitted when a batch of usage is settled.
      */
-    event UsageSettled(
+    event PayerReportPartiallySettled(
         address indexed originatorNode,
         uint256 indexed reportIndex,
-        uint256 offset,
-        uint256 batchLength
+        bytes32 indexed reportMerkleRoot,
+        address[] payers,
+        uint256[] amounts,
+        uint16 offset
+    );
+
+    event PayerReportFullySettled(
+        address indexed originatorNode,
+        uint256 indexed reportIndex,
+        bytes32 indexed reportMerkleRoot
     );
 
     //==============================================================
@@ -82,7 +88,7 @@ interface IPayerReport {
      *
      * Emits a PayerReportSubmitted event.
      */
-    function submitPayerReport(UsageReport calldata payerReport) external;
+    function submitPayerReport(PayerReport calldata payerReport) external;
 
     /**
      * @notice Allows nodes to attest to the correctness of a submitted usage report.
@@ -92,18 +98,6 @@ interface IPayerReport {
      * Emits a PayerReportAttested event.
      */
     function attestPayerReport(address originatorNode, uint256 reportIndex) external;
-
-    /**
-     * @notice Finalizes a usage report once majority attestation is reached.
-     * Settlement happens in batches, by calling the settleUsage function in the Payer contract.
-     * Emits a PayerReportConfirmed event.
-     * @param originatorNode The node that submitted the report.
-     * @param reportIndex The index of the report to confirm.
-     */
-    function confirmPayerReport(
-        address originatorNode,
-        uint256 reportIndex
-    ) external;
 
     /**
      * @notice Returns a list of all payer reports for a given originator node.
@@ -117,12 +111,12 @@ interface IPayerReport {
      * @notice Returns summary info about a specific usage report.
      * @param originatorNode The node that submitted the report.
      * @param reportIndex The index of the report.
-     * @return payerReport A UsageReport struct with the report details.
+     * @return payerReport A PayerReport struct with the report details.
      */
     function getPayerReport(
         address originatorNode,
         uint256 reportIndex
-    ) external view returns (UsageReport memory payerReport);
+    ) external view returns (PayerReport memory payerReport);
 
     /**
     * @notice Settles a contiguous batch of usage data from a confirmed report.
@@ -132,7 +126,7 @@ interface IPayerReport {
     * 
     * @param originatorNode The node that submitted the report.
     * @param reportIndex The index of the report.
-    * @param offset The starting index of the batch in the report's data (managed offchain).
+    * @param offset The index of the batch in the report's data (managed offchain).
     * @param payers A contiguous array of payer addresses.
     * @param amounts A contiguous array of usage amounts corresponding to each payer.
     * @param proof An aggregated Merkle proof containing branch hashes.
@@ -142,7 +136,7 @@ interface IPayerReport {
     function settleUsageBatch(
         address originatorNode,
         uint256 reportIndex,
-        uint256 offset,
+        uint16 offset,
         address[] calldata payers,
         uint256[] calldata amounts,
         bytes32[] calldata proof

@@ -266,17 +266,15 @@ interface IPayer {
     *
     * @param originatorNode The node that submitted the report.
     * @param reportIndex The index of the report.
-    * @param offset The starting index of the batch in the report's data.
     * @param payers A contiguous array of payer addresses.
     * @param amounts A contiguous array of usage amounts corresponding to each payer.
     */
     function settleUsage(
         address originatorNode,
         uint256 reportIndex,
-        uint256 offset,
         address[] calldata payers,
         uint256[] calldata amounts
-    ) external;
+    ) external /* onlyPayerReport */ ;
 
     /**
      * @notice Retrieves the total pending fees that have not yet been transferred

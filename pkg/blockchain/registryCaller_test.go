@@ -14,5 +14,34 @@ func TestGetAllNodes(t *testing.T) {
 
 	nodes, err := caller.GetAllNodes(ctx)
 	require.NoError(t, err)
-	require.NotNil(t, nodes)
+	require.Len(t, nodes, 1)
+}
+
+func TestGetNode(t *testing.T) {
+	registry, caller, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	addRandomNode(t, registry, ctx)
+
+	node, err := caller.GetNode(ctx, 100)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+}
+
+func TestGetNodeNotFound(t *testing.T) {
+	_, caller, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	_, err := caller.GetNode(ctx, 100)
+	require.Error(t, err)
+}
+
+func TestOwnerOf(t *testing.T) {
+	registry, caller, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	addRandomNode(t, registry, ctx)
+
+	_, err := caller.OwnerOf(ctx, 100)
+	require.NoError(t, err)
 }

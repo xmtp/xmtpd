@@ -610,6 +610,9 @@
         "senderHmac": {
           "type": "string",
           "format": "byte"
+        },
+        "shouldPush": {
+          "type": "boolean"
         }
       },
       "title": "Version 1 of the GroupMessageInput payload format"
@@ -636,6 +639,9 @@
         "senderHmac": {
           "type": "string",
           "format": "byte"
+        },
+        "shouldPush": {
+          "type": "boolean"
         }
       },
       "title": "Version 1 of the GroupMessage format"

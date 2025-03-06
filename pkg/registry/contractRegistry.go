@@ -166,7 +166,8 @@ func (s *SmartContractRegistry) refreshData() error {
 	newNodes := []Node{}
 	for _, node := range fromContract {
 		// nodes realistically start at 100, but the contract fills the array with empty nodes
-		if !node.IsValidConfig {
+		if node.IsDisabled || !node.IsValidConfig || !node.IsApiEnabled ||
+			!node.IsReplicationEnabled {
 			continue
 		}
 		existingValue, ok := s.nodes[node.NodeID]

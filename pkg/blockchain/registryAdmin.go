@@ -108,7 +108,11 @@ func (n *nodeRegistryAdmin) AddNode(
 			return n.contract.ParseNodeAdded(*log)
 		},
 		func(event interface{}) {
-			nodeAdded := event.(*nodesv2.NodesV2NodeAdded)
+			nodeAdded, ok := event.(*nodesv2.NodesV2NodeAdded)
+			if !ok {
+				n.logger.Error("node added event is not of type NodesV2NodeAdded")
+				return
+			}
 			n.logger.Info("node added to registry",
 				zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
 				zap.String("owner", nodeAdded.Owner.Hex()),
@@ -133,7 +137,11 @@ func (n *nodeRegistryAdmin) DisableNode(ctx context.Context, nodeId int64) error
 			return n.contract.ParseNodeDisabled(*log)
 		},
 		func(event interface{}) {
-			nodeDisabled := event.(*nodesv2.NodesV2NodeDisabled)
+			nodeDisabled, ok := event.(*nodesv2.NodesV2NodeDisabled)
+			if !ok {
+				n.logger.Error("node disabled event is not of type NodesV2NodeDisabled")
+				return
+			}
 			n.logger.Info("node disabled",
 				zap.Uint64("node_id", nodeDisabled.NodeId.Uint64()),
 			)
@@ -154,7 +162,11 @@ func (n *nodeRegistryAdmin) EnableNode(ctx context.Context, nodeId int64) error 
 			return n.contract.ParseNodeEnabled(*log)
 		},
 		func(event interface{}) {
-			nodeEnabled := event.(*nodesv2.NodesV2NodeEnabled)
+			nodeEnabled, ok := event.(*nodesv2.NodesV2NodeEnabled)
+			if !ok {
+				n.logger.Error("node enabled event is not of type NodesV2NodeEnabled")
+				return
+			}
 			n.logger.Info("node enabled",
 				zap.Uint64("node_id", nodeEnabled.NodeId.Uint64()),
 			)
@@ -175,7 +187,13 @@ func (n *nodeRegistryAdmin) RemoveFromApiNodes(ctx context.Context, nodeId int64
 			return n.contract.ParseApiDisabled(*log)
 		},
 		func(event interface{}) {
-			nodeRemovedFromApiNodes := event.(*nodesv2.NodesV2ApiDisabled)
+			nodeRemovedFromApiNodes, ok := event.(*nodesv2.NodesV2ApiDisabled)
+			if !ok {
+				n.logger.Error(
+					"node removed from active api nodes event is not of type NodesV2ApiDisabled",
+				)
+				return
+			}
 			n.logger.Info("node removed from active api nodes",
 				zap.Uint64("node_id", nodeRemovedFromApiNodes.NodeId.Uint64()),
 			)
@@ -196,7 +214,13 @@ func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, node
 			return n.contract.ParseReplicationDisabled(*log)
 		},
 		func(event interface{}) {
-			nodeRemovedFromReplicationNodes := event.(*nodesv2.NodesV2ReplicationDisabled)
+			nodeRemovedFromReplicationNodes, ok := event.(*nodesv2.NodesV2ReplicationDisabled)
+			if !ok {
+				n.logger.Error(
+					"node removed from active replication nodes event is not of type NodesV2ReplicationDisabled",
+				)
+				return
+			}
 			n.logger.Info("node removed from active replication nodes",
 				zap.Uint64("node_id", nodeRemovedFromReplicationNodes.NodeId.Uint64()),
 			)
@@ -225,7 +249,13 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 			return n.contract.ParseHttpAddressUpdated(*log)
 		},
 		func(event interface{}) {
-			httpAddressUpdated := event.(*nodesv2.NodesV2HttpAddressUpdated)
+			httpAddressUpdated, ok := event.(*nodesv2.NodesV2HttpAddressUpdated)
+			if !ok {
+				n.logger.Error(
+					"http address updated event is not of type NodesV2HttpAddressUpdated",
+				)
+				return
+			}
 			n.logger.Info("http address updated",
 				zap.Uint64("node_id", httpAddressUpdated.NodeId.Uint64()),
 				zap.String("http_address", httpAddressUpdated.NewHttpAddress),
@@ -255,7 +285,13 @@ func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 			return n.contract.ParseMinMonthlyFeeUpdated(*log)
 		},
 		func(event interface{}) {
-			minMonthlyFeeUpdated := event.(*nodesv2.NodesV2MinMonthlyFeeUpdated)
+			minMonthlyFeeUpdated, ok := event.(*nodesv2.NodesV2MinMonthlyFeeUpdated)
+			if !ok {
+				n.logger.Error(
+					"min monthly fee updated event is not of type NodesV2MinMonthlyFeeUpdated",
+				)
+				return
+			}
 			n.logger.Info("min monthly fee updated",
 				zap.Uint64("node_id", minMonthlyFeeUpdated.NodeId.Uint64()),
 				zap.String("min_monthly_fee", minMonthlyFeeUpdated.MinMonthlyFee.String()),
@@ -284,7 +320,11 @@ func (n *nodeRegistryAdmin) SetIsApiEnabled(
 			return n.contract.ParseApiDisabled(*log)
 		},
 		func(event interface{}) {
-			apiEnabled := event.(*nodesv2.NodesV2ApiEnabled)
+			apiEnabled, ok := event.(*nodesv2.NodesV2ApiEnabled)
+			if !ok {
+				n.logger.Error("api enabled event is not of type NodesV2ApiEnabled")
+				return
+			}
 			n.logger.Info("api enabled",
 				zap.Uint64("node_id", apiEnabled.NodeId.Uint64()),
 			)
@@ -316,7 +356,11 @@ func (n *nodeRegistryAdmin) SetIsReplicationEnabled(
 			return n.contract.ParseReplicationDisabled(*log)
 		},
 		func(event interface{}) {
-			replicationEnabled := event.(*nodesv2.NodesV2ReplicationEnabled)
+			replicationEnabled, ok := event.(*nodesv2.NodesV2ReplicationEnabled)
+			if !ok {
+				n.logger.Error("replication enabled event is not of type NodesV2ReplicationEnabled")
+				return
+			}
 			n.logger.Info("replication enabled",
 				zap.Uint64("node_id", replicationEnabled.NodeId.Uint64()),
 			)
@@ -337,7 +381,13 @@ func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNode
 			return n.contract.ParseMaxActiveNodesUpdated(*log)
 		},
 		func(event interface{}) {
-			maxActiveNodesUpdated := event.(*nodesv2.NodesV2MaxActiveNodesUpdated)
+			maxActiveNodesUpdated, ok := event.(*nodesv2.NodesV2MaxActiveNodesUpdated)
+			if !ok {
+				n.logger.Error(
+					"max active nodes updated event is not of type NodesV2MaxActiveNodesUpdated",
+				)
+				return
+			}
 			n.logger.Info("max active nodes set",
 				zap.Uint8("max_active_nodes", maxActiveNodesUpdated.NewMaxActiveNodes),
 			)
@@ -368,7 +418,13 @@ func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
 			return n.contract.ParseNodeOperatorCommissionPercentUpdated(*log)
 		},
 		func(event interface{}) {
-			nodeOperatorCommissionPercentUpdated := event.(*nodesv2.NodesV2NodeOperatorCommissionPercentUpdated)
+			nodeOperatorCommissionPercentUpdated, ok := event.(*nodesv2.NodesV2NodeOperatorCommissionPercentUpdated)
+			if !ok {
+				n.logger.Error(
+					"node operator commission percent updated event is not of type NodesV2NodeOperatorCommissionPercentUpdated",
+				)
+				return
+			}
 			n.logger.Info(
 				"node operator commission percent updated",
 				zap.Uint64(

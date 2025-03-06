@@ -31,21 +31,14 @@ function forge_deploy_script() {
             ;;
 
         nodes)
-            # TODO: Migrate to forge script
             echo "⧖ Deploying Nodes to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge create --broadcast --legacy --json --rpc-url $RPC_URL --private-key $PRIVATE_KEY "$2:$3" > config/anvil_localnet/$3.json
-            echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/config/anvil_localnet/$3.json\n"
-            ;;
-
-        nodes_v2)
-            echo "⧖ Deploying NodesV2 to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployNodeRegistryV2.s.sol || BUILD_FAILED=true
+            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployNodeRegistry.s.sol || BUILD_FAILED=true
             if [[ -n "${BUILD_FAILED:-}" ]]; then
-                echo "Failed to deploy NodesV2 contract"
+                echo "Failed to deploy Nodes contract"
                 exit 1
             fi
 
-            echo -e "\033[32m✔\033[0m NodesV2 deployed. Deployment details in contracts/config/anvil_localnet/XMTPNodeRegistry.json\n"
+            echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/config/anvil_localnet/XMTPNodeRegistry.json\n"
             ;;
 
         rates_manager)
@@ -60,7 +53,7 @@ function forge_deploy_script() {
             ;;
 
         *)
-            echo "Invalid option. Use 'group_messages', 'identity_updates', 'nodes', or 'nodes_v2'."
+            echo "Invalid option. Use 'group_messages', 'identity_updates', 'nodes', or 'rates_manager'."
             exit 1
             ;;
     esac

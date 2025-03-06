@@ -2,7 +2,7 @@ package registry
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 )
 
 /*
@@ -10,7 +10,7 @@ import (
 A dumbed down interface of abis.NodesCaller for generating mocks
 */
 type NodesContract interface {
-	GetAllNodes(opts *bind.CallOpts) ([]nodesv2.INodesNodeWithId, error)
+	GetAllNodes(opts *bind.CallOpts) ([]nodes.INodesNodeWithId, error)
 }
 
 // Unregister the callback

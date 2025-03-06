@@ -72,7 +72,24 @@ func TestGetNode_NoAvailableActiveNodes(t *testing.T) {
 
 	_, err := selector.GetNode(tpc)
 	require.Error(t, err)
-	require.Equal(t, "no available active nodes", err.Error())
+	require.Equal(t, "no available nodes after filtering", err.Error())
+}
+
+func TestGetNode_AtLeastOneNodeIsAvailable(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		testutils.GetUnhealthyNode(100),
+		testutils.GetUnhealthyNode(200),
+		testutils.GetUnhealthyNode(300),
+		testutils.GetHealthyNode(400),
+	}, nil)
+
+	tpc := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
+	selector := payer.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 400, node)
 }
 
 func TestGetNode_CorrectAssignment(t *testing.T) {

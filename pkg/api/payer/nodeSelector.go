@@ -40,40 +40,6 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 		return 0, err
 	}
 
-	if len(nodes) == 0 {
-		return 0, errors.New("no available nodes")
-	}
-
-	// Sort nodes to ensure stability
-	sort.Slice(nodes, func(i, j int) bool { return nodes[i].NodeID < nodes[j].NodeID })
-
-	topicHash := HashKey(topic)
-
-	numNodes := uint32(len(nodes))
-	maxHashSpace := ^uint32(0)
-	spacing := maxHashSpace / numNodes
-
-	// Compute virtual positions for each node
-	// Skip nodes that are disabled or do not have an API enabled
-	nodeLocations := make([]uint32, numNodes)
-	gotNodes := false
-	for i, node := range nodes {
-		if node.IsDisabled || !node.IsApiEnabled {
-			continue
-		}
-		nodeLocations[i] = uint32(i) * spacing
-		gotNodes = true
-	}
-
-	if !gotNodes {
-		return 0, errors.New("no available active nodes")
-	}
-
-	// Binary search to find the first node with a virtual position >= topicHash
-	idx := sort.Search(len(nodeLocations), func(i int) bool {
-		return topicHash < nodeLocations[i]
-	})
-
 	// Flatten banlist
 	banned := make(map[uint32]struct{})
 	for _, list := range banlist {
@@ -82,15 +48,47 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 		}
 	}
 
-	// Find the next available node
-	for i := 0; i < len(nodes); i++ {
-		candidateIdx := (idx + i) % len(nodeLocations)
-		candidateNodeID := nodes[candidateIdx].NodeID
-
-		if _, exists := banned[candidateNodeID]; !exists {
-			return candidateNodeID, nil
+	// Filter out banned, disabled, or non-API nodes
+	var availableNodes []registry.Node
+	for _, node := range nodes {
+		if node.IsDisabled || !node.IsApiEnabled {
+			continue
+		}
+		if _, exists := banned[node.NodeID]; !exists {
+			availableNodes = append(availableNodes, node)
 		}
 	}
 
-	return 0, errors.New("no available nodes after considering banlist")
+	if len(availableNodes) == 0 {
+		if len(nodes) == 0 {
+			return 0, errors.New("no available nodes")
+		}
+		return 0, errors.New("no available nodes after filtering")
+	}
+
+	// Sort availableNodes to ensure stability
+	sort.Slice(availableNodes, func(i, j int) bool {
+		return availableNodes[i].NodeID < availableNodes[j].NodeID
+	})
+
+	topicHash := HashKey(topic)
+
+	numNodes := uint32(len(availableNodes))
+	maxHashSpace := ^uint32(0)
+	spacing := maxHashSpace / numNodes
+
+	// Compute virtual positions for each available node
+	nodeLocations := make([]uint32, numNodes)
+	for i := range availableNodes {
+		nodeLocations[i] = uint32(i) * spacing
+	}
+
+	// Binary search to find the first node with a virtual position >= topicHash
+	idx := sort.Search(len(nodeLocations), func(i int) bool {
+		return topicHash < nodeLocations[i]
+	})
+
+	// Select the appropriate node from availableNodes
+	candidateIdx := idx % len(nodeLocations)
+	return availableNodes[candidateIdx].NodeID, nil
 }

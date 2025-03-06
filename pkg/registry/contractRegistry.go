@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -57,7 +57,7 @@ func NewSmartContractRegistry(
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
 
-	contract, err := nodesv2.NewNodesV2Caller(
+	contract, err := nodes.NewNodesCaller(
 		common.HexToAddress(options.NodesContractAddress),
 		ethclient,
 	)
@@ -232,7 +232,7 @@ func (s *SmartContractRegistry) SetContractForTest(contract NodesContract) {
 	s.contract = contract
 }
 
-func convertNode(rawNode nodesv2.INodesNodeWithId) Node {
+func convertNode(rawNode nodes.INodesNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the
 	// node as unhealthy in this case

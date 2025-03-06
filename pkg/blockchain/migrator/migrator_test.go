@@ -19,7 +19,7 @@ func setupRegistry(
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	contractsOptions := testutils.GetContractsOptions(t)
-	contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,

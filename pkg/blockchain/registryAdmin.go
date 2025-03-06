@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -41,7 +41,7 @@ type nodeRegistryAdmin struct {
 	client   *ethclient.Client
 	signer   TransactionSigner
 	logger   *zap.Logger
-	contract *nodesv2.NodesV2
+	contract *nodes.Nodes
 }
 
 var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
@@ -52,7 +52,7 @@ func NewNodeRegistryAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*nodeRegistryAdmin, error) {
-	contract, err := nodesv2.NewNodesV2(
+	contract, err := nodes.NewNodes(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
 	)
@@ -108,9 +108,9 @@ func (n *nodeRegistryAdmin) AddNode(
 			return n.contract.ParseNodeAdded(*log)
 		},
 		func(event interface{}) {
-			nodeAdded, ok := event.(*nodesv2.NodesV2NodeAdded)
+			nodeAdded, ok := event.(*nodes.NodesNodeAdded)
 			if !ok {
-				n.logger.Error("node added event is not of type NodesV2NodeAdded")
+				n.logger.Error("node added event is not of type NodesNodeAdded")
 				return
 			}
 			n.logger.Info("node added to registry",
@@ -137,9 +137,9 @@ func (n *nodeRegistryAdmin) DisableNode(ctx context.Context, nodeId int64) error
 			return n.contract.ParseNodeDisabled(*log)
 		},
 		func(event interface{}) {
-			nodeDisabled, ok := event.(*nodesv2.NodesV2NodeDisabled)
+			nodeDisabled, ok := event.(*nodes.NodesNodeDisabled)
 			if !ok {
-				n.logger.Error("node disabled event is not of type NodesV2NodeDisabled")
+				n.logger.Error("node disabled event is not of type NodesNodeDisabled")
 				return
 			}
 			n.logger.Info("node disabled",
@@ -162,9 +162,9 @@ func (n *nodeRegistryAdmin) EnableNode(ctx context.Context, nodeId int64) error 
 			return n.contract.ParseNodeEnabled(*log)
 		},
 		func(event interface{}) {
-			nodeEnabled, ok := event.(*nodesv2.NodesV2NodeEnabled)
+			nodeEnabled, ok := event.(*nodes.NodesNodeEnabled)
 			if !ok {
-				n.logger.Error("node enabled event is not of type NodesV2NodeEnabled")
+				n.logger.Error("node enabled event is not of type NodesNodeEnabled")
 				return
 			}
 			n.logger.Info("node enabled",
@@ -187,10 +187,10 @@ func (n *nodeRegistryAdmin) RemoveFromApiNodes(ctx context.Context, nodeId int64
 			return n.contract.ParseApiDisabled(*log)
 		},
 		func(event interface{}) {
-			nodeRemovedFromApiNodes, ok := event.(*nodesv2.NodesV2ApiDisabled)
+			nodeRemovedFromApiNodes, ok := event.(*nodes.NodesApiDisabled)
 			if !ok {
 				n.logger.Error(
-					"node removed from active api nodes event is not of type NodesV2ApiDisabled",
+					"node removed from active api nodes event is not of type NodesApiDisabled",
 				)
 				return
 			}
@@ -214,10 +214,10 @@ func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, node
 			return n.contract.ParseReplicationDisabled(*log)
 		},
 		func(event interface{}) {
-			nodeRemovedFromReplicationNodes, ok := event.(*nodesv2.NodesV2ReplicationDisabled)
+			nodeRemovedFromReplicationNodes, ok := event.(*nodes.NodesReplicationDisabled)
 			if !ok {
 				n.logger.Error(
-					"node removed from active replication nodes event is not of type NodesV2ReplicationDisabled",
+					"node removed from active replication nodes event is not of type NodesReplicationDisabled",
 				)
 				return
 			}
@@ -249,10 +249,10 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 			return n.contract.ParseHttpAddressUpdated(*log)
 		},
 		func(event interface{}) {
-			httpAddressUpdated, ok := event.(*nodesv2.NodesV2HttpAddressUpdated)
+			httpAddressUpdated, ok := event.(*nodes.NodesHttpAddressUpdated)
 			if !ok {
 				n.logger.Error(
-					"http address updated event is not of type NodesV2HttpAddressUpdated",
+					"http address updated event is not of type NodesHttpAddressUpdated",
 				)
 				return
 			}
@@ -285,10 +285,10 @@ func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 			return n.contract.ParseMinMonthlyFeeUpdated(*log)
 		},
 		func(event interface{}) {
-			minMonthlyFeeUpdated, ok := event.(*nodesv2.NodesV2MinMonthlyFeeUpdated)
+			minMonthlyFeeUpdated, ok := event.(*nodes.NodesMinMonthlyFeeUpdated)
 			if !ok {
 				n.logger.Error(
-					"min monthly fee updated event is not of type NodesV2MinMonthlyFeeUpdated",
+					"min monthly fee updated event is not of type NodesMinMonthlyFeeUpdated",
 				)
 				return
 			}
@@ -321,12 +321,12 @@ func (n *nodeRegistryAdmin) SetIsApiEnabled(
 		},
 		func(event interface{}) {
 			if isApiEnabled {
-				apiEnabled := event.(*nodesv2.NodesV2ApiEnabled)
+				apiEnabled := event.(*nodes.NodesApiEnabled)
 				n.logger.Info("api enabled",
 					zap.Uint64("node_id", apiEnabled.NodeId.Uint64()),
 				)
 			} else {
-				apiDisabled := event.(*nodesv2.NodesV2ApiDisabled)
+				apiDisabled := event.(*nodes.NodesApiDisabled)
 				n.logger.Info("api disabled",
 					zap.Uint64("node_id", apiDisabled.NodeId.Uint64()),
 				)
@@ -360,12 +360,12 @@ func (n *nodeRegistryAdmin) SetIsReplicationEnabled(
 		},
 		func(event interface{}) {
 			if isReplicationEnabled {
-				replicationEnabled := event.(*nodesv2.NodesV2ReplicationEnabled)
+				replicationEnabled := event.(*nodes.NodesReplicationEnabled)
 				n.logger.Info("replication enabled",
 					zap.Uint64("node_id", replicationEnabled.NodeId.Uint64()),
 				)
 			} else {
-				replicationDisabled := event.(*nodesv2.NodesV2ReplicationDisabled)
+				replicationDisabled := event.(*nodes.NodesReplicationDisabled)
 				n.logger.Info("replication disabled",
 					zap.Uint64("node_id", replicationDisabled.NodeId.Uint64()),
 				)
@@ -387,10 +387,10 @@ func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNode
 			return n.contract.ParseMaxActiveNodesUpdated(*log)
 		},
 		func(event interface{}) {
-			maxActiveNodesUpdated, ok := event.(*nodesv2.NodesV2MaxActiveNodesUpdated)
+			maxActiveNodesUpdated, ok := event.(*nodes.NodesMaxActiveNodesUpdated)
 			if !ok {
 				n.logger.Error(
-					"max active nodes updated event is not of type NodesV2MaxActiveNodesUpdated",
+					"max active nodes updated event is not of type NodesMaxActiveNodesUpdated",
 				)
 				return
 			}
@@ -424,10 +424,10 @@ func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
 			return n.contract.ParseNodeOperatorCommissionPercentUpdated(*log)
 		},
 		func(event interface{}) {
-			nodeOperatorCommissionPercentUpdated, ok := event.(*nodesv2.NodesV2NodeOperatorCommissionPercentUpdated)
+			nodeOperatorCommissionPercentUpdated, ok := event.(*nodes.NodesNodeOperatorCommissionPercentUpdated)
 			if !ok {
 				n.logger.Error(
-					"node operator commission percent updated event is not of type NodesV2NodeOperatorCommissionPercentUpdated",
+					"node operator commission percent updated event is not of type NodesNodeOperatorCommissionPercentUpdated",
 				)
 				return
 			}

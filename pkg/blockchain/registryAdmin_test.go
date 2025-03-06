@@ -17,7 +17,7 @@ func buildRegistry(
 	contractsOptions := testutils.GetContractsOptions(t)
 
 	// Deploy the contract always, so the tests are deterministic.
-	contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
 	signer, err := NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,

@@ -9,7 +9,9 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-func buildRegistry(t *testing.T) (INodeRegistryAdmin, context.Context, func()) {
+func buildRegistry(
+	t *testing.T,
+) (INodeRegistryAdmin, INodeRegistryCaller, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	contractsOptions := testutils.GetContractsOptions(t)
@@ -29,7 +31,10 @@ func buildRegistry(t *testing.T) (INodeRegistryAdmin, context.Context, func()) {
 	registry, err := NewNodeRegistryAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
-	return registry, ctx, func() {
+	caller, err := NewNodeRegistryCaller(logger, client, contractsOptions)
+	require.NoError(t, err)
+
+	return registry, caller, ctx, func() {
 		cancel()
 	}
 }
@@ -57,7 +62,7 @@ func addRandomNode(
 }
 
 func TestAddNode(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	privateKey := testutils.RandomPrivateKey(t)
@@ -75,14 +80,14 @@ func TestAddNodeBadOwner(t *testing.T) {
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomString(10) // This is an invalid hex address
 
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress, 1000)
 	require.ErrorContains(t, err, "invalid owner address provided")
 }
 
 func TestAddNodeBadMinMonthlyFee(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 	privateKey := testutils.RandomPrivateKey(t)
 	httpAddress := testutils.RandomString(32)
@@ -93,7 +98,7 @@ func TestAddNodeBadMinMonthlyFee(t *testing.T) {
 }
 
 func TestDisableNode(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	addRandomNode(t, registry, ctx)
@@ -103,7 +108,7 @@ func TestDisableNode(t *testing.T) {
 }
 
 func TestEnableNode(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	addRandomNode(t, registry, ctx)
@@ -113,7 +118,7 @@ func TestEnableNode(t *testing.T) {
 }
 
 func TestRemoveFromApiNodes(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	addRandomNode(t, registry, ctx)
@@ -123,7 +128,7 @@ func TestRemoveFromApiNodes(t *testing.T) {
 }
 
 func TestRemoveFromReplicationNodes(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	addRandomNode(t, registry, ctx)
@@ -133,7 +138,7 @@ func TestRemoveFromReplicationNodes(t *testing.T) {
 }
 
 func TestSetMaxActiveNodes(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	err := registry.SetMaxActiveNodes(ctx, 100)
@@ -141,7 +146,7 @@ func TestSetMaxActiveNodes(t *testing.T) {
 }
 
 func TestSetNodeOperatorCommissionPercent(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	err := registry.SetNodeOperatorCommissionPercent(ctx, 100)
@@ -149,17 +154,9 @@ func TestSetNodeOperatorCommissionPercent(t *testing.T) {
 }
 
 func TestSetNodeOperatorCommissionPercentInvalid(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	err := registry.SetNodeOperatorCommissionPercent(ctx, -1)
 	require.ErrorContains(t, err, "invalid commission percent provided")
-}
-
-func TestSetBaseURI(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
-
-	err := registry.SetBaseURI(ctx, "https://example.com/")
-	require.NoError(t, err)
 }

@@ -5,9 +5,22 @@ set -eu
 . dev/local.env
 
 export NODE_ADDRESS=$ANVIL_ACC_1_ADDRESS
+export NODE_OPERATOR_PRIVATE_KEY=$ANVIL_ACC_1_PRIVATE_KEY
 
-dev/cli register-node \
+NODE_ID=$(dev/cli register-node \
     --http-address=http://localhost:5050 \
     --node-owner-address=$NODE_ADDRESS \
-    --admin-private-key=$PRIVATE_KEY \
-    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY
+    --admin.private-key=$PRIVATE_KEY \
+    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY | jq -r '.node_id')
+
+dev/cli set-api-enabled  \
+    --node-private-key=$NODE_OPERATOR_PRIVATE_KEY \
+    --node-id=$NODE_ID \
+    --enable
+
+dev/cli set-replication-enabled \
+    --node-private-key=$NODE_OPERATOR_PRIVATE_KEY \
+    --node-id=$NODE_ID \
+    --enable
+
+echo -e "\033[32m✔\033[0m Node with ID $NODE_ID has been registered and enabled\n"

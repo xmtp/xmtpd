@@ -13,7 +13,10 @@ import (
 )
 
 type INodeRegistryCaller interface {
+	GetActiveApiNodes(ctx context.Context) ([]nodesv2.INodesNodeWithId, error)
+	GetActiveReplicationNodes(ctx context.Context) ([]nodesv2.INodesNodeWithId, error)
 	GetAllNodes(ctx context.Context) ([]nodesv2.INodesNodeWithId, error)
+	GetNode(ctx context.Context, nodeId int64) (nodesv2.INodesNode, error)
 	OwnerOf(ctx context.Context, nodeId int64) (common.Address, error)
 }
 
@@ -65,18 +68,6 @@ func (n *nodeRegistryCaller) GetAllNodes(
 	return n.contract.GetAllNodes(&bind.CallOpts{
 		Context: ctx,
 	})
-}
-
-func (n *nodeRegistryCaller) GetAllNodesCount(
-	ctx context.Context,
-) (uint64, error) {
-	count, err := n.contract.GetAllNodesCount(&bind.CallOpts{
-		Context: ctx,
-	})
-	if err != nil {
-		return 0, err
-	}
-	return count.Uint64(), nil
 }
 
 func (n *nodeRegistryCaller) GetNode(

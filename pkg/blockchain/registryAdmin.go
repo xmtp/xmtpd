@@ -29,9 +29,12 @@ type INodeRegistryAdmin interface {
 	EnableNode(ctx context.Context, nodeId int64) error
 	RemoveFromApiNodes(ctx context.Context, nodeId int64) error
 	RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error
+	SetHttpAddress(ctx context.Context, nodeId int64, httpAddress string) error
+	SetMinMonthlyFee(ctx context.Context, nodeId int64, minMonthlyFee int64) error
+	SetIsApiEnabled(ctx context.Context, nodeId int64, isApiEnabled bool) error
+	SetIsReplicationEnabled(ctx context.Context, nodeId int64, isReplicationEnabled bool) error
 	SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error
 	SetNodeOperatorCommissionPercent(ctx context.Context, commissionPercent int64) error
-	SetBaseURI(ctx context.Context, baseURI string) error
 }
 
 type nodeRegistryAdmin struct {
@@ -201,6 +204,126 @@ func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, node
 	)
 }
 
+func (n *nodeRegistryAdmin) SetHttpAddress(
+	ctx context.Context,
+	nodeId int64,
+	httpAddress string,
+) error {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetHttpAddress(
+				opts,
+				big.NewInt(nodeId),
+				httpAddress,
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseHttpAddressUpdated(*log)
+		},
+		func(event interface{}) {
+			httpAddressUpdated := event.(*nodesv2.NodesV2HttpAddressUpdated)
+			n.logger.Info("http address updated",
+				zap.Uint64("node_id", httpAddressUpdated.NodeId.Uint64()),
+				zap.String("http_address", httpAddressUpdated.NewHttpAddress),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) SetMinMonthlyFee(
+	ctx context.Context,
+	nodeId int64,
+	minMonthlyFee int64,
+) error {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetMinMonthlyFee(
+				opts,
+				big.NewInt(nodeId),
+				big.NewInt(minMonthlyFee),
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseMinMonthlyFeeUpdated(*log)
+		},
+		func(event interface{}) {
+			minMonthlyFeeUpdated := event.(*nodesv2.NodesV2MinMonthlyFeeUpdated)
+			n.logger.Info("min monthly fee updated",
+				zap.Uint64("node_id", minMonthlyFeeUpdated.NodeId.Uint64()),
+				zap.String("min_monthly_fee", minMonthlyFeeUpdated.MinMonthlyFee.String()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) SetIsApiEnabled(
+	ctx context.Context,
+	nodeId int64,
+	isApiEnabled bool,
+) error {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetIsApiEnabled(opts, big.NewInt(nodeId), isApiEnabled)
+		},
+		func(log *types.Log) (interface{}, error) {
+			if isApiEnabled {
+				return n.contract.ParseApiEnabled(*log)
+			}
+			return n.contract.ParseApiDisabled(*log)
+		},
+		func(event interface{}) {
+			apiEnabled := event.(*nodesv2.NodesV2ApiEnabled)
+			n.logger.Info("api enabled",
+				zap.Uint64("node_id", apiEnabled.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) SetIsReplicationEnabled(
+	ctx context.Context,
+	nodeId int64,
+	isReplicationEnabled bool,
+) error {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.SetIsReplicationEnabled(
+				opts,
+				big.NewInt(nodeId),
+				isReplicationEnabled,
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			if isReplicationEnabled {
+				return n.contract.ParseReplicationEnabled(*log)
+			}
+			return n.contract.ParseReplicationDisabled(*log)
+		},
+		func(event interface{}) {
+			replicationEnabled := event.(*nodesv2.NodesV2ReplicationEnabled)
+			n.logger.Info("replication enabled",
+				zap.Uint64("node_id", replicationEnabled.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
 func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error {
 	return ExecuteTransaction(
 		ctx,
@@ -252,27 +375,6 @@ func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
 					"node_operator_commission_percent",
 					nodeOperatorCommissionPercentUpdated.NewCommissionPercent.Uint64(),
 				),
-			)
-		},
-	)
-}
-
-func (n *nodeRegistryAdmin) SetBaseURI(ctx context.Context, baseURI string) error {
-	return ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetBaseURI(opts, baseURI)
-		},
-		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseBaseURIUpdated(*log)
-		},
-		func(event interface{}) {
-			baseURIUpdated := event.(*nodesv2.NodesV2BaseURIUpdated)
-			n.logger.Info("base uri updated",
-				zap.String("base_uri", baseURIUpdated.NewBaseURI),
 			)
 		},
 	)

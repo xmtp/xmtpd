@@ -320,14 +320,17 @@ func (n *nodeRegistryAdmin) SetIsApiEnabled(
 			return n.contract.ParseApiDisabled(*log)
 		},
 		func(event interface{}) {
-			apiEnabled, ok := event.(*nodesv2.NodesV2ApiEnabled)
-			if !ok {
-				n.logger.Error("api enabled event is not of type NodesV2ApiEnabled")
-				return
+			if isApiEnabled {
+				apiEnabled := event.(*nodesv2.NodesV2ApiEnabled)
+				n.logger.Info("api enabled",
+					zap.Uint64("node_id", apiEnabled.NodeId.Uint64()),
+				)
+			} else {
+				apiDisabled := event.(*nodesv2.NodesV2ApiDisabled)
+				n.logger.Info("api disabled",
+					zap.Uint64("node_id", apiDisabled.NodeId.Uint64()),
+				)
 			}
-			n.logger.Info("api enabled",
-				zap.Uint64("node_id", apiEnabled.NodeId.Uint64()),
-			)
 		},
 	)
 }
@@ -356,14 +359,17 @@ func (n *nodeRegistryAdmin) SetIsReplicationEnabled(
 			return n.contract.ParseReplicationDisabled(*log)
 		},
 		func(event interface{}) {
-			replicationEnabled, ok := event.(*nodesv2.NodesV2ReplicationEnabled)
-			if !ok {
-				n.logger.Error("replication enabled event is not of type NodesV2ReplicationEnabled")
-				return
+			if isReplicationEnabled {
+				replicationEnabled := event.(*nodesv2.NodesV2ReplicationEnabled)
+				n.logger.Info("replication enabled",
+					zap.Uint64("node_id", replicationEnabled.NodeId.Uint64()),
+				)
+			} else {
+				replicationDisabled := event.(*nodesv2.NodesV2ReplicationDisabled)
+				n.logger.Info("replication disabled",
+					zap.Uint64("node_id", replicationDisabled.NodeId.Uint64()),
+				)
 			}
-			n.logger.Info("replication enabled",
-				zap.Uint64("node_id", replicationEnabled.NodeId.Uint64()),
-			)
 		},
 	)
 }

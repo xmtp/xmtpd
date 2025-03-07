@@ -38,6 +38,19 @@ type GetPubKeyOptions struct {
 	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`
 }
 
+type AddRatesOptions struct {
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
+	MessageFee      uint64 `long:"message-fee"       description:"Message fee"`
+	StorageFee      uint64 `long:"storage-fee"       description:"Storage fee"`
+	CongestionFee   uint64 `long:"congestion-fee"    description:"Congestion fee"`
+	DelayDays       uint   `long:"delay-days"        description:"Delay the rates going into effect for N days"    default:"0"`
+}
+
+type UpdateHealthOptions struct {
+	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
+	NodeId          int64  `long:"node-id"           description:"NodeId to update"`
+}
+
 type RegisterNodeOptions struct {
 	AdminOptions  AdminOptions `group:"Admin Options" namespace:"admin"`
 	HttpAddress   string       `                                        long:"http-address"         description:"HTTP address to register for the node"                            required:"true"`

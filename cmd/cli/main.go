@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
+	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
 
@@ -35,6 +37,7 @@ type CLI struct {
 	SetMaxActiveNodes                config.SetMaxActiveNodesOptions
 	SetNodeOperatorCommissionPercent config.SetNodeOperatorCommissionPercentOptions
 	GetOptions                       config.GetOptions
+	AddRates                         config.AddRatesOptions
 }
 
 /*
@@ -61,6 +64,8 @@ func parseOptions(args []string) (*CLI, error) {
 	var setMaxActiveNodesOptions config.SetMaxActiveNodesOptions
 	var setNodeOperatorCommissionPercentOptions config.SetNodeOperatorCommissionPercentOptions
 	var getOptions config.GetOptions
+	var addRatesOptions config.AddRatesOptions
+
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -125,6 +130,9 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("get-node", "Get a node from the registry", "", &getOptions); err != nil {
 		return nil, fmt.Errorf("could not add get-node command: %s", err)
 	}
+	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
+		return nil, fmt.Errorf("Could not add add-rates command: %s", err)
+	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			return nil, fmt.Errorf("could not parse options: %s", err)
@@ -152,6 +160,7 @@ func parseOptions(args []string) (*CLI, error) {
 		setMaxActiveNodesOptions,
 		setNodeOperatorCommissionPercentOptions,
 		getOptions,
+		addRatesOptions,
 	}, nil
 }
 
@@ -383,6 +392,48 @@ func setNodeOperatorCommissionPercent(logger *zap.Logger, options *CLI) {
 	if err != nil {
 		logger.Fatal("could not set node operator commission percent", zap.Error(err))
 	}
+}
+
+func addRates(logger *zap.Logger, options *CLI) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
+	defer cancel()
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.AddRates.AdminPrivateKey,
+		options.Contracts.ChainID,
+	)
+	if err != nil {
+		logger.Fatal("could not create signer", zap.Error(err))
+	}
+
+	ratesManager, err := blockchain.NewRatesAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create rates admin", zap.Error(err))
+	}
+
+	startTime := time.Now().Add(time.Duration(options.AddRates.DelayDays) * 24 * time.Hour)
+
+	rates := ratesmanager.RatesManagerRates{
+		MessageFee:    options.AddRates.MessageFee,
+		StorageFee:    options.AddRates.StorageFee,
+		CongestionFee: options.AddRates.CongestionFee,
+		StartTime:     uint64(startTime.Unix()),
+	}
+
+	if err = ratesManager.AddRates(ctx, rates); err != nil {
+		logger.Fatal("could not add rates", zap.Error(err))
+	}
+
+	logger.Info("added rates", zap.Any("rates", rates))
 }
 
 /*
@@ -697,6 +748,9 @@ func main() {
 		return
 	case "get-node":
 		getNode(logger, options)
+		return
+	case "add-rates":
+		addRates(logger, options)
 		return
 	}
 }

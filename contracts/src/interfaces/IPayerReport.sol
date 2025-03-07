@@ -10,6 +10,15 @@ interface IPayerReport {
     //                             STRUCTS
     //==============================================================
 
+    /// @notice A struct containing the usage report details.
+    /// @param originatorNode The address of the originator node.
+    /// @param startingSequenceID The starting sequence ID of the report.
+    /// @param endingSequenceID The ending sequence ID of the report.
+    /// @param lastMessageTimestamp The timestamp of the last message in the report.
+    /// @param reportTimestamp The timestamp of the report.
+    /// @param reportMerkleRoot The Merkle root of the report.
+    /// @param leafCount The number of leaves in the report.
+    /// A leaf is a single (payer, amount) pair.
     struct PayerReport {
         address originatorNode;
         uint256 startingSequenceID;
@@ -17,7 +26,7 @@ interface IPayerReport {
         uint256 lastMessageTimestamp;
         uint256 reportTimestamp;
         bytes32 reportMerkleRoot;
-        uint16 batches;
+        uint16 leafCount;
     }
 
     //==============================================================
@@ -38,7 +47,7 @@ interface IPayerReport {
         uint256 endingSequenceID,
         uint256 lastMessageTimestamp,
         uint256 reportTimestamp,
-        uint16 batches
+        uint16 leafCount
     );
 
     /**

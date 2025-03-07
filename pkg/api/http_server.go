@@ -48,10 +48,10 @@ func (s *ApiServer) startHTTP(
 	}
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "http", func(ctx context.Context) {
-		s.log.Info("serving http", zap.String("address", s.httpListener.Addr().String()))
 		if s.httpListener == nil {
 			s.log.Fatal("no http listener")
 		}
+		s.log.Info("serving http", zap.String("address", s.httpListener.Addr().String()))
 		err = gwServer.Serve(s.httpListener)
 		if err != nil && err != http.ErrServerClosed && !isErrUseOfClosedConnection(err) {
 			s.log.Error("serving http", zap.Error(err))

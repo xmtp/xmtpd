@@ -163,24 +163,15 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 	}
 
 	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
+		var err error
 		err = metadata_api.RegisterMetadataApiHandler(ctx, gwmux, conn)
-		log.Info("Metadata http gateway enabled")
-
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 
 		err = message_api.RegisterReplicationApiHandler(ctx, gwmux, conn)
-		log.Info("Replication http gateway enabled")
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 
 		err = payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
-		log.Info("Payer http gateway enabled")
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 
 		return nil
 	}

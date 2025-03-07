@@ -134,7 +134,9 @@ func NewAPIServer(
 		}
 	})
 
-	s.startHTTP(ctx, log, httpRegistrationFunc)
+	if err := s.startHTTP(ctx, log, httpRegistrationFunc); err != nil {
+		return nil, err
+	}
 
 	return s, nil
 }

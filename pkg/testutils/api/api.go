@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
@@ -15,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+
 	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -160,12 +162,28 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 		return nil
 	}
 
+	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
+		var err error
+		err = metadata_api.RegisterMetadataApiHandler(ctx, gwmux, conn)
+		require.NoError(t, err)
+
+		err = message_api.RegisterReplicationApiHandler(ctx, gwmux, conn)
+		require.NoError(t, err)
+
+		err = payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
+		require.NoError(t, err)
+
+		return nil
+	}
+
 	svr, err := api.NewAPIServer(
 		ctx,
 		log,
 		"localhost:0", /*listenAddress*/
-		true,          /*enableReflection*/
+		"localhost:0",
+		true, /*enableReflection*/
 		serviceRegistrationFunc,
+		httpRegistrationFunc,
 		jwtVerifier,
 	)
 	require.NoError(t, err)

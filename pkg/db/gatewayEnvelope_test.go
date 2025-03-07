@@ -2,10 +2,11 @@ package db_test
 
 import (
 	"context"
-	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -64,6 +65,13 @@ func TestInsertAndIncrement(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, payerSpend, int64(100))
+
+	originatorCongestion, err := querier.GetOriginatorCongestion(
+		ctx,
+		queries.GetOriginatorCongestionParams{OriginatorID: originatorID},
+	)
+	require.NoError(t, err)
+	require.Equal(t, originatorCongestion, int64(1))
 }
 
 func TestPayerMustExist(t *testing.T) {
@@ -131,4 +139,11 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, payerSpend, int64(100))
+
+	originatorCongestion, err := querier.GetOriginatorCongestion(
+		ctx,
+		queries.GetOriginatorCongestionParams{OriginatorID: originatorID},
+	)
+	require.NoError(t, err)
+	require.Equal(t, originatorCongestion, int64(1))
 }

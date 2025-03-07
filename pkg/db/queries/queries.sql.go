@@ -27,13 +27,15 @@ func (q *Queries) DeleteAvailableNonce(ctx context.Context, nonce int64) (int64,
 
 const deleteObsoleteNonces = `-- name: DeleteObsoleteNonces :execrows
 WITH deletable AS (
-    SELECT n.nonce
-    FROM nonce_table n
-    WHERE n.nonce < $1
-    FOR UPDATE SKIP LOCKED
-)
-DELETE FROM nonce_table
-    USING deletable
+	SELECT
+		n.nonce
+	FROM
+		nonce_table n
+	WHERE
+		n.nonce < $1
+	FOR UPDATE
+		SKIP LOCKED)
+DELETE FROM nonce_table USING deletable
 WHERE nonce_table.nonce = deletable.nonce
 `
 
@@ -59,7 +61,8 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 }
 
 const fillNonceSequence = `-- name: FillNonceSequence :exec
-SELECT fill_nonce_gap($1, $2)
+SELECT
+	fill_nonce_gap($1, $2)
 `
 
 type FillNonceSequenceParams struct {
@@ -269,13 +272,14 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 
 const getNextAvailableNonce = `-- name: GetNextAvailableNonce :one
 SELECT
-    nonce
+	nonce
 FROM
-    nonce_table
+	nonce_table
 ORDER BY
-    nonce
-    ASC LIMIT 1
-    FOR UPDATE SKIP LOCKED
+	nonce ASC
+LIMIT 1
+FOR UPDATE
+	SKIP LOCKED
 `
 
 func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
@@ -283,6 +287,32 @@ func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
 	var nonce int64
 	err := row.Scan(&nonce)
 	return nonce, err
+}
+
+const getOriginatorCongestion = `-- name: GetOriginatorCongestion :one
+SELECT
+	COALESCE(SUM(num_messages), 0)::BIGINT AS num_messages
+FROM
+	originator_congestion
+WHERE
+	originator_id = $1
+	AND ($2::BIGINT = 0
+		OR minutes_since_epoch > $2::BIGINT)
+	AND ($3::BIGINT = 0
+		OR minutes_since_epoch < $3::BIGINT)
+`
+
+type GetOriginatorCongestionParams struct {
+	OriginatorID        int32
+	MinutesSinceEpochGt int64
+	MinutesSinceEpochLt int64
+}
+
+func (q *Queries) GetOriginatorCongestion(ctx context.Context, arg GetOriginatorCongestionParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
+	var num_messages int64
+	err := row.Scan(&num_messages)
+	return num_messages, err
 }
 
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
@@ -309,6 +339,24 @@ func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsett
 	var total_spend_picodollars int64
 	err := row.Scan(&total_spend_picodollars)
 	return total_spend_picodollars, err
+}
+
+const incrementOriginatorCongestion = `-- name: IncrementOriginatorCongestion :exec
+INSERT INTO originator_congestion(originator_id, minutes_since_epoch, num_messages)
+	VALUES ($1, $2, 1)
+ON CONFLICT (originator_id, minutes_since_epoch)
+	DO UPDATE SET
+		num_messages = originator_congestion.num_messages + 1
+`
+
+type IncrementOriginatorCongestionParams struct {
+	OriginatorID      int32
+	MinutesSinceEpoch int32
+}
+
+func (q *Queries) IncrementOriginatorCongestion(ctx context.Context, arg IncrementOriginatorCongestionParams) error {
+	_, err := q.db.ExecContext(ctx, incrementOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpoch)
+	return err
 }
 
 const incrementUnsettledUsage = `-- name: IncrementUnsettledUsage :exec

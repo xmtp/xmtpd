@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
@@ -30,9 +31,35 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 				return 0, nil
 			}
 
-			err = txQueries.IncrementUnsettledUsage(ctx, incrementParams)
-			if err != nil {
-				return 0, err
+			var wg sync.WaitGroup
+			var incrementErr, congestionErr error
+
+			wg.Add(2)
+
+			go func() {
+				defer wg.Done()
+				incrementErr = txQueries.IncrementUnsettledUsage(ctx, incrementParams)
+			}()
+
+			go func() {
+				defer wg.Done()
+				congestionErr = txQueries.IncrementOriginatorCongestion(
+					ctx,
+					queries.IncrementOriginatorCongestionParams{
+						OriginatorID:      incrementParams.OriginatorID,
+						MinutesSinceEpoch: incrementParams.MinutesSinceEpoch,
+					},
+				)
+			}()
+
+			wg.Wait()
+
+			if incrementErr != nil {
+				return 0, incrementErr
+			}
+
+			if congestionErr != nil {
+				return 0, congestionErr
 			}
 
 			return numInserted, nil

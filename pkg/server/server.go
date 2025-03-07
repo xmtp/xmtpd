@@ -275,14 +275,12 @@ func startAPIServer(
 	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
 		if options.Replication.Enable {
 			err = metadata_api.RegisterMetadataApiHandler(ctx, gwmux, conn)
-			log.Info("Metadata http gateway enabled")
 
 			if err != nil {
 				return err
 			}
 
 			err = message_api.RegisterReplicationApiHandler(ctx, gwmux, conn)
-			log.Info("Replication http gateway enabled")
 			if err != nil {
 				return err
 			}
@@ -290,7 +288,6 @@ func startAPIServer(
 
 		if options.Payer.Enable {
 			err = payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
-			log.Info("Payer http gateway enabled")
 			if err != nil {
 				return err
 			}

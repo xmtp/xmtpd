@@ -5,6 +5,43 @@ function get_chain_id() {
     export chain_id=$((hex_chain_id))
 }
 
+function forge_verify_contract() {
+    chain_name=$(get_chain_name)
+    contract_name=$1
+    impl_key="$(echo ${contract_name:0:1} | tr '[:upper:]' '[:lower:]')${contract_name:1}Impl"
+    deployed_address="$(jq -r ".addresses.$impl_key" config/${chain_name}/${contract_name}.json)"
+    if [ -z "$deployed_address" ]; then
+        echo "Failed to get deployed address for $contract_name"
+        exit 1
+    fi
+
+    forge verify-contract \
+        --verifier=blockscout \
+        --verifier-url=${VERIFIER_URL} \
+        --chain-id=${chain_id} \
+        --compiler-version 0.8.28 \
+        $deployed_address \
+        $contract_name 
+        
+}
+
+function get_chain_name() {
+    case $chain_id in
+        31337)
+            echo "anvil_localnet"
+            ;;
+        241320161)
+            echo "xmtp_testnet"
+            ;;
+        84532)
+            echo "base_sepolia"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
 function forge_deploy_script() {
     get_chain_id
     case $1 in
@@ -59,6 +96,12 @@ function forge_deploy_script() {
             echo -e "\033[32m✔\033[0m RatesManager deployed. Deployment details in contracts/config/anvil_localnet/RatesManager.json\n"
             ;;
 
+        merkle)
+            echo "⧖ Deploying StandardMerkleTree to chainId ${chain_id} using RPC ${RPC_URL}"
+            forge create --broadcast --legacy --json --rpc-url $RPC_URL --private-key $PRIVATE_KEY "$2:$3" > config/anvil_localnet/$3.json
+            echo -e "\033[32m✔\033[0m StandardMerkleTree deployed. Deployment details in contracts/config/anvil_localnet/$3.json\n"
+
+            ;;
         *)
             echo "Invalid option. Use 'group_messages', 'identity_updates', 'nodes', or 'nodes_v2'."
             exit 1

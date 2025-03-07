@@ -1,53 +1,96 @@
 #!/bin/bash
 
 function get_chain_id() {
-    hex_chain_id=$(curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_chainId","id":1}' ${RPC_URL} | jq -r '.result')
+    echo "⧖ Getting chain id from RPC ${1}"
+    hex_chain_id=$(curl -s --connect-timeout 5 --max-time 10 -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_chainId","id":1}' ${1} | jq -r '.result' || true)
+
+    if [[ -z "${hex_chain_id:-}" ]]; then
+        echo "ERROR: Failed to get chain id from RPC ${1}"
+        exit 1
+    fi
+
     export chain_id=$((hex_chain_id))
 }
 
+function get_chain_name() {
+    case $chain_id in
+        31337)
+            echo "anvil_localnet"
+            ;;
+        241320161)
+            echo "xmtp_testnet"
+            ;;
+        84532)
+            echo "base_sepolia"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
 function forge_deploy_script() {
-    get_chain_id
     case $1 in
         group_messages)
-            echo "⧖ Deploying GroupMessages to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployGroupMessages.s.sol || BUILD_FAILED=true
+            get_chain_id "${APP_CHAIN_RPC_URL}"
+            echo "⧖ Deploying GroupMessages to chainId ${chain_id} using RPC ${APP_CHAIN_RPC_URL}"
+            forge script --quiet --rpc-url "${APP_CHAIN_RPC_URL}" --broadcast script/DeployGroupMessages.s.sol || BUILD_FAILED=true
             if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy group messages contract"
                 exit 1
             fi
 
+            export VERIFIER="${APP_CHAIN_VERIFIER:-}"
+            export VERIFIER_URL="${APP_CHAIN_VERIFIER_URL:-}"
+            forge_verify_contract GroupMessages
+
             echo -e "\033[32m✔\033[0m GroupMessages deployed. Deployment details in contracts/config/anvil_localnet/GroupMessages.json\n"
             ;;
 
         identity_updates)
-            echo "⧖ Deploying IdentityUpdates to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol || BUILD_FAILED=true
+            get_chain_id "${APP_CHAIN_RPC_URL}"
+            echo "⧖ Deploying IdentityUpdates to chainId ${chain_id} using RPC ${APP_CHAIN_RPC_URL}"
+            forge script --quiet --rpc-url "${APP_CHAIN_RPC_URL}" --broadcast script/DeployIdentityUpdates.s.sol || BUILD_FAILED=true
             if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy identity updates contract"
                 exit 1
             fi
 
+            export VERIFIER="${APP_CHAIN_VERIFIER:-}"
+            export VERIFIER_URL="${APP_CHAIN_VERIFIER_URL:-}"
+            forge_verify_contract IdentityUpdates
+
             echo -e "\033[32m✔\033[0m IdentityUpdates deployed. Deployment details in contracts/config/anvil_localnet/IdentityUpdates.json\n"
             ;;
 
         nodes)
-            echo "⧖ Deploying Nodes to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployNodeRegistry.s.sol || BUILD_FAILED=true
+            get_chain_id "${PARENT_CHAIN_RPC_URL}"
+            echo "⧖ Deploying Nodes to chainId ${chain_id} using RPC ${PARENT_CHAIN_RPC_URL}"
+            forge script --quiet --rpc-url "${PARENT_CHAIN_RPC_URL}" --broadcast script/DeployNodeRegistry.s.sol || BUILD_FAILED=true
             if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy Nodes contract"
                 exit 1
             fi
 
+            export VERIFIER="${PARENT_CHAIN_VERIFIER:-}"
+            export VERIFIER_URL="${PARENT_CHAIN_VERIFIER_URL:-}"
+            forge_verify_contract Nodes
+
             echo -e "\033[32m✔\033[0m Nodes deployed. Deployment details in contracts/config/anvil_localnet/XMTPNodeRegistry.json\n"
             ;;
 
         rates_manager)
-            echo "⧖ Deploying RatesManager to chainId ${chain_id} using RPC ${RPC_URL}"
-            forge script --quiet --rpc-url "${RPC_URL}" --broadcast script/DeployRatesManager.s.sol || BUILD_FAILED=true
+            get_chain_id "${APP_CHAIN_RPC_URL}"
+            echo "⧖ Deploying RatesManager to chainId ${chain_id} using RPC ${APP_CHAIN_RPC_URL}"
+            forge script --quiet --rpc-url "${APP_CHAIN_RPC_URL}" --broadcast script/DeployRatesManager.s.sol || BUILD_FAILED=true
             if [[ -n "${BUILD_FAILED:-}" ]]; then
                 echo "Failed to deploy rates manager contract"
                 exit 1
             fi
+
+            export VERIFIER="${APP_CHAIN_VERIFIER:-}"
+            export VERIFIER_URL="${APP_CHAIN_VERIFIER_URL:-}"
+            forge_verify_contract RatesManager
 
             echo -e "\033[32m✔\033[0m RatesManager deployed. Deployment details in contracts/config/anvil_localnet/RatesManager.json\n"
             ;;
@@ -57,6 +100,36 @@ function forge_deploy_script() {
             exit 1
             ;;
     esac
+}
+
+function forge_verify_contract() {
+    chain_name=$(get_chain_name)
+    contract_name=$1
+
+    if [[ "$chain_name" == "anvil_localnet" ]]; then 
+        echo "Skipping verification on anvil_localnet"
+        return
+    fi
+
+    if [[ -z "$VERIFIER_URL" ]] || [[ -z "$VERIFIER" ]]; then
+        echo "Skipping verification for contract $contract_name because VERIFIER_URL or VERIFIER is not set"
+        return
+    fi
+
+    impl_key="$(echo ${contract_name:0:1} | tr '[:upper:]' '[:lower:]')${contract_name:1}Impl"
+    deployed_address="$(jq -r ".addresses.$impl_key" config/${chain_name}/${contract_name}.json)"
+    if [ -z "$deployed_address" ]; then
+        echo "Failed to get deployed address for $contract_name"
+        exit 1
+    fi
+
+    forge verify-contract \
+        --verifier=${VERIFIER} \
+        --verifier-url=${VERIFIER_URL} \
+        --chain-id=${chain_id} \
+        --compiler-version ${COMPILER_VERSION} \
+        $deployed_address \
+        $contract_name
 }
 
 function forge_clean() {

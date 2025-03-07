@@ -15,20 +15,11 @@ import (
 
 func setupRegistry(
 	t *testing.T,
-	adminVersion blockchain.RegistryAdminVersion,
-	callerVersion blockchain.RegistryCallerVersion,
 ) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	contractsOptions := testutils.GetContractsOptions(t)
-
-	if adminVersion == blockchain.RegistryAdminV1 {
-		contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
-	}
-
-	if adminVersion == blockchain.RegistryAdminV2 {
-		contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
-	}
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -44,7 +35,6 @@ func setupRegistry(
 		client,
 		signer,
 		contractsOptions,
-		adminVersion,
 	)
 	require.NoError(t, err)
 
@@ -52,7 +42,6 @@ func setupRegistry(
 		logger,
 		client,
 		contractsOptions,
-		callerVersion,
 	)
 	require.NoError(t, err)
 
@@ -65,61 +54,58 @@ func setupRegistry(
 func registerRandomNode(
 	t *testing.T,
 	registryAdmin blockchain.INodeRegistryAdmin,
-) SerializableNodeV1 {
+) SerializableNode {
 	ownerAddress := testutils.RandomAddress().Hex()
 	httpAddress := testutils.RandomString(30)
 	publicKey := testutils.RandomPrivateKey(t).PublicKey
 	require.Eventually(t, func() bool {
-		err := registryAdmin.AddNode(context.Background(), ownerAddress, &publicKey, httpAddress)
+		err := registryAdmin.AddNode(context.Background(), ownerAddress, &publicKey, httpAddress, 0)
 		return err == nil
 	}, 1*time.Second, 50*time.Millisecond)
 
-	return SerializableNodeV1{
-		OwnerAddress:  ownerAddress,
-		HttpAddress:   httpAddress,
-		SigningKeyPub: utils.EcdsaPublicKeyToString(&publicKey),
-		IsHealthy:     true,
-		// We don't get the node ID here. Can live without for the tests
+	return SerializableNode{
+		OwnerAddress:         ownerAddress,
+		HttpAddress:          httpAddress,
+		SigningKeyPub:        utils.EcdsaPublicKeyToString(&publicKey),
+		MinMonthlyFee:        0,
+		IsReplicationEnabled: false,
+		IsApiEnabled:         false,
 	}
 }
 
 func TestRegistryRead(t *testing.T) {
-	registryAdminV1, registryCaller, cleanup := setupRegistry(
-		t,
-		blockchain.RegistryAdminV1,
-		blockchain.RegistryCallerV1,
-	)
+	registryAdmin, registryCaller, cleanup := setupRegistry(t)
 	defer cleanup()
 
-	node1 := registerRandomNode(t, registryAdminV1)
-	node2 := registerRandomNode(t, registryAdminV1)
+	node1 := registerRandomNode(t, registryAdmin)
+	node2 := registerRandomNode(t, registryAdmin)
 
-	nodes, err := ReadFromRegistry[SerializableNodeV1](registryCaller)
+	nodes, err := ReadFromRegistry(registryCaller)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
 	require.Equal(t, node1.OwnerAddress, nodes[0].OwnerAddress)
 	require.Equal(t, node1.HttpAddress, nodes[0].HttpAddress)
 	require.Equal(t, node1.SigningKeyPub, nodes[0].SigningKeyPub)
-	require.Equal(t, node1.IsHealthy, nodes[0].IsHealthy)
+	require.Equal(t, node1.MinMonthlyFee, nodes[0].MinMonthlyFee)
+	require.Equal(t, node1.IsReplicationEnabled, nodes[0].IsReplicationEnabled)
+	require.Equal(t, node1.IsApiEnabled, nodes[0].IsApiEnabled)
 
 	require.Equal(t, node2.OwnerAddress, nodes[1].OwnerAddress)
 	require.Equal(t, node2.HttpAddress, nodes[1].HttpAddress)
 	require.Equal(t, node2.SigningKeyPub, nodes[1].SigningKeyPub)
-	require.Equal(t, node2.IsHealthy, nodes[1].IsHealthy)
+	require.Equal(t, node2.MinMonthlyFee, nodes[1].MinMonthlyFee)
+	require.Equal(t, node2.IsReplicationEnabled, nodes[1].IsReplicationEnabled)
+	require.Equal(t, node2.IsApiEnabled, nodes[1].IsApiEnabled)
 }
 
 func TestFileDump(t *testing.T) {
-	registryAdminV1, registryCaller, cleanup := setupRegistry(
-		t,
-		blockchain.RegistryAdminV1,
-		blockchain.RegistryCallerV1,
-	)
+	registryAdmin, registryCaller, cleanup := setupRegistry(t)
 	defer cleanup()
 
-	_ = registerRandomNode(t, registryAdminV1)
+	_ = registerRandomNode(t, registryAdmin)
 
-	nodes, err := ReadFromRegistry[SerializableNodeV1](registryCaller)
+	nodes, err := ReadFromRegistry(registryCaller)
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -137,32 +123,22 @@ func TestFileDump(t *testing.T) {
 }
 
 func TestRegistryWrite(t *testing.T) {
-	registryAdminV1, registryCallerV1, cleanupV1 := setupRegistry(
-		t,
-		blockchain.RegistryAdminV1,
-		blockchain.RegistryCallerV1,
-	)
-	defer cleanupV1()
+	registryAdmin, registryCaller, cleanup := setupRegistry(t)
+	defer cleanup()
 
-	node1 := registerRandomNode(t, registryAdminV1)
-	node2 := registerRandomNode(t, registryAdminV1)
+	node1 := registerRandomNode(t, registryAdmin)
+	node2 := registerRandomNode(t, registryAdmin)
 
-	nodes, err := ReadFromRegistry[SerializableNodeV1](registryCallerV1)
+	nodes, err := ReadFromRegistry(registryCaller)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
-	// Build a NodesV2 registry
-	registryAdminV2, registryCallerV2, cleanupV2 := setupRegistry(
-		t,
-		blockchain.RegistryAdminV2,
-		blockchain.RegistryCallerV2,
-	)
-	defer cleanupV2()
-
-	err = WriteToRegistryV2(testutils.NewLog(t), nodes, registryAdminV2)
+	registryAdmin2, registryCaller2, cleanup2 := setupRegistry(t)
+	defer cleanup2()
+	err = WriteToRegistry(testutils.NewLog(t), nodes, registryAdmin2)
 	require.NoError(t, err)
 
-	restoredNodes, err := ReadFromRegistry[SerializableNodeV2](registryCallerV2)
+	restoredNodes, err := ReadFromRegistry(registryCaller2)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(restoredNodes))
 
@@ -175,10 +151,10 @@ func TestRegistryWrite(t *testing.T) {
 	require.Equal(t, node2.SigningKeyPub, restoredNodes[1].SigningKeyPub)
 
 	// New parameters should be the default values.
-	require.Equal(t, "0", restoredNodes[0].MinMonthlyFee)
+	require.Equal(t, int64(0), restoredNodes[0].MinMonthlyFee)
 	require.Equal(t, false, restoredNodes[0].IsReplicationEnabled)
 	require.Equal(t, false, restoredNodes[0].IsApiEnabled)
-	require.Equal(t, "0", restoredNodes[1].MinMonthlyFee)
+	require.Equal(t, int64(0), restoredNodes[1].MinMonthlyFee)
 	require.Equal(t, false, restoredNodes[1].IsReplicationEnabled)
 	require.Equal(t, false, restoredNodes[1].IsApiEnabled)
 }

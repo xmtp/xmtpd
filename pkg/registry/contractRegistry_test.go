@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
+	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/pkg/config"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
@@ -47,10 +47,10 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
-		Return([]nodesv2.INodesNodeWithId{
+		Return([]nodes.INodesNodeWithId{
 			{
 				NodeId: big.NewInt(1),
-				Node: nodesv2.INodesNode{
+				Node: nodes.INodesNode{
 					HttpAddress:          "http://foo.com",
 					SigningKeyPub:        enc,
 					IsDisabled:           false,
@@ -60,7 +60,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 			},
 			{
 				NodeId: big.NewInt(2),
-				Node: nodesv2.INodesNode{
+				Node: nodes.INodesNode{
 					HttpAddress:          "https://bar.com",
 					SigningKeyPub:        enc,
 					IsDisabled:           false,
@@ -102,17 +102,17 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	// Subsequent calls will set the address to bar.com
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
-		RunAndReturn(func(*bind.CallOpts) ([]nodesv2.INodesNodeWithId, error) {
+		RunAndReturn(func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error) {
 			httpAddress := "http://foo.com"
 			if !hasSentInitialValues {
 				hasSentInitialValues = true
 			} else {
 				httpAddress = "http://bar.com"
 			}
-			return []nodesv2.INodesNodeWithId{
+			return []nodes.INodesNodeWithId{
 				{
 					NodeId: big.NewInt(1),
-					Node: nodesv2.INodesNode{
+					Node: nodes.INodesNode{
 						HttpAddress:          httpAddress,
 						SigningKeyPub:        enc,
 						IsDisabled:           false,
@@ -157,11 +157,11 @@ func TestStopOnContextCancel(t *testing.T) {
 	mockContract := mocks.NewMockNodesContract(t)
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
-		RunAndReturn(func(*bind.CallOpts) ([]nodesv2.INodesNodeWithId, error) {
-			return []nodesv2.INodesNodeWithId{
+		RunAndReturn(func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error) {
+			return []nodes.INodesNodeWithId{
 				{
 					NodeId: big.NewInt(rand.Int63n(1000)),
-					Node: nodesv2.INodesNode{
+					Node: nodes.INodesNode{
 						HttpAddress:          "http://foo.com",
 						SigningKeyPub:        enc,
 						IsDisabled:           false,

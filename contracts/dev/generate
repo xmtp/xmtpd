@@ -51,7 +51,7 @@ function main() {
     # Define contracts (pass as arguments or use a default list)
     local contracts=("$@")
     if [ "${#contracts[@]}" -eq 0 ]; then
-        contracts=("Nodes" "GroupMessages" "IdentityUpdates" "NodesV2" "RatesManager")
+        contracts=("GroupMessages" "IdentityUpdates" "Nodes" "RatesManager")
     fi
 
     # Generate bindings for each contract

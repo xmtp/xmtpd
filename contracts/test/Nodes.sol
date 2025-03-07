@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/src/Test.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 import {Utils} from "test/utils/Utils.sol";
-import {NodesV2} from "src/NodesV2.sol";
+import {Nodes} from "src/Nodes.sol";
 import {INodes, INodesEvents, INodesErrors} from "src/interfaces/INodes.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IAccessControlDefaultAdminRules} from "@openzeppelin/contracts/access/extensions/IAccessControlDefaultAdminRules.sol";
@@ -14,7 +14,7 @@ import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.s
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 contract NodesTest is Test, Utils {
-    NodesV2 public nodes;
+    Nodes public nodes;
 
     address admin = address(this);
     address manager = vm.randomAddress();
@@ -28,7 +28,7 @@ contract NodesTest is Test, Utils {
     uint256 nodeId;
 
     function setUp() public {
-        nodes = new NodesV2(admin);
+        nodes = new Nodes(admin);
         nodes.grantRole(nodes.NODE_MANAGER_ROLE(), manager);
     }
 

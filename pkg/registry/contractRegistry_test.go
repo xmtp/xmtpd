@@ -51,8 +51,8 @@ func TestContractRegistryNewNodes(t *testing.T) {
 			{
 				NodeId: big.NewInt(1),
 				Node: nodes.INodesNode{
-					HttpAddress:   "http://foo.com",
-					SigningKeyPub: enc,
+					HttpAddress:          "http://foo.com",
+					SigningKeyPub:        enc,
 					IsDisabled:           false,
 					IsApiEnabled:         true,
 					IsReplicationEnabled: true,
@@ -61,8 +61,8 @@ func TestContractRegistryNewNodes(t *testing.T) {
 			{
 				NodeId: big.NewInt(2),
 				Node: nodes.INodesNode{
-					HttpAddress:   "https://bar.com",
-					SigningKeyPub: enc,
+					HttpAddress:          "https://bar.com",
+					SigningKeyPub:        enc,
 					IsDisabled:           false,
 					IsApiEnabled:         true,
 					IsReplicationEnabled: true,
@@ -112,7 +112,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 			return []nodes.INodesNodeWithId{
 				{
 					NodeId: big.NewInt(1),
-					Node:   nodes.INodesNode{
+					Node: nodes.INodesNode{
 						HttpAddress:          httpAddress,
 						SigningKeyPub:        enc,
 						IsDisabled:           false,

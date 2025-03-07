@@ -25,6 +25,7 @@ func requireNodeEquals(t *testing.T, a, b r.Node) {
 		return a.NodeID == b.NodeID && a.HttpAddress == b.HttpAddress
 	})
 }
+
 func requireAllNodesEqual(t *testing.T, a, b []r.Node) {
 	require.Equal(t, len(a), len(b))
 	for i, node := range a {
@@ -52,6 +53,9 @@ func TestContractRegistryNewNodes(t *testing.T) {
 				Node: nodes.INodesNode{
 					HttpAddress:   "http://foo.com",
 					SigningKeyPub: enc,
+					IsDisabled:           false,
+					IsApiEnabled:         true,
+					IsReplicationEnabled: true,
 				},
 			},
 			{
@@ -59,6 +63,9 @@ func TestContractRegistryNewNodes(t *testing.T) {
 				Node: nodes.INodesNode{
 					HttpAddress:   "https://bar.com",
 					SigningKeyPub: enc,
+					IsDisabled:           false,
+					IsApiEnabled:         true,
+					IsReplicationEnabled: true,
 				},
 			},
 		}, nil)
@@ -105,7 +112,13 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 			return []nodes.INodesNodeWithId{
 				{
 					NodeId: big.NewInt(1),
-					Node:   nodes.INodesNode{HttpAddress: httpAddress, SigningKeyPub: enc},
+					Node:   nodes.INodesNode{
+						HttpAddress:          httpAddress,
+						SigningKeyPub:        enc,
+						IsDisabled:           false,
+						IsApiEnabled:         true,
+						IsReplicationEnabled: true,
+					},
 				},
 			}, nil
 		})
@@ -148,7 +161,13 @@ func TestStopOnContextCancel(t *testing.T) {
 			return []nodes.INodesNodeWithId{
 				{
 					NodeId: big.NewInt(rand.Int63n(1000)),
-					Node:   nodes.INodesNode{HttpAddress: "http://foo.com", SigningKeyPub: enc},
+					Node: nodes.INodesNode{
+						HttpAddress:          "http://foo.com",
+						SigningKeyPub:        enc,
+						IsDisabled:           false,
+						IsApiEnabled:         true,
+						IsReplicationEnabled: true,
+					},
 				},
 			}, nil
 		})

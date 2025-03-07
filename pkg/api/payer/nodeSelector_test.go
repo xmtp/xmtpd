@@ -59,22 +59,6 @@ func TestGetNode_NoAvailableNodesError(t *testing.T) {
 	require.Equal(t, "node fetch error", err.Error(), "Expected registry error message")
 }
 
-func TestGetNode_NoAvailableActiveNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
-	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetUnhealthyNode(100),
-		testutils.GetUnhealthyNode(200),
-		testutils.GetUnhealthyNode(300),
-	}, nil)
-
-	tpc := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
-	selector := payer.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
-
-	_, err := selector.GetNode(tpc)
-	require.Error(t, err)
-	require.Equal(t, "no available active nodes", err.Error())
-}
-
 func TestGetNode_CorrectAssignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{

@@ -246,6 +246,10 @@ func convertNode(rawNode nodes.INodesNodeWithId) Node {
 		isValidConfig = false
 	}
 
+	if rawNode.Node.IsDisabled {
+		isValidConfig = false
+	}
+
 	return Node{
 		NodeID:               uint32(rawNode.NodeId.Uint64()),
 		SigningKey:           signingKey,

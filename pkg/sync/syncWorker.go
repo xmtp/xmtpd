@@ -173,7 +173,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 		return
 	}
 
-	if node.IsDisabled || !node.IsReplicationEnabled || !node.IsValidConfig {
+	if !node.IsValidConfig {
 		s.handleUnhealthyNode(registration)
 		return
 	}

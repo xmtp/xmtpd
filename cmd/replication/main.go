@@ -117,6 +117,7 @@ func main() {
 			chainRegistry,
 			dbInstance,
 			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
+			fmt.Sprintf("0.0.0.0:%d", options.API.HTTPPort),
 			version,
 		)
 		if err != nil {

@@ -33,32 +33,43 @@ type RegistrationFunc func(server *grpc.Server) error
 type ApiServer struct {
 	ctx          context.Context
 	grpcListener net.Listener
+	httpListener net.Listener
 	grpcServer   *grpc.Server
-	log          *zap.Logger
-	wg           sync.WaitGroup
+	// gwmux        *runtime.ServeMux
+	// gwServer     *http.Server
+	log *zap.Logger
+	wg  sync.WaitGroup
 }
 
 func NewAPIServer(
 	ctx context.Context,
 	log *zap.Logger,
 	listenAddress string,
+	httpListenAddress string,
 	enableReflection bool,
 	registrationFunc RegistrationFunc,
+	httpRegistrationFunc HttpRegistrationFunc,
 	jwtVerifier authn.JWTVerifier,
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", listenAddress)
-
 	if err != nil {
 		return nil, err
 	}
+
+	httpListener, err := net.Listen("tcp", httpListenAddress)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &ApiServer{
 		ctx: ctx,
 		grpcListener: &proxyproto.Listener{
 			Listener:          grpcListener,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		log: log.Named("api"),
-		wg:  sync.WaitGroup{},
+		httpListener: httpListener,
+		log:          log.Named("api"),
+		wg:           sync.WaitGroup{},
 	}
 	s.log.Info("Creating API server")
 
@@ -123,6 +134,8 @@ func NewAPIServer(
 		}
 	})
 
+	s.startHTTP(ctx, log, httpRegistrationFunc)
+
 	return s, nil
 }
 
@@ -133,6 +146,10 @@ func (s *ApiServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
 
 func (s *ApiServer) Addr() net.Addr {
 	return s.grpcListener.Addr()
+}
+
+func (s *ApiServer) HttpAddr() net.Addr {
+	return s.httpListener.Addr()
 }
 
 func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
@@ -166,6 +183,14 @@ func (s *ApiServer) Close(timeout time.Duration) {
 			s.log.Error("Error while closing grpc listener", zap.Error(err))
 		}
 		s.grpcListener = nil
+	}
+
+	if s.httpListener != nil {
+		err := s.httpListener.Close()
+		if err != nil {
+			s.log.Error("Error while closing http listener", zap.Error(err))
+		}
+		s.httpListener = nil
 	}
 
 	s.wg.Wait()

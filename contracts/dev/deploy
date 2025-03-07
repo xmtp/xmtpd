@@ -17,11 +17,23 @@ mkdir -p "${build_dir}" \
          "${output_dir}" \
          "${localnet_dir}"
 
-source dev/lib/env
 source dev/lib/common
 
+case "${1:-default}" in
+    "local")
+        source dev/lib/default.env
+        ;;
+    "testnet")
+        source dev/lib/testnet.env
+        ;;
+    *)
+        echo "Usage: $0 [local|testnet]"
+        exit 1
+        ;;
+esac
+
 ############################################
-# Deploy the smart contracts to ${RPC_URL} #
+#        Deploy the smart contracts        #
 ############################################
 forge_clean
 forge_soldeer_update

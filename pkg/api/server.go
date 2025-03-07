@@ -35,10 +35,8 @@ type ApiServer struct {
 	grpcListener net.Listener
 	httpListener net.Listener
 	grpcServer   *grpc.Server
-	// gwmux        *runtime.ServeMux
-	// gwServer     *http.Server
-	log *zap.Logger
-	wg  sync.WaitGroup
+	log          *zap.Logger
+	wg           sync.WaitGroup
 }
 
 func NewAPIServer(

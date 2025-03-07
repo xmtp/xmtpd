@@ -14,7 +14,6 @@ import (
 	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
 	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodesv2"
 	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -26,7 +25,6 @@ const (
 	ANVIL_LOCALNET_CHAIN_ID        = 31337
 	LOCAL_PRIVATE_KEY              = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	NODES_CONTRACT_NAME            = "Nodes"
-	NODES_V2_CONTRACT_NAME         = "NodesV2"
 	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
 	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
 	RATES_MANAGER_CONTRACT_NAME    = "RatesManager"
@@ -141,9 +139,7 @@ func deployContract(t *testing.T, contractName string) string {
 
 		switch contractName {
 		case NODES_CONTRACT_NAME:
-			addr, _, _, err = nodes.DeployNodes(auth, client)
-		case NODES_V2_CONTRACT_NAME:
-			addr, _, _, err = nodesv2.DeployNodesV2(auth, client, auth.From)
+			addr, _, _, err = nodes.DeployNodes(auth, client, auth.From)
 		case GROUP_MESSAGES_CONTRACT_NAME:
 			addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
 		case IDENTITY_UPDATES_CONTRACT_NAME:
@@ -172,10 +168,6 @@ func deployContract(t *testing.T, contractName string) string {
 
 func DeployNodesContract(t *testing.T) string {
 	return deployContract(t, NODES_CONTRACT_NAME)
-}
-
-func DeployNodesV2Contract(t *testing.T) string {
-	return deployContract(t, NODES_V2_CONTRACT_NAME)
 }
 
 func DeployGroupMessagesContract(t *testing.T) string {

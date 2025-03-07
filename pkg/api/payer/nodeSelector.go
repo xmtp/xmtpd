@@ -4,9 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"sort"
+
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"sort"
 )
 
 type NodeSelectorAlgorithm interface {

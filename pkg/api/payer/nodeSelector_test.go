@@ -3,23 +3,25 @@ package payer_test
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"strconv"
-	"testing"
 )
 
 func TestGetNode_StableAssignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 700},
-		{NodeID: 1200},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
+		testutils.GetHealthyNode(700),
+		testutils.GetHealthyNode(1200),
 	}, nil)
 	tpc := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("deadbeef"))
 
@@ -60,11 +62,27 @@ func TestGetNode_NoAvailableNodesError(t *testing.T) {
 func TestGetNode_CorrectAssignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 700},
-		{NodeID: 1200},
+		{
+			NodeID:               100,
+			IsDisabled:           false,
+			IsReplicationEnabled: true,
+			IsApiEnabled:         true,
+			IsValidConfig:        true,
+		},
+		{
+			NodeID:               200,
+			IsDisabled:           false,
+			IsReplicationEnabled: true,
+			IsApiEnabled:         true,
+			IsValidConfig:        true,
+		},
+		{
+			NodeID:               300,
+			IsDisabled:           false,
+			IsReplicationEnabled: true,
+			IsApiEnabled:         true,
+			IsValidConfig:        true,
+		},
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 	tpc2 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key_topic2"))
@@ -82,11 +100,11 @@ func TestGetNode_CorrectAssignment(t *testing.T) {
 func TestGetNode_NodeReassignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 700},
-		{NodeID: 1200},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
+		testutils.GetHealthyNode(700),
+		testutils.GetHealthyNode(1200),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 
@@ -98,7 +116,7 @@ func TestGetNode_NodeReassignment(t *testing.T) {
 	// pretend to remove the hashed node
 	newMockRegistry := mocks.NewMockNodeRegistry(t)
 	newMockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
+		testutils.GetHealthyNode(100),
 	}, nil)
 
 	selector = payer.NewStableHashingNodeSelectorAlgorithm(newMockRegistry)
@@ -112,11 +130,11 @@ func TestGetNode_NodeReassignment(t *testing.T) {
 func TestGetNode_NodeReassignmentStability(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 700},
-		{NodeID: 1200},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
+		testutils.GetHealthyNode(700),
+		testutils.GetHealthyNode(1200),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 
@@ -128,12 +146,12 @@ func TestGetNode_NodeReassignmentStability(t *testing.T) {
 	// pretend to remove the hashed node
 	newMockRegistry := mocks.NewMockNodeRegistry(t)
 	newMockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 700},
-		{NodeID: 800},
-		{NodeID: 1200},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
+		testutils.GetHealthyNode(700),
+		testutils.GetHealthyNode(800),
+		testutils.GetHealthyNode(1200),
 	}, nil)
 
 	selector = payer.NewStableHashingNodeSelectorAlgorithm(newMockRegistry)
@@ -148,11 +166,11 @@ func TestGetNode_NodeReassignmentStability(t *testing.T) {
 func TestGetNode_FindTopics(t *testing.T) {
 	t.Skipf("This test helps with generation of payloads. No need to run it continuously")
 	nodes := []registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 700},
-		{NodeID: 1200},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
+		testutils.GetHealthyNode(700),
+		testutils.GetHealthyNode(1200),
 	}
 
 	mockRegistry := mocks.NewMockNodeRegistry(t)
@@ -184,13 +202,13 @@ func TestGetNode_FindTopics(t *testing.T) {
 
 func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 	nodes := []registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
-		{NodeID: 400},
-		{NodeID: 500},
-		{NodeID: 1200},
-		{NodeID: 8000},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
+		testutils.GetHealthyNode(400),
+		testutils.GetHealthyNode(500),
+		testutils.GetHealthyNode(1200),
+		testutils.GetHealthyNode(8000),
 	}
 
 	mockRegistry := mocks.NewMockNodeRegistry(t)
@@ -230,9 +248,9 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
-		{NodeID: 200},
-		{NodeID: 300},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 

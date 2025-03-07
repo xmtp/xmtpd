@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,10 +18,6 @@ const BLOCKCHAIN_RPC_URL = "http://localhost:7545"
 // This is the private key that anvil has funded by default
 // This is safe to commit
 const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-
-type contractInfo struct {
-	DeployedTo string `json:"deployedTo"`
-}
 
 /*
 *
@@ -45,28 +40,6 @@ func rootPath(t *testing.T) string {
 		}
 		dir = parent
 	}
-}
-
-/*
-*
-Parse the JSON file at this location to get the deployed contract info
-TODO(borja): deprecate in favor of getContractAddress
-Delete when migration V1 -> V2 is done
-*
-*/
-func getDeployedTo(t *testing.T, fileName string) string {
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		t.Fatalf("Failed to read GroupMessages.json: %v", err)
-	}
-
-	var info contractInfo
-
-	if err := json.Unmarshal(data, &info); err != nil {
-		t.Fatalf("Failed to parse GroupMessages.json: %v", err)
-	}
-
-	return info.DeployedTo
 }
 
 /*
@@ -103,9 +76,9 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
 		),
-		NodesContractAddress: getDeployedTo(
+		NodesContractAddress: getContractAddress(
 			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/Nodes.json"),
+			path.Join(rootDir, "./contracts/config/anvil_localnet/XMTPNodeRegistry.json"),
 		),
 		IdentityUpdatesContractAddress: getContractAddress(
 			t,

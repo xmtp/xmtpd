@@ -11,19 +11,13 @@ import (
 
 func buildRegistry(
 	t *testing.T,
-	version RegistryAdminVersion,
-) (INodeRegistryAdmin, context.Context, func()) {
+) (INodeRegistryAdmin, INodeRegistryCaller, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
 	contractsOptions := testutils.GetContractsOptions(t)
 
-	if version == RegistryAdminV1 {
-		contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
-	}
-
-	if version == RegistryAdminV2 {
-		contractsOptions.NodesContractAddress = testutils.DeployNodesV2Contract(t)
-	}
+	// Deploy the contract always, so the tests are deterministic.
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
 
 	signer, err := NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -34,16 +28,41 @@ func buildRegistry(
 	client, err := NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	registry, err := NewNodeRegistryAdmin(logger, client, signer, contractsOptions, version)
+	registry, err := NewNodeRegistryAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
-	return registry, ctx, func() {
+	caller, err := NewNodeRegistryCaller(logger, client, contractsOptions)
+	require.NoError(t, err)
+
+	return registry, caller, ctx, func() {
 		cancel()
 	}
 }
 
+func addRandomNode(
+	t *testing.T,
+	registry INodeRegistryAdmin,
+	ctx context.Context,
+) {
+	privateKey := testutils.RandomPrivateKey(t)
+	owner := testutils.RandomAddress()
+	httpAddress := testutils.RandomString(32)
+	minMonthlyFee := int64(1000)
+
+	require.Eventually(t, func() bool {
+		err := registry.AddNode(
+			ctx,
+			owner.String(),
+			&privateKey.PublicKey,
+			httpAddress,
+			minMonthlyFee,
+		)
+		return err == nil
+	}, 1*time.Second, 50*time.Millisecond)
+}
+
 func TestAddNode(t *testing.T) {
-	registry, ctx, cleanup := buildRegistry(t, RegistryAdminV1)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
 
 	privateKey := testutils.RandomPrivateKey(t)
@@ -51,19 +70,7 @@ func TestAddNode(t *testing.T) {
 	owner := testutils.RandomAddress()
 
 	require.Eventually(t, func() bool {
-		err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
-		return err == nil
-	}, 1*time.Second, 50*time.Millisecond)
-
-	registryV2, ctxV2, cleanupV2 := buildRegistry(t, RegistryAdminV2)
-	defer cleanupV2()
-
-	privateKeyV2 := testutils.RandomPrivateKey(t)
-	httpAddressV2 := testutils.RandomString(32)
-	ownerV2 := testutils.RandomAddress()
-
-	require.Eventually(t, func() bool {
-		err := registryV2.AddNode(ctxV2, ownerV2.String(), &privateKeyV2.PublicKey, httpAddressV2)
+		err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress, 1000)
 		return err == nil
 	}, 1*time.Second, 50*time.Millisecond)
 }
@@ -73,13 +80,83 @@ func TestAddNodeBadOwner(t *testing.T) {
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomString(10) // This is an invalid hex address
 
-	registry, ctx, cleanup := buildRegistry(t, RegistryAdminV1)
+	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()
-	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
+	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress, 1000)
 	require.ErrorContains(t, err, "invalid owner address provided")
+}
 
-	registryV2, ctxV2, cleanupV2 := buildRegistry(t, RegistryAdminV2)
-	defer cleanupV2()
-	err = registryV2.AddNode(ctxV2, owner, &privateKey.PublicKey, httpAddress)
-	require.ErrorContains(t, err, "invalid owner address provided")
+func TestAddNodeBadMinMonthlyFee(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+	privateKey := testutils.RandomPrivateKey(t)
+	httpAddress := testutils.RandomString(32)
+	owner := testutils.RandomAddress()
+
+	err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress, -1)
+	require.ErrorContains(t, err, "invalid min monthly fee provided")
+}
+
+func TestDisableNode(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	addRandomNode(t, registry, ctx)
+
+	err := registry.DisableNode(ctx, 100)
+	require.NoError(t, err)
+}
+
+func TestEnableNode(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	addRandomNode(t, registry, ctx)
+
+	err := registry.EnableNode(ctx, 100)
+	require.NoError(t, err)
+}
+
+func TestRemoveFromApiNodes(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	addRandomNode(t, registry, ctx)
+
+	err := registry.RemoveFromApiNodes(ctx, 100)
+	require.NoError(t, err)
+}
+
+func TestRemoveFromReplicationNodes(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	addRandomNode(t, registry, ctx)
+
+	err := registry.RemoveFromReplicationNodes(ctx, 100)
+	require.NoError(t, err)
+}
+
+func TestSetMaxActiveNodes(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	err := registry.SetMaxActiveNodes(ctx, 100)
+	require.NoError(t, err)
+}
+
+func TestSetNodeOperatorCommissionPercent(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	err := registry.SetNodeOperatorCommissionPercent(ctx, 100)
+	require.NoError(t, err)
+}
+
+func TestSetNodeOperatorCommissionPercentInvalid(t *testing.T) {
+	registry, _, ctx, cleanup := buildRegistry(t)
+	defer cleanup()
+
+	err := registry.SetNodeOperatorCommissionPercent(ctx, -1)
+	require.ErrorContains(t, err, "invalid commission percent provided")
 }

@@ -10,7 +10,7 @@ import (
 A dumbed down interface of abis.NodesCaller for generating mocks
 */
 type NodesContract interface {
-	AllNodes(opts *bind.CallOpts) ([]nodes.NodesNodeWithId, error)
+	GetAllNodes(opts *bind.CallOpts) ([]nodes.INodesNodeWithId, error)
 }
 
 // Unregister the callback

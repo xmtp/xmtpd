@@ -21,7 +21,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 			"register-node",
 			"--http-address",
 			httpAddress,
-			"--admin-private-key",
+			"--admin.private-key",
 			adminPrivateKey,
 			"--node-owner-address",
 			ownerAddress.Hex(),
@@ -31,7 +31,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, options.Command, "register-node")
-	require.Equal(t, options.RegisterNode.AdminPrivateKey, adminPrivateKey)
+	require.Equal(t, options.RegisterNode.AdminOptions.AdminPrivateKey, adminPrivateKey)
 	require.Equal(t, options.RegisterNode.OwnerAddress, ownerAddress.Hex())
 	require.Equal(t, options.RegisterNode.SigningKeyPub, signingKeyPub)
 
@@ -41,7 +41,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	require.Equal(
 		t,
 		err.Error(),
-		"Could not parse options: the required flags `--admin-private-key', `--http-address', `--node-owner-address' and `--node-signing-key-pub' were not specified",
+		"could not parse options: the required flags `--admin.private-key', `--http-address', `--node-owner-address' and `--node-signing-key-pub' were not specified",
 	)
 }
 

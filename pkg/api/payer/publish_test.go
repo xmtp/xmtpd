@@ -2,6 +2,8 @@ package payer_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,7 +25,6 @@ import (
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 type FixedMetadataApiClientConstructor struct {
@@ -128,7 +129,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		Once()
 
 	registryMocks.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
+		testutils.GetHealthyNode(100),
 	}, nil)
 
 	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxIdBytes, identityUpdate)
@@ -182,7 +183,7 @@ func TestPublishToNodes(t *testing.T) {
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{NodeID: 100},
+		testutils.GetHealthyNode(100),
 	}, nil)
 
 	groupId := testutils.RandomGroupID()

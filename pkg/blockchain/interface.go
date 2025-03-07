@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,15 +35,6 @@ type ChainClient interface {
 type TransactionSigner interface {
 	FromAddress() common.Address
 	SignerFunc() bind.SignerFn
-}
-
-type NodeRegistry interface {
-	AddNode(
-		ctx context.Context,
-		owner string,
-		signingKeyPub *ecdsa.PublicKey,
-		httpAddress string,
-	) error
 }
 
 type IBlockchainPublisher interface {

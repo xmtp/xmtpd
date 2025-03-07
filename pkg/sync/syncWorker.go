@@ -8,9 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -32,6 +35,7 @@ type syncWorker struct {
 	subscriptions      map[uint32]struct{}
 	subscriptionsMutex sync.RWMutex
 	cancel             context.CancelFunc
+	feeCalculator      fees.IFeeCalculator
 }
 
 type originatorStream struct {
@@ -54,6 +58,7 @@ func startSyncWorker(
 	nodeRegistry registry.NodeRegistry,
 	registrant *registrant.Registrant,
 	store *sql.DB,
+	feeCalculator fees.IFeeCalculator,
 ) (*syncWorker, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -64,6 +69,7 @@ func startSyncWorker(
 		nodeRegistry:  nodeRegistry,
 		registrant:    registrant,
 		store:         store,
+		feeCalculator: feeCalculator,
 		wg:            sync.WaitGroup{},
 		subscriptions: make(map[uint32]struct{}),
 		cancel:        cancel,
@@ -403,6 +409,7 @@ func (s *syncWorker) validateAndInsertEnvelope(
 		return
 	}
 
+	// TODO:(nm) Handle fetching envelopes from other nodes
 	if env.OriginatorNodeID() != stream.nodeID {
 		s.log.Error("Received envelope from wrong node", zap.Any("nodeID", env.OriginatorNodeID()))
 		return
@@ -423,12 +430,34 @@ func (s *syncWorker) validateAndInsertEnvelope(
 		stream.lastEnvelope = env
 	}
 
+	// Calculate the fees independently to verify the originator's calculation
+	ourFeeCalculation, err := s.calculateFees(env)
+	if err != nil {
+		s.log.Error("Failed to calculate fees", zap.Error(err))
+		return
+	}
+	originatorsFeeCalculation := currency.PicoDollar(
+		env.UnsignedOriginatorEnvelope.BaseFee(),
+	) + currency.PicoDollar(
+		env.UnsignedOriginatorEnvelope.CongestionFee(),
+	)
+	if ourFeeCalculation != originatorsFeeCalculation {
+		s.log.Error(
+			"Fee calculation mismatch",
+			zap.Any("ourFee", ourFeeCalculation),
+			zap.Any("originatorsFee", originatorsFeeCalculation),
+		)
+	}
+
 	// TODO Validation logic - share code with API service and publish worker
 	// Signatures, topic type, etc
-	s.insertEnvelope(env)
+	s.insertEnvelope(env, ourFeeCalculation)
 }
 
-func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
+func (s *syncWorker) insertEnvelope(
+	env *envUtils.OriginatorEnvelope,
+	spendPicodollars currency.PicoDollar,
+) {
 	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
 	originatorBytes, err := env.Bytes()
 	if err != nil {
@@ -459,12 +488,7 @@ func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 			PayerID:           payerId,
 			OriginatorID:      originatorID,
 			MinutesSinceEpoch: utils.MinutesSinceEpoch(originatorTime),
-			// TODO:(nm) Independently calculate fees
-			SpendPicodollars: int64(
-				env.UnsignedOriginatorEnvelope.BaseFee(),
-			) + int64(
-				env.UnsignedOriginatorEnvelope.CongestionFee(),
-			),
+			SpendPicodollars:  int64(spendPicodollars),
 		},
 	)
 	if err != nil {
@@ -475,6 +499,28 @@ func (s *syncWorker) insertEnvelope(env *envUtils.OriginatorEnvelope) {
 		s.log.Warn("Envelope already inserted")
 		return
 	}
+}
+
+func (s *syncWorker) calculateFees(env *envUtils.OriginatorEnvelope) (currency.PicoDollar, error) {
+	payerEnvelopeLength := len(env.UnsignedOriginatorEnvelope.PayerEnvelopeBytes())
+	messageTime := utils.NsToDate(env.OriginatorNs())
+
+	baseFee, err := s.feeCalculator.CalculateBaseFee(
+		messageTime,
+		int64(payerEnvelopeLength),
+		constants.DEFAULT_STORAGE_DURATION_DAYS,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	// TODO:(nm) Calculate real rate of congestion
+	congestionFee, err := s.feeCalculator.CalculateCongestionFee(messageTime, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	return baseFee + congestionFee, nil
 }
 
 func (s *syncWorker) getPayerID(env *envUtils.OriginatorEnvelope) (int32, error) {

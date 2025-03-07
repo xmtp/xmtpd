@@ -166,8 +166,7 @@ func (s *SmartContractRegistry) refreshData() error {
 	newNodes := []Node{}
 	for _, node := range fromContract {
 		// nodes realistically start at 100, but the contract fills the array with empty nodes
-		if node.IsDisabled || !node.IsValidConfig || !node.IsApiEnabled ||
-			!node.IsReplicationEnabled {
+		if !node.IsValidConfig {
 			continue
 		}
 		existingValue, ok := s.nodes[node.NodeID]
@@ -244,6 +243,10 @@ func convertNode(rawNode nodesv2.INodesNodeWithId) Node {
 
 	// Ensure the httpAddress is well formed
 	if !strings.HasPrefix(httpAddress, "https://") && !strings.HasPrefix(httpAddress, "http://") {
+		isValidConfig = false
+	}
+
+	if rawNode.Node.IsDisabled {
 		isValidConfig = false
 	}
 

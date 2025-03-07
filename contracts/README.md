@@ -42,7 +42,7 @@ Additionally, it uses `slither` for static analysis.
 
 ### Install
 
-As the project uses `soldeer`, update the dependencies by running:
+As the project uses `foundry`, update the dependencies by running:
 
 ```shell
 forge soldeer update

@@ -2,7 +2,7 @@
 
 **⚠️ Experimental:** warning, this file might be out of date!
 
-It is important that both `public key` and `address` are correct as they are immutable and can not be changed in the future.
+It is important that both `public key` and `address` are correct as they are immutable and cannot be changed in the future.
 
 ## Step 1) Get All Keys
 
@@ -55,4 +55,4 @@ dev/cli register-node \
 
 ## Step 4) Start the node
 
-This step might differ for every operator. A good starting point is our [Deploy Doc](deploy.md)
+This step might differ for every operator. A good starting point is our [Deployment Guide](deploy.md)

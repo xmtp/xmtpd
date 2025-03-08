@@ -155,6 +155,17 @@
     }
   },
   "definitions": {
+    "associationsIdentifierKind": {
+      "type": "string",
+      "enum": [
+        "IDENTIFIER_KIND_UNSPECIFIED",
+        "IDENTIFIER_KIND_ETHEREUM",
+        "IDENTIFIER_KIND_PASSKEY"
+      ],
+      "default": "IDENTIFIER_KIND_UNSPECIFIED",
+      "description": "- IDENTIFIER_KIND_UNSPECIFIED: Ethereum on old clients",
+      "title": "List of identity kinds"
+    },
     "associationsRecoverableEcdsaSignature": {
       "type": "object",
       "properties": {
@@ -365,8 +376,11 @@
     "xmtpv4message_apiGetInboxIdsRequestRequest": {
       "type": "object",
       "properties": {
-        "address": {
+        "identifier": {
           "type": "string"
+        },
+        "identifierKind": {
+          "$ref": "#/definitions/associationsIdentifierKind"
         }
       },
       "title": "A single request for a given address"
@@ -387,11 +401,14 @@
     "xmtpv4message_apiGetInboxIdsResponseResponse": {
       "type": "object",
       "properties": {
-        "address": {
+        "identifier": {
           "type": "string"
         },
         "inboxId": {
           "type": "string"
+        },
+        "identifierKind": {
+          "$ref": "#/definitions/associationsIdentifierKind"
         }
       },
       "title": "A single response for a given address"

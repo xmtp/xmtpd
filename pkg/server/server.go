@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.uber.org/zap"
@@ -62,6 +63,7 @@ func NewReplicationServer(
 	nodeRegistry registry.NodeRegistry,
 	writerDB *sql.DB,
 	listenAddress string,
+	httpListenAddress string,
 	serverVersion *semver.Version,
 ) (*ReplicationServer, error) {
 	var err error
@@ -139,6 +141,7 @@ func NewReplicationServer(
 			s,
 			writerDB,
 			listenAddress,
+			httpListenAddress,
 			serverVersion,
 		)
 		if err != nil {
@@ -174,6 +177,7 @@ func startAPIServer(
 	s *ReplicationServer,
 	writerDB *sql.DB,
 	listenAddress string,
+	httpListenAddress string,
 	serverVersion *semver.Version,
 ) error {
 	var err error
@@ -273,6 +277,29 @@ func startAPIServer(
 		return nil
 	}
 
+	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
+		if options.Replication.Enable {
+			err = metadata_api.RegisterMetadataApiHandler(ctx, gwmux, conn)
+
+			if err != nil {
+				return err
+			}
+
+			err = message_api.RegisterReplicationApiHandler(ctx, gwmux, conn)
+			if err != nil {
+				return err
+			}
+		}
+
+		if options.Payer.Enable {
+			err = payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 	var jwtVerifier authn.JWTVerifier
 
 	if s.nodeRegistry != nil && s.registrant != nil {
@@ -290,8 +317,10 @@ func startAPIServer(
 		s.ctx,
 		logger,
 		listenAddress,
+		httpListenAddress,
 		options.Reflection.Enable,
 		serviceRegistrationFunc,
+		httpRegistrationFunc,
 		jwtVerifier,
 	)
 	if err != nil {

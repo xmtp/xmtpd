@@ -65,7 +65,7 @@ function main() {
 #################################################
 # Generate the smart contracts bindings for Go  #
 #################################################
-source dev/lib/env
+
 source dev/lib/common
 
 forge_clean

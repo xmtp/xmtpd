@@ -6,8 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/testutils"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +13,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 const testFlag = "ENABLE_UPGRADE_TESTS"
@@ -77,16 +80,6 @@ func convertLocalhost(vars map[string]string) {
 	}
 }
 
-func dockerRmc(containerName string) error {
-	killCmd := exec.Command("docker", "rm", containerName)
-	return killCmd.Run()
-}
-
-func dockerKill(containerName string) error {
-	killCmd := exec.Command("docker", "kill", containerName)
-	return killCmd.Run()
-}
-
 func constructVariables(t *testing.T) map[string]string {
 	envVars, err := loadEnvFromShell()
 	require.NoError(t, err)
@@ -94,91 +87,6 @@ func constructVariables(t *testing.T) map[string]string {
 	convertLocalhost(envVars)
 
 	return envVars
-}
-
-func streamDockerLogs(containerName string) (chan string, func(), error) {
-	logsCmd := exec.Command("docker", "logs", "-f", containerName)
-	stdoutPipe, err := logsCmd.StdoutPipe()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = logsCmd.Start()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	logChan := make(chan string)
-	go func() {
-		scanner := bufio.NewScanner(stdoutPipe)
-		for scanner.Scan() {
-			logChan <- scanner.Text()
-		}
-		close(logChan)
-	}()
-
-	cancelFunc := func() {
-		_ = logsCmd.Process.Kill()
-	}
-
-	return logChan, cancelFunc, nil
-}
-
-func runContainer(
-	t *testing.T,
-	containerName string,
-	imageName string,
-	envVars map[string]string,
-) {
-	var dockerEnvArgs []string
-	for key, value := range envVars {
-		dockerEnvArgs = append(dockerEnvArgs, "-e", fmt.Sprintf("%s=%s", key, value))
-	}
-
-	_ = dockerRmc(containerName)
-
-	dockerCmd := []string{"run", "-d"}
-	if runtime.GOOS == "linux" {
-		dockerCmd = append(dockerCmd, "--add-host=host.docker.internal:host-gateway")
-	}
-
-	dockerCmd = append(dockerCmd, dockerEnvArgs...)
-	dockerCmd = append(dockerCmd, "--name", containerName, imageName)
-
-	cmd := exec.Command("docker", dockerCmd...)
-
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-
-	err := cmd.Run()
-	require.NoError(t, err, "Error: %s", errBuf.String())
-
-	defer func() {
-		_ = dockerKill(containerName)
-	}()
-
-	logChan, cancel, err := streamDockerLogs(containerName)
-	require.NoError(t, err, "Failed to start log streaming")
-	defer cancel()
-
-	timeout := time.After(5 * time.Second)
-
-	for {
-		select {
-		case line, ok := <-logChan:
-			if !ok {
-				t.Fatalf("Log stream closed before finding target log")
-			}
-			t.Log(line)
-			if strings.Contains(line, "replication.api\tserving grpc") {
-				t.Logf("Service started successfully")
-				return
-			}
-		case <-timeout:
-			t.Fatalf("Timeout: 'replication.api\tserving grpc' not found in logs within 5 seconds")
-		}
-	}
 }
 
 func buildDevImage() error {
@@ -207,30 +115,34 @@ func buildDevImage() error {
 	return nil
 }
 
-func dockerPull(imageName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+func runContainer(
+	t *testing.T,
+	ctx context.Context,
+	imageName string,
+	containerName string,
+	envVars map[string]string,
+) {
+	ctxwc, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "docker", "pull", imageName)
-
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-
-	err := cmd.Run()
-
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("timeout exceeded while pulling image %s", imageName)
+	req := testcontainers.ContainerRequest{
+		Image: imageName,
+		Name:  containerName,
+		Env:   envVars,
+		WaitingFor: wait.ForLog(
+			"replication.api\tserving grpc",
+		), // TODO: Ideally we wait for health/liveness probe
 	}
 
-	if err != nil {
-		return fmt.Errorf(
-			"error pulling image %s: %v\nError: %s",
-			imageName,
-			err,
-			errBuf.String(),
-		)
-	}
+	container, err := testcontainers.GenericContainer(ctxwc, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+		Logger:           testcontainers.TestLogger(t),
+	})
+	require.NoError(t, err, "Failed to start container")
 
-	return nil
+	defer func() {
+		err := container.Terminate(ctx)
+		require.NoError(t, err, "Failed to terminate container")
+	}()
 }

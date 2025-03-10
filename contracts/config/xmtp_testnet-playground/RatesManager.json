@@ -1,10 +1,10 @@
 {
-  "addresses": {
-    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "implementation": "0xeB1F2bFC886c03a101000Bbb5Bdc8311Cc8A7403",
-    "proxy": "0xAe369A2DafCe201716C6b4C787832BbDbBADa685",
-    "proxyAdmin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-  },
-  "deploymentBlock": 1518,
-  "latestUpgradeBlock": 1518
+	"addresses": {
+		"deployer": "0x8ECD607fB9f4e90e20a776D6F6EEfeCB87Cfda6a",
+		"implementation": "0x909321c7FdB4787319a03680ce13De5E0F4eCAff",
+		"proxy": "0x7857Fde25cc77C26A929A4F12859FAAe6bf5e566",
+		"proxyAdmin": "0x8ECD607fB9f4e90e20a776D6F6EEfeCB87Cfda6a"
+	},
+	"deploymentBlock": 34282,
+	"latestUpgradeBlock": 34282
 }

@@ -7,3 +7,7 @@ scrape_configs:
       - targets:
           - "host.docker.internal:8008"
           - "host.docker.internal:8009"
+  - job_name: xmtpd
+    static_configs:
+      - targets:
+          - "node:8008"

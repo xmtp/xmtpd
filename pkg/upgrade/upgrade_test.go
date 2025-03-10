@@ -52,11 +52,12 @@ func TestUpgradeToLatest(t *testing.T) {
 func TestLatestVersion(t *testing.T) {
 	ctx := context.Background()
 	envVars := constructVariables(t)
-	runContainer(
+	err := runContainer(
 		t,
 		ctx,
 		"ghcr.io/xmtp/xmtpd:dev",
 		"xmtpd_test_dev",
 		envVars,
 	)
+	require.NoError(t, err, "Failed to start latest version container")
 }

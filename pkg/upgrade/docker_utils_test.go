@@ -14,16 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-const (
-	testFlag           = "ENABLE_UPGRADE_TESTS"
-	composeNetworkName = "xmtpd_default"
-)
+const testFlag = "ENABLE_UPGRADE_TESTS"
 
 func skipIfNotEnabled() {
 	if _, isSet := os.LookupEnv(testFlag); !isSet {
@@ -129,12 +127,11 @@ func runContainer(
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
-		Image:    imageName,
-		Name:     containerName,
-		Env:      envVars,
-		Networks: []string{composeNetworkName},
-		NetworkAliases: map[string][]string{
-			composeNetworkName: {containerName},
+		Image: imageName,
+		Name:  containerName,
+		Env:   envVars,
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 		},
 		WaitingFor: wait.ForLog(
 			"replication.api\tserving grpc",

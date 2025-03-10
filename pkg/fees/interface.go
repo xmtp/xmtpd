@@ -9,9 +9,10 @@ import (
 // Rates containt the cost for each fee component at a given message time.
 // Values in the rates struct are denominated in USD PicoDollars
 type Rates struct {
-	MessageFee    currency.PicoDollar // The flat per-message fee
-	StorageFee    currency.PicoDollar // The fee per byte-day of storage
-	CongestionFee currency.PicoDollar // The fee per unit of congestion
+	MessageFee          currency.PicoDollar // The flat per-message fee
+	StorageFee          currency.PicoDollar // The fee per byte-day of storage
+	CongestionFee       currency.PicoDollar // The fee per unit of congestion
+	TargetRatePerMinute uint64              // The target rate per minute for each node
 }
 
 // The RatesFetcher is responsible for loading the rates for a given message time.

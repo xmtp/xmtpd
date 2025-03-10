@@ -1,5 +1,11 @@
 # Node Registry Migration
 
+## Set xmtpd cli branch
+
+The migrator has been tested in commit `8d6f9252956aa0d7113d56e1deeca887c0d1c888`.
+
+The cli can be used as a docker image using `ghcr.io/xmtp/xmtpd-cli:sha-8d6f925`
+
 ## Export V1 Nodes
 
 ```shell

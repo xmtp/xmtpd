@@ -46,28 +46,11 @@ jobs:
           export PATH="${PATH}:${GOPATH}/bin"
           go test -v ./... -race
       - name: Run Upgrade Tests
-        id: upgrade_tests
-        continue-on-error: true
         run: |
           export GOPATH="${HOME}/go/"
           export PATH="${PATH}:${GOPATH}/bin"
           export ENABLE_UPGRADE_TESTS=1
           go test github.com/xmtp/xmtpd/pkg/upgrade -v
-      - name: Upgrade tests results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const outcome = '${{ steps.upgrade_tests.outcome }}';
-            const emoji = outcome === 'success' ? '✅' : '❌';
-            const status = outcome === 'success' ? 'passed' : 'failed';
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `${emoji} Upgrade tests ${status}. ${outcome !== 'success' ? 'Please check the logs for more details.' : ''}`
-            })
       - uses: datadog/junit-upload-github-action@v1
         with:
           api-key: ${{ secrets.DD_API_KEY }}

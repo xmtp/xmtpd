@@ -1,58 +1,27 @@
 package upgrade_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 )
 
-// Guaranteed to be in order of increasing version
-var (
-	xmtpdVersions = []string{
-		"0.1.4",
-		"0.2.0",
-		"0.2.1",
-	}
-
-	ghcrRepository = "ghcr.io/xmtp/xmtpd"
-)
-
-func TestUpgradeToLatest(t *testing.T) {
-	ctx := context.Background()
-	for _, version := range xmtpdVersions {
-		image := fmt.Sprintf("%s:%s", ghcrRepository, version)
-
-		t.Run(version, func(t *testing.T) {
-			envVars := constructVariables(t)
-			t.Logf("Starting old container")
-			runContainer(
-				t,
-				ctx,
-				image,
-				fmt.Sprintf("xmtpd_test_%s", version),
-				envVars,
-			)
-
-			t.Logf("Starting new container")
-			runContainer(
-				t,
-				ctx,
-				"ghcr.io/xmtp/xmtpd:dev",
-				"xmtpd_test_dev",
-				envVars,
-			)
-		})
-	}
+var upgradeToLatest = map[string]string{
+	"0.1.4": "ghcr.io/xmtp/xmtpd:0.1.4",
+	"0.2.0": "ghcr.io/xmtp/xmtpd:0.2.0",
+	"0.2.1": "ghcr.io/xmtp/xmtpd:0.2.1",
 }
 
-func TestLatest(t *testing.T) {
-	ctx := context.Background()
-	envVars := constructVariables(t)
-	runContainer(
-		t,
-		ctx,
-		"ghcr.io/xmtp/xmtpd:dev",
-		"xmtpd_test_dev",
-		envVars,
-	)
+func TestUpgradeToLatest(t *testing.T) {
+	for version, image := range upgradeToLatest {
+		t.Run(version, func(t *testing.T) {
+
+			envVars := constructVariables(t)
+			t.Logf("Starting old container")
+			runContainer(t, fmt.Sprintf("xmtpd_test_%s", version), image, envVars)
+
+			t.Logf("Starting new container")
+			runContainer(t, "xmtpd_test_dev", "ghcr.io/xmtp/xmtpd:dev", envVars)
+		})
+	}
+
 }

@@ -46,7 +46,6 @@ contract DeployXMTPNodeRegistry is Script, Environment, Utils {
         finalJson = vm.serializeString(parent_object, addresses, addressesOutput);
         finalJson = vm.serializeString(parent_object, constructorArgs, constructorArgsOutput);
         finalJson = vm.serializeUint(parent_object, "deploymentBlock", block.number);
-        finalJson = vm.serializeUint(parent_object, "latestUpgradeBlock", block.number);
 
         writeOutput(finalJson, XMTP_NODE_REGISTRY_OUTPUT_JSON);
     }

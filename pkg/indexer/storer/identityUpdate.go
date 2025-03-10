@@ -105,9 +105,9 @@ func (s *IdentityUpdateStorer) StoreLog(
 
 			for _, new_member := range associationState.StateDiff.NewMembers {
 				s.logger.Info("New member", zap.Any("member", new_member))
-				if address, ok := new_member.Kind.(*associations.MemberIdentifier_Address); ok {
+				if address, ok := new_member.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					numRows, err := querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
-						Address: address.Address,
+						Address: address.EthereumAddress,
 						InboxID: inboxId,
 						AssociationSequenceID: sql.NullInt64{
 							Valid: true,
@@ -120,7 +120,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 					if numRows == 0 {
 						s.logger.Warn(
 							"Could not insert address log",
-							zap.String("address", address.Address),
+							zap.String("address", address.EthereumAddress),
 							zap.String("inbox_id", inboxId),
 							zap.Int("sequence_id", int(msgSent.SequenceId)),
 						)
@@ -130,11 +130,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 
 			for _, removed_member := range associationState.StateDiff.RemovedMembers {
 				log.Info("Removed member", zap.Any("member", removed_member))
-				if address, ok := removed_member.Kind.(*associations.MemberIdentifier_Address); ok {
+				if address, ok := removed_member.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					rows, err := querier.RevokeAddressFromLog(
 						ctx,
 						queries.RevokeAddressFromLogParams{
-							Address: address.Address,
+							Address: address.EthereumAddress,
 							InboxID: inboxId,
 							RevocationSequenceID: sql.NullInt64{
 								Valid: true,
@@ -148,7 +148,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 					if rows == 0 {
 						s.logger.Warn(
 							"Could not find address log entry to revoke",
-							zap.String("address", address.Address),
+							zap.String("address", address.EthereumAddress),
 							zap.String("inbox_id", inboxId),
 						)
 					}

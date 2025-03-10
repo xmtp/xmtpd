@@ -29,9 +29,9 @@ RUN set -euo pipefail; \
     echo "Stopping anvil process..."; pkill -f anvil || { echo "⚠️ Warning: pkill anvil failed, continuing..."; }; \
     echo "Sleeping for 5 seconds..."; sleep 5
 
-RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.addresses.XMTPNodeRegistry' contracts/config/anvil_localnet/XMTPNodeRegistry.json)"" >> contracts.env && \
-    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.addresses.groupMessagesProxy' contracts/config/anvil_localnet/GroupMessages.json)""  >> contracts.env && \
-    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.addresses.identityUpdatesProxy' contracts/config/anvil_localnet/IdentityUpdates.json)""  >> contracts.env
+RUN echo "export XMTPD_CONTRACTS_NODES_ADDRESS="$(jq -r '.addresses.implementation' contracts/config/anvil_localnet/XMTPNodeRegistry.json)"" >> contracts.env && \
+    echo "export XMTPD_CONTRACTS_MESSAGES_ADDRESS="$(jq -r '.addresses.proxy' contracts/config/anvil_localnet/GroupMessages.json)""  >> contracts.env && \
+    echo "export XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS="$(jq -r '.addresses.proxy' contracts/config/anvil_localnet/IdentityUpdates.json)""  >> contracts.env
 
 # ACTUAL IMAGE -------------------------------------------------------
 

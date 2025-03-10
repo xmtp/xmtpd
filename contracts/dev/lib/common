@@ -116,8 +116,7 @@ function forge_verify_contract() {
         return
     fi
 
-    impl_key="$(echo ${contract_name:0:1} | tr '[:upper:]' '[:lower:]')${contract_name:1}Impl"
-    deployed_address="$(jq -r ".addresses.$impl_key" config/${chain_name}/${contract_name}.json)"
+    deployed_address="$(jq -r ".addresses.implementation" config/${chain_name}/${contract_name}.json)"
     if [ -z "$deployed_address" ]; then
         echo "Failed to get deployed address for $contract_name"
         exit 1

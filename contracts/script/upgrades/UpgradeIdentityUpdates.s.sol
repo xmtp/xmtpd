@@ -36,7 +36,7 @@ contract UpgradeIdentityUpdates is Script, Utils, Environment {
 
     function _initializeProxy() internal {
         string memory fileContent = readOutput(XMTP_IDENTITY_UPDATES_OUTPUT_JSON);
-        proxy = IdentityUpdates(stdJson.readAddress(fileContent, ".addresses.identityUpdatesProxy"));
+        proxy = IdentityUpdates(stdJson.readAddress(fileContent, ".addresses.proxy"));
         require(address(proxy) != address(0), "proxy address not set");
         require(proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader), "Upgrader must have admin role");
     }
@@ -45,7 +45,7 @@ contract UpgradeIdentityUpdates is Script, Utils, Environment {
         vm.writeJson(
             vm.toString(address(newImplementation)),
             getOutputPath(XMTP_IDENTITY_UPDATES_OUTPUT_JSON),
-            ".addresses.identityUpdatesImpl"
+            ".addresses.implementation"
         );
         vm.writeJson(vm.toString(block.number), getOutputPath(XMTP_IDENTITY_UPDATES_OUTPUT_JSON), ".latestUpgradeBlock");
     }

@@ -45,10 +45,10 @@ contract DeployRatesManager is Script, Utils, Environment {
 
         string memory addressesOutput;
 
-        addressesOutput = vm.serializeAddress(addresses, "ratesManagerDeployer", deployer);
-        addressesOutput = vm.serializeAddress(addresses, "ratesManagerProxyAdmin", admin);
-        addressesOutput = vm.serializeAddress(addresses, "ratesManagerProxy", address(proxy));
-        addressesOutput = vm.serializeAddress(addresses, "ratesManagerImpl", address(ratesManagerImpl));
+        addressesOutput = vm.serializeAddress(addresses, "deployer", deployer);
+        addressesOutput = vm.serializeAddress(addresses, "proxyAdmin", admin);
+        addressesOutput = vm.serializeAddress(addresses, "proxy", address(proxy));
+        addressesOutput = vm.serializeAddress(addresses, "implementation", address(ratesManagerImpl));
 
         string memory finalJson;
         finalJson = vm.serializeString(parent_object, addresses, addressesOutput);

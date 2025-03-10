@@ -42,8 +42,8 @@ contract NodesTest is Test, Utils {
         address operatorAddress = vm.randomAddress();
 
         vm.expectEmit(address(nodes));
-        emit INodesEvents.NodeAdded(100, operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
-        uint256 tmpNodeId = nodes.addNode(operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        emit INodesEvents.NodeAdded(100, operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
+        uint256 tmpNodeId = nodes.addNode(operatorAddress, node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
 
         vm.assertEq(nodes.ownerOf(tmpNodeId), operatorAddress);
         vm.assertEq(nodes.getNode(tmpNodeId).signingKeyPub, node.signingKeyPub);
@@ -51,14 +51,14 @@ contract NodesTest is Test, Utils {
         vm.assertEq(nodes.getNode(tmpNodeId).isDisabled, false);
         vm.assertEq(nodes.getNode(tmpNodeId).isApiEnabled, false);
         vm.assertEq(nodes.getNode(tmpNodeId).isReplicationEnabled, false);
-        vm.assertEq(nodes.getNode(tmpNodeId).minMonthlyFee, node.minMonthlyFee);
+        vm.assertEq(nodes.getNode(tmpNodeId).minMonthlyFeeMicroDollars, node.minMonthlyFeeMicroDollars);
     }
 
     function test_RevertWhen_AddNodeWithZeroAddress() public {
         vm.recordLogs();
         INodes.Node memory node = _randomNode();
         vm.expectRevert(INodesErrors.InvalidAddress.selector);
-        nodes.addNode(address(0), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        nodes.addNode(address(0), node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
         _checkNoLogsEmitted();
     }
 
@@ -66,7 +66,7 @@ contract NodesTest is Test, Utils {
         vm.recordLogs();
         INodes.Node memory node = _randomNode();
         vm.expectRevert(INodesErrors.InvalidSigningKey.selector);
-        nodes.addNode(vm.randomAddress(), bytes(""), node.httpAddress, node.minMonthlyFee);
+        nodes.addNode(vm.randomAddress(), bytes(""), node.httpAddress, node.minMonthlyFeeMicroDollars);
         _checkNoLogsEmitted();
     }
 
@@ -74,7 +74,7 @@ contract NodesTest is Test, Utils {
         vm.recordLogs();
         INodes.Node memory node = _randomNode();
         vm.expectRevert(INodesErrors.InvalidHttpAddress.selector);
-        nodes.addNode(vm.randomAddress(), node.signingKeyPub, "", node.minMonthlyFee);
+        nodes.addNode(vm.randomAddress(), node.signingKeyPub, "", node.minMonthlyFeeMicroDollars);
         _checkNoLogsEmitted();
     }
 
@@ -91,7 +91,7 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(unauthorized);
-        nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
 
         // NODE_MANAGER_ROLE is not authorized to add nodes.
         vm.expectRevert(
@@ -102,14 +102,14 @@ contract NodesTest is Test, Utils {
             )
         );
         vm.prank(manager);
-        nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
         _checkNoLogsEmitted();
     }
 
     function test_NodeIdIncrementsByHundred() public {
         INodes.Node memory node = _randomNode();
-        uint256 firstId = nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
-        uint256 secondId = nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        uint256 firstId = nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
+        uint256 secondId = nodes.addNode(vm.randomAddress(), node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
         assertEq(secondId - firstId, 100);
     }
 
@@ -518,12 +518,12 @@ contract NodesTest is Test, Utils {
 
     function test_setMinMonthlyFee() public {
         _addNode();
-        uint256 initialMonthlyFee = nodes.getNode(nodeId).minMonthlyFee;
+        uint256 initialMonthlyFee = nodes.getNode(nodeId).minMonthlyFeeMicroDollars;
         vm.expectEmit(address(nodes));
         emit INodesEvents.MinMonthlyFeeUpdated(nodeId, 1000);
         nodes.setMinMonthlyFee(nodeId, 1000);
-        vm.assertEq(nodes.getNode(nodeId).minMonthlyFee, 1000);
-        vm.assertNotEq(nodes.getNode(nodeId).minMonthlyFee, initialMonthlyFee);
+        vm.assertEq(nodes.getNode(nodeId).minMonthlyFeeMicroDollars, 1000);
+        vm.assertNotEq(nodes.getNode(nodeId).minMonthlyFeeMicroDollars, initialMonthlyFee);
     }
 
     function test_RevertWhen_setMinMonthlyFeeNodeDoesNotExist() public {
@@ -706,7 +706,7 @@ contract NodesTest is Test, Utils {
         vm.assertEq(node.isReplicationEnabled, nodes.getNode(nodeId).isReplicationEnabled);
         vm.assertEq(node.isApiEnabled, nodes.getNode(nodeId).isApiEnabled);
         vm.assertEq(node.isDisabled, nodes.getNode(nodeId).isDisabled);
-        vm.assertEq(node.minMonthlyFee, nodes.getNode(nodeId).minMonthlyFee);
+        vm.assertEq(node.minMonthlyFeeMicroDollars, nodes.getNode(nodeId).minMonthlyFeeMicroDollars);
     }
 
     function test_RevertWhen_getNodeNodeDoesNotExist() public {
@@ -839,7 +839,7 @@ contract NodesTest is Test, Utils {
     function _addNode() internal {
         INodes.Node memory node = _randomNode();
         nodeOperator = vm.randomAddress();
-        nodeId = nodes.addNode(nodeOperator, node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+        nodeId = nodes.addNode(nodeOperator, node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
     }
 
     function _addMultipleNodes(uint256 numberOfNodes) internal returns (address[] memory operators, uint256[] memory nodeIds) {
@@ -848,7 +848,7 @@ contract NodesTest is Test, Utils {
         for (uint256 i = 0; i < numberOfNodes; i++) {
             INodes.Node memory node = _randomNode();
             operators[i] = vm.randomAddress();
-            nodeIds[i] = nodes.addNode(operators[i], node.signingKeyPub, node.httpAddress, node.minMonthlyFee);
+            nodeIds[i] = nodes.addNode(operators[i], node.signingKeyPub, node.httpAddress, node.minMonthlyFeeMicroDollars);
         }
         return (operators, nodeIds);
     }
@@ -876,7 +876,7 @@ contract NodesTest is Test, Utils {
             isReplicationEnabled: false, 
             isApiEnabled: false, 
             isDisabled: false,
-            minMonthlyFee: _genRandomInt(100, 10000)
+            minMonthlyFeeMicroDollars: _genRandomInt(100, 10000)
         });
     }
 

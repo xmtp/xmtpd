@@ -14,14 +14,14 @@ import (
 type DialOptionFunc func(node Node) []grpc.DialOption
 
 type Node struct {
-	NodeID               uint32
-	SigningKey           *ecdsa.PublicKey
-	HttpAddress          string
-	IsReplicationEnabled bool
-	IsApiEnabled         bool
-	IsDisabled           bool
-	MinMonthlyFee        *big.Int
-	IsValidConfig        bool
+	NodeID                    uint32
+	SigningKey                *ecdsa.PublicKey
+	HttpAddress               string
+	IsReplicationEnabled      bool
+	IsApiEnabled              bool
+	IsDisabled                bool
+	MinMonthlyFeeMicroDollars *big.Int
+	IsValidConfig             bool
 }
 
 func (n *Node) Equals(other Node) bool {
@@ -38,7 +38,7 @@ func (n *Node) Equals(other Node) bool {
 		n.IsReplicationEnabled == other.IsReplicationEnabled &&
 		n.IsApiEnabled == other.IsApiEnabled &&
 		n.IsDisabled == other.IsDisabled &&
-		n.MinMonthlyFee.Cmp(other.MinMonthlyFee) == 0 &&
+		n.MinMonthlyFeeMicroDollars.Cmp(other.MinMonthlyFeeMicroDollars) == 0 &&
 		n.IsValidConfig == other.IsValidConfig
 }
 

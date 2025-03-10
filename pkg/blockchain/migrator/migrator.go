@@ -12,13 +12,13 @@ import (
 )
 
 type SerializableNode struct {
-	NodeID               uint32 `json:"node_id"`
-	OwnerAddress         string `json:"owner_address"`
-	SigningKeyPub        string `json:"signing_key_pub"`
-	HttpAddress          string `json:"http_address"`
-	MinMonthlyFee        int64  `json:"min_monthly_fee"`
-	IsReplicationEnabled bool   `json:"is_replication_enabled"`
-	IsApiEnabled         bool   `json:"is_api_enabled"`
+	NodeID                    uint32 `json:"node_id"`
+	OwnerAddress              string `json:"owner_address"`
+	SigningKeyPub             string `json:"signing_key_pub"`
+	HttpAddress               string `json:"http_address"`
+	MinMonthlyFeeMicroDollars int64  `json:"min_monthly_fee_micro_dollars"`
+	IsReplicationEnabled      bool   `json:"is_replication_enabled"`
+	IsApiEnabled              bool   `json:"is_api_enabled"`
 }
 
 func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]SerializableNode, error) {
@@ -40,13 +40,13 @@ func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]Serializabl
 		}
 
 		serializableNodes[i] = SerializableNode{
-			NodeID:               uint32(node.NodeId.Int64()),
-			OwnerAddress:         owner.Hex(),
-			SigningKeyPub:        utils.EcdsaPublicKeyToString(pubKey),
-			HttpAddress:          node.Node.HttpAddress,
-			MinMonthlyFee:        node.Node.MinMonthlyFee.Int64(),
-			IsReplicationEnabled: node.Node.IsReplicationEnabled,
-			IsApiEnabled:         node.Node.IsApiEnabled,
+			NodeID:                    uint32(node.NodeId.Int64()),
+			OwnerAddress:              owner.Hex(),
+			SigningKeyPub:             utils.EcdsaPublicKeyToString(pubKey),
+			HttpAddress:               node.Node.HttpAddress,
+			MinMonthlyFeeMicroDollars: node.Node.MinMonthlyFeeMicroDollars.Int64(),
+			IsReplicationEnabled:      node.Node.IsReplicationEnabled,
+			IsApiEnabled:              node.Node.IsApiEnabled,
 		}
 	}
 
@@ -71,7 +71,7 @@ func WriteToRegistry(
 			node.OwnerAddress,
 			signingKey,
 			node.HttpAddress,
-			node.MinMonthlyFee,
+			node.MinMonthlyFeeMicroDollars,
 		)
 		if err != nil {
 			return err

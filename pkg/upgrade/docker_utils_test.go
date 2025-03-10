@@ -20,7 +20,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-const testFlag = "ENABLE_UPGRADE_TESTS"
+const (
+	testFlag           = "ENABLE_UPGRADE_TESTS"
+	composeNetworkName = "xmtpd_default"
+)
 
 func skipIfNotEnabled() {
 	if _, isSet := os.LookupEnv(testFlag); !isSet {
@@ -126,9 +129,13 @@ func runContainer(
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
-		Image: imageName,
-		Name:  containerName,
-		Env:   envVars,
+		Image:    imageName,
+		Name:     containerName,
+		Env:      envVars,
+		Networks: []string{composeNetworkName},
+		NetworkAliases: map[string][]string{
+			composeNetworkName: {containerName},
+		},
 		WaitingFor: wait.ForLog(
 			"replication.api\tserving grpc",
 		), // TODO: Ideally we wait for health/liveness probe

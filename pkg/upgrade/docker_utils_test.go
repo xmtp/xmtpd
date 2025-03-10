@@ -121,7 +121,7 @@ func runContainer(
 	imageName string,
 	containerName string,
 	envVars map[string]string,
-) {
+) (err error) {
 	ctxwc, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -139,10 +139,14 @@ func runContainer(
 		Started:          true,
 		Logger:           testcontainers.TestLogger(t),
 	})
-	require.NoError(t, err, "Failed to start container")
+	if err != nil {
+		return err
+	}
 
-	defer func() {
-		err := container.Terminate(ctx)
-		require.NoError(t, err, "Failed to terminate container")
-	}()
+	err = container.Terminate(ctxwc)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Guaranteed to be in order of increasing version
@@ -25,22 +27,24 @@ func TestUpgradeToLatest(t *testing.T) {
 		t.Run(version, func(t *testing.T) {
 			envVars := constructVariables(t)
 			t.Logf("Starting old container")
-			runContainer(
+			err := runContainer(
 				t,
 				ctx,
 				image,
 				fmt.Sprintf("xmtpd_test_%s", version),
 				envVars,
 			)
+			require.NoError(t, err, "Failed to start container version %s", version)
 
 			t.Logf("Starting new container")
-			runContainer(
+			err = runContainer(
 				t,
 				ctx,
 				"ghcr.io/xmtp/xmtpd:dev",
 				"xmtpd_test_dev",
 				envVars,
 			)
+			require.NoError(t, err, "Failed to start dev container")
 		})
 	}
 }

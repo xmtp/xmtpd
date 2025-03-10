@@ -221,10 +221,10 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	}
 
 	minMonthlyFee := int64(0)
-	if options.RegisterNode.MinMonthlyFee < 0 {
+	if options.RegisterNode.MinMonthlyFeeMicroDollars < 0 {
 		logger.Fatal("provided negative min monthly fee is not allowed")
 	}
-	minMonthlyFee = options.RegisterNode.MinMonthlyFee
+	minMonthlyFee = options.RegisterNode.MinMonthlyFeeMicroDollars
 
 	err = registryAdmin.AddNode(
 		ctx,
@@ -478,14 +478,14 @@ func setMinMonthlyFee(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}
 
-	if options.SetMinMonthlyFee.MinMonthlyFee < 0 {
+	if options.SetMinMonthlyFee.MinMonthlyFeeMicroDollars < 0 {
 		logger.Fatal("invalid negative minMonthlyFee provided")
 	}
 
 	err = registryAdmin.SetMinMonthlyFee(
 		ctx,
 		options.NodeManagerOptions.NodeId,
-		options.SetMinMonthlyFee.MinMonthlyFee,
+		options.SetMinMonthlyFee.MinMonthlyFeeMicroDollars,
 	)
 	if err != nil {
 		logger.Fatal("could not set min monthly fee", zap.Error(err))

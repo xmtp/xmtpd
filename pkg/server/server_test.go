@@ -93,24 +93,24 @@ func TestCreateServer(t *testing.T) {
 
 	nodes := []r.Node{
 		{
-			NodeID:               server1NodeID,
-			SigningKey:           &privateKey1.PublicKey,
-			HttpAddress:          fmt.Sprintf("http://localhost:%d", server1Port),
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsDisabled:           false,
-			MinMonthlyFee:        big.NewInt(0),
-			IsValidConfig:        true,
+			NodeID:                    server1NodeID,
+			SigningKey:                &privateKey1.PublicKey,
+			HttpAddress:               fmt.Sprintf("http://localhost:%d", server1Port),
+			IsReplicationEnabled:      true,
+			IsApiEnabled:              true,
+			IsDisabled:                false,
+			MinMonthlyFeeMicroDollars: big.NewInt(0),
+			IsValidConfig:             true,
 		},
 		{
-			NodeID:               server2NodeID,
-			SigningKey:           &privateKey2.PublicKey,
-			HttpAddress:          fmt.Sprintf("http://localhost:%d", server2Port),
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsDisabled:           false,
-			MinMonthlyFee:        big.NewInt(0),
-			IsValidConfig:        true,
+			NodeID:                    server2NodeID,
+			SigningKey:                &privateKey2.PublicKey,
+			HttpAddress:               fmt.Sprintf("http://localhost:%d", server2Port),
+			IsReplicationEnabled:      true,
+			IsApiEnabled:              true,
+			IsDisabled:                false,
+			MinMonthlyFeeMicroDollars: big.NewInt(0),
+			IsValidConfig:             true,
 		}}
 
 	registry := mocks.NewMockNodeRegistry(t)
@@ -235,14 +235,14 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	nodes := []r.Node{
 		{
-			NodeID:               server1NodeID,
-			SigningKey:           &privateKey1.PublicKey,
-			HttpAddress:          fmt.Sprintf("http://localhost:%d", server1Port),
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsDisabled:           false,
-			MinMonthlyFee:        big.NewInt(0),
-			IsValidConfig:        true,
+			NodeID:                    server1NodeID,
+			SigningKey:                &privateKey1.PublicKey,
+			HttpAddress:               fmt.Sprintf("http://localhost:%d", server1Port),
+			IsReplicationEnabled:      true,
+			IsApiEnabled:              true,
+			IsDisabled:                false,
+			MinMonthlyFeeMicroDollars: big.NewInt(0),
+			IsValidConfig:             true,
 		}}
 
 	registry := mocks.NewMockNodeRegistry(t)

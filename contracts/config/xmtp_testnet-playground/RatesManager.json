@@ -1,0 +1,10 @@
+{
+  "addresses": {
+    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "implementation": "0xeB1F2bFC886c03a101000Bbb5Bdc8311Cc8A7403",
+    "proxy": "0xAe369A2DafCe201716C6b4C787832BbDbBADa685",
+    "proxyAdmin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  },
+  "deploymentBlock": 1518,
+  "latestUpgradeBlock": 1518
+}

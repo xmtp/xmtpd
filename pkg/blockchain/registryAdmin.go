@@ -23,14 +23,14 @@ type INodeRegistryAdmin interface {
 		owner string,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
-		minMonthlyFee int64,
+		minMonthlyFeeMicroDollars int64,
 	) error
 	DisableNode(ctx context.Context, nodeId int64) error
 	EnableNode(ctx context.Context, nodeId int64) error
 	RemoveFromApiNodes(ctx context.Context, nodeId int64) error
 	RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error
 	SetHttpAddress(ctx context.Context, nodeId int64, httpAddress string) error
-	SetMinMonthlyFee(ctx context.Context, nodeId int64, minMonthlyFee int64) error
+	SetMinMonthlyFee(ctx context.Context, nodeId int64, minMonthlyFeeMicroDollars int64) error
 	SetIsApiEnabled(ctx context.Context, nodeId int64, isApiEnabled bool) error
 	SetIsReplicationEnabled(ctx context.Context, nodeId int64, isReplicationEnabled bool) error
 	SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error
@@ -73,14 +73,14 @@ func (n *nodeRegistryAdmin) AddNode(
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
-	minMonthlyFee int64,
+	minMonthlyFeeMicroDollars int64,
 ) error {
 	if !common.IsHexAddress(owner) {
 		return fmt.Errorf("invalid owner address provided %s", owner)
 	}
 
-	if minMonthlyFee < 0 {
-		return fmt.Errorf("invalid min monthly fee provided %d", minMonthlyFee)
+	if minMonthlyFeeMicroDollars < 0 {
+		return fmt.Errorf("invalid min monthly fee provided %d", minMonthlyFeeMicroDollars)
 	}
 
 	ownerAddress := common.HexToAddress(owner)
@@ -101,7 +101,7 @@ func (n *nodeRegistryAdmin) AddNode(
 				ownerAddress,
 				signingKey,
 				httpAddress,
-				big.NewInt(minMonthlyFee),
+				big.NewInt(minMonthlyFeeMicroDollars),
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
@@ -118,7 +118,7 @@ func (n *nodeRegistryAdmin) AddNode(
 				zap.String("owner", nodeAdded.Owner.Hex()),
 				zap.String("http_address", nodeAdded.HttpAddress),
 				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningKeyPub)),
-				zap.String("min_monthly_fee", nodeAdded.MinMonthlyFee.String()),
+				zap.String("min_monthly_fee", nodeAdded.MinMonthlyFeeMicroDollars.String()),
 			)
 		},
 	)
@@ -267,7 +267,7 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 	ctx context.Context,
 	nodeId int64,
-	minMonthlyFee int64,
+	minMonthlyFeeMicroDollars int64,
 ) error {
 	return ExecuteTransaction(
 		ctx,
@@ -278,7 +278,7 @@ func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 			return n.contract.SetMinMonthlyFee(
 				opts,
 				big.NewInt(nodeId),
-				big.NewInt(minMonthlyFee),
+				big.NewInt(minMonthlyFeeMicroDollars),
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
@@ -292,9 +292,13 @@ func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 				)
 				return
 			}
-			n.logger.Info("min monthly fee updated",
+			n.logger.Info(
+				"min monthly fee updated",
 				zap.Uint64("node_id", minMonthlyFeeUpdated.NodeId.Uint64()),
-				zap.String("min_monthly_fee", minMonthlyFeeUpdated.MinMonthlyFee.String()),
+				zap.String(
+					"min_monthly_fee",
+					minMonthlyFeeUpdated.MinMonthlyFeeMicroDollars.String(),
+				),
 			)
 		},
 	)

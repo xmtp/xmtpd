@@ -251,14 +251,14 @@ func convertNode(rawNode nodes.INodesNodeWithId) Node {
 	}
 
 	return Node{
-		NodeID:               uint32(rawNode.NodeId.Uint64()),
-		SigningKey:           signingKey,
-		HttpAddress:          httpAddress,
-		IsReplicationEnabled: rawNode.Node.IsReplicationEnabled,
-		IsApiEnabled:         rawNode.Node.IsApiEnabled,
-		IsDisabled:           rawNode.Node.IsDisabled,
-		MinMonthlyFee:        rawNode.Node.MinMonthlyFee,
-		IsValidConfig:        isValidConfig,
+		NodeID:                    uint32(rawNode.NodeId.Uint64()),
+		SigningKey:                signingKey,
+		HttpAddress:               httpAddress,
+		IsReplicationEnabled:      rawNode.Node.IsReplicationEnabled,
+		IsApiEnabled:              rawNode.Node.IsApiEnabled,
+		IsDisabled:                rawNode.Node.IsDisabled,
+		MinMonthlyFeeMicroDollars: rawNode.Node.MinMonthlyFeeMicroDollars,
+		IsValidConfig:             isValidConfig,
 	}
 }
 

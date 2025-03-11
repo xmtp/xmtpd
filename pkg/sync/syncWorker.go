@@ -91,7 +91,7 @@ func (s *syncWorker) start() error {
 	}
 
 	for _, node := range nodes {
-		s.subscribeToNode(node.NodeID)
+		s.subscribeToNode(node)
 	}
 
 	return nil
@@ -123,7 +123,7 @@ func (s *syncWorker) subscribeToRegistry() {
 					}
 					s.log.Info("New nodes received:", zap.Any("nodes", newNodes))
 					for _, node := range newNodes {
-						s.subscribeToNode(node.NodeID)
+						s.subscribeToNode(node)
 					}
 				}
 			}
@@ -131,32 +131,37 @@ func (s *syncWorker) subscribeToRegistry() {
 		})
 }
 
-func (s *syncWorker) subscribeToNode(nodeid uint32) {
-	if nodeid == s.registrant.NodeID() {
+func (s *syncWorker) subscribeToNode(node registry.Node) {
+	if node.NodeID == s.registrant.NodeID() {
+		return
+	}
+
+	if !node.IsReplicationEnabled {
+		s.log.Debug("Skipping node not enabled for replication", zap.Uint32("nodeID", node.NodeID))
 		return
 	}
 
 	s.subscriptionsMutex.Lock()
 	defer s.subscriptionsMutex.Unlock()
 
-	if _, exists := s.subscriptions[nodeid]; exists {
+	if _, exists := s.subscriptions[node.NodeID]; exists {
 		// we already have a subscription to this node
 		return
 	}
 
-	s.subscriptions[nodeid] = struct{}{}
+	s.subscriptions[node.NodeID] = struct{}{}
 
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
-		fmt.Sprintf("node-subscribe-%d", nodeid),
+		fmt.Sprintf("node-subscribe-%d", node.NodeID),
 		func(ctx context.Context) {
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				default:
-					config := s.setupNodeRegistration(ctx, nodeid)
+					config := s.setupNodeRegistration(ctx, node.NodeID)
 					s.subscribeToNodeRegistration(config)
 				}
 			}

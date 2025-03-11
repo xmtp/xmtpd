@@ -45,10 +45,10 @@ contract DeployGroupMessages is Script, Utils, Environment {
 
         string memory addressesOutput;
 
-        addressesOutput = vm.serializeAddress(addresses, "groupMessagesDeployer", deployer);
-        addressesOutput = vm.serializeAddress(addresses, "groupMessagesProxyAdmin", admin);
-        addressesOutput = vm.serializeAddress(addresses, "groupMessagesProxy", address(proxy));
-        addressesOutput = vm.serializeAddress(addresses, "groupMessagesImpl", address(groupMessagesImpl));
+        addressesOutput = vm.serializeAddress(addresses, "deployer", deployer);
+        addressesOutput = vm.serializeAddress(addresses, "proxyAdmin", admin);
+        addressesOutput = vm.serializeAddress(addresses, "proxy", address(proxy));
+        addressesOutput = vm.serializeAddress(addresses, "implementation", address(groupMessagesImpl));
 
         string memory finalJson;
         finalJson = vm.serializeString(parent_object, addresses, addressesOutput);

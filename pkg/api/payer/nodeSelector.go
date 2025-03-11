@@ -44,8 +44,10 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 		return 0, errors.New("no available nodes")
 	}
 
-	// Sort nodes to ensure stability
-	sort.Slice(nodes, func(i, j int) bool { return nodes[i].NodeID < nodes[j].NodeID })
+	// Sort availableNodes to ensure stability
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].NodeID < nodes[j].NodeID
+	})
 
 	topicHash := HashKey(topic)
 
@@ -75,12 +77,18 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 	// Find the next available node
 	for i := 0; i < len(nodes); i++ {
 		candidateIdx := (idx + i) % len(nodeLocations)
-		candidateNodeID := nodes[candidateIdx].NodeID
+		node := nodes[candidateIdx]
 
-		if _, exists := banned[candidateNodeID]; !exists {
-			return candidateNodeID, nil
+		// Skip api disabled nodes. Admin disabled nodes are not returned by the registry.
+		// This does not affect the stability of the algorithm, is preserves the node order.
+		if !node.IsApiEnabled {
+			continue
+		}
+
+		if _, exists := banned[node.NodeID]; !exists {
+			return node.NodeID, nil
 		}
 	}
 
-	return 0, errors.New("no available nodes after considering banlist")
+	return 0, errors.New("no available nodes after filtering")
 }

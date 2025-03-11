@@ -254,13 +254,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         emit PayerDeleted(payer, block.timestamp);
     }
 
-    /**
-     * @inheritdoc IPayer
-     */
-    function getIsActivePayer(address payer) public view returns (bool isActive) {
-        return activePayers.contains(payer);
-    }
-
     //==============================================================
     //                  Payers Balance Management
     //==============================================================
@@ -375,17 +368,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function getPayersInDebt(uint256 offset, uint256 limit) external view returns (
-        address[] memory debtors,
-        uint256[] memory debtAmounts,
-        uint256 totalCount
-    ) {
-        // TODO: Implement payers in debt retrieval logic
-    }
-
-    /**
-     * @inheritdoc IPayer
-     */
     function getContractBalance() external view returns (uint256 balance) {
         return usdcToken.balanceOf(address(this));
     }
@@ -425,6 +407,34 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     //==============================================================
     //                      Getters
     //==============================================================
+
+    /**
+     * @dev Returns the payer information.
+     * @param payer The address of the payer.
+     * @return payerInfo The payer information.
+     */
+    function getPayer(address payer) external view returns (Payer memory payerInfo) {
+        require(_payerExists(payer), PayerDoesNotExist(payer));
+        return payers[payer];
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function getIsActivePayer(address payer) public view returns (bool isActive) {
+        return activePayers.contains(payer);
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function getPayersInDebt(uint256 offset, uint256 limit) external view returns (
+        address[] memory debtors,
+        uint256[] memory debtAmounts,
+        uint256 totalCount
+    ) {
+        // TODO: Implement payers in debt retrieval logic
+    }
 
     /**
      * @inheritdoc IPayer

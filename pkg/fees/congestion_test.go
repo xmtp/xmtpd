@@ -6,51 +6,51 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const EXPECTED_CONGESTION_FOR_125 = int64(26)
+const EXPECTED_CONGESTION_FOR_125 = int32(26)
 
 func TestCalculateAverageCongestion(t *testing.T) {
-	rates := [5]int64{125, 100, 100, 100, 100}
-	targetRate := int64(100)
+	rates := [5]int32{125, 100, 100, 100, 100}
+	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
 	assert.Equal(t, EXPECTED_CONGESTION_FOR_125, congestion)
 }
 
 func TestCurrentMinuteCongestion(t *testing.T) {
-	rates := [5]int64{125, 0, 0, 0, 0}
-	targetRate := int64(100)
+	rates := [5]int32{125, 0, 0, 0, 0}
+	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
 	assert.Equal(t, EXPECTED_CONGESTION_FOR_125, congestion)
 }
 
 func TestPreviousMinuteCongestion(t *testing.T) {
-	rates := [5]int64{0, 125, 0, 0, 0}
-	targetRate := int64(100)
+	rates := [5]int32{0, 125, 0, 0, 0}
+	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
 	assert.Equal(t, EXPECTED_CONGESTION_FOR_125, congestion)
 }
 
 func TestFourMinuteAverageCongestion(t *testing.T) {
-	rates := [5]int64{0, 0, 400, 0, 0}
-	targetRate := int64(100)
+	rates := [5]int32{0, 0, 400, 0, 0}
+	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
-	assert.Equal(t, int64(19), congestion)
+	assert.Equal(t, int32(19), congestion)
 }
 
 func TestTargetRateZero(t *testing.T) {
-	rates := [5]int64{100, 100, 100, 100, 100}
-	targetRate := int64(0)
+	rates := [5]int32{100, 100, 100, 100, 100}
+	targetRate := int32(0)
 
 	congestion := CalculateCongestion(rates, targetRate)
-	assert.Equal(t, int64(0), congestion)
+	assert.Equal(t, int32(0), congestion)
 }
 
 func TestWeightedAverage(t *testing.T) {
-	rates := [5]int64{100, 100, 100, 100, 200}
+	rates := [5]int32{100, 100, 100, 100, 200}
 
 	average := calculateFourMinuteAverage(rates)
-	assert.Equal(t, int64(110), average)
+	assert.Equal(t, int32(110), average)
 }

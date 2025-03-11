@@ -514,8 +514,12 @@ func (s *syncWorker) calculateFees(env *envUtils.OriginatorEnvelope) (currency.P
 		return 0, err
 	}
 
-	// TODO:(nm) Calculate real rate of congestion
-	congestionFee, err := s.feeCalculator.CalculateCongestionFee(messageTime, 0)
+	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
+		s.ctx,
+		queries.New(s.store),
+		messageTime,
+		env.OriginatorNodeID(),
+	)
 	if err != nil {
 		return 0, err
 	}

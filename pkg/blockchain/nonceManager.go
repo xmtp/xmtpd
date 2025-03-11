@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
 	"math/big"
 )
@@ -51,6 +52,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 	}
 
 	s.logger.Debug("Generated Nonce", zap.Int64("nonce", nonce))
+	metrics.EmitCurrentNonce(float64(nonce))
 
 	ret := &NonceContext{
 		Nonce: *new(big.Int).SetInt64(nonce),

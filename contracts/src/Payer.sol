@@ -11,12 +11,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./interfaces/IPayer.sol";
 import "./interfaces/INodes.sol";
 
-interface INodesCaller {
-    // TODO: Node has to implement ERC721Enumerable or an ad-hoc function (senderIsNodeOperator)
-    function senderIsActiveNodeOperator(address sender) external view returns (bool isNodeOperator);
-    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
-}
-
 /**
  * @title Payer
  * @notice Implementation for managing payer USDC deposits, usage settlements,
@@ -398,10 +392,11 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @inheritdoc IPayer
      */
     function getIsActiveNodeOperator(address operator) public view returns (bool) {
-        INodesCaller nodes = INodesCaller(nodesContract);
+        INodes nodes = INodes(nodesContract);
         require(address(nodes) != address(0), Unauthorized());
 
-        return nodes.senderIsActiveNodeOperator(operator);
+        // TODO: Implement this in Nodes contract
+        return nodes.isActiveNodeOperator(operator);
     }
 
     //==============================================================

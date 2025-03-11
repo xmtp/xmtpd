@@ -43,7 +43,6 @@ func NewRegistrant(
 	if err != nil {
 		return nil, err
 	}
-	log.Debug(fmt.Sprintf("Running with public key %x", crypto.FromECDSAPub(record.SigningKey)))
 
 	if err = ensureDatabaseMatches(ctx, db, record); err != nil {
 		return nil, err
@@ -54,6 +53,7 @@ func NewRegistrant(
 	log.Info(
 		"Registrant identified",
 		zap.Uint32("nodeId", record.NodeID),
+		zap.String("publicKey", utils.EcdsaPublicKeyToString(record.SigningKey)),
 	)
 	return &Registrant{
 		record:       record,

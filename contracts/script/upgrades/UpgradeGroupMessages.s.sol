@@ -36,7 +36,7 @@ contract UpgradeGroupMessages is Script, Utils, Environment {
 
     function _initializeProxy() internal {
         string memory fileContent = readOutput(XMTP_GROUP_MESSAGES_OUTPUT_JSON);
-        proxy = GroupMessages(stdJson.readAddress(fileContent, ".addresses.groupMessagesProxy"));
+        proxy = GroupMessages(stdJson.readAddress(fileContent, ".addresses.proxy"));
         require(address(proxy) != address(0), "proxy address not set");
         require(proxy.hasRole(proxy.DEFAULT_ADMIN_ROLE(), upgrader), "Upgrader must have admin role");
     }
@@ -45,7 +45,7 @@ contract UpgradeGroupMessages is Script, Utils, Environment {
         vm.writeJson(
             vm.toString(address(newImplementation)),
             getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON),
-            ".addresses.groupMessagesImpl"
+            ".addresses.implementation"
         );
         vm.writeJson(vm.toString(block.number), getOutputPath(XMTP_GROUP_MESSAGES_OUTPUT_JSON), ".latestUpgradeBlock");
     }

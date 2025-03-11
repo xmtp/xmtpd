@@ -380,7 +380,7 @@ func (s *Service) GetInboxIds(
 	queries := queries.New(s.store)
 	addresses := []string{}
 	for _, request := range req.Requests {
-		addresses = append(addresses, request.GetAddress())
+		addresses = append(addresses, request.GetIdentifier())
 	}
 
 	addressLogEntries, err := queries.GetAddressLogs(ctx, addresses)
@@ -392,7 +392,7 @@ func (s *Service) GetInboxIds(
 
 	for index, address := range addresses {
 		resp := message_api.GetInboxIdsResponse_Response{}
-		resp.Address = address
+		resp.Identifier = address
 
 		for _, logEntry := range addressLogEntries {
 			if logEntry.Address == address {

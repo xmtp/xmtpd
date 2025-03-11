@@ -16,7 +16,7 @@ echo -e "→ Start docker containers"
 dev/docker/up
 
 echo -e "→ Deploy smart contracts"
-contracts/dev/deploy-local
+contracts/dev/deploy local
 
 echo -e "→ Register local node-1"
 dev/register-local-node

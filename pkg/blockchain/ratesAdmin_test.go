@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/require"
@@ -46,7 +47,16 @@ func TestAddRates(t *testing.T) {
 	err := ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
 
-	returnedRates, err := ratesAdmin.contract.GetRates(&bind.CallOpts{}, big.NewInt(0))
+	var returnedRates struct {
+		Rates   []ratesmanager.RatesManagerRates
+		HasMore bool
+	}
+
+	require.Eventually(t, func() bool {
+		returnedRates, err = ratesAdmin.contract.GetRates(&bind.CallOpts{}, big.NewInt(0))
+		return err == nil
+	}, 500*time.Millisecond, 50*time.Millisecond)
+
 	require.NoError(t, err)
 	require.Len(t, returnedRates.Rates, 1)
 	require.False(t, returnedRates.HasMore)

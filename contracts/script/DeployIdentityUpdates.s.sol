@@ -44,10 +44,10 @@ contract DeployIdentityUpdates is Script, Utils, Environment {
 
         string memory addressesOutput;
 
-        addressesOutput = vm.serializeAddress(addresses, "identityUpdatesDeployer", deployer);
-        addressesOutput = vm.serializeAddress(addresses, "identityUpdatesProxyAdmin", admin);
-        addressesOutput = vm.serializeAddress(addresses, "identityUpdatesProxy", address(proxy));
-        addressesOutput = vm.serializeAddress(addresses, "identityUpdatesImpl", address(idUpdatesImpl));
+        addressesOutput = vm.serializeAddress(addresses, "deployer", deployer);
+        addressesOutput = vm.serializeAddress(addresses, "proxyAdmin", admin);
+        addressesOutput = vm.serializeAddress(addresses, "proxy", address(proxy));
+        addressesOutput = vm.serializeAddress(addresses, "implementation", address(idUpdatesImpl));
 
         string memory finalJson;
         finalJson = vm.serializeString(parent_object, addresses, addressesOutput);

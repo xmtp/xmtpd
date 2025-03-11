@@ -55,7 +55,9 @@ func TestStoreIdentityUpdate(t *testing.T) {
 		Return(&mlsvalidate.AssociationStateResult{
 			StateDiff: &associations.AssociationStateDiff{
 				NewMembers: []*associations.MemberIdentifier{{
-					Kind: &associations.MemberIdentifier_Address{Address: newAddress},
+					Kind: &associations.MemberIdentifier_EthereumAddress{
+						EthereumAddress: newAddress,
+					},
 				}},
 			},
 		}, nil)

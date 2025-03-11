@@ -22,6 +22,19 @@ func setup() {
 	}
 	fmt.Printf("    ✔ Dev image built in %v\n", time.Since(imageStart))
 
+	pullStart := time.Now()
+	for _, version := range xmtpdVersions {
+		image := fmt.Sprintf("%s:%s", ghcrRepository, version)
+
+		fmt.Printf("    ⧖ Pulling image %s.\n", image)
+		err = pullImage(image)
+		if err != nil {
+			fmt.Printf("    Error pulling image: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	fmt.Printf("    ✔ All images pulled in %v\n", time.Since(pullStart))
+
 	// Print total setup time
 	fmt.Printf("=== SETUP COMPLETE (%v)\n", time.Since(start))
 }

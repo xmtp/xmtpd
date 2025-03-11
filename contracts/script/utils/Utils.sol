@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "forge-std/src/Script.sol";
-import "forge-std/src/StdJson.sol";
+import { Script } from "forge-std/src/Script.sol";
 
 contract Utils is Script {
-    uint256 constant CHAIN_ID_ANVIL_LOCALNET = 31337;
-    uint256 constant CHAIN_ID_XMTP_TESTNET = 241320161;
-    uint256 constant CHAIN_ID_BASE_SEPOLIA = 84532;
+    uint256 constant CHAIN_ID_ANVIL_LOCALNET = 31_337;
+    uint256 constant CHAIN_ID_XMTP_TESTNET = 241_320_161;
+    uint256 constant CHAIN_ID_BASE_SEPOLIA = 84_532;
 
     string constant OUTPUT_ANVIL_LOCALNET = "anvil_localnet";
     string constant OUTPUT_XMTP_TESTNET = "xmtp_testnet";
@@ -45,14 +44,13 @@ contract Utils is Script {
 
     function _resolveChainID() internal view returns (string memory) {
         uint256 chainID = block.chainid;
-        if (chainID == CHAIN_ID_ANVIL_LOCALNET) {
-            return OUTPUT_ANVIL_LOCALNET;
-        } else if (chainID == CHAIN_ID_XMTP_TESTNET) {
-            return OUTPUT_XMTP_TESTNET;
-        } else if (chainID == CHAIN_ID_BASE_SEPOLIA) {
-            return OUTPUT_BASE_SEPOLIA;
-        } else {
-            return OUTPUT_UNKNOWN;
-        }
+
+        if (chainID == CHAIN_ID_ANVIL_LOCALNET) return OUTPUT_ANVIL_LOCALNET;
+
+        if (chainID == CHAIN_ID_XMTP_TESTNET) return OUTPUT_XMTP_TESTNET;
+
+        if (chainID == CHAIN_ID_BASE_SEPOLIA) return OUTPUT_BASE_SEPOLIA;
+
+        return OUTPUT_UNKNOWN;
     }
 }

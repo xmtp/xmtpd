@@ -2,22 +2,20 @@
 pragma solidity 0.8.28;
 
 /**
- * @title IPayer
+ * @title  IPayer
  * @notice Interface for managing payer USDC deposits, usage settlements,
  *         and a secure withdrawal process.
  */
 interface IPayer {
-    //==============================================================
-    //                             STRUCTS
-    //==============================================================
+    /* ============ Structs ============ */
 
     /**
-     * @dev Struct to store payer information.
-     * @param balance The current USDC balance of the payer.
-     * @param isActive Indicates whether the payer is active.
-     * @param creationTimestamp The timestamp when the payer was first registered.
+     * @dev   Struct to store payer information.
+     * @param balance                The current USDC balance of the payer.
+     * @param isActive               Indicates whether the payer is active.
+     * @param creationTimestamp      The timestamp when the payer was first registered.
      * @param latestDepositTimestamp The timestamp of the most recent deposit.
-     * @param debtAmount The amount of fees owed but not yet settled.
+     * @param debtAmount             The amount of fees owed but not yet settled.
      */
     struct Payer {
         uint256 balance;
@@ -28,10 +26,10 @@ interface IPayer {
     }
 
     /**
-     * @dev Struct to store withdrawal request information.
-     * @param requestTimestamp The timestamp when the withdrawal was requested.
+     * @dev   Struct to store withdrawal request information.
+     * @param requestTimestamp      The timestamp when the withdrawal was requested.
      * @param withdrawableTimestamp The timestamp when the withdrawal can be finalized.
-     * @param amount The amount requested for withdrawal.
+     * @param amount                The amount requested for withdrawal.
      */
     struct Withdrawal {
         uint256 requestTimestamp;
@@ -39,9 +37,7 @@ interface IPayer {
         uint256 amount;
     }
 
-    //==============================================================
-    //                             EVENTS
-    //==============================================================
+    /* ============ Events ============ */
 
     /// @dev Emitted when a new payer is registered.
     event PayerRegistered(address indexed payer, uint256 amount);
@@ -59,7 +55,9 @@ interface IPayer {
     event Donation(address indexed donor, address indexed payer, uint256 amount);
 
     /// @dev Emitted when a payer initiates a withdrawal request.
-    event WithdrawalRequest(address indexed payer, uint256 requestTimestamp, uint256 withdrawableTimestamp, uint256 amount);
+    event WithdrawalRequest(
+        address indexed payer, uint256 requestTimestamp, uint256 withdrawableTimestamp, uint256 amount
+    );
 
     /// @dev Emitted when a payer cancels a withdrawal request.
     event WithdrawalCancelled(address indexed payer);
@@ -88,9 +86,7 @@ interface IPayer {
     /// @dev Emitted when the pause is lifted by `account`.
     event Unpaused(address account);
 
-    //==============================================================
-    //                             ERRORS
-    //==============================================================
+    /* ============ Custom Errors ============ */
 
     /// @dev Error thrown when caller is not an authorized node operator.
     error UnauthorizedNodeOperator();
@@ -125,14 +121,12 @@ interface IPayer {
     /// @dev Error thrown when trying to delete a payer in withdrawal state.
     error PayerInWithdrawal();
 
-    //==============================================================
-    //                      PAYER REGISTRATION & MANAGEMENT
-    //==============================================================
+    /* ============ Payer Registration & Management ============ */
 
     /**
      * @notice Registers the caller as a new payer upon depositing the minimum required USDC.
      *         The caller must approve this contract to spend USDC beforehand.
-     * @param amount The amount of USDC to deposit (must be at least the minimum required).
+     * @param  amount The amount of USDC to deposit (must be at least the minimum required).
      *
      * Emits `PayerRegistered`.
      */
@@ -141,7 +135,7 @@ interface IPayer {
     /**
      * @notice Allows the caller to deposit USDC into their own payer account.
      *         The caller must approve this contract to spend USDC beforehand.
-     * @param amount The amount of USDC to deposit.
+     * @param  amount The amount of USDC to deposit.
      *
      * Emits `Deposit`.
      */
@@ -150,8 +144,8 @@ interface IPayer {
     /**
      * @notice Allows anyone to donate USDC to an existing payer's account.
      *         The sender must approve this contract to spend USDC beforehand.
-     * @param payer The address of the payer receiving the donation.
-     * @param amount The amount of USDC to donate.
+     * @param  payer  The address of the payer receiving the donation.
+     * @param  amount The amount of USDC to donate.
      *
      * Emits `Donation`.
      */
@@ -160,7 +154,7 @@ interface IPayer {
     /**
      * @notice Deactivates a payer, preventing them from initiating new transactions.
      *         Only callable by authorized node operators.
-     * @param payer The address of the payer to deactivate.
+     * @param  payer The address of the payer to deactivate.
      *
      * Emits `PayerDeactivated`.
      */
@@ -168,9 +162,9 @@ interface IPayer {
 
     /**
      * @notice Permanently deletes a payer from the system.
-     * @dev Can only delete payers with zero balance and zero debt who are not in withdrawal.
-     *      Only callable by authorized node operators.
-     * @param payer The address of the payer to delete.
+     * @dev    Can only delete payers with zero balance and zero debt who are not in withdrawal.
+     *         Only callable by authorized node operators.
+     * @param  payer The address of the payer to delete.
      *
      * Emits `PayerDeleted`.
      */
@@ -178,7 +172,7 @@ interface IPayer {
 
     /**
      * @notice Checks if a given address is an active payer.
-     * @param payer The address to check.
+     * @param  payer    The address to check.
      * @return isActive True if the address is an active payer, false otherwise.
      */
     function getIsActivePayer(address payer) external view returns (bool isActive);
@@ -191,19 +185,17 @@ interface IPayer {
 
     /**
      * @notice Updates the minimum deposit amount required for registration.
-     * @param newMinimumDeposit The new minimum deposit amount.
-     * 
+     * @param  newMinimumDeposit The new minimum deposit amount.
+     *
      * Emits `MinimumDepositUpdated`.
      */
     function setMinimumDeposit(uint256 newMinimumDeposit) external;
 
-    //==============================================================
-    //                      PAYER BALANCE MANAGEMENT
-    //==============================================================
+    /* ============ Payer Balance Management ============ */
 
     /**
      * @notice Retrieves the current total balance of a given payer.
-     * @param payer The address of the payer.
+     * @param  payer   The address of the payer.
      * @return balance The current balance of the payer.
      */
     function getPayerBalance(address payer) external view returns (uint256 balance);
@@ -212,7 +204,7 @@ interface IPayer {
      * @notice Initiates a withdrawal request for the caller.
      *         - Sets the payer into withdrawal mode (no further usage allowed).
      *         - Records a timestamp for the withdrawal lock period.
-     * @param amount The amount to withdraw (can be less than or equal to current balance).
+     * @param  amount The amount to withdraw (can be less than or equal to current balance).
      *
      * Emits `WithdrawalRequest`.
      */
@@ -220,7 +212,7 @@ interface IPayer {
 
     /**
      * @notice Cancels a previously requested withdrawal, removing withdrawal mode.
-     * @dev Only callable by the payer who initiated the withdrawal.
+     * @dev    Only callable by the payer who initiated the withdrawal.
      *
      * Emits `WithdrawalCancelled`.
      */
@@ -238,11 +230,11 @@ interface IPayer {
     /**
      * @notice Checks if a payer is currently in withdrawal mode and the timestamp
      *         when they initiated the withdrawal.
-     * @param payer The address to check.
-     * @return inWithdrawal True if in withdrawal mode, false otherwise.
-     * @return requestTimestamp The timestamp when `requestWithdrawal()` was called.
+     * @param  payer                 The address to check.
+     * @return inWithdrawal          True if in withdrawal mode, false otherwise.
+     * @return requestTimestamp      The timestamp when `requestWithdrawal()` was called.
      * @return withdrawableTimestamp When the withdrawal can be finalized.
-     * @return amount The amount requested for withdrawal.
+     * @return amount                The amount requested for withdrawal.
      */
     function getWithdrawalStatus(address payer)
         external
@@ -252,40 +244,38 @@ interface IPayer {
     /**
      * @notice Returns the duration of the lock period required before a withdrawal
      *         can be finalized.
-     * @return The lock period in seconds.
+     * @return lockPeriod The lock period in seconds.
      */
-    function getWithdrawalLockPeriod() external view returns (uint256);
+    function getWithdrawalLockPeriod() external view returns (uint256 lockPeriod);
 
-    //==============================================================
-    //                       USAGE SETTLEMENT
-    //==============================================================
+    /* ============ Usage Settlement ============ */
 
     /**
-    * @notice Settles usage for a contiguous batch of (payer, amount) entries.
-    * Assumes that the PayerReport contract has already verified the aggregated Merkle proof.
-    *
-    * @param originatorNode The node that submitted the report.
-    * @param reportIndex The index of the report.
-    * @param payers A contiguous array of payer addresses.
-    * @param amounts A contiguous array of usage amounts corresponding to each payer.
-    */
+     * @notice Settles usage for a contiguous batch of (payer, amount) entries.
+     * Assumes that the PayerReport contract has already verified the aggregated Merkle proof.
+     *
+     * @param  originatorNode The node that submitted the report.
+     * @param  reportIndex    The index of the report.
+     * @param  payers         A contiguous array of payer addresses.
+     * @param  amounts        A contiguous array of usage amounts corresponding to each payer.
+     */
     function settleUsage(
         address originatorNode,
         uint256 reportIndex,
         address[] calldata payers,
         uint256[] calldata amounts
-    ) external /* onlyPayerReport */ ;
+    ) external; /* onlyPayerReport */
 
     /**
      * @notice Retrieves the total pending fees that have not yet been transferred
      *         to the distribution contract.
-     * @return pending The total pending fees in USDC.
+     * @return fees The total pending fees in USDC.
      */
-    function getPendingFees() external view returns (uint256 pending);
+    function getPendingFees() external view returns (uint256 fees);
 
     /**
      * @notice Transfers all pending fees to the designated distribution contract.
-     * @dev Uses a single storage write for updating accumulated fees.
+     * @dev    Uses a single storage write for updating accumulated fees.
      *
      * Emits `FeesTransferred`.
      */
@@ -293,13 +283,11 @@ interface IPayer {
 
     /**
      * @notice Returns the maximum allowed time difference for backdated settlements.
-     * @return The maximum allowed time difference in seconds.
+     * @return maxTime The maximum allowed time difference in seconds.
      */
-    function getMaxBackdatedTime() external view returns (uint256);
+    function getMaxBackdatedTime() external view returns (uint256 maxTime);
 
-    //==============================================================
-    //                       OBSERVABILITY FUNCTIONS
-    //==============================================================
+    /* ============ Observability Functions ============ */
 
     /**
      * @notice Returns the total value locked in the contract (all payer balances).
@@ -325,7 +313,7 @@ interface IPayer {
      */
     function getActivePayerCount() external view returns (uint256 count);
 
-     /**
+    /**
      * @notice Returns the timestamp of the last fee transfer to the rewards contract.
      * @return timestamp The last fee transfer timestamp.
      */
@@ -333,44 +321,41 @@ interface IPayer {
 
     /**
      * @notice Returns a paginated list of payers with outstanding debt.
-     * @param offset Number of payers to skip before starting to return results.
-     * @param limit Maximum number of payers to return.
-     * @return debtors Array of payer addresses with debt.
+     * @param  offset      Number of payers to skip before starting to return results.
+     * @param  limit       Maximum number of payers to return.
+     * @return debtors     Array of payer addresses with debt.
      * @return debtAmounts Corresponding debt amounts for each payer.
-     * @return totalCount Total number of payers with debt (regardless of pagination).
+     * @return totalCount  Total number of payers with debt (regardless of pagination).
      */
-    function getPayersInDebt(uint256 offset, uint256 limit) external view returns (
-        address[] memory debtors,
-        uint256[] memory debtAmounts,
-        uint256 totalCount
-    );
+    function getPayersInDebt(uint256 offset, uint256 limit)
+        external
+        view
+        returns (address[] memory debtors, uint256[] memory debtAmounts, uint256 totalCount);
 
     /**
      * @notice Returns the actual USDC balance held by the contract.
-     * @dev This can be used to verify the contract's accounting is accurate.
+     * @dev    This can be used to verify the contract's accounting is accurate.
      * @return balance The USDC token balance of the contract.
      */
     function getContractBalance() external view returns (uint256 balance);
 
-    //==============================================================
-    //                       ADMINISTRATIVE FUNCTIONS
-    //==============================================================
+    /* ============ Administrative Functions ============ */
 
     /**
      * @notice Sets the address of the distribution contract.
-     * @param _distributionContract The address of the new distribution contract.
+     * @param distributionContract The address of the new distribution contract.
      *
      * Emits `DistributionContractUpdated`.
      */
-    function setDistributionContract(address _distributionContract) external;
+    function setDistributionContract(address distributionContract) external;
 
     /**
      * @notice Sets the address of the nodes contract for operator verification.
-     * @param _nodesContract The address of the new nodes contract.
+     * @param nodesContract The address of the new nodes contract.
      *
      * Emits `NodesContractUpdated`.
      */
-    function setNodesContract(address _nodesContract) external;
+    function setNodesContract(address nodesContract) external;
 
     /**
      * @notice Retrieves the address of the current distribution contract.
@@ -400,7 +385,7 @@ interface IPayer {
 
     /**
      * @notice Checks if a given address is an active node operator.
-     * @param operator The address to check.
+     * @param  operator             The address to check.
      * @return isActiveNodeOperator True if the address is an active node operator, false otherwise.
      */
     function getIsActiveNodeOperator(address operator) external view returns (bool isActiveNodeOperator);

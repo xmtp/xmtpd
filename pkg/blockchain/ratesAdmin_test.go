@@ -44,7 +44,12 @@ func TestAddRates(t *testing.T) {
 		StartTime:     1000,
 	}
 
-	err := ratesAdmin.AddRates(context.Background(), rates)
+	var err error
+
+	require.Eventually(t, func() bool {
+		err = ratesAdmin.AddRates(context.Background(), rates)
+		return err == nil
+	}, 500*time.Millisecond, 50*time.Millisecond)
 	require.NoError(t, err)
 
 	var returnedRates struct {

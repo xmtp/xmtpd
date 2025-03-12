@@ -20,45 +20,50 @@ type NonceManager interface {
 	Replenish(ctx context.Context, nonce big.Int) error
 }
 
-// RequestManager controls the number of concurrent requests
-type RequestManager struct {
-	maxConcurrent int
-	semaphore     chan struct{}
-	wg            sync.WaitGroup
+// OpenConnectionsLimiter controls the number of concurrent requests
+type OpenConnectionsLimiter struct {
+	semaphore chan struct{}
+	wg        sync.WaitGroup
 }
 
 // MaxConcurrentRequests the blockchain mempool can usually only hold 64 transactions from the same fromAddress
 const MaxConcurrentRequests = 64
 const BestGuessConcurrency = 32
 
-// NewRequestManager initializes a RequestManager with a limit
-func NewRequestManager(maxConcurrent int) *RequestManager {
+// NewOpenConnectionsLimiter initializes a OpenConnectionsLimiter with a limit
+func NewOpenConnectionsLimiter(maxConcurrent int) *OpenConnectionsLimiter {
 	if maxConcurrent > MaxConcurrentRequests {
 		maxConcurrent = MaxConcurrentRequests
 	}
-	return &RequestManager{
-		maxConcurrent: maxConcurrent,
-		semaphore:     make(chan struct{}, maxConcurrent),
+	return &OpenConnectionsLimiter{
+		semaphore: make(chan struct{}, maxConcurrent),
 	}
 }
 
 type SQLBackedNonceManager struct {
-	db             *sql.DB
-	logger         *zap.Logger
-	requestManager *RequestManager
+	db      *sql.DB
+	logger  *zap.Logger
+	limiter *OpenConnectionsLimiter
 }
 
 func NewSQLBackedNonceManager(db *sql.DB, logger *zap.Logger) *SQLBackedNonceManager {
 	return &SQLBackedNonceManager{
-		db:             db,
-		logger:         logger.Named("SQLBackedNonceManager"),
-		requestManager: NewRequestManager(BestGuessConcurrency),
+		db:      db,
+		logger:  logger.Named("SQLBackedNonceManager"),
+		limiter: NewOpenConnectionsLimiter(BestGuessConcurrency),
 	}
 }
 
 func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, error) {
-	s.requestManager.wg.Add(1)
-	s.requestManager.semaphore <- struct{}{}
+	s.limiter.wg.Add(1)
+
+	// block until there is an available slot in the blockchain rate limiter
+	select {
+	case s.limiter.semaphore <- struct{}{}:
+	case <-ctx.Done():
+		s.limiter.wg.Done()
+		return nil, ctx.Err()
+	}
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
@@ -83,13 +88,13 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 	ret := &NonceContext{
 		Nonce: *new(big.Int).SetInt64(nonce),
 		Cancel: func() {
-			<-s.requestManager.semaphore
-			s.requestManager.wg.Done()
+			<-s.limiter.semaphore
+			s.limiter.wg.Done()
 			_ = tx.Rollback()
 		},
 		Consume: func() error {
-			<-s.requestManager.semaphore
-			s.requestManager.wg.Done()
+			<-s.limiter.semaphore
+			s.limiter.wg.Done()
 			_, err = txQuerier.DeleteAvailableNonce(ctx, nonce)
 			if err != nil {
 				_ = tx.Rollback()

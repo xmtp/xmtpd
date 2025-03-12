@@ -9,6 +9,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -381,4 +382,84 @@ func TestAbandonSkipsOpenTxn(t *testing.T) {
 
 	require.EqualValues(t, 0, nonce)
 
+}
+
+func TestAbandonConcurrently(t *testing.T) {
+	ctx := context.Background()
+	db, _, cleanup := testutils.NewDB(t, ctx)
+	defer cleanup()
+
+	querier := queries.New(db)
+
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+		PendingNonce: 0,
+		NumElements:  500,
+	})
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	numClients := 20
+	numDeletions := int64(0)
+
+	for i := 1; i <= numClients; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			numrows, err := querier.DeleteObsoleteNonces(ctx, int64(10*i))
+			if err != nil {
+				t.Errorf("Error deleting nonces: %v", err)
+			}
+			atomic.AddInt64(&numDeletions, numrows)
+		}()
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+	require.EqualValues(t, 200, numDeletions)
+}
+
+func TestAbandonConcurrentlyWithOpenTransaction(t *testing.T) {
+	ctx := context.Background()
+	db, _, cleanup := testutils.NewDB(t, ctx)
+	defer cleanup()
+
+	querier := queries.New(db)
+
+	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+		PendingNonce: 0,
+		NumElements:  500,
+	})
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	numClients := 20
+	numDeletions := int64(0)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	require.NoError(t, err)
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	// hold this TX open
+	txQuerier := queries.New(db).WithTx(tx)
+
+	_, err = txQuerier.GetNextAvailableNonce(ctx)
+	require.NoError(t, err)
+
+	for i := 1; i <= numClients; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			numrows, err := querier.DeleteObsoleteNonces(ctx, int64(10*i))
+			if err != nil {
+				t.Errorf("Error deleting nonces: %v", err)
+			}
+			atomic.AddInt64(&numDeletions, numrows)
+		}()
+	}
+
+	wg.Wait()
+	require.EqualValues(t, 199, numDeletions)
 }

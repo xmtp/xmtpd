@@ -50,6 +50,12 @@ type NonceTable struct {
 	CreatedAt sql.NullTime
 }
 
+type OriginatorCongestion struct {
+	OriginatorID      int32
+	NumMessages       int32
+	MinutesSinceEpoch int32
+}
+
 type Payer struct {
 	ID      int32
 	Address string

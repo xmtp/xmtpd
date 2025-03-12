@@ -44,6 +44,7 @@ func getNextOpenPort() (int, error) {
 func NewTestServer(
 	t *testing.T,
 	port int,
+	httpPort int,
 	db *sql.DB,
 	registry r.NodeRegistry,
 	privateKey *ecdsa.PrivateKey,
@@ -62,7 +63,8 @@ func NewTestServer(
 			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		},
 		API: config.ApiOptions{
-			Port: port,
+			Port:     port,
+			HTTPPort: httpPort,
 		},
 		Sync: config.SyncOptions{
 			Enable: true,
@@ -70,7 +72,7 @@ func NewTestServer(
 		Replication: config.ReplicationOptions{
 			Enable: true,
 		},
-	}, registry, db, fmt.Sprintf("localhost:%d", port), testutils.GetLatestVersion(t))
+	}, registry, db, fmt.Sprintf("localhost:%d", port), fmt.Sprintf("localhost:%d", httpPort), testutils.GetLatestVersion(t))
 	require.NoError(t, err)
 
 	return server
@@ -91,26 +93,31 @@ func TestCreateServer(t *testing.T) {
 	server2Port, err := getNextOpenPort()
 	require.NoError(t, err)
 
+	httpServer1Port, err := getNextOpenPort()
+	require.NoError(t, err)
+	httpServer2Port, err := getNextOpenPort()
+	require.NoError(t, err)
+
 	nodes := []r.Node{
 		{
-			NodeID:               server1NodeID,
-			SigningKey:           &privateKey1.PublicKey,
-			HttpAddress:          fmt.Sprintf("http://localhost:%d", server1Port),
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsDisabled:           false,
-			MinMonthlyFee:        big.NewInt(0),
-			IsValidConfig:        true,
+			NodeID:                    server1NodeID,
+			SigningKey:                &privateKey1.PublicKey,
+			HttpAddress:               fmt.Sprintf("http://localhost:%d", server1Port),
+			IsReplicationEnabled:      true,
+			IsApiEnabled:              true,
+			IsDisabled:                false,
+			MinMonthlyFeeMicroDollars: big.NewInt(0),
+			IsValidConfig:             true,
 		},
 		{
-			NodeID:               server2NodeID,
-			SigningKey:           &privateKey2.PublicKey,
-			HttpAddress:          fmt.Sprintf("http://localhost:%d", server2Port),
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsDisabled:           false,
-			MinMonthlyFee:        big.NewInt(0),
-			IsValidConfig:        true,
+			NodeID:                    server2NodeID,
+			SigningKey:                &privateKey2.PublicKey,
+			HttpAddress:               fmt.Sprintf("http://localhost:%d", server2Port),
+			IsReplicationEnabled:      true,
+			IsApiEnabled:              true,
+			IsDisabled:                false,
+			MinMonthlyFeeMicroDollars: big.NewInt(0),
+			IsValidConfig:             true,
 		}}
 
 	registry := mocks.NewMockNodeRegistry(t)
@@ -136,8 +143,8 @@ func TestCreateServer(t *testing.T) {
 
 	registry.On("Stop").Return(nil)
 
-	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
-	server2 := NewTestServer(t, server2Port, dbs[1], registry, privateKey2)
+	server1 := NewTestServer(t, server1Port, httpServer1Port, dbs[0], registry, privateKey1)
+	server2 := NewTestServer(t, server2Port, httpServer2Port, dbs[1], registry, privateKey2)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 
@@ -231,18 +238,21 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	require.NoError(t, err)
 	server1Port, err := getNextOpenPort()
 	require.NoError(t, err)
+	httpServer1Port, err := getNextOpenPort()
+	require.NoError(t, err)
+
 	nodeId1 := server1NodeID
 
 	nodes := []r.Node{
 		{
-			NodeID:               server1NodeID,
-			SigningKey:           &privateKey1.PublicKey,
-			HttpAddress:          fmt.Sprintf("http://localhost:%d", server1Port),
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsDisabled:           false,
-			MinMonthlyFee:        big.NewInt(0),
-			IsValidConfig:        true,
+			NodeID:                    server1NodeID,
+			SigningKey:                &privateKey1.PublicKey,
+			HttpAddress:               fmt.Sprintf("http://localhost:%d", server1Port),
+			IsReplicationEnabled:      true,
+			IsApiEnabled:              true,
+			IsDisabled:                false,
+			MinMonthlyFeeMicroDollars: big.NewInt(0),
+			IsValidConfig:             true,
 		}}
 
 	registry := mocks.NewMockNodeRegistry(t)
@@ -255,7 +265,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	registry.On("Stop").Return(nil)
 
-	server1 := NewTestServer(t, server1Port, dbs[0], registry, privateKey1)
+	server1 := NewTestServer(t, server1Port, httpServer1Port, dbs[0], registry, privateKey1)
 	defer func() {
 		server1.Shutdown(0)
 	}()

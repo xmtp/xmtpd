@@ -52,11 +52,11 @@ type UpdateHealthOptions struct {
 }
 
 type RegisterNodeOptions struct {
-	AdminOptions  AdminOptions `group:"Admin Options" namespace:"admin"`
-	HttpAddress   string       `                                        long:"http-address"         description:"HTTP address to register for the node"                            required:"true"`
-	OwnerAddress  string       `                                        long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
-	SigningKeyPub string       `                                        long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
-	MinMonthlyFee int64        `                                        long:"min-monthly-fee"      description:"Minimum monthly fee to register the node"                         required:"false"`
+	AdminOptions              AdminOptions `group:"Admin Options" namespace:"admin"`
+	HttpAddress               string       `                                        long:"http-address"                  description:"HTTP address to register for the node"                            required:"true"`
+	OwnerAddress              string       `                                        long:"node-owner-address"            description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
+	SigningKeyPub             string       `                                        long:"node-signing-key-pub"          description:"Signing key of the node to register"                              required:"true"`
+	MinMonthlyFeeMicroDollars int64        `                                        long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"                         required:"false"`
 }
 
 type SetHttpAddressOptions struct {
@@ -65,8 +65,8 @@ type SetHttpAddressOptions struct {
 }
 
 type SetMinMonthlyFeeOptions struct {
-	NodeManagerOptions NodeManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
-	MinMonthlyFee      int64              `                                                      long:"min-monthly-fee" description:"Minimum monthly fee to register the node"`
+	NodeManagerOptions        NodeManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
+	MinMonthlyFeeMicroDollars int64              `                                                      long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"`
 }
 
 type SetMaxActiveNodesOptions struct {

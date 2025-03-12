@@ -77,7 +77,7 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     // ***************************************************************
 
     /// @inheritdoc INodes
-    function addNode(address to, bytes calldata signingKeyPub, string calldata httpAddress, uint256 minMonthlyFee)
+    function addNode(address to, bytes calldata signingKeyPub, string calldata httpAddress, uint256 minMonthlyFeeMicroDollars)
         external
         onlyRole(ADMIN_ROLE)
         returns (uint256)
@@ -90,8 +90,8 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
         _nodeCounter++;
         uint32 nodeId = _nodeCounter * NODE_INCREMENT;
         _mint(to, nodeId);
-        _nodes[nodeId] = Node(signingKeyPub, httpAddress, false, false, false, minMonthlyFee);
-        emit NodeAdded(nodeId, to, signingKeyPub, httpAddress, minMonthlyFee);
+        _nodes[nodeId] = Node(signingKeyPub, httpAddress, false, false, false, minMonthlyFeeMicroDollars);
+        emit NodeAdded(nodeId, to, signingKeyPub, httpAddress, minMonthlyFeeMicroDollars);
         return nodeId;
     }
 
@@ -184,10 +184,10 @@ contract Nodes is AccessControlDefaultAdminRules, ERC721, INodes {
     }
 
     /// @inheritdoc INodes
-    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFee) external onlyRole(NODE_MANAGER_ROLE) {
+    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFeeMicroDollars) external onlyRole(NODE_MANAGER_ROLE) {
         require(_nodeExists(nodeId), NodeDoesNotExist());
-        _nodes[nodeId].minMonthlyFee = minMonthlyFee;
-        emit MinMonthlyFeeUpdated(nodeId, minMonthlyFee);
+        _nodes[nodeId].minMonthlyFeeMicroDollars = minMonthlyFeeMicroDollars;
+        emit MinMonthlyFeeUpdated(nodeId, minMonthlyFeeMicroDollars);
     }
 
     // ***************************************************************

@@ -57,11 +57,11 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		wantErr        bool
 	}{
 		{
-			name:           "happy path",
+			name:           "cancelled context",
 			inboxId:        testutils.RandomGroupID(),
-			identityUpdate: testutils.RandomBytes(104),
-			ctx:            context.Background(),
-			wantErr:        false,
+			identityUpdate: testutils.RandomBytes(100),
+			ctx:            testutils.CancelledContext(),
+			wantErr:        true,
 		},
 		{
 			name:           "empty update",
@@ -71,11 +71,11 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			wantErr:        true,
 		},
 		{
-			name:           "cancelled context",
+			name:           "happy path",
 			inboxId:        testutils.RandomGroupID(),
-			identityUpdate: testutils.RandomBytes(100),
-			ctx:            testutils.CancelledContext(),
-			wantErr:        true,
+			identityUpdate: testutils.RandomBytes(104),
+			ctx:            context.Background(),
+			wantErr:        false,
 		},
 	}
 	for _, tt := range tests {

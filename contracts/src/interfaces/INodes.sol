@@ -52,13 +52,13 @@ interface INodesEvents {
     /// @param owner The address that receives the new node NFT.
     /// @param signingKeyPub The node’s signing key public value.
     /// @param httpAddress The node’s HTTP endpoint.
-    /// @param minMonthlyFee The minimum monthly fee for the node.
+    /// @param minMonthlyFeeMicroDollars The minimum monthly fee for the node.
     event NodeAdded(
         uint256 indexed nodeId,
         address indexed owner,
         bytes signingKeyPub,
         string httpAddress,
-        uint256 minMonthlyFee
+        uint256 minMonthlyFeeMicroDollars
     );
 
     /// @notice Emitted when a disabled status is removed from a node.
@@ -98,10 +98,10 @@ interface INodesEvents {
 
     /// @notice Emitted when the minimum monthly fee for a node is updated.
     /// @param nodeId The identifier of the node.
-    /// @param minMonthlyFee The updated minimum fee.
+    /// @param minMonthlyFeeMicroDollars The updated minimum fee.
     event MinMonthlyFeeUpdated(
         uint256 indexed nodeId,
-        uint256 minMonthlyFee
+        uint256 minMonthlyFeeMicroDollars
     );
 
     /// @notice Emitted when the node operator commission percent is updated.
@@ -131,14 +131,14 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     /// @param isReplicationEnabled A flag indicating whether the node supports replication.
     /// @param isApiEnabled A flag indicating whether the node has its API enabled.
     /// @param isDisabled A flag indicating whether the node was disabled by an administrator.
-    /// @param minMonthlyFee The minimum monthly fee collected by the node operator.
+    /// @param minMonthlyFeeMicroDollars The minimum monthly fee collected by the node operator.
     struct Node {
         bytes signingKeyPub;
         string httpAddress;
         bool isReplicationEnabled;
         bool isApiEnabled;
         bool isDisabled;
-        uint256 minMonthlyFee;
+        uint256 minMonthlyFeeMicroDollars;
     }
 
     /// @notice Struct representing a node with its ID
@@ -158,13 +158,13 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     /// @param to The address that will own the new node NFT.
     /// @param signingKeyPub The public signing key for the node.
     /// @param httpAddress The node’s HTTP address.
-    /// @param minMonthlyFee The minimum monthly fee that the node operator collects.
+    /// @param minMonthlyFeeMicroDollars The minimum monthly fee that the node operator collects.
     /// @return nodeId The unique identifier of the newly added node.
     function addNode(
         address to,
         bytes calldata signingKeyPub,
         string calldata httpAddress,
-        uint256 minMonthlyFee
+        uint256 minMonthlyFeeMicroDollars
     ) external returns (uint256 nodeId);
 
     /// @notice Disables a node.
@@ -188,8 +188,8 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     /// @notice Set the minimum monthly fee for a node.
     /// @dev Only the contract owner may call this.
     /// @param nodeId The unique identifier of the node.
-    /// @param minMonthlyFee The new minimum monthly fee.
-    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFee) external;
+    /// @param minMonthlyFeeMicroDollars The new minimum monthly fee.
+    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFeeMicroDollars) external;
 
     /// @notice Sets the commission percentage that the node operator receives.
     /// @dev Only the contract owner may call this.

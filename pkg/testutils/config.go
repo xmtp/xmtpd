@@ -4,7 +4,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -44,27 +43,16 @@ func rootPath(t *testing.T) string {
 
 /*
 *
-Parse the JSON file at this location to get the deployed contract proxy address
+Parse the JSON file at this location to get the deployed contract address.
 *
 */
-func getContractAddress(t *testing.T, fileName string) string {
+func getContractAddress(t *testing.T, fileName string, key string) string {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("Failed to read json: %v", err)
 	}
 
-	switch {
-	case strings.Contains(fileName, "GroupMessages.json"):
-		return fastjson.GetString(data, "addresses", "groupMessagesProxy")
-	case strings.Contains(fileName, "IdentityUpdates.json"):
-		return fastjson.GetString(data, "addresses", "identityUpdatesProxy")
-	case strings.Contains(fileName, "XMTPNodeRegistry.json"):
-		return fastjson.GetString(data, "addresses", "XMTPNodeRegistry")
-	case strings.Contains(fileName, "RatesManager.json"):
-		return fastjson.GetString(data, "addresses", "ratesManagerProxy")
-	default:
-		return ""
-	}
+	return fastjson.GetString(data, "addresses", key)
 }
 
 func GetContractsOptions(t *testing.T) config.ContractsOptions {
@@ -75,18 +63,22 @@ func GetContractsOptions(t *testing.T) config.ContractsOptions {
 		MessagesContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
+			"proxy",
 		),
 		NodesContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/XMTPNodeRegistry.json"),
+			"implementation",
 		),
 		IdentityUpdatesContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
+			"proxy",
 		),
 		RatesManagerContractAddress: getContractAddress(
 			t,
 			path.Join(rootDir, "./contracts/config/anvil_localnet/RatesManager.json"),
+			"proxy",
 		),
 		RegistryRefreshInterval: 100 * time.Millisecond,
 		RatesRefreshInterval:    100 * time.Millisecond,

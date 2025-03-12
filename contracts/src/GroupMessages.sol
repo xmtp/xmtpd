@@ -48,13 +48,12 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     error InvalidPayloadSize(uint256 actualSize, uint256 minSize, uint256 maxSize);
     error InvalidMaxPayloadSize();
     error InvalidMinPayloadSize();
-    error FailedToGrantRole(bytes32 role, address account);
+    error ZeroImplementationAddress();
 
     /* ============ Constants ============ */
 
-    uint256 public constant STARTING_MIN_PAYLOAD_SIZE = 78;
+    uint256 public constant ABSOLUTE_MIN_PAYLOAD_SIZE = 78;
     uint256 public constant ABSOLUTE_MAX_PAYLOAD_SIZE = 4_194_304;
-    uint256 public constant ABSOLUTE_MIN_PAYLOAD_SIZE = 1;
 
     /* ============ UUPS Storage ============ */
 
@@ -91,10 +90,11 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
 
         GroupMessagesStorage storage $ = _getGroupMessagesStorage();
 
-        $.minPayloadSize = STARTING_MIN_PAYLOAD_SIZE;
+        $.minPayloadSize = ABSOLUTE_MIN_PAYLOAD_SIZE;
         $.maxPayloadSize = ABSOLUTE_MAX_PAYLOAD_SIZE;
 
-        require(_grantRole(DEFAULT_ADMIN_ROLE, admin), FailedToGrantRole(DEFAULT_ADMIN_ROLE, admin));
+        // slither-disable-next-line unused-return
+        _grantRole(DEFAULT_ADMIN_ROLE, admin); // Will return false if the role is already granted.
     }
 
     /* ============ Pausable functionality ============ */
@@ -126,10 +126,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     function addMessage(bytes32 groupId, bytes calldata message) external whenNotPaused {
         GroupMessagesStorage storage $ = _getGroupMessagesStorage();
 
-        require(
-            message.length >= $.minPayloadSize && message.length <= $.maxPayloadSize,
-            InvalidPayloadSize(message.length, $.minPayloadSize, $.maxPayloadSize)
-        );
+        if (message.length < $.minPayloadSize || message.length > $.maxPayloadSize) {
+            revert InvalidPayloadSize(message.length, $.minPayloadSize, $.maxPayloadSize);
+        }
 
         // Increment sequence ID safely using unchecked to save gas.
         unchecked {
@@ -147,8 +146,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     function setMinPayloadSize(uint256 minPayloadSizeRequest) external onlyRole(DEFAULT_ADMIN_ROLE) {
         GroupMessagesStorage storage $ = _getGroupMessagesStorage();
 
-        require(minPayloadSizeRequest <= $.maxPayloadSize, InvalidMinPayloadSize());
-        require(minPayloadSizeRequest >= ABSOLUTE_MIN_PAYLOAD_SIZE, InvalidMinPayloadSize());
+        if (minPayloadSizeRequest > $.maxPayloadSize || minPayloadSizeRequest < ABSOLUTE_MIN_PAYLOAD_SIZE) {
+            revert InvalidMinPayloadSize();
+        }
 
         uint256 oldSize = $.minPayloadSize;
 
@@ -163,8 +163,9 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     function setMaxPayloadSize(uint256 maxPayloadSizeRequest) external onlyRole(DEFAULT_ADMIN_ROLE) {
         GroupMessagesStorage storage $ = _getGroupMessagesStorage();
 
-        require(maxPayloadSizeRequest >= $.minPayloadSize, InvalidMaxPayloadSize());
-        require(maxPayloadSizeRequest <= ABSOLUTE_MAX_PAYLOAD_SIZE, InvalidMaxPayloadSize());
+        if (maxPayloadSizeRequest < $.minPayloadSize || maxPayloadSizeRequest > ABSOLUTE_MAX_PAYLOAD_SIZE) {
+            revert InvalidMaxPayloadSize();
+        }
 
         uint256 oldSize = $.maxPayloadSize;
 
@@ -174,12 +175,12 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     /* ============ Getters ============ */
 
     /// @notice Minimum valid payload size (in bytes).
-    function minPayloadSize() external view returns (uint256) {
+    function minPayloadSize() external view returns (uint256 size) {
         return _getGroupMessagesStorage().minPayloadSize;
     }
 
     /// @notice Maximum valid payload size (in bytes).
-    function maxPayloadSize() external view returns (uint256) {
+    function maxPayloadSize() external view returns (uint256 size) {
         return _getGroupMessagesStorage().maxPayloadSize;
     }
 
@@ -190,7 +191,8 @@ contract GroupMessages is Initializable, AccessControlUpgradeable, UUPSUpgradeab
      * @param newImplementation The address of the new implementation.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newImplementation != address(0), "New implementation cannot be zero address");
+        // TODO: Consider reverting if there is no code at the new implementation address.
+        require(newImplementation != address(0), ZeroImplementationAddress());
         emit UpgradeAuthorized(msg.sender, newImplementation);
     }
 }

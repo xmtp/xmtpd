@@ -27,11 +27,11 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     error ZeroAdminAddress();
     error InvalidStartTime();
     error FromIndexOutOfRange();
-    error FailedToGrantRole(bytes32 role, address account);
+    error ZeroImplementationAddress();
 
     /* ============ Structs ============ */
 
-    // Rates struct holds the fees and the start time of the rates
+    // Rates struct holds the fees and the start time of the rates.
     struct Rates {
         uint64 messageFee;
         uint64 storageFee;
@@ -48,7 +48,7 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
 
     /// @custom:storage-location erc7201:xmtp.storage.RatesManager
     struct RatesManagerStorage {
-        Rates[] allRates; // All Rates appended here
+        Rates[] allRates; // All Rates appended here.
     }
 
     // keccak256(abi.encode(uint256(keccak256("xmtp.storage.RatesManager")) - 1)) & ~bytes32(uint256(0xff))
@@ -69,7 +69,7 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @param  admin The address of the admin.
      */
     function initialize(address admin) public initializer {
-        if (admin == address(0)) revert ZeroAdminAddress();
+        require(admin != address(0), ZeroAdminAddress());
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -77,8 +77,11 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
 
         _setRoleAdmin(RATES_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
 
-        require(_grantRole(DEFAULT_ADMIN_ROLE, admin), FailedToGrantRole(DEFAULT_ADMIN_ROLE, admin));
-        require(_grantRole(RATES_MANAGER_ROLE, admin), FailedToGrantRole(RATES_MANAGER_ROLE, admin));
+        // slither-disable-next-line unused-return
+        _grantRole(DEFAULT_ADMIN_ROLE, admin); // Will return false if the role is already granted.
+
+        // slither-disable-next-line unused-return
+        _grantRole(RATES_MANAGER_ROLE, admin); // Will return false if the role is already granted.
     }
 
     /* ============ Pausable functionality ============ */
@@ -111,7 +114,7 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     {
         RatesManagerStorage storage $ = _getRatesManagerStorage();
 
-        // Enforce chronological order
+        // Enforce chronological order.
         if ($.allRates.length > 0 && startTime <= $.allRates[$.allRates.length - 1].startTime) {
             revert InvalidStartTime();
         }
@@ -133,9 +136,9 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
         // TODO: Fix unexpected behavior that an out of bounds query is not an error when the list is empty.
         if ($.allRates.length == 0 && fromIndex == 0) return (new Rates[](0), false);
 
-        if (fromIndex >= $.allRates.length) revert FromIndexOutOfRange();
+        require(fromIndex < $.allRates.length, FromIndexOutOfRange());
 
-        uint256 toIndex = fromIndex + PAGE_SIZE > $.allRates.length ? $.allRates.length : fromIndex + PAGE_SIZE;
+        uint256 toIndex = _min(fromIndex + PAGE_SIZE, $.allRates.length);
 
         rates = new Rates[](toIndex - fromIndex);
 
@@ -149,8 +152,15 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     /**
      * @dev Returns the total number of Rates stored.
      */
-    function getRatesCount() external view returns (uint256) {
+    function getRatesCount() external view returns (uint256 count) {
         return _getRatesManagerStorage().allRates.length;
+    }
+
+    /* ============ Internal Functions ============ */
+
+    /// @dev Returns the minimum of two numbers.
+    function _min(uint256 a, uint256 b) internal pure returns (uint256 min) {
+        return a < b ? a : b;
     }
 
     /* ============ Upgradeability ============ */
@@ -160,7 +170,8 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @param newImplementation The address of the new implementation.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newImplementation != address(0), "New implementation cannot be zero address");
+        // TODO: Consider reverting if there is no code at the new implementation address.
+        require(newImplementation != address(0), ZeroImplementationAddress());
         emit UpgradeAuthorized(msg.sender, newImplementation);
     }
 }

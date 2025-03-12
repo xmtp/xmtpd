@@ -44,9 +44,6 @@ interface INodesErrors {
 
     /// @notice Error thrown when an unauthorized address attempts to call a function.
     error Unauthorized();
-
-    /// @notice Error thrown when granting a role has failed.
-    error FailedToGrantRole(bytes32 role, address account);
 }
 
 /**
@@ -78,12 +75,12 @@ interface INodesEvents {
 
     /**
      * @notice Emitted when a node is disabled by an administrator.
-     * @param   nodeId The identifier of the node.
+     * @param  nodeId The identifier of the node.
      */
     event NodeDisabled(uint256 indexed nodeId);
 
     /**
-     * @notice Emitted when a node is transferred
+     * @notice Emitted when a node is transferred.
      */
     event NodeTransferred(uint256 indexed nodeId, address indexed from, address indexed to);
 
@@ -229,25 +226,9 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     function enableNode(uint256 nodeId) external;
 
     /**
-     * @notice Set the HTTP address of an existing node.
-     * @dev    Only the contract owner may call this.
-     * @param  nodeId      The unique identifier of the node.
-     * @param  httpAddress The new HTTP address.
-     */
-    function setHttpAddress(uint256 nodeId, string calldata httpAddress) external;
-
-    /**
-     * @notice Set the minimum monthly fee for a node.
-     * @dev    Only the contract owner may call this.
-     * @param  nodeId                    The unique identifier of the node.
-     * @param  minMonthlyFeeMicroDollars The new minimum monthly fee.
-     */
-    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFeeMicroDollars) external;
-
-    /**
      * @notice Sets the commission percentage that the node operator receives.
-     * @dev Only the contract owner may call this.
-     * @param newCommissionPercent The new commission percentage.
+     * @dev    Only the contract owner may call this.
+     * @param  newCommissionPercent The new commission percentage.
      */
     function setNodeOperatorCommissionPercent(uint256 newCommissionPercent) external;
 
@@ -264,6 +245,33 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
      * @param  newBaseURI The new base URI. Has to end with a trailing slash.
      */
     function setBaseURI(string calldata newBaseURI) external;
+
+    /* ============ Node Manager Functions ============ */
+
+    /**
+     * @notice Transfers node ownership from one address to another.
+     * @dev    Only the contract owner may call this. Automatically deactivates the node.
+     * @param  from   The current owner address.
+     * @param  to     The new owner address.
+     * @param  nodeId The ID of the node being transferred.
+     */
+    function transferFrom(address from, address to, uint256 nodeId) external;
+
+    /**
+     * @notice Set the HTTP address of an existing node.
+     * @dev    Only the contract owner may call this.
+     * @param  nodeId      The unique identifier of the node.
+     * @param  httpAddress The new HTTP address.
+     */
+    function setHttpAddress(uint256 nodeId, string calldata httpAddress) external;
+
+    /**
+     * @notice Set the minimum monthly fee for a node.
+     * @dev    Only the contract owner may call this.
+     * @param  nodeId                    The unique identifier of the node.
+     * @param  minMonthlyFeeMicroDollars The new minimum monthly fee.
+     */
+    function setMinMonthlyFee(uint256 nodeId, uint256 minMonthlyFeeMicroDollars) external;
 
     /* ============ Node Owner Functions ============ */
 
@@ -285,6 +293,22 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
 
     /* ============ Getters Functions ============ */
 
+    /// @notice The admin role identifier, which can also grant roles.
+    // slither-disable-next-line naming-convention
+    function ADMIN_ROLE() external pure returns (bytes32 adminRole);
+
+    /// @notice The node manager role identifier.
+    // slither-disable-next-line naming-convention
+    function NODE_MANAGER_ROLE() external pure returns (bytes32 nodeManagerRole);
+
+    /// @notice The maximum commission percentage that the node operator can receive (100% in basis points).
+    // slither-disable-next-line naming-convention
+    function MAX_BPS() external pure returns (uint256 maxBps);
+
+    /// @notice The increment for node IDs, which allows for 100 shard node IDs per node in the future (modulus 100).
+    // slither-disable-next-line naming-convention
+    function NODE_INCREMENT() external pure returns (uint32 nodeIncrement);
+
     /**
      * @notice Retrieves the current node operator commission percentage.
      * @return commissionPercent The commission percentage.
@@ -292,8 +316,8 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
     function getNodeOperatorCommissionPercent() external view returns (uint256 commissionPercent);
 
     /**
-     * @notice Gets all nodes regardless of their health status
-     * @return allNodes An array of all nodes in the registry
+     * @notice Gets all nodes regardless of their health status.
+     * @return allNodes An array of all nodes in the registry.
      */
     function getAllNodes() external view returns (NodeWithId[] memory allNodes);
 
@@ -361,4 +385,15 @@ interface INodes is IERC721, INodesErrors, INodesEvents {
      * @return isActive A boolean indicating if the node is active.
      */
     function getReplicationNodeIsActive(uint256 nodeId) external view returns (bool isActive);
+
+    /// @notice Max number of active nodes.
+    function maxActiveNodes() external view returns (uint8 maxNodes);
+
+    /**
+     * @notice The commission percentage that the node operator receives.
+     * @dev    This is stored in basis points (1/100th of a percent).
+     * Example: 1% = 100bps, 10% = 1000bps, 100% = 10000bps.
+     * Commission is calculated as (nodeOperatorCommissionPercent * nodeOperatorFee) / MAX_BPS
+     */
+    function nodeOperatorCommissionPercent() external view returns (uint256 commissionPercent);
 }

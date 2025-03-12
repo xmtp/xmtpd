@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { AccessControlDefaultAdminRules } from
@@ -11,11 +10,8 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 
 import { INodes } from "./interfaces/INodes.sol";
 
-// TODO: Should be upgradeable since a role can already unilaterally revoke/disable NFTs.
 // TODO: `NodeTransferred` event is redundant to `IERC721.Transfer` event.
 // TODO: `MaxActiveNodesBelowCurrentCount` should be split across sets for better error handling.
-// TODO: Why is there a `NODE_INCREMENT`? Seems arbitrary and unnecessary.
-// TODO: `INodes` is under-specified.
 
 /**
  * @title XMTP Nodes Registry
@@ -35,13 +31,16 @@ import { INodes } from "./interfaces/INodes.sol";
 contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
     using EnumerableSet for EnumerableSet.UintSet;
 
+    /// @inheritdoc INodes
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+
+    /// @inheritdoc INodes
     bytes32 public constant NODE_MANAGER_ROLE = keccak256("NODE_MANAGER_ROLE");
 
-    /// @dev The maximum commission percentage that the node operator can receive.
+    /// @inheritdoc INodes
     uint256 public constant MAX_BPS = 10_000;
 
-    /// @dev The increment for node IDs.
+    /// @inheritdoc INodes
     uint32 public constant NODE_INCREMENT = 100;
 
     uint48 internal constant INITIAL_ACCESS_CONTROL_DELAY = 2 days;
@@ -51,7 +50,7 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
     /// @dev The base URI for the node NFTs.
     string internal _baseTokenURI;
 
-    /// @dev Max number of active nodes.
+    /// @inheritdoc INodes
     uint8 public maxActiveNodes = 20;
 
     /**
@@ -69,12 +68,7 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
     /// @dev Nodes with replication enabled.
     EnumerableSet.UintSet internal _activeReplicationNodes;
 
-    /**
-     * @notice The commission percentage that the node operator receives.
-     * @dev    This is stored in basis points (1/100th of a percent).
-     * Example: 1% = 100bps, 10% = 1000bps, 100% = 10000bps.
-     * Commission is calculated as (nodeOperatorCommissionPercent * nodeOperatorFee) / MAX_BPS
-     */
+    /// @inheritdoc INodes
     uint256 public nodeOperatorCommissionPercent;
 
     constructor(address initialAdmin)
@@ -86,8 +80,11 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         _setRoleAdmin(ADMIN_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(NODE_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
 
-        require(_grantRole(ADMIN_ROLE, initialAdmin), FailedToGrantRole(ADMIN_ROLE, initialAdmin));
-        require(_grantRole(NODE_MANAGER_ROLE, initialAdmin), FailedToGrantRole(NODE_MANAGER_ROLE, initialAdmin));
+        // slither-disable-next-line unused-return
+        _grantRole(ADMIN_ROLE, initialAdmin); // Will return false if the role is already granted.
+
+        // slither-disable-next-line unused-return
+        _grantRole(NODE_MANAGER_ROLE, initialAdmin); // Will return false if the role is already granted.
     }
 
     /* ============ Admin-Only Functions ============ */
@@ -103,7 +100,7 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         require(signingKeyPub.length > 0, InvalidSigningKey());
         require(bytes(httpAddress).length > 0, InvalidHttpAddress());
 
-        nodeId = ++_nodeCounter * NODE_INCREMENT; // the first node starts with 100
+        nodeId = ++_nodeCounter * NODE_INCREMENT; // The first node starts with `nodeId = NODE_INCREMENT`.
 
         _nodes[nodeId] = Node(signingKeyPub, httpAddress, false, false, false, minMonthlyFeeMicroDollars);
 
@@ -118,7 +115,7 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
 
         _nodes[nodeId].isDisabled = true;
 
-        // Always remove from active nodes sets when disabled
+        // Always remove from active nodes sets when disabled.
         _disableApiNode(nodeId);
         _disableReplicationNode(nodeId);
 
@@ -175,16 +172,10 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
 
     /* ============ Node Manager Functions ============ */
 
-    /**
-     * @notice Transfers node ownership from one address to another.
-     * @dev    Only the contract owner may call this. Automatically deactivates the node.
-     * @param  from   The current owner address.
-     * @param  to     The new owner address.
-     * @param  nodeId The ID of the node being transferred.
-     */
+    /// @inheritdoc INodes
     function transferFrom(address from, address to, uint256 nodeId)
         public
-        override(ERC721, IERC721)
+        override(INodes, ERC721)
         onlyRole(NODE_MANAGER_ROLE)
     {
         /// @dev Disable the node before transferring ownership.
@@ -245,10 +236,6 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         for (uint32 i; i < _nodeCounter; ++i) {
             uint32 nodeId = NODE_INCREMENT * (i + 1);
 
-            // TODO: How can a node not exist with `nodeId <= _nodeCounter * NODE_INCREMENT`? `_burn` not found.
-            if (!_nodeExists(nodeId)) continue;
-
-            // TODO: Above `continue` results in array sparsity. Length is misleading.
             allNodes[i] = NodeWithId({ nodeId: nodeId, node: _nodes[nodeId] });
         }
     }
@@ -271,9 +258,6 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         for (uint32 i; i < _activeApiNodes.length(); ++i) {
             uint256 nodeId = _activeApiNodes.at(i);
 
-            if (!_nodeExists(nodeId)) continue;
-
-            // TODO: Above `continue` results in array sparsity. Length is misleading.
             activeNodes[i] = NodeWithId({ nodeId: nodeId, node: _nodes[nodeId] });
         }
     }
@@ -300,9 +284,6 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         for (uint32 i; i < _activeReplicationNodes.length(); ++i) {
             uint256 nodeId = _activeReplicationNodes.at(i);
 
-            if (!_nodeExists(nodeId)) continue;
-
-            // TODO: Above `continue` results in array sparsity. Length is misleading.
             activeNodes[i] = NodeWithId({ nodeId: nodeId, node: _nodes[nodeId] });
         }
     }
@@ -327,10 +308,12 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         return nodeOperatorCommissionPercent;
     }
 
+    /* ============ Internal Functions ============ */
+
     /**
-     * @dev    Checks if a node exists
-     * @param  nodeId The ID of the node to check
-     * @return exists True if the node exists, false otherwise
+     * @dev    Checks if a node exists.
+     * @param  nodeId The ID of the node to check.
+     * @return exists True if the node exists, false otherwise.
      */
     function _nodeExists(uint256 nodeId) internal view returns (bool exists) {
         return _ownerOf(nodeId) != address(0);

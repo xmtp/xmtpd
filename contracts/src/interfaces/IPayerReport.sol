@@ -83,8 +83,7 @@ interface IPayerReport {
     /* ============ Usage Report Logic ============ */
 
     /**
-     * @notice Submits a usage report for a node covering messages from
-     *         startingSequenceID to endingSequenceID.
+     * @notice Submits a usage report for a node covering messages from startingSequenceID to endingSequenceID.
      * @param  payerReport A struct containing the usage report details.
      *
      * Emits a PayerReportSubmitted event.
@@ -93,8 +92,8 @@ interface IPayerReport {
 
     /**
      * @notice Allows nodes to attest to the correctness of a submitted usage report.
-     * @param originatorNode The node that submitted the report.
-     * @param reportIndex The index of the report.
+     * @param  originatorNode The node that submitted the report.
+     * @param  reportIndex    The index of the report.
      *
      * Emits a PayerReportAttested event.
      */
@@ -124,9 +123,8 @@ interface IPayerReport {
 
     /**
      * @notice Settles a contiguous batch of usage data from a confirmed report.
-     * Verifies an aggregated Merkle proof that the provided (payer, amount)
-     * batch is included in the report's committed Merkle root, then calls the
-     * settleUsage function in the Payer contract.
+     * Verifies an aggregated Merkle proof that the provided (payer, amount) batch is included in the report's committed
+     * Merkle root, then calls the settleUsage function in the Payer contract.
      *
      * @param originatorNode The node that submitted the report.
      * @param reportIndex    The index of the report.

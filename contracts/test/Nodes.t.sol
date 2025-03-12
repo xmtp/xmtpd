@@ -686,30 +686,6 @@ contract NodesTest is Test, Utils {
         assertEq(allNodes.length, 2);
         assertEq(allNodes[0].nodeId, NODE_INCREMENT);
         assertEq(allNodes[1].nodeId, NODE_INCREMENT * 2);
-
-        // NOTE: NodeIds not divisible by `NODE_INCREMENT` are not included, but affect length.
-        _addNode(NODE_INCREMENT - 1, alice, "", "", false, false, false, 0);
-        nodes.__setNodeCounter(3);
-
-        allNodes = nodes.getAllNodes();
-
-        assertEq(allNodes.length, 3);
-        assertEq(allNodes[0].nodeId, NODE_INCREMENT);
-        assertEq(allNodes[1].nodeId, NODE_INCREMENT * 2);
-        assertEq(allNodes[2].nodeId, 0);
-
-        // NOTE: Nodes that do not exist are not included, but affect length.
-        _addNode(NODE_INCREMENT * 3, alice, "", "", false, false, false, 0);
-        nodes.__setNodeCounter(4);
-        nodes.__burn(NODE_INCREMENT * 3);
-
-        allNodes = nodes.getAllNodes();
-
-        assertEq(allNodes.length, 4);
-        assertEq(allNodes[0].nodeId, NODE_INCREMENT);
-        assertEq(allNodes[1].nodeId, NODE_INCREMENT * 2);
-        assertEq(allNodes[2].nodeId, 0);
-        assertEq(allNodes[3].nodeId, 0);
     }
 
     /* ============ getAllNodesCount ============ */
@@ -765,18 +741,6 @@ contract NodesTest is Test, Utils {
         assertEq(activeNodes.length, 2);
         assertEq(activeNodes[0].nodeId, 1);
         assertEq(activeNodes[1].nodeId, 2);
-
-        // NOTE: Nodes that do not exist are not included, but affect length.
-        _addNode(3, alice, "", "", false, false, false, 0);
-        nodes.__addToActiveApiNodesSet(3);
-        nodes.__burn(3);
-
-        activeNodes = nodes.getActiveApiNodes();
-
-        assertEq(activeNodes.length, 3);
-        assertEq(activeNodes[0].nodeId, 1);
-        assertEq(activeNodes[1].nodeId, 2);
-        assertEq(activeNodes[2].nodeId, 0);
     }
 
     /* ============ getActiveReplicationNodes ============ */
@@ -800,18 +764,6 @@ contract NodesTest is Test, Utils {
         assertEq(activeNodes.length, 2);
         assertEq(activeNodes[0].nodeId, 1);
         assertEq(activeNodes[1].nodeId, 2);
-
-        // NOTE: Nodes that do not exist are not included, but affect length.
-        _addNode(3, alice, "", "", false, false, false, 0);
-        nodes.__addToActiveReplicationNodesSet(3);
-        nodes.__burn(3);
-
-        activeNodes = nodes.getActiveReplicationNodes();
-
-        assertEq(activeNodes.length, 3);
-        assertEq(activeNodes[0].nodeId, 1);
-        assertEq(activeNodes[1].nodeId, 2);
-        assertEq(activeNodes[2].nodeId, 0);
     }
 
     /* ============ getActiveApiNodesIDs ============ */

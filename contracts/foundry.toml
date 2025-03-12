@@ -36,7 +36,7 @@ int_types = "long"
 quote_style = "double"
 number_underscore = "thousands"
 hex_underscore = "remove"
-wrap_comments = true
+wrap_comments = false
 multiline_func_header = "attributes_first"
 
 [soldeer]

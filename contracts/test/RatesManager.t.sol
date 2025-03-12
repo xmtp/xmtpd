@@ -43,6 +43,16 @@ contract RatesTest is Test, Utils {
         );
     }
 
+    /* ============ initializer ============ */
+
+    function test_initializer_zeroAdminAddress() public {
+        vm.expectRevert(RatesManager.ZeroAdminAddress.selector);
+
+        new ERC1967Proxy(
+            ratesManagerImpImplementation, abi.encodeWithSelector(RatesManager.initialize.selector, address(0))
+        );
+    }
+
     /* ============ initial state ============ */
 
     function test_initialState() public view {
@@ -163,17 +173,10 @@ contract RatesTest is Test, Utils {
     function test_getRatesCount() public {
         assertEq(ratesManager.getRatesCount(), 0);
 
-        ratesManager.__pushRates(0, 0, 0, 0);
-
-        assertEq(ratesManager.getRatesCount(), 1);
-
-        ratesManager.__pushRates(0, 0, 0, 0);
-
-        assertEq(ratesManager.getRatesCount(), 2);
-
-        ratesManager.__pushRates(0, 0, 0, 0);
-
-        assertEq(ratesManager.getRatesCount(), 3);
+        for (uint256 i = 1; i <= 1000; ++i) {
+            ratesManager.__pushRates(0, 0, 0, 0);
+            assertEq(ratesManager.getRatesCount(), i);
+        }
     }
 
     /* ============ pause ============ */
@@ -251,6 +254,13 @@ contract RatesTest is Test, Utils {
             )
         );
 
+        ratesManager.upgradeToAndCall(address(0), "");
+    }
+
+    function test_upgradeToAndCall_zeroImplementationAddress() public {
+        vm.expectRevert(RatesManager.ZeroImplementationAddress.selector);
+
+        vm.prank(admin);
         ratesManager.upgradeToAndCall(address(0), "");
     }
 

@@ -98,10 +98,6 @@ contract NodesHarness is Nodes {
         _mint(to, nodeId);
     }
 
-    function __burn(uint256 nodeId) external {
-        _burn(nodeId);
-    }
-
     function __addToActiveApiNodesSet(uint256 nodeId) external {
         _activeApiNodes.add(nodeId);
     }

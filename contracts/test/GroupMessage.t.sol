@@ -17,9 +17,8 @@ import { Utils } from "./utils/Utils.sol";
 contract GroupMessagesTest is Test, Utils {
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
 
-    uint256 constant STARTING_MIN_PAYLOAD_SIZE = 78;
+    uint256 constant ABSOLUTE_MIN_PAYLOAD_SIZE = 78;
     uint256 constant ABSOLUTE_MAX_PAYLOAD_SIZE = 4_194_304;
-    uint256 constant ABSOLUTE_MIN_PAYLOAD_SIZE = 1;
 
     address groupMessagesImplementation;
 
@@ -40,11 +39,21 @@ contract GroupMessagesTest is Test, Utils {
         );
     }
 
+    /* ============ initializer ============ */
+
+    function test_initializer_zeroAdminAddress() public {
+        vm.expectRevert(GroupMessages.ZeroAdminAddress.selector);
+
+        new ERC1967Proxy(
+            groupMessagesImplementation, abi.encodeWithSelector(GroupMessages.initialize.selector, address(0))
+        );
+    }
+
     /* ============ initial state ============ */
 
     function test_initialState() public view {
         assertEq(_getImplementationFromSlot(address(groupMessages)), groupMessagesImplementation);
-        assertEq(groupMessages.minPayloadSize(), STARTING_MIN_PAYLOAD_SIZE);
+        assertEq(groupMessages.minPayloadSize(), ABSOLUTE_MIN_PAYLOAD_SIZE);
         assertEq(groupMessages.maxPayloadSize(), ABSOLUTE_MAX_PAYLOAD_SIZE);
         assertEq(groupMessages.__getSequenceId(), 0);
     }
@@ -317,6 +326,13 @@ contract GroupMessagesTest is Test, Utils {
             )
         );
 
+        groupMessages.upgradeToAndCall(address(0), "");
+    }
+
+    function test_upgradeToAndCall_zeroImplementationAddress() public {
+        vm.expectRevert(GroupMessages.ZeroImplementationAddress.selector);
+
+        vm.prank(admin);
         groupMessages.upgradeToAndCall(address(0), "");
     }
 

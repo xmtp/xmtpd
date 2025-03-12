@@ -19,8 +19,7 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
      * @param  update     The identity update in bytes. Contains the full mls identity update payload.
      * @param  sequenceId The unique sequence ID of the identity update.
      */
-    event IdentityUpdateCreated(bytes32 inboxId, bytes update, uint64 sequenceId); // TODO: indexed inboxId and
-        // sequenceId.
+    event IdentityUpdateCreated(bytes32 inboxId, bytes update, uint64 sequenceId); // TODO: indexed inboxId and sequenceId.
 
     /**
      * @notice Emitted when an upgrade is authorized.
@@ -49,13 +48,12 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     error InvalidPayloadSize(uint256 actualSize, uint256 minSize, uint256 maxSize);
     error InvalidMaxPayloadSize();
     error InvalidMinPayloadSize();
-    error FailedToGrantRole(bytes32 role, address account);
+    error ZeroImplementationAddress();
 
     /* ============ Constants ============ */
 
-    uint256 public constant STARTING_MIN_PAYLOAD_SIZE = 78;
+    uint256 public constant ABSOLUTE_MIN_PAYLOAD_SIZE = 78;
     uint256 public constant ABSOLUTE_MAX_PAYLOAD_SIZE = 4_194_304;
-    uint256 public constant ABSOLUTE_MIN_PAYLOAD_SIZE = 1;
 
     /* ============ UUPS Storage ============ */
 
@@ -92,10 +90,11 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
 
         IdentityUpdatesStorage storage $ = _getIdentityUpdatesStorage();
 
-        $.minPayloadSize = STARTING_MIN_PAYLOAD_SIZE;
+        $.minPayloadSize = ABSOLUTE_MIN_PAYLOAD_SIZE;
         $.maxPayloadSize = ABSOLUTE_MAX_PAYLOAD_SIZE;
 
-        require(_grantRole(DEFAULT_ADMIN_ROLE, admin), FailedToGrantRole(DEFAULT_ADMIN_ROLE, admin));
+        // slither-disable-next-line unused-return
+        _grantRole(DEFAULT_ADMIN_ROLE, admin); // Will return false if the role is already granted.
     }
 
     /* ============ Pausable functionality ============ */
@@ -126,10 +125,9 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     function addIdentityUpdate(bytes32 inboxId, bytes calldata update) external whenNotPaused {
         IdentityUpdatesStorage storage $ = _getIdentityUpdatesStorage();
 
-        require(
-            update.length >= $.minPayloadSize && update.length <= $.maxPayloadSize,
-            InvalidPayloadSize(update.length, $.minPayloadSize, $.maxPayloadSize)
-        );
+        if (update.length < $.minPayloadSize || update.length > $.maxPayloadSize) {
+            revert InvalidPayloadSize(update.length, $.minPayloadSize, $.maxPayloadSize);
+        }
 
         // Increment sequence ID safely using unchecked to save gas.
         unchecked {
@@ -147,8 +145,9 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     function setMinPayloadSize(uint256 minPayloadSizeRequest) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IdentityUpdatesStorage storage $ = _getIdentityUpdatesStorage();
 
-        require(minPayloadSizeRequest <= $.maxPayloadSize, InvalidMinPayloadSize());
-        require(minPayloadSizeRequest >= ABSOLUTE_MIN_PAYLOAD_SIZE, InvalidMinPayloadSize());
+        if (minPayloadSizeRequest > $.maxPayloadSize || minPayloadSizeRequest < ABSOLUTE_MIN_PAYLOAD_SIZE) {
+            revert InvalidMinPayloadSize();
+        }
 
         uint256 oldSize = $.minPayloadSize;
 
@@ -163,8 +162,9 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     function setMaxPayloadSize(uint256 maxPayloadSizeRequest) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IdentityUpdatesStorage storage $ = _getIdentityUpdatesStorage();
 
-        require(maxPayloadSizeRequest > $.minPayloadSize, InvalidMaxPayloadSize());
-        require(maxPayloadSizeRequest <= ABSOLUTE_MAX_PAYLOAD_SIZE, InvalidMaxPayloadSize());
+        if (maxPayloadSizeRequest < $.minPayloadSize || maxPayloadSizeRequest > ABSOLUTE_MAX_PAYLOAD_SIZE) {
+            revert InvalidMaxPayloadSize();
+        }
 
         uint256 oldSize = $.maxPayloadSize;
 
@@ -174,12 +174,12 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     /* ============ Getters ============ */
 
     /// @notice Minimum valid payload size (in bytes).
-    function minPayloadSize() external view returns (uint256) {
+    function minPayloadSize() external view returns (uint256 size) {
         return _getIdentityUpdatesStorage().minPayloadSize;
     }
 
     /// @notice Maximum valid payload size (in bytes).
-    function maxPayloadSize() external view returns (uint256) {
+    function maxPayloadSize() external view returns (uint256 size) {
         return _getIdentityUpdatesStorage().maxPayloadSize;
     }
 
@@ -190,7 +190,8 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
      * @param newImplementation The address of the new implementation.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newImplementation != address(0), "New implementation cannot be zero address");
+        // TODO: Consider reverting if there is no code at the new implementation address.
+        require(newImplementation != address(0), ZeroImplementationAddress());
         emit UpgradeAuthorized(msg.sender, newImplementation);
     }
 }

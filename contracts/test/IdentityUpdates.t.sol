@@ -17,9 +17,8 @@ import { Utils } from "./utils/Utils.sol";
 contract IdentityUpdatesTest is Test, Utils {
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
 
-    uint256 constant STARTING_MIN_PAYLOAD_SIZE = 78;
+    uint256 constant ABSOLUTE_MIN_PAYLOAD_SIZE = 78;
     uint256 constant ABSOLUTE_MAX_PAYLOAD_SIZE = 4_194_304;
-    uint256 constant ABSOLUTE_MIN_PAYLOAD_SIZE = 1;
 
     address identityUpdatesImplementation;
 
@@ -40,11 +39,21 @@ contract IdentityUpdatesTest is Test, Utils {
         );
     }
 
+    /* ============ initializer ============ */
+
+    function test_initializer_zeroAdminAddress() public {
+        vm.expectRevert(IdentityUpdates.ZeroAdminAddress.selector);
+
+        new ERC1967Proxy(
+            identityUpdatesImplementation, abi.encodeWithSelector(IdentityUpdates.initialize.selector, address(0))
+        );
+    }
+
     /* ============ initial state ============ */
 
     function test_initialState() public view {
         assertEq(_getImplementationFromSlot(address(identityUpdates)), identityUpdatesImplementation);
-        assertEq(identityUpdates.minPayloadSize(), STARTING_MIN_PAYLOAD_SIZE);
+        assertEq(identityUpdates.minPayloadSize(), ABSOLUTE_MIN_PAYLOAD_SIZE);
         assertEq(identityUpdates.maxPayloadSize(), ABSOLUTE_MAX_PAYLOAD_SIZE);
         assertEq(identityUpdates.__getSequenceId(), 0);
     }
@@ -317,6 +326,13 @@ contract IdentityUpdatesTest is Test, Utils {
             )
         );
 
+        identityUpdates.upgradeToAndCall(address(0), "");
+    }
+
+    function test_upgradeToAndCall_zeroImplementationAddress() public {
+        vm.expectRevert(IdentityUpdates.ZeroImplementationAddress.selector);
+
+        vm.prank(admin);
         identityUpdates.upgradeToAndCall(address(0), "");
     }
 

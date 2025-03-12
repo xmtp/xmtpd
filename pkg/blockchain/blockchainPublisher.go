@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"math/big"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -228,14 +228,6 @@ func findLog[T any](
 	return nil, errors.New(errorMsg)
 }
 
-func randomSleep(maxDuration time.Duration) {
-	if maxDuration <= 0 {
-		return // No sleep if duration is invalid
-	}
-	randDuration := time.Duration(rand.Float64() * float64(maxDuration))
-	time.Sleep(randDuration)
-}
-
 func withNonce[T any](ctx context.Context,
 	logger *zap.Logger,
 	nonceManager NonceManager,
@@ -286,7 +278,7 @@ func withNonce[T any](ctx context.Context,
 					zap.Uint64("nonce", nonce.Uint64()),
 					zap.Error(err),
 				)
-				randomSleep(500 * time.Millisecond)
+				utils.RandomSleep(ctx, 500*time.Millisecond)
 				nonceContext.Cancel()
 				continue
 			}

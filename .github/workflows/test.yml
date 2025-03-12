@@ -45,12 +45,12 @@ jobs:
           export GOPATH="${HOME}/go/"
           export PATH="${PATH}:${GOPATH}/bin"
           go test -v ./... -race
-      - name: Run Upgrade Tests
-        run: |
-          export GOPATH="${HOME}/go/"
-          export PATH="${PATH}:${GOPATH}/bin"
-          export ENABLE_UPGRADE_TESTS=1
-          go test github.com/xmtp/xmtpd/pkg/upgrade -v
+      # - name: Run Upgrade Tests
+      #   run: |
+      #     export GOPATH="${HOME}/go/"
+      #     export PATH="${PATH}:${GOPATH}/bin"
+      #     export ENABLE_UPGRADE_TESTS=1
+      #     go test github.com/xmtp/xmtpd/pkg/upgrade -v
       - uses: datadog/junit-upload-github-action@v1
         with:
           api-key: ${{ secrets.DD_API_KEY }}

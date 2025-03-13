@@ -20,8 +20,8 @@ func EmitNodePublishDuration(originatorId uint32, duration float64) {
 
 var cursorBlockTime = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name: "xmtp_payer_cursor_block_time_seconds",
-		Help: "Block time to reach the desired cursor",
+		Name: "xmtp_payer_read_own_commit_in_time_seconds",
+		Help: "Read your own commit duration in seconds",
 	},
 	[]string{"originator_id"},
 )
@@ -46,7 +46,7 @@ func EmitCurrentNonce(nonce float64) {
 var payerBanlistRetry = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Name:    "xmtp_payer_failed_attempts_to_publish_to_node_via_banlist",
-		Help:    "Block time to reach the desired cursor",
+		Help:    "Number of failed attempts to publish to a node via banlist",
 		Buckets: []float64{0, 1, 2, 3, 4, 5},
 	},
 	[]string{"originator_id"},

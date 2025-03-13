@@ -462,6 +462,34 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
+    function getActivePayers(uint256 offset, uint256 limit) external view returns (Payer[] memory payers, bool hasMore) {
+        PayerStorage storage $ = _getPayerStorage();
+        
+        uint256 totalCount = $.activePayers.length();
+
+        if (offset >= totalCount) revert OutOfBounds();
+
+        uint256 count = totalCount - offset;
+        if (count > limit) {
+            count = limit;
+            hasMore = true;
+        } else {
+            hasMore = false;
+        }
+
+        payers = new Payer[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            address payerAddress = $.activePayers.at(offset + i);
+            payers[i] = $.payers[payerAddress];
+        }
+        
+        return (payers, hasMore);
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
     function getIsActivePayer(address payer) public view returns (bool isActive) {
         _revertIfPayerDoesNotExist(payer);
 

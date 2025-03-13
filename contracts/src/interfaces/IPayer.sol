@@ -162,6 +162,9 @@ interface IPayerErrors {
 
     /// @notice Error thrown when deleting a payer has failed.
     error FailedToDeletePayer();
+
+    /// @notice Error thrown when the offset is out of bounds.
+    error OutOfBounds();
 }
 
 /**
@@ -404,6 +407,18 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @return payerInfo The payer information.
      */
     function getPayer(address payer) external view returns (Payer memory payerInfo);
+
+    /**
+     * @notice Returns all active payers in a paginated response.
+     * @param  offset Number of payers to skip before starting to return results.
+     * @param  limit  Maximum number of payers to return.
+     * @return payers The payer information.
+     * @return hasMore True if there are more payers to retrieve.
+     */
+    function getActivePayers(uint256 offset, uint256 limit)
+        external
+        view
+        returns (Payer[] memory payers, bool hasMore);
 
     /**
      * @notice Checks if a given address is an active payer.

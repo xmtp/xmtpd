@@ -4,44 +4,10 @@ pragma solidity 0.8.28;
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
- * @title  IPayer
- * @notice Interface for managing payer USDC deposits, usage settlements,
- *         and a secure withdrawal process.
+ * @title  IPayerEvents
+ * @notice Interface for events emitted by the Payer contract.
  */
-interface IPayer is IERC165 {
-    /* ============ Structs ============ */
-
-    /**
-     * @dev   Struct to store payer information.
-     * @param balance                The current USDC balance of the payer.
-     * @param isActive               Indicates whether the payer is active.
-     * @param creationTimestamp      The timestamp when the payer was first registered.
-     * @param latestDepositTimestamp The timestamp of the most recent deposit.
-     * @param debtAmount             The amount of fees owed but not yet settled.
-     */
-    struct Payer {
-        uint256 balance;
-        uint256 debtAmount;
-        uint256 creationTimestamp;
-        uint256 latestDepositTimestamp;
-        uint256 latestDonationTimestamp;
-        bool isActive;
-    }
-
-    /**
-     * @dev   Struct to store withdrawal request information.
-     * @param requestTimestamp      The timestamp when the withdrawal was requested.
-     * @param withdrawableTimestamp The timestamp when the withdrawal can be finalized.
-     * @param amount                The amount requested for withdrawal.
-     */
-    struct Withdrawal {
-        uint256 requestTimestamp;
-        uint256 withdrawableTimestamp;
-        uint256 amount;
-    }
-
-    /* ============ Events ============ */
-
+interface IPayerEvents {
     /// @dev Emitted when a new payer is registered.
     event PayerRegistered(address indexed payer, uint256 amount);
 
@@ -103,9 +69,13 @@ interface IPayer is IERC165 {
 
     /// @dev Emitted when the maximum backdated time is updated.
     event MaxBackdatedTimeSet(uint256 oldMaxBackdatedTime, uint256 newMaxBackdatedTime);
+}
 
-    /* ============ Custom Errors ============ */
-
+/**
+ * @title  IPayerErrors
+ * @notice Interface for errors emitted by the Payer contract.
+ */
+interface IPayerErrors {
     /// @dev Error thrown when a call is unauthorized.
     error Unauthorized();
 
@@ -192,6 +162,44 @@ interface IPayer is IERC165 {
 
     /// @notice Error thrown when deleting a payer has failed.
     error FailedToDeletePayer();
+}
+
+/**
+ * @title  IPayer
+ * @notice Interface for managing payer USDC deposits, usage settlements,
+ *         and a secure withdrawal process.
+ */
+interface IPayer is IERC165, IPayerEvents, IPayerErrors {
+    /* ============ Structs ============ */
+
+    /**
+     * @dev   Struct to store payer information.
+     * @param balance                The current USDC balance of the payer.
+     * @param isActive               Indicates whether the payer is active.
+     * @param creationTimestamp      The timestamp when the payer was first registered.
+     * @param latestDepositTimestamp The timestamp of the most recent deposit.
+     * @param debtAmount             The amount of fees owed but not yet settled.
+     */
+    struct Payer {
+        uint256 balance;
+        uint256 debtAmount;
+        uint256 creationTimestamp;
+        uint256 latestDepositTimestamp;
+        uint256 latestDonationTimestamp;
+        bool isActive;
+    }
+
+    /**
+     * @dev   Struct to store withdrawal request information.
+     * @param requestTimestamp      The timestamp when the withdrawal was requested.
+     * @param withdrawableTimestamp The timestamp when the withdrawal can be finalized.
+     * @param amount                The amount requested for withdrawal.
+     */
+    struct Withdrawal {
+        uint256 requestTimestamp;
+        uint256 withdrawableTimestamp;
+        uint256 amount;
+    }
 
     /* ============ Payer Management ============ */
 

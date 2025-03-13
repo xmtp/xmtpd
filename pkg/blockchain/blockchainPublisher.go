@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"math/big"
 	"strings"
 	"sync"
@@ -256,11 +257,29 @@ func withNonce[T any](ctx context.Context,
 					zap.Uint64("nonce", nonce.Uint64()),
 					zap.Error(err),
 				)
+
 				err = nonceContext.Consume()
+
 				if err != nil {
 					nonceContext.Cancel()
 					return nil, err
 				}
+				continue
+			}
+
+			if strings.Contains(
+				err.Error(),
+				"nonce too high",
+			) {
+				// we have been hammering the blockchain too hard
+				// back off for a little bit
+				logger.Debug(
+					"Nonce too high, backing off...",
+					zap.Uint64("nonce", nonce.Uint64()),
+					zap.Error(err),
+				)
+				utils.RandomSleep(ctx, 500*time.Millisecond)
+				nonceContext.Cancel()
 				continue
 			}
 

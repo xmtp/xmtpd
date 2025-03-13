@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { AccessControlUpgradeable } from "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import { PausableUpgradeable } from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { Initializable } from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { IPayer } from "./interfaces/IPayer.sol";
-import { IPayerReport } from "./interfaces/IPayerReport.sol";
-import { INodes } from "./interfaces/INodes.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {AccessControlUpgradeable} from "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {IPayer} from "./interfaces/IPayer.sol";
+import {IPayerReport} from "./interfaces/IPayerReport.sol";
+import {INodes} from "./interfaces/INodes.sol";
 
 /**
  * @title  Payer
  * @notice Implementation for managing payer USDC deposits, usage settlements,
  *         and a secure withdrawal process.
  */
-contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, IPayer{
+contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, IPayer {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -42,24 +42,22 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         address distributionContract;
         address nodesContract;
         address payerReportContract;
-
         /// @dev Configuration parameters
         uint256 minimumRegistrationAmountMicroDollars;
         uint256 minimumDepositAmountMicroDollars;
         uint256 withdrawalLockPeriod;
         uint256 maxBackdatedTime;
-
         /// @dev State variables
         uint256 lastFeeTransferTimestamp;
         uint256 pendingFees;
         uint256 totalAmountDeposited;
         uint256 totalDebtAmount;
-
         /// @dev Mappings
         mapping(address => Payer) payers;
         mapping(address => Withdrawal) withdrawals;
         EnumerableSet.AddressSet totalPayers;
         EnumerableSet.AddressSet activePayers;
+        EnumerableSet.AddressSet debtPayers;
     }
 
     // keccak256(abi.encode(uint256(keccak256("xmtp.storage.Payer")) - 1)) & ~bytes32(uint256(0xff))
@@ -111,11 +109,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      *         We need to deploy these contracts first, then set their addresses
      *         in the Payer contract.
      */
-    function initialize(
-        address _initialAdmin,
-        address _usdcToken,
-        address _nodesContract
-    ) public initializer {
+    function initialize(address _initialAdmin, address _usdcToken, address _nodesContract) public initializer {
         if (_initialAdmin == address(0) || _usdcToken == address(0) || _nodesContract == address(0)) {
             revert InvalidAddress();
         }
@@ -241,7 +235,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         delete $.payers[payer];
         require($.totalPayers.remove(payer), FailedToDeletePayer());
         require($.activePayers.remove(payer), FailedToDeletePayer());
-        
+
         emit PayerDeleted(payer, block.timestamp);
     }
 
@@ -250,7 +244,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function requestWithdrawal(uint256 amount) external whenNotPaused() onlyPayer(msg.sender) {
+    function requestWithdrawal(uint256 amount) external whenNotPaused onlyPayer(msg.sender) {
         if (_withdrawalExists(msg.sender)) revert WithdrawalAlreadyRequested();
 
         PayerStorage storage $ = _getPayerStorage();
@@ -271,18 +265,13 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
             amount: amount
         });
 
-        emit WithdrawalRequested(
-            msg.sender, 
-            block.timestamp, 
-            withdrawableTimestamp, 
-            amount
-        );
+        emit WithdrawalRequested(msg.sender, block.timestamp, withdrawableTimestamp, amount);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function cancelWithdrawal() external whenNotPaused() onlyPayer(msg.sender) {
+    function cancelWithdrawal() external whenNotPaused onlyPayer(msg.sender) {
         _revertIfWithdrawalNotExists(msg.sender);
 
         PayerStorage storage $ = _getPayerStorage();
@@ -299,7 +288,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function finalizeWithdrawal() external whenNotPaused() onlyPayer(msg.sender) {
+    function finalizeWithdrawal() external whenNotPaused onlyPayer(msg.sender) {
         _revertIfWithdrawalNotExists(msg.sender);
 
         PayerStorage storage $ = _getPayerStorage();
@@ -332,8 +321,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         uint256 reportIndex,
         address[] calldata payerList,
         uint256[] calldata amounts
-    ) external whenNotPaused onlyPayerReport
-    {
+    ) external whenNotPaused onlyPayerReport {
         // TODO: Implement usage settlement logic
     }
 
@@ -396,7 +384,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @inheritdoc IPayer
      */
     function setMinimumRegistrationAmount(uint256 _newMinimumRegistrationAmount) external onlyRole(ADMIN_ROLE) {
-        require(_newMinimumRegistrationAmount > DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS, InvalidMinimumRegistrationAmount());
+        require(
+            _newMinimumRegistrationAmount > DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS,
+            InvalidMinimumRegistrationAmount()
+        );
 
         PayerStorage storage $ = _getPayerStorage();
 
@@ -462,29 +453,21 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function getActivePayers(uint256 offset, uint256 limit) external view returns (Payer[] memory payers, bool hasMore) {
+    function getActivePayers(uint256 offset, uint256 limit)
+        external
+        view
+        returns (Payer[] memory payers, bool hasMore)
+    {
         PayerStorage storage $ = _getPayerStorage();
-        
-        uint256 totalCount = $.activePayers.length();
 
-        if (offset >= totalCount) revert OutOfBounds();
+        (address[] memory payerAddresses, bool _hasMore) = _getPaginatedAddresses($.activePayers, offset, limit);
 
-        uint256 count = totalCount - offset;
-        if (count > limit) {
-            count = limit;
-            hasMore = true;
-        } else {
-            hasMore = false;
+        payers = new Payer[](payerAddresses.length);
+        for (uint256 i = 0; i < payerAddresses.length; i++) {
+            payers[i] = $.payers[payerAddresses[i]];
         }
 
-        payers = new Payer[](count);
-
-        for (uint256 i = 0; i < count; i++) {
-            address payerAddress = $.activePayers.at(offset + i);
-            payers[i] = $.payers[payerAddress];
-        }
-        
-        return (payers, hasMore);
+        return (payers, _hasMore);
     }
 
     /**
@@ -508,12 +491,21 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function getPayersInDebt(uint256 offset, uint256 limit) external view returns (
-        address[] memory debtors,
-        uint256[] memory debtAmounts,
-        uint256 totalCount
-    ) {
-        // TODO: Implement payers in debt retrieval logic
+    function getPayersInDebt(uint256 offset, uint256 limit)
+        external
+        view
+        returns (Payer[] memory payers, bool hasMore)
+    {
+        PayerStorage storage $ = _getPayerStorage();
+
+        (address[] memory payerAddresses, bool _hasMore) = _getPaginatedAddresses($.debtPayers, offset, limit);
+
+        payers = new Payer[](payerAddresses.length);
+        for (uint256 i = 0; i < payerAddresses.length; i++) {
+            payers[i] = $.payers[payerAddresses[i]];
+        }
+
+        return (payers, _hasMore);
     }
 
     /**
@@ -657,10 +649,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
-    * @notice Decreases a payer's balance by the specified amount.
-    * @param  payerAddress The address of the payer.
-    * @param  amount The amount to decrease by.
-    */
+     * @notice Decreases a payer's balance by the specified amount.
+     * @param  payerAddress The address of the payer.
+     * @param  amount The amount to decrease by.
+     */
     function _decreasePayerBalance(address payerAddress, uint256 amount) internal {
         Payer storage payer = _getPayerStorage().payers[payerAddress];
 
@@ -735,7 +727,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         // IDistribution distribution = IDistribution(_newDistributionContract);
         // require(distribution.supportsInterface(type(IDistribution).interfaceId), InvalidDistributionContract());
 
-        require (_newDistributionContract != address(0), InvalidAddress());
+        require(_newDistributionContract != address(0), InvalidAddress());
 
         $.distributionContract = _newDistributionContract;
 
@@ -802,6 +794,40 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     // TODO: Check for underflow
     function _decreaseTotalDebtAmount(uint256 amount) internal {
         _getPayerStorage().totalDebtAmount -= amount;
+    }
+
+    /**
+     * @notice Internal helper for paginated access to EnumerableSet.AddressSet
+     * @param  addressSet The EnumerableSet to paginate
+     * @param  offset The starting index
+     * @param  limit Maximum number of items to return
+     * @return addresses Array of addresses from the set
+     * @return hasMore Whether there are more items after this page
+     */
+    function _getPaginatedAddresses(EnumerableSet.AddressSet storage addressSet, uint256 offset, uint256 limit)
+        internal
+        view
+        returns (address[] memory addresses, bool hasMore)
+    {
+        uint256 totalCount = addressSet.length();
+
+        if (offset >= totalCount) revert OutOfBounds();
+
+        uint256 count = totalCount - offset;
+        if (count > limit) {
+            count = limit;
+            hasMore = true;
+        } else {
+            hasMore = false;
+        }
+
+        addresses = new address[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            addresses[i] = addressSet.at(offset + i);
+        }
+
+        return (addresses, hasMore);
     }
 
     /* ============ Upgradeability ============ */

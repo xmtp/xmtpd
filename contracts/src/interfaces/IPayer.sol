@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title  IPayerEvents
@@ -288,10 +288,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param  payer                 The address to check.
      * @return withdrawal            The withdrawal status.
      */
-    function getWithdrawalStatus(address payer)
-        external
-        view
-        returns (Withdrawal memory withdrawal);
+    function getWithdrawalStatus(address payer) external view returns (Withdrawal memory withdrawal);
 
     /* ============ Usage Settlement ============ */
 
@@ -431,14 +428,13 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @notice Returns a paginated list of payers with outstanding debt.
      * @param  offset      Number of payers to skip before starting to return results.
      * @param  limit       Maximum number of payers to return.
-     * @return debtors     Array of payer addresses with debt.
-     * @return debtAmounts Corresponding debt amounts for each payer.
-     * @return totalCount  Total number of payers with debt (regardless of pagination).
+     * @return payers      Array of payer addresses with debt.
+     * @return hasMore     True if there are more payers to retrieve.
      */
     function getPayersInDebt(uint256 offset, uint256 limit)
         external
         view
-        returns (address[] memory debtors, uint256[] memory debtAmounts, uint256 totalCount);
+        returns (Payer[] memory payers, bool hasMore);
 
     /**
      * @notice Returns the total number of registered payers.

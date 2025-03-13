@@ -12,13 +12,13 @@ contract ComputeStorageSlot is Script {
         bytes32 namespaceHash = keccak256(bytes(namespace));
         uint256 namespaceInt = uint256(namespaceHash);
         bytes32 slot = bytes32((namespaceInt - 1) & ~uint256(0xff));
-        
+
         console.log("Namespace:", namespace);
         console.logBytes32(namespaceHash);
         console.log("Storage Slot:");
         console.logBytes32(slot);
     }
-    
+
     function run() external view {
         this.compute("");
     }

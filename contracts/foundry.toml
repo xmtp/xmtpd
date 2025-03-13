@@ -19,6 +19,26 @@ fs_permissions = [
     { access = "read-write", path = "config/unknown"}
 ]
 
+[fuzz]
+runs = 10
+
+[profile.ci.fuzz]
+runs = 10_000
+
+[fmt]
+single_line_statement_blocks = "preserve"
+contract_new_lines = false
+override_spacing = false
+line_length = 120
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+quote_style = "double"
+number_underscore = "thousands"
+hex_underscore = "remove"
+wrap_comments = false
+multiline_func_header = "attributes_first"
+
 [soldeer]
 recursive_deps = true
 

@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "forge-std/src/Script.sol";
-import "forge-std/src/Vm.sol";
-import "./utils/Utils.sol";
-import "./utils/Environment.sol";
-import "../src/RatesManager.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { RatesManager } from "../src/RatesManager.sol";
 
-contract DeployRatesManager is Script, Utils, Environment {
+import { Utils } from "./utils/Utils.sol";
+import { Environment } from "./utils/Environment.sol";
+
+contract DeployRatesManager is Utils, Environment {
     RatesManager ratesManagerImpl;
     ERC1967Proxy proxy;
 

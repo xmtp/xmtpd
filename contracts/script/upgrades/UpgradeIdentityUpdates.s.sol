@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "forge-std/src/Script.sol";
-import "forge-std/src/Vm.sol";
-import "../utils/Utils.sol";
-import "../utils/Environment.sol";
-import "src/IdentityUpdates.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { stdJson } from "forge-std/src/StdJson.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract UpgradeIdentityUpdates is Script, Utils, Environment {
+import { IdentityUpdates } from "../../src/IdentityUpdates.sol";
+
+import { Utils } from "../utils/Utils.sol";
+import { Environment } from "../utils/Environment.sol";
+
+contract UpgradeIdentityUpdates is Utils, Environment {
     IdentityUpdates newImplementation;
     IdentityUpdates proxy;
 

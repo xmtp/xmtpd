@@ -1,4 +1,4 @@
-package blockchain
+package blockchain_test
 
 import (
 	"context"
@@ -6,42 +6,46 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
 func buildRegistry(
 	t *testing.T,
-) (INodeRegistryAdmin, INodeRegistryCaller, context.Context, func()) {
+) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
+	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Deploy the contract always, so the tests are deterministic.
-	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t, rpcUrl)
 
-	signer, err := NewPrivateKeySigner(
+	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
 		contractsOptions.ChainID,
 	)
 	require.NoError(t, err)
 
-	client, err := NewClient(ctx, contractsOptions.RpcUrl)
+	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	registry, err := NewNodeRegistryAdmin(logger, client, signer, contractsOptions)
+	registry, err := blockchain.NewNodeRegistryAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
-	caller, err := NewNodeRegistryCaller(logger, client, contractsOptions)
+	caller, err := blockchain.NewNodeRegistryCaller(logger, client, contractsOptions)
 	require.NoError(t, err)
 
 	return registry, caller, ctx, func() {
+		defer cleanup()
 		cancel()
 	}
 }
 
 func addRandomNode(
 	t *testing.T,
-	registry INodeRegistryAdmin,
+	registry blockchain.INodeRegistryAdmin,
 	ctx context.Context,
 ) {
 	privateKey := testutils.RandomPrivateKey(t)

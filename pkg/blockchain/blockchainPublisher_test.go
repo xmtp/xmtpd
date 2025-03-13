@@ -2,10 +2,12 @@ package blockchain_test
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -14,9 +16,15 @@ import (
 func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
-	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(rpcUrl)
+	// Set the nodes contract address to the newly deployed contract
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t, rpcUrl)
+	contractsOptions.MessagesContractAddress = testutils.DeployGroupMessagesContract(t, rpcUrl)
+	contractsOptions.IdentityUpdatesContractAddress = testutils.DeployIdentityUpdatesContract(
+		t,
+		rpcUrl,
+	)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -40,6 +48,7 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	require.NoError(t, err)
 
 	return publisher, func() {
+		defer cleanup()
 		cancel()
 		client.Close()
 	}
@@ -47,7 +56,7 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 
 func TestPublishIdentityUpdate(t *testing.T) {
 	publisher, cleanup := buildPublisher(t)
-	defer cleanup()
+	t.Cleanup(cleanup)
 	tests := []struct {
 		name           string
 		inboxId        [32]byte
@@ -102,7 +111,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 func TestPublishGroupMessage(t *testing.T) {
 	publisher, cleanup := buildPublisher(t)
-	defer cleanup()
+	t.Cleanup(cleanup)
 
 	tests := []struct {
 		name    string

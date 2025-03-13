@@ -30,8 +30,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     uint256 public constant MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 100_000_000;
     uint256 public constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
     uint256 public constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
-    uint256 public constant DEFAULT_MAX_BACKDATED_TIME = 1 days;
-    uint256 public constant ABSOLUTE_MINIMUM_MAX_BACKDATED_TIME = 6 hours;
     string internal constant USDC_SYMBOL = "USDC";
 
     /* ============ UUPS Storage ============ */
@@ -43,20 +41,16 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         address distributionContract;
         address nodesContract;
         address payerReportContract;
-
         /// @dev Configuration parameters
         uint256 minimumRegistrationAmountMicroDollars;
         uint256 minimumDepositAmountMicroDollars;
         uint256 maxTolerableDebtAmountMicroDollars;
         uint256 withdrawalLockPeriod;
-        uint256 maxBackdatedTime;
-
         /// @dev State variables
         uint256 lastFeeTransferTimestamp;
         uint256 pendingFees;
         uint256 totalAmountDeposited;
         uint256 totalDebtAmount;
-
         /// @dev Mappings
         uint256 collectedFees;
         mapping(address => Payer) payers;
@@ -129,7 +123,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         $.minimumRegistrationAmountMicroDollars = DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS;
         $.minimumDepositAmountMicroDollars = DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS;
         $.withdrawalLockPeriod = DEFAULT_WITHDRAWAL_LOCK_PERIOD;
-        $.maxBackdatedTime = DEFAULT_MAX_BACKDATED_TIME;
 
         _setUsdcTokenContract(_usdcToken);
         _setNodesContract(_nodesContract);
@@ -177,14 +170,19 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         PayerStorage storage $ = _getPayerStorage();
 
         require(amount >= $.minimumDepositAmountMicroDollars, InsufficientAmount());
-
-        if ($.withdrawals[msg.sender].requestTimestamp != 0) revert PayerInWithdrawal();
+        require($.withdrawals[msg.sender].requestTimestamp == 0, PayerInWithdrawal());
 
         _deposit(msg.sender, amount);
 
-        _updatePayerBalance(msg.sender, amount);
+        // TODO: Extract this logic to a helper function.
+        if ($.payers[msg.sender].debtAmount > 0) {
+            _settleDebts(msg.sender, amount);
+        } else {
+            $.payers[msg.sender].balance += amount;
+            _increaseTotalAmountDeposited(amount);
+        }
 
-        $.payers[msg.sender].latestDepositTimestamp = block.timestamp;
+        emit PayerBalanceUpdated(msg.sender, $.payers[msg.sender].balance, $.payers[msg.sender].debtAmount);
     }
 
     /**
@@ -196,14 +194,21 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         PayerStorage storage $ = _getPayerStorage();
 
-        if ($.withdrawals[payer].requestTimestamp != 0) revert PayerInWithdrawal();
+        require($.withdrawals[payer].requestTimestamp == 0, PayerInWithdrawal());
 
         _deposit(msg.sender, amount);
 
-        _updatePayerBalance(payer, amount);
+        // TODO: Extract this logic to a helper function.
+        if ($.payers[payer].debtAmount > 0) {
+            _settleDebts(payer, amount);
+        } else {
+            $.payers[payer].balance += amount;
+            _increaseTotalAmountDeposited(amount);
+        }
 
         $.payers[payer].latestDonationTimestamp = block.timestamp;
 
+        emit PayerBalanceUpdated(payer, $.payers[payer].balance, $.payers[payer].debtAmount);
         emit Donation(msg.sender, payer, amount);
     }
 
@@ -224,11 +229,11 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         PayerStorage storage $ = _getPayerStorage();
 
+        require($.withdrawals[payer].requestTimestamp == 0, PayerInWithdrawal());
+
         if ($.payers[payer].balance > 0 || $.payers[payer].debtAmount > 0) {
             revert PayerHasBalanceOrDebt();
         }
-
-        if ($.withdrawals[payer].requestTimestamp != 0) revert PayerInWithdrawal();
 
         // Delete all payer data
         delete $.payers[payer];
@@ -253,7 +258,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         // Balance to be withdrawn is deducted from the payer's balance,
         // it can't be used to settle payments.
-        _decreasePayerBalance(msg.sender, amount);
+        $.payers[msg.sender].balance -= amount;
         _decreaseTotalAmountDeposited(amount);
 
         uint256 withdrawableTimestamp = block.timestamp + $.withdrawalLockPeriod;
@@ -279,7 +284,8 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         delete $.withdrawals[msg.sender];
 
-        _updatePayerBalance(msg.sender, withdrawal.amount);
+        $.payers[msg.sender].balance += withdrawal.amount;
+        _increaseTotalAmountDeposited(withdrawal.amount);
 
         emit WithdrawalCancelled(msg.sender, withdrawal.requestTimestamp);
     }
@@ -294,11 +300,13 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         Withdrawal memory withdrawal = $.withdrawals[msg.sender];
 
-        // TODO: A payer withdrawing funds can still incur debt.
-        //       We need to handle this case.
-        // if ($.payers[msg.sender].debtAmount > 0) {}
+        uint256 finalWithdrawalAmount = withdrawal.amount;
 
-        $.usdcToken.safeTransfer(msg.sender, withdrawal.amount);
+        if ($.payers[msg.sender].debtAmount > 0) {
+            finalWithdrawalAmount = _settleDebts(msg.sender, withdrawal.amount);
+        }
+
+        $.usdcToken.safeTransfer(msg.sender, finalWithdrawalAmount);
 
         delete $.withdrawals[msg.sender];
 
@@ -319,13 +327,16 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function settleUsage(
-        address[] calldata payerList,
-        uint256[] calldata amountsList
-    ) external whenNotPaused onlyPayerReport {
+    function settleUsage(uint256 originatorNode, address[] calldata payerList, uint256[] calldata amountsList)
+        external
+        whenNotPaused
+        onlyPayerReport
+    {
         require(payerList.length == amountsList.length, InvalidPayerListLength());
 
         PayerStorage storage $ = _getPayerStorage();
+
+        uint256 fees = 0;
 
         for (uint256 i = 0; i < payerList.length; i++) {
             address payer = payerList[i];
@@ -333,13 +344,9 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
             // This should never happen, as PayerReport has already verified the payers and amounts.
             // Payers in payerList should always exist and be active.
-            if (!_payerExists(payer)) {
-                _decreaseTotalAmountDeposited(amount);
-
+            if (!_payerExists(payer) || !_payerIsActive(payer)) {
                 continue;
             }
-
-            if (!_payerIsActive(payer)) continue;
 
             Payer memory storedPayer = $.payers[payer];
 
@@ -347,9 +354,11 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
                 uint256 debt = amount - storedPayer.balance;
 
                 $.collectedFees += storedPayer.balance;
+                fees += storedPayer.balance;
 
                 storedPayer.balance = 0;
                 storedPayer.debtAmount = debt;
+                $.payers[payer] = storedPayer;
 
                 _addDebtor(payer);
                 _increaseTotalDebtAmount(debt);
@@ -362,17 +371,22 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
             }
 
             $.collectedFees += amount;
+            fees += amount;
 
             storedPayer.balance -= amount;
 
+            $.payers[payer] = storedPayer;
+
             emit PayerBalanceUpdated(payer, storedPayer.balance, storedPayer.debtAmount);
         }
+
+        emit UsageSettled(originatorNode, block.timestamp, fees);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function transferFeesToDistribution() external whenNotPaused onlyRole(ADMIN_ROLE) {
+    function transferFeesToDistribution() external whenNotPaused onlyNodeOperator {
         // TODO: Implement fee transfer logic
         //       Update lastFeeTransferTimestamp
         //       Update pendingFees
@@ -453,20 +467,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         $.withdrawalLockPeriod = _newWithdrawalLockPeriod;
 
         emit WithdrawalLockPeriodSet(oldWithdrawalLockPeriod, _newWithdrawalLockPeriod);
-    }
-
-    /**
-     * @inheritdoc IPayer
-     */
-    function setMaxBackdatedTime(uint256 _newMaxBackdatedTime) external onlyRole(ADMIN_ROLE) {
-        require(_newMaxBackdatedTime >= ABSOLUTE_MINIMUM_MAX_BACKDATED_TIME, InvalidMaxBackdatedTime());
-
-        PayerStorage storage $ = _getPayerStorage();
-
-        uint256 oldMaxBackdatedTime = $.maxBackdatedTime;
-        $.maxBackdatedTime = _newMaxBackdatedTime;
-
-        emit MaxBackdatedTimeSet(oldMaxBackdatedTime, _newMaxBackdatedTime);
     }
 
     /**
@@ -647,13 +647,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         return _getPayerStorage().pendingFees;
     }
 
-    /**
-     * @inheritdoc IPayer
-     */
-    function getMaxBackdatedTime() external view returns (uint256 maxTime) {
-        return _getPayerStorage().maxBackdatedTime;
-    }
-
     /* ============ Internal ============ */
 
     function _deposit(address payer, uint256 amount) internal {
@@ -662,49 +655,34 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         $.usdcToken.safeTransferFrom(payer, address(this), amount);
     }
 
-    /**
-     * @notice Updates a payer's balance by the specified amount.
-     *         If the payer has debt, the debt is subtracted from the amount.
-     *         If the payer has no debt, the amount is added to the balance.
-     * @param  payerAddress The address of the payer.
-     * @param  amount The amount to update by.
-     */
-    function _updatePayerBalance(address payerAddress, uint256 amount) internal {
-        // TODO: Remove this logic, in favor of settleDebts() or similar.
-        Payer storage payer = _getPayerStorage().payers[payerAddress];
+    function _settleDebts(address payer, uint256 amount) internal returns (uint256 amountAfterSettlement) {
+        PayerStorage storage $ = _getPayerStorage();
 
-        if (payer.debtAmount == 0) {
-            payer.balance += amount;
+        Payer memory storedPayer = $.payers[payer];
+
+        if (storedPayer.debtAmount < amount) {
+            uint256 debtToRemove = storedPayer.debtAmount;
+            amount -= debtToRemove;
+
+            storedPayer.debtAmount = 0;
+            storedPayer.balance += amount;
+
+            _removeDebtor(payer);
             _increaseTotalAmountDeposited(amount);
+            _decreaseTotalDebtAmount(debtToRemove);
+
+            amountAfterSettlement = amount;
         } else {
-            if (payer.debtAmount < amount) {
-                uint256 debtToRemove = payer.debtAmount;
-                amount -= debtToRemove;
-                payer.debtAmount = 0;
-                payer.balance += amount;
-                _removeDebtor(payerAddress);
-                _increaseTotalAmountDeposited(amount);
-                _decreaseTotalDebtAmount(debtToRemove);
-            } else {
-                payer.debtAmount -= amount;
-                _decreaseTotalDebtAmount(amount);
-            }
+            storedPayer.debtAmount -= amount;
+
+            _decreaseTotalDebtAmount(amount);
+
+            amountAfterSettlement = 0;
         }
 
-        emit PayerBalanceUpdated(payerAddress, payer.balance, payer.debtAmount);
-    }
+        $.payers[payer] = storedPayer;
 
-    /**
-     * @notice Decreases a payer's balance by the specified amount.
-     * @param  payerAddress The address of the payer.
-     * @param  amount The amount to decrease by.
-     */
-    function _decreasePayerBalance(address payerAddress, uint256 amount) internal {
-        Payer storage payer = _getPayerStorage().payers[payerAddress];
-
-        payer.balance -= amount;
-
-        emit PayerBalanceUpdated(payerAddress, payer.balance, payer.debtAmount);
+        return amountAfterSettlement;
     }
 
     /**

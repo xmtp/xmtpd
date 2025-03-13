@@ -8,52 +8,14 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
  * @notice Interface for events emitted by the Payer contract.
  */
 interface IPayerEvents {
-    /// @dev Emitted when a new payer is registered.
-    event PayerRegistered(address indexed payer, uint256 amount);
-
-    /// @dev Emitted when a payer is deactivated by an owner.
-    event PayerDeactivated(address indexed payer);
-
-    /// @dev Emitted when a payer is permanently deleted from the system.
-    event PayerDeleted(address indexed payer, uint256 timestamp);
-
-    /// @dev Emitted when a deposit is made to a payer's account.
-    event Deposit(address indexed payer, uint256 amount);
+    /// @dev Emitted when the distribution contract address is updated.
+    event DistributionContractSet(address indexed newDistributionContract);
 
     /// @dev Emitted when a user donates to a payer's account.
     event Donation(address indexed donor, address indexed payer, uint256 amount);
 
-    /// @dev Emitted when a payer balance is updated.
-    event PayerBalanceUpdated(address indexed payer, uint256 newBalance, uint256 newDebtAmount);
-
-    /// @dev Emitted when a payer initiates a withdrawal request.
-    event WithdrawalRequested(
-        address indexed payer, uint256 indexed requestTimestamp, uint256 withdrawableTimestamp, uint256 amount
-    );
-
-    /// @dev Emitted when a payer cancels a withdrawal request.
-    event WithdrawalCancelled(address indexed payer, uint256 indexed requestTimestamp);
-
-    /// @dev Emitted when a payer's withdrawal is finalized.
-    event WithdrawalFinalized(address indexed payer, uint256 indexed requestTimestamp);
-
-    /// @dev Emitted when usage is settled and fees are calculated.
-    event UsageSettled(uint256 fees, address indexed payer, uint256 indexed originatorNode, uint256 timestamp);
-
     /// @dev Emitted when fees are transferred to the distribution contract.
     event FeesTransferred(uint256 amount);
-
-    /// @dev Emitted when the distribution contract address is updated.
-    event DistributionContractSet(address indexed newDistributionContract);
-
-    /// @dev Emitted when the nodes contract address is updated.
-    event NodesContractSet(address indexed newNodesContract);
-
-    /// @dev Emitted when the payer report contract address is updated.
-    event PayerReportContractSet(address indexed newPayerReportContract);
-
-    /// @dev Emitted when the USDC token address is updated.
-    event UsdcTokenSet(address indexed newUsdcToken);
 
     /// @dev Emitted when the minimum deposit amount is updated.
     event MinimumDepositSet(uint256 oldMinimumDeposit, uint256 newMinimumDeposit);
@@ -61,14 +23,46 @@ interface IPayerEvents {
     /// @dev Emitted when the minimum registration amount is updated.
     event MinimumRegistrationAmountSet(uint256 oldMinimumRegistrationAmount, uint256 newMinimumRegistrationAmount);
 
+    /// @dev Emitted when the nodes contract address is updated.
+    event NodesContractSet(address indexed newNodesContract);
+
+    /// @dev Emitted when a payer balance is updated.
+    event PayerBalanceUpdated(address indexed payer, uint256 newBalance, uint256 newDebtAmount);
+
+    /// @dev Emitted when a payer is deactivated by an owner.
+    event PayerDeactivated(address indexed payer);
+
+    /// @dev Emitted when a payer is permanently deleted from the system.
+    event PayerDeleted(address indexed payer, uint256 timestamp);
+
+    /// @dev Emitted when a new payer is registered.
+    event PayerRegistered(address indexed payer, uint256 amount);
+
+    /// @dev Emitted when the payer report contract address is updated.
+    event PayerReportContractSet(address indexed newPayerReportContract);
+
     /// @dev Emitted when the upgrade is authorized.
     event UpgradeAuthorized(address indexed upgrader, address indexed newImplementation);
+
+    /// @dev Emitted when usage is settled and fees are calculated.
+    event UsageSettled(uint256 indexed originatorNode, uint256 timestamp, uint256 feesCollected);
+
+    /// @dev Emitted when the USDC token address is updated.
+    event UsdcTokenSet(address indexed newUsdcToken);
+
+    /// @dev Emitted when a payer cancels a withdrawal request.
+    event WithdrawalCancelled(address indexed payer, uint256 indexed requestTimestamp);
+
+    /// @dev Emitted when a payer's withdrawal is finalized.
+    event WithdrawalFinalized(address indexed payer, uint256 indexed requestTimestamp);
 
     /// @dev Emitted when the withdrawal lock period is updated.
     event WithdrawalLockPeriodSet(uint256 oldWithdrawalLockPeriod, uint256 newWithdrawalLockPeriod);
 
-    /// @dev Emitted when the maximum backdated time is updated.
-    event MaxBackdatedTimeSet(uint256 oldMaxBackdatedTime, uint256 newMaxBackdatedTime);
+    /// @dev Emitted when a payer initiates a withdrawal request.
+    event WithdrawalRequested(
+        address indexed payer, uint256 indexed requestTimestamp, uint256 withdrawableTimestamp, uint256 amount
+    );
 }
 
 /**
@@ -76,32 +70,38 @@ interface IPayerEvents {
  * @notice Interface for errors emitted by the Payer contract.
  */
 interface IPayerErrors {
-    /// @dev Error thrown when a call is unauthorized.
-    error Unauthorized();
+    /// @dev Error thrown when arrays have mismatched lengths.
+    error ArrayLengthMismatch();
 
-    /// @dev Error thrown when caller is not an authorized node operator.
-    error UnauthorizedNodeOperator();
+    /// @notice Error thrown when adding a debtor has failed.
+    error FailedToAddDebtor();
 
-    /// @dev Error thrown when contract is not the distribution contract.
-    error InvalidDistributionContract();
+    /// @notice Error thrown when deactivating a payer has failed.
+    error FailedToDeactivatePayer();
 
-    /// @dev Error thrown when contract is not the payer report contract.
-    error InvalidPayerReportContract();
+    /// @notice Error thrown when deleting a payer has failed.
+    error FailedToDeletePayer();
 
-    /// @dev Error thrown when contract is not the nodes contract.
-    error InvalidNodesContract();
+    /// @notice Error thrown when granting a role has failed.
+    error FailedToGrantRole(bytes32 role, address account);
 
-    /// @dev Error thrown when contract is not the USDC token contract.
-    error InvalidUsdcTokenContract();
+    /// @notice Error thrown when registering a payer has failed.
+    error FailedToRegisterPayer();
 
-    /// @dev Error thrown when an address is invalid (usually zero address).
-    error InvalidAddress();
+    /// @notice Error thrown when removing a debtor has failed.
+    error FailedToRemoveDebtor();
+
+    /// @dev Error thrown when balance is insufficient.
+    error InsufficientBalance();
 
     /// @dev Error thrown when the amount is insufficient.
     error InsufficientAmount();
 
-    /// @dev Error thrown when balance is insufficient.
-    error InsufficientBalance();
+    /// @dev Error thrown when an address is invalid (usually zero address).
+    error InvalidAddress();
+
+    /// @dev Error thrown when contract is not the distribution contract.
+    error InvalidDistributionContract();
 
     /// @dev Error thrown when the minimum deposit is invalid.
     error InvalidMinimumDeposit();
@@ -109,35 +109,32 @@ interface IPayerErrors {
     /// @dev Error thrown when the minimum registration amount is invalid.
     error InvalidMinimumRegistrationAmount();
 
-    /// @dev Error thrown when the withdrawal lock period is invalid.
-    error InvalidWithdrawalLockPeriod();
+    /// @dev Error thrown when contract is not the nodes contract.
+    error InvalidNodesContract();
 
-    /// @dev Error thrown when the maximum backdated time is invalid.
-    error InvalidMaxBackdatedTime();
+    /// @notice Error thrown when the payer list length is invalid.
+    error InvalidPayerListLength();
 
-    /// @dev Error thrown when a withdrawal is not in the requested state.
-    error WithdrawalNotRequested();
-
-    /// @dev Error thrown when a withdrawal is already in progress.
-    error WithdrawalAlreadyRequested();
-
-    /// @dev Error thrown when a withdrawal is not in the requested state.
-    error WithdrawalNotExists();
-
-    /// @dev Error thrown when a lock period has not yet elapsed.
-    error LockPeriodNotElapsed();
-
-    /// @dev Error thrown when arrays have mismatched lengths.
-    error ArrayLengthMismatch();
+    /// @dev Error thrown when contract is not the payer report contract.
+    error InvalidPayerReportContract();
 
     /// @dev Error thrown when trying to backdate settlement too far.
     error InvalidSettlementTime();
 
+    /// @dev Error thrown when contract is not the USDC token contract.
+    error InvalidUsdcTokenContract();
+
+    /// @dev Error thrown when the withdrawal lock period is invalid.
+    error InvalidWithdrawalLockPeriod();
+
+    /// @dev Error thrown when a lock period has not yet elapsed.
+    error LockPeriodNotElapsed();
+
+    /// @notice Error thrown when the offset is out of bounds.
+    error OutOfBounds();
+
     /// @dev Error thrown when payer already exists.
     error PayerAlreadyRegistered();
-
-    /// @dev Error thrown when payer does not exist.
-    error PayerDoesNotExist();
 
     /// @dev Error thrown when trying to delete a payer with balance or debt.
     error PayerHasBalanceOrDebt();
@@ -148,32 +145,26 @@ interface IPayerErrors {
     /// @dev Error thrown when trying to delete a payer in withdrawal state.
     error PayerInWithdrawal();
 
+    /// @dev Error thrown when payer does not exist.
+    error PayerDoesNotExist();
+
     /// @dev Error thrown when a payer is not active.
     error PayerIsNotActive();
 
-    /// @notice Error thrown when granting a role has failed.
-    error FailedToGrantRole(bytes32 role, address account);
+    /// @dev Error thrown when a call is unauthorized.
+    error Unauthorized();
 
-    /// @notice Error thrown when registering a payer has failed.
-    error FailedToRegisterPayer();
+    /// @dev Error thrown when caller is not an authorized node operator.
+    error UnauthorizedNodeOperator();
 
-    /// @notice Error thrown when deactivating a payer has failed.
-    error FailedToDeactivatePayer();
+    /// @dev Error thrown when a withdrawal is already in progress.
+    error WithdrawalAlreadyRequested();
 
-    /// @notice Error thrown when deleting a payer has failed.
-    error FailedToDeletePayer();
+    /// @dev Error thrown when a withdrawal is not in the requested state.
+    error WithdrawalNotExists();
 
-    /// @notice Error thrown when removing a debtor has failed.
-    error FailedToRemoveDebtor();
-
-    /// @notice Error thrown when adding a debtor has failed.
-    error FailedToAddDebtor();
-
-    /// @notice Error thrown when the offset is out of bounds.
-    error OutOfBounds();
-
-    /// @notice Error thrown when the payer list length is invalid.
-    error InvalidPayerListLength();
+    /// @dev Error thrown when a withdrawal is not in the requested state.
+    error WithdrawalNotRequested();
 }
 
 /**
@@ -305,13 +296,11 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @notice Settles usage for a contiguous batch of (payer, amount) entries.
      * Assumes that the PayerReport contract has already verified the validity of the payers and amounts.
      *
+     * @param  originatorNode The originator node of the usage.
      * @param  payers         A contiguous array of payer addresses.
      * @param  amounts        A contiguous array of usage amounts corresponding to each payer.
      */
-    function settleUsage(
-        address[] calldata payers,
-        uint256[] calldata amounts
-    ) external; /* onlyPayerReport */
+    function settleUsage(uint256 originatorNode, address[] calldata payers, uint256[] calldata amounts) external; /* onlyPayerReport */
 
     /**
      * @notice Transfers all pending fees to the designated distribution contract.
@@ -378,14 +367,6 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * Emits `WithdrawalLockPeriodUpdated`.
      */
     function setWithdrawalLockPeriod(uint256 newWithdrawalLockPeriod) external;
-
-    /**
-     * @notice Sets the maximum backdated time for settlements.
-     * @param  newMaxBackdatedTime The new maximum backdated time.
-     *
-     * Emits `MaxBackdatedTimeUpdated`.
-     */
-    function setMaxBackdatedTime(uint256 newMaxBackdatedTime) external;
 
     /**
      * @notice Pauses the contract functions in case of emergency.
@@ -528,10 +509,4 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @return fees The total pending fees in USDC.
      */
     function getPendingFees() external view returns (uint256 fees);
-
-    /**
-     * @notice Returns the maximum allowed time difference for backdated settlements.
-     * @return maxTime The maximum allowed time difference in seconds.
-     */
-    function getMaxBackdatedTime() external view returns (uint256 maxTime);
 }

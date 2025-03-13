@@ -163,8 +163,17 @@ interface IPayerErrors {
     /// @notice Error thrown when deleting a payer has failed.
     error FailedToDeletePayer();
 
+    /// @notice Error thrown when removing a debtor has failed.
+    error FailedToRemoveDebtor();
+
+    /// @notice Error thrown when adding a debtor has failed.
+    error FailedToAddDebtor();
+
     /// @notice Error thrown when the offset is out of bounds.
     error OutOfBounds();
+
+    /// @notice Error thrown when the payer list length is invalid.
+    error InvalidPayerListLength();
 }
 
 /**
@@ -294,16 +303,12 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
 
     /**
      * @notice Settles usage for a contiguous batch of (payer, amount) entries.
-     * Assumes that the PayerReport contract has already verified the aggregated Merkle proof.
+     * Assumes that the PayerReport contract has already verified the validity of the payers and amounts.
      *
-     * @param  originatorNode The node that submitted the report.
-     * @param  reportIndex    The index of the report.
      * @param  payers         A contiguous array of payer addresses.
      * @param  amounts        A contiguous array of usage amounts corresponding to each payer.
      */
     function settleUsage(
-        address originatorNode,
-        uint256 reportIndex,
         address[] calldata payers,
         uint256[] calldata amounts
     ) external; /* onlyPayerReport */

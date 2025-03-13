@@ -27,6 +27,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     uint256 public constant DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS = 10_000_000;
     uint256 public constant DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS = 10_000_000;
+    uint256 public constant MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 100_000_000;
     uint256 public constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
     uint256 public constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
     uint256 public constant DEFAULT_MAX_BACKDATED_TIME = 1 days;
@@ -42,17 +43,22 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         address distributionContract;
         address nodesContract;
         address payerReportContract;
+
         /// @dev Configuration parameters
         uint256 minimumRegistrationAmountMicroDollars;
         uint256 minimumDepositAmountMicroDollars;
+        uint256 maxTolerableDebtAmountMicroDollars;
         uint256 withdrawalLockPeriod;
         uint256 maxBackdatedTime;
+
         /// @dev State variables
         uint256 lastFeeTransferTimestamp;
         uint256 pendingFees;
         uint256 totalAmountDeposited;
         uint256 totalDebtAmount;
+
         /// @dev Mappings
+        uint256 collectedFees;
         mapping(address => Payer) payers;
         mapping(address => Withdrawal) withdrawals;
         EnumerableSet.AddressSet totalPayers;
@@ -207,14 +213,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     function deactivatePayer(address payer) external whenNotPaused onlyNodeOperator {
         _revertIfPayerDoesNotExist(payer);
 
-        PayerStorage storage $ = _getPayerStorage();
-
-        $.payers[payer].isActive = false;
-
-        // Deactivating a payer only removes them from the active payers set
-        require($.activePayers.remove(payer), FailedToDeactivatePayer());
-
-        emit PayerDeactivated(payer);
+        _deactivatePayer(payer);
     }
 
     /**
@@ -295,9 +294,13 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         Withdrawal memory withdrawal = $.withdrawals[msg.sender];
 
-        delete $.withdrawals[msg.sender];
+        // TODO: A payer withdrawing funds can still incur debt.
+        //       We need to handle this case.
+        // if ($.payers[msg.sender].debtAmount > 0) {}
 
         $.usdcToken.safeTransfer(msg.sender, withdrawal.amount);
+
+        delete $.withdrawals[msg.sender];
 
         emit WithdrawalFinalized(msg.sender, withdrawal.requestTimestamp);
     }
@@ -317,12 +320,53 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @inheritdoc IPayer
      */
     function settleUsage(
-        address originatorNode,
-        uint256 reportIndex,
         address[] calldata payerList,
-        uint256[] calldata amounts
+        uint256[] calldata amountsList
     ) external whenNotPaused onlyPayerReport {
-        // TODO: Implement usage settlement logic
+        require(payerList.length == amountsList.length, InvalidPayerListLength());
+
+        PayerStorage storage $ = _getPayerStorage();
+
+        for (uint256 i = 0; i < payerList.length; i++) {
+            address payer = payerList[i];
+            uint256 amount = amountsList[i];
+
+            // This should never happen, as PayerReport has already verified the payers and amounts.
+            // Payers in payerList should always exist and be active.
+            if (!_payerExists(payer)) {
+                _decreaseTotalAmountDeposited(amount);
+
+                continue;
+            }
+
+            if (!_payerIsActive(payer)) continue;
+
+            Payer memory storedPayer = $.payers[payer];
+
+            if (storedPayer.balance < amount) {
+                uint256 debt = amount - storedPayer.balance;
+
+                $.collectedFees += storedPayer.balance;
+
+                storedPayer.balance = 0;
+                storedPayer.debtAmount = debt;
+
+                _addDebtor(payer);
+                _increaseTotalDebtAmount(debt);
+
+                if (debt > MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS) _deactivatePayer(payer);
+
+                emit PayerBalanceUpdated(payer, storedPayer.balance, storedPayer.debtAmount);
+
+                continue;
+            }
+
+            $.collectedFees += amount;
+
+            storedPayer.balance -= amount;
+
+            emit PayerBalanceUpdated(payer, storedPayer.balance, storedPayer.debtAmount);
+        }
     }
 
     /**
@@ -626,6 +670,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @param  amount The amount to update by.
      */
     function _updatePayerBalance(address payerAddress, uint256 amount) internal {
+        // TODO: Remove this logic, in favor of settleDebts() or similar.
         Payer storage payer = _getPayerStorage().payers[payerAddress];
 
         if (payer.debtAmount == 0) {
@@ -637,6 +682,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
                 amount -= debtToRemove;
                 payer.debtAmount = 0;
                 payer.balance += amount;
+                _removeDebtor(payerAddress);
                 _increaseTotalAmountDeposited(amount);
                 _decreaseTotalDebtAmount(debtToRemove);
             } else {
@@ -679,6 +725,17 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         return _getPayerStorage().payers[payer].isActive;
     }
 
+    function _deactivatePayer(address payer) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        $.payers[payer].isActive = false;
+
+        // Deactivating a payer only removes them from the active payers set
+        require($.activePayers.remove(payer), FailedToDeactivatePayer());
+
+        emit PayerDeactivated(payer);
+    }
+
     /**
      * @notice Reverts if a payer does not exist.
      * @param  payer The address of the payer to check.
@@ -702,6 +759,30 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      */
     function _revertIfWithdrawalNotExists(address payer) internal view {
         require(_withdrawalExists(payer), WithdrawalNotExists());
+    }
+
+    /**
+     * @notice Removes a payer from the debt payers set.
+     * @param  payer The address of the payer to remove.
+     */
+    function _removeDebtor(address payer) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        if ($.debtPayers.contains(payer)) {
+            require($.debtPayers.remove(payer), FailedToRemoveDebtor());
+        }
+    }
+
+    /**
+     * @notice Adds a payer to the debt payers set.
+     * @param  payer The address of the payer to add.
+     */
+    function _addDebtor(address payer) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        if (!$.debtPayers.contains(payer)) {
+            require($.debtPayers.add(payer), FailedToAddDebtor());
+        }
     }
 
     /**
@@ -782,18 +863,20 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         _getPayerStorage().totalAmountDeposited += amount;
     }
 
-    // TODO: Check for underflow
     function _decreaseTotalAmountDeposited(uint256 amount) internal {
-        _getPayerStorage().totalAmountDeposited -= amount;
+        PayerStorage storage $ = _getPayerStorage();
+
+        $.totalAmountDeposited = amount > $.totalAmountDeposited ? 0 : $.totalAmountDeposited - amount;
     }
 
     function _increaseTotalDebtAmount(uint256 amount) internal {
         _getPayerStorage().totalDebtAmount += amount;
     }
 
-    // TODO: Check for underflow
     function _decreaseTotalDebtAmount(uint256 amount) internal {
-        _getPayerStorage().totalDebtAmount -= amount;
+        PayerStorage storage $ = _getPayerStorage();
+
+        $.totalDebtAmount = amount > $.totalDebtAmount ? 0 : $.totalDebtAmount - amount;
     }
 
     /**

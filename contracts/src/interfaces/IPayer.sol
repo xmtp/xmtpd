@@ -21,10 +21,11 @@ interface IPayer is IERC165 {
      */
     struct Payer {
         uint256 balance;
-        bool isActive;
+        uint256 debtAmount;
         uint256 creationTimestamp;
         uint256 latestDepositTimestamp;
-        uint256 debtAmount;
+        uint256 latestDonationTimestamp;
+        bool isActive;
     }
 
     /**
@@ -56,16 +57,19 @@ interface IPayer is IERC165 {
     /// @dev Emitted when a user donates to a payer's account.
     event Donation(address indexed donor, address indexed payer, uint256 amount);
 
+    /// @dev Emitted when a payer balance is updated.
+    event PayerBalanceUpdated(address indexed payer, uint256 newBalance, uint256 newDebtAmount);
+
     /// @dev Emitted when a payer initiates a withdrawal request.
-    event WithdrawalRequest(
-        address indexed payer, uint256 requestTimestamp, uint256 withdrawableTimestamp, uint256 amount
+    event WithdrawalRequested(
+        address indexed payer, uint256 indexed requestTimestamp, uint256 withdrawableTimestamp, uint256 amount
     );
 
     /// @dev Emitted when a payer cancels a withdrawal request.
-    event WithdrawalCancelled(address indexed payer);
+    event WithdrawalCancelled(address indexed payer, uint256 indexed requestTimestamp);
 
     /// @dev Emitted when a payer's withdrawal is finalized.
-    event WithdrawalFinalized(address indexed payer, uint256 amountReturned);
+    event WithdrawalFinalized(address indexed payer, uint256 indexed requestTimestamp);
 
     /// @dev Emitted when usage is settled and fees are calculated.
     event UsageSettled(uint256 fees, address indexed payer, uint256 indexed originatorNode, uint256 timestamp);
@@ -87,6 +91,9 @@ interface IPayer is IERC165 {
 
     /// @dev Emitted when the minimum deposit amount is updated.
     event MinimumDepositSet(uint256 oldMinimumDeposit, uint256 newMinimumDeposit);
+
+    /// @dev Emitted when the minimum registration amount is updated.
+    event MinimumRegistrationAmountSet(uint256 oldMinimumRegistrationAmount, uint256 newMinimumRegistrationAmount);
 
     /// @dev Emitted when the upgrade is authorized.
     event UpgradeAuthorized(address indexed upgrader, address indexed newImplementation);
@@ -123,8 +130,14 @@ interface IPayer is IERC165 {
     /// @dev Error thrown when the amount is insufficient.
     error InsufficientAmount();
 
+    /// @dev Error thrown when balance is insufficient.
+    error InsufficientBalance();
+
     /// @dev Error thrown when the minimum deposit is invalid.
     error InvalidMinimumDeposit();
+
+    /// @dev Error thrown when the minimum registration amount is invalid.
+    error InvalidMinimumRegistrationAmount();
 
     /// @dev Error thrown when the withdrawal lock period is invalid.
     error InvalidWithdrawalLockPeriod();
@@ -137,6 +150,9 @@ interface IPayer is IERC165 {
 
     /// @dev Error thrown when a withdrawal is already in progress.
     error WithdrawalAlreadyRequested();
+
+    /// @dev Error thrown when a withdrawal is not in the requested state.
+    error WithdrawalNotExists();
 
     /// @dev Error thrown when a lock period has not yet elapsed.
     error LockPeriodNotElapsed();
@@ -156,14 +172,26 @@ interface IPayer is IERC165 {
     /// @dev Error thrown when trying to delete a payer with balance or debt.
     error PayerHasBalanceOrDebt();
 
+    /// @dev Error thrown when payer has debt.
+    error PayerHasDebt();
+
     /// @dev Error thrown when trying to delete a payer in withdrawal state.
     error PayerInWithdrawal();
+
+    /// @dev Error thrown when a payer is not active.
+    error PayerIsNotActive();
 
     /// @notice Error thrown when granting a role has failed.
     error FailedToGrantRole(bytes32 role, address account);
 
     /// @notice Error thrown when registering a payer has failed.
     error FailedToRegisterPayer();
+
+    /// @notice Error thrown when deactivating a payer has failed.
+    error FailedToDeactivatePayer();
+
+    /// @notice Error thrown when deleting a payer has failed.
+    error FailedToDeletePayer();
 
     /* ============ Payer Management ============ */
 
@@ -196,7 +224,7 @@ interface IPayer is IERC165 {
     function donate(address payer, uint256 amount) external;
 
     /**
-     * @notice Deactivates a payer, preventing them from initiating new transactions.
+     * @notice Deactivates a payer, signaling XMTP nodes they should not accept messages from them.
      *         Only callable by authorized node operators.
      * @param  payer The address of the payer to deactivate.
      *
@@ -323,6 +351,14 @@ interface IPayer is IERC165 {
     function setMinimumDeposit(uint256 newMinimumDeposit) external;
 
     /**
+     * @notice Sets the minimum deposit amount required for registration.
+     * @param  newMinimumRegistrationAmount The new minimum deposit amount.
+     *
+     * Emits `MinimumRegistrationAmountUpdated`.
+     */
+    function setMinimumRegistrationAmount(uint256 newMinimumRegistrationAmount) external;
+
+    /**
      * @notice Sets the withdrawal lock period.
      * @param  newWithdrawalLockPeriod The new withdrawal lock period.
      *
@@ -441,6 +477,12 @@ interface IPayer is IERC165 {
      * @return minimumDeposit The minimum deposit amount in USDC.
      */
     function getMinimumDeposit() external view returns (uint256 minimumDeposit);
+
+    /**
+     * @notice Retrieves the minimum deposit amount required to register as a payer.
+     * @return minimumRegistrationAmount The minimum deposit amount in USDC.
+     */
+    function getMinimumRegistrationAmount() external view returns (uint256 minimumRegistrationAmount);
 
     /**
      * @notice Retrieves the current total balance of a given payer.

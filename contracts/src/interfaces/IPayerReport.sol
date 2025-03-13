@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
 /**
  * @title  IPayerReport
  * @notice Interface for the PayerReport contract handling usage reports and batch settlements.
  */
-interface IPayerReport {
+interface IPayerReport is IERC165 {
+
     /* ============ Structs ============ */
 
     /**

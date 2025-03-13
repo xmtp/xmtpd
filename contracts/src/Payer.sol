@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { AccessControlUpgradeable } from "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -9,13 +10,13 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { Initializable } from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { IPayer } from "./interfaces/IPayer.sol";
+import { IPayerReport } from "./interfaces/IPayerReport.sol";
 import { INodes } from "./interfaces/INodes.sol";
 
 /**
- * @title Payer
+ * @title  Payer
  * @notice Implementation for managing payer USDC deposits, usage settlements,
- *         and a secure withdrawal process with optimized storage using
- *         Merkle trees and EIP-1283 gas optimizations.
+ *         and a secure withdrawal process.
  */
 contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, IPayer{
     using SafeERC20 for IERC20;
@@ -23,8 +24,13 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
     /* ============ Constants ============ */
 
-    /// @dev Roles
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    uint256 public constant DEFAULT_MINIMUM_DEPOSIT_MICRO_DOLLARS = 10_000_000;
+    uint256 public constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
+    uint256 public constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
+    uint256 public constant DEFAULT_MAX_BACKDATED_TIME = 1 days;
+    uint256 public constant ABSOLUTE_MINIMUM_MAX_BACKDATED_TIME = 6 hours;
+    string internal constant USDC_SYMBOL = "USDC";
 
     /* ============ UUPS Storage ============ */
 
@@ -36,12 +42,14 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         address nodesContract;
         address payerReportContract;
 
-        /// @dev Parameters
+        /// @dev Configuration parameters
         uint256 minimumDepositMicroDollars;
-        uint256 pendingFees;
-        uint256 lastFeeTransferTimestamp;
         uint256 withdrawalLockPeriod;
         uint256 maxBackdatedTime;
+
+        /// @dev State variables
+        uint256 lastFeeTransferTimestamp;
+        uint256 pendingFees;
         uint256 totalValueLocked;
         uint256 totalDebtAmount;
 
@@ -78,7 +86,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      */
     modifier onlyPayerReport() {
         if (msg.sender != _getPayerStorage().payerReportContract) {
-            revert NotPayerReportContract();
+            revert Unauthorized();
         }
         _;
     }
@@ -88,6 +96,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      */
     modifier onlyPayer(address payer) {
         require(_payerExists(payer), PayerDoesNotExist());
+        require(msg.sender == payer, Unauthorized());
         _;
     }
 
@@ -96,30 +105,31 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @notice Initializes the contract with the deployer as admin.
      * @param  _initialAdmin The address of the admin.
+     * @dev    There's a chicken-egg problem here with PayerReport and Distribution contracts.
+     *         We need to deploy these contracts first, then set their addresses
+     *         in the Payer contract.
      */
     function initialize(
         address _initialAdmin,
         address _usdcToken,
-        address _distributionContract,
         address _nodesContract
     ) public initializer {
         if (_initialAdmin == address(0) || _usdcToken == address(0) || _nodesContract == address(0)) {
             revert InvalidAddress();
         }
 
-        PayerStorage storage $ = _getPayerStorage();
-
-        $.minimumDepositMicroDollars = 10_000_000;
-        $.withdrawalLockPeriod = 3 days;
-        $.maxBackdatedTime = 1 days;
-
-        $.usdcToken = IERC20(_usdcToken);
-        $.distributionContract = _distributionContract;
-        $.nodesContract = _nodesContract;
-
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __Pausable_init();
+
+        PayerStorage storage $ = _getPayerStorage();
+
+        $.minimumDepositMicroDollars = DEFAULT_MINIMUM_DEPOSIT_MICRO_DOLLARS;
+        $.withdrawalLockPeriod = DEFAULT_WITHDRAWAL_LOCK_PERIOD;
+        $.maxBackdatedTime = DEFAULT_MAX_BACKDATED_TIME;
+
+        _setUsdcTokenContract(_usdcToken);
+        _setNodesContract(_nodesContract);
 
         require(_grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin), FailedToGrantRole(DEFAULT_ADMIN_ROLE, _initialAdmin));
         require(_grantRole(ADMIN_ROLE, _initialAdmin), FailedToGrantRole(ADMIN_ROLE, _initialAdmin));
@@ -212,10 +222,11 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      */
     function deactivatePayer(address payer) external whenNotPaused onlyRole(ADMIN_ROLE) {
         PayerStorage storage $ = _getPayerStorage();
-
         _revertIfPayerDoesNotExist(payer);
+
         $.payers[payer].isActive = false;
         $.activePayers.remove(payer);
+
         emit PayerDeactivated(payer);
     }
 
@@ -295,6 +306,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      */
     function transferFeesToDistribution() external whenNotPaused onlyRole(ADMIN_ROLE) {
         // TODO: Implement fee transfer logic
+        //       Update lastFeeTransferTimestamp
+        //       Update pendingFees
+        //       Transfer fees to distribution contract
+        //       Emit FeesTransferred event
     }
 
     /* ========== Administrative Functions ========== */
@@ -303,47 +318,70 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @inheritdoc IPayer
      */
     function setDistributionContract(address _newDistributionContract) external onlyRole(ADMIN_ROLE) {
-        PayerStorage storage $ = _getPayerStorage();
-
-        require (_newDistributionContract != address(0), InvalidAddress());
-        // TODO: Add check to ensure the new distribution contract is valid
-        $.distributionContract = _newDistributionContract;
-        emit DistributionContractUpdated(_newDistributionContract);
-    }
-
-    /**
-     * @inheritdoc IPayer
-     */
-    function setNodesContract(address _newNodesContract) external onlyRole(ADMIN_ROLE) {
-        PayerStorage storage $ = _getPayerStorage();
-
-        require (_newNodesContract != address(0), InvalidAddress());
-        // TODO: Add check to ensure the new nodes contract is valid
-        $.nodesContract = _newNodesContract;
-        emit NodesContractUpdated(_newNodesContract);
+        _setDistributionContract(_newDistributionContract);
     }
 
     /**
      * @inheritdoc IPayer
      */
     function setPayerReportContract(address _newPayerReportContract) external onlyRole(ADMIN_ROLE) {
-        PayerStorage storage $ = _getPayerStorage();
+        _setPayerReportContract(_newPayerReportContract);
+    }
 
-        require (_newPayerReportContract != address(0), InvalidAddress());
-        // TODO: Add check to ensure the new payer report contract is valid
-        $.payerReportContract = _newPayerReportContract;
-        emit PayerReportContractUpdated(_newPayerReportContract);
+    /**
+     * @inheritdoc IPayer
+     */
+    function setNodesContract(address _newNodesContract) external onlyRole(ADMIN_ROLE) {
+        _setNodesContract(_newNodesContract);
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function setUsdcToken(address _newUsdcToken) external onlyRole(ADMIN_ROLE) {
+        _setUsdcTokenContract(_newUsdcToken);
     }
 
     /**
      * @inheritdoc IPayer
      */
     function setMinimumDeposit(uint256 _newMinimumDeposit) external onlyRole(ADMIN_ROLE) {
+        require(_newMinimumDeposit > DEFAULT_MINIMUM_DEPOSIT_MICRO_DOLLARS, InvalidMinimumDeposit());
+
         PayerStorage storage $ = _getPayerStorage();
 
         uint256 oldMinimumDeposit = $.minimumDepositMicroDollars;
         $.minimumDepositMicroDollars = _newMinimumDeposit;
-        emit MinimumDepositUpdated(oldMinimumDeposit, _newMinimumDeposit);
+
+        emit MinimumDepositSet(oldMinimumDeposit, _newMinimumDeposit);
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function setWithdrawalLockPeriod(uint256 _newWithdrawalLockPeriod) external onlyRole(ADMIN_ROLE) {
+        require(_newWithdrawalLockPeriod >= ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD, InvalidWithdrawalLockPeriod());
+
+        PayerStorage storage $ = _getPayerStorage();
+
+        uint256 oldWithdrawalLockPeriod = $.withdrawalLockPeriod;
+        $.withdrawalLockPeriod = _newWithdrawalLockPeriod;
+
+        emit WithdrawalLockPeriodSet(oldWithdrawalLockPeriod, _newWithdrawalLockPeriod);
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function setMaxBackdatedTime(uint256 _newMaxBackdatedTime) external onlyRole(ADMIN_ROLE) {
+        require(_newMaxBackdatedTime >= ABSOLUTE_MINIMUM_MAX_BACKDATED_TIME, InvalidMaxBackdatedTime());
+
+        PayerStorage storage $ = _getPayerStorage();
+
+        uint256 oldMaxBackdatedTime = $.maxBackdatedTime;
+        $.maxBackdatedTime = _newMaxBackdatedTime;
+
+        emit MaxBackdatedTimeSet(oldMaxBackdatedTime, _newMaxBackdatedTime);
     }
 
     /**
@@ -366,17 +404,27 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @inheritdoc IPayer
      */
     function getPayer(address payer) external view returns (Payer memory payerInfo) {
-        PayerStorage storage $ = _getPayerStorage();
-
         _revertIfPayerDoesNotExist(payer);
-        return $.payers[payer];
+
+        return _getPayerStorage().payers[payer];
     }
 
     /**
      * @inheritdoc IPayer
      */
     function getIsActivePayer(address payer) public view returns (bool isActive) {
-        return _getPayerStorage().activePayers.contains(payer);
+        _revertIfPayerDoesNotExist(payer);
+
+        return _getPayerStorage().payers[payer].isActive;
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function getPayerBalance(address payer) external view returns (uint256 balance) {
+        _revertIfPayerDoesNotExist(payer);
+
+        return _getPayerStorage().payers[payer].balance;
     }
 
     /**
@@ -394,9 +442,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @inheritdoc IPayer
      */
     function getTotalPayerCount() external view returns (uint256 count) {
-        PayerStorage storage $ = _getPayerStorage();
-
-        return $.totalPayers.length();
+        return _getPayerStorage().totalPayers.length();
     }
 
     /**
@@ -457,19 +503,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
-     * @notice Retrieves the minimum deposit amount required to register as a payer.
-     * @return minimumDeposit The minimum deposit amount in USDC.
+     * @inheritdoc IPayer
      */
     function getMinimumDeposit() external view returns (uint256 minimumDeposit) {
         return _getPayerStorage().minimumDepositMicroDollars;
-    }
-
-    /**
-     * @inheritdoc IPayer
-     */
-    function getPayerBalance(address payer) external view returns (uint256 balance) {
-        _revertIfPayerDoesNotExist(payer);
-        return _getPayerStorage().payers[payer].balance;
     }
 
     /**
@@ -496,14 +533,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /* ============ Internal ============ */
 
     /**
-     * @dev   Reverts if a payer does not exist.
-     * @param payer The address of the payer to check.
-     */
-    function _revertIfPayerDoesNotExist(address payer) internal view {
-        require(_payerExists(payer), PayerDoesNotExist());
-    }
-
-    /**
      * @dev    Checks if a payer exists.
      * @param  payer The address of the payer to check.
      * @return exists True if the payer exists, false otherwise.
@@ -513,17 +542,85 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
+     * @dev   Reverts if a payer does not exist.
+     * @param payer The address of the payer to check.
+     */
+    function _revertIfPayerDoesNotExist(address payer) internal view {
+        require(_payerExists(payer), PayerDoesNotExist());
+    }
+
+    /**
      * @notice Checks if a given address is an active node operator.
      * @param  operator The address to check.
      * @return isActiveNodeOperator True if the address is an active node operator, false otherwise.
      */
-    function _getIsActiveNodeOperator(address operator) internal view returns (bool) {
+    function _getIsActiveNodeOperator(address operator) internal view returns (bool isActiveNodeOperator) {
         INodes nodes = INodes(_getPayerStorage().nodesContract);
+
         require(address(nodes) != address(0), Unauthorized());
 
         // TODO: Implement this in Nodes contract
         // return nodes.isActiveNodeOperator(operator);
         return true;
+    }
+
+    function _setDistributionContract(address _newDistributionContract) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        // TODO: Add check to ensure the new distribution contract is valid
+        //       Wait until Distribution contract is implemented
+        // IDistribution distribution = IDistribution(_newDistributionContract);
+        // require(distribution.supportsInterface(type(IDistribution).interfaceId), InvalidDistributionContract());
+
+        require (_newDistributionContract != address(0), InvalidAddress());
+
+        $.distributionContract = _newDistributionContract;
+
+        emit DistributionContractSet(_newDistributionContract);
+    }
+
+    function _setPayerReportContract(address _newPayerReportContract) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        IPayerReport payerReport = IPayerReport(_newPayerReportContract);
+
+        try payerReport.supportsInterface(type(IPayerReport).interfaceId) returns (bool supported) {
+            require(supported, InvalidPayerReportContract());
+        } catch {
+            revert InvalidPayerReportContract();
+        }
+
+        $.payerReportContract = _newPayerReportContract;
+
+        emit PayerReportContractSet(_newPayerReportContract);
+    }
+
+    function _setNodesContract(address _newNodesContract) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        try INodes(_newNodesContract).supportsInterface(type(INodes).interfaceId) returns (bool supported) {
+            require(supported, InvalidNodesContract());
+        } catch {
+            revert InvalidNodesContract();
+        }
+
+        $.nodesContract = _newNodesContract;
+
+        emit NodesContractSet(_newNodesContract);
+    }
+
+    function _setUsdcTokenContract(address _newUsdcToken) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        try IERC20Metadata(_newUsdcToken).symbol() returns (string memory symbol) {
+            require(keccak256(bytes(symbol)) == keccak256(bytes(USDC_SYMBOL)), InvalidUsdcTokenContract());
+        } catch {
+            revert InvalidUsdcTokenContract();
+        }
+
+        $.usdcToken = IERC20(_newUsdcToken);
+
+        emit UsdcTokenSet(_newUsdcToken);
     }
 
     /* ============ Upgradeability ============ */
@@ -533,7 +630,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
      * @param newImplementation The address of the new implementation.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newImplementation != address(0), "New implementation cannot be zero address");
+        require(newImplementation != address(0), InvalidAddress());
         emit UpgradeAuthorized(msg.sender, newImplementation);
     }
 }

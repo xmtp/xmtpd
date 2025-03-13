@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
 /**
  * @title  IPayer
  * @notice Interface for managing payer USDC deposits, usage settlements,
  *         and a secure withdrawal process.
  */
-interface IPayer {
+interface IPayer is IERC165 {
     /* ============ Structs ============ */
 
     /**
@@ -72,19 +74,28 @@ interface IPayer {
     event FeesTransferred(uint256 amount);
 
     /// @dev Emitted when the distribution contract address is updated.
-    event DistributionContractUpdated(address indexed newDistributionContract);
+    event DistributionContractSet(address indexed newDistributionContract);
 
     /// @dev Emitted when the nodes contract address is updated.
-    event NodesContractUpdated(address indexed newNodesContract);
+    event NodesContractSet(address indexed newNodesContract);
 
     /// @dev Emitted when the payer report contract address is updated.
-    event PayerReportContractUpdated(address indexed newPayerReportContract);
+    event PayerReportContractSet(address indexed newPayerReportContract);
+
+    /// @dev Emitted when the USDC token address is updated.
+    event UsdcTokenSet(address indexed newUsdcToken);
 
     /// @dev Emitted when the minimum deposit amount is updated.
-    event MinimumDepositUpdated(uint256 oldMinimumDeposit, uint256 newMinimumDeposit);
+    event MinimumDepositSet(uint256 oldMinimumDeposit, uint256 newMinimumDeposit);
 
     /// @dev Emitted when the upgrade is authorized.
     event UpgradeAuthorized(address indexed upgrader, address indexed newImplementation);
+
+    /// @dev Emitted when the withdrawal lock period is updated.
+    event WithdrawalLockPeriodSet(uint256 oldWithdrawalLockPeriod, uint256 newWithdrawalLockPeriod);
+
+    /// @dev Emitted when the maximum backdated time is updated.
+    event MaxBackdatedTimeSet(uint256 oldMaxBackdatedTime, uint256 newMaxBackdatedTime);
 
     /* ============ Custom Errors ============ */
 
@@ -94,20 +105,32 @@ interface IPayer {
     /// @dev Error thrown when caller is not an authorized node operator.
     error UnauthorizedNodeOperator();
 
-    /// @dev Error thrown when caller is not the distribution contract.
-    error NotDistributionContract();
+    /// @dev Error thrown when contract is not the distribution contract.
+    error InvalidDistributionContract();
 
-    /// @dev Error thrown when caller is not the payer report contract.
-    error NotPayerReportContract();
+    /// @dev Error thrown when contract is not the payer report contract.
+    error InvalidPayerReportContract();
 
-    /// @dev Error thrown when caller is not the nodes contract.
-    error NotNodesContract();
+    /// @dev Error thrown when contract is not the nodes contract.
+    error InvalidNodesContract();
+
+    /// @dev Error thrown when contract is not the USDC token contract.
+    error InvalidUsdcTokenContract();
 
     /// @dev Error thrown when an address is invalid (usually zero address).
     error InvalidAddress();
 
     /// @dev Error thrown when the amount is insufficient.
     error InsufficientAmount();
+
+    /// @dev Error thrown when the minimum deposit is invalid.
+    error InvalidMinimumDeposit();
+
+    /// @dev Error thrown when the withdrawal lock period is invalid.
+    error InvalidWithdrawalLockPeriod();
+
+    /// @dev Error thrown when the maximum backdated time is invalid.
+    error InvalidMaxBackdatedTime();
 
     /// @dev Error thrown when a withdrawal is not in the requested state.
     error WithdrawalNotRequested();
@@ -268,14 +291,6 @@ interface IPayer {
     function setDistributionContract(address distributionContract) external;
 
     /**
-     * @notice Sets the address of the nodes contract for operator verification.
-     * @param  nodesContract The address of the new nodes contract.
-     *
-     * Emits `NodesContractUpdated`.
-     */
-    function setNodesContract(address nodesContract) external;
-
-    /**
      * @notice Sets the address of the payer report contract.
      * @param  payerReportContract The address of the new payer report contract.
      *
@@ -284,12 +299,44 @@ interface IPayer {
     function setPayerReportContract(address payerReportContract) external;
 
     /**
+     * @notice Sets the address of the nodes contract for operator verification.
+     * @param  nodesContract The address of the new nodes contract.
+     *
+     * Emits `NodesContractUpdated`.
+     */
+    function setNodesContract(address nodesContract) external;
+
+    /**
+     * @notice Sets the address of the USDC token contract.
+     * @param  usdcToken The address of the new USDC token contract.
+     *
+     * Emits `UsdcTokenUpdated`.
+     */
+    function setUsdcToken(address usdcToken) external;
+
+    /**
      * @notice Sets the minimum deposit amount required for registration.
      * @param  newMinimumDeposit The new minimum deposit amount.
      *
      * Emits `MinimumDepositUpdated`.
      */
     function setMinimumDeposit(uint256 newMinimumDeposit) external;
+
+    /**
+     * @notice Sets the withdrawal lock period.
+     * @param  newWithdrawalLockPeriod The new withdrawal lock period.
+     *
+     * Emits `WithdrawalLockPeriodUpdated`.
+     */
+    function setWithdrawalLockPeriod(uint256 newWithdrawalLockPeriod) external;
+
+    /**
+     * @notice Sets the maximum backdated time for settlements.
+     * @param  newMaxBackdatedTime The new maximum backdated time.
+     *
+     * Emits `MaxBackdatedTimeUpdated`.
+     */
+    function setMaxBackdatedTime(uint256 newMaxBackdatedTime) external;
 
     /**
      * @notice Pauses the contract functions in case of emergency.

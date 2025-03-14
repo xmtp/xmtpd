@@ -69,6 +69,10 @@ interface IPayerEvents {
  * @title  IPayerErrors
  * @notice Interface for errors emitted by the Payer contract.
  */
+/**
+ * @title  IPayerErrors
+ * @notice Interface for errors emitted by the Payer contract.
+ */
 interface IPayerErrors {
     /// @dev Error thrown when arrays have mismatched lengths.
     error ArrayLengthMismatch();
@@ -136,6 +140,9 @@ interface IPayerErrors {
     /// @dev Error thrown when payer already exists.
     error PayerAlreadyRegistered();
 
+    /// @dev Error thrown when payer does not exist.
+    error PayerDoesNotExist();
+
     /// @dev Error thrown when trying to delete a payer with balance or debt.
     error PayerHasBalanceOrDebt();
 
@@ -144,9 +151,6 @@ interface IPayerErrors {
 
     /// @dev Error thrown when trying to delete a payer in withdrawal state.
     error PayerInWithdrawal();
-
-    /// @dev Error thrown when payer does not exist.
-    error PayerDoesNotExist();
 
     /// @dev Error thrown when a payer is not active.
     error PayerIsNotActive();
@@ -300,7 +304,11 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param  payers         A contiguous array of payer addresses.
      * @param  amounts        A contiguous array of usage amounts corresponding to each payer.
      */
-    function settleUsage(uint256 originatorNode, address[] calldata payers, uint256[] calldata amounts) external; /* onlyPayerReport */
+    function settleUsage(
+        uint256 originatorNode,
+        address[] calldata payers,
+        uint256[] calldata amounts
+    ) external; /* onlyPayerReport */
 
     /**
      * @notice Transfers all pending fees to the designated distribution contract.
@@ -350,7 +358,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `MinimumDepositUpdated`.
      */
-    function setMinimumDeposit(uint256 newMinimumDeposit) external;
+    function setMinimumDeposit(uint64 newMinimumDeposit) external;
 
     /**
      * @notice Sets the minimum deposit amount required for registration.
@@ -358,7 +366,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `MinimumRegistrationAmountUpdated`.
      */
-    function setMinimumRegistrationAmount(uint256 newMinimumRegistrationAmount) external;
+    function setMinimumRegistrationAmount(uint64 newMinimumRegistrationAmount) external;
 
     /**
      * @notice Sets the withdrawal lock period.
@@ -366,7 +374,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `WithdrawalLockPeriodUpdated`.
      */
-    function setWithdrawalLockPeriod(uint256 newWithdrawalLockPeriod) external;
+    function setWithdrawalLockPeriod(uint32 newWithdrawalLockPeriod) external;
 
     /**
      * @notice Pauses the contract functions in case of emergency.

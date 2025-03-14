@@ -12,25 +12,25 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IPayer} from "./interfaces/IPayer.sol";
 import {IPayerReport} from "./interfaces/IPayerReport.sol";
 import {INodes} from "./interfaces/INodes.sol";
-
+import {ReentrancyGuardUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 /**
  * @title  Payer
  * @notice Implementation for managing payer USDC deposits, usage settlements,
  *         and a secure withdrawal process.
  */
-contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, IPayer {
+contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, IPayer {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /* ============ Constants ============ */
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    uint256 public constant DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS = 10_000_000;
-    uint256 public constant DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS = 10_000_000;
-    uint256 public constant MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 100_000_000;
-    uint256 public constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
-    uint256 public constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
     string internal constant USDC_SYMBOL = "USDC";
+    uint64 public constant DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS = 10_000_000;
+    uint64 public constant DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS = 10_000_000;
+    uint64 public constant MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 100_000_000;
+    uint32 public constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
+    uint32 public constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
 
     /* ============ UUPS Storage ============ */
 
@@ -42,17 +42,17 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         address nodesContract;
         address payerReportContract;
         /// @dev Configuration parameters
-        uint256 minimumRegistrationAmountMicroDollars;
-        uint256 minimumDepositAmountMicroDollars;
-        uint256 maxTolerableDebtAmountMicroDollars;
-        uint256 withdrawalLockPeriod;
+        uint64 minimumRegistrationAmountMicroDollars;
+        uint64 minimumDepositAmountMicroDollars;
+        uint64 maxTolerableDebtAmountMicroDollars;
+        uint32 withdrawalLockPeriod;
         /// @dev State variables
         uint256 lastFeeTransferTimestamp;
         uint256 pendingFees;
         uint256 totalAmountDeposited;
         uint256 totalDebtAmount;
-        /// @dev Mappings
         uint256 collectedFees;
+        /// @dev Mappings
         mapping(address => Payer) payers;
         mapping(address => Withdrawal) withdrawals;
         EnumerableSet.AddressSet totalPayers;
@@ -166,7 +166,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function deposit(uint256 amount) external whenNotPaused onlyPayer(msg.sender) {
+    function deposit(uint256 amount) external whenNotPaused nonReentrant onlyPayer(msg.sender) {
         PayerStorage storage $ = _getPayerStorage();
 
         require(amount >= $.minimumDepositAmountMicroDollars, InsufficientAmount());
@@ -174,13 +174,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         _deposit(msg.sender, amount);
 
-        // TODO: Extract this logic to a helper function.
-        if ($.payers[msg.sender].debtAmount > 0) {
-            _settleDebts(msg.sender, amount);
-        } else {
-            $.payers[msg.sender].balance += amount;
-            _increaseTotalAmountDeposited(amount);
-        }
+        _updatePayerBalance(msg.sender, amount);
 
         emit PayerBalanceUpdated(msg.sender, $.payers[msg.sender].balance, $.payers[msg.sender].debtAmount);
     }
@@ -198,13 +192,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         _deposit(msg.sender, amount);
 
-        // TODO: Extract this logic to a helper function.
-        if ($.payers[payer].debtAmount > 0) {
-            _settleDebts(payer, amount);
-        } else {
-            $.payers[payer].balance += amount;
-            _increaseTotalAmountDeposited(amount);
-        }
+        _updatePayerBalance(payer, amount);
 
         $.payers[payer].latestDonationTimestamp = block.timestamp;
 
@@ -293,7 +281,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function finalizeWithdrawal() external whenNotPaused onlyPayer(msg.sender) {
+    function finalizeWithdrawal() external whenNotPaused nonReentrant onlyPayer(msg.sender) {
         _revertIfWithdrawalNotExists(msg.sender);
 
         PayerStorage storage $ = _getPayerStorage();
@@ -427,7 +415,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function setMinimumDeposit(uint256 _newMinimumDeposit) external onlyRole(ADMIN_ROLE) {
+    function setMinimumDeposit(uint64 _newMinimumDeposit) external onlyRole(ADMIN_ROLE) {
         require(_newMinimumDeposit > DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS, InvalidMinimumDeposit());
 
         PayerStorage storage $ = _getPayerStorage();
@@ -441,7 +429,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function setMinimumRegistrationAmount(uint256 _newMinimumRegistrationAmount) external onlyRole(ADMIN_ROLE) {
+    function setMinimumRegistrationAmount(uint64 _newMinimumRegistrationAmount) external onlyRole(ADMIN_ROLE) {
         require(
             _newMinimumRegistrationAmount > DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS,
             InvalidMinimumRegistrationAmount()
@@ -458,7 +446,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function setWithdrawalLockPeriod(uint256 _newWithdrawalLockPeriod) external onlyRole(ADMIN_ROLE) {
+    function setWithdrawalLockPeriod(uint32 _newWithdrawalLockPeriod) external onlyRole(ADMIN_ROLE) {
         require(_newWithdrawalLockPeriod >= ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD, InvalidWithdrawalLockPeriod());
 
         PayerStorage storage $ = _getPayerStorage();
@@ -653,6 +641,24 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         PayerStorage storage $ = _getPayerStorage();
 
         $.usdcToken.safeTransferFrom(payer, address(this), amount);
+    }
+
+    /**
+    * @notice Updates a payer's balance, handling debt settlement if applicable
+    * @param payerAddress The address of the payer
+    * @param amount The amount to add to the payer's balance
+    * @return leftoverAmount Amount remaining after debt settlement (if any)
+    */
+    function _updatePayerBalance(address payerAddress, uint256 amount) internal returns (uint256 leftoverAmount) {
+        PayerStorage storage $ = _getPayerStorage();
+
+        if ($.payers[payerAddress].debtAmount > 0) {
+            return _settleDebts(payerAddress, amount);
+        } else {
+            $.payers[payerAddress].balance += amount;
+            _increaseTotalAmountDeposited(amount);
+            return amount;
+        }
     }
 
     function _settleDebts(address payer, uint256 amount) internal returns (uint256 amountAfterSettlement) {

@@ -127,8 +127,24 @@ func (r *RpcLogStreamer) Start() {
 func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 	fromBlock := watcher.FromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
-	startTime := time.Now()
+	//startTime := time.Now()
 	defer close(watcher.EventChannel)
+
+	ctx, cancel := context.WithCancel(r.ctx)
+	defer cancel()
+
+	// Channel to notify goroutine of a reorg event
+	restartChan := make(chan struct{})
+
+	go func() {
+		for {
+			err := r.GetLogStream(ctx, watcher, restartChan)
+			if err != nil {
+				logger.Error("Error in log stream, restarting...", zap.Error(err))
+				time.Sleep(5 * time.Second) // Wait before retrying
+			}
+		}
+	}()
 
 	for {
 		select {
@@ -145,43 +161,82 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				"Blockchain reorg detected, resuming from block",
 				zap.Uint64("fromBlock", fromBlock),
 			)
-		default:
-			logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
-			if err != nil {
-				logger.Error(
-					"Error getting next page",
-					zap.Uint64("fromBlock", fromBlock),
-					zap.Error(err),
-				)
-				time.Sleep(ERROR_SLEEP_TIME)
+			restartChan <- struct{}{}
+			//default:
+			//	logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
+			//	if err != nil {
+			//		logger.Error(
+			//			"Error getting next page",
+			//			zap.Uint64("fromBlock", fromBlock),
+			//			zap.Error(err),
+			//		)
+			//		time.Sleep(ERROR_SLEEP_TIME)
+			//
+			//		if time.Since(startTime) > watcher.maxDisconnectTime {
+			//			logger.Error(
+			//				"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
+			//			)
+			//			panic(
+			//				"Max disconnect time exceeded. Node might drift too far away from expected state",
+			//			)
+			//		}
+			//		continue
+			//	}
+			//	// reset self-termination timer
+			//	startTime = time.Now()
+			//
+			//	logger.Debug(
+			//		"Got logs",
+			//		zap.Int("numLogs", len(logs)),
+			//		zap.Uint64("fromBlock", fromBlock),
+			//	)
+			//	if len(logs) == 0 {
+			//		time.Sleep(NO_LOGS_SLEEP_TIME)
+			//	}
+			//	for _, log := range logs {
+			//		watcher.EventChannel <- log
+			//	}
+			//	if nextBlock != nil {
+			//		fromBlock = *nextBlock
+			//	}
+		}
+	}
+}
 
-				if time.Since(startTime) > watcher.maxDisconnectTime {
-					logger.Error(
-						"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
-					)
-					panic(
-						"Max disconnect time exceeded. Node might drift too far away from expected state",
-					)
-				}
-				continue
-			}
-			// reset self-termination timer
-			startTime = time.Now()
+func (r *RpcLogStreamer) GetLogStream(
+	ctx context.Context,
+	config ContractConfig,
+	resetChan chan struct{},
+) error {
+	query := buildFilterQuery(
+		config,
+		int64(config.FromBlock),
+		-1,
+	) // -1 means to keep streaming indefinitely
 
-			logger.Debug(
-				"Got logs",
-				zap.Int("numLogs", len(logs)),
-				zap.Uint64("fromBlock", fromBlock),
-			)
-			if len(logs) == 0 {
-				time.Sleep(NO_LOGS_SLEEP_TIME)
-			}
-			for _, log := range logs {
-				watcher.EventChannel <- log
-			}
-			if nextBlock != nil {
-				fromBlock = *nextBlock
-			}
+	logsChan := make(chan types.Log) // Channel for received logs
+	sub, err := r.client.SubscribeFilterLogs(ctx, query, logsChan)
+	if err != nil {
+		return err
+	}
+	defer sub.Unsubscribe() // Ensure we clean up when the function exits
+
+	for {
+		select {
+		case <-ctx.Done(): // Stop if the parent context is canceled
+			r.logger.Debug("Stopping subscription")
+			return nil
+
+		case err := <-sub.Err(): // Handle subscription errors
+			r.logger.Error("Subscription error, reconnecting...", zap.Error(err))
+			time.Sleep(time.Second * 5)                   // Backoff before retrying
+			return r.GetLogStream(ctx, config, resetChan) // Reconnect by calling itself
+		case <-resetChan:
+			r.logger.Error("Reorg detected, resetting stream")
+			return r.GetLogStream(ctx, config, resetChan)
+		case log := <-logsChan: // Process received log
+			r.logger.Debug("Received log", zap.Any("log", log))
+			config.EventChannel <- log
 		}
 	}
 }

@@ -1,34 +1,38 @@
-package blockchain
+package blockchain_test
 
 import (
 	"context"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildRatesAdmin(t *testing.T) *RatesAdmin {
+func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	ctx := context.Background()
 	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
-	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.RatesManagerContractAddress = testutils.DeployRatesManagerContract(t)
+	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	t.Cleanup(cleanup)
+	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
-	signer, err := NewPrivateKeySigner(
+	// Set the nodes contract address to a random smart contract instead of the fixed deployment
+	contractsOptions.RatesManagerContractAddress = testutils.DeployRatesManagerContract(t, rpcUrl)
+
+	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.LOCAL_PRIVATE_KEY,
 		contractsOptions.ChainID,
 	)
 	require.NoError(t, err)
 
-	client, err := NewClient(ctx, contractsOptions.RpcUrl)
+	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	ratesAdmin, err := NewRatesAdmin(logger, client, signer, contractsOptions)
+	ratesAdmin, err := blockchain.NewRatesAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
 	return ratesAdmin
@@ -46,10 +50,7 @@ func TestAddRates(t *testing.T) {
 
 	var err error
 
-	require.Eventually(t, func() bool {
-		err = ratesAdmin.AddRates(context.Background(), rates)
-		return err == nil
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	err = ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
 
 	var returnedRates struct {
@@ -57,10 +58,7 @@ func TestAddRates(t *testing.T) {
 		HasMore bool
 	}
 
-	require.Eventually(t, func() bool {
-		returnedRates, err = ratesAdmin.contract.GetRates(&bind.CallOpts{}, big.NewInt(0))
-		return err == nil
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	returnedRates, err = ratesAdmin.Contract().GetRates(&bind.CallOpts{}, big.NewInt(0))
 
 	require.NoError(t, err)
 	require.Len(t, returnedRates.Rates, 1)

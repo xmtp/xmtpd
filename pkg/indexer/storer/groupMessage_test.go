@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -21,13 +22,14 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
-	config := testutils.GetContractsOptions(t)
-	contractAddress := config.MessagesContractAddress
+	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	config := testutils.NewContractsOptions(rpcUrl)
+	config.MessagesContractAddress = testutils.DeployGroupMessagesContract(t, rpcUrl)
 
 	client, err := blockchain.NewClient(ctx, config.RpcUrl)
 	require.NoError(t, err)
 	contract, err := groupmessages.NewGroupMessages(
-		common.HexToAddress(contractAddress),
+		common.HexToAddress(config.MessagesContractAddress),
 		client,
 	)
 
@@ -35,6 +37,7 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	storer := NewGroupMessageStorer(queryImpl, testutils.NewLog(t), contract)
 
 	return storer, func() {
+		defer anvilCleanup()
 		cancel()
 		cleanup()
 	}

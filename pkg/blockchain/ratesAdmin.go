@@ -82,3 +82,7 @@ func (r *RatesAdmin) AddRates(
 
 	return err
 }
+
+func (r *RatesAdmin) Contract() *ratesmanager.RatesManager {
+	return r.contract
+}

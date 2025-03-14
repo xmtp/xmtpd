@@ -288,6 +288,8 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         Withdrawal memory withdrawal = $.withdrawals[msg.sender];
 
+        delete $.withdrawals[msg.sender];
+
         uint256 finalWithdrawalAmount = withdrawal.amount;
 
         if ($.payers[msg.sender].debtAmount > 0) {
@@ -297,8 +299,6 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         if (finalWithdrawalAmount > 0) {
             $.usdcToken.safeTransfer(msg.sender, finalWithdrawalAmount);
         }
-
-        delete $.withdrawals[msg.sender];
 
         emit WithdrawalFinalized(msg.sender, withdrawal.requestTimestamp);
     }

@@ -44,6 +44,7 @@ func waitForAnvil(t *testing.T, url string) {
 	}
 }
 
+// Start an ephemeral anvil instance and return the address and a cleanup function
 func StartAnvil(t *testing.T, showLogs bool) (string, func()) {
 	port := networkTestUtils.FindFreePort(t)
 

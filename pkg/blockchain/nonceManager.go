@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
 	"math/big"
+	"sync"
 )
 
 type NonceContext struct {
@@ -19,19 +21,51 @@ type NonceManager interface {
 	Replenish(ctx context.Context, nonce big.Int) error
 }
 
+// OpenConnectionsLimiter controls the number of concurrent requests
+type OpenConnectionsLimiter struct {
+	semaphore chan struct{}
+	wg        sync.WaitGroup
+}
+
+// MaxConcurrentRequests the blockchain mempool can usually only hold 64 transactions from the same fromAddress
+const MaxConcurrentRequests = 64
+const BestGuessConcurrency = 32
+
+// NewOpenConnectionsLimiter initializes a OpenConnectionsLimiter with a limit
+func NewOpenConnectionsLimiter(maxConcurrent int) *OpenConnectionsLimiter {
+	if maxConcurrent > MaxConcurrentRequests {
+		maxConcurrent = MaxConcurrentRequests
+	}
+	return &OpenConnectionsLimiter{
+		semaphore: make(chan struct{}, maxConcurrent),
+	}
+}
+
 type SQLBackedNonceManager struct {
-	db     *sql.DB
-	logger *zap.Logger
+	db      *sql.DB
+	logger  *zap.Logger
+	limiter *OpenConnectionsLimiter
 }
 
 func NewSQLBackedNonceManager(db *sql.DB, logger *zap.Logger) *SQLBackedNonceManager {
 	return &SQLBackedNonceManager{
-		db:     db,
-		logger: logger.Named("SQLBackedNonceManager"),
+		db:      db,
+		logger:  logger.Named("SQLBackedNonceManager"),
+		limiter: NewOpenConnectionsLimiter(BestGuessConcurrency),
 	}
 }
 
 func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, error) {
+	s.limiter.wg.Add(1)
+
+	// block until there is an available slot in the blockchain rate limiter
+	select {
+	case s.limiter.semaphore <- struct{}{}:
+	case <-ctx.Done():
+		s.limiter.wg.Done()
+		return nil, ctx.Err()
+	}
+
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return nil, err
@@ -51,13 +85,18 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 	}
 
 	s.logger.Debug("Generated Nonce", zap.Int64("nonce", nonce))
+	metrics.EmitCurrentNonce(float64(nonce))
 
 	ret := &NonceContext{
 		Nonce: *new(big.Int).SetInt64(nonce),
 		Cancel: func() {
+			<-s.limiter.semaphore
+			s.limiter.wg.Done()
 			_ = tx.Rollback()
 		},
 		Consume: func() error {
+			<-s.limiter.semaphore
+			s.limiter.wg.Done()
 			_, err = txQuerier.DeleteAvailableNonce(ctx, nonce)
 			if err != nil {
 				_ = tx.Rollback()
@@ -71,7 +110,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 
 }
 
-func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.Int) (err error) {
+func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.Int) error {
 	querier := queries.New(s.db)
 	return querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: startNonce.Int64(),
@@ -79,9 +118,9 @@ func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.I
 	})
 }
 
-func (s *SQLBackedNonceManager) abandonNonces(ctx context.Context, endNonce big.Int) (err error) {
+func (s *SQLBackedNonceManager) abandonNonces(ctx context.Context, endNonce big.Int) error {
 	querier := queries.New(s.db)
-	_, err = querier.DeleteObsoleteNonces(ctx, endNonce.Int64())
+	_, err := querier.DeleteObsoleteNonces(ctx, endNonce.Int64())
 	return err
 }
 

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Script, console} from "forge-std/src/Script.sol";
-import {Environment} from "./utils/Environment.sol";
-import {Utils} from "./utils/Utils.sol";
-import "src/interfaces/INodes.sol";
-import "src/Nodes.sol";
+import { Nodes } from "../src/Nodes.sol";
 
-contract DeployXMTPNodeRegistry is Script, Environment, Utils {
+import { Utils } from "./utils/Utils.sol";
+import { Environment } from "./utils/Environment.sol";
+
+contract DeployXMTPNodeRegistry is Utils, Environment {
     Nodes nodes;
 
     address admin;

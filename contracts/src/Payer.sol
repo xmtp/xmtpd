@@ -294,7 +294,9 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
             finalWithdrawalAmount = _settleDebts(msg.sender, withdrawal.amount);
         }
 
-        $.usdcToken.safeTransfer(msg.sender, finalWithdrawalAmount);
+        if (finalWithdrawalAmount > 0) {
+            $.usdcToken.safeTransfer(msg.sender, finalWithdrawalAmount);
+        }
 
         delete $.withdrawals[msg.sender];
 

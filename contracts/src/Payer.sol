@@ -73,11 +73,12 @@ contract Payer is
     }
 
     // keccak256(abi.encode(uint256(keccak256("xmtp.storage.Payer")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 internal constant PayerStorageLocation = 0xd0335f337c570f3417b0f0d20340c88da711d60e810b5e9b3ecabe9ccfcdce5a;
+    bytes32 internal constant PAYER_STORAGE_LOCATION = 0xd0335f337c570f3417b0f0d20340c88da711d60e810b5e9b3ecabe9ccfcdce5a;
 
     function _getPayerStorage() internal pure returns (PayerStorage storage $) {
+        // slither-disable-next-line assembly
         assembly {
-            $.slot := PayerStorageLocation
+            $.slot := PAYER_STORAGE_LOCATION
         }
     }
 
@@ -116,13 +117,13 @@ contract Payer is
 
     /**
      * @notice Initializes the contract with the deployer as admin.
-     * @param  _initialAdmin The address of the admin.
+     * @param  initialAdmin The address of the admin.
      * @dev    There's a chicken-egg problem here with PayerReport and Distribution contracts.
      *         We need to deploy these contracts first, then set their addresses
      *         in the Payer contract.
      */
-    function initialize(address _initialAdmin, address _usdcToken, address _nodesContract) public initializer {
-        if (_initialAdmin == address(0) || _usdcToken == address(0) || _nodesContract == address(0)) {
+    function initialize(address initialAdmin, address usdcToken, address nodesContract) public initializer {
+        if (initialAdmin == address(0) || usdcToken == address(0) || nodesContract == address(0)) {
             revert InvalidAddress();
         }
 
@@ -138,11 +139,11 @@ contract Payer is
         $.maxTolerableDebtAmountMicroDollars = DEFAULT_MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS;
         $.transferFeesPeriod = DEFAULT_MINIMUM_TRANSFER_FEES_PERIOD;
 
-        _setUsdcTokenContract(_usdcToken);
-        _setNodesContract(_nodesContract);
+        _setUsdcTokenContract(usdcToken);
+        _setNodesContract(nodesContract);
 
-        require(_grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin), FailedToGrantRole(DEFAULT_ADMIN_ROLE, _initialAdmin));
-        require(_grantRole(ADMIN_ROLE, _initialAdmin), FailedToGrantRole(ADMIN_ROLE, _initialAdmin));
+        require(_grantRole(DEFAULT_ADMIN_ROLE, initialAdmin), FailedToGrantRole(DEFAULT_ADMIN_ROLE, initialAdmin));
+        require(_grantRole(ADMIN_ROLE, initialAdmin), FailedToGrantRole(ADMIN_ROLE, initialAdmin));
     }
 
     /* ============ Payers Management ============ */
@@ -394,7 +395,12 @@ contract Payer is
     function transferFeesToDistribution() external whenNotPaused nonReentrant {
         PayerStorage storage $ = _getPayerStorage();
 
+        /// @dev slither marks this as a security issue because validators can modify block.timestamp.
+        ///      However, in this scenario it's fine, as we'd just send fees a earlier than expected.
+        ///      It would be a bigger issue if we'd rely on timestamp for randomness or calculations.
+        // slither-disable-next-line timestamp
         require(block.timestamp - $.lastFeeTransferTimestamp >= $.transferFeesPeriod, InsufficientTimePassed());
+
         require($.pendingFees > 0, InsufficientAmount());
 
         uint256 feesToTransfer = $.pendingFees;
@@ -413,104 +419,103 @@ contract Payer is
     /**
      * @inheritdoc IPayer
      */
-    function setDistributionContract(address _newDistributionContract) external onlyRole(ADMIN_ROLE) {
-        _setDistributionContract(_newDistributionContract);
+    function setDistributionContract(address newDistributionContract) external onlyRole(ADMIN_ROLE) {
+        _setDistributionContract(newDistributionContract);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setPayerReportContract(address _newPayerReportContract) external onlyRole(ADMIN_ROLE) {
-        _setPayerReportContract(_newPayerReportContract);
+    function setPayerReportContract(address newPayerReportContract) external onlyRole(ADMIN_ROLE) {
+        _setPayerReportContract(newPayerReportContract);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setNodesContract(address _newNodesContract) external onlyRole(ADMIN_ROLE) {
-        _setNodesContract(_newNodesContract);
+    function setNodesContract(address newNodesContract) external onlyRole(ADMIN_ROLE) {
+        _setNodesContract(newNodesContract);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setUsdcToken(address _newUsdcToken) external onlyRole(ADMIN_ROLE) {
-        _setUsdcTokenContract(_newUsdcToken);
+    function setUsdcToken(address newUsdcToken) external onlyRole(ADMIN_ROLE) {
+        _setUsdcTokenContract(newUsdcToken);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setMinimumDeposit(uint64 _newMinimumDeposit) external onlyRole(ADMIN_ROLE) {
-        require(_newMinimumDeposit > DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS, InvalidMinimumDeposit());
+    function setMinimumDeposit(uint64 newMinimumDeposit) external onlyRole(ADMIN_ROLE) {
+        require(newMinimumDeposit > DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS, InvalidMinimumDeposit());
 
         PayerStorage storage $ = _getPayerStorage();
 
         uint256 oldMinimumDeposit = $.minimumDepositAmountMicroDollars;
-        $.minimumDepositAmountMicroDollars = _newMinimumDeposit;
+        $.minimumDepositAmountMicroDollars = newMinimumDeposit;
 
-        emit MinimumDepositSet(oldMinimumDeposit, _newMinimumDeposit);
+        emit MinimumDepositSet(oldMinimumDeposit, newMinimumDeposit);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setMinimumRegistrationAmount(uint64 _newMinimumRegistrationAmount) external onlyRole(ADMIN_ROLE) {
+    function setMinimumRegistrationAmount(uint64 newMinimumRegistrationAmount) external onlyRole(ADMIN_ROLE) {
         require(
-            _newMinimumRegistrationAmount > DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS,
+            newMinimumRegistrationAmount > DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS,
             InvalidMinimumRegistrationAmount()
         );
 
         PayerStorage storage $ = _getPayerStorage();
 
         uint256 oldMinimumRegistrationAmount = $.minimumRegistrationAmountMicroDollars;
-        $.minimumRegistrationAmountMicroDollars = _newMinimumRegistrationAmount;
+        $.minimumRegistrationAmountMicroDollars = newMinimumRegistrationAmount;
 
-        emit MinimumRegistrationAmountSet(oldMinimumRegistrationAmount, _newMinimumRegistrationAmount);
+        emit MinimumRegistrationAmountSet(oldMinimumRegistrationAmount, newMinimumRegistrationAmount);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setWithdrawalLockPeriod(uint32 _newWithdrawalLockPeriod) external onlyRole(ADMIN_ROLE) {
-        require(_newWithdrawalLockPeriod >= ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD, InvalidWithdrawalLockPeriod());
+    function setWithdrawalLockPeriod(uint32 newWithdrawalLockPeriod) external onlyRole(ADMIN_ROLE) {
+        require(newWithdrawalLockPeriod >= ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD, InvalidWithdrawalLockPeriod());
 
         PayerStorage storage $ = _getPayerStorage();
 
         uint256 oldWithdrawalLockPeriod = $.withdrawalLockPeriod;
-        $.withdrawalLockPeriod = _newWithdrawalLockPeriod;
+        $.withdrawalLockPeriod = newWithdrawalLockPeriod;
 
-        emit WithdrawalLockPeriodSet(oldWithdrawalLockPeriod, _newWithdrawalLockPeriod);
+        emit WithdrawalLockPeriodSet(oldWithdrawalLockPeriod, newWithdrawalLockPeriod);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setMaxTolerableDebtAmount(uint64 _newMaxTolerableDebtAmountMicroDollars) external onlyRole(ADMIN_ROLE) {
-        require(_newMaxTolerableDebtAmountMicroDollars > 0, InvalidMaxTolerableDebtAmount());
+    function setMaxTolerableDebtAmount(uint64 newMaxTolerableDebtAmountMicroDollars) external onlyRole(ADMIN_ROLE) {
+        require(newMaxTolerableDebtAmountMicroDollars > 0, InvalidMaxTolerableDebtAmount());
 
         PayerStorage storage $ = _getPayerStorage();
 
         uint64 oldMaxTolerableDebtAmount = $.maxTolerableDebtAmountMicroDollars;
-        $.maxTolerableDebtAmountMicroDollars = _newMaxTolerableDebtAmountMicroDollars;
+        $.maxTolerableDebtAmountMicroDollars = newMaxTolerableDebtAmountMicroDollars;
 
-        emit MaxTolerableDebtAmountSet(oldMaxTolerableDebtAmount, _newMaxTolerableDebtAmountMicroDollars);
+        emit MaxTolerableDebtAmountSet(oldMaxTolerableDebtAmount, newMaxTolerableDebtAmountMicroDollars);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function setTransferFeesPeriod(uint32 _newTransferFeesPeriod) external onlyRole(ADMIN_ROLE) {
-        require(_newTransferFeesPeriod >= ABSOLUTE_MINIMUM_TRANSFER_FEES_PERIOD, InvalidTransferFeesPeriod());
+    function setTransferFeesPeriod(uint32 newTransferFeesPeriod) external onlyRole(ADMIN_ROLE) {
+        require(newTransferFeesPeriod >= ABSOLUTE_MINIMUM_TRANSFER_FEES_PERIOD, InvalidTransferFeesPeriod());
 
         PayerStorage storage $ = _getPayerStorage();
 
         uint32 oldTransferFeesPeriod = $.transferFeesPeriod;
-        $.transferFeesPeriod = _newTransferFeesPeriod;
+        $.transferFeesPeriod = newTransferFeesPeriod;
 
-        emit TransferFeesPeriodSet(oldTransferFeesPeriod, _newTransferFeesPeriod);
+        emit TransferFeesPeriodSet(oldTransferFeesPeriod, newTransferFeesPeriod);
     }
-
 
     /**
      * @inheritdoc IPayer

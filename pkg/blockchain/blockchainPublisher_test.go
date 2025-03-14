@@ -2,10 +2,11 @@ package blockchain_test
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"net"
 	"testing"
 	"time"
 
@@ -22,24 +21,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
 const server1NodeID = uint32(100)
 const server2NodeID = uint32(200)
-
-func getNextOpenPort() (int, error) {
-	// Listen on a random available port
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		return 0, fmt.Errorf("could not find open port: %w", err)
-	}
-	defer listener.Close()
-
-	// Extract the port number from the listener
-	addr := listener.Addr().(*net.TCPAddr)
-	return addr.Port, nil
-}
 
 func NewTestServer(
 	t *testing.T,
@@ -88,15 +75,11 @@ func TestCreateServer(t *testing.T) {
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	server1Port, err := getNextOpenPort()
-	require.NoError(t, err)
-	server2Port, err := getNextOpenPort()
-	require.NoError(t, err)
+	server1Port := networkTestUtils.FindFreePort(t)
+	server2Port := networkTestUtils.FindFreePort(t)
 
-	httpServer1Port, err := getNextOpenPort()
-	require.NoError(t, err)
-	httpServer2Port, err := getNextOpenPort()
-	require.NoError(t, err)
+	httpServer1Port := networkTestUtils.FindFreePort(t)
+	httpServer2Port := networkTestUtils.FindFreePort(t)
 
 	nodes := []r.Node{
 		{
@@ -236,10 +219,8 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	defer dbCleanup()
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	server1Port, err := getNextOpenPort()
-	require.NoError(t, err)
-	httpServer1Port, err := getNextOpenPort()
-	require.NoError(t, err)
+	server1Port := networkTestUtils.FindFreePort(t)
+	httpServer1Port := networkTestUtils.FindFreePort(t)
 
 	nodeId1 := server1NodeID
 

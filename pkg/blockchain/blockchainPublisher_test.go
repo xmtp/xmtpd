@@ -6,9 +6,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
-
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"

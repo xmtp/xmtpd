@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import {AccessControlUpgradeable} from "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {AccessControlUpgradeable} from "@openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
+import {INodes} from "./interfaces/INodes.sol";
 import {IPayer} from "./interfaces/IPayer.sol";
 import {IPayerReport} from "./interfaces/IPayerReport.sol";
-import {INodes} from "./interfaces/INodes.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 /**
  * @title  Payer
  * @notice Implementation for managing payer USDC deposits, usage settlements,
  *         and a secure withdrawal process.
  */
-contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, IPayer {
+contract Payer is
+    Initializable,
+    AccessControlUpgradeable,
+    UUPSUpgradeable,
+    PausableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IPayer
+{
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -26,11 +35,13 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     string internal constant USDC_SYMBOL = "USDC";
-    uint64 public constant DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS = 10_000_000;
-    uint64 public constant DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS = 10_000_000;
-    uint64 public constant MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 100_000_000;
-    uint32 public constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
-    uint32 public constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
+    uint64 private constant DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS = 10_000_000; // 10 USD
+    uint64 private constant DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS = 10_000_000;      // 10 USD
+    uint64 private constant DEFAULT_MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 50_000_000;   // 50 USD
+    uint32 private constant DEFAULT_MINIMUM_TRANSFER_FEES_PERIOD = 6 hours;
+    uint32 private constant ABSOLUTE_MINIMUM_TRANSFER_FEES_PERIOD = 1 hours;
+    uint32 private constant DEFAULT_WITHDRAWAL_LOCK_PERIOD = 3 days;
+    uint32 private constant ABSOLUTE_MINIMUM_WITHDRAWAL_LOCK_PERIOD = 1 days;
 
     /* ============ UUPS Storage ============ */
 
@@ -46,11 +57,12 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         uint64 minimumDepositAmountMicroDollars;
         uint64 maxTolerableDebtAmountMicroDollars;
         uint32 withdrawalLockPeriod;
+        uint32 transferFeesPeriod;
         /// @dev State variables
         uint256 lastFeeTransferTimestamp;
-        uint256 pendingFees;
         uint256 totalAmountDeposited;
         uint256 totalDebtAmount;
+        uint256 pendingFees;
         uint256 collectedFees;
         /// @dev Mappings
         mapping(address => Payer) payers;
@@ -72,7 +84,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /* ============ Modifiers ============ */
 
     /**
-     * @dev Modifier to check if caller is an active node operator
+     * @dev Modifier to check if caller is an active node operator.
      */
     modifier onlyNodeOperator() {
         if (!_getIsActiveNodeOperator(msg.sender)) {
@@ -82,7 +94,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
-     * @dev Modifier to check if caller is the payer report contract
+     * @dev Modifier to check if caller is the payer report contract.
      */
     modifier onlyPayerReport() {
         if (msg.sender != _getPayerStorage().payerReportContract) {
@@ -92,7 +104,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
-     * @dev Modifier to check if address is an active payer
+     * @dev Modifier to check if address is an active payer.
      */
     modifier onlyPayer(address payer) {
         require(_payerExists(payer), PayerDoesNotExist());
@@ -123,6 +135,8 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         $.minimumRegistrationAmountMicroDollars = DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS;
         $.minimumDepositAmountMicroDollars = DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS;
         $.withdrawalLockPeriod = DEFAULT_WITHDRAWAL_LOCK_PERIOD;
+        $.maxTolerableDebtAmountMicroDollars = DEFAULT_MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS;
+        $.transferFeesPeriod = DEFAULT_MINIMUM_TRANSFER_FEES_PERIOD;
 
         _setUsdcTokenContract(_usdcToken);
         _setNodesContract(_nodesContract);
@@ -317,12 +331,13 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function settleUsage(uint256 originatorNode, address[] calldata payerList, uint256[] calldata amountsList)
+    function settleUsage(uint256 originatorNode, address[] calldata payerList, uint256[] calldata usageAmountsList)
         external
         whenNotPaused
+        nonReentrant
         onlyPayerReport
     {
-        require(payerList.length == amountsList.length, InvalidPayerListLength());
+        require(payerList.length == usageAmountsList.length, InvalidPayerListLength());
 
         PayerStorage storage $ = _getPayerStorage();
 
@@ -330,7 +345,7 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         for (uint256 i = 0; i < payerList.length; i++) {
             address payer = payerList[i];
-            uint256 amount = amountsList[i];
+            uint256 usage = usageAmountsList[i];
 
             // This should never happen, as PayerReport has already verified the payers and amounts.
             // Payers in payerList should always exist and be active.
@@ -340,10 +355,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
             Payer memory storedPayer = $.payers[payer];
 
-            if (storedPayer.balance < amount) {
-                uint256 debt = amount - storedPayer.balance;
+            if (storedPayer.balance < usage) {
+                uint256 debt = usage - storedPayer.balance;
 
-                $.collectedFees += storedPayer.balance;
+                $.pendingFees += storedPayer.balance;
                 fees += storedPayer.balance;
 
                 storedPayer.balance = 0;
@@ -353,17 +368,17 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
                 _addDebtor(payer);
                 _increaseTotalDebtAmount(debt);
 
-                if (debt > MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS) _deactivatePayer(payer);
+                if (debt > $.maxTolerableDebtAmountMicroDollars) _deactivatePayer(payer);
 
                 emit PayerBalanceUpdated(payer, storedPayer.balance, storedPayer.debtAmount);
 
                 continue;
             }
 
-            $.collectedFees += amount;
-            fees += amount;
+            $.pendingFees += usage;
+            fees += usage;
 
-            storedPayer.balance -= amount;
+            storedPayer.balance -= usage;
 
             $.payers[payer] = storedPayer;
 
@@ -376,12 +391,21 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     /**
      * @inheritdoc IPayer
      */
-    function transferFeesToDistribution() external whenNotPaused onlyNodeOperator {
-        // TODO: Implement fee transfer logic
-        //       Update lastFeeTransferTimestamp
-        //       Update pendingFees
-        //       Transfer fees to distribution contract
-        //       Emit FeesTransferred event
+    function transferFeesToDistribution() external whenNotPaused nonReentrant {
+        PayerStorage storage $ = _getPayerStorage();
+
+        require(block.timestamp - $.lastFeeTransferTimestamp >= $.transferFeesPeriod, InsufficientTimePassed());
+        require($.pendingFees > 0, InsufficientAmount());
+
+        uint256 feesToTransfer = $.pendingFees;
+
+        $.usdcToken.safeTransfer($.distributionContract, feesToTransfer);
+
+        $.lastFeeTransferTimestamp = block.timestamp;
+        $.collectedFees += $.pendingFees;
+        $.pendingFees = 0;
+
+        emit FeesTransferred(block.timestamp, feesToTransfer);
     }
 
     /* ========== Administrative Functions ========== */
@@ -458,6 +482,35 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
         emit WithdrawalLockPeriodSet(oldWithdrawalLockPeriod, _newWithdrawalLockPeriod);
     }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function setMaxTolerableDebtAmount(uint64 _newMaxTolerableDebtAmountMicroDollars) external onlyRole(ADMIN_ROLE) {
+        require(_newMaxTolerableDebtAmountMicroDollars > 0, InvalidMaxTolerableDebtAmount());
+
+        PayerStorage storage $ = _getPayerStorage();
+
+        uint64 oldMaxTolerableDebtAmount = $.maxTolerableDebtAmountMicroDollars;
+        $.maxTolerableDebtAmountMicroDollars = _newMaxTolerableDebtAmountMicroDollars;
+
+        emit MaxTolerableDebtAmountSet(oldMaxTolerableDebtAmount, _newMaxTolerableDebtAmountMicroDollars);
+    }
+
+    /**
+     * @inheritdoc IPayer
+     */
+    function setTransferFeesPeriod(uint32 _newTransferFeesPeriod) external onlyRole(ADMIN_ROLE) {
+        require(_newTransferFeesPeriod >= ABSOLUTE_MINIMUM_TRANSFER_FEES_PERIOD, InvalidTransferFeesPeriod());
+
+        PayerStorage storage $ = _getPayerStorage();
+
+        uint32 oldTransferFeesPeriod = $.transferFeesPeriod;
+        $.transferFeesPeriod = _newTransferFeesPeriod;
+
+        emit TransferFeesPeriodSet(oldTransferFeesPeriod, _newTransferFeesPeriod);
+    }
+
 
     /**
      * @inheritdoc IPayer
@@ -639,6 +692,11 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
 
     /* ============ Internal ============ */
 
+    /**
+     * @notice Deposits USDC from a payer to the contract.
+     * @param  payer The address of the payer.
+     * @param  amount The amount to deposit.
+     */
     function _deposit(address payer, uint256 amount) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -646,11 +704,11 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
-    * @notice Updates a payer's balance, handling debt settlement if applicable
-    * @param payerAddress The address of the payer
-    * @param amount The amount to add to the payer's balance
-    * @return leftoverAmount Amount remaining after debt settlement (if any)
-    */
+     * @notice Updates a payer's balance, handling debt settlement if applicable.
+     * @param  payerAddress The address of the payer.
+     * @param  amount The amount to add to the payer's balance.
+     * @return leftoverAmount Amount remaining after debt settlement (if any).
+     */
     function _updatePayerBalance(address payerAddress, uint256 amount) internal returns (uint256 leftoverAmount) {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -663,6 +721,12 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         }
     }
 
+    /**
+     * @notice Settles debts for a payer, updating their balance and total amounts.
+     * @param  payer The address of the payer.
+     * @param  amount The amount to settle debts for.
+     * @return amountAfterSettlement The amount remaining after debt settlement.
+     */
     function _settleDebts(address payer, uint256 amount) internal returns (uint256 amountAfterSettlement) {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -711,6 +775,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         return _getPayerStorage().payers[payer].isActive;
     }
 
+    /**
+     * @notice Deactivates a payer.
+     * @param  payer The address of the payer to deactivate.
+     */
     function _deactivatePayer(address payer) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -786,6 +854,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         return true;
     }
 
+    /**
+     * @notice Sets the Distribution contract.
+     * @param  _newDistributionContract The address of the new Distribution contract.
+     */
     function _setDistributionContract(address _newDistributionContract) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -801,6 +873,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         emit DistributionContractSet(_newDistributionContract);
     }
 
+    /**
+     * @notice Sets the PayerReport contract.
+     * @param  _newPayerReportContract The address of the new PayerReport contract.
+     */
     function _setPayerReportContract(address _newPayerReportContract) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -817,6 +893,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         emit PayerReportContractSet(_newPayerReportContract);
     }
 
+    /**
+     * @notice Sets the Nodes contract.
+     * @param  _newNodesContract The address of the new Nodes contract.
+     */
     function _setNodesContract(address _newNodesContract) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -831,6 +911,10 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         emit NodesContractSet(_newNodesContract);
     }
 
+    /**
+     * @notice Sets the USDC token contract.
+     * @param  _newUsdcToken The address of the new USDC token contract.
+     */
     function _setUsdcTokenContract(address _newUsdcToken) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -845,20 +929,36 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
         emit UsdcTokenSet(_newUsdcToken);
     }
 
+    /**
+     * @notice Increases the total amount deposited by a given amount.
+     * @param  amount The amount to increase the total amount deposited by.
+     */
     function _increaseTotalAmountDeposited(uint256 amount) internal {
         _getPayerStorage().totalAmountDeposited += amount;
     }
 
+    /**
+     * @notice Decreases the total amount deposited by a given amount.
+     * @param  amount The amount to decrease the total amount deposited by.
+     */
     function _decreaseTotalAmountDeposited(uint256 amount) internal {
         PayerStorage storage $ = _getPayerStorage();
 
         $.totalAmountDeposited = amount > $.totalAmountDeposited ? 0 : $.totalAmountDeposited - amount;
     }
 
+    /**
+     * @notice Increases the total debt amount by a given amount.
+     * @param  amount The amount to increase the total debt amount by.
+     */
     function _increaseTotalDebtAmount(uint256 amount) internal {
         _getPayerStorage().totalDebtAmount += amount;
     }
 
+    /**
+     * @notice Decreases the total debt amount by a given amount.
+     * @param  amount The amount to decrease the total debt amount by.
+     */
     function _decreaseTotalDebtAmount(uint256 amount) internal {
         PayerStorage storage $ = _getPayerStorage();
 
@@ -866,12 +966,12 @@ contract Payer is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Paus
     }
 
     /**
-     * @notice Internal helper for paginated access to EnumerableSet.AddressSet
-     * @param  addressSet The EnumerableSet to paginate
-     * @param  offset The starting index
-     * @param  limit Maximum number of items to return
-     * @return addresses Array of addresses from the set
-     * @return hasMore Whether there are more items after this page
+     * @notice Internal helper for paginated access to EnumerableSet.AddressSet.
+     * @param  addressSet The EnumerableSet to paginate.
+     * @param  offset The starting index.
+     * @param  limit Maximum number of items to return.
+     * @return addresses Array of addresses from the set.
+     * @return hasMore Whether there are more items after this page.
      */
     function _getPaginatedAddresses(EnumerableSet.AddressSet storage addressSet, uint256 offset, uint256 limit)
         internal

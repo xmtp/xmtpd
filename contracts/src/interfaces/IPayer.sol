@@ -15,7 +15,10 @@ interface IPayerEvents {
     event Donation(address indexed donor, address indexed payer, uint256 amount);
 
     /// @dev Emitted when fees are transferred to the distribution contract.
-    event FeesTransferred(uint256 amount);
+    event FeesTransferred(uint256 indexed timestamp, uint256 amount);
+
+    /// @dev Emitted when the maximum tolerable debt amount is updated.
+    event MaxTolerableDebtAmountSet(uint64 oldMaxTolerableDebtAmount, uint64 newMaxTolerableDebtAmount);
 
     /// @dev Emitted when the minimum deposit amount is updated.
     event MinimumDepositSet(uint256 oldMinimumDeposit, uint256 newMinimumDeposit);
@@ -41,11 +44,14 @@ interface IPayerEvents {
     /// @dev Emitted when the payer report contract address is updated.
     event PayerReportContractSet(address indexed newPayerReportContract);
 
+    /// @dev Emitted when the transfer fees period is updated.
+    event TransferFeesPeriodSet(uint32 oldTransferFeesPeriod, uint32 newTransferFeesPeriod);
+
     /// @dev Emitted when the upgrade is authorized.
     event UpgradeAuthorized(address indexed upgrader, address indexed newImplementation);
 
     /// @dev Emitted when usage is settled and fees are calculated.
-    event UsageSettled(uint256 indexed originatorNode, uint256 timestamp, uint256 feesCollected);
+    event UsageSettled(uint256 indexed originatorNode, uint256 timestamp, uint256 collectedFees);
 
     /// @dev Emitted when the USDC token address is updated.
     event UsdcTokenSet(address indexed newUsdcToken);
@@ -95,17 +101,23 @@ interface IPayerErrors {
     /// @notice Error thrown when removing a debtor has failed.
     error FailedToRemoveDebtor();
 
-    /// @dev Error thrown when balance is insufficient.
-    error InsufficientBalance();
+    /// @dev Error thrown when an address is invalid (usually zero address).
+    error InvalidAddress();
 
     /// @dev Error thrown when the amount is insufficient.
     error InsufficientAmount();
 
-    /// @dev Error thrown when an address is invalid (usually zero address).
-    error InvalidAddress();
+    /// @dev Error thrown when balance is insufficient.
+    error InsufficientBalance();
+
+    /// @dev Error thrown when insufficient time has passed since the last fee transfer.
+    error InsufficientTimePassed();
 
     /// @dev Error thrown when contract is not the distribution contract.
     error InvalidDistributionContract();
+
+    /// @dev Error thrown when the maximum tolerable debt amount is invalid.
+    error InvalidMaxTolerableDebtAmount();
 
     /// @dev Error thrown when the minimum deposit is invalid.
     error InvalidMinimumDeposit();
@@ -124,6 +136,9 @@ interface IPayerErrors {
 
     /// @dev Error thrown when trying to backdate settlement too far.
     error InvalidSettlementTime();
+
+    /// @dev Error thrown when the transfer fees period is invalid.
+    error InvalidTransferFeesPeriod();
 
     /// @dev Error thrown when contract is not the USDC token contract.
     error InvalidUsdcTokenContract();
@@ -375,6 +390,22 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * Emits `WithdrawalLockPeriodUpdated`.
      */
     function setWithdrawalLockPeriod(uint32 newWithdrawalLockPeriod) external;
+
+    /**
+     * @notice Sets the maximum tolerable debt amount.
+     * @param  newMaxTolerableDebtAmount The new maximum tolerable debt amount.
+     *
+     * Emits `MaxTolerableDebtAmountUpdated`.
+     */
+    function setMaxTolerableDebtAmount(uint64 newMaxTolerableDebtAmount) external;
+
+    /**
+     * @notice Sets the transfer fees period.
+     * @param  newTransferFeesPeriod The new transfer fees period.
+     *
+     * Emits `TransferFeesPeriodUpdated`.
+     */
+    function setTransferFeesPeriod(uint32 newTransferFeesPeriod) external;
 
     /**
      * @notice Pauses the contract functions in case of emergency.

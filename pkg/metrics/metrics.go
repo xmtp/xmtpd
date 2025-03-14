@@ -68,15 +68,15 @@ func (s *Server) Close() {
 func registerCollectors(reg prometheus.Registerer) {
 	//TODO: add metrics here
 	cols := []prometheus.Collector{
-		numLogsFound,
-		currentBlock,
-		getLogsDuration,
-		getLogsRequests,
-		nodePublishDuration,
-		cursorBlockTime,
-		currentNonce,
+		indexerNumLogsFound,
+		indexerCurrentBlock,
+		indexerGetLogsDuration,
+		indexerGetLogsRequests,
+		payerNodePublishDuration,
+		payerCursorBlockTime,
+		payerCurrentNonce,
 		payerBanlistRetry,
-		messagesOriginated,
+		payerMessagesOriginated,
 		syncOriginatorSequenceId,
 		syncOutgoingSyncConnections,
 		syncFailedOutgoingSyncConnections,

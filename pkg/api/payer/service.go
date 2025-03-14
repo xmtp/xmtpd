@@ -182,7 +182,7 @@ func (s *Service) publishToNodeWithRetry(
 		result, err = s.publishToNodes(ctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
-				metrics.EmitBanlistRetries(originatorID, retries)
+				metrics.EmitPayerBanlistRetries(originatorID, retries)
 			}
 			return result, nil
 		}
@@ -230,8 +230,8 @@ func (s *Service) publishToNodes(
 		return nil, status.Errorf(codes.Internal, "error publishing payer envelopes: %v", err)
 	}
 
-	metrics.EmitNodePublishDuration(originatorID, time.Since(start).Seconds())
-	metrics.EmitMessageOriginated(originatorID, len(payerEnvelopes))
+	metrics.EmitPayerNodePublishDuration(originatorID, time.Since(start).Seconds())
+	metrics.EmitPayerMessageOriginated(originatorID, len(payerEnvelopes))
 	return resp.OriginatorEnvelopes, nil
 }
 
@@ -326,8 +326,8 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	metrics.EmitNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
-	metrics.EmitMessageOriginated(desiredOriginatorId, 1)
+	metrics.EmitPayerNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
+	metrics.EmitPayerMessageOriginated(desiredOriginatorId, 1)
 
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {

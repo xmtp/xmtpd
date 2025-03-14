@@ -102,7 +102,7 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 			}
 
 			if seqId >= desiredSequenceId {
-				metrics.EmitBlockUntilDesiredCursorReached(
+				metrics.EmitPayerBlockUntilDesiredCursorReached(
 					desiredOriginatorId,
 					time.Since(start).Seconds(),
 				)

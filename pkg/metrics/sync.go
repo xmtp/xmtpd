@@ -14,7 +14,7 @@ var syncOriginatorSequenceId = prometheus.NewGaugeVec(
 	[]string{"originator_id"},
 )
 
-func EmitLastSeenOriginatorSequenceId(originatorId uint32, lastSequence uint64) {
+func EmitSyncLastSeenOriginatorSequenceId(originatorId uint32, lastSequence uint64) {
 	syncOriginatorSequenceId.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
 		Set(float64(lastSequence))
 }
@@ -27,7 +27,7 @@ var syncOriginatorErrorMessages = prometheus.NewCounterVec(
 	[]string{"originator_id"},
 )
 
-func EmitOriginatorErrorMessages(originatorId uint32, count int) {
+func EmitSyncOriginatorErrorMessages(originatorId uint32, count int) {
 	syncOriginatorErrorMessages.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
 		Add(float64(count))
 }
@@ -40,7 +40,7 @@ var syncOriginatorMessagesReceived = prometheus.NewCounterVec(
 	[]string{"originator_id"},
 )
 
-func EmitOriginatorReceivedMessagesCount(originatorId uint32, count int) {
+func EmitSyncOriginatorReceivedMessagesCount(originatorId uint32, count int) {
 	syncOriginatorMessagesReceived.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
 		Add(float64(count))
 }
@@ -67,21 +67,21 @@ var syncFailedOutgoingSyncConnectionCounter = prometheus.NewCounterVec(
 	[]string{"originator_id"},
 )
 
-type ConnectionsStatusCounter struct {
+type SyncConnectionsStatusCounter struct {
 	hasFailed    bool
 	hasSucceeded bool
 	originatorId uint32
 }
 
-func NewConnectionsStatusCounter(originatorId uint32) *ConnectionsStatusCounter {
-	return &ConnectionsStatusCounter{
+func NewSyncConnectionsStatusCounter(originatorId uint32) *SyncConnectionsStatusCounter {
+	return &SyncConnectionsStatusCounter{
 		hasFailed:    false,
 		hasSucceeded: false,
 		originatorId: originatorId,
 	}
 }
 
-func (fc *ConnectionsStatusCounter) MarkFailure() {
+func (fc *SyncConnectionsStatusCounter) MarkFailure() {
 	if !fc.hasFailed {
 		fc.hasFailed = true
 		syncFailedOutgoingSyncConnections.Inc()
@@ -94,7 +94,7 @@ func (fc *ConnectionsStatusCounter) MarkFailure() {
 		Inc()
 }
 
-func (fc *ConnectionsStatusCounter) MarkSuccess() {
+func (fc *SyncConnectionsStatusCounter) MarkSuccess() {
 	if fc.hasFailed {
 		fc.hasFailed = false
 		syncFailedOutgoingSyncConnections.Dec()
@@ -105,7 +105,7 @@ func (fc *ConnectionsStatusCounter) MarkSuccess() {
 	}
 }
 
-func (fc *ConnectionsStatusCounter) Close() {
+func (fc *SyncConnectionsStatusCounter) Close() {
 	if fc.hasFailed {
 		fc.hasFailed = false
 		syncFailedOutgoingSyncConnections.Dec()

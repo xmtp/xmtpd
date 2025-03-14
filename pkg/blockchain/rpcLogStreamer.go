@@ -195,7 +195,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	if err != nil {
 		return nil, nil, err
 	}
-	metrics.EmitCurrentBlock(contractAddress, int(highestBlock))
+	metrics.EmitIndexerCurrentBlock(contractAddress, int(highestBlock))
 
 	highestBlockCanProcess := highestBlock - LAG_FROM_HIGHEST_BLOCK
 	if fromBlock > highestBlockCanProcess {
@@ -226,7 +226,7 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	nextBlockNumber := to + 1
 
-	metrics.EmitNumLogsFound(contractAddress, len(logs))
+	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
 
 	return logs, &nextBlockNumber, nil
 }

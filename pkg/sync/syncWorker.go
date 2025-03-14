@@ -167,7 +167,7 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 func (s *syncWorker) subscribeToNodeRegistration(
 	registration NodeRegistration,
 ) {
-	connectionsStatusCounter := metrics.NewConnectionsStatusCounter(registration.nodeid)
+	connectionsStatusCounter := metrics.NewSyncConnectionsStatusCounter(registration.nodeid)
 	defer connectionsStatusCounter.Close()
 
 	node, err := s.nodeRegistry.GetNode(registration.nodeid)
@@ -417,7 +417,7 @@ func (s *syncWorker) validateAndInsertEnvelope(
 	var err error
 	defer func() {
 		if err != nil {
-			metrics.EmitOriginatorErrorMessages(stream.nodeID, 1)
+			metrics.EmitSyncOriginatorErrorMessages(stream.nodeID, 1)
 		}
 	}()
 
@@ -436,8 +436,8 @@ func (s *syncWorker) validateAndInsertEnvelope(
 		return err
 	}
 
-	metrics.EmitLastSeenOriginatorSequenceId(env.OriginatorNodeID(), env.OriginatorSequenceID())
-	metrics.EmitOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
+	metrics.EmitSyncLastSeenOriginatorSequenceId(env.OriginatorNodeID(), env.OriginatorSequenceID())
+	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
 	var lastSequenceID uint64 = 0
 	var lastNs int64 = 0

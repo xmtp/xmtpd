@@ -1,19 +1,23 @@
-# name: Upgrade Tests
-# on:
-#   push:
-#     branches:
-#       - main
-#       - rel/**
-#   pull_request:
-#     paths:
-#       - ".github/workflows/upgrade-test.yml"
-#       - "pkg/**"
-#       - "cmd/**"
-#       - "dev/**"
-#       - "go.mod"
-#       - "go.sum"
-#       - "tools.go"
-# jobs:
+ name: Upgrade Tests
+ on:
+   push:
+     branches:
+       - main
+       - rel/**
+   pull_request:
+     paths:
+       - ".github/workflows/upgrade-test.yml"
+       - "pkg/**"
+       - "cmd/**"
+       - "dev/**"
+       - "go.mod"
+       - "go.sum"
+       - "tools.go"
+ jobs:
+   noop:
+     runs-on: ubuntu-latest
+     steps:
+       - run: echo "Upgrade tests are disabled"
 #   test:
 #     name: Upgrade Tests
 #     runs-on: ubuntu-latest

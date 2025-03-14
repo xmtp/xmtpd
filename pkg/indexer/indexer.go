@@ -286,50 +286,54 @@ func indexLogs(
 		// - There's a stored block
 		// - The event block number is greater than the stored block number
 		// - The check interval has passed
+		skipReorgHandling := false
 		if !reorgInProgress &&
 			storedBlockNumber > 0 &&
 			event.BlockNumber > storedBlockNumber &&
 			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
 			onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
 			if err != nil {
-				logger.Error("error querying block from the blockchain",
+				logger.Warn(
+					"error querying block from the blockchain, proceeding with event processing",
 					zap.Uint64("blockNumber", storedBlockNumber),
 					zap.Error(err),
 				)
-				continue
+				skipReorgHandling = true
 			}
 
-			reorgCheckAt = event.BlockNumber
-			logger.Debug("blockchain reorg periodic check",
-				zap.Uint64("blockNumber", reorgCheckAt),
-			)
-
-			if storedBlockHash != nil &&
-				!bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
-				logger.Warn("blockchain reorg detected",
-					zap.Uint64("storedBlockNumber", storedBlockNumber),
-					zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
-					zap.String("onchainBlockHash", onchainBlock.Hash().String()),
+			if !skipReorgHandling {
+				reorgCheckAt = event.BlockNumber
+				logger.Debug("blockchain reorg periodic check",
+					zap.Uint64("blockNumber", reorgCheckAt),
 				)
 
-				reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindReorgPoint(
-					storedBlockNumber,
-				)
-				if err != nil && !errors.Is(err, ErrNoBlocksFound) {
-					logger.Error("reorg point not found", zap.Error(err))
+				if storedBlockHash != nil &&
+					!bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
+					logger.Warn("blockchain reorg detected",
+						zap.Uint64("storedBlockNumber", storedBlockNumber),
+						zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
+						zap.String("onchainBlockHash", onchainBlock.Hash().String()),
+					)
+
+					reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindReorgPoint(
+						storedBlockNumber,
+					)
+					if err != nil && !errors.Is(err, ErrNoBlocksFound) {
+						logger.Error("reorg point not found", zap.Error(err))
+						continue
+					}
+
+					reorgDetectedAt = storedBlockNumber
+					reorgBeginsAt = reorgBlockNumber
+					reorgFinishesAt = storedBlockNumber
+
+					if trackerErr := blockTracker.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash); trackerErr != nil {
+						logger.Error("error updating block tracker", zap.Error(trackerErr))
+					}
+
+					reorgChannel <- reorgBlockNumber
 					continue
 				}
-
-				reorgDetectedAt = storedBlockNumber
-				reorgBeginsAt = reorgBlockNumber
-				reorgFinishesAt = storedBlockNumber
-
-				if trackerErr := blockTracker.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash); trackerErr != nil {
-					logger.Error("error updating block tracker", zap.Error(trackerErr))
-				}
-
-				reorgChannel <- reorgBlockNumber
-				continue
 			}
 		}
 

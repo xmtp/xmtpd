@@ -77,6 +77,10 @@ func registerCollectors(reg prometheus.Registerer) {
 		currentNonce,
 		payerBanlistRetry,
 		messagesOriginated,
+		syncOriginatorSequenceId,
+		syncOutgoingSyncConnections,
+		syncFailedOutgoingSyncConnections,
+		syncFailedOutgoingSyncConnectionCounter,
 	}
 
 	for _, col := range cols {

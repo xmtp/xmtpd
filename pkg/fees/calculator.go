@@ -1,10 +1,14 @@
 package fees
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type FeeCalculator struct {
@@ -50,23 +54,37 @@ func (c *FeeCalculator) CalculateBaseFee(
 }
 
 func (c *FeeCalculator) CalculateCongestionFee(
+	ctx context.Context,
+	querier *queries.Queries,
 	messageTime time.Time,
-	congestionUnits int64,
+	originatorID uint32,
 ) (currency.PicoDollar, error) {
+	last5MinutesCongestion, err := db.Get5MinutesOfCongestion(
+		ctx,
+		querier,
+		int32(originatorID),
+		int32(utils.MinutesSinceEpoch(messageTime)),
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	rates, err := c.ratesFetcher.GetRates(messageTime)
+	if err != nil {
+		return 0, err
+	}
+
+	congestionUnits := CalculateCongestion(last5MinutesCongestion, int32(rates.TargetRatePerMinute))
+
 	if congestionUnits < 0 || congestionUnits > 100 {
 		return 0, fmt.Errorf(
-			"congestionPercent must be between 0 and 100, got %d",
+			"congestionUnits must be between 0 and 100, got %d",
 			congestionUnits,
 		)
 	}
 
 	if congestionUnits == 0 {
 		return 0, nil
-	}
-
-	rates, err := c.ratesFetcher.GetRates(messageTime)
-	if err != nil {
-		return 0, err
 	}
 
 	result := rates.CongestionFee * currency.PicoDollar(congestionUnits)

@@ -19,7 +19,7 @@ The algorithm for calculating congestion is as follows:
 6) Otherwise, return the congestion as an exponential function of the ratio
 *
 */
-func CalculateCongestion(last5Minutes [5]int64, targetRatePerMinute int64) int64 {
+func CalculateCongestion(last5Minutes [5]int32, targetRatePerMinute int32) int32 {
 	// If the target rate is 0, return 0
 	if targetRatePerMinute == 0 {
 		return 0
@@ -67,13 +67,13 @@ func CalculateCongestion(last5Minutes [5]int64, targetRatePerMinute int64) int64
 	denominator := math.Exp(k*(MAX_CONGESTION_RATIO-1.0)) - 1.0
 	congestion := 100.0 * (numerator / denominator)
 
-	return int64(congestion)
+	return int32(congestion)
 }
 
-func calculateFourMinuteAverage(last5Minutes [5]int64) int64 {
+func calculateFourMinuteAverage(last5Minutes [5]int32) int32 {
 	// Apply weights that decrease with recency (index 1 is most recent, index 4 is oldest)
 	// Weight distribution: 40%, 30%, 20%, 10%
 	weightedSum := last5Minutes[1]*4 + last5Minutes[2]*3 + last5Minutes[3]*2 + last5Minutes[4]*1
-	totalWeight := int64(10) // sum of weights: 4+3+2+1
+	totalWeight := int32(10) // sum of weights: 4+3+2+1
 	return weightedSum / totalWeight
 }

@@ -207,11 +207,14 @@ func (p *publishWorker) calculateFees(
 		return 0, 0, err
 	}
 
+	q := queries.New(p.store)
 	// TODO:nm: Set this to the actual congestion fee
 	// For now we are setting congestion to 0
 	congestionFee, err := p.feeCalculator.CalculateCongestionFee(
+		p.ctx,
+		q,
 		stagedEnv.OriginatorTime,
-		0,
+		p.registrant.NodeID(),
 	)
 
 	if err != nil {

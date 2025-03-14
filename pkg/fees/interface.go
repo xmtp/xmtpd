@@ -1,9 +1,11 @@
 package fees
 
 import (
+	"context"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
 // Rates containt the cost for each fee component at a given message time.
@@ -28,7 +30,9 @@ type IFeeCalculator interface {
 		storageDurationDays int64,
 	) (currency.PicoDollar, error)
 	CalculateCongestionFee(
+		ctx context.Context,
+		querier *queries.Queries,
 		messageTime time.Time,
-		congestionUnits int64,
+		originatorID uint32,
 	) (currency.PicoDollar, error)
 }

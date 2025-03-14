@@ -104,7 +104,7 @@ func BuildIdentityUpdateLog(
 Deploy a contract and return the contract's address. Will return a different address for each run, making it suitable for testing
 *
 */
-func deployContract(t *testing.T, contractName string) string {
+func deployContract(t *testing.T, contractName, rpcUrl string) string {
 	retryMax := 10
 	var retry = 0
 	var err error
@@ -119,7 +119,7 @@ func deployContract(t *testing.T, contractName string) string {
 		}
 
 		var client *ethclient.Client
-		client, err = ethclient.Dial(ANVIL_LOCALNET_HOST)
+		client, err = ethclient.Dial(rpcUrl)
 		if err != nil {
 			continue
 		}
@@ -142,8 +142,18 @@ func deployContract(t *testing.T, contractName string) string {
 			addr, _, _, err = nodes.DeployNodes(auth, client, auth.From)
 		case GROUP_MESSAGES_CONTRACT_NAME:
 			addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
+			require.NoError(t, err)
+			var contract *groupmessages.GroupMessages
+			contract, err = groupmessages.NewGroupMessages(addr, client)
+			require.NoError(t, err)
+			_, err = contract.Initialize(auth, auth.From)
 		case IDENTITY_UPDATES_CONTRACT_NAME:
 			addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
+			require.NoError(t, err)
+			var contract *identityupdates.IdentityUpdates
+			contract, err = identityupdates.NewIdentityUpdates(addr, client)
+			require.NoError(t, err)
+			_, err = contract.Initialize(auth, auth.From)
 		case RATES_MANAGER_CONTRACT_NAME:
 			addr, _, _, err = ratesmanager.DeployRatesManager(auth, client)
 			require.NoError(t, err)
@@ -166,18 +176,18 @@ func deployContract(t *testing.T, contractName string) string {
 
 }
 
-func DeployNodesContract(t *testing.T) string {
-	return deployContract(t, NODES_CONTRACT_NAME)
+func DeployNodesContract(t *testing.T, rpcUrl string) string {
+	return deployContract(t, NODES_CONTRACT_NAME, rpcUrl)
 }
 
-func DeployGroupMessagesContract(t *testing.T) string {
-	return deployContract(t, GROUP_MESSAGES_CONTRACT_NAME)
+func DeployGroupMessagesContract(t *testing.T, rpcUrl string) string {
+	return deployContract(t, GROUP_MESSAGES_CONTRACT_NAME, rpcUrl)
 }
 
-func DeployIdentityUpdatesContract(t *testing.T) string {
-	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME)
+func DeployIdentityUpdatesContract(t *testing.T, rpcUrl string) string {
+	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME, rpcUrl)
 }
 
-func DeployRatesManagerContract(t *testing.T) string {
-	return deployContract(t, RATES_MANAGER_CONTRACT_NAME)
+func DeployRatesManagerContract(t *testing.T, rpcUrl string) string {
+	return deployContract(t, RATES_MANAGER_CONTRACT_NAME, rpcUrl)
 }

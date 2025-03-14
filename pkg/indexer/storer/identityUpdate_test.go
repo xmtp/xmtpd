@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -25,13 +26,14 @@ func buildIdentityUpdateStorer(
 ) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	db, _, cleanup := testutils.NewDB(t, ctx)
-	config := testutils.GetContractsOptions(t)
-	contractAddress := config.IdentityUpdatesContractAddress
+	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	config := testutils.NewContractsOptions(rpcUrl)
+	config.IdentityUpdatesContractAddress = testutils.DeployIdentityUpdatesContract(t, rpcUrl)
 
 	client, err := blockchain.NewClient(ctx, config.RpcUrl)
 	require.NoError(t, err)
 	contract, err := identityupdates.NewIdentityUpdates(
-		common.HexToAddress(contractAddress),
+		common.HexToAddress(config.IdentityUpdatesContractAddress),
 		client,
 	)
 	validationService := mlsvalidateMock.NewMockMLSValidationService(t)
@@ -40,6 +42,7 @@ func buildIdentityUpdateStorer(
 	storer := NewIdentityUpdateStorer(db, testutils.NewLog(t), contract, validationService)
 
 	return storer, validationService, func() {
+		defer anvilCleanup()
 		cancel()
 		cleanup()
 	}

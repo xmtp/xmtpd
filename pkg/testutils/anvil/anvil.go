@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"net"
 	"os"
 	"os/exec"
 	"testing"
@@ -12,16 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 )
-
-func findFreePort() (int, error) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-	defer ln.Close()
-	return ln.Addr().(*net.TCPAddr).Port, nil
-}
 
 func waitForAnvil(t *testing.T, url string) {
 	backgroundCtx := context.Background()
@@ -54,8 +45,7 @@ func waitForAnvil(t *testing.T, url string) {
 }
 
 func StartAnvil(t *testing.T, showLogs bool) (string, func()) {
-	port, err := findFreePort()
-	require.NoError(t, err)
+	port := networkTestUtils.FindFreePort(t)
 
 	cmd := exec.Command("anvil", "--port", fmt.Sprintf("%d", port))
 	if showLogs {
@@ -64,7 +54,7 @@ func StartAnvil(t *testing.T, showLogs bool) (string, func()) {
 		cmd.Stderr = os.Stderr
 	}
 
-	err = cmd.Start()
+	err := cmd.Start()
 	require.NoError(t, err)
 	url := fmt.Sprintf("http://localhost:%d", port)
 	waitForAnvil(t, url)

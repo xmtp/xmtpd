@@ -43,6 +43,7 @@ type AddRatesOptions struct {
 	MessageFee      uint64 `long:"message-fee"       description:"Message fee"`
 	StorageFee      uint64 `long:"storage-fee"       description:"Storage fee"`
 	CongestionFee   uint64 `long:"congestion-fee"    description:"Congestion fee"`
+	TargetRate      uint64 `long:"target-rate"       description:"Target rate per minute"`
 	DelayDays       uint   `long:"delay-days"        description:"Delay the rates going into effect for N days"    default:"0"`
 }
 

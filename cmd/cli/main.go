@@ -423,10 +423,11 @@ func addRates(logger *zap.Logger, options *CLI) {
 	startTime := time.Now().Add(time.Duration(options.AddRates.DelayDays) * 24 * time.Hour)
 
 	rates := ratesmanager.RatesManagerRates{
-		MessageFee:    options.AddRates.MessageFee,
-		StorageFee:    options.AddRates.StorageFee,
-		CongestionFee: options.AddRates.CongestionFee,
-		StartTime:     uint64(startTime.Unix()),
+		MessageFee:          options.AddRates.MessageFee,
+		StorageFee:          options.AddRates.StorageFee,
+		CongestionFee:       options.AddRates.CongestionFee,
+		TargetRatePerMinute: options.AddRates.TargetRate,
+		StartTime:           uint64(startTime.Unix()),
 	}
 
 	if err = ratesManager.AddRates(ctx, rates); err != nil {

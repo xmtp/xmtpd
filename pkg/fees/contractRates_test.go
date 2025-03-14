@@ -33,10 +33,11 @@ func buildFetcher(t *testing.T) (*ContractRatesFetcher, *feesMock.MockRatesContr
 
 func buildRates(fees uint64, startTime uint64) ratesmanager.RatesManagerRates {
 	return ratesmanager.RatesManagerRates{
-		MessageFee:    fees,
-		StorageFee:    fees,
-		CongestionFee: fees,
-		StartTime:     startTime,
+		MessageFee:          fees,
+		StorageFee:          fees,
+		CongestionFee:       fees,
+		StartTime:           startTime,
+		TargetRatePerMinute: 100 * 60,
 	}
 }
 
@@ -54,6 +55,8 @@ func TestLoadGetRates(t *testing.T) {
 	require.Len(t, fetcher.rates, 2)
 	require.Equal(t, fetcher.rates[0].rates.MessageFee, currency.PicoDollar(100))
 	require.Equal(t, fetcher.rates[1].rates.MessageFee, currency.PicoDollar(200))
+	require.Equal(t, fetcher.rates[0].rates.TargetRatePerMinute, uint64(100*60))
+	require.Equal(t, fetcher.rates[1].rates.TargetRatePerMinute, uint64(100*60))
 }
 
 func TestCanPaginate(t *testing.T) {

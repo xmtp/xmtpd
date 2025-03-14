@@ -64,6 +64,7 @@ func (r *RatesAdmin) AddRates(
 		rates.MessageFee,
 		rates.StorageFee,
 		rates.CongestionFee,
+		rates.TargetRatePerMinute,
 		rates.StartTime,
 	)
 

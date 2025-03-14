@@ -23,6 +23,7 @@ contract RatesTest is Test, Utils {
     uint64 constant MESSAGE_FEE = 100;
     uint64 constant STORAGE_FEE = 200;
     uint64 constant CONGESTION_FEE = 300;
+    uint64 constant TARGET_RATE_PER_MINUTE = 100 * 60;
 
     address ratesManagerImpImplementation;
 
@@ -70,17 +71,17 @@ contract RatesTest is Test, Utils {
         );
 
         vm.prank(unauthorized);
-        ratesManager.addRates(0, 0, 0, 0);
+        ratesManager.addRates(0, 0, 0, 0, 0);
 
         // TODO: Test where admin is not the manager.
     }
 
     function test_addRates_first() public {
         vm.expectEmit(address(ratesManager));
-        emit RatesManager.RatesAdded(100, 200, 300, 400);
+        emit RatesManager.RatesAdded(100, 200, 300, 400, 500);
 
         vm.prank(admin);
-        ratesManager.addRates(100, 200, 300, 400);
+        ratesManager.addRates(100, 200, 300, 400, 500);
 
         RatesManager.Rates[] memory rates = ratesManager.__getAllRates();
 
@@ -89,20 +90,21 @@ contract RatesTest is Test, Utils {
         assertEq(rates[0].messageFee, 100);
         assertEq(rates[0].storageFee, 200);
         assertEq(rates[0].congestionFee, 300);
-        assertEq(rates[0].startTime, 400);
+        assertEq(rates[0].targetRatePerMinute, 400);
+        assertEq(rates[0].startTime, 500);
     }
 
     function test_addRates_nth() public {
-        ratesManager.__pushRates(0, 0, 0, 0);
-        ratesManager.__pushRates(0, 0, 0, 0);
-        ratesManager.__pushRates(0, 0, 0, 0);
-        ratesManager.__pushRates(0, 0, 0, 0);
+        ratesManager.__pushRates(0, 0, 0, 0, 0);
+        ratesManager.__pushRates(0, 0, 0, 0, 0);
+        ratesManager.__pushRates(0, 0, 0, 0, 0);
+        ratesManager.__pushRates(0, 0, 0, 0, 0);
 
         vm.expectEmit(address(ratesManager));
-        emit RatesManager.RatesAdded(100, 200, 300, 400);
+        emit RatesManager.RatesAdded(100, 200, 300, 400, 500);
 
         vm.prank(admin);
-        ratesManager.addRates(100, 200, 300, 400);
+        ratesManager.addRates(100, 200, 300, 400, 500);
 
         RatesManager.Rates[] memory rates = ratesManager.__getAllRates();
 
@@ -111,16 +113,17 @@ contract RatesTest is Test, Utils {
         assertEq(rates[4].messageFee, 100);
         assertEq(rates[4].storageFee, 200);
         assertEq(rates[4].congestionFee, 300);
-        assertEq(rates[4].startTime, 400);
+        assertEq(rates[4].targetRatePerMinute, 400);
+        assertEq(rates[4].startTime, 500);
     }
 
     function test_addRates_invalidStartTime() public {
-        ratesManager.__pushRates(0, 0, 0, 100);
+        ratesManager.__pushRates(0, 0, 0, 0, 100);
 
         vm.expectRevert(RatesManager.InvalidStartTime.selector);
 
         vm.prank(admin);
-        ratesManager.addRates(0, 0, 0, 100);
+        ratesManager.addRates(0, 0, 0, 0, 100);
     }
 
     /* ============ getRates ============ */
@@ -134,7 +137,7 @@ contract RatesTest is Test, Utils {
 
     function test_getRates_withinPageSize() public {
         for (uint256 i; i < 3 * PAGE_SIZE; ++i) {
-            ratesManager.__pushRates(i, i, i, i);
+            ratesManager.__pushRates(i, i, i, i, i);
         }
 
         (RatesManager.Rates[] memory rates, bool hasMore) = ratesManager.getRates((3 * PAGE_SIZE) - 10);
@@ -152,7 +155,7 @@ contract RatesTest is Test, Utils {
 
     function test_getRates_pagination() public {
         for (uint256 i; i < 3 * PAGE_SIZE; ++i) {
-            ratesManager.__pushRates(i, i, i, i);
+            ratesManager.__pushRates(i, i, i, i, i);
         }
 
         (RatesManager.Rates[] memory rates, bool hasMore) = ratesManager.getRates(0);
@@ -164,6 +167,7 @@ contract RatesTest is Test, Utils {
             assertEq(rates[i].messageFee, i);
             assertEq(rates[i].storageFee, i);
             assertEq(rates[i].congestionFee, i);
+            assertEq(rates[i].targetRatePerMinute, i);
             assertEq(rates[i].startTime, i);
         }
     }
@@ -174,7 +178,7 @@ contract RatesTest is Test, Utils {
         assertEq(ratesManager.getRatesCount(), 0);
 
         for (uint256 i = 1; i <= 1000; ++i) {
-            ratesManager.__pushRates(0, 0, 0, 0);
+            ratesManager.__pushRates(0, 0, 0, 0, 0);
             assertEq(ratesManager.getRatesCount(), i);
         }
     }
@@ -265,9 +269,9 @@ contract RatesTest is Test, Utils {
     }
 
     function test_upgradeToAndCall() public {
-        ratesManager.__pushRates(0, 0, 0, 0);
-        ratesManager.__pushRates(1, 1, 1, 1);
-        ratesManager.__pushRates(2, 2, 2, 2);
+        ratesManager.__pushRates(0, 0, 0, 0, 0);
+        ratesManager.__pushRates(1, 1, 1, 1, 1);
+        ratesManager.__pushRates(2, 2, 2, 2, 2);
 
         address newImplementation = address(new RatesManagerHarness());
 
@@ -292,11 +296,13 @@ contract RatesTest is Test, Utils {
         assertEq(rates[1].messageFee, 1);
         assertEq(rates[1].storageFee, 1);
         assertEq(rates[1].congestionFee, 1);
+        assertEq(rates[1].targetRatePerMinute, 1);
         assertEq(rates[1].startTime, 1);
 
         assertEq(rates[2].messageFee, 2);
         assertEq(rates[2].storageFee, 2);
         assertEq(rates[2].congestionFee, 2);
+        assertEq(rates[2].targetRatePerMinute, 2);
         assertEq(rates[2].startTime, 2);
     }
 

@@ -42,10 +42,11 @@ func TestAddRates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
 	rates := ratesmanager.RatesManagerRates{
-		MessageFee:    100,
-		StorageFee:    200,
-		CongestionFee: 300,
-		StartTime:     1000,
+		MessageFee:          100,
+		StorageFee:          200,
+		CongestionFee:       300,
+		TargetRatePerMinute: 100 * 60,
+		StartTime:           1000,
 	}
 
 	var err error

@@ -208,9 +208,10 @@ func transformRates(rates []ratesmanager.RatesManagerRates) []*indexedRates {
 		newIndexedRates[i] = &indexedRates{
 			startTime: time.Unix(int64(rate.StartTime), 0),
 			rates: &Rates{
-				MessageFee:    currency.PicoDollar(rate.MessageFee),
-				StorageFee:    currency.PicoDollar(rate.StorageFee),
-				CongestionFee: currency.PicoDollar(rate.CongestionFee),
+				MessageFee:          currency.PicoDollar(rate.MessageFee),
+				StorageFee:          currency.PicoDollar(rate.StorageFee),
+				CongestionFee:       currency.PicoDollar(rate.CongestionFee),
+				TargetRatePerMinute: rate.TargetRatePerMinute,
 			},
 		}
 	}

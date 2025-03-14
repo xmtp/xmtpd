@@ -17,11 +17,11 @@ import (
 func TestGetNode_StableAssignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
-		testutils.GetHealthyNode(700),
-		testutils.GetHealthyNode(1200),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		testutils.HealthyNode(700),
+		testutils.HealthyNode(1200),
 	}, nil)
 	tpc := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("deadbeef"))
 
@@ -62,27 +62,9 @@ func TestGetNode_NoAvailableNodesError(t *testing.T) {
 func TestGetNode_CorrectAssignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{
-			NodeID:               100,
-			IsDisabled:           false,
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsValidConfig:        true,
-		},
-		{
-			NodeID:               200,
-			IsDisabled:           false,
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsValidConfig:        true,
-		},
-		{
-			NodeID:               300,
-			IsDisabled:           false,
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsValidConfig:        true,
-		},
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 	tpc2 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key_topic2"))
@@ -100,11 +82,11 @@ func TestGetNode_CorrectAssignment(t *testing.T) {
 func TestGetNode_NodeReassignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
-		testutils.GetHealthyNode(700),
-		testutils.GetHealthyNode(1200),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		testutils.HealthyNode(700),
+		testutils.HealthyNode(1200),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 
@@ -116,7 +98,7 @@ func TestGetNode_NodeReassignment(t *testing.T) {
 	// pretend to remove the hashed node
 	newMockRegistry := mocks.NewMockNodeRegistry(t)
 	newMockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
+		testutils.HealthyNode(100),
 	}, nil)
 
 	selector = payer.NewStableHashingNodeSelectorAlgorithm(newMockRegistry)
@@ -130,11 +112,11 @@ func TestGetNode_NodeReassignment(t *testing.T) {
 func TestGetNode_NodeReassignmentStability(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
-		testutils.GetHealthyNode(700),
-		testutils.GetHealthyNode(1200),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		testutils.HealthyNode(700),
+		testutils.HealthyNode(1200),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 
@@ -146,12 +128,12 @@ func TestGetNode_NodeReassignmentStability(t *testing.T) {
 	// pretend to remove the hashed node
 	newMockRegistry := mocks.NewMockNodeRegistry(t)
 	newMockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
-		testutils.GetHealthyNode(700),
-		testutils.GetHealthyNode(800),
-		testutils.GetHealthyNode(1200),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		testutils.HealthyNode(700),
+		testutils.HealthyNode(800),
+		testutils.HealthyNode(1200),
 	}, nil)
 
 	selector = payer.NewStableHashingNodeSelectorAlgorithm(newMockRegistry)
@@ -166,11 +148,11 @@ func TestGetNode_NodeReassignmentStability(t *testing.T) {
 func TestGetNode_FindTopics(t *testing.T) {
 	t.Skipf("This test helps with generation of payloads. No need to run it continuously")
 	nodes := []registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
-		testutils.GetHealthyNode(700),
-		testutils.GetHealthyNode(1200),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		testutils.HealthyNode(700),
+		testutils.HealthyNode(1200),
 	}
 
 	mockRegistry := mocks.NewMockNodeRegistry(t)
@@ -202,13 +184,13 @@ func TestGetNode_FindTopics(t *testing.T) {
 
 func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 	nodes := []registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
-		testutils.GetHealthyNode(400),
-		testutils.GetHealthyNode(500),
-		testutils.GetHealthyNode(1200),
-		testutils.GetHealthyNode(8000),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		testutils.HealthyNode(400),
+		testutils.HealthyNode(500),
+		testutils.HealthyNode(1200),
+		testutils.HealthyNode(8000),
 	}
 
 	mockRegistry := mocks.NewMockNodeRegistry(t)
@@ -248,9 +230,16 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
-		testutils.GetHealthyNode(200),
-		testutils.GetHealthyNode(300),
+		testutils.HealthyNode(100),
+		testutils.HealthyNode(200),
+		testutils.HealthyNode(300),
+		{
+			NodeID:               400,
+			IsDisabled:           false,
+			IsReplicationEnabled: true,
+			IsApiEnabled:         false,
+			IsValidConfig:        true,
+		},
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 
@@ -280,4 +269,29 @@ func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 	reselectedNode, err = selector.GetNode(tpc1, banlist)
 	require.Error(t, err)
 	require.EqualValues(t, 0, reselectedNode)
+}
+
+func TestGetNode_NoAvailableNodesAfterFiltering(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		testutils.ApiDisabledNode(100),
+		testutils.ApiDisabledNode(200),
+		testutils.ApiDisabledNode(300),
+		testutils.HealthyNode(400),
+		testutils.HealthyNode(500),
+		testutils.HealthyNode(600),
+	}, nil)
+	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
+
+	selector := payer.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
+
+	node, err := selector.GetNode(tpc1)
+	require.NoError(t, err)
+	require.EqualValues(t, 400, node, "first node available should be 400")
+
+	banlist := []uint32{400, 500, 600}
+
+	_, err = selector.GetNode(tpc1, banlist)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no available nodes after filtering")
 }

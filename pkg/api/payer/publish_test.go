@@ -129,7 +129,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		Once()
 
 	registryMocks.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
+		testutils.HealthyNode(100),
 	}, nil)
 
 	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxIdBytes, identityUpdate)
@@ -183,7 +183,7 @@ func TestPublishToNodes(t *testing.T) {
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
+		testutils.HealthyNode(100),
 	}, nil)
 
 	groupId := testutils.RandomGroupID()

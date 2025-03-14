@@ -2,11 +2,13 @@ package blockchain_test
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -43,9 +45,11 @@ func buildStreamer(
 }
 
 func TestBuilder(t *testing.T) {
+	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	t.Cleanup(anvilCleanup)
 	testclient, err := blockchain.NewClient(
 		context.Background(),
-		testutils.GetContractsOptions(t).RpcUrl,
+		rpcUrl,
 	)
 	require.NoError(t, err)
 	builder := blockchain.NewRpcLogStreamBuilder(

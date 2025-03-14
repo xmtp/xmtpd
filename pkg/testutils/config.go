@@ -1,14 +1,9 @@
 package testutils
 
 import (
-	"os"
-	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"github.com/valyala/fastjson"
 	"github.com/xmtp/xmtpd/pkg/config"
 )
 
@@ -18,68 +13,9 @@ const BLOCKCHAIN_RPC_URL = "http://localhost:7545"
 // This is safe to commit
 const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-/*
-*
-In tests it's weirdly difficult to get the working directory of the project root.
-
-Keep moving up the folder hierarchy until you find a go.mod
-*
-*/
-func rootPath(t *testing.T) string {
-	dir, err := os.Getwd()
-	require.NoError(t, err)
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir { // reached the root directory
-			t.Fatal("Could not find the root directory")
-		}
-		dir = parent
-	}
-}
-
-/*
-*
-Parse the JSON file at this location to get the deployed contract address.
-*
-*/
-func getContractAddress(t *testing.T, fileName string, key string) string {
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		t.Fatalf("Failed to read json: %v", err)
-	}
-
-	return fastjson.GetString(data, "addresses", key)
-}
-
-func GetContractsOptions(t *testing.T) config.ContractsOptions {
-	rootDir := rootPath(t)
-
+func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 	return config.ContractsOptions{
-		RpcUrl: BLOCKCHAIN_RPC_URL,
-		MessagesContractAddress: getContractAddress(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/GroupMessages.json"),
-			"proxy",
-		),
-		NodesContractAddress: getContractAddress(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/XMTPNodeRegistry.json"),
-			"implementation",
-		),
-		IdentityUpdatesContractAddress: getContractAddress(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/IdentityUpdates.json"),
-			"proxy",
-		),
-		RatesManagerContractAddress: getContractAddress(
-			t,
-			path.Join(rootDir, "./contracts/config/anvil_localnet/RatesManager.json"),
-			"proxy",
-		),
+		RpcUrl:                  rpcUrl,
 		RegistryRefreshInterval: 100 * time.Millisecond,
 		RatesRefreshInterval:    100 * time.Millisecond,
 		ChainID:                 31337,

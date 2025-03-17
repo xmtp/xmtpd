@@ -3,8 +3,13 @@ module github.com/xmtp/xmtpd
 go 1.24
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/cenkalti/backoff/v5 v5.0.2
+	github.com/docker/docker v28.0.1+incompatible
 	github.com/ethereum/go-ethereum v1.15.1
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.18.2
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/jessevdk/go-flags v1.6.1
@@ -13,19 +18,12 @@ require (
 	github.com/pires/go-proxyproto v0.8.0
 	github.com/prometheus/client_golang v1.21.0
 	github.com/stretchr/testify v1.10.0
+	github.com/testcontainers/testcontainers-go v0.35.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/DataDog/dd-trace-go.v1 v1.72.0
-)
-
-require (
-	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/docker/docker v28.0.1+incompatible
-	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/testcontainers/testcontainers-go v0.35.0
 )
 
 require (

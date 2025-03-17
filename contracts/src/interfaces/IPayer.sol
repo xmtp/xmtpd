@@ -200,14 +200,15 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param isActive               Indicates whether the payer is active.
      * @param creationTimestamp      The timestamp when the payer was first registered.
      * @param latestDepositTimestamp The timestamp of the most recent deposit.
+     * @param latestDonationTimestamp The timestamp of the most recent donation.
      * @param debtAmount             The amount of fees owed but not yet settled.
      */
     struct Payer {
-        uint256 balance;
-        uint256 debtAmount;
-        uint256 creationTimestamp;
-        uint256 latestDepositTimestamp;
-        uint256 latestDonationTimestamp;
+        uint64 balance;
+        uint64 debtAmount;
+        uint64 creationTimestamp;
+        uint64 latestDepositTimestamp;
+        uint64 latestDonationTimestamp;
         bool isActive;
     }
 
@@ -218,9 +219,9 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param amount                The amount requested for withdrawal.
      */
     struct Withdrawal {
-        uint256 requestTimestamp;
-        uint256 withdrawableTimestamp;
-        uint256 amount;
+        uint64 requestTimestamp;
+        uint64 withdrawableTimestamp;
+        uint64 amount;
     }
 
     /* ============ Payer Management ============ */
@@ -232,7 +233,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `PayerRegistered`.
      */
-    function register(uint256 amount) external;
+    function register(uint64 amount) external;
 
     /**
      * @notice Allows the caller to deposit USDC into their own payer account.
@@ -241,7 +242,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `Deposit`.
      */
-    function deposit(uint256 amount) external;
+    function deposit(uint64 amount) external;
 
     /**
      * @notice Allows anyone to donate USDC to an existing payer's account.
@@ -251,7 +252,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `Donation`.
      */
-    function donate(address payer, uint256 amount) external;
+    function donate(address payer, uint64 amount) external;
 
     /**
      * @notice Deactivates a payer, signaling XMTP nodes they should not accept messages from them.
@@ -283,7 +284,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *
      * Emits `WithdrawalRequest`.
      */
-    function requestWithdrawal(uint256 amount) external;
+    function requestWithdrawal(uint64 amount) external;
 
     /**
      * @notice Cancels a previously requested withdrawal, removing withdrawal mode.
@@ -323,7 +324,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
     function settleUsage(
         uint256 originatorNode,
         address[] calldata payers,
-        uint256[] calldata amounts
+        uint64[] calldata amounts
     ) external; /* onlyPayerReport */
 
     /**

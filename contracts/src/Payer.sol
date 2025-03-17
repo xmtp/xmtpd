@@ -50,31 +50,37 @@ contract Payer is
 
     /// @custom:storage-location erc7201:xmtp.storage.Payer
     struct PayerStorage {
-        /// @dev Contracts to interact with.
-        IERC20 usdcToken;
-        address distributionContract;
-        address nodesContract;
-        address payerReportContract;
-        /// @dev Configuration parameters
-        uint64 minimumRegistrationAmountMicroDollars;
-        uint64 minimumDepositAmountMicroDollars;
-        uint64 maxTolerableDebtAmountMicroDollars;
-        uint32 withdrawalLockPeriod;
-        uint32 transferFeesPeriod;
-        /// @dev State variables
-        uint256 lastFeeTransferTimestamp;
-        uint256 totalAmountDeposited;
-        uint256 totalDebtAmount;
-        uint256 pendingFees;
-        uint256 collectedFees;
-        /// @dev Mappings
+        // 1. Configuration and state parameters packed in 2 slots.
+        uint64 minimumRegistrationAmountMicroDollars;      // 8 bytes
+        uint64 minimumDepositAmountMicroDollars;           // 8 bytes
+        uint64 maxTolerableDebtAmountMicroDollars;         // 8 bytes
+        uint64 lastFeeTransferTimestamp;                   // 8 bytes
+
+        uint64 totalAmountDeposited;                       // 8 bytes
+        uint64 totalDebtAmount;                            // 8 bytes
+        uint64 pendingFees;                                // 8 bytes
+        uint64 collectedFees;                              // 8 bytes
+
+        uint32 withdrawalLockPeriod;                       // 4 bytes
+        uint32 transferFeesPeriod;                         // 4 bytes
+        uint32 reserved1;                                  // 4 bytes (reserved for future use)
+        uint32 reserved2;                                  // 4 bytes (reserved for future use)
+
+        // 2. Contract addresses (each 20 bytes, fits in 3 slots)
+        IERC20 usdcToken;                                  // 20 bytes
+        address distributionContract;                      // 20 bytes
+        address nodesContract;                             // 20 bytes
+        address payerReportContract;                       // 20 bytes
+
+        // 3. Mappings and dynamic sets (each starts at its own storage slot)
         mapping(address => Payer) payers;
         mapping(address => Withdrawal) withdrawals;
         EnumerableSet.AddressSet totalPayers;
         EnumerableSet.AddressSet activePayers;
         EnumerableSet.AddressSet debtPayers;
     }
-    // TODO: pack struct
+
+
 
     // keccak256(abi.encode(uint256(keccak256("xmtp.storage.Payer")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 internal constant PAYER_STORAGE_LOCATION =
@@ -152,7 +158,7 @@ contract Payer is
     /**
      * @inheritdoc IPayer
      */
-    function register(uint256 amount) external whenNotPaused {
+    function register(uint64 amount) external whenNotPaused {
         PayerStorage storage $ = _getPayerStorage();
 
         require(amount >= $.minimumRegistrationAmountMicroDollars, InsufficientAmount());
@@ -165,8 +171,8 @@ contract Payer is
         $.payers[msg.sender] = Payer({
             balance: amount,
             debtAmount: 0,
-            creationTimestamp: block.timestamp,
-            latestDepositTimestamp: block.timestamp,
+            creationTimestamp: uint64(block.timestamp),
+            latestDepositTimestamp: uint64(block.timestamp),
             latestDonationTimestamp: 0,
             isActive: true
         });
@@ -183,20 +189,20 @@ contract Payer is
     /**
      * @inheritdoc IPayer
      */
-    function deposit(uint256 amount) external whenNotPaused nonReentrant onlyPayer(msg.sender) {
+    function deposit(uint64 amount) external whenNotPaused nonReentrant onlyPayer(msg.sender) {
         _validateAndProcessDeposit(msg.sender, msg.sender, amount);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function donate(address payer, uint256 amount) external whenNotPaused {
+    function donate(address payer, uint64 amount) external whenNotPaused {
         _revertIfPayerDoesNotExist(payer);
 
         _validateAndProcessDeposit(msg.sender, payer, amount);
         PayerStorage storage $ = _getPayerStorage();
 
-        $.payers[payer].latestDonationTimestamp = block.timestamp;
+        $.payers[payer].latestDonationTimestamp = uint64(block.timestamp);
 
         emit Donation(msg.sender, payer, amount);
     }
@@ -239,7 +245,7 @@ contract Payer is
     /**
      * @inheritdoc IPayer
      */
-    function requestWithdrawal(uint256 amount) external whenNotPaused onlyPayer(msg.sender) {
+    function requestWithdrawal(uint64 amount) external whenNotPaused onlyPayer(msg.sender) {
         if (_withdrawalExists(msg.sender)) revert WithdrawalAlreadyRequested();
 
         PayerStorage storage $ = _getPayerStorage();
@@ -257,8 +263,8 @@ contract Payer is
         uint256 withdrawableTimestamp = block.timestamp + $.withdrawalLockPeriod;
 
         $.withdrawals[msg.sender] = Withdrawal({
-            requestTimestamp: block.timestamp,
-            withdrawableTimestamp: withdrawableTimestamp,
+            requestTimestamp: uint64(block.timestamp),
+            withdrawableTimestamp: uint64(withdrawableTimestamp),
             amount: amount
         });
 
@@ -322,7 +328,7 @@ contract Payer is
     /**
      * @inheritdoc IPayer
      */
-    function settleUsage(uint256 originatorNode, address[] calldata payerList, uint256[] calldata usageAmountsList)
+    function settleUsage(uint256 originatorNode, address[] calldata payerList, uint64[] calldata usageAmountsList)
         external
         whenNotPaused
         nonReentrant
@@ -332,12 +338,12 @@ contract Payer is
 
         PayerStorage storage $ = _getPayerStorage();
 
-        uint256 _settledFees = 0;
-        uint256 _pendingFees = $.pendingFees;
+        uint64 _settledFees = 0;
+        uint64 _pendingFees = $.pendingFees;
 
         for (uint256 i = 0; i < payerList.length; i++) {
             address payer = payerList[i];
-            uint256 usage = usageAmountsList[i];
+            uint64 usage = usageAmountsList[i];
 
             // This should never happen, as PayerReport has already verified the payers and amounts.
             // Payers in payerList should always exist and be active.
@@ -346,7 +352,7 @@ contract Payer is
             Payer memory _storedPayer = $.payers[payer];
 
             if (_storedPayer.balance < usage) {
-                uint256 _debt = usage - _storedPayer.balance;
+                uint64 _debt = usage - _storedPayer.balance;
 
                 _settledFees += _storedPayer.balance;
                 _pendingFees += _storedPayer.balance;
@@ -392,13 +398,13 @@ contract Payer is
         // slither-disable-next-line timestamp
         require(block.timestamp - $.lastFeeTransferTimestamp >= $.transferFeesPeriod, InsufficientTimePassed());
 
-        uint256 _pendingFeesAmount = $.pendingFees;
+        uint64 _pendingFeesAmount = $.pendingFees;
 
         require(_pendingFeesAmount > 0, InsufficientAmount());
 
         $.usdcToken.safeTransfer($.distributionContract, _pendingFeesAmount);
 
-        $.lastFeeTransferTimestamp = block.timestamp;
+        $.lastFeeTransferTimestamp = uint64(block.timestamp);
         $.collectedFees += _pendingFeesAmount;
         $.pendingFees = 0;
 
@@ -694,7 +700,7 @@ contract Payer is
     * @param to The payer account receiving the deposit
     * @param amount The amount to deposit
     */
-    function _validateAndProcessDeposit(address from, address to, uint256 amount) internal {
+    function _validateAndProcessDeposit(address from, address to, uint64 amount) internal {
         PayerStorage storage $ = _getPayerStorage();
 
         require(amount >= $.minimumDepositAmountMicroDollars, InsufficientAmount());
@@ -713,19 +719,14 @@ contract Payer is
      * @param  amount The amount to add to the payer's balance.
      * @return leftoverAmount Amount remaining after debt settlement (if any).
      */
-    function _updatePayerBalance(address payerAddress, uint256 amount) internal returns (uint256 leftoverAmount) {
-        PayerStorage storage $ = _getPayerStorage();
-
-        Payer memory _payer = $.payers[payerAddress];
+    function _updatePayerBalance(address payerAddress, uint64 amount) internal returns (uint256 leftoverAmount) {
+        Payer storage _payer = _getPayerStorage().payers[payerAddress];
 
         if (_payer.debtAmount > 0) {
             return _settleDebts(payerAddress, amount);
         } else {
             _payer.balance += amount;
             _increaseTotalAmountDeposited(amount);
-
-            $.payers[payerAddress] = _payer;
-
             return amount;
         }
     }
@@ -736,13 +737,13 @@ contract Payer is
      * @param  amount The amount to settle debts for.
      * @return amountAfterSettlement The amount remaining after debt settlement.
      */
-    function _settleDebts(address payer, uint256 amount) internal returns (uint256 amountAfterSettlement) {
+    function _settleDebts(address payer, uint64 amount) internal returns (uint256 amountAfterSettlement) {
         PayerStorage storage $ = _getPayerStorage();
 
         Payer memory _storedPayer = $.payers[payer];
 
         if (_storedPayer.debtAmount < amount) {
-            uint256 _debtToRemove = _storedPayer.debtAmount;
+            uint64 _debtToRemove = _storedPayer.debtAmount;
             amount -= _debtToRemove;
 
             _storedPayer.debtAmount = 0;
@@ -942,15 +943,15 @@ contract Payer is
      * @notice Increases the total amount deposited by a given amount.
      * @param  amount The amount to increase the total amount deposited by.
      */
-    function _increaseTotalAmountDeposited(uint256 amount) internal {
-        _getPayerStorage().totalAmountDeposited += amount;
+    function _increaseTotalAmountDeposited(uint64 amount) internal {
+        if (amount > 0) _getPayerStorage().totalAmountDeposited += amount;
     }
 
     /**
      * @notice Decreases the total amount deposited by a given amount.
      * @param  amount The amount to decrease the total amount deposited by.
      */
-    function _decreaseTotalAmountDeposited(uint256 amount) internal {
+    function _decreaseTotalAmountDeposited(uint64 amount) internal {
         PayerStorage storage $ = _getPayerStorage();
 
         $.totalAmountDeposited = amount > $.totalAmountDeposited ? 0 : $.totalAmountDeposited - amount;
@@ -960,7 +961,7 @@ contract Payer is
      * @notice Increases the total debt amount by a given amount.
      * @param  amount The amount to increase the total debt amount by.
      */
-    function _increaseTotalDebtAmount(uint256 amount) internal {
+    function _increaseTotalDebtAmount(uint64 amount) internal {
         _getPayerStorage().totalDebtAmount += amount;
     }
 
@@ -968,7 +969,7 @@ contract Payer is
      * @notice Decreases the total debt amount by a given amount.
      * @param  amount The amount to decrease the total debt amount by.
      */
-    function _decreaseTotalDebtAmount(uint256 amount) internal {
+    function _decreaseTotalDebtAmount(uint64 amount) internal {
         PayerStorage storage $ = _getPayerStorage();
 
         $.totalDebtAmount = amount > $.totalDebtAmount ? 0 : $.totalDebtAmount - amount;

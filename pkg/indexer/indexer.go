@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"math/big"
 	"sync"
 	"time"
@@ -103,6 +104,7 @@ func (i *Indexer) StartIndexer(
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
 				streamer.reorgHandler,
+				cfg.MessagesContractAddress,
 			)
 		})
 
@@ -132,6 +134,7 @@ func (i *Indexer) StartIndexer(
 				),
 				streamer.identityUpdatesBlockTracker,
 				streamer.reorgHandler,
+				cfg.IdentityUpdatesContractAddress,
 			)
 		})
 
@@ -227,6 +230,7 @@ func indexLogs(
 	logStorer storer.LogStorer,
 	blockTracker IBlockTracker,
 	reorgHandler ChainReorgHandler,
+	contractAddress string,
 ) {
 	// L3 Orbit works with Arbitrum Elastic Block Time, which under maximum load produces a block every 0.25s.
 	// With a maximum throughput of 7M gas per second and a median transaction size of roughly 200k gas,
@@ -234,7 +238,6 @@ func indexLogs(
 	const reorgCheckInterval = 60
 
 	var (
-		errStorage        storer.LogStorageError
 		storedBlockNumber uint64
 		storedBlockHash   []byte
 		lastBlockSeen     uint64
@@ -337,24 +340,35 @@ func indexLogs(
 			}
 		}
 
-		for {
-			errStorage = logStorer.StoreLog(ctx, event)
-			if errStorage != nil {
-				logger.Error("error storing log", zap.Error(errStorage))
-				if errStorage.ShouldRetry() {
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
-			} else {
-				logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
-				if trackerErr := blockTracker.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
-					logger.Error("error updating block tracker", zap.Error(trackerErr))
-				}
-			}
-			break
+		err := retry(logger, 100*time.Millisecond, contractAddress, func() storer.LogStorageError {
+			return logStorer.StoreLog(ctx, event)
+		})
+
+		if err != nil {
+			continue
+		}
+
+		logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
+		if trackerErr := blockTracker.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
+			logger.Error("error updating block tracker", zap.Error(trackerErr))
 		}
 	}
 	logger.Debug("finished")
+}
+
+func retry(logger *zap.Logger, sleep time.Duration, address string, fn func() storer.LogStorageError) error {
+	for {
+		if err := fn(); err != nil {
+			logger.Error("error storing log", zap.Error(err))
+			if err.ShouldRetry() {
+				metrics.EmitIndexerRetryableStorageError(address)
+				time.Sleep(sleep)
+				continue
+			}
+			return err
+		}
+		return nil
+	}
 }
 
 func buildMessagesTopic() (common.Hash, error) {

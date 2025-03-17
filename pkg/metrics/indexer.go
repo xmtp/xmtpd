@@ -39,6 +39,14 @@ var indexerCurrentBlockLag = prometheus.NewGaugeVec(
 	[]string{"contract_address"},
 )
 
+var indexerCountRetryableStorageErrors = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtpd_indexer_retryable_storage_error_count",
+		Help: "Number of retryable storage errors",
+	},
+	[]string{"contract_address"},
+)
+
 var indexerGetLogsDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Name:    "xmtpd_indexer_log_streamer_get_logs_duration",
@@ -79,6 +87,10 @@ func EmitIndexerGetLogsDuration(contractAddress string, duration time.Duration) 
 func EmitIndexerCurrentBlockLag(contractAddress string, lag uint64) {
 	indexerCurrentBlockLag.With(prometheus.Labels{"contract_address": contractAddress}).
 		Set(float64(lag))
+}
+
+func EmitIndexerRetryableStorageError(contractAddress string) {
+	indexerCountRetryableStorageErrors.With(prometheus.Labels{"contract_address": contractAddress}).Inc()
 }
 
 func MeasureGetLogs[Return any](contractAddress string, fn func() (Return, error)) (Return, error) {

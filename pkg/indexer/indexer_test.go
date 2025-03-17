@@ -62,6 +62,7 @@ func TestIndexLogsSuccess(t *testing.T) {
 		logStorer,
 		blockTracker,
 		reorgHandler,
+		"testContract",
 	)
 
 	time.Sleep(100 * time.Millisecond)
@@ -118,6 +119,7 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		logStorer,
 		blockTracker,
 		reorgHandler,
+		"testContract",
 	)
 
 	time.Sleep(200 * time.Millisecond)

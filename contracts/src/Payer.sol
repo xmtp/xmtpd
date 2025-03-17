@@ -159,7 +159,7 @@ contract Payer is
 
         if (_payerExists(msg.sender)) revert PayerAlreadyRegistered();
 
-        _deposit(msg.sender, amount);
+        $.usdcToken.safeTransferFrom(msg.sender, address(this), amount);
 
         // New payer registration
         $.payers[msg.sender] = Payer({
@@ -699,22 +699,12 @@ contract Payer is
 
         require(amount >= $.minimumDepositAmountMicroDollars, InsufficientAmount());
         require($.withdrawals[to].requestTimestamp == 0, PayerInWithdrawal());
-        
-        _deposit(from, amount);
+
+        $.usdcToken.safeTransferFrom(from, address(this), amount);
+
         _updatePayerBalance(to, amount);
 
         emit PayerBalanceUpdated(to, $.payers[to].balance, $.payers[to].debtAmount);
-    }
-
-    /**
-     * @notice Deposits USDC from a payer to the contract.
-     * @param  payer The address of the payer.
-     * @param  amount The amount to deposit.
-     */
-    function _deposit(address payer, uint256 amount) internal {
-        PayerStorage storage $ = _getPayerStorage();
-
-        $.usdcToken.safeTransferFrom(payer, address(this), amount);
     }
 
     /**

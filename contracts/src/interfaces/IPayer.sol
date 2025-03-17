@@ -243,7 +243,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *         The caller must approve this contract to spend USDC beforehand.
      * @param  amount The amount of USDC to deposit.
      *
-     * Emits `Deposit`.
+     * Emits `PayerBalanceUpdated`.
      */
     function deposit(uint64 amount) external;
 
@@ -253,6 +253,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param  payer  The address of the payer receiving the donation.
      * @param  amount The amount of USDC to donate.
      *
+     * Emits `PayerBalanceUpdated`.
      * Emits `Donation`.
      */
     function donate(address payer, uint64 amount) external;
@@ -286,6 +287,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param  amount The amount to withdraw (can be less than or equal to current balance).
      *
      * Emits `WithdrawalRequest`.
+     * Emits `PayerBalanceUpdated`.
      */
     function requestWithdrawal(uint64 amount) external;
 
@@ -294,6 +296,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @dev    Only callable by the payer who initiated the withdrawal.
      *
      * Emits `WithdrawalCancelled`.
+     * Emits `PayerBalanceUpdated`.
      */
     function cancelWithdrawal() external;
 
@@ -303,6 +306,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      *         - Returns the unspent balance to the payer.
      *
      * Emits `WithdrawalFinalized`.
+     * Emits `PayerBalanceUpdated`.
      */
     function finalizeWithdrawal() external;
 
@@ -323,6 +327,9 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @param  originatorNode The originator node of the usage.
      * @param  payers         A contiguous array of payer addresses.
      * @param  amounts        A contiguous array of usage amounts corresponding to each payer.
+     *
+     * Emits `UsageSettled`.
+     * Emits `PayerBalanceUpdated` for each payer.
      */
     function settleUsage(
         uint256 originatorNode,

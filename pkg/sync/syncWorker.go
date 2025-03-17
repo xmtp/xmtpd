@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"io"
 	"sync"
 	"time"
@@ -166,6 +167,8 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 func (s *syncWorker) subscribeToNodeRegistration(
 	registration NodeRegistration,
 ) {
+	connectionsStatusCounter := metrics.NewSyncConnectionsStatusCounter(registration.nodeid)
+	defer connectionsStatusCounter.Close()
 
 	node, err := s.nodeRegistry.GetNode(registration.nodeid)
 	if err != nil {
@@ -175,11 +178,13 @@ func (s *syncWorker) subscribeToNodeRegistration(
 			zap.Uint32("nodeid", registration.nodeid),
 			zap.Error(err),
 		)
+		connectionsStatusCounter.MarkFailure()
 		s.handleUnhealthyNode(registration)
 		return
 	}
 
 	if !node.IsValidConfig {
+		connectionsStatusCounter.MarkFailure()
 		s.handleUnhealthyNode(registration)
 		return
 	}
@@ -204,6 +209,8 @@ func (s *syncWorker) subscribeToNodeRegistration(
 					zap.String("address", node.HttpAddress),
 					zap.Error(err),
 				)
+				connectionsStatusCounter.MarkFailure()
+
 				time.Sleep(backoff)
 				backoff = min(backoff*2, 30*time.Second)
 			} else {
@@ -222,6 +229,9 @@ func (s *syncWorker) subscribeToNodeRegistration(
 				_ = conn.Close()
 				continue
 			}
+
+			connectionsStatusCounter.MarkSuccess()
+
 			err = s.listenToStream(registration.ctx, *node, stream)
 			_ = stream.stream.CloseSend()
 			_ = conn.Close()
@@ -380,7 +390,8 @@ func (s *syncWorker) listenToStream(
 				zap.Any("numEnvelopes", len(envs.Envelopes)),
 			)
 			for _, env := range envs.Envelopes {
-				s.validateAndInsertEnvelope(originatorStream, env)
+				// ignore errors and proceed with the next message
+				_ = s.validateAndInsertEnvelope(originatorStream, env)
 			}
 
 		case err := <-errChan:
@@ -402,18 +413,31 @@ func (s *syncWorker) listenToStream(
 func (s *syncWorker) validateAndInsertEnvelope(
 	stream *originatorStream,
 	envProto *envelopes.OriginatorEnvelope,
-) {
+) error {
+	var err error
+	defer func() {
+		if err != nil {
+			metrics.EmitSyncOriginatorErrorMessages(stream.nodeID, 1)
+		}
+	}()
+
 	env, err := envUtils.NewOriginatorEnvelope(envProto)
 	if err != nil {
 		s.log.Error("Failed to unmarshal originator envelope", zap.Error(err))
-		return
+		return err
 	}
 
 	// TODO:(nm) Handle fetching envelopes from other nodes
 	if env.OriginatorNodeID() != stream.nodeID {
-		s.log.Error("Received envelope from wrong node", zap.Any("nodeID", env.OriginatorNodeID()))
-		return
+		s.log.Error("Received envelope from wrong node",
+			zap.Any("nodeID", env.OriginatorNodeID()),
+			zap.Any("expectedNodeId", stream.nodeID),
+		)
+		return err
 	}
+
+	metrics.EmitSyncLastSeenOriginatorSequenceId(env.OriginatorNodeID(), env.OriginatorSequenceID())
+	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
 	var lastSequenceID uint64 = 0
 	var lastNs int64 = 0
@@ -434,13 +458,11 @@ func (s *syncWorker) validateAndInsertEnvelope(
 	ourFeeCalculation, err := s.calculateFees(env)
 	if err != nil {
 		s.log.Error("Failed to calculate fees", zap.Error(err))
-		return
+		return err
 	}
-	originatorsFeeCalculation := currency.PicoDollar(
-		env.UnsignedOriginatorEnvelope.BaseFee(),
-	) + currency.PicoDollar(
-		env.UnsignedOriginatorEnvelope.CongestionFee(),
-	)
+	originatorsFeeCalculation :=
+		env.UnsignedOriginatorEnvelope.BaseFee() +
+			env.UnsignedOriginatorEnvelope.CongestionFee()
 	if ourFeeCalculation != originatorsFeeCalculation {
 		s.log.Error(
 			"Fee calculation mismatch",
@@ -451,24 +473,24 @@ func (s *syncWorker) validateAndInsertEnvelope(
 
 	// TODO Validation logic - share code with API service and publish worker
 	// Signatures, topic type, etc
-	s.insertEnvelope(env, ourFeeCalculation)
+	return s.insertEnvelope(env, ourFeeCalculation)
 }
 
 func (s *syncWorker) insertEnvelope(
 	env *envUtils.OriginatorEnvelope,
 	spendPicodollars currency.PicoDollar,
-) {
+) error {
 	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
 	originatorBytes, err := env.Bytes()
 	if err != nil {
 		s.log.Error("Failed to marshal originator envelope", zap.Error(err))
-		return
+		return err
 	}
 
 	payerId, err := s.getPayerID(env)
 	if err != nil {
 		s.log.Error("Failed to get payer ID", zap.Error(err))
-		return
+		return err
 	}
 
 	originatorID := int32(env.OriginatorNodeID())
@@ -493,12 +515,14 @@ func (s *syncWorker) insertEnvelope(
 	)
 	if err != nil {
 		s.log.Error("Failed to insert gateway envelope", zap.Error(err))
-		return
+		return err
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		s.log.Warn("Envelope already inserted")
-		return
+		s.log.Info("Envelope already inserted")
+		return nil
 	}
+
+	return nil
 }
 
 func (s *syncWorker) calculateFees(env *envUtils.OriginatorEnvelope) (currency.PicoDollar, error) {
@@ -514,8 +538,12 @@ func (s *syncWorker) calculateFees(env *envUtils.OriginatorEnvelope) (currency.P
 		return 0, err
 	}
 
-	// TODO:(nm) Calculate real rate of congestion
-	congestionFee, err := s.feeCalculator.CalculateCongestionFee(messageTime, 0)
+	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
+		s.ctx,
+		queries.New(s.store),
+		messageTime,
+		env.OriginatorNodeID(),
+	)
 	if err != nil {
 		return 0, err
 	}

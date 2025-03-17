@@ -13,7 +13,7 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
     /* ============ Events ============ */
 
     // Event emitted when new Rates are added
-    event RatesAdded(uint64 messageFee, uint64 storageFee, uint64 congestionFee, uint64 startTime);
+    event RatesAdded(uint64 messageFee, uint64 storageFee, uint64 congestionFee, uint64 targetRatePerMinute, uint64 startTime);
 
     /**
      * @notice Emitted when an upgrade is authorized.
@@ -36,6 +36,7 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
         uint64 messageFee;
         uint64 storageFee;
         uint64 congestionFee;
+        uint64 targetRatePerMinute;
         uint64 startTime;
     }
 
@@ -108,7 +109,7 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
      * @dev Add new Rates. Can only be called by addresses with RATES_ADMIN_ROLE.
      *      The array only grows; we do not allow removal or updating.
      */
-    function addRates(uint64 messageFee, uint64 storageFee, uint64 congestionFee, uint64 startTime)
+    function addRates(uint64 messageFee, uint64 storageFee, uint64 congestionFee, uint64 targetRatePerMinute, uint64 startTime)
         external
         onlyRole(RATES_MANAGER_ROLE)
     {
@@ -119,9 +120,17 @@ contract RatesManager is Initializable, AccessControlUpgradeable, UUPSUpgradeabl
             revert InvalidStartTime();
         }
 
-        $.allRates.push(Rates(messageFee, storageFee, congestionFee, startTime));
+        $.allRates.push(
+            Rates({
+                messageFee: messageFee,
+                storageFee: storageFee,
+                congestionFee: congestionFee,
+                startTime: startTime,
+                targetRatePerMinute: targetRatePerMinute
+            })
+        );
 
-        emit RatesAdded(messageFee, storageFee, congestionFee, startTime);
+        emit RatesAdded(messageFee, storageFee, congestionFee, targetRatePerMinute, startTime);
     }
 
     /**

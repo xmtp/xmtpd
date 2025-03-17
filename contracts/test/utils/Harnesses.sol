@@ -140,9 +140,9 @@ contract RatesManagerHarness is RatesManager {
         _unpause();
     }
 
-    function __pushRates(uint256 messageFee, uint256 storageFee, uint256 congestionFee, uint256 startTime) external {
+    function __pushRates(uint256 messageFee, uint256 storageFee, uint256 congestionFee, uint256 targetRatePerMinute, uint256 startTime) external {
         _getRatesManagerStorage().allRates.push(
-            Rates(uint64(messageFee), uint64(storageFee), uint64(congestionFee), uint64(startTime))
+            Rates(uint64(messageFee), uint64(storageFee), uint64(congestionFee), uint64(targetRatePerMinute), uint64(startTime))
         );
     }
 

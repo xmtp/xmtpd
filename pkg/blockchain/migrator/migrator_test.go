@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -18,8 +19,9 @@ func setupRegistry(
 ) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	contractsOptions := testutils.GetContractsOptions(t)
-	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t)
+	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(rpcUrl)
+	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t, rpcUrl)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -46,6 +48,7 @@ func setupRegistry(
 	require.NoError(t, err)
 
 	return registryAdmin, registryCaller, func() {
+		defer cleanup()
 		cancel()
 		client.Close()
 	}

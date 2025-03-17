@@ -1,0 +1,52 @@
+ name: Upgrade Tests
+ on:
+   push:
+     branches:
+       - main
+       - rel/**
+   pull_request:
+     paths:
+       - ".github/workflows/upgrade-test.yml"
+       - "pkg/**"
+       - "cmd/**"
+       - "dev/**"
+       - "go.mod"
+       - "go.sum"
+       - "tools.go"
+ jobs:
+   noop:
+     runs-on: ubuntu-latest
+     steps:
+       - run: echo "Upgrade tests are disabled"
+#   test:
+#     name: Upgrade Tests
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           submodules: recursive
+#           fetch-tags: true
+#           fetch-depth: 0
+
+#       - uses: actions/setup-go@v5
+#         with:
+#           go-version-file: go.mod
+#           cache-dependency-path: "**/*.sum"
+
+#       - run: dev/docker/up
+
+#       - name: Install Foundry
+#         uses: foundry-rs/foundry-toolchain@v1
+#         with:
+#           version: v1.0.0
+
+#       - run: contracts/dev/deploy local
+
+#       - run: dev/register-local-node
+
+#       - name: Run Upgrade Tests
+#         run: |
+#           export GOPATH="${HOME}/go/"
+#           export PATH="${PATH}:${GOPATH}/bin"
+#           export ENABLE_UPGRADE_TESTS=1
+#           go test github.com/xmtp/xmtpd/pkg/upgrade -v

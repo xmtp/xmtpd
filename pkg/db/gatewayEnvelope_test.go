@@ -66,9 +66,9 @@ func TestInsertAndIncrement(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, payerSpend, int64(100))
 
-	originatorCongestion, err := querier.GetOriginatorCongestion(
+	originatorCongestion, err := querier.SumOriginatorCongestion(
 		ctx,
-		queries.GetOriginatorCongestionParams{OriginatorID: originatorID},
+		queries.SumOriginatorCongestionParams{OriginatorID: originatorID},
 	)
 	require.NoError(t, err)
 	require.Equal(t, originatorCongestion, int64(1))
@@ -140,9 +140,9 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, payerSpend, int64(100))
 
-	originatorCongestion, err := querier.GetOriginatorCongestion(
+	originatorCongestion, err := querier.SumOriginatorCongestion(
 		ctx,
-		queries.GetOriginatorCongestionParams{OriginatorID: originatorID},
+		queries.SumOriginatorCongestionParams{OriginatorID: originatorID},
 	)
 	require.NoError(t, err)
 	require.Equal(t, originatorCongestion, int64(1))

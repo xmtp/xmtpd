@@ -22,13 +22,14 @@ func setup() {
 	}
 	fmt.Printf("    ✔ Dev image built in %v\n", time.Since(imageStart))
 
-	// Measure time for pulling old images
-	fmt.Println("    ⧖ Pulling old images...")
 	pullStart := time.Now()
-	for _, image := range upgradeToLatest {
-		err := dockerPull(image)
+	for _, version := range xmtpdVersions {
+		image := fmt.Sprintf("%s:%s", ghcrRepository, version)
+
+		fmt.Printf("    ⧖ Pulling image %s.\n", image)
+		err = pullImage(image)
 		if err != nil {
-			fmt.Printf("    ❌ Error pulling image %s: %v\n", image, err)
+			fmt.Printf("    Error pulling image: %v\n", err)
 			os.Exit(1)
 		}
 	}

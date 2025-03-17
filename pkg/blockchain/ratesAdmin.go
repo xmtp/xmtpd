@@ -64,6 +64,7 @@ func (r *RatesAdmin) AddRates(
 		rates.MessageFee,
 		rates.StorageFee,
 		rates.CongestionFee,
+		rates.TargetRatePerMinute,
 		rates.StartTime,
 	)
 
@@ -81,4 +82,8 @@ func (r *RatesAdmin) AddRates(
 	)
 
 	return err
+}
+
+func (r *RatesAdmin) Contract() *ratesmanager.RatesManager {
+	return r.contract
 }

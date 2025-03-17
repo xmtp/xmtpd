@@ -289,32 +289,6 @@ func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
 	return nonce, err
 }
 
-const getOriginatorCongestion = `-- name: GetOriginatorCongestion :one
-SELECT
-	COALESCE(SUM(num_messages), 0)::BIGINT AS num_messages
-FROM
-	originator_congestion
-WHERE
-	originator_id = $1
-	AND ($2::BIGINT = 0
-		OR minutes_since_epoch > $2::BIGINT)
-	AND ($3::BIGINT = 0
-		OR minutes_since_epoch < $3::BIGINT)
-`
-
-type GetOriginatorCongestionParams struct {
-	OriginatorID        int32
-	MinutesSinceEpochGt int64
-	MinutesSinceEpochLt int64
-}
-
-func (q *Queries) GetOriginatorCongestion(ctx context.Context, arg GetOriginatorCongestionParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
-	var num_messages int64
-	err := row.Scan(&num_messages)
-	return num_messages, err
-}
-
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
 SELECT
 	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars
@@ -339,6 +313,53 @@ func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsett
 	var total_spend_picodollars int64
 	err := row.Scan(&total_spend_picodollars)
 	return total_spend_picodollars, err
+}
+
+const getRecentOriginatorCongestion = `-- name: GetRecentOriginatorCongestion :many
+SELECT 
+	minutes_since_epoch,
+	num_messages
+FROM
+	originator_congestion
+WHERE
+	originator_id = $1
+	AND minutes_since_epoch <= $2::INT
+	AND minutes_since_epoch > $2::INT - $3::INT
+ORDER BY minutes_since_epoch DESC
+`
+
+type GetRecentOriginatorCongestionParams struct {
+	OriginatorID int32
+	EndMinute    int32
+	NumMinutes   int32
+}
+
+type GetRecentOriginatorCongestionRow struct {
+	MinutesSinceEpoch int32
+	NumMessages       int32
+}
+
+func (q *Queries) GetRecentOriginatorCongestion(ctx context.Context, arg GetRecentOriginatorCongestionParams) ([]GetRecentOriginatorCongestionRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRecentOriginatorCongestion, arg.OriginatorID, arg.EndMinute, arg.NumMinutes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRecentOriginatorCongestionRow
+	for rows.Next() {
+		var i GetRecentOriginatorCongestionRow
+		if err := rows.Scan(&i.MinutesSinceEpoch, &i.NumMessages); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const incrementOriginatorCongestion = `-- name: IncrementOriginatorCongestion :exec
@@ -707,6 +728,32 @@ type SetLatestBlockParams struct {
 func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) error {
 	_, err := q.db.ExecContext(ctx, setLatestBlock, arg.ContractAddress, arg.BlockNumber, arg.BlockHash)
 	return err
+}
+
+const sumOriginatorCongestion = `-- name: SumOriginatorCongestion :one
+SELECT
+	COALESCE(SUM(num_messages), 0)::BIGINT AS num_messages
+FROM
+	originator_congestion
+WHERE
+	originator_id = $1
+	AND ($2::BIGINT = 0
+		OR minutes_since_epoch > $2::BIGINT)
+	AND ($3::BIGINT = 0
+		OR minutes_since_epoch < $3::BIGINT)
+`
+
+type SumOriginatorCongestionParams struct {
+	OriginatorID        int32
+	MinutesSinceEpochGt int64
+	MinutesSinceEpochLt int64
+}
+
+func (q *Queries) SumOriginatorCongestion(ctx context.Context, arg SumOriginatorCongestionParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, sumOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
+	var num_messages int64
+	err := row.Scan(&num_messages)
+	return num_messages, err
 }
 
 const updateBlocksCanonicalityInRange = `-- name: UpdateBlocksCanonicalityInRange :exec

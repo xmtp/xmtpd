@@ -193,6 +193,19 @@ func (s *syncWorker) subscribeToNodeRegistration(
 	expBackoff.InitialInterval = 1 * time.Second
 
 	operation := func() (string, error) {
+		// Ensure cleanup of resources, defer works here since we are using a named function
+		var conn *grpc.ClientConn
+		var stream *originatorStream
+		defer func() {
+			if stream != nil {
+				_ = stream.stream.CloseSend()
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}()
+
+		var err error
 		defer func() {
 			if err != nil {
 				s.log.Error(
@@ -208,28 +221,24 @@ func (s *syncWorker) subscribeToNodeRegistration(
 			return "", backoff.Permanent(registration.ctx.Err())
 		}
 
-		var conn *grpc.ClientConn
 		conn, err = s.connectToNode(*node)
 		if err != nil {
 			return "", err
 		}
 
-		var stream *originatorStream
 		stream, err = s.setupStream(registration.ctx, *node, conn)
 		if err != nil {
-			_ = conn.Close()
 			return "", err
 		}
 
 		connectionsStatusCounter.MarkSuccess()
 
-		err = s.listenToStream(registration.ctx, *node, stream)
-		_ = stream.stream.CloseSend()
-		_ = conn.Close()
-		return "", err
+		_ = s.listenToStream(registration.ctx, *node, stream)
+		return "", nil // try again from the start and reset backoff
 	}
 
 	for {
+		// re-establish the connection unless we are shutting down
 		_, err = backoff.Retry(registration.ctx, operation, backoff.WithBackOff(expBackoff))
 		if err != nil {
 			return

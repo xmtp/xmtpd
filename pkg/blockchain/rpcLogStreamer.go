@@ -202,9 +202,11 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	highestBlockCanProcess := highestBlock - LAG_FROM_HIGHEST_BLOCK
 	if fromBlock > highestBlockCanProcess {
-		r.logger.Debug("Chain is up to date. Skipping update")
+		metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
 		return []types.Log{}, nil, nil
 	}
+
+	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlock)
 
 	toBlock := min(fromBlock+BACKFILL_BLOCKS, highestBlockCanProcess)
 
@@ -222,7 +224,6 @@ func (r *RpcLogStreamer) GetNextPage(
 	}
 
 	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
-	metrics.EmitIndexerCurrentBlockLag(contractAddress, toBlock-fromBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
 
 	nextBlockNumber := toBlock + 1

@@ -4,11 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"io"
-	"sync"
-	"time"
-
+	"github.com/cenkalti/backoff/v5"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -16,6 +12,7 @@ import (
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -24,6 +21,9 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"io"
+	"sync"
+	"time"
 )
 
 type syncWorker struct {
@@ -189,20 +189,11 @@ func (s *syncWorker) subscribeToNodeRegistration(
 		return
 	}
 
-	err = nil
+	expBackoff := backoff.NewExponentialBackOff()
+	expBackoff.InitialInterval = 1 * time.Second
 
-	// TODO(mkysel) we should eventually implement a better backoff strategy
-	var backoff = time.Second
-	for {
-		select {
-		case <-registration.ctx.Done():
-			// either registry has changed or we are shutting down
-			s.log.Debug(
-				"Context is done. Closing stream and connection",
-				zap.String("address", node.HttpAddress),
-			)
-			return
-		default:
+	operation := func() (string, error) {
+		defer func() {
 			if err != nil {
 				s.log.Error(
 					"Error connecting to node. Retrying...",
@@ -210,33 +201,41 @@ func (s *syncWorker) subscribeToNodeRegistration(
 					zap.Error(err),
 				)
 				connectionsStatusCounter.MarkFailure()
-
-				time.Sleep(backoff)
-				backoff = min(backoff*2, 30*time.Second)
-			} else {
-				backoff = time.Second
 			}
+		}()
 
-			var conn *grpc.ClientConn
-			conn, err = s.connectToNode(*node)
-			if err != nil {
-				continue
-			}
+		if registration.ctx.Err() != nil {
+			return "", backoff.Permanent(registration.ctx.Err())
+		}
 
-			var stream *originatorStream
-			stream, err = s.setupStream(registration.ctx, *node, conn)
-			if err != nil {
-				_ = conn.Close()
-				continue
-			}
+		var conn *grpc.ClientConn
+		conn, err = s.connectToNode(*node)
+		if err != nil {
+			return "", err
+		}
 
-			connectionsStatusCounter.MarkSuccess()
-
-			err = s.listenToStream(registration.ctx, *node, stream)
-			_ = stream.stream.CloseSend()
+		var stream *originatorStream
+		stream, err = s.setupStream(registration.ctx, *node, conn)
+		if err != nil {
 			_ = conn.Close()
+			return "", err
+		}
+
+		connectionsStatusCounter.MarkSuccess()
+
+		err = s.listenToStream(registration.ctx, *node, stream)
+		_ = stream.stream.CloseSend()
+		_ = conn.Close()
+		return "", err
+	}
+
+	for {
+		_, err = backoff.Retry(registration.ctx, operation, backoff.WithBackOff(expBackoff))
+		if err != nil {
+			return
 		}
 	}
+
 }
 
 func (s *syncWorker) handleUnhealthyNode(registration NodeRegistration) {

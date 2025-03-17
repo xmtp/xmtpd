@@ -27,13 +27,13 @@ func buildStreamer(
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	channel := make(chan types.Log)
-	cfg := contractConfig{
-		fromBlock:       fromBlock,
-		contractAddress: address,
-		topics:          []common.Hash{topic},
-		eventChannel:    channel,
+	cfg := ContractConfig{
+		FromBlock:       fromBlock,
+		ContractAddress: address,
+		Topics:          []common.Hash{topic},
+		EventChannel:    channel,
 	}
-	return NewRpcLogStreamer(context.Background(), client, log, []contractConfig{cfg}), channel
+	return NewRpcLogStreamer(context.Background(), client, log, []ContractConfig{cfg}), channel
 }
 
 func TestBuilder(t *testing.T) {
@@ -75,14 +75,14 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	streamer, _ := buildStreamer(t, mockClient, fromBlock, address, topic)
 
-	cfg := contractConfig{
-		fromBlock:       fromBlock,
-		contractAddress: address,
-		topics:          []common.Hash{topic},
-		eventChannel:    make(chan types.Log),
+	cfg := ContractConfig{
+		FromBlock:       fromBlock,
+		ContractAddress: address,
+		Topics:          []common.Hash{topic},
+		EventChannel:    make(chan types.Log),
 	}
 
-	logs, nextPage, err := streamer.getNextPage(cfg, fromBlock)
+	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)
 	require.NoError(t, err)
 	expectedNextPage := uint64(11)
 	require.Equal(t, &expectedNextPage, nextPage)

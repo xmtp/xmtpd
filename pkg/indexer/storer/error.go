@@ -5,22 +5,34 @@ type LogStorageError interface {
 	ShouldRetry() bool
 }
 
-type logStorageError struct {
-	err         error
-	shouldRetry bool
+type UnrecoverableLogStorageError struct {
+	err error
 }
 
-func NewLogStorageError(err error, shouldRetry bool) logStorageError {
-	return logStorageError{
-		err:         err,
-		shouldRetry: shouldRetry,
-	}
-}
-
-func (e logStorageError) Error() string {
+func (e UnrecoverableLogStorageError) Error() string {
 	return e.err.Error()
 }
 
-func (e logStorageError) ShouldRetry() bool {
-	return e.shouldRetry
+func (e UnrecoverableLogStorageError) ShouldRetry() bool {
+	return false
+}
+
+func NewUnrecoverableLogStorageError(err error) UnrecoverableLogStorageError {
+	return UnrecoverableLogStorageError{err: err}
+}
+
+type RetryableLogStorageError struct {
+	err error
+}
+
+func (e RetryableLogStorageError) Error() string {
+	return e.err.Error()
+}
+
+func (e RetryableLogStorageError) ShouldRetry() bool {
+	return true
+}
+
+func NewRetryableLogStorageError(err error) RetryableLogStorageError {
+	return RetryableLogStorageError{err: err}
 }

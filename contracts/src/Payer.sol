@@ -37,6 +37,7 @@ contract Payer is
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     string internal constant USDC_SYMBOL = "USDC";
+    uint8 private constant PAYER_OPERATOR_ID = 1;
     uint64 private constant DEFAULT_MINIMUM_REGISTRATION_AMOUNT_MICRO_DOLLARS = 10_000_000; // 10 USD
     uint64 private constant DEFAULT_MINIMUM_DEPOSIT_AMOUNT_MICRO_DOLLARS = 10_000_000;      // 10 USD
     uint64 private constant DEFAULT_MAX_TOLERABLE_DEBT_AMOUNT_MICRO_DOLLARS = 50_000_000;   // 50 USD
@@ -73,6 +74,7 @@ contract Payer is
         EnumerableSet.AddressSet activePayers;
         EnumerableSet.AddressSet debtPayers;
     }
+    // TODO: pack struct
 
     // keccak256(abi.encode(uint256(keccak256("xmtp.storage.Payer")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 internal constant PAYER_STORAGE_LOCATION =
@@ -90,10 +92,8 @@ contract Payer is
     /**
      * @dev Modifier to check if caller is an active node operator.
      */
-    modifier onlyNodeOperator() {
-        if (!_getIsActiveNodeOperator(msg.sender)) {
-            revert UnauthorizedNodeOperator();
-        }
+    modifier onlyNodeOperator(uint256 nodeId) {
+        require(_getIsActiveNodeOperator(nodeId), UnauthorizedNodeOperator());
         _;
     }
 
@@ -101,9 +101,7 @@ contract Payer is
      * @dev Modifier to check if caller is the payer report contract.
      */
     modifier onlyPayerReport() {
-        if (msg.sender != _getPayerStorage().payerReportContract) {
-            revert Unauthorized();
-        }
+        require(msg.sender == _getPayerStorage().payerReportContract, Unauthorized());
         _;
     }
 
@@ -158,7 +156,8 @@ contract Payer is
         PayerStorage storage $ = _getPayerStorage();
 
         require(amount >= $.minimumRegistrationAmountMicroDollars, InsufficientAmount());
-        require(!_payerExists(msg.sender), PayerAlreadyRegistered());
+
+        if (_payerExists(msg.sender)) revert PayerAlreadyRegistered();
 
         _deposit(msg.sender, amount);
 
@@ -185,46 +184,30 @@ contract Payer is
      * @inheritdoc IPayer
      */
     function deposit(uint256 amount) external whenNotPaused nonReentrant onlyPayer(msg.sender) {
-        PayerStorage storage $ = _getPayerStorage();
-
-        require(amount >= $.minimumDepositAmountMicroDollars, InsufficientAmount());
-        require($.withdrawals[msg.sender].requestTimestamp == 0, PayerInWithdrawal());
-
-        _deposit(msg.sender, amount);
-
-        _updatePayerBalance(msg.sender, amount);
-
-        emit PayerBalanceUpdated(msg.sender, $.payers[msg.sender].balance, $.payers[msg.sender].debtAmount);
+        _validateAndProcessDeposit(msg.sender, msg.sender, amount);
     }
 
     /**
      * @inheritdoc IPayer
      */
     function donate(address payer, uint256 amount) external whenNotPaused {
-        require(amount > 0, InsufficientAmount());
         _revertIfPayerDoesNotExist(payer);
 
+        _validateAndProcessDeposit(msg.sender, payer, amount);
         PayerStorage storage $ = _getPayerStorage();
-
-        require($.withdrawals[payer].requestTimestamp == 0, PayerInWithdrawal());
-
-        _deposit(msg.sender, amount);
-
-        _updatePayerBalance(payer, amount);
 
         $.payers[payer].latestDonationTimestamp = block.timestamp;
 
-        emit PayerBalanceUpdated(payer, $.payers[payer].balance, $.payers[payer].debtAmount);
         emit Donation(msg.sender, payer, amount);
     }
 
     /**
      * @inheritdoc IPayer
      */
-    function deactivatePayer(address payer) external whenNotPaused onlyNodeOperator {
+    function deactivatePayer(uint256 nodeId, address payer) external whenNotPaused onlyNodeOperator(nodeId) {
         _revertIfPayerDoesNotExist(payer);
 
-        _deactivatePayer(payer);
+        _deactivatePayer(nodeId, payer);
     }
 
     /**
@@ -237,7 +220,9 @@ contract Payer is
 
         require($.withdrawals[payer].requestTimestamp == 0, PayerInWithdrawal());
 
-        if ($.payers[payer].balance > 0 || $.payers[payer].debtAmount > 0) {
+        Payer memory _storedPayer = $.payers[payer];
+
+        if (_storedPayer.balance > 0 || _storedPayer.debtAmount > 0) {
             revert PayerHasBalanceOrDebt();
         }
 
@@ -259,8 +244,10 @@ contract Payer is
 
         PayerStorage storage $ = _getPayerStorage();
 
-        require($.payers[msg.sender].debtAmount == 0, PayerHasDebt());
-        require($.payers[msg.sender].balance >= amount, InsufficientBalance());
+        Payer memory _storedPayer = $.payers[msg.sender];
+
+        require(_storedPayer.debtAmount == 0, PayerHasDebt());
+        require(_storedPayer.balance >= amount, InsufficientBalance());
 
         // Balance to be withdrawn is deducted from the payer's balance,
         // it can't be used to settle payments.
@@ -318,7 +305,7 @@ contract Payer is
             $.usdcToken.safeTransfer(msg.sender, _finalWithdrawalAmount);
         }
 
-        emit WithdrawalFinalized(msg.sender, _withdrawal.requestTimestamp);
+        emit WithdrawalFinalized(msg.sender, _withdrawal.requestTimestamp, _finalWithdrawalAmount);
     }
 
     /**
@@ -345,7 +332,8 @@ contract Payer is
 
         PayerStorage storage $ = _getPayerStorage();
 
-        uint256 _fees = 0;
+        uint256 _settledFees = 0;
+        uint256 _pendingFees = $.pendingFees;
 
         for (uint256 i = 0; i < payerList.length; i++) {
             address payer = payerList[i];
@@ -353,17 +341,15 @@ contract Payer is
 
             // This should never happen, as PayerReport has already verified the payers and amounts.
             // Payers in payerList should always exist and be active.
-            if (!_payerExists(payer) || !_payerIsActive(payer)) {
-                continue;
-            }
+            if (!_payerExists(payer) || !_payerIsActive(payer)) continue;
 
             Payer memory _storedPayer = $.payers[payer];
 
             if (_storedPayer.balance < usage) {
                 uint256 _debt = usage - _storedPayer.balance;
 
-                $.pendingFees += _storedPayer.balance;
-                _fees += _storedPayer.balance;
+                _settledFees += _storedPayer.balance;
+                _pendingFees += _storedPayer.balance;
 
                 _storedPayer.balance = 0;
                 _storedPayer.debtAmount = _debt;
@@ -372,15 +358,15 @@ contract Payer is
                 _addDebtor(payer);
                 _increaseTotalDebtAmount(_debt);
 
-                if (_debt > $.maxTolerableDebtAmountMicroDollars) _deactivatePayer(payer);
+                if (_debt > $.maxTolerableDebtAmountMicroDollars) _deactivatePayer(PAYER_OPERATOR_ID, payer);
 
                 emit PayerBalanceUpdated(payer, _storedPayer.balance, _storedPayer.debtAmount);
 
                 continue;
             }
 
-            $.pendingFees += usage;
-            _fees += usage;
+            _settledFees += usage;
+            _pendingFees += usage;
 
             _storedPayer.balance -= usage;
 
@@ -389,7 +375,9 @@ contract Payer is
             emit PayerBalanceUpdated(payer, _storedPayer.balance, _storedPayer.debtAmount);
         }
 
-        emit UsageSettled(originatorNode, block.timestamp, _fees);
+        $.pendingFees = _pendingFees;
+
+        emit UsageSettled(originatorNode, block.timestamp, _settledFees);
     }
 
     /**
@@ -404,17 +392,17 @@ contract Payer is
         // slither-disable-next-line timestamp
         require(block.timestamp - $.lastFeeTransferTimestamp >= $.transferFeesPeriod, InsufficientTimePassed());
 
-        require($.pendingFees > 0, InsufficientAmount());
+        uint256 _pendingFeesAmount = $.pendingFees;
 
-        uint256 _feesToTransfer = $.pendingFees;
+        require(_pendingFeesAmount > 0, InsufficientAmount());
 
-        $.usdcToken.safeTransfer($.distributionContract, _feesToTransfer);
+        $.usdcToken.safeTransfer($.distributionContract, _pendingFeesAmount);
 
         $.lastFeeTransferTimestamp = block.timestamp;
-        $.collectedFees += $.pendingFees;
+        $.collectedFees += _pendingFeesAmount;
         $.pendingFees = 0;
 
-        emit FeesTransferred(block.timestamp, _feesToTransfer);
+        emit FeesTransferred(block.timestamp, _pendingFeesAmount);
     }
 
     /* ========== Administrative Functions ========== */
@@ -701,6 +689,24 @@ contract Payer is
     /* ============ Internal ============ */
 
     /**
+    * @notice Validates and processes a deposit or donation
+    * @param from The address funds are coming from
+    * @param to The payer account receiving the deposit
+    * @param amount The amount to deposit
+    */
+    function _validateAndProcessDeposit(address from, address to, uint256 amount) internal {
+        PayerStorage storage $ = _getPayerStorage();
+
+        require(amount >= $.minimumDepositAmountMicroDollars, InsufficientAmount());
+        require($.withdrawals[to].requestTimestamp == 0, PayerInWithdrawal());
+        
+        _deposit(from, amount);
+        _updatePayerBalance(to, amount);
+
+        emit PayerBalanceUpdated(to, $.payers[to].balance, $.payers[to].debtAmount);
+    }
+
+    /**
      * @notice Deposits USDC from a payer to the contract.
      * @param  payer The address of the payer.
      * @param  amount The amount to deposit.
@@ -720,11 +726,16 @@ contract Payer is
     function _updatePayerBalance(address payerAddress, uint256 amount) internal returns (uint256 leftoverAmount) {
         PayerStorage storage $ = _getPayerStorage();
 
-        if ($.payers[payerAddress].debtAmount > 0) {
+        Payer memory _payer = $.payers[payerAddress];
+
+        if (_payer.debtAmount > 0) {
             return _settleDebts(payerAddress, amount);
         } else {
-            $.payers[payerAddress].balance += amount;
+            _payer.balance += amount;
             _increaseTotalAmountDeposited(amount);
+
+            $.payers[payerAddress] = _payer;
+
             return amount;
         }
     }
@@ -787,7 +798,7 @@ contract Payer is
      * @notice Deactivates a payer.
      * @param  payer The address of the payer to deactivate.
      */
-    function _deactivatePayer(address payer) internal {
+    function _deactivatePayer(uint256 operatorId, address payer) internal {
         PayerStorage storage $ = _getPayerStorage();
 
         $.payers[payer].isActive = false;
@@ -795,7 +806,7 @@ contract Payer is
         // Deactivating a payer only removes them from the active payers set
         require($.activePayers.remove(payer), FailedToDeactivatePayer());
 
-        emit PayerDeactivated(payer);
+        emit PayerDeactivated(operatorId, payer);
     }
 
     /**
@@ -849,17 +860,16 @@ contract Payer is
 
     /**
      * @notice Checks if a given address is an active node operator.
-     * @param  operator The address to check.
+     * @param  nodeId The nodeID of the operator to check.
      * @return isActiveNodeOperator True if the address is an active node operator, false otherwise.
      */
-    function _getIsActiveNodeOperator(address operator) internal view returns (bool isActiveNodeOperator) {
+    function _getIsActiveNodeOperator(uint256 nodeId) internal view returns (bool isActiveNodeOperator) {
         INodes nodes = INodes(_getPayerStorage().nodesContract);
 
-        require(address(nodes) != address(0), Unauthorized());
+        require(msg.sender == nodes.ownerOf(nodeId), Unauthorized());
 
-        // TODO: Implement this in Nodes contract
-        // return nodes.isActiveNodeOperator(operator);
-        return true;
+        // TODO: Change for a better filter.
+        return nodes.getReplicationNodeIsActive(nodeId);
     }
 
     /**

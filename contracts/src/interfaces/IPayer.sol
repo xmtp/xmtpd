@@ -33,7 +33,7 @@ interface IPayerEvents {
     event PayerBalanceUpdated(address indexed payer, uint256 newBalance, uint256 newDebtAmount);
 
     /// @dev Emitted when a payer is deactivated by an owner.
-    event PayerDeactivated(address indexed payer);
+    event PayerDeactivated(uint256 indexed operatorId, address indexed payer);
 
     /// @dev Emitted when a payer is permanently deleted from the system.
     event PayerDeleted(address indexed payer, uint256 timestamp);
@@ -60,7 +60,7 @@ interface IPayerEvents {
     event WithdrawalCancelled(address indexed payer, uint256 indexed requestTimestamp);
 
     /// @dev Emitted when a payer's withdrawal is finalized.
-    event WithdrawalFinalized(address indexed payer, uint256 indexed requestTimestamp);
+    event WithdrawalFinalized(address indexed payer, uint256 indexed requestTimestamp, uint256 amount);
 
     /// @dev Emitted when the withdrawal lock period is updated.
     event WithdrawalLockPeriodSet(uint256 oldWithdrawalLockPeriod, uint256 newWithdrawalLockPeriod);
@@ -256,11 +256,12 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
     /**
      * @notice Deactivates a payer, signaling XMTP nodes they should not accept messages from them.
      *         Only callable by authorized node operators.
-     * @param  payer The address of the payer to deactivate.
+     * @param  operatorId The ID of the operator calling the function.
+     * @param  payer      The address of the payer to deactivate.
      *
      * Emits `PayerDeactivated`.
      */
-    function deactivatePayer(address payer) external;
+    function deactivatePayer(uint256 operatorId, address payer) external;
 
     /**
      * @notice Permanently deletes a payer from the system.

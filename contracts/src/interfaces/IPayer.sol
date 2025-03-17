@@ -12,34 +12,34 @@ interface IPayerEvents {
     event DistributionContractSet(address indexed newDistributionContract);
 
     /// @dev Emitted when a user donates to a payer's account.
-    event Donation(address indexed donor, address indexed payer, uint256 amount);
+    event Donation(address indexed donor, address indexed payer, uint64 amount);
 
     /// @dev Emitted when fees are transferred to the distribution contract.
-    event FeesTransferred(uint256 indexed timestamp, uint256 amount);
+    event FeesTransferred(uint64 indexed timestamp, uint64 amount);
 
     /// @dev Emitted when the maximum tolerable debt amount is updated.
     event MaxTolerableDebtAmountSet(uint64 oldMaxTolerableDebtAmount, uint64 newMaxTolerableDebtAmount);
 
     /// @dev Emitted when the minimum deposit amount is updated.
-    event MinimumDepositSet(uint256 oldMinimumDeposit, uint256 newMinimumDeposit);
+    event MinimumDepositSet(uint64 oldMinimumDeposit, uint64 newMinimumDeposit);
 
     /// @dev Emitted when the minimum registration amount is updated.
-    event MinimumRegistrationAmountSet(uint256 oldMinimumRegistrationAmount, uint256 newMinimumRegistrationAmount);
+    event MinimumRegistrationAmountSet(uint64 oldMinimumRegistrationAmount, uint64 newMinimumRegistrationAmount);
 
     /// @dev Emitted when the nodes contract address is updated.
     event NodesContractSet(address indexed newNodesContract);
 
     /// @dev Emitted when a payer balance is updated.
-    event PayerBalanceUpdated(address indexed payer, uint256 newBalance, uint256 newDebtAmount);
+    event PayerBalanceUpdated(address indexed payer, uint64 newBalance, uint64 newDebtAmount);
 
     /// @dev Emitted when a payer is deactivated by an owner.
     event PayerDeactivated(uint256 indexed operatorId, address indexed payer);
 
     /// @dev Emitted when a payer is permanently deleted from the system.
-    event PayerDeleted(address indexed payer, uint256 timestamp);
+    event PayerDeleted(address indexed payer, uint64 timestamp);
 
     /// @dev Emitted when a new payer is registered.
-    event PayerRegistered(address indexed payer, uint256 amount);
+    event PayerRegistered(address indexed payer, uint64 amount);
 
     /// @dev Emitted when the payer report contract address is updated.
     event PayerReportContractSet(address indexed newPayerReportContract);
@@ -51,23 +51,23 @@ interface IPayerEvents {
     event UpgradeAuthorized(address indexed upgrader, address indexed newImplementation);
 
     /// @dev Emitted when usage is settled and fees are calculated.
-    event UsageSettled(uint256 indexed originatorNode, uint256 timestamp, uint256 collectedFees);
+    event UsageSettled(uint256 indexed originatorNode, uint64 timestamp, uint64 collectedFees);
 
     /// @dev Emitted when the USDC token address is updated.
     event UsdcTokenSet(address indexed newUsdcToken);
 
     /// @dev Emitted when a payer cancels a withdrawal request.
-    event WithdrawalCancelled(address indexed payer, uint256 indexed requestTimestamp);
+    event WithdrawalCancelled(address indexed payer, uint64 indexed requestTimestamp);
 
     /// @dev Emitted when a payer's withdrawal is finalized.
-    event WithdrawalFinalized(address indexed payer, uint256 indexed requestTimestamp, uint256 amount);
+    event WithdrawalFinalized(address indexed payer, uint64 indexed requestTimestamp, uint64 amount);
 
     /// @dev Emitted when the withdrawal lock period is updated.
-    event WithdrawalLockPeriodSet(uint256 oldWithdrawalLockPeriod, uint256 newWithdrawalLockPeriod);
+    event WithdrawalLockPeriodSet(uint32 oldWithdrawalLockPeriod, uint32 newWithdrawalLockPeriod);
 
     /// @dev Emitted when a payer initiates a withdrawal request.
     event WithdrawalRequested(
-        address indexed payer, uint256 indexed requestTimestamp, uint256 withdrawableTimestamp, uint256 amount
+        address indexed payer, uint64 indexed requestTimestamp, uint64 withdrawableTimestamp, uint64 amount
     );
 }
 
@@ -184,6 +184,9 @@ interface IPayerErrors {
 
     /// @dev Error thrown when a withdrawal is not in the requested state.
     error WithdrawalNotRequested();
+
+    /// @dev Error thrown when a withdrawal lock period has not yet elapsed.
+    error WithdrawalPeriodNotElapsed();
 }
 
 /**
@@ -439,7 +442,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @return payers The payer information.
      * @return hasMore True if there are more payers to retrieve.
      */
-    function getActivePayers(uint256 offset, uint256 limit)
+    function getActivePayers(uint32 offset, uint32 limit)
         external
         view
         returns (Payer[] memory payers, bool hasMore);
@@ -458,7 +461,7 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @return payers      Array of payer addresses with debt.
      * @return hasMore     True if there are more payers to retrieve.
      */
-    function getPayersInDebt(uint256 offset, uint256 limit)
+    function getPayersInDebt(uint32 offset, uint32 limit)
         external
         view
         returns (Payer[] memory payers, bool hasMore);
@@ -479,19 +482,19 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @notice Returns the timestamp of the last fee transfer to the rewards contract.
      * @return timestamp The last fee transfer timestamp.
      */
-    function getLastFeeTransferTimestamp() external view returns (uint256 timestamp);
+    function getLastFeeTransferTimestamp() external view returns (uint64 timestamp);
 
     /**
      * @notice Returns the total value locked in the contract (all payer balances).
      * @return tvl The total value locked in USDC.
      */
-    function getTotalValueLocked() external view returns (uint256 tvl);
+    function getTotalValueLocked() external view returns (uint64 tvl);
 
     /**
      * @notice Returns the total outstanding debt amount across all payers.
      * @return totalDebt The total debt amount in USDC.
      */
-    function getTotalDebtAmount() external view returns (uint256 totalDebt);
+    function getTotalDebtAmount() external view returns (uint64 totalDebt);
 
     /**
      * @notice Returns the actual USDC balance held by the contract.
@@ -522,32 +525,32 @@ interface IPayer is IERC165, IPayerEvents, IPayerErrors {
      * @notice Retrieves the minimum deposit amount required to register as a payer.
      * @return minimumDeposit The minimum deposit amount in USDC.
      */
-    function getMinimumDeposit() external view returns (uint256 minimumDeposit);
+    function getMinimumDeposit() external view returns (uint64 minimumDeposit);
 
     /**
      * @notice Retrieves the minimum deposit amount required to register as a payer.
      * @return minimumRegistrationAmount The minimum deposit amount in USDC.
      */
-    function getMinimumRegistrationAmount() external view returns (uint256 minimumRegistrationAmount);
+    function getMinimumRegistrationAmount() external view returns (uint64 minimumRegistrationAmount);
 
     /**
      * @notice Retrieves the current total balance of a given payer.
      * @param  payer   The address of the payer.
      * @return balance The current balance of the payer.
      */
-    function getPayerBalance(address payer) external view returns (uint256 balance);
+    function getPayerBalance(address payer) external view returns (uint64 balance);
 
     /**
      * @notice Returns the duration of the lock period required before a withdrawal
      *         can be finalized.
      * @return lockPeriod The lock period in seconds.
      */
-    function getWithdrawalLockPeriod() external view returns (uint256 lockPeriod);
+    function getWithdrawalLockPeriod() external view returns (uint32 lockPeriod);
 
     /**
      * @notice Retrieves the total pending fees that have not yet been transferred
      *         to the distribution contract.
      * @return fees The total pending fees in USDC.
      */
-    function getPendingFees() external view returns (uint256 fees);
+    function getPendingFees() external view returns (uint64 fees);
 }

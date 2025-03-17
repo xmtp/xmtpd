@@ -22,6 +22,7 @@ require (
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/valyala/fastjson v1.6.4

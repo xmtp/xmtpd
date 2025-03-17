@@ -141,7 +141,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				return
 			}
 			fromBlock = reorgBlock
-			logger.Info(
+			logger.Warn(
 				"Blockchain reorg detected, resuming from block",
 				zap.Uint64("fromBlock", fromBlock),
 			)
@@ -168,11 +168,14 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 			// reset self-termination timer
 			startTime = time.Now()
 
-			logger.Debug(
-				"Got logs",
-				zap.Int("numLogs", len(logs)),
-				zap.Uint64("fromBlock", fromBlock),
-			)
+			if len(logs) > 0 {
+				logger.Debug(
+					"Got logs",
+					zap.Int("numLogs", len(logs)),
+					zap.Uint64("fromBlock", fromBlock),
+				)
+			}
+
 			if len(logs) == 0 {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
 			}
@@ -195,38 +198,34 @@ func (r *RpcLogStreamer) GetNextPage(
 	if err != nil {
 		return nil, nil, err
 	}
-	metrics.EmitIndexerCurrentBlock(contractAddress, int(highestBlock))
+	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
 	highestBlockCanProcess := highestBlock - LAG_FROM_HIGHEST_BLOCK
 	if fromBlock > highestBlockCanProcess {
 		r.logger.Debug("Chain is up to date. Skipping update")
 		return []types.Log{}, nil, nil
 	}
-	numOfBlocksToProcess := (highestBlockCanProcess - fromBlock) + 1
 
-	var to uint64
-	// Make sure we stay within a reasonable page size
-	if numOfBlocksToProcess > BACKFILL_BLOCKS {
-		// quick mode
-		to = fromBlock + BACKFILL_BLOCKS
-	} else {
-		// normal mode, up to current highest block num can process
-		to = highestBlockCanProcess
-	}
+	toBlock := min(fromBlock+BACKFILL_BLOCKS, highestBlockCanProcess)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
-		return r.client.FilterLogs(r.ctx, buildFilterQuery(config, int64(fromBlock), int64(to)))
+		return r.client.FilterLogs(
+			r.ctx,
+			buildFilterQuery(config, int64(fromBlock), int64(toBlock)),
+		)
 	})
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	nextBlockNumber := to + 1
-
+	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
+	metrics.EmitIndexerCurrentBlockLag(contractAddress, toBlock-fromBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
+
+	nextBlockNumber := toBlock + 1
 
 	return logs, &nextBlockNumber, nil
 }

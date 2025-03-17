@@ -100,7 +100,11 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		StoreLog(mock.Anything, event).
 		RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
 			attemptNumber++
-			return storer.NewLogStorageError(errors.New("retryable error"), attemptNumber < 2)
+			if attemptNumber < 2 {
+				return storer.NewRetryableLogStorageError(errors.New("retryable error"))
+			} else {
+				return storer.NewUnrecoverableLogStorageError(errors.New("non-retryable error"))
+			}
 		})
 
 	channel <- event

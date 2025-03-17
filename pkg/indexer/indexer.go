@@ -337,14 +337,13 @@ func indexLogs(
 			}
 		}
 
-	Retry:
 		for {
 			errStorage = logStorer.StoreLog(ctx, event)
 			if errStorage != nil {
 				logger.Error("error storing log", zap.Error(errStorage))
 				if errStorage.ShouldRetry() {
 					time.Sleep(100 * time.Millisecond)
-					continue Retry
+					continue
 				}
 			} else {
 				logger.Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
@@ -352,7 +351,7 @@ func indexLogs(
 					logger.Error("error updating block tracker", zap.Error(trackerErr))
 				}
 			}
-			break Retry
+			break
 		}
 	}
 	logger.Debug("finished")

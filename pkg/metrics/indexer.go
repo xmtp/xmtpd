@@ -23,6 +23,30 @@ var indexerCurrentBlock = prometheus.NewGaugeVec(
 	[]string{"contract_address"},
 )
 
+var indexerMaxBlock = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "xmtpd_indexer_log_streamer_max_block",
+		Help: "Max block on the chain to be processed by the log streamer",
+	},
+	[]string{"contract_address"},
+)
+
+var indexerCurrentBlockLag = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "xmtpd_indexer_log_streamer_block_lag",
+		Help: "Lag between current block and max block",
+	},
+	[]string{"contract_address"},
+)
+
+var indexerCountRetryableStorageErrors = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtpd_indexer_retryable_storage_error_count",
+		Help: "Number of retryable storage errors",
+	},
+	[]string{"contract_address"},
+)
+
 var indexerGetLogsDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Name:    "xmtpd_indexer_log_streamer_get_logs_duration",
@@ -45,14 +69,29 @@ func EmitIndexerNumLogsFound(contractAddress string, numLogs int) {
 		Add(float64(numLogs))
 }
 
-func EmitIndexerCurrentBlock(contractAddress string, block int) {
+func EmitIndexerCurrentBlock(contractAddress string, block uint64) {
 	indexerCurrentBlock.With(prometheus.Labels{"contract_address": contractAddress}).
+		Set(float64(block))
+}
+
+func EmitIndexerMaxBlock(contractAddress string, block uint64) {
+	indexerMaxBlock.With(prometheus.Labels{"contract_address": contractAddress}).
 		Set(float64(block))
 }
 
 func EmitIndexerGetLogsDuration(contractAddress string, duration time.Duration) {
 	indexerGetLogsDuration.With(prometheus.Labels{"contract_address": contractAddress}).
 		Observe(float64(duration.Milliseconds()))
+}
+
+func EmitIndexerCurrentBlockLag(contractAddress string, lag uint64) {
+	indexerCurrentBlockLag.With(prometheus.Labels{"contract_address": contractAddress}).
+		Set(float64(lag))
+}
+
+func EmitIndexerRetryableStorageError(contractAddress string) {
+	indexerCountRetryableStorageErrors.With(prometheus.Labels{"contract_address": contractAddress}).
+		Inc()
 }
 
 func MeasureGetLogs[Return any](contractAddress string, fn func() (Return, error)) (Return, error) {

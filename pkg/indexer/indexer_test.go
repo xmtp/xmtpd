@@ -3,6 +3,7 @@ package indexer
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,9 +42,15 @@ func TestIndexLogsSuccess(t *testing.T) {
 
 	mockClient := blockchainMocks.NewMockChainClient(t)
 
+	var wg sync.WaitGroup
+	wg.Add(2) // Expecting two calls: StoreLog and UpdateLatestBlock
+
 	blockTracker := indexerMocks.NewMockIBlockTracker(t)
 	blockTracker.EXPECT().
 		UpdateLatestBlock(mock.Anything, newBlockNumber, newBlockHash.Bytes()).
+		Run(func(ctx context.Context, blockNum uint64, blockHash []byte) {
+			wg.Done()
+		}).
 		Return(nil)
 
 	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)
@@ -51,6 +58,9 @@ func TestIndexLogsSuccess(t *testing.T) {
 	logStorer := storerMocks.NewMockLogStorer(t)
 	logStorer.EXPECT().
 		StoreLog(mock.Anything, event).
+		Run(func(ctx context.Context, log types.Log) {
+			wg.Done()
+		}).
 		Return(nil)
 
 	go indexLogs(
@@ -62,9 +72,21 @@ func TestIndexLogsSuccess(t *testing.T) {
 		logStorer,
 		blockTracker,
 		reorgHandler,
+		"testContract",
 	)
 
-	time.Sleep(100 * time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Test passed
+	case <-time.After(1 * time.Second):
+		t.Fatal("Test timed out waiting for StoreLog and UpdateLatestBlock")
+	}
 }
 
 func TestIndexLogsRetryableError(t *testing.T) {
@@ -93,14 +115,22 @@ func TestIndexLogsRetryableError(t *testing.T) {
 	blockTracker := indexerMocks.NewMockIBlockTracker(t)
 	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)
 
+	var wg sync.WaitGroup
+	wg.Add(2) // Expecting two calls: StoreLog and UpdateLatestBlock
+
 	// Will fail for the first call with a retryable error and a non-retryable error on the second call
 	attemptNumber := 0
 
 	logStorer.EXPECT().
 		StoreLog(mock.Anything, event).
 		RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
+			wg.Done()
 			attemptNumber++
-			return storer.NewLogStorageError(errors.New("retryable error"), attemptNumber < 2)
+			if attemptNumber < 2 {
+				return storer.NewRetryableLogStorageError(errors.New("retryable error"))
+			} else {
+				return storer.NewUnrecoverableLogStorageError(errors.New("non-retryable error"))
+			}
 		})
 
 	channel <- event
@@ -114,9 +144,21 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		logStorer,
 		blockTracker,
 		reorgHandler,
+		"testContract",
 	)
 
-	time.Sleep(200 * time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Test passed
+	case <-time.After(1 * time.Second):
+		t.Fatal("Test timed out waiting for StoreLog and UpdateLatestBlock")
+	}
 
 	logStorer.AssertNumberOfCalls(t, "StoreLog", 2)
 }

@@ -127,24 +127,33 @@ func (r *RpcLogStreamer) Start() {
 func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 	fromBlock := watcher.FromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
-	startTime := time.Now()
 	defer close(watcher.EventChannel)
+
+	timer := time.NewTimer(watcher.maxDisconnectTime)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-r.ctx.Done():
 			logger.Debug("Stopping watcher")
 			return
+		case <-timer.C:
+			logger.Fatal(
+				"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
+			)
+
 		case reorgBlock, open := <-watcher.reorgChannel:
 			if !open {
 				logger.Debug("Reorg channel closed")
 				return
 			}
 			fromBlock = reorgBlock
-			logger.Info(
+			logger.Warn(
 				"Blockchain reorg detected, resuming from block",
 				zap.Uint64("fromBlock", fromBlock),
 			)
+			timer.Reset(watcher.maxDisconnectTime)
+
 		default:
 			logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
 			if err != nil {
@@ -154,28 +163,22 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 					zap.Error(err),
 				)
 				time.Sleep(ERROR_SLEEP_TIME)
-
-				if time.Since(startTime) > watcher.maxDisconnectTime {
-					logger.Error(
-						"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
-					)
-					panic(
-						"Max disconnect time exceeded. Node might drift too far away from expected state",
-					)
-				}
 				continue
 			}
 			// reset self-termination timer
-			startTime = time.Now()
+			timer.Reset(watcher.maxDisconnectTime)
+
+			if len(logs) == 0 {
+				time.Sleep(NO_LOGS_SLEEP_TIME)
+				continue
+			}
 
 			logger.Debug(
 				"Got logs",
 				zap.Int("numLogs", len(logs)),
 				zap.Uint64("fromBlock", fromBlock),
 			)
-			if len(logs) == 0 {
-				time.Sleep(NO_LOGS_SLEEP_TIME)
-			}
+
 			for _, log := range logs {
 				watcher.EventChannel <- log
 			}
@@ -195,38 +198,35 @@ func (r *RpcLogStreamer) GetNextPage(
 	if err != nil {
 		return nil, nil, err
 	}
-	metrics.EmitIndexerCurrentBlock(contractAddress, int(highestBlock))
+	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
 	highestBlockCanProcess := highestBlock - LAG_FROM_HIGHEST_BLOCK
 	if fromBlock > highestBlockCanProcess {
-		r.logger.Debug("Chain is up to date. Skipping update")
+		metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
 		return []types.Log{}, nil, nil
 	}
-	numOfBlocksToProcess := (highestBlockCanProcess - fromBlock) + 1
 
-	var to uint64
-	// Make sure we stay within a reasonable page size
-	if numOfBlocksToProcess > BACKFILL_BLOCKS {
-		// quick mode
-		to = fromBlock + BACKFILL_BLOCKS
-	} else {
-		// normal mode, up to current highest block num can process
-		to = highestBlockCanProcess
-	}
+	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlock)
+
+	toBlock := min(fromBlock+BACKFILL_BLOCKS, highestBlockCanProcess)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
-		return r.client.FilterLogs(r.ctx, buildFilterQuery(config, int64(fromBlock), int64(to)))
+		return r.client.FilterLogs(
+			r.ctx,
+			buildFilterQuery(config, fromBlock, toBlock),
+		)
 	})
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	nextBlockNumber := to + 1
-
+	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
+
+	nextBlockNumber := toBlock + 1
 
 	return logs, &nextBlockNumber, nil
 }
@@ -237,8 +237,8 @@ func (r *RpcLogStreamer) Client() ChainClient {
 
 func buildFilterQuery(
 	contractConfig ContractConfig,
-	fromBlock int64,
-	toBlock int64,
+	fromBlock uint64,
+	toBlock uint64,
 ) ethereum.FilterQuery {
 	addresses := []common.Address{contractConfig.ContractAddress}
 	topics := [][]common.Hash{}
@@ -247,8 +247,8 @@ func buildFilterQuery(
 	}
 
 	return ethereum.FilterQuery{
-		FromBlock: big.NewInt(fromBlock),
-		ToBlock:   big.NewInt(toBlock),
+		FromBlock: new(big.Int).SetUint64(fromBlock),
+		ToBlock:   new(big.Int).SetUint64(toBlock),
 		Addresses: addresses,
 		Topics:    topics,
 	}

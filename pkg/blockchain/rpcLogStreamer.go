@@ -127,14 +127,19 @@ func (r *RpcLogStreamer) Start() {
 func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 	fromBlock := watcher.FromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
-	startTime := time.Now()
 	defer close(watcher.EventChannel)
+
+	timer := time.NewTimer(watcher.maxDisconnectTime)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-r.ctx.Done():
 			logger.Debug("Stopping watcher")
 			return
+		case <-timer.C:
+			logger.Fatal("Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...")
+
 		case reorgBlock, open := <-watcher.reorgChannel:
 			if !open {
 				logger.Debug("Reorg channel closed")
@@ -145,6 +150,8 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				"Blockchain reorg detected, resuming from block",
 				zap.Uint64("fromBlock", fromBlock),
 			)
+			timer.Reset(watcher.maxDisconnectTime)
+
 		default:
 			logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
 			if err != nil {
@@ -154,31 +161,22 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 					zap.Error(err),
 				)
 				time.Sleep(ERROR_SLEEP_TIME)
-
-				if time.Since(startTime) > watcher.maxDisconnectTime {
-					logger.Error(
-						"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
-					)
-					panic(
-						"Max disconnect time exceeded. Node might drift too far away from expected state",
-					)
-				}
 				continue
 			}
 			// reset self-termination timer
-			startTime = time.Now()
-
-			if len(logs) > 0 {
-				logger.Debug(
-					"Got logs",
-					zap.Int("numLogs", len(logs)),
-					zap.Uint64("fromBlock", fromBlock),
-				)
-			}
+			timer.Reset(watcher.maxDisconnectTime)
 
 			if len(logs) == 0 {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
+				continue
 			}
+
+			logger.Debug(
+				"Got logs",
+				zap.Int("numLogs", len(logs)),
+				zap.Uint64("fromBlock", fromBlock),
+			)
+
 			for _, log := range logs {
 				watcher.EventChannel <- log
 			}
@@ -215,7 +213,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
 		return r.client.FilterLogs(
 			r.ctx,
-			buildFilterQuery(config, int64(fromBlock), int64(toBlock)),
+			buildFilterQuery(config, fromBlock, toBlock),
 		)
 	})
 
@@ -237,8 +235,8 @@ func (r *RpcLogStreamer) Client() ChainClient {
 
 func buildFilterQuery(
 	contractConfig ContractConfig,
-	fromBlock int64,
-	toBlock int64,
+	fromBlock uint64,
+	toBlock uint64,
 ) ethereum.FilterQuery {
 	addresses := []common.Address{contractConfig.ContractAddress}
 	topics := [][]common.Hash{}
@@ -247,8 +245,8 @@ func buildFilterQuery(
 	}
 
 	return ethereum.FilterQuery{
-		FromBlock: big.NewInt(fromBlock),
-		ToBlock:   big.NewInt(toBlock),
+		FromBlock: new(big.Int).SetUint64(fromBlock),
+		ToBlock:   new(big.Int).SetUint64(toBlock),
 		Addresses: addresses,
 		Topics:    topics,
 	}

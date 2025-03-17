@@ -90,7 +90,8 @@ func EmitIndexerCurrentBlockLag(contractAddress string, lag uint64) {
 }
 
 func EmitIndexerRetryableStorageError(contractAddress string) {
-	indexerCountRetryableStorageErrors.With(prometheus.Labels{"contract_address": contractAddress}).Inc()
+	indexerCountRetryableStorageErrors.With(prometheus.Labels{"contract_address": contractAddress}).
+		Inc()
 }
 
 func MeasureGetLogs[Return any](contractAddress string, fn func() (Return, error)) (Return, error) {

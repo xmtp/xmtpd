@@ -19,6 +19,7 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 		RegistryRefreshInterval: 100 * time.Millisecond,
 		RatesRefreshInterval:    100 * time.Millisecond,
 		ChainID:                 31337,
+		MaxChainDisconnectTime:  10 * time.Second,
 	}
 }
 

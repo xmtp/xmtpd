@@ -356,7 +356,12 @@ func indexLogs(
 	logger.Debug("finished")
 }
 
-func retry(logger *zap.Logger, sleep time.Duration, address string, fn func() storer.LogStorageError) error {
+func retry(
+	logger *zap.Logger,
+	sleep time.Duration,
+	address string,
+	fn func() storer.LogStorageError,
+) error {
 	for {
 		if err := fn(); err != nil {
 			logger.Error("error storing log", zap.Error(err))

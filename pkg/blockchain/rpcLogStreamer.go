@@ -138,7 +138,9 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 			logger.Debug("Stopping watcher")
 			return
 		case <-timer.C:
-			logger.Fatal("Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...")
+			logger.Fatal(
+				"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
+			)
 
 		case reorgBlock, open := <-watcher.reorgChannel:
 			if !open {

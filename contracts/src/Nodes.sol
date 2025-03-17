@@ -364,14 +364,14 @@ contract Nodes is INodes, AccessControlDefaultAdminRules, ERC721 {
         emit ReplicationDisabled(nodeId);
     }
 
-    /// @dev Override to support ERC721, IERC165, and AccessControlEnumerable.
+    /// @dev Override to support INodes, ERC721, IERC165, and AccessControlEnumerable.
     function supportsInterface(bytes4 interfaceId)
         public
         view
         override(ERC721, IERC165, AccessControlDefaultAdminRules)
         returns (bool supported)
     {
-        return super.supportsInterface(interfaceId);
+        return interfaceId == type(INodes).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /// @dev Reverts if the node does not exist.

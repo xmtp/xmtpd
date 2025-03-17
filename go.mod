@@ -22,11 +22,10 @@ require (
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/docker/docker v27.5.0+incompatible
+	github.com/docker/docker v28.0.1+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/testcontainers/testcontainers-go v0.35.0
-	github.com/valyala/fastjson v1.6.4
 )
 
 require (

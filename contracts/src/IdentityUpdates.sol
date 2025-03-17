@@ -118,7 +118,7 @@ contract IdentityUpdates is Initializable, AccessControlUpgradeable, UUPSUpgrade
     /* ============ IdentityUpdate functionality ============ */
 
     /**
-     * @notice Adds an identity update to an specific inbox ID.
+     * @notice Adds an identity update to a specific inbox ID.
      * @param  inboxId The inbox ID.
      * @param  update  The identity update in bytes.
      */

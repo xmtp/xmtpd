@@ -129,11 +129,15 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		m.logger,
 		m.nonceManager,
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+			gasPrice := big.NewInt(2_000_000_000) // 2 Gwei
+			gasPrice.Mul(gasPrice, new(big.Int).Add(&nonce, big.NewInt(1)))
+
 			return m.messagesContract.AddMessage(&bind.TransactOpts{
-				Context: ctx,
-				Nonce:   &nonce,
-				From:    m.signer.FromAddress(),
-				Signer:  m.signer.SignerFunc(),
+				Context:  ctx,
+				Nonce:    &nonce,
+				From:     m.signer.FromAddress(),
+				Signer:   m.signer.SignerFunc(),
+				GasPrice: gasPrice,
 			}, groupID, message)
 		},
 		func(ctx context.Context, transaction *types.Transaction) (*groupmessages.GroupMessagesMessageSent, error) {
@@ -286,7 +290,12 @@ func withNonce[T any](ctx context.Context,
 			nonceContext.Cancel()
 			return nil, err
 		}
-		logger.Debug("Transaction created", zap.Uint64("nonce", nonce.Uint64()), zap.Any("hex", tx.Hash().Hex()))
+		logger.Debug(
+			"Transaction created",
+			zap.Uint64("nonce", nonce.Uint64()),
+			zap.Any("hex", tx.Hash().Hex()),
+			zap.Uint64("gas price", tx.GasPrice().Uint64()),
+		)
 		break
 	}
 

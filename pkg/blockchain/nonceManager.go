@@ -23,8 +23,8 @@ type NonceManager interface {
 
 // OpenConnectionsLimiter controls the number of concurrent requests
 type OpenConnectionsLimiter struct {
-	semaphore chan struct{}
-	wg        sync.WaitGroup
+	Semaphore chan struct{}
+	Wg        sync.WaitGroup
 }
 
 // MaxConcurrentRequests the blockchain mempool can usually only hold 64 transactions from the same fromAddress
@@ -37,7 +37,7 @@ func NewOpenConnectionsLimiter(maxConcurrent int) *OpenConnectionsLimiter {
 		maxConcurrent = MaxConcurrentRequests
 	}
 	return &OpenConnectionsLimiter{
-		semaphore: make(chan struct{}, maxConcurrent),
+		Semaphore: make(chan struct{}, maxConcurrent),
 	}
 }
 
@@ -56,13 +56,13 @@ func NewSQLBackedNonceManager(db *sql.DB, logger *zap.Logger) *SQLBackedNonceMan
 }
 
 func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, error) {
-	s.limiter.wg.Add(1)
+	s.limiter.Wg.Add(1)
 
 	// block until there is an available slot in the blockchain rate limiter
 	select {
-	case s.limiter.semaphore <- struct{}{}:
+	case s.limiter.Semaphore <- struct{}{}:
 	case <-ctx.Done():
-		s.limiter.wg.Done()
+		s.limiter.Wg.Done()
 		return nil, ctx.Err()
 	}
 
@@ -90,13 +90,13 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 	ret := &NonceContext{
 		Nonce: *new(big.Int).SetInt64(nonce),
 		Cancel: func() {
-			<-s.limiter.semaphore
-			s.limiter.wg.Done()
+			<-s.limiter.Semaphore
+			s.limiter.Wg.Done()
 			_ = tx.Rollback()
 		},
 		Consume: func() error {
-			<-s.limiter.semaphore
-			s.limiter.wg.Done()
+			<-s.limiter.Semaphore
+			s.limiter.Wg.Done()
 			_, err = txQuerier.DeleteAvailableNonce(ctx, nonce)
 			if err != nil {
 				_ = tx.Rollback()

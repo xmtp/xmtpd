@@ -144,7 +144,10 @@ func SubscribeToLogs(t *testing.T, rpcURL string, contractAddress string) error 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	client, err := ethclient.DialContext(context.Background(), strings.Replace(rpcURL, "http", "ws", 1))
+	client, err := ethclient.DialContext(
+		context.Background(),
+		strings.Replace(rpcURL, "http", "ws", 1),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Ethereum WS: %v", err)
 	}
@@ -217,7 +220,11 @@ func InspectMempool(t *testing.T, rpcURL string) {
 	var status TxpoolStatus
 	err = client.Call(&status, "txpool_status")
 	require.NoError(t, err)
-	logOutput += fmt.Sprintf("\n🔹 Mempool Status: Pending: %s | Queued: %s\n", status.Pending, status.Queued)
+	logOutput += fmt.Sprintf(
+		"\n🔹 Mempool Status: Pending: %s | Queued: %s\n",
+		status.Pending,
+		status.Queued,
+	)
 
 	// Fetch txpool_inspect
 	var inspect TxpoolInspect
@@ -248,7 +255,11 @@ func InspectMempool(t *testing.T, rpcURL string) {
 }
 
 // printTxpoolContent prints transactions in a structured way
-func formatTxpoolContent(t *testing.T, title string, txMap map[string]map[string]TransactionInfo) string {
+func formatTxpoolContent(
+	t *testing.T,
+	title string,
+	txMap map[string]map[string]TransactionInfo,
+) string {
 	var logOutput string
 	logOutput += fmt.Sprintf("\n📌 %s:\n", title)
 

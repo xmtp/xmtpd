@@ -8,6 +8,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
 	"math/big"
+	"os"
+	"strconv"
 	"sync"
 	"testing"
 )
@@ -42,14 +44,29 @@ type TestNonceManager struct {
 	nonce     int64
 	logger    *zap.Logger
 	abandoned Int64Heap
+	limiter   *blockchain.OpenConnectionsLimiter
 }
 
 func NewTestNonceManager(logger *zap.Logger) *TestNonceManager {
-	return &TestNonceManager{logger: logger}
+	// Read from environment variable, default to 100 if not set or invalid
+	limit := 100
+	if envLimit, exists := os.LookupEnv("NONCE_MANAGER_LIMIT"); exists {
+		if parsedLimit, err := strconv.Atoi(envLimit); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	return &TestNonceManager{logger: logger,
+		limiter: blockchain.NewOpenConnectionsLimiter(limit)}
 }
 
 func (tm *TestNonceManager) GetNonce(ctx context.Context) (*blockchain.NonceContext, error) {
-	if ctx.Err() != nil {
+
+	tm.limiter.Wg.Add(1)
+	select {
+	case tm.limiter.Semaphore <- struct{}{}:
+	case <-ctx.Done():
+		tm.limiter.Wg.Done()
 		return nil, ctx.Err()
 	}
 
@@ -72,8 +89,12 @@ func (tm *TestNonceManager) GetNonce(ctx context.Context) (*blockchain.NonceCont
 			tm.mu.Lock()
 			defer tm.mu.Unlock()
 			tm.abandoned.Push(nonce)
+			<-tm.limiter.Semaphore
+			tm.limiter.Wg.Done()
 		}, // No-op
 		Consume: func() error {
+			<-tm.limiter.Semaphore
+			tm.limiter.Wg.Done()
 			return nil // No-op
 		},
 	}, nil

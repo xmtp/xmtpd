@@ -92,7 +92,13 @@ func WaitForTransaction(
 	for {
 		attempts++
 		tx, isPending, err := client.TransactionByHash(ctx, hash)
-		logger.Debug("Transaction details", zap.String("tx_hash", hash.Hex()), zap.Any("tx", tx), zap.Bool("isPending", isPending), zap.Error(err))
+		logger.Debug(
+			"Transaction details",
+			zap.String("tx_hash", hash.Hex()),
+			zap.Any("tx", tx),
+			zap.Bool("isPending", isPending),
+			zap.Error(err),
+		)
 
 		receipt, err := client.TransactionReceipt(ctx, hash)
 

@@ -48,7 +48,7 @@ func waitForAnvil(t *testing.T, url string) {
 func StartAnvil(t *testing.T, showLogs bool) (string, func()) {
 	port := networkTestUtils.FindFreePort(t)
 
-	cmd := exec.Command("anvil", "--port", fmt.Sprintf("%d", port))
+	cmd := exec.Command("anvil", "--port", fmt.Sprintf("%d", port), "-vvv")
 	if showLogs {
 		// (Optional) You can capture stdout/stderr for logs:
 		cmd.Stdout = os.Stdout

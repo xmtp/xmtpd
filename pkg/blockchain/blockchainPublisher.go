@@ -286,6 +286,7 @@ func withNonce[T any](ctx context.Context,
 			nonceContext.Cancel()
 			return nil, err
 		}
+		logger.Debug("Transaction created", zap.Uint64("nonce", nonce.Uint64()), zap.Any("hex", tx.Hash().Hex()))
 		break
 	}
 

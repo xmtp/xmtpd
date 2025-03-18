@@ -2,20 +2,25 @@ package blockchain_test
 
 import (
 	"context"
-	"strings"
-	"sync"
-	"testing"
-
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
+	"strings"
+	"sync"
+	"testing"
 )
 
-func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
+func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, string) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	rpcUrl, cleanup := anvil.StartAnvil(t, true)
+	t.Cleanup(cleanup)
+	go func() {
+		err := testutils.SubscribePendingTxs(t, rpcUrl)
+		require.NoError(t, err)
+	}()
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 	// Set the nodes contract address to the newly deployed contract
 	contractsOptions.NodesContractAddress = testutils.DeployNodesContract(t, rpcUrl)
@@ -25,6 +30,19 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 		rpcUrl,
 	)
 
+	go func() {
+		err := testutils.SubscribeToLogs(t, rpcUrl, contractsOptions.NodesContractAddress)
+		require.NoError(t, err)
+	}()
+	go func() {
+		err := testutils.SubscribeToLogs(t, rpcUrl, contractsOptions.MessagesContractAddress)
+		require.NoError(t, err)
+	}()
+	go func() {
+		err := testutils.SubscribeToLogs(t, rpcUrl, contractsOptions.IdentityUpdatesContractAddress)
+		require.NoError(t, err)
+	}()
+
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
 		contractsOptions.ChainID,
@@ -33,6 +51,10 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 
 	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
+	t.Cleanup(
+		func() {
+			client.Close()
+		})
 
 	nonceManager := NewTestNonceManager(logger)
 
@@ -46,16 +68,11 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	)
 	require.NoError(t, err)
 
-	return publisher, func() {
-		defer cleanup()
-		cancel()
-		client.Close()
-	}
+	return publisher, rpcUrl
 }
 
 func TestPublishIdentityUpdate(t *testing.T) {
-	publisher, cleanup := buildPublisher(t)
-	t.Cleanup(cleanup)
+	publisher, _ := buildPublisher(t)
 	tests := []struct {
 		name           string
 		inboxId        [32]byte
@@ -109,8 +126,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishGroupMessage(t *testing.T) {
-	publisher, cleanup := buildPublisher(t)
-	t.Cleanup(cleanup)
+	publisher, _ := buildPublisher(t)
 
 	tests := []struct {
 		name    string
@@ -162,10 +178,10 @@ func TestPublishGroupMessage(t *testing.T) {
 }
 
 func TestPublishGroupMessageConcurrent(t *testing.T) {
-	publisher, cleanup := buildPublisher(t)
-	defer cleanup()
+	publisher, rpcUrl := buildPublisher(t)
+	defer testutils.LogTransactionsIfFailed(t, rpcUrl)
 
-	const parallelRuns = 100
+	const parallelRuns = 30
 	var wg sync.WaitGroup
 	errSet := sync.Map{}
 

@@ -21,7 +21,7 @@ func TestFillRows(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -37,7 +37,7 @@ func TestEmptyRows(t *testing.T) {
 	_, err := querier.GetNextAvailableNonce(ctx)
 	require.Error(t, err)
 
-	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -90,7 +90,7 @@ func TestConcurrentReads(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -143,7 +143,7 @@ func TestRequestsUnused(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -169,7 +169,7 @@ func TestRequestsUsed(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -196,7 +196,7 @@ func TestRequestsFailed(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  100,
 	})
@@ -225,7 +225,7 @@ func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
@@ -248,7 +248,7 @@ func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 	_, err = txQuerier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 
-	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  30,
 	})
@@ -263,17 +263,19 @@ func TestFillerRerun(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	cnt, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
 	require.NoError(t, err)
+	require.EqualValues(t, 10, cnt)
 
-	err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	cnt, err = querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  30,
 	})
 	require.NoError(t, err)
+	require.EqualValues(t, 20, cnt)
 }
 
 func TestAbandonNonces(t *testing.T) {
@@ -283,7 +285,7 @@ func TestAbandonNonces(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
@@ -306,7 +308,7 @@ func TestAbandonCanProceedWithOpenTxn(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
@@ -346,7 +348,7 @@ func TestAbandonSkipsOpenTxn(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  10,
 	})
@@ -391,7 +393,7 @@ func TestAbandonConcurrently(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  500,
 	})
@@ -425,7 +427,7 @@ func TestAbandonConcurrentlyWithOpenTransaction(t *testing.T) {
 
 	querier := queries.New(db)
 
-	err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	_, err := querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: 0,
 		NumElements:  500,
 	})

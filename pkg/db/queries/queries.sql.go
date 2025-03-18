@@ -60,9 +60,8 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 	return result.RowsAffected()
 }
 
-const fillNonceSequence = `-- name: FillNonceSequence :exec
-SELECT
-	fill_nonce_gap($1, $2)
+const fillNonceSequence = `-- name: FillNonceSequence :one
+SELECT COALESCE(fill_nonce_gap($1, $2), $2)::INT AS inserted_rows
 `
 
 type FillNonceSequenceParams struct {
@@ -70,9 +69,11 @@ type FillNonceSequenceParams struct {
 	NumElements  int32
 }
 
-func (q *Queries) FillNonceSequence(ctx context.Context, arg FillNonceSequenceParams) error {
-	_, err := q.db.ExecContext(ctx, fillNonceSequence, arg.PendingNonce, arg.NumElements)
-	return err
+func (q *Queries) FillNonceSequence(ctx context.Context, arg FillNonceSequenceParams) (int32, error) {
+	row := q.db.QueryRowContext(ctx, fillNonceSequence, arg.PendingNonce, arg.NumElements)
+	var inserted_rows int32
+	err := row.Scan(&inserted_rows)
+	return inserted_rows, err
 }
 
 const findOrCreatePayer = `-- name: FindOrCreatePayer :one

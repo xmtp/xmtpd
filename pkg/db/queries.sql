@@ -199,9 +199,8 @@ WHERE
 	AND (@minutes_since_epoch_lt::BIGINT = 0
 		OR minutes_since_epoch < @minutes_since_epoch_lt::BIGINT);
 
--- name: FillNonceSequence :exec
-SELECT
-	fill_nonce_gap(@pending_nonce, @num_elements);
+-- name: FillNonceSequence :one
+SELECT COALESCE(fill_nonce_gap(@pending_nonce, @num_elements), @num_elements)::INT AS inserted_rows;
 
 -- name: GetNextAvailableNonce :one
 SELECT

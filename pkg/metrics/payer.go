@@ -7,7 +7,7 @@ import (
 
 var payerNodePublishDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name: "xmtp_payer__node_publish_duration_seconds",
+		Name: "xmtp_payer_node_publish_duration_seconds",
 		Help: "Duration of the node publish call",
 	},
 	[]string{"originator_id"},

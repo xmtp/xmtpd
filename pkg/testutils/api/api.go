@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -185,6 +186,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 		serviceRegistrationFunc,
 		httpRegistrationFunc,
 		jwtVerifier,
+		prometheus.NewRegistry(),
 	)
 	require.NoError(t, err)
 

@@ -95,7 +95,7 @@
         "newMemberSignature": {
           "$ref": "#/definitions/identityassociationsSignature"
         },
-        "relyingPartner": {
+        "relyingParty": {
           "type": "string",
           "title": "Should be provided if identifier kind is passkey"
         }
@@ -114,7 +114,7 @@
         "newRecoveryIdentifierKind": {
           "$ref": "#/definitions/associationsIdentifierKind"
         },
-        "relyingPartner": {
+        "relyingParty": {
           "type": "string",
           "title": "Should be provided if identifier kind is passkey"
         }
@@ -138,7 +138,7 @@
         "initialIdentifierKind": {
           "$ref": "#/definitions/associationsIdentifierKind"
         },
-        "relyingPartner": {
+        "relyingParty": {
           "type": "string",
           "title": "Should be provided if identifier kind is passkey"
         }
@@ -229,7 +229,7 @@
           "type": "string",
           "format": "byte"
         },
-        "relyingPartner": {
+        "relyingParty": {
           "type": "string"
         }
       },
@@ -261,6 +261,28 @@
         }
       },
       "title": "EdDSA signature for 25519"
+    },
+    "associationsRecoverablePasskeySignature": {
+      "type": "object",
+      "properties": {
+        "publicKey": {
+          "type": "string",
+          "format": "byte"
+        },
+        "signature": {
+          "type": "string",
+          "format": "byte"
+        },
+        "authenticatorData": {
+          "type": "string",
+          "format": "byte"
+        },
+        "clientDataJson": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "Passkey signature"
     },
     "associationsRevokeAssociation": {
       "type": "object",
@@ -375,6 +397,9 @@
         },
         "delegatedErc191": {
           "$ref": "#/definitions/associationsLegacyDelegatedSignature"
+        },
+        "passkey": {
+          "$ref": "#/definitions/associationsRecoverablePasskeySignature"
         }
       },
       "title": "A wrapper for all possible signature types"

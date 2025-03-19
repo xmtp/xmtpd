@@ -16,7 +16,7 @@ services:
   chain:
     platform: linux/amd64
     image: ghcr.io/foundry-rs/foundry
-    entrypoint: ["anvil", "--host", "0.0.0.0"]
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--mixed-mining", "--block-time", "1"]
     working_dir: /anvil
     ports:
       - 7545:8545

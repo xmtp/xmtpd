@@ -79,3 +79,11 @@ type SetNodeOperatorCommissionPercentOptions struct {
 	AdminOptions      AdminOptions `group:"Admin Options" namespace:"admin"`
 	CommissionPercent int64        `                                        long:"commission-percent" description:"Commission percent to set for the node operator"`
 }
+
+type LoadTestOptions struct {
+	PrivateKey         string `long:"private-key"          description:"Private key to use for the load test"  required:"true"`
+	MessagesPerSecond  int    `long:"messages-per-second"  description:"Number of messages to send per second"                 default:"25"`
+	Duration           int    `long:"duration"             description:"Duration of the load test in seconds"                  default:"60"`
+	MessageSizeBytes   int    `long:"message-size-bytes"   description:"Size of the message to send in bytes"                  default:"7168"`
+	DbConnectionString string `long:"db-connection-string" description:"Database connection string"                                           env:"XMTPD_DB_WRITER_CONNECTION_STRING"`
+}

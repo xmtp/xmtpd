@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/xmtp/xmtpd/pkg/tracing"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"math/big"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -141,7 +142,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 				ctx,
 				m.logger,
 				m.client,
-				2*time.Second,
+				10*time.Second,
 				250*time.Millisecond,
 				transaction.Hash(),
 			)

@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
+	nonceManagerUtils "github.com/xmtp/xmtpd/pkg/testutils/noncemanager"
 )
 
 func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
@@ -34,7 +35,7 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	client, err := blockchain.NewClient(ctx, contractsOptions.RpcUrl)
 	require.NoError(t, err)
 
-	nonceManager := NewTestNonceManager(logger)
+	nonceManager := nonceManagerUtils.NewTestNonceManager(logger)
 
 	publisher, err := blockchain.NewBlockchainPublisher(
 		ctx,

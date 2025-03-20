@@ -68,9 +68,10 @@ func NewReplicationServer(
 ) (*ReplicationServer, error) {
 	var err error
 
+	promReg := prometheus.NewRegistry()
+
 	var mtcs *metrics.Server
 	if options.Metrics.Enable {
-		promReg := prometheus.NewRegistry()
 		promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 		promReg.MustRegister(collectors.NewGoCollector())
 
@@ -143,6 +144,7 @@ func NewReplicationServer(
 			listenAddress,
 			httpListenAddress,
 			serverVersion,
+			promReg,
 		)
 		if err != nil {
 			return nil, err
@@ -179,6 +181,7 @@ func startAPIServer(
 	listenAddress string,
 	httpListenAddress string,
 	serverVersion *semver.Version,
+	registry *prometheus.Registry,
 ) error {
 	var err error
 
@@ -322,6 +325,7 @@ func startAPIServer(
 		serviceRegistrationFunc,
 		httpRegistrationFunc,
 		jwtVerifier,
+		registry,
 	)
 	if err != nil {
 		return err

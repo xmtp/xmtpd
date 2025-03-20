@@ -76,10 +76,11 @@ func TestRpcLogStreamer(t *testing.T) {
 	streamer, _ := buildStreamer(t, mockClient, fromBlock, address, topic)
 
 	cfg := ContractConfig{
-		FromBlock:       fromBlock,
-		ContractAddress: address,
-		Topics:          []common.Hash{topic},
-		EventChannel:    make(chan types.Log),
+		FromBlock:         fromBlock,
+		ContractAddress:   address,
+		Topics:            []common.Hash{topic},
+		EventChannel:      make(chan types.Log),
+		maxDisconnectTime: 10 * time.Second,
 	}
 
 	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)

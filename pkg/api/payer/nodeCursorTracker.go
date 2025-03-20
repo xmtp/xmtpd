@@ -3,10 +3,12 @@ package payer
 import (
 	"context"
 	"errors"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"time"
 )
 
 type MetadataApiClientConstructor interface {
@@ -44,6 +46,8 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	desiredSequenceId uint64,
 ) error {
 	// TODO(mkysel) ideally we wouldn't create and tear down the stream for every request
+
+	start := time.Now()
 
 	client, err := ct.metadataApiClient.NewMetadataApiClient(nodeId)
 	if err != nil {
@@ -98,6 +102,10 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 			}
 
 			if seqId >= desiredSequenceId {
+				metrics.EmitBlockUntilDesiredCursorReached(
+					desiredOriginatorId,
+					time.Since(start).Seconds(),
+				)
 				return nil
 			}
 		}

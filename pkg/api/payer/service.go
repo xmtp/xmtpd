@@ -3,6 +3,7 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -182,6 +183,7 @@ func (s *Service) publishToNodes(
 		return nil, status.Errorf(codes.Internal, "error signing payer envelopes: %v", err)
 	}
 
+	start := time.Now()
 	resp, err := client.PublishPayerEnvelopes(ctx, &message_api.PublishPayerEnvelopesRequest{
 		PayerEnvelopes: payerEnvelopes,
 	})
@@ -189,6 +191,8 @@ func (s *Service) publishToNodes(
 		return nil, status.Errorf(codes.Internal, "error publishing payer envelopes: %v", err)
 	}
 
+	metrics.EmitNodePublishDuration(originatorID, time.Since(start).Seconds())
+	metrics.EmitMessageOriginated(originatorID, len(payerEnvelopes))
 	return resp.OriginatorEnvelopes, nil
 }
 
@@ -222,6 +226,8 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
+	start := time.Now()
+
 	var unsignedOriginatorEnvelope *envelopesProto.UnsignedOriginatorEnvelope
 	var hash common.Hash
 	switch kind {
@@ -240,6 +246,7 @@ func (s *Service) publishToBlockchain(
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
+
 		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
@@ -266,6 +273,9 @@ func (s *Service) publishToBlockchain(
 			targetTopic.String(),
 		)
 	}
+
+	metrics.EmitNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
+	metrics.EmitMessageOriginated(desiredOriginatorId, 1)
 
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {

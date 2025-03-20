@@ -72,6 +72,11 @@ func registerCollectors(reg prometheus.Registerer) {
 		currentBlock,
 		getLogsDuration,
 		getLogsRequests,
+		nodePublishDuration,
+		cursorBlockTime,
+		currentNonce,
+		payerBanlistRetry,
+		messagesOriginated,
 	}
 
 	for _, col := range cols {

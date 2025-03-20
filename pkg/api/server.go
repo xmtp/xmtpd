@@ -2,18 +2,16 @@ package api
 
 import (
 	"context"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/pires/go-proxyproto"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
-
-	"google.golang.org/grpc/reflection"
-
-	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/pires/go-proxyproto"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -21,10 +19,7 @@ import (
 	"google.golang.org/grpc/health"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
-)
-
-var (
-	prometheusOnce sync.Once
+	"google.golang.org/grpc/reflection"
 )
 
 type RegistrationFunc func(server *grpc.Server) error
@@ -44,6 +39,8 @@ func NewAPIServer(
 	enableReflection bool,
 	registrationFunc RegistrationFunc,
 	jwtVerifier authn.JWTVerifier,
+	registry *prometheus.Registry,
+
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", listenAddress)
 
@@ -61,20 +58,24 @@ func NewAPIServer(
 	}
 	s.log.Info("Creating API server")
 
-	prometheusOnce.Do(func() {
-		prometheus.EnableHandlingTimeHistogram()
-	})
-
 	loggingInterceptor, err := server.NewLoggingInterceptor(log)
 	if err != nil {
 		return nil, err
 	}
 
+	srvMetrics := grpcprom.NewServerMetrics(
+		grpcprom.WithServerHandlingTimeHistogram(
+			grpcprom.WithHistogramBuckets(
+				[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
+			),
+		))
+	registry.MustRegister(srvMetrics)
+
 	unary := []grpc.UnaryServerInterceptor{
-		prometheus.UnaryServerInterceptor,
+		srvMetrics.UnaryServerInterceptor(),
 	}
 	stream := []grpc.StreamServerInterceptor{
-		prometheus.StreamServerInterceptor,
+		srvMetrics.StreamServerInterceptor(),
 	}
 
 	if jwtVerifier != nil {

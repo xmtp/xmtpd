@@ -24,7 +24,7 @@ func NewStableHashingNodeSelectorAlgorithm(
 	return &StableHashingNodeSelectorAlgorithm{reg: reg}
 }
 
-// hashKey hashes the topic to a stable uint16 hash
+// HashKey hashes the topic to a stable uint16 hash
 func HashKey(topic topic.Topic) uint32 {
 	hash := sha256.Sum256(topic.Bytes())
 	return binary.BigEndian.Uint32(hash[:4])

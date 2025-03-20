@@ -8,7 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-// Rates containt the cost for each fee component at a given message time.
+// Rates contain the cost for each fee component at a given message time.
 // Values in the rates struct are denominated in USD PicoDollars
 type Rates struct {
 	MessageFee          currency.PicoDollar // The flat per-message fee

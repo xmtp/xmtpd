@@ -84,7 +84,7 @@ func TestCursorTrackerClientShutsDownAfterExecution(t *testing.T) {
 	)
 	require.NoError(t, err)
 }
-func TestCursorTrackerClientServerIsShutown(t *testing.T) {
+func TestCursorTrackerClientServerIsShutdown(t *testing.T) {
 	ctx := context.Background()
 
 	desiredOriginator := uint32(1)

@@ -245,7 +245,7 @@ func (s *subscribeWorker) dispatchToOriginators(envs []*envelopes.OriginatorEnve
 }
 
 func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope) {
-	// We iterate envelopes one-by-one, because we expect the number of envelopers
+	// We iterate envelopes one-by-one, because we expect the number of envelopes
 	// per-topic to be small in each tick
 	for _, env := range envs {
 		listeners := s.topicListeners.getListeners(env.TargetTopic().String())

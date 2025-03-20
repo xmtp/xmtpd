@@ -16,7 +16,7 @@ func NewClient(ctx context.Context, rpcUrl string) (*ethclient.Client, error) {
 	return ethclient.DialContext(ctx, rpcUrl)
 }
 
-// executeTransaction is a helper function that:
+// ExecuteTransaction is a helper function that:
 // - executes a transaction
 // - waits for it to be mined
 // - processes the event logs

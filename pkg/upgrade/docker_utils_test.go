@@ -152,30 +152,26 @@ func runContainer(
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
-		Image: imageName,
-		Name:  containerName,
-		Env:   envVars,
+		Image:        imageName,
+		Name:         containerName,
+		Env:          envVars,
+		ExposedPorts: []string{"5050/tcp"},
+
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 		},
 		WaitingFor: wait.ForLog(
-			"replication.api\tserving grpc",
+			"serving grpc",
 		), // TODO: Ideally we wait for health/liveness probe
 	}
 
-	container, err := testcontainers.GenericContainer(ctxwc, testcontainers.GenericContainerRequest{
+	xmtpContainer, err := testcontainers.GenericContainer(ctxwc, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 		Logger:           testcontainers.TestLogger(t),
 	})
-	if err != nil {
-		return err
-	}
 
-	err = container.Terminate(ctxwc)
-	if err != nil {
-		return err
-	}
+	testcontainers.CleanupContainer(t, xmtpContainer)
 
-	return nil
+	return err
 }

@@ -11,9 +11,7 @@ import (
 // Guaranteed to be in order of increasing version
 var (
 	xmtpdVersions = []string{
-		"0.1.4",
-		"0.2.0",
-		"0.2.1",
+		"sha-94af7b1",
 	}
 
 	ghcrRepository = "ghcr.io/xmtp/xmtpd"

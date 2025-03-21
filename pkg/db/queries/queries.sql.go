@@ -13,18 +13,14 @@ import (
 )
 
 const buildPayerReport = `-- name: BuildPayerReport :many
-SELECT
-	payers.address as payer_address,
+SELECT payers.address AS payer_address,
 	SUM(spend_picodollars)::BIGINT AS total_spend_picodollars
-FROM
-	unsettled_usage
-JOIN payers on payers.id = unsettled_usage.payer_id
-WHERE
-	originator_id = $1
+FROM unsettled_usage
+	JOIN payers ON payers.id = unsettled_usage.payer_id
+WHERE originator_id = $1
 	AND minutes_since_epoch > $2
 	AND minutes_since_epoch <= $3
-GROUP BY
-	payers.address
+GROUP BY payers.address
 `
 
 type BuildPayerReportParams struct {
@@ -76,14 +72,11 @@ func (q *Queries) DeleteAvailableNonce(ctx context.Context, nonce int64) (int64,
 
 const deleteObsoleteNonces = `-- name: DeleteObsoleteNonces :execrows
 WITH deletable AS (
-	SELECT
-		n.nonce
-	FROM
-		nonce_table n
-	WHERE
-		n.nonce < $1
-	FOR UPDATE
-		SKIP LOCKED)
+	SELECT n.nonce
+	FROM nonce_table n
+	WHERE n.nonce < $1 FOR
+	UPDATE SKIP LOCKED
+)
 DELETE FROM nonce_table USING deletable
 WHERE nonce_table.nonce = deletable.nonce
 `
@@ -110,7 +103,10 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 }
 
 const fillNonceSequence = `-- name: FillNonceSequence :one
-SELECT COALESCE(fill_nonce_gap($1, $2), $2)::INT AS inserted_rows
+SELECT COALESCE(
+		fill_nonce_gap($1, $2),
+		$2
+	)::INT AS inserted_rows
 `
 
 type FillNonceSequenceParams struct {
@@ -127,12 +123,10 @@ func (q *Queries) FillNonceSequence(ctx context.Context, arg FillNonceSequencePa
 
 const findOrCreatePayer = `-- name: FindOrCreatePayer :one
 INSERT INTO payers(address)
-	VALUES ($1)
-ON CONFLICT (address)
-	DO UPDATE SET
-		address = $1
-	RETURNING
-		id
+VALUES ($1) ON CONFLICT (address) DO
+UPDATE
+SET address = $1
+RETURNING id
 `
 
 func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32, error) {
@@ -143,23 +137,18 @@ func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32,
 }
 
 const getAddressLogs = `-- name: GetAddressLogs :many
-SELECT
-	a.address,
+SELECT a.address,
 	encode(a.inbox_id, 'hex') AS inbox_id,
 	a.association_sequence_id
-FROM
-	address_log a
+FROM address_log a
 	INNER JOIN (
-		SELECT
-			address,
+		SELECT address,
 			MAX(association_sequence_id) AS max_association_sequence_id
-		FROM
-			address_log
-		WHERE
-			address = ANY ($1::TEXT[])
+		FROM address_log
+		WHERE address = ANY ($1::TEXT [])
 			AND revocation_sequence_id IS NULL
-		GROUP BY
-			address) b ON a.address = b.address
+		GROUP BY address
+	) b ON a.address = b.address
 	AND a.association_sequence_id = b.max_association_sequence_id
 `
 
@@ -193,17 +182,13 @@ func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]Get
 }
 
 const getBlocksInRange = `-- name: GetBlocksInRange :many
-SELECT DISTINCT ON (block_number)
-	block_number,
+SELECT DISTINCT ON (block_number) block_number,
 	block_hash
-FROM
-	blockchain_messages
-WHERE
-	block_number BETWEEN $1 AND $2
+FROM blockchain_messages
+WHERE block_number BETWEEN $1 AND $2
 	AND block_hash IS NOT NULL
 	AND is_canonical = TRUE
-ORDER BY
-	block_number ASC,
+ORDER BY block_number ASC,
 	block_hash
 `
 
@@ -245,9 +230,10 @@ func (q *Queries) GetBlocksInRange(ctx context.Context, arg GetBlocksInRangePara
 }
 
 const getGatewayEnvelopeByID = `-- name: GetGatewayEnvelopeByID :one
-SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id FROM gateway_envelopes
-WHERE originator_sequence_id = $1
-AND originator_node_id = $2
+SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id
+FROM gateway_envelopes
+WHERE originator_sequence_id = $1 -- Include the node ID to take advantage of the primary key index
+	AND originator_node_id = $2
 `
 
 type GetGatewayEnvelopeByIDParams struct {
@@ -255,7 +241,6 @@ type GetGatewayEnvelopeByIDParams struct {
 	OriginatorNodeID     int32
 }
 
-// Include the node ID to take advantage of the primary key index
 func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnvelopeByIDParams) (GatewayEnvelope, error) {
 	row := q.db.QueryRowContext(ctx, getGatewayEnvelopeByID, arg.OriginatorSequenceID, arg.OriginatorNodeID)
 	var i GatewayEnvelope
@@ -271,13 +256,10 @@ func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnve
 }
 
 const getLatestBlock = `-- name: GetLatestBlock :one
-SELECT
-	block_number,
+SELECT block_number,
 	block_hash
-FROM
-	latest_block
-WHERE
-	contract_address = $1
+FROM latest_block
+WHERE contract_address = $1
 `
 
 type GetLatestBlockRow struct {
@@ -293,13 +275,10 @@ func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (G
 }
 
 const getLatestCursor = `-- name: GetLatestCursor :many
-SELECT
-	originator_node_id,
+SELECT originator_node_id,
 	MAX(originator_sequence_id)::BIGINT AS max_sequence_id
-FROM
-	gateway_envelopes
-GROUP BY
-	originator_node_id
+FROM gateway_envelopes
+GROUP BY originator_node_id
 `
 
 type GetLatestCursorRow struct {
@@ -331,12 +310,9 @@ func (q *Queries) GetLatestCursor(ctx context.Context) ([]GetLatestCursorRow, er
 }
 
 const getLatestSequenceId = `-- name: GetLatestSequenceId :one
-SELECT
-	COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
-FROM
-	gateway_envelopes
-WHERE
-	originator_node_id = $1
+SELECT COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
+FROM gateway_envelopes
+WHERE originator_node_id = $1
 `
 
 func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int32) (int64, error) {
@@ -347,15 +323,11 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 }
 
 const getNextAvailableNonce = `-- name: GetNextAvailableNonce :one
-SELECT
-	nonce
-FROM
-	nonce_table
-ORDER BY
-	nonce ASC
-LIMIT 1
-FOR UPDATE
-	SKIP LOCKED
+SELECT nonce
+FROM nonce_table
+ORDER BY nonce ASC
+LIMIT 1 FOR
+UPDATE SKIP LOCKED
 `
 
 func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
@@ -366,17 +338,18 @@ func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
 }
 
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
-SELECT
-	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
+SELECT COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
 	COALESCE(MAX(last_sequence_id), 0)::BIGINT AS last_sequence_id
-FROM
-	unsettled_usage
-WHERE
-	payer_id = $1
-	AND ($2::BIGINT = 0
-		OR minutes_since_epoch > $2::BIGINT)
-	AND ($3::BIGINT = 0
-		OR minutes_since_epoch < $3::BIGINT)
+FROM unsettled_usage
+WHERE payer_id = $1
+	AND (
+		$2::BIGINT = 0
+		OR minutes_since_epoch > $2::BIGINT
+	)
+	AND (
+		$3::BIGINT = 0
+		OR minutes_since_epoch < $3::BIGINT
+	)
 `
 
 type GetPayerUnsettledUsageParams struct {
@@ -398,13 +371,10 @@ func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsett
 }
 
 const getRecentOriginatorCongestion = `-- name: GetRecentOriginatorCongestion :many
-SELECT 
-	minutes_since_epoch,
+SELECT minutes_since_epoch,
 	num_messages
-FROM
-	originator_congestion
-WHERE
-	originator_id = $1
+FROM originator_congestion
+WHERE originator_id = $1
 	AND minutes_since_epoch <= $2::INT
 	AND minutes_since_epoch > $2::INT - $3::INT
 ORDER BY minutes_since_epoch DESC
@@ -445,23 +415,20 @@ func (q *Queries) GetRecentOriginatorCongestion(ctx context.Context, arg GetRece
 }
 
 const getSecondNewestMinute = `-- name: GetSecondNewestMinute :one
-WITH second_newest_minute
-AS
-  (
-           SELECT minutes_since_epoch
-           FROM     unsettled_usage
-           WHERE    originator_id = $1
-           AND      unsettled_usage.minutes_since_epoch > $2
-           GROUP BY unsettled_usage.minutes_since_epoch
-           ORDER BY unsettled_usage.minutes_since_epoch DESC
-           LIMIT    1
-           OFFSET   1)
-  SELECT coalesce(max(last_sequence_id), 0)::BIGINT as max_sequence_id,
-         coalesce(max(unsettled_usage.minutes_since_epoch), 0)::INT as minutes_since_epoch
-  FROM   unsettled_usage
-  JOIN   second_newest_minute
-  ON     second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
-  WHERE  unsettled_usage.originator_id = $1
+WITH second_newest_minute AS (
+	SELECT minutes_since_epoch
+	FROM unsettled_usage
+	WHERE originator_id = $1
+		AND unsettled_usage.minutes_since_epoch > $2
+	GROUP BY unsettled_usage.minutes_since_epoch
+	ORDER BY unsettled_usage.minutes_since_epoch DESC
+	LIMIT 1 OFFSET 1
+)
+SELECT coalesce(max(last_sequence_id), 0)::BIGINT AS max_sequence_id,
+	coalesce(max(unsettled_usage.minutes_since_epoch), 0)::INT AS minutes_since_epoch
+FROM unsettled_usage
+	JOIN second_newest_minute ON second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
+WHERE unsettled_usage.originator_id = $1
 `
 
 type GetSecondNewestMinuteParams struct {
@@ -483,10 +450,9 @@ func (q *Queries) GetSecondNewestMinute(ctx context.Context, arg GetSecondNewest
 
 const incrementOriginatorCongestion = `-- name: IncrementOriginatorCongestion :exec
 INSERT INTO originator_congestion(originator_id, minutes_since_epoch, num_messages)
-	VALUES ($1, $2, 1)
-ON CONFLICT (originator_id, minutes_since_epoch)
-	DO UPDATE SET
-		num_messages = originator_congestion.num_messages + 1
+VALUES ($1, $2, 1) ON CONFLICT (originator_id, minutes_since_epoch) DO
+UPDATE
+SET num_messages = originator_congestion.num_messages + 1
 `
 
 type IncrementOriginatorCongestionParams struct {
@@ -500,12 +466,23 @@ func (q *Queries) IncrementOriginatorCongestion(ctx context.Context, arg Increme
 }
 
 const incrementUnsettledUsage = `-- name: IncrementUnsettledUsage :exec
-INSERT INTO unsettled_usage(payer_id, originator_id, minutes_since_epoch, spend_picodollars, last_sequence_id)
-	VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (payer_id, originator_id, minutes_since_epoch)
-	DO UPDATE SET
-		spend_picodollars = unsettled_usage.spend_picodollars + $4,
-		last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, $5)
+INSERT INTO unsettled_usage(
+		payer_id,
+		originator_id,
+		minutes_since_epoch,
+		spend_picodollars,
+		last_sequence_id
+	)
+VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5
+	) ON CONFLICT (payer_id, originator_id, minutes_since_epoch) DO
+UPDATE
+SET spend_picodollars = unsettled_usage.spend_picodollars + $4,
+	last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, $5)
 `
 
 type IncrementUnsettledUsageParams struct {
@@ -528,14 +505,26 @@ func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnse
 }
 
 const insertAddressLog = `-- name: InsertAddressLog :execrows
-INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
-	VALUES ($1, decode($2, 'hex'), $3, NULL)
-ON CONFLICT (address, inbox_id)
-	DO UPDATE SET
-		revocation_sequence_id = NULL, association_sequence_id = $3
-	WHERE (address_log.revocation_sequence_id IS NULL
-		OR address_log.revocation_sequence_id < $3)
-		AND address_log.association_sequence_id < $3
+INSERT INTO address_log(
+		address,
+		inbox_id,
+		association_sequence_id,
+		revocation_sequence_id
+	)
+VALUES (
+		$1,
+		decode($2, 'hex'),
+		$3,
+		NULL
+	) ON CONFLICT (address, inbox_id) DO
+UPDATE
+SET revocation_sequence_id = NULL,
+	association_sequence_id = $3
+WHERE (
+		address_log.revocation_sequence_id IS NULL
+		OR address_log.revocation_sequence_id < $3
+	)
+	AND address_log.association_sequence_id < $3
 `
 
 type InsertAddressLogParams struct {
@@ -553,10 +542,20 @@ func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogPara
 }
 
 const insertBlockchainMessage = `-- name: InsertBlockchainMessage :exec
-INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
-	VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT
-	DO NOTHING
+INSERT INTO blockchain_messages(
+		block_number,
+		block_hash,
+		originator_node_id,
+		originator_sequence_id,
+		is_canonical
+	)
+VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5
+	) ON CONFLICT DO NOTHING
 `
 
 type InsertBlockchainMessageParams struct {
@@ -579,10 +578,22 @@ func (q *Queries) InsertBlockchainMessage(ctx context.Context, arg InsertBlockch
 }
 
 const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, gateway_time)
-	VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()))
-ON CONFLICT
-	DO NOTHING
+INSERT INTO gateway_envelopes(
+		originator_node_id,
+		originator_sequence_id,
+		topic,
+		originator_envelope,
+		payer_id,
+		gateway_time
+	)
+VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5,
+		COALESCE($6, NOW())
+	) ON CONFLICT DO NOTHING
 `
 
 type InsertGatewayEnvelopeParams struct {
@@ -611,9 +622,7 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 
 const insertNodeInfo = `-- name: InsertNodeInfo :execrows
 INSERT INTO node_info(node_id, public_key)
-	VALUES ($1, $2)
-ON CONFLICT
-	DO NOTHING
+VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
 
 type InsertNodeInfoParams struct {
@@ -630,10 +639,8 @@ func (q *Queries) InsertNodeInfo(ctx context.Context, arg InsertNodeInfoParams) 
 }
 
 const insertStagedOriginatorEnvelope = `-- name: InsertStagedOriginatorEnvelope :one
-SELECT
-	id, originator_time, topic, payer_envelope
-FROM
-	insert_staged_originator_envelope($1, $2)
+SELECT id, originator_time, topic, payer_envelope
+FROM insert_staged_originator_envelope($1, $2)
 `
 
 type InsertStagedOriginatorEnvelopeParams struct {
@@ -654,12 +661,9 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 }
 
 const revokeAddressFromLog = `-- name: RevokeAddressFromLog :execrows
-UPDATE
-	address_log
-SET
-	revocation_sequence_id = $1
-WHERE
-	address = $2
+UPDATE address_log
+SET revocation_sequence_id = $1
+WHERE address = $2
 	AND inbox_id = decode($3, 'hex')
 `
 
@@ -678,10 +682,14 @@ func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFro
 }
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
-SELECT
-	gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id
-FROM
-	select_gateway_envelopes($1::INT[], $2::BIGINT[], $3::BYTEA[], $4::INT[], $5::INT)
+SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id
+FROM select_gateway_envelopes(
+		$1::INT [],
+		$2::BIGINT [],
+		$3::BYTEA [],
+		$4::INT [],
+		$5::INT
+	)
 `
 
 type SelectGatewayEnvelopesParams struct {
@@ -729,12 +737,9 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 }
 
 const selectNodeInfo = `-- name: SelectNodeInfo :one
-SELECT
-	node_id, public_key, singleton_id
-FROM
-	node_info
-WHERE
-	singleton_id = 1
+SELECT node_id, public_key, singleton_id
+FROM node_info
+WHERE singleton_id = 1
 `
 
 func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
@@ -745,14 +750,10 @@ func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
 }
 
 const selectStagedOriginatorEnvelopes = `-- name: SelectStagedOriginatorEnvelopes :many
-SELECT
-	id, originator_time, topic, payer_envelope
-FROM
-	staged_originator_envelopes
-WHERE
-	id > $1
-ORDER BY
-	id ASC
+SELECT id, originator_time, topic, payer_envelope
+FROM staged_originator_envelopes
+WHERE id > $1
+ORDER BY id ASC
 LIMIT $2
 `
 
@@ -790,14 +791,11 @@ func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg Selec
 }
 
 const selectVectorClock = `-- name: SelectVectorClock :many
-SELECT DISTINCT ON (originator_node_id)
-	originator_node_id,
+SELECT DISTINCT ON (originator_node_id) originator_node_id,
 	originator_sequence_id,
 	originator_envelope
-FROM
-	gateway_envelopes
-ORDER BY
-	originator_node_id,
+FROM gateway_envelopes
+ORDER BY originator_node_id,
 	originator_sequence_id DESC
 `
 
@@ -832,13 +830,12 @@ func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow
 
 const setLatestBlock = `-- name: SetLatestBlock :exec
 INSERT INTO latest_block(contract_address, block_number, block_hash)
-	VALUES ($1, $2, $3)
-ON CONFLICT (contract_address)
-	DO UPDATE SET
-		block_number = $2, block_hash = $3
-	WHERE
-		$2 > latest_block.block_number
-		AND $3 != latest_block.block_hash
+VALUES ($1, $2, $3) ON CONFLICT (contract_address) DO
+UPDATE
+SET block_number = $2,
+	block_hash = $3
+WHERE $2 > latest_block.block_number
+	AND $3 != latest_block.block_hash
 `
 
 type SetLatestBlockParams struct {
@@ -853,16 +850,17 @@ func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) 
 }
 
 const sumOriginatorCongestion = `-- name: SumOriginatorCongestion :one
-SELECT
-	COALESCE(SUM(num_messages), 0)::BIGINT AS num_messages
-FROM
-	originator_congestion
-WHERE
-	originator_id = $1
-	AND ($2::BIGINT = 0
-		OR minutes_since_epoch > $2::BIGINT)
-	AND ($3::BIGINT = 0
-		OR minutes_since_epoch < $3::BIGINT)
+SELECT COALESCE(SUM(num_messages), 0)::BIGINT AS num_messages
+FROM originator_congestion
+WHERE originator_id = $1
+	AND (
+		$2::BIGINT = 0
+		OR minutes_since_epoch > $2::BIGINT
+	)
+	AND (
+		$3::BIGINT = 0
+		OR minutes_since_epoch < $3::BIGINT
+	)
 `
 
 type SumOriginatorCongestionParams struct {
@@ -879,20 +877,15 @@ func (q *Queries) SumOriginatorCongestion(ctx context.Context, arg SumOriginator
 }
 
 const updateBlocksCanonicalityInRange = `-- name: UpdateBlocksCanonicalityInRange :exec
-UPDATE
-	blockchain_messages AS bm
-SET
-	is_canonical = FALSE
+UPDATE blockchain_messages AS bm
+SET is_canonical = FALSE
 FROM (
-	SELECT
-		block_number
-	FROM
-		blockchain_messages
-	WHERE
-		bm.block_number BETWEEN $1 AND $2
-	FOR UPDATE) AS locked_rows
-WHERE
-	bm.block_number = locked_rows.block_number
+		SELECT block_number
+		FROM blockchain_messages
+		WHERE bm.block_number BETWEEN $1 AND $2 FOR
+		UPDATE
+	) AS locked_rows
+WHERE bm.block_number = locked_rows.block_number
 `
 
 type UpdateBlocksCanonicalityInRangeParams struct {

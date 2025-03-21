@@ -11,6 +11,9 @@ import (
 // Guaranteed to be in order of increasing version
 var (
 	xmtpdVersions = []string{
+		// 0.2.X versions and below are no longer compatible
+		// there is no released version that works
+		// use a known stable dev version instead
 		"sha-94af7b1",
 	}
 

@@ -7,7 +7,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/ethereum/go-ethereum v1.15.1
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1

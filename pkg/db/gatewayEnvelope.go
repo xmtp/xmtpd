@@ -33,6 +33,10 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 
 			var wg sync.WaitGroup
 			var incrementErr, congestionErr error
+			// Use the sequence ID from the envelope to set the last sequence ID value
+			if incrementParams.SequenceID == 0 {
+				incrementParams.SequenceID = insertParams.OriginatorSequenceID
+			}
 
 			wg.Add(2)
 

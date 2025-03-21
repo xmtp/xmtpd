@@ -34,7 +34,7 @@ func TestIncrementUnsettledUsage(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, unsettledUsage, int64(100))
+	require.Equal(t, unsettledUsage.TotalSpendPicodollars, int64(100))
 
 	require.NoError(t, querier.IncrementUnsettledUsage(ctx, queries.IncrementUnsettledUsageParams{
 		PayerID:           payerId,
@@ -50,7 +50,7 @@ func TestIncrementUnsettledUsage(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, unsettledUsage, int64(200))
+	require.Equal(t, unsettledUsage.TotalSpendPicodollars, int64(200))
 }
 
 func TestGetUnsettledUsage(t *testing.T) {
@@ -86,7 +86,7 @@ func TestGetUnsettledUsage(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, unsettledUsage, int64(300))
+	require.Equal(t, unsettledUsage.TotalSpendPicodollars, int64(300))
 
 	unsettledUsage, err = querier.GetPayerUnsettledUsage(
 		ctx,
@@ -96,5 +96,5 @@ func TestGetUnsettledUsage(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, unsettledUsage, int64(500))
+	require.Equal(t, unsettledUsage.TotalSpendPicodollars, int64(500))
 }

@@ -73,4 +73,5 @@ type UnsettledUsage struct {
 	OriginatorID      int32
 	MinutesSinceEpoch int32
 	SpendPicodollars  int64
+	LastSequenceID    int64
 }

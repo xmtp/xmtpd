@@ -165,11 +165,14 @@ func runContainer(
 		), // TODO: Ideally we wait for health/liveness probe
 	}
 
-	xmtpContainer, err := testcontainers.GenericContainer(ctxwc, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-		Logger:           testcontainers.TestLogger(t),
-	})
+	xmtpContainer, err := testcontainers.GenericContainer(
+		ctxwc,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Logger:           testcontainers.TestLogger(t),
+		},
+	)
 
 	testcontainers.CleanupContainer(t, xmtpContainer)
 

@@ -45,7 +45,7 @@ type IBlockchainPublisher interface {
 	) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error)
 	PublishGroupMessage(
 		ctx context.Context,
-		groupdId [32]byte,
+		groupId [32]byte,
 		message []byte,
 	) (*groupmessages.GroupMessagesMessageSent, error)
 }

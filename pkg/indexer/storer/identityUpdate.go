@@ -58,7 +58,6 @@ func (s *IdentityUpdateStorer) StoreLog(
 	if err != nil {
 		return NewUnrecoverableLogStorageError(err)
 	}
-
 	err = db.RunInTx(
 		ctx,
 		s.db,
@@ -83,6 +82,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			s.logger.Info(
 				"Inserting identity update from contract",
 				zap.String("topic", messageTopic.String()),
+				zap.Time("time", time.Now()),
 			)
 
 			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)

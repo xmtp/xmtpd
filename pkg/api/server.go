@@ -73,6 +73,11 @@ func NewAPIServer(
 		return nil, err
 	}
 
+	openConnectionsInterceptor, err := server.NewOpenConnectionsInterceptor()
+	if err != nil {
+		return nil, err
+	}
+
 	srvMetrics := grpcprom.NewServerMetrics(
 		grpcprom.WithServerHandlingTimeHistogram(
 			grpcprom.WithHistogramBuckets(
@@ -83,9 +88,13 @@ func NewAPIServer(
 
 	unary := []grpc.UnaryServerInterceptor{
 		srvMetrics.UnaryServerInterceptor(),
+		openConnectionsInterceptor.Unary(),
+		loggingInterceptor.Unary(),
 	}
 	stream := []grpc.StreamServerInterceptor{
 		srvMetrics.StreamServerInterceptor(),
+		openConnectionsInterceptor.Stream(),
+		loggingInterceptor.Stream(),
 	}
 
 	if jwtVerifier != nil {
@@ -105,9 +114,6 @@ func NewAPIServer(
 			PermitWithoutStream: true,
 			MinTime:             15 * time.Second,
 		}),
-		grpc.ChainUnaryInterceptor(loggingInterceptor.Unary()),
-		grpc.ChainStreamInterceptor(loggingInterceptor.Stream()),
-
 		// grpc.MaxRecvMsgSize(s.Config.Options.MaxMsgSize),
 	}
 

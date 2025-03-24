@@ -497,33 +497,6 @@
       },
       "title": "Full representation of a group message"
     },
-    "mlsapiv1PagingInfo": {
-      "type": "object",
-      "properties": {
-        "direction": {
-          "$ref": "#/definitions/mlsapiv1SortDirection"
-        },
-        "limit": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "idCursor": {
-          "type": "string",
-          "format": "uint64"
-        }
-      },
-      "title": "Pagination config for queries"
-    },
-    "mlsapiv1SortDirection": {
-      "type": "string",
-      "enum": [
-        "SORT_DIRECTION_UNSPECIFIED",
-        "SORT_DIRECTION_ASCENDING",
-        "SORT_DIRECTION_DESCENDING"
-      ],
-      "default": "SORT_DIRECTION_UNSPECIFIED",
-      "title": "Sort direction for queries"
-    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -658,6 +631,23 @@
       "description": "This would be a serialized MLS key package that the node would\n parse, validate, and then store.",
       "title": "A wrapper around the Key Package bytes"
     },
+    "v1PagingInfo": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "$ref": "#/definitions/v1SortDirection"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "idCursor": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "title": "Pagination config for queries"
+    },
     "v1QueryGroupMessagesRequest": {
       "type": "object",
       "properties": {
@@ -666,7 +656,7 @@
           "format": "byte"
         },
         "pagingInfo": {
-          "$ref": "#/definitions/mlsapiv1PagingInfo"
+          "$ref": "#/definitions/v1PagingInfo"
         }
       },
       "title": "Request for group message queries"
@@ -682,7 +672,7 @@
           }
         },
         "pagingInfo": {
-          "$ref": "#/definitions/mlsapiv1PagingInfo"
+          "$ref": "#/definitions/v1PagingInfo"
         }
       },
       "title": "Response for group message queries"
@@ -695,7 +685,7 @@
           "format": "byte"
         },
         "pagingInfo": {
-          "$ref": "#/definitions/mlsapiv1PagingInfo"
+          "$ref": "#/definitions/v1PagingInfo"
         }
       },
       "title": "Request for welcome message queries"
@@ -711,7 +701,7 @@
           }
         },
         "pagingInfo": {
-          "$ref": "#/definitions/mlsapiv1PagingInfo"
+          "$ref": "#/definitions/v1PagingInfo"
         }
       },
       "title": "Response for welcome message queries"
@@ -778,6 +768,16 @@
         }
       },
       "title": "Send a batch of welcome messages"
+    },
+    "v1SortDirection": {
+      "type": "string",
+      "enum": [
+        "SORT_DIRECTION_UNSPECIFIED",
+        "SORT_DIRECTION_ASCENDING",
+        "SORT_DIRECTION_DESCENDING"
+      ],
+      "default": "SORT_DIRECTION_UNSPECIFIED",
+      "title": "Sort direction for queries"
     },
     "v1SubscribeGroupMessagesRequest": {
       "type": "object",

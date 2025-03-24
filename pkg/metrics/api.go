@@ -7,7 +7,7 @@ import (
 var apiOpenConnections = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Name: "xmtp_api_open_connections_gauge",
-		Help: "Duration of the node publish call",
+		Help: "Number of open API connections",
 	},
 	[]string{"style", "method"},
 )

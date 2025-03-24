@@ -168,6 +168,10 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 			// reset self-termination timer
 			timer.Reset(watcher.maxDisconnectTime)
 
+			if nextBlock != nil {
+				fromBlock = *nextBlock
+			}
+
 			if len(logs) == 0 {
 				time.Sleep(NO_LOGS_SLEEP_TIME)
 				continue
@@ -177,13 +181,11 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				"Got logs",
 				zap.Int("numLogs", len(logs)),
 				zap.Uint64("fromBlock", fromBlock),
+				zap.Time("time", time.Now()),
 			)
 
 			for _, log := range logs {
 				watcher.EventChannel <- log
-			}
-			if nextBlock != nil {
-				fromBlock = *nextBlock
 			}
 		}
 	}

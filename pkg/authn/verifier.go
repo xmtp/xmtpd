@@ -3,6 +3,7 @@ package authn
 import (
 	"fmt"
 	"github.com/Masterminds/semver/v3"
+	"go.uber.org/zap"
 	"strconv"
 	"time"
 
@@ -26,11 +27,12 @@ A RegistryVerifier connects to the NodeRegistry and verifies JWTs against the re
 based on the JWT's subject field
 */
 func NewRegistryVerifier(
+	logger *zap.Logger,
 	registry registry.NodeRegistry,
 	myNodeID uint32,
 	serverVersion *semver.Version,
 ) (*RegistryVerifier, error) {
-	validator, err := NewClaimValidator(serverVersion)
+	validator, err := NewClaimValidator(logger, serverVersion)
 	if err != nil {
 		return nil, err
 	}

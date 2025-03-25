@@ -117,6 +117,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 	mockValidationService := mlsvalidateMocks.NewMockMLSValidationService(t)
 
 	jwtVerifier, err := authn.NewRegistryVerifier(
+		log,
 		mockRegistry,
 		registrant.NodeID(),
 		testutils.GetLatestVersion(t),

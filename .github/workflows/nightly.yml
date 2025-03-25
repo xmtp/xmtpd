@@ -19,6 +19,7 @@ jobs:
         with:
           commit-message: Nightly Protos
           title: Update Protos
+          token: ${{ secrets.GH_PAT_NIGHTLY_AUTOMATION }}
           body: |
             - Nightly Proto Update
 

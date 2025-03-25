@@ -91,19 +91,6 @@
     }
   },
   "definitions": {
-    "envelopesCursor": {
-      "type": "object",
-      "properties": {
-        "nodeIdToSequenceId": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "uint64"
-          }
-        }
-      },
-      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
-    },
     "metadata_apiGetSyncCursorRequest": {
       "type": "object"
     },
@@ -111,7 +98,7 @@
       "type": "object",
       "properties": {
         "latestSync": {
-          "$ref": "#/definitions/envelopesCursor"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       }
     },
@@ -142,6 +129,19 @@
           }
         }
       }
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
     }
   }
 }

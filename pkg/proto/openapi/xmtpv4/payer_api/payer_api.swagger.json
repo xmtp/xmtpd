@@ -328,7 +328,7 @@
           "format": "byte"
         },
         "dependsOn": {
-          "$ref": "#/definitions/envelopesCursor"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         },
         "isCommit": {
           "type": "boolean"
@@ -365,19 +365,6 @@
           "$ref": "#/definitions/associationsIdentityUpdate"
         }
       }
-    },
-    "envelopesCursor": {
-      "type": "object",
-      "properties": {
-        "nodeIdToSequenceId": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "uint64"
-          }
-        }
-      },
-      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
     },
     "envelopesOriginatorEnvelope": {
       "type": "object",
@@ -574,6 +561,19 @@
         }
       },
       "description": "Signature represents a generalized public key signature,\ndefined as a union to support cryptographic algorithm agility."
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
     }
   }
 }

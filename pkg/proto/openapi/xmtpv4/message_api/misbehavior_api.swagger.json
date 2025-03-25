@@ -103,19 +103,6 @@
       },
       "title": "An alternative to a signature for blockchain payloads"
     },
-    "envelopesCursor": {
-      "type": "object",
-      "properties": {
-        "nodeIdToSequenceId": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "uint64"
-          }
-        }
-      },
-      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
-    },
     "envelopesOriginatorEnvelope": {
       "type": "object",
       "properties": {
@@ -171,7 +158,7 @@
           "title": "Node queries"
         },
         "lastSeen": {
-          "$ref": "#/definitions/envelopesCursor"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       },
       "title": "Query for envelopes, shared by query and subscribe endpoints\nEither topics or originator_node_ids may be set, but not both"
@@ -358,6 +345,19 @@
           }
         }
       }
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
     }
   }
 }

@@ -22,6 +22,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"io"
+	"strings"
 	"sync"
 	"time"
 )
@@ -43,14 +44,6 @@ type originatorStream struct {
 	nodeID       uint32
 	lastEnvelope *envUtils.OriginatorEnvelope
 	stream       message_api.ReplicationApi_SubscribeEnvelopesClient
-}
-
-type ExitLoopError struct {
-	Message string
-}
-
-func (e *ExitLoopError) Error() string {
-	return e.Message
 }
 
 func startSyncWorker(
@@ -233,18 +226,16 @@ func (s *syncWorker) subscribeToNodeRegistration(
 
 		connectionsStatusCounter.MarkSuccess()
 
-		_ = s.listenToStream(registration.ctx, *node, stream)
-		return "", nil // try again from the start and reset backoff
+		err = s.listenToStream(registration.ctx, *node, stream)
+		return "", err
 	}
 
-	for {
-		// re-establish the connection unless we are shutting down
-		_, err = backoff.Retry(registration.ctx, operation, backoff.WithBackOff(expBackoff))
-		if err != nil {
-			return
-		}
-	}
-
+	_, _ = backoff.Retry(
+		registration.ctx,
+		operation,
+		backoff.WithBackOff(expBackoff),
+		backoff.WithMaxElapsedTime(0),
+	)
 }
 
 func (s *syncWorker) handleUnhealthyNode(registration NodeRegistration) {
@@ -389,7 +380,7 @@ func (s *syncWorker) listenToStream(
 		select {
 		case <-s.ctx.Done():
 			s.log.Info("Context canceled, stopping stream listener")
-			return nil
+			return backoff.Permanent(s.ctx.Err())
 
 		case envs := <-recvChan:
 			s.log.Debug(
@@ -405,14 +396,22 @@ func (s *syncWorker) listenToStream(
 		case err := <-errChan:
 			if err == io.EOF {
 				s.log.Info("Stream closed with EOF")
-				// let the caller rebuild the stream if required
-				return nil
+				// reset backoff to 1 second
+				return backoff.RetryAfter(1)
 			}
 			s.log.Error(
 				"Stream closed with error",
 				zap.String("peer", node.HttpAddress),
 				zap.Error(err),
 			)
+
+			if strings.Contains(err.Error(), "is not compatible") {
+				// the node won't accept our version
+				// try again in an hour in case their config has changed
+				return backoff.RetryAfter(3600)
+			}
+
+			// keep existing backoff
 			return err
 		}
 	}

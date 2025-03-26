@@ -1,5 +1,6 @@
 # xmtpd
 
+[![Github tag](https://img.shields.io/github/v/tag/xmtp/xmtpd.svg?sort=semver)](https://github.com/xmtp/xmtpd/releases/latest)
 [![Test](https://github.com/xmtp/xmtpd/actions/workflows/test.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/test.yml)
 [![Lint](https://github.com/xmtp/xmtpd/actions/workflows/lint-go.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/lint-go.yml)
 [![Build](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml)

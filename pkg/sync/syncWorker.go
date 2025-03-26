@@ -21,7 +21,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"io"
 	"sync"
 	"time"
@@ -299,11 +298,6 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 	dialOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(interceptor.Unary()),
 		grpc.WithStreamInterceptor(interceptor.Stream()),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                15 * time.Second,
-			Timeout:             5 * time.Second,
-			PermitWithoutStream: true,
-		}),
 	}
 	conn, err := node.BuildClient(dialOpts...)
 	if err != nil {

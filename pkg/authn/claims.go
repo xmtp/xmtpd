@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/semver/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 )
 
 type XmtpdClaims struct {
@@ -14,17 +15,17 @@ type ClaimValidator struct {
 	constraint semver.Constraints
 }
 
-func NewClaimValidator(serverVersion *semver.Version) (*ClaimValidator, error) {
+func NewClaimValidator(logger *zap.Logger, serverVersion *semver.Version) (*ClaimValidator, error) {
 	if serverVersion == nil {
 		return nil, fmt.Errorf("serverVersion is nil")
 	}
-	sanitizedVersion, err := serverVersion.SetPrerelease("")
-	if err != nil {
-		return nil, err
-	}
 
 	// https://github.com/Masterminds/semver?tab=readme-ov-file#caret-range-comparisons-major
-	constraintStr := fmt.Sprintf("^%s", sanitizedVersion.String())
+	constraintStr := fmt.Sprintf("^%d.%d", serverVersion.Major(), serverVersion.Minor())
+	logger.Debug(
+		"Using semver constraint for sync compatibility",
+		zap.String("constraint", constraintStr),
+	)
 
 	constraint, err := semver.NewConstraint(constraintStr)
 	if err != nil {

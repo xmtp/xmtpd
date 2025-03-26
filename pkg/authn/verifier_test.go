@@ -27,6 +27,7 @@ func buildVerifier(
 ) (*authn.RegistryVerifier, *registryMocks.MockNodeRegistry) {
 	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	verifier, err := authn.NewRegistryVerifier(
+		testutils.NewLog(t),
 		mockRegistry,
 		verifierNodeID,
 		version,

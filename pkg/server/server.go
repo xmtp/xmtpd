@@ -307,6 +307,7 @@ func startAPIServer(
 
 	if s.nodeRegistry != nil && s.registrant != nil {
 		jwtVerifier, err = authn.NewRegistryVerifier(
+			logger,
 			s.nodeRegistry,
 			s.registrant.NodeID(),
 			serverVersion,

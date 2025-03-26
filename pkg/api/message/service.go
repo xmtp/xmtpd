@@ -112,13 +112,16 @@ func (s *Service) SubscribeEnvelopes(
 		return err
 	}
 
+	// GRPC keep-alives are not sufficient in some load balanced environments
+	// we need to send an actual payload
+	// see https://github.com/xmtp/xmtpd/issues/669
 	ticker := time.NewTicker(s.options.SendKeepAliveInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			err = stream.Send(nil)
+			err = stream.Send(&message_api.SubscribeEnvelopesResponse{})
 			if err != nil {
 				return status.Errorf(codes.Internal, "could not send keepalive: %v", err)
 			}

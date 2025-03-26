@@ -300,7 +300,7 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 		grpc.WithUnaryInterceptor(interceptor.Unary()),
 		grpc.WithStreamInterceptor(interceptor.Stream()),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                20 * time.Second,
+			Time:                15 * time.Second,
 			Timeout:             5 * time.Second,
 			PermitWithoutStream: true,
 		}),

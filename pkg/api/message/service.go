@@ -120,9 +120,8 @@ func (s *Service) SubscribeEnvelopes(
 		case <-ticker.C:
 			err = stream.Send(nil)
 			if err != nil {
-				return status.Errorf(codes.Internal, "could not send header: %v", err)
+				return status.Errorf(codes.Internal, "could not send keepalive: %v", err)
 			}
-			log.Info("sending keep-alive")
 		case envs, open := <-ch:
 			ticker.Reset(s.options.SendKeepAliveInterval)
 			if open {

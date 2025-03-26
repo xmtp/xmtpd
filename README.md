@@ -1,6 +1,7 @@
 # xmtpd
 
 [![Test](https://github.com/xmtp/xmtpd/actions/workflows/test.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/test.yml)
+[![Lint](https://github.com/xmtp/xmtpd/actions/workflows/lint-go.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/lint-go.yml)
 [![Build](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml)
 
 **⚠️ Experimental:** This software is in early development. Expect frequent changes and unresolved issues.

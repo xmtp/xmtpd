@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -137,6 +139,9 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 			mockValidationService,
 			metadata.NewCursorUpdater(ctx, log, db),
 			ratesFetcher,
+			config.ReplicationOptions{
+				SendKeepAliveInterval: 30 * time.Second,
+			},
 		)
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)

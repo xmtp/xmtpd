@@ -130,6 +130,9 @@ func TestClaimsValidator(t *testing.T) {
 
 	currentVersion := *testutils.GetLatestVersion(t)
 
+	patch0Version := *semver.New(currentVersion.Major(), currentVersion.Minor(), 0, "", "")
+	version010 := *semver.New(0, 1, 0, "", "")
+
 	tests := []struct {
 		name          string
 		version       semver.Version
@@ -156,9 +159,27 @@ func TestClaimsValidator(t *testing.T) {
 			true,
 		},
 		{
+			"future-minor-rejects-us",
+			currentVersion,
+			currentVersion.IncMinor(),
+			true,
+		},
+		{
 			"future-patch-accepts-us",
 			currentVersion,
 			currentVersion.IncPatch(),
+			false,
+		},
+		{
+			"patch-0-accepts-us",
+			currentVersion,
+			patch0Version,
+			false,
+		},
+		{
+			"version-0-1-0-rejects-us",
+			currentVersion,
+			version010,
 			true,
 		},
 	}

@@ -67,7 +67,8 @@ func NewTestServer(
 			Enable: true,
 		},
 		Replication: config.ReplicationOptions{
-			Enable: true,
+			Enable:                true,
+			SendKeepAliveInterval: 30 * time.Second,
 		},
 	}, registry, db, fmt.Sprintf("localhost:%d", port), testutils.GetLatestVersion(t))
 	require.NoError(t, err)

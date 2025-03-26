@@ -197,6 +197,7 @@ func startAPIServer(
 				writerDB,
 				s.validationService,
 				s.cursorUpdater,
+				options.Replication,
 			)
 			if err != nil {
 				return err

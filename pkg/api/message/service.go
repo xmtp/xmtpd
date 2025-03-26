@@ -108,8 +108,17 @@ func (s *Service) SubscribeEnvelopes(
 		return err
 	}
 
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
+		case <-ticker.C:
+			err = stream.Send(nil)
+			if err != nil {
+				return status.Errorf(codes.Internal, "could not send header: %v", err)
+			}
+			log.Info("sending keep-alive")
 		case envs, open := <-ch:
 			if open {
 				err := s.sendEnvelopes(stream, query, envs)

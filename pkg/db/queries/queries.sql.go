@@ -12,6 +12,55 @@ import (
 	"github.com/lib/pq"
 )
 
+const buildPayerReport = `-- name: BuildPayerReport :many
+SELECT
+	payers.address as payer_address,
+	SUM(spend_picodollars)::BIGINT AS total_spend_picodollars
+FROM
+	unsettled_usage
+JOIN payers on payers.id = unsettled_usage.payer_id
+WHERE
+	originator_id = $1
+	AND minutes_since_epoch > $2
+	AND minutes_since_epoch <= $3
+GROUP BY
+	payers.address
+`
+
+type BuildPayerReportParams struct {
+	OriginatorID           int32
+	StartMinutesSinceEpoch int32
+	EndMinutesSinceEpoch   int32
+}
+
+type BuildPayerReportRow struct {
+	PayerAddress          string
+	TotalSpendPicodollars int64
+}
+
+func (q *Queries) BuildPayerReport(ctx context.Context, arg BuildPayerReportParams) ([]BuildPayerReportRow, error) {
+	rows, err := q.db.QueryContext(ctx, buildPayerReport, arg.OriginatorID, arg.StartMinutesSinceEpoch, arg.EndMinutesSinceEpoch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BuildPayerReportRow
+	for rows.Next() {
+		var i BuildPayerReportRow
+		if err := rows.Scan(&i.PayerAddress, &i.TotalSpendPicodollars); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteAvailableNonce = `-- name: DeleteAvailableNonce :execrows
 DELETE FROM nonce_table
 WHERE nonce = $1
@@ -195,6 +244,32 @@ func (q *Queries) GetBlocksInRange(ctx context.Context, arg GetBlocksInRangePara
 	return items, nil
 }
 
+const getGatewayEnvelopeByID = `-- name: GetGatewayEnvelopeByID :one
+SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id FROM gateway_envelopes
+WHERE originator_sequence_id = $1
+AND originator_node_id = $2
+`
+
+type GetGatewayEnvelopeByIDParams struct {
+	OriginatorSequenceID int64
+	OriginatorNodeID     int32
+}
+
+// Include the node ID to take advantage of the primary key index
+func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnvelopeByIDParams) (GatewayEnvelope, error) {
+	row := q.db.QueryRowContext(ctx, getGatewayEnvelopeByID, arg.OriginatorSequenceID, arg.OriginatorNodeID)
+	var i GatewayEnvelope
+	err := row.Scan(
+		&i.GatewayTime,
+		&i.OriginatorNodeID,
+		&i.OriginatorSequenceID,
+		&i.Topic,
+		&i.OriginatorEnvelope,
+		&i.PayerID,
+	)
+	return i, err
+}
+
 const getLatestBlock = `-- name: GetLatestBlock :one
 SELECT
 	block_number,
@@ -292,7 +367,8 @@ func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
 
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
 SELECT
-	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars
+	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
+	COALESCE(MAX(last_sequence_id), 0)::BIGINT AS last_sequence_id
 FROM
 	unsettled_usage
 WHERE
@@ -309,11 +385,16 @@ type GetPayerUnsettledUsageParams struct {
 	MinutesSinceEpochLt int64
 }
 
-func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsettledUsageParams) (int64, error) {
+type GetPayerUnsettledUsageRow struct {
+	TotalSpendPicodollars int64
+	LastSequenceID        int64
+}
+
+func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsettledUsageParams) (GetPayerUnsettledUsageRow, error) {
 	row := q.db.QueryRowContext(ctx, getPayerUnsettledUsage, arg.PayerID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
-	var total_spend_picodollars int64
-	err := row.Scan(&total_spend_picodollars)
-	return total_spend_picodollars, err
+	var i GetPayerUnsettledUsageRow
+	err := row.Scan(&i.TotalSpendPicodollars, &i.LastSequenceID)
+	return i, err
 }
 
 const getRecentOriginatorCongestion = `-- name: GetRecentOriginatorCongestion :many
@@ -363,6 +444,43 @@ func (q *Queries) GetRecentOriginatorCongestion(ctx context.Context, arg GetRece
 	return items, nil
 }
 
+const getSecondNewestMinute = `-- name: GetSecondNewestMinute :one
+WITH second_newest_minute
+AS
+  (
+           SELECT minutes_since_epoch
+           FROM     unsettled_usage
+           WHERE    originator_id = $1
+           AND      unsettled_usage.minutes_since_epoch > $2
+           GROUP BY unsettled_usage.minutes_since_epoch
+           ORDER BY unsettled_usage.minutes_since_epoch DESC
+           LIMIT    1
+           OFFSET   1)
+  SELECT coalesce(max(last_sequence_id), 0)::BIGINT as max_sequence_id,
+         coalesce(max(unsettled_usage.minutes_since_epoch), 0)::INT as minutes_since_epoch
+  FROM   unsettled_usage
+  JOIN   second_newest_minute
+  ON     second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
+  WHERE  unsettled_usage.originator_id = $1
+`
+
+type GetSecondNewestMinuteParams struct {
+	OriginatorID             int32
+	MinimumMinutesSinceEpoch int32
+}
+
+type GetSecondNewestMinuteRow struct {
+	MaxSequenceID     int64
+	MinutesSinceEpoch int32
+}
+
+func (q *Queries) GetSecondNewestMinute(ctx context.Context, arg GetSecondNewestMinuteParams) (GetSecondNewestMinuteRow, error) {
+	row := q.db.QueryRowContext(ctx, getSecondNewestMinute, arg.OriginatorID, arg.MinimumMinutesSinceEpoch)
+	var i GetSecondNewestMinuteRow
+	err := row.Scan(&i.MaxSequenceID, &i.MinutesSinceEpoch)
+	return i, err
+}
+
 const incrementOriginatorCongestion = `-- name: IncrementOriginatorCongestion :exec
 INSERT INTO originator_congestion(originator_id, minutes_since_epoch, num_messages)
 	VALUES ($1, $2, 1)
@@ -382,11 +500,12 @@ func (q *Queries) IncrementOriginatorCongestion(ctx context.Context, arg Increme
 }
 
 const incrementUnsettledUsage = `-- name: IncrementUnsettledUsage :exec
-INSERT INTO unsettled_usage(payer_id, originator_id, minutes_since_epoch, spend_picodollars)
-	VALUES ($1, $2, $3, $4)
+INSERT INTO unsettled_usage(payer_id, originator_id, minutes_since_epoch, spend_picodollars, last_sequence_id)
+	VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (payer_id, originator_id, minutes_since_epoch)
 	DO UPDATE SET
-		spend_picodollars = unsettled_usage.spend_picodollars + $4
+		spend_picodollars = unsettled_usage.spend_picodollars + $4,
+		last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, $5)
 `
 
 type IncrementUnsettledUsageParams struct {
@@ -394,6 +513,7 @@ type IncrementUnsettledUsageParams struct {
 	OriginatorID      int32
 	MinutesSinceEpoch int32
 	SpendPicodollars  int64
+	SequenceID        int64
 }
 
 func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnsettledUsageParams) error {
@@ -402,6 +522,7 @@ func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnse
 		arg.OriginatorID,
 		arg.MinutesSinceEpoch,
 		arg.SpendPicodollars,
+		arg.SequenceID,
 	)
 	return err
 }

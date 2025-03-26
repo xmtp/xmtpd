@@ -48,7 +48,8 @@ type PayerOptions struct {
 }
 
 type ReplicationOptions struct {
-	Enable bool `long:"enable" env:"XMTPD_REPLICATION_ENABLE" description:"Enable the replication API"`
+	Enable                bool          `long:"enable"                   env:"XMTPD_REPLICATION_ENABLE"           description:"Enable the replication API"`
+	SendKeepAliveInterval time.Duration `long:"send-keep-alive-interval" env:"XMTPD_API_SEND_KEEP_ALIVE_INTERVAL" description:"Send empty application level keepalive package interval" default:"30s"`
 }
 
 type SyncOptions struct {

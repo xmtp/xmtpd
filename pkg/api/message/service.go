@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
@@ -45,6 +46,7 @@ type Service struct {
 	validationService mlsvalidate.MLSValidationService
 	cu                metadata.CursorUpdater
 	feeCalculator     fees.IFeeCalculator
+	options           config.ReplicationOptions
 }
 
 func NewReplicationApiService(
@@ -55,6 +57,7 @@ func NewReplicationApiService(
 	validationService mlsvalidate.MLSValidationService,
 	updater metadata.CursorUpdater,
 	rateFetcher fees.IRatesFetcher,
+	options config.ReplicationOptions,
 ) (*Service, error) {
 	feeCalculator := fees.NewFeeCalculator(rateFetcher)
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store, feeCalculator)
@@ -76,6 +79,7 @@ func NewReplicationApiService(
 		validationService: validationService,
 		cu:                updater,
 		feeCalculator:     feeCalculator,
+		options:           options,
 	}, nil
 }
 
@@ -108,9 +112,21 @@ func (s *Service) SubscribeEnvelopes(
 		return err
 	}
 
+	// GRPC keep-alives are not sufficient in some load balanced environments
+	// we need to send an actual payload
+	// see https://github.com/xmtp/xmtpd/issues/669
+	ticker := time.NewTicker(s.options.SendKeepAliveInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
+		case <-ticker.C:
+			err = stream.Send(&message_api.SubscribeEnvelopesResponse{})
+			if err != nil {
+				return status.Errorf(codes.Internal, "could not send keepalive: %v", err)
+			}
 		case envs, open := <-ch:
+			ticker.Reset(s.options.SendKeepAliveInterval)
 			if open {
 				err := s.sendEnvelopes(stream, query, envs)
 				if err != nil {

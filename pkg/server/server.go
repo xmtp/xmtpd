@@ -207,6 +207,7 @@ func startAPIServer(
 				s.validationService,
 				s.cursorUpdater,
 				getRatesFetcher(),
+				options.Replication,
 			)
 			if err != nil {
 				return err

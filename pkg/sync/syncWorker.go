@@ -383,6 +383,9 @@ func (s *syncWorker) listenToStream(
 			return backoff.Permanent(s.ctx.Err())
 
 		case envs := <-recvChan:
+			if envs == nil || len(envs.Envelopes) == 0 {
+				continue
+			}
 			s.log.Debug(
 				"Received envelopes",
 				zap.String("peer", node.HttpAddress),

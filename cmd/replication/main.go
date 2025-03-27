@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/semver/v3"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var Version string = "unknown"
+var Version string
 
 var options config.ServerOptions
 
@@ -32,6 +33,13 @@ func main() {
 			fatal("Could not parse options: %s", err)
 		}
 		return
+	}
+
+	if Version == "" {
+		Version = os.Getenv("VERSION")
+		if Version == "" {
+			fatal("Could not determine version")
+		}
 	}
 
 	if options.Version {

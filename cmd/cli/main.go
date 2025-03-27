@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/loadtest"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -38,6 +39,7 @@ type CLI struct {
 	SetNodeOperatorCommissionPercent config.SetNodeOperatorCommissionPercentOptions
 	GetOptions                       config.GetOptions
 	AddRates                         config.AddRatesOptions
+	LoadTest                         config.LoadTestOptions
 }
 
 /*
@@ -65,6 +67,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var setNodeOperatorCommissionPercentOptions config.SetNodeOperatorCommissionPercentOptions
 	var getOptions config.GetOptions
 	var addRatesOptions config.AddRatesOptions
+	var loadTestOptions config.LoadTestOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 
@@ -133,6 +136,9 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
 		return nil, fmt.Errorf("Could not add add-rates command: %s", err)
 	}
+	if _, err := parser.AddCommand("loadtest", "Load test a smart contract", "", &loadTestOptions); err != nil {
+		return nil, fmt.Errorf("Could not add loadtest command: %s", err)
+	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			return nil, fmt.Errorf("could not parse options: %s", err)
@@ -161,6 +167,7 @@ func parseOptions(args []string) (*CLI, error) {
 		setNodeOperatorCommissionPercentOptions,
 		getOptions,
 		addRatesOptions,
+		loadTestOptions,
 	}, nil
 }
 
@@ -753,6 +760,9 @@ func main() {
 	case "add-rates":
 		addRates(logger, options)
 		return
+	case "loadtest":
+		loadTest(logger, options)
+		return
 	}
 }
 
@@ -788,4 +798,10 @@ func setupRegistryAdmin(
 	}
 
 	return registryAdmin, nil
+}
+
+func loadTest(logger *zap.Logger, options *CLI) {
+	if err := loadtest.LoadTest(logger, &options.LoadTest, &options.Contracts); err != nil {
+		logger.Fatal("could not run load test", zap.Error(err))
+	}
 }

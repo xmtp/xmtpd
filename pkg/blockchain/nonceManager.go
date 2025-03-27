@@ -3,11 +3,12 @@ package blockchain
 import (
 	"context"
 	"database/sql"
+	"math/big"
+	"sync"
+
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
-	"math/big"
-	"sync"
 )
 
 type NonceContext struct {

@@ -23,3 +23,6 @@ dev/register-local-node
 
 echo -e "→ Register local node-2"
 dev/register-local-node-2
+
+echo -e "→ Generating .env"
+dev/generate-env

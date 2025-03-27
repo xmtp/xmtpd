@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# Update .version with the current Git description
-echo "VERSION=$(git describe HEAD --tags --long)" > .version
-
-# you can symlink this via ln -sf dev/git/post-checkout/hook .git/hooks/post-checkout

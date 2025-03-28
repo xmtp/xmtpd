@@ -12,6 +12,10 @@
     "reservedWordCase": "upper",
     "typeCase": "upper"
   },
+  "go.useLanguageServer": true,
+  "gopls": {
+    "formatting.gofumpt": true
+  },
   // Instructions from https://github.com/segmentio/golines
   "emeraldwalk.runonsave": {
     "shell": "bash",

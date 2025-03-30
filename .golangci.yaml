@@ -7,7 +7,6 @@ linters:
     - nakedret
     - nilerr
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck

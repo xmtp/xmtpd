@@ -14,7 +14,7 @@ import (
 
 /*
 *
-A RatesAdmin is a struct responsible for calling admin functions on the RatesManager contract
+A RatesAdmin is a struct responsible for calling admin functions on the RatesRegistry contract
 *
 */
 type RatesAdmin struct {
@@ -31,7 +31,7 @@ func NewRatesAdmin(
 	contractsOptions config.ContractsOptions,
 ) (*RatesAdmin, error) {
 	contract, err := rateregistry.NewRateRegistry(
-		common.HexToAddress(contractsOptions.RatesManagerContractAddress),
+		common.HexToAddress(contractsOptions.RateRegistryContractAddress),
 		client,
 	)
 	if err != nil {

@@ -14,7 +14,7 @@ type ContractsOptions struct {
 	NodesContractAddress           string        `long:"nodes-address"             env:"XMTPD_CONTRACTS_NODES_ADDRESS"             description:"Node contract address"`
 	MessagesContractAddress        string        `long:"messages-address"          env:"XMTPD_CONTRACTS_MESSAGES_ADDRESS"          description:"Message contract address"`
 	IdentityUpdatesContractAddress string        `long:"identity-updates-address"  env:"XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS"  description:"Identity updates contract address"`
-	RatesManagerContractAddress    string        `long:"rates-manager-address"     env:"XMTPD_CONTRACTS_RATES_MANAGER_ADDRESS"     description:"Rates manager contract address"`
+	RateRegistryContractAddress    string        `long:"rates-registry-address"    env:"XMTPD_CONTRACTS_RATES_REGISTRY_ADDRESS"    description:"Rates registry contract address"`
 	ChainID                        int           `long:"chain-id"                  env:"XMTPD_CONTRACTS_CHAIN_ID"                  description:"Chain ID for the appchain"                                    default:"31337"`
 	RegistryRefreshInterval        time.Duration `long:"registry-refresh-interval" env:"XMTPD_CONTRACTS_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry"                      default:"60s"`
 	RatesRefreshInterval           time.Duration `long:"rates-refresh-interval"    env:"XMTPD_CONTRACTS_RATES_REFRESH_INTERVAL"    description:"Refresh interval for the rates contract"                      default:"300s"`

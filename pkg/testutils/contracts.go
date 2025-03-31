@@ -27,7 +27,7 @@ const (
 	NODES_CONTRACT_NAME            = "Nodes"
 	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
 	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
-	RATES_MANAGER_CONTRACT_NAME    = "RatesManager"
+	RATES_REGISTRY_CONTRACT_NAME   = "RatesRegistry"
 )
 
 // Build an abi encoded MessageSent event struct
@@ -154,7 +154,7 @@ func deployContract(t *testing.T, contractName, rpcUrl string) string {
 			contract, err = iu.NewIdentityUpdateBroadcaster(addr, client)
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
-		case RATES_MANAGER_CONTRACT_NAME:
+		case RATES_REGISTRY_CONTRACT_NAME:
 			addr, _, _, err = rateregistry.DeployRateRegistry(auth, client)
 			require.NoError(t, err)
 			var contract *rateregistry.RateRegistry
@@ -188,6 +188,6 @@ func DeployIdentityUpdatesContract(t *testing.T, rpcUrl string) string {
 	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME, rpcUrl)
 }
 
-func DeployRatesManagerContract(t *testing.T, rpcUrl string) string {
-	return deployContract(t, RATES_MANAGER_CONTRACT_NAME, rpcUrl)
+func DeployRatesRegistryContract(t *testing.T, rpcUrl string) string {
+	return deployContract(t, RATES_REGISTRY_CONTRACT_NAME, rpcUrl)
 }

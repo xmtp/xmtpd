@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
-	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
+	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 )
 
 // Construct a raw blockchain listener that can be used to listen for events across many contract event types
@@ -42,10 +42,10 @@ type IBlockchainPublisher interface {
 		ctx context.Context,
 		inboxId [32]byte,
 		identityUpdate []byte,
-	) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error)
+	) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error)
 	PublishGroupMessage(
 		ctx context.Context,
 		groupdId [32]byte,
 		message []byte,
-	) (*groupmessages.GroupMessagesMessageSent, error)
+	) (*gm.GroupMessageBroadcasterMessageSent, error)
 }

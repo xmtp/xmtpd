@@ -4,20 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/xmtp/xmtpd/pkg/tracing"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"math/big"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
-	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
+	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -28,8 +29,8 @@ Can publish to the blockchain, signing messages using the provided signer
 type BlockchainPublisher struct {
 	signer                 TransactionSigner
 	client                 *ethclient.Client
-	messagesContract       *groupmessages.GroupMessages
-	identityUpdateContract *identityupdates.IdentityUpdates
+	messagesContract       *gm.GroupMessageBroadcaster
+	identityUpdateContract *iu.IdentityUpdateBroadcaster
 	logger                 *zap.Logger
 	nonceManager           NonceManager
 	replenishCancel        context.CancelFunc
@@ -47,7 +48,7 @@ func NewBlockchainPublisher(
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
-	messagesContract, err := groupmessages.NewGroupMessages(
+	messagesContract, err := gm.NewGroupMessageBroadcaster(
 		common.HexToAddress(contractOptions.MessagesContractAddress),
 		client,
 	)
@@ -55,7 +56,7 @@ func NewBlockchainPublisher(
 	if err != nil {
 		return nil, err
 	}
-	identityUpdateContract, err := identityupdates.NewIdentityUpdates(
+	identityUpdateContract, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(contractOptions.IdentityUpdatesContractAddress),
 		client,
 	)
@@ -119,7 +120,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 	ctx context.Context,
 	groupID [32]byte,
 	message []byte,
-) (*groupmessages.GroupMessagesMessageSent, error) {
+) (*gm.GroupMessageBroadcasterMessageSent, error) {
 	if len(message) == 0 {
 		return nil, errors.New("message is empty")
 	}
@@ -136,7 +137,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 				Signer:  m.signer.SignerFunc(),
 			}, groupID, message)
 		},
-		func(ctx context.Context, transaction *types.Transaction) (*groupmessages.GroupMessagesMessageSent, error) {
+		func(ctx context.Context, transaction *types.Transaction) (*gm.GroupMessageBroadcasterMessageSent, error) {
 			receipt, err := WaitForTransaction(
 				ctx,
 				m.logger,
@@ -166,7 +167,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 	ctx context.Context,
 	inboxId [32]byte,
 	identityUpdate []byte,
-) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
+) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 	if len(identityUpdate) == 0 {
 		return nil, errors.New("identity update is empty")
 	}
@@ -183,7 +184,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 				Signer:  m.signer.SignerFunc(),
 			}, inboxId, identityUpdate)
 		},
-		func(ctx context.Context, transaction *types.Transaction) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
+		func(ctx context.Context, transaction *types.Transaction) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			receipt, err := WaitForTransaction(
 				ctx,
 				m.logger,

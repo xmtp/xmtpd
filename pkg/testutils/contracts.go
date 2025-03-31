@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -155,10 +155,10 @@ func deployContract(t *testing.T, contractName, rpcUrl string) string {
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
 		case RATES_MANAGER_CONTRACT_NAME:
-			addr, _, _, err = ratesmanager.DeployRatesManager(auth, client)
+			addr, _, _, err = rateregistry.DeployRateRegistry(auth, client)
 			require.NoError(t, err)
-			var contract *ratesmanager.RatesManager
-			contract, err = ratesmanager.NewRatesManager(addr, client)
+			var contract *rateregistry.RateRegistry
+			contract, err = rateregistry.NewRateRegistry(addr, client)
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
 		default:

@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
@@ -41,7 +41,7 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 func TestAddRates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
-	rates := ratesmanager.RatesManagerRates{
+	rates := rateregistry.RateRegistryRates{
 		MessageFee:          100,
 		StorageFee:          200,
 		CongestionFee:       300,
@@ -55,7 +55,7 @@ func TestAddRates(t *testing.T) {
 	require.NoError(t, err)
 
 	var returnedRates struct {
-		Rates   []ratesmanager.RatesManagerRates
+		Rates   []rateregistry.RateRegistryRates
 		HasMore bool
 	}
 

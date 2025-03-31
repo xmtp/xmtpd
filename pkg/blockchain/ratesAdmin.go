@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -20,7 +20,7 @@ A RatesAdmin is a struct responsible for calling admin functions on the RatesMan
 type RatesAdmin struct {
 	client   *ethclient.Client
 	signer   TransactionSigner
-	contract *ratesmanager.RatesManager
+	contract *rateregistry.RateRegistry
 	logger   *zap.Logger
 }
 
@@ -30,7 +30,7 @@ func NewRatesAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*RatesAdmin, error) {
-	contract, err := ratesmanager.NewRatesManager(
+	contract, err := rateregistry.NewRateRegistry(
 		common.HexToAddress(contractsOptions.RatesManagerContractAddress),
 		client,
 	)
@@ -53,7 +53,7 @@ func NewRatesAdmin(
  */
 func (r *RatesAdmin) AddRates(
 	ctx context.Context,
-	rates ratesmanager.RatesManagerRates,
+	rates rateregistry.RateRegistryRates,
 ) error {
 	tx, err := r.contract.AddRates(
 		&bind.TransactOpts{
@@ -84,6 +84,6 @@ func (r *RatesAdmin) AddRates(
 	return err
 }
 
-func (r *RatesAdmin) Contract() *ratesmanager.RatesManager {
+func (r *RatesAdmin) Contract() *rateregistry.RateRegistry {
 	return r.contract
 }

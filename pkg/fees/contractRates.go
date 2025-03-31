@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -21,14 +21,14 @@ const MAX_REFRESH_INTERVAL = 60 * time.Minute
 // Dumbed down version of the RatesManager contract interface
 type RatesContract interface {
 	GetRates(opts *bind.CallOpts, fromIndex *big.Int) (struct {
-		Rates   []ratesmanager.RatesManagerRates
+		Rates   []rateregistry.RateRegistryRates
 		HasMore bool
 	}, error)
 }
 
 // ratesResponse is an alias for the return type of GetRates to improve readability
 type ratesResponse struct {
-	Rates   []ratesmanager.RatesManagerRates
+	Rates   []rateregistry.RateRegistryRates
 	HasMore bool
 }
 
@@ -56,7 +56,7 @@ func NewContractRatesFetcher(
 	logger *zap.Logger,
 	options config.ContractsOptions,
 ) (*ContractRatesFetcher, error) {
-	contract, err := ratesmanager.NewRatesManagerCaller(
+	contract, err := rateregistry.NewRateRegistryCaller(
 		common.HexToAddress(options.RatesManagerContractAddress),
 		ethclient,
 	)
@@ -94,7 +94,7 @@ func (c *ContractRatesFetcher) Start() error {
 // refreshData fetches all rates from the smart contract and validates them
 func (c *ContractRatesFetcher) refreshData() error {
 	var resp struct {
-		Rates   []ratesmanager.RatesManagerRates
+		Rates   []rateregistry.RateRegistryRates
 		HasMore bool
 	}
 	var err error
@@ -202,7 +202,7 @@ func (c *ContractRatesFetcher) refreshLoop() {
 	}
 }
 
-func transformRates(rates []ratesmanager.RatesManagerRates) []*indexedRates {
+func transformRates(rates []rateregistry.RateRegistryRates) []*indexedRates {
 	newIndexedRates := make([]*indexedRates, len(rates))
 	for i, rate := range rates {
 		newIndexedRates[i] = &indexedRates{

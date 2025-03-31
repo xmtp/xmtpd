@@ -1,0 +1,104 @@
+#!/bin/bash
+set -euo pipefail
+
+# Work always from the root directory
+script_dir=$(dirname "$(realpath "$0")")
+repo_root=$(realpath "${script_dir}/../../")
+cd "${repo_root}"
+
+export build_dir="${BUILD_DIR:-build}"
+export output_dir="${OUTPUT_DIR:-pkg}"
+export abi_dir="${ABI_DIR:-${output_dir}/abi}"
+
+mkdir -p "${build_dir}" "${output_dir}" "${abi_dir}"
+
+# Script configuration
+curl_cmd="curl -L -s -f"
+owner="xmtp"
+repository="smart-contracts"
+contracts=("GroupMessageBroadcaster" "IdentityUpdateBroadcaster" "NodeRegistry" "RateRegistry")
+
+function check_release() {
+    local build_info_url="${release_url}/build-info.json"
+    local build_info_file="${build_dir}/build-info.json"
+
+    echo "⧖ Checking release ${release_url}."
+
+    if ! ${curl_cmd} -o "${build_info_file}" "${build_info_url}"; then
+        echo "Error: Failed to download build info."
+        exit 1
+    fi
+
+    if [[ $(jq -r '.build_tag' "${build_info_file}") != "${version}" ]]; then
+        echo "Error: Release tag mismatch. Expected ${version}, got $(jq -r '.build_tag' "${build_info_file}")."
+        exit 1
+    fi
+
+    echo -e "\033[32m✔\033[0m Release is valid."
+}
+
+function download_release_artifacts() {
+    echo "⧖ Downloading artifacts for ${contract}"
+
+    if ! ${curl_cmd} -o "${abi_file}" "${abi_file_url}"; then
+        echo "Error: Failed to download ABI file"
+        exit 1
+    fi
+
+    if ! ${curl_cmd} -o "${bin_file}" "${bin_file_url}"; then
+        echo "Error: Failed to download BIN file"
+        exit 1
+    fi
+
+    echo -e "\033[32m✔\033[0m Artifacts downloaded successfully."
+}
+
+function gen_go_bindings() {
+    local package="$(echo "${contract}" | tr '[:upper:]' '[:lower:]')"
+    local package_dir="${abi_dir}/${package}"
+    local output_artifact="${package_dir}/${contract}.go"
+
+    mkdir -p "${package_dir}"
+
+    echo "⧖ Generating bindings for ${contract}"
+
+    if ! go tool --modfile=tools/go.mod abigen --abi "${abi_file}" \
+                 --bin "${bin_file}" \
+                 --pkg "${package}" \
+                 --type "${contract}" \
+                 --out "${output_artifact}"; then
+        echo "ERROR: Failed to generate bindings for ${contract}" >&2
+        exit 1
+    fi
+
+    echo -e "\033[32m✔\033[0m Bindings generated successfully."
+}
+
+function generate() {
+    abi_file_url="${release_url}/${contract}.abi.json"
+    bin_file_url="${release_url}/${contract}.bin.json"
+    abi_file="${build_dir}/${contract}.abi.json"
+    bin_file="${build_dir}/${contract}.bin.json"
+
+    download_release_artifacts
+    gen_go_bindings
+}
+
+function main() {
+    if [[ $# -ne 1 ]]; then
+        echo -e "Usage: $0 <version>\nExample: $0 v1.0.0"
+        exit 1
+    fi
+
+    version=$1
+    release_url="https://github.com/${owner}/${repository}/releases/download/${version}"
+
+    check_release "${version}"
+
+    for contract in "${contracts[@]}"; do
+        echo "⧖ Generating ABIs for contract: ${contract}"
+        generate "${contract}"
+    done
+}
+
+main "$@"

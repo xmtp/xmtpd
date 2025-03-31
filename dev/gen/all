@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
-./dev/gen-protos
+# Work always from the root directory
+script_dir=$(dirname "$(realpath "$0")")
+repo_root=$(realpath "${script_dir}/../../")
+cd "${repo_root}"
+
+./dev/gen/protos
 go tool -modfile=tools/go.mod sqlc generate
 go generate ./...
 rm -rf pkg/mocks/*

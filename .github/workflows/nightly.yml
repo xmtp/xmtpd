@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
       - name: Generate Protos
-        run: dev/gen-protos
+        run: dev/gen/protos
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:

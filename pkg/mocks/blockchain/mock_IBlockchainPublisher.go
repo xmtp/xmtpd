@@ -5,8 +5,8 @@ package blockchain
 import (
 	context "context"
 
-	groupmessages "github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
-	identityupdates "github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
+	groupmessagebroadcaster "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	identityupdatebroadcaster "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -25,23 +25,23 @@ func (_m *MockIBlockchainPublisher) EXPECT() *MockIBlockchainPublisher_Expecter 
 }
 
 // PublishGroupMessage provides a mock function with given fields: ctx, groupdId, message
-func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) (*groupmessages.GroupMessagesMessageSent, error) {
+func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error) {
 	ret := _m.Called(ctx, groupdId, message)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PublishGroupMessage")
 	}
 
-	var r0 *groupmessages.GroupMessagesMessageSent
+	var r0 *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*groupmessages.GroupMessagesMessageSent, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)); ok {
 		return rf(ctx, groupdId, message)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *groupmessages.GroupMessagesMessageSent); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent); ok {
 		r0 = rf(ctx, groupdId, message)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*groupmessages.GroupMessagesMessageSent)
+			r0 = ret.Get(0).(*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent)
 		}
 	}
 
@@ -74,34 +74,34 @@ func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Return(_a0 *groupmessages.GroupMessagesMessageSent, _a1 error) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Return(_a0 *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, _a1 error) *MockIBlockchainPublisher_PublishGroupMessage_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*groupmessages.GroupMessagesMessageSent, error)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // PublishIdentityUpdate provides a mock function with given fields: ctx, inboxId, identityUpdate
-func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error) {
+func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 	ret := _m.Called(ctx, inboxId, identityUpdate)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PublishIdentityUpdate")
 	}
 
-	var r0 *identityupdates.IdentityUpdatesIdentityUpdateCreated
+	var r0 *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)); ok {
 		return rf(ctx, inboxId, identityUpdate)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *identityupdates.IdentityUpdatesIdentityUpdateCreated); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated); ok {
 		r0 = rf(ctx, inboxId, identityUpdate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*identityupdates.IdentityUpdatesIdentityUpdateCreated)
+			r0 = ret.Get(0).(*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated)
 		}
 	}
 
@@ -134,12 +134,12 @@ func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Run(run func(ctx 
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Return(_a0 *identityupdates.IdentityUpdatesIdentityUpdateCreated, _a1 error) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
+func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Return(_a0 *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, _a1 error) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*identityupdates.IdentityUpdatesIdentityUpdateCreated, error)) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
+func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
 	_c.Call.Return(run)
 	return _c
 }

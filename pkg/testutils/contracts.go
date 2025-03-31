@@ -11,10 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
-	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -36,7 +36,7 @@ func BuildMessageSentEvent(
 	message []byte,
 	sequenceID uint64,
 ) ([]byte, error) {
-	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
+	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func BuildMessageSentLog(
 	eventData, err := BuildMessageSentEvent(groupID, messageBytes, sequenceID)
 	require.NoError(t, err)
 
-	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
+	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
 	require.NoError(t, err)
 
 	topic, err := utils.GetEventTopic(abi, "MessageSent")
@@ -68,7 +68,7 @@ func BuildMessageSentLog(
 }
 
 func BuildIdentityUpdateEvent(inboxId [32]byte, update []byte, sequenceID uint64) ([]byte, error) {
-	abi, err := identityupdates.IdentityUpdatesMetaData.GetAbi()
+	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func BuildIdentityUpdateLog(
 	eventData, err := BuildIdentityUpdateEvent(inboxId, messageBytes, sequenceID)
 	require.NoError(t, err)
 
-	abi, err := identityupdates.IdentityUpdatesMetaData.GetAbi()
+	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
 	require.NoError(t, err)
 
 	topic, err := utils.GetEventTopic(abi, "IdentityUpdateCreated")
@@ -141,17 +141,17 @@ func deployContract(t *testing.T, contractName, rpcUrl string) string {
 		case NODES_CONTRACT_NAME:
 			addr, _, _, err = nodes.DeployNodes(auth, client, auth.From)
 		case GROUP_MESSAGES_CONTRACT_NAME:
-			addr, _, _, err = groupmessages.DeployGroupMessages(auth, client)
+			addr, _, _, err = gm.DeployGroupMessageBroadcaster(auth, client)
 			require.NoError(t, err)
-			var contract *groupmessages.GroupMessages
-			contract, err = groupmessages.NewGroupMessages(addr, client)
+			var contract *gm.GroupMessageBroadcaster
+			contract, err = gm.NewGroupMessageBroadcaster(addr, client)
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
 		case IDENTITY_UPDATES_CONTRACT_NAME:
-			addr, _, _, err = identityupdates.DeployIdentityUpdates(auth, client)
+			addr, _, _, err = iu.DeployIdentityUpdateBroadcaster(auth, client)
 			require.NoError(t, err)
-			var contract *identityupdates.IdentityUpdates
-			contract, err = identityupdates.NewIdentityUpdates(addr, client)
+			var contract *iu.IdentityUpdateBroadcaster
+			contract, err = iu.NewIdentityUpdateBroadcaster(addr, client)
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
 		case RATES_MANAGER_CONTRACT_NAME:

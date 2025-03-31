@@ -3,12 +3,13 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/metrics"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
-	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
+	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -271,7 +272,7 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		var logMessage *groupmessages.GroupMessagesMessageSent
+		var logMessage *gm.GroupMessageBroadcasterMessageSent
 		if logMessage, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
 		}
@@ -295,7 +296,7 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		var logMessage *identityupdates.IdentityUpdatesIdentityUpdateCreated
+		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
 		if logMessage, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
 		}

@@ -6,18 +6,19 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
-	"github.com/xmtp/xmtpd/contracts/pkg/identityupdates"
+	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -377,7 +378,7 @@ func retry(
 }
 
 func buildMessagesTopic() (common.Hash, error) {
-	abi, err := groupmessages.GroupMessagesMetaData.GetAbi()
+	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -385,7 +386,7 @@ func buildMessagesTopic() (common.Hash, error) {
 }
 
 func buildIdentityUpdatesTopic() (common.Hash, error) {
-	abi, err := identityupdates.IdentityUpdatesMetaData.GetAbi()
+	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -395,8 +396,8 @@ func buildIdentityUpdatesTopic() (common.Hash, error) {
 func messagesContract(
 	cfg config.ContractsOptions,
 	client *ethclient.Client,
-) (*groupmessages.GroupMessages, error) {
-	return groupmessages.NewGroupMessages(
+) (*gm.GroupMessageBroadcaster, error) {
+	return gm.NewGroupMessageBroadcaster(
 		common.HexToAddress(cfg.MessagesContractAddress),
 		client,
 	)
@@ -405,8 +406,8 @@ func messagesContract(
 func identityUpdatesContract(
 	cfg config.ContractsOptions,
 	client *ethclient.Client,
-) (*identityupdates.IdentityUpdates, error) {
-	return identityupdates.NewIdentityUpdates(
+) (*iu.IdentityUpdateBroadcaster, error) {
+	return iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
 		client,
 	)

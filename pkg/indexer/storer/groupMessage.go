@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/xmtp/xmtpd/contracts/pkg/groupmessages"
+	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -19,7 +19,7 @@ const (
 )
 
 type GroupMessageStorer struct {
-	contract *groupmessages.GroupMessages
+	contract *gm.GroupMessageBroadcaster
 	queries  *queries.Queries
 	logger   *zap.Logger
 }
@@ -27,7 +27,7 @@ type GroupMessageStorer struct {
 func NewGroupMessageStorer(
 	queries *queries.Queries,
 	logger *zap.Logger,
-	contract *groupmessages.GroupMessages,
+	contract *gm.GroupMessageBroadcaster,
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
 		queries:  queries,

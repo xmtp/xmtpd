@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+# Work always from the root directory
+script_dir=$(dirname "$(realpath "$0")")
+repo_root=$(realpath "${script_dir}/../../")
+cd "${repo_root}"
+
+go tool -modfile=tools/go.mod migrate create -dir pkg/migrations -seq -digits=5 -ext sql $1

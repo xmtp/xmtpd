@@ -67,9 +67,9 @@ These tests provide a full suite of unit and integration tests for the `xmtpd` r
 To enable metrics you need to start the node with `--metrics.enable`.
 By default, we expose Prometheus metrics on port `8008`.
 
-  ```sh
-  curl http://localhost:8008
-  ```
+```sh
+curl http://localhost:8008
+```
 
 # Contributing
 
@@ -80,7 +80,7 @@ Please follow the [style guide](https://google.github.io/styleguide/go/decisions
 Submit and land a PR to https://github.com/xmtp/proto. Then run:
 
 ```sh
-dev/generate
+dev/gen/all
 ```
 
 Or wait for the [nightly automation](https://github.com/xmtp/xmtpd/actions/workflows/nightly.yml) to finish.
@@ -90,7 +90,7 @@ Or wait for the [nightly automation](https://github.com/xmtp/xmtpd/actions/workf
 Create a new migration by running:
 
 ```sh
-dev/gen-migration {migration-name}
+dev/gen/migration {migration-name}
 ```
 
 Fill in the migrations in the generated files. If you are unfamiliar with migrations, you may follow [this guide](https://github.com/golang-migrate/migrate/blob/master/MIGRATIONS.md). The database is PostgreSQL and the driver is PGX.
@@ -100,7 +100,7 @@ Fill in the migrations in the generated files. If you are unfamiliar with migrat
 We use [sqlc](https://docs.sqlc.dev/en/latest/index.html) to generate the code for our DB queries. Modify the `queries.sql` file, and then run:
 
 ```sh
-dev/generate
+dev/gen/all
 ```
 
 If needed, you may use `dev/psql` to test more complex SQL syntax. To determine the level of support in sqlc, there is a sqlc [playground](https://play.sqlc.dev/p/f6eebe941750560934cefa943c77f63497debc828c487e8d1771fb6d83773246) for experimenting with how the query syntax translates into Go code.

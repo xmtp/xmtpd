@@ -71,7 +71,6 @@ func registerRandomNode(
 		HttpAddress:               httpAddress,
 		SigningKeyPub:             utils.EcdsaPublicKeyToString(&publicKey),
 		MinMonthlyFeeMicroDollars: 0,
-		InCanonicalNetwork:        true,
 	}
 }
 
@@ -152,7 +151,7 @@ func TestRegistryWrite(t *testing.T) {
 
 	// New parameters should be the default values.
 	require.Equal(t, int64(0), restoredNodes[0].MinMonthlyFeeMicroDollars)
-	require.Equal(t, true, restoredNodes[0].InCanonicalNetwork)
+	require.Equal(t, false, restoredNodes[0].InCanonicalNetwork)
 	require.Equal(t, int64(0), restoredNodes[1].MinMonthlyFeeMicroDollars)
-	require.Equal(t, true, restoredNodes[1].InCanonicalNetwork)
+	require.Equal(t, false, restoredNodes[1].InCanonicalNetwork)
 }

@@ -86,7 +86,9 @@ func DumpNodesToFile(nodes []SerializableNode, outFile string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	return json.NewEncoder(file).Encode(nodes)
 }
@@ -96,7 +98,9 @@ func ImportNodesFromFile(filePath string) ([]SerializableNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	var nodes []SerializableNode
 	err = json.NewDecoder(file).Decode(&nodes)

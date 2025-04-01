@@ -51,10 +51,10 @@ func NewDBSubscription[ValueType any, CursorType any](
 
 func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, error) {
 	if s.updates != nil {
-		return nil, fmt.Errorf("Already started")
+		return nil, fmt.Errorf("already started")
 	}
 	if s.options.NumRows <= 0 || s.log == nil {
-		return nil, fmt.Errorf("Required params not provided")
+		return nil, fmt.Errorf("required params not provided")
 	}
 	updates := make(chan []ValueType)
 	s.updates = updates

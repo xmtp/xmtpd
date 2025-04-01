@@ -5,6 +5,7 @@ if ! which forge &>/dev/null; then echo "ERROR: Missing foundry binaries. Run 'c
 if ! forge --version | grep -q "1.0.0"; then echo "ERROR: Foundry version is not 1.0.0. Please install the correct version." && exit 1; fi
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which jq &>/dev/null; then brew install jq; fi
+if ! which golangcli-lint; then brew install golangci-lint; fi
 
 echo -e "→ Generate smart contracts bindings"
 contracts/dev/generate

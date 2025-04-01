@@ -7,7 +7,9 @@ SHELL ["/bin/bash", "-c"]
 
 COPY . .
 
-RUN dev/baked/init.sh
+ENV RPC_URL=http://localhost:8545
+
+RUN dev/baked/bake.sh
 
 # ACTUAL IMAGE -------------------------------------------------------
 

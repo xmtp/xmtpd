@@ -31,14 +31,7 @@ jobs:
 
       - run: dev/docker/up
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: v1.0.0
-
-      - run: contracts/dev/deploy local
-
-      - run: dev/register-local-node-1
+      - run: dev/cli/register-local-node-1
 
       - name: Run Upgrade Tests
         run: |

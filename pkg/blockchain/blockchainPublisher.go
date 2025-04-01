@@ -141,7 +141,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 				ctx,
 				m.logger,
 				m.client,
-				2*time.Second,
+				10*time.Second,
 				250*time.Millisecond,
 				transaction.Hash(),
 			)

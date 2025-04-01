@@ -60,6 +60,7 @@ type RegisterNodeOptions struct {
 	OwnerAddress              string       `                                        long:"node-owner-address"            description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
 	SigningKeyPub             string       `                                        long:"node-signing-key-pub"          description:"Signing key of the node to register"                              required:"true"`
 	MinMonthlyFeeMicroDollars int64        `                                        long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"                         required:"false"`
+	Force                     bool         `                                        long:"force"                         description:"Register even if pubkey already exists"                           required:"false"`
 }
 
 type SetHttpAddressOptions struct {

@@ -31,7 +31,13 @@ jobs:
 
       - run: dev/docker/up
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.0.0
+
       - run: dev/cli/register-local-node-1
+
       - name: Run Tests
         run: |
           export GOPATH="${HOME}/go/"
@@ -44,7 +50,6 @@ jobs:
           export GOPATH="${HOME}/go/"
           export PATH="${PATH}:${GOPATH}/bin"
           go test -v ./... -race
-
       - uses: datadog/junit-upload-github-action@v1
         with:
           api-key: ${{ secrets.DD_API_KEY }}

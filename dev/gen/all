@@ -10,4 +10,3 @@ cd "${repo_root}"
 ./dev/gen/mocks
 go tool -modfile=tools/go.mod sqlc generate
 go generate ./...
-./contracts/dev/generate

@@ -203,6 +203,11 @@ Admin commands
 */
 
 func registerNode(logger *zap.Logger, options *CLI) {
+	if !options.RegisterNode.Force && isPubKeyAlreadyRegistered(logger, options, options.RegisterNode.SigningKeyPub) {
+		logger.Info("provided public key is already registered", zap.String("pub-key", options.RegisterNode.SigningKeyPub))
+		return
+	}
+
 	ctx := context.Background()
 	registryAdmin, err := setupRegistryAdmin(
 		ctx,
@@ -211,6 +216,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		options.Contracts.ChainID,
 		options,
 	)
+
 	if err != nil {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}
@@ -236,6 +242,35 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	if err != nil {
 		logger.Fatal("could not add node", zap.Error(err))
 	}
+}
+
+func isPubKeyAlreadyRegistered(logger *zap.Logger, options *CLI, pubKey string) bool {
+	chainClient, err := blockchain.NewClient(context.Background(), options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	caller, err := blockchain.NewNodeRegistryCaller(
+		logger,
+		chainClient,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	nodes, err := migrator.ReadFromRegistry(caller)
+	if err != nil {
+		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
+	}
+
+	for _, node := range nodes {
+		if node.SigningKeyPub == pubKey {
+			return true
+		}
+	}
+
+	return false
 }
 
 func disableNode(logger *zap.Logger, options *CLI) {

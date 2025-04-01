@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -170,7 +171,7 @@ func runContainer(
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
-			Logger:           testcontainers.TestLogger(t),
+			Logger:           log.Default(),
 		},
 	)
 

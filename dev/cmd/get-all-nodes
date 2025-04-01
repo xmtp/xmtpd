@@ -8,4 +8,4 @@ cd "${repo_root}"
 
 . dev/local.env
 
-dev/cli/cli-cmd get-all-nodes
+dev/cmd/cli-cmd get-all-nodes

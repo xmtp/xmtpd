@@ -7,8 +7,9 @@ It is important that both `public key` and `address` are correct as they are imm
 ## Step 1) Get All Keys
 
 An easy way to generate a new private key is to use our CLI:
+
 ```bash
-./dev/cli generate-key | jq
+./dev/cmd/cli-cmd generate-key | jq
 {
   "level": "INFO",
   "time": "2024-10-15T13:21:14.036-0400",
@@ -20,8 +21,9 @@ An easy way to generate a new private key is to use our CLI:
 ```
 
 If you already have a private key, you can extract the relevant public details via:
+
 ```bash
-./dev/cli get-pub-key --private-key 0xa9b48d687f450ea99a5faaae1be096ddb49487cb28393d3906d7359ede6ea460 | jq
+./dev/cmd/cli-cmd get-pub-key --private-key 0xa9b48d687f450ea99a5faaae1be096ddb49487cb28393d3906d7359ede6ea460 | jq
 {
   "level": "INFO",
   "time": "2024-10-15T13:21:51.276-0400",
@@ -46,7 +48,7 @@ export XMTPD_CONTRACTS_CHAIN_ID=34498
 export XMTPD_CONTRACTS_NODES_ADDRESS=<depends>
 export PRIVATE_KEY=<secret>
 
-dev/cli register-node \
+dev/cmd/cli-cmd register-node \
     --http-address=<node DNS> \
     --node-owner-address=<node address> \
     --admin-private-key=$PRIVATE_KEY \

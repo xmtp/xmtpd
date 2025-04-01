@@ -12,13 +12,13 @@ export XMTPD_SIGNER_PUBLIC_KEY=$ANVIL_ACC_2_PUBLIC_KEY
 export NODE_ADDRESS=$ANVIL_ACC_2_ADDRESS
 export NODE_OPERATOR_PRIVATE_KEY=$ANVIL_ACC_2_PRIVATE_KEY
 
-NODE_ID=$(dev/cli register-node \
+NODE_ID=$(dev/cmd/cli-cmd register-node \
     --http-address=http://localhost:5051 \
     --node-owner-address=$NODE_ADDRESS \
     --admin.private-key=$PRIVATE_KEY \
     --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY | jq -r '.node_id')
 
-dev/cli/cli-cmd add-node-to-network \
+dev/cmd/cli-cmd add-node-to-network \
     --private-key=${PRIVATE_KEY} \
     --node-id=${NODE_ID}
 

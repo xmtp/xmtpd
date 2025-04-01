@@ -36,7 +36,7 @@ jobs:
         with:
           version: v1.0.0
 
-      - run: dev/cli/register-local-node-1
+      - run: dev/cmd/register-local-node-1
 
       - name: Run Tests
         run: |

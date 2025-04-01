@@ -26,7 +26,7 @@ export XMTPD_CONTRACTS_CHAIN_ID=34498
 export XMTPD_CONTRACTS_NODES_ADDRESS=<from above>
 export PRIVATE_KEY=<secret>
 
-dev/cli register-node \
+dev/cmd register-node \
     --http-address=<node DNS> \
     --node-owner-address=0xd27FDB90A393Ce0E390120aeB58b326AbA910BE0 \
     --admin-private-key=$PRIVATE_KEY \
@@ -45,7 +45,7 @@ export XMTPD_CONTRACTS_CHAIN_ID=34498
 export XMTPD_CONTRACTS_NODES_ADDRESS=<from above>
 export PRIVATE_KEY=<secret>
 
-dev/cli get-all-nodes \
+dev/cmd/get-all-nodes \
     --admin-private-key=$PRIVATE_KEY
 ```
 

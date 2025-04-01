@@ -220,7 +220,6 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		options.Contracts.ChainID,
 		options,
 	)
-
 	if err != nil {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}

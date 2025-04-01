@@ -52,7 +52,6 @@ func NewBlockchainPublisher(
 		common.HexToAddress(contractOptions.MessagesContractAddress),
 		client,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +259,6 @@ func withNonce[T any](ctx context.Context,
 				)
 
 				err = nonceContext.Consume()
-
 				if err != nil {
 					nonceContext.Cancel()
 					return nil, err

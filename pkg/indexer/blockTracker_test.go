@@ -2,9 +2,10 @@ package indexer_test
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/indexer"
 	"sync"
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/indexer"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"

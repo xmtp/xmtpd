@@ -80,7 +80,7 @@ func expandVars(vars map[string]string) {
 func convertLocalhost(vars map[string]string) {
 	for varKey, varValue := range vars {
 		if strings.Contains(varValue, "localhost") {
-			vars[varKey] = strings.Replace(varValue, "localhost", "host.docker.internal", -1)
+			vars[varKey] = strings.ReplaceAll(varValue, "localhost", "host.docker.internal")
 		}
 	}
 }
@@ -136,7 +136,9 @@ func pullImage(imageName string) error {
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	_, err = io.Copy(io.Discard, reader)
 	return err

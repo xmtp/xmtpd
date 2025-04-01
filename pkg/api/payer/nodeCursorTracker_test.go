@@ -2,6 +2,9 @@ package payer_test
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
@@ -9,8 +12,6 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"testing"
-	"time"
 )
 
 func TestCursorTrackerBasic(t *testing.T) {
@@ -84,6 +85,7 @@ func TestCursorTrackerClientShutsDownAfterExecution(t *testing.T) {
 	)
 	require.NoError(t, err)
 }
+
 func TestCursorTrackerClientServerIsShutdown(t *testing.T) {
 	ctx := context.Background()
 

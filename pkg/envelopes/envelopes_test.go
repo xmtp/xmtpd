@@ -134,7 +134,6 @@ func TestPayloadType(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.False(t, clientEnvelope.TopicMatchesPayload())
-
 }
 
 func TestRecoverSigner(t *testing.T) {

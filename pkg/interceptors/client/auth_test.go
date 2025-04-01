@@ -79,7 +79,7 @@ func TestAuthInterceptor(t *testing.T) {
 
 	t.Cleanup(func() {
 		server.Stop()
-		listener.Close()
+		_ = listener.Close()
 	})
 
 	// Connect to the fake server and set the right interceptors
@@ -92,7 +92,7 @@ func TestAuthInterceptor(t *testing.T) {
 		grpc.WithUnaryInterceptor(interceptor.Unary()),
 	)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Create a client with the connection
 	client := message_api.NewReplicationApiClient(conn)
@@ -110,7 +110,9 @@ func TestAuthInterceptor(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
-	defer connWithoutInterceptor.Close()
+	defer func() {
+		_ = connWithoutInterceptor.Close()
+	}()
 
 	client = message_api.NewReplicationApiClient(connWithoutInterceptor)
 

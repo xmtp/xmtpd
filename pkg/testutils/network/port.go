@@ -10,6 +10,8 @@ import (
 func FindFreePort(t *testing.T) int {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 	return ln.Addr().(*net.TCPAddr).Port
 }

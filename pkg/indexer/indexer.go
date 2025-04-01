@@ -344,7 +344,6 @@ func indexLogs(
 		err := retry(logger, 100*time.Millisecond, contractAddress, func() storer.LogStorageError {
 			return logStorer.StoreLog(ctx, event)
 		})
-
 		if err != nil {
 			continue
 		}

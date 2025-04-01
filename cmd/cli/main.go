@@ -131,7 +131,7 @@ func parseOptions(args []string) (*CLI, error) {
 		return nil, fmt.Errorf("could not add get-node command: %s", err)
 	}
 	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
-		return nil, fmt.Errorf("Could not add add-rates command: %s", err)
+		return nil, fmt.Errorf("could not add add-rates command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -220,7 +220,6 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		options.Contracts.ChainID,
 		options,
 	)
-
 	if err != nil {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}

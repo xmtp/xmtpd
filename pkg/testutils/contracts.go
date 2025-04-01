@@ -106,7 +106,7 @@ Deploy a contract and return the contract's address. Will return a different add
 */
 func deployContract(t *testing.T, contractName, rpcUrl string) string {
 	retryMax := 10
-	var retry = 0
+	retry := 0
 	var err error
 
 	var addr common.Address
@@ -173,7 +173,6 @@ func deployContract(t *testing.T, contractName, rpcUrl string) string {
 	}
 
 	return addr.String()
-
 }
 
 func DeployNodesContract(t *testing.T, rpcUrl string) string {

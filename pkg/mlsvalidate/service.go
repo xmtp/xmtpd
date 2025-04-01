@@ -27,12 +27,12 @@ func NewMlsValidationService(
 ) (*MLSValidationServiceImpl, error) {
 	target, isTLS, err := utils.HttpAddressToGrpcTarget(cfg.GrpcAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to convert HTTP address to gRPC target: %v", err)
+		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
 	}
 
 	creds, err := utils.GetCredentialsForAddress(isTLS)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get credentials: %v", err)
+		return nil, fmt.Errorf("failed to get credentials: %v", err)
 	}
 
 	log.Info(
@@ -50,7 +50,7 @@ func NewMlsValidationService(
 
 	go func() {
 		<-ctx.Done()
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	return &MLSValidationServiceImpl{

@@ -23,7 +23,6 @@ func NewAuthInterceptor(
 	tokenFactory authn.TokenFactory,
 	targetNodeID uint32,
 ) *AuthInterceptor {
-
 	return &AuthInterceptor{
 		tokenFactory: tokenFactory,
 		targetNodeID: targetNodeID,

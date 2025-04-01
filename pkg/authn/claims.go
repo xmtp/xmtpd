@@ -2,6 +2,7 @@ package authn
 
 import (
 	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
@@ -34,6 +35,7 @@ func NewClaimValidator(logger *zap.Logger, serverVersion *semver.Version) (*Clai
 
 	return &ClaimValidator{constraint: *constraint}, nil
 }
+
 func (cv *ClaimValidator) ValidateVersionClaimIsCompatible(claims *XmtpdClaims) error {
 	if claims.Version == nil {
 		return nil

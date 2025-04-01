@@ -2,13 +2,13 @@ package server
 
 import (
 	"context"
+
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"google.golang.org/grpc"
 )
 
 // OpenConnectionsInterceptor reports open connections for unary and stream RPCs.
-type OpenConnectionsInterceptor struct {
-}
+type OpenConnectionsInterceptor struct{}
 
 // NewOpenConnectionsInterceptor creates a new instance of OpenConnectionsInterceptor.
 func NewOpenConnectionsInterceptor() (*OpenConnectionsInterceptor, error) {

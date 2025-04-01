@@ -3,12 +3,13 @@ package payer
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
 type MetadataApiClientConstructor interface {
@@ -35,7 +36,8 @@ type NodeCursorTracker struct {
 }
 
 func NewNodeCursorTracker(ctx context.Context,
-	log *zap.Logger, metadataApiClient MetadataApiClientConstructor) *NodeCursorTracker {
+	log *zap.Logger, metadataApiClient MetadataApiClientConstructor,
+) *NodeCursorTracker {
 	return &NodeCursorTracker{ctx: ctx, log: log, metadataApiClient: metadataApiClient}
 }
 

@@ -6,8 +6,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-type VectorClock = map[uint32]uint64
-type Topic = []byte
+type (
+	VectorClock = map[uint32]uint64
+	Topic       = []byte
+)
 
 func NullInt32(v int32) sql.NullInt32 {
 	return sql.NullInt32{Int32: v, Valid: true}

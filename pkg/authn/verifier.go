@@ -2,10 +2,11 @@ package authn
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver/v3"
-	"go.uber.org/zap"
 	"strconv"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	"go.uber.org/zap"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xmtp/xmtpd/pkg/registry"

@@ -216,7 +216,6 @@ func (p *publishWorker) calculateFees(
 		stagedEnv.OriginatorTime,
 		p.registrant.NodeID(),
 	)
-
 	if err != nil {
 		return 0, 0, err
 	}

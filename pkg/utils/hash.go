@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/binary"
+
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
 )

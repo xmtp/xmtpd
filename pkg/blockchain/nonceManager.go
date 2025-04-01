@@ -3,11 +3,12 @@ package blockchain
 import (
 	"context"
 	"database/sql"
+	"math/big"
+	"sync"
+
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
-	"math/big"
-	"sync"
 )
 
 type NonceContext struct {
@@ -28,8 +29,10 @@ type OpenConnectionsLimiter struct {
 }
 
 // MaxConcurrentRequests the blockchain mempool can usually only hold 64 transactions from the same fromAddress
-const MaxConcurrentRequests = 64
-const BestGuessConcurrency = 32
+const (
+	MaxConcurrentRequests = 64
+	BestGuessConcurrency  = 32
+)
 
 // NewOpenConnectionsLimiter initializes a OpenConnectionsLimiter with a limit
 func NewOpenConnectionsLimiter(maxConcurrent int) *OpenConnectionsLimiter {
@@ -107,7 +110,6 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 	}
 
 	return ret, nil
-
 }
 
 func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.Int) (int32, error) {

@@ -18,13 +18,15 @@ func HttpAddressToGrpcTarget(httpAddress string) (string, bool, error) {
 		return "", false, err
 	}
 	var isTLS bool
-	if url.Scheme == "https" {
+	switch url.Scheme {
+	case "https":
 		isTLS = true
-	} else if url.Scheme == "http" || url.Scheme == "" {
+	case "http", "":
 		isTLS = false
-	} else {
-		return "", false, fmt.Errorf("Unknown connection schema %s", url.Scheme)
+	default:
+		return "", false, fmt.Errorf("unknown connection schema %s", url.Scheme)
 	}
+
 	if url.Port() != "" {
 		return fmt.Sprintf("%s:%s", url.Hostname(), url.Port()), isTLS, nil
 	}

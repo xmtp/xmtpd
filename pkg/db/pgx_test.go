@@ -3,12 +3,13 @@ package db_test
 import (
 	"context"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/db"
-	"go.uber.org/zap"
 	"log"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/db"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -28,12 +29,14 @@ func TestNamespacedDB(t *testing.T) {
 		time.Second,
 		time.Second,
 	)
-	t.Cleanup(func() { namespacedDB.Close() })
+	t.Cleanup(func() { _ = namespacedDB.Close() })
 	require.NoError(t, err)
 
 	result, err := namespacedDB.Query("SELECT current_database();")
 	require.NoError(t, err)
-	defer result.Close()
+	defer func() {
+		_ = result.Close()
+	}()
 
 	require.True(t, result.Next())
 	var dbName string
@@ -58,7 +61,7 @@ func TestNamespaceRepeat(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, db1)
-	t.Cleanup(func() { db1.Close() })
+	t.Cleanup(func() { _ = db1.Close() })
 
 	// Create again with the same name
 	db2, err := db.NewNamespacedDB(
@@ -71,7 +74,7 @@ func TestNamespaceRepeat(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, db2)
-	t.Cleanup(func() { db2.Close() })
+	t.Cleanup(func() { _ = db2.Close() })
 }
 
 func TestNamespacedDBInvalidName(t *testing.T) {
@@ -107,11 +110,13 @@ func BlackHoleServer(ctx context.Context, port string) error {
 	if err != nil {
 		return fmt.Errorf("error starting blackhole server: %w", err)
 	}
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 
 	go func() {
 		<-ctx.Done()
-		ln.Close()
+		_ = ln.Close()
 	}()
 
 	for ctx.Err() == nil {
@@ -126,7 +131,9 @@ func BlackHoleServer(ctx context.Context, port string) error {
 
 		// Simulate "black hole" by keeping the connection open without any response.
 		go func(c net.Conn) {
-			defer c.Close()
+			defer func() {
+				_ = c.Close()
+			}()
 			<-ctx.Done()
 		}(conn)
 	}
@@ -139,7 +146,7 @@ func TestBlackholeDNS(t *testing.T) {
 	listener, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
+	_ = listener.Close()
 
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
@@ -178,5 +185,4 @@ func TestBlackholeDNS(t *testing.T) {
 	// Cleanup server
 	cancelServer()
 	require.NoError(t, <-serverErrCh)
-
 }

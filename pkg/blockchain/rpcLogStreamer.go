@@ -220,7 +220,6 @@ func (r *RpcLogStreamer) GetNextPage(
 			buildFilterQuery(config, fromBlock, toBlock),
 		)
 	})
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -255,6 +254,7 @@ func buildFilterQuery(
 		Topics:    topics,
 	}
 }
+
 func (r *RpcLogStreamer) Stop() {
 	r.cancel()
 	r.wg.Wait()

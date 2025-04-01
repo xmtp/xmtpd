@@ -203,8 +203,12 @@ Admin commands
 */
 
 func registerNode(logger *zap.Logger, options *CLI) {
-	if !options.RegisterNode.Force && isPubKeyAlreadyRegistered(logger, options, options.RegisterNode.SigningKeyPub) {
-		logger.Info("provided public key is already registered", zap.String("pub-key", options.RegisterNode.SigningKeyPub))
+	if !options.RegisterNode.Force &&
+		isPubKeyAlreadyRegistered(logger, options, options.RegisterNode.SigningKeyPub) {
+		logger.Info(
+			"provided public key is already registered",
+			zap.String("pub-key", options.RegisterNode.SigningKeyPub),
+		)
 		return
 	}
 

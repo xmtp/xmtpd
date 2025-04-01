@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
+	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -33,7 +33,7 @@ Given how infrequently this list changes, that trade-off seems acceptable.
 type SmartContractRegistry struct {
 	ctx      context.Context
 	wg       sync.WaitGroup
-	contract NodesContract
+	contract NodeRegistryContract
 	logger   *zap.Logger
 	// How frequently to poll the smart contract
 	refreshInterval time.Duration
@@ -57,7 +57,7 @@ func NewSmartContractRegistry(
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
 
-	contract, err := nodes.NewNodesCaller(
+	contract, err := noderegistry.NewNodeRegistryCaller(
 		common.HexToAddress(options.NodesContractAddress),
 		ethclient,
 	)
@@ -228,11 +228,11 @@ func (s *SmartContractRegistry) loadUnfilteredFromContract() ([]Node, error) {
 	return out, nil
 }
 
-func (s *SmartContractRegistry) SetContractForTest(contract NodesContract) {
+func (s *SmartContractRegistry) SetContractForTest(contract NodeRegistryContract) {
 	s.contract = contract
 }
 
-func convertNode(rawNode nodes.INodesNodeWithId) Node {
+func convertNode(rawNode noderegistry.INodeRegistryNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the
 	// node as unhealthy in this case
@@ -246,7 +246,7 @@ func convertNode(rawNode nodes.INodesNodeWithId) Node {
 		isValidConfig = false
 	}
 
-	if rawNode.Node.IsDisabled {
+	if !rawNode.Node.InCanonicalNetwork {
 		isValidConfig = false
 	}
 
@@ -254,9 +254,7 @@ func convertNode(rawNode nodes.INodesNodeWithId) Node {
 		NodeID:                    uint32(rawNode.NodeId.Uint64()),
 		SigningKey:                signingKey,
 		HttpAddress:               httpAddress,
-		IsReplicationEnabled:      rawNode.Node.IsReplicationEnabled,
-		IsApiEnabled:              rawNode.Node.IsApiEnabled,
-		IsDisabled:                rawNode.Node.IsDisabled,
+		InCanonicalNetwork:        rawNode.Node.InCanonicalNetwork,
 		MinMonthlyFeeMicroDollars: rawNode.Node.MinMonthlyFeeMicroDollars,
 		IsValidConfig:             isValidConfig,
 	}

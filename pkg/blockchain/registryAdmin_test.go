@@ -101,46 +101,6 @@ func TestAddNodeBadMinMonthlyFee(t *testing.T) {
 	require.ErrorContains(t, err, "invalid min monthly fee provided")
 }
 
-func TestDisableNode(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
-
-	addRandomNode(t, registry, ctx)
-
-	err := registry.DisableNode(ctx, 100)
-	require.NoError(t, err)
-}
-
-func TestEnableNode(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
-
-	addRandomNode(t, registry, ctx)
-
-	err := registry.EnableNode(ctx, 100)
-	require.NoError(t, err)
-}
-
-func TestRemoveFromApiNodes(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
-
-	addRandomNode(t, registry, ctx)
-
-	err := registry.RemoveFromApiNodes(ctx, 100)
-	require.NoError(t, err)
-}
-
-func TestRemoveFromReplicationNodes(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
-
-	addRandomNode(t, registry, ctx)
-
-	err := registry.RemoveFromReplicationNodes(ctx, 100)
-	require.NoError(t, err)
-}
-
 func TestSetMaxActiveNodes(t *testing.T) {
 	registry, _, ctx, cleanup := buildRegistry(t)
 	defer cleanup()

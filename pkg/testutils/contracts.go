@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -24,7 +24,7 @@ const (
 	ANVIL_LOCALNET_HOST            = "http://localhost:7545"
 	ANVIL_LOCALNET_CHAIN_ID        = 31337
 	LOCAL_PRIVATE_KEY              = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	NODES_CONTRACT_NAME            = "Nodes"
+	NODES_CONTRACT_NAME            = "NodeRegistry"
 	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
 	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
 	RATES_REGISTRY_CONTRACT_NAME   = "RatesRegistry"
@@ -139,7 +139,7 @@ func deployContract(t *testing.T, contractName, rpcUrl string) string {
 
 		switch contractName {
 		case NODES_CONTRACT_NAME:
-			addr, _, _, err = nodes.DeployNodes(auth, client, auth.From)
+			addr, _, _, err = noderegistry.DeployNodeRegistry(auth, client, auth.From)
 		case GROUP_MESSAGES_CONTRACT_NAME:
 			addr, _, _, err = gm.DeployGroupMessageBroadcaster(auth, client)
 			require.NoError(t, err)

@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
+	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
@@ -44,28 +44,26 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	enc, err := hex.DecodeString(TEST_PUBKEY)
 	require.NoError(t, err)
 
-	mockContract := mocks.NewMockNodesContract(t)
+	mockContract := mocks.NewMockNodeRegistryContract(t)
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
-		Return([]nodes.INodesNodeWithId{
+		Return([]noderegistry.INodeRegistryNodeWithId{
 			{
 				NodeId: big.NewInt(1),
-				Node: nodes.INodesNode{
-					HttpAddress:          "http://foo.com",
-					SigningKeyPub:        enc,
-					IsDisabled:           false,
-					IsApiEnabled:         true,
-					IsReplicationEnabled: true,
+				Node: noderegistry.INodeRegistryNode{
+					HttpAddress:               "http://foo.com",
+					SigningKeyPub:             enc,
+					InCanonicalNetwork:        true,
+					MinMonthlyFeeMicroDollars: big.NewInt(1000000),
 				},
 			},
 			{
 				NodeId: big.NewInt(2),
-				Node: nodes.INodesNode{
-					HttpAddress:          "https://bar.com",
-					SigningKeyPub:        enc,
-					IsDisabled:           false,
-					IsApiEnabled:         true,
-					IsReplicationEnabled: true,
+				Node: noderegistry.INodeRegistryNode{
+					HttpAddress:               "https://bar.com",
+					SigningKeyPub:             enc,
+					InCanonicalNetwork:        true,
+					MinMonthlyFeeMicroDollars: big.NewInt(1000000),
 				},
 			},
 		}, nil)
@@ -92,7 +90,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	mockContract := mocks.NewMockNodesContract(t)
+	mockContract := mocks.NewMockNodeRegistryContract(t)
 
 	enc, err := hex.DecodeString(TEST_PUBKEY)
 	require.NoError(t, err)
@@ -102,22 +100,21 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	// Subsequent calls will set the address to bar.com
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
-		RunAndReturn(func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error) {
+		RunAndReturn(func(*bind.CallOpts) ([]noderegistry.INodeRegistryNodeWithId, error) {
 			httpAddress := "http://foo.com"
 			if !hasSentInitialValues {
 				hasSentInitialValues = true
 			} else {
 				httpAddress = "http://bar.com"
 			}
-			return []nodes.INodesNodeWithId{
+			return []noderegistry.INodeRegistryNodeWithId{
 				{
 					NodeId: big.NewInt(1),
-					Node: nodes.INodesNode{
-						HttpAddress:          httpAddress,
-						SigningKeyPub:        enc,
-						IsDisabled:           false,
-						IsApiEnabled:         true,
-						IsReplicationEnabled: true,
+					Node: noderegistry.INodeRegistryNode{
+						HttpAddress:               httpAddress,
+						SigningKeyPub:             enc,
+						InCanonicalNetwork:        true,
+						MinMonthlyFeeMicroDollars: big.NewInt(1000000),
 					},
 				},
 			}, nil
@@ -154,19 +151,18 @@ func TestStopOnContextCancel(t *testing.T) {
 	enc, err := hex.DecodeString(TEST_PUBKEY)
 	require.NoError(t, err)
 
-	mockContract := mocks.NewMockNodesContract(t)
+	mockContract := mocks.NewMockNodeRegistryContract(t)
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
-		RunAndReturn(func(*bind.CallOpts) ([]nodes.INodesNodeWithId, error) {
-			return []nodes.INodesNodeWithId{
+		RunAndReturn(func(*bind.CallOpts) ([]noderegistry.INodeRegistryNodeWithId, error) {
+			return []noderegistry.INodeRegistryNodeWithId{
 				{
 					NodeId: big.NewInt(rand.Int63n(1000)),
-					Node: nodes.INodesNode{
-						HttpAddress:          "http://foo.com",
-						SigningKeyPub:        enc,
-						IsDisabled:           false,
-						IsApiEnabled:         true,
-						IsReplicationEnabled: true,
+					Node: noderegistry.INodeRegistryNode{
+						HttpAddress:               "http://foo.com",
+						SigningKeyPub:             enc,
+						InCanonicalNetwork:        true,
+						MinMonthlyFeeMicroDollars: big.NewInt(1000000),
 					},
 				},
 			}, nil

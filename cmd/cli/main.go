@@ -30,13 +30,12 @@ type CLI struct {
 	GenerateKey                      config.GenerateKeyOptions
 	RegisterNode                     config.RegisterNodeOptions
 	GetAllNodes                      config.GetAllNodesOptions
+	GetNode                          config.GetNodeOptions
 	SetHttpAddress                   config.SetHttpAddressOptions
 	MigrateNodes                     config.MigrateNodesOptions
-	NodeOperator                     config.NodeOperatorOptions
 	SetMinMonthlyFee                 config.SetMinMonthlyFeeOptions
 	SetMaxActiveNodes                config.SetMaxActiveNodesOptions
 	SetNodeOperatorCommissionPercent config.SetNodeOperatorCommissionPercentOptions
-	GetOptions                       config.GetOptions
 	AddRates                         config.AddRatesOptions
 }
 
@@ -59,12 +58,11 @@ func parseOptions(args []string) (*CLI, error) {
 	var getAllNodesOptions config.GetAllNodesOptions
 	var setHttpAddressOptions config.SetHttpAddressOptions
 	var migrateNodesOptions config.MigrateNodesOptions
-	var nodeOperatorOptions config.NodeOperatorOptions
 	var setMinMonthlyFeeOptions config.SetMinMonthlyFeeOptions
 	var setMaxActiveNodesOptions config.SetMaxActiveNodesOptions
 	var setNodeOperatorCommissionPercentOptions config.SetNodeOperatorCommissionPercentOptions
-	var getOptions config.GetOptions
 	var addRatesOptions config.AddRatesOptions
+	var getNodeOptions config.GetNodeOptions
 
 	parser := flags.NewParser(&options, flags.Default)
 
@@ -80,18 +78,6 @@ func parseOptions(args []string) (*CLI, error) {
 	}
 	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
 		return nil, fmt.Errorf("could not add migrate-nodes command: %s", err)
-	}
-	if _, err := parser.AddCommand("disable-node", "Disable a node", "", &adminOptions); err != nil {
-		return nil, fmt.Errorf("could not add disable-node command: %s", err)
-	}
-	if _, err := parser.AddCommand("enable-node", "Enable a node", "", &adminOptions); err != nil {
-		return nil, fmt.Errorf("could not add enable-node command: %s", err)
-	}
-	if _, err := parser.AddCommand("remove-from-api-nodes", "Remove a node from the API nodes", "", &adminOptions); err != nil {
-		return nil, fmt.Errorf("could not add remove-from-api-nodes command: %s", err)
-	}
-	if _, err := parser.AddCommand("remove-from-replication-nodes", "Remove a node from the replication nodes", "", &adminOptions); err != nil {
-		return nil, fmt.Errorf("could not add remove-from-replication-nodes command: %s", err)
 	}
 	if _, err := parser.AddCommand("set-http-address", "Set the HTTP address of a node", "", &setHttpAddressOptions); err != nil {
 		return nil, fmt.Errorf("could not add set-http-address command: %s", err)
@@ -109,25 +95,11 @@ func parseOptions(args []string) (*CLI, error) {
 		)
 	}
 
-	// Node operator commands
-	if _, err := parser.AddCommand("set-api-enabled", "Set API enabled for a node", "", &nodeOperatorOptions); err != nil {
-		return nil, fmt.Errorf("could not add set-api-enabled command: %s", err)
-	}
-	if _, err := parser.AddCommand("set-replication-enabled", "Set replication enabled for a node", "", &nodeOperatorOptions); err != nil {
-		return nil, fmt.Errorf("could not add set-replication-enabled command: %s", err)
-	}
-
 	// Getter commands
 	if _, err := parser.AddCommand("get-all-nodes", "Get all nodes from the registry", "", &getAllNodesOptions); err != nil {
 		return nil, fmt.Errorf("could not add get-all-nodes command: %s", err)
 	}
-	if _, err := parser.AddCommand("get-active-api-nodes", "Get all active API nodes from the registry", "", &getOptions); err != nil {
-		return nil, fmt.Errorf("could not add get-active-api-nodes command: %s", err)
-	}
-	if _, err := parser.AddCommand("get-active-replication-nodes", "Get all active replication nodes from the registry", "", &getOptions); err != nil {
-		return nil, fmt.Errorf("could not add get-active-replication-nodes command: %s", err)
-	}
-	if _, err := parser.AddCommand("get-node", "Get a node from the registry", "", &getOptions); err != nil {
+	if _, err := parser.AddCommand("get-node", "Get a node from the registry", "", &getNodeOptions); err != nil {
 		return nil, fmt.Errorf("could not add get-node command: %s", err)
 	}
 	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
@@ -153,13 +125,12 @@ func parseOptions(args []string) (*CLI, error) {
 		generateKeyOptions,
 		registerNodeOptions,
 		getAllNodesOptions,
+		getNodeOptions,
 		setHttpAddressOptions,
 		migrateNodesOptions,
-		nodeOperatorOptions,
 		setMinMonthlyFeeOptions,
 		setMaxActiveNodesOptions,
 		setNodeOperatorCommissionPercentOptions,
-		getOptions,
 		addRatesOptions,
 	}, nil
 }
@@ -235,94 +206,6 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	)
 	if err != nil {
 		logger.Fatal("could not add node", zap.Error(err))
-	}
-}
-
-func disableNode(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
-		ctx,
-		logger,
-		options.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.DisableNode(
-		ctx,
-		options.AdminOptions.NodeId,
-	)
-	if err != nil {
-		logger.Fatal("could not disable node", zap.Error(err))
-	}
-}
-
-func enableNode(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
-		ctx,
-		logger,
-		options.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.EnableNode(
-		ctx,
-		options.AdminOptions.NodeId,
-	)
-	if err != nil {
-		logger.Fatal("could not enable node", zap.Error(err))
-	}
-}
-
-func removeFromApiNodes(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
-		ctx,
-		logger,
-		options.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.RemoveFromApiNodes(
-		ctx,
-		options.AdminOptions.NodeId,
-	)
-	if err != nil {
-		logger.Fatal("could not remove from api nodes", zap.Error(err))
-	}
-}
-
-func removeFromReplicationNodes(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
-		ctx,
-		logger,
-		options.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.RemoveFromReplicationNodes(
-		ctx,
-		options.AdminOptions.NodeId,
-	)
-	if err != nil {
-		logger.Fatal("could not remove from replication nodes", zap.Error(err))
 	}
 }
 
@@ -495,117 +378,9 @@ func setMinMonthlyFee(logger *zap.Logger, options *CLI) {
 
 /*
 *
-Node operator commands
-*
-*/
-
-func setApiEnabled(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
-		ctx,
-		logger,
-		options.NodeOperator.NodePrivateKey,
-		options.Contracts.ChainID,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.SetIsApiEnabled(
-		ctx,
-		options.NodeOperator.NodeId,
-		options.NodeOperator.Enable,
-	)
-	if err != nil {
-		logger.Fatal("could not set API enabled", zap.Error(err))
-	}
-}
-
-func setReplicationEnabled(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
-		ctx,
-		logger,
-		options.NodeOperator.NodePrivateKey,
-		options.Contracts.ChainID,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup registry admin", zap.Error(err))
-	}
-
-	err = registryAdmin.SetIsReplicationEnabled(
-		ctx,
-		options.NodeOperator.NodeId,
-		options.NodeOperator.Enable,
-	)
-	if err != nil {
-		logger.Fatal("could not set replication enabled", zap.Error(err))
-	}
-}
-
-/*
-*
 Getter commands
 *
 */
-
-func getActiveApiNodes(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
-	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
-	}
-
-	caller, err := blockchain.NewNodeRegistryCaller(
-		logger,
-		chainClient,
-		options.Contracts,
-	)
-	if err != nil {
-		logger.Fatal("could not create registry caller", zap.Error(err))
-	}
-
-	nodes, err := caller.GetActiveApiNodes(ctx)
-	if err != nil {
-		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
-	}
-
-	logger.Info(
-		"got nodes",
-		zap.Int("size", len(nodes)),
-		zap.Any("nodes", nodes),
-	)
-}
-
-func getActiveReplicationNodes(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
-	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
-	}
-
-	caller, err := blockchain.NewNodeRegistryCaller(
-		logger,
-		chainClient,
-		options.Contracts,
-	)
-	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
-	}
-
-	nodes, err := caller.GetActiveReplicationNodes(ctx)
-	if err != nil {
-		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
-	}
-
-	logger.Info(
-		"got nodes",
-		zap.Int("size", len(nodes)),
-		zap.Any("nodes", nodes),
-	)
-}
 
 func getAllNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
@@ -658,7 +433,7 @@ func getNode(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create registry admin", zap.Error(err))
 	}
 
-	node, err := caller.GetNode(ctx, options.NodeOperator.NodeId)
+	node, err := caller.GetNode(ctx, options.GetNode.NodeId)
 	if err != nil {
 		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
@@ -705,20 +480,8 @@ func main() {
 	case "register-node":
 		registerNode(logger, options)
 		return
-	case "disable-node":
-		disableNode(logger, options)
-		return
-	case "enable-node":
-		enableNode(logger, options)
-		return
 	case "migrate-nodes":
 		migrateNodes(logger, options)
-		return
-	case "remove-from-api-nodes":
-		removeFromApiNodes(logger, options)
-		return
-	case "remove-from-replication-nodes":
-		removeFromReplicationNodes(logger, options)
 		return
 	case "set-http-address":
 		setHttpAddress(logger, options)
@@ -731,18 +494,6 @@ func main() {
 		return
 	case "set-node-operator-commission-percent":
 		setNodeOperatorCommissionPercent(logger, options)
-		return
-	case "set-api-enabled":
-		setApiEnabled(logger, options)
-		return
-	case "set-replication-enabled":
-		setReplicationEnabled(logger, options)
-		return
-	case "get-active-api-nodes":
-		getActiveApiNodes(logger, options)
-		return
-	case "get-active-replication-nodes":
-		getActiveReplicationNodes(logger, options)
 		return
 	case "get-all-nodes":
 		getAllNodes(logger, options)

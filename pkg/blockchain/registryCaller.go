@@ -7,23 +7,21 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
+	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
 
 type INodeRegistryCaller interface {
-	GetActiveApiNodes(ctx context.Context) ([]nodes.INodesNodeWithId, error)
-	GetActiveReplicationNodes(ctx context.Context) ([]nodes.INodesNodeWithId, error)
-	GetAllNodes(ctx context.Context) ([]nodes.INodesNodeWithId, error)
-	GetNode(ctx context.Context, nodeId int64) (nodes.INodesNode, error)
+	GetAllNodes(ctx context.Context) ([]noderegistry.INodeRegistryNodeWithId, error)
+	GetNode(ctx context.Context, nodeId int64) (noderegistry.INodeRegistryNode, error)
 	OwnerOf(ctx context.Context, nodeId int64) (common.Address, error)
 }
 
 type nodeRegistryCaller struct {
 	client   *ethclient.Client
 	logger   *zap.Logger
-	contract *nodes.NodesCaller
+	contract *noderegistry.NodeRegistryCaller
 }
 
 func NewNodeRegistryCaller(
@@ -31,7 +29,7 @@ func NewNodeRegistryCaller(
 	client *ethclient.Client,
 	contractsOptions config.ContractsOptions,
 ) (INodeRegistryCaller, error) {
-	contract, err := nodes.NewNodesCaller(
+	contract, err := noderegistry.NewNodeRegistryCaller(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
 	)
@@ -46,25 +44,9 @@ func NewNodeRegistryCaller(
 	}, nil
 }
 
-func (n *nodeRegistryCaller) GetActiveApiNodes(
-	ctx context.Context,
-) ([]nodes.INodesNodeWithId, error) {
-	return n.contract.GetActiveApiNodes(&bind.CallOpts{
-		Context: ctx,
-	})
-}
-
-func (n *nodeRegistryCaller) GetActiveReplicationNodes(
-	ctx context.Context,
-) ([]nodes.INodesNodeWithId, error) {
-	return n.contract.GetActiveReplicationNodes(&bind.CallOpts{
-		Context: ctx,
-	})
-}
-
 func (n *nodeRegistryCaller) GetAllNodes(
 	ctx context.Context,
-) ([]nodes.INodesNodeWithId, error) {
+) ([]noderegistry.INodeRegistryNodeWithId, error) {
 	return n.contract.GetAllNodes(&bind.CallOpts{
 		Context: ctx,
 	})
@@ -73,7 +55,7 @@ func (n *nodeRegistryCaller) GetAllNodes(
 func (n *nodeRegistryCaller) GetNode(
 	ctx context.Context,
 	nodeId int64,
-) (nodes.INodesNode, error) {
+) (noderegistry.INodeRegistryNode, error) {
 	return n.contract.GetNode(&bind.CallOpts{
 		Context: ctx,
 	}, big.NewInt(nodeId))

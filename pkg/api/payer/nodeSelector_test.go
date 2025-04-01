@@ -62,27 +62,9 @@ func TestGetNode_NoAvailableNodesError(t *testing.T) {
 func TestGetNode_CorrectAssignment(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		{
-			NodeID:               100,
-			IsDisabled:           false,
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsValidConfig:        true,
-		},
-		{
-			NodeID:               200,
-			IsDisabled:           false,
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsValidConfig:        true,
-		},
-		{
-			NodeID:               300,
-			IsDisabled:           false,
-			IsReplicationEnabled: true,
-			IsApiEnabled:         true,
-			IsValidConfig:        true,
-		},
+		testutils.GetHealthyNode(100),
+		testutils.GetHealthyNode(200),
+		testutils.GetHealthyNode(300),
 	}, nil)
 	tpc1 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key"))
 	tpc2 := *topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, []byte("stable_key_topic2"))

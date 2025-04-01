@@ -21,8 +21,8 @@ packages:
       ValidationApiClient:
   github.com/xmtp/xmtpd/pkg/registry:
     interfaces:
-      NodesContract:
       NodeRegistry:
+      NodeRegistryContract:
   github.com/xmtp/xmtpd/pkg/indexer:
     interfaces:
       IBlockTracker:

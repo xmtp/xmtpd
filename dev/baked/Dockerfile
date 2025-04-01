@@ -24,7 +24,7 @@ COPY . .
 RUN set -euo pipefail; \
     echo "Starting anvil-background..."; dev/docker/anvil-background || { echo "❌ Failed at anvil-background"; exit 1; }; \
     echo "Deploying contracts locally..."; contracts/dev/deploy local || { echo "❌ Failed at deploy local"; exit 1; }; \
-    echo "Registering local node..."; dev/register-local-node || { echo "❌ Failed at register-local-node"; exit 1; }; \
+    echo "Registering local node..."; dev/register-local-node-1 || { echo "❌ Failed at register-local-node-1"; exit 1; }; \
     echo "Registering local node 2..."; dev/register-local-node-2 || { echo "❌ Failed at register-local-node-2"; exit 1; }; \
     echo "Stopping anvil process..."; pkill -f anvil || { echo "⚠️ Warning: pkill anvil failed, continuing..."; }; \
     echo "Sleeping for 5 seconds..."; sleep 5

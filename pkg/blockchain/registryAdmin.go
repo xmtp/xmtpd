@@ -25,6 +25,8 @@ type INodeRegistryAdmin interface {
 		httpAddress string,
 		minMonthlyFeeMicroDollars int64,
 	) error
+	AddToNetwork(ctx context.Context, nodeId int64) error
+	RemoveFromNetwork(ctx context.Context, nodeId int64) error
 	SetHttpAddress(ctx context.Context, nodeId int64, httpAddress string) error
 	SetMinMonthlyFee(ctx context.Context, nodeId int64, minMonthlyFeeMicroDollars int64) error
 	SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error
@@ -80,10 +82,6 @@ func (n *nodeRegistryAdmin) AddNode(
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
-	if n.signer == nil {
-		return fmt.Errorf("no signer provided")
-	}
-
 	return ExecuteTransaction(
 		ctx,
 		n.signer,
@@ -113,6 +111,72 @@ func (n *nodeRegistryAdmin) AddNode(
 				zap.String("http_address", nodeAdded.HttpAddress),
 				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningKeyPub)),
 				zap.String("min_monthly_fee", nodeAdded.MinMonthlyFeeMicroDollars.String()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) AddToNetwork(
+	ctx context.Context,
+	nodeId int64,
+) error {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.AddToNetwork(
+				opts,
+				big.NewInt(nodeId),
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseNodeAddedToCanonicalNetwork(*log)
+		},
+		func(event interface{}) {
+			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAddedToCanonicalNetwork)
+			if !ok {
+				n.logger.Error(
+					"unexpected event type, not of type NodesNodeAddedToCanonicalNetwork",
+				)
+				return
+			}
+			n.logger.Info("node added to canonical network",
+				zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
+			)
+		},
+	)
+}
+
+func (n *nodeRegistryAdmin) RemoveFromNetwork(
+	ctx context.Context,
+	nodeId int64,
+) error {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.contract.RemoveFromNetwork(
+				opts,
+				big.NewInt(nodeId),
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.contract.ParseNodeRemovedFromCanonicalNetwork(*log)
+		},
+		func(event interface{}) {
+			nodeRemoved, ok := event.(*noderegistry.NodeRegistryNodeRemovedFromCanonicalNetwork)
+			if !ok {
+				n.logger.Error(
+					"unexpected event type, not of type NodesNodeRemovedFromCanonicalNetwork",
+				)
+				return
+			}
+			n.logger.Info("node removed from canonical network",
+				zap.Uint64("node_id", nodeRemoved.NodeId.Uint64()),
 			)
 		},
 	)

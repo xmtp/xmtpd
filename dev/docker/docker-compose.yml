@@ -15,8 +15,18 @@ services:
 
   chain:
     platform: linux/amd64
-    image: ghcr.io/foundry-rs/foundry
-    entrypoint: ["anvil", "--host", "0.0.0.0", "--mixed-mining", "--block-time", "1"]
+    image: ghcr.io/xmtp/xmtpd-anvil:v0.3.0
+    entrypoint:
+      [
+        "anvil",
+        "--host",
+        "0.0.0.0",
+        "--mixed-mining",
+        "--block-time",
+        "1",
+        "--load-state",
+        "/app/deployments/anvil_localnet/anvil-state.json",
+      ]
     working_dir: /anvil
     ports:
       - 7545:8545
@@ -26,7 +36,6 @@ services:
     platform: linux/amd64
     ports:
       - 60051:50051
-
 
   prometheus:
     image: ubuntu/prometheus

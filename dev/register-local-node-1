@@ -13,14 +13,8 @@ NODE_ID=$(dev/cli register-node \
     --admin.private-key=$PRIVATE_KEY \
     --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY | jq -r '.node_id')
 
-dev/cli set-api-enabled  \
-    --node-private-key=$NODE_OPERATOR_PRIVATE_KEY \
-    --node-id=$NODE_ID \
-    --enable
-
-dev/cli set-replication-enabled \
-    --node-private-key=$NODE_OPERATOR_PRIVATE_KEY \
-    --node-id=$NODE_ID \
-    --enable
+dev/cli add-node-to-network \
+    --private-key=$PRIVATE_KEY \
+    --node-id=$NODE_ID
 
 echo -e "\033[32m✔\033[0m Node with ID $NODE_ID has been registered and enabled\n"

@@ -76,6 +76,12 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("register-node", "Register a node", "", &registerNodeOptions); err != nil {
 		return nil, fmt.Errorf("could not add register-node command: %s", err)
 	}
+	if _, err := parser.AddCommand("add-node-to-network", "Add a node to the network", "", &adminOptions); err != nil {
+		return nil, fmt.Errorf("could not add add-node-to-network command: %s", err)
+	}
+	if _, err := parser.AddCommand("remove-node-from-network", "Remove a node from the network", "", &adminOptions); err != nil {
+		return nil, fmt.Errorf("could not add remove-node-from-network command: %s", err)
+	}
 	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
 		return nil, fmt.Errorf("could not add migrate-nodes command: %s", err)
 	}
@@ -103,7 +109,7 @@ func parseOptions(args []string) (*CLI, error) {
 		return nil, fmt.Errorf("could not add get-node command: %s", err)
 	}
 	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
-		return nil, fmt.Errorf("Could not add add-rates command: %s", err)
+		return nil, fmt.Errorf("could not add add-rates command: %s", err)
 	}
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -206,6 +212,50 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	)
 	if err != nil {
 		logger.Fatal("could not add node", zap.Error(err))
+	}
+}
+
+func addNodeToNetwork(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	registryAdmin, err := setupRegistryAdmin(
+		ctx,
+		logger,
+		options.AdminOptions.AdminPrivateKey,
+		options.Contracts.ChainID,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup registry admin", zap.Error(err))
+	}
+
+	err = registryAdmin.AddToNetwork(
+		ctx,
+		options.AdminOptions.NodeId,
+	)
+	if err != nil {
+		logger.Fatal("could not add node to network", zap.Error(err))
+	}
+}
+
+func removeNodeFromNetwork(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	registryAdmin, err := setupRegistryAdmin(
+		ctx,
+		logger,
+		options.AdminOptions.AdminPrivateKey,
+		options.Contracts.ChainID,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup registry admin", zap.Error(err))
+	}
+
+	err = registryAdmin.RemoveFromNetwork(
+		ctx,
+		options.AdminOptions.NodeId,
+	)
+	if err != nil {
+		logger.Fatal("could not remove node from network", zap.Error(err))
 	}
 }
 
@@ -479,6 +529,12 @@ func main() {
 		return
 	case "register-node":
 		registerNode(logger, options)
+		return
+	case "add-node-to-network":
+		addNodeToNetwork(logger, options)
+		return
+	case "remove-node-from-network":
+		removeNodeFromNetwork(logger, options)
 		return
 	case "migrate-nodes":
 		migrateNodes(logger, options)

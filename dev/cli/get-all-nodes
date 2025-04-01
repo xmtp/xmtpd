@@ -1,0 +1,11 @@
+#!/bin/bash
+set -eu
+
+# Work always from the root directory
+script_dir=$(dirname "$(realpath "$0")")
+repo_root=$(realpath "${script_dir}/../../")
+cd "${repo_root}"
+
+. dev/local.env
+
+dev/cli/cli-cmd get-all-nodes

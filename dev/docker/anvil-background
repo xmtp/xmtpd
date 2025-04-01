@@ -1,3 +1,0 @@
-#!/bin/bash
-
-anvil -p 7545 --dump-state $PWD/anvil-baked-state &

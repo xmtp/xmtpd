@@ -1,7 +1,0 @@
-#!/bin/bash
-
-set -eu
-
-. dev/local.env
-
-dev/cli get-all-nodes

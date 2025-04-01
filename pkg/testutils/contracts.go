@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -27,7 +27,7 @@ const (
 	NODES_CONTRACT_NAME            = "Nodes"
 	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
 	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
-	RATES_MANAGER_CONTRACT_NAME    = "RatesManager"
+	RATES_REGISTRY_CONTRACT_NAME   = "RatesRegistry"
 )
 
 // Build an abi encoded MessageSent event struct
@@ -154,11 +154,11 @@ func deployContract(t *testing.T, contractName, rpcUrl string) string {
 			contract, err = iu.NewIdentityUpdateBroadcaster(addr, client)
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
-		case RATES_MANAGER_CONTRACT_NAME:
-			addr, _, _, err = ratesmanager.DeployRatesManager(auth, client)
+		case RATES_REGISTRY_CONTRACT_NAME:
+			addr, _, _, err = rateregistry.DeployRateRegistry(auth, client)
 			require.NoError(t, err)
-			var contract *ratesmanager.RatesManager
-			contract, err = ratesmanager.NewRatesManager(addr, client)
+			var contract *rateregistry.RateRegistry
+			contract, err = rateregistry.NewRateRegistry(addr, client)
 			require.NoError(t, err)
 			_, err = contract.Initialize(auth, auth.From)
 		default:
@@ -188,6 +188,6 @@ func DeployIdentityUpdatesContract(t *testing.T, rpcUrl string) string {
 	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME, rpcUrl)
 }
 
-func DeployRatesManagerContract(t *testing.T, rpcUrl string) string {
-	return deployContract(t, RATES_MANAGER_CONTRACT_NAME, rpcUrl)
+func DeployRatesRegistryContract(t *testing.T, rpcUrl string) string {
+	return deployContract(t, RATES_REGISTRY_CONTRACT_NAME, rpcUrl)
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
@@ -21,7 +21,7 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.RatesManagerContractAddress = testutils.DeployRatesManagerContract(t, rpcUrl)
+	contractsOptions.RateRegistryContractAddress = testutils.DeployRatesRegistryContract(t, rpcUrl)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.LOCAL_PRIVATE_KEY,
@@ -41,7 +41,7 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 func TestAddRates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
-	rates := ratesmanager.RatesManagerRates{
+	rates := rateregistry.RateRegistryRates{
 		MessageFee:          100,
 		StorageFee:          200,
 		CongestionFee:       300,
@@ -55,7 +55,7 @@ func TestAddRates(t *testing.T) {
 	require.NoError(t, err)
 
 	var returnedRates struct {
-		Rates   []ratesmanager.RatesManagerRates
+		Rates   []rateregistry.RateRegistryRates
 		HasMore bool
 	}
 

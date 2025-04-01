@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/xmtp/xmtpd/contracts/pkg/ratesmanager"
+	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
 
@@ -422,7 +422,7 @@ func addRates(logger *zap.Logger, options *CLI) {
 
 	startTime := time.Now().Add(time.Duration(options.AddRates.DelayDays) * 24 * time.Hour)
 
-	rates := ratesmanager.RatesManagerRates{
+	rates := rateregistry.RateRegistryRates{
 		MessageFee:          options.AddRates.MessageFee,
 		StorageFee:          options.AddRates.StorageFee,
 		CongestionFee:       options.AddRates.CongestionFee,

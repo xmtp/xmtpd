@@ -2,8 +2,9 @@ package server
 
 import (
 	"context"
-	"google.golang.org/grpc/peer"
 	"net"
+
+	"google.golang.org/grpc/peer"
 
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/constants"
@@ -125,7 +126,6 @@ func (i *AuthInterceptor) Stream() grpc.StreamServerInterceptor {
 		}
 
 		nodeId, err := i.verifier.Verify(token)
-
 		if err != nil {
 			return status.Errorf(
 				codes.Unauthenticated,

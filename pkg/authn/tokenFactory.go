@@ -2,9 +2,10 @@ package authn
 
 import (
 	"crypto/ecdsa"
-	"github.com/Masterminds/semver/v3"
 	"strconv"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/golang-jwt/jwt/v5"
 )

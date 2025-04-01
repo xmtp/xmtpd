@@ -1,8 +1,9 @@
 package authn_test
 
 import (
-	"github.com/xmtp/xmtpd/pkg/authn"
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/authn"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"

@@ -33,7 +33,6 @@ func (c *notifier[any]) trigger(value any) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	for channel := range c.channels {
-
 		// Write to the channel in a goroutine to avoid blocking the caller
 		go func(channel chan<- any) {
 			channel <- value

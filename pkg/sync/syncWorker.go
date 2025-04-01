@@ -4,6 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/cenkalti/backoff/v5"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -21,10 +26,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"io"
-	"strings"
-	"sync"
-	"time"
 )
 
 type syncWorker struct {
@@ -54,7 +55,6 @@ func startSyncWorker(
 	store *sql.DB,
 	feeCalculator fees.IFeeCalculator,
 ) (*syncWorker, error) {
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	s := &syncWorker{
@@ -121,7 +121,6 @@ func (s *syncWorker) subscribeToRegistry() {
 					}
 				}
 			}
-
 		})
 }
 
@@ -470,9 +469,8 @@ func (s *syncWorker) validateAndInsertEnvelope(
 		s.log.Error("Failed to calculate fees", zap.Error(err))
 		return err
 	}
-	originatorsFeeCalculation :=
-		env.UnsignedOriginatorEnvelope.BaseFee() +
-			env.UnsignedOriginatorEnvelope.CongestionFee()
+	originatorsFeeCalculation := env.UnsignedOriginatorEnvelope.BaseFee() +
+		env.UnsignedOriginatorEnvelope.CongestionFee()
 	if ourFeeCalculation != originatorsFeeCalculation {
 		s.log.Error(
 			"Fee calculation mismatch",

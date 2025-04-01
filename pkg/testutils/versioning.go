@@ -2,11 +2,12 @@ package testutils
 
 import (
 	"bytes"
-	"github.com/Masterminds/semver/v3"
-	"github.com/stretchr/testify/require"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/stretchr/testify/require"
 )
 
 func GetLatestTag(t *testing.T) string {

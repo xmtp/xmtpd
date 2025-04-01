@@ -67,7 +67,6 @@ func (r *RatesAdmin) AddRates(
 		rates.TargetRatePerMinute,
 		rates.StartTime,
 	)
-
 	if err != nil {
 		return err
 	}

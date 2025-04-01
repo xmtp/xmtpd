@@ -3,12 +3,13 @@ package metadata
 import (
 	"context"
 	"database/sql"
+	"sync"
+	"time"
+
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
-	"sync"
-	"time"
 )
 
 type CursorUpdater interface {
@@ -68,7 +69,7 @@ func (cu *DBBasedCursorUpdater) start() {
 		case <-ticker.C:
 			updated, err := cu.read()
 			if err != nil {
-				//TODO proper error handling
+				// TODO proper error handling
 				return
 			}
 			if updated {
@@ -139,6 +140,7 @@ func (cu *DBBasedCursorUpdater) RemoveSubscriber(clientID string) {
 	defer cu.subscribersMu.Unlock()
 	delete(cu.subscribers, clientID)
 }
+
 func (cu *DBBasedCursorUpdater) Stop() {
 	cu.cancel()
 	cu.wg.Wait()

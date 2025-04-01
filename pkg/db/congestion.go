@@ -22,7 +22,6 @@ func Get5MinutesOfCongestion(
 			NumMinutes:   5,
 		},
 	)
-
 	if err != nil {
 		return out, err
 	}

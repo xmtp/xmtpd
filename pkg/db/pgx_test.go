@@ -3,12 +3,13 @@ package db_test
 import (
 	"context"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/db"
-	"go.uber.org/zap"
 	"log"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/db"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -184,5 +185,4 @@ func TestBlackholeDNS(t *testing.T) {
 	// Cleanup server
 	cancelServer()
 	require.NoError(t, <-serverErrCh)
-
 }

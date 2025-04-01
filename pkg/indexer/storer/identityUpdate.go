@@ -201,7 +201,6 @@ func (s *IdentityUpdateStorer) StoreLog(
 			return nil
 		},
 	)
-
 	if err != nil {
 		var logStorageErr LogStorageError
 		if errors.As(err, &logStorageErr) {

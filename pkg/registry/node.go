@@ -69,7 +69,6 @@ func (node *Node) BuildClient(
 		target,
 		dialOpts...,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create channel at %s: %v", target, err)
 	}

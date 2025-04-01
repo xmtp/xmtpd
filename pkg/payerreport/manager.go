@@ -103,7 +103,6 @@ func (p *PayerReportManager) getStartMinute(
 		OriginatorSequenceID: sequenceID,
 		OriginatorNodeID:     originatorID,
 	})
-
 	if err != nil {
 		return 0, err
 	}
@@ -132,7 +131,6 @@ func (p *PayerReportManager) getEndMinute(
 			MinimumMinutesSinceEpoch: startMinute,
 		},
 	)
-
 	if err != nil {
 		return 0, 0, err
 	}

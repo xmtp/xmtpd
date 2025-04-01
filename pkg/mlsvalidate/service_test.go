@@ -29,7 +29,8 @@ func TestValidateKeyPackages(t *testing.T) {
 		ValidateInboxIdKeyPackages(mock.Anything, mock.Anything).
 		Times(1).
 		Return(&proto.ValidateInboxIdKeyPackagesResponse{
-			Responses: []*proto.ValidateInboxIdKeyPackagesResponse_Response{&mockResponse}},
+			Responses: []*proto.ValidateInboxIdKeyPackagesResponse_Response{&mockResponse},
+		},
 			nil,
 		)
 

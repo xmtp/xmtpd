@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-FROM ghcr.io/xmtp/xmtpd-anvil:v0.3.0 AS builder
+FROM ghcr.io/xmtp/contracts:sha-cff29fc AS builder
 
 WORKDIR /app
 
@@ -7,9 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 COPY . .
 
-ENV RPC_URL=http://localhost:8545
-
-RUN dev/baked/bake.sh
+RUN dev/baked/bake.sh anvil-state.json
 
 # ACTUAL IMAGE -------------------------------------------------------
 
@@ -21,6 +19,6 @@ LABEL description="Foundry with XMTPD Node contracts and registrations"
 
 EXPOSE 8545
 
-COPY --from=builder /app/deployments/anvil_localnet/anvil-state.json anvil-state.json
+COPY --from=builder /app/anvil-state.json anvil-state.json
 
 ENTRYPOINT [ "anvil", "--host", "0.0.0.0", "--mixed-mining", "--block-time", "1", "--load-state", "anvil-state.json" ]

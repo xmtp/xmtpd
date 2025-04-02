@@ -15,19 +15,7 @@ services:
 
   chain:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-anvil:v0.3.0
-    entrypoint:
-      [
-        "anvil",
-        "--host",
-        "0.0.0.0",
-        "--mixed-mining",
-        "--block-time",
-        "1",
-        "--load-state",
-        "/app/deployments/anvil_localnet/anvil-state.json",
-      ]
-    working_dir: /anvil
+    image: ghcr.io/xmtp/contracts:sha-cff29fc
     ports:
       - 7545:8545
 

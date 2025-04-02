@@ -1,10 +1,11 @@
 package authn_test
 
 import (
-	"github.com/Masterminds/semver/v3"
-	"github.com/xmtp/xmtpd/pkg/authn"
 	"testing"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/xmtp/xmtpd/pkg/authn"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -46,5 +47,4 @@ func TestTokenFactoryWithVersion(t *testing.T) {
 			require.NotNil(t, token)
 		})
 	}
-
 }

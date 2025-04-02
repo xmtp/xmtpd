@@ -3,12 +3,13 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
 type Service struct {
@@ -34,7 +35,6 @@ func (s *Service) GetSyncCursor(
 	_ context.Context,
 	_ *metadata_api.GetSyncCursorRequest,
 ) (*metadata_api.GetSyncCursorResponse, error) {
-
 	return &metadata_api.GetSyncCursorResponse{
 		LatestSync: s.cu.GetCursor(),
 	}, nil
@@ -44,7 +44,6 @@ func (s *Service) SubscribeSyncCursor(
 	_ *metadata_api.GetSyncCursorRequest,
 	stream metadata_api.MetadataApi_SubscribeSyncCursorServer,
 ) error {
-
 	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
 	if err != nil {
 		return status.Errorf(codes.Internal, "could not send header: %v", err)
@@ -88,5 +87,4 @@ func (s *Service) SubscribeSyncCursor(
 			return nil
 		}
 	}
-
 }

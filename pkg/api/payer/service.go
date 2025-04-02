@@ -175,7 +175,7 @@ func (s *Service) publishToNodeWithRetry(
 	var banlist []uint32
 	var result []*envelopesProto.OriginatorEnvelope
 	var err error
-	var nodeID = originatorID
+	nodeID := originatorID
 
 	topic := indexedEnvelopes[0].payload.TargetTopic()
 
@@ -242,7 +242,7 @@ func (s *Service) publishToBlockchain(
 ) (*envelopesProto.OriginatorEnvelope, error) {
 	targetTopic := clientEnvelope.TargetTopic()
 	identifier := targetTopic.Identifier()
-	desiredOriginatorId := uint32(1) //TODO: determine this from the chain
+	desiredOriginatorId := uint32(1) // TODO: determine this from the chain
 	var desiredSequenceId uint64
 	kind := targetTopic.Kind()
 

@@ -3,11 +3,12 @@ package authn_test
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/Masterminds/semver/v3"
-	"github.com/xmtp/xmtpd/pkg/authn"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/xmtp/xmtpd/pkg/authn"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"

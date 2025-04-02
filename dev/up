@@ -8,6 +8,7 @@ cd "${repo_root}"
 
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which jq &>/dev/null; then brew install jq; fi
+if ! which golangci-lint; then brew install golangci-lint; fi
 
 echo -e "→ Update Go dependencies"
 go mod tidy

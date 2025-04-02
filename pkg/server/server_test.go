@@ -25,8 +25,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const server1NodeID = uint32(100)
-const server2NodeID = uint32(200)
+const (
+	server1NodeID = uint32(100)
+	server2NodeID = uint32(200)
+)
 
 func NewTestServer(
 	t *testing.T,
@@ -98,7 +100,8 @@ func TestCreateServer(t *testing.T) {
 			InCanonicalNetwork:        true,
 			MinMonthlyFeeMicroDollars: big.NewInt(0),
 			IsValidConfig:             true,
-		}}
+		},
+	}
 
 	registry := mocks.NewMockNodeRegistry(t)
 	registry.On("GetNodes").Return(nodes, nil)
@@ -229,7 +232,8 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 			InCanonicalNetwork:        true,
 			MinMonthlyFeeMicroDollars: big.NewInt(0),
 			IsValidConfig:             true,
-		}}
+		},
+	}
 
 	registry := mocks.NewMockNodeRegistry(t)
 	registry.On("GetNodes").Return(nodes, nil)

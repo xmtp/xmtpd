@@ -2,13 +2,12 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
-
-	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/xmtp/xmtpd/pkg/tracing"

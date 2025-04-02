@@ -224,7 +224,6 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 		require.InDeltaf(t, expectedPerNode, count, tolerance,
 			"Node %d has an imbalance: expected ~%d but got %d", nodeID, expectedPerNode, count)
 	}
-
 }
 
 func TestGetNode_NodeGetNextIfBanned(t *testing.T) {

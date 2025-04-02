@@ -3,11 +3,12 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pires/go-proxyproto"
@@ -44,7 +45,6 @@ func NewAPIServer(
 	httpRegistrationFunc HttpRegistrationFunc,
 	jwtVerifier authn.JWTVerifier,
 	registry *prometheus.Registry,
-
 ) (*ApiServer, error) {
 	grpcListener, err := net.Listen("tcp", listenAddress)
 	if err != nil {

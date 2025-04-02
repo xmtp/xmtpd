@@ -2,8 +2,9 @@ package db_test
 
 import (
 	"context"
-	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 	"testing"
+
+	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"

@@ -3,13 +3,14 @@ package blockchain_test
 import (
 	"container/heap"
 	"context"
+	"math/big"
+	"sync"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
-	"math/big"
-	"sync"
-	"testing"
 )
 
 type Int64Heap []int64

@@ -4,14 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	db2 "github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/testutils"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	db2 "github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 func TestFillRows(t *testing.T) {
@@ -160,8 +161,8 @@ func TestRequestsUnused(t *testing.T) {
 	seq, err = querier.GetNextAvailableNonce(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, seq)
-
 }
+
 func TestRequestsUsed(t *testing.T) {
 	ctx := context.Background()
 	db, _, cleanup := testutils.NewDB(t, ctx)
@@ -186,7 +187,6 @@ func TestRequestsUsed(t *testing.T) {
 	seq, err = getNextPayerSequence(t, ctx, db)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, seq)
-
 }
 
 func TestRequestsFailed(t *testing.T) {
@@ -215,7 +215,6 @@ func TestRequestsFailed(t *testing.T) {
 	seq, err = getNextPayerSequence(t, ctx, db)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, seq)
-
 }
 
 func TestFillerCanProceedWithOpenTxn(t *testing.T) {
@@ -253,7 +252,6 @@ func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 		NumElements:  30,
 	})
 	require.NoError(t, err)
-
 }
 
 func TestFillerRerun(t *testing.T) {
@@ -298,7 +296,6 @@ func TestAbandonNonces(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualValues(t, 5, nonce)
-
 }
 
 func TestAbandonCanProceedWithOpenTxn(t *testing.T) {
@@ -338,7 +335,6 @@ func TestAbandonCanProceedWithOpenTxn(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualValues(t, 5, nonce)
-
 }
 
 func TestAbandonSkipsOpenTxn(t *testing.T) {
@@ -383,7 +379,6 @@ func TestAbandonSkipsOpenTxn(t *testing.T) {
 	require.NoError(t, err)
 
 	require.EqualValues(t, 0, nonce)
-
 }
 
 func TestAbandonConcurrently(t *testing.T) {

@@ -126,7 +126,6 @@ func NewReplicationServer(
 			options.Contracts,
 			s.validationService,
 		)
-
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +283,6 @@ func startAPIServer(
 	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
 		if options.Replication.Enable {
 			err = metadata_api.RegisterMetadataApiHandler(ctx, gwmux, conn)
-
 			if err != nil {
 				return err
 			}

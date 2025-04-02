@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -27,7 +28,6 @@ var options config.ServerOptions
 
 func main() {
 	_, err := flags.Parse(&options)
-
 	if err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			fatal("Could not parse options: %s", err)
@@ -94,7 +94,6 @@ func main() {
 				options.DB.WaitForDB,
 				options.DB.ReadTimeout,
 			)
-
 			if err != nil {
 				logger.Fatal("initializing database", zap.Error(err))
 			}

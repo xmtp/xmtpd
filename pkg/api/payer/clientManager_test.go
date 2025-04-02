@@ -56,5 +56,4 @@ func TestClientManager(t *testing.T) {
 
 	_, err = cm.GetClient(300)
 	require.Error(t, err)
-
 }

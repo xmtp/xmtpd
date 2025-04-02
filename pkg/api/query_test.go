@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
-	dbUtils "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -23,9 +22,9 @@ var (
 	topicC = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicC")).Bytes()
 )
 
-func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopeParams {
-	payerId := dbUtils.NullInt32(testutils.CreatePayer(t, db))
-	db_rows := []queries.InsertGatewayEnvelopeParams{
+func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeParams {
+	payerId := db.NullInt32(testutils.CreatePayer(t, dbHandle))
+	dbRows := []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
@@ -77,14 +76,14 @@ func setupQueryTest(t *testing.T, db *sql.DB) []queries.InsertGatewayEnvelopePar
 			),
 		},
 	}
-	testutils.InsertGatewayEnvelopes(t, db, db_rows)
-	return db_rows
+	testutils.InsertGatewayEnvelopes(t, dbHandle, dbRows)
+	return dbRows
 }
 
 func TestQueryAllEnvelopes(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, db)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -94,13 +93,13 @@ func TestQueryAllEnvelopes(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{0, 1, 2, 3, 4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{0, 1, 2, 3, 4}, resp.GetEnvelopes())
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, db)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -110,13 +109,13 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{0, 1}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{0, 1}, resp.GetEnvelopes())
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, db)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -129,13 +128,13 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{1, 3}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{1, 3}, resp.GetEnvelopes())
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, store)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -148,13 +147,13 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{0, 1, 4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{0, 1, 4}, resp.GetEnvelopes())
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, db)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -166,13 +165,13 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{1, 3, 4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{1, 3, 4}, resp.GetEnvelopes())
 }
 
 func TestQueryTopicFromLastSeen(t *testing.T) {
 	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, store)
+	dbRows := setupQueryTest(t, store)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -187,13 +186,13 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{4}, resp.GetEnvelopes())
 }
 
 func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
-	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, store)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -208,13 +207,13 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{3, 4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{3, 4}, resp.GetEnvelopes())
 }
 
 func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
-	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, store)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -229,13 +228,13 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{2, 3, 4}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{2, 3, 4}, resp.GetEnvelopes())
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	db_rows := setupQueryTest(t, store)
+	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
 		context.Background(),
@@ -247,13 +246,13 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, db_rows, []int{}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{}, resp.GetEnvelopes())
 }
 
 func TestInvalidQuery(t *testing.T) {
-	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
 	defer cleanup()
-	_ = setupQueryTest(t, store)
+	setupQueryTest(t, dbHandle)
 
 	_, err := api.QueryEnvelopes(
 		context.Background(),

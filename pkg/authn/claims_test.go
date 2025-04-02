@@ -1,12 +1,13 @@
 package authn_test
 
 import (
+	"testing"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"testing"
 )
 
 func newVersionNoError(t *testing.T, version string, pre string, meta string) semver.Version {

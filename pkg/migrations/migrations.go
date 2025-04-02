@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -18,28 +19,36 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	defer migrationFs.Close()
+	defer func() {
+		_ = migrationFs.Close()
+	}()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	driver, err := postgres.WithConnection(ctx, conn, &postgres.Config{})
 	if err != nil {
 		return err
 	}
-	defer driver.Close()
+	defer func() {
+		_ = driver.Close()
+	}()
 
 	migrator, err := migrate.NewWithInstance("iofs", migrationFs, "postgres", driver)
 	if err != nil {
 		return err
 	}
-	defer migrator.Close()
+	defer func() {
+		_, _ = migrator.Close()
+	}()
 
 	err = migrator.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
 	}
 

@@ -56,12 +56,10 @@ func NewSmartContractRegistry(
 	logger *zap.Logger,
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
-
 	contract, err := noderegistry.NewNodeRegistryCaller(
 		common.HexToAddress(options.NodesContractAddress),
 		ethclient,
 	)
-
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/db"
-	dbUtils "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -29,9 +28,9 @@ var allRows []queries.InsertGatewayEnvelopeParams
 func setupTest(
 	t *testing.T,
 ) (message_api.ReplicationApiClient, *sql.DB, testUtilsApi.ApiServerMocks, func()) {
-	api, db, mocks, cleanup := testUtilsApi.NewTestReplicationAPIClient(t)
+	api, dbHandle, mocks, cleanup := testUtilsApi.NewTestReplicationAPIClient(t)
 
-	payerId := dbUtils.NullInt32(testutils.CreatePayer(t, db))
+	payerId := db.NullInt32(testutils.CreatePayer(t, dbHandle))
 	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
 		{
@@ -87,7 +86,7 @@ func setupTest(
 		},
 	}
 
-	return api, db, mocks, cleanup
+	return api, dbHandle, mocks, cleanup
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {

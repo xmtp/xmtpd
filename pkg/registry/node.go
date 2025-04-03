@@ -17,9 +17,7 @@ type Node struct {
 	NodeID                    uint32
 	SigningKey                *ecdsa.PublicKey
 	HttpAddress               string
-	IsReplicationEnabled      bool
-	IsApiEnabled              bool
-	IsDisabled                bool
+	InCanonicalNetwork        bool
 	MinMonthlyFeeMicroDollars *big.Int
 	IsValidConfig             bool
 }
@@ -35,9 +33,7 @@ func (n *Node) Equals(other Node) bool {
 	return n.NodeID == other.NodeID &&
 		n.HttpAddress == other.HttpAddress &&
 		equalsSigningKey &&
-		n.IsReplicationEnabled == other.IsReplicationEnabled &&
-		n.IsApiEnabled == other.IsApiEnabled &&
-		n.IsDisabled == other.IsDisabled &&
+		n.InCanonicalNetwork == other.InCanonicalNetwork &&
 		n.MinMonthlyFeeMicroDollars.Cmp(other.MinMonthlyFeeMicroDollars) == 0 &&
 		n.IsValidConfig == other.IsValidConfig
 }

@@ -71,8 +71,6 @@ func registerRandomNode(
 		HttpAddress:               httpAddress,
 		SigningKeyPub:             utils.EcdsaPublicKeyToString(&publicKey),
 		MinMonthlyFeeMicroDollars: 0,
-		IsReplicationEnabled:      false,
-		IsApiEnabled:              false,
 	}
 }
 
@@ -91,15 +89,13 @@ func TestRegistryRead(t *testing.T) {
 	require.Equal(t, node1.HttpAddress, nodes[0].HttpAddress)
 	require.Equal(t, node1.SigningKeyPub, nodes[0].SigningKeyPub)
 	require.Equal(t, node1.MinMonthlyFeeMicroDollars, nodes[0].MinMonthlyFeeMicroDollars)
-	require.Equal(t, node1.IsReplicationEnabled, nodes[0].IsReplicationEnabled)
-	require.Equal(t, node1.IsApiEnabled, nodes[0].IsApiEnabled)
+	require.Equal(t, node1.InCanonicalNetwork, nodes[0].InCanonicalNetwork)
 
 	require.Equal(t, node2.OwnerAddress, nodes[1].OwnerAddress)
 	require.Equal(t, node2.HttpAddress, nodes[1].HttpAddress)
 	require.Equal(t, node2.SigningKeyPub, nodes[1].SigningKeyPub)
 	require.Equal(t, node2.MinMonthlyFeeMicroDollars, nodes[1].MinMonthlyFeeMicroDollars)
-	require.Equal(t, node2.IsReplicationEnabled, nodes[1].IsReplicationEnabled)
-	require.Equal(t, node2.IsApiEnabled, nodes[1].IsApiEnabled)
+	require.Equal(t, node2.InCanonicalNetwork, nodes[1].InCanonicalNetwork)
 }
 
 func TestFileDump(t *testing.T) {
@@ -155,9 +151,7 @@ func TestRegistryWrite(t *testing.T) {
 
 	// New parameters should be the default values.
 	require.Equal(t, int64(0), restoredNodes[0].MinMonthlyFeeMicroDollars)
-	require.Equal(t, false, restoredNodes[0].IsReplicationEnabled)
-	require.Equal(t, false, restoredNodes[0].IsApiEnabled)
+	require.Equal(t, false, restoredNodes[0].InCanonicalNetwork)
 	require.Equal(t, int64(0), restoredNodes[1].MinMonthlyFeeMicroDollars)
-	require.Equal(t, false, restoredNodes[1].IsReplicationEnabled)
-	require.Equal(t, false, restoredNodes[1].IsApiEnabled)
+	require.Equal(t, false, restoredNodes[1].InCanonicalNetwork)
 }

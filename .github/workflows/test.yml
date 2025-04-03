@@ -23,23 +23,28 @@ jobs:
           submodules: recursive
           fetch-tags: true
           fetch-depth: 0
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+
       - run: dev/docker/up
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.0.0
-      - run: contracts/dev/deploy local
-      - run: dev/register-local-node
+
+      - run: dev/cmd/register-local-node-1
+
       - name: Run Tests
         run: |
           export GOPATH="${HOME}/go/"
           export PATH="${PATH}:${GOPATH}/bin"
           go install github.com/jstemmer/go-junit-report/v2@latest
           go test -v ./... | go-junit-report -set-exit-code -iocopy -out report.xml
+
       - name: Run Race Tests
         run: |
           export GOPATH="${HOME}/go/"

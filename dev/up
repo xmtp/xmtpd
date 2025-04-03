@@ -1,14 +1,14 @@
 #!/bin/bash
 set -e
 
-if ! which forge &>/dev/null; then echo "ERROR: Missing foundry binaries. Run 'curl -L https://foundry.paradigm.xyz | bash' and follow the instructions to install foundry 1.0.0" && exit 1; fi
-if ! forge --version | grep -q "1.0.0"; then echo "ERROR: Foundry version is not 1.0.0. Please install the correct version." && exit 1; fi
+# Work always from the root directory
+script_dir=$(dirname "$(realpath "$0")")
+repo_root=$(realpath "${script_dir}/../")
+cd "${repo_root}"
+
 if ! which shellcheck &>/dev/null; then brew install shellcheck; fi
 if ! which jq &>/dev/null; then brew install jq; fi
 if ! which golangci-lint; then brew install golangci-lint; fi
-
-echo -e "→ Generate smart contracts bindings"
-contracts/dev/generate
 
 echo -e "→ Update Go dependencies"
 go mod tidy
@@ -16,14 +16,11 @@ go mod tidy
 echo -e "→ Start docker containers"
 dev/docker/up
 
-echo -e "→ Deploy smart contracts"
-contracts/dev/deploy local
-
 echo -e "→ Register local node-1"
-dev/register-local-node
+dev/cmd/register-local-node-1
 
 echo -e "→ Register local node-2"
-dev/register-local-node-2
+dev/cmd/register-local-node-2
 
 echo -e "→ Generating .env"
 dev/generate-env

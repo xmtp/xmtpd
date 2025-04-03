@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/contracts/pkg/nodes"
+	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -25,14 +25,10 @@ type INodeRegistryAdmin interface {
 		httpAddress string,
 		minMonthlyFeeMicroDollars int64,
 	) error
-	DisableNode(ctx context.Context, nodeId int64) error
-	EnableNode(ctx context.Context, nodeId int64) error
-	RemoveFromApiNodes(ctx context.Context, nodeId int64) error
-	RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error
+	AddToNetwork(ctx context.Context, nodeId int64) error
+	RemoveFromNetwork(ctx context.Context, nodeId int64) error
 	SetHttpAddress(ctx context.Context, nodeId int64, httpAddress string) error
 	SetMinMonthlyFee(ctx context.Context, nodeId int64, minMonthlyFeeMicroDollars int64) error
-	SetIsApiEnabled(ctx context.Context, nodeId int64, isApiEnabled bool) error
-	SetIsReplicationEnabled(ctx context.Context, nodeId int64, isReplicationEnabled bool) error
 	SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error
 	SetNodeOperatorCommissionPercent(ctx context.Context, commissionPercent int64) error
 }
@@ -41,7 +37,7 @@ type nodeRegistryAdmin struct {
 	client   *ethclient.Client
 	signer   TransactionSigner
 	logger   *zap.Logger
-	contract *nodes.Nodes
+	contract *noderegistry.NodeRegistry
 }
 
 var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
@@ -52,7 +48,7 @@ func NewNodeRegistryAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*nodeRegistryAdmin, error) {
-	contract, err := nodes.NewNodes(
+	contract, err := noderegistry.NewNodeRegistry(
 		common.HexToAddress(contractsOptions.NodesContractAddress),
 		client,
 	)
@@ -86,10 +82,6 @@ func (n *nodeRegistryAdmin) AddNode(
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
-	if n.signer == nil {
-		return fmt.Errorf("no signer provided")
-	}
-
 	return ExecuteTransaction(
 		ctx,
 		n.signer,
@@ -108,7 +100,7 @@ func (n *nodeRegistryAdmin) AddNode(
 			return n.contract.ParseNodeAdded(*log)
 		},
 		func(event interface{}) {
-			nodeAdded, ok := event.(*nodes.NodesNodeAdded)
+			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAdded)
 			if !ok {
 				n.logger.Error("node added event is not of type NodesNodeAdded")
 				return
@@ -124,105 +116,67 @@ func (n *nodeRegistryAdmin) AddNode(
 	)
 }
 
-func (n *nodeRegistryAdmin) DisableNode(ctx context.Context, nodeId int64) error {
+func (n *nodeRegistryAdmin) AddToNetwork(
+	ctx context.Context,
+	nodeId int64,
+) error {
 	return ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.DisableNode(opts, big.NewInt(nodeId))
-		},
-		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeDisabled(*log)
-		},
-		func(event interface{}) {
-			nodeDisabled, ok := event.(*nodes.NodesNodeDisabled)
-			if !ok {
-				n.logger.Error("node disabled event is not of type NodesNodeDisabled")
-				return
-			}
-			n.logger.Info("node disabled",
-				zap.Uint64("node_id", nodeDisabled.NodeId.Uint64()),
+			return n.contract.AddToNetwork(
+				opts,
+				big.NewInt(nodeId),
 			)
 		},
-	)
-}
-
-func (n *nodeRegistryAdmin) EnableNode(ctx context.Context, nodeId int64) error {
-	return ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.EnableNode(opts, big.NewInt(nodeId))
-		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeEnabled(*log)
+			return n.contract.ParseNodeAddedToCanonicalNetwork(*log)
 		},
 		func(event interface{}) {
-			nodeEnabled, ok := event.(*nodes.NodesNodeEnabled)
-			if !ok {
-				n.logger.Error("node enabled event is not of type NodesNodeEnabled")
-				return
-			}
-			n.logger.Info("node enabled",
-				zap.Uint64("node_id", nodeEnabled.NodeId.Uint64()),
-			)
-		},
-	)
-}
-
-func (n *nodeRegistryAdmin) RemoveFromApiNodes(ctx context.Context, nodeId int64) error {
-	return ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.RemoveFromApiNodes(opts, big.NewInt(nodeId))
-		},
-		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseApiDisabled(*log)
-		},
-		func(event interface{}) {
-			nodeRemovedFromApiNodes, ok := event.(*nodes.NodesApiDisabled)
+			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAddedToCanonicalNetwork)
 			if !ok {
 				n.logger.Error(
-					"node removed from active api nodes event is not of type NodesApiDisabled",
+					"unexpected event type, not of type NodesNodeAddedToCanonicalNetwork",
 				)
 				return
 			}
-			n.logger.Info("node removed from active api nodes",
-				zap.Uint64("node_id", nodeRemovedFromApiNodes.NodeId.Uint64()),
+			n.logger.Info("node added to canonical network",
+				zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
 			)
 		},
 	)
 }
 
-func (n *nodeRegistryAdmin) RemoveFromReplicationNodes(ctx context.Context, nodeId int64) error {
+func (n *nodeRegistryAdmin) RemoveFromNetwork(
+	ctx context.Context,
+	nodeId int64,
+) error {
 	return ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.RemoveFromReplicationNodes(opts, big.NewInt(nodeId))
+			return n.contract.RemoveFromNetwork(
+				opts,
+				big.NewInt(nodeId),
+			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseReplicationDisabled(*log)
+			return n.contract.ParseNodeRemovedFromCanonicalNetwork(*log)
 		},
 		func(event interface{}) {
-			nodeRemovedFromReplicationNodes, ok := event.(*nodes.NodesReplicationDisabled)
+			nodeRemoved, ok := event.(*noderegistry.NodeRegistryNodeRemovedFromCanonicalNetwork)
 			if !ok {
 				n.logger.Error(
-					"node removed from active replication nodes event is not of type NodesReplicationDisabled",
+					"unexpected event type, not of type NodesNodeRemovedFromCanonicalNetwork",
 				)
 				return
 			}
-			n.logger.Info("node removed from active replication nodes",
-				zap.Uint64("node_id", nodeRemovedFromReplicationNodes.NodeId.Uint64()),
+			n.logger.Info("node removed from canonical network",
+				zap.Uint64("node_id", nodeRemoved.NodeId.Uint64()),
 			)
 		},
 	)
@@ -249,7 +203,7 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 			return n.contract.ParseHttpAddressUpdated(*log)
 		},
 		func(event interface{}) {
-			httpAddressUpdated, ok := event.(*nodes.NodesHttpAddressUpdated)
+			httpAddressUpdated, ok := event.(*noderegistry.NodeRegistryHttpAddressUpdated)
 			if !ok {
 				n.logger.Error(
 					"http address updated event is not of type NodesHttpAddressUpdated",
@@ -285,7 +239,7 @@ func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 			return n.contract.ParseMinMonthlyFeeUpdated(*log)
 		},
 		func(event interface{}) {
-			minMonthlyFeeUpdated, ok := event.(*nodes.NodesMinMonthlyFeeUpdated)
+			minMonthlyFeeUpdated, ok := event.(*noderegistry.NodeRegistryMinMonthlyFeeUpdated)
 			if !ok {
 				n.logger.Error(
 					"min monthly fee updated event is not of type NodesMinMonthlyFeeUpdated",
@@ -304,80 +258,6 @@ func (n *nodeRegistryAdmin) SetMinMonthlyFee(
 	)
 }
 
-func (n *nodeRegistryAdmin) SetIsApiEnabled(
-	ctx context.Context,
-	nodeId int64,
-	isApiEnabled bool,
-) error {
-	return ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetIsApiEnabled(opts, big.NewInt(nodeId), isApiEnabled)
-		},
-		func(log *types.Log) (interface{}, error) {
-			if isApiEnabled {
-				return n.contract.ParseApiEnabled(*log)
-			}
-			return n.contract.ParseApiDisabled(*log)
-		},
-		func(event interface{}) {
-			if isApiEnabled {
-				apiEnabled := event.(*nodes.NodesApiEnabled)
-				n.logger.Info("api enabled",
-					zap.Uint64("node_id", apiEnabled.NodeId.Uint64()),
-				)
-			} else {
-				apiDisabled := event.(*nodes.NodesApiDisabled)
-				n.logger.Info("api disabled",
-					zap.Uint64("node_id", apiDisabled.NodeId.Uint64()),
-				)
-			}
-		},
-	)
-}
-
-func (n *nodeRegistryAdmin) SetIsReplicationEnabled(
-	ctx context.Context,
-	nodeId int64,
-	isReplicationEnabled bool,
-) error {
-	return ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetIsReplicationEnabled(
-				opts,
-				big.NewInt(nodeId),
-				isReplicationEnabled,
-			)
-		},
-		func(log *types.Log) (interface{}, error) {
-			if isReplicationEnabled {
-				return n.contract.ParseReplicationEnabled(*log)
-			}
-			return n.contract.ParseReplicationDisabled(*log)
-		},
-		func(event interface{}) {
-			if isReplicationEnabled {
-				replicationEnabled := event.(*nodes.NodesReplicationEnabled)
-				n.logger.Info("replication enabled",
-					zap.Uint64("node_id", replicationEnabled.NodeId.Uint64()),
-				)
-			} else {
-				replicationDisabled := event.(*nodes.NodesReplicationDisabled)
-				n.logger.Info("replication disabled",
-					zap.Uint64("node_id", replicationDisabled.NodeId.Uint64()),
-				)
-			}
-		},
-	)
-}
-
 func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error {
 	return ExecuteTransaction(
 		ctx,
@@ -391,7 +271,7 @@ func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNode
 			return n.contract.ParseMaxActiveNodesUpdated(*log)
 		},
 		func(event interface{}) {
-			maxActiveNodesUpdated, ok := event.(*nodes.NodesMaxActiveNodesUpdated)
+			maxActiveNodesUpdated, ok := event.(*noderegistry.NodeRegistryMaxActiveNodesUpdated)
 			if !ok {
 				n.logger.Error(
 					"max active nodes updated event is not of type NodesMaxActiveNodesUpdated",
@@ -428,7 +308,7 @@ func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
 			return n.contract.ParseNodeOperatorCommissionPercentUpdated(*log)
 		},
 		func(event interface{}) {
-			nodeOperatorCommissionPercentUpdated, ok := event.(*nodes.NodesNodeOperatorCommissionPercentUpdated)
+			nodeOperatorCommissionPercentUpdated, ok := event.(*noderegistry.NodeRegistryNodeOperatorCommissionPercentUpdated)
 			if !ok {
 				n.logger.Error(
 					"node operator commission percent updated event is not of type NodesNodeOperatorCommissionPercentUpdated",

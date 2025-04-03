@@ -17,8 +17,7 @@ type SerializableNode struct {
 	SigningKeyPub             string `json:"signing_key_pub"`
 	HttpAddress               string `json:"http_address"`
 	MinMonthlyFeeMicroDollars int64  `json:"min_monthly_fee_micro_dollars"`
-	IsReplicationEnabled      bool   `json:"is_replication_enabled"`
-	IsApiEnabled              bool   `json:"is_api_enabled"`
+	InCanonicalNetwork        bool   `json:"in_canonical_network"`
 }
 
 func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]SerializableNode, error) {
@@ -45,8 +44,7 @@ func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]Serializabl
 			SigningKeyPub:             utils.EcdsaPublicKeyToString(pubKey),
 			HttpAddress:               node.Node.HttpAddress,
 			MinMonthlyFeeMicroDollars: node.Node.MinMonthlyFeeMicroDollars.Int64(),
-			IsReplicationEnabled:      node.Node.IsReplicationEnabled,
-			IsApiEnabled:              node.Node.IsApiEnabled,
+			InCanonicalNetwork:        node.Node.InCanonicalNetwork,
 		}
 	}
 

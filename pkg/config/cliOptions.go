@@ -27,7 +27,9 @@ type GetAllNodesOptions struct {
 	OutFile string `long:"out-file" description:"File to write the nodes to"`
 }
 
-type GetOptions struct{}
+type GetNodeOptions struct {
+	NodeId int64 `long:"node-id" description:"NodeId of the node to get" required:"true"`
+}
 
 type MigrateNodesOptions struct {
 	AdminOptions AdminOptions `group:"Admin Options" namespace:"admin"`

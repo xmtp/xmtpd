@@ -77,7 +77,7 @@ And you should get something along these lines:
 
 ## Deploy XMTPD nodes
 
-Node deployment is currently fully handled by [Ephemera](https://github.com/ephemeraHQ/infrastructure) and only members of @ephemerahq/backend have access to it.
+Node deployment is currently fully handled by [Ephemera]() and only members of @ephemerahq/backend have access to it.
 
 There are currently two nodes running:
 

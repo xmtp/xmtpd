@@ -134,6 +134,14 @@ func TestPayloadType(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.False(t, clientEnvelope.TopicMatchesPayload())
+
+	// Payer Report envelope with wrong topic
+	clientEnvelope, err = NewClientEnvelope(&envelopesProto.ClientEnvelope{
+		Payload: &envelopesProto.ClientEnvelope_PayerReport{},
+		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3})),
+	})
+	require.NoError(t, err)
+	require.False(t, clientEnvelope.TopicMatchesPayload())
 }
 
 func TestRecoverSigner(t *testing.T) {

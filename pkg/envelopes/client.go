@@ -81,6 +81,10 @@ func (c *ClientEnvelope) TopicMatchesPayload() bool {
 		return targetTopicKind == topic.TOPIC_KIND_IDENTITY_UPDATES_V1
 	case *envelopesProto.ClientEnvelope_UploadKeyPackage:
 		return targetTopicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1
+	case *envelopesProto.ClientEnvelope_PayerReport:
+		return targetTopicKind == topic.TOPIC_KIND_PAYER_REPORTS_V1
+	case *envelopesProto.ClientEnvelope_PayerReportAttestation:
+		return targetTopicKind == topic.TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1
 	default:
 		return false
 	}

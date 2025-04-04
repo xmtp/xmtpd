@@ -20,6 +20,14 @@ var apiIncomingNodeConnectionByVersionGauge = prometheus.NewGaugeVec(
 	[]string{"version"},
 )
 
+var apiNodeConnectionRequestsByVersionCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_api_node_connection_requests_by_version_counter",
+		Help: "Number of incoming node connections by version",
+	},
+	[]string{"version"},
+)
+
 type ApiOpenConnection struct {
 	style  string
 	method string
@@ -58,4 +66,9 @@ func (ct *IncomingConnectionTracker) Open() {
 func (ct *IncomingConnectionTracker) Close() {
 	apiIncomingNodeConnectionByVersionGauge.With(prometheus.Labels{"version": ct.version}).
 		Dec()
+}
+
+func EmitNewConnectionRequestVersion(version string) {
+	apiNodeConnectionRequestsByVersionCounter.With(prometheus.Labels{"version": version}).
+		Inc()
 }

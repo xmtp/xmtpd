@@ -50,6 +50,9 @@ func (cv *ClaimValidator) ValidateVersionClaimIsCompatible(claims *XmtpdClaims) 
 	if err != nil {
 		return emptyClose, err
 	}
+
+	metrics.EmitNewConnectionRequestVersion(sanitizedVersion.String())
+
 	if ok := cv.constraint.Check(&sanitizedVersion); !ok {
 		return emptyClose, fmt.Errorf("serverVersion %s is not compatible", *claims.Version)
 	}

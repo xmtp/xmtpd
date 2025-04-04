@@ -54,7 +54,8 @@ func TestClaimsNoVersion(t *testing.T) {
 
 			token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 			require.NoError(t, err)
-			_, verificationError := verifier.Verify(token.SignedString)
+			_, cancel, verificationError := verifier.Verify(token.SignedString)
+			defer cancel()
 			if tt.wantErr {
 				require.Error(t, verificationError)
 			} else {
@@ -116,7 +117,8 @@ func TestClaimsVariousVersions(t *testing.T) {
 
 			token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 			require.NoError(t, err)
-			_, verificationError := verifier.Verify(token.SignedString)
+			_, cancel, verificationError := verifier.Verify(token.SignedString)
+			defer cancel()
 			if tt.wantErr {
 				require.Error(t, verificationError)
 			} else {
@@ -201,7 +203,8 @@ func TestClaimsValidator(t *testing.T) {
 
 			token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 			require.NoError(t, err)
-			_, verificationError := verifier.Verify(token.SignedString)
+			_, cancel, verificationError := verifier.Verify(token.SignedString)
+			defer cancel()
 			if tt.wantErr {
 				require.Error(t, verificationError)
 			} else {

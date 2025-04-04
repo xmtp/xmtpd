@@ -84,6 +84,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		syncFailedOutgoingSyncConnections,
 		syncFailedOutgoingSyncConnectionCounter,
 		apiOpenConnections,
+		apiIncomingNodeConnectionByVersionGauge,
 	}
 
 	for _, col := range cols {

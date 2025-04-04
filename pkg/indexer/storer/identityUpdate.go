@@ -69,8 +69,8 @@ func (s *IdentityUpdateStorer) StoreLog(
 			}
 
 			if uint64(latestSequenceId) >= msgSent.SequenceId {
-				s.logger.Warn(
-					"Duplicate identity update",
+				s.logger.Debug(
+					"Identity update already inserted. Skipping... ",
 					zap.Uint64("latest_sequence_id", uint64(latestSequenceId)),
 					zap.Uint64("msg_sequence_id", msgSent.SequenceId),
 				)
@@ -82,7 +82,6 @@ func (s *IdentityUpdateStorer) StoreLog(
 			s.logger.Info(
 				"Inserting identity update from contract",
 				zap.String("topic", messageTopic.String()),
-				zap.Time("time", time.Now()),
 			)
 
 			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)

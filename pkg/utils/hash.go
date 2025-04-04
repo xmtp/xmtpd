@@ -31,3 +31,7 @@ func HashOriginatorSignatureInput(unsignedOriginatorEnvelope []byte) []byte {
 		unsignedOriginatorEnvelope,
 	)
 }
+
+func HashPayerReportInput(packedBytes []byte) []byte {
+	return ethcrypto.Keccak256(packedBytes)
+}

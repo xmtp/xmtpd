@@ -9,6 +9,7 @@
 package keystore_apiv1
 
 import (
+	message_contents "github.com/xmtp/xmtpd/pkg/proto/message_contents"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -23,6 +24,1568 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Application-specific error codes for the Keystore API.
+type ErrorCode int32
+
+const (
+	ErrorCode_ERROR_CODE_UNSPECIFIED        ErrorCode = 0
+	ErrorCode_ERROR_CODE_INVALID_INPUT      ErrorCode = 1
+	ErrorCode_ERROR_CODE_NO_MATCHING_PREKEY ErrorCode = 2
+)
+
+// Enum value maps for ErrorCode.
+var (
+	ErrorCode_name = map[int32]string{
+		0: "ERROR_CODE_UNSPECIFIED",
+		1: "ERROR_CODE_INVALID_INPUT",
+		2: "ERROR_CODE_NO_MATCHING_PREKEY",
+	}
+	ErrorCode_value = map[string]int32{
+		"ERROR_CODE_UNSPECIFIED":        0,
+		"ERROR_CODE_INVALID_INPUT":      1,
+		"ERROR_CODE_NO_MATCHING_PREKEY": 2,
+	}
+)
+
+func (x ErrorCode) Enum() *ErrorCode {
+	p := new(ErrorCode)
+	*p = x
+	return p
+}
+
+func (x ErrorCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_keystore_api_v1_keystore_proto_enumTypes[0].Descriptor()
+}
+
+func (ErrorCode) Type() protoreflect.EnumType {
+	return &file_keystore_api_v1_keystore_proto_enumTypes[0]
+}
+
+func (x ErrorCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ErrorCode.Descriptor instead.
+func (ErrorCode) EnumDescriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{0}
+}
+
+// JobType is used to specify the type of job the caller would like info on
+type JobType int32
+
+const (
+	JobType_JOB_TYPE_UNSPECIFIED  JobType = 0
+	JobType_JOB_TYPE_REFRESH_V1   JobType = 1
+	JobType_JOB_TYPE_REFRESH_V2   JobType = 2
+	JobType_JOB_TYPE_REFRESH_PPPP JobType = 3
+)
+
+// Enum value maps for JobType.
+var (
+	JobType_name = map[int32]string{
+		0: "JOB_TYPE_UNSPECIFIED",
+		1: "JOB_TYPE_REFRESH_V1",
+		2: "JOB_TYPE_REFRESH_V2",
+		3: "JOB_TYPE_REFRESH_PPPP",
+	}
+	JobType_value = map[string]int32{
+		"JOB_TYPE_UNSPECIFIED":  0,
+		"JOB_TYPE_REFRESH_V1":   1,
+		"JOB_TYPE_REFRESH_V2":   2,
+		"JOB_TYPE_REFRESH_PPPP": 3,
+	}
+)
+
+func (x JobType) Enum() *JobType {
+	p := new(JobType)
+	*p = x
+	return p
+}
+
+func (x JobType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (JobType) Descriptor() protoreflect.EnumDescriptor {
+	return file_keystore_api_v1_keystore_proto_enumTypes[1].Descriptor()
+}
+
+func (JobType) Type() protoreflect.EnumType {
+	return &file_keystore_api_v1_keystore_proto_enumTypes[1]
+}
+
+func (x JobType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use JobType.Descriptor instead.
+func (JobType) EnumDescriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{1}
+}
+
+// Status of the Keystore for the specified wallet address
+type GetKeystoreStatusResponse_KeystoreStatus int32
+
+const (
+	GetKeystoreStatusResponse_KEYSTORE_STATUS_UNSPECIFIED   GetKeystoreStatusResponse_KeystoreStatus = 0
+	GetKeystoreStatusResponse_KEYSTORE_STATUS_UNINITIALIZED GetKeystoreStatusResponse_KeystoreStatus = 1
+	GetKeystoreStatusResponse_KEYSTORE_STATUS_INITIALIZED   GetKeystoreStatusResponse_KeystoreStatus = 2
+)
+
+// Enum value maps for GetKeystoreStatusResponse_KeystoreStatus.
+var (
+	GetKeystoreStatusResponse_KeystoreStatus_name = map[int32]string{
+		0: "KEYSTORE_STATUS_UNSPECIFIED",
+		1: "KEYSTORE_STATUS_UNINITIALIZED",
+		2: "KEYSTORE_STATUS_INITIALIZED",
+	}
+	GetKeystoreStatusResponse_KeystoreStatus_value = map[string]int32{
+		"KEYSTORE_STATUS_UNSPECIFIED":   0,
+		"KEYSTORE_STATUS_UNINITIALIZED": 1,
+		"KEYSTORE_STATUS_INITIALIZED":   2,
+	}
+)
+
+func (x GetKeystoreStatusResponse_KeystoreStatus) Enum() *GetKeystoreStatusResponse_KeystoreStatus {
+	p := new(GetKeystoreStatusResponse_KeystoreStatus)
+	*p = x
+	return p
+}
+
+func (x GetKeystoreStatusResponse_KeystoreStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GetKeystoreStatusResponse_KeystoreStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_keystore_api_v1_keystore_proto_enumTypes[2].Descriptor()
+}
+
+func (GetKeystoreStatusResponse_KeystoreStatus) Type() protoreflect.EnumType {
+	return &file_keystore_api_v1_keystore_proto_enumTypes[2]
+}
+
+func (x GetKeystoreStatusResponse_KeystoreStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GetKeystoreStatusResponse_KeystoreStatus.Descriptor instead.
+func (GetKeystoreStatusResponse_KeystoreStatus) EnumDescriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{20, 0}
+}
+
+// Wrapper class for errors from the Keystore API
+type KeystoreError struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Code          ErrorCode              `protobuf:"varint,2,opt,name=code,proto3,enum=xmtp.keystore_api.v1.ErrorCode" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KeystoreError) Reset() {
+	*x = KeystoreError{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KeystoreError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KeystoreError) ProtoMessage() {}
+
+func (x *KeystoreError) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KeystoreError.ProtoReflect.Descriptor instead.
+func (*KeystoreError) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *KeystoreError) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *KeystoreError) GetCode() ErrorCode {
+	if x != nil {
+		return x.Code
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
+// Decrypt a batch of messages using X3DH key agreement
+type DecryptV1Request struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Requests      []*DecryptV1Request_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptV1Request) Reset() {
+	*x = DecryptV1Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptV1Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptV1Request) ProtoMessage() {}
+
+func (x *DecryptV1Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptV1Request.ProtoReflect.Descriptor instead.
+func (*DecryptV1Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *DecryptV1Request) GetRequests() []*DecryptV1Request_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Response type for both V1 and V2 decryption requests
+type DecryptResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Responses     []*DecryptResponse_Response `protobuf:"bytes,1,rep,name=responses,proto3" json:"responses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptResponse) Reset() {
+	*x = DecryptResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptResponse) ProtoMessage() {}
+
+func (x *DecryptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptResponse.ProtoReflect.Descriptor instead.
+func (*DecryptResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DecryptResponse) GetResponses() []*DecryptResponse_Response {
+	if x != nil {
+		return x.Responses
+	}
+	return nil
+}
+
+// Decrypt a batch of messages using the appropriate topic keys
+type DecryptV2Request struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Requests      []*DecryptV2Request_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptV2Request) Reset() {
+	*x = DecryptV2Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptV2Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptV2Request) ProtoMessage() {}
+
+func (x *DecryptV2Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptV2Request.ProtoReflect.Descriptor instead.
+func (*DecryptV2Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DecryptV2Request) GetRequests() []*DecryptV2Request_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Encrypt a batch of messages using X3DH key agreement
+type EncryptV1Request struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Requests      []*EncryptV1Request_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptV1Request) Reset() {
+	*x = EncryptV1Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptV1Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptV1Request) ProtoMessage() {}
+
+func (x *EncryptV1Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptV1Request.ProtoReflect.Descriptor instead.
+func (*EncryptV1Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *EncryptV1Request) GetRequests() []*EncryptV1Request_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Response type for both V1 and V2 encryption requests
+type EncryptResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Responses     []*EncryptResponse_Response `protobuf:"bytes,1,rep,name=responses,proto3" json:"responses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptResponse) Reset() {
+	*x = EncryptResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptResponse) ProtoMessage() {}
+
+func (x *EncryptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptResponse.ProtoReflect.Descriptor instead.
+func (*EncryptResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *EncryptResponse) GetResponses() []*EncryptResponse_Response {
+	if x != nil {
+		return x.Responses
+	}
+	return nil
+}
+
+// Encrypt a batch of messages using the appropriate topic keys
+type EncryptV2Request struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Requests      []*EncryptV2Request_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptV2Request) Reset() {
+	*x = EncryptV2Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptV2Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptV2Request) ProtoMessage() {}
+
+func (x *EncryptV2Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptV2Request.ProtoReflect.Descriptor instead.
+func (*EncryptV2Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *EncryptV2Request) GetRequests() []*EncryptV2Request_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Encrypt a message for yourself
+type SelfEncryptRequest struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Requests      []*SelfEncryptRequest_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfEncryptRequest) Reset() {
+	*x = SelfEncryptRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfEncryptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfEncryptRequest) ProtoMessage() {}
+
+func (x *SelfEncryptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfEncryptRequest.ProtoReflect.Descriptor instead.
+func (*SelfEncryptRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SelfEncryptRequest) GetRequests() []*SelfEncryptRequest_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Response type for SelfEncryptRequest
+type SelfEncryptResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Responses     []*SelfEncryptResponse_Response `protobuf:"bytes,1,rep,name=responses,proto3" json:"responses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfEncryptResponse) Reset() {
+	*x = SelfEncryptResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfEncryptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfEncryptResponse) ProtoMessage() {}
+
+func (x *SelfEncryptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfEncryptResponse.ProtoReflect.Descriptor instead.
+func (*SelfEncryptResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SelfEncryptResponse) GetResponses() []*SelfEncryptResponse_Response {
+	if x != nil {
+		return x.Responses
+	}
+	return nil
+}
+
+// SelfDecryptRequest
+type SelfDecryptRequest struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Requests      []*SelfDecryptRequest_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfDecryptRequest) Reset() {
+	*x = SelfDecryptRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfDecryptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfDecryptRequest) ProtoMessage() {}
+
+func (x *SelfDecryptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfDecryptRequest.ProtoReflect.Descriptor instead.
+func (*SelfDecryptRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SelfDecryptRequest) GetRequests() []*SelfDecryptRequest_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Get the private preferences topic identifier
+type GetPrivatePreferencesTopicIdentifierResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Identifier    string                 `protobuf:"bytes,1,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPrivatePreferencesTopicIdentifierResponse) Reset() {
+	*x = GetPrivatePreferencesTopicIdentifierResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPrivatePreferencesTopicIdentifierResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPrivatePreferencesTopicIdentifierResponse) ProtoMessage() {}
+
+func (x *GetPrivatePreferencesTopicIdentifierResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPrivatePreferencesTopicIdentifierResponse.ProtoReflect.Descriptor instead.
+func (*GetPrivatePreferencesTopicIdentifierResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetPrivatePreferencesTopicIdentifierResponse) GetIdentifier() string {
+	if x != nil {
+		return x.Identifier
+	}
+	return ""
+}
+
+// Request to create an invite payload, and store the topic keys in the Keystore
+type CreateInviteRequest struct {
+	state         protoimpl.MessageState                  `protogen:"open.v1"`
+	Context       *message_contents.InvitationV1_Context  `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Recipient     *message_contents.SignedPublicKeyBundle `protobuf:"bytes,2,opt,name=recipient,proto3" json:"recipient,omitempty"`
+	CreatedNs     uint64                                  `protobuf:"varint,3,opt,name=created_ns,json=createdNs,proto3" json:"created_ns,omitempty"`
+	ConsentProof  *message_contents.ConsentProofPayload   `protobuf:"bytes,4,opt,name=consent_proof,json=consentProof,proto3" json:"consent_proof,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateInviteRequest) Reset() {
+	*x = CreateInviteRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateInviteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateInviteRequest) ProtoMessage() {}
+
+func (x *CreateInviteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateInviteRequest.ProtoReflect.Descriptor instead.
+func (*CreateInviteRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CreateInviteRequest) GetContext() *message_contents.InvitationV1_Context {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *CreateInviteRequest) GetRecipient() *message_contents.SignedPublicKeyBundle {
+	if x != nil {
+		return x.Recipient
+	}
+	return nil
+}
+
+func (x *CreateInviteRequest) GetCreatedNs() uint64 {
+	if x != nil {
+		return x.CreatedNs
+	}
+	return 0
+}
+
+func (x *CreateInviteRequest) GetConsentProof() *message_contents.ConsentProofPayload {
+	if x != nil {
+		return x.ConsentProof
+	}
+	return nil
+}
+
+// Response to a CreateInviteRequest
+type CreateInviteResponse struct {
+	state         protoimpl.MessageState                  `protogen:"open.v1"`
+	Conversation  *message_contents.ConversationReference `protobuf:"bytes,1,opt,name=conversation,proto3" json:"conversation,omitempty"`
+	Payload       []byte                                  `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateInviteResponse) Reset() {
+	*x = CreateInviteResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateInviteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateInviteResponse) ProtoMessage() {}
+
+func (x *CreateInviteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateInviteResponse.ProtoReflect.Descriptor instead.
+func (*CreateInviteResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CreateInviteResponse) GetConversation() *message_contents.ConversationReference {
+	if x != nil {
+		return x.Conversation
+	}
+	return nil
+}
+
+func (x *CreateInviteResponse) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+// Request to save a batch of invite messages to the Keystore
+type SaveInvitesRequest struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Requests      []*SaveInvitesRequest_Request `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveInvitesRequest) Reset() {
+	*x = SaveInvitesRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveInvitesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveInvitesRequest) ProtoMessage() {}
+
+func (x *SaveInvitesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveInvitesRequest.ProtoReflect.Descriptor instead.
+func (*SaveInvitesRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SaveInvitesRequest) GetRequests() []*SaveInvitesRequest_Request {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// Response to a SaveInvitesRequest
+type SaveInvitesResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Responses     []*SaveInvitesResponse_Response `protobuf:"bytes,1,rep,name=responses,proto3" json:"responses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveInvitesResponse) Reset() {
+	*x = SaveInvitesResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveInvitesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveInvitesResponse) ProtoMessage() {}
+
+func (x *SaveInvitesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveInvitesResponse.ProtoReflect.Descriptor instead.
+func (*SaveInvitesResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SaveInvitesResponse) GetResponses() []*SaveInvitesResponse_Response {
+	if x != nil {
+		return x.Responses
+	}
+	return nil
+}
+
+// CreateAuthTokenRequest is used to create an auth token for the XMTP API
+type CreateAuthTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TimestampNs   *uint64                `protobuf:"varint,1,opt,name=timestamp_ns,json=timestampNs,proto3,oneof" json:"timestamp_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAuthTokenRequest) Reset() {
+	*x = CreateAuthTokenRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAuthTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAuthTokenRequest) ProtoMessage() {}
+
+func (x *CreateAuthTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAuthTokenRequest.ProtoReflect.Descriptor instead.
+func (*CreateAuthTokenRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CreateAuthTokenRequest) GetTimestampNs() uint64 {
+	if x != nil && x.TimestampNs != nil {
+		return *x.TimestampNs
+	}
+	return 0
+}
+
+// SaveV1ConversationsRequest is used to save a batch of conversations to the
+// built in persistence
+type SaveV1ConversationsRequest struct {
+	state         protoimpl.MessageState                    `protogen:"open.v1"`
+	Conversations []*message_contents.ConversationReference `protobuf:"bytes,1,rep,name=conversations,proto3" json:"conversations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveV1ConversationsRequest) Reset() {
+	*x = SaveV1ConversationsRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveV1ConversationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveV1ConversationsRequest) ProtoMessage() {}
+
+func (x *SaveV1ConversationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveV1ConversationsRequest.ProtoReflect.Descriptor instead.
+func (*SaveV1ConversationsRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SaveV1ConversationsRequest) GetConversations() []*message_contents.ConversationReference {
+	if x != nil {
+		return x.Conversations
+	}
+	return nil
+}
+
+// Placeholder response type for SaveV1Conversations
+type SaveV1ConversationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveV1ConversationsResponse) Reset() {
+	*x = SaveV1ConversationsResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveV1ConversationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveV1ConversationsResponse) ProtoMessage() {}
+
+func (x *SaveV1ConversationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveV1ConversationsResponse.ProtoReflect.Descriptor instead.
+func (*SaveV1ConversationsResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{17}
+}
+
+// Response for GetV2Conversations
+type GetConversationsResponse struct {
+	state         protoimpl.MessageState                    `protogen:"open.v1"`
+	Conversations []*message_contents.ConversationReference `protobuf:"bytes,1,rep,name=conversations,proto3" json:"conversations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetConversationsResponse) Reset() {
+	*x = GetConversationsResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetConversationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetConversationsResponse) ProtoMessage() {}
+
+func (x *GetConversationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetConversationsResponse.ProtoReflect.Descriptor instead.
+func (*GetConversationsResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetConversationsResponse) GetConversations() []*message_contents.ConversationReference {
+	if x != nil {
+		return x.Conversations
+	}
+	return nil
+}
+
+// Used to check if the Keystore implementation has been setup for the given
+// wallet address Only used for MM Snap Keystore currently
+type GetKeystoreStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WalletAddress string                 `protobuf:"bytes,1,opt,name=wallet_address,json=walletAddress,proto3" json:"wallet_address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetKeystoreStatusRequest) Reset() {
+	*x = GetKeystoreStatusRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetKeystoreStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetKeystoreStatusRequest) ProtoMessage() {}
+
+func (x *GetKeystoreStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetKeystoreStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetKeystoreStatusRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetKeystoreStatusRequest) GetWalletAddress() string {
+	if x != nil {
+		return x.WalletAddress
+	}
+	return ""
+}
+
+// Response to GetKeystoreStatusRequest
+type GetKeystoreStatusResponse struct {
+	state         protoimpl.MessageState                   `protogen:"open.v1"`
+	Status        GetKeystoreStatusResponse_KeystoreStatus `protobuf:"varint,1,opt,name=status,proto3,enum=xmtp.keystore_api.v1.GetKeystoreStatusResponse_KeystoreStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetKeystoreStatusResponse) Reset() {
+	*x = GetKeystoreStatusResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetKeystoreStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetKeystoreStatusResponse) ProtoMessage() {}
+
+func (x *GetKeystoreStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetKeystoreStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetKeystoreStatusResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetKeystoreStatusResponse) GetStatus() GetKeystoreStatusResponse_KeystoreStatus {
+	if x != nil {
+		return x.Status
+	}
+	return GetKeystoreStatusResponse_KEYSTORE_STATUS_UNSPECIFIED
+}
+
+// Used to initialize the Keystore with a private key bundle retrieved from the
+// client
+type InitKeystoreRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Bundle:
+	//
+	//	*InitKeystoreRequest_V1
+	Bundle        isInitKeystoreRequest_Bundle `protobuf_oneof:"bundle"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitKeystoreRequest) Reset() {
+	*x = InitKeystoreRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitKeystoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitKeystoreRequest) ProtoMessage() {}
+
+func (x *InitKeystoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitKeystoreRequest.ProtoReflect.Descriptor instead.
+func (*InitKeystoreRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *InitKeystoreRequest) GetBundle() isInitKeystoreRequest_Bundle {
+	if x != nil {
+		return x.Bundle
+	}
+	return nil
+}
+
+func (x *InitKeystoreRequest) GetV1() *message_contents.PrivateKeyBundleV1 {
+	if x != nil {
+		if x, ok := x.Bundle.(*InitKeystoreRequest_V1); ok {
+			return x.V1
+		}
+	}
+	return nil
+}
+
+type isInitKeystoreRequest_Bundle interface {
+	isInitKeystoreRequest_Bundle()
+}
+
+type InitKeystoreRequest_V1 struct {
+	V1 *message_contents.PrivateKeyBundleV1 `protobuf:"bytes,1,opt,name=v1,proto3,oneof"`
+}
+
+func (*InitKeystoreRequest_V1) isInitKeystoreRequest_Bundle() {}
+
+// Response to the request to initialize the Keystore
+type InitKeystoreResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Error         *KeystoreError         `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitKeystoreResponse) Reset() {
+	*x = InitKeystoreResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitKeystoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitKeystoreResponse) ProtoMessage() {}
+
+func (x *InitKeystoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitKeystoreResponse.ProtoReflect.Descriptor instead.
+func (*InitKeystoreResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *InitKeystoreResponse) GetError() *KeystoreError {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
+// SignDigestRequest is used to sign a digest with either the identity key
+// or a prekey
+type SignDigestRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Digest []byte                 `protobuf:"bytes,1,opt,name=digest,proto3" json:"digest,omitempty"`
+	// Types that are valid to be assigned to Signer:
+	//
+	//	*SignDigestRequest_IdentityKey
+	//	*SignDigestRequest_PrekeyIndex
+	Signer        isSignDigestRequest_Signer `protobuf_oneof:"signer"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignDigestRequest) Reset() {
+	*x = SignDigestRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignDigestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignDigestRequest) ProtoMessage() {}
+
+func (x *SignDigestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignDigestRequest.ProtoReflect.Descriptor instead.
+func (*SignDigestRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SignDigestRequest) GetDigest() []byte {
+	if x != nil {
+		return x.Digest
+	}
+	return nil
+}
+
+func (x *SignDigestRequest) GetSigner() isSignDigestRequest_Signer {
+	if x != nil {
+		return x.Signer
+	}
+	return nil
+}
+
+func (x *SignDigestRequest) GetIdentityKey() bool {
+	if x != nil {
+		if x, ok := x.Signer.(*SignDigestRequest_IdentityKey); ok {
+			return x.IdentityKey
+		}
+	}
+	return false
+}
+
+func (x *SignDigestRequest) GetPrekeyIndex() uint32 {
+	if x != nil {
+		if x, ok := x.Signer.(*SignDigestRequest_PrekeyIndex); ok {
+			return x.PrekeyIndex
+		}
+	}
+	return 0
+}
+
+type isSignDigestRequest_Signer interface {
+	isSignDigestRequest_Signer()
+}
+
+type SignDigestRequest_IdentityKey struct {
+	IdentityKey bool `protobuf:"varint,2,opt,name=identity_key,json=identityKey,proto3,oneof"`
+}
+
+type SignDigestRequest_PrekeyIndex struct {
+	PrekeyIndex uint32 `protobuf:"varint,3,opt,name=prekey_index,json=prekeyIndex,proto3,oneof"`
+}
+
+func (*SignDigestRequest_IdentityKey) isSignDigestRequest_Signer() {}
+
+func (*SignDigestRequest_PrekeyIndex) isSignDigestRequest_Signer() {}
+
+// GetRefreshJobRequest is used to get the last run time of a refresh job
+type GetRefreshJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobType       JobType                `protobuf:"varint,1,opt,name=job_type,json=jobType,proto3,enum=xmtp.keystore_api.v1.JobType" json:"job_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRefreshJobRequest) Reset() {
+	*x = GetRefreshJobRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRefreshJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRefreshJobRequest) ProtoMessage() {}
+
+func (x *GetRefreshJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRefreshJobRequest.ProtoReflect.Descriptor instead.
+func (*GetRefreshJobRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GetRefreshJobRequest) GetJobType() JobType {
+	if x != nil {
+		return x.JobType
+	}
+	return JobType_JOB_TYPE_UNSPECIFIED
+}
+
+// GetRefreshJobResponse is used to return the last run time of a refresh job
+type GetRefreshJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LastRunNs     int64                  `protobuf:"varint,1,opt,name=last_run_ns,json=lastRunNs,proto3" json:"last_run_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRefreshJobResponse) Reset() {
+	*x = GetRefreshJobResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRefreshJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRefreshJobResponse) ProtoMessage() {}
+
+func (x *GetRefreshJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRefreshJobResponse.ProtoReflect.Descriptor instead.
+func (*GetRefreshJobResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetRefreshJobResponse) GetLastRunNs() int64 {
+	if x != nil {
+		return x.LastRunNs
+	}
+	return 0
+}
+
+// SetRefreshJobRequest is used to set the last run time of a refresh job
+type SetRefeshJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobType       JobType                `protobuf:"varint,1,opt,name=job_type,json=jobType,proto3,enum=xmtp.keystore_api.v1.JobType" json:"job_type,omitempty"`
+	LastRunNs     int64                  `protobuf:"varint,2,opt,name=last_run_ns,json=lastRunNs,proto3" json:"last_run_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRefeshJobRequest) Reset() {
+	*x = SetRefeshJobRequest{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRefeshJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRefeshJobRequest) ProtoMessage() {}
+
+func (x *SetRefeshJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRefeshJobRequest.ProtoReflect.Descriptor instead.
+func (*SetRefeshJobRequest) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetRefeshJobRequest) GetJobType() JobType {
+	if x != nil {
+		return x.JobType
+	}
+	return JobType_JOB_TYPE_UNSPECIFIED
+}
+
+func (x *SetRefeshJobRequest) GetLastRunNs() int64 {
+	if x != nil {
+		return x.LastRunNs
+	}
+	return 0
+}
+
+// SetRefreshJobResponse is an empty response type
+type SetRefreshJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRefreshJobResponse) Reset() {
+	*x = SetRefreshJobResponse{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRefreshJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRefreshJobResponse) ProtoMessage() {}
+
+func (x *SetRefreshJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRefreshJobResponse.ProtoReflect.Descriptor instead.
+func (*SetRefreshJobResponse) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{27}
+}
+
+// A mapping of topics to their decrypted invitations
+type TopicMap struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Topics        map[string]*TopicMap_TopicData `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopicMap) Reset() {
+	*x = TopicMap{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopicMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopicMap) ProtoMessage() {}
+
+func (x *TopicMap) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopicMap.ProtoReflect.Descriptor instead.
+func (*TopicMap) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *TopicMap) GetTopics() map[string]*TopicMap_TopicData {
+	if x != nil {
+		return x.Topics
+	}
+	return nil
+}
+
 // Used to get a mapping of conversation topics to their HMAC keys
 type GetConversationHmacKeysRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -33,7 +1596,7 @@ type GetConversationHmacKeysRequest struct {
 
 func (x *GetConversationHmacKeysRequest) Reset() {
 	*x = GetConversationHmacKeysRequest{}
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[0]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +1608,7 @@ func (x *GetConversationHmacKeysRequest) String() string {
 func (*GetConversationHmacKeysRequest) ProtoMessage() {}
 
 func (x *GetConversationHmacKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[0]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +1621,7 @@ func (x *GetConversationHmacKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationHmacKeysRequest.ProtoReflect.Descriptor instead.
 func (*GetConversationHmacKeysRequest) Descriptor() ([]byte, []int) {
-	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{0}
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetConversationHmacKeysRequest) GetTopics() []string {
@@ -78,7 +1641,7 @@ type GetConversationHmacKeysResponse struct {
 
 func (x *GetConversationHmacKeysResponse) Reset() {
 	*x = GetConversationHmacKeysResponse{}
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[1]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -90,7 +1653,7 @@ func (x *GetConversationHmacKeysResponse) String() string {
 func (*GetConversationHmacKeysResponse) ProtoMessage() {}
 
 func (x *GetConversationHmacKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[1]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -103,12 +1666,1041 @@ func (x *GetConversationHmacKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationHmacKeysResponse.ProtoReflect.Descriptor instead.
 func (*GetConversationHmacKeysResponse) Descriptor() ([]byte, []int) {
-	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{1}
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetConversationHmacKeysResponse) GetHmacKeys() map[string]*GetConversationHmacKeysResponse_HmacKeys {
 	if x != nil {
 		return x.HmacKeys
+	}
+	return nil
+}
+
+// A mapping of message hashes to their private preferences action
+type PrivatePreferencesActionMap struct {
+	state         protoimpl.MessageState                                `protogen:"open.v1"`
+	Actions       map[string]*message_contents.PrivatePreferencesAction `protobuf:"bytes,1,rep,name=actions,proto3" json:"actions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrivatePreferencesActionMap) Reset() {
+	*x = PrivatePreferencesActionMap{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrivatePreferencesActionMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrivatePreferencesActionMap) ProtoMessage() {}
+
+func (x *PrivatePreferencesActionMap) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrivatePreferencesActionMap.ProtoReflect.Descriptor instead.
+func (*PrivatePreferencesActionMap) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *PrivatePreferencesActionMap) GetActions() map[string]*message_contents.PrivatePreferencesAction {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+// A single decryption request
+type DecryptV1Request_Request struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Payload       *message_contents.Ciphertext      `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	PeerKeys      *message_contents.PublicKeyBundle `protobuf:"bytes,2,opt,name=peer_keys,json=peerKeys,proto3" json:"peer_keys,omitempty"`
+	HeaderBytes   []byte                            `protobuf:"bytes,3,opt,name=header_bytes,json=headerBytes,proto3" json:"header_bytes,omitempty"`
+	IsSender      bool                              `protobuf:"varint,4,opt,name=is_sender,json=isSender,proto3" json:"is_sender,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptV1Request_Request) Reset() {
+	*x = DecryptV1Request_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptV1Request_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptV1Request_Request) ProtoMessage() {}
+
+func (x *DecryptV1Request_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptV1Request_Request.ProtoReflect.Descriptor instead.
+func (*DecryptV1Request_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *DecryptV1Request_Request) GetPayload() *message_contents.Ciphertext {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *DecryptV1Request_Request) GetPeerKeys() *message_contents.PublicKeyBundle {
+	if x != nil {
+		return x.PeerKeys
+	}
+	return nil
+}
+
+func (x *DecryptV1Request_Request) GetHeaderBytes() []byte {
+	if x != nil {
+		return x.HeaderBytes
+	}
+	return nil
+}
+
+func (x *DecryptV1Request_Request) GetIsSender() bool {
+	if x != nil {
+		return x.IsSender
+	}
+	return false
+}
+
+// A single decryption response
+type DecryptResponse_Response struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*DecryptResponse_Response_Result
+	//	*DecryptResponse_Response_Error
+	Response      isDecryptResponse_Response_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptResponse_Response) Reset() {
+	*x = DecryptResponse_Response{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptResponse_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptResponse_Response) ProtoMessage() {}
+
+func (x *DecryptResponse_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptResponse_Response.ProtoReflect.Descriptor instead.
+func (*DecryptResponse_Response) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{2, 0}
+}
+
+func (x *DecryptResponse_Response) GetResponse() isDecryptResponse_Response_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *DecryptResponse_Response) GetResult() *DecryptResponse_Response_Success {
+	if x != nil {
+		if x, ok := x.Response.(*DecryptResponse_Response_Result); ok {
+			return x.Result
+		}
+	}
+	return nil
+}
+
+func (x *DecryptResponse_Response) GetError() *KeystoreError {
+	if x != nil {
+		if x, ok := x.Response.(*DecryptResponse_Response_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isDecryptResponse_Response_Response interface {
+	isDecryptResponse_Response_Response()
+}
+
+type DecryptResponse_Response_Result struct {
+	Result *DecryptResponse_Response_Success `protobuf:"bytes,1,opt,name=result,proto3,oneof"`
+}
+
+type DecryptResponse_Response_Error struct {
+	Error *KeystoreError `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
+}
+
+func (*DecryptResponse_Response_Result) isDecryptResponse_Response_Response() {}
+
+func (*DecryptResponse_Response_Error) isDecryptResponse_Response_Response() {}
+
+// Wrapper object for success response
+type DecryptResponse_Response_Success struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Decrypted     []byte                 `protobuf:"bytes,1,opt,name=decrypted,proto3" json:"decrypted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptResponse_Response_Success) Reset() {
+	*x = DecryptResponse_Response_Success{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptResponse_Response_Success) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptResponse_Response_Success) ProtoMessage() {}
+
+func (x *DecryptResponse_Response_Success) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptResponse_Response_Success.ProtoReflect.Descriptor instead.
+func (*DecryptResponse_Response_Success) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{2, 0, 0}
+}
+
+func (x *DecryptResponse_Response_Success) GetDecrypted() []byte {
+	if x != nil {
+		return x.Decrypted
+	}
+	return nil
+}
+
+// A single decryption request
+type DecryptV2Request_Request struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Payload       *message_contents.Ciphertext `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	HeaderBytes   []byte                       `protobuf:"bytes,2,opt,name=header_bytes,json=headerBytes,proto3" json:"header_bytes,omitempty"`
+	ContentTopic  string                       `protobuf:"bytes,3,opt,name=content_topic,json=contentTopic,proto3" json:"content_topic,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptV2Request_Request) Reset() {
+	*x = DecryptV2Request_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptV2Request_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptV2Request_Request) ProtoMessage() {}
+
+func (x *DecryptV2Request_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptV2Request_Request.ProtoReflect.Descriptor instead.
+func (*DecryptV2Request_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{3, 0}
+}
+
+func (x *DecryptV2Request_Request) GetPayload() *message_contents.Ciphertext {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *DecryptV2Request_Request) GetHeaderBytes() []byte {
+	if x != nil {
+		return x.HeaderBytes
+	}
+	return nil
+}
+
+func (x *DecryptV2Request_Request) GetContentTopic() string {
+	if x != nil {
+		return x.ContentTopic
+	}
+	return ""
+}
+
+// A single encryption request
+type EncryptV1Request_Request struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Recipient     *message_contents.PublicKeyBundle `protobuf:"bytes,1,opt,name=recipient,proto3" json:"recipient,omitempty"`
+	Payload       []byte                            `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	HeaderBytes   []byte                            `protobuf:"bytes,3,opt,name=header_bytes,json=headerBytes,proto3" json:"header_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptV1Request_Request) Reset() {
+	*x = EncryptV1Request_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptV1Request_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptV1Request_Request) ProtoMessage() {}
+
+func (x *EncryptV1Request_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptV1Request_Request.ProtoReflect.Descriptor instead.
+func (*EncryptV1Request_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{4, 0}
+}
+
+func (x *EncryptV1Request_Request) GetRecipient() *message_contents.PublicKeyBundle {
+	if x != nil {
+		return x.Recipient
+	}
+	return nil
+}
+
+func (x *EncryptV1Request_Request) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *EncryptV1Request_Request) GetHeaderBytes() []byte {
+	if x != nil {
+		return x.HeaderBytes
+	}
+	return nil
+}
+
+// A single encryption response
+type EncryptResponse_Response struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*EncryptResponse_Response_Result
+	//	*EncryptResponse_Response_Error
+	Response      isEncryptResponse_Response_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptResponse_Response) Reset() {
+	*x = EncryptResponse_Response{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptResponse_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptResponse_Response) ProtoMessage() {}
+
+func (x *EncryptResponse_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptResponse_Response.ProtoReflect.Descriptor instead.
+func (*EncryptResponse_Response) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{5, 0}
+}
+
+func (x *EncryptResponse_Response) GetResponse() isEncryptResponse_Response_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *EncryptResponse_Response) GetResult() *EncryptResponse_Response_Success {
+	if x != nil {
+		if x, ok := x.Response.(*EncryptResponse_Response_Result); ok {
+			return x.Result
+		}
+	}
+	return nil
+}
+
+func (x *EncryptResponse_Response) GetError() *KeystoreError {
+	if x != nil {
+		if x, ok := x.Response.(*EncryptResponse_Response_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isEncryptResponse_Response_Response interface {
+	isEncryptResponse_Response_Response()
+}
+
+type EncryptResponse_Response_Result struct {
+	Result *EncryptResponse_Response_Success `protobuf:"bytes,1,opt,name=result,proto3,oneof"`
+}
+
+type EncryptResponse_Response_Error struct {
+	Error *KeystoreError `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
+}
+
+func (*EncryptResponse_Response_Result) isEncryptResponse_Response_Response() {}
+
+func (*EncryptResponse_Response_Error) isEncryptResponse_Response_Response() {}
+
+// Wrapper object for success response
+type EncryptResponse_Response_Success struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Encrypted     *message_contents.Ciphertext `protobuf:"bytes,1,opt,name=encrypted,proto3" json:"encrypted,omitempty"`
+	SenderHmac    []byte                       `protobuf:"bytes,2,opt,name=sender_hmac,json=senderHmac,proto3" json:"sender_hmac,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptResponse_Response_Success) Reset() {
+	*x = EncryptResponse_Response_Success{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptResponse_Response_Success) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptResponse_Response_Success) ProtoMessage() {}
+
+func (x *EncryptResponse_Response_Success) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptResponse_Response_Success.ProtoReflect.Descriptor instead.
+func (*EncryptResponse_Response_Success) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{5, 0, 0}
+}
+
+func (x *EncryptResponse_Response_Success) GetEncrypted() *message_contents.Ciphertext {
+	if x != nil {
+		return x.Encrypted
+	}
+	return nil
+}
+
+func (x *EncryptResponse_Response_Success) GetSenderHmac() []byte {
+	if x != nil {
+		return x.SenderHmac
+	}
+	return nil
+}
+
+// A single encryption request
+type EncryptV2Request_Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	HeaderBytes   []byte                 `protobuf:"bytes,2,opt,name=header_bytes,json=headerBytes,proto3" json:"header_bytes,omitempty"`
+	ContentTopic  string                 `protobuf:"bytes,3,opt,name=content_topic,json=contentTopic,proto3" json:"content_topic,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EncryptV2Request_Request) Reset() {
+	*x = EncryptV2Request_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EncryptV2Request_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EncryptV2Request_Request) ProtoMessage() {}
+
+func (x *EncryptV2Request_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EncryptV2Request_Request.ProtoReflect.Descriptor instead.
+func (*EncryptV2Request_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{6, 0}
+}
+
+func (x *EncryptV2Request_Request) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *EncryptV2Request_Request) GetHeaderBytes() []byte {
+	if x != nil {
+		return x.HeaderBytes
+	}
+	return nil
+}
+
+func (x *EncryptV2Request_Request) GetContentTopic() string {
+	if x != nil {
+		return x.ContentTopic
+	}
+	return ""
+}
+
+// Request type
+type SelfEncryptRequest_Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfEncryptRequest_Request) Reset() {
+	*x = SelfEncryptRequest_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfEncryptRequest_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfEncryptRequest_Request) ProtoMessage() {}
+
+func (x *SelfEncryptRequest_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfEncryptRequest_Request.ProtoReflect.Descriptor instead.
+func (*SelfEncryptRequest_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{7, 0}
+}
+
+func (x *SelfEncryptRequest_Request) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+// Response type
+type SelfEncryptResponse_Response struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*SelfEncryptResponse_Response_Result
+	//	*SelfEncryptResponse_Response_Error
+	Response      isSelfEncryptResponse_Response_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfEncryptResponse_Response) Reset() {
+	*x = SelfEncryptResponse_Response{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfEncryptResponse_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfEncryptResponse_Response) ProtoMessage() {}
+
+func (x *SelfEncryptResponse_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfEncryptResponse_Response.ProtoReflect.Descriptor instead.
+func (*SelfEncryptResponse_Response) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{8, 0}
+}
+
+func (x *SelfEncryptResponse_Response) GetResponse() isSelfEncryptResponse_Response_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *SelfEncryptResponse_Response) GetResult() *SelfEncryptResponse_Response_Success {
+	if x != nil {
+		if x, ok := x.Response.(*SelfEncryptResponse_Response_Result); ok {
+			return x.Result
+		}
+	}
+	return nil
+}
+
+func (x *SelfEncryptResponse_Response) GetError() *KeystoreError {
+	if x != nil {
+		if x, ok := x.Response.(*SelfEncryptResponse_Response_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isSelfEncryptResponse_Response_Response interface {
+	isSelfEncryptResponse_Response_Response()
+}
+
+type SelfEncryptResponse_Response_Result struct {
+	Result *SelfEncryptResponse_Response_Success `protobuf:"bytes,1,opt,name=result,proto3,oneof"`
+}
+
+type SelfEncryptResponse_Response_Error struct {
+	Error *KeystoreError `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
+}
+
+func (*SelfEncryptResponse_Response_Result) isSelfEncryptResponse_Response_Response() {}
+
+func (*SelfEncryptResponse_Response_Error) isSelfEncryptResponse_Response_Response() {}
+
+// Success response
+type SelfEncryptResponse_Response_Success struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Encrypted     []byte                 `protobuf:"bytes,1,opt,name=encrypted,proto3" json:"encrypted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfEncryptResponse_Response_Success) Reset() {
+	*x = SelfEncryptResponse_Response_Success{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfEncryptResponse_Response_Success) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfEncryptResponse_Response_Success) ProtoMessage() {}
+
+func (x *SelfEncryptResponse_Response_Success) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfEncryptResponse_Response_Success.ProtoReflect.Descriptor instead.
+func (*SelfEncryptResponse_Response_Success) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{8, 0, 0}
+}
+
+func (x *SelfEncryptResponse_Response_Success) GetEncrypted() []byte {
+	if x != nil {
+		return x.Encrypted
+	}
+	return nil
+}
+
+// Request type
+type SelfDecryptRequest_Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelfDecryptRequest_Request) Reset() {
+	*x = SelfDecryptRequest_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelfDecryptRequest_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelfDecryptRequest_Request) ProtoMessage() {}
+
+func (x *SelfDecryptRequest_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelfDecryptRequest_Request.ProtoReflect.Descriptor instead.
+func (*SelfDecryptRequest_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{9, 0}
+}
+
+func (x *SelfDecryptRequest_Request) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+// Mirrors xmtp.envelope schema
+type SaveInvitesRequest_Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ContentTopic  string                 `protobuf:"bytes,1,opt,name=content_topic,json=contentTopic,proto3" json:"content_topic,omitempty"`
+	TimestampNs   uint64                 `protobuf:"varint,2,opt,name=timestamp_ns,json=timestampNs,proto3" json:"timestamp_ns,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveInvitesRequest_Request) Reset() {
+	*x = SaveInvitesRequest_Request{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveInvitesRequest_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveInvitesRequest_Request) ProtoMessage() {}
+
+func (x *SaveInvitesRequest_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveInvitesRequest_Request.ProtoReflect.Descriptor instead.
+func (*SaveInvitesRequest_Request) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{13, 0}
+}
+
+func (x *SaveInvitesRequest_Request) GetContentTopic() string {
+	if x != nil {
+		return x.ContentTopic
+	}
+	return ""
+}
+
+func (x *SaveInvitesRequest_Request) GetTimestampNs() uint64 {
+	if x != nil {
+		return x.TimestampNs
+	}
+	return 0
+}
+
+func (x *SaveInvitesRequest_Request) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+// A single response
+type SaveInvitesResponse_Response struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*SaveInvitesResponse_Response_Result
+	//	*SaveInvitesResponse_Response_Error
+	Response      isSaveInvitesResponse_Response_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveInvitesResponse_Response) Reset() {
+	*x = SaveInvitesResponse_Response{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveInvitesResponse_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveInvitesResponse_Response) ProtoMessage() {}
+
+func (x *SaveInvitesResponse_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveInvitesResponse_Response.ProtoReflect.Descriptor instead.
+func (*SaveInvitesResponse_Response) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{14, 0}
+}
+
+func (x *SaveInvitesResponse_Response) GetResponse() isSaveInvitesResponse_Response_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *SaveInvitesResponse_Response) GetResult() *SaveInvitesResponse_Response_Success {
+	if x != nil {
+		if x, ok := x.Response.(*SaveInvitesResponse_Response_Result); ok {
+			return x.Result
+		}
+	}
+	return nil
+}
+
+func (x *SaveInvitesResponse_Response) GetError() *KeystoreError {
+	if x != nil {
+		if x, ok := x.Response.(*SaveInvitesResponse_Response_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isSaveInvitesResponse_Response_Response interface {
+	isSaveInvitesResponse_Response_Response()
+}
+
+type SaveInvitesResponse_Response_Result struct {
+	Result *SaveInvitesResponse_Response_Success `protobuf:"bytes,1,opt,name=result,proto3,oneof"`
+}
+
+type SaveInvitesResponse_Response_Error struct {
+	Error *KeystoreError `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
+}
+
+func (*SaveInvitesResponse_Response_Result) isSaveInvitesResponse_Response_Response() {}
+
+func (*SaveInvitesResponse_Response_Error) isSaveInvitesResponse_Response_Response() {}
+
+// Wrapper object for success response
+type SaveInvitesResponse_Response_Success struct {
+	state         protoimpl.MessageState                  `protogen:"open.v1"`
+	Conversation  *message_contents.ConversationReference `protobuf:"bytes,1,opt,name=conversation,proto3" json:"conversation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveInvitesResponse_Response_Success) Reset() {
+	*x = SaveInvitesResponse_Response_Success{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveInvitesResponse_Response_Success) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveInvitesResponse_Response_Success) ProtoMessage() {}
+
+func (x *SaveInvitesResponse_Response_Success) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveInvitesResponse_Response_Success.ProtoReflect.Descriptor instead.
+func (*SaveInvitesResponse_Response_Success) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{14, 0, 0}
+}
+
+func (x *SaveInvitesResponse_Response_Success) GetConversation() *message_contents.ConversationReference {
+	if x != nil {
+		return x.Conversation
+	}
+	return nil
+}
+
+// TopicData wraps the invitation and the timestamp it was created
+type TopicMap_TopicData struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	CreatedNs     uint64                         `protobuf:"varint,1,opt,name=created_ns,json=createdNs,proto3" json:"created_ns,omitempty"`
+	PeerAddress   string                         `protobuf:"bytes,2,opt,name=peer_address,json=peerAddress,proto3" json:"peer_address,omitempty"`
+	Invitation    *message_contents.InvitationV1 `protobuf:"bytes,3,opt,name=invitation,proto3" json:"invitation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopicMap_TopicData) Reset() {
+	*x = TopicMap_TopicData{}
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopicMap_TopicData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopicMap_TopicData) ProtoMessage() {}
+
+func (x *TopicMap_TopicData) ProtoReflect() protoreflect.Message {
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopicMap_TopicData.ProtoReflect.Descriptor instead.
+func (*TopicMap_TopicData) Descriptor() ([]byte, []int) {
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{28, 0}
+}
+
+func (x *TopicMap_TopicData) GetCreatedNs() uint64 {
+	if x != nil {
+		return x.CreatedNs
+	}
+	return 0
+}
+
+func (x *TopicMap_TopicData) GetPeerAddress() string {
+	if x != nil {
+		return x.PeerAddress
+	}
+	return ""
+}
+
+func (x *TopicMap_TopicData) GetInvitation() *message_contents.InvitationV1 {
+	if x != nil {
+		return x.Invitation
 	}
 	return nil
 }
@@ -124,7 +2716,7 @@ type GetConversationHmacKeysResponse_HmacKeyData struct {
 
 func (x *GetConversationHmacKeysResponse_HmacKeyData) Reset() {
 	*x = GetConversationHmacKeysResponse_HmacKeyData{}
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[2]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -136,7 +2728,7 @@ func (x *GetConversationHmacKeysResponse_HmacKeyData) String() string {
 func (*GetConversationHmacKeysResponse_HmacKeyData) ProtoMessage() {}
 
 func (x *GetConversationHmacKeysResponse_HmacKeyData) ProtoReflect() protoreflect.Message {
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[2]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -149,7 +2741,7 @@ func (x *GetConversationHmacKeysResponse_HmacKeyData) ProtoReflect() protoreflec
 
 // Deprecated: Use GetConversationHmacKeysResponse_HmacKeyData.ProtoReflect.Descriptor instead.
 func (*GetConversationHmacKeysResponse_HmacKeyData) Descriptor() ([]byte, []int) {
-	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{1, 0}
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{30, 0}
 }
 
 func (x *GetConversationHmacKeysResponse_HmacKeyData) GetThirtyDayPeriodsSinceEpoch() int32 {
@@ -176,7 +2768,7 @@ type GetConversationHmacKeysResponse_HmacKeys struct {
 
 func (x *GetConversationHmacKeysResponse_HmacKeys) Reset() {
 	*x = GetConversationHmacKeysResponse_HmacKeys{}
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[3]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -188,7 +2780,7 @@ func (x *GetConversationHmacKeysResponse_HmacKeys) String() string {
 func (*GetConversationHmacKeysResponse_HmacKeys) ProtoMessage() {}
 
 func (x *GetConversationHmacKeysResponse_HmacKeys) ProtoReflect() protoreflect.Message {
-	mi := &file_keystore_api_v1_keystore_proto_msgTypes[3]
+	mi := &file_keystore_api_v1_keystore_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -201,7 +2793,7 @@ func (x *GetConversationHmacKeysResponse_HmacKeys) ProtoReflect() protoreflect.M
 
 // Deprecated: Use GetConversationHmacKeysResponse_HmacKeys.ProtoReflect.Descriptor instead.
 func (*GetConversationHmacKeysResponse_HmacKeys) Descriptor() ([]byte, []int) {
-	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{1, 1}
+	return file_keystore_api_v1_keystore_proto_rawDescGZIP(), []int{30, 1}
 }
 
 func (x *GetConversationHmacKeysResponse_HmacKeys) GetValues() []*GetConversationHmacKeysResponse_HmacKeyData {
@@ -215,7 +2807,146 @@ var File_keystore_api_v1_keystore_proto protoreflect.FileDescriptor
 
 const file_keystore_api_v1_keystore_proto_rawDesc = "" +
 	"\n" +
-	"\x1ekeystore_api/v1/keystore.proto\x12\x14xmtp.keystore_api.v1\"8\n" +
+	"\x1ekeystore_api/v1/keystore.proto\x12\x14xmtp.keystore_api.v1\x1a!message_contents/ciphertext.proto\x1a-message_contents/conversation_reference.proto\x1a!message_contents/invitation.proto\x1a\"message_contents/private_key.proto\x1a*message_contents/private_preferences.proto\x1a!message_contents/public_key.proto\"^\n" +
+	"\rKeystoreError\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x123\n" +
+	"\x04code\x18\x02 \x01(\x0e2\x1f.xmtp.keystore_api.v1.ErrorCodeR\x04code\"\xac\x02\n" +
+	"\x10DecryptV1Request\x12J\n" +
+	"\brequests\x18\x01 \x03(\v2..xmtp.keystore_api.v1.DecryptV1Request.RequestR\brequests\x1a\xcb\x01\n" +
+	"\aRequest\x12;\n" +
+	"\apayload\x18\x01 \x01(\v2!.xmtp.message_contents.CiphertextR\apayload\x12C\n" +
+	"\tpeer_keys\x18\x02 \x01(\v2&.xmtp.message_contents.PublicKeyBundleR\bpeerKeys\x12!\n" +
+	"\fheader_bytes\x18\x03 \x01(\fR\vheaderBytes\x12\x1b\n" +
+	"\tis_sender\x18\x04 \x01(\bR\bisSender\"\xb0\x02\n" +
+	"\x0fDecryptResponse\x12L\n" +
+	"\tresponses\x18\x01 \x03(\v2..xmtp.keystore_api.v1.DecryptResponse.ResponseR\tresponses\x1a\xce\x01\n" +
+	"\bResponse\x12P\n" +
+	"\x06result\x18\x01 \x01(\v26.xmtp.keystore_api.v1.DecryptResponse.Response.SuccessH\x00R\x06result\x12;\n" +
+	"\x05error\x18\x02 \x01(\v2#.xmtp.keystore_api.v1.KeystoreErrorH\x00R\x05error\x1a'\n" +
+	"\aSuccess\x12\x1c\n" +
+	"\tdecrypted\x18\x01 \x01(\fR\tdecryptedB\n" +
+	"\n" +
+	"\bresponse\"\xef\x01\n" +
+	"\x10DecryptV2Request\x12J\n" +
+	"\brequests\x18\x01 \x03(\v2..xmtp.keystore_api.v1.DecryptV2Request.RequestR\brequests\x1a\x8e\x01\n" +
+	"\aRequest\x12;\n" +
+	"\apayload\x18\x01 \x01(\v2!.xmtp.message_contents.CiphertextR\apayload\x12!\n" +
+	"\fheader_bytes\x18\x02 \x01(\fR\vheaderBytes\x12#\n" +
+	"\rcontent_topic\x18\x03 \x01(\tR\fcontentTopic\"\xed\x01\n" +
+	"\x10EncryptV1Request\x12J\n" +
+	"\brequests\x18\x01 \x03(\v2..xmtp.keystore_api.v1.EncryptV1Request.RequestR\brequests\x1a\x8c\x01\n" +
+	"\aRequest\x12D\n" +
+	"\trecipient\x18\x01 \x01(\v2&.xmtp.message_contents.PublicKeyBundleR\trecipient\x12\x18\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12!\n" +
+	"\fheader_bytes\x18\x03 \x01(\fR\vheaderBytes\"\xf4\x02\n" +
+	"\x0fEncryptResponse\x12L\n" +
+	"\tresponses\x18\x01 \x03(\v2..xmtp.keystore_api.v1.EncryptResponse.ResponseR\tresponses\x1a\x92\x02\n" +
+	"\bResponse\x12P\n" +
+	"\x06result\x18\x01 \x01(\v26.xmtp.keystore_api.v1.EncryptResponse.Response.SuccessH\x00R\x06result\x12;\n" +
+	"\x05error\x18\x02 \x01(\v2#.xmtp.keystore_api.v1.KeystoreErrorH\x00R\x05error\x1ak\n" +
+	"\aSuccess\x12?\n" +
+	"\tencrypted\x18\x01 \x01(\v2!.xmtp.message_contents.CiphertextR\tencrypted\x12\x1f\n" +
+	"\vsender_hmac\x18\x02 \x01(\fR\n" +
+	"senderHmacB\n" +
+	"\n" +
+	"\bresponse\"\xcb\x01\n" +
+	"\x10EncryptV2Request\x12J\n" +
+	"\brequests\x18\x01 \x03(\v2..xmtp.keystore_api.v1.EncryptV2Request.RequestR\brequests\x1ak\n" +
+	"\aRequest\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\x12!\n" +
+	"\fheader_bytes\x18\x02 \x01(\fR\vheaderBytes\x12#\n" +
+	"\rcontent_topic\x18\x03 \x01(\tR\fcontentTopic\"\x87\x01\n" +
+	"\x12SelfEncryptRequest\x12L\n" +
+	"\brequests\x18\x01 \x03(\v20.xmtp.keystore_api.v1.SelfEncryptRequest.RequestR\brequests\x1a#\n" +
+	"\aRequest\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"\xbc\x02\n" +
+	"\x13SelfEncryptResponse\x12P\n" +
+	"\tresponses\x18\x01 \x03(\v22.xmtp.keystore_api.v1.SelfEncryptResponse.ResponseR\tresponses\x1a\xd2\x01\n" +
+	"\bResponse\x12T\n" +
+	"\x06result\x18\x01 \x01(\v2:.xmtp.keystore_api.v1.SelfEncryptResponse.Response.SuccessH\x00R\x06result\x12;\n" +
+	"\x05error\x18\x02 \x01(\v2#.xmtp.keystore_api.v1.KeystoreErrorH\x00R\x05error\x1a'\n" +
+	"\aSuccess\x12\x1c\n" +
+	"\tencrypted\x18\x01 \x01(\fR\tencryptedB\n" +
+	"\n" +
+	"\bresponse\"\x87\x01\n" +
+	"\x12SelfDecryptRequest\x12L\n" +
+	"\brequests\x18\x01 \x03(\v20.xmtp.keystore_api.v1.SelfDecryptRequest.RequestR\brequests\x1a#\n" +
+	"\aRequest\x12\x18\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"N\n" +
+	",GetPrivatePreferencesTopicIdentifierResponse\x12\x1e\n" +
+	"\n" +
+	"identifier\x18\x01 \x01(\tR\n" +
+	"identifier\"\x98\x02\n" +
+	"\x13CreateInviteRequest\x12E\n" +
+	"\acontext\x18\x01 \x01(\v2+.xmtp.message_contents.InvitationV1.ContextR\acontext\x12J\n" +
+	"\trecipient\x18\x02 \x01(\v2,.xmtp.message_contents.SignedPublicKeyBundleR\trecipient\x12\x1d\n" +
+	"\n" +
+	"created_ns\x18\x03 \x01(\x04R\tcreatedNs\x12O\n" +
+	"\rconsent_proof\x18\x04 \x01(\v2*.xmtp.message_contents.ConsentProofPayloadR\fconsentProof\"\x82\x01\n" +
+	"\x14CreateInviteResponse\x12P\n" +
+	"\fconversation\x18\x01 \x01(\v2,.xmtp.message_contents.ConversationReferenceR\fconversation\x12\x18\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\"\xcf\x01\n" +
+	"\x12SaveInvitesRequest\x12L\n" +
+	"\brequests\x18\x01 \x03(\v20.xmtp.keystore_api.v1.SaveInvitesRequest.RequestR\brequests\x1ak\n" +
+	"\aRequest\x12#\n" +
+	"\rcontent_topic\x18\x01 \x01(\tR\fcontentTopic\x12!\n" +
+	"\ftimestamp_ns\x18\x02 \x01(\x04R\vtimestampNs\x12\x18\n" +
+	"\apayload\x18\x03 \x01(\fR\apayload\"\xf0\x02\n" +
+	"\x13SaveInvitesResponse\x12P\n" +
+	"\tresponses\x18\x01 \x03(\v22.xmtp.keystore_api.v1.SaveInvitesResponse.ResponseR\tresponses\x1a\x86\x02\n" +
+	"\bResponse\x12T\n" +
+	"\x06result\x18\x01 \x01(\v2:.xmtp.keystore_api.v1.SaveInvitesResponse.Response.SuccessH\x00R\x06result\x12;\n" +
+	"\x05error\x18\x02 \x01(\v2#.xmtp.keystore_api.v1.KeystoreErrorH\x00R\x05error\x1a[\n" +
+	"\aSuccess\x12P\n" +
+	"\fconversation\x18\x01 \x01(\v2,.xmtp.message_contents.ConversationReferenceR\fconversationB\n" +
+	"\n" +
+	"\bresponse\"Q\n" +
+	"\x16CreateAuthTokenRequest\x12&\n" +
+	"\ftimestamp_ns\x18\x01 \x01(\x04H\x00R\vtimestampNs\x88\x01\x01B\x0f\n" +
+	"\r_timestamp_ns\"p\n" +
+	"\x1aSaveV1ConversationsRequest\x12R\n" +
+	"\rconversations\x18\x01 \x03(\v2,.xmtp.message_contents.ConversationReferenceR\rconversations\"\x1d\n" +
+	"\x1bSaveV1ConversationsResponse\"n\n" +
+	"\x18GetConversationsResponse\x12R\n" +
+	"\rconversations\x18\x01 \x03(\v2,.xmtp.message_contents.ConversationReferenceR\rconversations\"A\n" +
+	"\x18GetKeystoreStatusRequest\x12%\n" +
+	"\x0ewallet_address\x18\x01 \x01(\tR\rwalletAddress\"\xea\x01\n" +
+	"\x19GetKeystoreStatusResponse\x12V\n" +
+	"\x06status\x18\x01 \x01(\x0e2>.xmtp.keystore_api.v1.GetKeystoreStatusResponse.KeystoreStatusR\x06status\"u\n" +
+	"\x0eKeystoreStatus\x12\x1f\n" +
+	"\x1bKEYSTORE_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dKEYSTORE_STATUS_UNINITIALIZED\x10\x01\x12\x1f\n" +
+	"\x1bKEYSTORE_STATUS_INITIALIZED\x10\x02\"\\\n" +
+	"\x13InitKeystoreRequest\x12;\n" +
+	"\x02v1\x18\x01 \x01(\v2).xmtp.message_contents.PrivateKeyBundleV1H\x00R\x02v1B\b\n" +
+	"\x06bundle\"Q\n" +
+	"\x14InitKeystoreResponse\x129\n" +
+	"\x05error\x18\x01 \x01(\v2#.xmtp.keystore_api.v1.KeystoreErrorR\x05error\"\x7f\n" +
+	"\x11SignDigestRequest\x12\x16\n" +
+	"\x06digest\x18\x01 \x01(\fR\x06digest\x12#\n" +
+	"\fidentity_key\x18\x02 \x01(\bH\x00R\videntityKey\x12#\n" +
+	"\fprekey_index\x18\x03 \x01(\rH\x00R\vprekeyIndexB\b\n" +
+	"\x06signer\"P\n" +
+	"\x14GetRefreshJobRequest\x128\n" +
+	"\bjob_type\x18\x01 \x01(\x0e2\x1d.xmtp.keystore_api.v1.JobTypeR\ajobType\"7\n" +
+	"\x15GetRefreshJobResponse\x12\x1e\n" +
+	"\vlast_run_ns\x18\x01 \x01(\x03R\tlastRunNs\"o\n" +
+	"\x13SetRefeshJobRequest\x128\n" +
+	"\bjob_type\x18\x01 \x01(\x0e2\x1d.xmtp.keystore_api.v1.JobTypeR\ajobType\x12\x1e\n" +
+	"\vlast_run_ns\x18\x02 \x01(\x03R\tlastRunNs\"\x17\n" +
+	"\x15SetRefreshJobResponse\"\xc8\x02\n" +
+	"\bTopicMap\x12B\n" +
+	"\x06topics\x18\x01 \x03(\v2*.xmtp.keystore_api.v1.TopicMap.TopicsEntryR\x06topics\x1a\x92\x01\n" +
+	"\tTopicData\x12\x1d\n" +
+	"\n" +
+	"created_ns\x18\x01 \x01(\x04R\tcreatedNs\x12!\n" +
+	"\fpeer_address\x18\x02 \x01(\tR\vpeerAddress\x12C\n" +
+	"\n" +
+	"invitation\x18\x03 \x01(\v2#.xmtp.message_contents.InvitationV1R\n" +
+	"invitation\x1ac\n" +
+	"\vTopicsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12>\n" +
+	"\x05value\x18\x02 \x01(\v2(.xmtp.keystore_api.v1.TopicMap.TopicDataR\x05value:\x028\x01\"8\n" +
 	"\x1eGetConversationHmacKeysRequest\x12\x16\n" +
 	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xd5\x03\n" +
 	"\x1fGetConversationHmacKeysResponse\x12`\n" +
@@ -227,7 +2958,21 @@ const file_keystore_api_v1_keystore_proto_rawDesc = "" +
 	"\x06values\x18\x01 \x03(\v2A.xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeyDataR\x06values\x1a{\n" +
 	"\rHmacKeysEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12T\n" +
-	"\x05value\x18\x02 \x01(\v2>.xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysR\x05value:\x028\x01B\xd7\x01\n" +
+	"\x05value\x18\x02 \x01(\v2>.xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysR\x05value:\x028\x01\"\xe4\x01\n" +
+	"\x1bPrivatePreferencesActionMap\x12X\n" +
+	"\aactions\x18\x01 \x03(\v2>.xmtp.keystore_api.v1.PrivatePreferencesActionMap.ActionsEntryR\aactions\x1ak\n" +
+	"\fActionsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12E\n" +
+	"\x05value\x18\x02 \x01(\v2/.xmtp.message_contents.PrivatePreferencesActionR\x05value:\x028\x01*h\n" +
+	"\tErrorCode\x12\x1a\n" +
+	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18ERROR_CODE_INVALID_INPUT\x10\x01\x12!\n" +
+	"\x1dERROR_CODE_NO_MATCHING_PREKEY\x10\x02*p\n" +
+	"\aJobType\x12\x18\n" +
+	"\x14JOB_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13JOB_TYPE_REFRESH_V1\x10\x01\x12\x17\n" +
+	"\x13JOB_TYPE_REFRESH_V2\x10\x02\x12\x19\n" +
+	"\x15JOB_TYPE_REFRESH_PPPP\x10\x03B\xd7\x01\n" +
 	"\x18com.xmtp.keystore_api.v1B\rKeystoreProtoP\x01Z>github.com/xmtp/xmtpd/pkg/proto/keystore_api/v1;keystore_apiv1\xa2\x02\x03XKX\xaa\x02\x13Xmtp.KeystoreApi.V1\xca\x02\x13Xmtp\\KeystoreApi\\V1\xe2\x02\x1fXmtp\\KeystoreApi\\V1\\GPBMetadata\xea\x02\x15Xmtp::KeystoreApi::V1b\x06proto3"
 
 var (
@@ -242,23 +2987,126 @@ func file_keystore_api_v1_keystore_proto_rawDescGZIP() []byte {
 	return file_keystore_api_v1_keystore_proto_rawDescData
 }
 
-var file_keystore_api_v1_keystore_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_keystore_api_v1_keystore_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_keystore_api_v1_keystore_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_keystore_api_v1_keystore_proto_goTypes = []any{
-	(*GetConversationHmacKeysRequest)(nil),              // 0: xmtp.keystore_api.v1.GetConversationHmacKeysRequest
-	(*GetConversationHmacKeysResponse)(nil),             // 1: xmtp.keystore_api.v1.GetConversationHmacKeysResponse
-	(*GetConversationHmacKeysResponse_HmacKeyData)(nil), // 2: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeyData
-	(*GetConversationHmacKeysResponse_HmacKeys)(nil),    // 3: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeys
-	nil, // 4: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysEntry
+	(ErrorCode)(0), // 0: xmtp.keystore_api.v1.ErrorCode
+	(JobType)(0),   // 1: xmtp.keystore_api.v1.JobType
+	(GetKeystoreStatusResponse_KeystoreStatus)(0),        // 2: xmtp.keystore_api.v1.GetKeystoreStatusResponse.KeystoreStatus
+	(*KeystoreError)(nil),                                // 3: xmtp.keystore_api.v1.KeystoreError
+	(*DecryptV1Request)(nil),                             // 4: xmtp.keystore_api.v1.DecryptV1Request
+	(*DecryptResponse)(nil),                              // 5: xmtp.keystore_api.v1.DecryptResponse
+	(*DecryptV2Request)(nil),                             // 6: xmtp.keystore_api.v1.DecryptV2Request
+	(*EncryptV1Request)(nil),                             // 7: xmtp.keystore_api.v1.EncryptV1Request
+	(*EncryptResponse)(nil),                              // 8: xmtp.keystore_api.v1.EncryptResponse
+	(*EncryptV2Request)(nil),                             // 9: xmtp.keystore_api.v1.EncryptV2Request
+	(*SelfEncryptRequest)(nil),                           // 10: xmtp.keystore_api.v1.SelfEncryptRequest
+	(*SelfEncryptResponse)(nil),                          // 11: xmtp.keystore_api.v1.SelfEncryptResponse
+	(*SelfDecryptRequest)(nil),                           // 12: xmtp.keystore_api.v1.SelfDecryptRequest
+	(*GetPrivatePreferencesTopicIdentifierResponse)(nil), // 13: xmtp.keystore_api.v1.GetPrivatePreferencesTopicIdentifierResponse
+	(*CreateInviteRequest)(nil),                          // 14: xmtp.keystore_api.v1.CreateInviteRequest
+	(*CreateInviteResponse)(nil),                         // 15: xmtp.keystore_api.v1.CreateInviteResponse
+	(*SaveInvitesRequest)(nil),                           // 16: xmtp.keystore_api.v1.SaveInvitesRequest
+	(*SaveInvitesResponse)(nil),                          // 17: xmtp.keystore_api.v1.SaveInvitesResponse
+	(*CreateAuthTokenRequest)(nil),                       // 18: xmtp.keystore_api.v1.CreateAuthTokenRequest
+	(*SaveV1ConversationsRequest)(nil),                   // 19: xmtp.keystore_api.v1.SaveV1ConversationsRequest
+	(*SaveV1ConversationsResponse)(nil),                  // 20: xmtp.keystore_api.v1.SaveV1ConversationsResponse
+	(*GetConversationsResponse)(nil),                     // 21: xmtp.keystore_api.v1.GetConversationsResponse
+	(*GetKeystoreStatusRequest)(nil),                     // 22: xmtp.keystore_api.v1.GetKeystoreStatusRequest
+	(*GetKeystoreStatusResponse)(nil),                    // 23: xmtp.keystore_api.v1.GetKeystoreStatusResponse
+	(*InitKeystoreRequest)(nil),                          // 24: xmtp.keystore_api.v1.InitKeystoreRequest
+	(*InitKeystoreResponse)(nil),                         // 25: xmtp.keystore_api.v1.InitKeystoreResponse
+	(*SignDigestRequest)(nil),                            // 26: xmtp.keystore_api.v1.SignDigestRequest
+	(*GetRefreshJobRequest)(nil),                         // 27: xmtp.keystore_api.v1.GetRefreshJobRequest
+	(*GetRefreshJobResponse)(nil),                        // 28: xmtp.keystore_api.v1.GetRefreshJobResponse
+	(*SetRefeshJobRequest)(nil),                          // 29: xmtp.keystore_api.v1.SetRefeshJobRequest
+	(*SetRefreshJobResponse)(nil),                        // 30: xmtp.keystore_api.v1.SetRefreshJobResponse
+	(*TopicMap)(nil),                                     // 31: xmtp.keystore_api.v1.TopicMap
+	(*GetConversationHmacKeysRequest)(nil),               // 32: xmtp.keystore_api.v1.GetConversationHmacKeysRequest
+	(*GetConversationHmacKeysResponse)(nil),              // 33: xmtp.keystore_api.v1.GetConversationHmacKeysResponse
+	(*PrivatePreferencesActionMap)(nil),                  // 34: xmtp.keystore_api.v1.PrivatePreferencesActionMap
+	(*DecryptV1Request_Request)(nil),                     // 35: xmtp.keystore_api.v1.DecryptV1Request.Request
+	(*DecryptResponse_Response)(nil),                     // 36: xmtp.keystore_api.v1.DecryptResponse.Response
+	(*DecryptResponse_Response_Success)(nil),             // 37: xmtp.keystore_api.v1.DecryptResponse.Response.Success
+	(*DecryptV2Request_Request)(nil),                     // 38: xmtp.keystore_api.v1.DecryptV2Request.Request
+	(*EncryptV1Request_Request)(nil),                     // 39: xmtp.keystore_api.v1.EncryptV1Request.Request
+	(*EncryptResponse_Response)(nil),                     // 40: xmtp.keystore_api.v1.EncryptResponse.Response
+	(*EncryptResponse_Response_Success)(nil),             // 41: xmtp.keystore_api.v1.EncryptResponse.Response.Success
+	(*EncryptV2Request_Request)(nil),                     // 42: xmtp.keystore_api.v1.EncryptV2Request.Request
+	(*SelfEncryptRequest_Request)(nil),                   // 43: xmtp.keystore_api.v1.SelfEncryptRequest.Request
+	(*SelfEncryptResponse_Response)(nil),                 // 44: xmtp.keystore_api.v1.SelfEncryptResponse.Response
+	(*SelfEncryptResponse_Response_Success)(nil),         // 45: xmtp.keystore_api.v1.SelfEncryptResponse.Response.Success
+	(*SelfDecryptRequest_Request)(nil),                   // 46: xmtp.keystore_api.v1.SelfDecryptRequest.Request
+	(*SaveInvitesRequest_Request)(nil),                   // 47: xmtp.keystore_api.v1.SaveInvitesRequest.Request
+	(*SaveInvitesResponse_Response)(nil),                 // 48: xmtp.keystore_api.v1.SaveInvitesResponse.Response
+	(*SaveInvitesResponse_Response_Success)(nil),         // 49: xmtp.keystore_api.v1.SaveInvitesResponse.Response.Success
+	(*TopicMap_TopicData)(nil),                           // 50: xmtp.keystore_api.v1.TopicMap.TopicData
+	nil,                                                  // 51: xmtp.keystore_api.v1.TopicMap.TopicsEntry
+	(*GetConversationHmacKeysResponse_HmacKeyData)(nil),  // 52: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeyData
+	(*GetConversationHmacKeysResponse_HmacKeys)(nil),     // 53: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeys
+	nil, // 54: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysEntry
+	nil, // 55: xmtp.keystore_api.v1.PrivatePreferencesActionMap.ActionsEntry
+	(*message_contents.InvitationV1_Context)(nil),     // 56: xmtp.message_contents.InvitationV1.Context
+	(*message_contents.SignedPublicKeyBundle)(nil),    // 57: xmtp.message_contents.SignedPublicKeyBundle
+	(*message_contents.ConsentProofPayload)(nil),      // 58: xmtp.message_contents.ConsentProofPayload
+	(*message_contents.ConversationReference)(nil),    // 59: xmtp.message_contents.ConversationReference
+	(*message_contents.PrivateKeyBundleV1)(nil),       // 60: xmtp.message_contents.PrivateKeyBundleV1
+	(*message_contents.Ciphertext)(nil),               // 61: xmtp.message_contents.Ciphertext
+	(*message_contents.PublicKeyBundle)(nil),          // 62: xmtp.message_contents.PublicKeyBundle
+	(*message_contents.InvitationV1)(nil),             // 63: xmtp.message_contents.InvitationV1
+	(*message_contents.PrivatePreferencesAction)(nil), // 64: xmtp.message_contents.PrivatePreferencesAction
 }
 var file_keystore_api_v1_keystore_proto_depIdxs = []int32{
-	4, // 0: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.hmac_keys:type_name -> xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysEntry
-	2, // 1: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeys.values:type_name -> xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeyData
-	3, // 2: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysEntry.value:type_name -> xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeys
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: xmtp.keystore_api.v1.KeystoreError.code:type_name -> xmtp.keystore_api.v1.ErrorCode
+	35, // 1: xmtp.keystore_api.v1.DecryptV1Request.requests:type_name -> xmtp.keystore_api.v1.DecryptV1Request.Request
+	36, // 2: xmtp.keystore_api.v1.DecryptResponse.responses:type_name -> xmtp.keystore_api.v1.DecryptResponse.Response
+	38, // 3: xmtp.keystore_api.v1.DecryptV2Request.requests:type_name -> xmtp.keystore_api.v1.DecryptV2Request.Request
+	39, // 4: xmtp.keystore_api.v1.EncryptV1Request.requests:type_name -> xmtp.keystore_api.v1.EncryptV1Request.Request
+	40, // 5: xmtp.keystore_api.v1.EncryptResponse.responses:type_name -> xmtp.keystore_api.v1.EncryptResponse.Response
+	42, // 6: xmtp.keystore_api.v1.EncryptV2Request.requests:type_name -> xmtp.keystore_api.v1.EncryptV2Request.Request
+	43, // 7: xmtp.keystore_api.v1.SelfEncryptRequest.requests:type_name -> xmtp.keystore_api.v1.SelfEncryptRequest.Request
+	44, // 8: xmtp.keystore_api.v1.SelfEncryptResponse.responses:type_name -> xmtp.keystore_api.v1.SelfEncryptResponse.Response
+	46, // 9: xmtp.keystore_api.v1.SelfDecryptRequest.requests:type_name -> xmtp.keystore_api.v1.SelfDecryptRequest.Request
+	56, // 10: xmtp.keystore_api.v1.CreateInviteRequest.context:type_name -> xmtp.message_contents.InvitationV1.Context
+	57, // 11: xmtp.keystore_api.v1.CreateInviteRequest.recipient:type_name -> xmtp.message_contents.SignedPublicKeyBundle
+	58, // 12: xmtp.keystore_api.v1.CreateInviteRequest.consent_proof:type_name -> xmtp.message_contents.ConsentProofPayload
+	59, // 13: xmtp.keystore_api.v1.CreateInviteResponse.conversation:type_name -> xmtp.message_contents.ConversationReference
+	47, // 14: xmtp.keystore_api.v1.SaveInvitesRequest.requests:type_name -> xmtp.keystore_api.v1.SaveInvitesRequest.Request
+	48, // 15: xmtp.keystore_api.v1.SaveInvitesResponse.responses:type_name -> xmtp.keystore_api.v1.SaveInvitesResponse.Response
+	59, // 16: xmtp.keystore_api.v1.SaveV1ConversationsRequest.conversations:type_name -> xmtp.message_contents.ConversationReference
+	59, // 17: xmtp.keystore_api.v1.GetConversationsResponse.conversations:type_name -> xmtp.message_contents.ConversationReference
+	2,  // 18: xmtp.keystore_api.v1.GetKeystoreStatusResponse.status:type_name -> xmtp.keystore_api.v1.GetKeystoreStatusResponse.KeystoreStatus
+	60, // 19: xmtp.keystore_api.v1.InitKeystoreRequest.v1:type_name -> xmtp.message_contents.PrivateKeyBundleV1
+	3,  // 20: xmtp.keystore_api.v1.InitKeystoreResponse.error:type_name -> xmtp.keystore_api.v1.KeystoreError
+	1,  // 21: xmtp.keystore_api.v1.GetRefreshJobRequest.job_type:type_name -> xmtp.keystore_api.v1.JobType
+	1,  // 22: xmtp.keystore_api.v1.SetRefeshJobRequest.job_type:type_name -> xmtp.keystore_api.v1.JobType
+	51, // 23: xmtp.keystore_api.v1.TopicMap.topics:type_name -> xmtp.keystore_api.v1.TopicMap.TopicsEntry
+	54, // 24: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.hmac_keys:type_name -> xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysEntry
+	55, // 25: xmtp.keystore_api.v1.PrivatePreferencesActionMap.actions:type_name -> xmtp.keystore_api.v1.PrivatePreferencesActionMap.ActionsEntry
+	61, // 26: xmtp.keystore_api.v1.DecryptV1Request.Request.payload:type_name -> xmtp.message_contents.Ciphertext
+	62, // 27: xmtp.keystore_api.v1.DecryptV1Request.Request.peer_keys:type_name -> xmtp.message_contents.PublicKeyBundle
+	37, // 28: xmtp.keystore_api.v1.DecryptResponse.Response.result:type_name -> xmtp.keystore_api.v1.DecryptResponse.Response.Success
+	3,  // 29: xmtp.keystore_api.v1.DecryptResponse.Response.error:type_name -> xmtp.keystore_api.v1.KeystoreError
+	61, // 30: xmtp.keystore_api.v1.DecryptV2Request.Request.payload:type_name -> xmtp.message_contents.Ciphertext
+	62, // 31: xmtp.keystore_api.v1.EncryptV1Request.Request.recipient:type_name -> xmtp.message_contents.PublicKeyBundle
+	41, // 32: xmtp.keystore_api.v1.EncryptResponse.Response.result:type_name -> xmtp.keystore_api.v1.EncryptResponse.Response.Success
+	3,  // 33: xmtp.keystore_api.v1.EncryptResponse.Response.error:type_name -> xmtp.keystore_api.v1.KeystoreError
+	61, // 34: xmtp.keystore_api.v1.EncryptResponse.Response.Success.encrypted:type_name -> xmtp.message_contents.Ciphertext
+	45, // 35: xmtp.keystore_api.v1.SelfEncryptResponse.Response.result:type_name -> xmtp.keystore_api.v1.SelfEncryptResponse.Response.Success
+	3,  // 36: xmtp.keystore_api.v1.SelfEncryptResponse.Response.error:type_name -> xmtp.keystore_api.v1.KeystoreError
+	49, // 37: xmtp.keystore_api.v1.SaveInvitesResponse.Response.result:type_name -> xmtp.keystore_api.v1.SaveInvitesResponse.Response.Success
+	3,  // 38: xmtp.keystore_api.v1.SaveInvitesResponse.Response.error:type_name -> xmtp.keystore_api.v1.KeystoreError
+	59, // 39: xmtp.keystore_api.v1.SaveInvitesResponse.Response.Success.conversation:type_name -> xmtp.message_contents.ConversationReference
+	63, // 40: xmtp.keystore_api.v1.TopicMap.TopicData.invitation:type_name -> xmtp.message_contents.InvitationV1
+	50, // 41: xmtp.keystore_api.v1.TopicMap.TopicsEntry.value:type_name -> xmtp.keystore_api.v1.TopicMap.TopicData
+	52, // 42: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeys.values:type_name -> xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeyData
+	53, // 43: xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeysEntry.value:type_name -> xmtp.keystore_api.v1.GetConversationHmacKeysResponse.HmacKeys
+	64, // 44: xmtp.keystore_api.v1.PrivatePreferencesActionMap.ActionsEntry.value:type_name -> xmtp.message_contents.PrivatePreferencesAction
+	45, // [45:45] is the sub-list for method output_type
+	45, // [45:45] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_keystore_api_v1_keystore_proto_init() }
@@ -266,18 +3114,43 @@ func file_keystore_api_v1_keystore_proto_init() {
 	if File_keystore_api_v1_keystore_proto != nil {
 		return
 	}
+	file_keystore_api_v1_keystore_proto_msgTypes[15].OneofWrappers = []any{}
+	file_keystore_api_v1_keystore_proto_msgTypes[21].OneofWrappers = []any{
+		(*InitKeystoreRequest_V1)(nil),
+	}
+	file_keystore_api_v1_keystore_proto_msgTypes[23].OneofWrappers = []any{
+		(*SignDigestRequest_IdentityKey)(nil),
+		(*SignDigestRequest_PrekeyIndex)(nil),
+	}
+	file_keystore_api_v1_keystore_proto_msgTypes[33].OneofWrappers = []any{
+		(*DecryptResponse_Response_Result)(nil),
+		(*DecryptResponse_Response_Error)(nil),
+	}
+	file_keystore_api_v1_keystore_proto_msgTypes[37].OneofWrappers = []any{
+		(*EncryptResponse_Response_Result)(nil),
+		(*EncryptResponse_Response_Error)(nil),
+	}
+	file_keystore_api_v1_keystore_proto_msgTypes[41].OneofWrappers = []any{
+		(*SelfEncryptResponse_Response_Result)(nil),
+		(*SelfEncryptResponse_Response_Error)(nil),
+	}
+	file_keystore_api_v1_keystore_proto_msgTypes[45].OneofWrappers = []any{
+		(*SaveInvitesResponse_Response_Result)(nil),
+		(*SaveInvitesResponse_Response_Error)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_keystore_api_v1_keystore_proto_rawDesc), len(file_keystore_api_v1_keystore_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      3,
+			NumMessages:   53,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_keystore_api_v1_keystore_proto_goTypes,
 		DependencyIndexes: file_keystore_api_v1_keystore_proto_depIdxs,
+		EnumInfos:         file_keystore_api_v1_keystore_proto_enumTypes,
 		MessageInfos:      file_keystore_api_v1_keystore_proto_msgTypes,
 	}.Build()
 	File_keystore_api_v1_keystore_proto = out.File

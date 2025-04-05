@@ -88,7 +88,7 @@ func (s *GroupMessageStorer) StoreLog(
 		return NewUnrecoverableLogStorageError(err)
 	}
 
-	s.logger.Debug("Inserting message from contract", zap.String("topic", topicStruct.String()))
+	s.logger.Info("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,

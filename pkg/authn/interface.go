@@ -1,5 +1,7 @@
 package authn
 
+type CloseFunc func()
+
 type JWTVerifier interface {
-	Verify(tokenString string) (uint32, error)
+	Verify(tokenString string) (uint32, CloseFunc, error)
 }

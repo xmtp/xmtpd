@@ -78,14 +78,16 @@ func TestVerifier(t *testing.T) {
 	token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 	require.NoError(t, err)
 	// This should verify correctly
-	_, verificationError := verifier.Verify(token.SignedString)
+	_, cancel, verificationError := verifier.Verify(token.SignedString)
+	defer cancel()
 	require.NoError(t, verificationError)
 
 	// Create a token targeting a different node as the audience
 	tokenForWrongNode, err := tokenFactory.CreateToken(uint32(300))
 	require.NoError(t, err)
 	// This should not verify correctly
-	_, verificationError = verifier.Verify(tokenForWrongNode.SignedString)
+	_, cancel, verificationError = verifier.Verify(tokenForWrongNode.SignedString)
+	defer cancel()
 	require.Error(t, verificationError)
 }
 
@@ -107,7 +109,8 @@ func TestWrongAudience(t *testing.T) {
 	tokenForWrongNode, err := tokenFactory.CreateToken(uint32(300))
 	require.NoError(t, err)
 	// This should not verify correctly
-	_, verificationError := verifier.Verify(tokenForWrongNode.SignedString)
+	_, cancel, verificationError := verifier.Verify(tokenForWrongNode.SignedString)
+	defer cancel()
 	require.Error(t, verificationError)
 }
 
@@ -126,7 +129,8 @@ func TestUnknownNode(t *testing.T) {
 	token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 	require.NoError(t, err)
 
-	_, verificationError := verifier.Verify(token.SignedString)
+	_, cancel, verificationError := verifier.Verify(token.SignedString)
+	defer cancel()
 	require.Error(t, verificationError)
 }
 
@@ -150,7 +154,8 @@ func TestWrongPublicKey(t *testing.T) {
 	token, err := tokenFactory.CreateToken(uint32(VERIFIER_NODE_ID))
 	require.NoError(t, err)
 
-	_, verificationError := verifier.Verify(token.SignedString)
+	_, cancel, verificationError := verifier.Verify(token.SignedString)
+	defer cancel()
 	require.Error(t, verificationError)
 }
 
@@ -176,7 +181,8 @@ func TestExpiredToken(t *testing.T) {
 		time.Now().Add(-time.Hour),
 	)
 
-	_, verificationError := verifier.Verify(signedString)
+	_, cancel, verificationError := verifier.Verify(signedString)
+	defer cancel()
 	require.Error(t, verificationError)
 }
 
@@ -202,7 +208,8 @@ func TestTokenDurationTooLong(t *testing.T) {
 		time.Now().Add(5*time.Hour),
 	)
 
-	_, verificationError := verifier.Verify(signedString)
+	_, cancel, verificationError := verifier.Verify(signedString)
+	defer cancel()
 	require.Error(t, verificationError)
 }
 
@@ -229,7 +236,8 @@ func TestTokenClockSkew(t *testing.T) {
 		time.Now().Add(1*time.Hour),
 	)
 
-	_, verificationError := verifier.Verify(validToken)
+	_, cancel, verificationError := verifier.Verify(validToken)
+	defer cancel()
 	require.NoError(t, verificationError)
 
 	invalidToken := buildJwt(
@@ -241,6 +249,7 @@ func TestTokenClockSkew(t *testing.T) {
 		time.Now().Add(1*time.Hour),
 	)
 
-	_, verificationError = verifier.Verify(invalidToken)
+	_, cancel, verificationError = verifier.Verify(invalidToken)
+	defer cancel()
 	require.Error(t, verificationError)
 }

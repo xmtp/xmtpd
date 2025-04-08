@@ -1,7 +1,7 @@
 ---
 description: 
-globs: 
-alwaysApply: true
+globs: *.go,!*.pb.go
+alwaysApply: false
 ---
 ## General Best Practices
 - Avoid variable shadowing.

@@ -24,11 +24,10 @@ var Version string = "unknown"
 type CLI struct {
 	config.GlobalOptions
 	Command                          string
-	AdminOptions                     config.AdminOptions
-	NodeManagerOptions               config.NodeManagerOptions
 	GetPubKey                        config.GetPubKeyOptions
 	GenerateKey                      config.GenerateKeyOptions
 	RegisterNode                     config.RegisterNodeOptions
+	NetworkAdminOptions              config.NetworkAdminOptions
 	GetAllNodes                      config.GetAllNodesOptions
 	GetNode                          config.GetNodeOptions
 	SetHttpAddress                   config.SetHttpAddressOptions
@@ -50,10 +49,9 @@ the options for each subcommand.
 */
 func parseOptions(args []string) (*CLI, error) {
 	var options config.GlobalOptions
-	var adminOptions config.AdminOptions
-	var nodeManagerOptions config.NodeManagerOptions
 	var generateKeyOptions config.GenerateKeyOptions
 	var registerNodeOptions config.RegisterNodeOptions
+	var networkAdminOptions config.NetworkAdminOptions
 	var getPubKeyOptions config.GetPubKeyOptions
 	var getAllNodesOptions config.GetAllNodesOptions
 	var setHttpAddressOptions config.SetHttpAddressOptions
@@ -76,10 +74,10 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("register-node", "Register a node", "", &registerNodeOptions); err != nil {
 		return nil, fmt.Errorf("could not add register-node command: %s", err)
 	}
-	if _, err := parser.AddCommand("add-node-to-network", "Add a node to the network", "", &adminOptions); err != nil {
+	if _, err := parser.AddCommand("add-node-to-network", "Add a node to the network", "", &networkAdminOptions); err != nil {
 		return nil, fmt.Errorf("could not add add-node-to-network command: %s", err)
 	}
-	if _, err := parser.AddCommand("remove-node-from-network", "Remove a node from the network", "", &adminOptions); err != nil {
+	if _, err := parser.AddCommand("remove-node-from-network", "Remove a node from the network", "", &networkAdminOptions); err != nil {
 		return nil, fmt.Errorf("could not add remove-node-from-network command: %s", err)
 	}
 	if _, err := parser.AddCommand("migrate-nodes", "Migrate nodes from a file", "", &migrateNodesOptions); err != nil {
@@ -125,11 +123,10 @@ func parseOptions(args []string) (*CLI, error) {
 	return &CLI{
 		options,
 		parser.Active.Name,
-		adminOptions,
-		nodeManagerOptions,
 		getPubKeyOptions,
 		generateKeyOptions,
 		registerNodeOptions,
+		networkAdminOptions,
 		getAllNodesOptions,
 		getNodeOptions,
 		setHttpAddressOptions,
@@ -258,7 +255,7 @@ func addNodeToNetwork(logger *zap.Logger, options *CLI) {
 	registryAdmin, err := setupRegistryAdmin(
 		ctx,
 		logger,
-		options.AdminOptions.AdminPrivateKey,
+		options.NetworkAdminOptions.AdminOptions.AdminPrivateKey,
 		options.Contracts.ChainID,
 		options,
 	)
@@ -268,7 +265,7 @@ func addNodeToNetwork(logger *zap.Logger, options *CLI) {
 
 	err = registryAdmin.AddToNetwork(
 		ctx,
-		options.AdminOptions.NodeId,
+		options.NetworkAdminOptions.NodeId,
 	)
 	if err != nil {
 		logger.Fatal("could not add node to network", zap.Error(err))
@@ -280,7 +277,7 @@ func removeNodeFromNetwork(logger *zap.Logger, options *CLI) {
 	registryAdmin, err := setupRegistryAdmin(
 		ctx,
 		logger,
-		options.AdminOptions.AdminPrivateKey,
+		options.NetworkAdminOptions.AdminOptions.AdminPrivateKey,
 		options.Contracts.ChainID,
 		options,
 	)
@@ -290,7 +287,7 @@ func removeNodeFromNetwork(logger *zap.Logger, options *CLI) {
 
 	err = registryAdmin.RemoveFromNetwork(
 		ctx,
-		options.AdminOptions.NodeId,
+		options.NetworkAdminOptions.NodeId,
 	)
 	if err != nil {
 		logger.Fatal("could not remove node from network", zap.Error(err))
@@ -429,7 +426,7 @@ func setHttpAddress(logger *zap.Logger, options *CLI) {
 
 	err = registryAdmin.SetHttpAddress(
 		ctx,
-		options.NodeManagerOptions.NodeId,
+		options.SetHttpAddress.NodeId,
 		options.SetHttpAddress.Address,
 	)
 	if err != nil {
@@ -456,7 +453,7 @@ func setMinMonthlyFee(logger *zap.Logger, options *CLI) {
 
 	err = registryAdmin.SetMinMonthlyFee(
 		ctx,
-		options.NodeManagerOptions.NodeId,
+		options.SetMinMonthlyFee.NodeId,
 		options.SetMinMonthlyFee.MinMonthlyFeeMicroDollars,
 	)
 	if err != nil {

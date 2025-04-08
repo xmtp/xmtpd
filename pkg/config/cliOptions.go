@@ -5,21 +5,24 @@ type GlobalOptions struct {
 	Log       LogOptions       `group:"Log Options"       namespace:"log"`
 }
 
-type AdminOptions struct {
+// NodeRegistryAdminOptions is the options for the node registry admin.
+// It is intended to be used as a namespace inside a command option struct.
+type NodeRegistryAdminOptions struct {
 	AdminPrivateKey string `long:"private-key" description:"Private key of the admin to administer the node" required:"true"`
-	NodeId          int64  `long:"node-id"     description:"NodeId of the node to administer"`
 }
 
-type NodeManagerOptions struct {
+// NodeRegistryManagerOptions is the options for the node registry manager.
+// It is intended to be used as a namespace inside a command option struct.
+type NodeRegistryManagerOptions struct {
 	NodePrivateKey string `long:"manager-private-key" description:"Private key of the node manager"`
 	NodeId         int64  `long:"node-id"             description:"NodeId of the node to administer"`
 }
 
-type NodeOperatorOptions struct {
-	NodePrivateKey string `long:"node-private-key" description:"Private key of the node to administer"`
-	NodeId         int64  `long:"node-id"          description:"NodeId of the node to administer"`
-	Enable         bool   `long:"enable"           description:"Enable the node"`
-}
+/*
+*
+Command options
+*
+*/
 
 type GenerateKeyOptions struct{}
 
@@ -32,8 +35,8 @@ type GetNodeOptions struct {
 }
 
 type MigrateNodesOptions struct {
-	AdminOptions AdminOptions `group:"Admin Options" namespace:"admin"`
-	InFile       string       `                                        long:"in-file" description:"File to read the nodes from"`
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	InFile       string                   `                                        long:"in-file" description:"File to read the nodes from"`
 }
 
 type GetPubKeyOptions struct {
@@ -49,36 +52,38 @@ type AddRatesOptions struct {
 	DelayDays       uint   `long:"delay-days"        description:"Delay the rates going into effect for N days"    default:"0"`
 }
 
-type UpdateHealthOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
-	NodeId          int64  `long:"node-id"           description:"NodeId to update"`
+type RegisterNodeOptions struct {
+	AdminOptions              NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	HttpAddress               string                   `                                        long:"http-address"                  description:"HTTP address to register for the node"                            required:"true"`
+	OwnerAddress              string                   `                                        long:"node-owner-address"            description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
+	SigningKeyPub             string                   `                                        long:"node-signing-key-pub"          description:"Signing key of the node to register"                              required:"true"`
+	MinMonthlyFeeMicroDollars int64                    `                                        long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"                         required:"false"`
+	Force                     bool                     `                                        long:"force"                         description:"Register even if pubkey already exists"                           required:"false"`
 }
 
-type RegisterNodeOptions struct {
-	AdminOptions              AdminOptions `group:"Admin Options" namespace:"admin"`
-	HttpAddress               string       `                                        long:"http-address"                  description:"HTTP address to register for the node"                            required:"true"`
-	OwnerAddress              string       `                                        long:"node-owner-address"            description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
-	SigningKeyPub             string       `                                        long:"node-signing-key-pub"          description:"Signing key of the node to register"                              required:"true"`
-	MinMonthlyFeeMicroDollars int64        `                                        long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"                         required:"false"`
-	Force                     bool         `                                        long:"force"                         description:"Register even if pubkey already exists"                           required:"false"`
+type NetworkAdminOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	NodeId       int64                    `                                        long:"node-id" description:"NodeId to add to the network"`
 }
 
 type SetHttpAddressOptions struct {
-	NodeManagerOptions NodeManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
-	Address            string             `                                                      long:"address" description:"New HTTP address"`
+	NodeManagerOptions NodeRegistryManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
+	Address            string                     `                                                      long:"address" description:"New HTTP address"`
+	NodeId             int64                      `                                                      long:"node-id" description:"NodeId to add to the network"`
 }
 
 type SetMinMonthlyFeeOptions struct {
-	NodeManagerOptions        NodeManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
-	MinMonthlyFeeMicroDollars int64              `                                                      long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"`
+	NodeManagerOptions        NodeRegistryManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
+	MinMonthlyFeeMicroDollars int64                      `                                                      long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"`
+	NodeId                    int64                      `                                                      long:"node-id"                       description:"NodeId to add to the network"`
 }
 
 type SetMaxActiveNodesOptions struct {
-	AdminOptions   AdminOptions `group:"Admin Options" namespace:"admin"`
-	MaxActiveNodes uint8        `                                        long:"max-active-nodes" description:"Maximum number of active nodes"`
+	AdminOptions   NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	MaxActiveNodes uint8                    `                                        long:"max-active-nodes" description:"Maximum number of active nodes"`
 }
 
 type SetNodeOperatorCommissionPercentOptions struct {
-	AdminOptions      AdminOptions `group:"Admin Options" namespace:"admin"`
-	CommissionPercent int64        `                                        long:"commission-percent" description:"Commission percent to set for the node operator"`
+	AdminOptions      NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	CommissionPercent int64                    `                                        long:"commission-percent" description:"Commission percent to set for the node operator"`
 }

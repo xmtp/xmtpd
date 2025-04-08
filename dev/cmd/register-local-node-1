@@ -18,7 +18,7 @@ NODE_ID=$(dev/cmd/cli register-node \
     --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY | jq -r '.node_id')
 
 dev/cmd/cli add-node-to-network \
-    --private-key=${PRIVATE_KEY} \
+    --admin.private-key=${PRIVATE_KEY} \
     --node-id=${NODE_ID}
 
 echo -e "\033[32m✔\033[0m Node with ID $NODE_ID has been registered and enabled\n"

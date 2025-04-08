@@ -23,7 +23,11 @@ services:
     env_file:
       - ../local.env
     command:
-      ["add-node-to-network", "--private-key=${PRIVATE_KEY}", "--node-id=100"]
+      [
+        "add-node-to-network",
+        "--admin.private-key=${PRIVATE_KEY}",
+        "--node-id=100",
+      ]
     depends_on:
       register-node-1:
         condition: service_completed_successfully
@@ -57,7 +61,11 @@ services:
     env_file:
       - ../local.env
     command:
-      ["add-node-to-network", "--private-key=${PRIVATE_KEY}", "--node-id=200"]
+      [
+        "add-node-to-network",
+        "--admin.private-key=${PRIVATE_KEY}",
+        "--node-id=200",
+      ]
     depends_on:
       register-node-2:
         condition: service_completed_successfully

@@ -90,6 +90,6 @@ VALUES (
 		@nodes_leaf_count
 	) ON CONFLICT (id) DO NOTHING;
 
--- name: InsertPayerReportAttestation :exec
+-- name: InsertOrIgnorePayerReportAttestation :exec
 INSERT INTO payer_report_attestations (payer_report_id, node_id, signature)
 VALUES (@payer_report_id, @node_id, @signature) ON CONFLICT (payer_report_id, node_id) DO NOTHING;

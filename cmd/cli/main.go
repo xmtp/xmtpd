@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
@@ -268,7 +269,12 @@ func addNodeToNetwork(logger *zap.Logger, options *CLI) {
 		options.NetworkAdminOptions.NodeId,
 	)
 	if err != nil {
-		logger.Fatal("could not add node to network", zap.Error(err))
+		// TODO(borja): This is a patch until NodeRegistry implements fine grain errors.
+		if strings.Contains(err.Error(), "FailedToAddNodeToCanonicalNetwork") {
+			logger.Info("node already in network")
+		} else {
+			logger.Fatal("could not add node to network", zap.Error(err))
+		}
 	}
 }
 

@@ -50,3 +50,4 @@ contracts/config/anvil_localnet/*
 
 .env
 .version
+.wake

@@ -10,9 +10,9 @@ import (
 
 // Guaranteed to be in order of increasing version
 var (
-	// contracts v0.3.0 are not compatible with xmtpd v0.2.X
-	// re-enable this test when we have a xmtpd compatible release.
-	xmtpdVersions = []string{}
+	xmtpdVersions = []string{
+		"0.3.0",
+	}
 
 	ghcrRepository = "ghcr.io/xmtp/xmtpd"
 )

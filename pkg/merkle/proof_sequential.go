@@ -17,7 +17,6 @@ type GetRootSequentiallyParams struct {
 func (m *MerkleTree) GenerateMultiProofSequential(
 	startingIndex, count int,
 ) (*MultiProof, error) {
-
 	// Check if the range is valid
 	if startingIndex < 0 || startingIndex+count > m.leafCount {
 		return nil, fmt.Errorf(
@@ -28,36 +27,32 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 		)
 	}
 
-	// Extract elements at the specified indices
-	elements := make([][]byte, count)
-	for i := 0; i < count; i++ {
-		elements[i] = m.elements[startingIndex+i]
-	}
-
 	// Generate sequential indices
 	indices := make([]int, count)
 	for i := 0; i < count; i++ {
 		indices[i] = startingIndex + i
 	}
 
-	// Generate the proof
-	proof, err := generateSequentialProof(
-		m.tree,
-		m.leafCount,
-		startingIndex,
-		count,
-	)
+	// Extract elements at the specified indices
+	elements := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		elements[i] = m.elements[startingIndex+i]
+	}
+
+	// Use the existing generateProof function
+	proof, err := generateProof(m.tree, indices, m.leafCount)
 	if err != nil {
 		return nil, err
 	}
 
+	// Include the elements
 	result := &MultiProof{
-		Root:          proof.Root,
 		Elements:      elements,
-		Indices:       indices,
+		Proofs:        proof.Proofs,
+		Root:          proof.Root,
+		Indices:       proof.Indices,
 		StartingIndex: startingIndex,
 		ElementCount:  m.leafCount,
-		Proofs:        proof.Proofs,
 	}
 
 	return result, nil
@@ -248,90 +243,4 @@ func getRootSequentially(params GetRootSequentiallyParams) []byte {
 			upperBound >>= 1
 		}
 	}
-}
-
-// generateSequentialProof generates a proof for sequential leaves
-func generateSequentialProof(
-	tree [][]byte,
-	elementCount, startingIndex, count int,
-) (MultiProof, error) {
-	// Validate parameters
-	if startingIndex < 0 || count <= 0 || startingIndex+count > elementCount {
-		return MultiProof{}, fmt.Errorf(
-			"invalid range: startingIndex=%d, count=%d, elementCount=%d",
-			startingIndex,
-			count,
-			elementCount,
-		)
-	}
-
-	balancedLeafCount := int(roundUpToPowerOf2(uint32(elementCount)))
-	known := make([]bool, len(tree))
-
-	// Mark indices as known
-	for i := 0; i < count; i++ {
-		idx := startingIndex + i
-		if idx < elementCount {
-			known[balancedLeafCount+idx] = true
-		}
-	}
-
-	var proofs [][]byte
-
-	// Calculate proofs
-	for i := balancedLeafCount - 1; i > 0; i-- {
-		leftChildIndex := i << 1
-		rightChildIndex := leftChildIndex + 1
-
-		// Check if children are valid indices
-		if leftChildIndex >= len(tree) || rightChildIndex >= len(tree) {
-			continue
-		}
-
-		left := known[leftChildIndex]
-		right := known[rightChildIndex]
-
-		// Only one of children would be known, so we need the sibling as a proof
-		if left != right {
-			if right {
-				proofs = append(proofs, cloneBuffer(tree[leftChildIndex]))
-			} else {
-				proofs = append(proofs, cloneBuffer(tree[rightChildIndex]))
-			}
-		}
-
-		// If at least one of the children is known, the parent is known
-		known[i] = left || right
-	}
-
-	// Filter out nil proofs
-	filteredProofs := make([][]byte, 0, len(proofs))
-	for _, d := range proofs {
-		if d != nil {
-			filteredProofs = append(filteredProofs, d)
-		}
-	}
-
-	// Special case for empty proofs:
-	// If all sequential elements are provided, we still need at least one proof for verification
-	if len(filteredProofs) == 0 && count < elementCount {
-		// Add a sentinel proof (using the root itself)
-		// This isn't ideal but allows verification to proceed
-		if tree[0] != nil {
-			filteredProofs = append(filteredProofs, cloneBuffer(tree[0]))
-		}
-	}
-
-	// Get the root for verification
-	var root []byte
-	if tree[0] != nil {
-		root = cloneBuffer(tree[0])
-	}
-
-	return MultiProof{
-		Root:          root,
-		ElementCount:  elementCount,
-		Proofs:        filteredProofs,
-		StartingIndex: startingIndex,
-	}, nil
 }

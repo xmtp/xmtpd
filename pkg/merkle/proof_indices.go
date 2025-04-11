@@ -34,11 +34,12 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 	}
 
 	result := &MultiProof{
-		Root:         proof.Root,
-		Elements:     elements,
-		Indices:      indices,
-		ElementCount: m.leafCount,
-		Proofs:       proof.Proofs,
+		Elements:      elements,
+		Proofs:        proof.Proofs,
+		Root:          proof.Root,
+		Indices:       indices,
+		StartingIndex: indices[0],
+		ElementCount:  m.leafCount,
 	}
 
 	return result, nil
@@ -253,35 +254,4 @@ func getRootIndices(params GetRootParams) []byte {
 			upperBound >>= 1
 		}
 	}
-}
-
-// combineLeaves combines a set of leaf nodes into a single root hash
-func combineLeaves(leaves [][]byte) []byte {
-	if len(leaves) == 0 {
-		return nil
-	}
-
-	if len(leaves) == 1 {
-		return leaves[0]
-	}
-
-	// Create a balanced tree
-	level := leaves
-	for len(level) > 1 {
-		nextLevel := make([][]byte, 0, (len(level)+1)/2)
-
-		for i := 0; i < len(level); i += 2 {
-			if i+1 < len(level) {
-				// Combine pairs
-				nextLevel = append(nextLevel, HashNode(level[i], level[i+1]))
-			} else {
-				// Odd node out - propagate up
-				nextLevel = append(nextLevel, level[i])
-			}
-		}
-
-		level = nextLevel
-	}
-
-	return level[0]
 }

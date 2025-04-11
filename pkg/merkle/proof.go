@@ -1,21 +1,17 @@
 package merkle
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 )
 
 type MultiProof struct {
-	// Common fields for all proofs
-	Root         []byte
-	Elements     [][]byte
-	Indices      []int
-	ElementCount int
-	Proofs       [][]byte
-
-	// Optional field for sequential proofs
+	Elements      [][]byte
+	Proofs        [][]byte
+	Root          []byte
+	Indices       []int
 	StartingIndex int
+	ElementCount  int
 }
 
 // generateProof returns a MultiProof for the given indices.
@@ -24,32 +20,20 @@ func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, 
 		return MultiProof{}, fmt.Errorf("indices cannot be empty")
 	}
 
-	// Check for out-of-bounds indices
-	for _, index := range indices {
-		if index < 0 || index >= elementCount {
-			return MultiProof{}, fmt.Errorf(
-				"index %d is out of range [0, %d)",
-				index,
-				elementCount,
-			)
-		}
-	}
-
-	// Create a copy of indices to avoid modifying the original
 	idxs := make([]int, len(indices))
 	copy(idxs, indices)
-
-	// Sort indices to ensure consistent processing
 	sort.Ints(idxs)
 
-	// Mark indices as known
-	for i, idx := range idxs {
-		if i > 0 && idxs[i-1] >= idx {
-			return MultiProof{}, errors.New("indices must be in ascending order")
-		}
+	if hasDuplicates(idxs) {
+		return MultiProof{}, fmt.Errorf("found duplicate indices")
+	}
+
+	if hasOutOfBounds(idxs, elementCount) {
+		return MultiProof{}, fmt.Errorf("found indices out of range")
 	}
 
 	leafCount := len(tree) >> 1
+
 	known := make([]bool, len(tree))
 	var proofs [][]byte
 
@@ -108,7 +92,57 @@ func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, 
 	}, nil
 }
 
-// Helper function to clone a byte buffer
+// hasDuplicates checks if the sorted indices slice contains duplicates.
+func hasDuplicates(sortedIndices []int) bool {
+	for i := 1; i < len(sortedIndices); i++ {
+		if sortedIndices[i] == sortedIndices[i-1] {
+			return true
+		}
+	}
+	return false
+}
+
+// hasOutOfBounds checks if all indices are within the valid range [0, elementCount).
+func hasOutOfBounds(indices []int, elementCount int) bool {
+	for _, idx := range indices {
+		if idx < 0 || idx >= elementCount {
+			return true
+		}
+	}
+	return false
+}
+
+// combineLeaves combines a set of leaf nodes into a single root hash.
+func combineLeaves(leaves [][]byte) []byte {
+	if len(leaves) == 0 {
+		return nil
+	}
+
+	if len(leaves) == 1 {
+		return leaves[0]
+	}
+
+	// Create a balanced tree
+	level := leaves
+	for len(level) > 1 {
+		nextLevel := make([][]byte, 0, (len(level)+1)/2)
+
+		for i := 0; i < len(level); i += 2 {
+			if i+1 < len(level) {
+				// Combine pairs
+				nextLevel = append(nextLevel, HashNode(level[i], level[i+1]))
+			} else {
+				// Odd node out - propagate up
+				nextLevel = append(nextLevel, level[i])
+			}
+		}
+
+		level = nextLevel
+	}
+
+	return level[0]
+}
+
 func cloneBuffer(buffer []byte) []byte {
 	if buffer == nil {
 		return nil

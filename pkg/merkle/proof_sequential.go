@@ -5,14 +5,6 @@ import (
 	"fmt"
 )
 
-// GetRootSequentiallyParams holds parameters for sequential root computation.
-type GetRootSequentiallyParams struct {
-	StartingIndex int
-	Leafs         [][]byte
-	ElementCount  int
-	Proofs        [][]byte
-}
-
 // GenerateMultiProofSequential generates a sequential multi-proof starting from the given index
 func (m *MerkleTree) GenerateMultiProofSequential(
 	startingIndex, count int,
@@ -106,21 +98,14 @@ func VerifyMultiProofSequential(proof MultiProof) bool {
 		leafs[i] = HashLeaf(element)
 	}
 
-	// Prepare parameters for GetRootSequentially
-	getRootParams := GetRootSequentiallyParams{
-		StartingIndex: proof.StartingIndex,
-		Leafs:         leafs,
-		ElementCount:  proof.ElementCount,
-		Proofs:        proof.Proofs,
-	}
-
 	// Compute the root
-	result := getRootSequentially(getRootParams)
+	result := getRootSequentially(leafs, proof.Proofs, proof.StartingIndex, proof.ElementCount)
 
 	// Handle nil cases
 	if proof.Root == nil {
 		return false
 	}
+
 	if result == nil {
 		return false
 	}
@@ -130,20 +115,17 @@ func VerifyMultiProofSequential(proof MultiProof) bool {
 }
 
 // getRootSequentially computes the root given sequential leafs and proofs.
-func getRootSequentially(params GetRootSequentiallyParams) []byte {
+func getRootSequentially(leafs [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte {
 	// Validate input parameters
-	if params.StartingIndex < 0 || len(params.Leafs) == 0 {
+	if startingIndex < 0 || len(leafs) == 0 {
 		return nil
 	}
 
 	// Ensure starting index and count are within bounds
-	count := len(params.Leafs)
-	if params.StartingIndex+count > params.ElementCount {
+	count := len(leafs)
+	if startingIndex+count > elementCount {
 		return nil
 	}
-
-	elementCount := params.ElementCount
-	proofs := params.Proofs
 
 	// Validate proofs
 	if len(proofs) == 0 {
@@ -158,14 +140,14 @@ func getRootSequentially(params GetRootSequentiallyParams) []byte {
 
 	// Initialize hashes queue
 	for i := 0; i < count; i++ {
-		hashes[count-1-i] = cloneBuffer(params.Leafs[i])
+		hashes[count-1-i] = cloneBuffer(leafs[i])
 	}
 
 	readIndex := 0
 	writeIndex := 0
 	proofIndex := 0
 	upperBound := balancedLeafCount + elementCount - 1
-	lowestTreeIndex := balancedLeafCount + params.StartingIndex
+	lowestTreeIndex := balancedLeafCount + startingIndex
 
 	var nodeIndex, nextNodeIndex int
 

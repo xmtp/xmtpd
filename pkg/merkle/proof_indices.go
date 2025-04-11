@@ -6,14 +6,6 @@ import (
 	"sort"
 )
 
-// GetRootParams holds parameters for computing the root
-type GetRootParams struct {
-	Leafs        [][]byte
-	Indices      []int
-	ElementCount int
-	Proofs       [][]byte
-}
-
 // GenerateMultiProofWithIndices generates a multi-proof for the given indices
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
 	for _, index := range indices {
@@ -99,16 +91,8 @@ func VerifyMultiProofWithIndices(proof MultiProof) bool {
 		leafs[i] = HashLeaf(element)
 	}
 
-	// Prepare parameters for GetRoot
-	getRootParams := GetRootParams{
-		Leafs:        leafs,
-		Indices:      proof.Indices,
-		ElementCount: proof.ElementCount,
-		Proofs:       proof.Proofs,
-	}
-
 	// Compute the root
-	result := getRootIndices(getRootParams)
+	result := getRootIndices(leafs, proof.Indices, proof.ElementCount, proof.Proofs)
 
 	// Handle nil cases
 	if proof.Root == nil {
@@ -123,20 +107,17 @@ func VerifyMultiProofWithIndices(proof MultiProof) bool {
 }
 
 // getRootIndices computes the root given the leaves, their indices, and proofs
-func getRootIndices(params GetRootParams) []byte {
-	elementCount := params.ElementCount
-	proofs := params.Proofs
-
+func getRootIndices(leafs [][]byte, indices []int, elementCount int, proofs [][]byte) []byte {
 	// Ensure indices are valid
-	for _, index := range params.Indices {
+	for _, index := range indices {
 		if index < 0 || index >= elementCount {
 			return nil
 		}
 	}
 
 	// Validate input
-	if len(params.Leafs) == 0 || len(params.Indices) == 0 ||
-		len(params.Leafs) != len(params.Indices) {
+	if len(leafs) == 0 || len(indices) == 0 ||
+		len(leafs) != len(indices) {
 		return nil
 	}
 
@@ -144,13 +125,13 @@ func getRootIndices(params GetRootParams) []byte {
 	indexLeafPairs := make([]struct {
 		Index int
 		Leaf  []byte
-	}, len(params.Indices))
+	}, len(indices))
 
-	for i, index := range params.Indices {
+	for i, index := range indices {
 		indexLeafPairs[i] = struct {
 			Index int
 			Leaf  []byte
-		}{Index: index, Leaf: params.Leafs[i]}
+		}{Index: index, Leaf: leafs[i]}
 	}
 
 	sort.Slice(indexLeafPairs, func(i, j int) bool {

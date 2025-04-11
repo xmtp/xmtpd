@@ -36,12 +36,12 @@ func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
 	}, nil
 }
 
-// Tree returns the tree of the Merkle tree.
+// Tree returns the 1-indexed representation of the Merkle tree.
 func (m *MerkleTree) Tree() [][]byte {
 	return m.tree
 }
 
-// Elements returns the elements of the Merkle tree.
+// Elements returns the raw elements of the Merkle tree.
 func (m *MerkleTree) Elements() [][]byte {
 	return m.elements
 }
@@ -73,7 +73,7 @@ func (m *MerkleTree) LeafCount() int {
 // - parent is at floor(i/2)
 func buildTree(leaves [][]byte) ([][]byte, int) {
 	depth := getDepth(uint32(len(leaves)))
-	leafCount := getLeafCount(len(leaves))
+	leafCount := GetLeafCount(len(leaves))
 
 	// Allocate 2N space for the tree. (N leaf nodes, N-1 internal nodes)
 	tree := make([][]byte, leafCount<<1)
@@ -89,7 +89,7 @@ func buildTree(leaves [][]byte) ([][]byte, int) {
 	// Build the tree.
 	// Start from the last internal node and work our way up to the root.
 	for i := leafCount - 1; i >= 0; i-- {
-		leftChildIndex := getLeftChild(i)
+		leftChildIndex := GetLeftChild(i)
 
 		if leftChildIndex > upperBound {
 			continue
@@ -101,7 +101,7 @@ func buildTree(leaves [][]byte) ([][]byte, int) {
 			upperBound >>= 1
 		}
 
-		rightChildIndex := getRightChild(i)
+		rightChildIndex := GetRightChild(i)
 
 		// Hash both children if they exist.
 		// If only left children exists, use it.
@@ -121,41 +121,43 @@ func getDepth(n uint32) int {
 	if n <= 1 {
 		return 0
 	}
-	// Round up to next power of 2 if not already a power of 2
+
+	// Round up to next power of 2 if not already a power of 2.
 	if bits.OnesCount32(n) > 1 {
 		n = roundUpToPowerOf2(n)
 	}
-	// bits.Len32 gives position of highest bit + 1
+
+	// bits.Len32 gives position of highest bit + 1.
 	return bits.Len32(n) - 1
 }
 
-// getLeafCount returns the number of leaves in a tree.
-func getLeafCount(elementCount int) int {
+// GetLeafCount returns the number of leaves in a tree.
+func GetLeafCount(elementCount int) int {
 	return int(roundUpToPowerOf2(uint32(elementCount)))
 }
 
 // roundUpToPowerOf2 rounds up a number to the next power of 2.
 // Rounding up to the next power of 2 is necessary to ensure that the tree is balanced.
-func roundUpToPowerOf2(number uint32) uint32 {
-	if bits.OnesCount32(number) == 1 {
-		return number
+func roundUpToPowerOf2(n uint32) uint32 {
+	if bits.OnesCount32(n) == 1 {
+		return n
 	}
 
-	number |= number >> 1
-	number |= number >> 2
-	number |= number >> 4
-	number |= number >> 8
-	number |= number >> 16
+	n |= n >> 1
+	n |= n >> 2
+	n |= n >> 4
+	n |= n >> 8
+	n |= n >> 16
 
-	return number + 1
+	return n + 1
 }
 
-// getLeftChild returns the index of the left child for a node at the given index
-func getLeftChild(index int) int {
+// GetLeftChild returns the index of the left child for a node at the given index
+func GetLeftChild(index int) int {
 	return index << 1 // index * 2
 }
 
-// getRightChild returns the index of the right child for a node at the given index
-func getRightChild(index int) int {
+// GetRightChild returns the index of the right child for a node at the given index
+func GetRightChild(index int) int {
 	return (index << 1) + 1 // index * 2 + 1
 }

@@ -1,18 +1,17 @@
 package merkle
 
 import (
-	"fmt"
 	"sort"
 )
 
 // GenerateMultiProofWithIndices generates a multi-proof for the given indices
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
 	if hasDuplicates(indices) {
-		return nil, fmt.Errorf("found duplicate indices")
+		return nil, ErrProofDuplicateIndices
 	}
 
 	if hasOutOfBounds(indices, m.leafCount) {
-		return nil, fmt.Errorf("found indices out of range")
+		return nil, ErrProofIndicesOutOfBounds
 	}
 
 	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
@@ -20,22 +19,18 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 		return nil, err
 	}
 
-	// Extract elements at the specified indices.
-	// They are provided in the proof.
-	elements := make([][]byte, len(indices))
-	for i, index := range indices {
+	elements := make([][]byte, len(proof.Indices))
+	for i, index := range proof.Indices {
 		elements[i] = m.elements[index]
 	}
-
-	sort.Ints(indices)
 
 	result := &MultiProof{
 		Elements:      elements,
 		Proofs:        proof.Proofs,
 		Root:          proof.Root,
-		Indices:       indices,
-		StartingIndex: indices[0],
-		ElementCount:  m.leafCount,
+		Indices:       proof.Indices,
+		StartingIndex: proof.Indices[0],
+		ElementCount:  proof.ElementCount,
 	}
 
 	return result, nil
@@ -187,20 +182,18 @@ func getRootIndices(leafs [][]byte, indices []int, elementCount int, proofs [][]
 // validateProofIndices validates a proof with arbitrary indices.
 // It handles specific validation for non-sequential proofs.
 func validateProofIndices(proof *MultiProof) error {
-	// Run common validation first
 	if err := validateProofBase(proof); err != nil {
 		return err
 	}
 
-	// Indices validation
 	if len(proof.Indices) != len(proof.Elements) {
-		return fmt.Errorf("indices count doesn't match elements count")
+		return ErrProofInvalidElementCount
 	}
 
 	// Check for out-of-bounds indices
 	for _, idx := range proof.Indices {
 		if idx < 0 || idx >= proof.ElementCount {
-			return fmt.Errorf("index %d is out of range [0, %d)", idx, proof.ElementCount)
+			return ErrProofIndicesOutOfBounds
 		}
 	}
 
@@ -212,7 +205,7 @@ func validateProofIndices(proof *MultiProof) error {
 
 	for i := 1; i < len(sortedIndices); i++ {
 		if sortedIndices[i] == sortedIndices[i-1] {
-			return fmt.Errorf("duplicate index found: %d", sortedIndices[i])
+			return ErrProofDuplicateIndices
 		}
 	}
 

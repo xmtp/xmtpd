@@ -1,20 +1,11 @@
 package merkle
 
-import (
-	"fmt"
-)
-
 // GenerateMultiProofSequential generates a sequential multi-proof starting from the given index.
 func (m *MerkleTree) GenerateMultiProofSequential(
 	startingIndex, count int,
 ) (*MultiProof, error) {
 	if startingIndex < 0 || startingIndex+count > m.leafCount {
-		return nil, fmt.Errorf(
-			"invalid range: startingIndex=%d, count=%d, elementCount=%d",
-			startingIndex,
-			count,
-			m.leafCount,
-		)
+		return nil, ErrProofInvalidRange
 	}
 
 	indices := make([]int, count)
@@ -27,8 +18,6 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 		return nil, err
 	}
 
-	// Extract elements at the specified indices.
-	// They are provided in the proof.
 	elements := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		elements[i] = m.elements[startingIndex+i]
@@ -39,8 +28,8 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 		Proofs:        proof.Proofs,
 		Root:          proof.Root,
 		Indices:       proof.Indices,
-		StartingIndex: startingIndex,
-		ElementCount:  m.leafCount,
+		StartingIndex: proof.Indices[0],
+		ElementCount:  proof.ElementCount,
 	}
 
 	return result, nil
@@ -170,38 +159,16 @@ func getRootSequentially(leafs [][]byte, proofs [][]byte, startingIndex, element
 // validateProofSequential validates a sequential proof.
 // It handles specific validation for sequential proofs.
 func validateProofSequential(proof *MultiProof) error {
-	// Run common validation first
 	if err := validateProofBase(proof); err != nil {
 		return err
 	}
 
-	// Sequential range validation
 	if proof.StartingIndex < 0 {
-		return fmt.Errorf("invalid starting index: %d", proof.StartingIndex)
+		return ErrProofInvalidStartingIndex
 	}
 
 	if proof.StartingIndex+len(proof.Elements) > proof.ElementCount {
-		return fmt.Errorf(
-			"invalid range: startingIndex=%d, count=%d, elementCount=%d",
-			proof.StartingIndex,
-			len(proof.Elements),
-			proof.ElementCount,
-		)
-	}
-
-	// Optional: validate indices if present in the proof
-	if len(proof.Indices) > 0 {
-		if len(proof.Indices) != len(proof.Elements) {
-			return fmt.Errorf("indices count doesn't match elements count")
-		}
-
-		// For sequential proofs, indices should follow the sequence
-		for i, idx := range proof.Indices {
-			expectedIdx := proof.StartingIndex + i
-			if idx != expectedIdx {
-				return fmt.Errorf("indices[%d] = %d, expected %d", i, idx, expectedIdx)
-			}
-		}
+		return ErrProofInvalidRange
 	}
 
 	return nil

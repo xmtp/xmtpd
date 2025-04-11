@@ -17,15 +17,18 @@ type MultiProof struct {
 }
 
 var (
+	ErrProofEmptyTree            = errors.New("proof has empty tree")
+	ErrProofEmptyIndices         = errors.New("proof has empty indices")
+	ErrProofDuplicateIndices     = errors.New("proof has duplicate indices")
+	ErrProofIndicesOutOfBounds   = errors.New("proof has indices out of bounds")
+	ErrProofInvalidStartingIndex = errors.New("proof has invalid starting index")
+	ErrProofInvalidElementCount  = errors.New("proof has invalid element count")
+	ErrProofInvalidRange         = errors.New("proof has invalid range")
+	ErrProofNil                  = errors.New("proof is nil")
 	ErrProofNilRoot              = errors.New("proof root cannot be nil")
 	ErrProofNoElements           = errors.New("proof has no elements")
 	ErrProofNoIndices            = errors.New("proof has no indices")
 	ErrProofNoProofs             = errors.New("proof has no proofs")
-	ErrProofInvalidStartingIndex = errors.New("proof has invalid starting index")
-	ErrProofInvalidElementCount  = errors.New("proof has invalid element count")
-	ErrProofInvalidRange         = errors.New("proof has invalid range")
-	ErrProofEmptyTree            = errors.New("proof has empty tree")
-	ErrProofEmptyIndices         = errors.New("proof has empty indices")
 )
 
 // generateProof returns a MultiProof for the given indices.
@@ -73,8 +76,8 @@ func generateProof(
 
 	// Calculate proofs to prove the existence of the indices.
 	for i := leafCount - 1; i > 0; i-- {
-		leftChildIdx := getLeftChild(i)
-		rightChildIdx := getRightChild(i)
+		leftChildIdx := GetLeftChild(i)
+		rightChildIdx := GetRightChild(i)
 
 		left := known[leftChildIdx]
 		right := known[rightChildIdx]
@@ -150,16 +153,20 @@ func verifyProof(
 // validateProofBase performs common validation for all types of Merkle proofs.
 // This covers the validation requirements shared between indices and sequential proofs.
 func validateProofBase(proof *MultiProof) error {
+	if proof == nil {
+		return ErrProofNil
+	}
+
 	if proof.Root == nil {
-		return fmt.Errorf("proof has nil root")
+		return ErrProofNilRoot
 	}
 
 	if len(proof.Elements) == 0 {
-		return fmt.Errorf("proof has no elements")
+		return ErrProofNoElements
 	}
 
 	if proof.ElementCount <= 0 {
-		return fmt.Errorf("invalid element count: %d", proof.ElementCount)
+		return ErrProofInvalidElementCount
 	}
 
 	for i, element := range proof.Elements {
@@ -170,7 +177,7 @@ func validateProofBase(proof *MultiProof) error {
 
 	if len(proof.Elements) < proof.ElementCount && proof.ElementCount > 1 {
 		if len(proof.Proofs) == 0 {
-			return fmt.Errorf("partial proof has no decommitments")
+			return ErrProofNoProofs
 		}
 
 		for i, decommitment := range proof.Proofs {

@@ -2,7 +2,6 @@ package merkle
 
 import (
 	"errors"
-	"math"
 	"math/bits"
 )
 
@@ -73,7 +72,7 @@ func (m *MerkleTree) LeafCount() int {
 // - right child is at index 2*i+1
 // - parent is at floor(i/2)
 func buildTree(leaves [][]byte) ([][]byte, int) {
-	depth := getDepth(len(leaves))
+	depth := getDepth(uint32(len(leaves)))
 	leafCount := getLeafCount(len(leaves))
 
 	// Allocate 2N space for the tree. (N leaf nodes, N-1 internal nodes)
@@ -118,8 +117,16 @@ func buildTree(leaves [][]byte) ([][]byte, int) {
 }
 
 // getDepth calculates the depth of a Merkle tree based on element count.
-func getDepth(elementCount int) int {
-	return int(math.Ceil(math.Log2(float64(elementCount))))
+func getDepth(n uint32) int {
+	if n <= 1 {
+		return 0
+	}
+	// Round up to next power of 2 if not already a power of 2
+	if bits.OnesCount32(n) > 1 {
+		n = roundUpToPowerOf2(n)
+	}
+	// bits.Len32 gives position of highest bit + 1
+	return bits.Len32(n) - 1
 }
 
 // getLeafCount returns the number of leaves in a tree.

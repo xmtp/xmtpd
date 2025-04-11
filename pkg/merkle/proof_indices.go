@@ -96,7 +96,7 @@ func getRootIndices(params GetRootParams) GetRootResult {
 	}
 
 	// Original GetRoot implementation using balanced tree
-	balancedLeafCount := int(RoundUpToPowerOf2(uint32(elementCount)))
+	balancedLeafCount := int(roundUpToPowerOf2(uint32(elementCount)))
 
 	// Prepare circular queues
 	count := len(sortedIndices)

@@ -155,7 +155,7 @@ func getRootSequentially(params GetRootSequentiallyParams) GetRootResult {
 		return GetRootResult{Root: nil}
 	}
 
-	balancedLeafCount := int(RoundUpToPowerOf2(uint32(elementCount)))
+	balancedLeafCount := int(roundUpToPowerOf2(uint32(elementCount)))
 
 	// Prepare circular queues
 	treeIndices := make([]int, count)
@@ -268,7 +268,7 @@ func generateSequentialProof(
 		)
 	}
 
-	balancedLeafCount := int(RoundUpToPowerOf2(uint32(elementCount)))
+	balancedLeafCount := int(roundUpToPowerOf2(uint32(elementCount)))
 	known := make([]bool, len(tree))
 
 	// Mark indices as known

@@ -6,31 +6,26 @@ import (
 	"sort"
 )
 
-// GetRootParams holds parameters for computing the root
-type GetRootParams struct {
-	Leafs        [][]byte
-	Indices      []int
-	ElementCount int
-	Proofs       [][]byte
-}
-
 // GenerateMultiProofWithIndices generates a multi-proof for the given indices
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
-	for _, index := range indices {
-		if index < 0 || index >= m.leafCount {
-			return nil, fmt.Errorf("index %d is out of range [0, %d)", index, m.leafCount)
-		}
+	if hasDuplicates(indices) {
+		return nil, fmt.Errorf("found duplicate indices")
 	}
 
-	// Extract elements at the specified indices
-	elements := make([][]byte, len(indices))
-	for i, index := range indices {
-		elements[i] = m.elements[index]
+	if hasOutOfBounds(indices, m.leafCount) {
+		return nil, fmt.Errorf("found indices out of range")
 	}
 
 	proof, err := generateProof(m.tree, indices, m.leafCount)
 	if err != nil {
 		return nil, err
+	}
+
+	// Extract elements at the specified indices.
+	// They are provided in the proof.
+	elements := make([][]byte, len(indices))
+	for i, index := range indices {
+		elements[i] = m.elements[index]
 	}
 
 	result := &MultiProof{
@@ -45,26 +40,13 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 	return result, nil
 }
 
-// VerifyMultiProofWithIndices verifies a multi-proof
-func VerifyMultiProofWithIndices(proof MultiProof) bool {
-	if len(proof.Elements) == 0 || len(proof.Indices) == 0 || proof.ElementCount <= 0 {
-		return false
+// TODO: Abstract VerifyMultiProofSequential and VerifyMultiProofWithIndices to use a common function.
+func VerifyMultiProofWithIndices(proof *MultiProof) (bool, error) {
+	if err := validateProofIndices(proof); err != nil {
+		return false, err
 	}
 
-	// Check if indices are valid (within bounds)
-	for _, index := range proof.Indices {
-		if index < 0 || index >= proof.ElementCount {
-			return false
-		}
-	}
-
-	// Check that we have the same number of elements as indices
-	if len(proof.Elements) != len(proof.Indices) {
-		return false
-	}
-
-	// Special case: If this is a single-element tree or we're verifying all elements,
-	// we don't need proofs
+	// Special case: If this is a single-element tree or we're verifying all elements
 	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
 		// Just verify that the proof's root matches the recalculated root
 		root := HashLeaf(proof.Elements[0])
@@ -81,16 +63,7 @@ func VerifyMultiProofWithIndices(proof MultiProof) bool {
 			root = combineLeaves(leafs)
 		}
 
-		if proof.Root == nil {
-			return false
-		}
-
-		return bytes.Equal(root, proof.Root)
-	}
-
-	// If there's no proofs for a normal case, it's invalid
-	if len(proof.Proofs) == 0 {
-		return false
+		return bytes.Equal(root, proof.Root), nil
 	}
 
 	// Hash the elements with the prefix
@@ -99,44 +72,26 @@ func VerifyMultiProofWithIndices(proof MultiProof) bool {
 		leafs[i] = HashLeaf(element)
 	}
 
-	// Prepare parameters for GetRoot
-	getRootParams := GetRootParams{
-		Leafs:        leafs,
-		Indices:      proof.Indices,
-		ElementCount: proof.ElementCount,
-		Proofs:       proof.Proofs,
-	}
-
-	// Compute the root
-	result := getRootIndices(getRootParams)
-
-	// Handle nil cases
-	if proof.Root == nil {
-		return false
-	}
+	result := getRootIndices(leafs, proof.Indices, proof.ElementCount, proof.Proofs)
 	if result == nil {
-		return false
+		return false, nil
 	}
 
-	// Verify the root matches
-	return bytes.Equal(result, proof.Root)
+	return bytes.Equal(result, proof.Root), nil
 }
 
 // getRootIndices computes the root given the leaves, their indices, and proofs
-func getRootIndices(params GetRootParams) []byte {
-	elementCount := params.ElementCount
-	proofs := params.Proofs
-
+func getRootIndices(leafs [][]byte, indices []int, elementCount int, proofs [][]byte) []byte {
 	// Ensure indices are valid
-	for _, index := range params.Indices {
+	for _, index := range indices {
 		if index < 0 || index >= elementCount {
 			return nil
 		}
 	}
 
 	// Validate input
-	if len(params.Leafs) == 0 || len(params.Indices) == 0 ||
-		len(params.Leafs) != len(params.Indices) {
+	if len(leafs) == 0 || len(indices) == 0 ||
+		len(leafs) != len(indices) {
 		return nil
 	}
 
@@ -144,13 +99,13 @@ func getRootIndices(params GetRootParams) []byte {
 	indexLeafPairs := make([]struct {
 		Index int
 		Leaf  []byte
-	}, len(params.Indices))
+	}, len(indices))
 
-	for i, index := range params.Indices {
+	for i, index := range indices {
 		indexLeafPairs[i] = struct {
 			Index int
 			Leaf  []byte
-		}{Index: index, Leaf: params.Leafs[i]}
+		}{Index: index, Leaf: leafs[i]}
 	}
 
 	sort.Slice(indexLeafPairs, func(i, j int) bool {
@@ -254,4 +209,39 @@ func getRootIndices(params GetRootParams) []byte {
 			upperBound >>= 1
 		}
 	}
+}
+
+// validateProofIndices validates a proof with arbitrary indices.
+// It handles specific validation for non-sequential proofs.
+func validateProofIndices(proof *MultiProof) error {
+	// Run common validation first
+	if err := validateProofBase(proof); err != nil {
+		return err
+	}
+
+	// Indices validation
+	if len(proof.Indices) != len(proof.Elements) {
+		return fmt.Errorf("indices count doesn't match elements count")
+	}
+
+	// Check for out-of-bounds indices
+	for _, idx := range proof.Indices {
+		if idx < 0 || idx >= proof.ElementCount {
+			return fmt.Errorf("index %d is out of range [0, %d)", idx, proof.ElementCount)
+		}
+	}
+
+	// Check for duplicate indices
+	// First, make a copy to avoid modifying the original
+	sortedIndices := make([]int, len(proof.Indices))
+	copy(sortedIndices, proof.Indices)
+	sort.Ints(sortedIndices)
+
+	for i := 1; i < len(sortedIndices); i++ {
+		if sortedIndices[i] == sortedIndices[i-1] {
+			return fmt.Errorf("duplicate index found: %d", sortedIndices[i])
+		}
+	}
+
+	return nil
 }

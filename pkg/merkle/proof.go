@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 )
@@ -14,46 +15,71 @@ type MultiProof struct {
 	ElementCount  int
 }
 
+var (
+	ErrProofNilRoot              = errors.New("proof root cannot be nil")
+	ErrProofNoElements           = errors.New("proof has no elements")
+	ErrProofNoIndices            = errors.New("proof has no indices")
+	ErrProofNoProofs             = errors.New("proof has no proofs")
+	ErrProofInvalidStartingIndex = errors.New("proof has invalid starting index")
+	ErrProofInvalidElementCount  = errors.New("proof has invalid element count")
+	ErrProofInvalidRange         = errors.New("proof has invalid range")
+)
+
 // generateProof returns a MultiProof for the given indices.
 func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, error) {
+	if len(tree) == 0 || tree[0] == nil {
+		return MultiProof{}, fmt.Errorf("tree cannot be nil or empty")
+	}
+
 	if len(indices) == 0 {
 		return MultiProof{}, fmt.Errorf("indices cannot be empty")
 	}
 
+	// Handle single-element trees.
+	if elementCount == 1 {
+		root := cloneBuffer(tree[0])
+		return MultiProof{
+			Root:         root,
+			Indices:      indices,
+			ElementCount: elementCount,
+			Proofs:       [][]byte{root},
+		}, nil
+	}
+
+	// Do not modify the original indices slice.
 	idxs := make([]int, len(indices))
 	copy(idxs, indices)
 	sort.Ints(idxs)
 
-	if hasDuplicates(idxs) {
-		return MultiProof{}, fmt.Errorf("found duplicate indices")
-	}
-
-	if hasOutOfBounds(idxs, elementCount) {
-		return MultiProof{}, fmt.Errorf("found indices out of range")
-	}
-
+	// Mark provided indices as known.
 	leafCount := len(tree) >> 1
-
 	known := make([]bool, len(tree))
 	var proofs [][]byte
 
-	// Mark indices as known
 	for _, idx := range idxs {
 		known[leafCount+idx] = true
 	}
 
-	// Calculate proofs
+	// Calculate proofs to prove the existence of the indices.
 	for i := leafCount - 1; i > 0; i-- {
-		leftChildIndex := i << 1
-		left := known[leftChildIndex]
-		right := known[leftChildIndex+1]
+		leftChildIdx := getLeftChild(i)
+		rightChildIdx := getRightChild(i)
+
+		left := known[leftChildIdx]
+		right := known[rightChildIdx]
 
 		// Only one of children would be known, so we need the sibling as a proof
 		if left != right {
 			if right {
-				proofs = append(proofs, cloneBuffer(tree[leftChildIndex]))
+				// Only add non-nil sibling nodes
+				if tree[leftChildIdx] != nil {
+					proofs = append(proofs, cloneBuffer(tree[leftChildIdx]))
+				}
 			} else {
-				proofs = append(proofs, cloneBuffer(tree[leftChildIndex+1]))
+				// Only add non-nil sibling nodes
+				if tree[rightChildIdx] != nil {
+					proofs = append(proofs, cloneBuffer(tree[rightChildIdx]))
+				}
 			}
 		}
 
@@ -61,35 +87,48 @@ func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, 
 		known[i] = left || right
 	}
 
-	// Filter out nil proofs
-	filteredProofs := make([][]byte, 0, len(proofs))
-	for _, d := range proofs {
-		if d != nil {
-			filteredProofs = append(filteredProofs, d)
-		}
-	}
-
-	// Special case: If we have no proofs (e.g., for a tree with a single element),
-	// add a sentinel proof to allow verification to proceed
-	if len(filteredProofs) == 0 && len(idxs) < elementCount {
-		// Add the root itself as a sentinel
-		if tree[0] != nil {
-			filteredProofs = append(filteredProofs, cloneBuffer(tree[0]))
-		}
-	}
-
-	// Get the root for verification
-	var root []byte
-	if tree[0] != nil {
-		root = cloneBuffer(tree[0])
-	}
-
 	return MultiProof{
-		Root:         root,
+		Root:         cloneBuffer(tree[0]),
 		Indices:      idxs,
 		ElementCount: elementCount,
-		Proofs:       filteredProofs,
+		Proofs:       proofs,
 	}, nil
+}
+
+// validateProofBase performs common validation for all types of Merkle proofs.
+// This covers the validation requirements shared between indices and sequential proofs.
+func validateProofBase(proof *MultiProof) error {
+	if proof.Root == nil {
+		return fmt.Errorf("proof has nil root")
+	}
+
+	if len(proof.Elements) == 0 {
+		return fmt.Errorf("proof has no elements")
+	}
+
+	if proof.ElementCount <= 0 {
+		return fmt.Errorf("invalid element count: %d", proof.ElementCount)
+	}
+
+	for i, element := range proof.Elements {
+		if element == nil {
+			return fmt.Errorf("nil element at index %d", i)
+		}
+	}
+
+	if len(proof.Elements) < proof.ElementCount && proof.ElementCount > 1 {
+		if len(proof.Proofs) == 0 {
+			return fmt.Errorf("partial proof has no decommitments")
+		}
+
+		for i, decommitment := range proof.Proofs {
+			if decommitment == nil {
+				return fmt.Errorf("nil decommitment at index %d", i)
+			}
+		}
+	}
+
+	return nil
 }
 
 // hasDuplicates checks if the sorted indices slice contains duplicates.

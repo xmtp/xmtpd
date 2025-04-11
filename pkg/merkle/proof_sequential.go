@@ -5,19 +5,10 @@ import (
 	"fmt"
 )
 
-// GetRootSequentiallyParams holds parameters for sequential root computation.
-type GetRootSequentiallyParams struct {
-	StartingIndex int
-	Leafs         [][]byte
-	ElementCount  int
-	Proofs        [][]byte
-}
-
-// GenerateMultiProofSequential generates a sequential multi-proof starting from the given index
+// GenerateMultiProofSequential generates a sequential multi-proof starting from the given index.
 func (m *MerkleTree) GenerateMultiProofSequential(
 	startingIndex, count int,
 ) (*MultiProof, error) {
-	// Check if the range is valid
 	if startingIndex < 0 || startingIndex+count > m.leafCount {
 		return nil, fmt.Errorf(
 			"invalid range: startingIndex=%d, count=%d, elementCount=%d",
@@ -27,25 +18,23 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 		)
 	}
 
-	// Generate sequential indices
 	indices := make([]int, count)
 	for i := 0; i < count; i++ {
 		indices[i] = startingIndex + i
 	}
 
-	// Extract elements at the specified indices
-	elements := make([][]byte, count)
-	for i := 0; i < count; i++ {
-		elements[i] = m.elements[startingIndex+i]
-	}
-
-	// Use the existing generateProof function
 	proof, err := generateProof(m.tree, indices, m.leafCount)
 	if err != nil {
 		return nil, err
 	}
 
-	// Include the elements
+	// Extract elements at the specified indices.
+	// They are provided in the proof.
+	elements := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		elements[i] = m.elements[startingIndex+i]
+	}
+
 	result := &MultiProof{
 		Elements:      elements,
 		Proofs:        proof.Proofs,
@@ -58,16 +47,10 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 	return result, nil
 }
 
-// VerifyMultiProofSequential verifies a sequential multi-proof
-func VerifyMultiProofSequential(proof MultiProof) bool {
-	if len(proof.Elements) == 0 || proof.StartingIndex < 0 || proof.ElementCount <= 0 {
-		return false
-	}
-
-	// Check if the sequential range is valid (within bounds)
-	count := len(proof.Elements)
-	if proof.StartingIndex+count > proof.ElementCount {
-		return false
+// TODO: Abstract VerifyMultiProofSequential and VerifyMultiProofWithIndices to use a common function.
+func VerifyMultiProofSequential(proof *MultiProof) (bool, error) {
+	if err := validateProofSequential(proof); err != nil {
+		return false, err
 	}
 
 	// Special case: If this is a single-element tree or we're verifying all elements,
@@ -84,66 +67,37 @@ func VerifyMultiProofSequential(proof MultiProof) bool {
 			}
 
 			// Combine the leaves into a root
-			// This simplified approach only works when we have all elements
 			root = combineLeaves(leafs)
 		}
 
-		if proof.Root == nil {
-			return false
-		}
-
-		return bytes.Equal(root, proof.Root)
+		return bytes.Equal(root, proof.Root), nil
 	}
 
-	// If there's no proofs for a normal case, it's invalid
-	if len(proof.Proofs) == 0 {
-		return false
-	}
-
-	// Hash the elements with the prefix
 	leafs := make([][]byte, len(proof.Elements))
 	for i, element := range proof.Elements {
 		leafs[i] = HashLeaf(element)
 	}
 
-	// Prepare parameters for GetRootSequentially
-	getRootParams := GetRootSequentiallyParams{
-		StartingIndex: proof.StartingIndex,
-		Leafs:         leafs,
-		ElementCount:  proof.ElementCount,
-		Proofs:        proof.Proofs,
-	}
-
-	// Compute the root
-	result := getRootSequentially(getRootParams)
-
-	// Handle nil cases
-	if proof.Root == nil {
-		return false
-	}
+	result := getRootSequentially(leafs, proof.Proofs, proof.StartingIndex, proof.ElementCount)
 	if result == nil {
-		return false
+		return false, nil
 	}
 
-	// Verify the root matches
-	return bytes.Equal(result, proof.Root)
+	return bytes.Equal(result, proof.Root), nil
 }
 
 // getRootSequentially computes the root given sequential leafs and proofs.
-func getRootSequentially(params GetRootSequentiallyParams) []byte {
+func getRootSequentially(leafs [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte {
 	// Validate input parameters
-	if params.StartingIndex < 0 || len(params.Leafs) == 0 {
+	if startingIndex < 0 || len(leafs) == 0 {
 		return nil
 	}
 
 	// Ensure starting index and count are within bounds
-	count := len(params.Leafs)
-	if params.StartingIndex+count > params.ElementCount {
+	count := len(leafs)
+	if startingIndex+count > elementCount {
 		return nil
 	}
-
-	elementCount := params.ElementCount
-	proofs := params.Proofs
 
 	// Validate proofs
 	if len(proofs) == 0 {
@@ -158,14 +112,14 @@ func getRootSequentially(params GetRootSequentiallyParams) []byte {
 
 	// Initialize hashes queue
 	for i := 0; i < count; i++ {
-		hashes[count-1-i] = cloneBuffer(params.Leafs[i])
+		hashes[count-1-i] = cloneBuffer(leafs[i])
 	}
 
 	readIndex := 0
 	writeIndex := 0
 	proofIndex := 0
 	upperBound := balancedLeafCount + elementCount - 1
-	lowestTreeIndex := balancedLeafCount + params.StartingIndex
+	lowestTreeIndex := balancedLeafCount + startingIndex
 
 	var nodeIndex, nextNodeIndex int
 
@@ -243,4 +197,44 @@ func getRootSequentially(params GetRootSequentiallyParams) []byte {
 			upperBound >>= 1
 		}
 	}
+}
+
+// validateProofSequential validates a sequential proof.
+// It handles specific validation for sequential proofs.
+func validateProofSequential(proof *MultiProof) error {
+	// Run common validation first
+	if err := validateProofBase(proof); err != nil {
+		return err
+	}
+
+	// Sequential range validation
+	if proof.StartingIndex < 0 {
+		return fmt.Errorf("invalid starting index: %d", proof.StartingIndex)
+	}
+
+	if proof.StartingIndex+len(proof.Elements) > proof.ElementCount {
+		return fmt.Errorf(
+			"invalid range: startingIndex=%d, count=%d, elementCount=%d",
+			proof.StartingIndex,
+			len(proof.Elements),
+			proof.ElementCount,
+		)
+	}
+
+	// Optional: validate indices if present in the proof
+	if len(proof.Indices) > 0 {
+		if len(proof.Indices) != len(proof.Elements) {
+			return fmt.Errorf("indices count doesn't match elements count")
+		}
+
+		// For sequential proofs, indices should follow the sequence
+		for i, idx := range proof.Indices {
+			expectedIdx := proof.StartingIndex + i
+			if idx != expectedIdx {
+				return fmt.Errorf("indices[%d] = %d, expected %d", i, idx, expectedIdx)
+			}
+		}
+	}
+
+	return nil
 }

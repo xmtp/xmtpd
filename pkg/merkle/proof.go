@@ -17,6 +17,8 @@ type MultiProof struct {
 }
 
 var (
+	ErrInputDuplicateIndices     = errors.New("input has duplicate indices")
+	ErrInputIndicesOutOfBounds   = errors.New("input has indices out of bounds")
 	ErrProofEmptyTree            = errors.New("proof has empty tree")
 	ErrProofEmptyIndices         = errors.New("proof has empty indices")
 	ErrProofDuplicateIndices     = errors.New("proof has duplicate indices")
@@ -112,37 +114,34 @@ func generateProof(
 func verifyProof(
 	proof *MultiProof,
 	validateProof func(proof *MultiProof) error,
-	getRoot func(leafs [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte,
+	getRoot func(leaves [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte,
 ) (bool, error) {
 	if err := validateProof(proof); err != nil {
 		return false, err
 	}
 
-	// If this is a single-element tree or we're verifying all elements, we don't need proofs.
-	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
-		// Just verify that the proof's root matches the recalculated root
-		root := HashLeaf(proof.Elements[0])
+	// Handle single-element trees.
+	if proof.ElementCount == 1 {
+		return bytes.Equal(proof.Root, HashLeaf(proof.Elements[0])), nil
+	}
 
-		// For multiple elements, we need to combine them
-		if len(proof.Elements) > 1 {
-			leafs := make([][]byte, len(proof.Elements))
-			for i, element := range proof.Elements {
-				leafs[i] = HashLeaf(element)
-			}
-
-			// Combine the leaves into a root
-			root = combineLeaves(leafs)
+	// If all the elements are provided, we can verify the proof by recalculating the root.
+	if len(proof.Elements) == proof.ElementCount {
+		tree, err := NewMerkleTree(proof.Elements)
+		if err != nil {
+			return false, err
 		}
 
-		return bytes.Equal(root, proof.Root), nil
+		return bytes.Equal(tree.Root(), proof.Root), nil
 	}
 
-	leafs := make([][]byte, len(proof.Elements))
+	// If only some of the elements are provided, we need to calculate the root.
+	leaves := make([][]byte, len(proof.Elements))
 	for i, element := range proof.Elements {
-		leafs[i] = HashLeaf(element)
+		leaves[i] = HashLeaf(element)
 	}
 
-	result := getRoot(leafs, proof.Proofs, proof.StartingIndex, proof.ElementCount)
+	result := getRoot(leaves, proof.Proofs, proof.StartingIndex, proof.ElementCount)
 	if result == nil {
 		return false, nil
 	}
@@ -151,7 +150,6 @@ func verifyProof(
 }
 
 // validateProofBase performs common validation for all types of Merkle proofs.
-// This covers the validation requirements shared between indices and sequential proofs.
 func validateProofBase(proof *MultiProof) error {
 	if proof == nil {
 		return ErrProofNil
@@ -191,7 +189,11 @@ func validateProofBase(proof *MultiProof) error {
 }
 
 // hasDuplicates checks if the sorted indices slice contains duplicates.
-func hasDuplicates(sortedIndices []int) bool {
+func hasDuplicates(indices []int) bool {
+	sortedIndices := make([]int, len(indices))
+	copy(sortedIndices, indices)
+	sort.Ints(sortedIndices)
+
 	for i := 1; i < len(sortedIndices); i++ {
 		if sortedIndices[i] == sortedIndices[i-1] {
 			return true
@@ -208,37 +210,6 @@ func hasOutOfBounds(indices []int, elementCount int) bool {
 		}
 	}
 	return false
-}
-
-// combineLeaves combines a set of leaf nodes into a single root hash.
-func combineLeaves(leaves [][]byte) []byte {
-	if len(leaves) == 0 {
-		return nil
-	}
-
-	if len(leaves) == 1 {
-		return leaves[0]
-	}
-
-	// Create a balanced tree
-	level := leaves
-	for len(level) > 1 {
-		nextLevel := make([][]byte, 0, (len(level)+1)/2)
-
-		for i := 0; i < len(level); i += 2 {
-			if i+1 < len(level) {
-				// Combine pairs
-				nextLevel = append(nextLevel, HashNode(level[i], level[i+1]))
-			} else {
-				// Odd node out - propagate up
-				nextLevel = append(nextLevel, level[i])
-			}
-		}
-
-		level = nextLevel
-	}
-
-	return level[0]
 }
 
 func cloneBuffer(buffer []byte) []byte {

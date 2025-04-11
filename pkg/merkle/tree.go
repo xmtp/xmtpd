@@ -133,6 +133,10 @@ func getDepth(n uint32) int {
 
 // GetLeafCount returns the number of leaves in a tree.
 func GetLeafCount(elementCount int) int {
+	if elementCount == 0 {
+		return 0
+	}
+
 	return int(roundUpToPowerOf2(uint32(elementCount)))
 }
 

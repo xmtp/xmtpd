@@ -4,14 +4,14 @@ import (
 	"sort"
 )
 
-// GenerateMultiProofWithIndices generates a multi-proof for the given indices
+// GenerateMultiProofWithIndices generates a multi-proof for the given indices.
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
 	if hasDuplicates(indices) {
-		return nil, ErrProofDuplicateIndices
+		return nil, ErrInputDuplicateIndices
 	}
 
 	if hasOutOfBounds(indices, m.leafCount) {
-		return nil, ErrProofIndicesOutOfBounds
+		return nil, ErrInputIndicesOutOfBounds
 	}
 
 	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
@@ -36,6 +36,7 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 	return result, nil
 }
 
+// VerifyMultiProofWithIndices verifies a multi-proof with arbitrary indices.
 func VerifyMultiProofWithIndices(proof *MultiProof) (bool, error) {
 	indicesAdapter := func(leafs [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte {
 		return getRootIndices(leafs, proof.Indices, proof.ElementCount, proof.Proofs)
@@ -48,7 +49,7 @@ func VerifyMultiProofWithIndices(proof *MultiProof) (bool, error) {
 	)
 }
 
-// getRootIndices computes the root given the leaves, their indices, and proofs
+// getRootIndices computes the root given the leaves, their indices, and proofs.
 func getRootIndices(leafs [][]byte, indices []int, elementCount int, proofs [][]byte) []byte {
 	// Ensure indices are valid
 	for _, index := range indices {
@@ -180,7 +181,6 @@ func getRootIndices(leafs [][]byte, indices []int, elementCount int, proofs [][]
 }
 
 // validateProofIndices validates a proof with arbitrary indices.
-// It handles specific validation for non-sequential proofs.
 func validateProofIndices(proof *MultiProof) error {
 	if err := validateProofBase(proof); err != nil {
 		return err
@@ -190,15 +190,14 @@ func validateProofIndices(proof *MultiProof) error {
 		return ErrProofInvalidElementCount
 	}
 
-	// Check for out-of-bounds indices
+	// Check for out-of-bounds indices.
 	for _, idx := range proof.Indices {
 		if idx < 0 || idx >= proof.ElementCount {
 			return ErrProofIndicesOutOfBounds
 		}
 	}
 
-	// Check for duplicate indices
-	// First, make a copy to avoid modifying the original
+	// Check for duplicate indices.
 	sortedIndices := make([]int, len(proof.Indices))
 	copy(sortedIndices, proof.Indices)
 	sort.Ints(sortedIndices)

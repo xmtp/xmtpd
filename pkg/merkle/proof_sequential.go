@@ -35,6 +35,7 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 	return result, nil
 }
 
+// VerifyMultiProofSequential verifies a sequential multi-proof.
 func VerifyMultiProofSequential(proof *MultiProof) (bool, error) {
 	return verifyProof(
 		proof,
@@ -157,7 +158,6 @@ func getRootSequentially(leafs [][]byte, proofs [][]byte, startingIndex, element
 }
 
 // validateProofSequential validates a sequential proof.
-// It handles specific validation for sequential proofs.
 func validateProofSequential(proof *MultiProof) error {
 	if err := validateProofBase(proof); err != nil {
 		return err

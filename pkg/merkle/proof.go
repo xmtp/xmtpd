@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -23,33 +24,43 @@ var (
 	ErrProofInvalidStartingIndex = errors.New("proof has invalid starting index")
 	ErrProofInvalidElementCount  = errors.New("proof has invalid element count")
 	ErrProofInvalidRange         = errors.New("proof has invalid range")
+	ErrProofEmptyTree            = errors.New("proof has empty tree")
+	ErrProofEmptyIndices         = errors.New("proof has empty indices")
 )
 
 // generateProof returns a MultiProof for the given indices.
-func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, error) {
-	if len(tree) == 0 || tree[0] == nil {
-		return MultiProof{}, fmt.Errorf("tree cannot be nil or empty")
+func generateProof(
+	tree [][]byte,
+	root []byte,
+	indices []int,
+	elementCount int,
+) (MultiProof, error) {
+	if len(tree) == 0 {
+		return MultiProof{}, ErrProofEmptyTree
+	}
+
+	if root == nil {
+		return MultiProof{}, ErrProofNilRoot
 	}
 
 	if len(indices) == 0 {
-		return MultiProof{}, fmt.Errorf("indices cannot be empty")
-	}
-
-	// Handle single-element trees.
-	if elementCount == 1 {
-		root := cloneBuffer(tree[0])
-		return MultiProof{
-			Root:         root,
-			Indices:      indices,
-			ElementCount: elementCount,
-			Proofs:       [][]byte{root},
-		}, nil
+		return MultiProof{}, ErrProofEmptyIndices
 	}
 
 	// Do not modify the original indices slice.
 	idxs := make([]int, len(indices))
 	copy(idxs, indices)
 	sort.Ints(idxs)
+
+	// Handle single-element trees.
+	if elementCount == 1 {
+		return MultiProof{
+			Root:         root,
+			Indices:      idxs,
+			ElementCount: elementCount,
+			Proofs:       [][]byte{root},
+		}, nil
+	}
 
 	// Mark provided indices as known.
 	leafCount := len(tree) >> 1
@@ -88,11 +99,52 @@ func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, 
 	}
 
 	return MultiProof{
-		Root:         cloneBuffer(tree[0]),
+		Root:         root,
 		Indices:      idxs,
 		ElementCount: elementCount,
 		Proofs:       proofs,
 	}, nil
+}
+
+func verifyProof(
+	proof *MultiProof,
+	validateProof func(proof *MultiProof) error,
+	getRoot func(leafs [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte,
+) (bool, error) {
+	if err := validateProof(proof); err != nil {
+		return false, err
+	}
+
+	// If this is a single-element tree or we're verifying all elements, we don't need proofs.
+	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
+		// Just verify that the proof's root matches the recalculated root
+		root := HashLeaf(proof.Elements[0])
+
+		// For multiple elements, we need to combine them
+		if len(proof.Elements) > 1 {
+			leafs := make([][]byte, len(proof.Elements))
+			for i, element := range proof.Elements {
+				leafs[i] = HashLeaf(element)
+			}
+
+			// Combine the leaves into a root
+			root = combineLeaves(leafs)
+		}
+
+		return bytes.Equal(root, proof.Root), nil
+	}
+
+	leafs := make([][]byte, len(proof.Elements))
+	for i, element := range proof.Elements {
+		leafs[i] = HashLeaf(element)
+	}
+
+	result := getRoot(leafs, proof.Proofs, proof.StartingIndex, proof.ElementCount)
+	if result == nil {
+		return false, nil
+	}
+
+	return bytes.Equal(result, proof.Root), nil
 }
 
 // validateProofBase performs common validation for all types of Merkle proofs.

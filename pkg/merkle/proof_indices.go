@@ -1,7 +1,6 @@
 package merkle
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 )
@@ -16,7 +15,7 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 		return nil, fmt.Errorf("found indices out of range")
 	}
 
-	proof, err := generateProof(m.tree, indices, m.leafCount)
+	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
 	if err != nil {
 		return nil, err
 	}
@@ -27,6 +26,8 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 	for i, index := range indices {
 		elements[i] = m.elements[index]
 	}
+
+	sort.Ints(indices)
 
 	result := &MultiProof{
 		Elements:      elements,
@@ -40,44 +41,16 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 	return result, nil
 }
 
-// TODO: Abstract VerifyMultiProofSequential and VerifyMultiProofWithIndices to use a common function.
 func VerifyMultiProofWithIndices(proof *MultiProof) (bool, error) {
-	if err := validateProofIndices(proof); err != nil {
-		return false, err
+	indicesAdapter := func(leafs [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte {
+		return getRootIndices(leafs, proof.Indices, proof.ElementCount, proof.Proofs)
 	}
 
-	// Special case: If this is a single-element tree or we're verifying all elements
-	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
-		// Just verify that the proof's root matches the recalculated root
-		root := HashLeaf(proof.Elements[0])
-
-		// For multiple elements, we need to combine them
-		if len(proof.Elements) > 1 {
-			leafs := make([][]byte, len(proof.Elements))
-			for i, element := range proof.Elements {
-				leafs[i] = HashLeaf(element)
-			}
-
-			// Combine the leaves into a root
-			// This simplified approach only works when we have all elements
-			root = combineLeaves(leafs)
-		}
-
-		return bytes.Equal(root, proof.Root), nil
-	}
-
-	// Hash the elements with the prefix
-	leafs := make([][]byte, len(proof.Elements))
-	for i, element := range proof.Elements {
-		leafs[i] = HashLeaf(element)
-	}
-
-	result := getRootIndices(leafs, proof.Indices, proof.ElementCount, proof.Proofs)
-	if result == nil {
-		return false, nil
-	}
-
-	return bytes.Equal(result, proof.Root), nil
+	return verifyProof(
+		proof,
+		validateProofIndices,
+		indicesAdapter,
+	)
 }
 
 // getRootIndices computes the root given the leaves, their indices, and proofs

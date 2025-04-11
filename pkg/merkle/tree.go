@@ -31,15 +31,15 @@ func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
 	return &MerkleTree{
 		tree:      tree,
 		elements:  elements,
-		root:      tree[0],
+		root:      tree[1],
 		depth:     depth,
 		leafCount: len(elements),
 	}, nil
 }
 
-// Root returns the root hash of the Merkle tree.
-func (m *MerkleTree) Root() []byte {
-	return m.root
+// Tree returns the tree of the Merkle tree.
+func (m *MerkleTree) Tree() [][]byte {
+	return m.tree
 }
 
 // Elements returns the elements of the Merkle tree.
@@ -47,18 +47,31 @@ func (m *MerkleTree) Elements() [][]byte {
 	return m.elements
 }
 
+// Root returns the root hash of the Merkle tree.
+func (m *MerkleTree) Root() []byte {
+	return m.root
+}
+
 // Depth returns the depth of the Merkle tree.
 func (m *MerkleTree) Depth() int {
 	return m.depth
 }
 
+// LeafCount returns the number of leaves in the Merkle tree.
+func (m *MerkleTree) LeafCount() int {
+	return m.leafCount
+}
+
 // BuildTree builds a serialized Merkle tree from an array of leaf nodes.
-// The matrix representation has the root at index 0.
-// The internal nodes are at index 1 to N-1.
-// The leaves are at index N to 2N-1.
+//
+// The tree is 1-indexed, so root is at index 1.
+// The internal nodes are at index 2 to N.
+// The leaves are at index N+1 to 2N-1.
+//
 // For any node at index i:
-// - its left child is at index 2*i and its right child is at index 2*i+1.
-// - its parent is at index i/2.
+// - left child is at index 2*i
+// - right child is at index 2*i+1
+// - parent is at floor(i/2)
 func buildTree(leaves [][]byte) ([][]byte, int) {
 	depth := getDepth(len(leaves))
 	leafCount := getLeafCount(len(leaves))
@@ -77,15 +90,6 @@ func buildTree(leaves [][]byte) ([][]byte, int) {
 	// Build the tree.
 	// Start from the last internal node and work our way up to the root.
 	for i := leafCount - 1; i >= 0; i-- {
-		if i == 0 {
-			if tree[1] != nil {
-				tree[0] = tree[1]
-			} else if tree[1] != nil && tree[2] != nil {
-				tree[0] = HashNode(tree[1], tree[2])
-			}
-			break
-		}
-
 		leftChildIndex := getLeftChild(i)
 
 		if leftChildIndex > upperBound {
@@ -141,10 +145,10 @@ func roundUpToPowerOf2(number uint32) uint32 {
 
 // getLeftChild returns the index of the left child for a node at the given index
 func getLeftChild(index int) int {
-	return index << 1 // or index * 2
+	return index << 1 // index * 2
 }
 
 // getRightChild returns the index of the right child for a node at the given index
 func getRightChild(index int) int {
-	return (index << 1) + 1 // or index * 2 + 1
+	return (index << 1) + 1 // index * 2 + 1
 }

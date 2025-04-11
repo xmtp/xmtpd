@@ -1,7 +1,6 @@
 package merkle
 
 import (
-	"bytes"
 	"fmt"
 )
 
@@ -23,7 +22,7 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 		indices[i] = startingIndex + i
 	}
 
-	proof, err := generateProof(m.tree, indices, m.leafCount)
+	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
 	if err != nil {
 		return nil, err
 	}
@@ -47,43 +46,12 @@ func (m *MerkleTree) GenerateMultiProofSequential(
 	return result, nil
 }
 
-// TODO: Abstract VerifyMultiProofSequential and VerifyMultiProofWithIndices to use a common function.
 func VerifyMultiProofSequential(proof *MultiProof) (bool, error) {
-	if err := validateProofSequential(proof); err != nil {
-		return false, err
-	}
-
-	// Special case: If this is a single-element tree or we're verifying all elements,
-	// we don't need proofs
-	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
-		// Just verify that the proof's root matches the recalculated root
-		root := HashLeaf(proof.Elements[0])
-
-		// For multiple elements, we need to combine them
-		if len(proof.Elements) > 1 {
-			leafs := make([][]byte, len(proof.Elements))
-			for i, element := range proof.Elements {
-				leafs[i] = HashLeaf(element)
-			}
-
-			// Combine the leaves into a root
-			root = combineLeaves(leafs)
-		}
-
-		return bytes.Equal(root, proof.Root), nil
-	}
-
-	leafs := make([][]byte, len(proof.Elements))
-	for i, element := range proof.Elements {
-		leafs[i] = HashLeaf(element)
-	}
-
-	result := getRootSequentially(leafs, proof.Proofs, proof.StartingIndex, proof.ElementCount)
-	if result == nil {
-		return false, nil
-	}
-
-	return bytes.Equal(result, proof.Root), nil
+	return verifyProof(
+		proof,
+		validateProofSequential,
+		getRootSequentially,
+	)
 }
 
 // getRootSequentially computes the root given sequential leafs and proofs.

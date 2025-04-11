@@ -243,11 +243,11 @@ func TestTreeInternals(t *testing.T) {
 	// Check everything "manually".
 	//
 	// Tree structure:
-	//        [0]
+	//        [1]
 	//       /   \
-	//     [1]    [2]
+	//     [2]    [3]
 	//    /  \    /
-	//  [3]  [4] [5]
+	//  [4]  [5] [6]
 	//  A    B    C
 
 	elements := [][]byte{
@@ -259,19 +259,22 @@ func TestTreeInternals(t *testing.T) {
 	tree, err := NewMerkleTree(elements)
 	require.NoError(t, err)
 
-	internalTree := tree.tree
+	internalTree := tree.Tree()
 
 	// For a 3-element tree, the balanced leaf count is 4
 	// So the tree array should have size 8 (2*4)
 	assert.Equal(t, 8, len(internalTree), "Tree array should have size 2*leafCount")
+	assert.Equal(t, tree.Root(), internalTree[1], "Root should be at index 1")
 
 	// Check that all nodes are present.
-	assert.NotNil(t, internalTree[0], "Root should not be nil")
-	assert.NotNil(t, internalTree[1], "Node 1 should not be nil")
-	assert.NotNil(t, internalTree[2], "Node 2 should not be nil")
-	assert.NotNil(t, internalTree[3], "Node 3 should not be nil")
-	assert.NotNil(t, internalTree[4], "Node 4 should not be nil")
+	assert.Nil(t, internalTree[0], "Node 0 should be nil")
+	assert.NotNil(t, internalTree[1], "Root should not be nil")
+	assert.NotNil(t, internalTree[2], "Node 1 should not be nil")
+	assert.NotNil(t, internalTree[3], "Node 2 should not be nil")
+	assert.NotNil(t, internalTree[4], "Node 3 should not be nil")
 	assert.NotNil(t, internalTree[5], "Node 5 should not be nil")
+	assert.NotNil(t, internalTree[6], "Node 6 should not be nil")
+	assert.Nil(t, internalTree[7], "Node 7 should be nil")
 
 	// Check that all leaves are present.
 	leafStartIdx := 4
@@ -289,7 +292,8 @@ func verifyUnbalancedTreeStructure(t *testing.T, tree [][]byte, leafCount, actua
 
 	// Handle single element trees.
 	if actualElements == 1 {
-		assert.Equal(t, tree[leafCount], tree[0], "For single element tree, root should equal leaf")
+		assert.Nil(t, tree[0], "Merkle Tree 1-index, index 0 should be nil")
+		assert.Equal(t, tree[leafCount], tree[1], "For single element tree, root should equal leaf")
 		return
 	}
 
@@ -322,10 +326,13 @@ func verifyUnbalancedTreeStructure(t *testing.T, tree [][]byte, leafCount, actua
 	}
 
 	// Check the root is valid.
-	assert.NotNil(t, tree[0], "Root should not be nil")
+	expectedRoot := tree[1]
+	assert.NotNil(t, expectedRoot, "Root should not be nil")
 	if tree[1] != nil && tree[2] != nil {
-		assert.NotNil(t, tree[0], "Root should be calculated when both children exist")
-	} else {
-		assert.Equal(t, tree[1], tree[0], "Root should equal its only child (node 1)")
+		assert.NotNil(
+			t,
+			HashNode(tree[1], tree[2]),
+			"Root should be calculated when both children exist",
+		)
 	}
 }

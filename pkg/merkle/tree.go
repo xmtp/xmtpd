@@ -148,8 +148,3 @@ func getLeftChild(index int) int {
 func getRightChild(index int) int {
 	return (index << 1) + 1 // or index * 2 + 1
 }
-
-// getParent returns the index of the parent for a node at the given index
-func getParent(index int) int {
-	return index >> 1 // or index / 2
-}

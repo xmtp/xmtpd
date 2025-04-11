@@ -8,15 +8,14 @@ import (
 
 // GetRootParams holds parameters for computing the root
 type GetRootParams struct {
-	Leafs         [][]byte
-	Indices       []int
-	ElementCount  int
-	Decommitments [][]byte
+	Leafs        [][]byte
+	Indices      []int
+	ElementCount int
+	Proofs       [][]byte
 }
 
-// GenerateIndicesMultiProof generates a multi-proof for the given indices
-func (m *MerkleTree) GenerateIndicesMultiProof(indices []int) (*MultiProof, error) {
-	// Ensure indices are valid
+// GenerateMultiProofWithIndices generates a multi-proof for the given indices
+func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
 	for _, index := range indices {
 		if index < 0 || index >= m.leafCount {
 			return nil, fmt.Errorf("index %d is out of range [0, %d)", index, m.leafCount)
@@ -29,45 +28,115 @@ func (m *MerkleTree) GenerateIndicesMultiProof(indices []int) (*MultiProof, erro
 		elements[i] = m.elements[index]
 	}
 
-	// Generate the proof
-	generateParams := GenerateParams{
-		Tree:         m.tree,
-		Indices:      indices,
-		ElementCount: m.leafCount,
-	}
-
-	proof, err := Generate(generateParams)
+	proof, err := generateProof(m.tree, indices, m.leafCount)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &MultiProof{
-		Root:          proof.Root,
-		Elements:      elements,
-		Indices:       indices,
-		ElementCount:  m.leafCount,
-		Decommitments: proof.Decommitments,
+		Root:         proof.Root,
+		Elements:     elements,
+		Indices:      indices,
+		ElementCount: m.leafCount,
+		Proofs:       proof.Proofs,
 	}
 
 	return result, nil
 }
 
-// getRootIndices computes the root given the leaves, their indices, and decommitments
-func getRootIndices(params GetRootParams) GetRootResult {
+// VerifyMultiProofWithIndices verifies a multi-proof
+func VerifyMultiProofWithIndices(proof MultiProof) bool {
+	if len(proof.Elements) == 0 || len(proof.Indices) == 0 || proof.ElementCount <= 0 {
+		return false
+	}
+
+	// Check if indices are valid (within bounds)
+	for _, index := range proof.Indices {
+		if index < 0 || index >= proof.ElementCount {
+			return false
+		}
+	}
+
+	// Check that we have the same number of elements as indices
+	if len(proof.Elements) != len(proof.Indices) {
+		return false
+	}
+
+	// Special case: If this is a single-element tree or we're verifying all elements,
+	// we don't need proofs
+	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
+		// Just verify that the proof's root matches the recalculated root
+		root := HashLeaf(proof.Elements[0])
+
+		// For multiple elements, we need to combine them
+		if len(proof.Elements) > 1 {
+			leafs := make([][]byte, len(proof.Elements))
+			for i, element := range proof.Elements {
+				leafs[i] = HashLeaf(element)
+			}
+
+			// Combine the leaves into a root
+			// This simplified approach only works when we have all elements
+			root = combineLeaves(leafs)
+		}
+
+		if proof.Root == nil {
+			return false
+		}
+
+		return bytes.Equal(root, proof.Root)
+	}
+
+	// If there's no proofs for a normal case, it's invalid
+	if len(proof.Proofs) == 0 {
+		return false
+	}
+
+	// Hash the elements with the prefix
+	leafs := make([][]byte, len(proof.Elements))
+	for i, element := range proof.Elements {
+		leafs[i] = HashLeaf(element)
+	}
+
+	// Prepare parameters for GetRoot
+	getRootParams := GetRootParams{
+		Leafs:        leafs,
+		Indices:      proof.Indices,
+		ElementCount: proof.ElementCount,
+		Proofs:       proof.Proofs,
+	}
+
+	// Compute the root
+	result := getRootIndices(getRootParams)
+
+	// Handle nil cases
+	if proof.Root == nil {
+		return false
+	}
+	if result == nil {
+		return false
+	}
+
+	// Verify the root matches
+	return bytes.Equal(result, proof.Root)
+}
+
+// getRootIndices computes the root given the leaves, their indices, and proofs
+func getRootIndices(params GetRootParams) []byte {
 	elementCount := params.ElementCount
-	decommitments := params.Decommitments
+	proofs := params.Proofs
 
 	// Ensure indices are valid
 	for _, index := range params.Indices {
 		if index < 0 || index >= elementCount {
-			return GetRootResult{Root: nil}
+			return nil
 		}
 	}
 
 	// Validate input
 	if len(params.Leafs) == 0 || len(params.Indices) == 0 ||
 		len(params.Leafs) != len(params.Indices) {
-		return GetRootResult{Root: nil}
+		return nil
 	}
 
 	// Sort indices and corresponding leaves
@@ -111,7 +180,7 @@ func getRootIndices(params GetRootParams) GetRootResult {
 
 	readIndex := 0
 	writeIndex := 0
-	decommitmentIndex := 0
+	proofIndex := 0
 	upperBound := balancedLeafCount + elementCount - 1
 	lowestTreeIndex := treeIndices[count-1]
 	var nextNodeIndex int
@@ -125,10 +194,7 @@ func getRootIndices(params GetRootParams) GetRootResult {
 			if writeIndex == 0 {
 				rootIndex = count - 1
 			}
-			return GetRootResult{
-				Root:         hashes[rootIndex],
-				ElementCount: elementCount,
-			}
+			return hashes[rootIndex]
 		}
 
 		indexIsOdd := nodeIndex&1 == 1
@@ -152,27 +218,27 @@ func getRootIndices(params GetRootParams) GetRootResult {
 				right = hashes[readIndex]
 				readIndex = (readIndex + 1) % count
 				if !nextIsPair {
-					if decommitmentIndex >= len(decommitments) {
-						return GetRootResult{Root: nil}
+					if proofIndex >= len(proofs) {
+						return nil
 					}
-					left = decommitments[decommitmentIndex]
-					decommitmentIndex++
+					left = proofs[proofIndex]
+					proofIndex++
 				} else {
 					left = hashes[readIndex]
 					readIndex = (readIndex + 1) % count
 				}
 			} else {
-				if decommitmentIndex >= len(decommitments) {
-					return GetRootResult{Root: nil}
+				if proofIndex >= len(proofs) {
+					return nil
 				}
-				right = decommitments[decommitmentIndex]
-				decommitmentIndex++
+				right = proofs[proofIndex]
+				proofIndex++
 				left = hashes[readIndex]
 				readIndex = (readIndex + 1) % count
 			}
 
 			if left == nil || right == nil {
-				return GetRootResult{Root: nil}
+				return nil
 			}
 
 			parentIndex := nodeIndex >> 1
@@ -187,83 +253,6 @@ func getRootIndices(params GetRootParams) GetRootResult {
 			upperBound >>= 1
 		}
 	}
-}
-
-// VerifyMultiProof verifies a multi-proof
-func VerifyMultiProof(proof MultiProof) bool {
-	if len(proof.Elements) == 0 || len(proof.Indices) == 0 || proof.ElementCount <= 0 {
-		return false
-	}
-
-	// Check if indices are valid (within bounds)
-	for _, index := range proof.Indices {
-		if index < 0 || index >= proof.ElementCount {
-			return false
-		}
-	}
-
-	// Check that we have the same number of elements as indices
-	if len(proof.Elements) != len(proof.Indices) {
-		return false
-	}
-
-	// Special case: If this is a single-element tree or we're verifying all elements,
-	// we don't need decommitments
-	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
-		// Just verify that the proof's root matches the recalculated root
-		root := HashLeaf(proof.Elements[0])
-
-		// For multiple elements, we need to combine them
-		if len(proof.Elements) > 1 {
-			leafs := make([][]byte, len(proof.Elements))
-			for i, element := range proof.Elements {
-				leafs[i] = HashLeaf(element)
-			}
-
-			// Combine the leaves into a root
-			// This simplified approach only works when we have all elements
-			root = combineLeaves(leafs)
-		}
-
-		if proof.Root == nil {
-			return false
-		}
-
-		return bytes.Equal(root, proof.Root)
-	}
-
-	// If there's no decommitments for a normal case, it's invalid
-	if len(proof.Decommitments) == 0 {
-		return false
-	}
-
-	// Hash the elements with the prefix
-	leafs := make([][]byte, len(proof.Elements))
-	for i, element := range proof.Elements {
-		leafs[i] = HashLeaf(element)
-	}
-
-	// Prepare parameters for GetRoot
-	getRootParams := GetRootParams{
-		Leafs:         leafs,
-		Indices:       proof.Indices,
-		ElementCount:  proof.ElementCount,
-		Decommitments: proof.Decommitments,
-	}
-
-	// Compute the root
-	result := getRootIndices(getRootParams)
-
-	// Handle nil cases
-	if proof.Root == nil {
-		return false
-	}
-	if result.Root == nil {
-		return false
-	}
-
-	// Verify the root matches
-	return bytes.Equal(result.Root, proof.Root)
 }
 
 // combineLeaves combines a set of leaf nodes into a single root hash

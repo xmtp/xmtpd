@@ -6,85 +6,70 @@ import (
 	"sort"
 )
 
-// GetRootResult holds the result of computing the root.
-type GetRootResult struct {
-	Root         []byte
-	ElementCount int
-}
-
-// MultiProof represents both proof parameters and results
-// It combines the fields from VerifyMultiProofParams and MultiProofResult
 type MultiProof struct {
 	// Common fields for all proofs
-	Root          []byte
-	Elements      [][]byte
-	Indices       []int
-	ElementCount  int
-	Decommitments [][]byte
+	Root         []byte
+	Elements     [][]byte
+	Indices      []int
+	ElementCount int
+	Proofs       [][]byte
 
 	// Optional field for sequential proofs
 	StartingIndex int
 }
 
-// Common parameters for proof generation
-type GenerateParams struct {
-	Tree         [][]byte
-	ElementCount int
-	Indices      []int
-}
-
-// Generate creates decommitments for proving the existence of leaves at specified indices
-func Generate(params GenerateParams) (MultiProof, error) {
-	if len(params.Indices) == 0 {
+// generateProof returns a MultiProof for the given indices.
+func generateProof(tree [][]byte, indices []int, elementCount int) (MultiProof, error) {
+	if len(indices) == 0 {
 		return MultiProof{}, fmt.Errorf("indices cannot be empty")
 	}
 
 	// Check for out-of-bounds indices
-	for _, index := range params.Indices {
-		if index < 0 || index >= params.ElementCount {
+	for _, index := range indices {
+		if index < 0 || index >= elementCount {
 			return MultiProof{}, fmt.Errorf(
 				"index %d is out of range [0, %d)",
 				index,
-				params.ElementCount,
+				elementCount,
 			)
 		}
 	}
 
 	// Create a copy of indices to avoid modifying the original
-	indices := make([]int, len(params.Indices))
-	copy(indices, params.Indices)
+	idxs := make([]int, len(indices))
+	copy(idxs, indices)
 
 	// Sort indices to ensure consistent processing
-	sort.Ints(indices)
+	sort.Ints(idxs)
 
 	// Mark indices as known
-	for i, idx := range indices {
-		if i > 0 && indices[i-1] >= idx {
+	for i, idx := range idxs {
+		if i > 0 && idxs[i-1] >= idx {
 			return MultiProof{}, errors.New("indices must be in ascending order")
 		}
 	}
 
-	leafCount := len(params.Tree) >> 1
-	known := make([]bool, len(params.Tree))
-	var decommitments [][]byte
+	leafCount := len(tree) >> 1
+	known := make([]bool, len(tree))
+	var proofs [][]byte
 
 	// Mark indices as known
-	for _, idx := range indices {
+	for _, idx := range idxs {
 		known[leafCount+idx] = true
 	}
 
-	// Calculate decommitments
+	// Calculate proofs
 	for i := leafCount - 1; i > 0; i-- {
 		leftChildIndex := i << 1
 		left := known[leftChildIndex]
 		right := known[leftChildIndex+1]
 
-		// Only one of children would be known, so we need the sibling as a decommitment
+		// Only one of children would be known, so we need the sibling as a proof
 		if left != right {
 			if right {
-				decommitments = append(decommitments, cloneBuffer(params.Tree[leftChildIndex]))
+				proofs = append(proofs, cloneBuffer(tree[leftChildIndex]))
 			} else {
-				decommitments = append(decommitments, cloneBuffer(params.Tree[leftChildIndex+1]))
+				proofs = append(proofs, cloneBuffer(tree[leftChildIndex+1]))
 			}
 		}
 
@@ -92,34 +77,34 @@ func Generate(params GenerateParams) (MultiProof, error) {
 		known[i] = left || right
 	}
 
-	// Filter out nil decommitments
-	filteredDecommitments := make([][]byte, 0, len(decommitments))
-	for _, d := range decommitments {
+	// Filter out nil proofs
+	filteredProofs := make([][]byte, 0, len(proofs))
+	for _, d := range proofs {
 		if d != nil {
-			filteredDecommitments = append(filteredDecommitments, d)
+			filteredProofs = append(filteredProofs, d)
 		}
 	}
 
-	// Special case: If we have no decommitments (e.g., for a tree with a single element),
-	// add a sentinel decommitment to allow verification to proceed
-	if len(filteredDecommitments) == 0 && len(indices) < params.ElementCount {
+	// Special case: If we have no proofs (e.g., for a tree with a single element),
+	// add a sentinel proof to allow verification to proceed
+	if len(filteredProofs) == 0 && len(idxs) < elementCount {
 		// Add the root itself as a sentinel
-		if params.Tree[0] != nil {
-			filteredDecommitments = append(filteredDecommitments, cloneBuffer(params.Tree[0]))
+		if tree[0] != nil {
+			filteredProofs = append(filteredProofs, cloneBuffer(tree[0]))
 		}
 	}
 
 	// Get the root for verification
 	var root []byte
-	if params.Tree[0] != nil {
-		root = cloneBuffer(params.Tree[0])
+	if tree[0] != nil {
+		root = cloneBuffer(tree[0])
 	}
 
 	return MultiProof{
-		Root:          root,
-		Indices:       indices,
-		ElementCount:  params.ElementCount,
-		Decommitments: filteredDecommitments,
+		Root:         root,
+		Indices:      idxs,
+		ElementCount: elementCount,
+		Proofs:       filteredProofs,
 	}, nil
 }
 

@@ -10,11 +10,11 @@ type GetRootSequentiallyParams struct {
 	StartingIndex int
 	Leafs         [][]byte
 	ElementCount  int
-	Decommitments [][]byte
+	Proofs        [][]byte
 }
 
-// GenerateSequentialMultiProof generates a sequential multi-proof starting from the given index
-func (m *MerkleTree) GenerateSequentialMultiProof(
+// GenerateMultiProofSequential generates a sequential multi-proof starting from the given index
+func (m *MerkleTree) GenerateMultiProofSequential(
 	startingIndex, count int,
 ) (*MultiProof, error) {
 
@@ -57,14 +57,14 @@ func (m *MerkleTree) GenerateSequentialMultiProof(
 		Indices:       indices,
 		StartingIndex: startingIndex,
 		ElementCount:  m.leafCount,
-		Decommitments: proof.Decommitments,
+		Proofs:        proof.Proofs,
 	}
 
 	return result, nil
 }
 
-// VerifySequentialMultiProof verifies a sequential multi-proof
-func VerifySequentialMultiProof(proof MultiProof) bool {
+// VerifyMultiProofSequential verifies a sequential multi-proof
+func VerifyMultiProofSequential(proof MultiProof) bool {
 	if len(proof.Elements) == 0 || proof.StartingIndex < 0 || proof.ElementCount <= 0 {
 		return false
 	}
@@ -76,7 +76,7 @@ func VerifySequentialMultiProof(proof MultiProof) bool {
 	}
 
 	// Special case: If this is a single-element tree or we're verifying all elements,
-	// we don't need decommitments
+	// we don't need proofs
 	if len(proof.Elements) == proof.ElementCount || proof.ElementCount == 1 {
 		// Just verify that the proof's root matches the recalculated root
 		root := HashLeaf(proof.Elements[0])
@@ -100,8 +100,8 @@ func VerifySequentialMultiProof(proof MultiProof) bool {
 		return bytes.Equal(root, proof.Root)
 	}
 
-	// If there's no decommitments for a normal case, it's invalid
-	if len(proof.Decommitments) == 0 {
+	// If there's no proofs for a normal case, it's invalid
+	if len(proof.Proofs) == 0 {
 		return false
 	}
 
@@ -116,7 +116,7 @@ func VerifySequentialMultiProof(proof MultiProof) bool {
 		StartingIndex: proof.StartingIndex,
 		Leafs:         leafs,
 		ElementCount:  proof.ElementCount,
-		Decommitments: proof.Decommitments,
+		Proofs:        proof.Proofs,
 	}
 
 	// Compute the root
@@ -126,33 +126,33 @@ func VerifySequentialMultiProof(proof MultiProof) bool {
 	if proof.Root == nil {
 		return false
 	}
-	if result.Root == nil {
+	if result == nil {
 		return false
 	}
 
 	// Verify the root matches
-	return bytes.Equal(result.Root, proof.Root)
+	return bytes.Equal(result, proof.Root)
 }
 
-// getRootSequentially computes the root given sequential leafs and decommitments.
-func getRootSequentially(params GetRootSequentiallyParams) GetRootResult {
+// getRootSequentially computes the root given sequential leafs and proofs.
+func getRootSequentially(params GetRootSequentiallyParams) []byte {
 	// Validate input parameters
 	if params.StartingIndex < 0 || len(params.Leafs) == 0 {
-		return GetRootResult{Root: nil}
+		return nil
 	}
 
 	// Ensure starting index and count are within bounds
 	count := len(params.Leafs)
 	if params.StartingIndex+count > params.ElementCount {
-		return GetRootResult{Root: nil}
+		return nil
 	}
 
 	elementCount := params.ElementCount
-	decommitments := params.Decommitments
+	proofs := params.Proofs
 
-	// Validate decommitments
-	if len(decommitments) == 0 {
-		return GetRootResult{Root: nil}
+	// Validate proofs
+	if len(proofs) == 0 {
+		return nil
 	}
 
 	balancedLeafCount := int(roundUpToPowerOf2(uint32(elementCount)))
@@ -168,7 +168,7 @@ func getRootSequentially(params GetRootSequentiallyParams) GetRootResult {
 
 	readIndex := 0
 	writeIndex := 0
-	decommitmentIndex := 0
+	proofIndex := 0
 	upperBound := balancedLeafCount + elementCount - 1
 	lowestTreeIndex := balancedLeafCount + params.StartingIndex
 
@@ -187,10 +187,7 @@ func getRootSequentially(params GetRootSequentiallyParams) GetRootResult {
 			if writeIndex == 0 {
 				rootIndex = count - 1
 			}
-			return GetRootResult{
-				Root:         hashes[rootIndex],
-				ElementCount: elementCount,
-			}
+			return hashes[rootIndex]
 		}
 
 		indexIsOdd := nodeIndex&1 == 1
@@ -216,29 +213,29 @@ func getRootSequentially(params GetRootSequentiallyParams) GetRootResult {
 				right = hashes[readIndex]
 				readIndex = (readIndex + 1) % count
 				if !nextIsPair {
-					if decommitmentIndex >= len(decommitments) {
-						// Not enough decommitments
-						return GetRootResult{Root: nil}
+					if proofIndex >= len(proofs) {
+						// Not enough proofs
+						return nil
 					}
-					left = decommitments[decommitmentIndex]
-					decommitmentIndex++
+					left = proofs[proofIndex]
+					proofIndex++
 				} else {
 					left = hashes[readIndex]
 					readIndex = (readIndex + 1) % count
 				}
 			} else {
-				if decommitmentIndex >= len(decommitments) {
-					// Not enough decommitments
-					return GetRootResult{Root: nil}
+				if proofIndex >= len(proofs) {
+					// Not enough proofs
+					return nil
 				}
-				right = decommitments[decommitmentIndex]
-				decommitmentIndex++
+				right = proofs[proofIndex]
+				proofIndex++
 				left = hashes[readIndex]
 				readIndex = (readIndex + 1) % count
 			}
 
 			if left == nil || right == nil {
-				return GetRootResult{Root: nil}
+				return nil
 			}
 
 			treeIndices[writeIndex] = nodeIndex >> 1
@@ -279,9 +276,9 @@ func generateSequentialProof(
 		}
 	}
 
-	var decommitments [][]byte
+	var proofs [][]byte
 
-	// Calculate decommitments
+	// Calculate proofs
 	for i := balancedLeafCount - 1; i > 0; i-- {
 		leftChildIndex := i << 1
 		rightChildIndex := leftChildIndex + 1
@@ -294,12 +291,12 @@ func generateSequentialProof(
 		left := known[leftChildIndex]
 		right := known[rightChildIndex]
 
-		// Only one of children would be known, so we need the sibling as a decommitment
+		// Only one of children would be known, so we need the sibling as a proof
 		if left != right {
 			if right {
-				decommitments = append(decommitments, cloneBuffer(tree[leftChildIndex]))
+				proofs = append(proofs, cloneBuffer(tree[leftChildIndex]))
 			} else {
-				decommitments = append(decommitments, cloneBuffer(tree[rightChildIndex]))
+				proofs = append(proofs, cloneBuffer(tree[rightChildIndex]))
 			}
 		}
 
@@ -307,21 +304,21 @@ func generateSequentialProof(
 		known[i] = left || right
 	}
 
-	// Filter out nil decommitments
-	filteredDecommitments := make([][]byte, 0, len(decommitments))
-	for _, d := range decommitments {
+	// Filter out nil proofs
+	filteredProofs := make([][]byte, 0, len(proofs))
+	for _, d := range proofs {
 		if d != nil {
-			filteredDecommitments = append(filteredDecommitments, d)
+			filteredProofs = append(filteredProofs, d)
 		}
 	}
 
-	// Special case for empty decommitments:
-	// If all sequential elements are provided, we still need at least one decommitment for verification
-	if len(filteredDecommitments) == 0 && count < elementCount {
-		// Add a sentinel decommitment (using the root itself)
+	// Special case for empty proofs:
+	// If all sequential elements are provided, we still need at least one proof for verification
+	if len(filteredProofs) == 0 && count < elementCount {
+		// Add a sentinel proof (using the root itself)
 		// This isn't ideal but allows verification to proceed
 		if tree[0] != nil {
-			filteredDecommitments = append(filteredDecommitments, cloneBuffer(tree[0]))
+			filteredProofs = append(filteredProofs, cloneBuffer(tree[0]))
 		}
 	}
 
@@ -334,7 +331,7 @@ func generateSequentialProof(
 	return MultiProof{
 		Root:          root,
 		ElementCount:  elementCount,
-		Decommitments: filteredDecommitments,
+		Proofs:        filteredProofs,
 		StartingIndex: startingIndex,
 	}, nil
 }

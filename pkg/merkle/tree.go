@@ -10,28 +10,30 @@ type MerkleTree struct {
 	tree      [][]byte
 	elements  [][]byte
 	root      []byte
-	depth     int
 	leafCount int
 }
 
+var (
+	ErrTreeEmpty   = errors.New("tree is empty")
+	ErrTreeRootNil = errors.New("tree root is nil")
+)
+
 // NewMerkleTree creates a new Merkle tree from the given elements.
 func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
-	if len(elements) == 0 {
-		return nil, errors.New("elements cannot be empty")
+	leaves, err := makeLeaves(elements)
+	if err != nil {
+		return nil, err
 	}
 
-	leaves := make([][]byte, len(elements))
-	for i, element := range elements {
-		leaves[i] = HashLeaf(element)
+	tree, err := makeTree(leaves)
+	if err != nil {
+		return nil, err
 	}
-
-	tree, depth := buildTree(leaves)
 
 	return &MerkleTree{
 		tree:      tree,
 		elements:  elements,
 		root:      tree[1],
-		depth:     depth,
 		leafCount: len(elements),
 	}, nil
 }
@@ -51,11 +53,6 @@ func (m *MerkleTree) Root() []byte {
 	return m.root
 }
 
-// Depth returns the depth of the Merkle tree.
-func (m *MerkleTree) Depth() int {
-	return m.depth
-}
-
 // LeafCount returns the number of leaves in the Merkle tree.
 func (m *MerkleTree) LeafCount() int {
 	return m.leafCount
@@ -71,8 +68,11 @@ func (m *MerkleTree) LeafCount() int {
 // - left child is at index 2*i
 // - right child is at index 2*i+1
 // - parent is at floor(i/2)
-func buildTree(leaves [][]byte) ([][]byte, int) {
-	depth := getDepth(uint32(len(leaves)))
+func makeTree(leaves [][]byte) ([][]byte, error) {
+	if len(leaves) == 0 {
+		return nil, ErrTreeEmpty
+	}
+
 	leafCount := GetLeafCount(len(leaves))
 
 	// Allocate 2N space for the tree. (N leaf nodes, N-1 internal nodes)
@@ -113,25 +113,28 @@ func buildTree(leaves [][]byte) ([][]byte, int) {
 		}
 	}
 
-	return tree, depth
+	if tree[1] == nil {
+		return nil, ErrTreeRootNil
+	}
+
+	return tree, nil
 }
 
-// getDepth calculates the depth of a Merkle tree based on element count.
-func getDepth(n uint32) int {
-	if n <= 1 {
-		return 0
+func makeLeaves(elements [][]byte) ([][]byte, error) {
+	if len(elements) == 0 {
+		return nil, errors.New("elements cannot be empty")
 	}
 
-	// Round up to next power of 2 if not already a power of 2.
-	if bits.OnesCount32(n) > 1 {
-		n = roundUpToPowerOf2(n)
+	leaves := make([][]byte, len(elements))
+	for i, element := range elements {
+		leaves[i] = HashLeaf(element)
 	}
 
-	// bits.Len32 gives position of highest bit + 1.
-	return bits.Len32(n) - 1
+	return leaves, nil
 }
 
 // GetLeafCount returns the number of leaves in a tree.
+// Rounding up to the next power of 2 is necessary to ensure that the tree is balanced. This allows to handle unbalanced trees.
 func GetLeafCount(elementCount int) int {
 	if elementCount == 0 {
 		return 0

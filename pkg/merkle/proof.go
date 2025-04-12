@@ -117,7 +117,7 @@ func verifyProof(
 	getRoot func(leaves [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte,
 ) (bool, error) {
 	if err := validateProof(proof); err != nil {
-		return false, err
+		return false, fmt.Errorf("cannot verify proof: %w", err)
 	}
 
 	// Handle single-element trees.
@@ -129,21 +129,21 @@ func verifyProof(
 	if len(proof.Elements) == proof.ElementCount {
 		tree, err := NewMerkleTree(proof.Elements)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("cannot verify proof: %w", err)
 		}
 
 		return bytes.Equal(tree.Root(), proof.Root), nil
 	}
 
 	// If only some of the elements are provided, we need to calculate the root.
-	leaves := make([][]byte, len(proof.Elements))
-	for i, element := range proof.Elements {
-		leaves[i] = HashLeaf(element)
+	leaves, err := makeLeaves(proof.Elements)
+	if err != nil {
+		return false, fmt.Errorf("cannot verify proof: %w", err)
 	}
 
 	result := getRoot(leaves, proof.Proofs, proof.StartingIndex, proof.ElementCount)
 	if result == nil {
-		return false, nil
+		return false, fmt.Errorf("cannot verify proof: %w", ErrProofNilRoot)
 	}
 
 	return bytes.Equal(result, proof.Root), nil

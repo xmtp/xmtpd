@@ -44,12 +44,6 @@ func TestBalancedTrees(t *testing.T) {
 			// Check structure.
 			assert.Equal(
 				t,
-				tc.expectedDepth,
-				tree.Depth(),
-				"Tree depth should match expected value",
-			)
-			assert.Equal(
-				t,
 				tc.numElements,
 				tree.LeafCount(),
 				"Leaf count should match element count",

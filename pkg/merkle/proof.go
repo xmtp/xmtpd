@@ -17,8 +17,6 @@ type MultiProof struct {
 }
 
 var (
-	ErrInputDuplicateIndices     = errors.New("input has duplicate indices")
-	ErrInputIndicesOutOfBounds   = errors.New("input has indices out of bounds")
 	ErrProofEmptyTree            = errors.New("proof has empty tree")
 	ErrProofEmptyIndices         = errors.New("proof has empty indices")
 	ErrProofDuplicateIndices     = errors.New("proof has duplicate indices")
@@ -41,21 +39,21 @@ func generateProof(
 	elementCount int,
 ) (MultiProof, error) {
 	if len(tree) == 0 {
-		return MultiProof{}, ErrProofEmptyTree
+		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", ErrProofEmptyTree)
 	}
 
 	if root == nil {
-		return MultiProof{}, ErrProofNilRoot
-	}
-
-	if len(indices) == 0 {
-		return MultiProof{}, ErrProofEmptyIndices
+		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", ErrProofNilRoot)
 	}
 
 	// Do not modify the original indices slice.
 	idxs := make([]int, len(indices))
 	copy(idxs, indices)
 	sort.Ints(idxs)
+
+	if err := validateIndices(idxs, elementCount); err != nil {
+		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", err)
+	}
 
 	// Handle single-element trees.
 	if elementCount == 1 {
@@ -68,9 +66,11 @@ func generateProof(
 	}
 
 	// Mark provided indices as known.
-	leafCount := len(tree) >> 1
-	known := make([]bool, len(tree))
-	var proofs [][]byte
+	var (
+		leafCount = len(tree) >> 1
+		proofs    [][]byte
+		known     = make([]bool, len(tree))
+	)
 
 	for _, idx := range idxs {
 		known[leafCount+idx] = true
@@ -149,8 +149,8 @@ func verifyProof(
 	return bytes.Equal(result, proof.Root), nil
 }
 
-// validateProofBase performs common validation for all types of Merkle proofs.
-func validateProofBase(proof *MultiProof) error {
+// validateProof performs common validation for all types of Merkle proofs.
+func validateProof(proof *MultiProof) error {
 	if proof == nil {
 		return ErrProofNil
 	}
@@ -183,6 +183,22 @@ func validateProofBase(proof *MultiProof) error {
 				return fmt.Errorf("nil decommitment at index %d", i)
 			}
 		}
+	}
+
+	return nil
+}
+
+func validateIndices(indices []int, elementCount int) error {
+	if len(indices) == 0 {
+		return ErrProofEmptyIndices
+	}
+
+	if hasDuplicates(indices) {
+		return ErrProofDuplicateIndices
+	}
+
+	if hasOutOfBounds(indices, elementCount) {
+		return ErrProofIndicesOutOfBounds
 	}
 
 	return nil

@@ -159,7 +159,7 @@ func getRootSequentially(leafs [][]byte, proofs [][]byte, startingIndex, element
 
 // validateProofSequential validates a sequential proof.
 func validateProofSequential(proof *MultiProof) error {
-	if err := validateProofBase(proof); err != nil {
+	if err := validateProof(proof); err != nil {
 		return err
 	}
 

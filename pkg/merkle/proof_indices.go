@@ -6,14 +6,6 @@ import (
 
 // GenerateMultiProofWithIndices generates a multi-proof for the given indices.
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
-	if hasDuplicates(indices) {
-		return nil, ErrInputDuplicateIndices
-	}
-
-	if hasOutOfBounds(indices, m.leafCount) {
-		return nil, ErrInputIndicesOutOfBounds
-	}
-
 	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
 	if err != nil {
 		return nil, err
@@ -182,7 +174,7 @@ func getRootIndices(leafs [][]byte, indices []int, elementCount int, proofs [][]
 
 // validateProofIndices validates a proof with arbitrary indices.
 func validateProofIndices(proof *MultiProof) error {
-	if err := validateProofBase(proof); err != nil {
+	if err := validateProof(proof); err != nil {
 		return err
 	}
 

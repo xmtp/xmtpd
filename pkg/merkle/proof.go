@@ -8,12 +8,11 @@ import (
 )
 
 type MultiProof struct {
-	Elements      [][]byte
-	Proofs        [][]byte
-	Root          []byte
-	Indices       []int
-	StartingIndex int
-	ElementCount  int
+	Elements     [][]byte
+	Proofs       [][]byte
+	Root         []byte
+	Indices      []int
+	ElementCount int
 }
 
 var (
@@ -30,6 +29,63 @@ var (
 	ErrProofNoIndices            = errors.New("proof has no indices")
 	ErrProofNoProofs             = errors.New("proof has no proofs")
 )
+
+// GenerateMultiProofSequential generates a sequential multi-proof starting from the given index.
+func (m *MerkleTree) GenerateMultiProofSequential(
+	startingIndex, count int,
+) (*MultiProof, error) {
+	if startingIndex < 0 || startingIndex+count > m.leafCount {
+		return nil, ErrProofInvalidRange
+	}
+
+	indices := make([]int, count)
+	for i := 0; i < count; i++ {
+		indices[i] = startingIndex + i
+	}
+
+	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
+	if err != nil {
+		return nil, err
+	}
+
+	elements := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		elements[i] = m.elements[startingIndex+i]
+	}
+
+	result := &MultiProof{
+		Elements:     elements,
+		Proofs:       proof.Proofs,
+		Root:         proof.Root,
+		Indices:      proof.Indices,
+		ElementCount: proof.ElementCount,
+	}
+
+	return result, nil
+}
+
+// GenerateMultiProofWithIndices generates a multi-proof for the given indices.
+func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
+	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
+	if err != nil {
+		return nil, err
+	}
+
+	elements := make([][]byte, len(proof.Indices))
+	for i, index := range proof.Indices {
+		elements[i] = m.elements[index]
+	}
+
+	result := &MultiProof{
+		Elements:     elements,
+		Proofs:       proof.Proofs,
+		Root:         proof.Root,
+		Indices:      proof.Indices,
+		ElementCount: proof.ElementCount,
+	}
+
+	return result, nil
+}
 
 // generateProof returns a MultiProof for the given indices.
 func generateProof(
@@ -111,11 +167,8 @@ func generateProof(
 	}, nil
 }
 
-func verifyProof(
-	proof *MultiProof,
-	validateProof func(proof *MultiProof) error,
-	getRoot func(leaves [][]byte, proofs [][]byte, startingIndex, elementCount int) []byte,
-) (bool, error) {
+// VerifyProof verifies a proof.
+func VerifyProof(proof *MultiProof) (bool, error) {
 	if err := validateProof(proof); err != nil {
 		return false, fmt.Errorf("cannot verify proof: %w", err)
 	}
@@ -141,12 +194,143 @@ func verifyProof(
 		return false, fmt.Errorf("cannot verify proof: %w", err)
 	}
 
-	result := getRoot(leaves, proof.Proofs, proof.StartingIndex, proof.ElementCount)
+	result := getRoot(leaves, proof.Indices, proof.ElementCount, proof.Proofs)
 	if result == nil {
 		return false, fmt.Errorf("cannot verify proof: %w", ErrProofNilRoot)
 	}
 
 	return bytes.Equal(result, proof.Root), nil
+}
+
+// getRoot computes the root given the leaves, their indices, and proofs.
+func getRoot(leaves [][]byte, indices []int, elementCount int, proofs [][]byte) []byte {
+	// Ensure indices are valid
+	for _, index := range indices {
+		if index < 0 || index >= elementCount {
+			return nil
+		}
+	}
+
+	// Validate input
+	if len(leaves) == 0 || len(indices) == 0 ||
+		len(leaves) != len(indices) {
+		return nil
+	}
+
+	// Sort indices and corresponding leaves
+	indexLeafPairs := make([]struct {
+		Index int
+		Leaf  []byte
+	}, len(indices))
+
+	for i, index := range indices {
+		indexLeafPairs[i] = struct {
+			Index int
+			Leaf  []byte
+		}{Index: index, Leaf: leaves[i]}
+	}
+
+	sort.Slice(indexLeafPairs, func(i, j int) bool {
+		return indexLeafPairs[i].Index < indexLeafPairs[j].Index
+	})
+
+	// Update sorted indices and leaves
+	sortedIndices := make([]int, len(indexLeafPairs))
+	sortedLeaves := make([][]byte, len(indexLeafPairs))
+	for i, pair := range indexLeafPairs {
+		sortedIndices[i] = pair.Index
+		sortedLeaves[i] = pair.Leaf
+	}
+
+	// Original GetRoot implementation using balanced tree
+	balancedLeafCount := int(roundUpToPowerOf2(uint32(elementCount)))
+
+	// Prepare circular queues
+	count := len(sortedIndices)
+	treeIndices := make([]int, count)
+	hashes := make([][]byte, count)
+
+	// Initialize queues
+	for i := 0; i < count; i++ {
+		treeIndices[count-1-i] = balancedLeafCount + sortedIndices[i]
+		hashes[count-1-i] = cloneBuffer(sortedLeaves[i])
+	}
+
+	readIndex := 0
+	writeIndex := 0
+	proofIndex := 0
+	upperBound := balancedLeafCount + elementCount - 1
+	lowestTreeIndex := treeIndices[count-1]
+	var nextNodeIndex int
+
+	for {
+		nodeIndex := treeIndices[readIndex]
+
+		if nodeIndex == 1 {
+			// Reached the root
+			rootIndex := writeIndex - 1
+			if writeIndex == 0 {
+				rootIndex = count - 1
+			}
+			return hashes[rootIndex]
+		}
+
+		indexIsOdd := nodeIndex&1 == 1
+
+		if nodeIndex == upperBound && !indexIsOdd {
+			treeIndices[writeIndex] = nodeIndex >> 1
+			hashes[writeIndex] = hashes[readIndex]
+			writeIndex = (writeIndex + 1) % count
+			readIndex = (readIndex + 1) % count
+		} else {
+			nextReadIndex := (readIndex + 1) % count
+			if nextReadIndex < len(treeIndices) {
+				nextNodeIndex = treeIndices[nextReadIndex]
+			}
+
+			// Check if the next node is a sibling
+			nextIsPair := nextNodeIndex == nodeIndex-1
+
+			var right, left []byte
+			if indexIsOdd {
+				right = hashes[readIndex]
+				readIndex = (readIndex + 1) % count
+				if !nextIsPair {
+					if proofIndex >= len(proofs) {
+						return nil
+					}
+					left = proofs[proofIndex]
+					proofIndex++
+				} else {
+					left = hashes[readIndex]
+					readIndex = (readIndex + 1) % count
+				}
+			} else {
+				if proofIndex >= len(proofs) {
+					return nil
+				}
+				right = proofs[proofIndex]
+				proofIndex++
+				left = hashes[readIndex]
+				readIndex = (readIndex + 1) % count
+			}
+
+			if left == nil || right == nil {
+				return nil
+			}
+
+			parentIndex := nodeIndex >> 1
+			treeIndices[writeIndex] = parentIndex
+			parentHash := HashNode(left, right)
+			hashes[writeIndex] = parentHash
+			writeIndex = (writeIndex + 1) % count
+		}
+
+		if nodeIndex == lowestTreeIndex || nextNodeIndex == lowestTreeIndex {
+			lowestTreeIndex >>= 1
+			upperBound >>= 1
+		}
+	}
 }
 
 // validateProof performs common validation for all types of Merkle proofs.
@@ -157,6 +341,14 @@ func validateProof(proof *MultiProof) error {
 
 	if proof.Root == nil {
 		return ErrProofNilRoot
+	}
+
+	if err := validateIndices(proof.Indices, proof.ElementCount); err != nil {
+		return err
+	}
+
+	if len(proof.Indices) != len(proof.Elements) {
+		return ErrProofInvalidElementCount
 	}
 
 	if len(proof.Elements) == 0 {
@@ -188,16 +380,21 @@ func validateProof(proof *MultiProof) error {
 	return nil
 }
 
+// validateIndices validates the indices slice of a proof.
 func validateIndices(indices []int, elementCount int) error {
-	if len(indices) == 0 {
+	sortedIndices := make([]int, len(indices))
+	copy(sortedIndices, indices)
+	sort.Ints(sortedIndices)
+
+	if len(sortedIndices) == 0 {
 		return ErrProofEmptyIndices
 	}
 
-	if hasDuplicates(indices) {
+	if hasDuplicates(sortedIndices) {
 		return ErrProofDuplicateIndices
 	}
 
-	if hasOutOfBounds(indices, elementCount) {
+	if hasOutOfBounds(sortedIndices, elementCount) {
 		return ErrProofIndicesOutOfBounds
 	}
 
@@ -206,12 +403,8 @@ func validateIndices(indices []int, elementCount int) error {
 
 // hasDuplicates checks if the sorted indices slice contains duplicates.
 func hasDuplicates(indices []int) bool {
-	sortedIndices := make([]int, len(indices))
-	copy(sortedIndices, indices)
-	sort.Ints(sortedIndices)
-
-	for i := 1; i < len(sortedIndices); i++ {
-		if sortedIndices[i] == sortedIndices[i-1] {
+	for i := 1; i < len(indices); i++ {
+		if indices[i] == indices[i-1] {
 			return true
 		}
 	}

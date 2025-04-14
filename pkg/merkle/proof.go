@@ -8,163 +8,68 @@ import (
 )
 
 type MultiProof struct {
-	Elements     [][]byte
-	Proofs       [][]byte
-	Root         []byte
-	Indices      []int
-	ElementCount int
+	Elements  [][]byte
+	Proofs    [][]byte
+	Root      []byte
+	Indices   []int
+	LeafCount int
 }
 
 var (
-	ErrProofEmptyTree            = errors.New("proof has empty tree")
-	ErrProofEmptyIndices         = errors.New("proof has empty indices")
-	ErrProofDuplicateIndices     = errors.New("proof has duplicate indices")
-	ErrProofIndicesOutOfBounds   = errors.New("proof has indices out of bounds")
-	ErrProofInvalidStartingIndex = errors.New("proof has invalid starting index")
-	ErrProofInvalidElementCount  = errors.New("proof has invalid element count")
-	ErrProofInvalidRange         = errors.New("proof has invalid range")
-	ErrProofNil                  = errors.New("proof is nil")
-	ErrProofNilRoot              = errors.New("proof root cannot be nil")
-	ErrProofNoElements           = errors.New("proof has no elements")
-	ErrProofNoIndices            = errors.New("proof has no indices")
-	ErrProofNoProofs             = errors.New("proof has no proofs")
+	ErrProofEmptyTree           = errors.New("proof has empty tree")
+	ErrProodIndicesDuplicated   = errors.New("proof has duplicate indices")
+	ErrProofIndicesOutOfBounds  = errors.New("proof has indices out of bounds")
+	ErrProofIndicesInvalidRange = errors.New("proof has invalid range")
+	ErrProofInvalidElementCount = errors.New("proof has invalid element count")
+	ErrProofElementMismatch     = errors.New("proof has a different number of indices and elements")
+	ErrProofNil                 = errors.New("proof is nil")
+	ErrProofNilRoot             = errors.New("proof root is nil")
+	ErrProofNoElements          = errors.New("proof has no elements")
+	ErrProofNoIndices           = errors.New("proof has no indices")
+	ErrNoProofs                 = errors.New("no proofs provided")
 )
 
 // GenerateMultiProofSequential generates a sequential multi-proof starting from the given index.
-func (m *MerkleTree) GenerateMultiProofSequential(
-	startingIndex, count int,
-) (*MultiProof, error) {
-	if startingIndex < 0 || startingIndex+count > m.leafCount {
-		return nil, ErrProofInvalidRange
-	}
-
-	indices := make([]int, count)
-	for i := 0; i < count; i++ {
-		indices[i] = startingIndex + i
-	}
-
-	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
+func (m *MerkleTree) GenerateMultiProofSequential(startingIndex, count int) (*MultiProof, error) {
+	indices, err := makeIndices(startingIndex, count)
 	if err != nil {
 		return nil, err
 	}
 
-	elements := make([][]byte, count)
+	proof, err := makeProof(m.tree, m.root, indices, m.leafCount)
+	if err != nil {
+		return nil, err
+	}
+
+	proof.Elements = make([][]byte, count)
 	for i := 0; i < count; i++ {
-		elements[i] = m.elements[startingIndex+i]
+		proof.Elements[i] = m.elements[startingIndex+i]
 	}
 
-	result := &MultiProof{
-		Elements:     elements,
-		Proofs:       proof.Proofs,
-		Root:         proof.Root,
-		Indices:      proof.Indices,
-		ElementCount: proof.ElementCount,
+	if err := validateProof(&proof); err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	return &proof, nil
 }
 
 // GenerateMultiProofWithIndices generates a multi-proof for the given indices.
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
-	proof, err := generateProof(m.tree, m.root, indices, m.leafCount)
+	proof, err := makeProof(m.tree, m.root, indices, m.leafCount)
 	if err != nil {
 		return nil, err
 	}
 
-	elements := make([][]byte, len(proof.Indices))
+	proof.Elements = make([][]byte, len(proof.Indices))
 	for i, index := range proof.Indices {
-		elements[i] = m.elements[index]
+		proof.Elements[i] = m.elements[index]
 	}
 
-	result := &MultiProof{
-		Elements:     elements,
-		Proofs:       proof.Proofs,
-		Root:         proof.Root,
-		Indices:      proof.Indices,
-		ElementCount: proof.ElementCount,
+	if err := validateProof(&proof); err != nil {
+		return nil, err
 	}
 
-	return result, nil
-}
-
-// generateProof returns a MultiProof for the given indices.
-func generateProof(
-	tree [][]byte,
-	root []byte,
-	indices []int,
-	elementCount int,
-) (MultiProof, error) {
-	if len(tree) == 0 {
-		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", ErrProofEmptyTree)
-	}
-
-	if root == nil {
-		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", ErrProofNilRoot)
-	}
-
-	// Do not modify the original indices slice.
-	idxs := make([]int, len(indices))
-	copy(idxs, indices)
-	sort.Ints(idxs)
-
-	if err := validateIndices(idxs, elementCount); err != nil {
-		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", err)
-	}
-
-	// Handle single-element trees.
-	if elementCount == 1 {
-		return MultiProof{
-			Root:         root,
-			Indices:      idxs,
-			ElementCount: elementCount,
-			Proofs:       [][]byte{root},
-		}, nil
-	}
-
-	// Mark provided indices as known.
-	var (
-		leafCount = len(tree) >> 1
-		proofs    [][]byte
-		known     = make([]bool, len(tree))
-	)
-
-	for _, idx := range idxs {
-		known[leafCount+idx] = true
-	}
-
-	// Calculate proofs to prove the existence of the indices.
-	for i := leafCount - 1; i > 0; i-- {
-		leftChildIdx := GetLeftChild(i)
-		rightChildIdx := GetRightChild(i)
-
-		left := known[leftChildIdx]
-		right := known[rightChildIdx]
-
-		// Only one of children would be known, so we need the sibling as a proof
-		if left != right {
-			if right {
-				// Only add non-nil sibling nodes
-				if tree[leftChildIdx] != nil {
-					proofs = append(proofs, cloneBuffer(tree[leftChildIdx]))
-				}
-			} else {
-				// Only add non-nil sibling nodes
-				if tree[rightChildIdx] != nil {
-					proofs = append(proofs, cloneBuffer(tree[rightChildIdx]))
-				}
-			}
-		}
-
-		// If at least one of the children is known, the parent is known
-		known[i] = left || right
-	}
-
-	return MultiProof{
-		Root:         root,
-		Indices:      idxs,
-		ElementCount: elementCount,
-		Proofs:       proofs,
-	}, nil
+	return &proof, nil
 }
 
 // VerifyProof verifies a proof.
@@ -174,12 +79,12 @@ func VerifyProof(proof *MultiProof) (bool, error) {
 	}
 
 	// Handle single-element trees.
-	if proof.ElementCount == 1 {
+	if proof.LeafCount == 1 {
 		return bytes.Equal(proof.Root, HashLeaf(proof.Elements[0])), nil
 	}
 
 	// If all the elements are provided, we can verify the proof by recalculating the root.
-	if len(proof.Elements) == proof.ElementCount {
+	if len(proof.Elements) == proof.LeafCount {
 		tree, err := NewMerkleTree(proof.Elements)
 		if err != nil {
 			return false, fmt.Errorf("cannot verify proof: %w", err)
@@ -194,7 +99,7 @@ func VerifyProof(proof *MultiProof) (bool, error) {
 		return false, fmt.Errorf("cannot verify proof: %w", err)
 	}
 
-	result := getRoot(leaves, proof.Indices, proof.ElementCount, proof.Proofs)
+	result := computeRoot(leaves, proof.Indices, proof.LeafCount, proof.Proofs)
 	if result == nil {
 		return false, fmt.Errorf("cannot verify proof: %w", ErrProofNilRoot)
 	}
@@ -202,8 +107,8 @@ func VerifyProof(proof *MultiProof) (bool, error) {
 	return bytes.Equal(result, proof.Root), nil
 }
 
-// getRoot computes the root given the leaves, their indices, and proofs.
-func getRoot(leaves [][]byte, indices []int, elementCount int, proofs [][]byte) []byte {
+// computeRoot computes the root given the leaves, their indices, and proofs.
+func computeRoot(leaves [][]byte, indices []int, elementCount int, proofs [][]byte) []byte {
 	// Ensure indices are valid
 	for _, index := range indices {
 		if index < 0 || index >= elementCount {
@@ -333,7 +238,101 @@ func getRoot(leaves [][]byte, indices []int, elementCount int, proofs [][]byte) 
 	}
 }
 
-// validateProof performs common validation for all types of Merkle proofs.
+// makeIndices returns a slice of indices for the given starting index and count.
+func makeIndices(startingIndex, count int) ([]int, error) {
+	if startingIndex < 0 || count <= 0 {
+		return nil, ErrProofIndicesInvalidRange
+	}
+
+	indices := make([]int, count)
+	for i := 0; i < count; i++ {
+		indices[i] = startingIndex + i
+	}
+
+	return indices, nil
+}
+
+// makeProof returns a MultiProof for the given indices.
+func makeProof(
+	tree [][]byte,
+	root []byte,
+	indices []int,
+	leafCount int,
+) (MultiProof, error) {
+	if len(tree) == 0 {
+		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", ErrProofEmptyTree)
+	}
+
+	if root == nil {
+		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", ErrProofNilRoot)
+	}
+
+	// Do not modify the original indices slice.
+	idxs := make([]int, len(indices))
+	copy(idxs, indices)
+	sort.Ints(idxs)
+
+	if err := validateIndices(idxs, leafCount); err != nil {
+		return MultiProof{}, fmt.Errorf("cannot generate proof: %w", err)
+	}
+
+	// Handle single-element trees.
+	if leafCount == 1 {
+		return MultiProof{
+			Root:      root,
+			Indices:   idxs,
+			LeafCount: leafCount,
+			Proofs:    [][]byte{root},
+		}, nil
+	}
+
+	var (
+		startLeafIdx = len(tree) >> 1
+		proofs       [][]byte
+		known        = make([]bool, len(tree))
+	)
+
+	// Mark provided indices as known.
+	for _, idx := range idxs {
+		known[startLeafIdx+idx] = true
+	}
+
+	// Calculate proofs to prove the existence of the indices.
+	for i := startLeafIdx - 1; i > 0; i-- {
+		leftChildIdx := GetLeftChild(i)
+		rightChildIdx := GetRightChild(i)
+
+		left := known[leftChildIdx]
+		right := known[rightChildIdx]
+
+		// Only one of children would be known, so we need the sibling as a proof
+		if left != right {
+			if right {
+				// Only add non-nil sibling nodes
+				if tree[leftChildIdx] != nil {
+					proofs = append(proofs, cloneBuffer(tree[leftChildIdx]))
+				}
+			} else {
+				// Only add non-nil sibling nodes
+				if tree[rightChildIdx] != nil {
+					proofs = append(proofs, cloneBuffer(tree[rightChildIdx]))
+				}
+			}
+		}
+
+		// If at least one of the children is known, the parent is known
+		known[i] = left || right
+	}
+
+	return MultiProof{
+		Root:      root,
+		Indices:   idxs,
+		LeafCount: leafCount,
+		Proofs:    proofs,
+	}, nil
+}
+
+// validateProof performs common validation for Merkle proofs.
 func validateProof(proof *MultiProof) error {
 	if proof == nil {
 		return ErrProofNil
@@ -343,38 +342,40 @@ func validateProof(proof *MultiProof) error {
 		return ErrProofNilRoot
 	}
 
-	if err := validateIndices(proof.Indices, proof.ElementCount); err != nil {
+	if err := validateIndices(proof.Indices, proof.LeafCount); err != nil {
 		return err
-	}
-
-	if len(proof.Indices) != len(proof.Elements) {
-		return ErrProofInvalidElementCount
 	}
 
 	if len(proof.Elements) == 0 {
 		return ErrProofNoElements
 	}
 
-	if proof.ElementCount <= 0 {
+	if proof.LeafCount <= 0 {
 		return ErrProofInvalidElementCount
 	}
 
-	for i, element := range proof.Elements {
-		if element == nil {
+	if len(proof.Indices) != len(proof.Elements) {
+		return ErrProofElementMismatch
+	}
+
+	for i, e := range proof.Elements {
+		if e == nil {
 			return fmt.Errorf("nil element at index %d", i)
 		}
 	}
 
-	if len(proof.Elements) < proof.ElementCount && proof.ElementCount > 1 {
-		if len(proof.Proofs) == 0 {
-			return ErrProofNoProofs
+	for i, p := range proof.Proofs {
+		if p == nil {
+			return fmt.Errorf("nil proof at index %d", i)
 		}
+	}
 
-		for i, decommitment := range proof.Proofs {
-			if decommitment == nil {
-				return fmt.Errorf("nil decommitment at index %d", i)
-			}
-		}
+	isPartialProof := len(proof.Elements) < proof.LeafCount
+	isNonTrivialTree := proof.LeafCount > 1
+	needsProofs := isPartialProof && isNonTrivialTree
+
+	if needsProofs && len(proof.Proofs) == 0 {
+		return ErrNoProofs
 	}
 
 	return nil
@@ -387,11 +388,11 @@ func validateIndices(indices []int, elementCount int) error {
 	sort.Ints(sortedIndices)
 
 	if len(sortedIndices) == 0 {
-		return ErrProofEmptyIndices
+		return ErrProofNoIndices
 	}
 
 	if hasDuplicates(sortedIndices) {
-		return ErrProofDuplicateIndices
+		return ErrProodIndicesDuplicated
 	}
 
 	if hasOutOfBounds(sortedIndices, elementCount) {

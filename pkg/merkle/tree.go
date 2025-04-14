@@ -20,7 +20,13 @@ var (
 
 // NewMerkleTree creates a new Merkle tree from the given elements.
 func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
-	leaves, err := makeLeaves(elements)
+	elementsDeepCopy := make([][]byte, len(elements))
+	for i, element := range elements {
+		elementsDeepCopy[i] = make([]byte, len(element))
+		copy(elementsDeepCopy[i], element)
+	}
+
+	leaves, err := makeLeaves(elementsDeepCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -32,9 +38,9 @@ func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
 
 	return &MerkleTree{
 		tree:      tree,
-		elements:  elements,
+		elements:  elementsDeepCopy,
 		root:      tree[1],
-		leafCount: len(elements),
+		leafCount: len(elementsDeepCopy),
 	}, nil
 }
 
@@ -73,7 +79,7 @@ func makeTree(leaves [][]byte) ([][]byte, error) {
 		return nil, ErrTreeEmpty
 	}
 
-	leafCount := GetLeafCount(len(leaves))
+	leafCount := CalculateBalancedLeafCount(len(leaves))
 
 	// Allocate 2N space for the tree. (N leaf nodes, N-1 internal nodes)
 	tree := make([][]byte, leafCount<<1)
@@ -120,6 +126,8 @@ func makeTree(leaves [][]byte) ([][]byte, error) {
 	return tree, nil
 }
 
+// makeLeaves returns the leaves of the tree,
+// ordered in the same order as the provided elements.
 func makeLeaves(elements [][]byte) ([][]byte, error) {
 	if len(elements) == 0 {
 		return nil, errors.New("elements cannot be empty")
@@ -133,9 +141,9 @@ func makeLeaves(elements [][]byte) ([][]byte, error) {
 	return leaves, nil
 }
 
-// GetLeafCount returns the number of leaves in a tree.
-// Rounding up to the next power of 2 is necessary to ensure that the tree is balanced. This allows to handle unbalanced trees.
-func GetLeafCount(elementCount int) int {
+// CalculateBalancedLeafCount returns the number of leaves in a balanced tree.
+// To calculate the number of leaves in a tree, we need to round up to the next power of 2.
+func CalculateBalancedLeafCount(elementCount int) int {
 	if elementCount == 0 {
 		return 0
 	}

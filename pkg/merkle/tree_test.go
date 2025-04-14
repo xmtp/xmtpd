@@ -51,7 +51,7 @@ func TestBalancedTrees(t *testing.T) {
 			assert.NotNil(t, tree.Root(), "Root should not be nil")
 
 			// For balanced trees, the array size is exactly 2*n where n is the next power of 2 >= numElements.
-			leafCount := merkle.GetLeafCount(tc.numElements)
+			leafCount := merkle.CalculateBalancedLeafCount(tc.numElements)
 			expectedArraySize := leafCount * 2
 			assert.Equal(
 				t,
@@ -105,7 +105,7 @@ func TestUnbalancedTrees(t *testing.T) {
 			tree, err := merkle.NewMerkleTree(elements)
 			require.NoError(t, err)
 
-			leafCount := merkle.GetLeafCount(tc.numElements)
+			leafCount := merkle.CalculateBalancedLeafCount(tc.numElements)
 			for i := 0; i < tc.numElements; i++ {
 				leafIdx := leafCount + i
 				assert.Equal(t, merkle.HashLeaf(elements[i]), tree.Tree()[leafIdx],
@@ -152,7 +152,7 @@ func TestLargeTrees(t *testing.T) {
 			assert.NotNil(t, tree.Root(), "Root should not be nil")
 
 			// Verify tree structure size.
-			leafCount := merkle.GetLeafCount(tc.numElements)
+			leafCount := merkle.CalculateBalancedLeafCount(tc.numElements)
 			expectedArraySize := leafCount * 2
 			assert.Equal(
 				t,
@@ -191,7 +191,7 @@ func TestTreeWithDuplicateElements(t *testing.T) {
 	tree, err := merkle.NewMerkleTree(elements)
 	require.NoError(t, err)
 
-	leafCount := merkle.GetLeafCount(len(elements))
+	leafCount := merkle.CalculateBalancedLeafCount(len(elements))
 	leafHash1 := tree.Tree()[leafCount]
 	leafHash2 := tree.Tree()[leafCount+1]
 	leafHash3 := tree.Tree()[leafCount+2]
@@ -235,7 +235,7 @@ func TestTreeWithEmptyElements(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree.Root(), "Root should be calculated correctly with empty elements")
 
-	leafCount := merkle.GetLeafCount(len(elements))
+	leafCount := merkle.CalculateBalancedLeafCount(len(elements))
 	for i := 0; i < 2; i++ {
 		leafIndex := leafCount + i
 		assert.Equal(

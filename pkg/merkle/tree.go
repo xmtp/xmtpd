@@ -3,6 +3,7 @@ package merkle
 import (
 	"errors"
 	"math/bits"
+	"sort"
 )
 
 // MerkleTree represents a Merkle tree data structure.
@@ -42,6 +43,47 @@ func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
 		root:      tree[1],
 		leafCount: len(elementsDeepCopy),
 	}, nil
+}
+
+// GenerateMultiProofSequential generates a sequential multi-proof starting from the given index.
+func (m *MerkleTree) GenerateMultiProofSequential(startingIndex, count int) (*MultiProof, error) {
+	indices, err := makeIndices(startingIndex, count)
+	if err != nil {
+		return nil, err
+	}
+
+	proof, err := makeProof(m.tree, m.root, indices, m.leafCount)
+	if err != nil {
+		return nil, err
+	}
+
+	proof.elements = makeIndexedValues(m.elements, indices)
+
+	if err := proof.validate(); err != nil {
+		return nil, err
+	}
+
+	return &proof, nil
+}
+
+// GenerateMultiProofWithIndices generates a multi-proof for the given indices.
+func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
+	sortedIndices := make([]int, len(indices))
+	copy(sortedIndices, indices)
+	sort.Ints(sortedIndices)
+
+	proof, err := makeProof(m.tree, m.root, sortedIndices, m.leafCount)
+	if err != nil {
+		return nil, err
+	}
+
+	proof.elements = makeIndexedValues(m.elements, sortedIndices)
+
+	if err := proof.validate(); err != nil {
+		return nil, err
+	}
+
+	return &proof, nil
 }
 
 // Tree returns the 1-indexed representation of the Merkle tree.

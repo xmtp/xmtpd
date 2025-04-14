@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/embeddedmls"
+
 	"github.com/xmtp/xmtpd/pkg/config"
 
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
@@ -357,7 +359,7 @@ func (s *Service) PublishPayerEnvelopes(
 	topicKind := targetTopic.Kind()
 
 	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
-		if err = s.validateKeyPackage(ctx, &payerEnv.ClientEnvelope); err != nil {
+		if err = s.validateKeyPackage(&payerEnv.ClientEnvelope); err != nil {
 			return nil, err
 		}
 	}
@@ -451,7 +453,6 @@ func (s *Service) validatePayerEnvelope(
 }
 
 func (s *Service) validateKeyPackage(
-	ctx context.Context,
 	clientEnv *envelopes.ClientEnvelope,
 ) error {
 	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_UploadKeyPackage)
@@ -459,20 +460,11 @@ func (s *Service) validateKeyPackage(
 		return status.Errorf(codes.InvalidArgument, "invalid payload type")
 	}
 
-	validationResult, err := s.validationService.ValidateKeyPackages(
-		ctx,
-		[][]byte{payload.UploadKeyPackage.KeyPackage.KeyPackageTlsSerialized},
+	err := embeddedmls.ValidateKeyPackage(
+		payload.UploadKeyPackage.KeyPackage.KeyPackageTlsSerialized,
 	)
 	if err != nil {
-		return status.Errorf(codes.Internal, "could not validate key package: %v", err)
-	}
-
-	if len(validationResult) == 0 {
-		return status.Errorf(codes.Internal, "no validation results")
-	}
-
-	if !validationResult[0].IsOk {
-		return status.Errorf(codes.InvalidArgument, "key package validation failed")
+		return status.Errorf(codes.InvalidArgument, "key package validation failed %v", err)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"errors"
+	"fmt"
 	"math/bits"
 	"sort"
 )
@@ -52,12 +53,10 @@ func (m *MerkleTree) GenerateMultiProofSequential(startingIndex, count int) (*Mu
 		return nil, err
 	}
 
-	proof, err := makeProof(m.tree, m.root, indices, m.leafCount)
+	proof, err := m.makeProof(indices)
 	if err != nil {
 		return nil, err
 	}
-
-	proof.elements = makeIndexedValues(m.elements, indices)
 
 	if err := proof.validate(); err != nil {
 		return nil, err
@@ -72,18 +71,89 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 	copy(sortedIndices, indices)
 	sort.Ints(sortedIndices)
 
-	proof, err := makeProof(m.tree, m.root, sortedIndices, m.leafCount)
+	proof, err := m.makeProof(sortedIndices)
 	if err != nil {
 		return nil, err
 	}
-
-	proof.elements = makeIndexedValues(m.elements, sortedIndices)
 
 	if err := proof.validate(); err != nil {
 		return nil, err
 	}
 
 	return &proof, nil
+}
+
+// makeProof returns a MultiProof for the given indices.
+func (m *MerkleTree) makeProof(indices []int) (MultiProof, error) {
+	if len(m.tree) == 0 {
+		return MultiProof{}, fmt.Errorf(ErrGenerateProof, ErrEmptyTree)
+	}
+
+	if len(m.root) == 0 {
+		return MultiProof{}, fmt.Errorf(ErrGenerateProof, ErrNilRoot)
+	}
+
+	if err := validateIndices(indices, m.leafCount); err != nil {
+		return MultiProof{}, fmt.Errorf(ErrGenerateProof, err)
+	}
+
+	indexedValues := makeIndexedValues(m.elements, indices)
+	if len(indexedValues) != len(indices) {
+		return MultiProof{}, fmt.Errorf(ErrGenerateProof, ErrElementMismatch)
+	}
+
+	// Handle single-element trees.
+	if m.leafCount == 1 {
+		return MultiProof{
+			elements:  indexedValues,
+			proofs:    [][]byte{m.root},
+			leafCount: m.leafCount,
+		}, nil
+	}
+
+	var (
+		startLeafIdx = len(m.tree) >> 1
+		proofs       [][]byte
+		known        = make([]bool, len(m.tree))
+	)
+
+	// Mark provided indices as known.
+	for _, idx := range indices {
+		known[startLeafIdx+idx] = true
+	}
+
+	// Calculate proofs to prove the existence of the indices.
+	for i := startLeafIdx - 1; i > 0; i-- {
+		leftChildIdx := GetLeftChild(i)
+		rightChildIdx := GetRightChild(i)
+
+		left := known[leftChildIdx]
+		right := known[rightChildIdx]
+
+		// Only one of children would be known, so we need the sibling as a proof
+		if left != right {
+			if right {
+				// Only add non-nil sibling nodes
+				if m.tree[leftChildIdx] != nil {
+					proofs = append(proofs, cloneBuffer(m.tree[leftChildIdx]))
+				}
+			} else {
+				// Only add non-nil sibling nodes
+				if m.tree[rightChildIdx] != nil {
+					proofs = append(proofs, cloneBuffer(m.tree[rightChildIdx]))
+				}
+			}
+		}
+
+		// If at least one of the children is known, the parent is known
+		known[i] = left || right
+	}
+
+	return MultiProof{
+		elements:  indexedValues,
+		proofs:    proofs,
+		leafCount: m.leafCount,
+	}, nil
 }
 
 // Tree returns the 1-indexed representation of the Merkle tree.

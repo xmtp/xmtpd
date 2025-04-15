@@ -30,7 +30,6 @@ var (
 type MultiProof struct {
 	elements  indexedValues
 	proofs    [][]byte
-	root      []byte
 	leafCount int
 }
 
@@ -40,10 +39,6 @@ func (p *MultiProof) Elements() indexedValues {
 
 func (p *MultiProof) Proofs() [][]byte {
 	return p.proofs
-}
-
-func (p *MultiProof) Root() []byte {
-	return p.root
 }
 
 func (p *MultiProof) LeafCount() int {
@@ -76,14 +71,18 @@ func (iv indexedValues) Indices() []int {
 }
 
 // Verify verifies a proof.
-func Verify(proof *MultiProof) (bool, error) {
+func Verify(root []byte, proof *MultiProof) (bool, error) {
+	if len(root) == 0 {
+		return false, fmt.Errorf(ErrVerifyProof, ErrNilRoot)
+	}
+
 	if err := proof.validate(); err != nil {
 		return false, fmt.Errorf(ErrVerifyProof, err)
 	}
 
 	// Handle single-element trees.
 	if proof.leafCount == 1 {
-		return bytes.Equal(proof.root, HashLeaf(proof.elements[0].value)), nil
+		return bytes.Equal(root, HashLeaf(proof.elements[0].value)), nil
 	}
 
 	// If all the elements are provided, we can verify the proof by recalculating the root.
@@ -94,7 +93,7 @@ func Verify(proof *MultiProof) (bool, error) {
 			return false, fmt.Errorf(ErrVerifyProof, err)
 		}
 
-		return bytes.Equal(tree.Root(), proof.root), nil
+		return bytes.Equal(tree.Root(), root), nil
 	}
 
 	result, err := proof.computeRoot()
@@ -102,7 +101,7 @@ func Verify(proof *MultiProof) (bool, error) {
 		return false, fmt.Errorf(ErrVerifyProof, err)
 	}
 
-	return bytes.Equal(result, proof.root), nil
+	return bytes.Equal(result, root), nil
 }
 
 // computeRoot computes the root given the leaves, their indices, and proofs.
@@ -204,10 +203,6 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 
 // validate performs common validation for Merkle proofs.
 func (p *MultiProof) validate() error {
-	if p.root == nil {
-		return ErrNilRoot
-	}
-
 	if len(p.elements) == 0 {
 		return ErrNoElements
 	}
@@ -291,7 +286,6 @@ func makeProof(
 	// Handle single-element trees.
 	if leafCount == 1 {
 		return MultiProof{
-			root:      root,
 			leafCount: leafCount,
 			proofs:    [][]byte{root},
 		}, nil
@@ -336,7 +330,6 @@ func makeProof(
 	}
 
 	return MultiProof{
-		root:      root,
 		leafCount: leafCount,
 		proofs:    proofs,
 	}, nil

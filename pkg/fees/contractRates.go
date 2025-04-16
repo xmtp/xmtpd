@@ -37,7 +37,7 @@ type indexedRates struct {
 	rates     *Rates
 }
 
-// ContractsRatesFetcher pulls all the rates from the RatesManager contract
+// ContractRatesFetcher pulls all the rates from the RatesManager contract
 // and stores them in a sorted set to find the appropriate rate for a given timestamp
 type ContractRatesFetcher struct {
 	ctx             context.Context

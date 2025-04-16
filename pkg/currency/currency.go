@@ -6,7 +6,7 @@ import (
 	"math"
 )
 
-// Picodollar is a type to represent currency with 12 decimal precision
+// PicoDollar is a type to represent currency with 12 decimal precision
 type PicoDollar int64
 
 const (

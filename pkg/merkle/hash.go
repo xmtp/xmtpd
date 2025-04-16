@@ -4,9 +4,16 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// LEAF_PREFIX is the prefix for leaf nodes.
-// It is used to distinguish leaf nodes from other types of nodes.
-const LEAF_PREFIX = "leaf|"
+const (
+	LEAF_PREFIX = "leaf|"
+	NODE_PREFIX = "node|"
+)
+
+// Pre-computed byte slices for prefixes to avoid repeated conversions
+var (
+	leafPrefixBytes = []byte(LEAF_PREFIX)
+	nodePrefixBytes = []byte(NODE_PREFIX)
+)
 
 // Hash computes the Keccak-256 hash of a buffer.
 func Hash(buffer []byte) []byte {
@@ -15,12 +22,24 @@ func Hash(buffer []byte) []byte {
 	return hash.Sum(nil)
 }
 
-// HashNode computes the hash of two nodes concatenated.
 func HashNode(left, right []byte) []byte {
-	return Hash(append(left, right...))
+	nodePrefixLen := len(nodePrefixBytes)
+	buffer := make([]byte, nodePrefixLen+len(left)+len(right))
+
+	copy(buffer[:nodePrefixLen], nodePrefixBytes)
+	copy(buffer[nodePrefixLen:], left)
+	copy(buffer[nodePrefixLen+len(left):], right)
+
+	return Hash(buffer)
 }
 
 // HashLeaf computes the hash of a leaf node.
 func HashLeaf(leaf []byte) []byte {
-	return Hash(append([]byte(LEAF_PREFIX), leaf...))
+	leafPrefixLen := len(leafPrefixBytes)
+	buffer := make([]byte, leafPrefixLen+len(leaf))
+
+	copy(buffer[:leafPrefixLen], leafPrefixBytes)
+	copy(buffer[leafPrefixLen:], leaf)
+
+	return Hash(buffer)
 }

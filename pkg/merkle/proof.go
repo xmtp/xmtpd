@@ -93,124 +93,6 @@ func Verify(root []byte, proof *MultiProof) (bool, error) {
 	return bytes.Equal(computedRoot, root), nil
 }
 
-func (p *MultiProof) computeRoot() ([]byte, error) {
-	balancedLeafCount, err := CalculateBalancedLeafCount(p.leafCount)
-	if err != nil {
-		return nil, err
-	}
-
-	leaves := p.values.ToLeaves()
-
-	nodes, err := makeNodes(leaves)
-	if err != nil {
-		return nil, err
-	}
-
-	indices := p.values.Indices()
-	numElements := len(indices)
-
-	// nodeQueue is populated with the indices we want to prove, from right to left.
-	nodeQueue := make([]int, numElements)
-	hashQueue := make([][]byte, numElements)
-	for i := 0; i < numElements; i++ {
-		reverseIdx := numElements - 1 - i
-		nodeQueue[reverseIdx] = balancedLeafCount + indices[i]
-		hashQueue[reverseIdx] = cloneBuffer(nodes[i].Hash())
-	}
-
-	var (
-		readIndex, writeIndex, proofIndex = 0, 0, 0
-		upperBound                        = balancedLeafCount + p.leafCount - 1
-		lowestTreeIndex                   = nodeQueue[numElements-1]
-		nextNodeIndex                     int
-		leftHash, rightHash               []byte
-	)
-
-	for {
-		currentIndex := nodeQueue[readIndex]
-
-		// When the root is reached, return the hash.
-		if currentIndex == 1 {
-			rootIdx := (writeIndex + numElements - 1) % numElements
-			return hashQueue[rootIdx], nil
-		}
-
-		// A left child is even, a right child is odd.
-		isOdd := isOddIndex(currentIndex)
-
-		// A left child at the boundary might not have a right sibling.
-		// The sibling of a left child (even index) would be at index+1.
-		shouldPromoteDirectly := isLeftNodeAtUpperBound(currentIndex, upperBound)
-
-		// Promote node if it's a left child at the boundary with no sibling
-		if shouldPromoteDirectly {
-			nodeQueue[writeIndex] = currentIndex >> 1
-			hashQueue[writeIndex] = hashQueue[readIndex]
-			writeIndex = (writeIndex + 1) % numElements
-			readIndex = (readIndex + 1) % numElements
-		} else {
-			nextReadIndex := (readIndex + 1) % numElements
-			nextNodeIndex = nodeQueue[nextReadIndex]
-			nextIsSibling := nextNodeIndex == currentIndex-1
-
-			if isOdd {
-				// Current node is right child
-				rightHash = hashQueue[readIndex]
-				readIndex = (readIndex + 1) % numElements
-
-				if nextIsSibling {
-					// Get left sibling from queue
-					leftHash = hashQueue[readIndex]
-					readIndex = (readIndex + 1) % numElements
-				} else {
-					// Get left sibling from proof
-					leftHash, err = p.getNextProof(&proofIndex)
-					if err != nil {
-						return nil, err
-					}
-				}
-			} else {
-				// Current node is left child
-				leftHash = hashQueue[readIndex]
-				readIndex = (readIndex + 1) % numElements
-
-				// Always get right sibling from proof
-				rightHash, err = p.getNextProof(&proofIndex)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			if leftHash == nil || rightHash == nil {
-				return nil, ErrNilProof
-			}
-
-			// Compute parent hash and add to queue
-			parentIndex := currentIndex >> 1
-			parentHash := HashNode(leftHash, rightHash)
-			nodeQueue[writeIndex] = parentIndex
-			hashQueue[writeIndex] = parentHash
-			writeIndex = (writeIndex + 1) % numElements
-		}
-
-		// Update level tracking when processing the lowest index.
-		if currentIndex == lowestTreeIndex || nextNodeIndex == lowestTreeIndex {
-			lowestTreeIndex >>= 1
-			upperBound >>= 1
-		}
-	}
-}
-
-// getNextProof safely retrieves the next proof and increments the index.
-func (p *MultiProof) getNextProof(index *int) ([]byte, error) {
-	if *index >= len(p.proofs) {
-		return nil, ErrNilProof
-	}
-	proof := p.proofs[*index]
-	*index++
-	return proof, nil
-}
-
 // validate performs common validation for Merkle proofs.
 func (p *MultiProof) validate() error {
 	if len(p.values) == 0 {
@@ -246,6 +128,129 @@ func (p *MultiProof) validate() error {
 	}
 
 	return nil
+}
+
+// getNextProof safely retrieves the next proof and increments the index.
+func (p *MultiProof) getNextProof(index *int) ([]byte, error) {
+	if *index >= len(p.proofs) {
+		return nil, ErrNilProof
+	}
+	proof := p.proofs[*index]
+	*index++
+	return proof, nil
+}
+
+// NodeQueue represents a node in the computation queue with its tree index and hash value.
+// It's used during proof verification to track nodes as they are processed.
+type NodeQueue struct {
+	index int
+	hash  []byte
+}
+
+// buildNodeQueue builds the node queue for the proof computation.
+func (p *MultiProof) buildNodeQueue(balancedLeafCount int) ([]NodeQueue, error) {
+	leaves := p.values.ToLeaves()
+
+	nodes, err := makeNodes(leaves)
+	if err != nil {
+		return nil, err
+	}
+
+	indices := p.values.Indices()
+	n := len(indices)
+
+	queue := make([]NodeQueue, n)
+	for i, idx := range indices {
+		insertPos := n - 1 - i
+		queue[insertPos] = NodeQueue{
+			index: balancedLeafCount + idx,
+			hash:  nodes[i].Hash(),
+		}
+	}
+
+	return queue, nil
+}
+
+// computeRoot computes the root of the Merkle tree from the given proof.
+func (p *MultiProof) computeRoot() ([]byte, error) {
+	// 1. Prepare the queue.
+	blc, err := CalculateBalancedLeafCount(p.leafCount)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeQueue, err := p.buildNodeQueue(blc)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		head, proofIdx = 0, 0
+		upperBound     = blc + p.leafCount - 1
+		lowerBound     = nodeQueue[len(nodeQueue)-1].index
+		left, right    []byte
+	)
+
+	// 2. Process queue until we hit the root.
+	for head < len(nodeQueue) {
+		current := nodeQueue[head]
+		head++
+
+		if current.index == 1 {
+			return current.hash, nil
+		}
+
+		// Detect level-up.
+		if current.index == lowerBound ||
+			(head < len(nodeQueue) && nodeQueue[head].index == lowerBound) {
+			lowerBound >>= 1
+			upperBound >>= 1
+		}
+
+		// Detect solo-left at tree edge.
+		if isLeftNodeAtUpperBound(current.index, upperBound) {
+			nodeQueue = append(nodeQueue, NodeQueue{
+				index: current.index >> 1,
+				hash:  current.hash,
+			})
+			continue
+		}
+
+		if isLeftChild(current.index) {
+			// Handle left-child branch.
+			left = current.hash
+			if head < len(nodeQueue) && nodeQueue[head].index == current.index+1 {
+				right = nodeQueue[head].hash
+				head++
+			} else {
+				right, err = p.getNextProof(&proofIdx)
+				if err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			// Handle right-child branch.
+			right = current.hash
+			if head < len(nodeQueue) && nodeQueue[head].index == current.index-1 {
+				left = nodeQueue[head].hash
+				head++
+			} else {
+				left, err = p.getNextProof(&proofIdx)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		parentHash := HashNode(left, right)
+
+		nodeQueue = append(nodeQueue, NodeQueue{
+			index: current.index >> 1,
+			hash:  parentHash,
+		})
+	}
+
+	return nil, ErrNilRoot
 }
 
 // makeIndexedValues creates indexed values from elements and their indices.
@@ -324,15 +329,16 @@ func hasOutOfBounds(indices []int, leafCount int) bool {
 	return false
 }
 
-// isOddIndex returns true if the given index is odd (right child).
-func isOddIndex(index int) bool {
-	return index%2 == 1
+// isLeftChild returns true if the given index is odd (right child).
+func isLeftChild(index int) bool {
+	return index%2 == 0
 }
 
-// hasMissingSibling returns true if the node at the given index is missing its sibling.
-// Only left children (even indices) at the upper bound might be missing their siblings.
+// hasMissingSibling returns true if the node is a left child and its right sibling
+// (index+1) is beyond the last real leaf.
+// Note: this can happen because some leaves can be nil in unbalanced trees.
 func hasMissingSibling(index int, upperBound int) bool {
-	return !isOddIndex(index) && index+1 > upperBound
+	return isLeftChild(index) && index+1 > upperBound
 }
 
 // isLeftNodeAtUpperBound returns true if the node is a left child at the upper bound with no sibling.

@@ -15,13 +15,20 @@ type MerkleTree struct {
 	leafCount int
 }
 
+const TREE_MAX_LEAVES = 4096
+
 var (
-	ErrTreeEmpty   = errors.New("tree is empty")
-	ErrTreeRootNil = errors.New("tree root is nil")
+	ErrTreeEmpty          = errors.New("tree is empty")
+	ErrTreeRootNil        = errors.New("tree root is nil")
+	ErrTreeLeavesOverflow = errors.New("amount of leaves overflows uint32")
 )
 
 // NewMerkleTree creates a new Merkle tree from the given elements.
 func NewMerkleTree(elements [][]byte) (*MerkleTree, error) {
+	if len(elements) == 0 {
+		return nil, ErrTreeEmpty
+	}
+
 	elementsDeepCopy := make([][]byte, len(elements))
 	for i, element := range elements {
 		elementsDeepCopy[i] = make([]byte, len(element))
@@ -191,7 +198,10 @@ func makeTree(leaves [][]byte) ([][]byte, error) {
 		return nil, ErrTreeEmpty
 	}
 
-	leafCount := CalculateBalancedLeafCount(len(leaves))
+	leafCount, err := CalculateBalancedLeafCount(len(leaves))
+	if err != nil {
+		return nil, err
+	}
 
 	// Allocate 2N space for the tree. (N leaf nodes, N-1 internal nodes)
 	tree := make([][]byte, leafCount<<1)
@@ -255,16 +265,20 @@ func makeLeaves(elements [][]byte) ([][]byte, error) {
 
 // CalculateBalancedLeafCount returns the number of leaves in a balanced tree.
 // To calculate the number of leaves in a tree, we need to round up to the next power of 2.
-func CalculateBalancedLeafCount(elementCount int) int {
-	if elementCount == 0 {
-		return 0
+// Returns an error if the element count is too large to be represented in a uint32.
+func CalculateBalancedLeafCount(elementCount int) (int, error) {
+	if elementCount <= 0 {
+		return 0, nil
 	}
 
-	return int(roundUpToPowerOf2(uint32(elementCount)))
+	if elementCount > int(1<<31) {
+		return 0, ErrTreeLeavesOverflow
+	}
+
+	return int(roundUpToPowerOf2(uint32(elementCount))), nil
 }
 
 // roundUpToPowerOf2 rounds up a number to the next power of 2.
-// Rounding up to the next power of 2 is necessary to ensure that the tree is balanced.
 func roundUpToPowerOf2(n uint32) uint32 {
 	if bits.OnesCount32(n) == 1 {
 		return n

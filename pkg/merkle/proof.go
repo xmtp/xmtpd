@@ -102,7 +102,10 @@ func Verify(root []byte, proof *MultiProof) (bool, error) {
 }
 
 func (p *MultiProof) computeRoot() ([]byte, error) {
-	balancedLeafCount := CalculateBalancedLeafCount(p.leafCount)
+	balancedLeafCount, err := CalculateBalancedLeafCount(p.leafCount)
+	if err != nil {
+		return nil, err
+	}
 
 	leaves, err := makeLeaves(p.elements.Values())
 	if err != nil {

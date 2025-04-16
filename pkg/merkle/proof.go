@@ -28,44 +28,34 @@ var (
 )
 
 type MultiProof struct {
-	elements  indexedValues
-	proofs    [][]byte
+	values    IndexedValues
+	proofs    []Proof
 	leafCount int
 }
 
-func (p *MultiProof) Elements() indexedValues {
-	return p.elements
-}
+type Proof []byte
 
-func (p *MultiProof) Proofs() [][]byte {
-	return p.proofs
-}
+type IndexedValues []IndexedValue
 
-func (p *MultiProof) LeafCount() int {
-	return p.leafCount
-}
-
-type indexedValues []indexedValue
-
-type indexedValue struct {
+type IndexedValue struct {
 	value []byte
 	index int
 }
 
-func (iv indexedValues) Values() [][]byte {
-	values := make([][]byte, len(iv))
-	for i, v := range iv {
-		values[i] = v.value
-	}
-	return values
-}
-
-func (iv indexedValues) Indices() []int {
+func (iv IndexedValues) Indices() []int {
 	indices := make([]int, len(iv))
 	for i, v := range iv {
 		indices[i] = v.index
 	}
 	return indices
+}
+
+func (iv IndexedValues) ToLeaves() []Leaf {
+	leaves := make([]Leaf, len(iv))
+	for i, v := range iv {
+		leaves[i] = Leaf(v.value)
+	}
+	return leaves
 }
 
 // Verify verifies a MultiProof against the given tree root.
@@ -80,12 +70,14 @@ func Verify(root []byte, proof *MultiProof) (bool, error) {
 
 	// Handle single-element trees.
 	if proof.leafCount == 1 {
-		return bytes.Equal(root, HashLeaf(proof.elements[0].value)), nil
+		return bytes.Equal(root, HashLeaf(proof.values[0].value)), nil
 	}
 
 	// If all the elements are provided, we can directly reconstruct the tree.
-	if len(proof.elements) == proof.leafCount {
-		tree, err := NewMerkleTree(proof.elements.Values())
+	if len(proof.values) == proof.leafCount {
+		leaves := proof.values.ToLeaves()
+
+		tree, err := NewMerkleTree(leaves)
 		if err != nil {
 			return false, fmt.Errorf(ErrVerifyProof, err)
 		}
@@ -93,12 +85,12 @@ func Verify(root []byte, proof *MultiProof) (bool, error) {
 		return bytes.Equal(tree.Root(), root), nil
 	}
 
-	result, err := proof.computeRoot()
+	computedRoot, err := proof.computeRoot()
 	if err != nil {
 		return false, fmt.Errorf(ErrVerifyProof, err)
 	}
 
-	return bytes.Equal(result, root), nil
+	return bytes.Equal(computedRoot, root), nil
 }
 
 func (p *MultiProof) computeRoot() ([]byte, error) {
@@ -107,12 +99,14 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 		return nil, err
 	}
 
-	leaves, err := makeLeaves(p.elements.Values())
+	leaves := p.values.ToLeaves()
+
+	nodes, err := makeNodes(leaves)
 	if err != nil {
 		return nil, err
 	}
 
-	indices := p.elements.Indices()
+	indices := p.values.Indices()
 	numElements := len(indices)
 
 	// nodeQueue is populated with the indices we want to prove, from right to left.
@@ -121,7 +115,7 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 	for i := 0; i < numElements; i++ {
 		reverseIdx := numElements - 1 - i
 		nodeQueue[reverseIdx] = balancedLeafCount + indices[i]
-		hashQueue[reverseIdx] = cloneBuffer(leaves[i])
+		hashQueue[reverseIdx] = cloneBuffer(nodes[i].Hash())
 	}
 
 	var (
@@ -208,18 +202,18 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 }
 
 // getNextProof safely retrieves the next proof and increments the index.
-func (p *MultiProof) getNextProof(proofIndex *int) ([]byte, error) {
-	if *proofIndex >= len(p.proofs) {
+func (p *MultiProof) getNextProof(index *int) ([]byte, error) {
+	if *index >= len(p.proofs) {
 		return nil, ErrNilProof
 	}
-	proof := p.proofs[*proofIndex]
-	*proofIndex++
+	proof := p.proofs[*index]
+	*index++
 	return proof, nil
 }
 
 // validate performs common validation for Merkle proofs.
 func (p *MultiProof) validate() error {
-	if len(p.elements) == 0 {
+	if len(p.values) == 0 {
 		return ErrNoElements
 	}
 
@@ -227,11 +221,11 @@ func (p *MultiProof) validate() error {
 		return ErrInvalidLeafCount
 	}
 
-	if err := validateIndices(p.elements.Indices(), p.leafCount); err != nil {
+	if err := validateIndices(p.values.Indices(), p.leafCount); err != nil {
 		return err
 	}
 
-	for _, elem := range p.elements {
+	for _, elem := range p.values {
 		if elem.value == nil {
 			return ErrNilElement
 		}
@@ -243,7 +237,7 @@ func (p *MultiProof) validate() error {
 		}
 	}
 
-	isPartialProof := len(p.elements) < p.leafCount
+	isPartialProof := len(p.values) < p.leafCount
 	isNonTrivialTree := p.leafCount > 1
 	needsProofs := isPartialProof && isNonTrivialTree
 
@@ -255,11 +249,11 @@ func (p *MultiProof) validate() error {
 }
 
 // makeIndexedValues creates indexed values from elements and their indices.
-func makeIndexedValues(elements [][]byte, indices []int) indexedValues {
-	result := make(indexedValues, len(indices))
+func makeIndexedValues(leaves []Leaf, indices []int) IndexedValues {
+	result := make(IndexedValues, len(indices))
 	for i, idx := range indices {
-		result[i] = indexedValue{
-			value: elements[idx],
+		result[i] = IndexedValue{
+			value: leaves[idx],
 			index: idx,
 		}
 	}
@@ -320,10 +314,10 @@ func hasDuplicates(indices []int) bool {
 	return false
 }
 
-// hasOutOfBounds checks if all indices are within the valid range [0, elementCount).
-func hasOutOfBounds(indices []int, elementCount int) bool {
+// hasOutOfBounds checks if all indices are within the valid range [0, leafCount).
+func hasOutOfBounds(indices []int, leafCount int) bool {
 	for _, idx := range indices {
-		if idx < 0 || idx >= elementCount {
+		if idx < 0 || idx >= leafCount {
 			return true
 		}
 	}

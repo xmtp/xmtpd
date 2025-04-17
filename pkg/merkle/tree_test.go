@@ -47,7 +47,7 @@ func TestBalancedTrees(t *testing.T) {
 			assert.NotNil(t, tree.Root(), "Root should not be nil")
 
 			// For balanced trees, the array size is exactly 2*n where n is the next power of 2 >= numElements.
-			leafCount, err := merkle.CalculateBalancedLeafCount(tc.numElements)
+			leafCount, err := merkle.CalculateBalancedNodesCount(tc.numElements)
 			require.NoError(t, err)
 			expectedArraySize := leafCount * 2
 			assert.Equal(
@@ -102,7 +102,7 @@ func TestUnbalancedTrees(t *testing.T) {
 			tree, err := merkle.NewMerkleTree(elements)
 			require.NoError(t, err)
 
-			leafCount, err := merkle.CalculateBalancedLeafCount(tc.numElements)
+			leafCount, err := merkle.CalculateBalancedNodesCount(tc.numElements)
 			require.NoError(t, err)
 			for i := 0; i < tc.numElements; i++ {
 				leafIdx := leafCount + i
@@ -117,18 +117,19 @@ func TestUnbalancedTrees(t *testing.T) {
 
 func TestLargeTrees(t *testing.T) {
 	testCases := []struct {
-		name        string
-		numElements int
+		name           string
+		providedLeaves int
+		expectedLeaves int
 	}{
-		{"TreeSize100", 100},
-		{"TreeSize1023", 1023},
-		{"TreeSize2048", 2048},
+		{"TreeSize100", 100, 128},
+		{"TreeSize1023", 1023, 1024},
+		{"TreeSize2048", 2048, 2048},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			elements := make([]merkle.Leaf, tc.numElements)
-			for i := 0; i < tc.numElements; i++ {
+			elements := make([]merkle.Leaf, tc.providedLeaves)
+			for i := 0; i < tc.providedLeaves; i++ {
 				elements[i] = []byte{
 					byte(i & 0xFF),
 					byte((i >> 8) & 0xFF),
@@ -143,14 +144,14 @@ func TestLargeTrees(t *testing.T) {
 			// Verify basic properties.
 			assert.Equal(
 				t,
-				tc.numElements,
+				tc.expectedLeaves,
 				tree.LeafCount(),
 				"Leaf count should match element count",
 			)
 			assert.NotNil(t, tree.Root(), "Root should not be nil")
 
 			// Verify tree structure size.
-			leafCount, err := merkle.CalculateBalancedLeafCount(tc.numElements)
+			leafCount, err := merkle.CalculateBalancedNodesCount(tc.providedLeaves)
 			require.NoError(t, err)
 			expectedArraySize := leafCount * 2
 			assert.Equal(
@@ -162,9 +163,9 @@ func TestLargeTrees(t *testing.T) {
 
 			// Sample testing.
 			for i := 0; i < 5; i++ {
-				idx := i * (tc.numElements / 5)
-				if idx >= tc.numElements {
-					idx = tc.numElements - 1
+				idx := i * (tc.providedLeaves / 5)
+				if idx >= tc.providedLeaves {
+					idx = tc.providedLeaves - 1
 				}
 				leafIndex := leafCount + idx
 				assert.NotNil(t, tree.Tree()[leafIndex], "Sampled leaf should not be nil")
@@ -190,7 +191,7 @@ func TestTreeWithDuplicateElements(t *testing.T) {
 	tree, err := merkle.NewMerkleTree(elements)
 	require.NoError(t, err)
 
-	leafCount, err := merkle.CalculateBalancedLeafCount(len(elements))
+	leafCount, err := merkle.CalculateBalancedNodesCount(len(elements))
 	require.NoError(t, err)
 	leafHash1 := tree.Tree()[leafCount].Hash()
 	leafHash2 := tree.Tree()[leafCount+1].Hash()
@@ -235,7 +236,7 @@ func TestTreeWithEmptyElements(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree.Root(), "Root should be calculated correctly with empty elements")
 
-	leafCount, err := merkle.CalculateBalancedLeafCount(len(elements))
+	leafCount, err := merkle.CalculateBalancedNodesCount(len(elements))
 	require.NoError(t, err)
 	for i := 0; i < 2; i++ {
 		leafIndex := leafCount + i
@@ -276,40 +277,31 @@ func TestTreeInternals(t *testing.T) {
 	assert.Equal(t, 8, len(internalTree), "Tree array should have size 2*leafCount")
 	assert.Equal(t, tree.Root(), internalTree[1].Hash(), "Root should be at index 1")
 
-	// Check that all nodes are present.
-	assert.Nil(t, internalTree[0].Hash(), "Node 0 should be nil")
-	assert.NotNil(t, internalTree[1].Hash(), "Root should not be nil")
-	assert.NotNil(t, internalTree[2].Hash(), "Node 1 should not be nil")
-	assert.NotNil(t, internalTree[3].Hash(), "Node 2 should not be nil")
-	assert.NotNil(t, internalTree[4].Hash(), "Node 3 should not be nil")
-	assert.NotNil(t, internalTree[5].Hash(), "Node 5 should not be nil")
-	assert.NotNil(t, internalTree[6].Hash(), "Node 6 should not be nil")
-	assert.Nil(t, internalTree[7].Hash(), "Node 7 should be nil")
-
 	// Check that all leaves are present.
 	leafStartIdx := 4
 	assert.Equal(
 		t,
 		merkle.HashLeaf(elements[0]),
 		internalTree[leafStartIdx].Hash(),
-		"Leaf 0 should match",
+		"Leaf 0 should match hash",
 	)
 	assert.Equal(
 		t,
 		merkle.HashLeaf(elements[1]),
 		internalTree[leafStartIdx+1].Hash(),
-		"Leaf 1 should match",
+		"Leaf 1 should match hash",
 	)
 	assert.Equal(
 		t,
 		merkle.HashLeaf(elements[2]),
 		internalTree[leafStartIdx+2].Hash(),
-		"Leaf 2 should match",
+		"Leaf 2 should match hash",
 	)
-	assert.Nil(
+	assert.Equal(
 		t,
 		internalTree[leafStartIdx+3].Hash(),
-		"Leaf 3 should be nil (not in original elements)",
+		merkle.HashLeaf([]byte{}),
+		"Leaf 3 should match empty element hash",
 	)
 
 	verifyUnbalancedTreeStructure(t, internalTree, 4, len(elements))
@@ -345,8 +337,7 @@ func verifyUnbalancedTreeStructure(
 		}
 
 		// If both children exist
-		if leftIdx < len(tree) && rightIdx < len(tree) &&
-			!tree[leftIdx].IsNil() && !tree[rightIdx].IsNil() {
+		if leftIdx < len(tree) && rightIdx < len(tree) {
 			assert.NotNil(t, tree[i], "Parent node should not be nil when both children exist")
 			assert.Equal(
 				t,
@@ -357,28 +348,17 @@ func verifyUnbalancedTreeStructure(
 				leftIdx,
 				rightIdx,
 			)
-		} else if leftIdx < len(tree) && !tree[leftIdx].IsNil() {
-			assert.Equal(
-				t,
-				tree[leftIdx].Hash(),
-				tree[i].Hash(),
-				"Node at index %d should be equal to its only child at %d",
-				i,
-				leftIdx,
-			)
 		}
 	}
 
 	// Check the root is valid.
 	expectedRoot := tree[1].Hash()
 	assert.NotNil(t, expectedRoot, "Root should not be nil")
-	if !tree[1].IsNil() && !tree[2].IsNil() {
-		assert.NotNil(
-			t,
-			merkle.HashNode(tree[1].Hash(), tree[2].Hash()),
-			"Root should be calculated when both children exist",
-		)
-	}
+	assert.NotNil(
+		t,
+		merkle.HashNode(tree[1].Hash(), tree[2].Hash()),
+		"Root should be calculated when both children exist",
+	)
 }
 
 func TestRoundUpToPowerOf2Values(t *testing.T) {
@@ -398,7 +378,7 @@ func TestRoundUpToPowerOf2Values(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := merkle.CalculateBalancedLeafCount(tt.input)
+			result, err := merkle.CalculateBalancedNodesCount(tt.input)
 			require.NoError(t, err)
 			if result != tt.expected {
 				t.Errorf(
@@ -429,7 +409,7 @@ func TestCalculateBalancedLeafCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := merkle.CalculateBalancedLeafCount(tt.input)
+			result, err := merkle.CalculateBalancedNodesCount(tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -450,7 +430,7 @@ func TestCalculateBalancedLeafCountError(t *testing.T) {
 
 	// This is larger than max uint32 and should cause an error
 	massiveInput := int(^uint32(0)) + 1
-	_, err := merkle.CalculateBalancedLeafCount(massiveInput)
+	_, err := merkle.CalculateBalancedNodesCount(massiveInput)
 	assert.Error(t, err)
 	assert.Equal(t, merkle.ErrTreeLeavesOverflow, err)
 }

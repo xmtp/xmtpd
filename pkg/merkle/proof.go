@@ -13,12 +13,10 @@ const (
 )
 
 var (
-	ErrEmptyTree          = errors.New("empty tree")
 	ErrDuplicateIndices   = errors.New("duplicate indices")
 	ErrIndicesOutOfBounds = errors.New("indices out of bounds")
 	ErrInvalidRange       = errors.New("invalid range")
 	ErrInvalidLeafCount   = errors.New("invalid leaf count")
-	ErrElementMismatch    = errors.New("element and indices mismatch")
 	ErrNilProof           = errors.New("nil proof")
 	ErrNilRoot            = errors.New("nil root")
 	ErrNilElement         = errors.New("nil element")
@@ -29,17 +27,35 @@ var (
 
 type MultiProof struct {
 	values    IndexedValues
-	proofs    []Proof
+	proofs    []Node
 	leafCount int
 }
 
-type Proof []byte
+func (p *MultiProof) GetLeafCount() int {
+	return p.leafCount
+}
+
+func (p *MultiProof) GetProofs() []Node {
+	return p.proofs
+}
+
+func (p *MultiProof) GetValues() IndexedValues {
+	return p.values
+}
 
 type IndexedValues []IndexedValue
 
 type IndexedValue struct {
 	value []byte
 	index int
+}
+
+func (iv IndexedValue) GetValue() []byte {
+	return iv.value
+}
+
+func (iv IndexedValue) GetIndex() int {
+	return iv.index
 }
 
 func (iv IndexedValues) Indices() []int {
@@ -114,7 +130,7 @@ func (p *MultiProof) validate() error {
 	}
 
 	for _, proof := range p.proofs {
-		if proof == nil {
+		if proof.hash == nil {
 			return ErrNilProof
 		}
 	}
@@ -133,22 +149,22 @@ func (p *MultiProof) validate() error {
 // getNextProof safely retrieves the next proof and increments the index.
 func (p *MultiProof) getNextProof(index *int) ([]byte, error) {
 	if *index >= len(p.proofs) {
-		return nil, ErrNilProof
+		return nil, ErrNoProofs
 	}
 	proof := p.proofs[*index]
 	*index++
-	return proof, nil
+	return proof.Hash(), nil
 }
 
-// NodeQueue represents a node in the computation queue with its tree index and hash value.
+// nodeQueue represents a node in the computation queue with its tree index and hash value.
 // It's used during proof verification to track nodes as they are processed.
-type NodeQueue struct {
+type nodeQueue struct {
 	index int
 	hash  []byte
 }
 
 // buildNodeQueue builds the node queue for the proof computation.
-func (p *MultiProof) buildNodeQueue(balancedLeafCount int) ([]NodeQueue, error) {
+func (p *MultiProof) buildNodeQueue(balancedLeafCount int) ([]nodeQueue, error) {
 	leaves := p.values.ToLeaves()
 
 	nodes, err := makeNodes(leaves)
@@ -159,10 +175,10 @@ func (p *MultiProof) buildNodeQueue(balancedLeafCount int) ([]NodeQueue, error) 
 	indices := p.values.Indices()
 	n := len(indices)
 
-	queue := make([]NodeQueue, n)
+	queue := make([]nodeQueue, n)
 	for i, idx := range indices {
 		insertPos := n - 1 - i
-		queue[insertPos] = NodeQueue{
+		queue[insertPos] = nodeQueue{
 			index: balancedLeafCount + idx,
 			hash:  nodes[i].Hash(),
 		}
@@ -174,53 +190,43 @@ func (p *MultiProof) buildNodeQueue(balancedLeafCount int) ([]NodeQueue, error) 
 // computeRoot computes the root of the Merkle tree from the given proof.
 func (p *MultiProof) computeRoot() ([]byte, error) {
 	// 1. Prepare the queue.
-	blc, err := CalculateBalancedLeafCount(p.leafCount)
+	blc, err := CalculateBalancedNodesCount(p.leafCount)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeQueue, err := p.buildNodeQueue(blc)
+	queue, err := p.buildNodeQueue(blc)
 	if err != nil {
 		return nil, err
 	}
 
 	var (
 		head, proofIdx = 0, 0
-		upperBound     = blc + p.leafCount - 1
-		lowerBound     = nodeQueue[len(nodeQueue)-1].index
+		lowerBound     = queue[len(queue)-1].index
 		left, right    []byte
 	)
 
 	// 2. Process queue until we hit the root.
-	for head < len(nodeQueue) {
-		current := nodeQueue[head]
+	for head < len(queue) {
+		current := queue[head]
 		head++
 
+		// Exit condition - return the root.
 		if current.index == 1 {
 			return current.hash, nil
 		}
 
 		// Detect level-up.
 		if current.index == lowerBound ||
-			(head < len(nodeQueue) && nodeQueue[head].index == lowerBound) {
+			(head < len(queue) && queue[head].index == lowerBound) {
 			lowerBound >>= 1
-			upperBound >>= 1
-		}
-
-		// Detect solo-left at tree edge.
-		if isLeftNodeAtUpperBound(current.index, upperBound) {
-			nodeQueue = append(nodeQueue, NodeQueue{
-				index: current.index >> 1,
-				hash:  current.hash,
-			})
-			continue
 		}
 
 		if isLeftChild(current.index) {
 			// Handle left-child branch.
 			left = current.hash
-			if head < len(nodeQueue) && nodeQueue[head].index == current.index+1 {
-				right = nodeQueue[head].hash
+			if head < len(queue) && queue[head].index == current.index+1 {
+				right = queue[head].hash
 				head++
 			} else {
 				right, err = p.getNextProof(&proofIdx)
@@ -231,8 +237,8 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 		} else {
 			// Handle right-child branch.
 			right = current.hash
-			if head < len(nodeQueue) && nodeQueue[head].index == current.index-1 {
-				left = nodeQueue[head].hash
+			if head < len(queue) && queue[head].index == current.index-1 {
+				left = queue[head].hash
 				head++
 			} else {
 				left, err = p.getNextProof(&proofIdx)
@@ -242,11 +248,9 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 			}
 		}
 
-		parentHash := HashNode(left, right)
-
-		nodeQueue = append(nodeQueue, NodeQueue{
+		queue = append(queue, nodeQueue{
 			index: current.index >> 1,
-			hash:  parentHash,
+			hash:  HashNode(left, right),
 		})
 	}
 
@@ -254,15 +258,17 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 }
 
 // makeIndexedValues creates indexed values from elements and their indices.
-func makeIndexedValues(leaves []Leaf, indices []int) IndexedValues {
+func makeIndexedValues(leaves []Leaf, indices []int) (IndexedValues, error) {
 	result := make(IndexedValues, len(indices))
+
 	for i, idx := range indices {
 		result[i] = IndexedValue{
 			value: leaves[idx],
 			index: idx,
 		}
 	}
-	return result
+
+	return result, nil
 }
 
 // makeIndices returns a slice of ascending ordered indices for the given starting index and count.
@@ -281,6 +287,11 @@ func makeIndices(startingIndex, count int) ([]int, error) {
 
 // validateIndices validates the indices slice of a proof.
 func validateIndices(indices []int, leafCount int) error {
+	balancedLeafCount, err := CalculateBalancedNodesCount(leafCount)
+	if err != nil {
+		return err
+	}
+
 	sortedIndices := make([]int, len(indices))
 	copy(sortedIndices, indices)
 	sort.Ints(sortedIndices)
@@ -293,20 +304,11 @@ func validateIndices(indices []int, leafCount int) error {
 		return ErrDuplicateIndices
 	}
 
-	if hasOutOfBounds(sortedIndices, leafCount) {
+	if hasOutOfBounds(sortedIndices, balancedLeafCount) {
 		return ErrIndicesOutOfBounds
 	}
 
 	return nil
-}
-
-func cloneBuffer(buffer []byte) []byte {
-	if buffer == nil {
-		return nil
-	}
-	clone := make([]byte, len(buffer))
-	copy(clone, buffer)
-	return clone
 }
 
 // hasDuplicates checks if the sorted indices slice contains duplicates.
@@ -332,17 +334,4 @@ func hasOutOfBounds(indices []int, leafCount int) bool {
 // isLeftChild returns true if the given index is odd (right child).
 func isLeftChild(index int) bool {
 	return index%2 == 0
-}
-
-// hasMissingSibling returns true if the node is a left child and its right sibling
-// (index+1) is beyond the last real leaf.
-// Note: this can happen because some leaves can be nil in unbalanced trees.
-func hasMissingSibling(index int, upperBound int) bool {
-	return isLeftChild(index) && index+1 > upperBound
-}
-
-// isLeftNodeAtUpperBound returns true if the node is a left child at the upper bound with no sibling.
-// Left children have even indices in the 1-indexed tree representation.
-func isLeftNodeAtUpperBound(index int, upperBound int) bool {
-	return index == upperBound && hasMissingSibling(index, upperBound)
 }

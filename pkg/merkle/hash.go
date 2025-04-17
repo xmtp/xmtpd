@@ -9,7 +9,6 @@ const (
 	NODE_PREFIX = "node|"
 )
 
-// Pre-computed byte slices for prefixes to avoid repeated conversions
 var (
 	leafPrefixBytes = []byte(LEAF_PREFIX)
 	nodePrefixBytes = []byte(NODE_PREFIX)
@@ -33,7 +32,6 @@ func HashNode(left, right []byte) []byte {
 	return Hash(buffer)
 }
 
-// HashLeaf computes the hash of a leaf node.
 func HashLeaf(leaf []byte) []byte {
 	leafPrefixLen := len(leafPrefixBytes)
 	buffer := make([]byte, leafPrefixLen+len(leaf))
@@ -42,4 +40,8 @@ func HashLeaf(leaf []byte) []byte {
 	copy(buffer[leafPrefixLen:], leaf)
 
 	return Hash(buffer)
+}
+
+func HashEmptyLeaf() []byte {
+	return HashLeaf([]byte{})
 }

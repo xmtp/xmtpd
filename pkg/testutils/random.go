@@ -71,3 +71,7 @@ func RandomBlockHash() common.Hash {
 func RandomInt32() int32 {
 	return rand.Int31()
 }
+
+func RandomInt64() int64 {
+	return rand.Int63()
+}

@@ -62,6 +62,27 @@ type Payer struct {
 	Address string
 }
 
+type PayerReport struct {
+	ID                []byte
+	OriginatorNodeID  int32
+	StartSequenceID   int64
+	EndSequenceID     int64
+	PayersMerkleRoot  []byte
+	PayersLeafCount   int64
+	NodesHash         []byte
+	NodesCount        int32
+	SubmissionStatus  int16
+	AttestationStatus int16
+	CreatedAt         sql.NullTime
+}
+
+type PayerReportAttestation struct {
+	PayerReportID []byte
+	NodeID        int64
+	Signature     []byte
+	CreatedAt     sql.NullTime
+}
+
 type StagedOriginatorEnvelope struct {
 	ID             int64
 	OriginatorTime time.Time

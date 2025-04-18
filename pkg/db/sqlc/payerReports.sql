@@ -73,23 +73,30 @@ WHERE unsettled_usage.originator_id = @originator_id;
 -- name: InsertOrIgnorePayerReport :exec
 INSERT INTO payer_reports (
 		id,
+		originator_node_id,
 		start_sequence_id,
 		end_sequence_id,
 		payers_merkle_root,
 		payers_leaf_count,
-		nodes_merkle_root,
-		nodes_leaf_count
+		nodes_hash,
+		nodes_count
 	)
 VALUES (
 		@id,
+		@originator_node_id,
 		@start_sequence_id,
 		@end_sequence_id,
 		@payers_merkle_root,
 		@payers_leaf_count,
-		@nodes_merkle_root,
-		@nodes_leaf_count
+		@nodes_hash,
+		@nodes_count
 	) ON CONFLICT (id) DO NOTHING;
 
 -- name: InsertOrIgnorePayerReportAttestation :exec
 INSERT INTO payer_report_attestations (payer_report_id, node_id, signature)
 VALUES (@payer_report_id, @node_id, @signature) ON CONFLICT (payer_report_id, node_id) DO NOTHING;
+
+-- name: FetchPayerReport :one
+SELECT *
+FROM payer_reports
+WHERE id = @id;

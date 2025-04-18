@@ -40,13 +40,17 @@ func main() {
 	fmt.Printf("Parsing %s to generate %s\n", root, MARKDOWN_OUTPUT)
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || !strings.HasSuffix(path, ".go") {
+		if err != nil {
+			log.Printf("Error walking path %s: %v", path, err)
+			return err
+		}
+		if !strings.HasSuffix(path, ".go") {
 			return nil
 		}
 		fileMetrics, err := parseFile(path)
 		if err != nil {
 			log.Printf("Error parsing %s: %v", path, err)
-			return nil
+			return err
 		}
 		metrics = append(metrics, fileMetrics...)
 		return nil
@@ -76,7 +80,7 @@ func dumpToMarkdown(metrics []Metric) {
 			m.Name, m.Type, desc, m.File))
 	}
 
-	if err := os.WriteFile(MARKDOWN_OUTPUT, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(MARKDOWN_OUTPUT, []byte(sb.String()), 0o644); err != nil {
 		log.Fatalf("Error writing Markdown file: %v", err)
 	}
 

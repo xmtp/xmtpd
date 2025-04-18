@@ -1,24 +1,31 @@
+-- This table includes Payer Reports sent from any node.
 CREATE TABLE payer_reports (
     id BYTEA PRIMARY KEY,
+    originator_node_id INT NOT NULL,
     start_sequence_id BIGINT NOT NULL,
     end_sequence_id BIGINT NOT NULL,
     payers_merkle_root BYTEA NOT NULL,
     payers_leaf_count BIGINT NOT NULL,
-    nodes_merkle_root BYTEA NOT NULL,
-    nodes_leaf_count BIGINT NOT NULL,
+    nodes_hash BYTEA NOT NULL,
+    nodes_count INT NOT NULL,
     -- 0 = pending, 1 = submitted, 2 = settled
     submission_status SMALLINT NOT NULL DEFAULT 0,
+    -- 0 = pending, 1 = approved, 2 = rejected
+    attestation_status SMALLINT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX ON payer_reports (submission_status);
+CREATE INDEX payer_reports_submission_status_created_idx ON payer_reports (submission_status, created_at);
+
+CREATE INDEX payer_reports_attestation_status_created_idx ON payer_reports (attestation_status, created_at);
 
 CREATE TABLE payer_report_attestations (
-    payer_report_id BYTEA NOT NULL REFERENCES payer_reports(id) ON DELETE CASCADE,
+    -- Do not reference the payer reports table since attestations may arrive before the report is stored
+    payer_report_id BYTEA NOT NULL,
     node_id BIGINT NOT NULL,
     signature BYTEA NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (payer_report_id, node_id)
 );
 
-CREATE INDEX ON payer_report_attestations (payer_report_id);
+CREATE INDEX payer_report_attestations_payer_report_id_idx ON payer_report_attestations (payer_report_id);

@@ -1,0 +1,120 @@
+package payerreport
+
+import (
+	"context"
+	"errors"
+
+	"go.uber.org/zap"
+)
+
+var (
+	ErrMismatchOriginator      = errors.New("originator id mismatch between old and new report")
+	ErrInvalidReportStart      = errors.New("report does not start where the previous report ended")
+	ErrInvalidOriginatorID     = errors.New("originator id is 0")
+	ErrNoNodes                 = errors.New("no nodes in report")
+	ErrInvalidNodesHash        = errors.New("nodes hash is invalid")
+	ErrInvalidPayersMerkleRoot = errors.New("payers merkle root is invalid")
+)
+
+/*
+  - Validate a report transition. Returns a bool if the report can be conclusively validated/rejected.
+  - Otherwise returns an error.
+    *
+  - This function checks that the new report is valid and that it is a valid
+  - transition from the previous report.
+  - The previous report is assumed to be valid, and does not get validated again.
+    *
+  - @param prevReport The previous report.
+  - @param newReport The new report.
+*/
+func (p *PayerReportManager) IsValidReport(
+	ctx context.Context,
+	prevReport *PayerReport,
+	newReport *PayerReport,
+) (bool, error) {
+	prevReportID, newReportID, err := getReportIDs(prevReport, newReport)
+	if err != nil {
+		p.log.Error("failed to get report ids", zap.Error(err))
+		return false, nil
+	}
+
+	log := p.log.With(
+		zap.String("prev_report_id", prevReportID.String()),
+		zap.String("new_report_id", newReportID.String()),
+	)
+
+	if err := validateReportTransition(prevReport, newReport); err != nil {
+		log.Warn("invalid report transition", zap.Error(err))
+		return false, nil
+	}
+
+	if err := validateReportStructure(newReport); err != nil {
+		log.Warn("invalid report content", zap.Error(err))
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func validateReportTransition(prevReport *PayerReport, newReport *PayerReport) error {
+	// Check if the reports are referring to the same originator.
+	// This is a sanity check. Mismatched reports should never make it this far.
+	if prevReport.OriginatorNodeID != newReport.OriginatorNodeID {
+		return ErrMismatchOriginator
+	}
+
+	// Check if the new report starts where the previous report ended.
+	// This is a sanity check. These should be filtered out first
+	if prevReport.EndSequenceID != newReport.StartSequenceID {
+		return ErrInvalidReportStart
+	}
+
+	// Check if the new report ends after it starts
+	if newReport.StartSequenceID > newReport.EndSequenceID {
+		return ErrInvalidReportStart
+	}
+
+	return nil
+}
+
+// Validates that the report is well-formed and doesn't have any logical
+// errors or invalid fields that can be detected without further processing.
+func validateReportStructure(report *PayerReport) error {
+	// The Originator Node ID is required
+	if report.OriginatorNodeID == 0 {
+		return ErrInvalidOriginatorID
+	}
+
+	// The report must contain at least one node
+	if report.NodesCount == 0 {
+		return ErrNoNodes
+	}
+
+	// The nodes hash is required
+	if len(report.NodesHash) == 32 {
+		return ErrInvalidNodesHash
+	}
+
+	// The payers merkle root is required. It may be set to the hash of an empty set
+	// if there are no payers in the report.
+	if len(report.PayersMerkleRoot) == 32 {
+		return ErrInvalidPayersMerkleRoot
+	}
+
+	return nil
+}
+
+// Returns the IDs of the previous and new reports
+func getReportIDs(prevReport *PayerReport, newReport *PayerReport) (ReportID, ReportID, error) {
+	prevReportID, err := prevReport.ID()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	newReportID, err := newReport.ID()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return prevReportID, newReportID, nil
+}

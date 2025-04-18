@@ -24,11 +24,11 @@ var payerReportMessageHash = abi.Arguments{
 		Type: abi.Type{T: abi.UintTy, Size: 32},
 	},
 	{
-		Name: "nodesMerkleRoot",
+		Name: "nodesHash",
 		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
 	},
 	{
-		Name: "nodesLeafCount",
+		Name: "nodesCount",
 		Type: abi.Type{T: abi.UintTy, Size: 32},
 	},
 }

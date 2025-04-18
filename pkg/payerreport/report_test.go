@@ -11,10 +11,9 @@ func TestPayerReportID(t *testing.T) {
 		OriginatorNodeID: 1,
 		StartSequenceID:  1,
 		EndSequenceID:    10,
-		PayersMerkleRoot: []byte{1, 2, 3},
+		PayersMerkleRoot: randomBytes32(),
 		PayersLeafCount:  1,
-		NodesMerkleRoot:  []byte{4, 5, 6},
-		NodesLeafCount:   1,
+		NodesHash:        randomBytes32(),
 	}
 
 	id, err := report.ID()

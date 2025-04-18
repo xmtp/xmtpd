@@ -2,6 +2,7 @@ package payerreport
 
 import (
 	"context"
+	"crypto/rand"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -21,7 +22,7 @@ func NewPayerReportManager(
 	queries *queries.Queries,
 ) *PayerReportManager {
 	return &PayerReportManager{
-		log:     log,
+		log:     log.Named("reportmanager"),
 		queries: queries,
 	}
 }
@@ -29,7 +30,7 @@ func NewPayerReportManager(
 func (p *PayerReportManager) GenerateReport(
 	ctx context.Context,
 	params PayerReportGenerationParams,
-) (*PayerReport, error) {
+) (*FullPayerReport, error) {
 	originatorID := int32(params.OriginatorID)
 	startMinute, err := p.getStartMinute(
 		ctx,
@@ -48,14 +49,16 @@ func (p *PayerReportManager) GenerateReport(
 	// If the end sequence ID is 0, we don't have enough envelopes to generate a report.
 	// Returns an empty report rather than an error here
 	if endSequenceID == 0 {
-		return &PayerReport{
-			OriginatorNodeID: uint32(originatorID),
-			Payers:           make(map[common.Address]currency.PicoDollar),
-			StartSequenceID:  params.LastReportEndSequenceID,
-			EndSequenceID:    params.LastReportEndSequenceID,
-			// TODO: Implement merkle calculation
-			PayersMerkleRoot: []byte("fix me"),
-			PayersLeafCount:  uint32(0),
+		return &FullPayerReport{
+			PayerReport: PayerReport{
+				OriginatorNodeID: uint32(originatorID),
+				StartSequenceID:  params.LastReportEndSequenceID,
+				EndSequenceID:    params.LastReportEndSequenceID,
+				// TODO: Implement merkle calculation
+				PayersMerkleRoot: randomBytes32(),
+				PayersLeafCount:  uint32(0),
+			},
+			Payers: make(map[common.Address]currency.PicoDollar),
 		}, nil
 	}
 
@@ -71,14 +74,16 @@ func (p *PayerReportManager) GenerateReport(
 		return nil, err
 	}
 
-	return &PayerReport{
-		OriginatorNodeID: uint32(originatorID),
-		Payers:           buildPayersMap(payers),
-		StartSequenceID:  params.LastReportEndSequenceID,
-		EndSequenceID:    uint64(endSequenceID),
-		// TODO: Implement merkle calculation
-		PayersMerkleRoot: []byte("fix me"),
-		PayersLeafCount:  uint32(len(payers)),
+	return &FullPayerReport{
+		PayerReport: PayerReport{
+			OriginatorNodeID: uint32(originatorID),
+			StartSequenceID:  params.LastReportEndSequenceID,
+			EndSequenceID:    uint64(endSequenceID),
+			// TODO: Implement merkle calculation
+			PayersMerkleRoot: randomBytes32(),
+			PayersLeafCount:  uint32(len(payers)),
+		},
+		Payers: buildPayersMap(payers),
 	}, nil
 }
 
@@ -146,4 +151,12 @@ func buildPayersMap(rows []queries.BuildPayerReportRow) map[common.Address]curre
 		)
 	}
 	return payersMap
+}
+
+// Temporary function until we have a real merkle root
+func randomBytes32() [32]byte {
+	var b [32]byte
+	//nolint:errcheck
+	rand.Read(b[:])
+	return b
 }

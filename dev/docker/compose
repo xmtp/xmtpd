@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eo pipefail
+
+docker compose \
+  -f dev/docker/docker-compose.yml \
+  --env-file dev/local.env \
+  -p "xmtpd" \
+  "$@"

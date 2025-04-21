@@ -3,6 +3,7 @@ package mlsvalidate
 import (
 	"context"
 	"fmt"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -24,6 +25,7 @@ func NewMlsValidationService(
 	ctx context.Context,
 	log *zap.Logger,
 	cfg config.MlsValidationOptions,
+	clientMetrics *grpcprom.ClientMetrics,
 ) (*MLSValidationServiceImpl, error) {
 	target, isTLS, err := utils.HttpAddressToGrpcTarget(cfg.GrpcAddress)
 	if err != nil {
@@ -43,6 +45,8 @@ func NewMlsValidationService(
 	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(creds),
+		grpc.WithUnaryInterceptor(clientMetrics.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(clientMetrics.StreamClientInterceptor()),
 	)
 	if err != nil {
 		return nil, err

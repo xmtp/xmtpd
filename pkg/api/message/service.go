@@ -432,7 +432,7 @@ func (s *Service) validatePayerEnvelope(
 ) (*envelopes.PayerEnvelope, error) {
 	payerEnv, err := envelopes.NewPayerEnvelope(rawEnv)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	if payerEnv.TargetOriginator != s.registrant.NodeID() {
@@ -440,7 +440,7 @@ func (s *Service) validatePayerEnvelope(
 	}
 
 	if _, err = payerEnv.RecoverSigner(); err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	if err := s.validateClientInfo(&payerEnv.ClientEnvelope); err != nil {
@@ -490,12 +490,12 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 		for nodeId, seqId := range aad.GetDependsOn().NodeIdToSequenceId {
 			lastSeqId, exists := lastSeenCursor.NodeIdToSequenceId[nodeId]
 			if !exists {
-				return fmt.Errorf(
+				return status.Errorf(codes.InvalidArgument,
 					"node ID %d specified in DependsOn has not been seen by this node",
 					nodeId,
 				)
 			} else if seqId > lastSeqId {
-				return fmt.Errorf(
+				return status.Errorf(codes.InvalidArgument,
 					"sequence ID %d for node ID %d specified in DependsOn exceeds last seen sequence ID %d",
 					seqId,
 					nodeId,

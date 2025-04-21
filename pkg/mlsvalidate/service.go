@@ -3,6 +3,7 @@ package mlsvalidate
 import (
 	"context"
 	"fmt"
+
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
 	"github.com/xmtp/xmtpd/pkg/config"

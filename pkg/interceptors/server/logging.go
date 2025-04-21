@@ -2,8 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/metrics"
+	"google.golang.org/grpc/codes"
 
 	"go.uber.org/zap"
 
@@ -50,7 +54,7 @@ func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
 			)
 		}
 
-		return resp, err
+		return resp, sanitizeError(err)
 	}
 }
 
@@ -77,6 +81,53 @@ func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
 			)
 		}
 
-		return err
+		return sanitizeError(err)
 	}
+}
+
+// sanitizeError standardizes and sanitizes gRPC errors to prevent internal details
+// from being exposed to clients. It maps known internal errors (e.g., context cancellations
+// or timeouts) to appropriate gRPC status codes and safely wraps unknown errors.
+//
+// If the error is a known Go context error (e.g., context.DeadlineExceeded or context.Canceled),
+// it returns a corresponding gRPC error with a sanitized message.
+//
+// If the error is already a gRPC status error, it inspects the code:
+//   - For InvalidArgument, NotFound and Unimplemented, it preserves the original code and message.
+//   - For Internal errors, it replaces the message with a generic "internal server error".
+//   - For all other codes, it replaces the message with a generic "request has failed".
+func sanitizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var (
+		finalCode codes.Code
+		finalMsg  string
+	)
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		finalCode = codes.DeadlineExceeded
+		finalMsg = "request timed out"
+	case errors.Is(err, context.Canceled):
+		finalCode = codes.Canceled
+		finalMsg = "request was canceled"
+	default:
+		if st, ok := status.FromError(err); ok {
+			finalCode = st.Code()
+			switch finalCode {
+			case codes.InvalidArgument, codes.Unimplemented, codes.NotFound:
+				finalMsg = st.Message()
+			case codes.Internal:
+				finalMsg = "internal server error"
+			default:
+				finalMsg = "request has failed"
+			}
+		} else {
+			finalCode = codes.Internal
+			finalMsg = "internal server error"
+		}
+	}
+	// Emit metric for every non-nil error path
+	metrics.EmitNewFailedGRPCRequest(finalCode)
+	return status.Error(finalCode, finalMsg)
 }

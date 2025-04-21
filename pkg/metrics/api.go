@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc/codes"
 )
 
 var apiOpenConnections = prometheus.NewGaugeVec(
@@ -26,6 +27,14 @@ var apiNodeConnectionRequestsByVersionCounter = prometheus.NewCounterVec(
 		Help: "Number of incoming node connections by version",
 	},
 	[]string{"version"},
+)
+
+var apiFailedGRPCRequestsCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_api_failed_grpc_requests_counter",
+		Help: "Number of failed GRPC requests by code",
+	},
+	[]string{"code"},
 )
 
 type ApiOpenConnection struct {
@@ -70,5 +79,10 @@ func (ct *IncomingConnectionTracker) Close() {
 
 func EmitNewConnectionRequestVersion(version string) {
 	apiNodeConnectionRequestsByVersionCounter.With(prometheus.Labels{"version": version}).
+		Inc()
+}
+
+func EmitNewFailedGRPCRequest(code codes.Code) {
+	apiFailedGRPCRequestsCounter.With(prometheus.Labels{"code": code.String()}).
 		Inc()
 }

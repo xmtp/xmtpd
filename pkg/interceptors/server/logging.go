@@ -128,6 +128,6 @@ func sanitizeError(err error) error {
 		}
 	}
 	// Emit metric for every non-nil error path
-	metrics.EmitNewFailedGRPCRequest(finalCode.String())
+	metrics.EmitNewFailedGRPCRequest(finalCode)
 	return status.Error(finalCode, finalMsg)
 }

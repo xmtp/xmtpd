@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc/codes"
 )
 
 var apiOpenConnections = prometheus.NewGaugeVec(
@@ -81,7 +82,7 @@ func EmitNewConnectionRequestVersion(version string) {
 		Inc()
 }
 
-func EmitNewFailedGRPCRequest(code string) {
-	apiFailedGRPCRequestsCounter.With(prometheus.Labels{"code": code}).
+func EmitNewFailedGRPCRequest(code codes.Code) {
+	apiFailedGRPCRequestsCounter.With(prometheus.Labels{"code": code.String()}).
 		Inc()
 }

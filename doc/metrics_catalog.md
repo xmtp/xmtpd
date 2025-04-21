@@ -1,5 +1,6 @@
 | Name | Type | Description | File |
 |------|------|-------------|------|
+| `xmtp_api_failed_grpc_requests` | `Counter` | Number of failed GRPC requests by code | `pkg/metrics/api.go` |
 | `xmtp_api_incoming_node_connection_by_version_gauge` | `Gauge` | Number of incoming node connections by version | `pkg/metrics/api.go` |
 | `xmtp_api_node_connection_requests_by_version_counter` | `Counter` | Number of incoming node connections by version | `pkg/metrics/api.go` |
 | `xmtp_api_open_connections_gauge` | `Gauge` | Number of open API connections | `pkg/metrics/api.go` |

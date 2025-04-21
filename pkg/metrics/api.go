@@ -28,9 +28,9 @@ var apiNodeConnectionRequestsByVersionCounter = prometheus.NewCounterVec(
 	[]string{"version"},
 )
 
-var apiFailedGRPCRequests = prometheus.NewCounterVec(
+var apiFailedGRPCRequestsCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "xmtp_api_failed_grpc_requests",
+		Name: "xmtp_api_failed_grpc_requests_counter",
 		Help: "Number of failed GRPC requests by code",
 	},
 	[]string{"code"},
@@ -82,6 +82,6 @@ func EmitNewConnectionRequestVersion(version string) {
 }
 
 func EmitNewFailedGRPCRequest(code string) {
-	apiFailedGRPCRequests.With(prometheus.Labels{"code": code}).
+	apiFailedGRPCRequestsCounter.With(prometheus.Labels{"code": code}).
 		Inc()
 }

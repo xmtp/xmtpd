@@ -100,26 +100,34 @@ func sanitizeError(err error) error {
 	if err == nil {
 		return nil
 	}
-
+	var (
+		finalCode codes.Code
+		finalMsg  string
+	)
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return status.Error(codes.DeadlineExceeded, "request timed out")
+		finalCode = codes.DeadlineExceeded
+		finalMsg = "request timed out"
 	case errors.Is(err, context.Canceled):
-		return status.Error(codes.Canceled, "request was canceled")
+		finalCode = codes.Canceled
+		finalMsg = "request was canceled"
 	default:
-		st, ok := status.FromError(err)
-		if !ok {
-			return status.Error(codes.Internal, "internal server error")
+		if st, ok := status.FromError(err); ok {
+			finalCode = st.Code()
+			switch finalCode {
+			case codes.InvalidArgument, codes.Unimplemented, codes.NotFound:
+				finalMsg = st.Message()
+			case codes.Internal:
+				finalMsg = "internal server error"
+			default:
+				finalMsg = "request has failed"
+			}
+		} else {
+			finalCode = codes.Internal
+			finalMsg = "internal server error"
 		}
-		msg := "request has failed"
-		switch st.Code() {
-		case codes.InvalidArgument, codes.Unimplemented, codes.NotFound:
-			msg = st.Message()
-		case codes.Internal:
-			msg = "internal server error"
-		}
-		metrics.EmitNewFailedGRPCRequest(st.Code().String())
-
-		return status.Error(st.Code(), msg)
 	}
+	// Emit metric for every non-nil error path
+	metrics.EmitNewFailedGRPCRequest(finalCode.String())
+	return status.Error(finalCode, finalMsg)
 }

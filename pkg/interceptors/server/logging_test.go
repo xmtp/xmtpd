@@ -83,8 +83,8 @@ func TestStreamLoggingInterceptor(t *testing.T) {
 
 	stream := &mockServerStream{}
 
-	incerceptorStream := interceptor.Stream()
-	err = incerceptorStream(nil, stream, info, handler)
+	interceptorStream := interceptor.Stream()
+	err = interceptorStream(nil, stream, info, handler)
 
 	require.Error(t, err)
 	require.Equal(t, 1, logs.Len(), "expected one log entry but got none")

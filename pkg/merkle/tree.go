@@ -38,10 +38,8 @@ type MerkleTree struct {
 }
 
 var (
-	ErrNoLeaves           = errors.New("no leaves provided")
-	ErrTreeEmpty          = errors.New("tree is empty")
-	ErrTreeRootNil        = errors.New("tree root is nil")
-	ErrTreeLeavesOverflow = errors.New("amount of leaves overflows uint32")
+	ErrNoLeaves  = errors.New("no leaves provided")
+	ErrTreeEmpty = errors.New("tree is empty")
 )
 
 // NewMerkleTree creates a new Merkle tree from the given elements.
@@ -185,7 +183,7 @@ func (m *MerkleTree) LeafCount() int {
 	return len(m.leaves)
 }
 
-// BuildTree builds a serialized Merkle tree from an array of leaf nodes.
+// makeTree builds a serialized Merkle tree from an array of leaf nodes.
 //
 // The tree is 1-indexed, so root is at index 1.
 // The internal nodes are at index 2 to N.
@@ -284,11 +282,11 @@ func makeLeaves(leaves []Leaf) ([]Leaf, error) {
 // Returns an error if the element count is too large to be represented in a uint32.
 func CalculateBalancedNodesCount(count int) (int, error) {
 	if count <= 0 {
-		return 0, nil
+		return 0, fmt.Errorf("count must be greater than 0")
 	}
 
 	if count > int(1<<31) {
-		return 0, ErrTreeLeavesOverflow
+		return 0, fmt.Errorf("count must be less than or equal to 2^31")
 	}
 
 	return int(roundUpToPowerOf2(uint32(count))), nil

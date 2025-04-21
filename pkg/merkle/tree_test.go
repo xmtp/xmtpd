@@ -366,27 +366,32 @@ func TestRoundUpToPowerOf2Values(t *testing.T) {
 		name     string
 		input    int
 		expected int
+		wantErr  bool
 	}{
-		{"zero", 0, 0},
-		{"one", 1, 1},
-		{"already power of 2", 4, 4},
-		{"already power of 2 (large)", 16384, 16384},
-		{"regular case", 5, 8},
-		{"regular case (large)", 5000, 8192},
-		{"large number", 1<<30 - 1, 1 << 30},
+		{"zero", 0, 0, true},
+		{"one", 1, 1, false},
+		{"already power of 2", 4, 4, false},
+		{"already power of 2 (large)", 16384, 16384, false},
+		{"regular case", 5, 8, false},
+		{"regular case (large)", 5000, 8192, false},
+		{"large number", 1<<30 - 1, 1 << 30, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := merkle.CalculateBalancedNodesCount(tt.input)
-			require.NoError(t, err)
-			if result != tt.expected {
-				t.Errorf(
-					"Power of 2 rounding for %d = %d, expected %d",
-					tt.input,
-					result,
-					tt.expected,
-				)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if result != tt.expected {
+					t.Errorf(
+						"Power of 2 rounding for %d = %d, expected %d",
+						tt.input,
+						result,
+						tt.expected,
+					)
+				}
 			}
 		})
 	}
@@ -399,8 +404,8 @@ func TestCalculateBalancedLeafCount(t *testing.T) {
 		expected int
 		wantErr  bool
 	}{
-		{"negative", -1, 0, false},
-		{"zero", 0, 0, false},
+		{"negative", -1, 0, true},
+		{"zero", 0, 0, true},
 		{"one", 1, 1, false},
 		{"power of 2", 16, 16, false},
 		{"not power of 2", 15, 16, false},
@@ -432,5 +437,5 @@ func TestCalculateBalancedLeafCountError(t *testing.T) {
 	massiveInput := int(^uint32(0)) + 1
 	_, err := merkle.CalculateBalancedNodesCount(massiveInput)
 	assert.Error(t, err)
-	assert.Equal(t, merkle.ErrTreeLeavesOverflow, err)
+	assert.Equal(t, "count must be less than or equal to 2^31", err.Error())
 }

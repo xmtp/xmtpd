@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
 	"github.com/Masterminds/semver/v3"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -70,10 +71,15 @@ func NewReplicationServer(
 
 	promReg := prometheus.NewRegistry()
 
+	clientMetrics := grpcprom.NewClientMetrics(
+		grpcprom.WithClientHandlingTimeHistogram(),
+	)
+
 	var mtcs *metrics.Server
 	if options.Metrics.Enable {
 		promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 		promReg.MustRegister(collectors.NewGoCollector())
+		promReg.MustRegister(clientMetrics)
 
 		mtcs, err = metrics.NewMetricsServer(ctx,
 			options.Metrics.Address,
@@ -115,6 +121,7 @@ func NewReplicationServer(
 			ctx,
 			log,
 			options.MlsValidation,
+			clientMetrics,
 		)
 		if err != nil {
 			return nil, err
@@ -144,6 +151,7 @@ func NewReplicationServer(
 			httpListenAddress,
 			serverVersion,
 			promReg,
+			clientMetrics,
 		)
 		if err != nil {
 			return nil, err
@@ -181,6 +189,7 @@ func startAPIServer(
 	httpListenAddress string,
 	serverVersion *semver.Version,
 	registry *prometheus.Registry,
+	clientMetrics *grpcprom.ClientMetrics,
 ) error {
 	var err error
 
@@ -191,6 +200,7 @@ func startAPIServer(
 					ctx,
 					logger,
 					options.MlsValidation,
+					clientMetrics,
 				)
 				if err != nil {
 					return err

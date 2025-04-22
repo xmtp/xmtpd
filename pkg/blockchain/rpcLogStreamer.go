@@ -155,14 +155,16 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 			timer.Reset(watcher.maxDisconnectTime)
 
 		default:
+			nextPageStartTime := time.Now()
 			logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
+			nextPageElapsedTime := time.Since(nextPageStartTime)
 			if err != nil {
 				logger.Error(
 					"Error getting next page",
 					zap.Uint64("fromBlock", fromBlock),
 					zap.Error(err),
 				)
-				time.Sleep(ERROR_SLEEP_TIME)
+				time.Sleep(ERROR_SLEEP_TIME - nextPageElapsedTime)
 				continue
 			}
 			// reset self-termination timer
@@ -173,7 +175,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 			}
 
 			if len(logs) == 0 {
-				time.Sleep(NO_LOGS_SLEEP_TIME)
+				time.Sleep(NO_LOGS_SLEEP_TIME - nextPageElapsedTime)
 				continue
 			}
 
@@ -183,7 +185,6 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				zap.Uint64("fromBlock", fromBlock),
 				zap.Time("time", time.Now()),
 			)
-
 			for _, log := range logs {
 				watcher.EventChannel <- log
 			}

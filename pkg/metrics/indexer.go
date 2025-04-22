@@ -64,6 +64,13 @@ var indexerGetLogsRequests = prometheus.NewCounterVec(
 	[]string{"contract_address", "success"},
 )
 
+var indexerLogProcessingTime = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "xmtpd_indexer_log_processing_time_seconds",
+		Help: "Time to process a blockchain log",
+	},
+)
+
 func EmitIndexerNumLogsFound(contractAddress string, numLogs int) {
 	indexerNumLogsFound.With(prometheus.Labels{"contract_address": contractAddress}).
 		Add(float64(numLogs))
@@ -103,4 +110,8 @@ func MeasureGetLogs[Return any](contractAddress string, fn func() (Return, error
 	indexerGetLogsRequests.With(prometheus.Labels{"contract_address": contractAddress, "success": strconv.FormatBool(err == nil)}).
 		Inc()
 	return ret, err
+}
+
+func EmitIndexerLogProcessingTime(duration time.Duration) {
+	indexerLogProcessingTime.Observe(duration.Seconds())
 }

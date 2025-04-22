@@ -281,7 +281,10 @@ func (s *Service) publishToBlockchain(
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
-		if logMessage, err = s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload); err != nil {
+
+		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("group_message", func() (*gm.GroupMessageBroadcasterMessageSent, error) {
+			return s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload)
+		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
 		}
 		if logMessage == nil {
@@ -305,7 +308,9 @@ func (s *Service) publishToBlockchain(
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
-		if logMessage, err = s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload); err != nil {
+		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("identity_update", func() (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+			return s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload)
+		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
 		}
 		if logMessage == nil {
@@ -338,6 +343,8 @@ func (s *Service) publishToBlockchain(
 	metrics.EmitPayerNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
 	metrics.EmitPayerMessageOriginated(desiredOriginatorId, 1)
 
+	s.log.Debug("published message to blockchain", zap.Float64("seconds", time.Since(start).Seconds()))
+
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {
 		return nil, status.Errorf(
@@ -359,6 +366,8 @@ func (s *Service) publishToBlockchain(
 		}
 		targetNodeId = node
 	}
+
+	s.log.Debug("Waiting for message to be processed by node", zap.Uint32("target_node_id", targetNodeId))
 
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
 		ctx,

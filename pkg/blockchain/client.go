@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -82,6 +83,11 @@ func WaitForTransaction(
 	// Ticker to track polling interval
 	ticker := time.NewTicker(pollSleep)
 	defer ticker.Stop()
+
+	now := time.Now()
+	defer func() {
+		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
+	}()
 
 	for {
 		receipt, err := client.TransactionReceipt(ctx, hash)

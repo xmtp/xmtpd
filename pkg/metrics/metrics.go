@@ -74,6 +74,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		indexerCountRetryableStorageErrors,
 		indexerGetLogsDuration,
 		indexerGetLogsRequests,
+		indexerLogProcessingTime,
 		payerNodePublishDuration,
 		payerCursorBlockTime,
 		payerCurrentNonce,
@@ -87,6 +88,8 @@ func registerCollectors(reg prometheus.Registerer) {
 		apiIncomingNodeConnectionByVersionGauge,
 		apiNodeConnectionRequestsByVersionCounter,
 		apiFailedGRPCRequestsCounter,
+		blockchainWaitForTransaction,
+		blockchainPublish,
 	}
 
 	for _, col := range cols {

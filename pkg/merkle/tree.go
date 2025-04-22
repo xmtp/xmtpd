@@ -279,22 +279,22 @@ func makeLeaves(leaves []Leaf) ([]Leaf, error) {
 
 // CalculateBalancedNodesCount returns the number of nodes in a balanced tree.
 // To calculate the number of nodes in a tree, we need to round up to the next power of 2.
-// Returns an error if the element count is too large to be represented in a uint32.
+// Returns an error if the element count is too large to be represented in a int32.
 func CalculateBalancedNodesCount(count int) (int, error) {
 	if count <= 0 {
 		return 0, fmt.Errorf("count must be greater than 0")
 	}
 
-	if count > int(1<<31) {
-		return 0, fmt.Errorf("count must be less than or equal to 2^31")
+	if count > 1<<31-1 {
+		return 0, fmt.Errorf("count must be less than or equal than max int32 (%d)", 1<<31-1)
 	}
 
-	return int(roundUpToPowerOf2(uint32(count))), nil
+	return roundUpToPowerOf2(count), nil
 }
 
 // roundUpToPowerOf2 rounds up a number to the next power of 2.
-func roundUpToPowerOf2(n uint32) uint32 {
-	if bits.OnesCount32(n) == 1 {
+func roundUpToPowerOf2(n int) int {
+	if bits.OnesCount(uint(n)) == 1 {
 		return n
 	}
 

@@ -437,5 +437,5 @@ func TestCalculateBalancedLeafCountError(t *testing.T) {
 	massiveInput := int(^uint32(0)) + 1
 	_, err := merkle.CalculateBalancedNodesCount(massiveInput)
 	assert.Error(t, err)
-	assert.Equal(t, "count must be less than or equal to 2^31", err.Error())
+	assert.Contains(t, err.Error(), "count must be less than or equal than max int32")
 }

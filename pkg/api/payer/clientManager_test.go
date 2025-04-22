@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -36,7 +38,7 @@ func TestClientManager(t *testing.T) {
 		},
 	})
 
-	cm := payer.NewClientManager(testutils.NewLog(t), nodeRegistry)
+	cm := payer.NewClientManager(testutils.NewLog(t), nodeRegistry, prometheus.NewClientMetrics())
 
 	client1, err := cm.GetClient(100)
 	require.NoError(t, err)

@@ -3,6 +3,8 @@ package payer
 import (
 	"sync"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -21,13 +23,19 @@ type ClientManager struct {
 	connections      map[uint32]*grpc.ClientConn
 	connectionsMutex sync.RWMutex
 	nodeRegistry     registry.NodeRegistry
+	clientMetrics    *grpcprom.ClientMetrics
 }
 
-func NewClientManager(log *zap.Logger, nodeRegistry registry.NodeRegistry) *ClientManager {
+func NewClientManager(
+	log *zap.Logger,
+	nodeRegistry registry.NodeRegistry,
+	clientMetrics *grpcprom.ClientMetrics,
+) *ClientManager {
 	return &ClientManager{
-		log:          log,
-		nodeRegistry: nodeRegistry,
-		connections:  make(map[uint32]*grpc.ClientConn),
+		log:           log,
+		nodeRegistry:  nodeRegistry,
+		connections:   make(map[uint32]*grpc.ClientConn),
+		clientMetrics: clientMetrics,
 	}
 }
 
@@ -65,7 +73,10 @@ func (c *ClientManager) newClientConnection(
 	if err != nil {
 		return nil, err
 	}
-	conn, err := node.BuildClient()
+	conn, err := node.BuildClient(
+		grpc.WithUnaryInterceptor(c.clientMetrics.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(c.clientMetrics.StreamClientInterceptor()),
+	)
 	if err != nil {
 		return nil, err
 	}

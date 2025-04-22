@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -45,14 +47,20 @@ func NewPayerApiService(
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	metadataApiClient MetadataApiClientConstructor,
+	clientMetrics *grpcprom.ClientMetrics,
 ) (*Service, error) {
+	if clientMetrics == nil {
+		clientMetrics = grpcprom.NewClientMetrics()
+	}
+
 	var metadataClient MetadataApiClientConstructor
-	clientManager := NewClientManager(log, registry)
+	clientManager := NewClientManager(log, registry, clientMetrics)
 	if metadataApiClient == nil {
 		metadataClient = &DefaultMetadataApiClientConstructor{clientManager: clientManager}
 	} else {
 		metadataClient = metadataApiClient
 	}
+
 	return &Service{
 		ctx:                 ctx,
 		log:                 log,

@@ -343,7 +343,10 @@ func (s *Service) publishToBlockchain(
 	metrics.EmitPayerNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
 	metrics.EmitPayerMessageOriginated(desiredOriginatorId, 1)
 
-	s.log.Debug("published message to blockchain", zap.Float64("seconds", time.Since(start).Seconds()))
+	s.log.Debug(
+		"published message to blockchain",
+		zap.Float64("seconds", time.Since(start).Seconds()),
+	)
 
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {
@@ -367,7 +370,10 @@ func (s *Service) publishToBlockchain(
 		targetNodeId = node
 	}
 
-	s.log.Debug("Waiting for message to be processed by node", zap.Uint32("target_node_id", targetNodeId))
+	s.log.Debug(
+		"Waiting for message to be processed by node",
+		zap.Uint32("target_node_id", targetNodeId),
+	)
 
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
 		ctx,

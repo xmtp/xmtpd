@@ -3,8 +3,9 @@ package blockchain
 import (
 	"context"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

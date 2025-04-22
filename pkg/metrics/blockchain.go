@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var blockchainWaitForTransaction = prometheus.NewHistogram(
@@ -30,7 +31,10 @@ func EmitBlockchainPublish(payloadType string, duration time.Duration) {
 		Observe(duration.Seconds())
 }
 
-func MeasurePublishToBlockchainMethod[Return any](payloadType string, fn func() (Return, error)) (Return, error) {
+func MeasurePublishToBlockchainMethod[Return any](
+	payloadType string,
+	fn func() (Return, error),
+) (Return, error) {
 	start := time.Now()
 	defer func() {
 		EmitBlockchainPublish(payloadType, time.Since(start))

@@ -89,7 +89,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		apiNodeConnectionRequestsByVersionCounter,
 		apiFailedGRPCRequestsCounter,
 		blockchainWaitForTransaction,
-		blockchainPublish,
+		blockchainPublishPayload,
 	}
 
 	for _, col := range cols {

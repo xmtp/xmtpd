@@ -116,7 +116,7 @@ func NewReplicationServer(
 		}
 	}
 
-	if options.Indexer.Enable {
+	if options.Indexer.Enable || options.Replication.Enable {
 		s.validationService, err = mlsvalidate.NewMlsValidationService(
 			ctx,
 			log,
@@ -126,7 +126,9 @@ func NewReplicationServer(
 		if err != nil {
 			return nil, err
 		}
+	}
 
+	if options.Indexer.Enable {
 		s.indx = indexer.NewIndexer(ctx, log)
 		err = s.indx.StartIndexer(
 			writerDB,
@@ -195,17 +197,7 @@ func startAPIServer(
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		if options.Replication.Enable {
-			if s.validationService == nil {
-				s.validationService, err = mlsvalidate.NewMlsValidationService(
-					ctx,
-					logger,
-					options.MlsValidation,
-					clientMetrics,
-				)
-				if err != nil {
-					return err
-				}
-			}
+
 			s.cursorUpdater = metadata.NewCursorUpdater(ctx, logger, writerDB)
 
 			replicationService, err := message.NewReplicationApiService(
@@ -278,6 +270,7 @@ func startAPIServer(
 				payerPrivateKey,
 				blockchainPublisher,
 				nil,
+				clientMetrics,
 			)
 			if err != nil {
 				return err

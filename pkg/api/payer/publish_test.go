@@ -85,6 +85,7 @@ func buildPayerService(
 		&FixedMetadataApiClientConstructor{
 			mockClient: metaMocks,
 		},
+		nil,
 	)
 	require.NoError(t, err)
 

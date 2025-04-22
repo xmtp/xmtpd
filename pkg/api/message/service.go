@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -60,6 +61,10 @@ func NewReplicationApiService(
 	rateFetcher fees.IRatesFetcher,
 	options config.ReplicationOptions,
 ) (*Service, error) {
+	if validationService == nil {
+		return nil, errors.New("validation service must not be nil")
+	}
+
 	feeCalculator := fees.NewFeeCalculator(rateFetcher)
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store, feeCalculator)
 	if err != nil {

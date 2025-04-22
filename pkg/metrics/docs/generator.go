@@ -31,6 +31,10 @@ var metricTypes = map[string]MetricType{
 	"NewGaugeVec":     {true, "Gauge"},
 	"NewHistogramVec": {true, "Histogram"},
 	"NewSummaryVec":   {true, "Summary"},
+	"NewCounter":      {true, "Counter"},
+	"NewGauge":        {true, "Gauge"},
+	"NewHistogram":    {true, "Histogram"},
+	"NewSummary":      {true, "Summary"},
 }
 
 func main() {

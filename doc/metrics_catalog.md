@@ -12,7 +12,7 @@
 | `xmtp_sync_messages_received_count` | `Counter` | Count of messages received from the originator | `pkg/metrics/sync.go` |
 | `xmtp_sync_messages_received_error_count` | `Counter` | Count of failed/errored messages received from the originator | `pkg/metrics/sync.go` |
 | `xmtp_sync_originator_sequence_id` | `Gauge` | Last synced sequence id of the originator | `pkg/metrics/sync.go` |
-| `xmtpd_blockchain_publish_seconds` | `Histogram` | Duration of the get logs call | `pkg/metrics/blockchain.go` |
+| `xmtpd_blockchain_publish_payload_seconds` | `Histogram` | Time to publish a payload to the blockchain | `pkg/metrics/blockchain.go` |
 | `xmtpd_indexer_log_streamer_block_lag` | `Gauge` | Lag between current block and max block | `pkg/metrics/indexer.go` |
 | `xmtpd_indexer_log_streamer_current_block` | `Gauge` | Current block being processed by the log streamer | `pkg/metrics/indexer.go` |
 | `xmtpd_indexer_log_streamer_get_logs_duration` | `Histogram` | Duration of the get logs call | `pkg/metrics/indexer.go` |

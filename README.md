@@ -4,6 +4,8 @@
 [![Test](https://github.com/xmtp/xmtpd/actions/workflows/test.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/test.yml)
 [![Lint](https://github.com/xmtp/xmtpd/actions/workflows/lint-go.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/lint-go.yml)
 [![Build](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml/badge.svg)](https://github.com/xmtp/xmtpd/actions/workflows/build-xmtpd.yml)
+[![License](https://img.shields.io/github/license/xmtp/xmtpd)](https://github.com/xmtp/xmtpd/blob/main/LICENSE)
+[![Twitter](https://img.shields.io/twitter/follow/xmtp_)](https://x.com/xmtp_)
 
 **⚠️ Experimental:** This software is in early development. Expect frequent changes and unresolved issues.
 

@@ -50,6 +50,8 @@ func StressIdentityUpdates(
 	var nonceCounter atomic.Uint64
 	nonceCounter.Store(startingNonce)
 
+	totalTime := time.Now()
+
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func(idx int) {
@@ -94,6 +96,8 @@ func StressIdentityUpdates(
 
 	wg.Wait()
 
+	elapsedSec := time.Since(totalTime).Seconds()
+
 	// Analytics
 	var totalDuration time.Duration
 	var successCount int
@@ -104,6 +108,8 @@ func StressIdentityUpdates(
 		}
 	}
 
+	tps := float64(n) / elapsedSec
+
 	avgDuration := totalDuration / time.Duration(n)
 	logger.Info("Stress Test Summary",
 		zap.Int("total_transactions", n),
@@ -111,6 +117,7 @@ func StressIdentityUpdates(
 		zap.Float64("success_rate", float64(successCount)/float64(n)),
 		zap.Duration("total_duration", totalDuration),
 		zap.Duration("average_duration", avgDuration),
+		zap.Float64("tps", tps),
 	)
 
 	return nil

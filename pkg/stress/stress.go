@@ -50,9 +50,9 @@ func StressIdentityUpdates(
 	var nonceCounter atomic.Uint64
 	nonceCounter.Store(startingNonce)
 
-	for idx := 0; idx < n; idx++ {
+	for i := 0; i < n; i++ {
 		wg.Add(1)
-		go func() {
+		go func(idx int) {
 			defer wg.Done()
 
 			semaphore <- struct{}{}
@@ -89,7 +89,7 @@ func StressIdentityUpdates(
 			} else {
 				logger.Info("completed transaction", zap.Int("idx", idx), zap.Uint64("nonce", nonce), zap.Duration("duration", duration))
 			}
-		}()
+		}(i)
 	}
 
 	wg.Wait()

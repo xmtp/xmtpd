@@ -20,7 +20,7 @@ func EmitBlockchainWaitForTransaction(duration float64) {
 
 var blockchainPublishPayload = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name: "xmtpd_blockchain_publish_payload_seconds",
+		Name: "xmtp_blockchain_publish_payload_seconds",
 		Help: "Time to publish a payload to the blockchain",
 	},
 	[]string{"payload_type"},

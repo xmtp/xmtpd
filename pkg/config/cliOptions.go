@@ -87,3 +87,10 @@ type SetNodeOperatorCommissionPercentOptions struct {
 	AdminOptions      NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
 	CommissionPercent int64                    `                                        long:"commission-percent" description:"Commission percent to set for the node operator"`
 }
+
+type IdentityUpdatesStressOptions struct {
+	PrivateKey string `long:"private-key" description:"Private key of the admin to administer the node" required:"true"`
+	Contract   string `long:"contract"    description:"Contract address"`
+	Rpc        string `long:"rpc"         description:"RPC URL"`
+	Count      int    `long:"count"       description:"Number of transactions to send"`
+}

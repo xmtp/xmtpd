@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/stress"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -37,6 +38,7 @@ type CLI struct {
 	SetMaxActiveNodes                config.SetMaxActiveNodesOptions
 	SetNodeOperatorCommissionPercent config.SetNodeOperatorCommissionPercentOptions
 	AddRates                         config.AddRatesOptions
+	IdentityUpdatesStress            config.IdentityUpdatesStressOptions
 }
 
 /*
@@ -62,7 +64,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var setNodeOperatorCommissionPercentOptions config.SetNodeOperatorCommissionPercentOptions
 	var addRatesOptions config.AddRatesOptions
 	var getNodeOptions config.GetNodeOptions
-
+	var identityUpdatesStressOptions config.IdentityUpdatesStressOptions
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -110,6 +112,12 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
 		return nil, fmt.Errorf("could not add add-rates command: %s", err)
 	}
+
+	// Dev commands
+	if _, err := parser.AddCommand("identity-updates-stress", "Stress the identity updates contract", "", &identityUpdatesStressOptions); err != nil {
+		return nil, fmt.Errorf("could not add identity-updates-stress command: %s", err)
+	}
+
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			return nil, fmt.Errorf("could not parse options: %s", err)
@@ -136,6 +144,7 @@ func parseOptions(args []string) (*CLI, error) {
 		setMaxActiveNodesOptions,
 		setNodeOperatorCommissionPercentOptions,
 		addRatesOptions,
+		identityUpdatesStressOptions,
 	}, nil
 }
 
@@ -535,6 +544,28 @@ func getNode(logger *zap.Logger, options *CLI) {
 	)
 }
 
+func identityUpdatesStress(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+
+	logger.Info(
+		"creating identity updates",
+		zap.Int("count", options.IdentityUpdatesStress.Count),
+		zap.String("contract", options.IdentityUpdatesStress.Contract),
+	)
+
+	err := stress.StressIdentityUpdates(
+		ctx,
+		logger,
+		options.IdentityUpdatesStress.Count,
+		options.IdentityUpdatesStress.Contract,
+		options.IdentityUpdatesStress.Rpc,
+		options.IdentityUpdatesStress.PrivateKey,
+	)
+	if err != nil {
+		logger.Fatal("could not create identity updates", zap.Error(err))
+	}
+}
+
 /*
 *
 Main Command
@@ -600,6 +631,9 @@ func main() {
 		return
 	case "add-rates":
 		addRates(logger, options)
+		return
+	case "identity-updates-stress":
+		identityUpdatesStress(logger, options)
 		return
 	}
 }

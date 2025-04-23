@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -49,13 +50,15 @@ func StressIdentityUpdates(
 		go func(idx int) {
 			defer wg.Done()
 
-			logger.Info("starting transaction", zap.Int("idx", idx))
+			logger.Info("starting transaction", zap.Int("idx", idx), zap.Int("nonce", nonce))
 			if err := cs.Run(ctx); err != nil {
 				logger.Error("error", zap.Int("idx", idx), zap.Error(err))
 			} else {
-				logger.Info("completed transaction", zap.Int("idx", idx))
+				logger.Info("completed transaction", zap.Int("idx", idx), zap.Int("nonce", nonce))
 			}
 		}(i)
+
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	wg.Wait()
@@ -77,7 +80,7 @@ func getCurrentNonce(ctx context.Context, privateKey, rpcUrl string) (int, error
 
 	nonce, err := client.NonceAt(ctx, address, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get nonce for address %s: %s", privateKey, err)
+		return 0, fmt.Errorf("failed to get nonce for address %s: %s", address, err)
 	}
 
 	return int(nonce), nil

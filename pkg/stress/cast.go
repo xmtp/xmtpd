@@ -43,7 +43,7 @@ func buildCastSendCommand(c *CastSendCommand) string {
 func (c *CastSendCommand) Run(ctx context.Context) error {
 	cli := buildCastSendCommand(c)
 
-	ctxwt, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	ctxwt, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctxwt, "bash", "-c", cli)

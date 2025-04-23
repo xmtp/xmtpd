@@ -251,6 +251,7 @@ func indexLogs(
 
 	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
 	for event := range eventChannel {
+		now := time.Now()
 		// 1.1 Handle active reorg state first
 		if reorgDetectedAt > 0 {
 			// Under a reorg, future events are no-op
@@ -352,6 +353,7 @@ func indexLogs(
 		if trackerErr := blockTracker.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
 			logger.Error("error updating block tracker", zap.Error(trackerErr))
 		}
+		metrics.EmitIndexerLogProcessingTime(time.Since(now))
 	}
 	logger.Debug("finished")
 }

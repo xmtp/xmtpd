@@ -183,7 +183,6 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				zap.Uint64("fromBlock", fromBlock),
 				zap.Time("time", time.Now()),
 			)
-
 			for _, log := range logs {
 				watcher.EventChannel <- log
 			}

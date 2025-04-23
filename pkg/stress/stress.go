@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,46 +28,95 @@ func StressIdentityUpdates(
 	contractAddress, rpc, privateKey string,
 ) error {
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	type Result struct {
+		Idx      int
+		Nonce    uint64
+		Success  bool
+		Duration time.Duration
+	}
+	results := make([]Result, 0, n)
+
+	// concurrency limiter
+	// if you see NONCE TOO HIGH errors it might mean that this guesstimate is too high
+	semaphore := make(chan struct{}, 50)
 
 	startingNonce, err := getCurrentNonce(ctx, privateKey, rpc)
 	if err != nil {
 		return fmt.Errorf("failed to get starting nonce: %s", err)
 	}
 
+	var nonceCounter atomic.Uint64
+	nonceCounter.Store(startingNonce)
+
 	for i := 0; i < n; i++ {
 		wg.Add(1)
-
-		nonce := startingNonce + i
-
-		cs := &CastSendCommand{
-			ContractAddress: contractAddress,
-			Function:        IDENTITY_UPDATES_SIGNATURE,
-			FunctionArgs:    []string{IDENTITY_UPDATES_INBOX_ID, IDENTITY_UPDATES_PAYLOAD},
-			Rpc:             rpc,
-			PrivateKey:      privateKey,
-			Nonce:           &nonce,
-		}
-
 		go func(idx int) {
 			defer wg.Done()
 
-			logger.Info("starting transaction", zap.Int("idx", idx), zap.Int("nonce", nonce))
-			if err := cs.Run(ctx); err != nil {
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			nonce := nonceCounter.Add(1) - 1
+
+			cs := &CastSendCommand{
+				ContractAddress: contractAddress,
+				Function:        IDENTITY_UPDATES_SIGNATURE,
+				FunctionArgs:    []string{IDENTITY_UPDATES_INBOX_ID, IDENTITY_UPDATES_PAYLOAD},
+				Rpc:             rpc,
+				PrivateKey:      privateKey,
+				Nonce:           &nonce,
+			}
+
+			startTime := time.Now()
+			logger.Info("starting transaction", zap.Int("idx", idx), zap.Uint64("nonce", nonce))
+
+			err := cs.Run(ctx)
+			duration := time.Since(startTime)
+
+			mu.Lock()
+			results = append(results, Result{
+				Idx:      idx,
+				Nonce:    nonce,
+				Success:  err == nil,
+				Duration: duration,
+			})
+			mu.Unlock()
+
+			if err != nil {
 				logger.Error("error", zap.Int("idx", idx), zap.Error(err))
 			} else {
-				logger.Info("completed transaction", zap.Int("idx", idx), zap.Int("nonce", nonce))
+				logger.Info("completed transaction", zap.Int("idx", idx), zap.Uint64("nonce", nonce), zap.Duration("duration", duration))
 			}
 		}(i)
-
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	wg.Wait()
 
+	// Analytics
+	var totalDuration time.Duration
+	var successCount int
+	for _, res := range results {
+		totalDuration += res.Duration
+		if res.Success {
+			successCount++
+		}
+	}
+
+	avgDuration := totalDuration / time.Duration(n)
+	logger.Info("Stress Test Summary",
+		zap.Int("total_transactions", n),
+		zap.Int("successful_transactions", successCount),
+		zap.Float64("success_rate", float64(successCount)/float64(n)),
+		zap.Duration("total_duration", totalDuration),
+		zap.Duration("average_duration", avgDuration),
+	)
+
 	return nil
 }
 
-func getCurrentNonce(ctx context.Context, privateKey, rpcUrl string) (int, error) {
+func getCurrentNonce(ctx context.Context, privateKey, rpcUrl string) (uint64, error) {
 	client, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		return 0, fmt.Errorf("failed to connect to Ethereum node: %s", err)
@@ -83,7 +133,7 @@ func getCurrentNonce(ctx context.Context, privateKey, rpcUrl string) (int, error
 		return 0, fmt.Errorf("failed to get nonce for address %s: %s", address, err)
 	}
 
-	return int(nonce), nil
+	return nonce, nil
 }
 
 func getAddressFromPrivateKey(privateKeyHex string) (common.Address, error) {

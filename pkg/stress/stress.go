@@ -38,7 +38,9 @@ func StressIdentityUpdates(
 	}
 	results := make([]Result, 0, n)
 
-	semaphore := make(chan struct{}, 50) // Concurrency limiter
+	// concurrency limiter
+	// if you see NONCE TOO HIGH errors it might mean that this guesstimate is too high
+	semaphore := make(chan struct{}, 50)
 
 	startingNonce, err := getCurrentNonce(ctx, privateKey, rpc)
 	if err != nil {
@@ -53,8 +55,8 @@ func StressIdentityUpdates(
 		go func() {
 			defer wg.Done()
 
-			semaphore <- struct{}{}        // Acquire slot
-			defer func() { <-semaphore }() // Release slot
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
 
 			nonce := nonceCounter.Add(1) - 1
 
@@ -106,6 +108,7 @@ func StressIdentityUpdates(
 	logger.Info("Stress Test Summary",
 		zap.Int("total_transactions", n),
 		zap.Int("successful_transactions", successCount),
+		zap.Float64("success_rate", float64(successCount)/float64(n)),
 		zap.Duration("total_duration", totalDuration),
 		zap.Duration("average_duration", avgDuration),
 	)

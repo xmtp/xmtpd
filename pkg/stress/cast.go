@@ -15,7 +15,7 @@ type CastSendCommand struct {
 	FunctionArgs    []string
 	Rpc             string
 	PrivateKey      string
-	Nonce           *int
+	Nonce           *uint64
 }
 
 func buildCastSendCommand(c *CastSendCommand) string {

@@ -221,7 +221,9 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
-			Topics:            []db.Topic{db.Topic(BuildInboxTopic(inboxId))},
+			Topics: []db.Topic{
+				db.Topic(topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxId[:]).Bytes()),
+			},
 			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
 			RowLimit:          256,
 		},
@@ -240,10 +242,6 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 		gatewayEnvelopes,
 		identityUpdate.IdentityUpdate,
 	)
-}
-
-func BuildInboxTopic(inboxId [32]byte) string {
-	return fmt.Sprintf("i/%x", inboxId)
 }
 
 func buildOriginatorEnvelope(

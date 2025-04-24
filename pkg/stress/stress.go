@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -144,13 +145,7 @@ func getCurrentNonce(ctx context.Context, privateKey, rpcUrl string) (uint64, er
 }
 
 func getAddressFromPrivateKey(privateKeyHex string) (common.Address, error) {
-	if strings.HasPrefix(privateKeyHex, "0x") {
-		privateKeyHex = privateKeyHex[2:]
-	} else {
-		return common.Address{}, fmt.Errorf("private key must start with 0x")
-	}
-
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyHex)
 	if err != nil {
 		return common.Address{}, err
 	}

@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"

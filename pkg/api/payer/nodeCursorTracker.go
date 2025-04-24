@@ -85,6 +85,8 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 		select {
 		case <-ct.ctx.Done():
 			return status.Errorf(codes.Aborted, "node terminated. Cancelled wait for cursor")
+		case <-parentCtx.Done():
+			return nil
 		case <-ctx.Done():
 			return status.Errorf(
 				codes.DeadlineExceeded,

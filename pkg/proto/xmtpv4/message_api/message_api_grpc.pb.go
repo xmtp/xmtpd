@@ -25,6 +25,7 @@ const (
 	ReplicationApi_QueryEnvelopes_FullMethodName        = "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes"
 	ReplicationApi_PublishPayerEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/PublishPayerEnvelopes"
 	ReplicationApi_GetInboxIds_FullMethodName           = "/xmtp.xmtpv4.message_api.ReplicationApi/GetInboxIds"
+	ReplicationApi_GetNewestEnvelope_FullMethodName     = "/xmtp.xmtpv4.message_api.ReplicationApi/GetNewestEnvelope"
 )
 
 // ReplicationApiClient is the client API for ReplicationApi service.
@@ -35,6 +36,8 @@ type ReplicationApiClient interface {
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error)
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
+	// Get the newest envelope for each topic
+	GetNewestEnvelope(ctx context.Context, in *GetNewestEnvelopeRequest, opts ...grpc.CallOption) (*GetNewestEnvelopeResponse, error)
 }
 
 type replicationApiClient struct {
@@ -104,6 +107,15 @@ func (c *replicationApiClient) GetInboxIds(ctx context.Context, in *GetInboxIdsR
 	return out, nil
 }
 
+func (c *replicationApiClient) GetNewestEnvelope(ctx context.Context, in *GetNewestEnvelopeRequest, opts ...grpc.CallOption) (*GetNewestEnvelopeResponse, error) {
+	out := new(GetNewestEnvelopeResponse)
+	err := c.cc.Invoke(ctx, ReplicationApi_GetNewestEnvelope_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ReplicationApiServer is the server API for ReplicationApi service.
 // All implementations must embed UnimplementedReplicationApiServer
 // for forward compatibility
@@ -112,6 +124,8 @@ type ReplicationApiServer interface {
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error)
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
+	// Get the newest envelope for each topic
+	GetNewestEnvelope(context.Context, *GetNewestEnvelopeRequest) (*GetNewestEnvelopeResponse, error)
 	mustEmbedUnimplementedReplicationApiServer()
 }
 
@@ -130,6 +144,9 @@ func (UnimplementedReplicationApiServer) PublishPayerEnvelopes(context.Context, 
 }
 func (UnimplementedReplicationApiServer) GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInboxIds not implemented")
+}
+func (UnimplementedReplicationApiServer) GetNewestEnvelope(context.Context, *GetNewestEnvelopeRequest) (*GetNewestEnvelopeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNewestEnvelope not implemented")
 }
 func (UnimplementedReplicationApiServer) mustEmbedUnimplementedReplicationApiServer() {}
 
@@ -219,6 +236,24 @@ func _ReplicationApi_GetInboxIds_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ReplicationApi_GetNewestEnvelope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNewestEnvelopeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReplicationApiServer).GetNewestEnvelope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReplicationApi_GetNewestEnvelope_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReplicationApiServer).GetNewestEnvelope(ctx, req.(*GetNewestEnvelopeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ReplicationApi_ServiceDesc is the grpc.ServiceDesc for ReplicationApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -237,6 +272,10 @@ var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInboxIds",
 			Handler:    _ReplicationApi_GetInboxIds_Handler,
+		},
+		{
+			MethodName: "GetNewestEnvelope",
+			Handler:    _ReplicationApi_GetNewestEnvelope_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

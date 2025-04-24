@@ -385,6 +385,7 @@ func (s *Service) publishToBlockchain(
 		s.log.Error(
 			"Chosen node for cursor check is unreachable",
 			zap.Uint32("targetNodeId", targetNodeId),
+			zap.Error(err),
 		)
 	}
 

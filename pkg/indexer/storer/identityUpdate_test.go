@@ -71,7 +71,6 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	identityUpdate := associations.IdentityUpdate{
 		InboxId: utils.HexEncode(inboxId[:]),
 	}
-
 	sequenceID := uint64(1)
 
 	logMessage := testutils.BuildIdentityUpdateLog(
@@ -81,11 +80,10 @@ func TestStoreIdentityUpdate(t *testing.T) {
 		sequenceID,
 	)
 
-	err := storer.StoreLog(
+	require.NoError(t, storer.StoreLog(
 		ctx,
 		logMessage,
-	)
-	require.NoError(t, err)
+	))
 
 	querier := queries.New(storer.db)
 
@@ -97,7 +95,6 @@ func TestStoreIdentityUpdate(t *testing.T) {
 		},
 	)
 	require.NoError(t, queryErr)
-
 	require.Equal(t, len(envelopes), 1)
 
 	firstEnvelope := envelopes[0]
@@ -108,4 +105,66 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	getInboxIdResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
 	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxId[:]))
+}
+
+func TestStoreSequential(t *testing.T) {
+	ctx := context.Background()
+	storer, validationService, cleanup := buildIdentityUpdateStorer(t)
+	defer cleanup()
+	newAddress := "0x12345"
+
+	numCalls := 0
+	validationService.EXPECT().
+		GetAssociationStateFromEnvelopes(mock.Anything, mock.Anything, mock.Anything).
+		RunAndReturn(func(ctx context.Context, prevEnvs []queries.GatewayEnvelope, newUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
+			numCalls++
+			if numCalls > 1 {
+				require.Len(t, prevEnvs, 1)
+
+				return &mlsvalidate.AssociationStateResult{
+					StateDiff: &associations.AssociationStateDiff{},
+				}, nil
+			}
+			return &mlsvalidate.AssociationStateResult{
+				StateDiff: &associations.AssociationStateDiff{
+					NewMembers: []*associations.MemberIdentifier{{
+						Kind: &associations.MemberIdentifier_EthereumAddress{
+							EthereumAddress: newAddress,
+						},
+					}},
+				},
+			}, nil
+		})
+
+	// Using the RandomGroupID function, since they are both 32 bytes and we treat inbox IDs as
+	// strings outside the blockchain
+	inboxId := testutils.RandomGroupID()
+	identityUpdate := associations.IdentityUpdate{
+		InboxId: utils.HexEncode(inboxId[:]),
+	}
+	sequenceID := uint64(1)
+
+	logMessage := testutils.BuildIdentityUpdateLog(
+		t,
+		inboxId,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		sequenceID,
+	)
+
+	require.NoError(t, storer.StoreLog(
+		ctx,
+		logMessage,
+	))
+
+	logMessage = testutils.BuildIdentityUpdateLog(
+		t,
+		inboxId,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		sequenceID+1, // Increment the sequence ID by 1
+	)
+
+	require.NoError(t, storer.StoreLog(
+		ctx,
+		logMessage,
+	))
 }

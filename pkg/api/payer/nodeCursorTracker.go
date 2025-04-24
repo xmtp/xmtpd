@@ -42,12 +42,15 @@ func NewNodeCursorTracker(ctx context.Context,
 }
 
 func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
-	ctx context.Context,
+	parentCtx context.Context,
 	nodeId uint32,
 	desiredOriginatorId uint32,
 	desiredSequenceId uint64,
 ) error {
 	// TODO(mkysel) ideally we wouldn't create and tear down the stream for every request
+
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	defer cancel()
 
 	start := time.Now()
 
@@ -81,15 +84,15 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	for {
 		select {
 		case <-ct.ctx.Done():
-			return status.Errorf(codes.Internal, "node terminated. Cancelled wait for cursor")
+			return status.Errorf(codes.Aborted, "node terminated. Cancelled wait for cursor")
 		case <-ctx.Done():
-			return nil
+			return status.Errorf(codes.DeadlineExceeded, "Wait for cursor was unsuccessful after %s", time.Since(start))
 		case err := <-errCh:
 			if errors.Is(ctx.Err(), context.Canceled) {
 				return nil
 			}
 			if errors.Is(ct.ctx.Err(), context.Canceled) {
-				return status.Errorf(codes.Internal, "node terminated. Cancelled wait for cursor")
+				return status.Errorf(codes.Aborted, "node terminated. Cancelled wait for cursor")
 			}
 			return err
 		case resp := <-respCh:

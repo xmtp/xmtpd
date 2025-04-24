@@ -86,7 +86,11 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 		case <-ct.ctx.Done():
 			return status.Errorf(codes.Aborted, "node terminated. Cancelled wait for cursor")
 		case <-ctx.Done():
-			return status.Errorf(codes.DeadlineExceeded, "Wait for cursor was unsuccessful after %s", time.Since(start))
+			return status.Errorf(
+				codes.DeadlineExceeded,
+				"Wait for cursor was unsuccessful after %s",
+				time.Since(start),
+			)
 		case err := <-errCh:
 			if errors.Is(ctx.Err(), context.Canceled) {
 				return nil

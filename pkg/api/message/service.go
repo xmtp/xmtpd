@@ -432,6 +432,55 @@ func (s *Service) GetInboxIds(
 	}, nil
 }
 
+func (s *Service) GetNewestEnvelope(
+	ctx context.Context,
+	req *message_api.GetNewestEnvelopeRequest,
+) (*message_api.GetNewestEnvelopeResponse, error) {
+	logger := s.log.With(zap.String("method", "GetNewestEnvelope"))
+	queries := queries.New(s.store)
+	topics := req.GetTopics()
+	originalSort := make(map[string]int)
+
+	for idx, topic := range topics {
+		originalSort[string(topic)] = idx
+	}
+
+	rows, err := queries.SelectNewestFromTopics(ctx, topics)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+	}
+
+	logger.Info(
+		"received newest envelopes for topics",
+		zap.Int("numEnvelopes", len(rows)),
+		zap.Int("numTopics", len(topics)),
+	)
+
+	results := make([]*message_api.GetNewestEnvelopeResponse_Response, len(topics))
+	for _, row := range rows {
+		idx, ok := originalSort[string(row.Topic)]
+		if !ok {
+			// We will leave the index empty if there are no envelopes for that topic
+			continue
+		}
+		originatorEnv := &envelopesProto.OriginatorEnvelope{}
+		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
+		if err != nil {
+			// We expect to have already validated the envelope when it was inserted
+			logger.Error("could not unmarshal originator envelope", zap.Error(err))
+			continue
+		}
+
+		results[idx] = &message_api.GetNewestEnvelopeResponse_Response{
+			OriginatorEnvelope: originatorEnv,
+		}
+	}
+
+	return &message_api.GetNewestEnvelopeResponse{
+		Results: results,
+	}, nil
+}
+
 func (s *Service) validatePayerEnvelope(
 	rawEnv *envelopesProto.PayerEnvelope,
 ) (*envelopes.PayerEnvelope, error) {

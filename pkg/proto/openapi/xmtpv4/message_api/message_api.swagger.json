@@ -48,6 +48,39 @@
         ]
       }
     },
+    "/mls/v2/get-newest-envelope": {
+      "post": {
+        "summary": "Get the newest envelope for each topic",
+        "operationId": "ReplicationApi_GetNewestEnvelope",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/message_apiGetNewestEnvelopeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiGetNewestEnvelopeRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
     "/mls/v2/publish-payer-envelopes": {
       "post": {
         "operationId": "ReplicationApi_PublishPayerEnvelopes",
@@ -246,6 +279,41 @@
         }
       },
       "title": "Query for envelopes, shared by query and subscribe endpoints\nEither topics or originator_node_ids may be set, but not both"
+    },
+    "message_apiGetNewestEnvelopeRequest": {
+      "type": "object",
+      "properties": {
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          }
+        }
+      },
+      "title": "Request to get the newest envelope for a given topic"
+    },
+    "message_apiGetNewestEnvelopeResponse": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/message_apiGetNewestEnvelopeResponseResponse"
+          },
+          "title": "The newest envelope for the given topic OR null if there are no envelopes on the topic"
+        }
+      },
+      "title": "Response to GetNewestEnvelopeRequest"
+    },
+    "message_apiGetNewestEnvelopeResponseResponse": {
+      "type": "object",
+      "properties": {
+        "originatorEnvelope": {
+          "$ref": "#/definitions/envelopesOriginatorEnvelope"
+        }
+      }
     },
     "message_apiPublishPayerEnvelopesRequest": {
       "type": "object",

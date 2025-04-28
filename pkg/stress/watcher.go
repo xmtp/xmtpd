@@ -15,6 +15,7 @@ import (
 )
 
 type Watcher struct {
+	ctx             context.Context
 	logger          *zap.Logger
 	ethClient       *ethclient.Client
 	fromBlock       *big.Int
@@ -23,11 +24,10 @@ type Watcher struct {
 
 func NewWatcher(
 	ctx context.Context,
+	logger *zap.Logger,
 	rpcURL string,
 	watchedContract common.Address,
 ) (*Watcher, error) {
-	logger := zap.NewExample()
-
 	ethClient, err := ethclient.Dial(rpcURL)
 	if err != nil {
 		return nil, err
@@ -35,19 +35,23 @@ func NewWatcher(
 
 	block, err := ethClient.BlockByNumber(ctx, nil)
 	if err != nil {
+		ethClient.Close()
 		return nil, err
 	}
 
 	return &Watcher{
-		logger:          logger,
+		ctx:             ctx,
+		logger:          logger.Named("chain-watcher"),
 		ethClient:       ethClient,
 		fromBlock:       block.Number(),
 		watchedContract: watchedContract,
 	}, nil
 }
 
-func (w *Watcher) Listen(ctx context.Context) error {
-	ctxwc, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+func (w *Watcher) Listen() error {
+	defer w.ethClient.Close()
+
+	ctxwc, cancel := signal.NotifyContext(w.ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	w.logger.Info("subscribing to logs")

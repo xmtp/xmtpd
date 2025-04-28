@@ -96,6 +96,6 @@ type IdentityUpdatesStressOptions struct {
 }
 
 type WatcherOptions struct {
-	Contract string `long:"contract" description:"Contract address"`
-	Wss      string `long:"wss"      description:"WSS URL"`
+	Contract string `long:"contract" description:"Contract address" required:"true"`
+	Wss      string `long:"wss"      description:"WSS URL"          required:"true"`
 }

@@ -578,6 +578,7 @@ func startChainWatcher(logger *zap.Logger, options *CLI) {
 
 	watcher, err := stress.NewWatcher(
 		ctx,
+		logger,
 		options.Watcher.Wss,
 		common.HexToAddress(options.Watcher.Contract),
 	)
@@ -585,7 +586,7 @@ func startChainWatcher(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create watcher", zap.Error(err))
 	}
 
-	err = watcher.Listen(ctx)
+	err = watcher.Listen()
 	if err != nil {
 		logger.Fatal("could not listen", zap.Error(err))
 	}

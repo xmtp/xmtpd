@@ -94,3 +94,8 @@ type IdentityUpdatesStressOptions struct {
 	Rpc        string `long:"rpc"         description:"RPC URL"`
 	Count      int    `long:"count"       description:"Number of transactions to send"`
 }
+
+type WatcherOptions struct {
+	Contract string `long:"contract" description:"Contract address"`
+	Wss      string `long:"wss"      description:"WSS URL"`
+}

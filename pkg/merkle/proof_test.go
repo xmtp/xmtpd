@@ -444,3 +444,117 @@ func createLeaves(t *testing.T, count int) []merkle.Leaf {
 	}
 	return leaves
 }
+
+func TestGetLeafCount(t *testing.T) {
+	// Create a simple tree and proof
+	leaves := []merkle.Leaf{
+		[]byte("leaf1"),
+		[]byte("leaf2"),
+		[]byte("leaf3"),
+		[]byte("leaf4"),
+	}
+
+	tree, err := merkle.NewMerkleTree(leaves)
+	require.NoError(t, err)
+
+	indices := []int{0, 2}
+	proof, err := tree.GenerateMultiProofWithIndices(indices)
+	require.NoError(t, err)
+
+	// Test the GetLeafCount method
+	assert.Equal(t, 4, proof.GetLeafCount())
+	assert.Equal(t, len(leaves), proof.GetLeafCount())
+	assert.Equal(t, proof.GetLeafCount(), tree.LeafCount())
+}
+
+func TestVerifyWithErrors(t *testing.T) {
+	leaves := []merkle.Leaf{
+		[]byte("leaf1"),
+		[]byte("leaf2"),
+		[]byte("leaf3"),
+		[]byte("leaf4"),
+	}
+
+	tree, err := merkle.NewMerkleTree(leaves)
+	require.NoError(t, err)
+
+	root := tree.Root()
+
+	t.Run("nil root", func(t *testing.T) {
+		indices := []int{0, 2}
+		proof, err := tree.GenerateMultiProofWithIndices(indices)
+		require.NoError(t, err)
+
+		result, err := merkle.Verify(nil, proof)
+		assert.Error(t, err)
+		assert.False(t, result)
+	})
+
+	t.Run("invalid validation", func(t *testing.T) {
+		invalidProof := &merkle.MultiProof{}
+
+		result, err := merkle.Verify(root, invalidProof)
+		assert.Error(t, err)
+		assert.False(t, result)
+	})
+
+	t.Run("all elements with tree creation error", func(t *testing.T) {
+		indices := []int{0, 1, 2, 3}
+		proof, err := tree.GenerateMultiProofWithIndices(indices)
+		require.NoError(t, err)
+
+		result, err := merkle.Verify(root, proof)
+		assert.NoError(t, err)
+		assert.True(t, result)
+
+		// Try with a different root to get false result.
+		differentLeaves := []merkle.Leaf{
+			[]byte("different1"),
+			[]byte("different2"),
+			[]byte("different3"),
+			[]byte("different4"),
+		}
+		differentTree, err := merkle.NewMerkleTree(differentLeaves)
+		require.NoError(t, err)
+
+		result, err = merkle.Verify(differentTree.Root(), proof)
+		assert.NoError(t, err)
+		assert.False(t, result)
+	})
+
+	t.Run("single element tree", func(t *testing.T) {
+		singleLeaf := []merkle.Leaf{[]byte("single")}
+		singleTree, err := merkle.NewMerkleTree(singleLeaf)
+		require.NoError(t, err)
+
+		proof, err := singleTree.GenerateMultiProofWithIndices([]int{0})
+		require.NoError(t, err)
+
+		result, err := merkle.Verify(singleTree.Root(), proof)
+		assert.NoError(t, err)
+		assert.True(t, result)
+
+		singleLeafModified := []merkle.Leaf{[]byte("modified")}
+		modifiedTree, err := merkle.NewMerkleTree(singleLeafModified)
+		require.NoError(t, err)
+
+		result, err = merkle.Verify(modifiedTree.Root(), proof)
+		assert.NoError(t, err)
+		assert.False(t, result)
+	})
+
+	t.Run("compute root error case", func(t *testing.T) {
+		indices := []int{0, 2}
+		proof, err := tree.GenerateMultiProofWithIndices(indices)
+		require.NoError(t, err)
+
+		result, err := merkle.Verify(root, proof)
+		assert.NoError(t, err)
+		assert.True(t, result)
+
+		badRoot := []byte("bad root")
+		result, err = merkle.Verify(badRoot, proof)
+		assert.NoError(t, err)
+		assert.False(t, result)
+	})
+}

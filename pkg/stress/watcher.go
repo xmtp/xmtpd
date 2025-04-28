@@ -110,7 +110,7 @@ func (w *Watcher) watch(
 			select {
 			case err := <-sub.Err():
 				if err != nil {
-					w.logger.Error("subscription error: %s", zap.String("err", err.Error()))
+					w.logger.Error("subscription error", zap.String("err", err.Error()))
 					sub.Unsubscribe()
 
 					success := false

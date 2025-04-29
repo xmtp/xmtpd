@@ -202,6 +202,7 @@ func TestFetchReport(t *testing.T) {
 			results, err := store.FetchReports(t.Context(), c.query)
 			require.NoError(t, err)
 			require.Len(t, results, len(c.expectedIDs))
+
 			returnedIDs := make([][]byte, len(results))
 			for idx, result := range results {
 				returnedIDs[idx] = result.ID[:]

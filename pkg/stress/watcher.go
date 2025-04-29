@@ -3,8 +3,6 @@ package stress
 import (
 	"context"
 	"math/big"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -17,7 +15,6 @@ import (
 const MAX_RETRIES = 10
 
 type Watcher struct {
-	ctx             context.Context
 	logger          *zap.Logger
 	ethClient       *ethclient.Client
 	fromBlock       *big.Int
@@ -42,7 +39,6 @@ func NewWatcher(
 	}
 
 	return &Watcher{
-		ctx:             ctx,
 		logger:          logger.Named("chain-watcher"),
 		ethClient:       ethClient,
 		fromBlock:       block.Number(),
@@ -50,22 +46,19 @@ func NewWatcher(
 	}, nil
 }
 
-func (w *Watcher) Listen() error {
+func (w *Watcher) Listen(ctx context.Context) error {
 	defer w.ethClient.Close()
 
-	ctxwc, cancel := signal.NotifyContext(w.ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
-	newDone, logCh, err := w.makeSubChannel(ctxwc)
+	newDone, logCh, err := w.makeSubChannel(ctx)
 	if err != nil {
 		w.logger.Error("failed to subscribe and process new logs.")
 		return err
 	}
 
-	processingDone := w.processLogs(ctxwc, logCh)
+	processingDone := w.processLogs(ctx, logCh)
 
 	select {
-	case <-ctxwc.Done():
+	case <-ctx.Done():
 		w.logger.Info("received shutdown signal")
 	case <-newDone:
 		w.logger.Info("subscription ended")

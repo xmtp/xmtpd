@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -575,10 +577,11 @@ func identityUpdatesStress(logger *zap.Logger, options *CLI) {
 }
 
 func startChainWatcher(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
+	ctxwc, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
 	watcher, err := stress.NewWatcher(
-		ctx,
+		ctxwc,
 		logger,
 		options.Watcher.Wss,
 		common.HexToAddress(options.Watcher.Contract),
@@ -587,7 +590,7 @@ func startChainWatcher(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not create watcher", zap.Error(err))
 	}
 
-	err = watcher.Listen()
+	err = watcher.Listen(ctxwc)
 	if err != nil {
 		logger.Fatal("could not listen", zap.Error(err))
 	}

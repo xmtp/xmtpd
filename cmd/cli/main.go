@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/fees"
+
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -38,6 +40,7 @@ type CLI struct {
 	SetMaxActiveNodes                config.SetMaxActiveNodesOptions
 	SetNodeOperatorCommissionPercent config.SetNodeOperatorCommissionPercentOptions
 	AddRates                         config.AddRatesOptions
+	GetRates                         config.GetRatesOptions
 	IdentityUpdatesStress            config.IdentityUpdatesStressOptions
 }
 
@@ -63,6 +66,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var setMaxActiveNodesOptions config.SetMaxActiveNodesOptions
 	var setNodeOperatorCommissionPercentOptions config.SetNodeOperatorCommissionPercentOptions
 	var addRatesOptions config.AddRatesOptions
+	var getRatesOptions config.GetRatesOptions
 	var getNodeOptions config.GetNodeOptions
 	var identityUpdatesStressOptions config.IdentityUpdatesStressOptions
 	parser := flags.NewParser(&options, flags.Default)
@@ -101,6 +105,9 @@ func parseOptions(args []string) (*CLI, error) {
 			err,
 		)
 	}
+	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
+		return nil, fmt.Errorf("could not add add-rates command: %s", err)
+	}
 
 	// Getter commands
 	if _, err := parser.AddCommand("get-all-nodes", "Get all nodes from the registry", "", &getAllNodesOptions); err != nil {
@@ -109,8 +116,8 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("get-node", "Get a node from the registry", "", &getNodeOptions); err != nil {
 		return nil, fmt.Errorf("could not add get-node command: %s", err)
 	}
-	if _, err := parser.AddCommand("add-rates", "Add rates to the rates manager", "", &addRatesOptions); err != nil {
-		return nil, fmt.Errorf("could not add add-rates command: %s", err)
+	if _, err := parser.AddCommand("get-rates", "Get rates of the rates manager", "", &getRatesOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-rates command: %s", err)
 	}
 
 	// Dev commands
@@ -144,6 +151,7 @@ func parseOptions(args []string) (*CLI, error) {
 		setMaxActiveNodesOptions,
 		setNodeOperatorCommissionPercentOptions,
 		addRatesOptions,
+		getRatesOptions,
 		identityUpdatesStressOptions,
 	}, nil
 }
@@ -420,6 +428,36 @@ func addRates(logger *zap.Logger, options *CLI) {
 	logger.Info("added rates", zap.Any("rates", rates))
 }
 
+func getRates(logger *zap.Logger, options *CLI) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
+	defer cancel()
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	fetcher, err := fees.NewContractRatesFetcher(ctx, chainClient, logger, options.Contracts)
+	if err != nil {
+		logger.Fatal("could not create rates fetcher", zap.Error(err))
+	}
+
+	err = fetcher.Start()
+	if err != nil {
+		if strings.Contains(err.Error(), "no rates found") {
+			logger.Info("no rates found")
+			return
+		}
+		logger.Fatal("could not start rates fetcher", zap.Error(err))
+	}
+
+	rates, err := fetcher.GetRates(time.Now())
+	if err != nil {
+		logger.Fatal("could not get rates", zap.Error(err))
+	}
+
+	logger.Info("rates fetched successfully", zap.Any("rates", rates))
+}
+
 /*
 *
 Node manager commands
@@ -628,6 +666,9 @@ func main() {
 		return
 	case "get-node":
 		getNode(logger, options)
+		return
+	case "get-rates":
+		getRates(logger, options)
 		return
 	case "add-rates":
 		addRates(logger, options)

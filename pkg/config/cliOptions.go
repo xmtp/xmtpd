@@ -52,6 +52,8 @@ type AddRatesOptions struct {
 	DelayDays       uint   `long:"delay-days"        description:"Delay the rates going into effect for N days"    default:"0"`
 }
 
+type GetRatesOptions struct{}
+
 type RegisterNodeOptions struct {
 	AdminOptions              NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
 	HttpAddress               string                   `                                        long:"http-address"                  description:"HTTP address to register for the node"                            required:"true"`

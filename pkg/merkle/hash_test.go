@@ -1,8 +1,8 @@
-package merkle
+package merkle_test
 
 import (
 	"bytes"
-	"encoding/hex"
+	"github.com/xmtp/xmtpd/pkg/merkle"
 	"testing"
 )
 
@@ -10,212 +10,299 @@ func TestHash(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
-		expected string
+		expected []byte
 	}{
 		{
-			name:     "empty input",
-			input:    []byte{},
-			expected: "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+			"A",
+			[]byte("Hello"),
+			[]byte{6, 179, 223, 174, 193, 72, 251, 27, 178, 176, 102, 241, 14, 194, 133, 231, 201, 191, 64, 42, 179, 42, 167, 138, 93, 56, 227, 69, 102, 129, 12, 210},
 		},
 		{
-			name:     "simple string",
-			input:    []byte("hello world"),
-			expected: "47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad",
+			"B",
+			[]byte("World"),
+			[]byte{242, 32, 140, 150, 125, 240, 137, 246, 4, 32, 120, 87, 149, 192, 169, 186, 136, 150, 176, 246, 241, 134, 127, 167, 241, 241, 42, 214, 247, 156, 26, 24},
 		},
 		{
-			name:     "binary data",
-			input:    []byte{0x01, 0x02, 0x03, 0x04, 0x05},
-			expected: "7d87c5ea75f7378bb701e404c50639161af3eff66293e9f375b5f17eb50476f4",
+			"C",
+			[]byte("Lorem ipsum dolor sit amet"),
+			[]byte{181, 59, 124, 165, 21, 5, 29, 73, 232, 81, 192, 123, 208, 251, 221, 219, 128, 16, 169, 54, 111, 91, 31, 95, 183, 55, 186, 33, 164, 53, 99, 1},
+		},
+		{
+			"D",
+			[]byte("Lorem ipsum dolor sit amet consectetur adipiscing elit"),
+			[]byte{220, 97, 186, 80, 239, 126, 118, 1, 135, 119, 215, 176, 233, 190, 140, 95, 143, 146, 142, 230, 89, 123, 151, 144, 81, 148, 234, 226, 116, 108, 221, 129},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Hash(tt.input)
-			resultHex := hex.EncodeToString(result)
-			if resultHex != tt.expected {
-				t.Errorf("Hash(%v) = %s, want %s", tt.input, resultHex, tt.expected)
-			}
-		})
-	}
-
-	// Test consistency.
-	t.Run("consistency", func(t *testing.T) {
-		input := []byte("test consistency")
-		result1 := Hash(input)
-		result2 := Hash(input)
-		if !bytes.Equal(result1, result2) {
-			t.Errorf("Hash is not consistent for the same input")
-		}
-	})
-
-	// Test different inputs produce different outputs.
-	t.Run("different inputs", func(t *testing.T) {
-		input1 := []byte("input1")
-		input2 := []byte("input2")
-		result1 := Hash(input1)
-		result2 := Hash(input2)
-		if bytes.Equal(result1, result2) {
-			t.Errorf("Different inputs produced the same hash")
-		}
-	})
-}
-
-func TestHashNode(t *testing.T) {
-	tests := []struct {
-		name     string
-		left     []byte
-		right    []byte
-		expected string
-	}{
-		{
-			name:     "empty left and right",
-			left:     []byte{},
-			right:    []byte{},
-			expected: "8c83ac90634bd25e7214fbf0e3d45b5e8633bb010cb64411c122b53131c7c431",
-		},
-		{
-			name:     "non-empty left, empty right",
-			left:     []byte{0x01},
-			right:    []byte{},
-			expected: "83f78f037fd069ea3b5c402c21b4d1e122d206ba5c847ba67ca62ebe75bbf51f",
-		},
-		{
-			name:     "empty left, non-empty right",
-			left:     []byte{},
-			right:    []byte{0x01},
-			expected: "83f78f037fd069ea3b5c402c21b4d1e122d206ba5c847ba67ca62ebe75bbf51f",
-		},
-		{
-			name:     "non-empty left and right",
-			left:     []byte{0x01, 0x02},
-			right:    []byte{0x03, 0x04},
-			expected: "3db27c66a80724227ca3d27d202f29487959ec0912b0db2b9dbbf01953a7ab49",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := HashNode(tt.left, tt.right)
-			resultHex := hex.EncodeToString(result)
-			if resultHex != tt.expected {
+			result := merkle.Hash(tt.input)
+			if !bytes.Equal(result, tt.expected) {
 				t.Errorf(
-					"HashNode(%v, %v) = %s, want %s",
-					tt.left,
-					tt.right,
-					resultHex,
+					"Hash of %d = %d, expected %d",
+					tt.input,
+					result,
 					tt.expected,
 				)
 			}
 		})
 	}
-
-	// Test that node prefix is used
-	t.Run("node prefix is used", func(t *testing.T) {
-		data := []byte{0x01, 0x02}
-		nodeHash := HashNode(data, []byte{})
-		directHash := Hash(append([]byte(NODE_PREFIX), append(data, []byte{}...)...))
-		if !bytes.Equal(nodeHash, directHash) {
-			t.Errorf("Node hash doesn't match manual construction with prefix")
-		}
-	})
-
-	// Test that HashNode is different from HashLeaf with same data
-	t.Run("node hash differs from leaf hash", func(t *testing.T) {
-		data1 := []byte{0x01}
-		data2 := []byte{0x02}
-		nodeHash := HashNode(data1, data2)
-		combinedData := append(data1, data2...)
-		leafHash := HashLeaf(combinedData)
-		if bytes.Equal(nodeHash, leafHash) {
-			t.Errorf("Node hash equals leaf hash for same data")
-		}
-	})
 }
 
 func TestHashLeaf(t *testing.T) {
 	tests := []struct {
 		name     string
-		leaf     []byte
-		expected string
+		input    []byte
+		expected []byte
 	}{
 		{
-			name:     "empty leaf",
-			leaf:     []byte{},
-			expected: "3ef0000fc8752f5372eb9bcff2d75ad56ac4dc0824bb0dffcf7e454001558bf7",
+			"A",
+			[]byte("Hello"),
+			[]byte{11, 143, 170, 141, 208, 138, 23, 46, 191, 149, 130, 239, 28, 115, 208, 106, 130, 226, 141, 24, 198, 26, 139, 71, 177, 61, 1, 241, 116, 14, 154, 17},
 		},
 		{
-			name:     "simple leaf",
-			leaf:     []byte("test leaf"),
-			expected: "a072d672610b40ba2ad9429f65421dddb525911c302c5933737ce7e62cc1da26",
+			"B",
+			[]byte("World"),
+			[]byte{129, 125, 90, 71, 216, 243, 130, 116, 25, 154, 245, 121, 7, 170, 32, 166, 51, 165, 247, 103, 67, 156, 252, 34, 225, 26, 93, 213, 164, 73, 63, 42},
 		},
 		{
-			name:     "binary data",
-			leaf:     []byte{0x01, 0x02, 0x03},
-			expected: "7c7b7f152b1492aadc0df2d4ab2bf9cc171d5359082fa840b18ef9304a3886e2",
+			"C",
+			[]byte("Lorem ipsum dolor sit amet"),
+			[]byte{165, 220, 67, 4, 77, 184, 119, 172, 239, 129, 129, 176, 75, 120, 168, 28, 57, 160, 29, 139, 167, 142, 41, 165, 254, 6, 169, 151, 50, 230, 38, 211},
+		},
+		{
+			"D",
+			[]byte("Lorem ipsum dolor sit amet consectetur adipiscing elit"),
+			[]byte{165, 254, 22, 5, 66, 70, 236, 85, 180, 196, 243, 118, 228, 50, 204, 233, 245, 215, 233, 198, 133, 155, 242, 128, 28, 29, 5, 224, 161, 135, 52, 28},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := HashLeaf(tt.leaf)
-			resultHex := hex.EncodeToString(result)
-			if resultHex != tt.expected {
-				t.Errorf("HashLeaf(%v) = %s, want %s", tt.leaf, resultHex, tt.expected)
+			result := merkle.HashLeaf(tt.input)
+			if !bytes.Equal(result, tt.expected) {
+				t.Errorf(
+					"HashLeaf of %d = %d, expected %d",
+					tt.input,
+					result,
+					tt.expected,
+				)
 			}
 		})
 	}
-
-	// Test that leaf prefix is used.
-	t.Run("HashLeaf uses leaf prefix", func(t *testing.T) {
-		data := []byte{0x01, 0x02}
-		leafHash := HashLeaf(data)
-		directHash := Hash(append([]byte(LEAF_PREFIX), data...))
-		if !bytes.Equal(leafHash, directHash) {
-			t.Errorf("Leaf hash doesn't match manual construction with prefix")
-		}
-	})
 }
 
-func TestHashEmptyLeaf(t *testing.T) {
-	// Test that HashEmptyLeaf returns the same result as HashLeaf with empty data.
-	t.Run("equals HashLeaf with empty data", func(t *testing.T) {
-		emptyLeafHash := HashEmptyLeaf()
-		manualEmptyLeafHash := HashLeaf([]byte{})
-		if !bytes.Equal(emptyLeafHash, manualEmptyLeafHash) {
-			t.Errorf("HashEmptyLeaf() doesn't match HashLeaf([]byte{})")
-		}
-	})
+func TestHashNodePair(t *testing.T) {
+	tests := []struct {
+		name     string
+		left     []byte
+		right    []byte
+		expected []byte
+	}{
+		{
+			"A",
+			[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+			[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+			[]byte{48, 192, 143, 23, 252, 166, 213, 177, 131, 253, 121, 141, 242, 201, 75, 229, 95, 145, 145, 170, 23, 182, 78, 20, 175, 36, 222, 165, 29, 86, 162, 0},
+		},
+		{
+			"B",
+			[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+			[]byte{31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+			[]byte{175, 69, 169, 211, 205, 37, 100, 136, 146, 142, 150, 69, 138, 15, 230, 189, 230, 24, 44, 65, 109, 173, 98, 40, 193, 89, 0, 87, 10, 212, 206, 134},
+		},
+		{
+			"C",
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
+			[]byte{207, 134, 175, 117, 168, 163, 173, 20, 144, 1, 148, 61, 105, 198, 246, 186, 248, 126, 100, 142, 118, 94, 54, 95, 154, 234, 132, 192, 106, 48, 111, 234},
+		},
+	}
 
-	// HashEmpty leaf known value test.
-	t.Run("known value", func(t *testing.T) {
-		expected := "3ef0000fc8752f5372eb9bcff2d75ad56ac4dc0824bb0dffcf7e454001558bf7"
-		emptyLeafHash := HashEmptyLeaf()
-		resultHex := hex.EncodeToString(emptyLeafHash)
-		if resultHex != expected {
-			t.Errorf("HashEmptyLeaf() = %s, want %s", resultHex, expected)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := merkle.HashNodePair(tt.left, tt.right)
+			if !bytes.Equal(result, tt.expected) {
+				t.Errorf(
+					"HashNodePair of %d and %d = %d, expected %d",
+					tt.left,
+					tt.right,
+					result,
+					tt.expected,
+				)
+			}
+		})
+	}
 }
 
-func TestHashDomainSeparation(t *testing.T) {
-	// Test that leaf and node hashes are different even with the same data.
-	t.Run("leaf and node hash separation", func(t *testing.T) {
-		data := []byte{0x01, 0x02}
-		leafHash := HashLeaf(data)
-		nodeHash := HashNode(data, []byte{})
-		if bytes.Equal(leafHash, nodeHash) {
-			t.Errorf("Leaf and node hashes are not properly domain-separated")
-		}
-	})
+func TestHashPairlessNode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected []byte
+	}{
+		{
+			"A",
+			[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+			[]byte{75, 222, 125, 92, 63, 68, 131, 172, 22, 66, 192, 247, 32, 120, 206, 56, 99, 156, 202, 102, 82, 156, 228, 1, 190, 98, 0, 208, 49, 148, 240, 165},
+		},
+		{
+			"B",
+			[]byte{31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+			[]byte{38, 150, 0, 23, 219, 182, 10, 252, 128, 223, 204, 90, 108, 203, 250, 23, 113, 29, 233, 233, 52, 164, 106, 228, 83, 42, 121, 172, 51, 52, 74, 2},
+		},
+		{
+			"C",
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]byte{235, 20, 238, 191, 106, 175, 69, 210, 45, 32, 162, 2, 184, 51, 241, 212, 132, 96, 48, 68, 222, 161, 136, 168, 235, 21, 133, 194, 45, 1, 164, 31},
+		},
+		{
+			"D",
+			[]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
+			[]byte{47, 143, 15, 38, 231, 247, 103, 199, 222, 167, 30, 117, 191, 79, 112, 81, 13, 181, 176, 95, 80, 232, 66, 238, 182, 220, 9, 214, 120, 184, 118, 64},
+		},
+	}
 
-	// Test that different prefixes result in different hashes.
-	t.Run("prefix separation", func(t *testing.T) {
-		data := []byte{0x01, 0x02}
-		hash1 := Hash(append([]byte("prefix1|"), data...))
-		hash2 := Hash(append([]byte("prefix2|"), data...))
-		if bytes.Equal(hash1, hash2) {
-			t.Errorf("Different prefixes should result in different hashes")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := merkle.HashPairlessNode(tt.input)
+			if !bytes.Equal(result, tt.expected) {
+				t.Errorf(
+					"HashPairlessNode of %d = %d, expected %d",
+					tt.input,
+					result,
+					tt.expected,
+				)
+			}
+		})
+	}
+}
+
+func TestHashRoot(t *testing.T) {
+	tests := []struct {
+		name      string
+		leafCount int
+		root      []byte
+		expected  []byte
+	}{
+		{
+			"A",
+			1,
+			[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+			[]byte{66, 189, 252, 191, 133, 247, 232, 170, 250, 133, 164, 196, 206, 153, 92, 15, 132, 19, 34, 85, 3, 216, 181, 174, 170, 218, 167, 160, 68, 8, 58, 203},
+		},
+		{
+			"B",
+			78,
+			[]byte{31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+			[]byte{218, 4, 251, 251, 172, 40, 8, 3, 158, 175, 52, 130, 159, 187, 48, 223, 136, 85, 193, 88, 151, 133, 203, 87, 100, 226, 59, 27, 50, 253, 37, 55},
+		},
+		{
+			"C",
+			46984,
+			[]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
+			[]byte{107, 209, 73, 27, 127, 209, 56, 1, 186, 206, 64, 134, 9, 36, 137, 168, 227, 74, 192, 193, 89, 32, 209, 173, 121, 33, 224, 244, 2, 234, 230, 62},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := merkle.HashRoot(tt.leafCount, tt.root)
+			if !bytes.Equal(result, tt.expected) {
+				t.Errorf(
+					"HashRoot of %d and %d = %d, expected %d",
+					tt.leafCount,
+					tt.root,
+					result,
+					tt.expected,
+				)
+			}
+		})
+	}
+}
+
+func TestIntTo32Bytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    int
+		expected []byte
+	}{
+		{
+			"A",
+			0,
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			"B",
+			1,
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		},
+		{
+			"C",
+			78,
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78},
+		},
+		{
+			"D",
+			46984,
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 183, 136},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := merkle.IntTo32Bytes(tt.input)
+			if !bytes.Equal(result, tt.expected) {
+				t.Errorf(
+					"IntTo32Bytes of %d = %d, expected %d",
+					tt.input,
+					result,
+					tt.expected,
+				)
+			}
+		})
+	}
+}
+
+func TestBytesToBigInt(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected int
+	}{
+		{
+			"A",
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			0,
+		},
+		{
+			"B",
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+			1,
+		},
+		{
+			"C",
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78},
+			78,
+		},
+		{
+			"D",
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 183, 136},
+			46984,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := merkle.BytesToBigInt(tt.input)
+			if result != tt.expected {
+				t.Errorf(
+					"BytesToBigInt of %d = %d, expected %d",
+					tt.input,
+					result,
+					tt.expected,
+				)
+			}
+		})
+	}
 }

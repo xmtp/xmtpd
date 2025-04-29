@@ -4,23 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"math/bits"
-	"sort"
 )
 
-type Node struct {
-	hash []byte
-}
-
-func (n *Node) Hash() []byte {
-	if n.hash == nil {
-		return nil
-	}
-
-	cp := make([]byte, len(n.hash))
-	copy(cp, n.hash)
-
-	return cp
-}
+type Node []byte
 
 type Leaf []byte
 
@@ -30,30 +16,26 @@ type Leaf []byte
 // - The tree is 1-indexed, so root is at index 1.
 // - The internal nodes are at index 1 to N-1.
 // - The leaves are at index N to 2N-1.
-//
-// leaves contains the raw elements of the tree.
 type MerkleTree struct {
 	tree   []Node
 	leaves []Leaf
 }
 
 var (
-	ErrNoLeaves  = errors.New("no leaves provided")
-	ErrTreeEmpty = errors.New("tree is empty")
+	ErrNoLeaves         = errors.New("no leaves provided")
+	ErrTreeEmpty        = errors.New("tree is empty")
+	ErrNilLeaf          = errors.New("leaf is nil")
+	ErrInvalidIndex     = errors.New("index is invalid")
+	ErrIndicesNotSorted = errors.New("indices are not sorted")
 )
 
-// NewMerkleTree creates a new Merkle tree from the given elements.
+// NewMerkleTree creates a new Merkle tree from the given leaves.
 func NewMerkleTree(leaves []Leaf) (*MerkleTree, error) {
 	if len(leaves) == 0 {
 		return nil, ErrNoLeaves
 	}
 
-	balancedLeaves, err := makeLeaves(leaves)
-	if err != nil {
-		return nil, err
-	}
-
-	nodes, err := makeNodes(balancedLeaves)
+	nodes, err := makeLeafNodes(leaves)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +45,7 @@ func NewMerkleTree(leaves []Leaf) (*MerkleTree, error) {
 		return nil, err
 	}
 
-	return &MerkleTree{tree, balancedLeaves}, nil
+	return &MerkleTree{tree, leaves}, nil
 }
 
 // GenerateMultiProofSequential generates a sequential multi-proof starting from the given index.
@@ -87,11 +69,22 @@ func (m *MerkleTree) GenerateMultiProofSequential(startingIndex, count int) (*Mu
 
 // GenerateMultiProofWithIndices generates a multi-proof for the given indices.
 func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, error) {
-	sortedIndices := make([]int, len(indices))
-	copy(sortedIndices, indices)
-	sort.Ints(sortedIndices)
+	// Loop through indices to ensure they are sorted and unique.
+	for i := 0; i < len(indices); i++ {
+		if indices[i] < 0 || indices[i] >= m.LeafCount() {
+			return nil, ErrInvalidIndex
+		}
 
-	proof, err := m.makeProof(sortedIndices)
+		if i == 0 {
+			continue
+		}
+
+		if indices[i] <= indices[i-1] {
+			return nil, ErrIndicesNotSorted
+		}
+	}
+
+	proof, err := m.makeProof(indices)
 	if err != nil {
 		return nil, err
 	}
@@ -110,56 +103,61 @@ func (m *MerkleTree) makeProof(indices []int) (MultiProof, error) {
 		return MultiProof{}, fmt.Errorf(ErrGenerateProof, err)
 	}
 
-	indexedValues, err := makeIndexedValues(m.leaves, indices)
-	if err != nil {
-		return MultiProof{}, fmt.Errorf(ErrGenerateProof, err)
-	}
-
-	// Handle single-element trees.
-	if m.LeafCount() == 1 {
-		return MultiProof{
-			values:    indexedValues,
-			proofs:    []Node{{hash: m.Root()}},
-			leafCount: m.LeafCount(),
-		}, nil
-	}
-
 	var (
-		startLeafIdx = len(m.tree) >> 1
-		proofs       []Node
-		known        = make([]bool, len(m.tree))
+		balancedLeafCount = len(m.tree) >> 1
+		proofElements     []ProofElement
+		known             = make([]bool, len(m.tree))
 	)
 
 	// Mark provided indices as known.
 	for _, idx := range indices {
-		known[startLeafIdx+idx] = true
+		known[balancedLeafCount+idx] = true
 	}
 
+	// The first proof element is always the leaf count.
+	proofElements = append(proofElements, IntTo32Bytes(m.LeafCount()))
+
 	// Calculate proofs to prove the existence of the indices.
-	for i := startLeafIdx - 1; i > 0; i-- {
+	for i := balancedLeafCount - 1; i > 0; i-- {
 		leftChildIdx := GetLeftChild(i)
 		rightChildIdx := GetRightChild(i)
 
 		left := known[leftChildIdx]
 		right := known[rightChildIdx]
 
-		// Only one of children is known, so we need the sibling as a proof.
-		if left != right {
-			if right {
-				proofs = append(proofs, m.tree[leftChildIdx])
-			} else {
-				proofs = append(proofs, m.tree[rightChildIdx])
-			}
-		}
-
 		// If at least one of the children is known, the parent is known.
 		known[i] = left || right
+
+		// If both children are known, we don't need to prove anything.
+		// If neither child is known, we don't need to prove anything yet.
+		if left == right {
+			continue
+		}
+
+		// Only right child is known, so we need the left child as a proof.
+		if right {
+			proofElements = append(proofElements, ProofElement(m.tree[leftChildIdx]))
+			continue
+		}
+
+		// If the right child is nil, we don't need to prove anything.
+		if m.tree[rightChildIdx] == nil {
+			continue
+		}
+
+		// Only left child is known, so we need the right child as a proof.
+		proofElements = append(proofElements, ProofElement(m.tree[rightChildIdx]))
+	}
+
+	leaves := make([]Leaf, len(indices))
+	for i, idx := range indices {
+		leaves[i] = m.leaves[idx]
 	}
 
 	return MultiProof{
-		values:    indexedValues,
-		proofs:    proofs,
-		leafCount: len(m.leaves),
+		startingIndex: indices[0],
+		leaves:        leaves,
+		proofElements: proofElements,
 	}, nil
 }
 
@@ -168,14 +166,14 @@ func (m *MerkleTree) Tree() []Node {
 	return m.tree
 }
 
-// Leaves returns the raw elements of the Merkle tree.
+// Leaves returns the raw leaves of the Merkle tree.
 func (m *MerkleTree) Leaves() []Leaf {
 	return m.leaves
 }
 
 // Root returns the root hash of the Merkle tree.
 func (m *MerkleTree) Root() []byte {
-	return m.tree[1].Hash()
+	return m.tree[0]
 }
 
 // LeafCount returns the number of leaves in the Merkle tree.
@@ -185,20 +183,23 @@ func (m *MerkleTree) LeafCount() int {
 
 // makeTree builds a serialized Merkle tree from an array of leaf nodes.
 //
-// The tree is 1-indexed, so root is at index 1.
-// The internal nodes are at index 2 to N.
-// The leaves are at index N+1 to 2N-1.
+// For a tree that, when balanced, would have N leaves:
+// The root is at index 0.
+// The internal nodes are at index 1 to N-1.
+// The leaves are at index N to 2N-1.
 //
 // For any node at index i:
 // - left child is at index 2*i
 // - right child is at index 2*i+1
 // - parent is at floor(i/2)
-func makeTree(nodes []Node) ([]Node, error) {
-	if len(nodes) == 0 {
+func makeTree(leafNodes []Node) ([]Node, error) {
+	if len(leafNodes) == 0 {
 		return nil, ErrTreeEmpty
 	}
 
-	balancedLeafCount, err := CalculateBalancedNodesCount(len(nodes))
+	leafCount := len(leafNodes)
+
+	balancedLeafCount, err := CalculateBalancedNodesCount(leafCount)
 	if err != nil {
 		return nil, err
 	}
@@ -207,15 +208,11 @@ func makeTree(nodes []Node) ([]Node, error) {
 	tree := make([]Node, balancedLeafCount<<1)
 
 	lowerBound := balancedLeafCount
-	upperBound := balancedLeafCount + len(nodes) - 1
+	upperBound := balancedLeafCount + leafCount - 1
 
 	// Copy leaves into the tree, starting at index N.
-	for i := 0; i < len(nodes); i++ {
-		tree[lowerBound+i] = nodes[i]
-	}
-
-	for i := len(nodes); i < balancedLeafCount; i++ {
-		tree[lowerBound+i] = Node{hash: HashEmptyLeaf()}
+	for i := 0; i < leafCount; i++ {
+		tree[lowerBound+i] = leafNodes[i]
 	}
 
 	// Build the tree.
@@ -232,54 +229,45 @@ func makeTree(nodes []Node) ([]Node, error) {
 			upperBound >>= 1
 		}
 
-		rightChildIndex := GetRightChild(i)
-
-		tree[i] = Node{
-			hash: HashNode(tree[leftChildIndex].Hash(), tree[rightChildIndex].Hash()),
+		// If the left child is the last node in the level, we can use a pairless node.
+		if leftChildIndex == upperBound {
+			tree[i] = HashPairlessNode(tree[leftChildIndex])
+			continue
 		}
 
+		rightChildIndex := GetRightChild(i)
+
+		tree[i] = HashNodePair(tree[leftChildIndex], tree[rightChildIndex])
+
 	}
+
+	tree[0] = HashRoot(leafCount, tree[1])
 
 	return tree, nil
 }
 
-// makeNodes returns the hashed leaves of the tree,
-// ordered in the same order as the provided elements.
-func makeNodes(leaves []Leaf) ([]Node, error) {
+// makeLeafNodes returns the hashed leaves of the tree,
+// ordered in the same order as the provided leaves.
+func makeLeafNodes(leaves []Leaf) ([]Node, error) {
 	if len(leaves) == 0 {
 		return nil, ErrNoLeaves
 	}
 
 	nodes := make([]Node, len(leaves))
-	for i, element := range leaves {
-		nodes[i] = Node{hash: HashLeaf(element)}
+	for i, leaf := range leaves {
+		if leaf == nil {
+			return nil, ErrNilLeaf
+		}
+
+		nodes[i] = HashLeaf(leaf)
 	}
 
 	return nodes, nil
 }
 
-// makeLeaves creates a balanced leaves count for the given leaves.
-// It fills empty leaves with an empty leaf hash.
-func makeLeaves(leaves []Leaf) ([]Leaf, error) {
-	balancedLeafCount, err := CalculateBalancedNodesCount(len(leaves))
-	if err != nil {
-		return nil, err
-	}
-
-	balancedLeaves := make([]Leaf, balancedLeafCount)
-
-	copy(balancedLeaves, leaves)
-
-	for i := len(leaves); i < balancedLeafCount; i++ {
-		balancedLeaves[i] = []byte{}
-	}
-
-	return balancedLeaves, nil
-}
-
 // CalculateBalancedNodesCount returns the number of nodes in a balanced tree.
 // To calculate the number of nodes in a tree, we need to round up to the next power of 2.
-// Returns an error if the element count is too large to be represented in a int32.
+// Returns an error if the leaf count is too large to be represented in a int32.
 func CalculateBalancedNodesCount(count int) (int, error) {
 	if count <= 0 {
 		return 0, fmt.Errorf("count must be greater than 0")
@@ -303,6 +291,7 @@ func roundUpToPowerOf2(n int) int {
 	n |= n >> 4
 	n |= n >> 8
 	n |= n >> 16
+	n |= n >> 32
 
 	return n + 1
 }

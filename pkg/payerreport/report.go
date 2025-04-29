@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/merkle"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -72,12 +73,21 @@ type PayerReport struct {
 	ActiveNodeIDs []uint32
 }
 
+type NewPayerReportParams struct {
+	OriginatorNodeID uint32
+	StartSequenceID  uint64
+	EndSequenceID    uint64
+	Payers           map[common.Address]currency.PicoDollar
+	NodeIDs          []uint32
+}
+
 // A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
 type PayerReportWithInputs struct {
 	PayerReport
 	// The payers in the report and the number of messages they paid for
-	Payers  map[common.Address]currency.PicoDollar
-	NodeIDs []uint32
+	Payers     map[common.Address]currency.PicoDollar
+	MerkleTree *merkle.MerkleTree
+	NodeIDs    []uint32
 }
 
 type PayerReportWithStatus struct {
@@ -120,4 +130,30 @@ func (p *PayerReport) ID() (ReportID, error) {
 		return ReportID{}, err
 	}
 	return ReportID(hash), nil
+}
+
+func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error) {
+	merkleTree, err := NewPayerMerkleTree(params.Payers)
+	if err != nil {
+		return nil, err
+	}
+
+	merkleRoot, err := utils.SliceToArray32(merkleTree.Root())
+	if err != nil {
+		return nil, err
+	}
+
+	return &PayerReportWithInputs{
+		PayerReport: PayerReport{
+			OriginatorNodeID: params.OriginatorNodeID,
+			StartSequenceID:  params.StartSequenceID,
+			EndSequenceID:    params.EndSequenceID,
+			PayersMerkleRoot: merkleRoot,
+			PayersLeafCount:  uint32(len(params.Payers)),
+			NodesCount:       uint32(len(params.NodeIDs)),
+		},
+		Payers:     params.Payers,
+		NodeIDs:    params.NodeIDs,
+		MerkleTree: merkleTree,
+	}, nil
 }

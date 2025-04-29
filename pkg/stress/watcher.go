@@ -32,7 +32,10 @@ func NewWatcher(
 		return nil, err
 	}
 
-	block, err := ethClient.BlockByNumber(ctx, nil)
+	ctxwt, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	block, err := ethClient.BlockByNumber(ctxwt, nil)
 	if err != nil {
 		ethClient.Close()
 		return nil, err

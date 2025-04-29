@@ -95,4 +95,10 @@ type IdentityUpdatesStressOptions struct {
 	Contract   string `long:"contract"    description:"Contract address"`
 	Rpc        string `long:"rpc"         description:"RPC URL"`
 	Count      int    `long:"count"       description:"Number of transactions to send"`
+	Async      bool   `long:"async"       description:"Send transactions asynchronously"`
+}
+
+type WatcherOptions struct {
+	Contract string `long:"contract" description:"Contract address" required:"true"`
+	Wss      string `long:"wss"      description:"WSS URL"          required:"true"`
 }

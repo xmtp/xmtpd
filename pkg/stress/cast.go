@@ -16,6 +16,7 @@ type CastSendCommand struct {
 	Rpc             string
 	PrivateKey      string
 	Nonce           *uint64
+	Async           bool
 }
 
 func buildCastSendCommand(c *CastSendCommand) string {
@@ -35,6 +36,10 @@ func buildCastSendCommand(c *CastSendCommand) string {
 
 	if c.Nonce != nil {
 		cmd.WriteString(fmt.Sprintf(" --nonce %d", *c.Nonce))
+	}
+
+	if c.Async {
+		cmd.WriteString(" --async")
 	}
 
 	return cmd.String()

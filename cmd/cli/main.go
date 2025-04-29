@@ -7,14 +7,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
-	"github.com/xmtp/xmtpd/pkg/fees"
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/stress"
 
 	"github.com/jessevdk/go-flags"
@@ -42,6 +44,7 @@ type CLI struct {
 	AddRates                         config.AddRatesOptions
 	GetRates                         config.GetRatesOptions
 	IdentityUpdatesStress            config.IdentityUpdatesStressOptions
+	Watcher                          config.WatcherOptions
 }
 
 /*
@@ -69,6 +72,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var getRatesOptions config.GetRatesOptions
 	var getNodeOptions config.GetNodeOptions
 	var identityUpdatesStressOptions config.IdentityUpdatesStressOptions
+	var watcherOptions config.WatcherOptions
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -124,6 +128,9 @@ func parseOptions(args []string) (*CLI, error) {
 	if _, err := parser.AddCommand("identity-updates-stress", "Stress the identity updates contract", "", &identityUpdatesStressOptions); err != nil {
 		return nil, fmt.Errorf("could not add identity-updates-stress command: %s", err)
 	}
+	if _, err := parser.AddCommand("start-watcher", "Start the blockchain watcher", "", &watcherOptions); err != nil {
+		return nil, fmt.Errorf("could not add start-watcher command: %s", err)
+	}
 
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
@@ -153,6 +160,7 @@ func parseOptions(args []string) (*CLI, error) {
 		addRatesOptions,
 		getRatesOptions,
 		identityUpdatesStressOptions,
+		watcherOptions,
 	}, nil
 }
 
@@ -598,9 +606,30 @@ func identityUpdatesStress(logger *zap.Logger, options *CLI) {
 		options.IdentityUpdatesStress.Contract,
 		options.IdentityUpdatesStress.Rpc,
 		options.IdentityUpdatesStress.PrivateKey,
+		options.IdentityUpdatesStress.Async,
 	)
 	if err != nil {
 		logger.Fatal("could not create identity updates", zap.Error(err))
+	}
+}
+
+func startChainWatcher(logger *zap.Logger, options *CLI) {
+	ctxwc, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	watcher, err := stress.NewWatcher(
+		ctxwc,
+		logger,
+		options.Watcher.Wss,
+		common.HexToAddress(options.Watcher.Contract),
+	)
+	if err != nil {
+		logger.Fatal("could not create watcher", zap.Error(err))
+	}
+
+	err = watcher.Listen(ctxwc)
+	if err != nil {
+		logger.Fatal("could not listen", zap.Error(err))
 	}
 }
 
@@ -675,6 +704,9 @@ func main() {
 		return
 	case "identity-updates-stress":
 		identityUpdatesStress(logger, options)
+		return
+	case "start-watcher":
+		startChainWatcher(logger, options)
 		return
 	}
 }

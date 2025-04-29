@@ -27,6 +27,7 @@ func StressIdentityUpdates(
 	logger *zap.Logger,
 	n int,
 	contractAddress, rpc, privateKey string,
+	async bool,
 ) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -70,6 +71,7 @@ func StressIdentityUpdates(
 				Rpc:             rpc,
 				PrivateKey:      privateKey,
 				Nonce:           &nonce,
+				Async:           async,
 			}
 
 			startTime := time.Now()

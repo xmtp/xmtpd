@@ -14,6 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const MAX_RETRIES = 10
+
 type Watcher struct {
 	ctx             context.Context
 	logger          *zap.Logger
@@ -54,15 +56,13 @@ func (w *Watcher) Listen() error {
 	ctxwc, cancel := signal.NotifyContext(w.ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	w.logger.Info("subscribing to logs")
-	newDone, logCh, err := w.watch(ctxwc)
+	newDone, logCh, err := w.makeSubChannel(ctxwc)
 	if err != nil {
 		w.logger.Error("failed to subscribe and process new logs.")
 		return err
 	}
 
-	w.logger.Info("subscribed to logs")
-	processingDone := w.process(ctxwc, logCh)
+	processingDone := w.processLogs(ctxwc, logCh)
 
 	select {
 	case <-ctxwc.Done():
@@ -77,6 +77,7 @@ func (w *Watcher) Listen() error {
 }
 
 func (w *Watcher) setupFilterQuery(fromBlock, toBlock *big.Int) ethereum.FilterQuery {
+	w.logger.Info("setting up filter query")
 	return ethereum.FilterQuery{
 		Addresses: []common.Address{w.watchedContract},
 		FromBlock: fromBlock,
@@ -85,7 +86,7 @@ func (w *Watcher) setupFilterQuery(fromBlock, toBlock *big.Int) ethereum.FilterQ
 	}
 }
 
-func (w *Watcher) watch(
+func (w *Watcher) makeSubChannel(
 	ctx context.Context,
 ) (<-chan struct{}, <-chan types.Log, error) {
 	query := w.setupFilterQuery(w.fromBlock, nil)
@@ -106,6 +107,8 @@ func (w *Watcher) watch(
 		defer close(logCh)
 		defer sub.Unsubscribe()
 
+		w.logger.Info("subscription created")
+
 		for {
 			select {
 			case err := <-sub.Err():
@@ -114,7 +117,7 @@ func (w *Watcher) watch(
 					sub.Unsubscribe()
 
 					success := false
-					for try := range 10 {
+					for try := range MAX_RETRIES {
 						sub, err = w.ethClient.SubscribeFilterLogs(ctx, query, logCh)
 						if err == nil {
 							w.logger.Info("subscription successfully recreated.")
@@ -144,7 +147,7 @@ func (w *Watcher) watch(
 	return done, logCh, nil
 }
 
-func (w *Watcher) process(
+func (w *Watcher) processLogs(
 	ctx context.Context,
 	newLog <-chan types.Log,
 ) <-chan struct{} {
@@ -153,17 +156,15 @@ func (w *Watcher) process(
 	go func() {
 		defer close(done)
 
+		w.logger.Info("starting log processing")
+
 		for {
 			select {
-			case log, open := <-newLog:
-				if !open {
-					w.logger.Info("log channel closed")
-					return
-				}
-				w.logger.Info("received log",
-					zap.String("time", time.Now().Format(time.RFC3339)),
+			case log := <-newLog:
+				w.logger.Info(
+					"received log",
+					zap.Uint64("block", log.BlockNumber),
 					zap.String("address", log.Address.Hex()),
-					zap.Uint64("blockNumber", log.BlockNumber),
 					zap.String("txHash", log.TxHash.Hex()),
 				)
 

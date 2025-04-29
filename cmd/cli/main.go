@@ -567,6 +567,7 @@ func identityUpdatesStress(logger *zap.Logger, options *CLI) {
 		options.IdentityUpdatesStress.Contract,
 		options.IdentityUpdatesStress.Rpc,
 		options.IdentityUpdatesStress.PrivateKey,
+		options.IdentityUpdatesStress.Async,
 	)
 	if err != nil {
 		logger.Fatal("could not create identity updates", zap.Error(err))

@@ -12,12 +12,9 @@ const (
 )
 
 var (
-	ErrIndicesOutOfBounds   = errors.New("indices out of bounds")
-	ErrInvalidRange         = errors.New("invalid range")
 	ErrInvalidLeafCount     = errors.New("invalid leaf count")
 	ErrNilProof             = errors.New("nil proof")
 	ErrNilRoot              = errors.New("nil root")
-	ErrNoIndices            = errors.New("no indices")
 	ErrNoProofs             = errors.New("no proofs provided")
 	ErrInvalidStartingIndex = errors.New("invalid starting index")
 )
@@ -262,37 +259,4 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 	}
 
 	return nil, ErrNilRoot
-}
-
-// makeIndices returns a slice of ascending ordered indices for the given starting index and count.
-func makeIndices(startingIndex, count int) ([]int, error) {
-	if startingIndex < 0 || count <= 0 {
-		return nil, ErrInvalidRange
-	}
-
-	indices := make([]int, count)
-	for i := 0; i < count; i++ {
-		indices[i] = startingIndex + i
-	}
-
-	return indices, nil
-}
-
-// validateIndices validates the indices slice of a proof.
-func validateIndices(indices []int, leafCount int) error {
-	if len(indices) == 0 {
-		return ErrNoIndices
-	}
-
-	for i := 0; i < len(indices); i++ {
-		if indices[i] < 0 || indices[i] >= leafCount {
-			return ErrIndicesOutOfBounds
-		}
-
-		if i > 0 && indices[i] <= indices[i-1] {
-			return ErrIndicesNotSorted
-		}
-	}
-
-	return nil
 }

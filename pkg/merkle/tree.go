@@ -22,11 +22,14 @@ type MerkleTree struct {
 }
 
 var (
-	ErrNoLeaves         = errors.New("no leaves provided")
-	ErrTreeEmpty        = errors.New("tree is empty")
-	ErrNilLeaf          = errors.New("leaf is nil")
-	ErrInvalidIndex     = errors.New("index is invalid")
-	ErrIndicesNotSorted = errors.New("indices are not sorted")
+	ErrNoLeaves           = errors.New("no leaves provided")
+	ErrTreeEmpty          = errors.New("tree is empty")
+	ErrNilLeaf            = errors.New("leaf is nil")
+	ErrInvalidIndex       = errors.New("index is invalid")
+	ErrIndicesNotSorted   = errors.New("indices are not sorted")
+	ErrInvalidRange       = errors.New("invalid range")
+	ErrNoIndices          = errors.New("no indices")
+	ErrIndicesOutOfBounds = errors.New("indices out of bounds")
 )
 
 // NewMerkleTree creates a new Merkle tree from the given leaves.
@@ -238,7 +241,6 @@ func makeTree(leafNodes []Node) ([]Node, error) {
 		rightChildIndex := GetRightChild(i)
 
 		tree[i] = HashNodePair(tree[leftChildIndex], tree[rightChildIndex])
-
 	}
 
 	tree[0] = HashRoot(leafCount, tree[1])
@@ -304,4 +306,37 @@ func GetLeftChild(index int) int {
 // GetRightChild returns the index of the right child for a node at the given index
 func GetRightChild(index int) int {
 	return (index << 1) + 1 // index * 2 + 1
+}
+
+// makeIndices returns a slice of ascending ordered indices for the given starting index and count.
+func makeIndices(startingIndex, count int) ([]int, error) {
+	if startingIndex < 0 || count <= 0 {
+		return nil, ErrInvalidRange
+	}
+
+	indices := make([]int, count)
+	for i := 0; i < count; i++ {
+		indices[i] = startingIndex + i
+	}
+
+	return indices, nil
+}
+
+// validateIndices validates the indices slice of a proof.
+func validateIndices(indices []int, leafCount int) error {
+	if len(indices) == 0 {
+		return ErrNoIndices
+	}
+
+	for i := 0; i < len(indices); i++ {
+		if indices[i] < 0 || indices[i] >= leafCount {
+			return ErrIndicesOutOfBounds
+		}
+
+		if i > 0 && indices[i] <= indices[i-1] {
+			return ErrIndicesNotSorted
+		}
+	}
+
+	return nil
 }

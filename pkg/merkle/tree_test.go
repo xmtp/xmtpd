@@ -221,9 +221,21 @@ func TestTreeWithDuplicateLeaves(t *testing.T) {
 	leafHash3 := tree.Tree()[leafCount+2]
 	leafHash4 := tree.Tree()[leafCount+3]
 
-	assert.True(t, bytes.Equal(leafHash1, leafHash2), "Identical leaves should have identical leaf hashes")
-	assert.True(t, bytes.Equal(leafHash2, leafHash3), "Identical leaves should have identical leaf hashes")
-	assert.False(t, bytes.Equal(leafHash3, leafHash4), "Different leaves should have different leaf hashes")
+	assert.True(
+		t,
+		bytes.Equal(leafHash1, leafHash2),
+		"Identical leaves should have identical leaf hashes",
+	)
+	assert.True(
+		t,
+		bytes.Equal(leafHash2, leafHash3),
+		"Identical leaves should have identical leaf hashes",
+	)
+	assert.False(
+		t,
+		bytes.Equal(leafHash3, leafHash4),
+		"Different leaves should have different leaf hashes",
+	)
 
 	assert.NotNil(t, tree.Root(), "Tree with duplicate leaves should have a valid root")
 }
@@ -309,7 +321,12 @@ func TestTreeInternals(t *testing.T) {
 
 	// For a 3-leaf tree, the balanced leaf count is 4
 	// So the tree array should have size 8 (2*4)
-	assert.Equal(t, 8, len(internalTree), "Tree array should have size balancedLeafCount + leafCount")
+	assert.Equal(
+		t,
+		8,
+		len(internalTree),
+		"Tree array should have size balancedLeafCount + leafCount",
+	)
 	assert.True(t, bytes.Equal(tree.Root(), internalTree[0]), "Root should be at index 0")
 
 	// Check that all leaf nodes are present.
@@ -479,7 +496,11 @@ func TestBalancedSample(t *testing.T) {
 
 	assert.Equal(
 		t,
-		merkle.Node(getBytesFromHexString("1f70e7dd11a042e3868e8b0992118a3d7bd301b029a3b967a5b2042466c5110c")),
+		merkle.Node(
+			getBytesFromHexString(
+				"1f70e7dd11a042e3868e8b0992118a3d7bd301b029a3b967a5b2042466c5110c",
+			),
+		),
 		tree.Tree()[1],
 		"Sub Root should be asa expected",
 	)
@@ -522,7 +543,11 @@ func TestUnbalancedSample(t *testing.T) {
 
 	assert.Equal(
 		t,
-		merkle.Node(getBytesFromHexString("a9a18d92fa458bf5d28a44d6c0fb4baaf5b4da5918ab7819d5a7d29d8b103205")),
+		merkle.Node(
+			getBytesFromHexString(
+				"a9a18d92fa458bf5d28a44d6c0fb4baaf5b4da5918ab7819d5a7d29d8b103205",
+			),
+		),
 		tree.Tree()[1],
 		"Sub Root should be asa expected",
 	)

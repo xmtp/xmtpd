@@ -214,10 +214,10 @@ func TestValidateIndices(t *testing.T) {
 			wantErr:   ErrIndicesOutOfBounds,
 		},
 		{
-			name:      "duplicate indices",
+			name:      "indices not continuous and increasing",
 			indices:   []int{0, 1, 3, 2},
 			leafCount: 4,
-			wantErr:   ErrIndicesNotSorted,
+			wantErr:   ErrIndicesNotContinuousAndIncreasing,
 		},
 	}
 

@@ -472,41 +472,41 @@ func TestGenerateSequentialProofBalancedSample(t *testing.T) {
 	tree, err := merkle.NewMerkleTree(leaves)
 	require.NoError(t, err)
 
-	assert.Equal(t, tree.Root(), getBytesFromHexString("ebc81f451b32d23cb3dc568b79cf8abc5de0d4c1a2c16e4d98e83a5146889de2"))
+	assert.Equal(t, getBytesFromHexString("ebc81f451b32d23cb3dc568b79cf8abc5de0d4c1a2c16e4d98e83a5146889de2"), tree.Root())
 
 	proof, err := tree.GenerateMultiProofSequential(9, 4)
 	require.NoError(t, err)
 
-	assert.Equal(t, proof.GetStartingIndex(), 9)
+	assert.Equal(t, 9, proof.GetStartingIndex())
 
-	assert.Equal(t, len(proof.GetLeaves()), 4)
-	assert.Equal(t, proof.GetLeaves()[0], leaves[9])
-	assert.Equal(t, proof.GetLeaves()[1], leaves[10])
-	assert.Equal(t, proof.GetLeaves()[2], leaves[11])
-	assert.Equal(t, proof.GetLeaves()[3], leaves[12])
+	assert.Equal(t, 4, len(proof.GetLeaves()))
+	assert.Equal(t, leaves[9], proof.GetLeaves()[0])
+	assert.Equal(t, leaves[10], proof.GetLeaves()[1])
+	assert.Equal(t, leaves[11], proof.GetLeaves()[2])
+	assert.Equal(t, leaves[12], proof.GetLeaves()[3])
 
-	assert.Equal(t, len(proof.GetProofElements()), 5)
-	assert.Equal(t, proof.GetProofElements()[0], merkle.ProofElement(merkle.IntTo32Bytes(16)))
+	assert.Equal(t, 5, len(proof.GetProofElements()))
+	assert.Equal(t, merkle.ProofElement(merkle.IntToBytes32(16)), proof.GetProofElements()[0])
 
 	assert.Equal(
 		t,
-		proof.GetProofElements()[1],
 		merkle.ProofElement(getBytesFromHexString("3fe32d0f3b236fb4afa5481033e969b4fdf444abc1b0e34b365f88ab37231633")),
+		proof.GetProofElements()[1],
 	)
 	assert.Equal(
 		t,
-		proof.GetProofElements()[2],
 		merkle.ProofElement(getBytesFromHexString("280bab377a3bc33db3a5e33595d3436d7c000ebff79acc8d0c36d43855aa707e")),
+		proof.GetProofElements()[2],
 	)
 	assert.Equal(
 		t,
-		proof.GetProofElements()[3],
 		merkle.ProofElement(getBytesFromHexString("a51f72dc2f8caaf2547915aae8027a3447ed26d7c99ab8499225a9075522ab13")),
+		proof.GetProofElements()[3],
 	)
 	assert.Equal(
 		t,
-		proof.GetProofElements()[4],
 		merkle.ProofElement(getBytesFromHexString("6ea454f465ec9869bae0f4f1f75956a4382d35bb4b35d2ddb506e4aa54460e4c")),
+		proof.GetProofElements()[4],
 	)
 }
 
@@ -530,31 +530,31 @@ func TestGenerateSequentialProofUnbalancedSample(t *testing.T) {
 	tree, err := merkle.NewMerkleTree(leaves)
 	require.NoError(t, err)
 
-	assert.Equal(t, tree.Root(), getBytesFromHexString("4b17cd88068bf71cf6930362daca6bc8c45f0f0629bfc6436e6eb518bd086d61"))
+	assert.Equal(t, getBytesFromHexString("4b17cd88068bf71cf6930362daca6bc8c45f0f0629bfc6436e6eb518bd086d61"), tree.Root())
 
 	proof, err := tree.GenerateMultiProofSequential(9, 4)
 	require.NoError(t, err)
 
-	assert.Equal(t, proof.GetStartingIndex(), 9)
+	assert.Equal(t, 9, proof.GetStartingIndex())
 
-	assert.Equal(t, len(proof.GetLeaves()), 4)
-	assert.Equal(t, proof.GetLeaves()[0], leaves[9])
-	assert.Equal(t, proof.GetLeaves()[1], leaves[10])
-	assert.Equal(t, proof.GetLeaves()[2], leaves[11])
-	assert.Equal(t, proof.GetLeaves()[3], leaves[12])
+	assert.Equal(t, 4, len(proof.GetLeaves()))
+	assert.Equal(t, leaves[9], proof.GetLeaves()[0])
+	assert.Equal(t, leaves[10], proof.GetLeaves()[1])
+	assert.Equal(t, leaves[11], proof.GetLeaves()[2])
+	assert.Equal(t, leaves[12], proof.GetLeaves()[3])
 
-	assert.Equal(t, len(proof.GetProofElements()), 3)
-	assert.Equal(t, proof.GetProofElements()[0], merkle.ProofElement(merkle.IntTo32Bytes(13)))
+	assert.Equal(t, 3, len(proof.GetProofElements()))
+	assert.Equal(t, merkle.ProofElement(merkle.IntToBytes32(13)), proof.GetProofElements()[0])
 
 	assert.Equal(
 		t,
-		proof.GetProofElements()[1],
 		merkle.ProofElement(getBytesFromHexString("280bab377a3bc33db3a5e33595d3436d7c000ebff79acc8d0c36d43855aa707e")),
+		proof.GetProofElements()[1],
 	)
 	assert.Equal(
 		t,
-		proof.GetProofElements()[2],
 		merkle.ProofElement(getBytesFromHexString("6ea454f465ec9869bae0f4f1f75956a4382d35bb4b35d2ddb506e4aa54460e4c")),
+		proof.GetProofElements()[2],
 	)
 }
 
@@ -585,7 +585,7 @@ func TestVerifySample1(t *testing.T) {
 	}
 
 	proofElements := []merkle.ProofElement{
-		merkle.ProofElement(merkle.IntTo32Bytes(324)),
+		merkle.ProofElement(merkle.IntToBytes32(324)),
 		merkle.ProofElement(getBytesFromHexString("55f9b393403d39fdf3b35fe8f394e13a272509df05d5562e5da6937c11bb1214")),
 		merkle.ProofElement(getBytesFromHexString("a4c0ad363d17cb84be9e3f757278de2b26843e918e48e33e1b00438764fefa2b")),
 		merkle.ProofElement(getBytesFromHexString("afee522c5ba27318361dd426e355fa02e5821fbc8b2ba52dea3b36885d76ec94")),

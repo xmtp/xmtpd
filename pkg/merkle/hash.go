@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"encoding/binary"
+
 	"golang.org/x/crypto/sha3"
 )
 
@@ -56,7 +57,7 @@ func HashPairlessNode(node []byte) []byte {
 }
 
 func HashRoot(leafCount int, root []byte) []byte {
-	leafCountBytes := IntTo32Bytes(leafCount)
+	leafCountBytes := IntToBytes32(leafCount)
 
 	rootPrefixLen := len(rootPrefixBytes)
 	leafCountLen := len(leafCountBytes) // Length of the byte representation
@@ -71,7 +72,7 @@ func HashRoot(leafCount int, root []byte) []byte {
 	return Hash(buffer)
 }
 
-func IntTo32Bytes(value int) []byte {
+func IntToBytes32(value int) []byte {
 	valueBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(valueBytes, uint64(value))
 
@@ -81,6 +82,6 @@ func IntTo32Bytes(value int) []byte {
 	return buffer
 }
 
-func BytesToBigInt(buffer []byte) int {
+func Bytes32ToInt(buffer []byte) int {
 	return int(binary.BigEndian.Uint64(buffer[24:]))
 }

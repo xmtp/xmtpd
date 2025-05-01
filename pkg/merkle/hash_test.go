@@ -2,8 +2,9 @@ package merkle_test
 
 import (
 	"bytes"
-	"github.com/xmtp/xmtpd/pkg/merkle"
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/merkle"
 )
 
 func TestHash(t *testing.T) {
@@ -221,7 +222,7 @@ func TestHashRoot(t *testing.T) {
 	}
 }
 
-func TestIntTo32Bytes(t *testing.T) {
+func TestIntToBytes32(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    int
@@ -251,10 +252,10 @@ func TestIntTo32Bytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := merkle.IntTo32Bytes(tt.input)
+			result := merkle.IntToBytes32(tt.input)
 			if !bytes.Equal(result, tt.expected) {
 				t.Errorf(
-					"IntTo32Bytes of %d = %d, expected %d",
+					"IntToBytes32 of %d = %d, expected %d",
 					tt.input,
 					result,
 					tt.expected,
@@ -264,7 +265,7 @@ func TestIntTo32Bytes(t *testing.T) {
 	}
 }
 
-func TestBytesToBigInt(t *testing.T) {
+func TestBytes32ToInt(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
@@ -294,10 +295,10 @@ func TestBytesToBigInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := merkle.BytesToBigInt(tt.input)
+			result := merkle.Bytes32ToInt(tt.input)
 			if result != tt.expected {
 				t.Errorf(
-					"BytesToBigInt of %d = %d, expected %d",
+					"Bytes32ToInt of %d = %d, expected %d",
 					tt.input,
 					result,
 					tt.expected,

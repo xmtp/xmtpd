@@ -12,7 +12,7 @@ func TestValidate(t *testing.T) {
 	t.Run("valid proof", func(t *testing.T) {
 		leaves := []Leaf{[]byte("test")}
 
-		proofElements := []ProofElement{IntTo32Bytes(2), []byte("proof")}
+		proofElements := []ProofElement{IntToBytes32(2), []byte("proof")}
 
 		proof := MultiProof{
 			startingIndex: 0,
@@ -24,15 +24,26 @@ func TestValidate(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("empty leaves", func(t *testing.T) {
+	t.Run("invalid starting index", func(t *testing.T) {
 		proof := MultiProof{
-			startingIndex: 0,
-			leaves:        []Leaf{},
-			proofElements: []ProofElement{IntTo32Bytes(2), []byte("proof")},
+			startingIndex: -1,
+			leaves:        []Leaf{[]byte("test")},
+			proofElements: []ProofElement{IntToBytes32(2), []byte("proof")},
 		}
 
 		err := proof.validate()
-		assert.ErrorIs(t, err, ErrNoLeaves)
+		assert.ErrorIs(t, err, ErrInvalidStartingIndex)
+	})
+
+	t.Run("no proofs", func(t *testing.T) {
+		proof := MultiProof{
+			startingIndex: 0,
+			leaves:        []Leaf{[]byte("test")},
+			proofElements: []ProofElement{},
+		}
+
+		err := proof.validate()
+		assert.ErrorIs(t, err, ErrNoProofs)
 	})
 
 	t.Run("invalid leaf count", func(t *testing.T) {
@@ -41,11 +52,33 @@ func TestValidate(t *testing.T) {
 		proof := MultiProof{
 			startingIndex: 0,
 			leaves:        leaves,
-			proofElements: []ProofElement{IntTo32Bytes(0), []byte("proof")},
+			proofElements: []ProofElement{IntToBytes32(0), []byte("proof")},
 		}
 
 		err := proof.validate()
 		assert.ErrorIs(t, err, ErrInvalidLeafCount)
+	})
+
+	t.Run("empty leaves", func(t *testing.T) {
+		proof := MultiProof{
+			startingIndex: 0,
+			leaves:        []Leaf{},
+			proofElements: []ProofElement{IntToBytes32(2), []byte("proof")},
+		}
+
+		err := proof.validate()
+		assert.ErrorIs(t, err, ErrNoLeaves)
+	})
+
+	t.Run("indices out of bounds", func(t *testing.T) {
+		proof := MultiProof{
+			startingIndex: 2,
+			leaves:        []Leaf{[]byte("test")},
+			proofElements: []ProofElement{IntToBytes32(2), []byte("proof")},
+		}
+
+		err := proof.validate()
+		assert.ErrorIs(t, err, ErrIndicesOutOfBounds)
 	})
 
 	t.Run("nil leaf", func(t *testing.T) {
@@ -54,7 +87,7 @@ func TestValidate(t *testing.T) {
 		proof := MultiProof{
 			startingIndex: 0,
 			leaves:        leaves,
-			proofElements: []ProofElement{IntTo32Bytes(2), []byte("proof")},
+			proofElements: []ProofElement{IntToBytes32(2), []byte("proof")},
 		}
 
 		err := proof.validate()
@@ -67,7 +100,7 @@ func TestValidate(t *testing.T) {
 		proof := MultiProof{
 			startingIndex: 0,
 			leaves:        leaves,
-			proofElements: []ProofElement{IntTo32Bytes(2), nil},
+			proofElements: []ProofElement{IntToBytes32(2), nil},
 		}
 
 		err := proof.validate()
@@ -80,7 +113,7 @@ func TestValidate(t *testing.T) {
 		proof := MultiProof{
 			startingIndex: 0,
 			leaves:        leaves,
-			proofElements: []ProofElement{IntTo32Bytes(1)},
+			proofElements: []ProofElement{IntToBytes32(1)},
 		}
 
 		err := proof.validate()
@@ -91,7 +124,7 @@ func TestValidate(t *testing.T) {
 // TestGetNextProofElement tests the internal getNextProofElement function.
 func TestGetNextProofElement(t *testing.T) {
 	proofElements := []ProofElement{
-		IntTo32Bytes(2),
+		IntToBytes32(2),
 		[]byte{0x01},
 		[]byte{0x02},
 	}
@@ -106,7 +139,7 @@ func TestGetNextProofElement(t *testing.T) {
 
 	p, err := proof.getNextProofElement(&idx)
 	require.NoError(t, err)
-	assert.Equal(t, ProofElement(IntTo32Bytes(2)), p)
+	assert.Equal(t, ProofElement(IntToBytes32(2)), p)
 	assert.Equal(t, 1, idx)
 
 	p, err = proof.getNextProofElement(&idx)

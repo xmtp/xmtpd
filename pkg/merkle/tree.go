@@ -22,14 +22,14 @@ type MerkleTree struct {
 }
 
 var (
-	ErrNoLeaves           = errors.New("no leaves provided")
-	ErrTreeEmpty          = errors.New("tree is empty")
-	ErrNilLeaf            = errors.New("leaf is nil")
-	ErrInvalidIndex       = errors.New("index is invalid")
-	ErrIndicesNotSorted   = errors.New("indices are not sorted")
-	ErrInvalidRange       = errors.New("invalid range")
-	ErrNoIndices          = errors.New("no indices")
-	ErrIndicesOutOfBounds = errors.New("indices out of bounds")
+	ErrNoLeaves                          = errors.New("no leaves provided")
+	ErrTreeEmpty                         = errors.New("tree is empty")
+	ErrNilLeaf                           = errors.New("leaf is nil")
+	ErrInvalidIndex                      = errors.New("index is invalid")
+	ErrIndicesNotContinuousAndIncreasing = errors.New("indices are not continuous and increasing")
+	ErrInvalidRange                      = errors.New("invalid range")
+	ErrNoIndices                         = errors.New("no indices")
+	ErrIndicesOutOfBounds                = errors.New("indices out of bounds")
 )
 
 // NewMerkleTree creates a new Merkle tree from the given leaves.
@@ -82,8 +82,8 @@ func (m *MerkleTree) GenerateMultiProofWithIndices(indices []int) (*MultiProof, 
 			continue
 		}
 
-		if indices[i] <= indices[i-1] {
-			return nil, ErrIndicesNotSorted
+		if indices[i-1] != indices[i]-1 {
+			return nil, ErrIndicesNotContinuousAndIncreasing
 		}
 	}
 
@@ -118,7 +118,7 @@ func (m *MerkleTree) makeProof(indices []int) (MultiProof, error) {
 	}
 
 	// The first proof element is always the leaf count.
-	proofElements = append(proofElements, IntTo32Bytes(m.LeafCount()))
+	proofElements = append(proofElements, IntToBytes32(m.LeafCount()))
 
 	// Calculate proofs to prove the existence of the indices.
 	for i := balancedLeafCount - 1; i > 0; i-- {
@@ -333,8 +333,8 @@ func validateIndices(indices []int, leafCount int) error {
 			return ErrIndicesOutOfBounds
 		}
 
-		if i > 0 && indices[i] <= indices[i-1] {
-			return ErrIndicesNotSorted
+		if i > 0 && indices[i-1] != indices[i]-1 {
+			return ErrIndicesNotContinuousAndIncreasing
 		}
 	}
 

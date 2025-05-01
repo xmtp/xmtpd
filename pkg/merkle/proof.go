@@ -32,7 +32,7 @@ func (p *MultiProof) GetStartingIndex() int {
 }
 
 func (p *MultiProof) GetLeafCount() int {
-	return BytesToBigInt(p.proofElements[0])
+	return Bytes32ToInt(p.proofElements[0])
 }
 
 func (p *MultiProof) GetProofElements() []ProofElement {
@@ -75,7 +75,11 @@ func (p *MultiProof) validate() error {
 		return ErrInvalidStartingIndex
 	}
 
-	leafCount := BytesToBigInt(p.proofElements[0])
+	if len(p.proofElements) == 0 {
+		return ErrNoProofs
+	}
+
+	leafCount := Bytes32ToInt(p.proofElements[0])
 
 	if leafCount <= 0 {
 		return ErrInvalidLeafCount
@@ -148,7 +152,7 @@ func isEven(n int) bool {
 
 // computeRoot computes the root of the Merkle tree from the given proof.
 func (p *MultiProof) computeRoot() ([]byte, error) {
-	leafCount := BytesToBigInt(p.proofElements[0])
+	leafCount := Bytes32ToInt(p.proofElements[0])
 
 	// 1. Prepare the queue.
 	balancedLeafCount, err := CalculateBalancedNodesCount(leafCount)

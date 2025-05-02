@@ -279,6 +279,13 @@ func CalculateBalancedNodesCount(count int) (int, error) {
 		return 0, fmt.Errorf("count must be less than or equal than max int32 (%d)", 1<<31-1)
 	}
 
+	// Despite 1 being a power of 2, a tree with 1 leaf is not a balanced tree in this implementation,
+	// since a leaf is first hashed to a node using the leaf prefix, and then that node must be hashed into a node
+	// using the node prefix, either with or without a paired node.
+	if count == 1 {
+		return 2, nil
+	}
+
 	return roundUpToPowerOf2(count), nil
 }
 

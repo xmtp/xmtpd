@@ -42,8 +42,8 @@ func TestMakeTree(t *testing.T) {
 
 	tree, err := makeTree(nodes)
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(tree))
-	assert.Equal(t, nodes[0], tree[1])
+	assert.Equal(t, 4, len(tree))
+	assert.Equal(t, nodes[0], tree[2])
 
 	// Test small balanced tree (2 nodes).
 	twoLeaves := []Leaf{[]byte("leaf1"), []byte("leaf2")}
@@ -229,6 +229,30 @@ func TestValidateIndices(t *testing.T) {
 				assert.ErrorIs(t, err, tt.wantErr)
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRoundUpToPowerOf2(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    int
+		expected int
+	}{
+		{"one", 1, 1},
+		{"already power of 2", 4, 4},
+		{"already power of 2 (large)", 16384, 16384},
+		{"regular case", 5, 8},
+		{"regular case (large)", 5000, 8192},
+		{"large number", 1<<30 - 1, 1 << 30},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := roundUpToPowerOf2(tt.input)
+			if result != tt.expected {
+				t.Errorf("roundUpToPowerOf2(%d) = %d, expected %d", tt.input, result, tt.expected)
 			}
 		})
 	}

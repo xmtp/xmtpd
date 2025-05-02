@@ -13,7 +13,7 @@ import (
 func TestEmptyTree(t *testing.T) {
 	_, err := merkle.NewMerkleTree([]merkle.Leaf{})
 	assert.Error(t, err, "Should error on empty leaves")
-	assert.ErrorAs(t, err, &merkle.ErrTreeEmpty)
+	assert.ErrorAs(t, err, &merkle.ErrNoLeaves)
 }
 
 func TestBalancedTrees(t *testing.T) {
@@ -133,8 +133,7 @@ func TestUnbalancedTrees(t *testing.T) {
 				)
 			}
 
-			// Check that all internal nodes, let of the upperBound, up to the root are not nil.
-			// TODO
+			// TODO: Check that all internal nodes, let of the upperBound, up to the root are not nil.
 		})
 	}
 }
@@ -393,42 +392,6 @@ func TestTreeInternals(t *testing.T) {
 	)
 }
 
-func TestRoundUpToPowerOf2Values(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    int
-		expected int
-		wantErr  bool
-	}{
-		{"zero", 0, 0, true},
-		{"one", 1, 1, false},
-		{"already power of 2", 4, 4, false},
-		{"already power of 2 (large)", 16384, 16384, false},
-		{"regular case", 5, 8, false},
-		{"regular case (large)", 5000, 8192, false},
-		{"large number", 1<<30 - 1, 1 << 30, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := merkle.CalculateBalancedNodesCount(tt.input)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				if result != tt.expected {
-					t.Errorf(
-						"Power of 2 rounding for %d = %d, expected %d",
-						tt.input,
-						result,
-						tt.expected,
-					)
-				}
-			}
-		})
-	}
-}
-
 func TestCalculateBalancedLeafCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -438,7 +401,9 @@ func TestCalculateBalancedLeafCount(t *testing.T) {
 	}{
 		{"negative", -1, 0, true},
 		{"zero", 0, 0, true},
-		{"one", 1, 1, false},
+		{"one", 1, 2, false},
+		{"two", 2, 2, false},
+		{"three", 3, 4, false},
 		{"power of 2", 16, 16, false},
 		{"not power of 2", 15, 16, false},
 		{"large number", 1000000, 1048576, false},
@@ -472,99 +437,193 @@ func TestCalculateBalancedLeafCountError(t *testing.T) {
 	assert.Contains(t, err.Error(), "count must be less than or equal than max int32")
 }
 
-func TestBalancedSample(t *testing.T) {
-	leaves := []merkle.Leaf{
-		getBytesFromHexString("6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2"),
-		getBytesFromHexString("a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31"),
-		getBytesFromHexString("007f47e1c51d53cab18977050347e8e8dc488bdd9590babe3e104fcb9a1ef599"),
-		getBytesFromHexString("7cbe68a29af312d42c40e6d083bb64fe2ba0ac6bf1cac8e4b10f5356142e3828"),
-		getBytesFromHexString("4a864e860c0d0247c6aa5ebcb2bc3f15fc4ddf86213258f4bf0b72e51c9d9c69"),
-		getBytesFromHexString("51b7ae2bab96bd3fbb3b26e1efefb0b9b6a60054ed7ffcfa700374d58f315a31"),
-		getBytesFromHexString("aa79d134afbdcf008b487dbab5717dfc6518bffd2dc6ce71724a9e87200a086c"),
-		getBytesFromHexString("e83870d75c6c4c4d1f6ba674481932301e0a1029b44c1407b6aea06cd56d4836"),
+func TestBalancedSamples(t *testing.T) {
+	tests := []struct {
+		name            string
+		leaves          []string
+		expectedSubRoot string
+		expectedRoot    string
+	}{
+		{
+			"sample 1",
+			[]string{
+				"6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2",
+				"a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31",
+			},
+			"32f3f8a6c1fb5218a0ef017cbe27492fde32282031fde27131db244e375e8d09",
+			"eeef536868dc2c030bec2d3602cc13fbe660bd5d63deca6a0a4dfd201eb941c0",
+		},
+		{
+			"sample 2",
+			[]string{
+				"6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2",
+				"a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31",
+				"007f47e1c51d53cab18977050347e8e8dc488bdd9590babe3e104fcb9a1ef599",
+				"7cbe68a29af312d42c40e6d083bb64fe2ba0ac6bf1cac8e4b10f5356142e3828",
+				"4a864e860c0d0247c6aa5ebcb2bc3f15fc4ddf86213258f4bf0b72e51c9d9c69",
+				"51b7ae2bab96bd3fbb3b26e1efefb0b9b6a60054ed7ffcfa700374d58f315a31",
+				"aa79d134afbdcf008b487dbab5717dfc6518bffd2dc6ce71724a9e87200a086c",
+				"e83870d75c6c4c4d1f6ba674481932301e0a1029b44c1407b6aea06cd56d4836",
+			},
+			"1f70e7dd11a042e3868e8b0992118a3d7bd301b029a3b967a5b2042466c5110c",
+			"00f8c0ad3c60c727ededce5717c8baa64047b5c3f29e409085df14dc3bfda1a7",
+		},
+		{
+			"sample 3",
+			[]string{
+				"6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2",
+				"a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31",
+				"007f47e1c51d53cab18977050347e8e8dc488bdd9590babe3e104fcb9a1ef599",
+				"7cbe68a29af312d42c40e6d083bb64fe2ba0ac6bf1cac8e4b10f5356142e3828",
+				"4a864e860c0d0247c6aa5ebcb2bc3f15fc4ddf86213258f4bf0b72e51c9d9c69",
+				"51b7ae2bab96bd3fbb3b26e1efefb0b9b6a60054ed7ffcfa700374d58f315a31",
+				"aa79d134afbdcf008b487dbab5717dfc6518bffd2dc6ce71724a9e87200a086c",
+				"e83870d75c6c4c4d1f6ba674481932301e0a1029b44c1407b6aea06cd56d4836",
+				"2815ef424dd0613d69f70546821ebddf2fe1b7452510cd21d25f3e438863e8a3",
+				"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+				"112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+				"f0e1d2c3b4a5968778695a4b3c2d1e0f1f2e3d4c5b6a79887766554433221100",
+				"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				"9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba",
+				"deadbeefcafebabe0123456789abcdefdeadbeefcafebabe0123456789abcdef",
+				"cafebabebeefdeadabcdef0123456789cafebabebeefdeadabcdef0123456789",
+			},
+			"5f3687252fa042ec25468ce32815bd4a679cb4aeee41cf9521c2eeb7589d7450",
+			"31338b156e26447f0a3a965981b0be87957bf5606b44e0dcdc99eb4646048942",
+		},
 	}
 
-	tree, err := merkle.NewMerkleTree(leaves)
-	require.NoError(t, err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			leaves := make([]merkle.Leaf, len(test.leaves))
+			for i, leaf := range test.leaves {
+				leaves[i] = getBytesFromHexString(leaf)
+			}
 
-	assert.Equal(
-		t,
-		8,
-		tree.LeafCount(),
-		"LeafCount should be 8",
-	)
+			tree, err := merkle.NewMerkleTree(leaves)
+			require.NoError(t, err)
 
-	assert.Equal(
-		t,
-		merkle.Node(
-			getBytesFromHexString(
-				"1f70e7dd11a042e3868e8b0992118a3d7bd301b029a3b967a5b2042466c5110c",
-			),
-		),
-		tree.Tree()[1],
-		"Sub Root should be asa expected",
-	)
+			assert.Equal(
+				t,
+				len(test.leaves),
+				tree.LeafCount(),
+				"LeafCount should be as expected",
+			)
 
-	assert.Equal(
-		t,
-		getBytesFromHexString("00f8c0ad3c60c727ededce5717c8baa64047b5c3f29e409085df14dc3bfda1a7"),
-		merkle.HashRoot(8, tree.Tree()[1]),
-		"Root should be asa expected",
-	)
+			assert.Equal(
+				t,
+				test.expectedSubRoot,
+				hex.EncodeToString(tree.Tree()[1]),
+				"Sub Root should be as expected",
+			)
 
-	assert.Equal(
-		t,
-		getBytesFromHexString("00f8c0ad3c60c727ededce5717c8baa64047b5c3f29e409085df14dc3bfda1a7"),
-		tree.Root(),
-		"Root should be asa expected",
-	)
+			assert.Equal(
+				t,
+				test.expectedRoot,
+				hex.EncodeToString(merkle.HashRoot(len(test.leaves), tree.Tree()[1])),
+				"Root should be as expected",
+			)
+
+			assert.Equal(
+				t,
+				test.expectedRoot,
+				hex.EncodeToString(tree.Root()),
+				"Root should be as expected",
+			)
+		})
+	}
 }
 
-func TestUnbalancedSample(t *testing.T) {
-	leaves := []merkle.Leaf{
-		getBytesFromHexString("6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2"),
-		getBytesFromHexString("a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31"),
-		getBytesFromHexString("007f47e1c51d53cab18977050347e8e8dc488bdd9590babe3e104fcb9a1ef599"),
-		getBytesFromHexString("7cbe68a29af312d42c40e6d083bb64fe2ba0ac6bf1cac8e4b10f5356142e3828"),
-		getBytesFromHexString("4a864e860c0d0247c6aa5ebcb2bc3f15fc4ddf86213258f4bf0b72e51c9d9c69"),
-		getBytesFromHexString("51b7ae2bab96bd3fbb3b26e1efefb0b9b6a60054ed7ffcfa700374d58f315a31"),
-		getBytesFromHexString("aa79d134afbdcf008b487dbab5717dfc6518bffd2dc6ce71724a9e87200a086c"),
+func TestUnbalancedSamples(t *testing.T) {
+	tests := []struct {
+		name            string
+		leaves          []string
+		expectedSubRoot string
+		expectedRoot    string
+	}{
+		{
+			"sample 1",
+			[]string{
+				"6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2",
+			},
+			"75e0aa2d2a9e272f24c8cbe5c807aa0b1cf7d2609e318ccf9cf85e416e43a8a2",
+			"5b833bdf4f55e39d1838653841d4a2c651a71b5626b7936e1bedb5212cae96e3",
+		},
+		{
+			"sample 2",
+			[]string{
+				"6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2",
+				"a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31",
+				"007f47e1c51d53cab18977050347e8e8dc488bdd9590babe3e104fcb9a1ef599",
+				"7cbe68a29af312d42c40e6d083bb64fe2ba0ac6bf1cac8e4b10f5356142e3828",
+				"4a864e860c0d0247c6aa5ebcb2bc3f15fc4ddf86213258f4bf0b72e51c9d9c69",
+				"51b7ae2bab96bd3fbb3b26e1efefb0b9b6a60054ed7ffcfa700374d58f315a31",
+				"aa79d134afbdcf008b487dbab5717dfc6518bffd2dc6ce71724a9e87200a086c",
+			},
+			"a9a18d92fa458bf5d28a44d6c0fb4baaf5b4da5918ab7819d5a7d29d8b103205",
+			"38631dd8b5081555ec3c51cc8db7918ee90158fa33a70674c1399234d23908b2",
+		},
+		{
+			"sample 3",
+			[]string{
+				"6330b989705733cc5c1f7285b8a5b892e08be86ed6fbe9d254713a4277bc5bd2",
+				"a8152e7c56b62d9fcb8af361257a260b2b9481c8683e8df1651a31508cc6ee31",
+				"007f47e1c51d53cab18977050347e8e8dc488bdd9590babe3e104fcb9a1ef599",
+				"7cbe68a29af312d42c40e6d083bb64fe2ba0ac6bf1cac8e4b10f5356142e3828",
+				"4a864e860c0d0247c6aa5ebcb2bc3f15fc4ddf86213258f4bf0b72e51c9d9c69",
+				"51b7ae2bab96bd3fbb3b26e1efefb0b9b6a60054ed7ffcfa700374d58f315a31",
+				"aa79d134afbdcf008b487dbab5717dfc6518bffd2dc6ce71724a9e87200a086c",
+				"e83870d75c6c4c4d1f6ba674481932301e0a1029b44c1407b6aea06cd56d4836",
+				"2815ef424dd0613d69f70546821ebddf2fe1b7452510cd21d25f3e438863e8a3",
+				"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+				"112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+				"f0e1d2c3b4a5968778695a4b3c2d1e0f1f2e3d4c5b6a79887766554433221100",
+				"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+			},
+			"5ffbefe789a79a1df22b61545ee2a965f708c24e5e8bb9f71551f9465808f10a",
+			"f92d4ca528834b0350cecd9307bec2dd97d0a6bbb58b077ab51cdad36fc5c087",
+		},
 	}
 
-	tree, err := merkle.NewMerkleTree(leaves)
-	require.NoError(t, err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			leaves := make([]merkle.Leaf, len(test.leaves))
+			for i, leaf := range test.leaves {
+				leaves[i] = getBytesFromHexString(leaf)
+			}
 
-	assert.Equal(
-		t,
-		7,
-		tree.LeafCount(),
-		"LeafCount should be 7",
-	)
+			tree, err := merkle.NewMerkleTree(leaves)
+			require.NoError(t, err)
 
-	assert.Equal(
-		t,
-		merkle.Node(
-			getBytesFromHexString(
-				"a9a18d92fa458bf5d28a44d6c0fb4baaf5b4da5918ab7819d5a7d29d8b103205",
-			),
-		),
-		tree.Tree()[1],
-		"Sub Root should be asa expected",
-	)
+			assert.Equal(
+				t,
+				len(test.leaves),
+				tree.LeafCount(),
+				"LeafCount should be as expected",
+			)
 
-	assert.Equal(
-		t,
-		getBytesFromHexString("38631dd8b5081555ec3c51cc8db7918ee90158fa33a70674c1399234d23908b2"),
-		merkle.HashRoot(7, tree.Tree()[1]),
-		"Root should be asa expected",
-	)
+			assert.Equal(
+				t,
+				test.expectedSubRoot,
+				hex.EncodeToString(tree.Tree()[1]),
+				"Sub Root should be as expected",
+			)
 
-	assert.Equal(
-		t,
-		getBytesFromHexString("38631dd8b5081555ec3c51cc8db7918ee90158fa33a70674c1399234d23908b2"),
-		tree.Root(),
-		"Root should be asa expected",
-	)
+			assert.Equal(
+				t,
+				test.expectedRoot,
+				hex.EncodeToString(merkle.HashRoot(len(test.leaves), tree.Tree()[1])),
+				"Root should be as expected",
+			)
+
+			assert.Equal(
+				t,
+				test.expectedRoot,
+				hex.EncodeToString(tree.Root()),
+				"Root should be as expected",
+			)
+		})
+	}
 }
 
 func getBytesFromHexString(s string) []byte {

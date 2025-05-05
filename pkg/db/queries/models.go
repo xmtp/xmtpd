@@ -31,6 +31,7 @@ type GatewayEnvelope struct {
 	Topic                []byte
 	OriginatorEnvelope   []byte
 	PayerID              sql.NullInt32
+	Expiry               sql.NullInt64
 }
 
 type LatestBlock struct {

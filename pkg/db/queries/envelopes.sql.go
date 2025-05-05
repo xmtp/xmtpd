@@ -80,7 +80,8 @@ INSERT INTO gateway_envelopes(
 		topic,
 		originator_envelope,
 		payer_id,
-		gateway_time
+		gateway_time,
+        expiry
 	)
 VALUES (
 		$1,
@@ -88,7 +89,8 @@ VALUES (
 		$3,
 		$4,
 		$5,
-		COALESCE($6, NOW())
+		COALESCE($6, NOW()),
+        $7
 	) ON CONFLICT DO NOTHING
 `
 
@@ -99,6 +101,7 @@ type InsertGatewayEnvelopeParams struct {
 	OriginatorEnvelope   []byte
 	PayerID              sql.NullInt32
 	GatewayTime          interface{}
+	Expiry               sql.NullInt64
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
@@ -109,6 +112,7 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 		arg.OriginatorEnvelope,
 		arg.PayerID,
 		arg.GatewayTime,
+		arg.Expiry,
 	)
 	if err != nil {
 		return 0, err
@@ -139,7 +143,7 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 }
 
 const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
-SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id
+SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, expiry
 FROM select_gateway_envelopes(
 		$1::INT [],
 		$2::BIGINT [],
@@ -179,6 +183,7 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 			&i.Topic,
 			&i.OriginatorEnvelope,
 			&i.PayerID,
+			&i.Expiry,
 		); err != nil {
 			return nil, err
 		}
@@ -194,7 +199,7 @@ func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayE
 }
 
 const selectNewestFromTopics = `-- name: SelectNewestFromTopics :many
-SELECT e.gateway_time, e.originator_node_id, e.originator_sequence_id, e.topic, e.originator_envelope, e.payer_id
+SELECT e.gateway_time, e.originator_node_id, e.originator_sequence_id, e.topic, e.originator_envelope, e.payer_id, e.expiry
 FROM gateway_envelopes e
 	INNER JOIN (
 		SELECT topic,
@@ -223,6 +228,7 @@ func (q *Queries) SelectNewestFromTopics(ctx context.Context, topics [][]byte) (
 			&i.Topic,
 			&i.OriginatorEnvelope,
 			&i.PayerID,
+			&i.Expiry,
 		); err != nil {
 			return nil, err
 		}

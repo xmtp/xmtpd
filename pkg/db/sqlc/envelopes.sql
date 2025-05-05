@@ -5,7 +5,8 @@ INSERT INTO gateway_envelopes(
 		topic,
 		originator_envelope,
 		payer_id,
-		gateway_time
+		gateway_time,
+        expiry
 	)
 VALUES (
 		@originator_node_id,
@@ -13,7 +14,8 @@ VALUES (
 		@topic,
 		@originator_envelope,
 		@payer_id,
-		COALESCE(@gateway_time, NOW())
+		COALESCE(@gateway_time, NOW()),
+        @expiry
 	) ON CONFLICT DO NOTHING;
 
 -- name: SelectGatewayEnvelopes :many

@@ -76,7 +76,7 @@ func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32,
 }
 
 const getGatewayEnvelopeByID = `-- name: GetGatewayEnvelopeByID :one
-SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id FROM gateway_envelopes
+SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, expiry FROM gateway_envelopes
 WHERE originator_sequence_id = $1
 AND originator_node_id = $2
 `
@@ -97,6 +97,7 @@ func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnve
 		&i.Topic,
 		&i.OriginatorEnvelope,
 		&i.PayerID,
+		&i.Expiry,
 	)
 	return i, err
 }

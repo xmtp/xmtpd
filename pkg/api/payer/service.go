@@ -447,12 +447,19 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
+	expiry := int64(0)
+
+	if !clientEnvelope.Aad().IsCommit {
+		expiry = time.Now().Add(time.Hour * 24 * 90).Unix()
+	}
+
 	return &envelopesProto.PayerEnvelope{
 		UnsignedClientEnvelope: envelopeBytes,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
 		TargetOriginator: originatorID,
+		ExpiryUnixtime:   expiry,
 	}, nil
 }
 

@@ -3,6 +3,7 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"math"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -447,7 +448,7 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
-	expiry := int64(0)
+	expiry := int64(math.MaxInt64)
 
 	if !clientEnvelope.Aad().IsCommit {
 		expiry = time.Now().Add(time.Hour * 24 * 90).Unix()

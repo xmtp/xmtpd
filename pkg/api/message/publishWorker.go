@@ -150,6 +150,8 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 
 	originatorID := int32(p.registrant.NodeID())
 
+	expirationTime := validatedEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.Proto().GetExpiryUnixtime()
+
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		p.ctx,
@@ -161,6 +163,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
 			GatewayTime:          stagedEnv.OriginatorTime,
+			Expiry:               db.NullInt64(expirationTime),
 		},
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerId,

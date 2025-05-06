@@ -18,3 +18,11 @@ func NewNullInt16[T ~int16](i *T) sql.NullInt16 {
 	}
 	return sql.NullInt16{Int16: int16(*i), Valid: true}
 }
+
+// Generic version that accepts both int64 and uint64 types
+func NewNullInt64[T ~int64 | ~uint64](i *T) sql.NullInt64 {
+	if i == nil {
+		return sql.NullInt64{Valid: false}
+	}
+	return sql.NullInt64{Int64: int64(*i), Valid: true}
+}

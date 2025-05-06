@@ -35,7 +35,7 @@ func NewStore(queries *queries.Queries, log *zap.Logger) *Store {
 func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (ReportID, error) {
 	id, err := report.ID()
 	if err != nil {
-		return nil, err
+		return ReportID{}, err
 	}
 
 	var (
@@ -48,23 +48,23 @@ func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (ReportID,
 	// The originator node ID is stored as an int32 in the database, but
 	// a uint32 on the network. Do not allow anything larger than max int32
 	if originatorNodeID, err = utils.Uint32ToInt32(report.OriginatorNodeID); err != nil {
-		return nil, ErrOriginatorNodeIDTooLarge
+		return id, ErrOriginatorNodeIDTooLarge
 	}
 
 	if startSequenceID, err = utils.Uint64ToInt64(report.StartSequenceID); err != nil {
-		return nil, ErrStartSequenceIDTooLarge
+		return id, ErrStartSequenceIDTooLarge
 	}
 
 	if endSequenceID, err = utils.Uint64ToInt64(report.EndSequenceID); err != nil {
-		return nil, ErrEndSequenceIDTooLarge
+		return id, ErrEndSequenceIDTooLarge
 	}
 
 	if activeNodeIDs, err = utils.Uint32SliceToInt32Slice(report.ActiveNodeIDs); err != nil {
-		return nil, ErrActiveNodeIDTooLarge
+		return id, ErrActiveNodeIDTooLarge
 	}
 
 	err = s.queries.InsertOrIgnorePayerReport(ctx, queries.InsertOrIgnorePayerReportParams{
-		ID:               id,
+		ID:               id[:],
 		OriginatorNodeID: originatorNodeID,
 		StartSequenceID:  startSequenceID,
 		EndSequenceID:    endSequenceID,
@@ -72,7 +72,7 @@ func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (ReportID,
 		ActiveNodeIds:    activeNodeIDs,
 	})
 	if err != nil {
-		return nil, err
+		return id, err
 	}
 
 	return id, nil
@@ -91,7 +91,7 @@ func (s *Store) StoreAttestation(ctx context.Context, attestation *PayerReportAt
 	return s.queries.InsertOrIgnorePayerReportAttestation(
 		ctx,
 		queries.InsertOrIgnorePayerReportAttestationParams{
-			PayerReportID: reportID,
+			PayerReportID: reportID[:],
 			NodeID:        int64(attestation.NodeSignature.NodeID),
 			Signature:     attestation.NodeSignature.Signature,
 		},
@@ -99,7 +99,7 @@ func (s *Store) StoreAttestation(ctx context.Context, attestation *PayerReportAt
 }
 
 func (s *Store) FetchReport(ctx context.Context, id ReportID) (*PayerReportWithStatus, error) {
-	report, err := s.queries.FetchPayerReport(ctx, id)
+	report, err := s.queries.FetchPayerReport(ctx, id[:])
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +173,24 @@ func (s *Store) FetchReports(
 	}
 
 	return convertPayerReports(rows)
+}
+
+func (s *Store) SetReportAttestationStatus(
+	ctx context.Context,
+	id ReportID,
+	fromStatus []AttestationStatus,
+	toStatus AttestationStatus,
+) error {
+	allowedPrevStatuses := make([]int16, len(fromStatus))
+	for idx, status := range fromStatus {
+		allowedPrevStatuses[idx] = int16(status)
+	}
+
+	return s.queries.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
+		ReportID:   id[:],
+		NewStatus:  int16(toStatus),
+		PrevStatus: allowedPrevStatuses,
+	})
 }
 
 func convertPayerReports(rows []queries.PayerReport) ([]*PayerReportWithStatus, error) {

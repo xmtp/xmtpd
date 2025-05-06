@@ -34,7 +34,7 @@ func insertRandomReport(
 	}
 	require.NoError(t, store.queries.InsertOrIgnorePayerReport(t.Context(), insertParams))
 
-	returnedVal, err := store.FetchReport(t.Context(), insertParams.ID)
+	returnedVal, err := store.FetchReport(t.Context(), ReportID(insertParams.ID))
 	require.NoError(t, err)
 	return returnedVal
 }

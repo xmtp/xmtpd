@@ -89,6 +89,8 @@ func (s *Store) FetchReport(ctx context.Context, id ReportID) (*PayerReportWithS
 type FetchReportsQuery struct {
 	SubmissionStatus  *SubmissionStatus
 	AttestationStatus *AttestationStatus
+	StartSequenceID   *uint64
+	EndSequenceID     *uint64
 	CreatedAfter      time.Time
 }
 
@@ -97,6 +99,8 @@ func (f *FetchReportsQuery) toParams() queries.FetchPayerReportsParams {
 		CreatedAfter:      utils.NewNullTime(f.CreatedAfter),
 		SubmissionStatus:  utils.NewNullInt16(f.SubmissionStatus),
 		AttestationStatus: utils.NewNullInt16(f.AttestationStatus),
+		StartSequenceID:   utils.NewNullInt64(f.StartSequenceID),
+		EndSequenceID:     utils.NewNullInt64(f.EndSequenceID),
 	}
 }
 
@@ -116,6 +120,16 @@ func (f *FetchReportsQuery) WithAttestationStatus(status AttestationStatus) *Fet
 
 func (f *FetchReportsQuery) WithCreatedAfter(createdAfter time.Time) *FetchReportsQuery {
 	f.CreatedAfter = createdAfter
+	return f
+}
+
+func (f *FetchReportsQuery) WithStartSequenceID(startSequenceID uint64) *FetchReportsQuery {
+	f.StartSequenceID = &startSequenceID
+	return f
+}
+
+func (f *FetchReportsQuery) WithEndSequenceID(endSequenceID uint64) *FetchReportsQuery {
+	f.EndSequenceID = &endSequenceID
 	return f
 }
 

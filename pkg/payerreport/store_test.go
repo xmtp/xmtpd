@@ -155,7 +155,7 @@ func TestFetchReport(t *testing.T) {
 		expectedIDs [][]byte
 		query       *FetchReportsQuery
 	}{{
-		name:        "Get all",
+		name:        "Get all with created after",
 		expectedIDs: [][]byte{report1.ID[:], report2.ID[:], report3.ID[:]},
 
 		query: NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt.Add(-5 * time.Second)),
@@ -173,6 +173,23 @@ func TestFetchReport(t *testing.T) {
 		expectedIDs: [][]byte{},
 		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
 			WithAttestationStatus(AttestationRejected),
+	}, {
+		name:        "No Params",
+		expectedIDs: [][]byte{report1.ID[:], report2.ID[:], report3.ID[:]},
+		query:       NewFetchReportsQuery(),
+	}, {
+		name:        "With start sequence ID",
+		expectedIDs: [][]byte{report1.ID[:]},
+		query:       NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID),
+	}, {
+		name:        "With end sequence ID",
+		expectedIDs: [][]byte{report1.ID[:]},
+		query:       NewFetchReportsQuery().WithEndSequenceID(report1.EndSequenceID),
+	}, {
+		name:        "With start and end sequence ID",
+		expectedIDs: [][]byte{report1.ID[:]},
+		query: NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID).
+			WithEndSequenceID(report1.EndSequenceID),
 	}}
 
 	for _, c := range cases {

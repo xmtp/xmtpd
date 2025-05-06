@@ -16,23 +16,15 @@ func ValidateServerOptions(options ServerOptions) error {
 	}
 
 	if options.Contracts.AppChain.ChainID == 0 {
-		customSet["--contracts.chain-id must be greater than 0"] = struct{}{}
+		customSet["--contracts.app-chain.chain-id must be greater than 0"] = struct{}{}
 	}
 
 	if options.Contracts.AppChain.GroupMessageBroadcasterAddress == "" {
-		missingSet["--contracts.app-chain.messages-address"] = struct{}{}
+		missingSet["--contracts.app-chain.group-message-broadcaster-address"] = struct{}{}
 	}
 
 	if options.Contracts.AppChain.IdentityUpdateBroadcasterAddress == "" {
-		missingSet["--contracts.app-chain.identity-updates-address"] = struct{}{}
-	}
-
-	if options.Contracts.AppChain.RateRegistryAddress == "" {
-		missingSet["--contracts.app-chain.rate-registry-address"] = struct{}{}
-	}
-
-	if options.Contracts.AppChain.RateRegistryRefreshInterval <= 0 {
-		customSet["--contracts.app-chain.rate-registry-refresh-interval must be greater than 0"] = struct{}{}
+		missingSet["--contracts.app-chain.identity-update-broadcaster-address"] = struct{}{}
 	}
 
 	if options.Contracts.AppChain.MaxChainDisconnectTime <= 0 {
@@ -54,6 +46,14 @@ func ValidateServerOptions(options ServerOptions) error {
 
 	if options.Contracts.SettlementChain.NodeRegistryRefreshInterval <= 0 {
 		customSet["--contracts.settlement-chain.node-registry-refresh-interval must be greater than 0"] = struct{}{}
+	}
+
+	if options.Contracts.SettlementChain.RateRegistryAddress == "" {
+		missingSet["--contracts.settlement-chain.rate-registry-address"] = struct{}{}
+	}
+
+	if options.Contracts.SettlementChain.RateRegistryRefreshInterval <= 0 {
+		customSet["--contracts.settlement-chain.rate-registry-refresh-interval must be greater than 0"] = struct{}{}
 	}
 
 	if options.Payer.Enable {

@@ -57,7 +57,7 @@ func NewContractRatesFetcher(
 	options config.ContractsOptions,
 ) (*ContractRatesFetcher, error) {
 	contract, err := rateregistry.NewRateRegistryCaller(
-		common.HexToAddress(options.AppChain.RateRegistryAddress),
+		common.HexToAddress(options.SettlementChain.RateRegistryAddress),
 		ethclient,
 	)
 	if err != nil {
@@ -68,7 +68,7 @@ func NewContractRatesFetcher(
 		logger:          logger.Named("contractRatesFetcher"),
 		contract:        contract,
 		ctx:             ctx,
-		refreshInterval: options.AppChain.RateRegistryRefreshInterval,
+		refreshInterval: options.SettlementChain.RateRegistryRefreshInterval,
 	}, nil
 }
 

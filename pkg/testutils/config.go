@@ -16,15 +16,15 @@ const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
 func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 	return config.ContractsOptions{
 		AppChain: config.AppChainOptions{
-			RpcURL:                      rpcUrl,
-			RateRegistryRefreshInterval: 100 * time.Millisecond,
-			ChainID:                     31337,
-			MaxChainDisconnectTime:      10 * time.Second,
+			RpcURL:                 rpcUrl,
+			ChainID:                31337,
+			MaxChainDisconnectTime: 10 * time.Second,
 		},
 		SettlementChain: config.SettlementChainOptions{
 			RpcURL:                      rpcUrl,
 			NodeRegistryRefreshInterval: 100 * time.Millisecond,
 			ChainID:                     31337,
+			RateRegistryRefreshInterval: 10 * time.Second,
 		},
 	}
 }

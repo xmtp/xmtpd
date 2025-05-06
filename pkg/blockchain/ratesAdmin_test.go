@@ -21,7 +21,7 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.AppChain.RateRegistryAddress = testutils.DeployRatesRegistryContract(
+	contractsOptions.SettlementChain.RateRegistryAddress = testutils.DeployRatesRegistryContract(
 		t,
 		rpcUrl,
 	)

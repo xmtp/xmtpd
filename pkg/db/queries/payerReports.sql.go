@@ -92,17 +92,36 @@ WHERE (
 		$2::SMALLINT IS NULL
 		OR submission_status = $2::SMALLINT
 	)
-	AND created_at > $3
+	AND (
+		$3::TIMESTAMP IS NULL
+		OR created_at > $3
+	)
+	AND (
+		$4::BIGINT IS NULL
+		OR $4 = end_sequence_id
+	)
+	AND (
+		$5::BIGINT IS NULL
+		OR $5 = start_sequence_id
+	)
 `
 
 type FetchPayerReportsParams struct {
 	AttestationStatus sql.NullInt16
 	SubmissionStatus  sql.NullInt16
 	CreatedAfter      sql.NullTime
+	EndSequenceID     sql.NullInt64
+	StartSequenceID   sql.NullInt64
 }
 
 func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsParams) ([]PayerReport, error) {
-	rows, err := q.db.QueryContext(ctx, fetchPayerReports, arg.AttestationStatus, arg.SubmissionStatus, arg.CreatedAfter)
+	rows, err := q.db.QueryContext(ctx, fetchPayerReports,
+		arg.AttestationStatus,
+		arg.SubmissionStatus,
+		arg.CreatedAfter,
+		arg.EndSequenceID,
+		arg.StartSequenceID,
+	)
 	if err != nil {
 		return nil, err
 	}

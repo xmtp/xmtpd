@@ -112,7 +112,18 @@ WHERE (
 		sqlc.narg(submission_status)::SMALLINT IS NULL
 		OR submission_status = sqlc.narg(submission_status)::SMALLINT
 	)
-	AND created_at > @created_after;
+	AND (
+		sqlc.narg(created_after)::TIMESTAMP IS NULL
+		OR created_at > sqlc.narg(created_after)
+	)
+	AND (
+		sqlc.narg(end_sequence_id)::BIGINT IS NULL
+		OR sqlc.narg(end_sequence_id) = end_sequence_id
+	)
+	AND (
+		sqlc.narg(start_sequence_id)::BIGINT IS NULL
+		OR sqlc.narg(start_sequence_id) = start_sequence_id
+	);
 
 -- name: SetReportAttestationStatus :exec
 UPDATE payer_reports

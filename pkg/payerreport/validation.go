@@ -32,14 +32,13 @@ func (p *PayerReportManager) IsValidReport(
 	prevReport *PayerReport,
 	newReport *PayerReport,
 ) (bool, error) {
-	prevReportID, newReportID, err := getReportIDs(prevReport, newReport)
+	newReportID, err := newReport.ID()
 	if err != nil {
-		p.log.Error("failed to get report ids", zap.Error(err))
+		p.log.Error("failed to get report id", zap.Error(err))
 		return false, nil
 	}
 
 	log := p.log.With(
-		zap.String("prev_report_id", prevReportID.String()),
 		zap.String("new_report_id", newReportID.String()),
 	)
 
@@ -57,6 +56,14 @@ func (p *PayerReportManager) IsValidReport(
 }
 
 func validateReportTransition(prevReport *PayerReport, newReport *PayerReport) error {
+	// Special validations for the first report
+	if prevReport == nil {
+		if newReport.StartSequenceID != 0 {
+			return ErrInvalidReportStart
+		}
+
+		return nil
+	}
 	// Check if the reports are referring to the same originator.
 	// This is a sanity check. Mismatched reports should never make it this far.
 	if prevReport.OriginatorNodeID != newReport.OriginatorNodeID {
@@ -66,11 +73,6 @@ func validateReportTransition(prevReport *PayerReport, newReport *PayerReport) e
 	// Check if the new report starts where the previous report ended.
 	// This is a sanity check. These should be filtered out first
 	if prevReport.EndSequenceID != newReport.StartSequenceID {
-		return ErrInvalidReportStart
-	}
-
-	// Check if the new report ends after it starts
-	if newReport.StartSequenceID > newReport.EndSequenceID {
 		return ErrInvalidReportStart
 	}
 
@@ -101,20 +103,10 @@ func validateReportStructure(report *PayerReport) error {
 		return ErrInvalidPayersMerkleRoot
 	}
 
+	// Check if the new report ends after it starts
+	if report.StartSequenceID > report.EndSequenceID {
+		return ErrInvalidReportStart
+	}
+
 	return nil
-}
-
-// Returns the IDs of the previous and new reports
-func getReportIDs(prevReport *PayerReport, newReport *PayerReport) (ReportID, ReportID, error) {
-	prevReportID, err := prevReport.ID()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	newReportID, err := newReport.ID()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return prevReportID, newReportID, nil
 }

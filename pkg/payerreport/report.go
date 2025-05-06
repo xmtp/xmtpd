@@ -60,10 +60,10 @@ const (
 	AttestationRejected                   = 2
 )
 
-type ReportID []byte
+type ReportID [32]byte
 
 func (r ReportID) String() string {
-	return hex.EncodeToString(r)
+	return hex.EncodeToString(r[:])
 }
 
 type PayerReport struct {
@@ -105,7 +105,7 @@ type PayerReportWithStatus struct {
 	SubmissionStatus  SubmissionStatus
 	AttestationStatus AttestationStatus
 	CreatedAt         time.Time
-	ID                [32]byte
+	ID                ReportID
 }
 
 func (p *PayerReport) ToProto() *proto.PayerReport {
@@ -131,22 +131,17 @@ func (p *PayerReport) ID() (ReportID, error) {
 		p.NodesCount,
 	)
 	if err != nil {
-		return nil, err
+		return ReportID{}, err
 	}
-	// Return the keccak256 hash
-	return utils.HashPayerReportInput(packedBytes), nil
+	hashed, err := utils.SliceToArray32(utils.HashPayerReportInput(packedBytes))
+	if err != nil {
+		return ReportID{}, err
+	}
+	return ReportID(hashed), nil
 }
 
 func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error) {
-	merkleTree, err := NewPayerMerkleTree(params.Payers)
-	if err != nil {
-		return nil, err
-	}
-
-	merkleRoot, err := utils.SliceToArray32(merkleTree.Root())
-	if err != nil {
-		return nil, err
-	}
+	merkleRoot := buildMerkleRoot(params.Payers)
 
 	return &PayerReportWithInputs{
 		PayerReport: PayerReport{
@@ -159,6 +154,6 @@ func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error)
 		},
 		Payers:     params.Payers,
 		NodeIDs:    params.NodeIDs,
-		MerkleTree: merkleTree,
+		MerkleTree: nil,
 	}, nil
 }

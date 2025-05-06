@@ -45,4 +45,10 @@ type IPayerReportStore interface {
 	FetchReport(ctx context.Context, id ReportID) (*PayerReportWithStatus, error)
 	FetchReports(ctx context.Context, query *FetchReportsQuery) ([]*PayerReportWithStatus, error)
 	StoreAttestation(ctx context.Context, attestation *PayerReportAttestation) error
+	SetReportAttestationStatus(
+		ctx context.Context,
+		id ReportID,
+		fromStatus []AttestationStatus,
+		toStatus AttestationStatus,
+	) error
 }

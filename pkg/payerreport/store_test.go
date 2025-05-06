@@ -36,7 +36,7 @@ func insertRandomReport(
 	}
 	require.NoError(t, store.queries.InsertOrIgnorePayerReport(t.Context(), insertParams))
 
-	returnedVal, err := store.FetchReport(t.Context(), insertParams.ID)
+	returnedVal, err := store.FetchReport(t.Context(), ReportID(insertParams.ID))
 	require.NoError(t, err)
 	return returnedVal
 }
@@ -100,7 +100,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 				require.Len(t, id, 32)
 				storedReport, err := store.FetchReport(context.Background(), id)
 				require.NoError(t, err)
-				require.Equal(t, c.report, *storedReport)
+				require.Equal(t, c.report, storedReport.PayerReport)
 			}
 		})
 	}

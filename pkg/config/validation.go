@@ -31,8 +31,8 @@ func ValidateServerOptions(options ServerOptions) error {
 		missingSet["--contracts.app-chain.rate-registry-address"] = struct{}{}
 	}
 
-	if options.Contracts.AppChain.RatesRefreshInterval <= 0 {
-		customSet["--contracts.app-chain.rates-refresh-interval must be greater than 0"] = struct{}{}
+	if options.Contracts.AppChain.RateRegistryRefreshInterval <= 0 {
+		customSet["--contracts.app-chain.rate-registry-refresh-interval must be greater than 0"] = struct{}{}
 	}
 
 	if options.Contracts.AppChain.MaxChainDisconnectTime <= 0 {
@@ -49,11 +49,11 @@ func ValidateServerOptions(options ServerOptions) error {
 	}
 
 	if options.Contracts.SettlementChain.NodeRegistryAddress == "" {
-		missingSet["--contracts.settlement-chain.nodes-address"] = struct{}{}
+		missingSet["--contracts.settlement-chain.node-registry-address"] = struct{}{}
 	}
 
 	if options.Contracts.SettlementChain.NodeRegistryRefreshInterval <= 0 {
-		customSet["--contracts.settlement-chain.registry-refresh-interval must be greater than 0"] = struct{}{}
+		customSet["--contracts.settlement-chain.node-registry-refresh-interval must be greater than 0"] = struct{}{}
 	}
 
 	if options.Payer.Enable {

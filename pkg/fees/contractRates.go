@@ -68,7 +68,7 @@ func NewContractRatesFetcher(
 		logger:          logger.Named("contractRatesFetcher"),
 		contract:        contract,
 		ctx:             ctx,
-		refreshInterval: options.AppChain.RatesRefreshInterval,
+		refreshInterval: options.AppChain.RateRegistryRefreshInterval,
 	}, nil
 }
 

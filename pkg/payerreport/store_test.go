@@ -149,35 +149,30 @@ func TestFetchReport(t *testing.T) {
 		),
 	)
 	report3 := insertRandomReport(t, store)
-	approvedStatus := AttestationStatus(AttestationApproved)
-	rejectedStatus := AttestationStatus(AttestationRejected)
 
 	cases := []struct {
 		name        string
 		expectedIDs [][]byte
-		query       fetchReportsQuery
+		query       *FetchReportsQuery
 	}{{
 		name:        "Get all",
 		expectedIDs: [][]byte{report1.ID[:], report2.ID[:], report3.ID[:]},
-		query:       fetchReportsQuery{createdAfter: report1.CreatedAt.Add(-5 * time.Second)},
+
+		query: NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt.Add(-5 * time.Second)),
 	}, {
 		name:        "Get newest 2",
 		expectedIDs: [][]byte{report2.ID[:], report3.ID[:]},
-		query:       fetchReportsQuery{createdAfter: report1.CreatedAt},
+		query:       NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt),
 	}, {
 		name:        "Only approved",
 		expectedIDs: [][]byte{report2.ID[:]},
-		query: fetchReportsQuery{
-			createdAfter:      time.Unix(1, 0),
-			attestationStatus: &approvedStatus,
-		},
+		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
+			WithAttestationStatus(AttestationApproved),
 	}, {
 		name:        "No results",
 		expectedIDs: [][]byte{},
-		query: fetchReportsQuery{
-			createdAfter:      time.Unix(1, 0),
-			attestationStatus: &rejectedStatus,
-		},
+		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
+			WithAttestationStatus(AttestationRejected),
 	}}
 
 	for _, c := range cases {

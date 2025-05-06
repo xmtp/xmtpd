@@ -70,7 +70,7 @@ func (i *Indexer) StartIndexer(
 	cfg config.ContractsOptions,
 	validationService mlsvalidate.MLSValidationService,
 ) error {
-	client, err := blockchain.NewClient(i.ctx, cfg.RpcUrl)
+	client, err := blockchain.NewClient(i.ctx, cfg.AppChain.RpcURL)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (i *Indexer) StartIndexer(
 		"indexer-messages",
 		func(ctx context.Context) {
 			indexingLogger := i.log.Named("messages").
-				With(zap.String("contractAddress", cfg.MessagesContractAddress))
+				With(zap.String("contractAddress", cfg.AppChain.GroupMessageBroadcasterAddress))
 
 			indexLogs(
 				ctx,
@@ -105,7 +105,7 @@ func (i *Indexer) StartIndexer(
 				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
 				streamer.messagesBlockTracker,
 				streamer.reorgHandler,
-				cfg.MessagesContractAddress,
+				cfg.AppChain.GroupMessageBroadcasterAddress,
 			)
 		})
 
@@ -120,7 +120,7 @@ func (i *Indexer) StartIndexer(
 		"indexer-identities",
 		func(ctx context.Context) {
 			indexingLogger := i.log.Named("identity").
-				With(zap.String("contractAddress", cfg.IdentityUpdatesContractAddress))
+				With(zap.String("contractAddress", cfg.AppChain.IdentityUpdateBroadcasterAddress))
 			indexLogs(
 				ctx,
 				streamer.streamer.Client(),
@@ -135,7 +135,7 @@ func (i *Indexer) StartIndexer(
 				),
 				streamer.identityUpdatesBlockTracker,
 				streamer.reorgHandler,
-				cfg.IdentityUpdatesContractAddress,
+				cfg.AppChain.IdentityUpdateBroadcasterAddress,
 			)
 		})
 
@@ -165,7 +165,11 @@ func configureLogStream(
 		return nil, err
 	}
 
-	messagesTracker, err := NewBlockTracker(ctx, cfg.MessagesContractAddress, querier)
+	messagesTracker, err := NewBlockTracker(
+		ctx,
+		cfg.AppChain.GroupMessageBroadcasterAddress,
+		querier,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +177,9 @@ func configureLogStream(
 	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
 	messagesChannel, messagesReorgChannel := builder.ListenForContractEvent(
 		latestBlockNumber,
-		common.HexToAddress(cfg.MessagesContractAddress),
+		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
 		[]common.Hash{messagesTopic},
-		cfg.MaxChainDisconnectTime,
+		cfg.AppChain.MaxChainDisconnectTime,
 	)
 
 	identityUpdatesTopic, err := buildIdentityUpdatesTopic()
@@ -183,7 +187,11 @@ func configureLogStream(
 		return nil, err
 	}
 
-	identityUpdatesTracker, err := NewBlockTracker(ctx, cfg.IdentityUpdatesContractAddress, querier)
+	identityUpdatesTracker, err := NewBlockTracker(
+		ctx,
+		cfg.AppChain.IdentityUpdateBroadcasterAddress,
+		querier,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -191,9 +199,9 @@ func configureLogStream(
 	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
 	identityUpdatesChannel, identityUpdatesReorgChannel := builder.ListenForContractEvent(
 		latestBlockNumber,
-		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
+		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
 		[]common.Hash{identityUpdatesTopic},
-		cfg.MaxChainDisconnectTime,
+		cfg.AppChain.MaxChainDisconnectTime,
 	)
 
 	streamer, err := builder.Build()
@@ -399,7 +407,7 @@ func messagesContract(
 	client *ethclient.Client,
 ) (*gm.GroupMessageBroadcaster, error) {
 	return gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(cfg.MessagesContractAddress),
+		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
 		client,
 	)
 }
@@ -409,7 +417,7 @@ func identityUpdatesContract(
 	client *ethclient.Client,
 ) (*iu.IdentityUpdateBroadcaster, error) {
 	return iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
+		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
 		client,
 	)
 }

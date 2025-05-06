@@ -10,7 +10,7 @@ import (
 func BuildNamespace(options config.ServerOptions) string {
 	hash := ethcrypto.Keccak256(
 		[]byte(options.Signer.PrivateKey),
-		[]byte(options.Contracts.NodesContractAddress),
+		[]byte(options.Contracts.SettlementChain.NodeRegistryAddress),
 	)
 
 	return fmt.Sprintf("xmtpd_%s", HexEncode(hash)[:12])

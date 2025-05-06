@@ -10,32 +10,50 @@ func ValidateServerOptions(options ServerOptions) error {
 	missingSet := make(map[string]struct{})
 	customSet := make(map[string]struct{})
 
-	if options.Contracts.RpcUrl == "" {
-		missingSet["--contracts.rpc-url"] = struct{}{}
+	// App Chain validation.
+	if options.Contracts.AppChain.RpcURL == "" {
+		missingSet["--contracts.app-chain.rpc-url"] = struct{}{}
 	}
 
-	if options.Contracts.NodesContractAddress == "" {
-		missingSet["--contracts.nodes-address"] = struct{}{}
-	}
-
-	if options.Contracts.MessagesContractAddress == "" {
-		missingSet["--contracts.messages-address"] = struct{}{}
-	}
-
-	if options.Contracts.IdentityUpdatesContractAddress == "" {
-		missingSet["--contracts.identity-updates-address"] = struct{}{}
-	}
-
-	if options.Contracts.ChainID == 0 {
+	if options.Contracts.AppChain.ChainID == 0 {
 		customSet["--contracts.chain-id must be greater than 0"] = struct{}{}
 	}
 
-	if options.Contracts.RegistryRefreshInterval <= 0 {
-		customSet["--contracts.registry-refresh-interval must be greater than 0"] = struct{}{}
+	if options.Contracts.AppChain.GroupMessageBroadcasterAddress == "" {
+		missingSet["--contracts.app-chain.messages-address"] = struct{}{}
 	}
 
-	if options.Contracts.MaxChainDisconnectTime <= 0 {
-		customSet["--contracts.max-chain-disconnect-time must be greater than 0"] = struct{}{}
+	if options.Contracts.AppChain.IdentityUpdateBroadcasterAddress == "" {
+		missingSet["--contracts.app-chain.identity-updates-address"] = struct{}{}
+	}
+
+	if options.Contracts.AppChain.RateRegistryAddress == "" {
+		missingSet["--contracts.app-chain.rate-registry-address"] = struct{}{}
+	}
+
+	if options.Contracts.AppChain.RatesRefreshInterval <= 0 {
+		customSet["--contracts.app-chain.rates-refresh-interval must be greater than 0"] = struct{}{}
+	}
+
+	if options.Contracts.AppChain.MaxChainDisconnectTime <= 0 {
+		customSet["--contracts.app-chain.max-chain-disconnect-time must be greater than 0"] = struct{}{}
+	}
+
+	// Settlement Chain validation.
+	if options.Contracts.SettlementChain.RpcURL == "" {
+		missingSet["--contracts.settlement-chain.rpc-url"] = struct{}{}
+	}
+
+	if options.Contracts.SettlementChain.ChainID == 0 {
+		customSet["--contracts.settlement-chain.chain-id must be greater than 0"] = struct{}{}
+	}
+
+	if options.Contracts.SettlementChain.NodeRegistryAddress == "" {
+		missingSet["--contracts.settlement-chain.nodes-address"] = struct{}{}
+	}
+
+	if options.Contracts.SettlementChain.NodeRegistryRefreshInterval <= 0 {
+		customSet["--contracts.settlement-chain.registry-refresh-interval must be greater than 0"] = struct{}{}
 	}
 
 	if options.Payer.Enable {

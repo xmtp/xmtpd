@@ -57,7 +57,7 @@ func NewSmartContractRegistry(
 	options config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
 	contract, err := noderegistry.NewNodeRegistryCaller(
-		common.HexToAddress(options.NodesContractAddress),
+		common.HexToAddress(options.SettlementChain.NodeRegistryAddress),
 		ethclient,
 	)
 	if err != nil {
@@ -69,7 +69,7 @@ func NewSmartContractRegistry(
 	return &SmartContractRegistry{
 		ctx:                  ctx,
 		contract:             contract,
-		refreshInterval:      options.RegistryRefreshInterval,
+		refreshInterval:      options.SettlementChain.NodeRegistryRefreshInterval,
 		logger:               logger.Named("smartContractRegistry"),
 		newNodesNotifier:     newNotifier[[]Node](),
 		nodes:                make(map[uint32]Node),

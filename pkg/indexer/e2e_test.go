@@ -30,8 +30,14 @@ func startIndexing(
 
 	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(rpcUrl)
-	cfg.MessagesContractAddress = testutils.DeployGroupMessagesContract(t, rpcUrl)
-	cfg.IdentityUpdatesContractAddress = testutils.DeployIdentityUpdatesContract(t, rpcUrl)
+	cfg.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
+		t,
+		rpcUrl,
+	)
+	cfg.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
+		t,
+		rpcUrl,
+	)
 
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
@@ -54,10 +60,13 @@ func messagePublisher(
 ) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	var signer blockchain.TransactionSigner
-	signer, err := blockchain.NewPrivateKeySigner(payerCfg.PrivateKey, contractsCfg.ChainID)
+	signer, err := blockchain.NewPrivateKeySigner(
+		payerCfg.PrivateKey,
+		contractsCfg.AppChain.ChainID,
+	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsCfg.RpcUrl)
+	client, err := blockchain.NewClient(ctx, contractsCfg.AppChain.RpcURL)
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, testutils.NewLog(t))

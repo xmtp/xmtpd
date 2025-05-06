@@ -86,23 +86,44 @@ func (s *Store) FetchReport(ctx context.Context, id ReportID) (*PayerReportWithS
 	return convertPayerReport(report)
 }
 
-type fetchReportsQuery struct {
-	submissionStatus  *SubmissionStatus
-	attestationStatus *AttestationStatus
-	createdAfter      time.Time
+type FetchReportsQuery struct {
+	SubmissionStatus  *SubmissionStatus
+	AttestationStatus *AttestationStatus
+	CreatedAfter      time.Time
+}
+
+func (f *FetchReportsQuery) toParams() queries.FetchPayerReportsParams {
+	return queries.FetchPayerReportsParams{
+		CreatedAfter:      utils.NewNullTime(f.CreatedAfter),
+		SubmissionStatus:  utils.NewNullInt16(f.SubmissionStatus),
+		AttestationStatus: utils.NewNullInt16(f.AttestationStatus),
+	}
+}
+
+func NewFetchReportsQuery() *FetchReportsQuery {
+	return &FetchReportsQuery{}
+}
+
+func (f *FetchReportsQuery) WithSubmissionStatus(status SubmissionStatus) *FetchReportsQuery {
+	f.SubmissionStatus = &status
+	return f
+}
+
+func (f *FetchReportsQuery) WithAttestationStatus(status AttestationStatus) *FetchReportsQuery {
+	f.AttestationStatus = &status
+	return f
+}
+
+func (f *FetchReportsQuery) WithCreatedAfter(createdAfter time.Time) *FetchReportsQuery {
+	f.CreatedAfter = createdAfter
+	return f
 }
 
 func (s *Store) FetchReports(
 	ctx context.Context,
-	query fetchReportsQuery,
+	query *FetchReportsQuery,
 ) ([]*PayerReportWithStatus, error) {
-	params := queries.FetchPayerReportsParams{
-		CreatedAfter:      utils.NewNullTime(query.createdAfter),
-		SubmissionStatus:  utils.NewNullInt16(query.submissionStatus),
-		AttestationStatus: utils.NewNullInt16(query.attestationStatus),
-	}
-
-	rows, err := s.queries.FetchPayerReports(ctx, params)
+	rows, err := s.queries.FetchPayerReports(ctx, query.toParams())
 	if err != nil {
 		return nil, err
 	}

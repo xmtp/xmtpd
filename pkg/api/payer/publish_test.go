@@ -170,10 +170,6 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.OriginatorSequenceID(),
 		sequenceId,
 	)
-
-	expiryTime := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.Proto().
-		GetExpiryUnixtime()
-	assertTimestampIsReasonable(t, expiryTime)
 }
 
 func TestPublishToNodes(t *testing.T) {

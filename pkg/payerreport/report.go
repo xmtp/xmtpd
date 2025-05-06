@@ -133,15 +133,7 @@ func (p *PayerReport) ID() (ReportID, error) {
 }
 
 func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error) {
-	merkleTree, err := NewPayerMerkleTree(params.Payers)
-	if err != nil {
-		return nil, err
-	}
-
-	merkleRoot, err := utils.SliceToArray32(merkleTree.Root())
-	if err != nil {
-		return nil, err
-	}
+	merkleRoot := buildMerkleRoot(params.Payers)
 
 	return &PayerReportWithInputs{
 		PayerReport: PayerReport{
@@ -149,11 +141,10 @@ func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error)
 			StartSequenceID:  params.StartSequenceID,
 			EndSequenceID:    params.EndSequenceID,
 			PayersMerkleRoot: merkleRoot,
-			PayersLeafCount:  uint32(len(params.Payers)),
-			NodesCount:       uint32(len(params.NodeIDs)),
+			ActiveNodeIDs:    params.NodeIDs,
 		},
 		Payers:     params.Payers,
 		NodeIDs:    params.NodeIDs,
-		MerkleTree: merkleTree,
+		MerkleTree: nil,
 	}, nil
 }

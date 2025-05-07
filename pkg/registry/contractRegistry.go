@@ -259,7 +259,7 @@ func convertNode(rawNode noderegistry.INodeRegistryNodeWithId) Node {
 	}
 }
 
-func (f *SmartContractRegistry) Stop() {
-	f.cancel()
-	f.wg.Wait()
+func (s *SmartContractRegistry) Stop() {
+	s.cancel()
+	s.wg.Wait()
 }

@@ -63,17 +63,16 @@ type Payer struct {
 }
 
 type PayerReport struct {
-	ID                []byte
-	OriginatorNodeID  int32
-	StartSequenceID   int64
-	EndSequenceID     int64
-	PayersMerkleRoot  []byte
-	PayersLeafCount   int64
-	NodesHash         []byte
-	NodesCount        int32
-	SubmissionStatus  int16
-	AttestationStatus int16
-	CreatedAt         sql.NullTime
+	ID                  []byte
+	OriginatorNodeID    int32
+	StartSequenceID     int64
+	EndSequenceID       int64
+	EndMinuteSinceEpoch int32
+	PayersMerkleRoot    []byte
+	ActiveNodeIds       []int32
+	SubmissionStatus    int16
+	AttestationStatus   int16
+	CreatedAt           sql.NullTime
 }
 
 type PayerReportAttestation struct {

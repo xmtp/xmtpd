@@ -70,63 +70,93 @@ FROM unsettled_usage
 	JOIN second_newest_minute ON second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
 WHERE unsettled_usage.originator_id = @originator_id;
 
--- name: InsertOrIgnorePayerReport :exec
+-- name: GetLastSequenceIDForOriginatorMinute :one
+SELECT COALESCE(MAX(last_sequence_id), 0)::BIGINT AS last_sequence_id
+FROM unsettled_usage
+WHERE originator_id = @originator_id
+	AND minutes_since_epoch = @minutes_since_epoch;
+
+-- name: InsertOrIgnorePayerReport :execrows
 INSERT INTO payer_reports (
 		id,
 		originator_node_id,
 		start_sequence_id,
 		end_sequence_id,
+		end_minute_since_epoch,
 		payers_merkle_root,
-		payers_leaf_count,
-		nodes_hash,
-		nodes_count
+		active_node_ids
 	)
 VALUES (
 		@id,
 		@originator_node_id,
 		@start_sequence_id,
 		@end_sequence_id,
+		@end_minute_since_epoch,
 		@payers_merkle_root,
-		@payers_leaf_count,
-		@nodes_hash,
-		@nodes_count
+		@active_node_ids
 	) ON CONFLICT (id) DO NOTHING;
 
 -- name: InsertOrIgnorePayerReportAttestation :exec
 INSERT INTO payer_report_attestations (payer_report_id, node_id, signature)
 VALUES (@payer_report_id, @node_id, @signature) ON CONFLICT (payer_report_id, node_id) DO NOTHING;
 
--- name: FetchPayerReport :one
-SELECT *
-FROM payer_reports
-WHERE id = @id;
-
 -- name: FetchPayerReports :many
+WITH rpt AS (
+	SELECT pr.*,
+		pra.node_id,
+		pra.signature,
+		COUNT(pra.node_id) OVER (PARTITION BY pr.id) AS attestations_count
+	FROM payer_reports AS pr
+		LEFT JOIN payer_report_attestations AS pra ON pra.payer_report_id = pr.id
+	WHERE (
+			sqlc.narg(attestation_status_in)::SMALLINT [] IS NULL
+			OR pr.attestation_status = ANY(sqlc.narg(attestation_status_in)::SMALLINT [])
+		)
+		AND (
+			sqlc.narg(submission_status_in)::SMALLINT [] IS NULL
+			OR pr.submission_status = ANY(sqlc.narg(submission_status_in)::SMALLINT [])
+		)
+		AND (
+			sqlc.narg(created_after)::TIMESTAMP IS NULL
+			OR pr.created_at > sqlc.narg(created_after)
+		)
+		AND (
+			sqlc.narg(end_sequence_id)::BIGINT IS NULL
+			OR sqlc.narg(end_sequence_id) = pr.end_sequence_id
+		)
+		AND (
+			sqlc.narg(start_sequence_id)::BIGINT IS NULL
+			OR sqlc.narg(start_sequence_id) = pr.start_sequence_id
+		)
+		AND (
+			sqlc.narg(originator_node_id)::INT IS NULL
+			OR sqlc.narg(originator_node_id) = pr.originator_node_id
+		)
+		AND (
+			sqlc.narg(payer_report_id)::BYTEA IS NULL
+			OR sqlc.narg(payer_report_id)::BYTEA = pr.id
+		)
+)
 SELECT *
-FROM payer_reports
-WHERE (
-		sqlc.narg(attestation_status)::SMALLINT IS NULL
-		OR attestation_status = sqlc.narg(attestation_status)::SMALLINT
-	)
-	AND (
-		sqlc.narg(submission_status)::SMALLINT IS NULL
-		OR submission_status = sqlc.narg(submission_status)::SMALLINT
-	)
-	AND (
-		sqlc.narg(created_after)::TIMESTAMP IS NULL
-		OR created_at > sqlc.narg(created_after)
-	)
-	AND (
-		sqlc.narg(end_sequence_id)::BIGINT IS NULL
-		OR sqlc.narg(end_sequence_id) = end_sequence_id
-	)
-	AND (
-		sqlc.narg(start_sequence_id)::BIGINT IS NULL
-		OR sqlc.narg(start_sequence_id) = start_sequence_id
-	);
+FROM rpt
+WHERE sqlc.narg(min_attestations)::INT IS NULL
+	OR attestations_count >= sqlc.narg(min_attestations)::INT;
 
 -- name: SetReportAttestationStatus :exec
 UPDATE payer_reports
 SET attestation_status = @new_status
 WHERE id = @report_id
 	AND attestation_status IN (sqlc.slice(prev_status));
+
+-- name: FetchAttestations :many
+SELECT *
+FROM payer_report_attestations
+	LEFT JOIN payer_reports ON payer_reports.id = payer_report_attestations.payer_report_id
+WHERE (
+		sqlc.narg(payer_report_id)::BYTEA IS NULL
+		OR sqlc.narg(payer_report_id)::BYTEA = payer_report_id
+	)
+	AND (
+		sqlc.narg(attester_node_id)::INT IS NULL
+		OR sqlc.narg(attester_node_id)::INT = node_id
+	);

@@ -21,7 +21,7 @@ func TestPayerReportID(t *testing.T) {
 		StartSequenceID:  1,
 		EndSequenceID:    10,
 		PayersMerkleRoot: randomBytes32(),
-		ActiveNodeIds:    []uint32{1, 2, 3},
+		ActiveNodeIDs:    []uint32{1, 2, 3},
 	}
 
 	id, err := report.ID()

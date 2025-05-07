@@ -31,7 +31,7 @@ var payerReportMessageHash = abi.Arguments{
 	},
 	{
 		Name: "activeNodeIds",
-		Type: abi.Type{T: abi.ArrayTy, Size: 32, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
+		Type: abi.Type{T: abi.SliceTy, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
 	},
 }
 
@@ -51,10 +51,10 @@ const (
 	AttestationRejected                   = 2
 )
 
-type ReportID []byte
+type ReportID [32]byte
 
 func (r ReportID) String() string {
-	return hex.EncodeToString(r)
+	return hex.EncodeToString(r[:])
 }
 
 type PayerReport struct {
@@ -64,14 +64,12 @@ type PayerReport struct {
 	StartSequenceID uint64
 	// The report applies to messages with sequence IDs <= EndSequenceID
 	EndSequenceID uint64
+	// The timestamp of the message at EndSequenceID
+	EndMinuteSinceEpoch uint32
 	// The merkle root of the Payers mapping
 	PayersMerkleRoot [32]byte
-	// The number of leaves in the Payers merkle tree
-	PayersLeafCount uint32
-	// The hash of all the nodes included in the report, sorted
-	NodesHash [32]byte
-	// The number of nodes included in the report
-	NodesCount uint32
+	// The active node IDs in the report
+	ActiveNodeIDs []uint32
 }
 
 // A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
@@ -84,21 +82,25 @@ type PayerReportWithInputs struct {
 
 type PayerReportWithStatus struct {
 	PayerReport
-	SubmissionStatus  SubmissionStatus
+	AttestationSignatures []NodeSignature
+	// Whether the report has been submitted to the blockchain or not
+	SubmissionStatus SubmissionStatus
+	// Status of the current node's attestation of the report
 	AttestationStatus AttestationStatus
-	CreatedAt         time.Time
-	ID                [32]byte
+	// The timestamp of when the report was inserted into the node's database
+	CreatedAt time.Time
+	// The ID of the report
+	ID ReportID
 }
 
 func (p *PayerReport) ToProto() *proto.PayerReport {
 	return &proto.PayerReport{
-		OriginatorNodeId: p.OriginatorNodeID,
-		StartSequenceId:  p.StartSequenceID,
-		EndSequenceId:    p.EndSequenceID,
-		PayersMerkleRoot: p.PayersMerkleRoot[:],
-		PayersLeafCount:  p.PayersLeafCount,
-		NodesHash:        p.NodesHash[:],
-		NodesCount:       p.NodesCount,
+		OriginatorNodeId:    p.OriginatorNodeID,
+		StartSequenceId:     p.StartSequenceID,
+		EndSequenceId:       p.EndSequenceID,
+		PayersMerkleRoot:    p.PayersMerkleRoot[:],
+		ActiveNodeIds:       p.ActiveNodeIDs,
+		EndMinuteSinceEpoch: p.EndMinuteSinceEpoch,
 	}
 }
 
@@ -108,13 +110,14 @@ func (p *PayerReport) ID() (ReportID, error) {
 		p.StartSequenceID,
 		p.EndSequenceID,
 		p.PayersMerkleRoot,
-		p.PayersLeafCount,
-		p.NodesHash,
-		p.NodesCount,
+		p.ActiveNodeIDs,
 	)
 	if err != nil {
-		return nil, err
+		return ReportID{}, err
 	}
-	// Return the keccak256 hash
-	return utils.HashPayerReportInput(packedBytes), nil
+	hash, err := utils.SliceToArray32(utils.HashPayerReportInput(packedBytes))
+	if err != nil {
+		return ReportID{}, err
+	}
+	return ReportID(hash), nil
 }

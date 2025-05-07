@@ -134,6 +134,10 @@
         "targetOriginator": {
           "type": "integer",
           "format": "int64"
+        },
+        "expiryUnixtime": {
+          "type": "string",
+          "format": "int64"
         }
       },
       "title": "Wraps client envelope with payer signature"

@@ -269,6 +269,7 @@ type PayerEnvelope struct {
 	UnsignedClientEnvelope []byte                                  `protobuf:"bytes,1,opt,name=unsigned_client_envelope,json=unsignedClientEnvelope,proto3" json:"unsigned_client_envelope,omitempty"` // Protobuf serialized
 	PayerSignature         *associations.RecoverableEcdsaSignature `protobuf:"bytes,2,opt,name=payer_signature,json=payerSignature,proto3" json:"payer_signature,omitempty"`
 	TargetOriginator       uint32                                  `protobuf:"varint,3,opt,name=target_originator,json=targetOriginator,proto3" json:"target_originator,omitempty"`
+	ExpiryUnixtime         int64                                   `protobuf:"varint,4,opt,name=expiry_unixtime,json=expiryUnixtime,proto3" json:"expiry_unixtime,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -320,6 +321,13 @@ func (x *PayerEnvelope) GetPayerSignature() *associations.RecoverableEcdsaSignat
 func (x *PayerEnvelope) GetTargetOriginator() uint32 {
 	if x != nil {
 		return x.TargetOriginator
+	}
+	return 0
+}
+
+func (x *PayerEnvelope) GetExpiryUnixtime() int64 {
+	if x != nil {
+		return x.ExpiryUnixtime
 	}
 	return 0
 }
@@ -568,11 +576,12 @@ const file_xmtpv4_envelopes_envelopes_proto_rawDesc = "" +
 	"\x0fwelcome_message\x18\x03 \x01(\v2$.xmtp.mls.api.v1.WelcomeMessageInputH\x00R\x0ewelcomeMessage\x12X\n" +
 	"\x12upload_key_package\x18\x04 \x01(\v2(.xmtp.mls.api.v1.UploadKeyPackageRequestH\x00R\x10uploadKeyPackage\x12U\n" +
 	"\x0fidentity_update\x18\x05 \x01(\v2*.xmtp.identity.associations.IdentityUpdateH\x00R\x0eidentityUpdateB\t\n" +
-	"\apayload\"\xd6\x01\n" +
+	"\apayload\"\xff\x01\n" +
 	"\rPayerEnvelope\x128\n" +
 	"\x18unsigned_client_envelope\x18\x01 \x01(\fR\x16unsignedClientEnvelope\x12^\n" +
 	"\x0fpayer_signature\x18\x02 \x01(\v25.xmtp.identity.associations.RecoverableEcdsaSignatureR\x0epayerSignature\x12+\n" +
-	"\x11target_originator\x18\x03 \x01(\rR\x10targetOriginator\"\xc7\x02\n" +
+	"\x11target_originator\x18\x03 \x01(\rR\x10targetOriginator\x12'\n" +
+	"\x0fexpiry_unixtime\x18\x04 \x01(\x03R\x0eexpiryUnixtime\"\xc7\x02\n" +
 	"\x1aUnsignedOriginatorEnvelope\x12,\n" +
 	"\x12originator_node_id\x18\x01 \x01(\rR\x10originatorNodeId\x124\n" +
 	"\x16originator_sequence_id\x18\x02 \x01(\x04R\x14originatorSequenceId\x12#\n" +

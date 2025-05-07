@@ -8,8 +8,6 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -55,9 +53,10 @@ func (p *PayerReportManager) GenerateReport(
 		payers := make(map[common.Address]currency.PicoDollar)
 		return &PayerReportWithInputs{
 			PayerReport: PayerReport{
-				OriginatorNodeID: uint32(originatorID),
-				StartSequenceID:  params.LastReportEndSequenceID,
-				EndSequenceID:    params.LastReportEndSequenceID,
+				OriginatorNodeID:    uint32(originatorID),
+				StartSequenceID:     params.LastReportEndSequenceID,
+				EndSequenceID:       params.LastReportEndSequenceID,
+				EndMinuteSinceEpoch: 0,
 				// TODO: Implement merkle calculation
 				PayersMerkleRoot: buildMerkleRoot(payers),
 			},
@@ -79,9 +78,10 @@ func (p *PayerReportManager) GenerateReport(
 	mappedPayers := buildPayersMap(payers)
 	return &PayerReportWithInputs{
 		PayerReport: PayerReport{
-			OriginatorNodeID: uint32(originatorID),
-			StartSequenceID:  params.LastReportEndSequenceID,
-			EndSequenceID:    uint64(endSequenceID),
+			OriginatorNodeID:    uint32(originatorID),
+			StartSequenceID:     params.LastReportEndSequenceID,
+			EndSequenceID:       uint64(endSequenceID),
+			EndMinuteSinceEpoch: uint32(endMinute),
 			// TODO: Implement merkle calculation
 			PayersMerkleRoot: buildMerkleRoot(mappedPayers),
 		},
@@ -106,20 +106,7 @@ func (p *PayerReportManager) getStartMinute(
 		return 0, nil
 	}
 
-	envelope, err := p.queries.GetGatewayEnvelopeByID(ctx, queries.GetGatewayEnvelopeByIDParams{
-		OriginatorSequenceID: sequenceID,
-		OriginatorNodeID:     originatorID,
-	})
-	if err != nil {
-		return 0, err
-	}
-
-	parsedEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(envelope.OriginatorEnvelope)
-	if err != nil {
-		return 0, err
-	}
-
-	return utils.MinutesSinceEpoch(parsedEnvelope.OriginatorTime()), nil
+	return getMinuteFromSequenceID(ctx, p.queries, originatorID, sequenceID)
 }
 
 /*

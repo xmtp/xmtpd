@@ -136,6 +136,7 @@ type ConsentSave struct {
 	EntityType    ConsentTypeSave        `protobuf:"varint,1,opt,name=entity_type,json=entityType,proto3,enum=xmtp.device_sync.consent_backup.ConsentTypeSave" json:"entity_type,omitempty"`
 	State         ConsentStateSave       `protobuf:"varint,2,opt,name=state,proto3,enum=xmtp.device_sync.consent_backup.ConsentStateSave" json:"state,omitempty"`
 	Entity        string                 `protobuf:"bytes,3,opt,name=entity,proto3" json:"entity,omitempty"`
+	ConsentedAtNs int64                  `protobuf:"varint,4,opt,name=consented_at_ns,json=consentedAtNs,proto3" json:"consented_at_ns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -191,16 +192,24 @@ func (x *ConsentSave) GetEntity() string {
 	return ""
 }
 
+func (x *ConsentSave) GetConsentedAtNs() int64 {
+	if x != nil {
+		return x.ConsentedAtNs
+	}
+	return 0
+}
+
 var File_device_sync_consent_backup_proto protoreflect.FileDescriptor
 
 const file_device_sync_consent_backup_proto_rawDesc = "" +
 	"\n" +
-	" device_sync/consent_backup.proto\x12\x1fxmtp.device_sync.consent_backup\"\xc1\x01\n" +
+	" device_sync/consent_backup.proto\x12\x1fxmtp.device_sync.consent_backup\"\xe9\x01\n" +
 	"\vConsentSave\x12Q\n" +
 	"\ventity_type\x18\x01 \x01(\x0e20.xmtp.device_sync.consent_backup.ConsentTypeSaveR\n" +
 	"entityType\x12G\n" +
 	"\x05state\x18\x02 \x01(\x0e21.xmtp.device_sync.consent_backup.ConsentStateSaveR\x05state\x12\x16\n" +
-	"\x06entity\x18\x03 \x01(\tR\x06entity*\x9e\x01\n" +
+	"\x06entity\x18\x03 \x01(\tR\x06entity\x12&\n" +
+	"\x0fconsented_at_ns\x18\x04 \x01(\x03R\rconsentedAtNs*\x9e\x01\n" +
 	"\x0fConsentTypeSave\x12!\n" +
 	"\x1dCONSENT_TYPE_SAVE_UNSPECIFIED\x10\x00\x12%\n" +
 	"!CONSENT_TYPE_SAVE_CONVERSATION_ID\x10\x01\x12\x1e\n" +

@@ -258,6 +258,67 @@ func (x *BackupMetadataSave) GetEndNs() int64 {
 	return 0
 }
 
+// Backup Options
+type BackupOptions struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Elements      []BackupElementSelection `protobuf:"varint,1,rep,packed,name=elements,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"elements,omitempty"`
+	StartNs       *int64                   `protobuf:"varint,2,opt,name=start_ns,json=startNs,proto3,oneof" json:"start_ns,omitempty"`
+	EndNs         *int64                   `protobuf:"varint,3,opt,name=end_ns,json=endNs,proto3,oneof" json:"end_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BackupOptions) Reset() {
+	*x = BackupOptions{}
+	mi := &file_device_sync_device_sync_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackupOptions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackupOptions) ProtoMessage() {}
+
+func (x *BackupOptions) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_device_sync_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackupOptions.ProtoReflect.Descriptor instead.
+func (*BackupOptions) Descriptor() ([]byte, []int) {
+	return file_device_sync_device_sync_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BackupOptions) GetElements() []BackupElementSelection {
+	if x != nil {
+		return x.Elements
+	}
+	return nil
+}
+
+func (x *BackupOptions) GetStartNs() int64 {
+	if x != nil && x.StartNs != nil {
+		return *x.StartNs
+	}
+	return 0
+}
+
+func (x *BackupOptions) GetEndNs() int64 {
+	if x != nil && x.EndNs != nil {
+		return *x.EndNs
+	}
+	return 0
+}
+
 var File_device_sync_device_sync_proto protoreflect.FileDescriptor
 
 const file_device_sync_device_sync_proto_rawDesc = "" +
@@ -274,6 +335,12 @@ const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\x0eexported_at_ns\x18\x03 \x01(\x03R\fexportedAtNs\x12\x1e\n" +
 	"\bstart_ns\x18\x04 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
 	"\x06end_ns\x18\x05 \x01(\x03H\x01R\x05endNs\x88\x01\x01B\v\n" +
+	"\t_start_nsB\t\n" +
+	"\a_end_ns\"\xa9\x01\n" +
+	"\rBackupOptions\x12D\n" +
+	"\belements\x18\x01 \x03(\x0e2(.xmtp.device_sync.BackupElementSelectionR\belements\x12\x1e\n" +
+	"\bstart_ns\x18\x02 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
+	"\x06end_ns\x18\x03 \x01(\x03H\x01R\x05endNs\x88\x01\x01B\v\n" +
 	"\t_start_nsB\t\n" +
 	"\a_end_ns*\x8f\x01\n" +
 	"\x16BackupElementSelection\x12(\n" +
@@ -295,26 +362,28 @@ func file_device_sync_device_sync_proto_rawDescGZIP() []byte {
 }
 
 var file_device_sync_device_sync_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_device_sync_device_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_device_sync_device_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_device_sync_device_sync_proto_goTypes = []any{
 	(BackupElementSelection)(0), // 0: xmtp.device_sync.BackupElementSelection
 	(*BackupElement)(nil),       // 1: xmtp.device_sync.BackupElement
 	(*BackupMetadataSave)(nil),  // 2: xmtp.device_sync.BackupMetadataSave
-	(*GroupSave)(nil),           // 3: xmtp.device_sync.group_backup.GroupSave
-	(*GroupMessageSave)(nil),    // 4: xmtp.device_sync.message_backup.GroupMessageSave
-	(*ConsentSave)(nil),         // 5: xmtp.device_sync.consent_backup.ConsentSave
+	(*BackupOptions)(nil),       // 3: xmtp.device_sync.BackupOptions
+	(*GroupSave)(nil),           // 4: xmtp.device_sync.group_backup.GroupSave
+	(*GroupMessageSave)(nil),    // 5: xmtp.device_sync.message_backup.GroupMessageSave
+	(*ConsentSave)(nil),         // 6: xmtp.device_sync.consent_backup.ConsentSave
 }
 var file_device_sync_device_sync_proto_depIdxs = []int32{
 	2, // 0: xmtp.device_sync.BackupElement.metadata:type_name -> xmtp.device_sync.BackupMetadataSave
-	3, // 1: xmtp.device_sync.BackupElement.group:type_name -> xmtp.device_sync.group_backup.GroupSave
-	4, // 2: xmtp.device_sync.BackupElement.group_message:type_name -> xmtp.device_sync.message_backup.GroupMessageSave
-	5, // 3: xmtp.device_sync.BackupElement.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
+	4, // 1: xmtp.device_sync.BackupElement.group:type_name -> xmtp.device_sync.group_backup.GroupSave
+	5, // 2: xmtp.device_sync.BackupElement.group_message:type_name -> xmtp.device_sync.message_backup.GroupMessageSave
+	6, // 3: xmtp.device_sync.BackupElement.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
 	0, // 4: xmtp.device_sync.BackupMetadataSave.elements:type_name -> xmtp.device_sync.BackupElementSelection
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0, // 5: xmtp.device_sync.BackupOptions.elements:type_name -> xmtp.device_sync.BackupElementSelection
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_device_sync_device_sync_proto_init() }
@@ -332,13 +401,14 @@ func file_device_sync_device_sync_proto_init() {
 		(*BackupElement_Consent)(nil),
 	}
 	file_device_sync_device_sync_proto_msgTypes[1].OneofWrappers = []any{}
+	file_device_sync_device_sync_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_sync_device_sync_proto_rawDesc), len(file_device_sync_device_sync_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

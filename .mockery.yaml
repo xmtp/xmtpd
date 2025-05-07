@@ -4,6 +4,9 @@ outpkg: "{{.PackageName}}"
 dir: "pkg/mocks/{{.PackageName}}"
 filename: "mock_{{.InterfaceName}}.go"
 packages:
+  github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api:
+    interfaces:
+      ReplicationApi_SubscribeEnvelopesClient:
   github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api:
     interfaces:
       MetadataApiClient:

@@ -26,3 +26,15 @@ func NewNullInt64[T ~int64 | ~uint64](i *T) sql.NullInt64 {
 	}
 	return sql.NullInt64{Int64: int64(*i), Valid: true}
 }
+
+func NewNullInt16Slice[T ~int16 | ~uint16](ints []T) []int16 {
+	if ints == nil || len(ints) == 0 {
+		return nil
+	}
+
+	out := make([]int16, len(ints))
+	for idx, val := range ints {
+		out[idx] = int16(val)
+	}
+	return out
+}

@@ -105,12 +105,12 @@ WHERE id = @id;
 SELECT *
 FROM payer_reports
 WHERE (
-		sqlc.narg(attestation_status)::SMALLINT IS NULL
-		OR attestation_status = sqlc.narg(attestation_status)::SMALLINT
+		sqlc.narg(attestation_status_in)::SMALLINT [] IS NULL
+		OR attestation_status = ANY(sqlc.narg(attestation_status_in)::SMALLINT [])
 	)
 	AND (
-		sqlc.narg(submission_status)::SMALLINT IS NULL
-		OR submission_status = sqlc.narg(submission_status)::SMALLINT
+		sqlc.narg(submission_status_in)::SMALLINT [] IS NULL
+		OR submission_status = ANY(sqlc.narg(submission_status_in)::SMALLINT [])
 	)
 	AND (
 		sqlc.narg(created_after)::TIMESTAMP IS NULL

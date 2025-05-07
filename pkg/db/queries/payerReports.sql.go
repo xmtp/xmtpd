@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 const buildPayerReport = `-- name: BuildPayerReport :many
@@ -85,12 +87,12 @@ const fetchPayerReports = `-- name: FetchPayerReports :many
 SELECT id, originator_node_id, start_sequence_id, end_sequence_id, payers_merkle_root, payers_leaf_count, nodes_hash, nodes_count, submission_status, attestation_status, created_at
 FROM payer_reports
 WHERE (
-		$1::SMALLINT IS NULL
-		OR attestation_status = $1::SMALLINT
+		$1::SMALLINT [] IS NULL
+		OR attestation_status = ANY($1::SMALLINT [])
 	)
 	AND (
-		$2::SMALLINT IS NULL
-		OR submission_status = $2::SMALLINT
+		$2::SMALLINT [] IS NULL
+		OR submission_status = ANY($2::SMALLINT [])
 	)
 	AND (
 		$3::TIMESTAMP IS NULL
@@ -107,17 +109,17 @@ WHERE (
 `
 
 type FetchPayerReportsParams struct {
-	AttestationStatus sql.NullInt16
-	SubmissionStatus  sql.NullInt16
-	CreatedAfter      sql.NullTime
-	EndSequenceID     sql.NullInt64
-	StartSequenceID   sql.NullInt64
+	AttestationStatusIn []int16
+	SubmissionStatusIn  []int16
+	CreatedAfter        sql.NullTime
+	EndSequenceID       sql.NullInt64
+	StartSequenceID     sql.NullInt64
 }
 
 func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsParams) ([]PayerReport, error) {
 	rows, err := q.db.QueryContext(ctx, fetchPayerReports,
-		arg.AttestationStatus,
-		arg.SubmissionStatus,
+		pq.Array(arg.AttestationStatusIn),
+		pq.Array(arg.SubmissionStatusIn),
 		arg.CreatedAfter,
 		arg.EndSequenceID,
 		arg.StartSequenceID,

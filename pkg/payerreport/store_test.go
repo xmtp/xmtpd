@@ -169,6 +169,11 @@ func TestFetchReport(t *testing.T) {
 		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
 			WithAttestationStatus(AttestationApproved),
 	}, {
+		name:        "Multiple statuses",
+		expectedIDs: [][]byte{report2.ID[:]},
+		query: NewFetchReportsQuery().
+			WithAttestationStatus(AttestationApproved, AttestationRejected),
+	}, {
 		name:        "No results",
 		expectedIDs: [][]byte{},
 		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).

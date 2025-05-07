@@ -87,20 +87,20 @@ func (s *Store) FetchReport(ctx context.Context, id ReportID) (*PayerReportWithS
 }
 
 type FetchReportsQuery struct {
-	SubmissionStatus  *SubmissionStatus
-	AttestationStatus *AttestationStatus
-	StartSequenceID   *uint64
-	EndSequenceID     *uint64
-	CreatedAfter      time.Time
+	SubmissionStatusIn  []SubmissionStatus
+	AttestationStatusIn []AttestationStatus
+	StartSequenceID     *uint64
+	EndSequenceID       *uint64
+	CreatedAfter        time.Time
 }
 
 func (f *FetchReportsQuery) toParams() queries.FetchPayerReportsParams {
 	return queries.FetchPayerReportsParams{
-		CreatedAfter:      utils.NewNullTime(f.CreatedAfter),
-		SubmissionStatus:  utils.NewNullInt16(f.SubmissionStatus),
-		AttestationStatus: utils.NewNullInt16(f.AttestationStatus),
-		StartSequenceID:   utils.NewNullInt64(f.StartSequenceID),
-		EndSequenceID:     utils.NewNullInt64(f.EndSequenceID),
+		CreatedAfter:        utils.NewNullTime(f.CreatedAfter),
+		SubmissionStatusIn:  utils.NewNullInt16Slice(f.SubmissionStatusIn),
+		AttestationStatusIn: utils.NewNullInt16Slice(f.AttestationStatusIn),
+		StartSequenceID:     utils.NewNullInt64(f.StartSequenceID),
+		EndSequenceID:       utils.NewNullInt64(f.EndSequenceID),
 	}
 }
 
@@ -108,13 +108,19 @@ func NewFetchReportsQuery() *FetchReportsQuery {
 	return &FetchReportsQuery{}
 }
 
-func (f *FetchReportsQuery) WithSubmissionStatus(status SubmissionStatus) *FetchReportsQuery {
-	f.SubmissionStatus = &status
+func (f *FetchReportsQuery) WithSubmissionStatus(statuses ...SubmissionStatus) *FetchReportsQuery {
+	for _, status := range statuses {
+		f.SubmissionStatusIn = append(f.SubmissionStatusIn, status)
+	}
 	return f
 }
 
-func (f *FetchReportsQuery) WithAttestationStatus(status AttestationStatus) *FetchReportsQuery {
-	f.AttestationStatus = &status
+func (f *FetchReportsQuery) WithAttestationStatus(
+	statuses ...AttestationStatus,
+) *FetchReportsQuery {
+	for _, status := range statuses {
+		f.AttestationStatusIn = append(f.AttestationStatusIn, status)
+	}
 	return f
 }
 

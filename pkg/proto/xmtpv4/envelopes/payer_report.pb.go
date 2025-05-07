@@ -33,10 +33,12 @@ type PayerReport struct {
 	StartSequenceId uint64 `protobuf:"varint,2,opt,name=start_sequence_id,json=startSequenceId,proto3" json:"start_sequence_id,omitempty"`
 	// The sequence_id that the report ends at [inclusive]
 	EndSequenceId uint64 `protobuf:"varint,3,opt,name=end_sequence_id,json=endSequenceId,proto3" json:"end_sequence_id,omitempty"`
+	// The end timestamp of the report
+	EndMinuteSinceEpoch uint32 `protobuf:"varint,4,opt,name=end_minute_since_epoch,json=endMinuteSinceEpoch,proto3" json:"end_minute_since_epoch,omitempty"`
 	// The merkle root of the payer balance diff tree
-	PayersMerkleRoot []byte `protobuf:"bytes,4,opt,name=payers_merkle_root,json=payersMerkleRoot,proto3" json:"payers_merkle_root,omitempty"`
+	PayersMerkleRoot []byte `protobuf:"bytes,5,opt,name=payers_merkle_root,json=payersMerkleRoot,proto3" json:"payers_merkle_root,omitempty"`
 	// The node IDs that are active in the network at the time of the report
-	ActiveNodeIds []uint32 `protobuf:"varint,5,rep,packed,name=active_node_ids,json=activeNodeIds,proto3" json:"active_node_ids,omitempty"`
+	ActiveNodeIds []uint32 `protobuf:"varint,6,rep,packed,name=active_node_ids,json=activeNodeIds,proto3" json:"active_node_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -92,6 +94,13 @@ func (x *PayerReport) GetEndSequenceId() uint64 {
 	return 0
 }
 
+func (x *PayerReport) GetEndMinuteSinceEpoch() uint32 {
+	if x != nil {
+		return x.EndMinuteSinceEpoch
+	}
+	return 0
+}
+
 func (x *PayerReport) GetPayersMerkleRoot() []byte {
 	if x != nil {
 		return x.PayersMerkleRoot
@@ -106,20 +115,72 @@ func (x *PayerReport) GetActiveNodeIds() []uint32 {
 	return nil
 }
 
+type NodeSignature struct {
+	state         protoimpl.MessageState                  `protogen:"open.v1"`
+	NodeId        uint32                                  `protobuf:"varint,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Signature     *associations.RecoverableEcdsaSignature `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeSignature) Reset() {
+	*x = NodeSignature{}
+	mi := &file_xmtpv4_envelopes_payer_report_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeSignature) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeSignature) ProtoMessage() {}
+
+func (x *NodeSignature) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_envelopes_payer_report_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeSignature.ProtoReflect.Descriptor instead.
+func (*NodeSignature) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_envelopes_payer_report_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *NodeSignature) GetNodeId() uint32 {
+	if x != nil {
+		return x.NodeId
+	}
+	return 0
+}
+
+func (x *NodeSignature) GetSignature() *associations.RecoverableEcdsaSignature {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
 // An attestation of a payer report
 type PayerReportAttestation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The ID of the report, determined by hashing the report contents
 	ReportId []byte `protobuf:"bytes,1,opt,name=report_id,json=reportId,proto3" json:"report_id,omitempty"`
 	// The signature of the attester
-	Signature     *associations.RecoverableEcdsaSignature `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	Signature     *NodeSignature `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PayerReportAttestation) Reset() {
 	*x = PayerReportAttestation{}
-	mi := &file_xmtpv4_envelopes_payer_report_proto_msgTypes[1]
+	mi := &file_xmtpv4_envelopes_payer_report_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +192,7 @@ func (x *PayerReportAttestation) String() string {
 func (*PayerReportAttestation) ProtoMessage() {}
 
 func (x *PayerReportAttestation) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_envelopes_payer_report_proto_msgTypes[1]
+	mi := &file_xmtpv4_envelopes_payer_report_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +205,7 @@ func (x *PayerReportAttestation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PayerReportAttestation.ProtoReflect.Descriptor instead.
 func (*PayerReportAttestation) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_envelopes_payer_report_proto_rawDescGZIP(), []int{1}
+	return file_xmtpv4_envelopes_payer_report_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PayerReportAttestation) GetReportId() []byte {
@@ -154,7 +215,7 @@ func (x *PayerReportAttestation) GetReportId() []byte {
 	return nil
 }
 
-func (x *PayerReportAttestation) GetSignature() *associations.RecoverableEcdsaSignature {
+func (x *PayerReportAttestation) GetSignature() *NodeSignature {
 	if x != nil {
 		return x.Signature
 	}
@@ -165,16 +226,20 @@ var File_xmtpv4_envelopes_payer_report_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_envelopes_payer_report_proto_rawDesc = "" +
 	"\n" +
-	"#xmtpv4/envelopes/payer_report.proto\x12\x15xmtp.xmtpv4.envelopes\x1a%identity/associations/signature.proto\"\xe5\x01\n" +
+	"#xmtpv4/envelopes/payer_report.proto\x12\x15xmtp.xmtpv4.envelopes\x1a%identity/associations/signature.proto\"\x9a\x02\n" +
 	"\vPayerReport\x12,\n" +
 	"\x12originator_node_id\x18\x01 \x01(\rR\x10originatorNodeId\x12*\n" +
 	"\x11start_sequence_id\x18\x02 \x01(\x04R\x0fstartSequenceId\x12&\n" +
-	"\x0fend_sequence_id\x18\x03 \x01(\x04R\rendSequenceId\x12,\n" +
-	"\x12payers_merkle_root\x18\x04 \x01(\fR\x10payersMerkleRoot\x12&\n" +
-	"\x0factive_node_ids\x18\x05 \x03(\rR\ractiveNodeIds\"\x8a\x01\n" +
+	"\x0fend_sequence_id\x18\x03 \x01(\x04R\rendSequenceId\x123\n" +
+	"\x16end_minute_since_epoch\x18\x04 \x01(\rR\x13endMinuteSinceEpoch\x12,\n" +
+	"\x12payers_merkle_root\x18\x05 \x01(\fR\x10payersMerkleRoot\x12&\n" +
+	"\x0factive_node_ids\x18\x06 \x03(\rR\ractiveNodeIds\"}\n" +
+	"\rNodeSignature\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\rR\x06nodeId\x12S\n" +
+	"\tsignature\x18\x02 \x01(\v25.xmtp.identity.associations.RecoverableEcdsaSignatureR\tsignature\"y\n" +
 	"\x16PayerReportAttestation\x12\x1b\n" +
-	"\treport_id\x18\x01 \x01(\fR\breportId\x12S\n" +
-	"\tsignature\x18\x02 \x01(\v25.xmtp.identity.associations.RecoverableEcdsaSignatureR\tsignatureB\xd5\x01\n" +
+	"\treport_id\x18\x01 \x01(\fR\breportId\x12B\n" +
+	"\tsignature\x18\x02 \x01(\v2$.xmtp.xmtpv4.envelopes.NodeSignatureR\tsignatureB\xd5\x01\n" +
 	"\x19com.xmtp.xmtpv4.envelopesB\x10PayerReportProtoP\x01Z0github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes\xa2\x02\x03XXE\xaa\x02\x15Xmtp.Xmtpv4.Envelopes\xca\x02\x15Xmtp\\Xmtpv4\\Envelopes\xe2\x02!Xmtp\\Xmtpv4\\Envelopes\\GPBMetadata\xea\x02\x17Xmtp::Xmtpv4::Envelopesb\x06proto3"
 
 var (
@@ -189,19 +254,21 @@ func file_xmtpv4_envelopes_payer_report_proto_rawDescGZIP() []byte {
 	return file_xmtpv4_envelopes_payer_report_proto_rawDescData
 }
 
-var file_xmtpv4_envelopes_payer_report_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_xmtpv4_envelopes_payer_report_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_xmtpv4_envelopes_payer_report_proto_goTypes = []any{
 	(*PayerReport)(nil),                            // 0: xmtp.xmtpv4.envelopes.PayerReport
-	(*PayerReportAttestation)(nil),                 // 1: xmtp.xmtpv4.envelopes.PayerReportAttestation
-	(*associations.RecoverableEcdsaSignature)(nil), // 2: xmtp.identity.associations.RecoverableEcdsaSignature
+	(*NodeSignature)(nil),                          // 1: xmtp.xmtpv4.envelopes.NodeSignature
+	(*PayerReportAttestation)(nil),                 // 2: xmtp.xmtpv4.envelopes.PayerReportAttestation
+	(*associations.RecoverableEcdsaSignature)(nil), // 3: xmtp.identity.associations.RecoverableEcdsaSignature
 }
 var file_xmtpv4_envelopes_payer_report_proto_depIdxs = []int32{
-	2, // 0: xmtp.xmtpv4.envelopes.PayerReportAttestation.signature:type_name -> xmtp.identity.associations.RecoverableEcdsaSignature
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: xmtp.xmtpv4.envelopes.NodeSignature.signature:type_name -> xmtp.identity.associations.RecoverableEcdsaSignature
+	1, // 1: xmtp.xmtpv4.envelopes.PayerReportAttestation.signature:type_name -> xmtp.xmtpv4.envelopes.NodeSignature
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_xmtpv4_envelopes_payer_report_proto_init() }
@@ -215,7 +282,7 @@ func file_xmtpv4_envelopes_payer_report_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_xmtpv4_envelopes_payer_report_proto_rawDesc), len(file_xmtpv4_envelopes_payer_report_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

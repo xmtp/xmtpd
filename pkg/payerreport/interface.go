@@ -2,6 +2,9 @@ package payerreport
 
 import (
 	"context"
+
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 )
 
 type NodeSignature struct {
@@ -41,8 +44,33 @@ type IPayerReportManager interface {
 }
 
 type IPayerReportStore interface {
-	StoreReport(ctx context.Context, report *PayerReport) (ReportID, error)
+	CreatePayerReport(
+		ctx context.Context,
+		report *PayerReport,
+		payerEnvelope *envelopes.PayerEnvelope,
+	) (ReportID, error)
+	CreateAttestation(
+		ctx context.Context,
+		attestation *PayerReportAttestation,
+		payerEnvelope *envelopes.PayerEnvelope,
+	) error
 	FetchReport(ctx context.Context, id ReportID) (*PayerReportWithStatus, error)
 	FetchReports(ctx context.Context, query *FetchReportsQuery) ([]*PayerReportWithStatus, error)
-	StoreAttestation(ctx context.Context, attestation *PayerReportAttestation) error
+	StoreSyncedReport(
+		ctx context.Context,
+		envelope *envelopes.OriginatorEnvelope,
+		payerID int32,
+	) error
+	StoreSyncedAttestation(
+		ctx context.Context,
+		envelope *envelopes.OriginatorEnvelope,
+		payerID int32,
+	) error
+	SetReportAttestationStatus(
+		ctx context.Context,
+		id ReportID,
+		fromStatus []AttestationStatus,
+		toStatus AttestationStatus,
+	) error
+	Queries() *queries.Queries
 }

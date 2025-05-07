@@ -45,7 +45,7 @@ Replace the following environment variables with real values.
 ```shell
 export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
 export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=31337
-export XMTPD_CONTRACTS_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
+export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
 export ADMIN_PRIVATE_KEY="0xDEADBEEF"
 export NODE_HTTP_ADDRESS="https://grpc.example.com"
 export NODE_OWNER_ADDRESS="0xDEADBEEF"

@@ -20,7 +20,7 @@ type attestationWorker struct {
 	log          *zap.Logger
 	registrant   registrant.IRegistrant
 	store        payerreport.IPayerReportStore
-	verifier     payerreport.PayerReportVerifier
+	verifier     payerreport.IPayerReportVerifier
 	wg           sync.WaitGroup
 	pollInterval time.Duration
 }
@@ -33,7 +33,7 @@ func NewAttestationWorker(
 	ctx context.Context,
 	log *zap.Logger,
 	registrant registrant.IRegistrant,
-	verifier payerreport.PayerReportVerifier,
+	verifier payerreport.IPayerReportVerifier,
 	store payerreport.IPayerReportStore,
 	pollInterval time.Duration,
 ) *attestationWorker {

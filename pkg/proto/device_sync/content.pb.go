@@ -9,7 +9,6 @@
 package device_sync
 
 import (
-	message_contents "github.com/xmtp/xmtpd/pkg/proto/mls/message_contents"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -75,7 +74,7 @@ func (x *DeviceSyncContent) GetContent() isDeviceSyncContent_Content {
 	return nil
 }
 
-func (x *DeviceSyncContent) GetRequest() *message_contents.DeviceSyncRequest {
+func (x *DeviceSyncContent) GetRequest() *DeviceSyncRequest {
 	if x != nil {
 		if x, ok := x.Content.(*DeviceSyncContent_Request); ok {
 			return x.Request
@@ -93,7 +92,7 @@ func (x *DeviceSyncContent) GetAcknowledge() *DeviceSyncAcknowledge {
 	return nil
 }
 
-func (x *DeviceSyncContent) GetReply() *message_contents.DeviceSyncReply {
+func (x *DeviceSyncContent) GetReply() *DeviceSyncReply {
 	if x != nil {
 		if x, ok := x.Content.(*DeviceSyncContent_Reply); ok {
 			return x.Reply
@@ -116,7 +115,7 @@ type isDeviceSyncContent_Content interface {
 }
 
 type DeviceSyncContent_Request struct {
-	Request *message_contents.DeviceSyncRequest `protobuf:"bytes,1,opt,name=request,proto3,oneof"`
+	Request *DeviceSyncRequest `protobuf:"bytes,1,opt,name=request,proto3,oneof"`
 }
 
 type DeviceSyncContent_Acknowledge struct {
@@ -124,7 +123,7 @@ type DeviceSyncContent_Acknowledge struct {
 }
 
 type DeviceSyncContent_Reply struct {
-	Reply *message_contents.DeviceSyncReply `protobuf:"bytes,3,opt,name=reply,proto3,oneof"`
+	Reply *DeviceSyncReply `protobuf:"bytes,3,opt,name=reply,proto3,oneof"`
 }
 
 type DeviceSyncContent_PreferenceUpdates struct {
@@ -186,8 +185,8 @@ func (x *DeviceSyncAcknowledge) GetRequestId() string {
 
 // Preference updates
 type PreferenceUpdates struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Updates       []*UserPreferenceUpdate `protobuf:"bytes,1,rep,name=updates,proto3" json:"updates,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Updates       []*PreferenceUpdate    `protobuf:"bytes,1,rep,name=updates,proto3" json:"updates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -222,7 +221,7 @@ func (*PreferenceUpdates) Descriptor() ([]byte, []int) {
 	return file_device_sync_content_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *PreferenceUpdates) GetUpdates() []*UserPreferenceUpdate {
+func (x *PreferenceUpdates) GetUpdates() []*PreferenceUpdate {
 	if x != nil {
 		return x.Updates
 	}
@@ -230,31 +229,31 @@ func (x *PreferenceUpdates) GetUpdates() []*UserPreferenceUpdate {
 }
 
 // Preference update
-type UserPreferenceUpdate struct {
+type PreferenceUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Update:
 	//
-	//	*UserPreferenceUpdate_Consent
-	//	*UserPreferenceUpdate_Hmac
-	Update        isUserPreferenceUpdate_Update `protobuf_oneof:"update"`
+	//	*PreferenceUpdate_Consent
+	//	*PreferenceUpdate_Hmac
+	Update        isPreferenceUpdate_Update `protobuf_oneof:"update"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UserPreferenceUpdate) Reset() {
-	*x = UserPreferenceUpdate{}
+func (x *PreferenceUpdate) Reset() {
+	*x = PreferenceUpdate{}
 	mi := &file_device_sync_content_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserPreferenceUpdate) String() string {
+func (x *PreferenceUpdate) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserPreferenceUpdate) ProtoMessage() {}
+func (*PreferenceUpdate) ProtoMessage() {}
 
-func (x *UserPreferenceUpdate) ProtoReflect() protoreflect.Message {
+func (x *PreferenceUpdate) ProtoReflect() protoreflect.Message {
 	mi := &file_device_sync_content_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -266,51 +265,95 @@ func (x *UserPreferenceUpdate) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UserPreferenceUpdate.ProtoReflect.Descriptor instead.
-func (*UserPreferenceUpdate) Descriptor() ([]byte, []int) {
+// Deprecated: Use PreferenceUpdate.ProtoReflect.Descriptor instead.
+func (*PreferenceUpdate) Descriptor() ([]byte, []int) {
 	return file_device_sync_content_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UserPreferenceUpdate) GetUpdate() isUserPreferenceUpdate_Update {
+func (x *PreferenceUpdate) GetUpdate() isPreferenceUpdate_Update {
 	if x != nil {
 		return x.Update
 	}
 	return nil
 }
 
-func (x *UserPreferenceUpdate) GetConsent() *ConsentSave {
+func (x *PreferenceUpdate) GetConsent() *ConsentSave {
 	if x != nil {
-		if x, ok := x.Update.(*UserPreferenceUpdate_Consent); ok {
+		if x, ok := x.Update.(*PreferenceUpdate_Consent); ok {
 			return x.Consent
 		}
 	}
 	return nil
 }
 
-func (x *UserPreferenceUpdate) GetHmac() *HmacKeyUpdate {
+func (x *PreferenceUpdate) GetHmac() *HmacKeyUpdate {
 	if x != nil {
-		if x, ok := x.Update.(*UserPreferenceUpdate_Hmac); ok {
+		if x, ok := x.Update.(*PreferenceUpdate_Hmac); ok {
 			return x.Hmac
 		}
 	}
 	return nil
 }
 
-type isUserPreferenceUpdate_Update interface {
-	isUserPreferenceUpdate_Update()
+type isPreferenceUpdate_Update interface {
+	isPreferenceUpdate_Update()
 }
 
-type UserPreferenceUpdate_Consent struct {
+type PreferenceUpdate_Consent struct {
 	Consent *ConsentSave `protobuf:"bytes,1,opt,name=consent,proto3,oneof"`
 }
 
-type UserPreferenceUpdate_Hmac struct {
+type PreferenceUpdate_Hmac struct {
 	Hmac *HmacKeyUpdate `protobuf:"bytes,2,opt,name=hmac,proto3,oneof"`
 }
 
-func (*UserPreferenceUpdate_Consent) isUserPreferenceUpdate_Update() {}
+func (*PreferenceUpdate_Consent) isPreferenceUpdate_Update() {}
 
-func (*UserPreferenceUpdate_Hmac) isUserPreferenceUpdate_Update() {}
+func (*PreferenceUpdate_Hmac) isPreferenceUpdate_Update() {}
+
+type V1UserPreferenceUpdate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Contents      [][]byte               `protobuf:"bytes,1,rep,name=contents,proto3" json:"contents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *V1UserPreferenceUpdate) Reset() {
+	*x = V1UserPreferenceUpdate{}
+	mi := &file_device_sync_content_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *V1UserPreferenceUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*V1UserPreferenceUpdate) ProtoMessage() {}
+
+func (x *V1UserPreferenceUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_content_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use V1UserPreferenceUpdate.ProtoReflect.Descriptor instead.
+func (*V1UserPreferenceUpdate) Descriptor() ([]byte, []int) {
+	return file_device_sync_content_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *V1UserPreferenceUpdate) GetContents() [][]byte {
+	if x != nil {
+		return x.Contents
+	}
+	return nil
+}
 
 // Hmac key update
 type HmacKeyUpdate struct {
@@ -323,7 +366,7 @@ type HmacKeyUpdate struct {
 
 func (x *HmacKeyUpdate) Reset() {
 	*x = HmacKeyUpdate{}
-	mi := &file_device_sync_content_proto_msgTypes[4]
+	mi := &file_device_sync_content_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -335,7 +378,7 @@ func (x *HmacKeyUpdate) String() string {
 func (*HmacKeyUpdate) ProtoMessage() {}
 
 func (x *HmacKeyUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_content_proto_msgTypes[4]
+	mi := &file_device_sync_content_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -348,7 +391,7 @@ func (x *HmacKeyUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HmacKeyUpdate.ProtoReflect.Descriptor instead.
 func (*HmacKeyUpdate) Descriptor() ([]byte, []int) {
-	return file_device_sync_content_proto_rawDescGZIP(), []int{4}
+	return file_device_sync_content_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HmacKeyUpdate) GetKey() []byte {
@@ -365,30 +408,287 @@ func (x *HmacKeyUpdate) GetCycledAtNs() int64 {
 	return 0
 }
 
+// Initiator or new installation id requesting a sync payload send a request
+type DeviceSyncRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique identifier for each request
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Deprecated: Marked as deprecated in device_sync/content.proto.
+	PinCode string `protobuf:"bytes,2,opt,name=pin_code,json=pinCode,proto3" json:"pin_code,omitempty"`
+	// Deprecated: Marked as deprecated in device_sync/content.proto.
+	Kind          BackupElementSelection `protobuf:"varint,3,opt,name=kind,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"kind,omitempty"`
+	Options       *BackupOptions         `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceSyncRequest) Reset() {
+	*x = DeviceSyncRequest{}
+	mi := &file_device_sync_content_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceSyncRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceSyncRequest) ProtoMessage() {}
+
+func (x *DeviceSyncRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_content_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceSyncRequest.ProtoReflect.Descriptor instead.
+func (*DeviceSyncRequest) Descriptor() ([]byte, []int) {
+	return file_device_sync_content_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DeviceSyncRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+// Deprecated: Marked as deprecated in device_sync/content.proto.
+func (x *DeviceSyncRequest) GetPinCode() string {
+	if x != nil {
+		return x.PinCode
+	}
+	return ""
+}
+
+// Deprecated: Marked as deprecated in device_sync/content.proto.
+func (x *DeviceSyncRequest) GetKind() BackupElementSelection {
+	if x != nil {
+		return x.Kind
+	}
+	return BackupElementSelection_BACKUP_ELEMENT_SELECTION_UNSPECIFIED
+}
+
+func (x *DeviceSyncRequest) GetOptions() *BackupOptions {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+// Pre-existing installation id capable of supplying a sync payload sends this reply
+type DeviceSyncReply struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Must match an existing request_id from a message history request
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Where the messages can be retrieved from
+	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	// Encryption key
+	EncryptionKey *DeviceSyncKeyType `protobuf:"bytes,3,opt,name=encryption_key,json=encryptionKey,proto3" json:"encryption_key,omitempty"`
+	// ns unix timestamp of when the reply was sent
+	//
+	// Deprecated: Marked as deprecated in device_sync/content.proto.
+	TimestampNs uint64 `protobuf:"varint,4,opt,name=timestamp_ns,json=timestampNs,proto3" json:"timestamp_ns,omitempty"`
+	// request kind
+	//
+	// Deprecated: Marked as deprecated in device_sync/content.proto.
+	Kind BackupElementSelection `protobuf:"varint,5,opt,name=kind,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"kind,omitempty"`
+	// Metadata about the backup
+	Metadata      *BackupMetadataSave `protobuf:"bytes,6,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceSyncReply) Reset() {
+	*x = DeviceSyncReply{}
+	mi := &file_device_sync_content_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceSyncReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceSyncReply) ProtoMessage() {}
+
+func (x *DeviceSyncReply) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_content_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceSyncReply.ProtoReflect.Descriptor instead.
+func (*DeviceSyncReply) Descriptor() ([]byte, []int) {
+	return file_device_sync_content_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeviceSyncReply) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *DeviceSyncReply) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *DeviceSyncReply) GetEncryptionKey() *DeviceSyncKeyType {
+	if x != nil {
+		return x.EncryptionKey
+	}
+	return nil
+}
+
+// Deprecated: Marked as deprecated in device_sync/content.proto.
+func (x *DeviceSyncReply) GetTimestampNs() uint64 {
+	if x != nil {
+		return x.TimestampNs
+	}
+	return 0
+}
+
+// Deprecated: Marked as deprecated in device_sync/content.proto.
+func (x *DeviceSyncReply) GetKind() BackupElementSelection {
+	if x != nil {
+		return x.Kind
+	}
+	return BackupElementSelection_BACKUP_ELEMENT_SELECTION_UNSPECIFIED
+}
+
+func (x *DeviceSyncReply) GetMetadata() *BackupMetadataSave {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+// Key used to encrypt the message-bundle
+type DeviceSyncKeyType struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Key:
+	//
+	//	*DeviceSyncKeyType_Aes_256Gcm
+	Key           isDeviceSyncKeyType_Key `protobuf_oneof:"key"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceSyncKeyType) Reset() {
+	*x = DeviceSyncKeyType{}
+	mi := &file_device_sync_content_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceSyncKeyType) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceSyncKeyType) ProtoMessage() {}
+
+func (x *DeviceSyncKeyType) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_content_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceSyncKeyType.ProtoReflect.Descriptor instead.
+func (*DeviceSyncKeyType) Descriptor() ([]byte, []int) {
+	return file_device_sync_content_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeviceSyncKeyType) GetKey() isDeviceSyncKeyType_Key {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *DeviceSyncKeyType) GetAes_256Gcm() []byte {
+	if x != nil {
+		if x, ok := x.Key.(*DeviceSyncKeyType_Aes_256Gcm); ok {
+			return x.Aes_256Gcm
+		}
+	}
+	return nil
+}
+
+type isDeviceSyncKeyType_Key interface {
+	isDeviceSyncKeyType_Key()
+}
+
+type DeviceSyncKeyType_Aes_256Gcm struct {
+	Aes_256Gcm []byte `protobuf:"bytes,1,opt,name=aes_256_gcm,json=aes256Gcm,proto3,oneof"`
+}
+
+func (*DeviceSyncKeyType_Aes_256Gcm) isDeviceSyncKeyType_Key() {}
+
 var File_device_sync_content_proto protoreflect.FileDescriptor
 
 const file_device_sync_content_proto_rawDesc = "" +
 	"\n" +
-	"\x19device_sync/content.proto\x12\x18xmtp.device_sync.content\x1a device_sync/consent_backup.proto\x1a\"mls/message_contents/content.proto\"\xdf\x02\n" +
-	"\x11DeviceSyncContent\x12H\n" +
-	"\arequest\x18\x01 \x01(\v2,.xmtp.mls.message_contents.DeviceSyncRequestH\x00R\arequest\x12S\n" +
-	"\vacknowledge\x18\x02 \x01(\v2/.xmtp.device_sync.content.DeviceSyncAcknowledgeH\x00R\vacknowledge\x12B\n" +
-	"\x05reply\x18\x03 \x01(\v2*.xmtp.mls.message_contents.DeviceSyncReplyH\x00R\x05reply\x12\\\n" +
+	"\x19device_sync/content.proto\x12\x18xmtp.device_sync.content\x1a device_sync/consent_backup.proto\x1a\x1ddevice_sync/device_sync.proto\"\xdd\x02\n" +
+	"\x11DeviceSyncContent\x12G\n" +
+	"\arequest\x18\x01 \x01(\v2+.xmtp.device_sync.content.DeviceSyncRequestH\x00R\arequest\x12S\n" +
+	"\vacknowledge\x18\x02 \x01(\v2/.xmtp.device_sync.content.DeviceSyncAcknowledgeH\x00R\vacknowledge\x12A\n" +
+	"\x05reply\x18\x03 \x01(\v2).xmtp.device_sync.content.DeviceSyncReplyH\x00R\x05reply\x12\\\n" +
 	"\x12preference_updates\x18\x04 \x01(\v2+.xmtp.device_sync.content.PreferenceUpdatesH\x00R\x11preferenceUpdatesB\t\n" +
 	"\acontent\"6\n" +
 	"\x15DeviceSyncAcknowledge\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\"]\n" +
-	"\x11PreferenceUpdates\x12H\n" +
-	"\aupdates\x18\x01 \x03(\v2..xmtp.device_sync.content.UserPreferenceUpdateR\aupdates\"\xa9\x01\n" +
-	"\x14UserPreferenceUpdate\x12H\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\"Y\n" +
+	"\x11PreferenceUpdates\x12D\n" +
+	"\aupdates\x18\x01 \x03(\v2*.xmtp.device_sync.content.PreferenceUpdateR\aupdates\"\xa5\x01\n" +
+	"\x10PreferenceUpdate\x12H\n" +
 	"\aconsent\x18\x01 \x01(\v2,.xmtp.device_sync.consent_backup.ConsentSaveH\x00R\aconsent\x12=\n" +
 	"\x04hmac\x18\x02 \x01(\v2'.xmtp.device_sync.content.HmacKeyUpdateH\x00R\x04hmacB\b\n" +
-	"\x06update\"C\n" +
+	"\x06update\"4\n" +
+	"\x16V1UserPreferenceUpdate\x12\x1a\n" +
+	"\bcontents\x18\x01 \x03(\fR\bcontents\"C\n" +
 	"\rHmacKeyUpdate\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12 \n" +
 	"\fcycled_at_ns\x18\x02 \x01(\x03R\n" +
-	"cycledAtNsB\xd7\x01\n" +
+	"cycledAtNs\"\xce\x01\n" +
+	"\x11DeviceSyncRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1d\n" +
+	"\bpin_code\x18\x02 \x01(\tB\x02\x18\x01R\apinCode\x12@\n" +
+	"\x04kind\x18\x03 \x01(\x0e2(.xmtp.device_sync.BackupElementSelectionB\x02\x18\x01R\x04kind\x129\n" +
+	"\aoptions\x18\x04 \x01(\v2\x1f.xmtp.device_sync.BackupOptionsR\aoptions\"\xc1\x02\n" +
+	"\x0fDeviceSyncReply\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\x12R\n" +
+	"\x0eencryption_key\x18\x03 \x01(\v2+.xmtp.device_sync.content.DeviceSyncKeyTypeR\rencryptionKey\x12%\n" +
+	"\ftimestamp_ns\x18\x04 \x01(\x04B\x02\x18\x01R\vtimestampNs\x12@\n" +
+	"\x04kind\x18\x05 \x01(\x0e2(.xmtp.device_sync.BackupElementSelectionB\x02\x18\x01R\x04kind\x12@\n" +
+	"\bmetadata\x18\x06 \x01(\v2$.xmtp.device_sync.BackupMetadataSaveR\bmetadata\"<\n" +
+	"\x11DeviceSyncKeyType\x12 \n" +
+	"\vaes_256_gcm\x18\x01 \x01(\fH\x00R\taes256GcmB\x05\n" +
+	"\x03keyB\xd7\x01\n" +
 	"\x1ccom.xmtp.device_sync.contentB\fContentProtoP\x01Z+github.com/xmtp/xmtpd/pkg/proto/device_sync\xa2\x02\x03XDC\xaa\x02\x17Xmtp.DeviceSync.Content\xca\x02\x17Xmtp\\DeviceSync\\Content\xe2\x02#Xmtp\\DeviceSync\\Content\\GPBMetadata\xea\x02\x19Xmtp::DeviceSync::Contentb\x06proto3"
 
 var (
@@ -403,30 +703,40 @@ func file_device_sync_content_proto_rawDescGZIP() []byte {
 	return file_device_sync_content_proto_rawDescData
 }
 
-var file_device_sync_content_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_device_sync_content_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_device_sync_content_proto_goTypes = []any{
-	(*DeviceSyncContent)(nil),                  // 0: xmtp.device_sync.content.DeviceSyncContent
-	(*DeviceSyncAcknowledge)(nil),              // 1: xmtp.device_sync.content.DeviceSyncAcknowledge
-	(*PreferenceUpdates)(nil),                  // 2: xmtp.device_sync.content.PreferenceUpdates
-	(*UserPreferenceUpdate)(nil),               // 3: xmtp.device_sync.content.UserPreferenceUpdate
-	(*HmacKeyUpdate)(nil),                      // 4: xmtp.device_sync.content.HmacKeyUpdate
-	(*message_contents.DeviceSyncRequest)(nil), // 5: xmtp.mls.message_contents.DeviceSyncRequest
-	(*message_contents.DeviceSyncReply)(nil),   // 6: xmtp.mls.message_contents.DeviceSyncReply
-	(*ConsentSave)(nil),                        // 7: xmtp.device_sync.consent_backup.ConsentSave
+	(*DeviceSyncContent)(nil),      // 0: xmtp.device_sync.content.DeviceSyncContent
+	(*DeviceSyncAcknowledge)(nil),  // 1: xmtp.device_sync.content.DeviceSyncAcknowledge
+	(*PreferenceUpdates)(nil),      // 2: xmtp.device_sync.content.PreferenceUpdates
+	(*PreferenceUpdate)(nil),       // 3: xmtp.device_sync.content.PreferenceUpdate
+	(*V1UserPreferenceUpdate)(nil), // 4: xmtp.device_sync.content.V1UserPreferenceUpdate
+	(*HmacKeyUpdate)(nil),          // 5: xmtp.device_sync.content.HmacKeyUpdate
+	(*DeviceSyncRequest)(nil),      // 6: xmtp.device_sync.content.DeviceSyncRequest
+	(*DeviceSyncReply)(nil),        // 7: xmtp.device_sync.content.DeviceSyncReply
+	(*DeviceSyncKeyType)(nil),      // 8: xmtp.device_sync.content.DeviceSyncKeyType
+	(*ConsentSave)(nil),            // 9: xmtp.device_sync.consent_backup.ConsentSave
+	(BackupElementSelection)(0),    // 10: xmtp.device_sync.BackupElementSelection
+	(*BackupOptions)(nil),          // 11: xmtp.device_sync.BackupOptions
+	(*BackupMetadataSave)(nil),     // 12: xmtp.device_sync.BackupMetadataSave
 }
 var file_device_sync_content_proto_depIdxs = []int32{
-	5, // 0: xmtp.device_sync.content.DeviceSyncContent.request:type_name -> xmtp.mls.message_contents.DeviceSyncRequest
-	1, // 1: xmtp.device_sync.content.DeviceSyncContent.acknowledge:type_name -> xmtp.device_sync.content.DeviceSyncAcknowledge
-	6, // 2: xmtp.device_sync.content.DeviceSyncContent.reply:type_name -> xmtp.mls.message_contents.DeviceSyncReply
-	2, // 3: xmtp.device_sync.content.DeviceSyncContent.preference_updates:type_name -> xmtp.device_sync.content.PreferenceUpdates
-	3, // 4: xmtp.device_sync.content.PreferenceUpdates.updates:type_name -> xmtp.device_sync.content.UserPreferenceUpdate
-	7, // 5: xmtp.device_sync.content.UserPreferenceUpdate.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
-	4, // 6: xmtp.device_sync.content.UserPreferenceUpdate.hmac:type_name -> xmtp.device_sync.content.HmacKeyUpdate
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	6,  // 0: xmtp.device_sync.content.DeviceSyncContent.request:type_name -> xmtp.device_sync.content.DeviceSyncRequest
+	1,  // 1: xmtp.device_sync.content.DeviceSyncContent.acknowledge:type_name -> xmtp.device_sync.content.DeviceSyncAcknowledge
+	7,  // 2: xmtp.device_sync.content.DeviceSyncContent.reply:type_name -> xmtp.device_sync.content.DeviceSyncReply
+	2,  // 3: xmtp.device_sync.content.DeviceSyncContent.preference_updates:type_name -> xmtp.device_sync.content.PreferenceUpdates
+	3,  // 4: xmtp.device_sync.content.PreferenceUpdates.updates:type_name -> xmtp.device_sync.content.PreferenceUpdate
+	9,  // 5: xmtp.device_sync.content.PreferenceUpdate.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
+	5,  // 6: xmtp.device_sync.content.PreferenceUpdate.hmac:type_name -> xmtp.device_sync.content.HmacKeyUpdate
+	10, // 7: xmtp.device_sync.content.DeviceSyncRequest.kind:type_name -> xmtp.device_sync.BackupElementSelection
+	11, // 8: xmtp.device_sync.content.DeviceSyncRequest.options:type_name -> xmtp.device_sync.BackupOptions
+	8,  // 9: xmtp.device_sync.content.DeviceSyncReply.encryption_key:type_name -> xmtp.device_sync.content.DeviceSyncKeyType
+	10, // 10: xmtp.device_sync.content.DeviceSyncReply.kind:type_name -> xmtp.device_sync.BackupElementSelection
+	12, // 11: xmtp.device_sync.content.DeviceSyncReply.metadata:type_name -> xmtp.device_sync.BackupMetadataSave
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_device_sync_content_proto_init() }
@@ -435,6 +745,7 @@ func file_device_sync_content_proto_init() {
 		return
 	}
 	file_device_sync_consent_backup_proto_init()
+	file_device_sync_device_sync_proto_init()
 	file_device_sync_content_proto_msgTypes[0].OneofWrappers = []any{
 		(*DeviceSyncContent_Request)(nil),
 		(*DeviceSyncContent_Acknowledge)(nil),
@@ -442,8 +753,11 @@ func file_device_sync_content_proto_init() {
 		(*DeviceSyncContent_PreferenceUpdates)(nil),
 	}
 	file_device_sync_content_proto_msgTypes[3].OneofWrappers = []any{
-		(*UserPreferenceUpdate_Consent)(nil),
-		(*UserPreferenceUpdate_Hmac)(nil),
+		(*PreferenceUpdate_Consent)(nil),
+		(*PreferenceUpdate_Hmac)(nil),
+	}
+	file_device_sync_content_proto_msgTypes[8].OneofWrappers = []any{
+		(*DeviceSyncKeyType_Aes_256Gcm)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -451,7 +765,7 @@ func file_device_sync_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_sync_content_proto_rawDesc), len(file_device_sync_content_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -16,6 +16,38 @@
     "application/json"
   ],
   "paths": {
+    "/mls/v2/payer/get-reader-node": {
+      "post": {
+        "operationId": "PayerApi_GetReaderNode",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/payer_apiGetReaderNodeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/payer_apiGetReaderNodeRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PayerApi"
+        ]
+      }
+    },
     "/mls/v2/payer/publish-client-envelopes": {
       "post": {
         "summary": "Publish envelope",
@@ -418,6 +450,23 @@
         }
       },
       "title": "SignedPublicKey"
+    },
+    "payer_apiGetReaderNodeRequest": {
+      "type": "object"
+    },
+    "payer_apiGetReaderNodeResponse": {
+      "type": "object",
+      "properties": {
+        "readerNodeUrl": {
+          "type": "string"
+        },
+        "backupNodeUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "payer_apiPublishClientEnvelopesRequest": {
       "type": "object",

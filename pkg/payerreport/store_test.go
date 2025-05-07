@@ -30,9 +30,7 @@ func insertRandomReport(
 		StartSequenceID:  startID,
 		EndSequenceID:    startID + 10,
 		PayersMerkleRoot: testutils.RandomBytes(32),
-		PayersLeafCount:  10,
-		NodesHash:        testutils.RandomBytes(32),
-		NodesCount:       10,
+		ActiveNodeIds:    []int32{testutils.RandomInt32()},
 	}
 	require.NoError(t, store.queries.InsertOrIgnorePayerReport(t.Context(), insertParams))
 
@@ -54,9 +52,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 				StartSequenceID:  0,
 				EndSequenceID:    2,
 				PayersMerkleRoot: randomBytes32(),
-				PayersLeafCount:  1,
-				NodesHash:        randomBytes32(),
-				NodesCount:       1,
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectErr: false,
 		},
@@ -67,22 +63,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 				StartSequenceID:  0,
 				EndSequenceID:    2,
 				PayersMerkleRoot: randomBytes32(),
-				PayersLeafCount:  1,
-				NodesHash:        randomBytes32(),
-				NodesCount:       1,
-			},
-			expectErr: true,
-		},
-		{
-			name: "invalid nodes count",
-			report: PayerReport{
-				OriginatorNodeID: 1,
-				StartSequenceID:  0,
-				EndSequenceID:    2,
-				PayersMerkleRoot: randomBytes32(),
-				PayersLeafCount:  1,
-				NodesHash:        randomBytes32(),
-				NodesCount:       uint32(math.MaxInt32) + 1,
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectErr: true,
 		},
@@ -100,7 +81,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 				require.Len(t, id, 32)
 				storedReport, err := store.FetchReport(context.Background(), id)
 				require.NoError(t, err)
-				require.Equal(t, c.report, *storedReport)
+				require.Equal(t, c.report, storedReport.PayerReport)
 			}
 		})
 	}
@@ -113,9 +94,7 @@ func TestIdempotentStore(t *testing.T) {
 		StartSequenceID:  0,
 		EndSequenceID:    2,
 		PayersMerkleRoot: randomBytes32(),
-		PayersLeafCount:  1,
-		NodesHash:        randomBytes32(),
-		NodesCount:       1,
+		ActiveNodeIDs:    []uint32{1},
 	}
 	reportID, err := report.ID()
 	require.NoError(t, err)
@@ -169,6 +148,11 @@ func TestFetchReport(t *testing.T) {
 		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
 			WithAttestationStatus(AttestationApproved),
 	}, {
+		name:        "Multiple statuses",
+		expectedIDs: [][]byte{report2.ID[:]},
+		query: NewFetchReportsQuery().
+			WithAttestationStatus(AttestationApproved, AttestationRejected),
+	}, {
 		name:        "No results",
 		expectedIDs: [][]byte{},
 		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
@@ -190,6 +174,10 @@ func TestFetchReport(t *testing.T) {
 		expectedIDs: [][]byte{report1.ID[:]},
 		query: NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID).
 			WithEndSequenceID(report1.EndSequenceID),
+	}, {
+		name:        "With originator node ID",
+		expectedIDs: [][]byte{report1.ID[:]},
+		query:       NewFetchReportsQuery().WithOriginatorNodeID(report1.OriginatorNodeID),
 	}}
 
 	for _, c := range cases {

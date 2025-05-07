@@ -31,7 +31,7 @@ var payerReportMessageHash = abi.Arguments{
 	},
 	{
 		Name: "activeNodeIds",
-		Type: abi.Type{T: abi.ArrayTy, Size: 32, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
+		Type: abi.Type{T: abi.SliceTy, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
 	},
 }
 
@@ -66,12 +66,8 @@ type PayerReport struct {
 	EndSequenceID uint64
 	// The merkle root of the Payers mapping
 	PayersMerkleRoot [32]byte
-	// The number of leaves in the Payers merkle tree
-	PayersLeafCount uint32
-	// The hash of all the nodes included in the report, sorted
-	NodesHash [32]byte
-	// The number of nodes included in the report
-	NodesCount uint32
+	// The active node IDs in the report
+	ActiveNodeIDs []uint32
 }
 
 // A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
@@ -96,9 +92,7 @@ func (p *PayerReport) ToProto() *proto.PayerReport {
 		StartSequenceId:  p.StartSequenceID,
 		EndSequenceId:    p.EndSequenceID,
 		PayersMerkleRoot: p.PayersMerkleRoot[:],
-		PayersLeafCount:  p.PayersLeafCount,
-		NodesHash:        p.NodesHash[:],
-		NodesCount:       p.NodesCount,
+		ActiveNodeIds:    p.ActiveNodeIDs,
 	}
 }
 
@@ -108,9 +102,7 @@ func (p *PayerReport) ID() (ReportID, error) {
 		p.StartSequenceID,
 		p.EndSequenceID,
 		p.PayersMerkleRoot,
-		p.PayersLeafCount,
-		p.NodesHash,
-		p.NodesCount,
+		p.ActiveNodeIDs,
 	)
 	if err != nil {
 		return nil, err

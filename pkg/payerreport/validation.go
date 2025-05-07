@@ -85,19 +85,13 @@ func validateReportStructure(report *PayerReport) error {
 		return ErrInvalidOriginatorID
 	}
 
-	// The report must contain at least one node
-	if report.NodesCount == 0 {
+	if len(report.ActiveNodeIDs) == 0 {
 		return ErrNoNodes
-	}
-
-	// The nodes hash is required
-	if len(report.NodesHash) == 32 {
-		return ErrInvalidNodesHash
 	}
 
 	// The payers merkle root is required. It may be set to the hash of an empty set
 	// if there are no payers in the report.
-	if len(report.PayersMerkleRoot) == 32 {
+	if len(report.PayersMerkleRoot) != 32 {
 		return ErrInvalidPayersMerkleRoot
 	}
 

@@ -5,9 +5,7 @@ CREATE TABLE payer_reports (
     start_sequence_id BIGINT NOT NULL,
     end_sequence_id BIGINT NOT NULL,
     payers_merkle_root BYTEA NOT NULL,
-    payers_leaf_count BIGINT NOT NULL,
-    nodes_hash BYTEA NOT NULL,
-    nodes_count INT NOT NULL,
+    active_node_ids INT [] NOT NULL,
     -- 0 = pending, 1 = submitted, 2 = settled
     submission_status SMALLINT NOT NULL DEFAULT 0,
     -- 0 = pending, 1 = approved, 2 = rejected

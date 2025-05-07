@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 const buildPayerReport = `-- name: BuildPayerReport :many
@@ -57,7 +59,7 @@ func (q *Queries) BuildPayerReport(ctx context.Context, arg BuildPayerReportPara
 }
 
 const fetchPayerReport = `-- name: FetchPayerReport :one
-SELECT id, originator_node_id, start_sequence_id, end_sequence_id, payers_merkle_root, payers_leaf_count, nodes_hash, nodes_count, submission_status, attestation_status, created_at
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at
 FROM payer_reports
 WHERE id = $1
 `
@@ -71,9 +73,7 @@ func (q *Queries) FetchPayerReport(ctx context.Context, id []byte) (PayerReport,
 		&i.StartSequenceID,
 		&i.EndSequenceID,
 		&i.PayersMerkleRoot,
-		&i.PayersLeafCount,
-		&i.NodesHash,
-		&i.NodesCount,
+		pq.Array(&i.ActiveNodeIds),
 		&i.SubmissionStatus,
 		&i.AttestationStatus,
 		&i.CreatedAt,
@@ -82,15 +82,15 @@ func (q *Queries) FetchPayerReport(ctx context.Context, id []byte) (PayerReport,
 }
 
 const fetchPayerReports = `-- name: FetchPayerReports :many
-SELECT id, originator_node_id, start_sequence_id, end_sequence_id, payers_merkle_root, payers_leaf_count, nodes_hash, nodes_count, submission_status, attestation_status, created_at
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at
 FROM payer_reports
 WHERE (
-		$1::SMALLINT IS NULL
-		OR attestation_status = $1::SMALLINT
+		$1::SMALLINT [] IS NULL
+		OR attestation_status = ANY($1::SMALLINT [])
 	)
 	AND (
-		$2::SMALLINT IS NULL
-		OR submission_status = $2::SMALLINT
+		$2::SMALLINT [] IS NULL
+		OR submission_status = ANY($2::SMALLINT [])
 	)
 	AND (
 		$3::TIMESTAMP IS NULL
@@ -104,23 +104,29 @@ WHERE (
 		$5::BIGINT IS NULL
 		OR $5 = start_sequence_id
 	)
+	AND (
+		$6::INT IS NULL
+		OR $6 = originator_node_id
+	)
 `
 
 type FetchPayerReportsParams struct {
-	AttestationStatus sql.NullInt16
-	SubmissionStatus  sql.NullInt16
-	CreatedAfter      sql.NullTime
-	EndSequenceID     sql.NullInt64
-	StartSequenceID   sql.NullInt64
+	AttestationStatusIn []int16
+	SubmissionStatusIn  []int16
+	CreatedAfter        sql.NullTime
+	EndSequenceID       sql.NullInt64
+	StartSequenceID     sql.NullInt64
+	OriginatorNodeID    sql.NullInt32
 }
 
 func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsParams) ([]PayerReport, error) {
 	rows, err := q.db.QueryContext(ctx, fetchPayerReports,
-		arg.AttestationStatus,
-		arg.SubmissionStatus,
+		pq.Array(arg.AttestationStatusIn),
+		pq.Array(arg.SubmissionStatusIn),
 		arg.CreatedAfter,
 		arg.EndSequenceID,
 		arg.StartSequenceID,
+		arg.OriginatorNodeID,
 	)
 	if err != nil {
 		return nil, err
@@ -135,9 +141,7 @@ func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsPa
 			&i.StartSequenceID,
 			&i.EndSequenceID,
 			&i.PayersMerkleRoot,
-			&i.PayersLeafCount,
-			&i.NodesHash,
-			&i.NodesCount,
+			pq.Array(&i.ActiveNodeIds),
 			&i.SubmissionStatus,
 			&i.AttestationStatus,
 			&i.CreatedAt,
@@ -310,9 +314,7 @@ INSERT INTO payer_reports (
 		start_sequence_id,
 		end_sequence_id,
 		payers_merkle_root,
-		payers_leaf_count,
-		nodes_hash,
-		nodes_count
+		active_node_ids
 	)
 VALUES (
 		$1,
@@ -320,9 +322,7 @@ VALUES (
 		$3,
 		$4,
 		$5,
-		$6,
-		$7,
-		$8
+		$6
 	) ON CONFLICT (id) DO NOTHING
 `
 
@@ -332,9 +332,7 @@ type InsertOrIgnorePayerReportParams struct {
 	StartSequenceID  int64
 	EndSequenceID    int64
 	PayersMerkleRoot []byte
-	PayersLeafCount  int64
-	NodesHash        []byte
-	NodesCount       int32
+	ActiveNodeIds    []int32
 }
 
 func (q *Queries) InsertOrIgnorePayerReport(ctx context.Context, arg InsertOrIgnorePayerReportParams) error {
@@ -344,9 +342,7 @@ func (q *Queries) InsertOrIgnorePayerReport(ctx context.Context, arg InsertOrIgn
 		arg.StartSequenceID,
 		arg.EndSequenceID,
 		arg.PayersMerkleRoot,
-		arg.PayersLeafCount,
-		arg.NodesHash,
-		arg.NodesCount,
+		pq.Array(arg.ActiveNodeIds),
 	)
 	return err
 }

@@ -77,9 +77,7 @@ INSERT INTO payer_reports (
 		start_sequence_id,
 		end_sequence_id,
 		payers_merkle_root,
-		payers_leaf_count,
-		nodes_hash,
-		nodes_count
+		active_node_ids
 	)
 VALUES (
 		@id,
@@ -87,9 +85,7 @@ VALUES (
 		@start_sequence_id,
 		@end_sequence_id,
 		@payers_merkle_root,
-		@payers_leaf_count,
-		@nodes_hash,
-		@nodes_count
+		@active_node_ids
 	) ON CONFLICT (id) DO NOTHING;
 
 -- name: InsertOrIgnorePayerReportAttestation :exec
@@ -105,12 +101,12 @@ WHERE id = @id;
 SELECT *
 FROM payer_reports
 WHERE (
-		sqlc.narg(attestation_status)::SMALLINT IS NULL
-		OR attestation_status = sqlc.narg(attestation_status)::SMALLINT
+		sqlc.narg(attestation_status_in)::SMALLINT [] IS NULL
+		OR attestation_status = ANY(sqlc.narg(attestation_status_in)::SMALLINT [])
 	)
 	AND (
-		sqlc.narg(submission_status)::SMALLINT IS NULL
-		OR submission_status = sqlc.narg(submission_status)::SMALLINT
+		sqlc.narg(submission_status_in)::SMALLINT [] IS NULL
+		OR submission_status = ANY(sqlc.narg(submission_status_in)::SMALLINT [])
 	)
 	AND (
 		sqlc.narg(created_after)::TIMESTAMP IS NULL
@@ -123,6 +119,10 @@ WHERE (
 	AND (
 		sqlc.narg(start_sequence_id)::BIGINT IS NULL
 		OR sqlc.narg(start_sequence_id) = start_sequence_id
+	)
+	AND (
+		sqlc.narg(originator_node_id)::INT IS NULL
+		OR sqlc.narg(originator_node_id) = originator_node_id
 	);
 
 -- name: SetReportAttestationStatus :exec

@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -158,7 +159,7 @@ func (s *SmartContractRegistry) refreshLoop() {
 func (s *SmartContractRegistry) refreshData() error {
 	fromContract, err := s.loadUnfilteredFromContract()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not load nodes from contract: %v", err)
 	}
 
 	newNodes := []Node{}
@@ -258,7 +259,7 @@ func convertNode(rawNode noderegistry.INodeRegistryNodeWithId) Node {
 	}
 }
 
-func (f *SmartContractRegistry) Stop() {
-	f.cancel()
-	f.wg.Wait()
+func (s *SmartContractRegistry) Stop() {
+	s.cancel()
+	s.wg.Wait()
 }

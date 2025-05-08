@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/prune"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"log"
-	"os"
 )
 
 var Version string
@@ -53,7 +54,6 @@ func main() {
 		options.DB.ReadTimeout,
 		options.DB.NameOverride,
 	)
-
 	if err != nil {
 		fatal("Could not connect to DB: %s", err)
 	}

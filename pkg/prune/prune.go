@@ -3,6 +3,7 @@ package prune
 import (
 	"context"
 	"database/sql"
+
 	"go.uber.org/zap"
 )
 

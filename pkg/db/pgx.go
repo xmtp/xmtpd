@@ -158,6 +158,9 @@ func NewNamespacedDB(
 	return db, nil
 }
 
+// ConnectToDB establishes a connection to an existing database using the provided DSN.
+// Unlike NewNamespacedDB, this function does not create the database or run migrations.
+// If namespace is provided, it overrides the database name in the DSN.
 func ConnectToDB(
 	ctx context.Context,
 	logger *zap.Logger,

@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"testing"
 	"time"
 
@@ -105,7 +106,8 @@ func CreatePayerEnvelope(
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
-		TargetOriginator: nodeID,
+		TargetOriginator:     nodeID,
+		MessageRetentionDays: constants.DEFAULT_STORAGE_DURATION_DAYS,
 	}
 }
 

@@ -58,7 +58,11 @@ func TestCalculateBaseFee(t *testing.T) {
 	messageSize := int64(100)
 	storageDurationDays := int64(1)
 
-	baseFee, err := calculator.CalculateBaseFee(messageTime, messageSize, storageDurationDays)
+	baseFee, err := calculator.CalculateBaseFee(
+		messageTime,
+		messageSize,
+		uint32(storageDurationDays),
+	)
 	require.NoError(t, err)
 
 	expectedFee := RATE_MESSAGE_FEE + (RATE_STORAGE_FEE * messageSize * storageDurationDays)
@@ -100,7 +104,7 @@ func TestOverflow(t *testing.T) {
 	_, err := calculator.CalculateBaseFee(
 		messageTime,
 		int64(messageSize),
-		int64(storageDurationDays),
+		uint32(storageDurationDays),
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "storage fee calculation overflow")

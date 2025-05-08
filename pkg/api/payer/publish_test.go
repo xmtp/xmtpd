@@ -3,7 +3,6 @@ package payer_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -213,18 +212,4 @@ func TestPublishToNodes(t *testing.T) {
 
 	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
 	require.EqualValues(t, 100, targetOriginator)
-
-	expiryTime := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.Proto().
-		GetExpiryUnixtime()
-	assertTimestampIsReasonable(t, expiryTime)
-}
-
-func assertTimestampIsReasonable(t *testing.T, timestamp int64) {
-	// expiry is in the future
-	now := time.Now().Unix()
-	require.GreaterOrEqual(t, timestamp, now)
-
-	// expiry is less than 90 days + some test fuzzing
-	future := time.Now().Add(time.Hour * 24 * 90).Add(time.Minute * 30).Unix()
-	require.Less(t, timestamp, future)
 }

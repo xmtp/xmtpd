@@ -94,31 +94,18 @@ func ValidateServerOptions(options ServerOptions) error {
 
 func ValidatePruneOptions(options PruneOptions) error {
 	missingSet := make(map[string]struct{})
-	customSet := make(map[string]struct{})
 
 	if options.DB.WriterConnectionString == "" {
 		missingSet["--DB.WriterConnectionString"] = struct{}{}
 	}
 
-	if len(missingSet) > 0 || len(customSet) > 0 {
-		var errs []string
-		if len(missingSet) > 0 {
+	if len(missingSet) > 0 {
+		var errorMessages []string
+		for err := range missingSet {
+			errorMessages = append(errorMessages, err)
+		}
 
-			var errorMessages []string
-			for err := range missingSet {
-				errorMessages = append(errorMessages, err)
-			}
-			errs = append(
-				errs,
-				fmt.Sprintf("Missing required arguments: %s", strings.Join(errorMessages, ", ")),
-			)
-		}
-		if len(customSet) > 0 {
-			for err := range customSet {
-				errs = append(errs, err)
-			}
-		}
-		return errors.New(strings.Join(errs, "; "))
+		return fmt.Errorf("missing required arguments: %s", strings.Join(errorMessages, ", "))
 	}
 
 	return nil

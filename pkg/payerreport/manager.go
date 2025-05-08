@@ -55,7 +55,6 @@ func (p *PayerReportManager) GenerateReport(
 			EndSequenceID:    params.LastReportEndSequenceID,
 			// TODO: Implement merkle calculation
 			PayersMerkleRoot: []byte("fix me"),
-			PayersLeafCount:  uint32(0),
 		}, nil
 	}
 
@@ -78,7 +77,6 @@ func (p *PayerReportManager) GenerateReport(
 		EndSequenceID:    uint64(endSequenceID),
 		// TODO: Implement merkle calculation
 		PayersMerkleRoot: []byte("fix me"),
-		PayersLeafCount:  uint32(len(payers)),
 	}, nil
 }
 

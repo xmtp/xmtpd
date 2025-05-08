@@ -73,3 +73,7 @@ func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
 func (p *PayerEnvelope) TargetTopic() topic.Topic {
 	return p.ClientEnvelope.TargetTopic()
 }
+
+func (p *PayerEnvelope) RetentionDays() uint32 {
+	return p.proto.MessageRetentionDays
+}

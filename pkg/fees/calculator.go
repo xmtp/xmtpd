@@ -22,7 +22,7 @@ func NewFeeCalculator(ratesFetcher IRatesFetcher) *FeeCalculator {
 func (c *FeeCalculator) CalculateBaseFee(
 	messageTime time.Time,
 	messageSize int64,
-	storageDurationDays int64,
+	storageDurationDays uint32,
 ) (currency.PicoDollar, error) {
 	if messageSize <= 0 {
 		return 0, fmt.Errorf("messageSize must be greater than 0, got %d", messageSize)

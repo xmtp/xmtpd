@@ -498,10 +498,10 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
-	expiry := int64(math.MaxInt64)
+	retentionDays := uint32(math.MaxUint32)
 
 	if !clientEnvelope.Aad().IsCommit {
-		expiry = time.Now().Add(time.Hour * 24 * 90).Unix()
+		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
 	}
 
 	return &envelopesProto.PayerEnvelope{
@@ -509,8 +509,8 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
-		TargetOriginator: originatorID,
-		ExpiryUnixtime:   expiry,
+		TargetOriginator:     originatorID,
+		MessageRetentionDays: retentionDays,
 	}, nil
 }
 

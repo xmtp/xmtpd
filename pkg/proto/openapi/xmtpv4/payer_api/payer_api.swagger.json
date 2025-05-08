@@ -395,6 +395,12 @@
         },
         "identityUpdate": {
           "$ref": "#/definitions/associationsIdentityUpdate"
+        },
+        "payerReport": {
+          "$ref": "#/definitions/envelopesPayerReport"
+        },
+        "payerReportAttestation": {
+          "$ref": "#/definitions/envelopesPayerReportAttestation"
         }
       }
     },
@@ -414,6 +420,55 @@
         }
       },
       "title": "Signed originator envelope"
+    },
+    "envelopesPayerReport": {
+      "type": "object",
+      "properties": {
+        "originatorNodeId": {
+          "type": "integer",
+          "format": "int64",
+          "title": "The originator this report is referring to"
+        },
+        "startSequenceId": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The sequence_id that the report starts at [exclusive]"
+        },
+        "endSequenceId": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The sequence_id that the report ends at [inclusive]"
+        },
+        "payersMerkleRoot": {
+          "type": "string",
+          "format": "byte",
+          "title": "The merkle root of the payer balance diff tree"
+        },
+        "activeNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": "The node IDs that are active in the network at the time of the report"
+        }
+      },
+      "title": "A report of the payers and nodes that sent messages in a given range of messages"
+    },
+    "envelopesPayerReportAttestation": {
+      "type": "object",
+      "properties": {
+        "reportId": {
+          "type": "string",
+          "format": "byte",
+          "title": "The ID of the report, determined by hashing the report contents"
+        },
+        "signature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature",
+          "title": "The signature of the attester"
+        }
+      },
+      "title": "An attestation of a payer report"
     },
     "identityassociationsSignature": {
       "type": "object",

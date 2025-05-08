@@ -80,8 +80,13 @@ func (m *MerkleTree) makeProof(indices []int) (MultiProof, error) {
 		known[balancedLeafCount+idx] = true
 	}
 
+	leafCountBytes, err := IntToBytes32(m.LeafCount())
+	if err != nil {
+		return MultiProof{}, err
+	}
+
 	// The first proof element is always the leaf count.
-	proofElements = append(proofElements, IntToBytes32(m.LeafCount()))
+	proofElements = append(proofElements, ProofElement(leafCountBytes))
 
 	// Calculate proofs to prove the existence of the indices.
 	for i := balancedLeafCount - 1; i > 0; i-- {

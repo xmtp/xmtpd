@@ -14,11 +14,13 @@ const (
 )
 
 var (
-	leafPrefixBytes        = []byte(LEAF_PREFIX)
-	nodePrefixBytes        = []byte(NODE_PREFIX)
-	rootPrefixBytes        = []byte(ROOT_PREFIX)
-	ErrInvalidLeafCount    = errors.New("invalid leaf count")
-	ErrInvalidBufferLength = errors.New("invalid buffer length")
+	leafPrefixBytes             = []byte(LEAF_PREFIX)
+	nodePrefixBytes             = []byte(NODE_PREFIX)
+	rootPrefixBytes             = []byte(ROOT_PREFIX)
+	ErrInvalidLeafCount         = errors.New("invalid leaf count")
+	ErrInvalidBufferLength      = errors.New("invalid buffer length")
+	ErrInvalidIntToBytes32Input = errors.New("invalid int to bytes32 input")
+	ErrInvalidBytes32ToIntInput = errors.New("invalid bytes32 to int input")
 )
 
 // Hash computes the Keccak-256 hash of a buffer.
@@ -64,7 +66,10 @@ func HashRoot(leafCount int, root []byte) ([]byte, error) {
 		return nil, ErrInvalidLeafCount
 	}
 
-	leafCountBytes := IntToBytes32(leafCount)
+	leafCountBytes, err := IntToBytes32(leafCount)
+	if err != nil {
+		return nil, err
+	}
 
 	rootPrefixLen := len(rootPrefixBytes)
 	leafCountLen := len(leafCountBytes) // Length of the byte representation
@@ -79,14 +84,18 @@ func HashRoot(leafCount int, root []byte) ([]byte, error) {
 	return Hash(buffer), nil
 }
 
-func IntToBytes32(value int) []byte {
+func IntToBytes32(value int) ([]byte, error) {
+	if value < 0 || value > (1<<31)-1 {
+		return nil, ErrInvalidIntToBytes32Input
+	}
+
 	valueBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(valueBytes, uint64(value))
 
 	buffer := make([]byte, 32)
 	copy(buffer[24:], valueBytes)
 
-	return buffer
+	return buffer, nil
 }
 
 func Bytes32ToInt(buffer []byte) (int, error) {
@@ -97,14 +106,14 @@ func Bytes32ToInt(buffer []byte) (int, error) {
 	// Check that all of the first 28 bytes are 0
 	for i := 0; i < 28; i++ {
 		if buffer[i] != 0 {
-			return 0, ErrInvalidLeafCount
+			return 0, ErrInvalidBytes32ToIntInput
 		}
 	}
 
 	uint32Value := binary.BigEndian.Uint32(buffer[28:])
 
 	if uint32Value > 1<<31-1 {
-		return 0, ErrInvalidLeafCount
+		return 0, ErrInvalidBytes32ToIntInput
 	}
 
 	return int(uint32Value), nil

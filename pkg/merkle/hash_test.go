@@ -1406,9 +1406,10 @@ func TestIntToBytes32(t *testing.T) {
 		name     string
 		input    int
 		expected []byte
+		wantErr  bool
 	}{
 		{
-			"A",
+			"0",
 			0,
 			[]byte{
 				0,
@@ -1444,9 +1445,10 @@ func TestIntToBytes32(t *testing.T) {
 				0,
 				0,
 			},
+			false,
 		},
 		{
-			"B",
+			"1",
 			1,
 			[]byte{
 				0,
@@ -1482,9 +1484,10 @@ func TestIntToBytes32(t *testing.T) {
 				0,
 				1,
 			},
+			false,
 		},
 		{
-			"C",
+			"78",
 			78,
 			[]byte{
 				0,
@@ -1520,9 +1523,10 @@ func TestIntToBytes32(t *testing.T) {
 				0,
 				78,
 			},
+			false,
 		},
 		{
-			"D",
+			"46984",
 			46984,
 			[]byte{
 				0,
@@ -1558,19 +1562,103 @@ func TestIntToBytes32(t *testing.T) {
 				183,
 				136,
 			},
+			false,
+		},
+		{
+			"Negative input",
+			-1,
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+			},
+			true,
+		},
+		{
+			"1<<31",
+			1 << 31,
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+			},
+			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := merkle.IntToBytes32(tt.input)
-			if !bytes.Equal(result, tt.expected) {
-				t.Errorf(
-					"IntToBytes32 of %d = %d, expected %d",
-					tt.input,
-					result,
-					tt.expected,
-				)
+			result, err := merkle.IntToBytes32(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if !bytes.Equal(result, tt.expected) {
+					t.Errorf(
+						"IntToBytes32 of %d = %d, expected %d",
+						tt.input,
+						result,
+						tt.expected,
+					)
+				}
 			}
 		})
 	}

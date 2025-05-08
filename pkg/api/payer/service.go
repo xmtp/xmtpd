@@ -81,7 +81,7 @@ func NewPayerApiService(
 func (s *Service) GetReaderNode(
 	ctx context.Context,
 	req *payer_api.GetReaderNodeRequest,
-) (*payer_api.GetReaderNodeResponse, error) {
+) (resp *payer_api.GetReaderNodeResponse, err error) {
 	var (
 		start       = time.Now()
 		queryStatus = "success"
@@ -89,19 +89,19 @@ func (s *Service) GetReaderNode(
 	)
 
 	defer func() {
+		if err != nil {
+			queryStatus = "error"
+		}
 		metrics.EmitPayerGetReaderNodeDuration(time.Since(start).Seconds(), queryStatus)
 		metrics.EmitPayerGetReaderNodeAvailableNodes(len(nodes))
 	}()
 
-	var err error
 	nodes, err = s.nodeRegistry.GetNodes()
 	if err != nil {
-		queryStatus = "error"
 		return nil, status.Errorf(codes.Unavailable, "failed to fetch nodes: %v", err)
 	}
 
 	if len(nodes) == 0 {
-		queryStatus = "error"
 		return nil, status.Errorf(codes.Unavailable, "no nodes available")
 	}
 
@@ -114,17 +114,17 @@ func (s *Service) GetReaderNode(
 }
 
 func getReaderNodeRandom(nodes []registry.Node) (string, []string) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	primaryIndex := r.Intn(len(nodes))
+	shuffled := make([]registry.Node, len(nodes))
+	copy(shuffled, nodes)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
 
-	primaryUrl := nodes[primaryIndex].HttpAddress
+	primaryUrl := shuffled[0].HttpAddress
 
-	backupUrls := make([]string, 0, len(nodes)-1)
-	for i, n := range nodes {
-		if i == primaryIndex {
-			continue
-		}
-		backupUrls = append(backupUrls, n.HttpAddress)
+	backupUrls := make([]string, 0, len(shuffled)-1)
+	for _, node := range shuffled[1:] {
+		backupUrls = append(backupUrls, node.HttpAddress)
 	}
 
 	return primaryUrl, backupUrls

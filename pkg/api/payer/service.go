@@ -114,7 +114,8 @@ func (s *Service) GetReaderNode(
 }
 
 func getReaderNodeRandom(nodes []registry.Node) (string, []string) {
-	primaryIndex := rand.Intn(len(nodes))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	primaryIndex := r.Intn(len(nodes))
 
 	primaryUrl := nodes[primaryIndex].HttpAddress
 

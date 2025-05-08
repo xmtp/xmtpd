@@ -378,12 +378,20 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 	s.publishWorker.notifyStagedPublish()
 
-	baseFee, congestionFee, err := s.publishWorker.calculateFees(&stagedEnv, payerEnv.Proto().GetMessageRetentionDays())
+	baseFee, congestionFee, err := s.publishWorker.calculateFees(
+		&stagedEnv,
+		payerEnv.Proto().GetMessageRetentionDays(),
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not calculate fees: %v", err)
 	}
 
-	originatorEnv, err := s.registrant.SignStagedEnvelope(stagedEnv, baseFee, congestionFee, payerEnv.Proto().GetMessageRetentionDays())
+	originatorEnv, err := s.registrant.SignStagedEnvelope(
+		stagedEnv,
+		baseFee,
+		congestionFee,
+		payerEnv.Proto().GetMessageRetentionDays(),
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}
@@ -511,7 +519,6 @@ func (s *Service) validatePayerEnvelope(
 }
 
 func (s *Service) validateExpiry(payerEnv *envelopes.PayerEnvelope) error {
-
 	// the payload should be valid for at least for 2 days
 	if payerEnv.RetentionDays() < 2 {
 		return status.Errorf(codes.InvalidArgument, "invalid expiry retention days. Must be >= 2")
@@ -520,7 +527,6 @@ func (s *Service) validateExpiry(payerEnv *envelopes.PayerEnvelope) error {
 	// more than a ~year sounds like a mistake
 	if payerEnv.RetentionDays() != math.MaxUint32 && payerEnv.RetentionDays() > 365 {
 		return status.Errorf(codes.InvalidArgument, "invalid expiry retention days. Must be <= 365")
-
 	}
 
 	return nil

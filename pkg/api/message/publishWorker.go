@@ -122,7 +122,12 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		return false
 	}
 
-	originatorEnv, err := p.registrant.SignStagedEnvelope(stagedEnv, baseFee, congestionFee, retentionDays)
+	originatorEnv, err := p.registrant.SignStagedEnvelope(
+		stagedEnv,
+		baseFee,
+		congestionFee,
+		retentionDays,
+	)
 	if err != nil {
 		logger.Error(
 			"Failed to sign staged envelope",
@@ -168,7 +173,9 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
 			GatewayTime:          stagedEnv.OriginatorTime,
-			Expiry:               db.NullInt64(int64(validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime())),
+			Expiry: db.NullInt64(
+				int64(validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()),
+			),
 		},
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerId,

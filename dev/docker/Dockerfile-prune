@@ -22,7 +22,7 @@ FROM alpine:3.21
 
 LABEL maintainer="eng@ephemerahq.com"
 LABEL source="https://github.com/xmtp/xmtpd"
-LABEL description="XMTPD CLI"
+LABEL description="XMTPD Prune"
 
 # color, nocolor, json
 ENV GOLOG_LOG_FMT=nocolor

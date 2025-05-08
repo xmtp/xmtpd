@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
+
 	"github.com/Masterminds/semver/v3"
 
 	"go.uber.org/zap"
@@ -256,6 +258,7 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 		},
 		0,
 		0,
+		constants.DEFAULT_STORAGE_DURATION_DAYS,
 	)
 
 	require.NoError(t, err)

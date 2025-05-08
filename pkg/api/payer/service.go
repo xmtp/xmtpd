@@ -3,6 +3,7 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"math"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -447,12 +448,19 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
+	retentionDays := uint32(math.MaxUint32)
+
+	if !clientEnvelope.Aad().IsCommit {
+		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
+	}
+
 	return &envelopesProto.PayerEnvelope{
 		UnsignedClientEnvelope: envelopeBytes,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
-		TargetOriginator: originatorID,
+		TargetOriginator:     originatorID,
+		MessageRetentionDays: retentionDays,
 	}, nil
 }
 

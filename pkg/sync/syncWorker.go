@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -540,7 +539,7 @@ func (s *syncWorker) calculateFees(env *envUtils.OriginatorEnvelope) (currency.P
 	baseFee, err := s.feeCalculator.CalculateBaseFee(
 		messageTime,
 		int64(payerEnvelopeLength),
-		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		env.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 	if err != nil {
 		return 0, err

@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -109,13 +108,21 @@ func (p *publishWorker) start() {
 
 func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
 	logger := p.log.With(zap.Int64("sequenceID", stagedEnv.ID))
-	baseFee, congestionFee, err := p.calculateFees(&stagedEnv)
+
+	env, err := envelopes.NewUnsignedOriginatorEnvelopeFromBytes(stagedEnv.PayerEnvelope)
+	if err != nil {
+		logger.Warn("Failed to unmarshall originator envelope", zap.Error(err))
+		return false
+	}
+	retentionDays := env.PayerEnvelope.Proto().GetMessageRetentionDays()
+
+	baseFee, congestionFee, err := p.calculateFees(&stagedEnv, retentionDays)
 	if err != nil {
 		logger.Error("Failed to calculate fees", zap.Error(err))
 		return false
 	}
 
-	originatorEnv, err := p.registrant.SignStagedEnvelope(stagedEnv, baseFee, congestionFee)
+	originatorEnv, err := p.registrant.SignStagedEnvelope(stagedEnv, baseFee, congestionFee, retentionDays)
 	if err != nil {
 		logger.Error(
 			"Failed to sign staged envelope",
@@ -150,13 +157,6 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 
 	originatorID := int32(p.registrant.NodeID())
 
-	expirationTime := validatedEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.Proto().
-		GetExpiryUnixtime()
-	expiryVal := sql.NullInt64{}
-	if expirationTime > 0 {
-		expiryVal = sql.NullInt64{Valid: true, Int64: expirationTime}
-	}
-
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		p.ctx,
@@ -168,7 +168,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
 			GatewayTime:          stagedEnv.OriginatorTime,
-			Expiry:               expiryVal,
+			Expiry:               db.NullInt64(int64(validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime())),
 		},
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerId,
@@ -205,11 +205,12 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 
 func (p *publishWorker) calculateFees(
 	stagedEnv *queries.StagedOriginatorEnvelope,
+	retentionDays uint32,
 ) (currency.PicoDollar, currency.PicoDollar, error) {
 	baseFee, err := p.feeCalculator.CalculateBaseFee(
 		stagedEnv.OriginatorTime,
 		int64(len(stagedEnv.PayerEnvelope)),
-		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		retentionDays,
 	)
 	if err != nil {
 		return 0, 0, err

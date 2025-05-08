@@ -13,22 +13,22 @@ import (
 
 type payerMap map[common.Address]currency.PicoDollar
 
-type PayerReportManager struct {
+type PayerReportGenerator struct {
 	log     *zap.Logger
 	queries *queries.Queries
 }
 
-func NewPayerReportManager(
+func NewPayerReportGenerator(
 	log *zap.Logger,
 	queries *queries.Queries,
-) *PayerReportManager {
-	return &PayerReportManager{
+) *PayerReportGenerator {
+	return &PayerReportGenerator{
 		log:     log.Named("reportmanager"),
 		queries: queries,
 	}
 }
 
-func (p *PayerReportManager) GenerateReport(
+func (p *PayerReportGenerator) GenerateReport(
 	ctx context.Context,
 	params PayerReportGenerationParams,
 ) (*PayerReportWithInputs, error) {
@@ -94,7 +94,7 @@ func (p *PayerReportManager) GenerateReport(
 *
 *  It then parses the envelope and returns the minute.
  */
-func (p *PayerReportManager) getStartMinute(
+func (p *PayerReportGenerator) getStartMinute(
 	ctx context.Context,
 	sequenceID int64,
 	originatorID int32,
@@ -111,7 +111,7 @@ func (p *PayerReportManager) getStartMinute(
 * Returns the end minute to use for the report.
 * It is looking for the second last minute with an envelope for the originator
  */
-func (p *PayerReportManager) getEndMinute(
+func (p *PayerReportGenerator) getEndMinute(
 	ctx context.Context,
 	originatorID int32,
 	startMinute int32,

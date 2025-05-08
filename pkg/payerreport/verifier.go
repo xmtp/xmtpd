@@ -16,6 +16,18 @@ var (
 	ErrInvalidPayersMerkleRoot = errors.New("payers merkle root is invalid")
 )
 
+type PayerReportVerifier struct {
+	log   *zap.Logger
+	store IPayerReportStore
+}
+
+func NewPayerReportVerifier(log *zap.Logger, store IPayerReportStore) *PayerReportVerifier {
+	return &PayerReportVerifier{
+		log:   log,
+		store: store,
+	}
+}
+
 /*
   - Validate a report transition. Returns a bool if the report can be conclusively validated/rejected.
   - Otherwise returns an error.
@@ -27,7 +39,7 @@ var (
   - @param prevReport The previous report.
   - @param newReport The new report.
 */
-func (p *PayerReportManager) IsValidReport(
+func (p *PayerReportVerifier) IsValidReport(
 	ctx context.Context,
 	prevReport *PayerReport,
 	newReport *PayerReport,

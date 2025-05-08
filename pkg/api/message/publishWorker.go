@@ -109,12 +109,12 @@ func (p *publishWorker) start() {
 func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
 	logger := p.log.With(zap.Int64("sequenceID", stagedEnv.ID))
 
-	env, err := envelopes.NewUnsignedOriginatorEnvelopeFromBytes(stagedEnv.PayerEnvelope)
+	env, err := envelopes.NewPayerEnvelopeFromBytes(stagedEnv.PayerEnvelope)
 	if err != nil {
 		logger.Warn("Failed to unmarshall originator envelope", zap.Error(err))
 		return false
 	}
-	retentionDays := env.PayerEnvelope.Proto().GetMessageRetentionDays()
+	retentionDays := env.RetentionDays()
 
 	baseFee, congestionFee, err := p.calculateFees(&stagedEnv, retentionDays)
 	if err != nil {

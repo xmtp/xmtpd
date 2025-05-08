@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -517,7 +518,7 @@ func (s *Service) validateExpiry(payerEnv *envelopes.PayerEnvelope) error {
 	}
 
 	// more than a ~year sounds like a mistake
-	if !payerEnv.ClientEnvelope.Aad().IsCommit && payerEnv.RetentionDays() > 365 {
+	if payerEnv.RetentionDays() != math.MaxUint32 && payerEnv.RetentionDays() > 365 {
 		return status.Errorf(codes.InvalidArgument, "invalid expiry retention days. Must be <= 365")
 
 	}

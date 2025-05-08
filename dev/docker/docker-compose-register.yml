@@ -1,7 +1,7 @@
 services:
   register-node-1:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-7e2f18f
+    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -18,7 +18,7 @@ services:
 
   enable-node-1:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-7e2f18f
+    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -36,7 +36,7 @@ services:
 
   register-node-2:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-7e2f18f
+    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
     profiles: ["dual"]
     env_file:
       - ../local.env
@@ -56,7 +56,7 @@ services:
 
   enable-node-2:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-7e2f18f
+    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
     profiles: ["dual"]
     env_file:
       - ../local.env

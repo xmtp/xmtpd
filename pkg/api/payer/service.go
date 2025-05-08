@@ -82,17 +82,9 @@ func (s *Service) GetReaderNode(
 	ctx context.Context,
 	req *payer_api.GetReaderNodeRequest,
 ) (resp *payer_api.GetReaderNodeResponse, err error) {
-	var (
-		start       = time.Now()
-		queryStatus = "success"
-		nodes       []registry.Node
-	)
+	var nodes []registry.Node
 
 	defer func() {
-		if err != nil {
-			queryStatus = "error"
-		}
-		metrics.EmitPayerGetReaderNodeDuration(time.Since(start).Seconds(), queryStatus)
 		metrics.EmitPayerGetReaderNodeAvailableNodes(len(nodes))
 	}()
 

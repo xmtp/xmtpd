@@ -71,19 +71,6 @@ func EmitPayerMessageOriginated(originatorId uint32, count int) {
 		Add(float64(count))
 }
 
-var payerGetReaderNodeDuration = prometheus.NewHistogramVec(
-	prometheus.HistogramOpts{
-		Name: "xmtp_payer_get_reader_node_duration_seconds",
-		Help: "Duration of the GetReaderNode call",
-	},
-	[]string{"status"},
-)
-
-func EmitPayerGetReaderNodeDuration(duration float64, status string) {
-	payerGetReaderNodeDuration.With(prometheus.Labels{"status": status}).
-		Observe(duration)
-}
-
 var payerGetReaderNodeAvailableNodes = prometheus.NewGauge(
 	prometheus.GaugeOpts{
 		Name: "xmtp_payer_get_reader_node_available_nodes",

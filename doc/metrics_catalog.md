@@ -16,7 +16,6 @@
 | `xmtp_indexer_retryable_storage_error_count` | `Counter` | Number of retryable storage errors | `pkg/metrics/indexer.go` |
 | `xmtp_payer_failed_attempts_to_publish_to_node_via_banlist` | `Histogram` | Number of failed attempts to publish to a node via banlist | `pkg/metrics/payer.go` |
 | `xmtp_payer_get_reader_node_available_nodes` | `Gauge` | Number of currently available nodes for reader selection | `pkg/metrics/payer.go` |
-| `xmtp_payer_get_reader_node_duration_seconds` | `Histogram` | Duration of the GetReaderNode call | `pkg/metrics/payer.go` |
 | `xmtp_payer_lru_nonce` | `Gauge` | Least recently used blockchain nonce of the payer (not guaranteed to be the highest nonce). | `pkg/metrics/payer.go` |
 | `xmtp_payer_messages_originated` | `Counter` | Number of messages originated by the payer. | `pkg/metrics/payer.go` |
 | `xmtp_payer_node_publish_duration_seconds` | `Histogram` | Duration of the node publish call | `pkg/metrics/payer.go` |

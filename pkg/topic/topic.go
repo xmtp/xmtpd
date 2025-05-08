@@ -12,6 +12,8 @@ const (
 	TOPIC_KIND_WELCOME_MESSAGES_V1
 	TOPIC_KIND_IDENTITY_UPDATES_V1
 	TOPIC_KIND_KEY_PACKAGES_V1
+	TOPIC_KIND_PAYER_REPORTS_V1
+	TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1
 )
 
 func (k TopicKind) String() string {
@@ -24,6 +26,10 @@ func (k TopicKind) String() string {
 		return "identity_updates_v1"
 	case TOPIC_KIND_KEY_PACKAGES_V1:
 		return "key_packages_v1"
+	case TOPIC_KIND_PAYER_REPORTS_V1:
+		return "payer_reports_v1"
+	case TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1:
+		return "payer_report_attestations_v1"
 	default:
 		return "unknown"
 	}

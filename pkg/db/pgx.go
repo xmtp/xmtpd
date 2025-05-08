@@ -129,7 +129,8 @@ func NewNamespacedDB(
 	logger *zap.Logger,
 	dsn string,
 	namespace string,
-	waitForDB time.Duration, statementTimeout time.Duration,
+	waitForDB time.Duration,
+	statementTimeout time.Duration,
 ) (*sql.DB, error) {
 	// Parse the DSN to get the config
 	config, err := parseConfig(dsn, statementTimeout)
@@ -165,7 +166,9 @@ func ConnectToDB(
 	ctx context.Context,
 	logger *zap.Logger,
 	dsn string,
-	waitForDB time.Duration, statementTimeout time.Duration, namespace string,
+	waitForDB time.Duration,
+	statementTimeout time.Duration,
+	namespace string,
 ) (*sql.DB, error) {
 	config, err := parseConfig(dsn, statementTimeout)
 	if err != nil {

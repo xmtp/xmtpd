@@ -34,7 +34,7 @@ func insertRandomReport(
 	}
 	require.NoError(t, store.queries.InsertOrIgnorePayerReport(t.Context(), insertParams))
 
-	returnedVal, err := store.FetchReport(t.Context(), insertParams.ID)
+	returnedVal, err := store.FetchReport(t.Context(), ReportID(insertParams.ID))
 	require.NoError(t, err)
 	return returnedVal
 }
@@ -185,6 +185,7 @@ func TestFetchReport(t *testing.T) {
 			results, err := store.FetchReports(t.Context(), c.query)
 			require.NoError(t, err)
 			require.Len(t, results, len(c.expectedIDs))
+
 			returnedIDs := make([][]byte, len(results))
 			for idx, result := range results {
 				returnedIDs[idx] = result.ID[:]

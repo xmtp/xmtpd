@@ -23,6 +23,12 @@ packages:
     interfaces:
       NodeRegistry:
       NodeRegistryContract:
+  github.com/xmtp/xmtpd/pkg/payerreport:
+    interfaces:
+      PayerReportVerifier:
+  github.com/xmtp/xmtpd/pkg/registrant:
+    interfaces:
+      IRegistrant:
   github.com/xmtp/xmtpd/pkg/indexer:
     interfaces:
       IBlockTracker:

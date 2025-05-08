@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/merkle"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -51,10 +52,10 @@ const (
 	AttestationRejected                   = 2
 )
 
-type ReportID []byte
+type ReportID [32]byte
 
 func (r ReportID) String() string {
-	return hex.EncodeToString(r)
+	return hex.EncodeToString(r[:])
 }
 
 type PayerReport struct {
@@ -70,12 +71,21 @@ type PayerReport struct {
 	ActiveNodeIDs []uint32
 }
 
+type NewPayerReportParams struct {
+	OriginatorNodeID uint32
+	StartSequenceID  uint64
+	EndSequenceID    uint64
+	Payers           map[common.Address]currency.PicoDollar
+	NodeIDs          []uint32
+}
+
 // A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
 type PayerReportWithInputs struct {
 	PayerReport
 	// The payers in the report and the number of messages they paid for
-	Payers  map[common.Address]currency.PicoDollar
-	NodeIDs []uint32
+	Payers     map[common.Address]currency.PicoDollar
+	MerkleTree *merkle.MerkleTree
+	NodeIDs    []uint32
 }
 
 type PayerReportWithStatus struct {
@@ -83,7 +93,7 @@ type PayerReportWithStatus struct {
 	SubmissionStatus  SubmissionStatus
 	AttestationStatus AttestationStatus
 	CreatedAt         time.Time
-	ID                [32]byte
+	ID                ReportID
 }
 
 func (p *PayerReport) ToProto() *proto.PayerReport {
@@ -105,8 +115,28 @@ func (p *PayerReport) ID() (ReportID, error) {
 		p.ActiveNodeIDs,
 	)
 	if err != nil {
-		return nil, err
+		return ReportID{}, err
 	}
-	// Return the keccak256 hash
-	return utils.HashPayerReportInput(packedBytes), nil
+	hashed, err := utils.SliceToArray32(utils.HashPayerReportInput(packedBytes))
+	if err != nil {
+		return ReportID{}, err
+	}
+	return ReportID(hashed), nil
+}
+
+func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error) {
+	merkleRoot := buildMerkleRoot(params.Payers)
+
+	return &PayerReportWithInputs{
+		PayerReport: PayerReport{
+			OriginatorNodeID: params.OriginatorNodeID,
+			StartSequenceID:  params.StartSequenceID,
+			EndSequenceID:    params.EndSequenceID,
+			PayersMerkleRoot: merkleRoot,
+			ActiveNodeIDs:    params.NodeIDs,
+		},
+		Payers:     params.Payers,
+		NodeIDs:    params.NodeIDs,
+		MerkleTree: nil,
+	}, nil
 }

@@ -11,16 +11,22 @@ import (
 	"github.com/xmtp/xmtpd/pkg/currency"
 	dbHelpers "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
-func setup(t *testing.T) (*sql.DB, *PayerReportGenerator) {
+func setupGenerator(t *testing.T) (*sql.DB, *PayerReportGenerator) {
 	db, _ := testutils.NewDB(t, context.Background())
 
-	generator := NewPayerReportGenerator(testutils.NewLog(t), queries.New(db))
+	registry := registryTestUtils.CreateMockRegistry(t, []registry.Node{
+		registryTestUtils.CreateNode(100, 100, testutils.RandomPrivateKey(t)),
+		registryTestUtils.CreateNode(200, 101, testutils.RandomPrivateKey(t)),
+	})
+	generator := NewPayerReportGenerator(testutils.NewLog(t), queries.New(db), registry)
 
 	return db, generator
 }
@@ -58,6 +64,7 @@ func addEnvelope(
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerID,
 			OriginatorID:      originatorID,
+			SequenceID:        sequenceID,
 			MinutesSinceEpoch: utils.MinutesSinceEpoch(timestamp),
 			SpendPicodollars:  100,
 		},
@@ -70,7 +77,7 @@ func getMinute(minutesSinceEpoch int) time.Time {
 }
 
 func TestFirstReport(t *testing.T) {
-	db, generator := setup(t)
+	db, generator := setupGenerator(t)
 
 	payerAddress := testutils.RandomAddress()
 	originatorID := testutils.RandomInt32()
@@ -95,7 +102,7 @@ func TestFirstReport(t *testing.T) {
 }
 
 func TestReportWithMultiplePayers(t *testing.T) {
-	db, generator := setup(t)
+	db, generator := setupGenerator(t)
 
 	payerAddress1 := testutils.RandomAddress()
 	payerAddress2 := testutils.RandomAddress()
@@ -118,7 +125,7 @@ func TestReportWithMultiplePayers(t *testing.T) {
 }
 
 func TestReportWithNoMessages(t *testing.T) {
-	_, generator := setup(t)
+	_, generator := setupGenerator(t)
 
 	originatorID := testutils.RandomInt32()
 
@@ -135,7 +142,7 @@ func TestReportWithNoMessages(t *testing.T) {
 }
 
 func TestSecondReportWithNoMessages(t *testing.T) {
-	db, generator := setup(t)
+	db, generator := setupGenerator(t)
 
 	originatorID := testutils.RandomInt32()
 	payerAddress1 := testutils.RandomAddress()
@@ -154,7 +161,7 @@ func TestSecondReportWithNoMessages(t *testing.T) {
 }
 
 func TestSecondReport(t *testing.T) {
-	db, generator := setup(t)
+	db, generator := setupGenerator(t)
 
 	originatorID := testutils.RandomInt32()
 	payerAddress := testutils.RandomAddress()
@@ -190,7 +197,7 @@ func TestSecondReport(t *testing.T) {
 
 // Make sure that we don't pick up sequence IDs from other originators in the report
 func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
-	db, generator := setup(t)
+	db, generator := setupGenerator(t)
 
 	originatorID := testutils.RandomInt32()
 	otherOriginatorID := testutils.RandomInt32()

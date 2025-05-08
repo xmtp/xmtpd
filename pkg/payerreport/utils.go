@@ -27,5 +27,9 @@ func getMinuteFromSequenceID(
 		return 0, err
 	}
 
-	return utils.MinutesSinceEpoch(parsedEnvelope.OriginatorTime()), nil
+	return getMinuteFromEnvelope(parsedEnvelope)
+}
+
+func getMinuteFromEnvelope(envelope *envelopes.OriginatorEnvelope) (int32, error) {
+	return utils.MinutesSinceEpoch(envelope.OriginatorTime()), nil
 }

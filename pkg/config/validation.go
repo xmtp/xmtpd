@@ -91,3 +91,22 @@ func ValidateServerOptions(options ServerOptions) error {
 
 	return nil
 }
+
+func ValidatePruneOptions(options PruneOptions) error {
+	missingSet := make(map[string]struct{})
+
+	if options.DB.WriterConnectionString == "" {
+		missingSet["--DB.WriterConnectionString"] = struct{}{}
+	}
+
+	if len(missingSet) > 0 {
+		var errorMessages []string
+		for err := range missingSet {
+			errorMessages = append(errorMessages, err)
+		}
+
+		return fmt.Errorf("missing required arguments: %s", strings.Join(errorMessages, ", "))
+	}
+
+	return nil
+}

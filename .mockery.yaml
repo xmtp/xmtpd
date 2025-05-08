@@ -28,7 +28,7 @@ packages:
       NodeRegistryContract:
   github.com/xmtp/xmtpd/pkg/payerreport:
     interfaces:
-      PayerReportVerifier:
+      IPayerReportVerifier:
   github.com/xmtp/xmtpd/pkg/registrant:
     interfaces:
       IRegistrant:

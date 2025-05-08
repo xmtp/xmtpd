@@ -4,16 +4,29 @@ import (
 	"context"
 	"errors"
 
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 var (
-	ErrMismatchOriginator      = errors.New("originator id mismatch between old and new report")
-	ErrInvalidReportStart      = errors.New("report does not start where the previous report ended")
+	ErrMismatchOriginator = errors.New(
+		"originator id mismatch between old and new report",
+	)
+	ErrInvalidReportStart = errors.New(
+		"report does not start where the previous report ended",
+	)
+	ErrInvalidSequenceID       = errors.New("invalid sequence id")
 	ErrInvalidOriginatorID     = errors.New("originator id is 0")
 	ErrNoNodes                 = errors.New("no nodes in report")
-	ErrInvalidNodesHash        = errors.New("nodes hash is invalid")
 	ErrInvalidPayersMerkleRoot = errors.New("payers merkle root is invalid")
+	ErrMessageNotAtMinuteEnd   = errors.New(
+		"sequence id is not the last message in the minute",
+	)
+	ErrMessageAtStartSequenceIDNotFound = errors.New("message at start sequence id not found")
+	ErrMessageAtEndSequenceIDNotFound   = errors.New("message at end sequence id not found")
+	ErrMerkleRootMismatch               = errors.New("payers merkle root mismatch")
 )
 
 type PayerReportVerifier struct {
@@ -29,12 +42,11 @@ func NewPayerReportVerifier(log *zap.Logger, store IPayerReportStore) *PayerRepo
 }
 
 /*
-  - Validate a report transition. Returns a bool if the report can be conclusively validated/rejected.
-  - Otherwise returns an error.
-    *
+  - Validate a payer report
   - This function checks that the new report is valid and that it is a valid
   - transition from the previous report.
   - The previous report is assumed to be valid, and does not get validated again.
+  - Will regenerate the payer map and verify that the merkle root is correct
     *
   - @param prevReport The previous report.
   - @param newReport The new report.
@@ -54,19 +66,176 @@ func (p *PayerReportVerifier) IsValidReport(
 		zap.String("new_report_id", newReportID.String()),
 	)
 
-	if err := validateReportTransition(prevReport, newReport); err != nil {
+	if err = validateReportTransition(prevReport, newReport); err != nil {
 		log.Warn("invalid report transition", zap.Error(err))
 		return false, nil
 	}
 
-	if err := validateReportStructure(newReport); err != nil {
+	if err = validateReportStructure(newReport); err != nil {
 		log.Warn("invalid report content", zap.Error(err))
 		return false, nil
+	}
+
+	var isValidMerkleRoot bool
+	// If the start and end sequence IDs are the same, the report is empty and the merkle root must always be the hash of an empty set
+	if newReport.StartSequenceID == newReport.EndSequenceID {
+		// TODO:nm validate that the merkle root is the hash of an empty set
+		isValidMerkleRoot = true
+	} else {
+		if isValidMerkleRoot, err = p.verifyMerkleRoot(ctx, newReport); err != nil {
+			return false, err
+		}
+	}
+
+	return isValidMerkleRoot, nil
+}
+
+// Re-generates the payer map and verifies that the merkle root in the report matches the newly generated one
+func (p *PayerReportVerifier) verifyMerkleRoot(
+	ctx context.Context,
+	report *PayerReport,
+) (bool, error) {
+	startEnvelope, endEnvelope, err := p.getStartAndEndMessages(ctx, report)
+	if err != nil {
+		return false, err
+	}
+	// If the start sequence ID is 0, it is the first report and we should start from minute 0 since there are no preceding reports
+	var startMinute int32
+	if startEnvelope.OriginatorSequenceID() == 0 {
+		startMinute = 0
+	} else {
+		startMinute, err = getMinuteFromEnvelope(startEnvelope)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	endMinute, err := getMinuteFromEnvelope(endEnvelope)
+	if err != nil {
+		return false, err
+	}
+
+	// Validate the report ends after it starts
+	if startMinute > endMinute {
+		return false, ErrInvalidReportStart
+	}
+
+	isAtMinuteEnd, err := p.isAtMinuteEnd(
+		ctx,
+		int32(report.OriginatorNodeID),
+		endMinute,
+		int64(report.EndSequenceID),
+	)
+	if err != nil {
+		return false, err
+	}
+
+	if !isAtMinuteEnd {
+		return false, ErrMessageNotAtMinuteEnd
+	}
+
+	// TODO:nm validate that the start sequence ID is the last message in the start minute and create a misbehavior report if it's not
+	querier := p.store.Queries()
+	reportData, err := querier.BuildPayerReport(ctx, queries.BuildPayerReportParams{
+		OriginatorID:           int32(report.OriginatorNodeID),
+		StartMinutesSinceEpoch: startMinute,
+		EndMinutesSinceEpoch:   endMinute,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	payerMap := buildPayersMap(reportData)
+	merkleRoot := buildMerkleRoot(payerMap)
+	if report.PayersMerkleRoot != merkleRoot {
+		return false, ErrMerkleRootMismatch
 	}
 
 	return true, nil
 }
 
+// Check if a given sequence ID is the last message in a minute
+func (p *PayerReportVerifier) isAtMinuteEnd(
+	ctx context.Context,
+	originatorID int32,
+	minute int32,
+	expectedSequenceID int64,
+) (bool, error) {
+	querier := p.store.Queries()
+
+	lastSequenceID, err := querier.GetLastSequenceIDForOriginatorMinute(
+		ctx,
+		queries.GetLastSequenceIDForOriginatorMinuteParams{
+			OriginatorID:      originatorID,
+			MinutesSinceEpoch: minute,
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	isAtMinuteEnd := lastSequenceID == expectedSequenceID
+	if !isAtMinuteEnd {
+		p.log.Info(
+			"sequence id is not the last message in the minute",
+			zap.Int64("last_sequence_id", lastSequenceID),
+			zap.Int64("expected_sequence_id", expectedSequenceID),
+		)
+	}
+
+	return isAtMinuteEnd, nil
+}
+
+func (p *PayerReportVerifier) getStartAndEndMessages(
+	ctx context.Context,
+	report *PayerReport,
+) (*envelopes.OriginatorEnvelope, *envelopes.OriginatorEnvelope, error) {
+	querier := p.store.Queries()
+	startSequenceID, err := utils.Uint64ToInt64(report.StartSequenceID)
+	if err != nil {
+		return nil, nil, ErrInvalidSequenceID
+	}
+
+	originatorNodeID, err := utils.Uint32ToInt32(report.OriginatorNodeID)
+	if err != nil {
+		return nil, nil, ErrInvalidOriginatorID
+	}
+
+	startMessage, err := querier.GetGatewayEnvelopeByID(ctx, queries.GetGatewayEnvelopeByIDParams{
+		OriginatorSequenceID: startSequenceID,
+		OriginatorNodeID:     originatorNodeID,
+	})
+	if err != nil {
+		return nil, nil, ErrMessageAtStartSequenceIDNotFound
+	}
+
+	startEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(startMessage.OriginatorEnvelope)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	endSequenceID, err := utils.Uint64ToInt64(report.EndSequenceID)
+	if err != nil {
+		return nil, nil, ErrInvalidSequenceID
+	}
+
+	endMessage, err := querier.GetGatewayEnvelopeByID(ctx, queries.GetGatewayEnvelopeByIDParams{
+		OriginatorSequenceID: endSequenceID,
+		OriginatorNodeID:     originatorNodeID,
+	})
+	if err != nil {
+		return nil, nil, ErrMessageAtEndSequenceIDNotFound
+	}
+
+	endEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(endMessage.OriginatorEnvelope)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return startEnvelope, endEnvelope, nil
+}
+
+// Static validations on the report transition
 func validateReportTransition(prevReport *PayerReport, newReport *PayerReport) error {
 	// Special validations for the first report
 	if prevReport == nil {

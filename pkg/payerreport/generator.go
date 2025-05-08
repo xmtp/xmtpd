@@ -2,29 +2,34 @@ package payerreport
 
 import (
 	"context"
+	"encoding/binary"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
 
 type payerMap map[common.Address]currency.PicoDollar
 
 type PayerReportGenerator struct {
-	log     *zap.Logger
-	queries *queries.Queries
+	log      *zap.Logger
+	queries  *queries.Queries
+	registry registry.NodeRegistry
 }
 
 func NewPayerReportGenerator(
 	log *zap.Logger,
 	queries *queries.Queries,
+	registry registry.NodeRegistry,
 ) *PayerReportGenerator {
 	return &PayerReportGenerator{
-		log:     log.Named("reportgenerator"),
-		queries: queries,
+		log:      log.Named("reportgenerator"),
+		queries:  queries,
+		registry: registry,
 	}
 }
 
@@ -41,6 +46,13 @@ func (p *PayerReportGenerator) GenerateReport(
 	if err != nil {
 		return nil, err
 	}
+
+	nodes, err := p.registry.GetNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	activeNodeIDs := extractActiveNodeIDs(nodes)
 
 	endMinute, endSequenceID, err := p.getEndMinute(ctx, originatorID, startMinute)
 	if err != nil {
@@ -59,6 +71,7 @@ func (p *PayerReportGenerator) GenerateReport(
 				EndMinuteSinceEpoch: 0,
 				// TODO: Implement merkle calculation
 				PayersMerkleRoot: buildMerkleRoot(payers),
+				ActiveNodeIDs:    activeNodeIDs,
 			},
 			Payers: payers,
 		}, nil
@@ -76,6 +89,7 @@ func (p *PayerReportGenerator) GenerateReport(
 		return nil, err
 	}
 	mappedPayers := buildPayersMap(payers)
+
 	return &PayerReportWithInputs{
 		PayerReport: PayerReport{
 			OriginatorNodeID:    uint32(originatorID),
@@ -84,6 +98,7 @@ func (p *PayerReportGenerator) GenerateReport(
 			EndMinuteSinceEpoch: uint32(endMinute),
 			// TODO: Implement merkle calculation
 			PayersMerkleRoot: buildMerkleRoot(mappedPayers),
+			ActiveNodeIDs:    activeNodeIDs,
 		},
 		Payers: mappedPayers,
 	}, nil
@@ -156,9 +171,21 @@ func buildMerkleRoot(payers payerMap) [32]byte {
 	d := ethcrypto.NewKeccakState()
 	for _, key := range keys {
 		d.Write(key[:])
+		// Convert spend (uint64) to bytes and write it to the hash
+		spendBytes := make([]byte, 8)
+		binary.BigEndian.PutUint64(spendBytes, uint64(payers[key]))
+		d.Write(spendBytes)
 	}
 	//nolint:errcheck
 	d.Read(out[:])
 
 	return out
+}
+
+func extractActiveNodeIDs(nodes []registry.Node) []uint32 {
+	activeNodeIDs := make([]uint32, len(nodes))
+	for i, node := range nodes {
+		activeNodeIDs[i] = node.NodeID
+	}
+	return activeNodeIDs
 }

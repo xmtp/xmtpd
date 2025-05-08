@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -eu
+
+. dev/local.env
+
+go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/prune/main.go "$@"

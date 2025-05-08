@@ -283,6 +283,4 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 		lowestTreeIndex >>= 1
 		upperBound >>= 1
 	}
-
-	return nil, ErrNilRoot
 }

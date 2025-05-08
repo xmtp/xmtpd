@@ -1,10 +1,16 @@
 {
   "go.lintTool": "golangci-lint",
   "go.lintFlags": ["--fast"],
+  "go.formatTool": "custom",
+  "go.alternateTools": {
+    "customFormatter": "golangci-lint"
+  },
+  "go.formatFlags": ["fmt", "--stdin"],
   "[sql]": {
     "editor.defaultFormatter": "mtxr.sqltools",
     "editor.formatOnSave": true
   },
+  "go.useLanguageServer": true,
   "sqltools.highlightQuery": false,
   "sqltools.format": {
     "linesBetweenQueries": 2,

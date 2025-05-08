@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"math/rand"
+	"math"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -497,12 +498,19 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
+	expiry := int64(math.MaxInt64)
+
+	if !clientEnvelope.Aad().IsCommit {
+		expiry = time.Now().Add(time.Hour * 24 * 90).Unix()
+	}
+
 	return &envelopesProto.PayerEnvelope{
 		UnsignedClientEnvelope: envelopeBytes,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
 		TargetOriginator: originatorID,
+		ExpiryUnixtime:   expiry,
 	}, nil
 }
 

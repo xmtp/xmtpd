@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -13,9 +14,11 @@ const (
 )
 
 var (
-	leafPrefixBytes = []byte(LEAF_PREFIX)
-	nodePrefixBytes = []byte(NODE_PREFIX)
-	rootPrefixBytes = []byte(ROOT_PREFIX)
+	leafPrefixBytes        = []byte(LEAF_PREFIX)
+	nodePrefixBytes        = []byte(NODE_PREFIX)
+	rootPrefixBytes        = []byte(ROOT_PREFIX)
+	ErrInvalidLeafCount    = errors.New("invalid leaf count")
+	ErrInvalidBufferLength = errors.New("invalid buffer length")
 )
 
 // Hash computes the Keccak-256 hash of a buffer.
@@ -56,7 +59,11 @@ func HashPairlessNode(node []byte) []byte {
 	return Hash(buffer)
 }
 
-func HashRoot(leafCount int, root []byte) []byte {
+func HashRoot(leafCount int, root []byte) ([]byte, error) {
+	if leafCount < 0 || leafCount > (1<<31)-1 {
+		return nil, ErrInvalidLeafCount
+	}
+
 	leafCountBytes := IntToBytes32(leafCount)
 
 	rootPrefixLen := len(rootPrefixBytes)
@@ -69,7 +76,7 @@ func HashRoot(leafCount int, root []byte) []byte {
 	copy(buffer[rootPrefixLen:rootPrefixLen+leafCountLen], leafCountBytes) // Copy the bytes
 	copy(buffer[rootPrefixLen+leafCountLen:], root)                        // Copy the root
 
-	return Hash(buffer)
+	return Hash(buffer), nil
 }
 
 func IntToBytes32(value int) []byte {
@@ -82,6 +89,23 @@ func IntToBytes32(value int) []byte {
 	return buffer
 }
 
-func Bytes32ToInt(buffer []byte) int {
-	return int(binary.BigEndian.Uint64(buffer[24:]))
+func Bytes32ToInt(buffer []byte) (int, error) {
+	if len(buffer) != 32 {
+		return 0, ErrInvalidBufferLength
+	}
+
+	// Check that all of the first 28 bytes are 0
+	for i := 0; i < 28; i++ {
+		if buffer[i] != 0 {
+			return 0, ErrInvalidLeafCount
+		}
+	}
+
+	uint32Value := binary.BigEndian.Uint32(buffer[28:])
+
+	if uint32Value > 1<<31-1 {
+		return 0, ErrInvalidLeafCount
+	}
+
+	return int(uint32Value), nil
 }

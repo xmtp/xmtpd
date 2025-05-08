@@ -12,11 +12,11 @@ const (
 )
 
 var (
-	ErrInvalidLeafCount     = errors.New("invalid leaf count")
 	ErrNilProof             = errors.New("nil proof")
 	ErrNilRoot              = errors.New("nil root")
 	ErrNoProofs             = errors.New("no proofs provided")
 	ErrInvalidStartingIndex = errors.New("invalid starting index")
+	ErrInsufficientProofs   = errors.New("insufficient proofs provided")
 )
 
 type ProofElement []byte
@@ -31,7 +31,11 @@ func (p *MultiProof) GetStartingIndex() int {
 	return p.startingIndex
 }
 
-func (p *MultiProof) GetLeafCount() int {
+func (p *MultiProof) GetLeafCount() (int, error) {
+	if len(p.proofElements) == 0 {
+		return 0, ErrNoProofs
+	}
+
 	return Bytes32ToInt(p.proofElements[0])
 }
 
@@ -75,18 +79,20 @@ func (p *MultiProof) validate() error {
 		return ErrInvalidStartingIndex
 	}
 
+	// Must as least have the first proof element, which is the leaf count.
 	if len(p.proofElements) == 0 {
 		return ErrNoProofs
 	}
 
-	leafCount := Bytes32ToInt(p.proofElements[0])
-
-	if leafCount <= 0 {
-		return ErrInvalidLeafCount
+	leafCount, err := Bytes32ToInt(p.proofElements[0])
+	if err != nil {
+		return fmt.Errorf(ErrVerifyProof, err)
 	}
 
-	if len(p.leaves) == 0 {
-		return ErrNoLeaves
+	// If the tree is not empty, and we are not proving any leaves, then the proof elements must include the leaf count
+	// and the sub-root.
+	if leafCount > 0 && len(p.leaves) == 0 && len(p.proofElements) < 2 {
+		return ErrInsufficientProofs
 	}
 
 	if p.startingIndex+len(p.leaves) > leafCount {
@@ -152,7 +158,22 @@ func isEven(n int) bool {
 
 // computeRoot computes the root of the Merkle tree from the given proof.
 func (p *MultiProof) computeRoot() ([]byte, error) {
-	leafCount := Bytes32ToInt(p.proofElements[0])
+	leafCount, err := Bytes32ToInt(p.proofElements[0])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(p.leaves) == 0 && leafCount == 0 {
+		return EmptyTreeRoot, nil
+	}
+
+	if len(p.leaves) == 0 {
+		root, err := HashRoot(leafCount, p.proofElements[1])
+		if err != nil {
+			return nil, err
+		}
+		return root, nil
+	}
 
 	// 1. Prepare the queue.
 	balancedLeafCount, err := CalculateBalancedNodesCount(leafCount)
@@ -172,16 +193,22 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 		readIdx, writeIdx, proofIdx = 0, 0, 1
 		upperBound                  = balancedLeafCount + leafCount - 1
 		lowestTreeIndex             = balancedLeafCount + p.startingIndex
+		right                       []byte
+		left                        []byte
 	)
 
 	// 3. Process queue until we hit the root.
-	for true {
+	for {
 		nodeIdx := queue[readIdx%queueLen].index
 
 		// If we reach the sub-root (i.e. `index == 1`), we can return the root (i.e. `index == 0`) by
 		// hashing the tree's leaf count with the last computed hash.
 		if nodeIdx == 1 {
-			return HashRoot(leafCount, queue[(writeIdx-1)%queueLen].hash), nil
+			root, err := HashRoot(leafCount, queue[(writeIdx-1)%queueLen].hash)
+			if err != nil {
+				return nil, err
+			}
+			return root, nil
 		}
 
 		// If node index we are handling is the upper bound and is even, then it's sibling to the right does not
@@ -209,11 +236,6 @@ func (p *MultiProof) computeRoot() ([]byte, error) {
 		}
 
 		nextNodeIdx := queue[(readIdx+1)%queueLen].index
-
-		var (
-			right []byte
-			left  []byte
-		)
 
 		// Since we are processing nodes from right to left, then if the current node index is even, and there exists
 		// nodes to the right (or else the previous if-continue would have been hit), then the right part of the hash is

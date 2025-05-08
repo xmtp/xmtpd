@@ -46,7 +46,18 @@ func TestValidate(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNoProofs)
 	})
 
-	t.Run("invalid leaf count", func(t *testing.T) {
+	t.Run("insufficient proofs", func(t *testing.T) {
+		proof := MultiProof{
+			startingIndex: 0,
+			leaves:        []Leaf{},
+			proofElements: []ProofElement{IntToBytes32(1)},
+		}
+
+		err := proof.validate()
+		assert.ErrorIs(t, err, ErrInsufficientProofs)
+	})
+
+	t.Run("indices out of bounds for empty tree", func(t *testing.T) {
 		leaves := []Leaf{[]byte("test")}
 
 		proof := MultiProof{
@@ -56,18 +67,7 @@ func TestValidate(t *testing.T) {
 		}
 
 		err := proof.validate()
-		assert.ErrorIs(t, err, ErrInvalidLeafCount)
-	})
-
-	t.Run("empty leaves", func(t *testing.T) {
-		proof := MultiProof{
-			startingIndex: 0,
-			leaves:        []Leaf{},
-			proofElements: []ProofElement{IntToBytes32(2), []byte("proof")},
-		}
-
-		err := proof.validate()
-		assert.ErrorIs(t, err, ErrNoLeaves)
+		assert.ErrorIs(t, err, ErrIndicesOutOfBounds)
 	})
 
 	t.Run("indices out of bounds", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestValidate(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNilProof)
 	})
 
-	t.Run("no proofs needed for single leaf tree", func(t *testing.T) {
+	t.Run("only 1 proof element needed for single leaf tree", func(t *testing.T) {
 		leaves := []Leaf{[]byte("test")}
 
 		proof := MultiProof{
@@ -206,8 +206,7 @@ func TestComputeRoot(t *testing.T) {
 	expectedRoot := tree.Root()
 
 	// Test with valid proof.
-	indices := []int{0, 1}
-	multiProof, err := tree.GenerateMultiProofWithIndices(indices)
+	multiProof, err := tree.GenerateMultiProofSequential(0, 2)
 	require.NoError(t, err)
 
 	computedRoot, err := multiProof.computeRoot()

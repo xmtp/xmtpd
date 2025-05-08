@@ -25,22 +25,28 @@ func TestMakeLeafNodes(t *testing.T) {
 	}
 
 	// Test with empty leaves.
-	_, err = makeLeafNodes([]Leaf{})
-	assert.ErrorIs(t, err, ErrNoLeaves)
+	nodes, err = makeLeafNodes([]Leaf{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(nodes))
 }
 
 // TestMakeTree tests the internal makeTree function.
 func TestMakeTree(t *testing.T) {
-	// Test with empty nodes.
-	_, err := makeTree([]Node{})
-	assert.ErrorIs(t, err, ErrTreeEmpty)
-
-	// Test single node tree.
-	singleLeaf := []Leaf{[]byte("single")}
-	nodes, err := makeLeafNodes(singleLeaf)
+	// Test no node tree.
+	noLeaves := []Leaf{}
+	nodes, err := makeLeafNodes(noLeaves)
 	require.NoError(t, err)
 
 	tree, err := makeTree(nodes)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(tree))
+
+	// Test single node tree.
+	singleLeaf := []Leaf{[]byte("single")}
+	nodes, err = makeLeafNodes(singleLeaf)
+	require.NoError(t, err)
+
+	tree, err = makeTree(nodes)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(tree))
 	assert.Equal(t, nodes[0], tree[2])
@@ -82,50 +88,44 @@ func TestMakeTree(t *testing.T) {
 
 // TestLeaves tests the public Leaves method of MerkleTree.
 func TestLeaves(t *testing.T) {
+	// Test with no leaves.
+	originalLeaves := []Leaf{}
+
+	tree, err := NewMerkleTree(originalLeaves)
+	require.NoError(t, err)
+
+	leaves := tree.Leaves()
+	assert.Equal(t, 0, len(leaves))
+	assert.Equal(t, originalLeaves, leaves)
+
 	// Test with normal leaves.
-	originalLeaves := []Leaf{
+	originalLeaves = []Leaf{
 		[]byte("leaf1"),
 		[]byte("leaf2"),
 		[]byte("leaf3"),
 	}
 
-	tree, err := NewMerkleTree(originalLeaves)
+	tree, err = NewMerkleTree(originalLeaves)
 	require.NoError(t, err)
 
-	// Test padding.
-	leaves := tree.Leaves()
+	leaves = tree.Leaves()
 	assert.Equal(t, 3, len(leaves))
-
-	// Verify original leaves are preserved.
-	for i, leaf := range originalLeaves {
-		assert.Equal(t, leaf, leaves[i])
-	}
+	assert.Equal(t, originalLeaves, leaves)
 
 	// Test with exactly power of 2 leaves.
-	powTwoLeaves := []Leaf{
+	originalLeaves = []Leaf{
 		[]byte("leaf1"),
 		[]byte("leaf2"),
 		[]byte("leaf3"),
 		[]byte("leaf4"),
 	}
 
-	tree, err = NewMerkleTree(powTwoLeaves)
+	tree, err = NewMerkleTree(originalLeaves)
 	require.NoError(t, err)
 
 	leaves = tree.Leaves()
-	assert.Equal(t, 4, len(leaves)) // No padding needed.
-	assert.Equal(t, powTwoLeaves, leaves)
-}
-
-// TestNewMerkleTreeErrors tests more error cases for NewMerkleTree.
-func TestNewMerkleTreeErrors(t *testing.T) {
-	// Test with empty leaves.
-	_, err := NewMerkleTree([]Leaf{})
-	assert.ErrorIs(t, err, ErrNoLeaves)
-
-	// Test with a successful case as well.
-	_, err = NewMerkleTree([]Leaf{[]byte("test")})
-	assert.NoError(t, err)
+	assert.Equal(t, 4, len(leaves))
+	assert.Equal(t, originalLeaves, leaves)
 }
 
 // TestMakeIndices tests the internal makeIndices function.
@@ -155,8 +155,8 @@ func TestMakeIndices(t *testing.T) {
 			name:          "zero count",
 			startingIndex: 0,
 			count:         0,
-			expected:      nil,
-			wantErr:       ErrInvalidRange,
+			expected:      []int{},
+			wantErr:       nil,
 		},
 		{
 			name:          "negative count",
@@ -176,59 +176,6 @@ func TestMakeIndices(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expected, indices)
-			}
-		})
-	}
-}
-
-// TestValidateIndices tests the internal validateIndices function.
-func TestValidateIndices(t *testing.T) {
-	tests := []struct {
-		name      string
-		indices   []int
-		leafCount int
-		wantErr   error
-	}{
-		{
-			name:      "valid indices",
-			indices:   []int{0, 1, 2},
-			leafCount: 4,
-			wantErr:   nil,
-		},
-		{
-			name:      "empty indices",
-			indices:   []int{},
-			leafCount: 4,
-			wantErr:   ErrNoIndices,
-		},
-		{
-			name:      "out of bounds indices",
-			indices:   []int{0, 4, 2},
-			leafCount: 4,
-			wantErr:   ErrIndicesOutOfBounds,
-		},
-		{
-			name:      "negative index",
-			indices:   []int{0, -1, 2},
-			leafCount: 4,
-			wantErr:   ErrIndicesOutOfBounds,
-		},
-		{
-			name:      "indices not continuous and increasing",
-			indices:   []int{0, 1, 3, 2},
-			leafCount: 4,
-			wantErr:   ErrIndicesNotContinuousAndIncreasing,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateIndices(tt.indices, tt.leafCount)
-
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-			} else {
-				assert.NoError(t, err)
 			}
 		})
 	}

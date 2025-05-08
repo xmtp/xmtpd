@@ -1,7 +1,6 @@
 package merkle_test
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -72,6 +71,16 @@ func TestVerifyMultiProofSequential(t *testing.T) {
 			wantProofCount:  1,
 		},
 		{
+			name:            "Balanced tree - 4 leaves - no leaves",
+			leaves:          createLeaves(t, 4),
+			startIdx:        0,
+			count:           0,
+			wantErrCreate:   false,
+			wantErrGenerate: false,
+			wantErrVerify:   false,
+			wantProofCount:  2,
+		},
+		{
 			name:            "Single leaf tree",
 			leaves:          createLeaves(t, 1),
 			startIdx:        0,
@@ -102,6 +111,36 @@ func TestVerifyMultiProofSequential(t *testing.T) {
 			wantProofCount:  4,
 		},
 		{
+			name:            "Unbalanced tree - 7 leaves - all leaves",
+			leaves:          createLeaves(t, 7),
+			startIdx:        0,
+			count:           7,
+			wantErrCreate:   false,
+			wantErrGenerate: false,
+			wantErrVerify:   false,
+			wantProofCount:  1,
+		},
+		{
+			name:            "Unbalanced tree - 7 leaves - no leaves",
+			leaves:          createLeaves(t, 7),
+			startIdx:        0,
+			count:           0,
+			wantErrCreate:   false,
+			wantErrGenerate: false,
+			wantErrVerify:   false,
+			wantProofCount:  2,
+		},
+		{
+			name:            "Empty tree",
+			leaves:          createLeaves(t, 0),
+			startIdx:        0,
+			count:           0,
+			wantErrCreate:   false,
+			wantErrGenerate: false,
+			wantErrVerify:   false,
+			wantProofCount:  1,
+		},
+		{
 			name:            "Out of bounds - start index negative",
 			leaves:          createLeaves(t, 8),
 			startIdx:        -1,
@@ -116,16 +155,6 @@ func TestVerifyMultiProofSequential(t *testing.T) {
 			leaves:          createLeaves(t, 8),
 			startIdx:        6,
 			count:           3,
-			wantErrCreate:   false,
-			wantErrGenerate: true,
-			wantErrVerify:   false,
-			wantProofCount:  0,
-		},
-		{
-			name:            "Invalid input - zero count",
-			leaves:          createLeaves(t, 8),
-			startIdx:        2,
-			count:           0,
 			wantErrCreate:   false,
 			wantErrGenerate: true,
 			wantErrVerify:   false,
@@ -158,189 +187,13 @@ func TestVerifyMultiProofSequential(t *testing.T) {
 			require.True(t, ok)
 
 			assert.Equal(t, tc.startIdx, proof.GetStartingIndex(), "Invalid starting index")
-			assert.Equal(t, len(tc.leaves), proof.GetLeafCount(), "Invalid leaf count")
+
+			leafCount, err := proof.GetLeafCount()
+			require.NoError(t, err)
+			assert.Equal(t, len(tc.leaves), leafCount, "Invalid leaf count")
+
 			assert.Equal(t, tc.count, len(proof.GetLeaves()), "Invalid number of leaves in proof")
 			assert.Equal(t, tc.wantProofCount, len(proof.GetProofElements()), "Invalid proof count")
-		})
-	}
-}
-
-func TestVerifyMultiProofWithIndices(t *testing.T) {
-	cases := []struct {
-		name            string
-		leaves          []merkle.Leaf
-		indices         []int
-		wantErrCreate   bool
-		wantErrGenerate bool
-		wantErrVerify   bool
-		wantProofCount  int
-	}{
-		{
-			name:            "Balanced tree - 8 leaves - out-of-order indices",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{2, 3, 4},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  4,
-		},
-		{
-			name:            "Balanced tree - 8 leaves - all indices",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{0, 1, 2, 3, 4, 5, 6, 7},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  1,
-		},
-		{
-			name:            "Balanced tree - 8 leaves - single index",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{4},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  4,
-		},
-		{
-			name:            "Balanced tree - 8 leaves - sibling pairs",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{2, 3}, // Siblings at the same parent
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  3,
-		},
-		{
-			name:            "Balanced tree - 8 leaves - different subtrees",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{3, 4}, // From different parts of the tree
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  5,
-		},
-		{
-			name:            "Balanced tree - 16 leaves - different subtrees",
-			leaves:          createLeaves(t, 16),
-			indices:         []int{6, 7, 8, 9},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  5,
-		},
-		{
-			name:            "Unbalanced tree - 5 leaves - left edge",
-			leaves:          createLeaves(t, 5),
-			indices:         []int{0},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  4,
-		},
-		{
-			name:            "Unbalanced tree - 6 leaves - right edge",
-			leaves:          createLeaves(t, 6),
-			indices:         []int{5},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  3,
-		},
-		{
-			name:            "Unbalanced tree - 7 leaves - right edge",
-			leaves:          createLeaves(t, 7),
-			indices:         []int{6},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  3,
-		},
-		{
-			name:            "Unbalanced tree - 10 leaves - left edge",
-			leaves:          createLeaves(t, 10),
-			indices:         []int{0},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  5,
-		},
-		{
-			name:            "Single leaf tree",
-			leaves:          createLeaves(t, 1),
-			indices:         []int{0},
-			wantErrCreate:   false,
-			wantErrGenerate: false,
-			wantErrVerify:   false,
-			wantProofCount:  1,
-		},
-		{
-			name:            "Invalid input - empty indices",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{},
-			wantErrCreate:   false,
-			wantErrGenerate: true, // Should error on empty indices
-			wantErrVerify:   false,
-			wantProofCount:  0,
-		},
-		{
-			name:            "Invalid input - duplicate indices",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{1, 1, 3},
-			wantErrCreate:   false,
-			wantErrGenerate: true, // Should error on duplicate indices
-			wantErrVerify:   false,
-			wantProofCount:  0,
-		},
-		{
-			name:            "Invalid input - out of bounds indices",
-			leaves:          createLeaves(t, 8),
-			indices:         []int{6, 7, 8},
-			wantErrCreate:   false,
-			wantErrGenerate: true, // Should error on out of bounds
-			wantErrVerify:   false,
-			wantProofCount:  0,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			tree, err := merkle.NewMerkleTree(tc.leaves)
-			if tc.wantErrCreate {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-
-			proof, err := tree.GenerateMultiProofWithIndices(tc.indices)
-			if tc.wantErrGenerate {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-
-			ok, err := merkle.Verify(tree.Root(), proof)
-			if tc.wantErrVerify {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.True(t, ok)
-
-			assert.Equal(t, tc.indices[0], proof.GetStartingIndex(), "Invalid starting index")
-			assert.Equal(t, len(tc.leaves), proof.GetLeafCount(), "Invalid leaf count")
-			assert.Equal(
-				t,
-				len(tc.indices),
-				len(proof.GetLeaves()),
-				"Invalid number of leaves in proof",
-			)
-			assert.Equal(t, tc.wantProofCount, len(proof.GetProofElements()), "Invalid proof count")
-
-			leaves := proof.GetLeaves()
-			for i := 0; i < len(leaves); i++ {
-				assert.Equal(t, tc.leaves[tc.indices[0]+i], leaves[i])
-			}
 		})
 	}
 }
@@ -426,24 +279,6 @@ func TestVerifyEdgeCases(t *testing.T) {
 			assert.Equal(t, tc.wantOK, verified)
 		})
 	}
-}
-
-// TODO: Not sure what this is testing
-func TestMultiProofManipulation(t *testing.T) {
-	leaves := createLeaves(t, 8)
-	tree, err := merkle.NewMerkleTree(leaves)
-	require.NoError(t, err)
-
-	multiProof, err := tree.GenerateMultiProofWithIndices([]int{0, 1})
-	require.NoError(t, err)
-
-	verified, err := merkle.Verify(tree.Root(), multiProof)
-	require.NoError(t, err)
-	assert.True(t, verified)
-
-	assert.Equal(t, 2, len(multiProof.GetLeaves()))
-	assert.True(t, bytes.Equal(leaves[0], multiProof.GetLeaves()[0]))
-	assert.True(t, bytes.Equal(leaves[1], multiProof.GetLeaves()[1]))
 }
 
 func createLeaves(t *testing.T, count int) []merkle.Leaf {
@@ -569,7 +404,11 @@ func TestGenerateSequentialProofBalancedSamples(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, test.startingIndex, proof.GetStartingIndex())
-			assert.Equal(t, tree.LeafCount(), proof.GetLeafCount())
+
+			leafCount, err := proof.GetLeafCount()
+			require.NoError(t, err)
+			assert.Equal(t, tree.LeafCount(), leafCount)
+
 			assert.Equal(t, test.count, len(proof.GetLeaves()))
 
 			for i := 0; i < len(test.expectedLeaves); i++ {
@@ -692,7 +531,11 @@ func TestGenerateSequentialProofUnbalancedSamples(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, test.startingIndex, proof.GetStartingIndex())
-			assert.Equal(t, tree.LeafCount(), proof.GetLeafCount())
+
+			leafCount, err := proof.GetLeafCount()
+			require.NoError(t, err)
+			assert.Equal(t, tree.LeafCount(), leafCount)
+
 			assert.Equal(t, test.count, len(proof.GetLeaves()))
 
 			for i := 0; i < len(test.expectedLeaves); i++ {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/xmtp/xmtpd/pkg/merkle"
 )
 
@@ -1010,9 +1011,10 @@ func TestHashRoot(t *testing.T) {
 		leafCount int
 		root      []byte
 		expected  []byte
+		wantErr   bool
 	}{
 		{
-			"A",
+			"leaf count is 1",
 			1,
 			[]byte{
 				0,
@@ -1082,9 +1084,10 @@ func TestHashRoot(t *testing.T) {
 				58,
 				203,
 			},
+			false,
 		},
 		{
-			"B",
+			"leaf count is 78",
 			78,
 			[]byte{
 				31,
@@ -1154,9 +1157,10 @@ func TestHashRoot(t *testing.T) {
 				37,
 				55,
 			},
+			false,
 		},
 		{
-			"C",
+			"leaf count is 46984",
 			46984,
 			[]byte{
 				255,
@@ -1226,20 +1230,172 @@ func TestHashRoot(t *testing.T) {
 				230,
 				62,
 			},
+			false,
+		},
+		{
+			"leaf count is negative",
+			-1,
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+			},
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+			},
+			true,
+		},
+		{
+			"leaf count is larger than a 32-bit signed int",
+			1 << 31,
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+			},
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+			},
+			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := merkle.HashRoot(tt.leafCount, tt.root)
-			if !bytes.Equal(result, tt.expected) {
-				t.Errorf(
-					"HashRoot of %d and %d = %d, expected %d",
-					tt.leafCount,
-					tt.root,
-					result,
-					tt.expected,
-				)
+			result, err := merkle.HashRoot(tt.leafCount, tt.root)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if !bytes.Equal(result, tt.expected) {
+					t.Errorf(
+						"HashRoot of %d and %d = %d, expected %d",
+						tt.leafCount,
+						tt.root,
+						result,
+						tt.expected,
+					)
+				}
 			}
 		})
 	}
@@ -1425,9 +1581,10 @@ func TestBytes32ToInt(t *testing.T) {
 		name     string
 		input    []byte
 		expected int
+		wantErr  bool
 	}{
 		{
-			"A",
+			"0",
 			[]byte{
 				0,
 				0,
@@ -1463,9 +1620,10 @@ func TestBytes32ToInt(t *testing.T) {
 				0,
 			},
 			0,
+			false,
 		},
 		{
-			"B",
+			"1",
 			[]byte{
 				0,
 				0,
@@ -1501,9 +1659,10 @@ func TestBytes32ToInt(t *testing.T) {
 				1,
 			},
 			1,
+			false,
 		},
 		{
-			"C",
+			"78",
 			[]byte{
 				0,
 				0,
@@ -1539,9 +1698,10 @@ func TestBytes32ToInt(t *testing.T) {
 				78,
 			},
 			78,
+			false,
 		},
 		{
-			"D",
+			"46984",
 			[]byte{
 				0,
 				0,
@@ -1577,19 +1737,182 @@ func TestBytes32ToInt(t *testing.T) {
 				136,
 			},
 			46984,
+			false,
+		},
+		{
+			"less than 32 bytes",
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				183,
+				136,
+			},
+			0,
+			true,
+		},
+		{
+			"more than 32 bytes",
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				183,
+				136,
+			},
+			0,
+			true,
+		},
+		{
+			"non-zero in first 28 bytes",
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				1,
+				0,
+				0,
+				0,
+				0,
+			},
+			0,
+			true,
+		},
+		{
+			"larger than a max signed 32-bit value",
+			[]byte{
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				255,
+				255,
+				255,
+				255,
+			},
+			0,
+			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := merkle.Bytes32ToInt(tt.input)
-			if result != tt.expected {
-				t.Errorf(
-					"Bytes32ToInt of %d = %d, expected %d",
-					tt.input,
-					result,
-					tt.expected,
-				)
+			result, err := merkle.Bytes32ToInt(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if result != tt.expected {
+					t.Errorf(
+						"Bytes32ToInt of %d = %d, expected %d",
+						tt.input,
+						result,
+						tt.expected,
+					)
+				}
 			}
 		})
 	}

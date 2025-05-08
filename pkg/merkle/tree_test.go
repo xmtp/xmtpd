@@ -10,17 +10,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/merkle"
 )
 
-func TestEmptyTree(t *testing.T) {
-	_, err := merkle.NewMerkleTree([]merkle.Leaf{})
-	assert.Error(t, err, "Should error on empty leaves")
-	assert.ErrorAs(t, err, &merkle.ErrNoLeaves)
-}
-
 func TestBalancedTrees(t *testing.T) {
 	testCases := []struct {
 		name      string
 		leafCount int
 	}{
+		{"NoLeaves", 0},
 		{"TwoLeaves", 2},
 		{"FourLeaves", 4},
 		{"EightLeaves", 8},
@@ -378,15 +373,18 @@ func TestTreeInternals(t *testing.T) {
 		"Node 1 should match hash",
 	)
 
+	root, err := merkle.HashRoot(
+		3,
+		merkle.HashNodePair(
+			merkle.HashNodePair(merkle.HashLeaf(leaves[0]), merkle.HashLeaf(leaves[1])),
+			merkle.HashPairlessNode(merkle.HashLeaf(leaves[2])),
+		),
+	)
+	require.NoError(t, err)
+
 	assert.Equal(
 		t,
-		merkle.Node(merkle.HashRoot(
-			3,
-			merkle.HashNodePair(
-				merkle.HashNodePair(merkle.HashLeaf(leaves[0]), merkle.HashLeaf(leaves[1])),
-				merkle.HashPairlessNode(merkle.HashLeaf(leaves[2])),
-			),
-		)),
+		merkle.Node(root),
 		internalTree[0],
 		"Node 0 should match hash",
 	)
@@ -400,7 +398,7 @@ func TestCalculateBalancedLeafCount(t *testing.T) {
 		wantErr  bool
 	}{
 		{"negative", -1, 0, true},
-		{"zero", 0, 0, true},
+		{"zero", 0, 0, false},
 		{"one", 1, 2, false},
 		{"two", 2, 2, false},
 		{"three", 3, 4, false},
@@ -435,6 +433,27 @@ func TestCalculateBalancedLeafCountError(t *testing.T) {
 	_, err := merkle.CalculateBalancedNodesCount(massiveInput)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "count must be less than or equal than max int32")
+}
+
+func TestEmptyTree(t *testing.T) {
+	leaves := make([]merkle.Leaf, 0)
+
+	tree, err := merkle.NewMerkleTree(leaves)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		0,
+		tree.LeafCount(),
+		"LeafCount should be as expected",
+	)
+
+	assert.Equal(
+		t,
+		merkle.EmptyTreeRoot,
+		tree.Root(),
+		"Root should be as expected",
+	)
 }
 
 func TestBalancedSamples(t *testing.T) {
@@ -517,10 +536,16 @@ func TestBalancedSamples(t *testing.T) {
 				"Sub Root should be as expected",
 			)
 
+			root, err := merkle.HashRoot(
+				len(test.leaves),
+				tree.Tree()[1],
+			)
+			require.NoError(t, err)
+
 			assert.Equal(
 				t,
 				test.expectedRoot,
-				hex.EncodeToString(merkle.HashRoot(len(test.leaves), tree.Tree()[1])),
+				hex.EncodeToString(root),
 				"Root should be as expected",
 			)
 
@@ -609,10 +634,16 @@ func TestUnbalancedSamples(t *testing.T) {
 				"Sub Root should be as expected",
 			)
 
+			root, err := merkle.HashRoot(
+				len(test.leaves),
+				tree.Tree()[1],
+			)
+			require.NoError(t, err)
+
 			assert.Equal(
 				t,
 				test.expectedRoot,
-				hex.EncodeToString(merkle.HashRoot(len(test.leaves), tree.Tree()[1])),
+				hex.EncodeToString(root),
 				"Root should be as expected",
 			)
 

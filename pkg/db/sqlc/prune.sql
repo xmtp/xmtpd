@@ -1,3 +1,9 @@
+-- name: CountExpiredEnvelopes :one
+SELECT COUNT(*)::bigint AS expired_count
+FROM public.gateway_envelopes
+WHERE expiry IS NOT NULL
+  AND expiry < EXTRACT(EPOCH FROM now())::bigint;
+
 -- name: DeleteExpiredEnvelopesBatch :many
 WITH to_delete AS (
     SELECT originator_node_id, originator_sequence_id

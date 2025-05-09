@@ -33,6 +33,13 @@ func (e *Executor) Run() error {
 	totalDeletionCount := 0
 	start := time.Now()
 
+	cnt, err := querier.CountExpiredEnvelopes(e.ctx)
+	if err != nil {
+		return err
+	}
+	e.log.Info("Count of envelopes eligible for pruning", zap.Int64("count", cnt))
+
+	//TODO(mkysel) limit the number of cycles
 	for {
 		rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx)
 		if err != nil {

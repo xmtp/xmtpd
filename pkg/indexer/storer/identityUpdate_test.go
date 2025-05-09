@@ -28,12 +28,15 @@ func buildIdentityUpdateStorer(
 	db, _, cleanup := testutils.NewDB(t, ctx)
 	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
-	config.IdentityUpdatesContractAddress = testutils.DeployIdentityUpdatesContract(t, rpcUrl)
+	config.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
+		t,
+		rpcUrl,
+	)
 
-	client, err := blockchain.NewClient(ctx, config.RpcUrl)
+	client, err := blockchain.NewClient(ctx, config.AppChain.RpcURL)
 	require.NoError(t, err)
 	contract, err := iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(config.IdentityUpdatesContractAddress),
+		common.HexToAddress(config.AppChain.IdentityUpdateBroadcasterAddress),
 		client,
 	)
 	validationService := mlsvalidateMock.NewMockMLSValidationService(t)

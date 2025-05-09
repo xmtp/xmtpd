@@ -31,7 +31,7 @@ func NewRatesAdmin(
 	contractsOptions config.ContractsOptions,
 ) (*RatesAdmin, error) {
 	contract, err := rateregistry.NewRateRegistry(
-		common.HexToAddress(contractsOptions.RateRegistryContractAddress),
+		common.HexToAddress(contractsOptions.SettlementChain.RateRegistryAddress),
 		client,
 	)
 	if err != nil {

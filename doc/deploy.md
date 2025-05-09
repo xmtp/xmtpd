@@ -1,85 +1,16 @@
-# How to deploy to Testnet
+# How to deploy a local environment
 
 **⚠️ Experimental:** warning, this file might be out of date!
 
-## Deploy a new Contract
+## XMTP Sepolia information
 
-The current environment lives in [Conduit Testnet Staging](https://explorer-testnet-staging-88dqtxdinc.t.conduit.xyz/).
-To deploy a new contract you need to run `./contracts/dev/deploy-testnet`
-You will need:
+The current testnet environment lives in [XMTP Sepolia Chain](https://xmtp-testnet.explorer.alchemy.com/).
 
-- $PRIVATE_KEY which is accessible to all members of @ephemerahq/backend
-- $VERIFIER_URL: https://explorer-testnet-staging-88dqtxdinc.t.conduit.xyz/api
-- $RPC_URL: https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/
+### Deploy XMTPD nodes
 
-If the contract gets deployed correctly, you will get a few addresses.
-We definitely need the node contract address (for example `0x7c9A7c92e21E9aC25Ce26C5e724920D84BD5BD9b`)
+Node deployment is currently fully handled by [Ephemera](https://github.com/ephemeraHQ) and only members of `@ephemerahq/backend` have access to it.
 
-## Register nodes
-
-Before nodes can start or peer, they need to be registered with the contract.
-To do so, run:
-
-```shell
-export XMTPD_CONTRACTS_RPC_URL="https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/"
-export XMTPD_CONTRACTS_CHAIN_ID=34498
-export XMTPD_CONTRACTS_NODES_ADDRESS=<from above>
-export PRIVATE_KEY=<secret>
-
-dev/cmd/cli register-node \
-    --http-address=<node DNS> \
-    --node-owner-address=0xd27FDB90A393Ce0E390120aeB58b326AbA910BE0 \
-    --admin-private-key=$PRIVATE_KEY \
-    --node-signing-key-pub=<node pub key>
-```
-
-You need to register all (both) nodes with their correct DNS entries and public keys.
-
-### Verify Registration
-
-To verify registration, use:
-
-```shell
-export XMTPD_CONTRACTS_RPC_URL="https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/"
-export XMTPD_CONTRACTS_CHAIN_ID=34498
-export XMTPD_CONTRACTS_NODES_ADDRESS=<from above>
-export PRIVATE_KEY=<secret>
-
-dev/cmd/get-all-nodes \
-    --admin-private-key=$PRIVATE_KEY
-```
-
-And you should get something along these lines:
-
-```json
-{
-	"size": 2,
-	"nodes": [
-		{
-			"NodeId": 100,
-			"Node": {
-				"SigningKeyPub": "BOVELF0f4vAra5oaOGODp3ZoYLQKYHmgIjmU/6LOEFEsToqIY97q2FnD1lQKsgJsgvi4k8HFvvbGP0fZ3zOiB9s=",
-				"HttpAddress": "https://grpc.testnet.xmtp.network",
-				"IsHealthy": true
-			}
-		},
-		{
-			"NodeId": 200,
-			"Node": {
-				"SigningKeyPub": "BPwmHUOgFTU5pMZMKXY8sOfjd8DqwpEMPUvtsiNaxwNxz+fKU3SsqOdYJQDVjLfRL5XsA5XVZIge2WDZ7S0zpx4=",
-				"HttpAddress": "https://grpc2.testnet.xmtp.network",
-				"IsHealthy": true
-			}
-		}
-	]
-}
-```
-
-## Deploy XMTPD nodes
-
-Node deployment is currently fully handled by [Ephemera](https://github.com/ephemeraHQ/infrastructure) and only members of @ephemerahq/backend have access to it.
-
-There are currently two nodes running:
+The nodes run by Ephemera are:
 
 | DNS Name                           | Location   | Public Key                                                           |
 | ---------------------------------- | ---------- | -------------------------------------------------------------------- |
@@ -87,6 +18,94 @@ There are currently two nodes running:
 | https://grpc2.testnet.xmtp.network | EU-NORTH-1 | 0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371 |
 
 For more info, refer to the infrastructure README.
+
+## Local developer environment
+
+Refer to [XMTP Contracts](https://github.com/xmtp/smart-contracts) for further information regarding the on-chain protocol, deployments and source code.
+
+There are two ways of deploying a local environment:
+
+### Use the XMTP Contracts Image
+
+The [XMTP Contracts Image](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image) can be used to deploy a local environment and test `xmtpd` with it.
+
+The documentation contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
+
+`dev/local.env` contains by default sane values for local deployments. Modify what is necessary.
+
+### Use the dev/up automation
+
+Use the script provided in `dev/up`, which will automatically handle the deployment for you. The blockchain is started at <http://localhost:7545/>
+
+This method automatically pre-register two nodes.
+
+### Register nodes manually
+
+Before nodes can start or peer, they need to be registered with the contract.
+
+To do so, run:
+
+```shell
+# Modify environment variables to match your local environment.
+export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
+export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=31337
+export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
+export ADMIN_PRIVATE_KEY="0xDEADBEEF"
+export NODE_HTTP_ADDRESS="https://grpc.example.com"
+export NODE_OWNER_ADDRESS="0xDEADBEEF"
+export NODE_SIGNING_KEY_PUB="0xDEADBEEF"
+
+dev/cmd/cli register-node \
+    --admin.private-key=${ADMIN_PRIVATE_KEY} \
+    --http-address=${NODE_HTTP_ADDRESS} \
+    --node-owner-address=${NODE_OWNER_ADDRESS} \
+    --node-signing-key-pub=${NODE_SIGNING_KEY_PUB}
+```
+
+You need to register all (both) nodes with their correct DNS entries and public keys.
+
+### Verify a node registration
+
+To verify registration, use:
+
+```shell
+export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
+export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=31337
+export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
+export ADMIN_PRIVATE_KEY="0xDEADBEEF"
+
+dev/cmd/get-all-nodes \
+    --admin.private-key=$PRIVATE_KEY
+```
+
+And you should get something along these lines:
+
+```json
+{
+	"level": "INFO",
+	"time": "2025-05-06T16:39:35.737+0200",
+	"message": "got nodes",
+	"size": 2,
+	"nodes": [
+		{
+			"node_id": 100,
+			"owner_address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+			"signing_key_pub": "0x02ba5734d8f7091719471e7f7ed6b9df170dc70cc661ca05e688601ad984f068b0",
+			"http_address": "http://localhost:5050",
+			"min_monthly_fee_micro_dollars": 0,
+			"in_canonical_network": true
+		},
+		{
+			"node_id": 200,
+			"owner_address": "0xe67104BC93003192ab78B797d120DBA6e9Ff4928",
+			"signing_key_pub": "0x028f67e68543faafa8540c0f4936435edb66cd5b4f398853914cb066f905e6130f",
+			"http_address": "https://grpc.example.com",
+			"min_monthly_fee_micro_dollars": 0,
+			"in_canonical_network": false
+		}
+	]
+}
+```
 
 ### Verify deployed nodes
 

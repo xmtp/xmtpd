@@ -217,7 +217,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.RegisterNode.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -248,7 +248,10 @@ func registerNode(logger *zap.Logger, options *CLI) {
 }
 
 func isPubKeyAlreadyRegistered(logger *zap.Logger, options *CLI, pubKey string) bool {
-	chainClient, err := blockchain.NewClient(context.Background(), options.Contracts.RpcUrl)
+	chainClient, err := blockchain.NewClient(
+		context.Background(),
+		options.Contracts.SettlementChain.RpcURL,
+	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -282,7 +285,7 @@ func addNodeToNetwork(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.NetworkAdminOptions.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -309,7 +312,7 @@ func removeNodeFromNetwork(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.NetworkAdminOptions.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -336,7 +339,7 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.MigrateNodes.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -355,7 +358,7 @@ func setMaxActiveNodes(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.SetMaxActiveNodes.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -377,7 +380,7 @@ func setNodeOperatorCommissionPercent(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.SetNodeOperatorCommissionPercent.AdminOptions.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -396,14 +399,14 @@ func setNodeOperatorCommissionPercent(logger *zap.Logger, options *CLI) {
 func addRates(logger *zap.Logger, options *CLI) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
 	defer cancel()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.RpcURL)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		options.AddRates.AdminPrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 	)
 	if err != nil {
 		logger.Fatal("could not create signer", zap.Error(err))
@@ -439,7 +442,7 @@ func addRates(logger *zap.Logger, options *CLI) {
 func getRates(logger *zap.Logger, options *CLI) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
 	defer cancel()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.RpcURL)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -478,7 +481,7 @@ func setHttpAddress(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.SetHttpAddress.NodeManagerOptions.NodePrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -501,7 +504,7 @@ func setMinMonthlyFee(logger *zap.Logger, options *CLI) {
 		ctx,
 		logger,
 		options.SetMinMonthlyFee.NodeManagerOptions.NodePrivateKey,
-		options.Contracts.ChainID,
+		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -530,7 +533,7 @@ Getter commands
 
 func getAllNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.RpcURL)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -565,7 +568,7 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 
 func getNode(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.RpcURL)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -719,7 +722,10 @@ func setupRegistryAdmin(
 	chainID int,
 	options *CLI,
 ) (blockchain.INodeRegistryAdmin, error) {
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+	chainClient, err := blockchain.NewClient(
+		ctx,
+		options.Contracts.SettlementChain.RpcURL,
+	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}

@@ -49,14 +49,14 @@ func NewBlockchainPublisher(
 		return nil, errors.New("client is nil")
 	}
 	messagesContract, err := gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(contractOptions.MessagesContractAddress),
+		common.HexToAddress(contractOptions.AppChain.GroupMessageBroadcasterAddress),
 		client,
 	)
 	if err != nil {
 		return nil, err
 	}
 	identityUpdateContract, err := iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(contractOptions.IdentityUpdatesContractAddress),
+		common.HexToAddress(contractOptions.AppChain.IdentityUpdateBroadcasterAddress),
 		client,
 	)
 	if err != nil {
@@ -80,7 +80,7 @@ func NewBlockchainPublisher(
 	publisher := BlockchainPublisher{
 		signer: signer,
 		logger: logger.Named("GroupBlockchainPublisher").
-			With(zap.String("contractAddress", contractOptions.MessagesContractAddress)),
+			With(zap.String("contractAddress", contractOptions.AppChain.GroupMessageBroadcasterAddress)),
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
 		client:                 client,

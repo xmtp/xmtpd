@@ -47,7 +47,7 @@ func main() {
 		return
 	}
 
-	err = config.ValidateServerOptions(options)
+	err = config.ValidateServerOptions(&options)
 	if err != nil {
 		fatal("Could not validate options: %s", err)
 	}
@@ -99,14 +99,17 @@ func main() {
 			}
 		}
 
-		ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+		settlementChainClient, err := blockchain.NewClient(
+			ctx,
+			options.Contracts.SettlementChain.RpcURL,
+		)
 		if err != nil {
 			logger.Fatal("initializing blockchain client", zap.Error(err))
 		}
 
 		chainRegistry, err := registry.NewSmartContractRegistry(
 			ctx,
-			ethclient,
+			settlementChainClient,
 			logger,
 			options.Contracts,
 		)

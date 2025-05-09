@@ -238,13 +238,13 @@ func startAPIServer(
 
 			signer, err := blockchain.NewPrivateKeySigner(
 				options.Payer.PrivateKey,
-				options.Contracts.ChainID,
+				options.Contracts.AppChain.ChainID,
 			)
 			if err != nil {
 				logger.Fatal("initializing signer", zap.Error(err))
 			}
 
-			ethclient, err := blockchain.NewClient(ctx, options.Contracts.RpcUrl)
+			appChainClient, err := blockchain.NewClient(ctx, options.Contracts.AppChain.RpcURL)
 			if err != nil {
 				logger.Fatal("initializing blockchain client", zap.Error(err))
 			}
@@ -254,7 +254,7 @@ func startAPIServer(
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 				ctx,
 				logger,
-				ethclient,
+				appChainClient,
 				signer,
 				options.Contracts,
 				nonceManager,

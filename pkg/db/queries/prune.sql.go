@@ -10,6 +10,20 @@ import (
 	"database/sql"
 )
 
+const countExpiredEnvelopes = `-- name: CountExpiredEnvelopes :one
+SELECT COUNT(*)::bigint AS expired_count
+FROM public.gateway_envelopes
+WHERE expiry IS NOT NULL
+  AND expiry < EXTRACT(EPOCH FROM now())::bigint
+`
+
+func (q *Queries) CountExpiredEnvelopes(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countExpiredEnvelopes)
+	var expired_count int64
+	err := row.Scan(&expired_count)
+	return expired_count, err
+}
+
 const deleteExpiredEnvelopesBatch = `-- name: DeleteExpiredEnvelopesBatch :many
 WITH to_delete AS (
     SELECT originator_node_id, originator_sequence_id

@@ -90,7 +90,6 @@ func TestFirstReport(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint32(1), report.PayersLeafCount)
 	// Make sure the end sequence ID is the last sequence ID from the previous minute
 	require.Equal(t, uint64(2), report.EndSequenceID)
 	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
@@ -114,7 +113,6 @@ func TestReportWithMultiplePayers(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint32(2), report.PayersLeafCount)
 	require.Equal(t, uint64(2), report.EndSequenceID)
 	require.Equal(t, currency.PicoDollar(100), report.Payers[payerAddress1])
 	require.Equal(t, currency.PicoDollar(100), report.Payers[payerAddress2])
@@ -132,7 +130,6 @@ func TestReportWithNoMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint32(0), report.PayersLeafCount)
 	require.Equal(t, uint64(0), report.StartSequenceID)
 	require.Equal(t, uint64(0), report.EndSequenceID)
 	require.Equal(t, 0, len(report.Payers))
@@ -153,7 +150,6 @@ func TestSecondReportWithNoMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint32(0), report.PayersLeafCount)
 	require.Equal(t, uint64(1), report.StartSequenceID)
 	require.Equal(t, uint64(1), report.EndSequenceID)
 }
@@ -176,7 +172,6 @@ func TestSecondReport(t *testing.T) {
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
 	require.Equal(t, uint64(0), report.StartSequenceID)
-	require.Equal(t, uint32(1), report.PayersLeafCount)
 	require.Equal(t, uint64(2), report.EndSequenceID)
 	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
 
@@ -190,7 +185,6 @@ func TestSecondReport(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint32(1), report.PayersLeafCount)
 	require.Equal(t, uint64(3), report.EndSequenceID)
 	require.Equal(t, currency.PicoDollar(100), report.Payers[payerAddress])
 }
@@ -214,7 +208,6 @@ func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint32(0), report.PayersLeafCount)
 	require.Equal(t, uint64(0), report.StartSequenceID)
 	require.Equal(t, uint64(0), report.EndSequenceID)
 	require.Equal(t, 0, len(report.Payers))

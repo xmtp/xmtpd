@@ -150,6 +150,8 @@ type ClientEnvelope struct {
 	//	*ClientEnvelope_WelcomeMessage
 	//	*ClientEnvelope_UploadKeyPackage
 	//	*ClientEnvelope_IdentityUpdate
+	//	*ClientEnvelope_PayerReport
+	//	*ClientEnvelope_PayerReportAttestation
 	Payload       isClientEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -235,6 +237,24 @@ func (x *ClientEnvelope) GetIdentityUpdate() *associations.IdentityUpdate {
 	return nil
 }
 
+func (x *ClientEnvelope) GetPayerReport() *PayerReport {
+	if x != nil {
+		if x, ok := x.Payload.(*ClientEnvelope_PayerReport); ok {
+			return x.PayerReport
+		}
+	}
+	return nil
+}
+
+func (x *ClientEnvelope) GetPayerReportAttestation() *PayerReportAttestation {
+	if x != nil {
+		if x, ok := x.Payload.(*ClientEnvelope_PayerReportAttestation); ok {
+			return x.PayerReportAttestation
+		}
+	}
+	return nil
+}
+
 type isClientEnvelope_Payload interface {
 	isClientEnvelope_Payload()
 }
@@ -255,6 +275,14 @@ type ClientEnvelope_IdentityUpdate struct {
 	IdentityUpdate *associations.IdentityUpdate `protobuf:"bytes,5,opt,name=identity_update,json=identityUpdate,proto3,oneof"`
 }
 
+type ClientEnvelope_PayerReport struct {
+	PayerReport *PayerReport `protobuf:"bytes,6,opt,name=payer_report,json=payerReport,proto3,oneof"`
+}
+
+type ClientEnvelope_PayerReportAttestation struct {
+	PayerReportAttestation *PayerReportAttestation `protobuf:"bytes,7,opt,name=payer_report_attestation,json=payerReportAttestation,proto3,oneof"`
+}
+
 func (*ClientEnvelope_GroupMessage) isClientEnvelope_Payload() {}
 
 func (*ClientEnvelope_WelcomeMessage) isClientEnvelope_Payload() {}
@@ -263,12 +291,17 @@ func (*ClientEnvelope_UploadKeyPackage) isClientEnvelope_Payload() {}
 
 func (*ClientEnvelope_IdentityUpdate) isClientEnvelope_Payload() {}
 
+func (*ClientEnvelope_PayerReport) isClientEnvelope_Payload() {}
+
+func (*ClientEnvelope_PayerReportAttestation) isClientEnvelope_Payload() {}
+
 // Wraps client envelope with payer signature
 type PayerEnvelope struct {
 	state                  protoimpl.MessageState                  `protogen:"open.v1"`
 	UnsignedClientEnvelope []byte                                  `protobuf:"bytes,1,opt,name=unsigned_client_envelope,json=unsignedClientEnvelope,proto3" json:"unsigned_client_envelope,omitempty"` // Protobuf serialized
 	PayerSignature         *associations.RecoverableEcdsaSignature `protobuf:"bytes,2,opt,name=payer_signature,json=payerSignature,proto3" json:"payer_signature,omitempty"`
 	TargetOriginator       uint32                                  `protobuf:"varint,3,opt,name=target_originator,json=targetOriginator,proto3" json:"target_originator,omitempty"`
+	ExpiryUnixtime         int64                                   `protobuf:"varint,4,opt,name=expiry_unixtime,json=expiryUnixtime,proto3" json:"expiry_unixtime,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -320,6 +353,13 @@ func (x *PayerEnvelope) GetPayerSignature() *associations.RecoverableEcdsaSignat
 func (x *PayerEnvelope) GetTargetOriginator() uint32 {
 	if x != nil {
 		return x.TargetOriginator
+	}
+	return 0
+}
+
+func (x *PayerEnvelope) GetExpiryUnixtime() int64 {
+	if x != nil {
+		return x.ExpiryUnixtime
 	}
 	return 0
 }
@@ -549,7 +589,7 @@ var File_xmtpv4_envelopes_envelopes_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_envelopes_envelopes_proto_rawDesc = "" +
 	"\n" +
-	" xmtpv4/envelopes/envelopes.proto\x12\x15xmtp.xmtpv4.envelopes\x1a'identity/associations/association.proto\x1a%identity/associations/signature.proto\x1a\x14mls/api/v1/mls.proto\"\xba\x01\n" +
+	" xmtpv4/envelopes/envelopes.proto\x12\x15xmtp.xmtpv4.envelopes\x1a'identity/associations/association.proto\x1a%identity/associations/signature.proto\x1a\x14mls/api/v1/mls.proto\x1a#xmtpv4/envelopes/payer_report.proto\"\xba\x01\n" +
 	"\x06Cursor\x12i\n" +
 	"\x16node_id_to_sequence_id\x18\x01 \x03(\v25.xmtp.xmtpv4.envelopes.Cursor.NodeIdToSequenceIdEntryR\x12nodeIdToSequenceId\x1aE\n" +
 	"\x17NodeIdToSequenceIdEntry\x12\x10\n" +
@@ -561,18 +601,21 @@ const file_xmtpv4_envelopes_envelopes_proto_rawDesc = "" +
 	"\n" +
 	"depends_on\x18\x03 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\tdependsOn\x12\x1b\n" +
 	"\tis_commit\x18\x04 \x01(\bR\bisCommitB\x14\n" +
-	"\x12_target_originator\"\xa4\x03\n" +
+	"\x12_target_originator\"\xd8\x04\n" +
 	"\x0eClientEnvelope\x12:\n" +
 	"\x03aad\x18\x01 \x01(\v2(.xmtp.xmtpv4.envelopes.AuthenticatedDataR\x03aad\x12I\n" +
 	"\rgroup_message\x18\x02 \x01(\v2\".xmtp.mls.api.v1.GroupMessageInputH\x00R\fgroupMessage\x12O\n" +
 	"\x0fwelcome_message\x18\x03 \x01(\v2$.xmtp.mls.api.v1.WelcomeMessageInputH\x00R\x0ewelcomeMessage\x12X\n" +
 	"\x12upload_key_package\x18\x04 \x01(\v2(.xmtp.mls.api.v1.UploadKeyPackageRequestH\x00R\x10uploadKeyPackage\x12U\n" +
-	"\x0fidentity_update\x18\x05 \x01(\v2*.xmtp.identity.associations.IdentityUpdateH\x00R\x0eidentityUpdateB\t\n" +
-	"\apayload\"\xd6\x01\n" +
+	"\x0fidentity_update\x18\x05 \x01(\v2*.xmtp.identity.associations.IdentityUpdateH\x00R\x0eidentityUpdate\x12G\n" +
+	"\fpayer_report\x18\x06 \x01(\v2\".xmtp.xmtpv4.envelopes.PayerReportH\x00R\vpayerReport\x12i\n" +
+	"\x18payer_report_attestation\x18\a \x01(\v2-.xmtp.xmtpv4.envelopes.PayerReportAttestationH\x00R\x16payerReportAttestationB\t\n" +
+	"\apayload\"\xff\x01\n" +
 	"\rPayerEnvelope\x128\n" +
 	"\x18unsigned_client_envelope\x18\x01 \x01(\fR\x16unsignedClientEnvelope\x12^\n" +
 	"\x0fpayer_signature\x18\x02 \x01(\v25.xmtp.identity.associations.RecoverableEcdsaSignatureR\x0epayerSignature\x12+\n" +
-	"\x11target_originator\x18\x03 \x01(\rR\x10targetOriginator\"\xc7\x02\n" +
+	"\x11target_originator\x18\x03 \x01(\rR\x10targetOriginator\x12'\n" +
+	"\x0fexpiry_unixtime\x18\x04 \x01(\x03R\x0eexpiryUnixtime\"\xc7\x02\n" +
 	"\x1aUnsignedOriginatorEnvelope\x12,\n" +
 	"\x12originator_node_id\x18\x01 \x01(\rR\x10originatorNodeId\x124\n" +
 	"\x16originator_sequence_id\x18\x02 \x01(\x04R\x14originatorSequenceId\x12#\n" +
@@ -615,7 +658,9 @@ var file_xmtpv4_envelopes_envelopes_proto_goTypes = []any{
 	(*v1.WelcomeMessageInput)(nil),                 // 9: xmtp.mls.api.v1.WelcomeMessageInput
 	(*v1.UploadKeyPackageRequest)(nil),             // 10: xmtp.mls.api.v1.UploadKeyPackageRequest
 	(*associations.IdentityUpdate)(nil),            // 11: xmtp.identity.associations.IdentityUpdate
-	(*associations.RecoverableEcdsaSignature)(nil), // 12: xmtp.identity.associations.RecoverableEcdsaSignature
+	(*PayerReport)(nil),                            // 12: xmtp.xmtpv4.envelopes.PayerReport
+	(*PayerReportAttestation)(nil),                 // 13: xmtp.xmtpv4.envelopes.PayerReportAttestation
+	(*associations.RecoverableEcdsaSignature)(nil), // 14: xmtp.identity.associations.RecoverableEcdsaSignature
 }
 var file_xmtpv4_envelopes_envelopes_proto_depIdxs = []int32{
 	7,  // 0: xmtp.xmtpv4.envelopes.Cursor.node_id_to_sequence_id:type_name -> xmtp.xmtpv4.envelopes.Cursor.NodeIdToSequenceIdEntry
@@ -625,14 +670,16 @@ var file_xmtpv4_envelopes_envelopes_proto_depIdxs = []int32{
 	9,  // 4: xmtp.xmtpv4.envelopes.ClientEnvelope.welcome_message:type_name -> xmtp.mls.api.v1.WelcomeMessageInput
 	10, // 5: xmtp.xmtpv4.envelopes.ClientEnvelope.upload_key_package:type_name -> xmtp.mls.api.v1.UploadKeyPackageRequest
 	11, // 6: xmtp.xmtpv4.envelopes.ClientEnvelope.identity_update:type_name -> xmtp.identity.associations.IdentityUpdate
-	12, // 7: xmtp.xmtpv4.envelopes.PayerEnvelope.payer_signature:type_name -> xmtp.identity.associations.RecoverableEcdsaSignature
-	12, // 8: xmtp.xmtpv4.envelopes.OriginatorEnvelope.originator_signature:type_name -> xmtp.identity.associations.RecoverableEcdsaSignature
-	5,  // 9: xmtp.xmtpv4.envelopes.OriginatorEnvelope.blockchain_proof:type_name -> xmtp.xmtpv4.envelopes.BlockchainProof
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	12, // 7: xmtp.xmtpv4.envelopes.ClientEnvelope.payer_report:type_name -> xmtp.xmtpv4.envelopes.PayerReport
+	13, // 8: xmtp.xmtpv4.envelopes.ClientEnvelope.payer_report_attestation:type_name -> xmtp.xmtpv4.envelopes.PayerReportAttestation
+	14, // 9: xmtp.xmtpv4.envelopes.PayerEnvelope.payer_signature:type_name -> xmtp.identity.associations.RecoverableEcdsaSignature
+	14, // 10: xmtp.xmtpv4.envelopes.OriginatorEnvelope.originator_signature:type_name -> xmtp.identity.associations.RecoverableEcdsaSignature
+	5,  // 11: xmtp.xmtpv4.envelopes.OriginatorEnvelope.blockchain_proof:type_name -> xmtp.xmtpv4.envelopes.BlockchainProof
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_xmtpv4_envelopes_envelopes_proto_init() }
@@ -640,12 +687,15 @@ func file_xmtpv4_envelopes_envelopes_proto_init() {
 	if File_xmtpv4_envelopes_envelopes_proto != nil {
 		return
 	}
+	file_xmtpv4_envelopes_payer_report_proto_init()
 	file_xmtpv4_envelopes_envelopes_proto_msgTypes[1].OneofWrappers = []any{}
 	file_xmtpv4_envelopes_envelopes_proto_msgTypes[2].OneofWrappers = []any{
 		(*ClientEnvelope_GroupMessage)(nil),
 		(*ClientEnvelope_WelcomeMessage)(nil),
 		(*ClientEnvelope_UploadKeyPackage)(nil),
 		(*ClientEnvelope_IdentityUpdate)(nil),
+		(*ClientEnvelope_PayerReport)(nil),
+		(*ClientEnvelope_PayerReportAttestation)(nil),
 	}
 	file_xmtpv4_envelopes_envelopes_proto_msgTypes[6].OneofWrappers = []any{
 		(*OriginatorEnvelope_OriginatorSignature)(nil),

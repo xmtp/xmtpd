@@ -31,6 +31,11 @@ const (
 	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED     GroupMembershipStateSave = 1
 	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_REJECTED    GroupMembershipStateSave = 2
 	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_PENDING     GroupMembershipStateSave = 3
+	// A group is marked as this state when it is restored
+	// from a backup. This is a non-functional archive state
+	// that can be reactivated when the user is re-added to
+	// the group.
+	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_RESTORED GroupMembershipStateSave = 4
 )
 
 // Enum value maps for GroupMembershipStateSave.
@@ -40,12 +45,14 @@ var (
 		1: "GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED",
 		2: "GROUP_MEMBERSHIP_STATE_SAVE_REJECTED",
 		3: "GROUP_MEMBERSHIP_STATE_SAVE_PENDING",
+		4: "GROUP_MEMBERSHIP_STATE_SAVE_RESTORED",
 	}
 	GroupMembershipStateSave_value = map[string]int32{
 		"GROUP_MEMBERSHIP_STATE_SAVE_UNSPECIFIED": 0,
 		"GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED":     1,
 		"GROUP_MEMBERSHIP_STATE_SAVE_REJECTED":    2,
 		"GROUP_MEMBERSHIP_STATE_SAVE_PENDING":     3,
+		"GROUP_MEMBERSHIP_STATE_SAVE_RESTORED":    4,
 	}
 )
 
@@ -144,8 +151,12 @@ type GroupSave struct {
 	LastMessageNs            *int64                   `protobuf:"varint,10,opt,name=last_message_ns,json=lastMessageNs,proto3,oneof" json:"last_message_ns,omitempty"`
 	MessageDisappearFromNs   *int64                   `protobuf:"varint,11,opt,name=message_disappear_from_ns,json=messageDisappearFromNs,proto3,oneof" json:"message_disappear_from_ns,omitempty"`
 	MessageDisappearInNs     *int64                   `protobuf:"varint,12,opt,name=message_disappear_in_ns,json=messageDisappearInNs,proto3,oneof" json:"message_disappear_in_ns,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// metadata fields
+	Metadata         *ImmutableMetadataSave `protobuf:"bytes,13,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	MutableMetadata  *MutableMetadataSave   `protobuf:"bytes,14,opt,name=mutable_metadata,json=mutableMetadata,proto3" json:"mutable_metadata,omitempty"`
+	PausedForVersion *string                `protobuf:"bytes,15,opt,name=paused_for_version,json=pausedForVersion,proto3,oneof" json:"paused_for_version,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GroupSave) Reset() {
@@ -262,11 +273,138 @@ func (x *GroupSave) GetMessageDisappearInNs() int64 {
 	return 0
 }
 
+func (x *GroupSave) GetMetadata() *ImmutableMetadataSave {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *GroupSave) GetMutableMetadata() *MutableMetadataSave {
+	if x != nil {
+		return x.MutableMetadata
+	}
+	return nil
+}
+
+func (x *GroupSave) GetPausedForVersion() string {
+	if x != nil && x.PausedForVersion != nil {
+		return *x.PausedForVersion
+	}
+	return ""
+}
+
+// A Groups's mutable metadata
+type MutableMetadataSave struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Attributes     map[string]string      `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	AdminList      []string               `protobuf:"bytes,2,rep,name=admin_list,json=adminList,proto3" json:"admin_list,omitempty"`
+	SuperAdminList []string               `protobuf:"bytes,3,rep,name=super_admin_list,json=superAdminList,proto3" json:"super_admin_list,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MutableMetadataSave) Reset() {
+	*x = MutableMetadataSave{}
+	mi := &file_device_sync_group_backup_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutableMetadataSave) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutableMetadataSave) ProtoMessage() {}
+
+func (x *MutableMetadataSave) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_group_backup_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutableMetadataSave.ProtoReflect.Descriptor instead.
+func (*MutableMetadataSave) Descriptor() ([]byte, []int) {
+	return file_device_sync_group_backup_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *MutableMetadataSave) GetAttributes() map[string]string {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+func (x *MutableMetadataSave) GetAdminList() []string {
+	if x != nil {
+		return x.AdminList
+	}
+	return nil
+}
+
+func (x *MutableMetadataSave) GetSuperAdminList() []string {
+	if x != nil {
+		return x.SuperAdminList
+	}
+	return nil
+}
+
+// A Group's immutable metadata
+type ImmutableMetadataSave struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CreatorInboxId string                 `protobuf:"bytes,1,opt,name=creator_inbox_id,json=creatorInboxId,proto3" json:"creator_inbox_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ImmutableMetadataSave) Reset() {
+	*x = ImmutableMetadataSave{}
+	mi := &file_device_sync_group_backup_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImmutableMetadataSave) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImmutableMetadataSave) ProtoMessage() {}
+
+func (x *ImmutableMetadataSave) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_group_backup_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImmutableMetadataSave.ProtoReflect.Descriptor instead.
+func (*ImmutableMetadataSave) Descriptor() ([]byte, []int) {
+	return file_device_sync_group_backup_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ImmutableMetadataSave) GetCreatorInboxId() string {
+	if x != nil {
+		return x.CreatorInboxId
+	}
+	return ""
+}
+
 var File_device_sync_group_backup_proto protoreflect.FileDescriptor
 
 const file_device_sync_group_backup_proto_rawDesc = "" +
 	"\n" +
-	"\x1edevice_sync/group_backup.proto\x12\x1dxmtp.device_sync.group_backup\"\xe0\x05\n" +
+	"\x1edevice_sync/group_backup.proto\x12\x1dxmtp.device_sync.group_backup\"\xdb\a\n" +
 	"\tGroupSave\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12\"\n" +
 	"\rcreated_at_ns\x18\x02 \x01(\x03R\vcreatedAtNs\x12b\n" +
@@ -281,17 +419,34 @@ const file_device_sync_group_backup_proto_rawDesc = "" +
 	"\x0flast_message_ns\x18\n" +
 	" \x01(\x03H\x02R\rlastMessageNs\x88\x01\x01\x12>\n" +
 	"\x19message_disappear_from_ns\x18\v \x01(\x03H\x03R\x16messageDisappearFromNs\x88\x01\x01\x12:\n" +
-	"\x17message_disappear_in_ns\x18\f \x01(\x03H\x04R\x14messageDisappearInNs\x88\x01\x01B\r\n" +
+	"\x17message_disappear_in_ns\x18\f \x01(\x03H\x04R\x14messageDisappearInNs\x88\x01\x01\x12P\n" +
+	"\bmetadata\x18\r \x01(\v24.xmtp.device_sync.group_backup.ImmutableMetadataSaveR\bmetadata\x12]\n" +
+	"\x10mutable_metadata\x18\x0e \x01(\v22.xmtp.device_sync.group_backup.MutableMetadataSaveR\x0fmutableMetadata\x121\n" +
+	"\x12paused_for_version\x18\x0f \x01(\tH\x05R\x10pausedForVersion\x88\x01\x01B\r\n" +
 	"\v_welcome_idB\b\n" +
 	"\x06_dm_idB\x12\n" +
 	"\x10_last_message_nsB\x1c\n" +
 	"\x1a_message_disappear_from_nsB\x1a\n" +
-	"\x18_message_disappear_in_ns*\xc3\x01\n" +
+	"\x18_message_disappear_in_nsB\x15\n" +
+	"\x13_paused_for_version\"\x81\x02\n" +
+	"\x13MutableMetadataSave\x12b\n" +
+	"\n" +
+	"attributes\x18\x01 \x03(\v2B.xmtp.device_sync.group_backup.MutableMetadataSave.AttributesEntryR\n" +
+	"attributes\x12\x1d\n" +
+	"\n" +
+	"admin_list\x18\x02 \x03(\tR\tadminList\x12(\n" +
+	"\x10super_admin_list\x18\x03 \x03(\tR\x0esuperAdminList\x1a=\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"A\n" +
+	"\x15ImmutableMetadataSave\x12(\n" +
+	"\x10creator_inbox_id\x18\x01 \x01(\tR\x0ecreatorInboxId*\xed\x01\n" +
 	"\x18GroupMembershipStateSave\x12+\n" +
 	"'GROUP_MEMBERSHIP_STATE_SAVE_UNSPECIFIED\x10\x00\x12'\n" +
 	"#GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED\x10\x01\x12(\n" +
 	"$GROUP_MEMBERSHIP_STATE_SAVE_REJECTED\x10\x02\x12'\n" +
-	"#GROUP_MEMBERSHIP_STATE_SAVE_PENDING\x10\x03*\xa0\x01\n" +
+	"#GROUP_MEMBERSHIP_STATE_SAVE_PENDING\x10\x03\x12(\n" +
+	"$GROUP_MEMBERSHIP_STATE_SAVE_RESTORED\x10\x04*\xa0\x01\n" +
 	"\x14ConversationTypeSave\x12&\n" +
 	"\"CONVERSATION_TYPE_SAVE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cCONVERSATION_TYPE_SAVE_GROUP\x10\x01\x12\x1d\n" +
@@ -312,20 +467,26 @@ func file_device_sync_group_backup_proto_rawDescGZIP() []byte {
 }
 
 var file_device_sync_group_backup_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_device_sync_group_backup_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_device_sync_group_backup_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_device_sync_group_backup_proto_goTypes = []any{
 	(GroupMembershipStateSave)(0), // 0: xmtp.device_sync.group_backup.GroupMembershipStateSave
 	(ConversationTypeSave)(0),     // 1: xmtp.device_sync.group_backup.ConversationTypeSave
 	(*GroupSave)(nil),             // 2: xmtp.device_sync.group_backup.GroupSave
+	(*MutableMetadataSave)(nil),   // 3: xmtp.device_sync.group_backup.MutableMetadataSave
+	(*ImmutableMetadataSave)(nil), // 4: xmtp.device_sync.group_backup.ImmutableMetadataSave
+	nil,                           // 5: xmtp.device_sync.group_backup.MutableMetadataSave.AttributesEntry
 }
 var file_device_sync_group_backup_proto_depIdxs = []int32{
 	0, // 0: xmtp.device_sync.group_backup.GroupSave.membership_state:type_name -> xmtp.device_sync.group_backup.GroupMembershipStateSave
 	1, // 1: xmtp.device_sync.group_backup.GroupSave.conversation_type:type_name -> xmtp.device_sync.group_backup.ConversationTypeSave
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 2: xmtp.device_sync.group_backup.GroupSave.metadata:type_name -> xmtp.device_sync.group_backup.ImmutableMetadataSave
+	3, // 3: xmtp.device_sync.group_backup.GroupSave.mutable_metadata:type_name -> xmtp.device_sync.group_backup.MutableMetadataSave
+	5, // 4: xmtp.device_sync.group_backup.MutableMetadataSave.attributes:type_name -> xmtp.device_sync.group_backup.MutableMetadataSave.AttributesEntry
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_device_sync_group_backup_proto_init() }
@@ -340,7 +501,7 @@ func file_device_sync_group_backup_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_sync_group_backup_proto_rawDesc), len(file_device_sync_group_backup_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   1,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

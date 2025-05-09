@@ -47,7 +47,7 @@ func main() {
 		return
 	}
 
-	err = config.ValidateServerOptions(options)
+	err = config.ValidateServerOptions(&options)
 	if err != nil {
 		fatal("Could not validate options: %s", err)
 	}

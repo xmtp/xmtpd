@@ -3,6 +3,7 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"math/rand"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -38,12 +39,13 @@ type Service struct {
 	payerPrivateKey     *ecdsa.PrivateKey
 	nodeSelector        NodeSelectorAlgorithm
 	nodeCursorTracker   *NodeCursorTracker
+	nodeRegistry        registry.NodeRegistry
 }
 
 func NewPayerApiService(
 	ctx context.Context,
 	log *zap.Logger,
-	registry registry.NodeRegistry,
+	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	metadataApiClient MetadataApiClientConstructor,
@@ -54,7 +56,7 @@ func NewPayerApiService(
 	}
 
 	var metadataClient MetadataApiClientConstructor
-	clientManager := NewClientManager(log, registry, clientMetrics)
+	clientManager := NewClientManager(log, nodeRegistry, clientMetrics)
 	if metadataApiClient == nil {
 		metadataClient = &DefaultMetadataApiClientConstructor{clientManager: clientManager}
 	} else {
@@ -68,8 +70,56 @@ func NewPayerApiService(
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
 		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, metadataClient),
-		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: registry},
+		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: nodeRegistry},
+		nodeRegistry:        nodeRegistry,
 	}, nil
+}
+
+// GetReaderNode returns a reader node and a list of backup nodes.
+// For now, the reader node is chosen randomly from the list of nodes.
+// In the future, different algorithms can be implemented and selected in the request.
+func (s *Service) GetReaderNode(
+	ctx context.Context,
+	req *payer_api.GetReaderNodeRequest,
+) (resp *payer_api.GetReaderNodeResponse, err error) {
+	var nodes []registry.Node
+
+	defer func() {
+		metrics.EmitPayerGetReaderNodeAvailableNodes(len(nodes))
+	}()
+
+	nodes, err = s.nodeRegistry.GetNodes()
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "failed to fetch nodes: %v", err)
+	}
+
+	if len(nodes) == 0 {
+		return nil, status.Errorf(codes.Unavailable, "no nodes available")
+	}
+
+	primaryUrl, backupUrls := getReaderNodeRandom(nodes)
+
+	return &payer_api.GetReaderNodeResponse{
+		ReaderNodeUrl:  primaryUrl,
+		BackupNodeUrls: backupUrls,
+	}, nil
+}
+
+func getReaderNodeRandom(nodes []registry.Node) (string, []string) {
+	shuffled := make([]registry.Node, len(nodes))
+	copy(shuffled, nodes)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	primaryUrl := shuffled[0].HttpAddress
+
+	backupUrls := make([]string, 0, len(shuffled)-1)
+	for _, node := range shuffled[1:] {
+		backupUrls = append(backupUrls, node.HttpAddress)
+	}
+
+	return primaryUrl, backupUrls
 }
 
 func (s *Service) PublishClientEnvelopes(

@@ -135,8 +135,8 @@
           "type": "integer",
           "format": "int64"
         },
-        "expiryUnixtime": {
-          "type": "string",
+        "messageRetentionDays": {
+          "type": "integer",
           "format": "int64"
         }
       },

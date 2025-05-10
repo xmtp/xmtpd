@@ -301,7 +301,7 @@ type PayerEnvelope struct {
 	UnsignedClientEnvelope []byte                                  `protobuf:"bytes,1,opt,name=unsigned_client_envelope,json=unsignedClientEnvelope,proto3" json:"unsigned_client_envelope,omitempty"` // Protobuf serialized
 	PayerSignature         *associations.RecoverableEcdsaSignature `protobuf:"bytes,2,opt,name=payer_signature,json=payerSignature,proto3" json:"payer_signature,omitempty"`
 	TargetOriginator       uint32                                  `protobuf:"varint,3,opt,name=target_originator,json=targetOriginator,proto3" json:"target_originator,omitempty"`
-	ExpiryUnixtime         int64                                   `protobuf:"varint,4,opt,name=expiry_unixtime,json=expiryUnixtime,proto3" json:"expiry_unixtime,omitempty"`
+	MessageRetentionDays   uint32                                  `protobuf:"varint,4,opt,name=message_retention_days,json=messageRetentionDays,proto3" json:"message_retention_days,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -357,9 +357,9 @@ func (x *PayerEnvelope) GetTargetOriginator() uint32 {
 	return 0
 }
 
-func (x *PayerEnvelope) GetExpiryUnixtime() int64 {
+func (x *PayerEnvelope) GetMessageRetentionDays() uint32 {
 	if x != nil {
-		return x.ExpiryUnixtime
+		return x.MessageRetentionDays
 	}
 	return 0
 }
@@ -373,6 +373,7 @@ type UnsignedOriginatorEnvelope struct {
 	PayerEnvelopeBytes       []byte                 `protobuf:"bytes,4,opt,name=payer_envelope_bytes,json=payerEnvelopeBytes,proto3" json:"payer_envelope_bytes,omitempty"`
 	BaseFeePicodollars       uint64                 `protobuf:"varint,5,opt,name=base_fee_picodollars,json=baseFeePicodollars,proto3" json:"base_fee_picodollars,omitempty"`                   // The base fee for the message in picodollars
 	CongestionFeePicodollars uint64                 `protobuf:"varint,6,opt,name=congestion_fee_picodollars,json=congestionFeePicodollars,proto3" json:"congestion_fee_picodollars,omitempty"` // The congestion fee for the message in picodollars
+	ExpiryUnixtime           uint64                 `protobuf:"varint,7,opt,name=expiry_unixtime,json=expiryUnixtime,proto3" json:"expiry_unixtime,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -445,6 +446,13 @@ func (x *UnsignedOriginatorEnvelope) GetBaseFeePicodollars() uint64 {
 func (x *UnsignedOriginatorEnvelope) GetCongestionFeePicodollars() uint64 {
 	if x != nil {
 		return x.CongestionFeePicodollars
+	}
+	return 0
+}
+
+func (x *UnsignedOriginatorEnvelope) GetExpiryUnixtime() uint64 {
+	if x != nil {
+		return x.ExpiryUnixtime
 	}
 	return 0
 }
@@ -610,19 +618,20 @@ const file_xmtpv4_envelopes_envelopes_proto_rawDesc = "" +
 	"\x0fidentity_update\x18\x05 \x01(\v2*.xmtp.identity.associations.IdentityUpdateH\x00R\x0eidentityUpdate\x12G\n" +
 	"\fpayer_report\x18\x06 \x01(\v2\".xmtp.xmtpv4.envelopes.PayerReportH\x00R\vpayerReport\x12i\n" +
 	"\x18payer_report_attestation\x18\a \x01(\v2-.xmtp.xmtpv4.envelopes.PayerReportAttestationH\x00R\x16payerReportAttestationB\t\n" +
-	"\apayload\"\xff\x01\n" +
+	"\apayload\"\x8c\x02\n" +
 	"\rPayerEnvelope\x128\n" +
 	"\x18unsigned_client_envelope\x18\x01 \x01(\fR\x16unsignedClientEnvelope\x12^\n" +
 	"\x0fpayer_signature\x18\x02 \x01(\v25.xmtp.identity.associations.RecoverableEcdsaSignatureR\x0epayerSignature\x12+\n" +
-	"\x11target_originator\x18\x03 \x01(\rR\x10targetOriginator\x12'\n" +
-	"\x0fexpiry_unixtime\x18\x04 \x01(\x03R\x0eexpiryUnixtime\"\xc7\x02\n" +
+	"\x11target_originator\x18\x03 \x01(\rR\x10targetOriginator\x124\n" +
+	"\x16message_retention_days\x18\x04 \x01(\rR\x14messageRetentionDays\"\xf0\x02\n" +
 	"\x1aUnsignedOriginatorEnvelope\x12,\n" +
 	"\x12originator_node_id\x18\x01 \x01(\rR\x10originatorNodeId\x124\n" +
 	"\x16originator_sequence_id\x18\x02 \x01(\x04R\x14originatorSequenceId\x12#\n" +
 	"\roriginator_ns\x18\x03 \x01(\x03R\foriginatorNs\x120\n" +
 	"\x14payer_envelope_bytes\x18\x04 \x01(\fR\x12payerEnvelopeBytes\x120\n" +
 	"\x14base_fee_picodollars\x18\x05 \x01(\x04R\x12baseFeePicodollars\x12<\n" +
-	"\x1acongestion_fee_picodollars\x18\x06 \x01(\x04R\x18congestionFeePicodollars\"<\n" +
+	"\x1acongestion_fee_picodollars\x18\x06 \x01(\x04R\x18congestionFeePicodollars\x12'\n" +
+	"\x0fexpiry_unixtime\x18\a \x01(\x04R\x0eexpiryUnixtime\"<\n" +
 	"\x0fBlockchainProof\x12)\n" +
 	"\x10transaction_hash\x18\x01 \x01(\fR\x0ftransactionHash\"\xa0\x02\n" +
 	"\x12OriginatorEnvelope\x12@\n" +

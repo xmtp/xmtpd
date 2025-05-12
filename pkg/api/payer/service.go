@@ -3,8 +3,8 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
-	"math/rand"
 	"math"
+	"math/rand"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"

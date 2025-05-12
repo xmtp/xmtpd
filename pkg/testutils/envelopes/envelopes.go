@@ -1,9 +1,10 @@
 package testutils
 
 import (
-	"github.com/xmtp/xmtpd/pkg/constants"
 	"testing"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"

@@ -27,7 +27,7 @@ type IFeeCalculator interface {
 	CalculateBaseFee(
 		messageTime time.Time,
 		messageSize int64,
-		storageDurationDays int64,
+		storageDurationDays uint32,
 	) (currency.PicoDollar, error)
 	CalculateCongestionFee(
 		ctx context.Context,

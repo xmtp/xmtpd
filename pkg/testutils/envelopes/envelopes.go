@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
@@ -82,9 +84,10 @@ func CreateIdentityUpdateClientEnvelope(
 	}
 }
 
-func CreatePayerEnvelope(
+func CreatePayerEnvelopeWithExpiration(
 	t *testing.T,
 	nodeID uint32,
+	expirationDays uint32,
 	clientEnv ...*envelopes.ClientEnvelope,
 ) *envelopes.PayerEnvelope {
 	if len(clientEnv) == 0 {
@@ -105,8 +108,21 @@ func CreatePayerEnvelope(
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
-		TargetOriginator: nodeID,
+		TargetOriginator:     nodeID,
+		MessageRetentionDays: expirationDays,
 	}
+}
+
+func CreatePayerEnvelope(
+	t *testing.T,
+	nodeID uint32,
+	clientEnv ...*envelopes.ClientEnvelope,
+) *envelopes.PayerEnvelope {
+	return CreatePayerEnvelopeWithExpiration(
+		t,
+		nodeID,
+		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		clientEnv...)
 }
 
 func CreateOriginatorEnvelopeWithTimestamp(

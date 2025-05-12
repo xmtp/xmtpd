@@ -3,6 +3,9 @@ package payer_test
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -212,4 +215,23 @@ func TestPublishToNodes(t *testing.T) {
 
 	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
 	require.EqualValues(t, 100, targetOriginator)
+
+	// expiry assumptions
+	require.EqualValues(
+		t,
+		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
+	)
+
+	expiryTime := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()
+	expectedExpiry := time.Now().
+		Add(time.Duration(constants.DEFAULT_STORAGE_DURATION_DAYS) * 24 * time.Hour).
+		Unix()
+	require.InDelta(
+		t,
+		expectedExpiry,
+		expiryTime,
+		10,
+		"expiry time should be roughly now + DEFAULT_STORAGE_DURATION_DAYS",
+	)
 }

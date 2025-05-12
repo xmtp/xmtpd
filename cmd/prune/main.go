@@ -58,7 +58,7 @@ func main() {
 		fatal("Could not connect to DB: %s", err)
 	}
 
-	pruneExecutor := prune.NewPruneExecutor(ctx, logger, dbInstance)
+	pruneExecutor := prune.NewPruneExecutor(ctx, logger, dbInstance, &options.PruneConfig)
 
 	err = pruneExecutor.Run()
 	if err != nil {

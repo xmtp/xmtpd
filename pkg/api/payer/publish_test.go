@@ -213,3 +213,46 @@ func TestPublishToNodes(t *testing.T) {
 	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
 	require.EqualValues(t, 100, targetOriginator)
 }
+
+func TestPublishExpiryVariants(t *testing.T) {
+	originatorServer, _, _, originatorCleanup := apiTestUtils.NewTestAPIServer(t)
+	defer originatorCleanup()
+
+	ctx := context.Background()
+	svc, _, mockRegistry, _, cleanup := buildPayerService(t)
+	defer cleanup()
+
+	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
+		HttpAddress: formatAddress(originatorServer.Addr().String()),
+	}, nil)
+
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		testutils.GetHealthyNode(100),
+	}, nil)
+
+	groupId := testutils.RandomGroupID()
+	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(
+		groupId,
+		[]byte("test message"),
+	)
+
+	publishResponse, err := svc.PublishClientEnvelopes(
+		ctx,
+		&payer_api.PublishClientEnvelopesRequest{
+			Envelopes: []*envelopesProto.ClientEnvelope{testGroupMessage},
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, publishResponse)
+	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+
+	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
+	require.NoError(t, err)
+
+	targetTopic := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TargetTopic()
+	require.Equal(t, targetTopic.Identifier(), groupId[:])
+
+	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
+	require.EqualValues(t, 100, targetOriginator)
+}

@@ -84,9 +84,10 @@ func CreateIdentityUpdateClientEnvelope(
 	}
 }
 
-func CreatePayerEnvelope(
+func CreatePayerEnvelopeWithExpiration(
 	t *testing.T,
 	nodeID uint32,
+	expirationDays uint32,
 	clientEnv ...*envelopes.ClientEnvelope,
 ) *envelopes.PayerEnvelope {
 	if len(clientEnv) == 0 {
@@ -108,8 +109,20 @@ func CreatePayerEnvelope(
 			Bytes: payerSignature,
 		},
 		TargetOriginator:     nodeID,
-		MessageRetentionDays: constants.DEFAULT_STORAGE_DURATION_DAYS,
+		MessageRetentionDays: expirationDays,
 	}
+}
+
+func CreatePayerEnvelope(
+	t *testing.T,
+	nodeID uint32,
+	clientEnv ...*envelopes.ClientEnvelope,
+) *envelopes.PayerEnvelope {
+	return CreatePayerEnvelopeWithExpiration(
+		t,
+		nodeID,
+		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		clientEnv...)
 }
 
 func CreateOriginatorEnvelopeWithTimestamp(

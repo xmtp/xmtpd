@@ -71,8 +71,8 @@ func (e *Executor) Run() error {
 
 		e.log.Info("Pruned expired envelopes batch", zap.Int("count", len(rows)))
 
-		for row := range rows {
-			e.log.Debug(fmt.Sprintf("Pruning expired envelopes batch row: %d", row))
+		for _, row := range rows {
+			e.log.Debug(fmt.Sprintf("Pruning expired envelopes batch row: %v", row))
 		}
 		cyclesCompleted++
 	}

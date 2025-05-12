@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/config"
+
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 
 	"go.uber.org/zap"
 )
@@ -14,17 +17,20 @@ type Executor struct {
 	ctx      context.Context
 	log      *zap.Logger
 	writerDB *sql.DB
+	config   *config.PruneConfig
 }
 
 func NewPruneExecutor(
 	ctx context.Context,
 	log *zap.Logger,
 	writerDB *sql.DB,
+	config *config.PruneConfig,
 ) *Executor {
 	return &Executor{
 		ctx:      ctx,
 		log:      log,
 		writerDB: writerDB,
+		config:   config,
 	}
 }
 
@@ -39,8 +45,19 @@ func (e *Executor) Run() error {
 	}
 	e.log.Info("Count of envelopes eligible for pruning", zap.Int64("count", cnt))
 
-	//TODO(mkysel) limit the number of cycles
+	if e.config.DryRun {
+		e.log.Info("Dry run mode enabled. Nothing to do")
+		return nil
+	}
+
+	cyclesCompleted := 0
+
 	for {
+		if cyclesCompleted >= e.config.MaxCycles {
+			e.log.Warn("Reached maximum pruning cycles", zap.Int("maxCycles", e.config.MaxCycles))
+			break
+		}
+
 		rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx)
 		if err != nil {
 			return err
@@ -57,13 +74,18 @@ func (e *Executor) Run() error {
 		for row := range rows {
 			e.log.Debug(fmt.Sprintf("Pruning expired envelopes batch row: %d", row))
 		}
+		cyclesCompleted++
 	}
 
 	if totalDeletionCount == 0 {
 		e.log.Info("No expired envelopes found")
 	}
 
-	e.log.Info("Done", zap.Int("pruned count", totalDeletionCount), zap.Duration("elapsed", time.Since(start)))
+	e.log.Info(
+		"Done",
+		zap.Int("pruned count", totalDeletionCount),
+		zap.Duration("elapsed", time.Since(start)),
+	)
 
 	return nil
 }

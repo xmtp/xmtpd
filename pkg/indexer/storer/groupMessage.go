@@ -2,7 +2,9 @@ package storer
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"math"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
@@ -95,6 +97,7 @@ func (s *GroupMessageStorer) StoreLog(
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                topicStruct.Bytes(),
 		OriginatorEnvelope:   originatorEnvelopeBytes,
+		Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
 	}); err != nil {
 		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
 		return NewRetryableLogStorageError(err)

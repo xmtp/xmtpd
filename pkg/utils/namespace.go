@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/xmtp/xmtpd/pkg/config"
 )
 
-func BuildNamespace(options config.ServerOptions) string {
+func BuildNamespace(privateKey string, nodesAddress string) string {
 	hash := ethcrypto.Keccak256(
-		[]byte(options.Signer.PrivateKey),
-		[]byte(options.Contracts.SettlementChain.NodeRegistryAddress),
+		[]byte(privateKey),
+		[]byte(nodesAddress),
 	)
 
 	return fmt.Sprintf("xmtpd_%s", HexEncode(hash)[:12])

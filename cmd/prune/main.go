@@ -48,11 +48,19 @@ func main() {
 
 	ctx := context.Background()
 
+	namespace := options.DB.NameOverride
+	if namespace == "" {
+		namespace = utils.BuildNamespace(
+			options.Signer.PrivateKey,
+			options.Contracts.NodesContractAddress,
+		)
+	}
+
 	dbInstance, err := db.ConnectToDB(ctx, logger,
 		options.DB.WriterConnectionString,
+		namespace,
 		options.DB.WaitForDB,
 		options.DB.ReadTimeout,
-		options.DB.NameOverride,
 	)
 	if err != nil {
 		fatal("Could not connect to DB: %s", err)

@@ -20,7 +20,7 @@ func buildRegistry(
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Deploy the contract always, so the tests are deterministic.
-	contractsOptions.SettlementChain.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
+	contractsOptions.SettlementChain.NodesContract.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,

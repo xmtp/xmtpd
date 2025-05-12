@@ -18,7 +18,7 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	rpcUrl, cleanup := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 	// Set the nodes contract address to the newly deployed contract
-	contractsOptions.SettlementChain.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
+	contractsOptions.SettlementChain.NodesContract.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
 	contractsOptions.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
 		t,
 		rpcUrl,

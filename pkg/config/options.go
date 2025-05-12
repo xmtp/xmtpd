@@ -9,11 +9,14 @@ type ApiOptions struct {
 	HTTPPort int `          long:"http-port" description:"HTTP Port to listen on" env:"XMTPD_HTTP_API_PORT" default:"5055"`
 }
 
+type NodesContractOption struct {
+	NodesContractAddress string `long:"nodes-address" env:"XMTPD_CONTRACTS_NODES_ADDRESS" description:"Node contract address"`
+}
+
 type ContractsOptions struct {
 	// Deprecated: Use AppChainOptions and SettlementChainOptions instead.
 	// TODO: Remove.
 	RpcUrl                         string        `long:"rpc-url"                   env:"XMTPD_CONTRACTS_RPC_URL"                   description:"Blockchain RPC URL"`
-	NodesContractAddress           string        `long:"nodes-address"             env:"XMTPD_CONTRACTS_NODES_ADDRESS"             description:"Node contract address"`
 	MessagesContractAddress        string        `long:"messages-address"          env:"XMTPD_CONTRACTS_MESSAGES_ADDRESS"          description:"Message contract address"`
 	IdentityUpdatesContractAddress string        `long:"identity-updates-address"  env:"XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS"  description:"Identity updates contract address"`
 	RateRegistryContractAddress    string        `long:"rates-registry-address"    env:"XMTPD_CONTRACTS_RATES_REGISTRY_ADDRESS"    description:"Rates registry contract address"`
@@ -21,6 +24,7 @@ type ContractsOptions struct {
 	RegistryRefreshInterval        time.Duration `long:"registry-refresh-interval" env:"XMTPD_CONTRACTS_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry"                      default:"60s"`
 	RatesRefreshInterval           time.Duration `long:"rates-refresh-interval"    env:"XMTPD_CONTRACTS_RATES_REFRESH_INTERVAL"    description:"Refresh interval for the rates contract"                      default:"300s"`
 	MaxChainDisconnectTime         time.Duration `long:"max-chain-disconnect-time" env:"XMTPD_CONTRACTS_MAX_CHAIN_DISCONNECT_TIME" description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+	NodesContract                  NodesContractOption
 
 	// New options for app and settlement chains multi-chain deployments.
 	AppChain        AppChainOptions        `group:"Application Chain Options" namespace:"app-chain"`

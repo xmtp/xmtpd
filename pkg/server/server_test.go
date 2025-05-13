@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -154,11 +155,12 @@ func TestCreateServer(t *testing.T) {
 			Limit: 10,
 		})
 		require.NoError(t, err)
-		if len(q1.Envelopes) == 0 {
+		if len(q1.Envelopes) != 1 {
 			return false
 		}
-		require.Len(t, q1.Envelopes, 1)
-		require.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0])
+		if !assert.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0]) {
+			return false
+		}
 		return true
 	}, 3000*time.Millisecond, 200*time.Millisecond)
 
@@ -171,11 +173,12 @@ func TestCreateServer(t *testing.T) {
 			Limit: 10,
 		})
 		require.NoError(t, err)
-		if len(q2.Envelopes) == 0 {
+		if len(q2.Envelopes) != 1 {
 			return false
 		}
-		require.Len(t, q2.Envelopes, 1)
-		require.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0])
+		if !assert.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0]) {
+			return false
+		}
 		return true
 	}, 3000*time.Millisecond, 200*time.Millisecond)
 }

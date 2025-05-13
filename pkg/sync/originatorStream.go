@@ -15,22 +15,25 @@ import (
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 type originatorStream struct {
-	ctx           context.Context
-	db            *sql.DB
-	log           *zap.Logger
-	node          *registry.Node
-	queries       *queries.Queries
-	lastEnvelope  *envUtils.OriginatorEnvelope
-	stream        message_api.ReplicationApi_SubscribeEnvelopesClient
-	feeCalculator fees.IFeeCalculator
+	ctx              context.Context
+	db               *sql.DB
+	log              *zap.Logger
+	node             *registry.Node
+	queries          *queries.Queries
+	lastEnvelope     *envUtils.OriginatorEnvelope
+	stream           message_api.ReplicationApi_SubscribeEnvelopesClient
+	feeCalculator    fees.IFeeCalculator
+	payerReportStore payerreport.IPayerReportStore
 }
 
 func newOriginatorStream(
@@ -41,6 +44,7 @@ func newOriginatorStream(
 	lastEnvelope *envUtils.OriginatorEnvelope,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	feeCalculator fees.IFeeCalculator,
+	payerReportStore payerreport.IPayerReportStore,
 ) *originatorStream {
 	return &originatorStream{
 		ctx: ctx,
@@ -49,11 +53,12 @@ func newOriginatorStream(
 			zap.Uint32("originator_id", node.NodeID),
 			zap.String("http_address", node.HttpAddress),
 		),
-		node:          node,
-		queries:       queries.New(db),
-		lastEnvelope:  lastEnvelope,
-		stream:        stream,
-		feeCalculator: feeCalculator,
+		node:             node,
+		queries:          queries.New(db),
+		lastEnvelope:     lastEnvelope,
+		stream:           stream,
+		feeCalculator:    feeCalculator,
+		payerReportStore: payerReportStore,
 	}
 }
 
@@ -215,6 +220,14 @@ func (s *originatorStream) validateEnvelope(
 }
 
 func (s *originatorStream) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
+	if env.TargetTopic().IsReserved() {
+		s.log.Info(
+			"Found envelope with reserved topic",
+			zap.String("topic", env.TargetTopic().String()),
+		)
+		return s.storeReservedEnvelope(env)
+	}
+
 	// Calculate the fees independently to verify the originator's calculation
 	ourFeeCalculation, err := s.calculateFees(env)
 	if err != nil {
@@ -250,6 +263,11 @@ func (s *originatorStream) storeEnvelope(env *envUtils.OriginatorEnvelope) error
 
 	originatorID := int32(env.OriginatorNodeID())
 	originatorTime := utils.NsToDate(env.OriginatorNs())
+	expiry := env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()
+	var expiryToSave sql.NullInt64
+	if expiry > 0 {
+		expiryToSave = db.NullInt64(int64(expiry))
+	}
 
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		s.ctx,
@@ -260,6 +278,7 @@ func (s *originatorStream) storeEnvelope(env *envUtils.OriginatorEnvelope) error
 			Topic:                env.TargetTopic().Bytes(),
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerId),
+			Expiry:               expiryToSave,
 		},
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerId,
@@ -279,6 +298,45 @@ func (s *originatorStream) storeEnvelope(env *envUtils.OriginatorEnvelope) error
 	}
 
 	return nil
+}
+
+func (s *originatorStream) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) error {
+	payerID, err := s.getPayerID(env)
+	if err != nil {
+		s.log.Error("Failed to get payer ID", zap.Error(err))
+		return err
+	}
+
+	switch env.TargetTopic().Kind() {
+	case topic.TOPIC_KIND_PAYER_REPORTS_V1:
+		err := s.payerReportStore.StoreSyncedReport(
+			s.ctx,
+			env,
+			payerID,
+		)
+		if err != nil {
+			s.log.Error("Failed to store synced report", zap.Error(err))
+			// Return nil here to avoid infinite retries
+		}
+		return nil
+	case topic.TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1:
+		err := s.payerReportStore.StoreSyncedAttestation(
+			s.ctx,
+			env,
+			payerID,
+		)
+		if err != nil {
+			s.log.Error("Failed to store synced attestation", zap.Error(err))
+			// Return nil here to avoid infinite retries
+		}
+		return nil
+	default:
+		s.log.Info(
+			"Received unknown reserved topic",
+			zap.String("topic", env.TargetTopic().String()),
+		)
+		return nil
+	}
 }
 
 func (s *originatorStream) calculateFees(

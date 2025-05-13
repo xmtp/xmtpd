@@ -6,18 +6,20 @@ import (
 	"errors"
 
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"go.uber.org/zap"
 )
 
 type SyncServerConfig struct {
-	Ctx           context.Context
-	Log           *zap.Logger
-	NodeRegistry  registry.NodeRegistry
-	Registrant    *registrant.Registrant
-	DB            *sql.DB
-	FeeCalculator fees.IFeeCalculator
+	Ctx              context.Context
+	Log              *zap.Logger
+	NodeRegistry     registry.NodeRegistry
+	Registrant       *registrant.Registrant
+	DB               *sql.DB
+	FeeCalculator    fees.IFeeCalculator
+	PayerReportStore payerreport.IPayerReportStore
 }
 
 type SyncServerOption func(*SyncServerConfig)
@@ -44,6 +46,10 @@ func WithDB(db *sql.DB) SyncServerOption {
 
 func WithFeeCalculator(calc fees.IFeeCalculator) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.FeeCalculator = calc }
+}
+
+func WithPayerReportStore(store payerreport.IPayerReportStore) SyncServerOption {
+	return func(cfg *SyncServerConfig) { cfg.PayerReportStore = store }
 }
 
 type SyncServer struct {

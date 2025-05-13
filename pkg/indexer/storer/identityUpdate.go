@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pingcap/log"
-	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -38,7 +38,7 @@ var (
 )
 
 type IdentityUpdateStorer struct {
-	contract          *iu.IdentityUpdateBroadcaster
+	client            blockchain.ChainClient
 	db                *sql.DB
 	logger            *zap.Logger
 	validationService mlsvalidate.MLSValidationService
@@ -47,13 +47,13 @@ type IdentityUpdateStorer struct {
 func NewIdentityUpdateStorer(
 	db *sql.DB,
 	logger *zap.Logger,
-	contract *iu.IdentityUpdateBroadcaster,
+	client blockchain.ChainClient,
 	validationService mlsvalidate.MLSValidationService,
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{
 		db:                db,
 		logger:            logger.Named("IdentityUpdateStorer"),
-		contract:          contract,
+		client:            client,
 		validationService: validationService,
 	}
 }
@@ -63,7 +63,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
 ) LogStorageError {
-	msgSent, err := s.contract.ParseIdentityUpdateCreated(event)
+	msgSent, err := s.client.ParseIdentityUpdateCreated(event)
 	if err != nil {
 		return NewUnrecoverableLogStorageError(ErrParseIdentityUpdate, err)
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -32,15 +31,15 @@ type RpcLogStreamBuilder struct {
 	ctx             context.Context
 	contractConfigs []ContractConfig
 	logger          *zap.Logger
-	ethclient       *ethclient.Client
+	client          ChainClient
 }
 
 func NewRpcLogStreamBuilder(
 	ctx context.Context,
-	client *ethclient.Client,
+	client ChainClient,
 	logger *zap.Logger,
 ) *RpcLogStreamBuilder {
-	return &RpcLogStreamBuilder{ctx: ctx, ethclient: client, logger: logger}
+	return &RpcLogStreamBuilder{ctx: ctx, client: client, logger: logger}
 }
 
 func (c *RpcLogStreamBuilder) ListenForContractEvent(
@@ -66,7 +65,7 @@ func (c *RpcLogStreamBuilder) ListenForContractEvent(
 }
 
 func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
-	return NewRpcLogStreamer(c.ctx, c.ethclient, c.logger, c.contractConfigs), nil
+	return NewRpcLogStreamer(c.ctx, c.client, c.logger, c.contractConfigs), nil
 }
 
 // Struct defining all the information required to filter events from logs

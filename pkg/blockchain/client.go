@@ -111,3 +111,18 @@ func WaitForTransaction(
 		}
 	}
 }
+
+// NewChainClient creates a new ChainClient based on the configuration.
+// If useDatabaseClient is true, it returns a DatabaseChainClient.
+// Otherwise, it returns a RpcChainClient.
+func NewChainClient(
+	ctx context.Context,
+	rpcUrl string,
+	useDatabaseClient bool,
+	messagesContractAddr, identityUpdatesContractAddr common.Address,
+) (ChainClient, error) {
+	if useDatabaseClient {
+		return NewDatabaseChainClient(), nil
+	}
+	return NewRpcChainClient(ctx, rpcUrl, messagesContractAddr, identityUpdatesContractAddr)
+}

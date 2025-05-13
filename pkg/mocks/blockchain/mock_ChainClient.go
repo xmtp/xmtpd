@@ -5,11 +5,13 @@ package blockchain
 import (
 	big "math/big"
 
-	common "github.com/ethereum/go-ethereum/common"
-
 	context "context"
 
 	ethereum "github.com/ethereum/go-ethereum"
+
+	groupmessagebroadcaster "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+
+	identityupdatebroadcaster "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -27,65 +29,6 @@ type MockChainClient_Expecter struct {
 
 func (_m *MockChainClient) EXPECT() *MockChainClient_Expecter {
 	return &MockChainClient_Expecter{mock: &_m.Mock}
-}
-
-// BlockByHash provides a mock function with given fields: ctx, hash
-func (_m *MockChainClient) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	ret := _m.Called(ctx, hash)
-
-	if len(ret) == 0 {
-		panic("no return value specified for BlockByHash")
-	}
-
-	var r0 *types.Block
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*types.Block, error)); ok {
-		return rf(ctx, hash)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *types.Block); ok {
-		r0 = rf(ctx, hash)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Block)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
-		r1 = rf(ctx, hash)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockChainClient_BlockByHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BlockByHash'
-type MockChainClient_BlockByHash_Call struct {
-	*mock.Call
-}
-
-// BlockByHash is a helper method to define mock.On call
-//   - ctx context.Context
-//   - hash common.Hash
-func (_e *MockChainClient_Expecter) BlockByHash(ctx interface{}, hash interface{}) *MockChainClient_BlockByHash_Call {
-	return &MockChainClient_BlockByHash_Call{Call: _e.mock.On("BlockByHash", ctx, hash)}
-}
-
-func (_c *MockChainClient_BlockByHash_Call) Run(run func(ctx context.Context, hash common.Hash)) *MockChainClient_BlockByHash_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Hash))
-	})
-	return _c
-}
-
-func (_c *MockChainClient_BlockByHash_Call) Return(_a0 *types.Block, _a1 error) *MockChainClient_BlockByHash_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockChainClient_BlockByHash_Call) RunAndReturn(run func(context.Context, common.Hash) (*types.Block, error)) *MockChainClient_BlockByHash_Call {
-	_c.Call.Return(run)
-	return _c
 }
 
 // BlockByNumber provides a mock function with given fields: ctx, number
@@ -203,64 +146,6 @@ func (_c *MockChainClient_BlockNumber_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// ChainID provides a mock function with given fields: ctx
-func (_m *MockChainClient) ChainID(ctx context.Context) (*big.Int, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ChainID")
-	}
-
-	var r0 *big.Int
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (*big.Int, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) *big.Int); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*big.Int)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockChainClient_ChainID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ChainID'
-type MockChainClient_ChainID_Call struct {
-	*mock.Call
-}
-
-// ChainID is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockChainClient_Expecter) ChainID(ctx interface{}) *MockChainClient_ChainID_Call {
-	return &MockChainClient_ChainID_Call{Call: _e.mock.On("ChainID", ctx)}
-}
-
-func (_c *MockChainClient_ChainID_Call) Run(run func(ctx context.Context)) *MockChainClient_ChainID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
-	})
-	return _c
-}
-
-func (_c *MockChainClient_ChainID_Call) Return(_a0 *big.Int, _a1 error) *MockChainClient_ChainID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockChainClient_ChainID_Call) RunAndReturn(run func(context.Context) (*big.Int, error)) *MockChainClient_ChainID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // FilterLogs provides a mock function with given fields: ctx, q
 func (_m *MockChainClient) FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error) {
 	ret := _m.Called(ctx, q)
@@ -320,29 +205,29 @@ func (_c *MockChainClient_FilterLogs_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// HeaderByHash provides a mock function with given fields: ctx, hash
-func (_m *MockChainClient) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	ret := _m.Called(ctx, hash)
+// ParseIdentityUpdateCreated provides a mock function with given fields: log
+func (_m *MockChainClient) ParseIdentityUpdateCreated(log types.Log) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+	ret := _m.Called(log)
 
 	if len(ret) == 0 {
-		panic("no return value specified for HeaderByHash")
+		panic("no return value specified for ParseIdentityUpdateCreated")
 	}
 
-	var r0 *types.Header
+	var r0 *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*types.Header, error)); ok {
-		return rf(ctx, hash)
+	if rf, ok := ret.Get(0).(func(types.Log) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)); ok {
+		return rf(log)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *types.Header); ok {
-		r0 = rf(ctx, hash)
+	if rf, ok := ret.Get(0).(func(types.Log) *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated); ok {
+		r0 = rf(log)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
+			r0 = ret.Get(0).(*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
-		r1 = rf(ctx, hash)
+	if rf, ok := ret.Get(1).(func(types.Log) error); ok {
+		r1 = rf(log)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -350,58 +235,57 @@ func (_m *MockChainClient) HeaderByHash(ctx context.Context, hash common.Hash) (
 	return r0, r1
 }
 
-// MockChainClient_HeaderByHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HeaderByHash'
-type MockChainClient_HeaderByHash_Call struct {
+// MockChainClient_ParseIdentityUpdateCreated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ParseIdentityUpdateCreated'
+type MockChainClient_ParseIdentityUpdateCreated_Call struct {
 	*mock.Call
 }
 
-// HeaderByHash is a helper method to define mock.On call
-//   - ctx context.Context
-//   - hash common.Hash
-func (_e *MockChainClient_Expecter) HeaderByHash(ctx interface{}, hash interface{}) *MockChainClient_HeaderByHash_Call {
-	return &MockChainClient_HeaderByHash_Call{Call: _e.mock.On("HeaderByHash", ctx, hash)}
+// ParseIdentityUpdateCreated is a helper method to define mock.On call
+//   - log types.Log
+func (_e *MockChainClient_Expecter) ParseIdentityUpdateCreated(log interface{}) *MockChainClient_ParseIdentityUpdateCreated_Call {
+	return &MockChainClient_ParseIdentityUpdateCreated_Call{Call: _e.mock.On("ParseIdentityUpdateCreated", log)}
 }
 
-func (_c *MockChainClient_HeaderByHash_Call) Run(run func(ctx context.Context, hash common.Hash)) *MockChainClient_HeaderByHash_Call {
+func (_c *MockChainClient_ParseIdentityUpdateCreated_Call) Run(run func(log types.Log)) *MockChainClient_ParseIdentityUpdateCreated_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Hash))
+		run(args[0].(types.Log))
 	})
 	return _c
 }
 
-func (_c *MockChainClient_HeaderByHash_Call) Return(_a0 *types.Header, _a1 error) *MockChainClient_HeaderByHash_Call {
+func (_c *MockChainClient_ParseIdentityUpdateCreated_Call) Return(_a0 *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, _a1 error) *MockChainClient_ParseIdentityUpdateCreated_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockChainClient_HeaderByHash_Call) RunAndReturn(run func(context.Context, common.Hash) (*types.Header, error)) *MockChainClient_HeaderByHash_Call {
+func (_c *MockChainClient_ParseIdentityUpdateCreated_Call) RunAndReturn(run func(types.Log) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)) *MockChainClient_ParseIdentityUpdateCreated_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// HeaderByNumber provides a mock function with given fields: ctx, number
-func (_m *MockChainClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
-	ret := _m.Called(ctx, number)
+// ParseMessageSent provides a mock function with given fields: log
+func (_m *MockChainClient) ParseMessageSent(log types.Log) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error) {
+	ret := _m.Called(log)
 
 	if len(ret) == 0 {
-		panic("no return value specified for HeaderByNumber")
+		panic("no return value specified for ParseMessageSent")
 	}
 
-	var r0 *types.Header
+	var r0 *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) (*types.Header, error)); ok {
-		return rf(ctx, number)
+	if rf, ok := ret.Get(0).(func(types.Log) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)); ok {
+		return rf(log)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) *types.Header); ok {
-		r0 = rf(ctx, number)
+	if rf, ok := ret.Get(0).(func(types.Log) *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent); ok {
+		r0 = rf(log)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
+			r0 = ret.Get(0).(*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *big.Int) error); ok {
-		r1 = rf(ctx, number)
+	if rf, ok := ret.Get(1).(func(types.Log) error); ok {
+		r1 = rf(log)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -409,267 +293,30 @@ func (_m *MockChainClient) HeaderByNumber(ctx context.Context, number *big.Int) 
 	return r0, r1
 }
 
-// MockChainClient_HeaderByNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HeaderByNumber'
-type MockChainClient_HeaderByNumber_Call struct {
+// MockChainClient_ParseMessageSent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ParseMessageSent'
+type MockChainClient_ParseMessageSent_Call struct {
 	*mock.Call
 }
 
-// HeaderByNumber is a helper method to define mock.On call
-//   - ctx context.Context
-//   - number *big.Int
-func (_e *MockChainClient_Expecter) HeaderByNumber(ctx interface{}, number interface{}) *MockChainClient_HeaderByNumber_Call {
-	return &MockChainClient_HeaderByNumber_Call{Call: _e.mock.On("HeaderByNumber", ctx, number)}
+// ParseMessageSent is a helper method to define mock.On call
+//   - log types.Log
+func (_e *MockChainClient_Expecter) ParseMessageSent(log interface{}) *MockChainClient_ParseMessageSent_Call {
+	return &MockChainClient_ParseMessageSent_Call{Call: _e.mock.On("ParseMessageSent", log)}
 }
 
-func (_c *MockChainClient_HeaderByNumber_Call) Run(run func(ctx context.Context, number *big.Int)) *MockChainClient_HeaderByNumber_Call {
+func (_c *MockChainClient_ParseMessageSent_Call) Run(run func(log types.Log)) *MockChainClient_ParseMessageSent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*big.Int))
+		run(args[0].(types.Log))
 	})
 	return _c
 }
 
-func (_c *MockChainClient_HeaderByNumber_Call) Return(_a0 *types.Header, _a1 error) *MockChainClient_HeaderByNumber_Call {
+func (_c *MockChainClient_ParseMessageSent_Call) Return(_a0 *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, _a1 error) *MockChainClient_ParseMessageSent_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockChainClient_HeaderByNumber_Call) RunAndReturn(run func(context.Context, *big.Int) (*types.Header, error)) *MockChainClient_HeaderByNumber_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SubscribeFilterLogs provides a mock function with given fields: ctx, q, ch
-func (_m *MockChainClient) SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
-	ret := _m.Called(ctx, q, ch)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SubscribeFilterLogs")
-	}
-
-	var r0 ethereum.Subscription
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)); ok {
-		return rf(ctx, q, ch)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, ethereum.FilterQuery, chan<- types.Log) ethereum.Subscription); ok {
-		r0 = rf(ctx, q, ch)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(ethereum.Subscription)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, ethereum.FilterQuery, chan<- types.Log) error); ok {
-		r1 = rf(ctx, q, ch)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockChainClient_SubscribeFilterLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubscribeFilterLogs'
-type MockChainClient_SubscribeFilterLogs_Call struct {
-	*mock.Call
-}
-
-// SubscribeFilterLogs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - q ethereum.FilterQuery
-//   - ch chan<- types.Log
-func (_e *MockChainClient_Expecter) SubscribeFilterLogs(ctx interface{}, q interface{}, ch interface{}) *MockChainClient_SubscribeFilterLogs_Call {
-	return &MockChainClient_SubscribeFilterLogs_Call{Call: _e.mock.On("SubscribeFilterLogs", ctx, q, ch)}
-}
-
-func (_c *MockChainClient_SubscribeFilterLogs_Call) Run(run func(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log)) *MockChainClient_SubscribeFilterLogs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(ethereum.FilterQuery), args[2].(chan<- types.Log))
-	})
-	return _c
-}
-
-func (_c *MockChainClient_SubscribeFilterLogs_Call) Return(_a0 ethereum.Subscription, _a1 error) *MockChainClient_SubscribeFilterLogs_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockChainClient_SubscribeFilterLogs_Call) RunAndReturn(run func(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)) *MockChainClient_SubscribeFilterLogs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SubscribeNewHead provides a mock function with given fields: ctx, ch
-func (_m *MockChainClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
-	ret := _m.Called(ctx, ch)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SubscribeNewHead")
-	}
-
-	var r0 ethereum.Subscription
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, chan<- *types.Header) (ethereum.Subscription, error)); ok {
-		return rf(ctx, ch)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, chan<- *types.Header) ethereum.Subscription); ok {
-		r0 = rf(ctx, ch)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(ethereum.Subscription)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, chan<- *types.Header) error); ok {
-		r1 = rf(ctx, ch)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockChainClient_SubscribeNewHead_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubscribeNewHead'
-type MockChainClient_SubscribeNewHead_Call struct {
-	*mock.Call
-}
-
-// SubscribeNewHead is a helper method to define mock.On call
-//   - ctx context.Context
-//   - ch chan<- *types.Header
-func (_e *MockChainClient_Expecter) SubscribeNewHead(ctx interface{}, ch interface{}) *MockChainClient_SubscribeNewHead_Call {
-	return &MockChainClient_SubscribeNewHead_Call{Call: _e.mock.On("SubscribeNewHead", ctx, ch)}
-}
-
-func (_c *MockChainClient_SubscribeNewHead_Call) Run(run func(ctx context.Context, ch chan<- *types.Header)) *MockChainClient_SubscribeNewHead_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(chan<- *types.Header))
-	})
-	return _c
-}
-
-func (_c *MockChainClient_SubscribeNewHead_Call) Return(_a0 ethereum.Subscription, _a1 error) *MockChainClient_SubscribeNewHead_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockChainClient_SubscribeNewHead_Call) RunAndReturn(run func(context.Context, chan<- *types.Header) (ethereum.Subscription, error)) *MockChainClient_SubscribeNewHead_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// TransactionCount provides a mock function with given fields: ctx, blockHash
-func (_m *MockChainClient) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
-	ret := _m.Called(ctx, blockHash)
-
-	if len(ret) == 0 {
-		panic("no return value specified for TransactionCount")
-	}
-
-	var r0 uint
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (uint, error)); ok {
-		return rf(ctx, blockHash)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) uint); ok {
-		r0 = rf(ctx, blockHash)
-	} else {
-		r0 = ret.Get(0).(uint)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
-		r1 = rf(ctx, blockHash)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockChainClient_TransactionCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransactionCount'
-type MockChainClient_TransactionCount_Call struct {
-	*mock.Call
-}
-
-// TransactionCount is a helper method to define mock.On call
-//   - ctx context.Context
-//   - blockHash common.Hash
-func (_e *MockChainClient_Expecter) TransactionCount(ctx interface{}, blockHash interface{}) *MockChainClient_TransactionCount_Call {
-	return &MockChainClient_TransactionCount_Call{Call: _e.mock.On("TransactionCount", ctx, blockHash)}
-}
-
-func (_c *MockChainClient_TransactionCount_Call) Run(run func(ctx context.Context, blockHash common.Hash)) *MockChainClient_TransactionCount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Hash))
-	})
-	return _c
-}
-
-func (_c *MockChainClient_TransactionCount_Call) Return(_a0 uint, _a1 error) *MockChainClient_TransactionCount_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockChainClient_TransactionCount_Call) RunAndReturn(run func(context.Context, common.Hash) (uint, error)) *MockChainClient_TransactionCount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// TransactionInBlock provides a mock function with given fields: ctx, blockHash, index
-func (_m *MockChainClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error) {
-	ret := _m.Called(ctx, blockHash, index)
-
-	if len(ret) == 0 {
-		panic("no return value specified for TransactionInBlock")
-	}
-
-	var r0 *types.Transaction
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, uint) (*types.Transaction, error)); ok {
-		return rf(ctx, blockHash, index)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, uint) *types.Transaction); ok {
-		r0 = rf(ctx, blockHash, index)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Transaction)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, uint) error); ok {
-		r1 = rf(ctx, blockHash, index)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockChainClient_TransactionInBlock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransactionInBlock'
-type MockChainClient_TransactionInBlock_Call struct {
-	*mock.Call
-}
-
-// TransactionInBlock is a helper method to define mock.On call
-//   - ctx context.Context
-//   - blockHash common.Hash
-//   - index uint
-func (_e *MockChainClient_Expecter) TransactionInBlock(ctx interface{}, blockHash interface{}, index interface{}) *MockChainClient_TransactionInBlock_Call {
-	return &MockChainClient_TransactionInBlock_Call{Call: _e.mock.On("TransactionInBlock", ctx, blockHash, index)}
-}
-
-func (_c *MockChainClient_TransactionInBlock_Call) Run(run func(ctx context.Context, blockHash common.Hash, index uint)) *MockChainClient_TransactionInBlock_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Hash), args[2].(uint))
-	})
-	return _c
-}
-
-func (_c *MockChainClient_TransactionInBlock_Call) Return(_a0 *types.Transaction, _a1 error) *MockChainClient_TransactionInBlock_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockChainClient_TransactionInBlock_Call) RunAndReturn(run func(context.Context, common.Hash, uint) (*types.Transaction, error)) *MockChainClient_TransactionInBlock_Call {
+func (_c *MockChainClient_ParseMessageSent_Call) RunAndReturn(run func(types.Log) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)) *MockChainClient_ParseMessageSent_Call {
 	_c.Call.Return(run)
 	return _c
 }

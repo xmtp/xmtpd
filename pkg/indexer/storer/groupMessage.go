@@ -7,7 +7,7 @@ import (
 	"math"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -32,20 +32,20 @@ var (
 )
 
 type GroupMessageStorer struct {
-	contract *gm.GroupMessageBroadcaster
-	queries  *queries.Queries
-	logger   *zap.Logger
+	client  blockchain.ChainClient
+	queries *queries.Queries
+	logger  *zap.Logger
 }
 
 func NewGroupMessageStorer(
 	queries *queries.Queries,
 	logger *zap.Logger,
-	contract *gm.GroupMessageBroadcaster,
+	client blockchain.ChainClient,
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
-		queries:  queries,
-		logger:   logger.Named("GroupMessageStorer"),
-		contract: contract,
+		queries: queries,
+		logger:  logger.Named("GroupMessageStorer"),
+		client:  client,
 	}
 }
 
@@ -54,7 +54,7 @@ func (s *GroupMessageStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
 ) LogStorageError {
-	msgSent, err := s.contract.ParseMessageSent(event)
+	msgSent, err := s.client.ParseMessageSent(event)
 	if err != nil {
 		return NewUnrecoverableLogStorageError(ErrParseGroupMessage, err)
 	}

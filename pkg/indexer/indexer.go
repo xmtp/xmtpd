@@ -70,11 +70,18 @@ func (i *Indexer) StartIndexer(
 	cfg config.ContractsOptions,
 	validationService mlsvalidate.MLSValidationService,
 ) error {
-	client, err := blockchain.NewClient(i.ctx, cfg.AppChain.RpcURL)
+	// Create ChainClient for log streaming
+	chainClient, err := blockchain.NewChainClient(
+		i.ctx,
+		cfg.AppChain.RpcURL,
+		cfg.AppChain.UseDatabaseClient,
+		common.HexToAddress(cfg.MessagesContractAddress),
+		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
+	)
 	if err != nil {
 		return err
 	}
-	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, client, i.log)
+	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, chainClient, i.log)
 	querier := queries.New(db)
 
 	streamer, err := configureLogStream(i.ctx, builder, cfg, querier)
@@ -82,11 +89,6 @@ func (i *Indexer) StartIndexer(
 		return err
 	}
 	i.streamer = streamer
-
-	messagesContract, err := messagesContract(cfg, client)
-	if err != nil {
-		return err
-	}
 
 	tracing.GoPanicWrap(
 		i.ctx,
@@ -96,23 +98,24 @@ func (i *Indexer) StartIndexer(
 			indexingLogger := i.log.Named("messages").
 				With(zap.String("contractAddress", cfg.AppChain.GroupMessageBroadcasterAddress))
 
+			messageStorer := storer.NewGroupMessageStorer(
+				querier,
+				indexingLogger,
+				chainClient,
+			)
+
 			indexLogs(
 				ctx,
 				streamer.streamer.Client(),
 				streamer.messagesChannel,
 				streamer.messagesReorgChannel,
 				indexingLogger,
-				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
+				messageStorer,
 				streamer.messagesBlockTracker,
 				streamer.reorgHandler,
 				cfg.AppChain.GroupMessageBroadcasterAddress,
 			)
 		})
-
-	identityUpdatesContract, err := identityUpdatesContract(cfg, client)
-	if err != nil {
-		return err
-	}
 
 	tracing.GoPanicWrap(
 		i.ctx,
@@ -121,18 +124,21 @@ func (i *Indexer) StartIndexer(
 		func(ctx context.Context) {
 			indexingLogger := i.log.Named("identity").
 				With(zap.String("contractAddress", cfg.AppChain.IdentityUpdateBroadcasterAddress))
+
+			identityStorer := storer.NewIdentityUpdateStorer(
+				db,
+				indexingLogger,
+				chainClient,
+				validationService,
+			)
+
 			indexLogs(
 				ctx,
 				streamer.streamer.Client(),
 				streamer.identityUpdatesChannel,
 				streamer.identityUpdatesReorgChannel,
 				indexingLogger,
-				storer.NewIdentityUpdateStorer(
-					db,
-					indexingLogger,
-					identityUpdatesContract,
-					validationService,
-				),
+				identityStorer,
 				streamer.identityUpdatesBlockTracker,
 				streamer.reorgHandler,
 				cfg.AppChain.IdentityUpdateBroadcasterAddress,

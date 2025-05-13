@@ -7,13 +7,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-func RunInTx(
+func RunInTxRaw(
 	ctx context.Context,
 	db *sql.DB,
 	opts *sql.TxOptions,
-	fn func(ctx context.Context, txQueries *queries.Queries) error,
+	fn func(ctx context.Context, tx *sql.Tx) error,
 ) error {
-	querier := queries.New(db)
 	tx, err := db.BeginTx(ctx, opts)
 	if err != nil {
 		return err
@@ -27,12 +26,23 @@ func RunInTx(
 		}
 	}()
 
-	if err := fn(ctx, querier.WithTx(tx)); err != nil {
+	if err := fn(ctx, tx); err != nil {
 		return err
 	}
 
 	done = true
 	return tx.Commit()
+}
+
+func RunInTx(
+	ctx context.Context,
+	db *sql.DB,
+	opts *sql.TxOptions,
+	fn func(ctx context.Context, txQueries *queries.Queries) error,
+) error {
+	return RunInTxRaw(ctx, db, opts, func(ctx context.Context, tx *sql.Tx) error {
+		return fn(ctx, queries.New(tx))
+	})
 }
 
 func RunInTxWithResult[T any](

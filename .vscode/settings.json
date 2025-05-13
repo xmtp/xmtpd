@@ -1,9 +1,9 @@
 {
-  "go.lintTool": "golangci-lint",
-  "go.lintFlags": ["--fast"],
+  "go.lintTool": "golangci-lint-v2",
+  "go.lintFlags": ["--path-mode=abs", "--fast-only"],
   "go.formatTool": "custom",
   "go.alternateTools": {
-    "customFormatter": "golangci-lint"
+    "customFormatter": "golangci-lint-v2"
   },
   "go.formatFlags": ["fmt", "--stdin"],
   "[sql]": {

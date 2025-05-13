@@ -49,7 +49,7 @@ func NewNodeRegistryAdmin(
 	contractsOptions config.ContractsOptions,
 ) (*nodeRegistryAdmin, error) {
 	contract, err := noderegistry.NewNodeRegistry(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
+		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
 		client,
 	)
 	if err != nil {

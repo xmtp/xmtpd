@@ -1,4 +1,4 @@
-# How to onboard a new node
+# How to onboard a new node in testnet
 
 **⚠️ Experimental:** warning, this file might be out of date!
 
@@ -36,23 +36,26 @@ If you already have a private key, you can extract the relevant public details v
 
 ## Step 2) Share `pub-key` and `address`
 
-TBD.
-
 Before official testnet launch, only the members of @ephemerahq/backend can register nodes.
 
 ## Step 3) Register Node with smart contract
 
+Replace the following environment variables with real values.
+
 ```shell
-export XMTPD_CONTRACTS_RPC_URL="https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/"
-export XMTPD_CONTRACTS_CHAIN_ID=34498
-export XMTPD_CONTRACTS_NODES_ADDRESS=<depends>
-export PRIVATE_KEY=<secret>
+export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
+export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=31337
+export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
+export ADMIN_PRIVATE_KEY="0xDEADBEEF"
+export NODE_HTTP_ADDRESS="https://grpc.example.com"
+export NODE_OWNER_ADDRESS="0xDEADBEEF"
+export NODE_SIGNING_KEY_PUB="0xDEADBEEF"
 
 dev/cmd/cli register-node \
-    --http-address=<node DNS> \
-    --node-owner-address=<node address> \
-    --admin-private-key=$PRIVATE_KEY \
-    --node-signing-key-pub=<node pub-key>
+    --admin.private-key=${ADMIN_PRIVATE_KEY} \
+    --http-address=${NODE_HTTP_ADDRESS} \
+    --node-owner-address=${NODE_OWNER_ADDRESS} \
+    --node-signing-key-pub=${NODE_SIGNING_KEY_PUB}
 ```
 
 ## Step 4) Start the node

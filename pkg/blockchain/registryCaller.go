@@ -30,7 +30,7 @@ func NewNodeRegistryCaller(
 	contractsOptions config.ContractsOptions,
 ) (INodeRegistryCaller, error) {
 	contract, err := noderegistry.NewNodeRegistryCaller(
-		common.HexToAddress(contractsOptions.NodesContractAddress),
+		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
 		client,
 	)
 	if err != nil {

@@ -24,12 +24,15 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	queryImpl := queries.New(db)
 	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
-	config.MessagesContractAddress = testutils.DeployGroupMessagesContract(t, rpcUrl)
+	config.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
+		t,
+		rpcUrl,
+	)
 
-	client, err := blockchain.NewClient(ctx, config.RpcUrl)
+	client, err := blockchain.NewClient(ctx, config.AppChain.RpcURL)
 	require.NoError(t, err)
 	contract, err := gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(config.MessagesContractAddress),
+		common.HexToAddress(config.AppChain.GroupMessageBroadcasterAddress),
 		client,
 	)
 

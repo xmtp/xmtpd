@@ -42,8 +42,10 @@ func NewTestServer(
 
 	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
 		Contracts: config.ContractsOptions{
-			RpcUrl:                 "http://localhost:8545",
-			MaxChainDisconnectTime: 5 * time.Minute,
+			AppChain: config.AppChainOptions{
+				RpcURL:                 "http://localhost:8545",
+				MaxChainDisconnectTime: 5 * time.Minute,
+			},
 		},
 		MlsValidation: config.MlsValidationOptions{
 			GrpcAddress: "http://localhost:60051",

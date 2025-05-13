@@ -16,7 +16,7 @@ func buildRegistry(
 ) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Deploy the contract always, so the tests are deterministic.
@@ -38,7 +38,6 @@ func buildRegistry(
 	require.NoError(t, err)
 
 	return registry, caller, ctx, func() {
-		defer cleanup()
 		cancel()
 	}
 }

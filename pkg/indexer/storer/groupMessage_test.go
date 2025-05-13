@@ -22,7 +22,7 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	db, _ := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
-	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
 	config.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
 		t,
@@ -40,7 +40,6 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	storer := NewGroupMessageStorer(queryImpl, testutils.NewLog(t), contract)
 
 	return storer, func() {
-		defer anvilCleanup()
 		cancel()
 	}
 }

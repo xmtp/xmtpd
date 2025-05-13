@@ -9,8 +9,7 @@ import (
 )
 
 func TestStartAnvil(t *testing.T) {
-	anvilUrl, cleanup := StartAnvil(t, true)
-	defer cleanup()
+	anvilUrl := StartAnvil(t, true)
 
 	client, err := blockchain.NewClient(context.Background(), anvilUrl)
 	require.NoError(t, err)
@@ -18,23 +17,6 @@ func TestStartAnvil(t *testing.T) {
 	chainId, err := client.ChainID(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, chainId)
-}
-
-func TestCleanup(t *testing.T) {
-	anvilUrl, cleanup := StartAnvil(t, false)
-
-	client, err := blockchain.NewClient(context.Background(), anvilUrl)
-	require.NoError(t, err)
-
-	chainId, err := client.ChainID(context.Background())
-	require.NoError(t, err)
-	require.NotNil(t, chainId)
-
-	cleanup()
-
-	chainId, err = client.ChainID(context.Background())
-	require.Error(t, err)
-	require.Nil(t, chainId)
 }
 
 func TestStartConcurrent(t *testing.T) {
@@ -43,16 +25,15 @@ func TestStartConcurrent(t *testing.T) {
 
 	// Create channels to collect results
 	type anvilInstance struct {
-		url     string
-		cleanup func()
+		url string
 	}
 	results := make(chan anvilInstance, numInstances)
 
 	// Launch goroutines to start anvil instances
 	for i := 0; i < numInstances; i++ {
 		go func() {
-			url, cleanup := StartAnvil(t, false)
-			results <- anvilInstance{url: url, cleanup: cleanup}
+			url := StartAnvil(t, false)
+			results <- anvilInstance{url: url}
 		}()
 	}
 
@@ -61,9 +42,6 @@ func TestStartConcurrent(t *testing.T) {
 	for range numInstances {
 		instance := <-results
 		instances = append(instances, instance)
-		if instance.cleanup != nil {
-			defer instance.cleanup()
-		}
 	}
 
 	require.Len(t, instances, numInstances)

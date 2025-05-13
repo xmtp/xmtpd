@@ -19,7 +19,7 @@ func setupRegistry(
 ) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 	contractsOptions.SettlementChain.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
 
@@ -48,7 +48,6 @@ func setupRegistry(
 	require.NoError(t, err)
 
 	return registryAdmin, registryCaller, func() {
-		defer cleanup()
 		cancel()
 		client.Close()
 	}

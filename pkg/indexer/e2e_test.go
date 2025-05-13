@@ -28,7 +28,7 @@ func startIndexing(
 	logger := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, ctx)
 
-	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(rpcUrl)
 	cfg.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
 		t,
@@ -46,7 +46,6 @@ func startIndexing(
 	require.NoError(t, err)
 
 	return db, queries.New(db), cfg, ctx, func() {
-		defer anvilCleanup()
 		cancel()
 	}
 }

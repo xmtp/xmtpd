@@ -45,8 +45,7 @@ func buildStreamer(
 }
 
 func TestBuilder(t *testing.T) {
-	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
-	t.Cleanup(anvilCleanup)
+	rpcUrl := anvil.StartAnvil(t, false)
 	testclient, err := blockchain.NewClient(
 		context.Background(),
 		rpcUrl,

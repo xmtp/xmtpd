@@ -15,7 +15,7 @@ import (
 func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 	// Set the nodes contract address to the newly deployed contract
 	contractsOptions.SettlementChain.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
@@ -50,7 +50,6 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	require.NoError(t, err)
 
 	return publisher, func() {
-		defer cleanup()
 		cancel()
 		client.Close()
 	}

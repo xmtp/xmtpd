@@ -9,15 +9,13 @@ import (
 )
 
 func TestDeployContract(t *testing.T) {
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
-	defer cleanup()
+	rpcUrl := anvil.StartAnvil(t, false)
 	deployedTo := DeployNodesContract(t, rpcUrl)
 	require.True(t, common.IsHexAddress(deployedTo), "invalid contract address")
 }
 
 func TestDeployGroupMessages(t *testing.T) {
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
-	defer cleanup()
+	rpcUrl := anvil.StartAnvil(t, false)
 	deployedTo := DeployGroupMessagesContract(t, rpcUrl)
 	require.True(t, common.IsHexAddress(deployedTo), "invalid contract address")
 }

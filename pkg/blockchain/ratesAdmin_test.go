@@ -16,8 +16,7 @@ import (
 func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	ctx := context.Background()
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
-	t.Cleanup(cleanup)
+	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Set the nodes contract address to a random smart contract instead of the fixed deployment

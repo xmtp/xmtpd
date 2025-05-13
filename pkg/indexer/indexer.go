@@ -74,6 +74,7 @@ func (i *Indexer) StartIndexer(
 	if err != nil {
 		return err
 	}
+
 	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, client, i.log)
 	querier := queries.New(db)
 

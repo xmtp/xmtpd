@@ -133,7 +133,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			return false
 		}
 	}
-	
+
 	originatorEnv, err := p.registrant.SignStagedEnvelope(
 		stagedEnv,
 		baseFee,
@@ -251,4 +251,3 @@ func (p *publishWorker) calculateFees(
 
 	return baseFee, congestionFee, nil
 }
-

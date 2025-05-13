@@ -15,7 +15,7 @@ import (
 func testAttestationWorker(
 	t *testing.T,
 	pollInterval time.Duration,
-) (*attestationWorker, *payerreport.Store, *registrantMocks.MockIRegistrant, *payerreportMocks.MockIPayerReportVerifier) {
+) (*AttestationWorker, *payerreport.Store, *registrantMocks.MockIRegistrant, *payerreportMocks.MockIPayerReportVerifier) {
 	log := testutils.NewLog(t)
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
@@ -23,7 +23,7 @@ func testAttestationWorker(
 	mockRegistrant := registrantMocks.NewMockIRegistrant(t)
 	mockRegistrant.EXPECT().
 		SignPayerReportAttestation(mock.Anything).
-		Return(payerreport.NodeSignature{
+		Return(&payerreport.NodeSignature{
 			Signature: []byte("signature"),
 			NodeID:    1,
 		}, nil).
@@ -35,7 +35,8 @@ func testAttestationWorker(
 	mockRegistrant.EXPECT().NodeID().Return(uint32(1)).Maybe()
 
 	verifier := payerreportMocks.NewMockIPayerReportVerifier(t)
-	worker := NewAttestationWorker(ctx, log, mockRegistrant, verifier, store, pollInterval)
+	worker := NewAttestationWorker(ctx, log, mockRegistrant, store, pollInterval)
+	worker.verifier = verifier
 
 	return worker, store, mockRegistrant, verifier
 }

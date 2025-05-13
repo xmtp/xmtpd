@@ -7,8 +7,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/merkle"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -112,6 +114,21 @@ func (p *PayerReport) ToProto() *proto.PayerReport {
 		ActiveNodeIds:       p.ActiveNodeIDs,
 		EndMinuteSinceEpoch: p.EndMinuteSinceEpoch,
 	}
+}
+
+func (p *PayerReport) ToClientEnvelope() (*envelopes.ClientEnvelope, error) {
+	payload := p.ToProto()
+	targetTopic := topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORTS_V1, utils.Uint32ToBytes(p.OriginatorNodeID)).
+		Bytes()
+
+	return envelopes.NewClientEnvelope(&proto.ClientEnvelope{
+		Payload: &proto.ClientEnvelope_PayerReport{
+			PayerReport: payload,
+		},
+		Aad: &proto.AuthenticatedData{
+			TargetTopic: targetTopic,
+		},
+	})
 }
 
 func (p *PayerReport) ID() (ReportID, error) {

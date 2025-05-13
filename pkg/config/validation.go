@@ -72,7 +72,7 @@ func ValidateServerOptions(options *ServerOptions) error {
 		normalizeSingleChainConfig(options)
 
 		validateField(options.Contracts.RpcUrl, "contracts.rpc-url", missingSet)
-		validateField(options.Contracts.NodesContractAddress, "contracts.nodes-address", missingSet)
+		validateField(options.Contracts.NodesContract.NodesContractAddress, "contracts.nodes-address", missingSet)
 		validateField(options.Contracts.MessagesContractAddress, "contracts.messages-address", missingSet)
 		validateField(options.Contracts.IdentityUpdatesContractAddress, "contracts.identity-updates-address", missingSet)
 		validateField(options.Contracts.RateRegistryContractAddress, "contracts.rates-registry-address", missingSet)
@@ -99,6 +99,7 @@ func ValidateServerOptions(options *ServerOptions) error {
 	if len(missingSet) > 0 || len(customSet) > 0 {
 		var errs []string
 		if len(missingSet) > 0 {
+
 			var errorMessages []string
 			for err := range missingSet {
 				errorMessages = append(errorMessages, err)
@@ -130,8 +131,8 @@ func normalizeSingleChainConfig(options *ServerOptions) {
 		options.Contracts.AppChain.RpcURL = options.Contracts.RpcUrl
 		options.Contracts.SettlementChain.RpcURL = options.Contracts.RpcUrl
 	}
-	if options.Contracts.NodesContractAddress != "" {
-		options.Contracts.SettlementChain.NodeRegistryAddress = options.Contracts.NodesContractAddress
+	if options.Contracts.NodesContract.NodesContractAddress != "" {
+		options.Contracts.SettlementChain.NodeRegistryAddress = options.Contracts.NodesContract.NodesContractAddress
 	}
 	if options.Contracts.MessagesContractAddress != "" {
 		options.Contracts.AppChain.GroupMessageBroadcasterAddress = options.Contracts.MessagesContractAddress

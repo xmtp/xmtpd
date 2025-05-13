@@ -166,18 +166,16 @@ func ConnectToDB(
 	ctx context.Context,
 	logger *zap.Logger,
 	dsn string,
+	namespace string,
 	waitForDB time.Duration,
 	statementTimeout time.Duration,
-	namespace string,
 ) (*sql.DB, error) {
 	config, err := parseConfig(dsn, statementTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DSN: %w", err)
 	}
 
-	if namespace != "" {
-		config.ConnConfig.Database = namespace
-	}
+	config.ConnConfig.Database = namespace
 
 	db, err := newPGXDB(ctx, config, waitForDB)
 	if err != nil {

@@ -84,7 +84,10 @@ func main() {
 			options.Payer.Enable {
 			namespace := options.DB.NameOverride
 			if namespace == "" {
-				namespace = utils.BuildNamespace(options)
+				namespace = utils.BuildNamespace(
+					options.Signer.PrivateKey,
+					options.Contracts.NodesContract.NodesContractAddress,
+				)
 			}
 			dbInstance, err = db.NewNamespacedDB(
 				ctx,

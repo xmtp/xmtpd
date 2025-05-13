@@ -1,19 +1,18 @@
 package sync
 
 import (
-	"context"
-	"database/sql"
-	"errors"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	messageApiMocks "github.com/xmtp/xmtpd/pkg/mocks/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	feesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/fees"
@@ -40,54 +39,63 @@ func mockSubscriptionOnePage(
 	return stream
 }
 
-func newMinimalSyncWorker(t *testing.T) *syncWorker {
-	ctx := context.Background()
+func newTestOriginatorStream(
+	t *testing.T,
+	node *registry.Node,
+	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
+	lastEnvelope *envUtils.OriginatorEnvelope,
+) *originatorStream {
 	log := testutils.NewLog(t)
 	calculator := feesTestUtils.NewTestFeeCalculator()
-	db, _, dbCleanup := testutils.NewDB(t, ctx)
-	t.Cleanup(dbCleanup)
+	db, _ := testutils.NewDB(t, t.Context())
 
-	return &syncWorker{
-		ctx:           ctx,
-		log:           log,
-		store:         db,
-		feeCalculator: calculator,
-	}
+	return newOriginatorStream(
+		t.Context(),
+		db,
+		log,
+		node,
+		lastEnvelope,
+		stream,
+		calculator,
+	)
 }
 
-func createBrokenDB(t *testing.T) *sql.DB {
-	config, err := pgxpool.ParseConfig("postgres://foo:5432")
+func getAllMessagesForOriginator(
+	t *testing.T,
+	originatorStream *originatorStream,
+) []queries.GatewayEnvelope {
+	envs, err := originatorStream.queries.SelectGatewayEnvelopes(
+		t.Context(),
+		queries.SelectGatewayEnvelopesParams{
+			OriginatorNodeIds: []int32{int32(originatorStream.node.NodeID)},
+		},
+	)
 	require.NoError(t, err)
-
-	db, err := pgxpool.NewWithConfig(context.Background(), config)
-	require.NoError(t, err)
-
-	return stdlib.OpenDBFromPool(db)
+	return envs
 }
 
 func TestSyncWorkerSuccess(t *testing.T) {
-	worker := newMinimalSyncWorker(t)
 	nodeID := uint32(200)
 	sequenceID := uint64(100)
 	envelope := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, sequenceID)
-
 	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{envelope})
-	origStream := &originatorStream{
-		nodeID:              nodeID,
-		stream:              stream,
-		lastEnvelope:        nil,
-		messageRetryBackoff: backoff.NewExponentialBackOff(),
-	}
+
 	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
 
-	err := worker.listenToStream(context.Background(), node, origStream)
+	origStream := newTestOriginatorStream(t, &node, stream, nil)
+
+	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
 	require.ErrorAs(t, err, &retryAfter)
 	require.Equal(t, retryAfter.Duration.Seconds(), float64(1))
+
+	require.Eventually(t, func() bool {
+		envs := getAllMessagesForOriginator(t, origStream)
+		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
+	}, 1*time.Second, 50*time.Millisecond)
 }
 
-func TestSyncWorkerPermanentError(t *testing.T) {
-	worker := newMinimalSyncWorker(t)
+func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 	nodeID := uint32(200)
 	sequenceID := uint64(100)
 	envelope := envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(
@@ -98,35 +106,16 @@ func TestSyncWorkerPermanentError(t *testing.T) {
 	)
 
 	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{envelope})
-	origStream := &originatorStream{
-		nodeID:              nodeID,
-		stream:              stream,
-		lastEnvelope:        nil,
-		messageRetryBackoff: backoff.NewExponentialBackOff(),
-	}
 	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
 
-	err := worker.listenToStream(context.Background(), node, origStream)
+	origStream := newTestOriginatorStream(t, &node, stream, nil)
+
+	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
 	require.ErrorAs(t, err, &retryAfter)
-}
 
-func TestSyncWorkerRetryableError(t *testing.T) {
-	worker := newMinimalSyncWorker(t)
-	nodeID := uint32(200)
-	sequenceID := uint64(100)
-	envelope := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, sequenceID)
-	origStream := &originatorStream{
-		nodeID:              nodeID,
-		stream:              nil,
-		lastEnvelope:        nil,
-		messageRetryBackoff: backoff.NewExponentialBackOff(),
-	}
-	// Create a totally broken DB connection and replace the one in the store
-	worker.store = createBrokenDB(t)
-
-	err := worker.validateAndInsertEnvelope(origStream, envelope)
-	// This should be a retryable error, and not permanent
-	var permanent *backoff.PermanentError
-	require.False(t, errors.As(err, &permanent))
+	// Give the write worker a chance to save the envelope
+	time.Sleep(50 * time.Millisecond)
+	envs := getAllMessagesForOriginator(t, origStream)
+	require.Len(t, envs, 0)
 }

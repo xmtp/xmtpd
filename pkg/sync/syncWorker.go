@@ -3,15 +3,11 @@ package sync
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"io"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
@@ -23,7 +19,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -39,13 +34,6 @@ type syncWorker struct {
 	subscriptionsMutex sync.RWMutex
 	cancel             context.CancelFunc
 	feeCalculator      fees.IFeeCalculator
-}
-
-type originatorStream struct {
-	nodeID              uint32
-	lastEnvelope        *envUtils.OriginatorEnvelope
-	stream              message_api.ReplicationApi_SubscribeEnvelopesClient
-	messageRetryBackoff *backoff.ExponentialBackOff
 }
 
 func startSyncWorker(
@@ -226,7 +214,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 
 		connectionsStatusCounter.MarkSuccess()
 
-		err = s.listenToStream(registration.ctx, *node, stream)
+		err = stream.listen()
 		return "", err
 	}
 
@@ -344,280 +332,24 @@ func (s *syncWorker) setupStream(
 			err,
 		)
 	}
-	expBackoff := backoff.NewExponentialBackOff()
-	expBackoff.InitialInterval = 50 * time.Millisecond
 
-	originatorStream := &originatorStream{
-		nodeID:              nodeID,
-		stream:              stream,
-		messageRetryBackoff: expBackoff,
-	}
+	var lastEnvelope *envUtils.OriginatorEnvelope
 	for _, row := range result {
 		if uint32(row.OriginatorNodeID) == nodeID {
-			lastEnvelope, err := envUtils.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
+			lastEnvelope, err = envUtils.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
 			if err != nil {
 				return nil, err
 			}
-			originatorStream.lastEnvelope = lastEnvelope
 		}
 	}
-	return originatorStream, nil
-}
 
-func (s *syncWorker) listenToStream(
-	_ context.Context,
-	node registry.Node,
-	originatorStream *originatorStream,
-) error {
-	recvChan := make(chan *message_api.SubscribeEnvelopesResponse)
-	errChan := make(chan error)
-
-	go func() {
-		for {
-			envs, err := originatorStream.stream.Recv()
-			if err != nil {
-				errChan <- err
-				return
-			}
-			recvChan <- envs
-		}
-	}()
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			s.log.Info("Context canceled, stopping stream listener")
-			return backoff.Permanent(s.ctx.Err())
-
-		case envs := <-recvChan:
-			if envs == nil || len(envs.Envelopes) == 0 {
-				continue
-			}
-			s.log.Debug(
-				"Received envelopes",
-				zap.String("peer", node.HttpAddress),
-				zap.Any("numEnvelopes", len(envs.Envelopes)),
-			)
-
-			for _, env := range envs.Envelopes {
-				// Retry errors that may be transient up to 5X.
-				// If the error is permanent, we swallow it in the attemptEnvelopeProcessing function and allow the stream
-				// to continue. If it is transient and fails 5X, we return the error and halt the stream.
-				err := s.attemptEnvelopeProcessing(originatorStream, env)
-				if err != nil {
-					return err
-				}
-			}
-
-		case err := <-errChan:
-			if err == io.EOF {
-				s.log.Info("Stream closed with EOF")
-				// reset backoff to 1 second
-				return backoff.RetryAfter(1)
-			}
-			s.log.Error(
-				"Stream closed with error",
-				zap.String("peer", node.HttpAddress),
-				zap.Error(err),
-			)
-
-			if strings.Contains(err.Error(), "is not compatible") {
-				// the node won't accept our version
-				// try again in an hour in case their config has changed
-				return backoff.RetryAfter(3600)
-			}
-
-			// keep existing backoff
-			return err
-		}
-	}
-}
-
-// Attempts to process an envelope, returning an error only if the stream should halt (e.g. the error is transient and failed all retries)
-func (s *syncWorker) attemptEnvelopeProcessing(
-	originatorStream *originatorStream,
-	env *envelopes.OriginatorEnvelope,
-) error {
-	_, err := backoff.Retry(s.ctx, func() (any, error) {
-		return nil, s.validateAndInsertEnvelope(originatorStream, env)
-	}, backoff.WithMaxTries(5), backoff.WithBackOff(originatorStream.messageRetryBackoff))
-	if err != nil {
-		// Unwrap permanent errors to prevent breaking the outer retry loop on the stream
-		var permanent *backoff.PermanentError
-		if errors.As(err, &permanent) {
-			s.log.Warn(
-				"skipping envelope due to permanent error",
-				zap.Error(permanent.Unwrap()),
-			)
-			return nil
-		}
-		s.log.Error("error processing envelope after retries", zap.Error(err))
-		// Halt the stream and restart if we get an error that is retryable
-		// but failed above
-		return err
-	}
-	return nil
-}
-
-func (s *syncWorker) validateAndInsertEnvelope(
-	stream *originatorStream,
-	envProto *envelopes.OriginatorEnvelope,
-) error {
-	var err error
-	defer func() {
-		if err != nil {
-			metrics.EmitSyncOriginatorErrorMessages(stream.nodeID, 1)
-		}
-	}()
-
-	var env *envUtils.OriginatorEnvelope
-	env, err = envUtils.NewOriginatorEnvelope(envProto)
-	if err != nil {
-		s.log.Error("Failed to unmarshal originator envelope", zap.Error(err))
-		return backoff.Permanent(err)
-	}
-
-	// TODO:(nm) Handle fetching envelopes from other nodes
-	if env.OriginatorNodeID() != stream.nodeID {
-		s.log.Error("Received envelope from wrong node",
-			zap.Any("nodeID", env.OriginatorNodeID()),
-			zap.Any("expectedNodeId", stream.nodeID),
-		)
-		return backoff.Permanent(errors.New("Received envelope from wrong node"))  
-	}
-
-	metrics.EmitSyncLastSeenOriginatorSequenceId(env.OriginatorNodeID(), env.OriginatorSequenceID())
-	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
-
-	var lastSequenceID uint64 = 0
-	var lastNs int64 = 0
-	if stream.lastEnvelope != nil {
-		lastSequenceID = stream.lastEnvelope.OriginatorSequenceID()
-		lastNs = stream.lastEnvelope.OriginatorNs()
-	}
-	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
-		// TODO(rich) Submit misbehavior report and continue
-		s.log.Error("Received out of order envelope")
-	}
-
-	var ourFeeCalculation currency.PicoDollar
-	// Calculate the fees independently to verify the originator's calculation
-	ourFeeCalculation, err = s.calculateFees(env)
-	if err != nil {
-		s.log.Error("Failed to calculate fees", zap.Error(err))
-		return err
-	}
-	originatorsFeeCalculation := env.UnsignedOriginatorEnvelope.BaseFee() +
-		env.UnsignedOriginatorEnvelope.CongestionFee()
-	if ourFeeCalculation != originatorsFeeCalculation {
-		s.log.Error(
-			"Fee calculation mismatch",
-			zap.Any("ourFee", ourFeeCalculation),
-			zap.Any("originatorsFee", originatorsFeeCalculation),
-		)
-	}
-
-	// TODO Validation logic - share code with API service and publish worker
-	// Signatures, topic type, etc
-	if err = s.insertEnvelope(env, ourFeeCalculation); err != nil {
-		s.log.Error("Failed to insert envelope", zap.Error(err))
-	}
-
-	if env.OriginatorSequenceID() > lastSequenceID {
-		stream.lastEnvelope = env
-	}
-
-	return err
-}
-
-func (s *syncWorker) insertEnvelope(
-	env *envUtils.OriginatorEnvelope,
-	spendPicodollars currency.PicoDollar,
-) error {
-	s.log.Debug("Replication server received envelope", zap.Any("envelope", env))
-	originatorBytes, err := env.Bytes()
-	if err != nil {
-		s.log.Error("Failed to marshal originator envelope", zap.Error(err))
-		return backoff.Permanent(err)
-	}
-
-	payerId, err := s.getPayerID(env)
-	if err != nil {
-		s.log.Error("Failed to get payer ID", zap.Error(err))
-		return backoff.Permanent(err)
-	}
-
-	originatorID := int32(env.OriginatorNodeID())
-	originatorTime := utils.NsToDate(env.OriginatorNs())
-
-	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+	return newOriginatorStream(
 		s.ctx,
 		s.store,
-		queries.InsertGatewayEnvelopeParams{
-			OriginatorNodeID:     int32(env.OriginatorNodeID()),
-			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
-			Topic:                env.TargetTopic().Bytes(),
-			OriginatorEnvelope:   originatorBytes,
-			PayerID:              db.NullInt32(payerId),
-		},
-		queries.IncrementUnsettledUsageParams{
-			PayerID:           payerId,
-			OriginatorID:      originatorID,
-			MinutesSinceEpoch: utils.MinutesSinceEpoch(originatorTime),
-			SpendPicodollars:  int64(spendPicodollars),
-		},
-	)
-	if err != nil {
-		s.log.Error("Failed to insert gateway envelope", zap.Error(err))
-		return err
-	} else if inserted == 0 {
-		// Envelope was already inserted by another worker
-		s.log.Info("Envelope already inserted")
-		return nil
-	}
-
-	return nil
-}
-
-func (s *syncWorker) calculateFees(
-	env *envUtils.OriginatorEnvelope,
-) (currency.PicoDollar, error) {
-	payerEnvelopeLength := len(env.UnsignedOriginatorEnvelope.PayerEnvelopeBytes())
-	messageTime := utils.NsToDate(env.OriginatorNs())
-
-	baseFee, err := s.feeCalculator.CalculateBaseFee(
-		messageTime,
-		int64(payerEnvelopeLength),
-		env.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
-	)
-	if err != nil {
-		return 0, backoff.Permanent(err)
-	}
-
-	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
-		s.ctx,
-		queries.New(s.store),
-		messageTime,
-		env.OriginatorNodeID(),
-	)
-	if err != nil {
-		return 0, err
-	}
-
-	return baseFee + congestionFee, nil
-}
-
-func (s *syncWorker) getPayerID(env *envUtils.OriginatorEnvelope) (int32, error) {
-	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
-	if err != nil {
-		return 0, backoff.Permanent(err)
-	}
-
-	q := queries.New(s.store)
-	payerId, err := q.FindOrCreatePayer(s.ctx, payerAddress.Hex())
-	if err != nil {
-		return 0, err
-	}
-
-	return payerId, nil
+		s.log,
+		&node,
+		lastEnvelope,
+		stream,
+		s.feeCalculator,
+	), nil
 }

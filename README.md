@@ -25,6 +25,7 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 - [Go 1.24](https://go.dev/doc/install) -- On macOS install with `brew install go@1.24`
 - [Docker](https://www.docker.com/get-started/)
 - [Foundry](https://github.com/foundry-rs/foundry)
+- [golangci-lint](https://golangci-lint.run/welcome/install/) -- Must be version 2 or higher
 
 ## Install and build dependencies
 
@@ -63,12 +64,6 @@ dev/test
 ```
 
 These tests provide a full suite of unit and integration tests for the `xmtpd` repo to help ensure and maintain correctness of the code over time and to avoid regressions as the code evolves. You can explore the tests by taking a look at any files with the suffix `_test.go`.
-
-Before landing any changes, please lint them:
-
-```sh
-dev/lint-go
-```
 
 ## Monitor the node
 

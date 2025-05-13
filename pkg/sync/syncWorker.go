@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/fees"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -34,6 +35,7 @@ type syncWorker struct {
 	subscriptionsMutex sync.RWMutex
 	cancel             context.CancelFunc
 	feeCalculator      fees.IFeeCalculator
+	payerReportStore   payerreport.IPayerReportStore
 }
 
 func startSyncWorker(
@@ -43,19 +45,21 @@ func startSyncWorker(
 	registrant *registrant.Registrant,
 	store *sql.DB,
 	feeCalculator fees.IFeeCalculator,
+	payerReportStore payerreport.IPayerReportStore,
 ) (*syncWorker, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	s := &syncWorker{
-		ctx:           ctx,
-		log:           log.Named("syncWorker"),
-		nodeRegistry:  nodeRegistry,
-		registrant:    registrant,
-		store:         store,
-		feeCalculator: feeCalculator,
-		wg:            sync.WaitGroup{},
-		subscriptions: make(map[uint32]struct{}),
-		cancel:        cancel,
+		ctx:              ctx,
+		log:              log.Named("syncWorker"),
+		nodeRegistry:     nodeRegistry,
+		registrant:       registrant,
+		store:            store,
+		feeCalculator:    feeCalculator,
+		wg:               sync.WaitGroup{},
+		subscriptions:    make(map[uint32]struct{}),
+		payerReportStore: payerReportStore,
+		cancel:           cancel,
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -351,5 +355,6 @@ func (s *syncWorker) setupStream(
 		lastEnvelope,
 		stream,
 		s.feeCalculator,
+		s.payerReportStore,
 	), nil
 }

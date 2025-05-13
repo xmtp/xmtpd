@@ -216,6 +216,8 @@ type GroupMessageSave struct {
 	VersionMinor          int32                  `protobuf:"varint,11,opt,name=version_minor,json=versionMinor,proto3" json:"version_minor,omitempty"`
 	AuthorityId           string                 `protobuf:"bytes,12,opt,name=authority_id,json=authorityId,proto3" json:"authority_id,omitempty"`
 	ReferenceId           []byte                 `protobuf:"bytes,13,opt,name=reference_id,json=referenceId,proto3,oneof" json:"reference_id,omitempty"`
+	SequenceId            *int64                 `protobuf:"varint,14,opt,name=sequence_id,json=sequenceId,proto3,oneof" json:"sequence_id,omitempty"`
+	OriginatorId          *int64                 `protobuf:"varint,15,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -341,11 +343,25 @@ func (x *GroupMessageSave) GetReferenceId() []byte {
 	return nil
 }
 
+func (x *GroupMessageSave) GetSequenceId() int64 {
+	if x != nil && x.SequenceId != nil {
+		return *x.SequenceId
+	}
+	return 0
+}
+
+func (x *GroupMessageSave) GetOriginatorId() int64 {
+	if x != nil && x.OriginatorId != nil {
+		return *x.OriginatorId
+	}
+	return 0
+}
+
 var File_device_sync_message_backup_proto protoreflect.FileDescriptor
 
 const file_device_sync_message_backup_proto_rawDesc = "" +
 	"\n" +
-	" device_sync/message_backup.proto\x12\x1fxmtp.device_sync.message_backup\"\x95\x05\n" +
+	" device_sync/message_backup.proto\x12\x1fxmtp.device_sync.message_backup\"\x87\x06\n" +
 	"\x10GroupMessageSave\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12\x19\n" +
 	"\bgroup_id\x18\x02 \x01(\fR\agroupId\x126\n" +
@@ -361,8 +377,13 @@ const file_device_sync_message_backup_proto_rawDesc = "" +
 	" \x01(\x05R\fversionMajor\x12#\n" +
 	"\rversion_minor\x18\v \x01(\x05R\fversionMinor\x12!\n" +
 	"\fauthority_id\x18\f \x01(\tR\vauthorityId\x12&\n" +
-	"\freference_id\x18\r \x01(\fH\x00R\vreferenceId\x88\x01\x01B\x0f\n" +
-	"\r_reference_id*\x97\x01\n" +
+	"\freference_id\x18\r \x01(\fH\x00R\vreferenceId\x88\x01\x01\x12$\n" +
+	"\vsequence_id\x18\x0e \x01(\x03H\x01R\n" +
+	"sequenceId\x88\x01\x01\x12(\n" +
+	"\roriginator_id\x18\x0f \x01(\x03H\x02R\foriginatorId\x88\x01\x01B\x0f\n" +
+	"\r_reference_idB\x0e\n" +
+	"\f_sequence_idB\x10\n" +
+	"\x0e_originator_id*\x97\x01\n" +
 	"\x14GroupMessageKindSave\x12'\n" +
 	"#GROUP_MESSAGE_KIND_SAVE_UNSPECIFIED\x10\x00\x12'\n" +
 	"#GROUP_MESSAGE_KIND_SAVE_APPLICATION\x10\x01\x12-\n" +

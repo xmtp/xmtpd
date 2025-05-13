@@ -22,8 +22,7 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -79,8 +78,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -97,8 +95,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingAADOriginatorOnPublishNoLongerFails(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
 
@@ -121,8 +118,7 @@ func TestMismatchingAADOriginatorOnPublishNoLongerFails(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
 
@@ -139,8 +135,7 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 }
 
 func TestMissingTopicOnPublish(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	clientEnv.Aad.TargetTopic = nil
@@ -160,8 +155,7 @@ func TestMissingTopicOnPublish(t *testing.T) {
 }
 
 func TestKeyPackageValidationSuccess(t *testing.T) {
-	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, apiMocks := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
@@ -205,9 +199,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 }
 
 func TestKeyPackageValidationFail(t *testing.T) {
-	api, _, apiMocks, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
-
+	api, _, apiMocks := apiTestUtils.NewTestReplicationAPIClient(t)
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
@@ -246,8 +238,7 @@ func TestKeyPackageValidationFail(t *testing.T) {
 }
 
 func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
@@ -287,8 +278,7 @@ func publishPayerEnvelopeWithNodeIDAndCursor(
 }
 
 func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
@@ -305,8 +295,7 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 }
 
 func TestPublishEnvelopeFees(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -350,8 +339,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 }
 
 func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
-	api, _, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
 	tests := []struct {
 		name        string

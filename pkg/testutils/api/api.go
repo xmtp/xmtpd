@@ -37,9 +37,8 @@ import (
 
 func NewReplicationAPIClient(
 	t *testing.T,
-	ctx context.Context,
 	addr string,
-) (message_api.ReplicationApiClient, func()) {
+) message_api.ReplicationApiClient {
 	// https://github.com/grpc/grpc/blob/master/doc/naming.md
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
 	conn, err := grpc.NewClient(
@@ -49,10 +48,10 @@ func NewReplicationAPIClient(
 	)
 	require.NoError(t, err)
 	client := message_api.NewReplicationApiClient(conn)
-	return client, func() {
-		err := conn.Close()
-		require.NoError(t, err)
-	}
+	t.Cleanup(func() {
+		require.NoError(t, conn.Close())
+	})
+	return client
 }
 
 func NewPayerAPIClient(
@@ -76,9 +75,8 @@ func NewPayerAPIClient(
 
 func NewMetadataAPIClient(
 	t *testing.T,
-	ctx context.Context,
 	addr string,
-) (metadata_api.MetadataApiClient, func()) {
+) metadata_api.MetadataApiClient {
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
 	conn, err := grpc.NewClient(
 		dialAddr,
@@ -87,10 +85,10 @@ func NewMetadataAPIClient(
 	)
 	require.NoError(t, err)
 	client := metadata_api.NewMetadataApiClient(conn)
-	return client, func() {
-		err := conn.Close()
-		require.NoError(t, err)
-	}
+	t.Cleanup(func() {
+		require.NoError(t, conn.Close())
+	})
+	return client
 }
 
 type ApiServerMocks struct {
@@ -99,7 +97,7 @@ type ApiServerMocks struct {
 	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
 }
 
-func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, func()) {
+func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, ctx)
@@ -204,30 +202,26 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 		MockMessagePublisher:  mockMessagePublisher,
 	}
 
-	return svr, db, allMocks, func() {
+	t.Cleanup(func() {
 		cancel()
 		svr.Close(0)
-	}
+	})
+
+	return svr, db, allMocks
 }
 
 func NewTestReplicationAPIClient(
 	t *testing.T,
-) (message_api.ReplicationApiClient, *sql.DB, ApiServerMocks, func()) {
-	svc, db, allMocks, svcCleanup := NewTestAPIServer(t)
-	client, clientCleanup := NewReplicationAPIClient(t, context.Background(), svc.Addr().String())
-	return client, db, allMocks, func() {
-		clientCleanup()
-		svcCleanup()
-	}
+) (message_api.ReplicationApiClient, *sql.DB, ApiServerMocks) {
+	svc, db, allMocks := NewTestAPIServer(t)
+	client := NewReplicationAPIClient(t, svc.Addr().String())
+	return client, db, allMocks
 }
 
 func NewTestMetadataAPIClient(
 	t *testing.T,
-) (metadata_api.MetadataApiClient, *sql.DB, ApiServerMocks, func()) {
-	svc, db, allMocks, svcCleanup := NewTestAPIServer(t)
-	client, clientCleanup := NewMetadataAPIClient(t, context.Background(), svc.Addr().String())
-	return client, db, allMocks, func() {
-		clientCleanup()
-		svcCleanup()
-	}
+) (metadata_api.MetadataApiClient, *sql.DB, ApiServerMocks) {
+	svc, db, allMocks := NewTestAPIServer(t)
+	client := NewMetadataAPIClient(t, svc.Addr().String())
+	return client, db, allMocks
 }

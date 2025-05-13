@@ -137,10 +137,8 @@ func TestCreateServer(t *testing.T) {
 		server2.Shutdown(0)
 	}()
 
-	client1, cleanup1 := apiTestUtils.NewReplicationAPIClient(t, ctx, server1.Addr().String())
-	defer cleanup1()
-	client2, cleanup2 := apiTestUtils.NewReplicationAPIClient(t, ctx, server2.Addr().String())
-	defer cleanup2()
+	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
+	client2 := apiTestUtils.NewReplicationAPIClient(t, server2.Addr().String())
 	nodeId1 := server1NodeID
 	nodeId2 := server2NodeID
 
@@ -250,8 +248,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		server1.Shutdown(0)
 	}()
 
-	client1, cleanup1 := apiTestUtils.NewReplicationAPIClient(t, ctx, server1.Addr().String())
-	defer cleanup1()
+	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
 
 	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 		Bytes()

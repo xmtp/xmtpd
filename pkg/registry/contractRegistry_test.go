@@ -37,7 +37,11 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{RegistryRefreshInterval: 100 * time.Millisecond},
+		config.ContractsOptions{
+			SettlementChain: config.SettlementChainOptions{
+				NodeRegistryRefreshInterval: 100 * time.Millisecond,
+			},
+		},
 	)
 	require.NoError(t, err)
 
@@ -86,7 +90,11 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{RegistryRefreshInterval: 10 * time.Millisecond},
+		config.ContractsOptions{
+			SettlementChain: config.SettlementChainOptions{
+				NodeRegistryRefreshInterval: 10 * time.Millisecond,
+			},
+		},
 	)
 	require.NoError(t, err)
 
@@ -144,7 +152,11 @@ func TestStopOnContextCancel(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{RegistryRefreshInterval: 10 * time.Millisecond},
+		config.ContractsOptions{
+			SettlementChain: config.SettlementChainOptions{
+				NodeRegistryRefreshInterval: 10 * time.Millisecond,
+			},
+		},
 	)
 	require.NoError(t, err)
 

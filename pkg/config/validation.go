@@ -4,74 +4,101 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
-func ValidateServerOptions(options ServerOptions) error {
+func ValidateServerOptions(options *ServerOptions) error {
 	missingSet := make(map[string]struct{})
 	customSet := make(map[string]struct{})
 
-	if options.Contracts.RpcUrl == "" {
-		missingSet["--contracts.rpc-url"] = struct{}{}
+	if isMultiChainDeployment(*options) {
+		validateField(
+			options.Contracts.AppChain.RpcURL,
+			"contracts.app-chain.rpc-url",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.AppChain.ChainID,
+			"contracts.app-chain.chain-id",
+			customSet,
+		)
+		validateField(
+			options.Contracts.AppChain.GroupMessageBroadcasterAddress,
+			"contracts.app-chain.group-message-broadcaster-address",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.AppChain.IdentityUpdateBroadcasterAddress,
+			"contracts.app-chain.identity-update-broadcaster-address",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.AppChain.MaxChainDisconnectTime,
+			"contracts.app-chain.max-chain-disconnect-time",
+			customSet,
+		)
+
+		validateField(
+			options.Contracts.SettlementChain.RpcURL,
+			"contracts.settlement-chain.rpc-url",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.SettlementChain.ChainID,
+			"contracts.settlement-chain.chain-id",
+			customSet,
+		)
+		validateField(
+			options.Contracts.SettlementChain.NodeRegistryAddress,
+			"contracts.settlement-chain.node-registry-address",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.SettlementChain.NodeRegistryRefreshInterval,
+			"contracts.settlement-chain.node-registry-refresh-interval",
+			customSet,
+		)
+		validateField(
+			options.Contracts.SettlementChain.RateRegistryAddress,
+			"contracts.settlement-chain.rate-registry-address",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.SettlementChain.RateRegistryRefreshInterval,
+			"contracts.settlement-chain.rate-registry-refresh-interval",
+			customSet,
+		)
+	} else {
+		normalizeSingleChainConfig(options)
+
+		validateField(options.Contracts.RpcUrl, "contracts.rpc-url", missingSet)
+		validateField(options.Contracts.NodesContractAddress, "contracts.nodes-address", missingSet)
+		validateField(options.Contracts.MessagesContractAddress, "contracts.messages-address", missingSet)
+		validateField(options.Contracts.IdentityUpdatesContractAddress, "contracts.identity-updates-address", missingSet)
+		validateField(options.Contracts.RateRegistryContractAddress, "contracts.rates-registry-address", missingSet)
+		validateField(options.Contracts.RatesRefreshInterval, "contracts.rates-refresh-interval", customSet)
+		validateField(options.Contracts.ChainID, "contracts.chain-id", customSet)
+		validateField(options.Contracts.RegistryRefreshInterval, "contracts.registry-refresh-interval", customSet)
+		validateField(options.Contracts.MaxChainDisconnectTime, "contracts.max-chain-disconnect-time", customSet)
 	}
 
-	if options.Contracts.NodesContractAddress == "" {
-		missingSet["--contracts.nodes-address"] = struct{}{}
-	}
-
-	if options.Contracts.MessagesContractAddress == "" {
-		missingSet["--contracts.messages-address"] = struct{}{}
-	}
-
-	if options.Contracts.IdentityUpdatesContractAddress == "" {
-		missingSet["--contracts.identity-updates-address"] = struct{}{}
-	}
-
-	if options.Contracts.ChainID == 0 {
-		customSet["--contracts.chain-id must be greater than 0"] = struct{}{}
-	}
-
-	if options.Contracts.RegistryRefreshInterval <= 0 {
-		customSet["--contracts.registry-refresh-interval must be greater than 0"] = struct{}{}
-	}
-
-	if options.Contracts.MaxChainDisconnectTime <= 0 {
-		customSet["--contracts.max-chain-disconnect-time must be greater than 0"] = struct{}{}
-	}
+	validateField(
+		options.DB.WriterConnectionString,
+		"db.writer-connection-string",
+		missingSet,
+	)
 
 	if options.Payer.Enable {
-		if options.DB.WriterConnectionString == "" {
-			missingSet["--DB.WriterConnectionString"] = struct{}{}
-		}
-		if options.Payer.PrivateKey == "" {
-			missingSet["--payer.PrivateKey"] = struct{}{}
-		}
+		validateField(options.Payer.PrivateKey, "payer.private-key", missingSet)
 	}
 
 	if options.Replication.Enable {
-		if options.DB.WriterConnectionString == "" {
-			missingSet["--DB.WriterConnectionString"] = struct{}{}
-		}
-		if options.Signer.PrivateKey == "" {
-			missingSet["--Signer.PrivateKey"] = struct{}{}
-		}
-	}
-
-	if options.Sync.Enable {
-		if options.DB.WriterConnectionString == "" {
-			missingSet["--DB.WriterConnectionString"] = struct{}{}
-		}
-	}
-
-	if options.Indexer.Enable {
-		if options.DB.WriterConnectionString == "" {
-			missingSet["--DB.WriterConnectionString"] = struct{}{}
-		}
+		validateField(options.Signer.PrivateKey, "signer.private-key", missingSet)
 	}
 
 	if len(missingSet) > 0 || len(customSet) > 0 {
 		var errs []string
 		if len(missingSet) > 0 {
-
 			var errorMessages []string
 			for err := range missingSet {
 				errorMessages = append(errorMessages, err)
@@ -90,6 +117,62 @@ func ValidateServerOptions(options ServerOptions) error {
 	}
 
 	return nil
+}
+
+func isMultiChainDeployment(options ServerOptions) bool {
+	return options.Contracts.AppChain.RpcURL != "" ||
+		options.Contracts.SettlementChain.RpcURL != ""
+}
+
+// normalizeSingleChainConfig copies values from deprecated fields to new fields for single-chain deployments.
+func normalizeSingleChainConfig(options *ServerOptions) {
+	if options.Contracts.RpcUrl != "" {
+		options.Contracts.AppChain.RpcURL = options.Contracts.RpcUrl
+		options.Contracts.SettlementChain.RpcURL = options.Contracts.RpcUrl
+	}
+	if options.Contracts.NodesContractAddress != "" {
+		options.Contracts.SettlementChain.NodeRegistryAddress = options.Contracts.NodesContractAddress
+	}
+	if options.Contracts.MessagesContractAddress != "" {
+		options.Contracts.AppChain.GroupMessageBroadcasterAddress = options.Contracts.MessagesContractAddress
+	}
+	if options.Contracts.IdentityUpdatesContractAddress != "" {
+		options.Contracts.AppChain.IdentityUpdateBroadcasterAddress = options.Contracts.IdentityUpdatesContractAddress
+	}
+	if options.Contracts.RateRegistryContractAddress != "" {
+		options.Contracts.SettlementChain.RateRegistryAddress = options.Contracts.RateRegistryContractAddress
+	}
+	if options.Contracts.RatesRefreshInterval > 0 {
+		options.Contracts.SettlementChain.RateRegistryRefreshInterval = options.Contracts.RatesRefreshInterval
+	}
+	if options.Contracts.ChainID > 0 {
+		options.Contracts.AppChain.ChainID = options.Contracts.ChainID
+		options.Contracts.SettlementChain.ChainID = options.Contracts.ChainID
+	}
+	if options.Contracts.RegistryRefreshInterval > 0 {
+		options.Contracts.SettlementChain.NodeRegistryRefreshInterval = options.Contracts.RegistryRefreshInterval
+	}
+	if options.Contracts.MaxChainDisconnectTime > 0 {
+		options.Contracts.AppChain.MaxChainDisconnectTime = options.Contracts.MaxChainDisconnectTime
+	}
+}
+
+// validateField checks if a field meets the validation requirements and adds appropriate errors.
+func validateField(value interface{}, fieldName string, set map[string]struct{}) {
+	switch v := value.(type) {
+	case string:
+		if v == "" {
+			set[fmt.Sprintf("--%s", fieldName)] = struct{}{}
+		}
+	case int:
+		if v <= 0 {
+			set[fmt.Sprintf("--%s must be greater than 0", fieldName)] = struct{}{}
+		}
+	case time.Duration:
+		if v <= 0 {
+			set[fmt.Sprintf("--%s must be greater than 0", fieldName)] = struct{}{}
+		}
+	}
 }
 
 func ValidatePruneOptions(options PruneOptions) error {

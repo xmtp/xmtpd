@@ -56,9 +56,8 @@ func NewReplicationAPIClient(
 
 func NewPayerAPIClient(
 	t *testing.T,
-	ctx context.Context,
 	addr string,
-) (payer_api.PayerApiClient, func()) {
+) payer_api.PayerApiClient {
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
 	conn, err := grpc.NewClient(
 		dialAddr,
@@ -67,10 +66,10 @@ func NewPayerAPIClient(
 	)
 	require.NoError(t, err)
 	client := payer_api.NewPayerApiClient(conn)
-	return client, func() {
-		err := conn.Close()
-		require.NoError(t, err)
-	}
+	t.Cleanup(func() {
+		require.NoError(t, conn.Close())
+	})
+	return client
 }
 
 func NewMetadataAPIClient(

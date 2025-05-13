@@ -9,8 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type DatabaseChainClient struct {
-}
+type DatabaseChainClient struct{}
 
 func NewDatabaseChainClient() *DatabaseChainClient {
 	return &DatabaseChainClient{}

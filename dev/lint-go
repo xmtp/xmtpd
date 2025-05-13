@@ -2,3 +2,4 @@
 set -e
 
 go tool -modfile=tools/go.mod github.com/segmentio/golines -w --ignored-dirs=proto --ignored-dirs=mocks --ignored-dirs=abis --ignored-dirs=queries .
+go tool -modfile=tools/go.mod mvdan.cc/gofumpt -l -w .

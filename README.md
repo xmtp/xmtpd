@@ -67,7 +67,7 @@ These tests provide a full suite of unit and integration tests for the `xmtpd` r
 Before landing any changes, please lint them:
 
 ```sh
-dev/lint-golines
+dev/lint-go
 ```
 
 ## Monitor the node

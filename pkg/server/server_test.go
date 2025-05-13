@@ -6,14 +6,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	r "github.com/xmtp/xmtpd/pkg/registry"
@@ -22,6 +20,7 @@ import (
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
+	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
@@ -86,46 +85,11 @@ func TestCreateServer(t *testing.T) {
 	httpServer2Port := networkTestUtils.FindFreePort(t)
 
 	nodes := []r.Node{
-		{
-			NodeID:                    server1NodeID,
-			SigningKey:                &privateKey1.PublicKey,
-			HttpAddress:               fmt.Sprintf("http://localhost:%d", server1Port),
-			InCanonicalNetwork:        true,
-			MinMonthlyFeeMicroDollars: big.NewInt(0),
-			IsValidConfig:             true,
-		},
-		{
-			NodeID:                    server2NodeID,
-			SigningKey:                &privateKey2.PublicKey,
-			HttpAddress:               fmt.Sprintf("http://localhost:%d", server2Port),
-			InCanonicalNetwork:        true,
-			MinMonthlyFeeMicroDollars: big.NewInt(0),
-			IsValidConfig:             true,
-		},
+		registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1),
+		registryTestUtils.CreateNode(server2NodeID, server2Port, privateKey2),
 	}
 
-	registry := mocks.NewMockNodeRegistry(t)
-	registry.On("GetNodes").Return(nodes, nil)
-
-	nodesChan := make(chan []r.Node)
-	registry.On("OnNewNodes").
-		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(func() {}))
-
-	nodeChan1 := make(chan r.Node)
-	nodeChan2 := make(chan r.Node)
-	registry.On("OnChangedNode", server1NodeID).
-		Return((<-chan r.Node)(nodeChan1), r.CancelSubscription(func() {
-			close(nodeChan1)
-		}))
-	registry.On("OnChangedNode", server2NodeID).
-		Return((<-chan r.Node)(nodeChan2), r.CancelSubscription(func() {
-			close(nodeChan2)
-		}))
-
-	registry.On("GetNode", server1NodeID).Return(&nodes[0], nil)
-	registry.On("GetNode", server2NodeID).Return(&nodes[1], nil)
-
-	registry.On("Stop").Return(nil)
+	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
 	server1 := NewTestServer(t, server1Port, httpServer1Port, dbs[0], registry, privateKey1)
 	server2 := NewTestServer(t, server2Port, httpServer2Port, dbs[1], registry, privateKey2)
@@ -222,26 +186,8 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	nodeId1 := server1NodeID
 
-	nodes := []r.Node{
-		{
-			NodeID:                    server1NodeID,
-			SigningKey:                &privateKey1.PublicKey,
-			HttpAddress:               fmt.Sprintf("http://localhost:%d", server1Port),
-			InCanonicalNetwork:        true,
-			MinMonthlyFeeMicroDollars: big.NewInt(0),
-			IsValidConfig:             true,
-		},
-	}
-
-	registry := mocks.NewMockNodeRegistry(t)
-	registry.On("GetNodes").Return(nodes, nil)
-
-	nodesChan := make(chan []r.Node)
-	registry.On("OnNewNodes").
-		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(func() {
-		}))
-
-	registry.On("Stop").Return(nil)
+	nodes := []r.Node{registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1)}
+	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
 	server1 := NewTestServer(t, server1Port, httpServer1Port, dbs[0], registry, privateKey1)
 	defer func() {

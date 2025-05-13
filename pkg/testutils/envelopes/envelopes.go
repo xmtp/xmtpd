@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"crypto/ecdsa"
 	"testing"
 	"time"
 
@@ -99,23 +100,17 @@ func CreateIdentityUpdateClientEnvelope(
 	}
 }
 
-func CreatePayerEnvelopeWithExpiration(
+func CreatePayerEnvelopeWithSigner(
 	t *testing.T,
 	nodeID uint32,
+	signer *ecdsa.PrivateKey,
 	expirationDays uint32,
-	clientEnv ...*envelopes.ClientEnvelope,
+	clientEnv *envelopes.ClientEnvelope,
 ) *envelopes.PayerEnvelope {
-	if len(clientEnv) == 0 {
-		clientEnv = append(clientEnv, CreateClientEnvelope())
-	}
-
-	clientEnvBytes, err := proto.Marshal(clientEnv[0])
+	clientEnvBytes, err := proto.Marshal(clientEnv)
 	require.NoError(t, err)
 
-	key, err := crypto.GenerateKey()
-	require.NoError(t, err)
-
-	payerSignature, err := utils.SignClientEnvelope(nodeID, clientEnvBytes, key)
+	payerSignature, err := utils.SignClientEnvelope(nodeID, clientEnvBytes, signer)
 	require.NoError(t, err)
 
 	return &envelopes.PayerEnvelope{
@@ -126,6 +121,22 @@ func CreatePayerEnvelopeWithExpiration(
 		TargetOriginator:     nodeID,
 		MessageRetentionDays: expirationDays,
 	}
+}
+
+func CreatePayerEnvelopeWithExpiration(
+	t *testing.T,
+	nodeID uint32,
+	expirationDays uint32,
+	clientEnv ...*envelopes.ClientEnvelope,
+) *envelopes.PayerEnvelope {
+	if len(clientEnv) == 0 {
+		clientEnv = append(clientEnv, CreateClientEnvelope())
+	}
+
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	return CreatePayerEnvelopeWithSigner(t, nodeID, key, expirationDays, clientEnv[0])
 }
 
 func CreatePayerEnvelope(

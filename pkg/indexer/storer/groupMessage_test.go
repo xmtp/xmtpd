@@ -18,11 +18,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
+func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	db, _ := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
-	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
 	config.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
 		t,
@@ -39,16 +40,12 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	require.NoError(t, err)
 	storer := NewGroupMessageStorer(queryImpl, testutils.NewLog(t), contract)
 
-	return storer, func() {
-		defer anvilCleanup()
-		cancel()
-	}
+	return storer
 }
 
 func TestStoreGroupMessages(t *testing.T) {
 	ctx := context.Background()
-	storer, cleanup := buildGroupMessageStorer(t)
-	defer cleanup()
+	storer := buildGroupMessageStorer(t)
 
 	groupID := testutils.RandomGroupID()
 	message := testutils.RandomBytes(30)
@@ -89,8 +86,7 @@ func TestStoreGroupMessages(t *testing.T) {
 
 func TestStoreGroupMessageDuplicate(t *testing.T) {
 	ctx := context.Background()
-	storer, cleanup := buildGroupMessageStorer(t)
-	defer cleanup()
+	storer := buildGroupMessageStorer(t)
 
 	var groupID [32]byte
 	copy(groupID[:], testutils.RandomBytes(32))
@@ -124,8 +120,7 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 
 func TestStoreGroupMessageMalformed(t *testing.T) {
 	ctx := context.Background()
-	storer, cleanup := buildGroupMessageStorer(t)
-	defer cleanup()
+	storer := buildGroupMessageStorer(t)
 
 	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
 	require.NoError(t, err)

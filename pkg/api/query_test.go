@@ -81,8 +81,7 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 }
 
 func TestQueryAllEnvelopes(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -97,8 +96,7 @@ func TestQueryAllEnvelopes(t *testing.T) {
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -113,8 +111,7 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -132,8 +129,7 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -151,8 +147,7 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -169,8 +164,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 }
 
 func TestQueryTopicFromLastSeen(t *testing.T) {
-	api, store, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, store, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, store)
 
 	resp, err := api.QueryEnvelopes(
@@ -190,8 +184,7 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 }
 
 func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -211,8 +204,7 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 }
 
 func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -232,8 +224,7 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
 	resp, err := api.QueryEnvelopes(
@@ -250,8 +241,7 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 }
 
 func TestInvalidQuery(t *testing.T) {
-	api, dbHandle, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	defer cleanup()
+	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	setupQueryTest(t, dbHandle)
 
 	_, err := api.QueryEnvelopes(

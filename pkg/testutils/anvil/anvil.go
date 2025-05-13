@@ -44,8 +44,8 @@ func waitForAnvil(t *testing.T, url string) {
 	}
 }
 
-// Start an ephemeral anvil instance and return the address and a cleanup function
-func StartAnvil(t *testing.T, showLogs bool) (string, func()) {
+// StartAnvil starts an ephemeral anvil instance and return the address
+func StartAnvil(t *testing.T, showLogs bool) string {
 	port := networkTestUtils.FindFreePort(t)
 
 	// we need mixed mining to work around https://github.com/xmtp/xmtpd/issues/643
@@ -68,8 +68,10 @@ func StartAnvil(t *testing.T, showLogs bool) (string, func()) {
 	url := fmt.Sprintf("http://localhost:%d", port)
 	waitForAnvil(t, url)
 
-	return url, func() {
+	t.Cleanup(func() {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-	}
+	})
+
+	return url
 }

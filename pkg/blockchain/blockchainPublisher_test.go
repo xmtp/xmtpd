@@ -12,10 +12,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
+func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 	// Set the nodes contract address to the newly deployed contract
 	contractsOptions.SettlementChain.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
@@ -36,6 +37,9 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 
 	client, err := blockchain.NewClient(ctx, contractsOptions.SettlementChain.RpcURL)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		client.Close()
+	})
 
 	nonceManager := NewTestNonceManager(logger)
 
@@ -49,16 +53,12 @@ func buildPublisher(t *testing.T) (*blockchain.BlockchainPublisher, func()) {
 	)
 	require.NoError(t, err)
 
-	return publisher, func() {
-		defer cleanup()
-		cancel()
-		client.Close()
-	}
+	return publisher
 }
 
 func TestPublishIdentityUpdate(t *testing.T) {
-	publisher, cleanup := buildPublisher(t)
-	t.Cleanup(cleanup)
+	publisher := buildPublisher(t)
+
 	tests := []struct {
 		name           string
 		inboxId        [32]byte
@@ -112,8 +112,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishGroupMessage(t *testing.T) {
-	publisher, cleanup := buildPublisher(t)
-	t.Cleanup(cleanup)
+	publisher := buildPublisher(t)
 
 	tests := []struct {
 		name    string
@@ -165,8 +164,7 @@ func TestPublishGroupMessage(t *testing.T) {
 }
 
 func TestPublishGroupMessageConcurrent(t *testing.T) {
-	publisher, cleanup := buildPublisher(t)
-	defer cleanup()
+	publisher := buildPublisher(t)
 
 	const parallelRuns = 100
 	var wg sync.WaitGroup

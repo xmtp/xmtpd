@@ -68,8 +68,9 @@ func (m *MockSubscribeSyncCursorClient) Recv() (*metadata_api.GetSyncCursorRespo
 
 func buildPayerService(
 	t *testing.T,
-) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient, func()) {
+) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	log := testutils.NewLog(t)
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -92,15 +93,12 @@ func buildPayerService(
 	)
 	require.NoError(t, err)
 
-	return payerService, mockMessagePublisher, mockRegistry, metaMocks, func() {
-		cancel()
-	}
+	return payerService, mockMessagePublisher, mockRegistry, metaMocks
 }
 
 func TestPublishIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
-	svc, mockMessagePublisher, registryMocks, metaMocks, cleanup := buildPayerService(t)
-	defer cleanup()
+	svc, mockMessagePublisher, registryMocks, metaMocks := buildPayerService(t)
 
 	inboxId := testutils.RandomInboxId()
 	inboxIdBytes, err := utils.ParseInboxId(inboxId)
@@ -175,12 +173,10 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishToNodes(t *testing.T) {
-	originatorServer, _, _, originatorCleanup := apiTestUtils.NewTestAPIServer(t)
-	defer originatorCleanup()
+	originatorServer, _, _ := apiTestUtils.NewTestAPIServer(t)
 
 	ctx := context.Background()
-	svc, _, mockRegistry, _, cleanup := buildPayerService(t)
-	defer cleanup()
+	svc, _, mockRegistry, _ := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
 		HttpAddress: formatAddress(originatorServer.Addr().String()),

@@ -23,10 +23,11 @@ import (
 
 func buildIdentityUpdateStorer(
 	t *testing.T,
-) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService, func()) {
+) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	db, _ := testutils.NewDB(t, ctx)
-	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
 	config.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
 		t,
@@ -44,16 +45,12 @@ func buildIdentityUpdateStorer(
 	require.NoError(t, err)
 	storer := NewIdentityUpdateStorer(db, testutils.NewLog(t), contract, validationService)
 
-	return storer, validationService, func() {
-		defer anvilCleanup()
-		cancel()
-	}
+	return storer, validationService
 }
 
 func TestStoreIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
-	storer, validationService, cleanup := buildIdentityUpdateStorer(t)
-	defer cleanup()
+	storer, validationService := buildIdentityUpdateStorer(t)
 	newAddress := "0x12345"
 	validationService.EXPECT().
 		GetAssociationStateFromEnvelopes(mock.Anything, mock.Anything, mock.Anything).
@@ -111,8 +108,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 
 func TestStoreSequential(t *testing.T) {
 	ctx := context.Background()
-	storer, validationService, cleanup := buildIdentityUpdateStorer(t)
-	defer cleanup()
+	storer, validationService := buildIdentityUpdateStorer(t)
 	newAddress := "0x12345"
 
 	numCalls := 0

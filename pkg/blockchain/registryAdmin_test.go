@@ -13,10 +13,11 @@ import (
 
 func buildRegistry(
 	t *testing.T,
-) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, context.Context, func()) {
+) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
-	rpcUrl, cleanup := anvil.StartAnvil(t, false)
+	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
 	// Deploy the contract always, so the tests are deterministic.
@@ -37,10 +38,7 @@ func buildRegistry(
 	caller, err := blockchain.NewNodeRegistryCaller(logger, client, contractsOptions)
 	require.NoError(t, err)
 
-	return registry, caller, ctx, func() {
-		defer cleanup()
-		cancel()
-	}
+	return registry, caller, ctx
 }
 
 func addRandomNode(
@@ -66,8 +64,7 @@ func addRandomNode(
 }
 
 func TestAddNode(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, _, ctx := buildRegistry(t)
 
 	privateKey := testutils.RandomPrivateKey(t)
 	httpAddress := testutils.RandomString(32)
@@ -84,15 +81,13 @@ func TestAddNodeBadOwner(t *testing.T) {
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomString(10) // This is an invalid hex address
 
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, _, ctx := buildRegistry(t)
 	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress, 1000)
 	require.ErrorContains(t, err, "invalid owner address provided")
 }
 
 func TestAddNodeBadMinMonthlyFee(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, _, ctx := buildRegistry(t)
 	privateKey := testutils.RandomPrivateKey(t)
 	httpAddress := testutils.RandomString(32)
 	owner := testutils.RandomAddress()
@@ -102,24 +97,21 @@ func TestAddNodeBadMinMonthlyFee(t *testing.T) {
 }
 
 func TestSetMaxActiveNodes(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, _, ctx := buildRegistry(t)
 
 	err := registry.SetMaxActiveNodes(ctx, 100)
 	require.NoError(t, err)
 }
 
 func TestSetNodeOperatorCommissionPercent(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, _, ctx := buildRegistry(t)
 
 	err := registry.SetNodeOperatorCommissionPercent(ctx, 100)
 	require.NoError(t, err)
 }
 
 func TestSetNodeOperatorCommissionPercentInvalid(t *testing.T) {
-	registry, _, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, _, ctx := buildRegistry(t)
 
 	err := registry.SetNodeOperatorCommissionPercent(ctx, -1)
 	require.ErrorContains(t, err, "invalid commission percent provided")

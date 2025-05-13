@@ -61,8 +61,7 @@ func parseResults(
 }
 
 func TestGetNewestEnvelope(t *testing.T) {
-	api, db, _, cleanup := apiTestUtils.NewTestReplicationAPIClient(t)
-	t.Cleanup(cleanup)
+	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 	querier := queries.New(db)
 
 	installationID1 := testutils.RandomGroupID()

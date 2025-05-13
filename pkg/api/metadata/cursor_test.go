@@ -27,8 +27,8 @@ var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(
 	t *testing.T,
-) (metadata_api.MetadataApiClient, *sql.DB, testUtilsApi.ApiServerMocks, func()) {
-	api, db, mocks, cleanup := testUtilsApi.NewTestMetadataAPIClient(t)
+) (metadata_api.MetadataApiClient, *sql.DB, testUtilsApi.ApiServerMocks) {
+	api, db, mocks := testUtilsApi.NewTestMetadataAPIClient(t)
 	payerId := dbUtils.NullInt32(testutils.CreatePayer(t, db))
 
 	allRows = []queries.InsertGatewayEnvelopeParams{
@@ -86,7 +86,7 @@ func setupTest(
 		},
 	}
 
-	return api, db, mocks, cleanup
+	return api, db, mocks
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
@@ -103,8 +103,7 @@ func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) 
 }
 
 func TestGetCursorBasic(t *testing.T) {
-	client, db, _, cleanup := setupTest(t)
-	defer cleanup()
+	client, db, _ := setupTest(t)
 	insertInitialRows(t, db)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -144,8 +143,7 @@ func TestGetCursorBasic(t *testing.T) {
 }
 
 func TestSubscribeSyncCursorBasic(t *testing.T) {
-	client, db, _, cleanup := setupTest(t)
-	defer cleanup()
+	client, db, _ := setupTest(t)
 	insertInitialRows(t, db)
 
 	ctx, cancel := context.WithCancel(context.Background())

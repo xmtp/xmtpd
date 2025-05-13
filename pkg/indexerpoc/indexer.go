@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
-	"time"
 
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 )
@@ -15,6 +15,7 @@ import (
 type Indexer struct {
 	ctx     context.Context
 	log     *zap.Logger
+	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 	sources map[int64]Source
 	tasks   []*task
@@ -30,17 +31,19 @@ func NewIndexer(
 	ctx context.Context,
 	log *zap.Logger,
 	storage Storage,
-	pollInterval time.Duration,
 	batchSize uint64,
 	concurrency int,
-	networks []*Network,
+	networkConfig config.ContractsOptions,
 ) (*Indexer, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
 	if concurrency <= 0 {
 		concurrency = runtime.NumCPU()
 	}
 
 	manager := &Indexer{
 		ctx:         ctx,
+		cancel:      cancel,
 		log:         log.Named("indexer"),
 		sources:     make(map[int64]Source),
 		storage:     storage,
@@ -48,44 +51,19 @@ func NewIndexer(
 		concurrency: concurrency,
 	}
 
-	if err := manager.AddNetworks(networks); err != nil {
+	if err := manager.configureNetworks(networkConfig); err != nil {
 		return nil, fmt.Errorf("failed to add networks: %w", err)
 	}
 
 	return manager, nil
 }
 
-func (i *Indexer) AddNetworks(networks []*Network) error {
-	if len(networks) == 0 {
-		return fmt.Errorf("no networks to add")
-	}
-
-	for _, network := range networks {
-		if _, exists := i.sources[network.ChainID]; exists {
-			i.log.Info("Network already added, skipping",
-				zap.String("name", network.Name),
-				zap.Int64("chainID", network.ChainID),
-			)
-			continue
-		}
-
-		source, err := NewGethSource(network, i.log)
-		if err != nil {
-			return fmt.Errorf("creating source for network %s: %w", network.Name, err)
-		}
-
-		i.sources[network.ChainID] = source
-		i.log.Info("Added network",
-			zap.String("name", network.Name),
-			zap.Int64("chainID", network.ChainID),
-			zap.String("rpcURL", network.RpcURL),
-		)
-	}
+func (i *Indexer) configureNetworks(cfg config.ContractsOptions) error {
 
 	return nil
 }
 
-// AddContracts adds multiple contracts to be indexed
+// AddContracts adds multiple contracts to be indexed.
 func (i *Indexer) AddContracts(contracts []Contract) error {
 	if len(contracts) == 0 {
 		return fmt.Errorf("no contracts to add")
@@ -156,4 +134,11 @@ func (i *Indexer) Run() {
 	}
 
 	i.wg.Wait()
+}
+
+func (i *Indexer) Close() {
+	i.log.Debug("closing indexer")
+	i.cancel()
+	i.wg.Wait()
+	i.log.Debug("closed indexer")
 }

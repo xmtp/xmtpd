@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultWaitTime = 1 * time.Second
+	defaultTaskSleepTime = 1 * time.Second
 )
 
 // task represents an indexing task for a specific contract.
@@ -412,7 +412,7 @@ func (t *task) run() {
 				continue
 			case err == ErrNothingNew:
 				reorgCount = 0
-				time.Sleep(defaultWaitTime)
+				time.Sleep(defaultTaskSleepTime)
 			case err == ErrReorg:
 				reorgCount++
 				if reorgCount > maxReorgs {
@@ -428,7 +428,7 @@ func (t *task) run() {
 					)
 
 					// Back off to avoid hammering the node and allow the network to stabilize
-					time.Sleep(defaultWaitTime)
+					time.Sleep(defaultTaskSleepTime)
 					reorgCount = 0
 				} else {
 					// Continue immediately to process the next block
@@ -442,7 +442,7 @@ func (t *task) run() {
 					"network", t.state.NetworkName,
 					"error", err,
 				)
-				time.Sleep(defaultWaitTime)
+				time.Sleep(defaultTaskSleepTime)
 			}
 		}
 	}

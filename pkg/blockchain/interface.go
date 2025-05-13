@@ -29,14 +29,18 @@ type LogStreamer interface {
 type ChainClient interface {
 	// From ethereum.BlockNumberReader
 	BlockNumber(ctx context.Context) (uint64, error)
-   
+
 	// From ethereum.LogFilterer
 	FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error)
-	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error)
-	
+	SubscribeFilterLogs(
+		ctx context.Context,
+		q ethereum.FilterQuery,
+		ch chan<- types.Log,
+	) (ethereum.Subscription, error)
+
 	// From ethereum.ChainIDReader
 	ChainID(ctx context.Context) (*big.Int, error)
-	
+
 	// Only the BlockByNumber method from ethereum.ChainReader
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
 }

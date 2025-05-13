@@ -64,6 +64,12 @@ dev/test
 
 These tests provide a full suite of unit and integration tests for the `xmtpd` repo to help ensure and maintain correctness of the code over time and to avoid regressions as the code evolves. You can explore the tests by taking a look at any files with the suffix `_test.go`.
 
+Before landing any changes, please lint them:
+
+```sh
+dev/lint-golines
+```
+
 ## Monitor the node
 
 To enable metrics you need to start the node with `--metrics.enable`.

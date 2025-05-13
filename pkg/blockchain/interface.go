@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -26,10 +27,18 @@ type LogStreamer interface {
 }
 
 type ChainClient interface {
-	ethereum.BlockNumberReader
-	ethereum.LogFilterer
-	ethereum.ChainIDReader
-	ethereum.ChainReader
+	// From ethereum.BlockNumberReader
+	BlockNumber(ctx context.Context) (uint64, error)
+   
+	// From ethereum.LogFilterer
+	FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error)
+	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error)
+	
+	// From ethereum.ChainIDReader
+	ChainID(ctx context.Context) (*big.Int, error)
+	
+	// Only the BlockByNumber method from ethereum.ChainReader
+	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
 }
 
 type TransactionSigner interface {

@@ -23,8 +23,9 @@ import (
 
 func startIndexing(
 	t *testing.T,
-) (*sql.DB, *queries.Queries, config.ContractsOptions, context.Context, func()) {
+) (*sql.DB, *queries.Queries, config.ContractsOptions, context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, ctx)
 
@@ -45,9 +46,7 @@ func startIndexing(
 	err := indx.StartIndexer(db, cfg, validationService)
 	require.NoError(t, err)
 
-	return db, queries.New(db), cfg, ctx, func() {
-		cancel()
-	}
+	return db, queries.New(db), cfg, ctx
 }
 
 func messagePublisher(
@@ -83,9 +82,8 @@ func messagePublisher(
 }
 
 func TestStoreMessages(t *testing.T) {
-	db, querier, cfg, ctx, cleanup := startIndexing(t)
+	db, querier, cfg, ctx := startIndexing(t)
 	publisher := messagePublisher(t, ctx, db, cfg)
-	defer cleanup()
 
 	message := testutils.RandomBytes(78)
 	groupID := testutils.RandomGroupID()

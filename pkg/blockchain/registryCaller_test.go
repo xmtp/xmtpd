@@ -7,8 +7,7 @@ import (
 )
 
 func TestGetAllNodes(t *testing.T) {
-	registry, caller, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, caller, ctx := buildRegistry(t)
 
 	addRandomNode(t, registry, ctx)
 
@@ -18,8 +17,7 @@ func TestGetAllNodes(t *testing.T) {
 }
 
 func TestGetNode(t *testing.T) {
-	registry, caller, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, caller, ctx := buildRegistry(t)
 
 	addRandomNode(t, registry, ctx)
 
@@ -29,16 +27,14 @@ func TestGetNode(t *testing.T) {
 }
 
 func TestGetNodeNotFound(t *testing.T) {
-	_, caller, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	_, caller, ctx := buildRegistry(t)
 
 	_, err := caller.GetNode(ctx, 100)
 	require.Error(t, err)
 }
 
 func TestOwnerOf(t *testing.T) {
-	registry, caller, ctx, cleanup := buildRegistry(t)
-	defer cleanup()
+	registry, caller, ctx := buildRegistry(t)
 
 	addRandomNode(t, registry, ctx)
 

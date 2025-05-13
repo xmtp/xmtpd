@@ -16,8 +16,11 @@ import (
 
 func setupRegistry(
 	t *testing.T,
-) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller, func()) {
+) (blockchain.INodeRegistryAdmin, blockchain.INodeRegistryCaller) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+	})
 	logger := testutils.NewLog(t)
 	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
@@ -30,6 +33,9 @@ func setupRegistry(
 	require.NoError(t, err)
 
 	client, err := blockchain.NewClient(ctx, contractsOptions.SettlementChain.RpcURL)
+	t.Cleanup(func() {
+		client.Close()
+	})
 	require.NoError(t, err)
 
 	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
@@ -47,10 +53,7 @@ func setupRegistry(
 	)
 	require.NoError(t, err)
 
-	return registryAdmin, registryCaller, func() {
-		cancel()
-		client.Close()
-	}
+	return registryAdmin, registryCaller
 }
 
 func registerRandomNode(
@@ -74,8 +77,7 @@ func registerRandomNode(
 }
 
 func TestRegistryRead(t *testing.T) {
-	registryAdmin, registryCaller, cleanup := setupRegistry(t)
-	defer cleanup()
+	registryAdmin, registryCaller := setupRegistry(t)
 
 	node1 := registerRandomNode(t, registryAdmin)
 	node2 := registerRandomNode(t, registryAdmin)
@@ -98,8 +100,7 @@ func TestRegistryRead(t *testing.T) {
 }
 
 func TestFileDump(t *testing.T) {
-	registryAdmin, registryCaller, cleanup := setupRegistry(t)
-	defer cleanup()
+	registryAdmin, registryCaller := setupRegistry(t)
 
 	_ = registerRandomNode(t, registryAdmin)
 
@@ -121,8 +122,7 @@ func TestFileDump(t *testing.T) {
 }
 
 func TestRegistryWrite(t *testing.T) {
-	registryAdmin, registryCaller, cleanup := setupRegistry(t)
-	defer cleanup()
+	registryAdmin, registryCaller := setupRegistry(t)
 
 	node1 := registerRandomNode(t, registryAdmin)
 	node2 := registerRandomNode(t, registryAdmin)
@@ -131,8 +131,7 @@ func TestRegistryWrite(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
-	registryAdmin2, registryCaller2, cleanup2 := setupRegistry(t)
-	defer cleanup2()
+	registryAdmin2, registryCaller2 := setupRegistry(t)
 	err = WriteToRegistry(testutils.NewLog(t), nodes, registryAdmin2)
 	require.NoError(t, err)
 

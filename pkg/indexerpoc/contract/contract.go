@@ -10,17 +10,17 @@ import (
 type LogProcessor func(ctx context.Context, logs []types.Log) error
 
 // ReorgProcessor is a function that handles blockchain reorganizations for a specific contract.
-type ReorgProcessor func(ctx context.Context, fromBlock uint64) error
+type ReorgProcessor func(ctx context.Context, reorgedBlock uint64) error
 
 // Contract provides a standard implementation of the Contract interface
 type Contract struct {
-	Name           string                                            // Name for identification
-	ChainID        int64                                             // Chain ID of the network where this contract exists
-	Address        string                                            // Contract address
-	StartBlock     uint64                                            // Block to start indexing from (required)
-	Topics         []string                                          // Event topics to filter
-	Processor      func(ctx context.Context, logs []types.Log) error // Function to process logs
-	ReorgProcessor func(ctx context.Context, fromBlock uint64) error // Function to handle blockchain reorganizations
+	Name           string         // Name for identification
+	ChainID        int64          // Chain ID of the network where this contract exists
+	Address        string         // Contract address
+	StartBlock     uint64         // Block to start indexing from (required)
+	Topics         []string       // Event topics to filter
+	Processor      LogProcessor   // Function to process logs
+	ReorgProcessor ReorgProcessor // Function to handle blockchain reorganizations
 }
 
 // GetName returns the unique name of the contract
@@ -54,8 +54,8 @@ func (c *Contract) ProcessLogs(ctx context.Context, logs []types.Log) error {
 }
 
 // HandleReorg handles a blockchain reorganization for this contract
-func (c *Contract) HandleReorg(ctx context.Context, fromBlock uint64) error {
-	return c.ReorgProcessor(ctx, fromBlock)
+func (c *Contract) HandleReorg(ctx context.Context, reorgedBlock uint64) error {
+	return c.ReorgProcessor(ctx, reorgedBlock)
 }
 
 // NewContract creates a new standard contract
@@ -65,8 +65,8 @@ func NewContract(
 	address string,
 	startBlock uint64,
 	topics []string,
-	processor func(ctx context.Context, logs []types.Log) error,
-	reorgProcessor func(ctx context.Context, fromBlock uint64) error,
+	processor LogProcessor,
+	reorgProcessor ReorgProcessor,
 ) *Contract {
 	return &Contract{
 		Name:           name,

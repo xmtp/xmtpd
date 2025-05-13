@@ -34,7 +34,7 @@ func NewGroupMessageStorer(
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
 		queries: queries,
-		logger:  logger.Named("GroupMessageStorer"),
+		logger:  logger.Named("group-message-broadcaster-storer"),
 	}
 }
 

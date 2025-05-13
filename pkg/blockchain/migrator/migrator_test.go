@@ -21,7 +21,7 @@ func setupRegistry(
 	logger := testutils.NewLog(t)
 	rpcUrl, cleanup := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
-	contractsOptions.SettlementChain.NodesContract.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
+	contractsOptions.SettlementChain.NodeRegistryAddress = testutils.DeployNodesContract(t, rpcUrl)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,

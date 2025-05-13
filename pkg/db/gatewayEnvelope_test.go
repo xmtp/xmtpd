@@ -39,8 +39,7 @@ func buildParams(
 
 func TestInsertAndIncrement(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 	// Create a payer
@@ -77,8 +76,7 @@ func TestInsertAndIncrement(t *testing.T) {
 
 func TestPayerMustExist(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	payerID := testutils.RandomInt32()
 	originatorID := testutils.RandomInt32()
@@ -97,8 +95,7 @@ func TestPayerMustExist(t *testing.T) {
 
 func TestInsertAndIncrementParallel(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 	// Create a payer
@@ -152,8 +149,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 
 func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 

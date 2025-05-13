@@ -17,13 +17,13 @@ import (
 
 var topicA = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicA")).Bytes()
 
-func setup(t *testing.T) (*sql.DB, *zap.Logger, func()) {
+func setup(t *testing.T) (*sql.DB, *zap.Logger) {
 	ctx := context.Background()
-	store, _, storeCleanup := testutils.NewDB(t, ctx)
+	store, _ := testutils.NewDB(t, ctx)
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	return store, log, storeCleanup
+	return store, log
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
@@ -119,8 +119,7 @@ func flakyEnvelopesQuery(
 }
 
 func TestIntervalSubscription(t *testing.T) {
-	store, log, cleanup := setup(t)
-	defer cleanup()
+	store, log := setup(t)
 
 	insertInitialRows(t, store)
 
@@ -144,8 +143,7 @@ func TestIntervalSubscription(t *testing.T) {
 }
 
 func TestNotifiedSubscription(t *testing.T) {
-	store, log, cleanup := setup(t)
-	defer cleanup()
+	store, log := setup(t)
 
 	insertInitialRows(t, store)
 
@@ -171,8 +169,7 @@ func TestNotifiedSubscription(t *testing.T) {
 }
 
 func TestTemporaryDBError(t *testing.T) {
-	store, log, cleanup := setup(t)
-	defer cleanup()
+	store, log := setup(t)
 
 	insertInitialRows(t, store)
 

@@ -73,8 +73,7 @@ func NewTestServer(
 func TestCreateServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dbs, dbCleanup := testutils.NewDBs(t, ctx, 2)
-	defer dbCleanup()
+	dbs := testutils.NewDBs(t, ctx, 2)
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	privateKey2, err := crypto.GenerateKey()
@@ -217,8 +216,7 @@ func TestCreateServer(t *testing.T) {
 func TestReadOwnWritesGuarantee(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dbs, dbCleanup := testutils.NewDBs(t, ctx, 1)
-	defer dbCleanup()
+	dbs := testutils.NewDBs(t, ctx, 1)
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	server1Port := networkTestUtils.FindFreePort(t)

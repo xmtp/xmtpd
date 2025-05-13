@@ -95,8 +95,7 @@ func (tm *TestNonceManager) Replenish(ctx context.Context, nonce big.Int) error 
 func TestGetNonce_Simple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
@@ -115,8 +114,7 @@ func TestGetNonce_Simple(t *testing.T) {
 func TestGetNonce_RevertMany(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
@@ -136,8 +134,7 @@ func TestGetNonce_RevertMany(t *testing.T) {
 func TestGetNonce_ConsumeMany(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
@@ -158,8 +155,7 @@ func TestGetNonce_ConsumeMany(t *testing.T) {
 func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)

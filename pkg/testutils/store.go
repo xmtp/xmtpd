@@ -31,63 +31,54 @@ func GetCallerName(depth int) string {
 	return strings.ToLower(name)
 }
 
-func openDB(t testing.TB, dsn string) (*sql.DB, string, func()) {
+func openDB(t testing.TB, dsn string) (*sql.DB, string) {
 	config, err := pgx.ParseConfig(dsn)
 	require.NoError(t, err)
 	db := stdlib.OpenDB(*config)
-	return db, dsn, func() {
-		err := db.Close()
-		require.NoError(t, err)
-	}
+	t.Cleanup(func() {
+		require.NoError(t, db.Close())
+	})
+	return db, dsn
 }
 
-func newCtlDB(t testing.TB) (*sql.DB, string, func()) {
+func newCtlDB(t testing.TB) (*sql.DB, string) {
 	return openDB(t, LocalTestDBDSNPrefix+LocalTestDBDSNSuffix)
 }
 
-func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string, func()) {
+func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string) {
 	dbName := "test_" + GetCallerName(3) + "_" + RandomStringLower(12)
 	t.Logf("creating database %s ...", dbName)
 	_, err := ctlDB.Exec("CREATE DATABASE " + dbName)
 	require.NoError(t, err)
 
-	db, dsn, cleanup := openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
+	t.Cleanup(func() {
+		_, err := ctlDB.Exec("DROP DATABASE " + dbName)
+		require.NoError(t, err)
+	})
+
+	db, dsn := openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
 	require.NoError(t, migrations.Migrate(ctx, db))
 
-	return db, dsn, func() {
-		cleanup()
-		_, err = ctlDB.Exec("DROP DATABASE " + dbName)
-		require.NoError(t, err)
-	}
+	return db, dsn
 }
 
-func NewDB(t *testing.T, ctx context.Context) (*sql.DB, string, func()) {
-	ctlDB, _, ctlCleanup := newCtlDB(t)
-	db, dsn, cleanup := newInstanceDB(t, ctx, ctlDB)
+func NewDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
+	ctlDB, _ := newCtlDB(t)
+	db, dsn := newInstanceDB(t, ctx, ctlDB)
 
-	return db, dsn, func() {
-		cleanup()
-		ctlCleanup()
-	}
+	return db, dsn
 }
 
-func NewDBs(t *testing.T, ctx context.Context, count int) ([]*sql.DB, func()) {
-	ctlDB, _, ctlCleanup := newCtlDB(t)
+func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
+	ctlDB, _ := newCtlDB(t)
 	dbs := []*sql.DB{}
-	cleanups := []func(){}
 
 	for i := 0; i < count; i++ {
-		db, _, cleanup := newInstanceDB(t, ctx, ctlDB)
+		db, _ := newInstanceDB(t, ctx, ctlDB)
 		dbs = append(dbs, db)
-		cleanups = append(cleanups, cleanup)
 	}
 
-	return dbs, func() {
-		for i := 0; i < count; i++ {
-			cleanups[i]()
-		}
-		ctlCleanup()
-	}
+	return dbs
 }
 
 func InsertGatewayEnvelopes(

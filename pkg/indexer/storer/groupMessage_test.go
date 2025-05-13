@@ -20,7 +20,7 @@ import (
 
 func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
-	db, _, cleanup := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
 	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
@@ -42,7 +42,6 @@ func buildGroupMessageStorer(t *testing.T) (*GroupMessageStorer, func()) {
 	return storer, func() {
 		defer anvilCleanup()
 		cancel()
-		cleanup()
 	}
 }
 

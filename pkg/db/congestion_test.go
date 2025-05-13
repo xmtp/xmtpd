@@ -10,13 +10,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-func setupTest(t *testing.T) (context.Context, *queries.Queries, func()) {
+func setupTest(t *testing.T) (context.Context, *queries.Queries) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
-	return ctx, querier, cleanup
+	return ctx, querier
 }
 
 func incrementCongestion(
@@ -34,8 +34,7 @@ func incrementCongestion(
 }
 
 func TestGet5MinutesOfCongestion(t *testing.T) {
-	ctx, querier, cleanup := setupTest(t)
-	defer cleanup()
+	ctx, querier := setupTest(t)
 
 	originatorID := testutils.RandomInt32()
 	endMinute := testutils.RandomInt32()
@@ -55,8 +54,7 @@ func TestGet5MinutesOfCongestion(t *testing.T) {
 }
 
 func TestMultipleIncrements(t *testing.T) {
-	ctx, querier, cleanup := setupTest(t)
-	defer cleanup()
+	ctx, querier := setupTest(t)
 
 	originatorID := testutils.RandomInt32()
 	endMinute := testutils.RandomInt32()
@@ -76,8 +74,7 @@ func TestMultipleIncrements(t *testing.T) {
 }
 
 func TestNoCongestion(t *testing.T) {
-	ctx, querier, cleanup := setupTest(t)
-	defer cleanup()
+	ctx, querier := setupTest(t)
 
 	originatorID := testutils.RandomInt32()
 	endMinute := testutils.RandomInt32()

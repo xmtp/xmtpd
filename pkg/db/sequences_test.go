@@ -17,8 +17,7 @@ import (
 
 func TestFillRows(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -31,8 +30,7 @@ func TestFillRows(t *testing.T) {
 
 func TestEmptyRows(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 	_, err := querier.GetNextAvailableNonce(ctx)
@@ -86,8 +84,7 @@ func failNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64
 
 func TestConcurrentReads(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -139,8 +136,7 @@ func TestConcurrentReads(t *testing.T) {
 
 func TestRequestsUnused(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -165,8 +161,7 @@ func TestRequestsUnused(t *testing.T) {
 
 func TestRequestsUsed(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -191,8 +186,7 @@ func TestRequestsUsed(t *testing.T) {
 
 func TestRequestsFailed(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -219,8 +213,7 @@ func TestRequestsFailed(t *testing.T) {
 
 func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -256,8 +249,7 @@ func TestFillerCanProceedWithOpenTxn(t *testing.T) {
 
 func TestFillerRerun(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -278,8 +270,7 @@ func TestFillerRerun(t *testing.T) {
 
 func TestAbandonNonces(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -300,8 +291,7 @@ func TestAbandonNonces(t *testing.T) {
 
 func TestAbandonCanProceedWithOpenTxn(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -339,8 +329,7 @@ func TestAbandonCanProceedWithOpenTxn(t *testing.T) {
 
 func TestAbandonSkipsOpenTxn(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -383,8 +372,7 @@ func TestAbandonSkipsOpenTxn(t *testing.T) {
 
 func TestAbandonConcurrently(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -417,8 +405,7 @@ func TestAbandonConcurrently(t *testing.T) {
 
 func TestAbandonConcurrentlyWithOpenTransaction(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 

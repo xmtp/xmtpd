@@ -102,7 +102,7 @@ type ApiServerMocks struct {
 func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := testutils.NewLog(t)
-	db, _, dbCleanup := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	privKeyStr := "0x" + utils.HexEncode(crypto.FromECDSA(privKey))
@@ -207,7 +207,6 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks, fu
 	return svr, db, allMocks, func() {
 		cancel()
 		svr.Close(0)
-		dbCleanup()
 	}
 }
 

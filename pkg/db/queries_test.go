@@ -32,8 +32,7 @@ func getAddressLogState(
 
 func TestInsertAddressLog(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 	address := testutils.RandomString(20)
@@ -87,8 +86,7 @@ func TestInsertAddressLog(t *testing.T) {
 
 func TestRevokeAddressLog(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -139,8 +137,7 @@ func TestRevokeAddressLog(t *testing.T) {
 
 func TestFindOrCreatePayer(t *testing.T) {
 	ctx := context.Background()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 
 	querier := queries.New(db)
 

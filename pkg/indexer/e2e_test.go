@@ -26,7 +26,7 @@ func startIndexing(
 ) (*sql.DB, *queries.Queries, config.ContractsOptions, context.Context, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := testutils.NewLog(t)
-	db, _, cleanup := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 
 	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(rpcUrl)
@@ -47,7 +47,6 @@ func startIndexing(
 
 	return db, queries.New(db), cfg, ctx, func() {
 		defer anvilCleanup()
-		cleanup()
 		cancel()
 	}
 }

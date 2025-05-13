@@ -18,8 +18,7 @@ import (
 )
 
 func setup(t *testing.T) (*sql.DB, *PayerReportManager) {
-	db, _, cleanup := testutils.NewDB(t, context.Background())
-	t.Cleanup(cleanup)
+	db, _ := testutils.NewDB(t, context.Background())
 
 	generator := NewPayerReportManager(testutils.NewLog(t), queries.New(db))
 

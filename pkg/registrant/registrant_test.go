@@ -36,11 +36,11 @@ type deps struct {
 	version     *semver.Version
 }
 
-func setup(t *testing.T) (deps, func()) {
+func setup(t *testing.T) *deps {
 	ctx := context.Background()
 	log := testutils.NewLog(t)
 	mockRegistry := mocks.NewMockNodeRegistry(t)
-	db, _, dbCleanup := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 	queries := queries.New(db)
 	privKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func setup(t *testing.T) (deps, func()) {
 	require.NoError(t, err)
 	privKey1Str := "0x" + utils.HexEncode(crypto.FromECDSA(privKey1))
 
-	return deps{
+	return &deps{
 		ctx:         ctx,
 		log:         log,
 		db:          queries,
@@ -60,11 +60,11 @@ func setup(t *testing.T) (deps, func()) {
 		privKey2:    privKey2,
 		privKey3:    privKey3,
 		version:     nil,
-	}, dbCleanup
+	}
 }
 
-func setupWithRegistrant(t *testing.T) (deps, *registrant.Registrant, func()) {
-	deps, cleanup := setup(t)
+func setupWithRegistrant(t *testing.T) (*deps, *registrant.Registrant) {
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 1, SigningKey: &deps.privKey1.PublicKey},
@@ -80,12 +80,11 @@ func setupWithRegistrant(t *testing.T) (deps, *registrant.Registrant, func()) {
 	)
 	require.NoError(t, err)
 
-	return deps, r, cleanup
+	return deps, r
 }
 
 func TestNewRegistrantBadPrivateKey(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	_, err := registrant.NewRegistrant(
 		deps.ctx,
@@ -99,8 +98,7 @@ func TestNewRegistrantBadPrivateKey(t *testing.T) {
 }
 
 func TestNewRegistrantNotInRegistry(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 2, SigningKey: &deps.privKey2.PublicKey},
@@ -119,8 +117,7 @@ func TestNewRegistrantNotInRegistry(t *testing.T) {
 }
 
 func TestNewRegistrantNewDatabase(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 2, SigningKey: &deps.privKey2.PublicKey},
@@ -140,8 +137,7 @@ func TestNewRegistrantNewDatabase(t *testing.T) {
 }
 
 func TestNewRegistrantExistingDatabase(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 5, SigningKey: &deps.privKey1.PublicKey},
@@ -168,8 +164,7 @@ func TestNewRegistrantExistingDatabase(t *testing.T) {
 }
 
 func TestNewRegistrantMismatchingDatabaseNodeId(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 7, SigningKey: &deps.privKey1.PublicKey},
@@ -196,8 +191,7 @@ func TestNewRegistrantMismatchingDatabaseNodeId(t *testing.T) {
 }
 
 func TestNewRegistrantMismatchingDatabasePublicKey(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 2, SigningKey: &deps.privKey1.PublicKey},
@@ -224,8 +218,7 @@ func TestNewRegistrantMismatchingDatabasePublicKey(t *testing.T) {
 }
 
 func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
-	deps, cleanup := setup(t)
-	defer cleanup()
+	deps := setup(t)
 
 	deps.registry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 1, SigningKey: &deps.privKey1.PublicKey},
@@ -243,8 +236,7 @@ func TestNewRegistrantPrivateKeyNo0x(t *testing.T) {
 }
 
 func TestSignStagedEnvelopeSuccess(t *testing.T) {
-	deps, r, cleanup := setupWithRegistrant(t)
-	defer cleanup()
+	deps, r := setupWithRegistrant(t)
 	payerBytes, err := proto.Marshal(
 		&envelopes.PayerEnvelope{UnsignedClientEnvelope: []byte{3}},
 	)

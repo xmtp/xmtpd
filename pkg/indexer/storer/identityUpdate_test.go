@@ -25,7 +25,7 @@ func buildIdentityUpdateStorer(
 	t *testing.T,
 ) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
-	db, _, cleanup := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 	rpcUrl, anvilCleanup := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
 	config.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
@@ -47,7 +47,6 @@ func buildIdentityUpdateStorer(
 	return storer, validationService, func() {
 		defer anvilCleanup()
 		cancel()
-		cleanup()
 	}
 }
 

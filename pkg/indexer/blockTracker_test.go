@@ -18,8 +18,7 @@ const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"
 func TestInitialize(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
 	tracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
@@ -34,8 +33,7 @@ func TestInitialize(t *testing.T) {
 func TestUpdateLatestBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
 	tracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
@@ -76,8 +74,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 func TestConcurrentUpdates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
 	tracker, err := indexer.NewBlockTracker(ctx, CONTRACT_ADDRESS, querier)
@@ -125,8 +122,7 @@ func TestConcurrentUpdates(t *testing.T) {
 func TestMultipleContractAddresses(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, _, cleanup := testutils.NewDB(t, ctx)
-	defer cleanup()
+	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
 	address1 := "0x0000000000000000000000000000000000000001"

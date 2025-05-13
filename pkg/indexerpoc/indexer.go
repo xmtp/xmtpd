@@ -3,7 +3,6 @@ package indexerpoc
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -13,12 +12,12 @@ import (
 
 // Indexer coordinates multiple indexing tasks.
 type Indexer struct {
-	ctx     context.Context
-	log     *zap.Logger
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup
-	sources map[int64]Source
-	tasks   []*task
+	ctx      context.Context
+	log      *zap.Logger
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	networks map[int64]*Network
+	tasks    []*task
 
 	// Storage is temporary, to be substituted with BlockTracker.
 	storage     Storage
@@ -26,32 +25,34 @@ type Indexer struct {
 	concurrency int
 }
 
-// NewIndexer creates a new indexer manager.
 func NewIndexer(
 	ctx context.Context,
 	log *zap.Logger,
 	storage Storage,
-	batchSize uint64,
-	concurrency int,
-	networkConfig config.ContractsOptions,
+	contractsCfg config.ContractsOptions,
+	indexerCfg config.IndexerOptions,
 ) (*Indexer, error) {
-	ctx, cancel := context.WithCancel(ctx)
-
-	if concurrency <= 0 {
-		concurrency = runtime.NumCPU()
+	if indexerCfg.BatchSize <= 0 {
+		return nil, fmt.Errorf("batch size must be greater than 0")
 	}
+
+	if indexerCfg.Concurrency <= 0 {
+		return nil, fmt.Errorf("concurrency must be greater than 0")
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
 
 	manager := &Indexer{
 		ctx:         ctx,
 		cancel:      cancel,
 		log:         log.Named("indexer"),
-		sources:     make(map[int64]Source),
+		networks:    make(map[int64]*Network, 0),
 		storage:     storage,
-		batchSize:   batchSize,
-		concurrency: concurrency,
+		batchSize:   indexerCfg.BatchSize,
+		concurrency: indexerCfg.Concurrency,
 	}
 
-	if err := manager.configureNetworks(networkConfig); err != nil {
+	if err := manager.configureNetworks(contractsCfg); err != nil {
 		return nil, fmt.Errorf("failed to add networks: %w", err)
 	}
 
@@ -59,6 +60,23 @@ func NewIndexer(
 }
 
 func (i *Indexer) configureNetworks(cfg config.ContractsOptions) error {
+	appChain, err := NewNetwork(
+		i.ctx,
+		NetworkConfig{
+			Name:         "app-chain",
+			ChainID:      int64(cfg.AppChain.ChainID),
+			RpcURL:       cfg.AppChain.RpcURL,
+			PollInterval: cfg.AppChain.PollInterval,
+			// TODO: Make use of MaxDisconnectionTime.
+		},
+		i.log)
+	if err != nil {
+		return fmt.Errorf("failed to create app chain network: %w", err)
+	}
+
+	i.networks[int64(cfg.AppChain.ChainID)] = appChain
+
+	// TODO: Add the settlement chain.
 
 	return nil
 }
@@ -78,7 +96,7 @@ func (i *Indexer) AddContracts(contracts []Contract) error {
 			return fmt.Errorf("contract %s must have a StartBlock specified", c.GetName())
 		}
 
-		source, exists := i.sources[c.GetChainID()]
+		network, exists := i.networks[c.GetChainID()]
 		if !exists {
 			i.log.Error("Network not configured for chain",
 				zap.Int64("chainID", c.GetChainID()),
@@ -88,7 +106,7 @@ func (i *Indexer) AddContracts(contracts []Contract) error {
 
 		task, err := getOrCreateTask(
 			i.ctx,
-			source,
+			network,
 			c,
 			i.storage,
 			i.batchSize,
@@ -114,9 +132,25 @@ func (i *Indexer) AddContracts(contracts []Contract) error {
 
 // Run starts all indexing tasks.
 func (i *Indexer) Run() {
+	for _, network := range i.networks {
+		i.wg.Add(1)
+
+		tracing.GoPanicWrap(
+			i.ctx,
+			&i.wg,
+			fmt.Sprintf("indexer-network-%v", network.GetName()),
+			func(ctx context.Context) {
+				network.start(ctx)
+			})
+
+		i.log.Info("Started indexing network",
+			zap.String("name", network.GetName()),
+			zap.Int64("chainID", network.GetChainID()),
+		)
+	}
+
 	for _, task := range i.tasks {
 		i.wg.Add(1)
-		task := task
 
 		tracing.GoPanicWrap(
 			i.ctx,

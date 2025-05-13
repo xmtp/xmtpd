@@ -30,6 +30,7 @@ type ContractsOptions struct {
 type AppChainOptions struct {
 	RpcURL                           string        `long:"rpc-url"                             env:"XMTPD_APP_CHAIN_RPC_URL"                           description:"Blockchain RPC URL"`
 	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
+	PollInterval                     time.Duration `long:"poll-interval"                       env:"XMTPD_APP_CHAIN_POLL_INTERVAL"                     description:"Poll interval for the application chain"                      default:"250ms"`
 	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
 	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
 	IdentityUpdateBroadcasterAddress string        `long:"identity-update-broadcaster-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS" description:"Identity update broadcaster contract address"`
@@ -38,6 +39,7 @@ type AppChainOptions struct {
 type SettlementChainOptions struct {
 	RpcURL                      string        `long:"rpc-url"                        env:"XMTPD_SETTLEMENT_CHAIN_RPC_URL"                        description:"Blockchain RPC URL"`
 	ChainID                     int           `long:"chain-id"                       env:"XMTPD_SETTLEMENT_CHAIN_CHAIN_ID"                       description:"Chain ID for the settlement chain"       default:"31337"`
+	PollInterval                time.Duration `long:"poll-interval"                  env:"XMTPD_SETTLEMENT_CHAIN_POLL_INTERVAL"                  description:"Poll interval for the settlement chain"  default:"250ms"`
 	NodeRegistryAddress         string        `long:"node-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS"          description:"Node Registry contract address"`
 	NodeRegistryRefreshInterval time.Duration `long:"node-registry-refresh-interval" env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry" default:"60s"`
 	RateRegistryAddress         string        `long:"rate-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_ADDRESS"          description:"Rate registry contract address"`
@@ -55,7 +57,9 @@ type DbOptions struct {
 }
 
 type IndexerOptions struct {
-	Enable bool `long:"enable" env:"XMTPD_INDEXER_ENABLE" description:"Enable the indexer"`
+	Enable      bool   `long:"enable"      env:"XMTPD_INDEXER_ENABLE"      description:"Enable the indexer"`
+	BatchSize   uint64 `long:"batch-size"  env:"XMTPD_INDEXER_BATCH_SIZE"  description:"Block batch size for the indexer" default:"1000"`
+	Concurrency int    `long:"concurrency" env:"XMTPD_INDEXER_CONCURRENCY" description:"Concurrency for the indexer"      default:"10"`
 }
 
 // MetricsOptions are settings used to start a prometheus server

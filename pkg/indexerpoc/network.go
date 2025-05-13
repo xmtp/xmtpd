@@ -15,42 +15,21 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultNetworkPollInterval = 1 * time.Second
-
 type NetworkConfig struct {
-	Name         string        // Network name (e.g., "ethereum", "arbitrum", "optimism")
-	ChainID      int64         // Chain ID of the network
-	RpcURL       string        // RPC endpoint URL
-	PollInterval time.Duration // Poll interval for this network (optional, defaults to global)
+	Name         string
+	ChainID      int64
+	RpcURL       string
+	PollInterval time.Duration
 }
 
-// NewNetworkConfig creates a new network configuration.
-func NewNetworkConfig(
-	name string,
-	chainID int64,
-	rpcURL string,
-	pollInterval time.Duration,
-) *NetworkConfig {
-	if pollInterval == 0 {
-		pollInterval = defaultNetworkPollInterval
-	}
-
-	return &NetworkConfig{
-		Name:         name,
-		ChainID:      chainID,
-		RpcURL:       rpcURL,
-		PollInterval: pollInterval,
-	}
-}
-
-// Network is an implementation of the Source interface using go-ethereum.
 type Network struct {
 	ctx     context.Context
 	log     *zap.Logger
 	client  *ethclient.Client
-	network *NetworkConfig
+	network NetworkConfig
 
-	// Cache for latest block
+	// Cache for latest block, to be substituted.
+	// TODO: DB backend to persist blocks.
 	cacheMu      sync.Mutex
 	latestNumber uint64
 	latestHash   common.Hash
@@ -60,59 +39,41 @@ type Network struct {
 
 func NewNetwork(
 	ctx context.Context,
-	network *NetworkConfig,
+	cfg NetworkConfig,
 	log *zap.Logger,
 ) (*Network, error) {
-	if network == nil {
-		return nil, fmt.Errorf("network configuration cannot be nil")
-	}
+	networkLogger := log.Named(fmt.Sprintf("network-%s", cfg.Name))
 
-	networkLogger := log.Named("network").With(zap.String("network", network.Name))
-
-	rpcClient, err := rpc.Dial(network.RpcURL)
+	rpcClient, err := rpc.Dial(cfg.RpcURL)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to %s node: %w", network.Name, err)
+		return nil, fmt.Errorf("connecting to %s node: %w", cfg.Name, err)
 	}
 
-	client := ethclient.NewClient(rpcClient)
+	ethClient := ethclient.NewClient(rpcClient)
 
-	// Verify chain ID matches the expected one
-	chainID, err := client.ChainID(context.Background())
+	chainID, err := ethClient.ChainID(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting chain ID from %s: %w", network.Name, err)
+		return nil, fmt.Errorf("getting chain ID from %s: %w", cfg.Name, err)
 	}
 
-	if chainID.Int64() != network.ChainID {
+	if chainID.Int64() != int64(cfg.ChainID) {
 		return nil, fmt.Errorf("chain ID mismatch for %s: expected %d, got %d",
-			network.Name, network.ChainID, chainID.Int64())
+			cfg.Name, cfg.ChainID, chainID.Int64())
 	}
 
 	source := &Network{
 		ctx:          ctx,
-		client:       client,
-		network:      network,
+		client:       ethClient,
+		network:      cfg,
 		log:          networkLogger,
 		maxCacheHits: 20,
 	}
 
-	// Start a background goroutine to keep track of the latest block
-	go source.pollLatestBlock(ctx)
-
 	return source, nil
 }
 
-// GetNetworkName returns the name of the network
-func (s *Network) GetNetworkName() string {
-	return s.network.Name
-}
-
-// GetChainID returns the chain ID of the network
-func (s *Network) GetChainID() int64 {
-	return s.network.ChainID
-}
-
-// pollLatestBlock periodically polls for the latest block
-func (s *Network) pollLatestBlock(ctx context.Context) {
+// start populates the cache with the latest block.
+func (s *Network) start(ctx context.Context) {
 	ticker := time.NewTicker(s.network.PollInterval)
 	defer ticker.Stop()
 
@@ -140,6 +101,14 @@ func (s *Network) pollLatestBlock(ctx context.Context) {
 			)
 		}
 	}
+}
+
+func (s *Network) GetName() string {
+	return s.network.Name
+}
+
+func (s *Network) GetChainID() int64 {
+	return s.network.ChainID
 }
 
 // GetLatestBlockNumber retrieves the current latest block number

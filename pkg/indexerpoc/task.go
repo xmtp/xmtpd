@@ -24,8 +24,8 @@ type task struct {
 	state       *taskState
 	contract    Contract
 	filter      *Filter
-	src         Source  // Source represents the blockchain data provider.
-	db          Storage // Storage represents the storage for the task: postgres, etc.
+	src         *Network // Source represents the blockchain data provider.
+	db          Storage  // Storage represents the storage for the task: postgres, etc.
 	batchSize   uint64
 	concurrency int
 }
@@ -54,23 +54,20 @@ func WithConcurrency(n int) TaskOption {
 // getOrCreateTask creates a new indexing task for a contract.
 func getOrCreateTask(
 	ctx context.Context,
-	src Source,
+	src *Network,
 	contract Contract,
 	db Storage,
 	batchSize uint64,
 	opts ...TaskOption,
 ) (*task, error) {
-	if contract.GetChainID() == 0 {
-		return nil, fmt.Errorf("contract %s must have a valid chainID", contract.GetName())
-	}
+	contractAddress := []string{contract.GetAddress()}
 
-	addresses := []string{contract.GetAddress()}
 	topics := [][]string{}
 	if len(contract.GetTopics()) > 0 {
 		topics = append(topics, contract.GetTopics())
 	}
 
-	filter := NewFilter(addresses, topics)
+	filter := NewFilter(contractAddress, topics)
 
 	task := &task{
 		ctx:         ctx,
@@ -82,13 +79,12 @@ func getOrCreateTask(
 		concurrency: 1,
 	}
 
-	// Apply options.
 	for _, opt := range opts {
 		opt(task)
 	}
 
 	// Load existing state or create new state.
-	// TODO: This would be replaced with a block/task tracker.
+	// TODO: This would be replaced with a DB task tracker.
 	state, err := db.GetState(ctx, contract.GetName(), fmt.Sprintf("%d", contract.GetChainID()))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -112,7 +108,7 @@ func getOrCreateTask(
 
 			task.state = &taskState{
 				ContractName: contract.GetName(),
-				NetworkName:  src.GetNetworkName(),
+				NetworkName:  src.GetName(),
 				ChainID:      src.GetChainID(),
 				BlockNumber:  initialBlockNum,
 				BlockHash:    initialHash,

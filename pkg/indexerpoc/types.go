@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -28,16 +27,6 @@ type Contract interface {
 	GetTopics() []string
 	ProcessLogs(ctx context.Context, logs []types.Log) error
 	HandleReorg(ctx context.Context, fromBlock uint64) error
-}
-
-// Source defines the interface a blockchain.
-type Source interface {
-	GetLogs(ctx context.Context, startBlock, endBlock uint64, filter *Filter) ([]types.Log, error)
-	GetBlockByNumber(ctx context.Context, number uint64) (*types.Block, error)
-	GetLatestBlockNumber(ctx context.Context) (uint64, error)
-	GetBlockHash(ctx context.Context, number uint64) (common.Hash, error)
-	GetNetworkName() string
-	GetChainID() int64
 }
 
 // Temporary: Storage interface for persisting state and logs.

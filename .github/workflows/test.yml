@@ -48,9 +48,9 @@ jobs:
           export GOPATH="${HOME}/go/"
           export PATH="${PATH}:${GOPATH}/bin"
           go test -v ./... -race
-      - uses: datadog/junit-upload-github-action@v1
+      - uses: datadog/junit-upload-github-action@v2
         with:
-          api-key: ${{ secrets.DD_API_KEY }}
+          api_key: ${{ secrets.DD_API_KEY }}
           service: xmtp-node-go
           files: report.xml
           env: ci

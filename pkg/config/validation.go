@@ -11,76 +11,11 @@ func ValidateServerOptions(options *ServerOptions) error {
 	missingSet := make(map[string]struct{})
 	customSet := make(map[string]struct{})
 
-	if isMultiChainDeployment(*options) {
-		validateField(
-			options.Contracts.AppChain.RpcURL,
-			"contracts.app-chain.rpc-url",
-			missingSet,
-		)
-		validateField(
-			options.Contracts.AppChain.ChainID,
-			"contracts.app-chain.chain-id",
-			customSet,
-		)
-		validateField(
-			options.Contracts.AppChain.GroupMessageBroadcasterAddress,
-			"contracts.app-chain.group-message-broadcaster-address",
-			missingSet,
-		)
-		validateField(
-			options.Contracts.AppChain.IdentityUpdateBroadcasterAddress,
-			"contracts.app-chain.identity-update-broadcaster-address",
-			missingSet,
-		)
-		validateField(
-			options.Contracts.AppChain.MaxChainDisconnectTime,
-			"contracts.app-chain.max-chain-disconnect-time",
-			customSet,
-		)
-
-		validateField(
-			options.Contracts.SettlementChain.RpcURL,
-			"contracts.settlement-chain.rpc-url",
-			missingSet,
-		)
-		validateField(
-			options.Contracts.SettlementChain.ChainID,
-			"contracts.settlement-chain.chain-id",
-			customSet,
-		)
-		validateField(
-			options.Contracts.SettlementChain.NodeRegistryAddress,
-			"contracts.settlement-chain.node-registry-address",
-			missingSet,
-		)
-		validateField(
-			options.Contracts.SettlementChain.NodeRegistryRefreshInterval,
-			"contracts.settlement-chain.node-registry-refresh-interval",
-			customSet,
-		)
-		validateField(
-			options.Contracts.SettlementChain.RateRegistryAddress,
-			"contracts.settlement-chain.rate-registry-address",
-			missingSet,
-		)
-		validateField(
-			options.Contracts.SettlementChain.RateRegistryRefreshInterval,
-			"contracts.settlement-chain.rate-registry-refresh-interval",
-			customSet,
-		)
-	} else {
+	if !isMultiChainDeployment(*options) {
 		normalizeSingleChainConfig(options)
-
-		validateField(options.Contracts.RpcUrl, "contracts.rpc-url", missingSet)
-		validateField(options.Contracts.NodesContract.NodesContractAddress, "contracts.nodes-address", missingSet)
-		validateField(options.Contracts.MessagesContractAddress, "contracts.messages-address", missingSet)
-		validateField(options.Contracts.IdentityUpdatesContractAddress, "contracts.identity-updates-address", missingSet)
-		validateField(options.Contracts.RateRegistryContractAddress, "contracts.rates-registry-address", missingSet)
-		validateField(options.Contracts.RatesRefreshInterval, "contracts.rates-refresh-interval", customSet)
-		validateField(options.Contracts.ChainID, "contracts.chain-id", customSet)
-		validateField(options.Contracts.RegistryRefreshInterval, "contracts.registry-refresh-interval", customSet)
-		validateField(options.Contracts.MaxChainDisconnectTime, "contracts.max-chain-disconnect-time", customSet)
 	}
+
+	validateBlockchainConfig(options, missingSet, customSet)
 
 	validateField(
 		options.DB.WriterConnectionString,
@@ -120,9 +55,109 @@ func ValidateServerOptions(options *ServerOptions) error {
 	return nil
 }
 
+func ValidatePruneOptions(options PruneOptions) error {
+	missingSet := make(map[string]struct{})
+
+	if options.DB.WriterConnectionString == "" {
+		missingSet["--DB.WriterConnectionString"] = struct{}{}
+	}
+
+	if len(missingSet) > 0 {
+		var errorMessages []string
+		for err := range missingSet {
+			errorMessages = append(errorMessages, err)
+		}
+
+		return fmt.Errorf("missing required arguments: %s", strings.Join(errorMessages, ", "))
+	}
+
+	return nil
+}
+
 func isMultiChainDeployment(options ServerOptions) bool {
 	return options.Contracts.AppChain.RpcURL != "" ||
 		options.Contracts.SettlementChain.RpcURL != ""
+}
+
+func validateBlockchainConfig(
+	options *ServerOptions,
+	missingSet map[string]struct{},
+	customSet map[string]struct{},
+) {
+	validateAppChainConfig(options, missingSet, customSet)
+	validateSettlementChainConfig(options, missingSet, customSet)
+
+	if options.Replication.Enable || options.Sync.Enable {
+		validateField(
+			options.Contracts.SettlementChain.RateRegistryAddress,
+			"contracts.settlement-chain.rate-registry-address",
+			missingSet,
+		)
+		validateField(
+			options.Contracts.SettlementChain.RateRegistryRefreshInterval,
+			"contracts.settlement-chain.rate-registry-refresh-interval",
+			customSet,
+		)
+	}
+}
+
+func validateAppChainConfig(
+	options *ServerOptions,
+	missingSet map[string]struct{},
+	customSet map[string]struct{},
+) {
+	validateField(
+		options.Contracts.AppChain.RpcURL,
+		"contracts.app-chain.rpc-url",
+		missingSet,
+	)
+	validateField(
+		options.Contracts.AppChain.ChainID,
+		"contracts.app-chain.chain-id",
+		customSet,
+	)
+	validateField(
+		options.Contracts.AppChain.GroupMessageBroadcasterAddress,
+		"contracts.app-chain.group-message-broadcaster-address",
+		missingSet,
+	)
+	validateField(
+		options.Contracts.AppChain.IdentityUpdateBroadcasterAddress,
+		"contracts.app-chain.identity-update-broadcaster-address",
+		missingSet,
+	)
+	validateField(
+		options.Contracts.AppChain.MaxChainDisconnectTime,
+		"contracts.app-chain.max-chain-disconnect-time",
+		customSet,
+	)
+}
+
+func validateSettlementChainConfig(
+	options *ServerOptions,
+	missingSet map[string]struct{},
+	customSet map[string]struct{},
+) {
+	validateField(
+		options.Contracts.SettlementChain.RpcURL,
+		"contracts.settlement-chain.rpc-url",
+		missingSet,
+	)
+	validateField(
+		options.Contracts.SettlementChain.ChainID,
+		"contracts.settlement-chain.chain-id",
+		customSet,
+	)
+	validateField(
+		options.Contracts.SettlementChain.NodeRegistryAddress,
+		"contracts.settlement-chain.node-registry-address",
+		missingSet,
+	)
+	validateField(
+		options.Contracts.SettlementChain.NodeRegistryRefreshInterval,
+		"contracts.settlement-chain.node-registry-refresh-interval",
+		customSet,
+	)
 }
 
 // normalizeSingleChainConfig copies values from deprecated fields to new fields for single-chain deployments.
@@ -174,23 +209,4 @@ func validateField(value interface{}, fieldName string, set map[string]struct{})
 			set[fmt.Sprintf("--%s must be greater than 0", fieldName)] = struct{}{}
 		}
 	}
-}
-
-func ValidatePruneOptions(options PruneOptions) error {
-	missingSet := make(map[string]struct{})
-
-	if options.DB.WriterConnectionString == "" {
-		missingSet["--DB.WriterConnectionString"] = struct{}{}
-	}
-
-	if len(missingSet) > 0 {
-		var errorMessages []string
-		for err := range missingSet {
-			errorMessages = append(errorMessages, err)
-		}
-
-		return fmt.Errorf("missing required arguments: %s", strings.Join(errorMessages, ", "))
-	}
-
-	return nil
 }

@@ -19,10 +19,10 @@ type ContractsOptions struct {
 	RpcUrl                         string        `long:"rpc-url"                   env:"XMTPD_CONTRACTS_RPC_URL"                   description:"Blockchain RPC URL"`
 	MessagesContractAddress        string        `long:"messages-address"          env:"XMTPD_CONTRACTS_MESSAGES_ADDRESS"          description:"Message contract address"`
 	IdentityUpdatesContractAddress string        `long:"identity-updates-address"  env:"XMTPD_CONTRACTS_IDENTITY_UPDATES_ADDRESS"  description:"Identity updates contract address"`
-	RateRegistryContractAddress    string        `long:"rates-registry-address"    env:"XMTPD_CONTRACTS_RATES_REGISTRY_ADDRESS"    description:"Rates registry contract address"`
+	RateRegistryContractAddress    string        `long:"rates-registry-address"    env:"XMTPD_CONTRACTS_RATES_MANAGER_ADDRESS"     description:"Rates manager contract address"`
 	ChainID                        int           `long:"chain-id"                  env:"XMTPD_CONTRACTS_CHAIN_ID"                  description:"Chain ID for the appchain"                                    default:"31337"`
 	RegistryRefreshInterval        time.Duration `long:"registry-refresh-interval" env:"XMTPD_CONTRACTS_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry"                      default:"60s"`
-	RatesRefreshInterval           time.Duration `long:"rates-refresh-interval"    env:"XMTPD_CONTRACTS_RATES_REFRESH_INTERVAL"    description:"Refresh interval for the rates contract"                      default:"300s"`
+	RatesRefreshInterval           time.Duration `long:"rates-refresh-interval"    env:"XMTPD_CONTRACTS_RATES_REFRESH_INTERVAL"    description:"Refresh interval for the rates manager"                       default:"300s"`
 	MaxChainDisconnectTime         time.Duration `long:"max-chain-disconnect-time" env:"XMTPD_CONTRACTS_MAX_CHAIN_DISCONNECT_TIME" description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
 	NodesContract                  NodesContractOption
 

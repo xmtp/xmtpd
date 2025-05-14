@@ -1,13 +1,15 @@
+x-postgres-image: &x-postgres-image postgres:16
+
 services:
   db:
-    image: postgres:16
+    image: *x-postgres-image
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:
       - 8765:5432
 
   db2:
-    image: postgres:16
+    image: *x-postgres-image
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:

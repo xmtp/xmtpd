@@ -42,6 +42,7 @@ packages:
       ChainClient:
       IBlockchainPublisher:
       NonceManager:
+      PayerReportsAdmin:
   github.com/xmtp/xmtpd/pkg/indexer/storer:
     interfaces:
       LogStorer:

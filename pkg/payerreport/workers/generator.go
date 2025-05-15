@@ -16,6 +16,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const generatorWorkerID = 1
+
 type GeneratorWorker struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
@@ -62,7 +64,7 @@ func (w *GeneratorWorker) Start() {
 			w.log.Info("Starting generator worker")
 
 			for {
-				nextRun := findNextRunTime(w.myNodeID)
+				nextRun := findNextRunTime(w.myNodeID, generatorWorkerID)
 				wait := time.Until(nextRun)
 				select {
 				case <-time.After(wait):

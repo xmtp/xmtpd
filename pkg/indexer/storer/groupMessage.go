@@ -20,6 +20,17 @@ const (
 	GROUP_MESSAGE_ORIGINATOR_ID = 0
 )
 
+var (
+	ErrParseGroupMessage               = "error parsing group message"
+	ErrParseClientEnvelope             = "error parsing client envelope"
+	ErrTopicDoesNotMatch               = "client envelope topic does not match payload topic"
+	ErrBuildOriginatorEnvelope         = "error building originator envelope"
+	ErrBuildSignedOriginatorEnvelope   = "error building signed originator envelope"
+	ErrMarshallOriginatorEnvelope      = "error marshalling originator envelope"
+	ErrInsertEnvelopeFromSmartContract = "error inserting envelope from smart contract"
+	ErrInsertBlockchainMessage         = "error inserting blockchain message"
+)
+
 type GroupMessageStorer struct {
 	contract *gm.GroupMessageBroadcaster
 	queries  *queries.Queries
@@ -45,34 +56,35 @@ func (s *GroupMessageStorer) StoreLog(
 ) LogStorageError {
 	msgSent, err := s.contract.ParseMessageSent(event)
 	if err != nil {
-		return NewUnrecoverableLogStorageError(err)
+		return NewUnrecoverableLogStorageError(ErrParseGroupMessage, err)
 	}
 
 	topicStruct := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, msgSent.GroupId[:])
 
 	clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Message)
 	if err != nil {
-		s.logger.Error("Error parsing client envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		s.logger.Error(ErrParseClientEnvelope, zap.Error(err))
+		return NewUnrecoverableLogStorageError(ErrParseClientEnvelope, err)
 	}
 
 	targetTopic := clientEnvelope.TargetTopic()
 
 	if !clientEnvelope.TopicMatchesPayload() {
 		s.logger.Error(
-			"Client envelope topic does not match payload type",
+			ErrTopicDoesNotMatch,
 			zap.Any("targetTopic", targetTopic.String()),
 			zap.Any("contractTopic", topicStruct.String()),
 		)
 		return NewUnrecoverableLogStorageError(
-			errors.New("client envelope topic does not match payload topic"),
+			ErrTopicDoesNotMatch,
+			errors.New(ErrTopicDoesNotMatch),
 		)
 	}
 
 	originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Message)
 	if err != nil {
-		s.logger.Error("Error building originator envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		s.logger.Error(ErrBuildOriginatorEnvelope, zap.Error(err))
+		return NewUnrecoverableLogStorageError(ErrBuildOriginatorEnvelope, err)
 	}
 
 	signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
@@ -80,14 +92,14 @@ func (s *GroupMessageStorer) StoreLog(
 		event.TxHash,
 	)
 	if err != nil {
-		s.logger.Error("Error building signed originator envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		s.logger.Error(ErrBuildSignedOriginatorEnvelope, zap.Error(err))
+		return NewUnrecoverableLogStorageError(ErrBuildSignedOriginatorEnvelope, err)
 	}
 
 	originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
 	if err != nil {
-		s.logger.Error("Error marshalling originator envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		s.logger.Error(ErrMarshallOriginatorEnvelope, zap.Error(err))
+		return NewUnrecoverableLogStorageError(ErrMarshallOriginatorEnvelope, err)
 	}
 
 	s.logger.Info("Inserting message from contract", zap.String("topic", topicStruct.String()))
@@ -99,8 +111,8 @@ func (s *GroupMessageStorer) StoreLog(
 		OriginatorEnvelope:   originatorEnvelopeBytes,
 		Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
 	}); err != nil {
-		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
-		return NewRetryableLogStorageError(err)
+		s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
+		return NewRetryableLogStorageError(ErrInsertEnvelopeFromSmartContract, err)
 	}
 
 	if err = s.queries.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
@@ -110,8 +122,8 @@ func (s *GroupMessageStorer) StoreLog(
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		IsCanonical:          true, // New messages are always canonical
 	}); err != nil {
-		s.logger.Error("Error inserting blockchain message", zap.Error(err))
-		return NewRetryableLogStorageError(err)
+		s.logger.Error(ErrInsertBlockchainMessage, zap.Error(err))
+		return NewRetryableLogStorageError(ErrInsertBlockchainMessage, err)
 	}
 
 	return nil

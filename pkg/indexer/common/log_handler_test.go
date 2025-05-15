@@ -131,9 +131,13 @@ func TestIndexLogsRetryableError(t *testing.T) {
 			wg.Done()
 			attemptNumber++
 			if attemptNumber < 2 {
-				return errorMocks.NewRecoverableError(errors.New("retryable error"))
+				return errorMocks.NewRecoverableError("retryable error",
+					errors.New("retryable error"),
+				)
 			} else {
-				return errorMocks.NewNonRecoverableError(errors.New("non-retryable error"))
+				return errorMocks.NewNonRecoverableError("non-retryable error",
+					errors.New("non-retryable error"),
+				)
 			}
 		})
 

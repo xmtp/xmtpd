@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 )
 
 // Construct a raw blockchain listener that can be used to listen for events across many contract event types
@@ -48,4 +49,8 @@ type IBlockchainPublisher interface {
 		groupdId [32]byte,
 		message []byte,
 	) (*gm.GroupMessageBroadcasterMessageSent, error)
+}
+
+type PayerReportsAdmin interface {
+	SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) error
 }

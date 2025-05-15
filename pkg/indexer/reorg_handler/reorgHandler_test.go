@@ -1,9 +1,10 @@
-package indexer
+package reorghandler_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	rh "github.com/xmtp/xmtpd/pkg/indexer/reorg_handler"
 )
 
 func Test_blockRange(t *testing.T) {
@@ -35,7 +36,7 @@ func Test_blockRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			startBlock, endBlock := blockRange(tt.from)
+			startBlock, endBlock := rh.BlockRange(tt.from)
 			assert.Equal(t, tt.wantStartBlock, startBlock)
 			assert.Equal(t, tt.wantEndBlock, endBlock)
 		})

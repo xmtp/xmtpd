@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"go.uber.org/zap"
 )
@@ -15,7 +16,7 @@ type Indexer struct {
 	log      *zap.Logger
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
-	appChain *AppChain
+	appChain *app_chain.AppChain
 }
 
 func NewIndexer(
@@ -28,10 +29,10 @@ func NewIndexer(
 
 	indexerLogger := log.Named("indexer")
 
-	appChain, err := NewAppChain(
+	appChain, err := app_chain.NewAppChain(
 		ctx,
 		indexerLogger,
-		cfg,
+		cfg.AppChain,
 		db,
 	)
 	if err != nil {

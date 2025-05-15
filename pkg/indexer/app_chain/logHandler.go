@@ -1,4 +1,4 @@
-package indexer
+package app_chain
 
 import (
 	"bytes"
@@ -10,7 +10,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/storer"
+	bt "github.com/xmtp/xmtpd/pkg/indexer/block_tracker"
+	rh "github.com/xmtp/xmtpd/pkg/indexer/reorg_handler"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
 )
@@ -29,8 +31,8 @@ func indexLogs(
 	reorgChannel chan<- uint64,
 	logger *zap.Logger,
 	logStorer storer.LogStorer,
-	blockTracker IBlockTracker,
-	reorgHandler ChainReorgHandler,
+	blockTracker *bt.BlockTracker,
+	reorgHandler rh.ChainReorgHandler,
 	contractAddress string,
 ) {
 	// L3 Orbit works with Arbitrum Elastic Block Time, which under maximum load produces a block every 0.25s.
@@ -123,7 +125,7 @@ func indexLogs(
 					reorgBlockNumber, reorgBlockHash, err := reorgHandler.FindReorgPoint(
 						storedBlockNumber,
 					)
-					if err != nil && !errors.Is(err, ErrNoBlocksFound) {
+					if err != nil && !errors.Is(err, rh.ErrNoBlocksFound) {
 						logger.Error("reorg point not found", zap.Error(err))
 						continue
 					}

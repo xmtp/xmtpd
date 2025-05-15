@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
-	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/storer"
 	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/indexer"
 	storerMocks "github.com/xmtp/xmtpd/pkg/mocks/storer"

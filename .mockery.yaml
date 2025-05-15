@@ -44,6 +44,7 @@ packages:
       ChainClient:
       IBlockchainPublisher:
       NonceManager:
-  github.com/xmtp/xmtpd/pkg/errors:
+      PayerReportsAdmin:
+  github.com/xmtp/xmtpd/pkg/indexer/storer:
     interfaces:
       RetryableError:

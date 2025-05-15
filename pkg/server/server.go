@@ -129,12 +129,17 @@ func NewReplicationServer(
 	}
 
 	if options.Indexer.Enable {
-		s.indx = indexer.NewIndexer(ctx, log)
-		err = s.indx.StartIndexer(
+		s.indx, err = indexer.NewIndexer(
+			ctx,
+			log,
 			writerDB,
 			options.Contracts,
-			s.validationService,
 		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = s.indx.StartIndexer(writerDB, s.validationService)
 		if err != nil {
 			return nil, err
 		}

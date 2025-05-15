@@ -34,7 +34,7 @@ func buildStreamer(
 		FromBlock:       fromBlock,
 		ContractAddress: address,
 		Topics:          []common.Hash{topic},
-		EventChannel:    channel,
+		BackfillChannel: channel,
 	}
 	return blockchain.NewRpcLogStreamer(
 		context.Background(),
@@ -95,7 +95,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		FromBlock:       fromBlock,
 		ContractAddress: address,
 		Topics:          []common.Hash{topic},
-		EventChannel:    make(chan types.Log),
+		BackfillChannel: make(chan types.Log),
 	}
 
 	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)

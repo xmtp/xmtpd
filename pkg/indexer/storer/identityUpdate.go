@@ -44,7 +44,7 @@ func NewIdentityUpdateStorer(
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{
 		db:                db,
-		logger:            logger.Named("IdentityUpdateStorer"),
+		logger:            logger.Named("storer"),
 		contract:          contract,
 		validationService: validationService,
 	}

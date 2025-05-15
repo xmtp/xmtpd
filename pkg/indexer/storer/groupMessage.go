@@ -33,7 +33,7 @@ func NewGroupMessageStorer(
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
 		queries:  queries,
-		logger:   logger.Named("GroupMessageStorer"),
+		logger:   logger.Named("storer"),
 		contract: contract,
 	}
 }

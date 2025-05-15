@@ -127,9 +127,15 @@ func TestIndexLogsRetryableError(t *testing.T) {
 			wg.Done()
 			attemptNumber++
 			if attemptNumber < 2 {
-				return storer.NewRetryableLogStorageError(errors.New("retryable error"))
+				return storer.NewRetryableLogStorageError(
+					"retryable error",
+					errors.New("retryable error"),
+				)
 			} else {
-				return storer.NewUnrecoverableLogStorageError(errors.New("non-retryable error"))
+				return storer.NewUnrecoverableLogStorageError(
+					"non-retryable error",
+					errors.New("non-retryable error"),
+				)
 			}
 		})
 

@@ -29,6 +29,11 @@ func ValidateServerOptions(options *ServerOptions) error {
 
 	if options.Replication.Enable {
 		validateField(options.Signer.PrivateKey, "signer.private-key", missingSet)
+		validateField(options.MlsValidation.GrpcAddress, "mls-validation.grpc-address", missingSet)
+	}
+
+	if options.Indexer.Enable {
+		validateField(options.MlsValidation.GrpcAddress, "mls-validation.grpc-address", missingSet)
 	}
 
 	if len(missingSet) > 0 || len(customSet) > 0 {

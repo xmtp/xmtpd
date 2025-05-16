@@ -2,11 +2,8 @@ package payerreport
 
 import (
 	"context"
-	"encoding/binary"
-	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -152,31 +149,6 @@ func buildPayersMap(rows []queries.BuildPayerReportRow) payerMap {
 		)
 	}
 	return payersMap
-}
-
-// Totally fake function to get a merkle root from a payer map
-func buildMerkleRoot(payers payerMap) common.Hash {
-	keys := []common.Address{}
-	for payerAddress := range payers {
-		keys = append(keys, payerAddress)
-	}
-	sort.SliceStable(keys, func(i int, j int) bool {
-		return keys[i].String() < keys[j].String()
-	})
-
-	var out common.Hash
-	d := ethcrypto.NewKeccakState()
-	for _, key := range keys {
-		d.Write(key[:])
-		// Convert spend (uint64) to bytes and write it to the hash
-		spendBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(spendBytes, uint64(payers[key]))
-		d.Write(spendBytes)
-	}
-	//nolint:errcheck
-	d.Read(out[:])
-
-	return out
 }
 
 func extractActiveNodeIDs(nodes []registry.Node) []uint32 {

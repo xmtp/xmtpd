@@ -92,18 +92,22 @@ func NewAppChain(
 		cfg.ChainID,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
-			contracts.GroupMessageBroadcasterName(cfg.ChainID),
-			groupMessageLatestBlockNumber,
-			groupMessageBroadcaster.Address(),
-			groupMessageBroadcaster.Topics(),
-			cfg.MaxChainDisconnectTime,
+			blockchain.ContractConfig{
+				ID:                contracts.GroupMessageBroadcasterName(cfg.ChainID),
+				FromBlock:         groupMessageLatestBlockNumber,
+				ContractAddress:   groupMessageBroadcaster.Address(),
+				Topics:            groupMessageBroadcaster.Topics(),
+				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
+			},
 		),
 		blockchain.WithContractConfig(
-			contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
-			identityUpdateLatestBlockNumber,
-			identityUpdateBroadcaster.Address(),
-			identityUpdateBroadcaster.Topics(),
-			cfg.MaxChainDisconnectTime,
+			blockchain.ContractConfig{
+				ID:                contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
+				FromBlock:         identityUpdateLatestBlockNumber,
+				ContractAddress:   identityUpdateBroadcaster.Address(),
+				Topics:            identityUpdateBroadcaster.Topics(),
+				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
+			},
 		),
 	)
 

@@ -77,12 +77,10 @@ func NewBlockchainPublisher(
 
 	replenishCtx, cancel := context.WithCancel(ctx)
 
-	streamerLogger := logger.Named("GroupBlockchainPublisher").
-		With(zap.String("contractAddress", contractOptions.AppChain.GroupMessageBroadcasterAddress))
-
 	publisher := BlockchainPublisher{
-		signer:                 signer,
-		logger:                 streamerLogger,
+		signer: signer,
+		logger: logger.Named("GroupBlockchainPublisher").
+			With(zap.String("contractAddress", contractOptions.AppChain.GroupMessageBroadcasterAddress)),
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
 		client:                 client,

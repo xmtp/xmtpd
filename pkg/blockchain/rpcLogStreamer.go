@@ -28,9 +28,9 @@ type ContractConfig struct {
 	FromBlock         uint64
 	ContractAddress   common.Address
 	Topics            []common.Hash
+	MaxDisconnectTime time.Duration
 	backfillChannel   chan types.Log
 	reorgChannel      chan uint64
-	maxDisconnectTime time.Duration
 }
 
 type RpcLogStreamerOption func(*RpcLogStreamer)
@@ -42,21 +42,17 @@ func WithLagFromHighestBlock(lagFromHighestBlock uint64) RpcLogStreamerOption {
 }
 
 func WithContractConfig(
-	id string,
-	fromBlock uint64,
-	contractAddress common.Address,
-	topics []common.Hash,
-	maxDisconnectTime time.Duration,
+	cfg ContractConfig,
 ) RpcLogStreamerOption {
 	backfillChannel := make(chan types.Log, 100)
 	reorgChannel := make(chan uint64, 1)
 	return func(streamer *RpcLogStreamer) {
-		streamer.watchers[id] = ContractConfig{
-			ID:                id,
-			FromBlock:         fromBlock,
-			ContractAddress:   contractAddress,
-			Topics:            topics,
-			maxDisconnectTime: maxDisconnectTime,
+		streamer.watchers[cfg.ID] = ContractConfig{
+			ID:                cfg.ID,
+			FromBlock:         cfg.FromBlock,
+			ContractAddress:   cfg.ContractAddress,
+			Topics:            cfg.Topics,
+			MaxDisconnectTime: cfg.MaxDisconnectTime,
 			backfillChannel:   backfillChannel,
 			reorgChannel:      reorgChannel,
 		}
@@ -132,7 +128,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 	defer close(watcher.backfillChannel)
 	defer close(watcher.reorgChannel)
 
-	timer := time.NewTimer(watcher.maxDisconnectTime)
+	timer := time.NewTimer(watcher.MaxDisconnectTime)
 	defer timer.Stop()
 
 	for {
@@ -155,7 +151,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				"Blockchain reorg detected, resuming from block",
 				zap.Uint64("fromBlock", fromBlock),
 			)
-			timer.Reset(watcher.maxDisconnectTime)
+			timer.Reset(watcher.MaxDisconnectTime)
 
 		default:
 			logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
@@ -169,7 +165,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				continue
 			}
 			// reset self-termination timer
-			timer.Reset(watcher.maxDisconnectTime)
+			timer.Reset(watcher.MaxDisconnectTime)
 
 			if nextBlock != nil {
 				fromBlock = *nextBlock
@@ -236,14 +232,6 @@ func (r *RpcLogStreamer) GetNextPage(
 
 func (r *RpcLogStreamer) Client() ChainClient {
 	return r.client
-}
-
-func (r *RpcLogStreamer) GetContractAddress(id string) common.Address {
-	if _, ok := r.watchers[id]; !ok {
-		return common.Address{}
-	}
-
-	return r.watchers[id].ContractAddress
 }
 
 func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {

@@ -5,34 +5,34 @@ type RetryableError interface {
 	ShouldRetry() bool
 }
 
-type NonRetryableError struct {
+type NonRecoverableError struct {
 	err error
 }
 
-func (e NonRetryableError) Error() string {
+func (e NonRecoverableError) Error() string {
 	return e.err.Error()
 }
 
-func (e NonRetryableError) ShouldRetry() bool {
+func (e NonRecoverableError) ShouldRetry() bool {
 	return false
 }
 
-func NewUnrecoverableLogStorageError(err error) NonRetryableError {
-	return NonRetryableError{err: err}
+func NewNonRecoverableError(err error) NonRecoverableError {
+	return NonRecoverableError{err: err}
 }
 
-type RetryableLogStorageError struct {
+type RecoverableError struct {
 	err error
 }
 
-func (e RetryableLogStorageError) Error() string {
+func (e RecoverableError) Error() string {
 	return e.err.Error()
 }
 
-func (e RetryableLogStorageError) ShouldRetry() bool {
+func (e RecoverableError) ShouldRetry() bool {
 	return true
 }
 
-func NewRetryableLogStorageError(err error) RetryableLogStorageError {
-	return RetryableLogStorageError{err: err}
+func NewRecoverableError(err error) RecoverableError {
+	return RecoverableError{err: err}
 }

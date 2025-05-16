@@ -1,4 +1,4 @@
-package indexer
+package common
 
 import (
 	"bytes"
@@ -12,26 +12,24 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-type ChainReorgHandler interface {
-	FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
-}
-
 type ReorgHandler struct {
 	ctx     context.Context
 	client  blockchain.ChainClient
 	queries *queries.Queries
 }
 
-var (
-	ErrNoBlocksFound = errors.New("no blocks found")
-	ErrGetBlock      = errors.New("failed to get block")
-)
-
 // The indexer performs a reorg check every 60 blocks.
 // Setting BLOCK_RANGE_SIZE to 600 (10 cycles of 60 blocks)
 // allows us to retrieve a single page of blocks from the database,
 // which will likely contain the reorg point.
 const BLOCK_RANGE_SIZE uint64 = 600
+
+var (
+	ErrNoBlocksFound = errors.New("no blocks found")
+	ErrGetBlock      = errors.New("failed to get block")
+)
+
+var _ IReorgHandler = &ReorgHandler{}
 
 func NewChainReorgHandler(
 	ctx context.Context,
@@ -48,7 +46,7 @@ func NewChainReorgHandler(
 // TODO(borja): When reorg range has been calculated, alert clients.
 // Tracked in https://github.com/xmtp/xmtpd/issues/437
 func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error) {
-	startBlock, endBlock := blockRange(detectedAt)
+	startBlock, endBlock := BlockRange(detectedAt)
 
 	for {
 		storedBlocks, err := r.queries.GetBlocksInRange(
@@ -67,7 +65,7 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 				return 0, nil, ErrNoBlocksFound
 			}
 
-			startBlock, endBlock = blockRange(startBlock)
+			startBlock, endBlock = BlockRange(startBlock)
 			continue
 		}
 
@@ -103,7 +101,7 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 				return 0, nil, ErrNoBlocksFound
 			}
 
-			startBlock, endBlock = blockRange(startBlock)
+			startBlock, endBlock = BlockRange(startBlock)
 			continue
 		}
 
@@ -168,7 +166,7 @@ func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint
 	return block.BlockNumber, block.BlockHash, nil
 }
 
-func blockRange(from uint64) (startBlock uint64, endBlock uint64) {
+func BlockRange(from uint64) (startBlock uint64, endBlock uint64) {
 	endBlock = from
 
 	if endBlock >= BLOCK_RANGE_SIZE {

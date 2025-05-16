@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -17,57 +16,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
-func buildStreamer(
-	t *testing.T,
-	client blockchain.ChainClient,
-	fromBlock uint64,
-	address common.Address,
-	topic common.Hash,
-) (*blockchain.RpcLogStreamer, chan types.Log) {
-	log, err := zap.NewDevelopment()
-	require.NoError(t, err)
-	channel := make(chan types.Log)
-	cfg := blockchain.ContractConfig{
-		FromBlock:       fromBlock,
-		ContractAddress: address,
-		Topics:          []common.Hash{topic},
-		EventChannel:    channel,
-	}
-	return blockchain.NewRpcLogStreamer(
-		context.Background(),
-		client,
-		log,
-		[]blockchain.ContractConfig{cfg},
-	), channel
-}
-
-func TestBuilder(t *testing.T) {
-	rpcUrl := anvil.StartAnvil(t, false)
-	testclient, err := blockchain.NewClient(
-		context.Background(),
-		rpcUrl,
-	)
-	require.NoError(t, err)
-	builder := blockchain.NewRpcLogStreamBuilder(
-		context.Background(),
-		testclient,
-		testutils.NewLog(t),
-	)
-
-	listenerChannel, _ := builder.ListenForContractEvent(
-		1,
-		testutils.RandomAddress(),
-		[]common.Hash{testutils.RandomLogTopic()}, 5*time.Minute,
-	)
-	require.NotNil(t, listenerChannel)
-
-	streamer, err := builder.Build()
-	require.NoError(t, err)
-	require.NotNil(t, streamer)
-}
+// TODO: Add more test coverage.
 
 func TestRpcLogStreamer(t *testing.T) {
 	address := testutils.RandomAddress()
@@ -89,14 +40,21 @@ func TestRpcLogStreamer(t *testing.T) {
 		Topics:    [][]common.Hash{{topic}},
 	}).Return([]types.Log{logMessage}, nil)
 
-	streamer, _ := buildStreamer(t, mockClient, fromBlock, address, topic)
-
 	cfg := blockchain.ContractConfig{
-		FromBlock:       fromBlock,
-		ContractAddress: address,
-		Topics:          []common.Hash{topic},
-		EventChannel:    make(chan types.Log),
+		ID:                "testContract",
+		FromBlock:         fromBlock,
+		ContractAddress:   address,
+		Topics:            []common.Hash{topic},
+		MaxDisconnectTime: 5 * time.Minute,
 	}
+
+	streamer := blockchain.NewRpcLogStreamer(
+		context.Background(),
+		mockClient,
+		testutils.NewLog(t),
+		1,
+		blockchain.WithContractConfig(cfg),
+	)
 
 	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)
 	require.NoError(t, err)

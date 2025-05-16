@@ -1,4 +1,4 @@
-package storer
+package contracts
 
 import (
 	"context"
@@ -15,6 +15,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	re "github.com/xmtp/xmtpd/pkg/errors"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -44,6 +46,8 @@ type IdentityUpdateStorer struct {
 	validationService mlsvalidate.MLSValidationService
 }
 
+var _ c.ILogStorer = &IdentityUpdateStorer{}
+
 func NewIdentityUpdateStorer(
 	db *sql.DB,
 	logger *zap.Logger,
@@ -52,7 +56,7 @@ func NewIdentityUpdateStorer(
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{
 		db:                db,
-		logger:            logger.Named("IdentityUpdateStorer"),
+		logger:            logger.Named("storer"),
 		contract:          contract,
 		validationService: validationService,
 	}
@@ -62,10 +66,10 @@ func NewIdentityUpdateStorer(
 func (s *IdentityUpdateStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
-) LogStorageError {
+) re.RetryableError {
 	msgSent, err := s.contract.ParseIdentityUpdateCreated(event)
 	if err != nil {
-		return NewUnrecoverableLogStorageError(ErrParseIdentityUpdate, err)
+		return re.NewNonRecoverableError(ErrParseIdentityUpdate, err)
 	}
 	err = db.RunInTx(
 		ctx,
@@ -74,7 +78,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 		func(ctx context.Context, querier *queries.Queries) error {
 			latestSequenceId, err := querier.GetLatestSequenceId(ctx, IDENTITY_UPDATE_ORIGINATOR_ID)
 			if err != nil {
-				return NewUnrecoverableLogStorageError(ErrGetLatestSequenceId, err)
+				return re.NewNonRecoverableError(ErrGetLatestSequenceId, err)
 			}
 
 			if uint64(latestSequenceId) >= msgSent.SequenceId {
@@ -96,7 +100,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
 			if err != nil {
 				s.logger.Error(ErrParseClientEnvelope, zap.Error(err))
-				return NewUnrecoverableLogStorageError(ErrParseClientEnvelope, err)
+				return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
 			}
 
 			associationState, err := s.validateIdentityUpdate(
@@ -107,7 +111,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			)
 			if err != nil {
 				s.logger.Error(ErrValidateIdentityUpdate, zap.Error(err))
-				return NewUnrecoverableLogStorageError(ErrValidateIdentityUpdate, err)
+				return re.NewNonRecoverableError(ErrValidateIdentityUpdate, err)
 			}
 
 			inboxId := utils.HexEncode(msgSent.InboxId[:])
@@ -124,7 +128,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 						},
 					})
 					if err != nil {
-						return NewRetryableLogStorageError(ErrInsertAddressLog, err)
+						return re.NewRecoverableError(ErrInsertAddressLog, err)
 					}
 					if numRows == 0 {
 						s.logger.Warn(
@@ -152,7 +156,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 						},
 					)
 					if err != nil {
-						return NewRetryableLogStorageError(ErrRevokeAddressFromLog, err)
+						return re.NewRecoverableError(ErrRevokeAddressFromLog, err)
 					}
 					if rows == 0 {
 						s.logger.Warn(
@@ -167,7 +171,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update)
 			if err != nil {
 				s.logger.Error(ErrBuildOriginatorEnvelope, zap.Error(err))
-				return NewUnrecoverableLogStorageError(ErrBuildOriginatorEnvelope, err)
+				return re.NewNonRecoverableError(ErrBuildOriginatorEnvelope, err)
 			}
 
 			signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
@@ -176,13 +180,13 @@ func (s *IdentityUpdateStorer) StoreLog(
 			)
 			if err != nil {
 				s.logger.Error(ErrBuildSignedOriginatorEnvelope, zap.Error(err))
-				return NewUnrecoverableLogStorageError(ErrBuildSignedOriginatorEnvelope, err)
+				return re.NewNonRecoverableError(ErrBuildSignedOriginatorEnvelope, err)
 			}
 
 			originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
 			if err != nil {
 				s.logger.Error(ErrMarshallOriginatorEnvelope, zap.Error(err))
-				return NewUnrecoverableLogStorageError(ErrMarshallOriginatorEnvelope, err)
+				return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 			}
 
 			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
@@ -193,7 +197,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 				Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
 			}); err != nil {
 				s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
-				return NewRetryableLogStorageError(ErrInsertEnvelopeFromSmartContract, err)
+				return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 			}
 
 			if err = querier.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
@@ -204,19 +208,19 @@ func (s *IdentityUpdateStorer) StoreLog(
 				IsCanonical:          true, // New messages are always canonical
 			}); err != nil {
 				s.logger.Error(ErrInsertBlockchainMessage, zap.Error(err))
-				return NewRetryableLogStorageError(ErrInsertBlockchainMessage, err)
+				return re.NewRecoverableError(ErrInsertBlockchainMessage, err)
 			}
 
 			return nil
 		},
 	)
 	if err != nil {
-		var logStorageErr LogStorageError
+		var logStorageErr re.RetryableError
 		if errors.As(err, &logStorageErr) {
 			return logStorageErr
 		}
 		// If the error was not a LogStorageError we can assume it's a DB error and it should be retried
-		return NewRetryableLogStorageError(ErrInsertBlockchainMessage, err)
+		return re.NewRecoverableError(ErrInsertBlockchainMessage, err)
 	}
 
 	return nil

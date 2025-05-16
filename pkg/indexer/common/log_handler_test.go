@@ -1,4 +1,4 @@
-package indexer
+package common_test
 
 import (
 	"context"
@@ -10,22 +10,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
-	"github.com/xmtp/xmtpd/pkg/indexer/storer"
+	errorMocks "github.com/xmtp/xmtpd/pkg/errors"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
-	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/indexer"
-	storerMocks "github.com/xmtp/xmtpd/pkg/mocks/storer"
-	"github.com/xmtp/xmtpd/pkg/testutils"
+	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/common"
+	"go.uber.org/zap"
 )
 
-func TestIndexLogsSuccess(t *testing.T) {
+// TODO: Add more test coverage.
+
+func setup() (chan types.Log, chan uint64, context.Context, context.CancelFunc, types.Log, uint64, common.Hash) {
 	channel := make(chan types.Log, 10)
 	reorgChannel := make(chan uint64, 1)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		cancel()
-		close(channel)
-		close(reorgChannel)
-	}()
 
 	newBlockNumber := uint64(10)
 	newBlockHash := common.HexToHash(
@@ -38,6 +35,17 @@ func TestIndexLogsSuccess(t *testing.T) {
 		BlockHash:   newBlockHash,
 	}
 
+	return channel, reorgChannel, ctx, cancel, event, newBlockNumber, newBlockHash
+}
+
+func TestIndexLogsSuccess(t *testing.T) {
+	channel, reorgChannel, ctx, cancel, event, newBlockNumber, newBlockHash := setup()
+	defer func() {
+		cancel()
+		close(channel)
+		close(reorgChannel)
+	}()
+
 	channel <- event
 
 	mockClient := blockchainMocks.NewMockChainClient(t)
@@ -45,34 +53,36 @@ func TestIndexLogsSuccess(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2) // Expecting two calls: StoreLog and UpdateLatestBlock
 
-	blockTracker := indexerMocks.NewMockIBlockTracker(t)
-	blockTracker.EXPECT().
+	contract := indexerMocks.NewMockIContract(t)
+
+	contract.EXPECT().
+		Logger().
+		Return(zap.NewNop())
+
+	contract.EXPECT().
+		Address().
+		Return(common.HexToAddress("0x123"))
+
+	contract.EXPECT().
 		UpdateLatestBlock(mock.Anything, newBlockNumber, newBlockHash.Bytes()).
 		Run(func(ctx context.Context, blockNum uint64, blockHash []byte) {
 			wg.Done()
 		}).
 		Return(nil)
 
-	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)
-
-	logStorer := storerMocks.NewMockLogStorer(t)
-	logStorer.EXPECT().
+	contract.EXPECT().
 		StoreLog(mock.Anything, event).
 		Run(func(ctx context.Context, log types.Log) {
 			wg.Done()
 		}).
 		Return(nil)
 
-	go indexLogs(
+	go c.IndexLogs(
 		ctx,
 		mockClient,
 		channel,
 		reorgChannel,
-		testutils.NewLog(t),
-		logStorer,
-		blockTracker,
-		reorgHandler,
-		"testContract",
+		contract,
 	)
 
 	done := make(chan struct{})
@@ -90,30 +100,12 @@ func TestIndexLogsSuccess(t *testing.T) {
 }
 
 func TestIndexLogsRetryableError(t *testing.T) {
-	channel := make(chan types.Log, 10)
-	reorgChannel := make(chan uint64, 1)
-	ctx, cancel := context.WithCancel(context.Background())
+	channel, reorgChannel, ctx, cancel, event, _, _ := setup()
 	defer func() {
 		cancel()
 		close(channel)
 		close(reorgChannel)
 	}()
-
-	newBlockNumber := uint64(10)
-	newBlockHash := common.HexToHash(
-		"0x0000000000000000000000000000000000000000000000000000000000000000",
-	)
-
-	event := types.Log{
-		Address:     common.HexToAddress("0x123"),
-		BlockNumber: newBlockNumber,
-		BlockHash:   newBlockHash,
-	}
-
-	mockClient := blockchainMocks.NewMockChainClient(t)
-	logStorer := storerMocks.NewMockLogStorer(t)
-	blockTracker := indexerMocks.NewMockIBlockTracker(t)
-	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)
 
 	var wg sync.WaitGroup
 	wg.Add(2) // Expecting two calls: StoreLog and UpdateLatestBlock
@@ -121,19 +113,29 @@ func TestIndexLogsRetryableError(t *testing.T) {
 	// Will fail for the first call with a retryable error and a non-retryable error on the second call
 	attemptNumber := 0
 
-	logStorer.EXPECT().
+	mockClient := blockchainMocks.NewMockChainClient(t)
+
+	contract := indexerMocks.NewMockIContract(t)
+
+	contract.EXPECT().
+		Logger().
+		Return(zap.NewNop())
+
+	contract.EXPECT().
+		Address().
+		Return(common.HexToAddress("0x123"))
+
+	contract.EXPECT().
 		StoreLog(mock.Anything, event).
-		RunAndReturn(func(ctx context.Context, log types.Log) storer.LogStorageError {
+		RunAndReturn(func(ctx context.Context, log types.Log) errorMocks.RetryableError {
 			wg.Done()
 			attemptNumber++
 			if attemptNumber < 2 {
-				return storer.NewRetryableLogStorageError(
-					"retryable error",
+				return errorMocks.NewRecoverableError("retryable error",
 					errors.New("retryable error"),
 				)
 			} else {
-				return storer.NewUnrecoverableLogStorageError(
-					"non-retryable error",
+				return errorMocks.NewNonRecoverableError("non-retryable error",
 					errors.New("non-retryable error"),
 				)
 			}
@@ -141,16 +143,12 @@ func TestIndexLogsRetryableError(t *testing.T) {
 
 	channel <- event
 
-	go indexLogs(
+	go c.IndexLogs(
 		ctx,
 		mockClient,
 		channel,
 		reorgChannel,
-		testutils.NewLog(t),
-		logStorer,
-		blockTracker,
-		reorgHandler,
-		"testContract",
+		contract,
 	)
 
 	done := make(chan struct{})
@@ -166,5 +164,5 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		t.Fatal("Test timed out waiting for StoreLog and UpdateLatestBlock")
 	}
 
-	logStorer.AssertNumberOfCalls(t, "StoreLog", 2)
+	contract.AssertNumberOfCalls(t, "StoreLog", 2)
 }

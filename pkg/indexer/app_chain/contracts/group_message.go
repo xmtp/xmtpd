@@ -1,4 +1,4 @@
-package app_chain
+package contracts
 
 import (
 	"context"
@@ -8,8 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	bt "github.com/xmtp/xmtpd/pkg/indexer/block_tracker"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 )
 
 const (
@@ -18,26 +19,28 @@ const (
 )
 
 type GroupMessageBroadcaster struct {
-	address      string
-	contract     *gm.GroupMessageBroadcaster
-	topics       []common.Hash
-	blockTracker *bt.BlockTracker
+	address string
+	topics  []common.Hash
+	logger  *zap.Logger
+	c.IBlockTracker
+	c.IReorgHandler
+	c.ILogStorer
 }
 
-// TODO: Abstract to interface.
-// TODO: Include LogStorer in the GroupMessageBroadcaster struct.
 func NewGroupMessageBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,
 	querier *queries.Queries,
+	logger *zap.Logger,
 	address string,
+	chainID int,
 ) (*GroupMessageBroadcaster, error) {
 	contract, err := groupMessageBroadcasterContract(address, client)
 	if err != nil {
 		return nil, err
 	}
 
-	groupMessagesTracker, err := bt.NewBlockTracker(
+	groupMessagesTracker, err := c.NewBlockTracker(
 		ctx,
 		address,
 		querier,
@@ -51,11 +54,20 @@ func NewGroupMessageBroadcaster(
 		return nil, err
 	}
 
+	logger = logger.Named("group-message-broadcaster").
+		With(zap.Int("chainID", chainID)).
+		With(zap.String("contractAddress", address))
+	groupMessageStorer := NewGroupMessageStorer(querier, logger, contract)
+
+	reorgHandler := c.NewChainReorgHandler(ctx, client, querier)
+
 	return &GroupMessageBroadcaster{
-		address:      address,
-		contract:     contract,
-		blockTracker: groupMessagesTracker,
-		topics:       []common.Hash{topics},
+		address:       address,
+		topics:        []common.Hash{topics},
+		logger:        logger,
+		IBlockTracker: groupMessagesTracker,
+		IReorgHandler: reorgHandler,
+		ILogStorer:    groupMessageStorer,
 	}, nil
 }
 
@@ -65,6 +77,10 @@ func (gm *GroupMessageBroadcaster) Address() common.Address {
 
 func (gm *GroupMessageBroadcaster) Topics() []common.Hash {
 	return gm.topics
+}
+
+func (gm *GroupMessageBroadcaster) Logger() *zap.Logger {
+	return gm.logger
 }
 
 func groupMessageBroadcasterContract(
@@ -77,7 +93,7 @@ func groupMessageBroadcasterContract(
 	)
 }
 
-func groupMessageBroadcasterName(chainID int) string {
+func GroupMessageBroadcasterName(chainID int) string {
 	return fmt.Sprintf("%s-%v", groupMessageName, chainID)
 }
 

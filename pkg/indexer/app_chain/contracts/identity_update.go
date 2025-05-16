@@ -1,15 +1,18 @@
-package app_chain
+package contracts
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	bt "github.com/xmtp/xmtpd/pkg/indexer/block_tracker"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 )
 
 const (
@@ -17,27 +20,32 @@ const (
 	identityUpdateTopic = "IdentityUpdateCreated"
 )
 
-// TODO: Abstract to interface.
-// TODO: Include LogStorer in the IdentityUpdateBroadcaster struct.
 type IdentityUpdateBroadcaster struct {
-	address      string
-	contract     *iu.IdentityUpdateBroadcaster
-	topics       []common.Hash
-	blockTracker *bt.BlockTracker
+	address string
+	topics  []common.Hash
+	logger  *zap.Logger
+	c.IBlockTracker
+	c.IReorgHandler
+	c.ILogStorer
 }
 
 func NewIdentityUpdateBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,
-	querier *queries.Queries,
+	db *sql.DB,
+	logger *zap.Logger,
+	validationService mlsvalidate.MLSValidationService,
 	address string,
+	chainID int,
 ) (*IdentityUpdateBroadcaster, error) {
 	contract, err := identityUpdateBroadcasterContract(address, client)
 	if err != nil {
 		return nil, err
 	}
 
-	identityUpdatesTracker, err := bt.NewBlockTracker(
+	querier := queries.New(db)
+
+	identityUpdatesTracker, err := c.NewBlockTracker(
 		ctx,
 		address,
 		querier,
@@ -51,11 +59,21 @@ func NewIdentityUpdateBroadcaster(
 		return nil, err
 	}
 
+	logger = logger.Named("identity-update-broadcaster").
+		With(zap.Int("chainID", chainID)).
+		With(zap.String("contractAddress", address))
+
+	identityUpdateStorer := NewIdentityUpdateStorer(db, logger, contract, validationService)
+
+	reorgHandler := c.NewChainReorgHandler(ctx, client, querier)
+
 	return &IdentityUpdateBroadcaster{
-		address:      address,
-		contract:     contract,
-		blockTracker: identityUpdatesTracker,
-		topics:       []common.Hash{topics},
+		address:       address,
+		topics:        []common.Hash{topics},
+		logger:        logger,
+		IBlockTracker: identityUpdatesTracker,
+		IReorgHandler: reorgHandler,
+		ILogStorer:    identityUpdateStorer,
 	}, nil
 }
 
@@ -65,6 +83,10 @@ func (iu *IdentityUpdateBroadcaster) Address() common.Address {
 
 func (iu *IdentityUpdateBroadcaster) Topics() []common.Hash {
 	return iu.topics
+}
+
+func (iu *IdentityUpdateBroadcaster) Logger() *zap.Logger {
+	return iu.logger
 }
 
 func identityUpdateBroadcasterContract(
@@ -77,7 +99,7 @@ func identityUpdateBroadcasterContract(
 	)
 }
 
-func identityUpdateBroadcasterName(chainID int) string {
+func IdentityUpdateBroadcasterName(chainID int) string {
 	return fmt.Sprintf("%s-%v", identityUpdateName, chainID)
 }
 

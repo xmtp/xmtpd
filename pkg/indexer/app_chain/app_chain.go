@@ -5,14 +5,13 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/storer"
-	rh "github.com/xmtp/xmtpd/pkg/indexer/reorg_handler"
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
+	"github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -30,10 +29,9 @@ type AppChain struct {
 	client                    *ethclient.Client
 	log                       *zap.Logger
 	streamer                  *blockchain.RpcLogStreamer
+	groupMessageBroadcaster   *contracts.GroupMessageBroadcaster
+	identityUpdateBroadcaster *contracts.IdentityUpdateBroadcaster
 	chainID                   int
-	reorgHandler              rh.ChainReorgHandler
-	groupMessageBroadcaster   *GroupMessageBroadcaster
-	identityUpdateBroadcaster *IdentityUpdateBroadcaster
 }
 
 func NewAppChain(
@@ -41,6 +39,7 @@ func NewAppChain(
 	log *zap.Logger,
 	cfg config.AppChainOptions,
 	db *sql.DB,
+	validationService mlsvalidate.MLSValidationService,
 ) (*AppChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
@@ -55,54 +54,58 @@ func NewAppChain(
 
 	querier := queries.New(db)
 
-	groupMessageBroadcaster, err := NewGroupMessageBroadcaster(
+	groupMessageBroadcaster, err := contracts.NewGroupMessageBroadcaster(
 		ctxwc,
 		client,
 		querier,
+		log,
 		cfg.GroupMessageBroadcasterAddress,
+		cfg.ChainID,
 	)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 
-	groupMessageLatestBlockNumber, _ := groupMessageBroadcaster.blockTracker.GetLatestBlock()
+	groupMessageLatestBlockNumber, _ := groupMessageBroadcaster.GetLatestBlock()
 
-	identityUpdateBroadcaster, err := NewIdentityUpdateBroadcaster(
+	identityUpdateBroadcaster, err := contracts.NewIdentityUpdateBroadcaster(
 		ctxwc,
 		client,
-		querier,
+		db,
+		log,
+		validationService,
 		cfg.IdentityUpdateBroadcasterAddress,
+		cfg.ChainID,
 	)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 
-	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.blockTracker.GetLatestBlock()
+	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.GetLatestBlock()
 
 	streamer := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
 		log,
+		cfg.ChainID,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
-			groupMessageBroadcasterName(cfg.ChainID),
+			contracts.GroupMessageBroadcasterName(cfg.ChainID),
 			groupMessageLatestBlockNumber,
-			common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
+			groupMessageBroadcaster.Address(),
 			groupMessageBroadcaster.Topics(),
 			cfg.MaxChainDisconnectTime,
 		),
 		blockchain.WithContractConfig(
-			identityUpdateBroadcasterName(cfg.ChainID),
+			contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
 			identityUpdateLatestBlockNumber,
 			identityUpdateBroadcaster.Address(),
 			identityUpdateBroadcaster.Topics(),
 			cfg.MaxChainDisconnectTime,
 		),
 	)
-
-	reorgHandler := rh.NewChainReorgHandler(ctxwc, streamer.Client(), querier)
 
 	return &AppChain{
 		ctx:                       ctxwc,
@@ -111,103 +114,71 @@ func NewAppChain(
 		log:                       chainLogger,
 		streamer:                  streamer,
 		chainID:                   cfg.ChainID,
-		reorgHandler:              reorgHandler,
 		groupMessageBroadcaster:   groupMessageBroadcaster,
 		identityUpdateBroadcaster: identityUpdateBroadcaster,
 	}, nil
 }
 
-func (s *AppChain) Start(db *sql.DB, validationService mlsvalidate.MLSValidationService) {
-	s.streamer.Start()
-	s.indexGroupMessageBroadcasterLogs(s.groupMessageBroadcaster, db)
-	s.indexIdentityUpdateBroadcasterLogs(s.identityUpdateBroadcaster, validationService, db)
-}
+func (a *AppChain) Start() {
+	// Start the streamer.
+	a.streamer.Start()
 
-func (s *AppChain) Stop() {
-	s.streamer.Stop()
-	s.cancel()
-}
-
-func (s *AppChain) indexGroupMessageBroadcasterLogs(
-	broadcaster *GroupMessageBroadcaster,
-	db *sql.DB,
-) error {
-	contractAddress := broadcaster.Address()
-
-	querier := queries.New(db)
-
+	// Start the group message broadcaster.
 	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
+		a.ctx,
+		&a.wg,
 		"indexer-group-message-broadcaster",
 		func(ctx context.Context) {
-			logger := s.log.Named("group-message-broadcaster").
-				With(zap.String("contractAddress", contractAddress.Hex()))
-
-			indexLogs(
+			common.IndexLogs(
 				ctx,
-				s.streamer.Client(),
-				s.GroupMessageBroadcasterEventChannel(),
-				s.GroupMessageBroadcasterReorgChannel(),
-				logger,
-				storer.NewGroupMessageStorer(querier, logger, broadcaster.contract),
-				broadcaster.blockTracker,
-				s.reorgHandler,
-				contractAddress.Hex(),
+				a.streamer.Client(),
+				a.GroupMessageBroadcasterEventChannel(),
+				a.GroupMessageBroadcasterReorgChannel(),
+				a.groupMessageBroadcaster,
 			)
 		})
 
-	return nil
-}
-
-func (s *AppChain) indexIdentityUpdateBroadcasterLogs(
-	broadcaster *IdentityUpdateBroadcaster,
-	validationService mlsvalidate.MLSValidationService,
-	db *sql.DB,
-) error {
-	contractAddress := broadcaster.Address()
-
+	// Start the identity update broadcaster.
 	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
+		a.ctx,
+		&a.wg,
 		"indexer-identity-update-broadcaster",
 		func(ctx context.Context) {
-			logger := s.log.Named("identity-update-broadcaster").
-				With(zap.String("contractAddress", contractAddress.Hex()))
-
-			indexLogs(
+			common.IndexLogs(
 				ctx,
-				s.streamer.Client(),
-				s.IdentityUpdateBroadcasterEventChannel(),
-				s.IdentityUpdateBroadcasterReorgChannel(),
-				logger,
-				storer.NewIdentityUpdateStorer(
-					db,
-					logger,
-					broadcaster.contract,
-					validationService,
-				),
-				broadcaster.blockTracker,
-				s.reorgHandler,
-				contractAddress.Hex(),
+				a.streamer.Client(),
+				a.IdentityUpdateBroadcasterEventChannel(),
+				a.IdentityUpdateBroadcasterReorgChannel(),
+				a.identityUpdateBroadcaster,
 			)
 		})
-
-	return nil
 }
 
-func (s *AppChain) GroupMessageBroadcasterEventChannel() <-chan types.Log {
-	return s.streamer.GetEventChannel(groupMessageBroadcasterName(s.chainID))
+func (a *AppChain) Stop() {
+	a.log.Debug("Stopping app chain")
+
+	if a.streamer != nil {
+		a.streamer.Stop()
+	}
+
+	a.cancel()
+	a.wg.Wait()
+
+	a.log.Debug("App chain stopped")
 }
 
-func (s *AppChain) GroupMessageBroadcasterReorgChannel() chan uint64 {
-	return s.streamer.GetReorgChannel(groupMessageBroadcasterName(s.chainID))
+func (a *AppChain) GroupMessageBroadcasterEventChannel() <-chan types.Log {
+	return a.streamer.GetEventChannel(contracts.GroupMessageBroadcasterName(a.chainID))
 }
 
-func (s *AppChain) IdentityUpdateBroadcasterEventChannel() <-chan types.Log {
-	return s.streamer.GetEventChannel(identityUpdateBroadcasterName(s.chainID))
+func (a *AppChain) GroupMessageBroadcasterReorgChannel() chan uint64 {
+	return a.streamer.GetReorgChannel(contracts.GroupMessageBroadcasterName(a.chainID))
 }
 
-func (s *AppChain) IdentityUpdateBroadcasterReorgChannel() chan uint64 {
-	return s.streamer.GetReorgChannel(identityUpdateBroadcasterName(s.chainID))
+func (a *AppChain) IdentityUpdateBroadcasterEventChannel() <-chan types.Log {
+	return a.streamer.GetEventChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
+}
+
+func (a *AppChain) IdentityUpdateBroadcasterReorgChannel() chan uint64 {
+	return a.streamer.GetReorgChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
 }

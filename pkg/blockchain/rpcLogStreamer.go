@@ -28,7 +28,7 @@ type ContractConfig struct {
 	FromBlock         uint64
 	ContractAddress   common.Address
 	Topics            []common.Hash
-	BackfillChannel   chan types.Log
+	backfillChannel   chan types.Log
 	reorgChannel      chan uint64
 	maxDisconnectTime time.Duration
 }
@@ -57,7 +57,7 @@ func WithContractConfig(
 			ContractAddress:   contractAddress,
 			Topics:            topics,
 			maxDisconnectTime: maxDisconnectTime,
-			BackfillChannel:   backfillChannel,
+			backfillChannel:   backfillChannel,
 			reorgChannel:      reorgChannel,
 		}
 	}
@@ -84,13 +84,18 @@ func NewRpcLogStreamer(
 	ctx context.Context,
 	client ChainClient,
 	logger *zap.Logger,
+	chainID int,
 	options ...RpcLogStreamerOption,
 ) *RpcLogStreamer {
 	ctx, cancel := context.WithCancel(ctx)
+
+	streamLogger := logger.Named("rpcLogStreamer").
+		With(zap.Int("chainID", chainID))
+
 	streamer := &RpcLogStreamer{
 		ctx:                 ctx,
 		client:              client,
-		logger:              logger.Named("rpcLogStreamer"),
+		logger:              streamLogger,
 		cancel:              cancel,
 		wg:                  sync.WaitGroup{},
 		watchers:            make(map[string]ContractConfig),
@@ -124,7 +129,8 @@ func (r *RpcLogStreamer) Stop() {
 func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 	fromBlock := watcher.FromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
-	defer close(watcher.BackfillChannel)
+	defer close(watcher.backfillChannel)
+	defer close(watcher.reorgChannel)
 
 	timer := time.NewTimer(watcher.maxDisconnectTime)
 	defer timer.Stop()
@@ -181,7 +187,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				zap.Time("time", time.Now()),
 			)
 			for _, log := range logs {
-				watcher.BackfillChannel <- log
+				watcher.backfillChannel <- log
 			}
 		}
 	}
@@ -245,7 +251,7 @@ func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {
 		return nil
 	}
 
-	return r.watchers[id].BackfillChannel
+	return r.watchers[id].backfillChannel
 }
 
 func (r *RpcLogStreamer) GetReorgChannel(id string) chan uint64 {

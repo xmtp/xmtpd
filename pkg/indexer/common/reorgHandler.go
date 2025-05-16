@@ -1,4 +1,4 @@
-package reorghandler
+package common
 
 import (
 	"bytes"
@@ -11,10 +11,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
-
-type ChainReorgHandler interface {
-	FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
-}
 
 type ReorgHandler struct {
 	ctx     context.Context

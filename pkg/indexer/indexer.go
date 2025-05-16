@@ -24,6 +24,7 @@ func NewIndexer(
 	log *zap.Logger,
 	db *sql.DB,
 	cfg config.ContractsOptions,
+	validationService mlsvalidate.MLSValidationService,
 ) (*Indexer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -34,6 +35,7 @@ func NewIndexer(
 		indexerLogger,
 		cfg.AppChain,
 		db,
+		validationService,
 	)
 	if err != nil {
 		cancel()
@@ -61,11 +63,6 @@ func (i *Indexer) Close() {
 	i.log.Debug("Closed")
 }
 
-func (i *Indexer) StartIndexer(
-	db *sql.DB,
-	validationService mlsvalidate.MLSValidationService,
-) error {
-	i.appChain.Start(db, validationService)
-
-	return nil
+func (i *Indexer) StartIndexer() {
+	i.appChain.Start()
 }

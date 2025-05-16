@@ -1,24 +1,24 @@
-package storer
+package retryable_errors
 
-type LogStorageError interface {
+type RetryableError interface {
 	error
 	ShouldRetry() bool
 }
 
-type UnrecoverableLogStorageError struct {
+type NonRetryableError struct {
 	err error
 }
 
-func (e UnrecoverableLogStorageError) Error() string {
+func (e NonRetryableError) Error() string {
 	return e.err.Error()
 }
 
-func (e UnrecoverableLogStorageError) ShouldRetry() bool {
+func (e NonRetryableError) ShouldRetry() bool {
 	return false
 }
 
-func NewUnrecoverableLogStorageError(err error) UnrecoverableLogStorageError {
-	return UnrecoverableLogStorageError{err: err}
+func NewUnrecoverableLogStorageError(err error) NonRetryableError {
+	return NonRetryableError{err: err}
 }
 
 type RetryableLogStorageError struct {

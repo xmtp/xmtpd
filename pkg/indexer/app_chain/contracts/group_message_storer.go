@@ -1,4 +1,4 @@
-package storer
+package contracts
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -42,10 +43,10 @@ func NewGroupMessageStorer(
 func (s *GroupMessageStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
-) LogStorageError {
+) re.RetryableError {
 	msgSent, err := s.contract.ParseMessageSent(event)
 	if err != nil {
-		return NewUnrecoverableLogStorageError(err)
+		return re.NewUnrecoverableLogStorageError(err)
 	}
 
 	topicStruct := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, msgSent.GroupId[:])
@@ -53,7 +54,7 @@ func (s *GroupMessageStorer) StoreLog(
 	clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Message)
 	if err != nil {
 		s.logger.Error("Error parsing client envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		return re.NewUnrecoverableLogStorageError(err)
 	}
 
 	targetTopic := clientEnvelope.TargetTopic()
@@ -64,7 +65,7 @@ func (s *GroupMessageStorer) StoreLog(
 			zap.Any("targetTopic", targetTopic.String()),
 			zap.Any("contractTopic", topicStruct.String()),
 		)
-		return NewUnrecoverableLogStorageError(
+		return re.NewUnrecoverableLogStorageError(
 			errors.New("client envelope topic does not match payload topic"),
 		)
 	}
@@ -72,7 +73,7 @@ func (s *GroupMessageStorer) StoreLog(
 	originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Message)
 	if err != nil {
 		s.logger.Error("Error building originator envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		return re.NewUnrecoverableLogStorageError(err)
 	}
 
 	signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
@@ -81,13 +82,13 @@ func (s *GroupMessageStorer) StoreLog(
 	)
 	if err != nil {
 		s.logger.Error("Error building signed originator envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		return re.NewUnrecoverableLogStorageError(err)
 	}
 
 	originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
 	if err != nil {
 		s.logger.Error("Error marshalling originator envelope", zap.Error(err))
-		return NewUnrecoverableLogStorageError(err)
+		return re.NewUnrecoverableLogStorageError(err)
 	}
 
 	s.logger.Info("Inserting message from contract", zap.String("topic", topicStruct.String()))
@@ -100,7 +101,7 @@ func (s *GroupMessageStorer) StoreLog(
 		Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
 	}); err != nil {
 		s.logger.Error("Error inserting envelope from smart contract", zap.Error(err))
-		return NewRetryableLogStorageError(err)
+		return re.NewRetryableLogStorageError(err)
 	}
 
 	if err = s.queries.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
@@ -111,7 +112,7 @@ func (s *GroupMessageStorer) StoreLog(
 		IsCanonical:          true, // New messages are always canonical
 	}); err != nil {
 		s.logger.Error("Error inserting blockchain message", zap.Error(err))
-		return NewRetryableLogStorageError(err)
+		return re.NewRetryableLogStorageError(err)
 	}
 
 	return nil

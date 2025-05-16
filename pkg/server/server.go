@@ -134,15 +134,13 @@ func NewReplicationServer(
 			log,
 			writerDB,
 			options.Contracts,
+			s.validationService,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		err = s.indx.StartIndexer(writerDB, s.validationService)
-		if err != nil {
-			return nil, err
-		}
+		s.indx.StartIndexer()
 
 		log.Info("Indexer service enabled")
 	}

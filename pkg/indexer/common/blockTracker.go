@@ -1,4 +1,4 @@
-package blocktracker
+package common
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package storer
+package contracts
 
 import (
 	"context"

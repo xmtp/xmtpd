@@ -26,15 +26,17 @@ packages:
     interfaces:
       NodeRegistry:
       NodeRegistryContract:
-  github.com/xmtp/xmtpd/pkg/indexer:
+  github.com/xmtp/xmtpd/pkg/indexer/common:
     interfaces:
       IBlockTracker:
-      ChainReorgHandler:
+      IReorgHandler:
+      ILogStorer:
+      IContract:
   github.com/xmtp/xmtpd/pkg/blockchain:
     interfaces:
       ChainClient:
       IBlockchainPublisher:
       NonceManager:
-  github.com/xmtp/xmtpd/pkg/indexer/storer:
+  github.com/xmtp/xmtpd/pkg/errors:
     interfaces:
-      LogStorer:
+      RetryableError:

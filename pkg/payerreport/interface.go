@@ -3,6 +3,7 @@ package payerreport
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 )
@@ -38,7 +39,7 @@ type IPayerReportStore interface {
 		ctx context.Context,
 		report *PayerReport,
 		payerEnvelope *envelopes.PayerEnvelope,
-	) (ReportID, error)
+	) (*ReportID, error)
 	CreateAttestation(
 		ctx context.Context,
 		attestation *PayerReportAttestation,
@@ -50,6 +51,7 @@ type IPayerReportStore interface {
 		ctx context.Context,
 		envelope *envelopes.OriginatorEnvelope,
 		payerID int32,
+		domainSeparator common.Hash,
 	) error
 	StoreSyncedAttestation(
 		ctx context.Context,

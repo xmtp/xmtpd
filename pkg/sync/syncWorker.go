@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
@@ -25,17 +26,18 @@ import (
 )
 
 type syncWorker struct {
-	ctx                context.Context
-	log                *zap.Logger
-	nodeRegistry       registry.NodeRegistry
-	registrant         *registrant.Registrant
-	store              *sql.DB
-	wg                 sync.WaitGroup
-	subscriptions      map[uint32]struct{}
-	subscriptionsMutex sync.RWMutex
-	cancel             context.CancelFunc
-	feeCalculator      fees.IFeeCalculator
-	payerReportStore   payerreport.IPayerReportStore
+	ctx                        context.Context
+	log                        *zap.Logger
+	nodeRegistry               registry.NodeRegistry
+	registrant                 *registrant.Registrant
+	store                      *sql.DB
+	wg                         sync.WaitGroup
+	subscriptions              map[uint32]struct{}
+	subscriptionsMutex         sync.RWMutex
+	cancel                     context.CancelFunc
+	feeCalculator              fees.IFeeCalculator
+	payerReportStore           payerreport.IPayerReportStore
+	payerReportDomainSeparator common.Hash
 }
 
 func startSyncWorker(
@@ -46,20 +48,22 @@ func startSyncWorker(
 	store *sql.DB,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
+	payerReportDomainSeparator common.Hash,
 ) (*syncWorker, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	s := &syncWorker{
-		ctx:              ctx,
-		log:              log.Named("syncWorker"),
-		nodeRegistry:     nodeRegistry,
-		registrant:       registrant,
-		store:            store,
-		feeCalculator:    feeCalculator,
-		wg:               sync.WaitGroup{},
-		subscriptions:    make(map[uint32]struct{}),
-		payerReportStore: payerReportStore,
-		cancel:           cancel,
+		ctx:                        ctx,
+		log:                        log.Named("syncWorker"),
+		nodeRegistry:               nodeRegistry,
+		registrant:                 registrant,
+		store:                      store,
+		feeCalculator:              feeCalculator,
+		wg:                         sync.WaitGroup{},
+		subscriptions:              make(map[uint32]struct{}),
+		payerReportStore:           payerReportStore,
+		payerReportDomainSeparator: payerReportDomainSeparator,
+		cancel:                     cancel,
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -356,5 +360,6 @@ func (s *syncWorker) setupStream(
 		stream,
 		s.feeCalculator,
 		s.payerReportStore,
+		s.payerReportDomainSeparator,
 	), nil
 }

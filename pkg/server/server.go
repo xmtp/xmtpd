@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
@@ -164,6 +165,7 @@ func NewReplicationServer(
 	}
 
 	if options.Sync.Enable {
+
 		s.syncServer, err = sync.NewSyncServer(
 			s.ctx,
 			log,
@@ -172,6 +174,7 @@ func NewReplicationServer(
 			writerDB,
 			fees.NewFeeCalculator(getRatesFetcher()),
 			payerreport.NewStore(writerDB, log),
+			common.BytesToHash(options.Contracts.SettlementChain.TempPayerReportsDomainSeparator),
 		)
 		if err != nil {
 			return nil, err

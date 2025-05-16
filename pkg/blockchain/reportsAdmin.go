@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"go.uber.org/zap"
@@ -31,4 +32,8 @@ func (r *ReportsAdmin) SubmitPayerReport(
 	report *payerreport.PayerReportWithStatus,
 ) error {
 	return nil
+}
+
+func (r *ReportsAdmin) GetDomainSeparator(ctx context.Context) (common.Hash, error) {
+	return common.Hash{}, nil
 }

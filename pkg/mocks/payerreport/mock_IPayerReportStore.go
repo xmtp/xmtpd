@@ -5,8 +5,11 @@ package payerreport
 import (
 	context "context"
 
-	mock "github.com/stretchr/testify/mock"
+	common "github.com/ethereum/go-ethereum/common"
+
 	envelopes "github.com/xmtp/xmtpd/pkg/envelopes"
+
+	mock "github.com/stretchr/testify/mock"
 
 	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
 
@@ -75,23 +78,23 @@ func (_c *MockIPayerReportStore_CreateAttestation_Call) RunAndReturn(run func(co
 }
 
 // CreatePayerReport provides a mock function with given fields: ctx, report, payerEnvelope
-func (_m *MockIPayerReportStore) CreatePayerReport(ctx context.Context, report *payerreport.PayerReport, payerEnvelope *envelopes.PayerEnvelope) (payerreport.ReportID, error) {
+func (_m *MockIPayerReportStore) CreatePayerReport(ctx context.Context, report *payerreport.PayerReport, payerEnvelope *envelopes.PayerEnvelope) (*payerreport.ReportID, error) {
 	ret := _m.Called(ctx, report, payerEnvelope)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreatePayerReport")
 	}
 
-	var r0 payerreport.ReportID
+	var r0 *payerreport.ReportID
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *envelopes.PayerEnvelope) (payerreport.ReportID, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *envelopes.PayerEnvelope) (*payerreport.ReportID, error)); ok {
 		return rf(ctx, report, payerEnvelope)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *envelopes.PayerEnvelope) payerreport.ReportID); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *envelopes.PayerEnvelope) *payerreport.ReportID); ok {
 		r0 = rf(ctx, report, payerEnvelope)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(payerreport.ReportID)
+			r0 = ret.Get(0).(*payerreport.ReportID)
 		}
 	}
 
@@ -124,12 +127,12 @@ func (_c *MockIPayerReportStore_CreatePayerReport_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockIPayerReportStore_CreatePayerReport_Call) Return(_a0 payerreport.ReportID, _a1 error) *MockIPayerReportStore_CreatePayerReport_Call {
+func (_c *MockIPayerReportStore_CreatePayerReport_Call) Return(_a0 *payerreport.ReportID, _a1 error) *MockIPayerReportStore_CreatePayerReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIPayerReportStore_CreatePayerReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport, *envelopes.PayerEnvelope) (payerreport.ReportID, error)) *MockIPayerReportStore_CreatePayerReport_Call {
+func (_c *MockIPayerReportStore_CreatePayerReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport, *envelopes.PayerEnvelope) (*payerreport.ReportID, error)) *MockIPayerReportStore_CreatePayerReport_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -396,17 +399,17 @@ func (_c *MockIPayerReportStore_StoreSyncedAttestation_Call) RunAndReturn(run fu
 	return _c
 }
 
-// StoreSyncedReport provides a mock function with given fields: ctx, envelope, payerID
-func (_m *MockIPayerReportStore) StoreSyncedReport(ctx context.Context, envelope *envelopes.OriginatorEnvelope, payerID int32) error {
-	ret := _m.Called(ctx, envelope, payerID)
+// StoreSyncedReport provides a mock function with given fields: ctx, envelope, payerID, domainSeparator
+func (_m *MockIPayerReportStore) StoreSyncedReport(ctx context.Context, envelope *envelopes.OriginatorEnvelope, payerID int32, domainSeparator common.Hash) error {
+	ret := _m.Called(ctx, envelope, payerID, domainSeparator)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreSyncedReport")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *envelopes.OriginatorEnvelope, int32) error); ok {
-		r0 = rf(ctx, envelope, payerID)
+	if rf, ok := ret.Get(0).(func(context.Context, *envelopes.OriginatorEnvelope, int32, common.Hash) error); ok {
+		r0 = rf(ctx, envelope, payerID, domainSeparator)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -423,13 +426,14 @@ type MockIPayerReportStore_StoreSyncedReport_Call struct {
 //   - ctx context.Context
 //   - envelope *envelopes.OriginatorEnvelope
 //   - payerID int32
-func (_e *MockIPayerReportStore_Expecter) StoreSyncedReport(ctx interface{}, envelope interface{}, payerID interface{}) *MockIPayerReportStore_StoreSyncedReport_Call {
-	return &MockIPayerReportStore_StoreSyncedReport_Call{Call: _e.mock.On("StoreSyncedReport", ctx, envelope, payerID)}
+//   - domainSeparator common.Hash
+func (_e *MockIPayerReportStore_Expecter) StoreSyncedReport(ctx interface{}, envelope interface{}, payerID interface{}, domainSeparator interface{}) *MockIPayerReportStore_StoreSyncedReport_Call {
+	return &MockIPayerReportStore_StoreSyncedReport_Call{Call: _e.mock.On("StoreSyncedReport", ctx, envelope, payerID, domainSeparator)}
 }
 
-func (_c *MockIPayerReportStore_StoreSyncedReport_Call) Run(run func(ctx context.Context, envelope *envelopes.OriginatorEnvelope, payerID int32)) *MockIPayerReportStore_StoreSyncedReport_Call {
+func (_c *MockIPayerReportStore_StoreSyncedReport_Call) Run(run func(ctx context.Context, envelope *envelopes.OriginatorEnvelope, payerID int32, domainSeparator common.Hash)) *MockIPayerReportStore_StoreSyncedReport_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*envelopes.OriginatorEnvelope), args[2].(int32))
+		run(args[0].(context.Context), args[1].(*envelopes.OriginatorEnvelope), args[2].(int32), args[3].(common.Hash))
 	})
 	return _c
 }
@@ -439,7 +443,7 @@ func (_c *MockIPayerReportStore_StoreSyncedReport_Call) Return(_a0 error) *MockI
 	return _c
 }
 
-func (_c *MockIPayerReportStore_StoreSyncedReport_Call) RunAndReturn(run func(context.Context, *envelopes.OriginatorEnvelope, int32) error) *MockIPayerReportStore_StoreSyncedReport_Call {
+func (_c *MockIPayerReportStore_StoreSyncedReport_Call) RunAndReturn(run func(context.Context, *envelopes.OriginatorEnvelope, int32, common.Hash) error) *MockIPayerReportStore_StoreSyncedReport_Call {
 	_c.Call.Return(run)
 	return _c
 }

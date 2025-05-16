@@ -26,7 +26,9 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 - [Docker](https://www.docker.com/get-started/)
 - [Foundry](https://github.com/foundry-rs/foundry)
 
-## Install and build dependencies
+## Quickstart
+
+### Install and build dependencies
 
 To install dependencies and build background services needed by the node, run:
 
@@ -46,7 +48,7 @@ To stop the background services running in Docker, run:
 dev/down
 ```
 
-## Start the node
+### Start the node
 
 To start the `xmtpd` node, run:
 
@@ -54,7 +56,7 @@ To start the `xmtpd` node, run:
 dev/run
 ```
 
-## Test the node
+### Test the node
 
 To run tests against the `xmtpd` node, run:
 
@@ -64,20 +66,37 @@ dev/test
 
 These tests provide a full suite of unit and integration tests for the `xmtpd` repo to help ensure and maintain correctness of the code over time and to avoid regressions as the code evolves. You can explore the tests by taking a look at any files with the suffix `_test.go`.
 
-## Monitor the node
+### Monitor the node
 
 To enable metrics you need to start the node with `--metrics.enable`.
+
 By default, we expose Prometheus metrics on port `8008`.
 
 ```sh
 curl http://localhost:8008
 ```
 
-# Contributing
+## Deploy an xmtpd node to XMTP testnet
+
+See [Deploy an xmtpd node to XMTP testnet](/doc/deploy.md).
+
+## Support a new XMTP testnet node operator
+
+See [Support a new XMTP testnet node operator](/doc/onboarding.md).
+
+## Migrate to XMTP node registry V2
+
+See [Node Registry Migration](doc/node-registry-migration-v2.md).
+
+## Metrics catalog
+
+See [Metrics catalog](doc/metrics_catalog.md).
+
+## Contributing
 
 Please follow the [style guide](https://google.github.io/styleguide/go/decisions).
 
-## Modifying the protobuf schema
+### Modifying the protobuf schema
 
 Submit and land a PR to https://github.com/xmtp/proto. Then run:
 
@@ -87,7 +106,7 @@ dev/gen/all
 
 Or wait for the [nightly automation](https://github.com/xmtp/xmtpd/actions/workflows/nightly.yml) to finish.
 
-## Modifying the database schema
+### Modify the database schema
 
 Create a new migration by running:
 
@@ -97,7 +116,7 @@ dev/gen/migration {migration-name}
 
 Fill in the migrations in the generated files. If you are unfamiliar with migrations, you may follow [this guide](https://github.com/golang-migrate/migrate/blob/master/MIGRATIONS.md). The database is PostgreSQL and the driver is PGX.
 
-## Modifying database queries
+### Modify database queries
 
 We use [sqlc](https://docs.sqlc.dev/en/latest/index.html) to generate the code for our DB queries. Modify the `queries.sql` file, and then run:
 

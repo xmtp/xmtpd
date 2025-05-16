@@ -1,49 +1,48 @@
-# How to deploy a local environment
+# Deploy an xmtpd node to XMTP testnet
 
-**⚠️ Experimental:** warning, this file might be out of date!
+**⚠️ Experimental:** This file might be out of date!
 
-## XMTP Sepolia information
+The XMTP testnet environment lives in [XMTP Sepolia Chain](https://xmtp-testnet.explorer.alchemy.com/).
 
-The current testnet environment lives in [XMTP Sepolia Chain](https://xmtp-testnet.explorer.alchemy.com/).
+The XMTP testnet nodes operated by Ephemera include:
 
-### Deploy XMTPD nodes
-
-Node deployment is currently fully handled by [Ephemera](https://github.com/ephemeraHQ) and only members of `@ephemerahq/backend` have access to it.
-
-The nodes run by Ephemera are:
-
-| DNS Name                           | Location   | Public Key                                                           |
+| DNS name                           | Location   | Public key                                                           |
 | ---------------------------------- | ---------- | -------------------------------------------------------------------- |
 | https://grpc.testnet.xmtp.network  | US-EAST-2  | 0x03e5442c5d1fe2f02b6b9a1a386383a7766860b40a6079a0223994ffa2ce10512c |
 | https://grpc2.testnet.xmtp.network | EU-NORTH-1 | 0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371 |
 
-For more info, refer to the infrastructure README.
+## Deploy a local development environment
 
-## Local developer environment
+Use one of the following methods to deploy a local development environment:
 
-Refer to [XMTP Contracts](https://github.com/xmtp/smart-contracts) for further information regarding the on-chain protocol, deployments and source code.
-
-There are two ways of deploying a local environment:
-
+- Use the XMTP Contracts Image
+- Use the `dev/up` automation
+  
 ### Use the XMTP Contracts Image
 
-The [XMTP Contracts Image](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image) can be used to deploy a local environment and test `xmtpd` with it.
+You can use the XMTP Contracts Image to deploy a local development environment, and test `xmtpd` with it. 
 
-The documentation contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
+The XMTP Contracts Image [documentation]([XMTP Contracts Image](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image)) contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
 
-`dev/local.env` contains by default sane values for local deployments. Modify what is necessary.
+By default, `dev/local.env` contains sane values for local deployments. Modify what's necessary.
+
+For more information about the onchain protocol, deployments, and source code, see the XMTP [smart-contracts](https://github.com/xmtp/smart-contracts) repo.
 
 ### Use the dev/up automation
 
-Use the script provided in `dev/up`, which will automatically handle the deployment for you. The blockchain is started at <http://localhost:7545/>
+Use the script provided in `dev/up` to automatically handle the deployment for you. The blockchain starts at <http://localhost:7545/>.
 
-This method automatically pre-register two nodes.
+This method automatically pre-registers two nodes.
 
-### Register nodes manually
+## Register a node
 
-Before nodes can start or peer, they need to be registered with the contract.
+Before a node can start or peer on the XMTP testnet, you must first register it with the contract.
 
-To do so, run:
+All node registration for the XMTP testnet is currently handled by [Ephemera](https://github.com/ephemeraHQ) and members of `@ephemerahq/backend`.
+
+Be sure to register nodes with their correct public key and address as they are immutable and cannot be changed in the future.
+
+To register a node, run:
 
 ```shell
 # Modify environment variables to match your local environment.
@@ -62,11 +61,9 @@ dev/cmd/cli register-node \
     --node-signing-key-pub=${NODE_SIGNING_KEY_PUB}
 ```
 
-You need to register all (both) nodes with their correct DNS entries and public keys.
+### Verify node registration
 
-### Verify a node registration
-
-To verify registration, use:
+To verify node registration, run:
 
 ```shell
 export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
@@ -78,7 +75,7 @@ dev/cmd/get-all-nodes \
     --admin.private-key=$PRIVATE_KEY
 ```
 
-And you should get something along these lines:
+The response should look something like this:
 
 ```json
 {
@@ -107,9 +104,11 @@ And you should get something along these lines:
 }
 ```
 
-### Verify deployed nodes
+### Verify node deployment
 
-The easiest way is to use [GRPC Health Probe](https://github.com/grpc-ecosystem/grpc-health-probe)
+The easiest way to verify node deployment is to use the [gRPC Health Probe](https://github.com/grpc-ecosystem/grpc-health-probe).
+
+For example, you can run:
 
 ```shell
 grpc-health-probe -tls -addr grpc.testnet.xmtp.network:443
@@ -120,3 +119,21 @@ status: SERVING
 grpc-health-probe -tls -addr grpc2.testnet.xmtp.network:443
 status: SERVING
 ```
+
+## Deploy a new XMTP testnet contract
+
+The current environment lives in [Conduit Testnet Staging](https://explorer-testnet-staging-88dqtxdinc.t.conduit.xyz/).
+
+To deploy a new contract, run:
+
+```bash
+./contracts/dev/deploy-testnet 
+```
+
+You will need to provide the following:
+
+- $PRIVATE_KEY which is accessible to all members of @ephemerahq/backend
+- $VERIFIER_URL: https://explorer-testnet-staging-88dqtxdinc.t.conduit.xyz/api
+- $RPC_URL: https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/
+
+If the contract gets deployed correctly, th eprocess will return a few addresses. You definitely need the node contract address, for example `0x7c9A7c92e21E9aC25Ce26C5e724920D84BD5BD9b`.

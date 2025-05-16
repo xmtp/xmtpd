@@ -1,3 +1,7 @@
+# Metrics catalog
+
+This document catalogs the Prometheus metrics instrumentation for xmptd.
+
 | Name | Type | Description | File |
 |------|------|-------------|------|
 | `xmtp_api_failed_grpc_requests_counter` | `Counter` | Number of failed GRPC requests by code | `pkg/metrics/api.go` |

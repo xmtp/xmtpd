@@ -6,7 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
+	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -128,7 +132,11 @@ func (w *attestationWorker) attestReport(report *payerreport.PayerReportWithStat
 		return err
 	}
 
-	return w.submitAttestation(report, isValid)
+	if isValid {
+		return w.submitAttestation(report)
+	}
+
+	return w.rejectAttestation(report)
 }
 
 // getPreviousReport retrieves the previous report for a given current report.
@@ -161,20 +169,62 @@ func (w *attestationWorker) getPreviousReport(
 // Save the attestation to the database and set the status
 func (w *attestationWorker) submitAttestation(
 	report *payerreport.PayerReportWithStatus,
-	isValid bool,
 ) error {
-	// TODO:nm save the attestation to the DB so that it can be replicated to other nodes
-	var newStatus payerreport.AttestationStatus
-	if isValid {
-		newStatus = payerreport.AttestationApproved
-	} else {
-		newStatus = payerreport.AttestationRejected
+	nodeSignature, err := w.registrant.SignPayerReportAttestation(report.ID)
+	if err != nil {
+		return err
+	}
+	attestation := payerreport.NewPayerReportAttestation(
+		&report.PayerReport,
+		nodeSignature,
+	)
+
+	clientEnvelope, err := attestation.ToClientEnvelope()
+	if err != nil {
+		return err
 	}
 
+	// Get a signed Payer Envelope, using the node's private key as the payer
+	payerEnvelope, err := w.signClientEnvelope(clientEnvelope)
+	if err != nil {
+		return err
+	}
+
+	return w.store.CreateAttestation(w.ctx, attestation, payerEnvelope)
+}
+
+func (w *attestationWorker) signClientEnvelope(
+	clientEnvelope *envelopes.ClientEnvelope,
+) (*envelopes.PayerEnvelope, error) {
+	envelopeBytes, err := clientEnvelope.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	originatorID := w.registrant.NodeID()
+
+	payerSignature, err := w.registrant.SignClientEnvelopeToSelf(envelopeBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	protoEnvelope := envelopesProto.PayerEnvelope{
+		UnsignedClientEnvelope: envelopeBytes,
+		PayerSignature: &associations.RecoverableEcdsaSignature{
+			Bytes: payerSignature,
+		},
+		TargetOriginator:     originatorID,
+		MessageRetentionDays: constants.DEFAULT_STORAGE_DURATION_DAYS,
+	}
+
+	return envelopes.NewPayerEnvelope(&protoEnvelope)
+}
+
+func (w *attestationWorker) rejectAttestation(report *payerreport.PayerReportWithStatus) error {
 	return w.store.SetReportAttestationStatus(
 		w.ctx,
 		report.ID,
 		[]payerreport.AttestationStatus{payerreport.AttestationPending},
-		newStatus,
+		payerreport.AttestationRejected,
 	)
 }

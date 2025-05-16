@@ -12,12 +12,11 @@ import (
 )
 
 type SerializableNode struct {
-	NodeID                    uint32 `json:"node_id"`
-	OwnerAddress              string `json:"owner_address"`
-	SigningKeyPub             string `json:"signing_key_pub"`
-	HttpAddress               string `json:"http_address"`
-	MinMonthlyFeeMicroDollars int64  `json:"min_monthly_fee_micro_dollars"`
-	InCanonicalNetwork        bool   `json:"in_canonical_network"`
+	NodeID             uint32 `json:"node_id"`
+	OwnerAddress       string `json:"owner_address"`
+	SigningKeyPub      string `json:"signing_key_pub"`
+	HttpAddress        string `json:"http_address"`
+	InCanonicalNetwork bool   `json:"in_canonical_network"`
 }
 
 func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]SerializableNode, error) {
@@ -28,23 +27,22 @@ func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]Serializabl
 
 	serializableNodes := make([]SerializableNode, len(nodes))
 	for i, node := range nodes {
-		owner, err := chainCaller.OwnerOf(context.Background(), node.NodeId.Int64())
+		owner, err := chainCaller.OwnerOf(context.Background(), node.NodeId)
 		if err != nil {
 			return nil, err
 		}
 
-		pubKey, err := crypto.UnmarshalPubkey(node.Node.SigningKeyPub)
+		pubKey, err := crypto.UnmarshalPubkey(node.Node.SigningPublicKey)
 		if err != nil {
 			return nil, err
 		}
 
 		serializableNodes[i] = SerializableNode{
-			NodeID:                    uint32(node.NodeId.Int64()),
-			OwnerAddress:              owner.Hex(),
-			SigningKeyPub:             utils.EcdsaPublicKeyToString(pubKey),
-			HttpAddress:               node.Node.HttpAddress,
-			MinMonthlyFeeMicroDollars: node.Node.MinMonthlyFeeMicroDollars.Int64(),
-			InCanonicalNetwork:        node.Node.InCanonicalNetwork,
+			NodeID:             node.NodeId,
+			OwnerAddress:       owner.Hex(),
+			SigningKeyPub:      utils.EcdsaPublicKeyToString(pubKey),
+			HttpAddress:        node.Node.HttpAddress,
+			InCanonicalNetwork: node.Node.IsCanonical,
 		}
 	}
 
@@ -69,7 +67,6 @@ func WriteToRegistry(
 			node.OwnerAddress,
 			signingKey,
 			node.HttpAddress,
-			node.MinMonthlyFeeMicroDollars,
 		)
 		if err != nil {
 			return err

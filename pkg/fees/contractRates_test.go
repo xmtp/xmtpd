@@ -20,9 +20,9 @@ func buildFetcher(t *testing.T) (*ContractRatesFetcher, *feesMock.MockRatesContr
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fetcher := &ContractRatesFetcher{
-		logger:          testutils.NewLog(t),
-		ctx:             ctx,
-		contract:        mockContract,
+		logger: testutils.NewLog(t),
+		ctx:    ctx,
+		// TODO Mkysel ugh??? contract:        mockContract,
 		refreshInterval: 100 * time.Millisecond,
 	}
 
@@ -31,8 +31,8 @@ func buildFetcher(t *testing.T) (*ContractRatesFetcher, *feesMock.MockRatesContr
 	}
 }
 
-func buildRates(fees uint64, startTime uint64) rateregistry.RateRegistryRates {
-	return rateregistry.RateRegistryRates{
+func buildRates(fees uint64, startTime uint64) rateregistry.IRateRegistryRates {
+	return rateregistry.IRateRegistryRates{
 		MessageFee:          fees,
 		StorageFee:          fees,
 		CongestionFee:       fees,
@@ -46,7 +46,7 @@ func TestLoadGetRates(t *testing.T) {
 	defer cancel()
 
 	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0)).Return(ratesResponse{
-		Rates:   []rateregistry.RateRegistryRates{buildRates(100, 1), buildRates(200, 2)},
+		Rates:   []rateregistry.IRateRegistryRates{buildRates(100, 1), buildRates(200, 2)},
 		HasMore: false,
 	}, nil)
 
@@ -64,12 +64,12 @@ func TestCanPaginate(t *testing.T) {
 	defer cancel()
 
 	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0)).Return(ratesResponse{
-		Rates:   []rateregistry.RateRegistryRates{buildRates(100, 1), buildRates(200, 2)},
+		Rates:   []rateregistry.IRateRegistryRates{buildRates(100, 1), buildRates(200, 2)},
 		HasMore: true,
 	}, nil).Times(1)
 
 	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(2)).Return(ratesResponse{
-		Rates:   []rateregistry.RateRegistryRates{buildRates(300, 3)},
+		Rates:   []rateregistry.IRateRegistryRates{buildRates(300, 3)},
 		HasMore: false,
 	}, nil).Times(1)
 
@@ -86,7 +86,7 @@ func TestGetRates(t *testing.T) {
 	defer cancel()
 
 	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0)).Return(ratesResponse{
-		Rates: []rateregistry.RateRegistryRates{
+		Rates: []rateregistry.IRateRegistryRates{
 			buildRates(100, 100),
 			buildRates(200, 200),
 			buildRates(300, 300),
@@ -122,7 +122,7 @@ func TestFailIfNoRates(t *testing.T) {
 	defer cancel()
 
 	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0)).Return(ratesResponse{
-		Rates:   []rateregistry.RateRegistryRates{},
+		Rates:   []rateregistry.IRateRegistryRates{},
 		HasMore: false,
 	}, nil)
 
@@ -134,7 +134,7 @@ func TestGetRatesBeforeFirstRate(t *testing.T) {
 	defer cancel()
 
 	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0)).Return(ratesResponse{
-		Rates: []rateregistry.RateRegistryRates{
+		Rates: []rateregistry.IRateRegistryRates{
 			buildRates(100, 100),
 			buildRates(200, 200),
 			buildRates(300, 300),

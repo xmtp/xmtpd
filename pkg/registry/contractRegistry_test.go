@@ -3,7 +3,6 @@ package registry_test
 import (
 	"context"
 	"encoding/hex"
-	"math/big"
 	"math/rand"
 	"testing"
 	"time"
@@ -53,21 +52,19 @@ func TestContractRegistryNewNodes(t *testing.T) {
 		GetAllNodes(mock.Anything).
 		Return([]noderegistry.INodeRegistryNodeWithId{
 			{
-				NodeId: big.NewInt(1),
+				NodeId: 1,
 				Node: noderegistry.INodeRegistryNode{
-					HttpAddress:               "http://foo.com",
-					SigningKeyPub:             enc,
-					InCanonicalNetwork:        true,
-					MinMonthlyFeeMicroDollars: big.NewInt(1000000),
+					HttpAddress:      "http://foo.com",
+					SigningPublicKey: enc,
+					IsCanonical:      true,
 				},
 			},
 			{
-				NodeId: big.NewInt(2),
+				NodeId: 2,
 				Node: noderegistry.INodeRegistryNode{
-					HttpAddress:               "https://bar.com",
-					SigningKeyPub:             enc,
-					InCanonicalNetwork:        true,
-					MinMonthlyFeeMicroDollars: big.NewInt(1000000),
+					HttpAddress:      "https://bar.com",
+					SigningPublicKey: enc,
+					IsCanonical:      true,
 				},
 			},
 		}, nil)
@@ -117,12 +114,11 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 			}
 			return []noderegistry.INodeRegistryNodeWithId{
 				{
-					NodeId: big.NewInt(1),
+					NodeId: 1,
 					Node: noderegistry.INodeRegistryNode{
-						HttpAddress:               httpAddress,
-						SigningKeyPub:             enc,
-						InCanonicalNetwork:        true,
-						MinMonthlyFeeMicroDollars: big.NewInt(1000000),
+						HttpAddress:      httpAddress,
+						SigningPublicKey: enc,
+						IsCanonical:      true,
 					},
 				},
 			}, nil
@@ -169,12 +165,11 @@ func TestStopOnContextCancel(t *testing.T) {
 		RunAndReturn(func(*bind.CallOpts) ([]noderegistry.INodeRegistryNodeWithId, error) {
 			return []noderegistry.INodeRegistryNodeWithId{
 				{
-					NodeId: big.NewInt(rand.Int63n(1000)),
+					NodeId: uint32(rand.Int31n(1000)),
 					Node: noderegistry.INodeRegistryNode{
-						HttpAddress:               "http://foo.com",
-						SigningKeyPub:             enc,
-						InCanonicalNetwork:        true,
-						MinMonthlyFeeMicroDollars: big.NewInt(1000000),
+						HttpAddress:      "http://foo.com",
+						SigningPublicKey: enc,
+						IsCanonical:      true,
 					},
 				},
 			}, nil

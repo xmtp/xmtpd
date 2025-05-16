@@ -21,14 +21,14 @@ const MAX_REFRESH_INTERVAL = 60 * time.Minute
 // Dumbed down version of the RatesManager contract interface
 type RatesContract interface {
 	GetRates(opts *bind.CallOpts, fromIndex *big.Int) (struct {
-		Rates   []rateregistry.RateRegistryRates
+		Rates   []rateregistry.IRateRegistryRates
 		HasMore bool
 	}, error)
 }
 
 // ratesResponse is an alias for the return type of GetRates to improve readability
 type ratesResponse struct {
-	Rates   []rateregistry.RateRegistryRates
+	Rates   []rateregistry.IRateRegistryRates
 	HasMore bool
 }
 
@@ -43,7 +43,7 @@ type ContractRatesFetcher struct {
 	ctx             context.Context
 	wg              sync.WaitGroup
 	logger          *zap.Logger
-	contract        RatesContract
+	contract        *rateregistry.RateRegistryCaller
 	rates           []*indexedRates
 	refreshInterval time.Duration
 	lastRefresh     time.Time
@@ -93,34 +93,31 @@ func (c *ContractRatesFetcher) Start() error {
 
 // refreshData fetches all rates from the smart contract and validates them
 func (c *ContractRatesFetcher) refreshData() error {
-	var resp struct {
-		Rates   []rateregistry.RateRegistryRates
-		HasMore bool
-	}
 	var err error
 
 	fromIndex := big.NewInt(0)
 	newRates := make([]*indexedRates, 0)
-	for {
-		c.logger.Info("getting page", zap.Int64("fromIndex", fromIndex.Int64()))
-		if resp, err = c.contract.GetRates(&bind.CallOpts{Context: c.ctx}, fromIndex); err != nil {
-			c.logger.Error(
-				"error calling contract",
-				zap.Error(err),
-				zap.Int64("fromIndex", fromIndex.Int64()),
-			)
-			return err
-		}
-
-		newRates = append(newRates, transformRates(resp.Rates)...)
-		fromIndex = fromIndex.Add(fromIndex, big.NewInt(int64(len(resp.Rates))))
-
-		if !resp.HasMore {
-			c.logger.Info("no more pages", zap.Int("numRates", len(newRates)))
-			break
-		}
-		c.logger.Info("getting next page")
+	// for {
+	c.logger.Info("getting page", zap.Int64("fromIndex", fromIndex.Int64()))
+	resp, err := c.contract.GetRates(&bind.CallOpts{Context: c.ctx}, fromIndex, big.NewInt(1))
+	if err != nil {
+		c.logger.Error(
+			"error calling contract",
+			zap.Error(err),
+			zap.Int64("fromIndex", fromIndex.Int64()),
+		)
+		return err
 	}
+
+	newRates = append(newRates, transformRates(resp)...)
+	// fromIndex = fromIndex.Add(fromIndex, big.NewInt(int64(len(resp))))
+
+	c.logger.Info("getting next page")
+
+	// TODO mkysel fix paging
+	//	break
+
+	//}
 
 	if err = validateRates(newRates); err != nil {
 		c.logger.Error("failed to validate rates", zap.Error(err))
@@ -202,7 +199,7 @@ func (c *ContractRatesFetcher) refreshLoop() {
 	}
 }
 
-func transformRates(rates []rateregistry.RateRegistryRates) []*indexedRates {
+func transformRates(rates []rateregistry.IRateRegistryRates) []*indexedRates {
 	newIndexedRates := make([]*indexedRates, len(rates))
 	for i, rate := range rates {
 		newIndexedRates[i] = &indexedRates{

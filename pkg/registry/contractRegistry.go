@@ -235,7 +235,7 @@ func convertNode(rawNode noderegistry.INodeRegistryNodeWithId) Node {
 	// Unmarshal the signing key.
 	// If invalid, mark the config as being invalid as well. Clients should treat the
 	// node as unhealthy in this case
-	signingKey, err := crypto.UnmarshalPubkey(rawNode.Node.SigningKeyPub)
+	signingKey, err := crypto.UnmarshalPubkey(rawNode.Node.SigningPublicKey)
 	isValidConfig := err == nil
 
 	httpAddress := rawNode.Node.HttpAddress
@@ -245,17 +245,16 @@ func convertNode(rawNode noderegistry.INodeRegistryNodeWithId) Node {
 		isValidConfig = false
 	}
 
-	if !rawNode.Node.InCanonicalNetwork {
+	if !rawNode.Node.IsCanonical {
 		isValidConfig = false
 	}
 
 	return Node{
-		NodeID:                    uint32(rawNode.NodeId.Uint64()),
-		SigningKey:                signingKey,
-		HttpAddress:               httpAddress,
-		InCanonicalNetwork:        rawNode.Node.InCanonicalNetwork,
-		MinMonthlyFeeMicroDollars: rawNode.Node.MinMonthlyFeeMicroDollars,
-		IsValidConfig:             isValidConfig,
+		NodeID:        rawNode.NodeId,
+		SigningKey:    signingKey,
+		HttpAddress:   httpAddress,
+		IsCanonical:   rawNode.Node.IsCanonical,
+		IsValidConfig: isValidConfig,
 	}
 }
 

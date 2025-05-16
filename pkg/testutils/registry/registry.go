@@ -3,7 +3,6 @@ package registry
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"math/big"
 	"testing"
 
 	registryMocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
@@ -12,12 +11,11 @@ import (
 
 func CreateNode(nodeID uint32, port int, privateKey *ecdsa.PrivateKey) r.Node {
 	return r.Node{
-		NodeID:                    nodeID,
-		SigningKey:                &privateKey.PublicKey,
-		HttpAddress:               fmt.Sprintf("http://localhost:%d", port),
-		InCanonicalNetwork:        true,
-		MinMonthlyFeeMicroDollars: big.NewInt(0),
-		IsValidConfig:             true,
+		NodeID:        nodeID,
+		SigningKey:    &privateKey.PublicKey,
+		HttpAddress:   fmt.Sprintf("http://localhost:%d", port),
+		IsCanonical:   true,
+		IsValidConfig: true,
 	}
 }
 

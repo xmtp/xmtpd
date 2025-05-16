@@ -3,7 +3,6 @@ package registry
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -14,12 +13,11 @@ import (
 type DialOptionFunc func(node Node) []grpc.DialOption
 
 type Node struct {
-	NodeID                    uint32
-	SigningKey                *ecdsa.PublicKey
-	HttpAddress               string
-	InCanonicalNetwork        bool
-	MinMonthlyFeeMicroDollars *big.Int
-	IsValidConfig             bool
+	NodeID        uint32
+	SigningKey    *ecdsa.PublicKey
+	HttpAddress   string
+	IsCanonical   bool
+	IsValidConfig bool
 }
 
 func (n *Node) Equals(other Node) bool {
@@ -33,8 +31,7 @@ func (n *Node) Equals(other Node) bool {
 	return n.NodeID == other.NodeID &&
 		n.HttpAddress == other.HttpAddress &&
 		equalsSigningKey &&
-		n.InCanonicalNetwork == other.InCanonicalNetwork &&
-		n.MinMonthlyFeeMicroDollars.Cmp(other.MinMonthlyFeeMicroDollars) == 0 &&
+		n.IsCanonical == other.IsCanonical &&
 		n.IsValidConfig == other.IsValidConfig
 }
 

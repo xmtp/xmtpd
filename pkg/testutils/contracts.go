@@ -1,33 +1,20 @@
 package testutils
 
 import (
-	"math/big"
 	"testing"
-	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
-	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
-	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	ANVIL_LOCALNET_HOST            = "http://localhost:7545"
-	ANVIL_LOCALNET_CHAIN_ID        = 31337
-	LOCAL_PRIVATE_KEY              = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	NODES_CONTRACT_NAME            = "NodeRegistry"
-	GROUP_MESSAGES_CONTRACT_NAME   = "GroupMessages"
-	IDENTITY_UPDATES_CONTRACT_NAME = "IdentityUpdates"
-	RATES_REGISTRY_CONTRACT_NAME   = "RatesRegistry"
+	LOCAL_PRIVATE_KEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
 // Build an abi encoded MessageSent event struct
@@ -97,96 +84,4 @@ func BuildIdentityUpdateLog(
 		Topics: []common.Hash{topic},
 		Data:   eventData,
 	}
-}
-
-/*
-*
-Deploy a contract and return the contract's address. Will return a different address for each run, making it suitable for testing
-*
-*/
-func deployContract(t *testing.T, contractName, rpcUrl string) string {
-	retryMax := 10
-	retry := 0
-	var err error
-
-	var addr common.Address
-
-	for retry < retryMax {
-		if err != nil {
-			retry++
-			t.Logf("Error deploying contract, retrying: %v. Attempt (%d/%d)", err, retry, retryMax)
-			time.Sleep(10 * time.Millisecond)
-		}
-
-		var client *ethclient.Client
-		client, err = ethclient.Dial(rpcUrl)
-		if err != nil {
-			continue
-		}
-
-		privateKey, err := crypto.HexToECDSA(LOCAL_PRIVATE_KEY)
-		if err != nil {
-			continue
-		}
-
-		auth, err := bind.NewKeyedTransactorWithChainID(
-			privateKey,
-			big.NewInt(ANVIL_LOCALNET_CHAIN_ID),
-		)
-		if err != nil {
-			continue
-		}
-
-		switch contractName {
-		case NODES_CONTRACT_NAME:
-			addr, _, _, err = noderegistry.DeployNodeRegistry(auth, client, auth.From)
-		case GROUP_MESSAGES_CONTRACT_NAME:
-			addr, _, _, err = gm.DeployGroupMessageBroadcaster(auth, client)
-			require.NoError(t, err)
-			var contract *gm.GroupMessageBroadcaster
-			contract, err = gm.NewGroupMessageBroadcaster(addr, client)
-			require.NoError(t, err)
-			_, err = contract.Initialize(auth, auth.From)
-		case IDENTITY_UPDATES_CONTRACT_NAME:
-			addr, _, _, err = iu.DeployIdentityUpdateBroadcaster(auth, client)
-			require.NoError(t, err)
-			var contract *iu.IdentityUpdateBroadcaster
-			contract, err = iu.NewIdentityUpdateBroadcaster(addr, client)
-			require.NoError(t, err)
-			_, err = contract.Initialize(auth, auth.From)
-		case RATES_REGISTRY_CONTRACT_NAME:
-			addr, _, _, err = rateregistry.DeployRateRegistry(auth, client)
-			require.NoError(t, err)
-			var contract *rateregistry.RateRegistry
-			contract, err = rateregistry.NewRateRegistry(addr, client)
-			require.NoError(t, err)
-			_, err = contract.Initialize(auth, auth.From)
-		default:
-			t.Fatalf("Unknown contract name: %s", contractName)
-		}
-
-		if err != nil {
-			continue
-		}
-
-		break
-	}
-
-	return addr.String()
-}
-
-func DeployNodesContract(t *testing.T, rpcUrl string) string {
-	return deployContract(t, NODES_CONTRACT_NAME, rpcUrl)
-}
-
-func DeployGroupMessagesContract(t *testing.T, rpcUrl string) string {
-	return deployContract(t, GROUP_MESSAGES_CONTRACT_NAME, rpcUrl)
-}
-
-func DeployIdentityUpdatesContract(t *testing.T, rpcUrl string) string {
-	return deployContract(t, IDENTITY_UPDATES_CONTRACT_NAME, rpcUrl)
-}
-
-func DeployRatesRegistryContract(t *testing.T, rpcUrl string) string {
-	return deployContract(t, RATES_REGISTRY_CONTRACT_NAME, rpcUrl)
 }

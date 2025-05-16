@@ -1,7 +1,9 @@
 services:
   register-node-1:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -18,6 +20,9 @@ services:
 
   enable-node-1:
     platform: linux/amd64
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
     profiles: ["single", "dual"]
     env_file:
@@ -36,7 +41,9 @@ services:
 
   register-node-2:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["dual"]
     env_file:
       - ../local.env
@@ -56,7 +63,9 @@ services:
 
   enable-node-2:
     platform: linux/amd64
-    image: ghcr.io/xmtp/xmtpd-cli:sha-a96bf04
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["dual"]
     env_file:
       - ../local.env

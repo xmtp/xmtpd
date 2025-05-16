@@ -15,7 +15,10 @@ services:
 
   chain:
     platform: linux/amd64
-    image: ghcr.io/xmtp/contracts:sha-cff29fc
+    #image: ghcr.io/xmtp/contracts:0.4.0
+    build:
+      dockerfile: dev/Dockerfile
+      context: /Users/martinkysel/work/smart-contracts
     ports:
       - 7545:8545
 

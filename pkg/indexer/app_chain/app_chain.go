@@ -58,7 +58,7 @@ func NewAppChain(
 		ctxwc,
 		client,
 		querier,
-		log,
+		chainLogger,
 		cfg.GroupMessageBroadcasterAddress,
 		cfg.ChainID,
 	)
@@ -73,7 +73,7 @@ func NewAppChain(
 		ctxwc,
 		client,
 		db,
-		log,
+		chainLogger,
 		validationService,
 		cfg.IdentityUpdateBroadcasterAddress,
 		cfg.ChainID,

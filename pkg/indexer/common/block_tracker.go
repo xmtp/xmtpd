@@ -32,6 +32,8 @@ type Block struct {
 
 var ErrEmptyBlockHash = errors.New("block hash is empty")
 
+var _ IBlockTracker = &BlockTracker{}
+
 // Return a new BlockTracker initialized to the latest block from the DB
 func NewBlockTracker(
 	ctx context.Context,

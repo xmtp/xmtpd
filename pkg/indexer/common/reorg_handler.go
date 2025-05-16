@@ -18,16 +18,18 @@ type ReorgHandler struct {
 	queries *queries.Queries
 }
 
-var (
-	ErrNoBlocksFound = errors.New("no blocks found")
-	ErrGetBlock      = errors.New("failed to get block")
-)
-
 // The indexer performs a reorg check every 60 blocks.
 // Setting BLOCK_RANGE_SIZE to 600 (10 cycles of 60 blocks)
 // allows us to retrieve a single page of blocks from the database,
 // which will likely contain the reorg point.
 const BLOCK_RANGE_SIZE uint64 = 600
+
+var (
+	ErrNoBlocksFound = errors.New("no blocks found")
+	ErrGetBlock      = errors.New("failed to get block")
+)
+
+var _ IReorgHandler = &ReorgHandler{}
 
 func NewChainReorgHandler(
 	ctx context.Context,

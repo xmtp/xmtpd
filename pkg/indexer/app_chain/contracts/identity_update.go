@@ -29,6 +29,8 @@ type IdentityUpdateBroadcaster struct {
 	c.ILogStorer
 }
 
+var _ c.IContract = &IdentityUpdateBroadcaster{}
+
 func NewIdentityUpdateBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,

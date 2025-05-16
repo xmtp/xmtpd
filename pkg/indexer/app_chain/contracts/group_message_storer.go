@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -20,6 +21,8 @@ const (
 	// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
 	GROUP_MESSAGE_ORIGINATOR_ID = 0
 )
+
+var _ c.ILogStorer = &GroupMessageStorer{}
 
 type GroupMessageStorer struct {
 	contract *gm.GroupMessageBroadcaster

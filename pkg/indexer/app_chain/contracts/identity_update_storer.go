@@ -16,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -36,6 +37,8 @@ type IdentityUpdateStorer struct {
 	logger            *zap.Logger
 	validationService mlsvalidate.MLSValidationService
 }
+
+var _ c.ILogStorer = &IdentityUpdateStorer{}
 
 func NewIdentityUpdateStorer(
 	db *sql.DB,

@@ -27,6 +27,8 @@ type GroupMessageBroadcaster struct {
 	c.ILogStorer
 }
 
+var _ c.IContract = &GroupMessageBroadcaster{}
+
 func NewGroupMessageBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,

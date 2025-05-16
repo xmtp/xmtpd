@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
@@ -26,9 +27,12 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	server1NodeID = uint32(100)
-	server2NodeID = uint32(200)
+var (
+	server1NodeID   = uint32(100)
+	server2NodeID   = uint32(200)
+	domainSeparator = common.HexToHash(
+		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
+	)
 )
 
 type multiNodeTestScaffold struct {
@@ -117,6 +121,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registry,
 		registrant1,
 		1*time.Hour,
+		domainSeparator,
 	)
 	reportGenerator2 := workers.NewGeneratorWorker(
 		t.Context(),
@@ -125,6 +130,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registry,
 		registrant2,
 		1*time.Hour,
+		domainSeparator,
 	)
 
 	attestationWorker1 := workers.NewAttestationWorker(
@@ -133,6 +139,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registrant1,
 		payerReportStore1,
 		1*time.Hour,
+		domainSeparator,
 	)
 	attestationWorker2 := workers.NewAttestationWorker(
 		t.Context(),
@@ -140,6 +147,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registrant2,
 		payerReportStore2,
 		1*time.Hour,
+		domainSeparator,
 	)
 
 	t.Cleanup(func() {

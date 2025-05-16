@@ -19,6 +19,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var domainSeparator = common.BytesToHash(testutils.RandomBytes(32))
+
 func setupGenerator(t *testing.T) (*sql.DB, *PayerReportGenerator) {
 	db, _ := testutils.NewDB(t, context.Background())
 
@@ -26,7 +28,12 @@ func setupGenerator(t *testing.T) (*sql.DB, *PayerReportGenerator) {
 		registryTestUtils.CreateNode(100, 100, testutils.RandomPrivateKey(t)),
 		registryTestUtils.CreateNode(200, 101, testutils.RandomPrivateKey(t)),
 	})
-	generator := NewPayerReportGenerator(testutils.NewLog(t), queries.New(db), registry)
+	generator := NewPayerReportGenerator(
+		testutils.NewLog(t),
+		queries.New(db),
+		registry,
+		domainSeparator,
+	)
 
 	return db, generator
 }

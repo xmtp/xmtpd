@@ -128,8 +128,7 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 	client, db, _ := setupTest(t)
 	insertInitialRows(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
@@ -148,8 +147,7 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 	client, store, _ := setupTest(t)
 	insertInitialRows(t, store)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
@@ -169,8 +167,7 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 	client, db, _ := setupTest(t)
 	insertInitialRows(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
@@ -190,8 +187,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	client, store, _ := setupTest(t)
 	insertInitialRows(t, store)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream1, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
@@ -232,8 +228,7 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 	client, store, _ := setupTest(t)
 	insertInitialRows(t, store)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
@@ -253,8 +248,7 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 	client, store, _ := setupTest(t)
 	insertInitialRows(t, store)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{

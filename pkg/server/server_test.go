@@ -70,8 +70,7 @@ func NewTestServer(
 }
 
 func TestCreateServer(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	dbs := testutils.NewDBs(t, ctx, 2)
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -176,8 +175,7 @@ func TestCreateServer(t *testing.T) {
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	dbs := testutils.NewDBs(t, ctx, 1)
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)

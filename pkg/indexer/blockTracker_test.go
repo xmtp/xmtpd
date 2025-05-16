@@ -1,7 +1,6 @@
 package indexer_test
 
 import (
-	"context"
 	"sync"
 	"testing"
 
@@ -16,8 +15,7 @@ import (
 const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 func TestInitialize(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
@@ -31,8 +29,7 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestUpdateLatestBlock(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
@@ -72,8 +69,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 }
 
 func TestConcurrentUpdates(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
@@ -120,8 +116,7 @@ func TestConcurrentUpdates(t *testing.T) {
 }
 
 func TestMultipleContractAddresses(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 

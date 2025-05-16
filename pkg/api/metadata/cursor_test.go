@@ -1,7 +1,6 @@
 package metadata_test
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 	"time"
@@ -106,8 +105,7 @@ func TestGetCursorBasic(t *testing.T) {
 	client, db, _ := setupTest(t)
 	insertInitialRows(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	cursor, err := client.GetSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
 
@@ -146,8 +144,7 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 	client, db, _ := setupTest(t)
 	insertInitialRows(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	stream, err := client.SubscribeSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
 	require.NoError(t, err)

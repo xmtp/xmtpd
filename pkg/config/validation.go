@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func ValidateServerOptions(options *ServerOptions) error {
@@ -93,7 +95,7 @@ func validateBlockchainConfig(
 	validateSettlementChainConfig(options, missingSet, customSet)
 
 	if options.Replication.Enable || options.Sync.Enable {
-		validateField(
+		validateHexAddress(
 			options.Contracts.SettlementChain.RateRegistryAddress,
 			"contracts.settlement-chain.rate-registry-address",
 			missingSet,
@@ -121,12 +123,12 @@ func validateAppChainConfig(
 		"contracts.app-chain.chain-id",
 		customSet,
 	)
-	validateField(
+	validateHexAddress(
 		options.Contracts.AppChain.GroupMessageBroadcasterAddress,
 		"contracts.app-chain.group-message-broadcaster-address",
 		missingSet,
 	)
-	validateField(
+	validateHexAddress(
 		options.Contracts.AppChain.IdentityUpdateBroadcasterAddress,
 		"contracts.app-chain.identity-update-broadcaster-address",
 		missingSet,
@@ -153,7 +155,7 @@ func validateSettlementChainConfig(
 		"contracts.settlement-chain.chain-id",
 		customSet,
 	)
-	validateField(
+	validateHexAddress(
 		options.Contracts.SettlementChain.NodeRegistryAddress,
 		"contracts.settlement-chain.node-registry-address",
 		missingSet,
@@ -213,5 +215,14 @@ func validateField(value interface{}, fieldName string, set map[string]struct{})
 		if v <= 0 {
 			set[fmt.Sprintf("--%s must be greater than 0", fieldName)] = struct{}{}
 		}
+	}
+}
+
+func validateHexAddress(address string, fieldName string, set map[string]struct{}) {
+	if address == "" {
+		set[fmt.Sprintf("--%s is required", fieldName)] = struct{}{}
+	}
+	if !common.IsHexAddress(address) || common.HexToAddress(address) == (common.Address{}) {
+		set[fmt.Sprintf("--%s is invalid", fieldName)] = struct{}{}
 	}
 }

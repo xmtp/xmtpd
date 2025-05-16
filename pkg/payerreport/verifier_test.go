@@ -371,6 +371,21 @@ func TestValidateMerkleRoot(t *testing.T) {
 		cost:         currency.PicoDollar(100),
 	})
 
+	validMerkleTree200, err := generateMerkleTree(payerMap{
+		payerAddress: currency.PicoDollar(200),
+	})
+	require.NoError(t, err)
+	validMerkleTree0, err := generateMerkleTree(payerMap{})
+	require.NoError(t, err)
+	invalidAmountTree, err := generateMerkleTree(payerMap{
+		payerAddress: currency.PicoDollar(400),
+	})
+	require.NoError(t, err)
+	invalidPayerTree, err := generateMerkleTree(payerMap{
+		testutils.RandomAddress(): currency.PicoDollar(100),
+	})
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name          string
 		report        *PayerReport
@@ -383,7 +398,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    0,
-				PayersMerkleRoot: buildMerkleRoot(map[common.Address]currency.PicoDollar{}),
+				PayersMerkleRoot: common.BytesToHash(validMerkleTree0.Root()),
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: true,
@@ -394,10 +409,8 @@ func TestValidateMerkleRoot(t *testing.T) {
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1,
-				PayersMerkleRoot: buildMerkleRoot(map[common.Address]currency.PicoDollar{
-					payerAddress: currency.PicoDollar(200),
-				}),
-				ActiveNodeIDs: []uint32{1},
+				PayersMerkleRoot: common.BytesToHash(validMerkleTree200.Root()),
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: true,
 		},
@@ -407,10 +420,8 @@ func TestValidateMerkleRoot(t *testing.T) {
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1,
-				PayersMerkleRoot: buildMerkleRoot(map[common.Address]currency.PicoDollar{
-					payerAddress: currency.PicoDollar(400), // Wrong amount
-				}),
-				ActiveNodeIDs: []uint32{1},
+				PayersMerkleRoot: common.BytesToHash(invalidAmountTree.Root()),
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
 			expectedError: ErrMerkleRootMismatch,
@@ -421,10 +432,8 @@ func TestValidateMerkleRoot(t *testing.T) {
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1,
-				PayersMerkleRoot: buildMerkleRoot(map[common.Address]currency.PicoDollar{
-					testutils.RandomAddress(): currency.PicoDollar(100), // Wrong payer
-				}),
-				ActiveNodeIDs: []uint32{1},
+				PayersMerkleRoot: common.BytesToHash(invalidPayerTree.Root()),
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
 			expectedError: ErrMerkleRootMismatch,
@@ -498,6 +507,11 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 		cost:         currency.PicoDollar(100),
 	})
 
+	validMerkleTree, err := generateMerkleTree(payerMap{
+		payerAddress: currency.PicoDollar(200),
+	})
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name          string
 		report        *PayerReport
@@ -510,10 +524,8 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1, // Last message of minute2
-				PayersMerkleRoot: buildMerkleRoot(map[common.Address]currency.PicoDollar{
-					payerAddress: currency.PicoDollar(200),
-				}),
-				ActiveNodeIDs: []uint32{1},
+				PayersMerkleRoot: common.BytesToHash(validMerkleTree.Root()),
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: true,
 		},
@@ -523,10 +535,8 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    2, // Not the last message of minute3
-				PayersMerkleRoot: buildMerkleRoot(map[common.Address]currency.PicoDollar{
-					payerAddress: currency.PicoDollar(100),
-				}),
-				ActiveNodeIDs: []uint32{1},
+				PayersMerkleRoot: common.BytesToHash(validMerkleTree.Root()),
+				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
 			expectedError: ErrMessageNotAtMinuteEnd,

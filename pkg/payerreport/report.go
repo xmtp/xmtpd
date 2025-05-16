@@ -3,6 +3,7 @@ package payerreport
 import (
 	"encoding/hex"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -17,6 +18,10 @@ import (
 
 // The arguments to use for hashing the payer report ID both on and off chain
 var payerReportMessageHash = abi.Arguments{
+	{
+		Name: "typeHash",
+		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
+	},
 	{
 		Name: "originatorNodeID",
 		Type: abi.Type{T: abi.UintTy, Size: 32},
@@ -34,8 +39,8 @@ var payerReportMessageHash = abi.Arguments{
 		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
 	},
 	{
-		Name: "activeNodeIds",
-		Type: abi.Type{T: abi.SliceTy, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
+		Name: "activeNodeIdsHash",
+		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
 	},
 }
 
@@ -145,14 +150,18 @@ func buildPayerReportID(
 		return nil, errors.New("domain separator is required")
 	}
 
+	nodeIdsHash := utils.PackAndHashNodeIDs(activeNodeIDs)
+
 	packedBytes, err := payerReportMessageHash.Pack(
+		PAYER_REPORT_DIGEST_TYPE_HASH,
 		originatorNodeID,
 		startSequenceID,
 		endSequenceID,
 		payersMerkleRoot,
-		activeNodeIDs,
+		nodeIdsHash,
 	)
 	if err != nil {
+		log.Printf("error packing payer report message hash: %v\n", err)
 		return nil, err
 	}
 	hash := utils.HashPayerReportInput(packedBytes, domainSeparator)
@@ -161,7 +170,11 @@ func buildPayerReportID(
 }
 
 func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, error) {
-	merkleRoot := buildMerkleRoot(params.Payers)
+	tree, err := generateMerkleTree(params.Payers)
+	if err != nil {
+		return nil, err
+	}
+	merkleRoot := common.BytesToHash(tree.Root())
 
 	reportID, err := buildPayerReportID(
 		params.OriginatorNodeID,
@@ -187,6 +200,6 @@ func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, er
 		},
 		Payers:     params.Payers,
 		NodeIDs:    params.NodeIDs,
-		MerkleTree: nil,
+		MerkleTree: tree,
 	}, nil
 }

@@ -53,4 +53,5 @@ type IBlockchainPublisher interface {
 
 type PayerReportsAdmin interface {
 	SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) error
+	GetDomainSeparator(ctx context.Context) (common.Hash, error)
 }

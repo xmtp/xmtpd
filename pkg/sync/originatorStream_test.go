@@ -20,6 +20,8 @@ import (
 	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 )
 
+var payerReportDomainSeparator = testutils.RandomDomainSeparator()
+
 func mockSubscriptionOnePage(
 	t *testing.T,
 	envs []*envelopes.OriginatorEnvelope,
@@ -59,6 +61,7 @@ func newTestOriginatorStream(
 		stream,
 		calculator,
 		payerreportMocks.NewMockIPayerReportStore(t),
+		payerReportDomainSeparator,
 	)
 }
 

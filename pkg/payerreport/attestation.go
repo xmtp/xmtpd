@@ -23,28 +23,20 @@ func NewPayerReportAttestation(
 	}
 }
 
-func (a *PayerReportAttestation) ToProto() (*proto.PayerReportAttestation, error) {
-	reportID, err := a.Report.ID()
-	if err != nil {
-		return nil, err
-	}
-
+func (a *PayerReportAttestation) ToProto() *proto.PayerReportAttestation {
 	return &proto.PayerReportAttestation{
-		ReportId: reportID[:],
+		ReportId: a.Report.ID[:],
 		Signature: &proto.NodeSignature{
 			NodeId: a.NodeSignature.NodeID,
 			Signature: &associations.RecoverableEcdsaSignature{
 				Bytes: a.NodeSignature.Signature,
 			},
 		},
-	}, nil
+	}
 }
 
 func (a *PayerReportAttestation) ToClientEnvelope() (*envelopes.ClientEnvelope, error) {
-	attestationProto, err := a.ToProto()
-	if err != nil {
-		return nil, err
-	}
+	attestationProto := a.ToProto()
 
 	targetTopic := topic.NewTopic(
 		topic.TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1,

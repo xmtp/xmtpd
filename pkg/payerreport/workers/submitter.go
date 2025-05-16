@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -20,6 +21,7 @@ type SubmitterWorker struct {
 	wg               *sync.WaitGroup
 	payerReportStore payerreport.IPayerReportStore
 	registry         registry.NodeRegistry
+	reportsAdmin     blockchain.PayerReportsAdmin
 }
 
 func NewSubmitterWorker(
@@ -94,7 +96,6 @@ func (w *SubmitterWorker) submitReports(ctx context.Context) error {
 	return nil
 }
 
-func (w *SubmitterWorker) submitReport(_ *payerreport.PayerReportWithStatus) error {
-	w.log.Warn("submission not hooked up yet!")
-	return nil
+func (w *SubmitterWorker) submitReport(report *payerreport.PayerReportWithStatus) error {
+	return w.reportsAdmin.SubmitPayerReport(w.ctx, report)
 }

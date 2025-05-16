@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -27,6 +28,7 @@ func NewSyncServer(
 	store *sql.DB,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
+	payerReportDomainSeparator common.Hash,
 ) (*SyncServer, error) {
 	worker, err := startSyncWorker(
 		ctx,
@@ -36,6 +38,7 @@ func NewSyncServer(
 		store,
 		feeCalculator,
 		payerReportStore,
+		payerReportDomainSeparator,
 	)
 	if err != nil {
 		return nil, err

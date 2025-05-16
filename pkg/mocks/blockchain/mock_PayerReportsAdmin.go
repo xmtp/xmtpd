@@ -5,7 +5,10 @@ package blockchain
 import (
 	context "context"
 
+	common "github.com/ethereum/go-ethereum/common"
+
 	mock "github.com/stretchr/testify/mock"
+
 	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
 )
 
@@ -20,6 +23,64 @@ type MockPayerReportsAdmin_Expecter struct {
 
 func (_m *MockPayerReportsAdmin) EXPECT() *MockPayerReportsAdmin_Expecter {
 	return &MockPayerReportsAdmin_Expecter{mock: &_m.Mock}
+}
+
+// GetDomainSeparator provides a mock function with given fields: ctx
+func (_m *MockPayerReportsAdmin) GetDomainSeparator(ctx context.Context) (common.Hash, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDomainSeparator")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (common.Hash, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) common.Hash); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPayerReportsAdmin_GetDomainSeparator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDomainSeparator'
+type MockPayerReportsAdmin_GetDomainSeparator_Call struct {
+	*mock.Call
+}
+
+// GetDomainSeparator is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockPayerReportsAdmin_Expecter) GetDomainSeparator(ctx interface{}) *MockPayerReportsAdmin_GetDomainSeparator_Call {
+	return &MockPayerReportsAdmin_GetDomainSeparator_Call{Call: _e.mock.On("GetDomainSeparator", ctx)}
+}
+
+func (_c *MockPayerReportsAdmin_GetDomainSeparator_Call) Run(run func(ctx context.Context)) *MockPayerReportsAdmin_GetDomainSeparator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockPayerReportsAdmin_GetDomainSeparator_Call) Return(_a0 common.Hash, _a1 error) *MockPayerReportsAdmin_GetDomainSeparator_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPayerReportsAdmin_GetDomainSeparator_Call) RunAndReturn(run func(context.Context) (common.Hash, error)) *MockPayerReportsAdmin_GetDomainSeparator_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // SubmitPayerReport provides a mock function with given fields: ctx, report

@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
@@ -169,6 +170,10 @@ func NewReplicationServer(
 			writerDB,
 			fees.NewFeeCalculator(getRatesFetcher()),
 			payerreport.NewStore(writerDB, log),
+			// TODO(nm): temporary. will be replaced in the next PR
+			common.HexToHash(
+				"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
+			),
 		)
 		if err != nil {
 			return nil, err

@@ -2,6 +2,7 @@ package payerreport
 
 import (
 	"encoding/hex"
+	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -61,6 +62,7 @@ func (r ReportID) String() string {
 }
 
 type PayerReport struct {
+	ID ReportID
 	// The Originator Node that the report is about
 	OriginatorNodeID uint32
 	// The report applies to messages with sequence IDs > StartSequenceID
@@ -70,17 +72,19 @@ type PayerReport struct {
 	// The timestamp of the message at EndSequenceID
 	EndMinuteSinceEpoch uint32
 	// The merkle root of the Payers mapping
-	PayersMerkleRoot [32]byte
+	PayersMerkleRoot common.Hash
 	// The active node IDs in the report
 	ActiveNodeIDs []uint32
 }
 
-type NewPayerReportParams struct {
-	OriginatorNodeID uint32
-	StartSequenceID  uint64
-	EndSequenceID    uint64
-	Payers           map[common.Address]currency.PicoDollar
-	NodeIDs          []uint32
+type BuildPayerReportParams struct {
+	OriginatorNodeID    uint32
+	StartSequenceID     uint64
+	EndSequenceID       uint64
+	EndMinuteSinceEpoch uint32
+	Payers              map[common.Address]currency.PicoDollar
+	NodeIDs             []uint32
+	DomainSeparator     common.Hash
 }
 
 // A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
@@ -101,8 +105,6 @@ type PayerReportWithStatus struct {
 	AttestationStatus AttestationStatus
 	// The timestamp of when the report was inserted into the node's database
 	CreatedAt time.Time
-	// The ID of the report
-	ID ReportID
 }
 
 func (p *PayerReport) ToProto() *proto.PayerReport {
@@ -131,34 +133,57 @@ func (p *PayerReport) ToClientEnvelope() (*envelopes.ClientEnvelope, error) {
 	})
 }
 
-func (p *PayerReport) ID() (ReportID, error) {
+func buildPayerReportID(
+	originatorNodeID uint32,
+	startSequenceID uint64,
+	endSequenceID uint64,
+	payersMerkleRoot common.Hash,
+	activeNodeIDs []uint32,
+	domainSeparator common.Hash,
+) (*ReportID, error) {
+	if domainSeparator == (common.Hash{}) {
+		return nil, errors.New("domain separator is required")
+	}
+
 	packedBytes, err := payerReportMessageHash.Pack(
-		p.OriginatorNodeID,
-		p.StartSequenceID,
-		p.EndSequenceID,
-		p.PayersMerkleRoot,
-		p.ActiveNodeIDs,
+		originatorNodeID,
+		startSequenceID,
+		endSequenceID,
+		payersMerkleRoot,
+		activeNodeIDs,
 	)
 	if err != nil {
-		return ReportID{}, err
+		return nil, err
 	}
-	hash, err := utils.SliceToArray32(utils.HashPayerReportInput(packedBytes))
-	if err != nil {
-		return ReportID{}, err
-	}
-	return ReportID(hash), nil
+	hash := utils.HashPayerReportInput(packedBytes, domainSeparator)
+	reportID := ReportID(hash)
+	return &reportID, nil
 }
 
-func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error) {
+func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, error) {
 	merkleRoot := buildMerkleRoot(params.Payers)
+
+	reportID, err := buildPayerReportID(
+		params.OriginatorNodeID,
+		params.StartSequenceID,
+		params.EndSequenceID,
+		merkleRoot,
+		params.NodeIDs,
+		params.DomainSeparator,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	return &PayerReportWithInputs{
 		PayerReport: PayerReport{
-			OriginatorNodeID: params.OriginatorNodeID,
-			StartSequenceID:  params.StartSequenceID,
-			EndSequenceID:    params.EndSequenceID,
-			PayersMerkleRoot: merkleRoot,
-			ActiveNodeIDs:    params.NodeIDs,
+			ID:                  *reportID,
+			OriginatorNodeID:    params.OriginatorNodeID,
+			StartSequenceID:     params.StartSequenceID,
+			EndSequenceID:       params.EndSequenceID,
+			EndMinuteSinceEpoch: params.EndMinuteSinceEpoch,
+			PayersMerkleRoot:    merkleRoot,
+			ActiveNodeIDs:       params.NodeIDs,
 		},
 		Payers:     params.Payers,
 		NodeIDs:    params.NodeIDs,

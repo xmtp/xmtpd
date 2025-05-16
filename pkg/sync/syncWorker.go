@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
@@ -25,17 +26,18 @@ import (
 )
 
 type syncWorker struct {
-	ctx                context.Context
-	log                *zap.Logger
-	nodeRegistry       registry.NodeRegistry
-	registrant         *registrant.Registrant
-	store              *sql.DB
-	wg                 sync.WaitGroup
-	subscriptions      map[uint32]struct{}
-	subscriptionsMutex sync.RWMutex
-	cancel             context.CancelFunc
-	feeCalculator      fees.IFeeCalculator
-	payerReportStore   payerreport.IPayerReportStore
+	ctx                        context.Context
+	log                        *zap.Logger
+	nodeRegistry               registry.NodeRegistry
+	registrant                 *registrant.Registrant
+	store                      *sql.DB
+	wg                         sync.WaitGroup
+	subscriptions              map[uint32]struct{}
+	subscriptionsMutex         sync.RWMutex
+	cancel                     context.CancelFunc
+	feeCalculator              fees.IFeeCalculator
+	payerReportStore           payerreport.IPayerReportStore
+	payerReportDomainSeparator common.Hash
 }
 
 func startSyncWorker(
@@ -44,15 +46,16 @@ func startSyncWorker(
 	ctx, cancel := context.WithCancel(cfg.Ctx)
 
 	s := &syncWorker{
-		ctx:              ctx,
-		log:              cfg.Log.Named("syncWorker"),
-		nodeRegistry:     cfg.NodeRegistry,
-		registrant:       cfg.Registrant,
-		store:            cfg.DB,
-		feeCalculator:    cfg.FeeCalculator,
-		subscriptions:    make(map[uint32]struct{}),
-		payerReportStore: cfg.PayerReportStore,
-		cancel:           cancel,
+		ctx:                        ctx,
+		log:                        cfg.Log.Named("syncWorker"),
+		nodeRegistry:               cfg.NodeRegistry,
+		registrant:                 cfg.Registrant,
+		store:                      cfg.DB,
+		feeCalculator:              cfg.FeeCalculator,
+		subscriptions:              make(map[uint32]struct{}),
+		payerReportStore:           cfg.PayerReportStore,
+		payerReportDomainSeparator: cfg.PayerReportDomainSeparator,
+		cancel:                     cancel,
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -349,5 +352,6 @@ func (s *syncWorker) setupStream(
 		stream,
 		s.feeCalculator,
 		s.payerReportStore,
+		s.payerReportDomainSeparator,
 	), nil
 }

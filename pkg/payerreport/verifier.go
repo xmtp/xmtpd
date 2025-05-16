@@ -56,11 +56,8 @@ func (p *PayerReportVerifier) IsValidReport(
 	prevReport *PayerReport,
 	newReport *PayerReport,
 ) (bool, error) {
-	newReportID, err := newReport.ID()
-	if err != nil {
-		p.log.Error("failed to get report id", zap.Error(err))
-		return false, nil
-	}
+	var err error
+	newReportID := newReport.ID
 
 	log := p.log.With(
 		zap.String("new_report_id", newReportID.String()),

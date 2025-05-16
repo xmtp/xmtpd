@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -13,13 +14,14 @@ import (
 )
 
 type SyncServerConfig struct {
-	Ctx              context.Context
-	Log              *zap.Logger
-	NodeRegistry     registry.NodeRegistry
-	Registrant       *registrant.Registrant
-	DB               *sql.DB
-	FeeCalculator    fees.IFeeCalculator
-	PayerReportStore payerreport.IPayerReportStore
+	Ctx                        context.Context
+	Log                        *zap.Logger
+	NodeRegistry               registry.NodeRegistry
+	Registrant                 *registrant.Registrant
+	DB                         *sql.DB
+	FeeCalculator              fees.IFeeCalculator
+	PayerReportStore           payerreport.IPayerReportStore
+	PayerReportDomainSeparator common.Hash
 }
 
 type SyncServerOption func(*SyncServerConfig)
@@ -50,6 +52,10 @@ func WithFeeCalculator(calc fees.IFeeCalculator) SyncServerOption {
 
 func WithPayerReportStore(store payerreport.IPayerReportStore) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.PayerReportStore = store }
+}
+
+func WithPayerReportDomainSeparator(domainSeparator common.Hash) SyncServerOption {
+	return func(cfg *SyncServerConfig) { cfg.PayerReportDomainSeparator = domainSeparator }
 }
 
 type SyncServer struct {

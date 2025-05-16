@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -25,15 +26,16 @@ import (
 )
 
 type originatorStream struct {
-	ctx              context.Context
-	db               *sql.DB
-	log              *zap.Logger
-	node             *registry.Node
-	queries          *queries.Queries
-	lastEnvelope     *envUtils.OriginatorEnvelope
-	stream           message_api.ReplicationApi_SubscribeEnvelopesClient
-	feeCalculator    fees.IFeeCalculator
-	payerReportStore payerreport.IPayerReportStore
+	ctx                        context.Context
+	db                         *sql.DB
+	log                        *zap.Logger
+	node                       *registry.Node
+	queries                    *queries.Queries
+	lastEnvelope               *envUtils.OriginatorEnvelope
+	stream                     message_api.ReplicationApi_SubscribeEnvelopesClient
+	feeCalculator              fees.IFeeCalculator
+	payerReportStore           payerreport.IPayerReportStore
+	payerReportDomainSeparator common.Hash
 }
 
 func newOriginatorStream(
@@ -45,6 +47,7 @@ func newOriginatorStream(
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
+	payerReportDomainSeparator common.Hash,
 ) *originatorStream {
 	return &originatorStream{
 		ctx: ctx,
@@ -53,12 +56,13 @@ func newOriginatorStream(
 			zap.Uint32("originator_id", node.NodeID),
 			zap.String("http_address", node.HttpAddress),
 		),
-		node:             node,
-		queries:          queries.New(db),
-		lastEnvelope:     lastEnvelope,
-		stream:           stream,
-		feeCalculator:    feeCalculator,
-		payerReportStore: payerReportStore,
+		node:                       node,
+		queries:                    queries.New(db),
+		lastEnvelope:               lastEnvelope,
+		stream:                     stream,
+		feeCalculator:              feeCalculator,
+		payerReportStore:           payerReportStore,
+		payerReportDomainSeparator: payerReportDomainSeparator,
 	}
 }
 
@@ -313,6 +317,7 @@ func (s *originatorStream) storeReservedEnvelope(env *envUtils.OriginatorEnvelop
 			s.ctx,
 			env,
 			payerID,
+			s.payerReportDomainSeparator,
 		)
 		if err != nil {
 			s.log.Error("Failed to store synced report", zap.Error(err))

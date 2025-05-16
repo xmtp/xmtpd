@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 // Temporary function until we have a real merkle root
@@ -73,4 +74,41 @@ func TestBuildPayerReport(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetDigest(t *testing.T) {
+	expectedNodeIDsHash := common.Hex2Bytes(
+		"ea13edf2a1dffdeb6f76acdbc46a352bd5b9071e7a3a5e6a63a498a9caa547fa",
+	)
+	expectedDigest := common.Hex2Bytes(
+		"1ec269bb27455a17e615c98f34f05a635943526e8fddff7b6a81a73bb1468b9c",
+	)
+	require.Equal(t, len(expectedNodeIDsHash), 32)
+	require.Equal(t, len(expectedDigest), 32)
+
+	// Get the expected values
+	payersMerkleRoot := common.HexToHash(
+		"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+	)
+	nodeIDs := []uint32{100, 200, 300, 400, 500}
+	nodeIDsHash := utils.PackAndHashNodeIDs(nodeIDs)
+	require.Equal(t, nodeIDsHash, common.BytesToHash(expectedNodeIDsHash))
+
+	originatorNodeID := uint32(1)
+	startSequenceID := uint64(2)
+	endSequenceID := uint64(3)
+	domainSeparator := common.HexToHash(
+		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
+	)
+
+	builtID, err := buildPayerReportID(
+		originatorNodeID,
+		startSequenceID,
+		endSequenceID,
+		payersMerkleRoot,
+		nodeIDs,
+		domainSeparator,
+	)
+	require.NoError(t, err)
+	require.Equal(t, *builtID, ReportID(expectedDigest))
 }

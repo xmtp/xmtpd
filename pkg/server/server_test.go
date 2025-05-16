@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"testing"
 	"time"
 

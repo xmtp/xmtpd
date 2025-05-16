@@ -161,7 +161,11 @@ func buildPayerReportID(
 }
 
 func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, error) {
-	merkleRoot := buildMerkleRoot(params.Payers)
+	tree, err := generateMerkleTree(params.Payers)
+	if err != nil {
+		return nil, err
+	}
+	merkleRoot := common.BytesToHash(tree.Root())
 
 	reportID, err := buildPayerReportID(
 		params.OriginatorNodeID,
@@ -187,6 +191,6 @@ func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, er
 		},
 		Payers:     params.Payers,
 		NodeIDs:    params.NodeIDs,
-		MerkleTree: nil,
+		MerkleTree: tree,
 	}, nil
 }

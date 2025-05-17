@@ -7,21 +7,21 @@ package queries
 
 import (
 	"context"
+	"database/sql"
+	"strings"
+
+	"github.com/lib/pq"
 )
 
 const buildPayerReport = `-- name: BuildPayerReport :many
-SELECT
-	payers.address as payer_address,
+SELECT payers.address AS payer_address,
 	SUM(spend_picodollars)::BIGINT AS total_spend_picodollars
-FROM
-	unsettled_usage
-JOIN payers on payers.id = unsettled_usage.payer_id
-WHERE
-	originator_id = $1
+FROM unsettled_usage
+	JOIN payers ON payers.id = unsettled_usage.payer_id
+WHERE originator_id = $1
 	AND minutes_since_epoch > $2
 	AND minutes_since_epoch <= $3
-GROUP BY
-	payers.address
+GROUP BY payers.address
 `
 
 type BuildPayerReportParams struct {
@@ -58,14 +58,202 @@ func (q *Queries) BuildPayerReport(ctx context.Context, arg BuildPayerReportPara
 	return items, nil
 }
 
+const fetchAttestations = `-- name: FetchAttestations :many
+SELECT payer_report_id, node_id, signature, payer_report_attestations.created_at, id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, payer_reports.created_at
+FROM payer_report_attestations
+	LEFT JOIN payer_reports ON payer_reports.id = payer_report_attestations.payer_report_id
+WHERE (
+		$1::BYTEA IS NULL
+		OR $1::BYTEA = payer_report_id
+	)
+	AND (
+		$2::INT IS NULL
+		OR $2::INT = node_id
+	)
+`
+
+type FetchAttestationsParams struct {
+	PayerReportID  []byte
+	AttesterNodeID sql.NullInt32
+}
+
+type FetchAttestationsRow struct {
+	PayerReportID       []byte
+	NodeID              int64
+	Signature           []byte
+	CreatedAt           sql.NullTime
+	ID                  []byte
+	OriginatorNodeID    sql.NullInt32
+	StartSequenceID     sql.NullInt64
+	EndSequenceID       sql.NullInt64
+	EndMinuteSinceEpoch sql.NullInt32
+	PayersMerkleRoot    []byte
+	ActiveNodeIds       []int32
+	SubmissionStatus    sql.NullInt16
+	AttestationStatus   sql.NullInt16
+	CreatedAt_2         sql.NullTime
+}
+
+func (q *Queries) FetchAttestations(ctx context.Context, arg FetchAttestationsParams) ([]FetchAttestationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, fetchAttestations, arg.PayerReportID, arg.AttesterNodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FetchAttestationsRow
+	for rows.Next() {
+		var i FetchAttestationsRow
+		if err := rows.Scan(
+			&i.PayerReportID,
+			&i.NodeID,
+			&i.Signature,
+			&i.CreatedAt,
+			&i.ID,
+			&i.OriginatorNodeID,
+			&i.StartSequenceID,
+			&i.EndSequenceID,
+			&i.EndMinuteSinceEpoch,
+			&i.PayersMerkleRoot,
+			pq.Array(&i.ActiveNodeIds),
+			&i.SubmissionStatus,
+			&i.AttestationStatus,
+			&i.CreatedAt_2,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const fetchPayerReports = `-- name: FetchPayerReports :many
+WITH rpt AS (
+	SELECT pr.id, pr.originator_node_id, pr.start_sequence_id, pr.end_sequence_id, pr.end_minute_since_epoch, pr.payers_merkle_root, pr.active_node_ids, pr.submission_status, pr.attestation_status, pr.created_at,
+		pra.node_id,
+		pra.signature,
+		COUNT(pra.node_id) OVER (PARTITION BY pr.id) AS attestations_count
+	FROM payer_reports AS pr
+		LEFT JOIN payer_report_attestations AS pra ON pra.payer_report_id = pr.id
+	WHERE (
+			$2::SMALLINT [] IS NULL
+			OR pr.attestation_status = ANY($2::SMALLINT [])
+		)
+		AND (
+			$3::SMALLINT [] IS NULL
+			OR pr.submission_status = ANY($3::SMALLINT [])
+		)
+		AND (
+			$4::TIMESTAMP IS NULL
+			OR pr.created_at > $4
+		)
+		AND (
+			$5::BIGINT IS NULL
+			OR $5 = pr.end_sequence_id
+		)
+		AND (
+			$6::BIGINT IS NULL
+			OR $6 = pr.start_sequence_id
+		)
+		AND (
+			$7::INT IS NULL
+			OR $7 = pr.originator_node_id
+		)
+		AND (
+			$8::BYTEA IS NULL
+			OR $8::BYTEA = pr.id
+		)
+)
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at, node_id, signature, attestations_count
+FROM rpt
+WHERE $1::INT IS NULL
+	OR attestations_count >= $1::INT
+`
+
+type FetchPayerReportsParams struct {
+	MinAttestations     sql.NullInt32
+	AttestationStatusIn []int16
+	SubmissionStatusIn  []int16
+	CreatedAfter        sql.NullTime
+	EndSequenceID       sql.NullInt64
+	StartSequenceID     sql.NullInt64
+	OriginatorNodeID    sql.NullInt32
+	PayerReportID       []byte
+}
+
+type FetchPayerReportsRow struct {
+	ID                  []byte
+	OriginatorNodeID    int32
+	StartSequenceID     int64
+	EndSequenceID       int64
+	EndMinuteSinceEpoch int32
+	PayersMerkleRoot    []byte
+	ActiveNodeIds       []int32
+	SubmissionStatus    int16
+	AttestationStatus   int16
+	CreatedAt           sql.NullTime
+	NodeID              sql.NullInt64
+	Signature           []byte
+	AttestationsCount   int64
+}
+
+func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsParams) ([]FetchPayerReportsRow, error) {
+	rows, err := q.db.QueryContext(ctx, fetchPayerReports,
+		arg.MinAttestations,
+		pq.Array(arg.AttestationStatusIn),
+		pq.Array(arg.SubmissionStatusIn),
+		arg.CreatedAfter,
+		arg.EndSequenceID,
+		arg.StartSequenceID,
+		arg.OriginatorNodeID,
+		arg.PayerReportID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FetchPayerReportsRow
+	for rows.Next() {
+		var i FetchPayerReportsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OriginatorNodeID,
+			&i.StartSequenceID,
+			&i.EndSequenceID,
+			&i.EndMinuteSinceEpoch,
+			&i.PayersMerkleRoot,
+			pq.Array(&i.ActiveNodeIds),
+			&i.SubmissionStatus,
+			&i.AttestationStatus,
+			&i.CreatedAt,
+			&i.NodeID,
+			&i.Signature,
+			&i.AttestationsCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findOrCreatePayer = `-- name: FindOrCreatePayer :one
 INSERT INTO payers(address)
-	VALUES ($1)
-ON CONFLICT (address)
-	DO UPDATE SET
-		address = $1
-	RETURNING
-		id
+VALUES ($1) ON CONFLICT (address) DO
+UPDATE
+SET address = $1
+RETURNING id
 `
 
 func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32, error) {
@@ -76,9 +264,10 @@ func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32,
 }
 
 const getGatewayEnvelopeByID = `-- name: GetGatewayEnvelopeByID :one
-SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, expiry FROM gateway_envelopes
-WHERE originator_sequence_id = $1
-AND originator_node_id = $2
+SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, expiry
+FROM gateway_envelopes
+WHERE originator_sequence_id = $1 -- Include the node ID to take advantage of the primary key index
+	AND originator_node_id = $2
 `
 
 type GetGatewayEnvelopeByIDParams struct {
@@ -86,7 +275,6 @@ type GetGatewayEnvelopeByIDParams struct {
 	OriginatorNodeID     int32
 }
 
-// Include the node ID to take advantage of the primary key index
 func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnvelopeByIDParams) (GatewayEnvelope, error) {
 	row := q.db.QueryRowContext(ctx, getGatewayEnvelopeByID, arg.OriginatorSequenceID, arg.OriginatorNodeID)
 	var i GatewayEnvelope
@@ -102,18 +290,38 @@ func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnve
 	return i, err
 }
 
+const getLastSequenceIDForOriginatorMinute = `-- name: GetLastSequenceIDForOriginatorMinute :one
+SELECT COALESCE(MAX(last_sequence_id), 0)::BIGINT AS last_sequence_id
+FROM unsettled_usage
+WHERE originator_id = $1
+	AND minutes_since_epoch = $2
+`
+
+type GetLastSequenceIDForOriginatorMinuteParams struct {
+	OriginatorID      int32
+	MinutesSinceEpoch int32
+}
+
+func (q *Queries) GetLastSequenceIDForOriginatorMinute(ctx context.Context, arg GetLastSequenceIDForOriginatorMinuteParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getLastSequenceIDForOriginatorMinute, arg.OriginatorID, arg.MinutesSinceEpoch)
+	var last_sequence_id int64
+	err := row.Scan(&last_sequence_id)
+	return last_sequence_id, err
+}
+
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
-SELECT
-	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
+SELECT COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
 	COALESCE(MAX(last_sequence_id), 0)::BIGINT AS last_sequence_id
-FROM
-	unsettled_usage
-WHERE
-	payer_id = $1
-	AND ($2::BIGINT = 0
-		OR minutes_since_epoch > $2::BIGINT)
-	AND ($3::BIGINT = 0
-		OR minutes_since_epoch < $3::BIGINT)
+FROM unsettled_usage
+WHERE payer_id = $1
+	AND (
+		$2::BIGINT = 0
+		OR minutes_since_epoch > $2::BIGINT
+	)
+	AND (
+		$3::BIGINT = 0
+		OR minutes_since_epoch < $3::BIGINT
+	)
 `
 
 type GetPayerUnsettledUsageParams struct {
@@ -135,23 +343,20 @@ func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsett
 }
 
 const getSecondNewestMinute = `-- name: GetSecondNewestMinute :one
-WITH second_newest_minute
-AS
-  (
-           SELECT minutes_since_epoch
-           FROM     unsettled_usage
-           WHERE    originator_id = $1
-           AND      unsettled_usage.minutes_since_epoch > $2
-           GROUP BY unsettled_usage.minutes_since_epoch
-           ORDER BY unsettled_usage.minutes_since_epoch DESC
-           LIMIT    1
-           OFFSET   1)
-  SELECT coalesce(max(last_sequence_id), 0)::BIGINT as max_sequence_id,
-         coalesce(max(unsettled_usage.minutes_since_epoch), 0)::INT as minutes_since_epoch
-  FROM   unsettled_usage
-  JOIN   second_newest_minute
-  ON     second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
-  WHERE  unsettled_usage.originator_id = $1
+WITH second_newest_minute AS (
+	SELECT minutes_since_epoch
+	FROM unsettled_usage
+	WHERE originator_id = $1
+		AND unsettled_usage.minutes_since_epoch > $2
+	GROUP BY unsettled_usage.minutes_since_epoch
+	ORDER BY unsettled_usage.minutes_since_epoch DESC
+	LIMIT 1 OFFSET 1
+)
+SELECT coalesce(max(last_sequence_id), 0)::BIGINT AS max_sequence_id,
+	coalesce(max(unsettled_usage.minutes_since_epoch), 0)::INT AS minutes_since_epoch
+FROM unsettled_usage
+	JOIN second_newest_minute ON second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
+WHERE unsettled_usage.originator_id = $1
 `
 
 type GetSecondNewestMinuteParams struct {
@@ -172,12 +377,23 @@ func (q *Queries) GetSecondNewestMinute(ctx context.Context, arg GetSecondNewest
 }
 
 const incrementUnsettledUsage = `-- name: IncrementUnsettledUsage :exec
-INSERT INTO unsettled_usage(payer_id, originator_id, minutes_since_epoch, spend_picodollars, last_sequence_id)
-	VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (payer_id, originator_id, minutes_since_epoch)
-	DO UPDATE SET
-		spend_picodollars = unsettled_usage.spend_picodollars + $4,
-		last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, $5)
+INSERT INTO unsettled_usage(
+		payer_id,
+		originator_id,
+		minutes_since_epoch,
+		spend_picodollars,
+		last_sequence_id
+	)
+VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5
+	) ON CONFLICT (payer_id, originator_id, minutes_since_epoch) DO
+UPDATE
+SET spend_picodollars = unsettled_usage.spend_picodollars + $4,
+	last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, $5)
 `
 
 type IncrementUnsettledUsageParams struct {
@@ -196,5 +412,98 @@ func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnse
 		arg.SpendPicodollars,
 		arg.SequenceID,
 	)
+	return err
+}
+
+const insertOrIgnorePayerReport = `-- name: InsertOrIgnorePayerReport :execrows
+INSERT INTO payer_reports (
+		id,
+		originator_node_id,
+		start_sequence_id,
+		end_sequence_id,
+		end_minute_since_epoch,
+		payers_merkle_root,
+		active_node_ids
+	)
+VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5,
+		$6,
+		$7
+	) ON CONFLICT (id) DO NOTHING
+`
+
+type InsertOrIgnorePayerReportParams struct {
+	ID                  []byte
+	OriginatorNodeID    int32
+	StartSequenceID     int64
+	EndSequenceID       int64
+	EndMinuteSinceEpoch int32
+	PayersMerkleRoot    []byte
+	ActiveNodeIds       []int32
+}
+
+func (q *Queries) InsertOrIgnorePayerReport(ctx context.Context, arg InsertOrIgnorePayerReportParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertOrIgnorePayerReport,
+		arg.ID,
+		arg.OriginatorNodeID,
+		arg.StartSequenceID,
+		arg.EndSequenceID,
+		arg.EndMinuteSinceEpoch,
+		arg.PayersMerkleRoot,
+		pq.Array(arg.ActiveNodeIds),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const insertOrIgnorePayerReportAttestation = `-- name: InsertOrIgnorePayerReportAttestation :exec
+INSERT INTO payer_report_attestations (payer_report_id, node_id, signature)
+VALUES ($1, $2, $3) ON CONFLICT (payer_report_id, node_id) DO NOTHING
+`
+
+type InsertOrIgnorePayerReportAttestationParams struct {
+	PayerReportID []byte
+	NodeID        int64
+	Signature     []byte
+}
+
+func (q *Queries) InsertOrIgnorePayerReportAttestation(ctx context.Context, arg InsertOrIgnorePayerReportAttestationParams) error {
+	_, err := q.db.ExecContext(ctx, insertOrIgnorePayerReportAttestation, arg.PayerReportID, arg.NodeID, arg.Signature)
+	return err
+}
+
+const setReportAttestationStatus = `-- name: SetReportAttestationStatus :exec
+UPDATE payer_reports
+SET attestation_status = $1
+WHERE id = $2
+	AND attestation_status IN ($3)
+`
+
+type SetReportAttestationStatusParams struct {
+	NewStatus  int16
+	ReportID   []byte
+	PrevStatus []int16
+}
+
+func (q *Queries) SetReportAttestationStatus(ctx context.Context, arg SetReportAttestationStatusParams) error {
+	query := setReportAttestationStatus
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.NewStatus)
+	queryParams = append(queryParams, arg.ReportID)
+	if len(arg.PrevStatus) > 0 {
+		for _, v := range arg.PrevStatus {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:prev_status*/?", strings.Repeat(",?", len(arg.PrevStatus))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:prev_status*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
 }

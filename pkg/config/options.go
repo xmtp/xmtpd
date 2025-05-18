@@ -32,7 +32,7 @@ type ContractsOptions struct {
 }
 
 type AppChainOptions struct {
-	UseDatabaseClient                bool          `long:"use-database-client"                 env:"XMTPD_APP_CHAIN_USE_DATABASE_CLIENT"               description:"Use DatabaseChainClient instead of regular ChainClient"       default:"false"`
+	UseDatabaseClient                bool          `long:"use-database-client"                 env:"XMTPD_APP_CHAIN_USE_DATABASE_CLIENT"               description:"Use DatabaseChainClient instead of regular ChainClient"`
 	RpcURL                           string        `long:"rpc-url"                             env:"XMTPD_APP_CHAIN_RPC_URL"                           description:"Blockchain RPC URL"`
 	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
 	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`

@@ -16,15 +16,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
-	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
-	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -73,10 +69,10 @@ func (i *Indexer) StartIndexer(
 	// Create ChainClient for log streaming
 	chainClient, err := blockchain.NewChainClient(
 		i.ctx,
-		cfg.AppChain.RpcURL,
 		cfg.AppChain.UseDatabaseClient,
-		common.HexToAddress(cfg.MessagesContractAddress),
-		common.HexToAddress(cfg.IdentityUpdatesContractAddress),
+		cfg.AppChain.RpcURL,
+		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
+		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
 	)
 	if err != nil {
 		return err
@@ -84,7 +80,13 @@ func (i *Indexer) StartIndexer(
 	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, chainClient, i.log)
 	querier := queries.New(db)
 
-	streamer, err := configureLogStream(i.ctx, builder, cfg, querier)
+	streamer, err := configureLogStream(
+		i.ctx,
+		builder,
+		chainClient,
+		cfg.AppChain.MaxChainDisconnectTime,
+		querier,
+	)
 	if err != nil {
 		return err
 	}
@@ -163,17 +165,17 @@ type builtStreamer struct {
 func configureLogStream(
 	ctx context.Context,
 	builder *blockchain.RpcLogStreamBuilder,
-	cfg config.ContractsOptions,
+	client blockchain.ChainClient,
+	maxChainDisconnectTime time.Duration,
 	querier *queries.Queries,
 ) (*builtStreamer, error) {
-	messagesTopic, err := buildMessagesTopic()
+	messagesAddress, err := client.ContractAddress(blockchain.EventTypeMessageSent)
 	if err != nil {
 		return nil, err
 	}
-
 	messagesTracker, err := NewBlockTracker(
 		ctx,
-		cfg.AppChain.GroupMessageBroadcasterAddress,
+		messagesAddress,
 		querier,
 	)
 	if err != nil {
@@ -182,20 +184,20 @@ func configureLogStream(
 
 	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
 	messagesChannel, messagesReorgChannel := builder.ListenForContractEvent(
+		blockchain.EventTypeMessageSent,
 		latestBlockNumber,
-		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
-		[]common.Hash{messagesTopic},
-		cfg.AppChain.MaxChainDisconnectTime,
+		maxChainDisconnectTime,
 	)
 
-	identityUpdatesTopic, err := buildIdentityUpdatesTopic()
+	identityUpdatesAddress, err := client.ContractAddress(
+		blockchain.EventTypeIdentityUpdateCreated,
+	)
 	if err != nil {
 		return nil, err
 	}
-
 	identityUpdatesTracker, err := NewBlockTracker(
 		ctx,
-		cfg.AppChain.IdentityUpdateBroadcasterAddress,
+		identityUpdatesAddress,
 		querier,
 	)
 	if err != nil {
@@ -204,10 +206,9 @@ func configureLogStream(
 
 	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
 	identityUpdatesChannel, identityUpdatesReorgChannel := builder.ListenForContractEvent(
+		blockchain.EventTypeIdentityUpdateCreated,
 		latestBlockNumber,
-		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
-		[]common.Hash{identityUpdatesTopic},
-		cfg.AppChain.MaxChainDisconnectTime,
+		maxChainDisconnectTime,
 	)
 
 	streamer, err := builder.Build()
@@ -390,40 +391,4 @@ func retry(
 		}
 		return nil
 	}
-}
-
-func buildMessagesTopic() (common.Hash, error) {
-	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
-	if err != nil {
-		return common.Hash{}, err
-	}
-	return utils.GetEventTopic(abi, "MessageSent")
-}
-
-func buildIdentityUpdatesTopic() (common.Hash, error) {
-	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
-	if err != nil {
-		return common.Hash{}, err
-	}
-	return utils.GetEventTopic(abi, "IdentityUpdateCreated")
-}
-
-func messagesContract(
-	cfg config.ContractsOptions,
-	client *ethclient.Client,
-) (*gm.GroupMessageBroadcaster, error) {
-	return gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
-		client,
-	)
-}
-
-func identityUpdatesContract(
-	cfg config.ContractsOptions,
-	client *ethclient.Client,
-) (*iu.IdentityUpdateBroadcaster, error) {
-	return iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
-		client,
-	)
 }

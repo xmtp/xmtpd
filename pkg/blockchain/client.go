@@ -117,8 +117,8 @@ func WaitForTransaction(
 // Otherwise, it returns a RpcChainClient.
 func NewChainClient(
 	ctx context.Context,
-	rpcUrl string,
 	useDatabaseClient bool,
+	rpcUrl string,
 	messagesContractAddr, identityUpdatesContractAddr common.Address,
 ) (ChainClient, error) {
 	if useDatabaseClient {

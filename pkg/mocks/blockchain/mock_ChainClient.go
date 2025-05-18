@@ -3,11 +3,10 @@
 package blockchain
 
 import (
+	context "context"
 	big "math/big"
 
-	context "context"
-
-	ethereum "github.com/ethereum/go-ethereum"
+	blockchain "github.com/xmtp/xmtpd/pkg/blockchain"
 
 	groupmessagebroadcaster "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 
@@ -146,9 +145,65 @@ func (_c *MockChainClient_BlockNumber_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// FilterLogs provides a mock function with given fields: ctx, q
-func (_m *MockChainClient) FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error) {
-	ret := _m.Called(ctx, q)
+// ContractAddress provides a mock function with given fields: eventType
+func (_m *MockChainClient) ContractAddress(eventType blockchain.EventType) (string, error) {
+	ret := _m.Called(eventType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ContractAddress")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(blockchain.EventType) (string, error)); ok {
+		return rf(eventType)
+	}
+	if rf, ok := ret.Get(0).(func(blockchain.EventType) string); ok {
+		r0 = rf(eventType)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(blockchain.EventType) error); ok {
+		r1 = rf(eventType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockChainClient_ContractAddress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ContractAddress'
+type MockChainClient_ContractAddress_Call struct {
+	*mock.Call
+}
+
+// ContractAddress is a helper method to define mock.On call
+//   - eventType blockchain.EventType
+func (_e *MockChainClient_Expecter) ContractAddress(eventType interface{}) *MockChainClient_ContractAddress_Call {
+	return &MockChainClient_ContractAddress_Call{Call: _e.mock.On("ContractAddress", eventType)}
+}
+
+func (_c *MockChainClient_ContractAddress_Call) Run(run func(eventType blockchain.EventType)) *MockChainClient_ContractAddress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(blockchain.EventType))
+	})
+	return _c
+}
+
+func (_c *MockChainClient_ContractAddress_Call) Return(_a0 string, _a1 error) *MockChainClient_ContractAddress_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockChainClient_ContractAddress_Call) RunAndReturn(run func(blockchain.EventType) (string, error)) *MockChainClient_ContractAddress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FilterLogs provides a mock function with given fields: ctx, eventType, fromBlock, toBlock
+func (_m *MockChainClient) FilterLogs(ctx context.Context, eventType blockchain.EventType, fromBlock uint64, toBlock uint64) ([]types.Log, error) {
+	ret := _m.Called(ctx, eventType, fromBlock, toBlock)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FilterLogs")
@@ -156,19 +211,19 @@ func (_m *MockChainClient) FilterLogs(ctx context.Context, q ethereum.FilterQuer
 
 	var r0 []types.Log
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, ethereum.FilterQuery) ([]types.Log, error)); ok {
-		return rf(ctx, q)
+	if rf, ok := ret.Get(0).(func(context.Context, blockchain.EventType, uint64, uint64) ([]types.Log, error)); ok {
+		return rf(ctx, eventType, fromBlock, toBlock)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, ethereum.FilterQuery) []types.Log); ok {
-		r0 = rf(ctx, q)
+	if rf, ok := ret.Get(0).(func(context.Context, blockchain.EventType, uint64, uint64) []types.Log); ok {
+		r0 = rf(ctx, eventType, fromBlock, toBlock)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]types.Log)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, ethereum.FilterQuery) error); ok {
-		r1 = rf(ctx, q)
+	if rf, ok := ret.Get(1).(func(context.Context, blockchain.EventType, uint64, uint64) error); ok {
+		r1 = rf(ctx, eventType, fromBlock, toBlock)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -183,14 +238,16 @@ type MockChainClient_FilterLogs_Call struct {
 
 // FilterLogs is a helper method to define mock.On call
 //   - ctx context.Context
-//   - q ethereum.FilterQuery
-func (_e *MockChainClient_Expecter) FilterLogs(ctx interface{}, q interface{}) *MockChainClient_FilterLogs_Call {
-	return &MockChainClient_FilterLogs_Call{Call: _e.mock.On("FilterLogs", ctx, q)}
+//   - eventType blockchain.EventType
+//   - fromBlock uint64
+//   - toBlock uint64
+func (_e *MockChainClient_Expecter) FilterLogs(ctx interface{}, eventType interface{}, fromBlock interface{}, toBlock interface{}) *MockChainClient_FilterLogs_Call {
+	return &MockChainClient_FilterLogs_Call{Call: _e.mock.On("FilterLogs", ctx, eventType, fromBlock, toBlock)}
 }
 
-func (_c *MockChainClient_FilterLogs_Call) Run(run func(ctx context.Context, q ethereum.FilterQuery)) *MockChainClient_FilterLogs_Call {
+func (_c *MockChainClient_FilterLogs_Call) Run(run func(ctx context.Context, eventType blockchain.EventType, fromBlock uint64, toBlock uint64)) *MockChainClient_FilterLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(ethereum.FilterQuery))
+		run(args[0].(context.Context), args[1].(blockchain.EventType), args[2].(uint64), args[3].(uint64))
 	})
 	return _c
 }
@@ -200,7 +257,7 @@ func (_c *MockChainClient_FilterLogs_Call) Return(_a0 []types.Log, _a1 error) *M
 	return _c
 }
 
-func (_c *MockChainClient_FilterLogs_Call) RunAndReturn(run func(context.Context, ethereum.FilterQuery) ([]types.Log, error)) *MockChainClient_FilterLogs_Call {
+func (_c *MockChainClient_FilterLogs_Call) RunAndReturn(run func(context.Context, blockchain.EventType, uint64, uint64) ([]types.Log, error)) *MockChainClient_FilterLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }

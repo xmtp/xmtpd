@@ -4,10 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
@@ -34,16 +32,15 @@ func buildIdentityUpdateStorer(
 		rpcUrl,
 	)
 
-	client, err := blockchain.NewClient(ctx, config.AppChain.RpcURL)
-	require.NoError(t, err)
-	contract, err := iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(config.AppChain.IdentityUpdateBroadcasterAddress),
-		client,
+	client, err := blockchain.NewAppChainReader(
+		ctx,
+		config.AppChain,
 	)
+	require.NoError(t, err)
 	validationService := mlsvalidateMock.NewMockMLSValidationService(t)
 
 	require.NoError(t, err)
-	storer := NewIdentityUpdateStorer(db, testutils.NewLog(t), contract, validationService)
+	storer := NewIdentityUpdateStorer(db, testutils.NewLog(t), client, validationService)
 
 	return storer, validationService
 }

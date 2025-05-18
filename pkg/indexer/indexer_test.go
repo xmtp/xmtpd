@@ -40,7 +40,7 @@ func TestIndexLogsSuccess(t *testing.T) {
 
 	channel <- event
 
-	mockClient := blockchainMocks.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockAppChainReader(t)
 
 	var wg sync.WaitGroup
 	wg.Add(2) // Expecting two calls: StoreLog and UpdateLatestBlock
@@ -110,7 +110,7 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		BlockHash:   newBlockHash,
 	}
 
-	mockClient := blockchainMocks.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockAppChainReader(t)
 	logStorer := storerMocks.NewMockLogStorer(t)
 	blockTracker := indexerMocks.NewMockIBlockTracker(t)
 	reorgHandler := indexerMocks.NewMockChainReorgHandler(t)

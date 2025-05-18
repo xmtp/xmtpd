@@ -2,12 +2,11 @@ package blockchain_test
 
 import (
 	"context"
-	"math/big"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
@@ -22,33 +21,35 @@ import (
 
 func buildStreamer(
 	t *testing.T,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
+	eventType blockchain.EventType,
 	fromBlock uint64,
-	address common.Address,
-	topic common.Hash,
 ) (*blockchain.RpcLogStreamer, chan types.Log) {
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	channel := make(chan types.Log)
 	cfg := blockchain.ContractConfig{
-		FromBlock:       fromBlock,
-		ContractAddress: address,
-		Topics:          []common.Hash{topic},
-		EventChannel:    channel,
+		EventType:    eventType,
+		FromBlock:    fromBlock,
+		EventChannel: channel,
 	}
 	return blockchain.NewRpcLogStreamer(
 		context.Background(),
-		client,
+		reader,
 		log,
 		[]blockchain.ContractConfig{cfg},
 	), channel
 }
 
 func TestBuilder(t *testing.T) {
-	rpcUrl := anvil.StartAnvil(t, false)
-	testclient, err := blockchain.NewClient(
+	cfg := config.AppChainOptions{
+		RpcURL:                           anvil.StartAnvil(t, false),
+		GroupMessageBroadcasterAddress:   testutils.RandomAddress().Hex(),
+		IdentityUpdateBroadcasterAddress: testutils.RandomAddress().Hex(),
+	}
+	testclient, err := blockchain.NewAppChainReader(
 		context.Background(),
-		rpcUrl,
+		cfg,
 	)
 	require.NoError(t, err)
 	builder := blockchain.NewRpcLogStreamBuilder(
@@ -58,9 +59,9 @@ func TestBuilder(t *testing.T) {
 	)
 
 	listenerChannel, _ := builder.ListenForContractEvent(
+		blockchain.EventTypeMessageSent,
 		1,
-		testutils.RandomAddress(),
-		[]common.Hash{testutils.RandomLogTopic()}, 5*time.Minute,
+		5*time.Minute,
 	)
 	require.NotNil(t, listenerChannel)
 
@@ -80,22 +81,18 @@ func TestRpcLogStreamer(t *testing.T) {
 		Data:    []byte("foo"),
 	}
 
-	mockClient := mocks.NewMockChainClient(t)
+	mockClient := mocks.NewMockAppChainReader(t)
 	mockClient.On("BlockNumber", mock.Anything).Return(uint64(lastBlock), nil)
-	mockClient.On("FilterLogs", mock.Anything, ethereum.FilterQuery{
-		FromBlock: big.NewInt(int64(fromBlock)),
-		ToBlock:   big.NewInt(int64(lastBlock)),
-		Addresses: []common.Address{address},
-		Topics:    [][]common.Hash{{topic}},
-	}).Return([]types.Log{logMessage}, nil)
+	mockClient.On("FilterLogs", mock.Anything, blockchain.EventTypeMessageSent, fromBlock, lastBlock).
+		Return([]types.Log{logMessage}, nil)
+	mockClient.On("ContractAddress", blockchain.EventTypeMessageSent).Return(address.Hex(), nil)
 
-	streamer, _ := buildStreamer(t, mockClient, fromBlock, address, topic)
+	streamer, _ := buildStreamer(t, mockClient, blockchain.EventTypeMessageSent, fromBlock)
 
 	cfg := blockchain.ContractConfig{
-		FromBlock:       fromBlock,
-		ContractAddress: address,
-		Topics:          []common.Hash{topic},
-		EventChannel:    make(chan types.Log),
+		FromBlock:    fromBlock,
+		EventType:    blockchain.EventTypeMessageSent,
+		EventChannel: make(chan types.Log),
 	}
 
 	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)

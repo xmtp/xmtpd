@@ -14,17 +14,12 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
-	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
-	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/storer"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -70,23 +65,27 @@ func (i *Indexer) StartIndexer(
 	cfg config.ContractsOptions,
 	validationService mlsvalidate.MLSValidationService,
 ) error {
-	client, err := blockchain.NewClient(i.ctx, cfg.AppChain.RpcURL)
+	reader, err := blockchain.NewAppChainReader(
+		i.ctx,
+		cfg.AppChain,
+	)
 	if err != nil {
 		return err
 	}
-	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, client, i.log)
+	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, reader, i.log)
 	querier := queries.New(db)
 
-	streamer, err := configureLogStream(i.ctx, builder, cfg, querier)
+	streamer, err := configureLogStream(
+		i.ctx,
+		builder,
+		reader,
+		cfg.AppChain.MaxChainDisconnectTime,
+		querier,
+	)
 	if err != nil {
 		return err
 	}
 	i.streamer = streamer
-
-	messagesContract, err := messagesContract(cfg, client)
-	if err != nil {
-		return err
-	}
 
 	tracing.GoPanicWrap(
 		i.ctx,
@@ -96,23 +95,24 @@ func (i *Indexer) StartIndexer(
 			indexingLogger := i.log.Named("messages").
 				With(zap.String("contractAddress", cfg.AppChain.GroupMessageBroadcasterAddress))
 
+			messageStorer := storer.NewGroupMessageStorer(
+				querier,
+				indexingLogger,
+				reader,
+			)
+
 			indexLogs(
 				ctx,
-				streamer.streamer.Client(),
+				streamer.streamer.Reader(),
 				streamer.messagesChannel,
 				streamer.messagesReorgChannel,
 				indexingLogger,
-				storer.NewGroupMessageStorer(querier, indexingLogger, messagesContract),
+				messageStorer,
 				streamer.messagesBlockTracker,
 				streamer.reorgHandler,
 				cfg.AppChain.GroupMessageBroadcasterAddress,
 			)
 		})
-
-	identityUpdatesContract, err := identityUpdatesContract(cfg, client)
-	if err != nil {
-		return err
-	}
 
 	tracing.GoPanicWrap(
 		i.ctx,
@@ -121,18 +121,21 @@ func (i *Indexer) StartIndexer(
 		func(ctx context.Context) {
 			indexingLogger := i.log.Named("identity").
 				With(zap.String("contractAddress", cfg.AppChain.IdentityUpdateBroadcasterAddress))
+
+			identityStorer := storer.NewIdentityUpdateStorer(
+				db,
+				indexingLogger,
+				reader,
+				validationService,
+			)
+
 			indexLogs(
 				ctx,
-				streamer.streamer.Client(),
+				streamer.streamer.Reader(),
 				streamer.identityUpdatesChannel,
 				streamer.identityUpdatesReorgChannel,
 				indexingLogger,
-				storer.NewIdentityUpdateStorer(
-					db,
-					indexingLogger,
-					identityUpdatesContract,
-					validationService,
-				),
+				identityStorer,
 				streamer.identityUpdatesBlockTracker,
 				streamer.reorgHandler,
 				cfg.AppChain.IdentityUpdateBroadcasterAddress,
@@ -157,17 +160,17 @@ type builtStreamer struct {
 func configureLogStream(
 	ctx context.Context,
 	builder *blockchain.RpcLogStreamBuilder,
-	cfg config.ContractsOptions,
+	reader blockchain.AppChainReader,
+	maxChainDisconnectTime time.Duration,
 	querier *queries.Queries,
 ) (*builtStreamer, error) {
-	messagesTopic, err := buildMessagesTopic()
+	messagesAddress, err := reader.ContractAddress(blockchain.EventTypeMessageSent)
 	if err != nil {
 		return nil, err
 	}
-
 	messagesTracker, err := NewBlockTracker(
 		ctx,
-		cfg.AppChain.GroupMessageBroadcasterAddress,
+		messagesAddress,
 		querier,
 	)
 	if err != nil {
@@ -176,20 +179,20 @@ func configureLogStream(
 
 	latestBlockNumber, _ := messagesTracker.GetLatestBlock()
 	messagesChannel, messagesReorgChannel := builder.ListenForContractEvent(
+		blockchain.EventTypeMessageSent,
 		latestBlockNumber,
-		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
-		[]common.Hash{messagesTopic},
-		cfg.AppChain.MaxChainDisconnectTime,
+		maxChainDisconnectTime,
 	)
 
-	identityUpdatesTopic, err := buildIdentityUpdatesTopic()
+	identityUpdatesAddress, err := reader.ContractAddress(
+		blockchain.EventTypeIdentityUpdateCreated,
+	)
 	if err != nil {
 		return nil, err
 	}
-
 	identityUpdatesTracker, err := NewBlockTracker(
 		ctx,
-		cfg.AppChain.IdentityUpdateBroadcasterAddress,
+		identityUpdatesAddress,
 		querier,
 	)
 	if err != nil {
@@ -198,10 +201,9 @@ func configureLogStream(
 
 	latestBlockNumber, _ = identityUpdatesTracker.GetLatestBlock()
 	identityUpdatesChannel, identityUpdatesReorgChannel := builder.ListenForContractEvent(
+		blockchain.EventTypeIdentityUpdateCreated,
 		latestBlockNumber,
-		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
-		[]common.Hash{identityUpdatesTopic},
-		cfg.AppChain.MaxChainDisconnectTime,
+		maxChainDisconnectTime,
 	)
 
 	streamer, err := builder.Build()
@@ -209,7 +211,7 @@ func configureLogStream(
 		return nil, err
 	}
 
-	reorgHandler := NewChainReorgHandler(ctx, streamer.Client(), querier)
+	reorgHandler := NewChainReorgHandler(ctx, streamer.Reader(), querier)
 
 	return &builtStreamer{
 		streamer:                    streamer,
@@ -232,7 +234,7 @@ The only non-retriable errors should be things like malformed events or failed v
 */
 func indexLogs(
 	ctx context.Context,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 	eventChannel <-chan types.Log,
 	reorgChannel chan<- uint64,
 	logger *zap.Logger,
@@ -304,8 +306,9 @@ func indexLogs(
 			storedBlockNumber > 0 &&
 			event.BlockNumber > storedBlockNumber &&
 			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
-			onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
-			if err != nil {
+			n := new(big.Int).SetUint64(storedBlockNumber)
+			onchainBlock, err := reader.BlockByNumber(ctx, n)
+			if onchainBlock == nil || err != nil {
 				logger.Warn(
 					"error querying block from the blockchain, proceeding with event processing",
 					zap.Uint64("blockNumber", storedBlockNumber),
@@ -384,40 +387,4 @@ func retry(
 		}
 		return nil
 	}
-}
-
-func buildMessagesTopic() (common.Hash, error) {
-	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
-	if err != nil {
-		return common.Hash{}, err
-	}
-	return utils.GetEventTopic(abi, "MessageSent")
-}
-
-func buildIdentityUpdatesTopic() (common.Hash, error) {
-	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
-	if err != nil {
-		return common.Hash{}, err
-	}
-	return utils.GetEventTopic(abi, "IdentityUpdateCreated")
-}
-
-func messagesContract(
-	cfg config.ContractsOptions,
-	client *ethclient.Client,
-) (*gm.GroupMessageBroadcaster, error) {
-	return gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
-		client,
-	)
-}
-
-func identityUpdatesContract(
-	cfg config.ContractsOptions,
-	client *ethclient.Client,
-) (*iu.IdentityUpdateBroadcaster, error) {
-	return iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
-		client,
-	)
 }

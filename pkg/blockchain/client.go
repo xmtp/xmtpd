@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -110,4 +111,19 @@ func WaitForTransaction(
 			continue
 		}
 	}
+}
+
+func NewAppChainReader(
+	ctx context.Context,
+	cfg config.AppChainOptions,
+) (AppChainReader, error) {
+	if cfg.UseDatabaseClient {
+		return NewDatabaseAppChainReader(), nil
+	}
+	return NewEthAppChainReader(
+		ctx,
+		cfg.RpcURL,
+		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
+		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
+	)
 }

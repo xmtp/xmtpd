@@ -14,7 +14,6 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -69,10 +68,7 @@ func (i *Indexer) StartIndexer(
 	// Create ChainClient for log streaming
 	chainClient, err := blockchain.NewChainClient(
 		i.ctx,
-		cfg.AppChain.UseDatabaseClient,
-		cfg.AppChain.RpcURL,
-		common.HexToAddress(cfg.AppChain.GroupMessageBroadcasterAddress),
-		common.HexToAddress(cfg.AppChain.IdentityUpdateBroadcasterAddress),
+		cfg.AppChain,
 	)
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -112,17 +113,17 @@ func WaitForTransaction(
 	}
 }
 
-// NewChainClient creates a new ChainClient based on the configuration.
-// If useDatabaseClient is true, it returns a DatabaseChainClient.
-// Otherwise, it returns a RpcChainClient.
 func NewChainClient(
 	ctx context.Context,
-	useDatabaseClient bool,
-	rpcUrl string,
-	messagesContractAddr, identityUpdatesContractAddr common.Address,
+	cfg config.AppChainOptions,
 ) (ChainClient, error) {
-	if useDatabaseClient {
+	if cfg.UseDatabaseClient {
 		return NewDatabaseChainClient(), nil
 	}
-	return NewRpcChainClient(ctx, rpcUrl, messagesContractAddr, identityUpdatesContractAddr)
+	return NewRpcChainClient(
+		ctx,
+		cfg.RpcURL,
+		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
+		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
+	)
 }

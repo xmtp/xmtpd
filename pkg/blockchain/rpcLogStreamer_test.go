@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
@@ -41,15 +42,14 @@ func buildStreamer(
 }
 
 func TestBuilder(t *testing.T) {
-	rpcUrl := anvil.StartAnvil(t, false)
-	messagesContractAddress := testutils.RandomAddress()
-	identityUpdatesContractAddress := testutils.RandomAddress()
+	cfg := config.AppChainOptions{
+		RpcURL:                           anvil.StartAnvil(t, false),
+		GroupMessageBroadcasterAddress:   testutils.RandomAddress().Hex(),
+		IdentityUpdateBroadcasterAddress: testutils.RandomAddress().Hex(),
+	}
 	testclient, err := blockchain.NewChainClient(
 		context.Background(),
-		false, /*useDatabaseClient*/
-		rpcUrl,
-		messagesContractAddress,
-		identityUpdatesContractAddress,
+		cfg,
 	)
 	require.NoError(t, err)
 	builder := blockchain.NewRpcLogStreamBuilder(

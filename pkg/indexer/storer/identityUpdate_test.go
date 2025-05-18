@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -35,10 +34,7 @@ func buildIdentityUpdateStorer(
 
 	client, err := blockchain.NewChainClient(
 		ctx,
-		false, /*useDatabaseClient*/
-		config.AppChain.RpcURL,
-		common.HexToAddress(config.AppChain.GroupMessageBroadcasterAddress),
-		common.HexToAddress(config.AppChain.IdentityUpdateBroadcasterAddress),
+		config.AppChain,
 	)
 	require.NoError(t, err)
 	validationService := mlsvalidateMock.NewMockMLSValidationService(t)

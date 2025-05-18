@@ -32,10 +32,7 @@ func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 
 	client, err := blockchain.NewChainClient(
 		ctx,
-		false, /*useDatabaseClient*/
-		config.AppChain.RpcURL,
-		common.HexToAddress(config.AppChain.GroupMessageBroadcasterAddress),
-		common.HexToAddress(config.AppChain.IdentityUpdateBroadcasterAddress),
+		config.AppChain,
 	)
 	require.NoError(t, err)
 	storer := NewGroupMessageStorer(queryImpl, testutils.NewLog(t), client)

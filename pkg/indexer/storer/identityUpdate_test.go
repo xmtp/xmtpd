@@ -32,7 +32,7 @@ func buildIdentityUpdateStorer(
 		rpcUrl,
 	)
 
-	client, err := blockchain.NewChainClient(
+	client, err := blockchain.NewAppChainReader(
 		ctx,
 		config.AppChain,
 	)

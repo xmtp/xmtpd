@@ -65,21 +65,20 @@ func (i *Indexer) StartIndexer(
 	cfg config.ContractsOptions,
 	validationService mlsvalidate.MLSValidationService,
 ) error {
-	// Create ChainClient for log streaming
-	chainClient, err := blockchain.NewChainClient(
+	reader, err := blockchain.NewAppChainReader(
 		i.ctx,
 		cfg.AppChain,
 	)
 	if err != nil {
 		return err
 	}
-	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, chainClient, i.log)
+	builder := blockchain.NewRpcLogStreamBuilder(i.ctx, reader, i.log)
 	querier := queries.New(db)
 
 	streamer, err := configureLogStream(
 		i.ctx,
 		builder,
-		chainClient,
+		reader,
 		cfg.AppChain.MaxChainDisconnectTime,
 		querier,
 	)
@@ -99,12 +98,12 @@ func (i *Indexer) StartIndexer(
 			messageStorer := storer.NewGroupMessageStorer(
 				querier,
 				indexingLogger,
-				chainClient,
+				reader,
 			)
 
 			indexLogs(
 				ctx,
-				streamer.streamer.Client(),
+				streamer.streamer.Reader(),
 				streamer.messagesChannel,
 				streamer.messagesReorgChannel,
 				indexingLogger,
@@ -126,13 +125,13 @@ func (i *Indexer) StartIndexer(
 			identityStorer := storer.NewIdentityUpdateStorer(
 				db,
 				indexingLogger,
-				chainClient,
+				reader,
 				validationService,
 			)
 
 			indexLogs(
 				ctx,
-				streamer.streamer.Client(),
+				streamer.streamer.Reader(),
 				streamer.identityUpdatesChannel,
 				streamer.identityUpdatesReorgChannel,
 				indexingLogger,
@@ -161,11 +160,11 @@ type builtStreamer struct {
 func configureLogStream(
 	ctx context.Context,
 	builder *blockchain.RpcLogStreamBuilder,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 	maxChainDisconnectTime time.Duration,
 	querier *queries.Queries,
 ) (*builtStreamer, error) {
-	messagesAddress, err := client.ContractAddress(blockchain.EventTypeMessageSent)
+	messagesAddress, err := reader.ContractAddress(blockchain.EventTypeMessageSent)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +184,7 @@ func configureLogStream(
 		maxChainDisconnectTime,
 	)
 
-	identityUpdatesAddress, err := client.ContractAddress(
+	identityUpdatesAddress, err := reader.ContractAddress(
 		blockchain.EventTypeIdentityUpdateCreated,
 	)
 	if err != nil {
@@ -212,7 +211,7 @@ func configureLogStream(
 		return nil, err
 	}
 
-	reorgHandler := NewChainReorgHandler(ctx, streamer.Client(), querier)
+	reorgHandler := NewChainReorgHandler(ctx, streamer.Reader(), querier)
 
 	return &builtStreamer{
 		streamer:                    streamer,
@@ -235,7 +234,7 @@ The only non-retriable errors should be things like malformed events or failed v
 */
 func indexLogs(
 	ctx context.Context,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 	eventChannel <-chan types.Log,
 	reorgChannel chan<- uint64,
 	logger *zap.Logger,
@@ -307,7 +306,7 @@ func indexLogs(
 			storedBlockNumber > 0 &&
 			event.BlockNumber > storedBlockNumber &&
 			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
-			onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+			onchainBlock, err := reader.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
 			if err != nil {
 				logger.Warn(
 					"error querying block from the blockchain, proceeding with event processing",

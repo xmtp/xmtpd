@@ -18,7 +18,7 @@ type ChainReorgHandler interface {
 
 type ReorgHandler struct {
 	ctx     context.Context
-	client  blockchain.ChainClient
+	reader  blockchain.AppChainReader
 	queries *queries.Queries
 }
 
@@ -35,12 +35,12 @@ const BLOCK_RANGE_SIZE uint64 = 600
 
 func NewChainReorgHandler(
 	ctx context.Context,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 	queries *queries.Queries,
 ) *ReorgHandler {
 	return &ReorgHandler{
 		ctx:     ctx,
-		client:  client,
+		reader:  reader,
 		queries: queries,
 	}
 }
@@ -74,7 +74,7 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 		oldestBlock := storedBlocks[0]
 
 		if oldestBlock.BlockHash == nil {
-			startAtZero, err := r.client.BlockByNumber(
+			startAtZero, err := r.reader.BlockByNumber(
 				r.ctx,
 				big.NewInt(0),
 			)
@@ -92,7 +92,7 @@ func (r *ReorgHandler) FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
 			return 0, startAtZero.Hash().Bytes(), nil
 		}
 
-		chainBlock, err := r.client.BlockByNumber(r.ctx, big.NewInt(int64(oldestBlock.BlockNumber)))
+		chainBlock, err := r.reader.BlockByNumber(r.ctx, big.NewInt(int64(oldestBlock.BlockNumber)))
 		if err != nil {
 			return 0, nil, fmt.Errorf("%w %d: %v", ErrGetBlock, oldestBlock.BlockNumber, err)
 		}
@@ -130,7 +130,7 @@ func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint
 		mid := (left + right) / 2
 		storedBlock := blocks[mid]
 
-		chainBlock, err := r.client.BlockByNumber(
+		chainBlock, err := r.reader.BlockByNumber(
 			r.ctx,
 			big.NewInt(int64(storedBlock.BlockNumber)),
 		)
@@ -142,7 +142,7 @@ func (r *ReorgHandler) searchInRange(blocks []queries.GetBlocksInRangeRow) (uint
 			// Found a matching block, check if next block differs to confirm reorg point
 			if mid < len(blocks)-1 {
 				nextBlock := blocks[mid+1]
-				nextChainBlock, err := r.client.BlockByNumber(
+				nextChainBlock, err := r.reader.BlockByNumber(
 					r.ctx,
 					big.NewInt(int64(nextBlock.BlockNumber)),
 				)

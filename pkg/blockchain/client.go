@@ -113,14 +113,14 @@ func WaitForTransaction(
 	}
 }
 
-func NewChainClient(
+func NewAppChainReader(
 	ctx context.Context,
 	cfg config.AppChainOptions,
-) (ChainClient, error) {
+) (AppChainReader, error) {
 	if cfg.UseDatabaseClient {
-		return NewDatabaseChainClient(), nil
+		return NewDatabaseAppChainReader(), nil
 	}
-	return NewRpcChainClient(
+	return NewEthAppChainReader(
 		ctx,
 		cfg.RpcURL,
 		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),

@@ -30,7 +30,7 @@ func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 		rpcUrl,
 	)
 
-	client, err := blockchain.NewChainClient(
+	client, err := blockchain.NewAppChainReader(
 		ctx,
 		config.AppChain,
 	)

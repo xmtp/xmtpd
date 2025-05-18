@@ -32,7 +32,7 @@ var (
 )
 
 type GroupMessageStorer struct {
-	client  blockchain.ChainClient
+	reader  blockchain.AppChainReader
 	queries *queries.Queries
 	logger  *zap.Logger
 }
@@ -40,12 +40,12 @@ type GroupMessageStorer struct {
 func NewGroupMessageStorer(
 	queries *queries.Queries,
 	logger *zap.Logger,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
 		queries: queries,
 		logger:  logger.Named("GroupMessageStorer"),
-		client:  client,
+		reader:  reader,
 	}
 }
 
@@ -54,7 +54,7 @@ func (s *GroupMessageStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
 ) LogStorageError {
-	msgSent, err := s.client.ParseMessageSent(event)
+	msgSent, err := s.reader.ParseMessageSent(event)
 	if err != nil {
 		return NewUnrecoverableLogStorageError(ErrParseGroupMessage, err)
 	}

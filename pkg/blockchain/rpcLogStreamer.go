@@ -28,15 +28,15 @@ type RpcLogStreamBuilder struct {
 	ctx             context.Context
 	contractConfigs []ContractConfig
 	logger          *zap.Logger
-	client          ChainClient
+	reader          AppChainReader
 }
 
 func NewRpcLogStreamBuilder(
 	ctx context.Context,
-	client ChainClient,
+	reader AppChainReader,
 	logger *zap.Logger,
 ) *RpcLogStreamBuilder {
-	return &RpcLogStreamBuilder{ctx: ctx, client: client, logger: logger}
+	return &RpcLogStreamBuilder{ctx: ctx, reader: reader, logger: logger}
 }
 
 func (c *RpcLogStreamBuilder) ListenForContractEvent(
@@ -60,7 +60,7 @@ func (c *RpcLogStreamBuilder) ListenForContractEvent(
 }
 
 func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
-	return NewRpcLogStreamer(c.ctx, c.client, c.logger, c.contractConfigs), nil
+	return NewRpcLogStreamer(c.ctx, c.reader, c.logger, c.contractConfigs), nil
 }
 
 // Struct defining all the information required to filter events from logs
@@ -80,7 +80,7 @@ to get a complete history of events on a chain.
 *
 */
 type RpcLogStreamer struct {
-	client   ChainClient
+	reader   AppChainReader
 	watchers []ContractConfig
 	ctx      context.Context
 	logger   *zap.Logger
@@ -90,14 +90,14 @@ type RpcLogStreamer struct {
 
 func NewRpcLogStreamer(
 	ctx context.Context,
-	client ChainClient,
+	reader AppChainReader,
 	logger *zap.Logger,
 	watchers []ContractConfig,
 ) *RpcLogStreamer {
 	ctx, cancel := context.WithCancel(ctx)
 	return &RpcLogStreamer{
 		ctx:      ctx,
-		client:   client,
+		reader:   reader,
 		watchers: watchers,
 		logger:   logger.Named("rpcLogStreamer"),
 		cancel:   cancel,
@@ -107,7 +107,7 @@ func NewRpcLogStreamer(
 
 func (r *RpcLogStreamer) Start() {
 	for _, watcher := range r.watchers {
-		contractAddress, err := r.client.ContractAddress(watcher.EventType)
+		contractAddress, err := r.reader.ContractAddress(watcher.EventType)
 		if err != nil {
 			r.logger.Error("Error getting contract address", zap.Error(err))
 			continue
@@ -192,11 +192,11 @@ func (r *RpcLogStreamer) GetNextPage(
 	config ContractConfig,
 	fromBlock uint64,
 ) (logs []types.Log, nextBlock *uint64, err error) {
-	contractAddress, err := r.client.ContractAddress(config.EventType)
+	contractAddress, err := r.reader.ContractAddress(config.EventType)
 	if err != nil {
 		return nil, nil, err
 	}
-	highestBlock, err := r.client.BlockNumber(r.ctx)
+	highestBlock, err := r.reader.BlockNumber(r.ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,7 +215,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
-		return r.client.FilterLogs(
+		return r.reader.FilterLogs(
 			r.ctx,
 			config.EventType,
 			fromBlock,
@@ -234,8 +234,8 @@ func (r *RpcLogStreamer) GetNextPage(
 	return logs, &nextBlockNumber, nil
 }
 
-func (r *RpcLogStreamer) Client() ChainClient {
-	return r.client
+func (r *RpcLogStreamer) Reader() AppChainReader {
+	return r.reader
 }
 
 func (r *RpcLogStreamer) Stop() {

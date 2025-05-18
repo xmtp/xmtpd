@@ -21,7 +21,7 @@ import (
 
 func buildStreamer(
 	t *testing.T,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 	eventType blockchain.EventType,
 	fromBlock uint64,
 ) (*blockchain.RpcLogStreamer, chan types.Log) {
@@ -35,7 +35,7 @@ func buildStreamer(
 	}
 	return blockchain.NewRpcLogStreamer(
 		context.Background(),
-		client,
+		reader,
 		log,
 		[]blockchain.ContractConfig{cfg},
 	), channel
@@ -47,7 +47,7 @@ func TestBuilder(t *testing.T) {
 		GroupMessageBroadcasterAddress:   testutils.RandomAddress().Hex(),
 		IdentityUpdateBroadcasterAddress: testutils.RandomAddress().Hex(),
 	}
-	testclient, err := blockchain.NewChainClient(
+	testclient, err := blockchain.NewAppChainReader(
 		context.Background(),
 		cfg,
 	)
@@ -81,7 +81,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		Data:    []byte("foo"),
 	}
 
-	mockClient := mocks.NewMockChainClient(t)
+	mockClient := mocks.NewMockAppChainReader(t)
 	mockClient.On("BlockNumber", mock.Anything).Return(uint64(lastBlock), nil)
 	mockClient.On("FilterLogs", mock.Anything, blockchain.EventTypeMessageSent, fromBlock, lastBlock).
 		Return([]types.Log{logMessage}, nil)

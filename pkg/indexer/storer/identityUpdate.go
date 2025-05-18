@@ -38,7 +38,7 @@ var (
 )
 
 type IdentityUpdateStorer struct {
-	client            blockchain.ChainClient
+	reader            blockchain.AppChainReader
 	db                *sql.DB
 	logger            *zap.Logger
 	validationService mlsvalidate.MLSValidationService
@@ -47,13 +47,13 @@ type IdentityUpdateStorer struct {
 func NewIdentityUpdateStorer(
 	db *sql.DB,
 	logger *zap.Logger,
-	client blockchain.ChainClient,
+	reader blockchain.AppChainReader,
 	validationService mlsvalidate.MLSValidationService,
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{
 		db:                db,
 		logger:            logger.Named("IdentityUpdateStorer"),
-		client:            client,
+		reader:            reader,
 		validationService: validationService,
 	}
 }
@@ -63,7 +63,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
 ) LogStorageError {
-	msgSent, err := s.client.ParseIdentityUpdateCreated(event)
+	msgSent, err := s.reader.ParseIdentityUpdateCreated(event)
 	if err != nil {
 		return NewUnrecoverableLogStorageError(ErrParseIdentityUpdate, err)
 	}

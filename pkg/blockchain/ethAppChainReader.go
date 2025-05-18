@@ -30,7 +30,9 @@ func buildIdentityUpdatesTopic() (common.Hash, error) {
 	return utils.GetEventTopic(abi, "IdentityUpdateCreated")
 }
 
-type RpcChainClient struct {
+// Implements AppChainReader
+// Replaces DatabaseAppChainReader when the decentralization rollout is complete.
+type EthAppChainReader struct {
 	*ethclient.Client
 	messagesContractAddress        common.Address
 	identityUpdatesContractAddress common.Address
@@ -38,12 +40,11 @@ type RpcChainClient struct {
 	identityUpdateContract         *iu.IdentityUpdateBroadcaster
 }
 
-// TODO(rich): rename
-func NewRpcChainClient(
+func NewEthAppChainReader(
 	ctx context.Context,
 	rpcUrl string,
 	messagesContractAddr, identityUpdatesContractAddr common.Address,
-) (*RpcChainClient, error) {
+) (*EthAppChainReader, error) {
 	client, err := ethclient.DialContext(ctx, rpcUrl)
 	if err != nil {
 		return nil, err
@@ -62,7 +63,7 @@ func NewRpcChainClient(
 	if err != nil {
 		return nil, err
 	}
-	return &RpcChainClient{
+	return &EthAppChainReader{
 		Client:                         client,
 		messagesContractAddress:        messagesContractAddr,
 		identityUpdatesContractAddress: identityUpdatesContractAddr,
@@ -71,7 +72,7 @@ func NewRpcChainClient(
 	}, nil
 }
 
-func (r *RpcChainClient) FilterLogs(
+func (r *EthAppChainReader) FilterLogs(
 	ctx context.Context,
 	eventType EventType,
 	fromBlock, toBlock uint64,
@@ -83,7 +84,7 @@ func (r *RpcChainClient) FilterLogs(
 	return r.Client.FilterLogs(ctx, query)
 }
 
-func (r *RpcChainClient) buildFilterQuery(
+func (r *EthAppChainReader) buildFilterQuery(
 	eventType EventType,
 	fromBlock uint64,
 	toBlock uint64,
@@ -114,7 +115,7 @@ func (r *RpcChainClient) buildFilterQuery(
 	}, nil
 }
 
-func (r *RpcChainClient) ContractAddress(eventType EventType) (string, error) {
+func (r *EthAppChainReader) ContractAddress(eventType EventType) (string, error) {
 	switch eventType {
 	case EventTypeMessageSent:
 		return r.messagesContractAddress.Hex(), nil
@@ -125,13 +126,13 @@ func (r *RpcChainClient) ContractAddress(eventType EventType) (string, error) {
 	}
 }
 
-func (r *RpcChainClient) ParseMessageSent(
+func (r *EthAppChainReader) ParseMessageSent(
 	log types.Log,
 ) (*gm.GroupMessageBroadcasterMessageSent, error) {
 	return r.groupMessageContract.ParseMessageSent(log)
 }
 
-func (r *RpcChainClient) ParseIdentityUpdateCreated(
+func (r *EthAppChainReader) ParseIdentityUpdateCreated(
 	log types.Log,
 ) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 	return r.identityUpdateContract.ParseIdentityUpdateCreated(log)

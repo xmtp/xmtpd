@@ -32,7 +32,7 @@ type LogStreamer interface {
 	Start(ctx context.Context) error
 }
 
-type ChainClient interface {
+type AppChainReader interface {
 	FilterLogs(
 		ctx context.Context,
 		eventType EventType,
@@ -42,13 +42,13 @@ type ChainClient interface {
 
 	ContractAddress(eventType EventType) (string, error)
 
-	// From ethereum.BlockNumberReader
+	// Matches ethereum.BlockNumberReader
 	BlockNumber(ctx context.Context) (uint64, error)
 
-	// From ethereum.ChainReader
+	// Matches ethereum.ChainReader
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
 
-	// From contract ABI's
+	// Matches contract ABI's
 	ParseMessageSent(log types.Log) (*gm.GroupMessageBroadcasterMessageSent, error)
 	ParseIdentityUpdateCreated(
 		log types.Log,

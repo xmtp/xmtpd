@@ -32,7 +32,7 @@ packages:
       ChainReorgHandler:
   github.com/xmtp/xmtpd/pkg/blockchain:
     interfaces:
-      ChainClient:
+      AppChainReader:
       IBlockchainPublisher:
       NonceManager:
   github.com/xmtp/xmtpd/pkg/indexer/storer:

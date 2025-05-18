@@ -308,7 +308,7 @@ func indexLogs(
 			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
 			n := new(big.Int).SetUint64(storedBlockNumber)
 			onchainBlock, err := reader.BlockByNumber(ctx, n)
-			if err != nil {
+			if onchainBlock == nil || err != nil {
 				logger.Warn(
 					"error querying block from the blockchain, proceeding with event processing",
 					zap.Uint64("blockNumber", storedBlockNumber),

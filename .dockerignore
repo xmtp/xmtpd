@@ -16,3 +16,6 @@
 # Allow tools
 !tools/
 !tooks/**
+
+# Ignore all test files
+**/*_test.go

@@ -87,21 +87,21 @@ The XMTP testnet nodes operated by Ephemera include:
 | https://grpc.testnet.xmtp.network  | US-EAST-2  | 0x03e5442c5d1fe2f02b6b9a1a386383a7766860b40a6079a0223994ffa2ce10512c |
 | https://grpc2.testnet.xmtp.network | EU-NORTH-1 | 0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371 |
 
-## Deploy an xmtpd node to XMTP testnet
+## Deploy a local environment for developing with xmtpd
 
-See [Deploy an xmtpd node to XMTP testnet](/doc/deploy.md).
+See [Deploy a local environment for developing with xmtpd](doc/deploy.md).
 
 ## Support a new XMTP testnet node operator
 
-See [Support a new XMTP testnet node operator](/doc/onboarding.md).
+See [Support a new XMTP testnet node operator](doc/onboarding.md).
 
 ## Migrate to XMTP node registry V2
 
 See [Node Registry Migration](doc/node-registry-migration-v2.md).
 
-## Metrics catalog
+## xmtpd OpenMetrics catalog
 
-See [Metrics catalog](doc/metrics_catalog.md).
+See [xmptd OpenMetrics catalog](doc/metrics_catalog.md).
 
 ## Contributing
 

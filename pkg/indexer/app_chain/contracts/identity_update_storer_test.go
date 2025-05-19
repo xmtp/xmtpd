@@ -1,4 +1,4 @@
-package storer
+package contracts
 
 import (
 	"context"
@@ -29,10 +29,6 @@ func buildIdentityUpdateStorer(
 	db, _ := testutils.NewDB(t, ctx)
 	rpcUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
-	config.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
-		t,
-		rpcUrl,
-	)
 
 	client, err := blockchain.NewClient(ctx, config.AppChain.RpcURL)
 	require.NoError(t, err)

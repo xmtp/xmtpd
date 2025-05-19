@@ -1,4 +1,4 @@
-package indexer
+package common
 
 import (
 	"context"
@@ -20,7 +20,7 @@ and allows the user to increase the value.
 */
 type BlockTracker struct {
 	latestBlock     *Block
-	contractAddress string
+	contractAddress common.Address
 	queries         *queries.Queries
 	mu              sync.Mutex
 }
@@ -32,10 +32,12 @@ type Block struct {
 
 var ErrEmptyBlockHash = errors.New("block hash is empty")
 
+var _ IBlockTracker = &BlockTracker{}
+
 // Return a new BlockTracker initialized to the latest block from the DB
 func NewBlockTracker(
 	ctx context.Context,
-	contractAddress string,
+	contractAddress common.Address,
 	queries *queries.Queries,
 ) (*BlockTracker, error) {
 	bt := &BlockTracker{
@@ -98,7 +100,7 @@ func (bt *BlockTracker) UpdateLatestBlock(
 
 func (bt *BlockTracker) updateDB(ctx context.Context, block uint64, hash []byte) error {
 	return bt.queries.SetLatestBlock(ctx, queries.SetLatestBlockParams{
-		ContractAddress: bt.contractAddress,
+		ContractAddress: bt.contractAddress.Hex(),
 		BlockNumber:     int64(block),
 		BlockHash:       hash,
 	})
@@ -106,7 +108,7 @@ func (bt *BlockTracker) updateDB(ctx context.Context, block uint64, hash []byte)
 
 func loadLatestBlock(
 	ctx context.Context,
-	contractAddress string,
+	contractAddress common.Address,
 	querier *queries.Queries,
 ) (*Block, error) {
 	block := &Block{
@@ -114,7 +116,7 @@ func loadLatestBlock(
 		hash:   common.Hash{},
 	}
 
-	latestBlock, err := querier.GetLatestBlock(ctx, contractAddress)
+	latestBlock, err := querier.GetLatestBlock(ctx, contractAddress.Hex())
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return block, nil

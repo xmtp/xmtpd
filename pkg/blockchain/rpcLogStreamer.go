@@ -12,71 +12,60 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
 )
 
 const (
-	BACKFILL_BLOCKS = uint64(1000)
-	// Don't index very new blocks to account for reorgs
-	// Setting to 0 since we are talking about L2s with low reorg risk
-	LAG_FROM_HIGHEST_BLOCK = uint64(0)
-	ERROR_SLEEP_TIME       = 100 * time.Millisecond
-	NO_LOGS_SLEEP_TIME     = 1 * time.Second
+	BACKFILL_BLOCKS    = uint64(1000)
+	ERROR_SLEEP_TIME   = 100 * time.Millisecond
+	NO_LOGS_SLEEP_TIME = 100 * time.Millisecond
 )
-
-// The builder that allows you to configure contract events to listen for
-type RpcLogStreamBuilder struct {
-	// All the listeners
-	ctx             context.Context
-	contractConfigs []ContractConfig
-	logger          *zap.Logger
-	ethclient       *ethclient.Client
-}
-
-func NewRpcLogStreamBuilder(
-	ctx context.Context,
-	client *ethclient.Client,
-	logger *zap.Logger,
-) *RpcLogStreamBuilder {
-	return &RpcLogStreamBuilder{ctx: ctx, ethclient: client, logger: logger}
-}
-
-func (c *RpcLogStreamBuilder) ListenForContractEvent(
-	fromBlock uint64,
-	contractAddress common.Address,
-	topics []common.Hash,
-	maxDisconnectTime time.Duration,
-) (<-chan types.Log, chan<- uint64) {
-	eventChannel := make(chan types.Log, 100)
-	reorgChannel := make(chan uint64, 1)
-	c.contractConfigs = append(
-		c.contractConfigs,
-		ContractConfig{
-			fromBlock,
-			contractAddress,
-			topics,
-			eventChannel,
-			reorgChannel,
-			maxDisconnectTime,
-		},
-	)
-	return eventChannel, reorgChannel
-}
-
-func (c *RpcLogStreamBuilder) Build() (*RpcLogStreamer, error) {
-	return NewRpcLogStreamer(c.ctx, c.ethclient, c.logger, c.contractConfigs), nil
-}
 
 // Struct defining all the information required to filter events from logs
 type ContractConfig struct {
+	ID                string
 	FromBlock         uint64
 	ContractAddress   common.Address
 	Topics            []common.Hash
-	EventChannel      chan<- types.Log
+	MaxDisconnectTime time.Duration
+	backfillChannel   chan types.Log
 	reorgChannel      chan uint64
-	maxDisconnectTime time.Duration
+}
+
+type RpcLogStreamerOption func(*RpcLogStreamer) error
+
+func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
+	return func(streamer *RpcLogStreamer) error {
+		streamer.lagFromHighestBlock = lagFromHighestBlock
+		return nil
+	}
+}
+
+func WithContractConfig(
+	cfg ContractConfig,
+) RpcLogStreamerOption {
+	return func(streamer *RpcLogStreamer) error {
+		if _, ok := streamer.watchers[cfg.ID]; ok {
+			streamer.logger.Error("contract config already exists", zap.String("id", cfg.ID))
+			return fmt.Errorf("contract config already exists: %s", cfg.ID)
+		}
+
+		backfillChannel := make(chan types.Log, 100)
+		reorgChannel := make(chan uint64, 1)
+
+		streamer.watchers[cfg.ID] = ContractConfig{
+			ID:                cfg.ID,
+			FromBlock:         cfg.FromBlock,
+			ContractAddress:   cfg.ContractAddress,
+			Topics:            cfg.Topics,
+			MaxDisconnectTime: cfg.MaxDisconnectTime,
+			backfillChannel:   backfillChannel,
+			reorgChannel:      reorgChannel,
+		}
+
+		return nil
+	}
 }
 
 /*
@@ -87,29 +76,45 @@ to get a complete history of events on a chain.
 *
 */
 type RpcLogStreamer struct {
-	client   ChainClient
-	watchers []ContractConfig
-	ctx      context.Context
-	logger   *zap.Logger
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	wg                  sync.WaitGroup
+	client              ChainClient
+	logger              *zap.Logger
+	watchers            map[string]ContractConfig
+	lagFromHighestBlock uint8
 }
 
 func NewRpcLogStreamer(
 	ctx context.Context,
 	client ChainClient,
 	logger *zap.Logger,
-	watchers []ContractConfig,
-) *RpcLogStreamer {
+	chainID int,
+	options ...RpcLogStreamerOption,
+) (*RpcLogStreamer, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	return &RpcLogStreamer{
-		ctx:      ctx,
-		client:   client,
-		watchers: watchers,
-		logger:   logger.Named("rpcLogStreamer"),
-		cancel:   cancel,
-		wg:       sync.WaitGroup{},
+
+	streamLogger := logger.Named("rpcLogStreamer").
+		With(zap.Int("chainID", chainID))
+
+	streamer := &RpcLogStreamer{
+		ctx:                 ctx,
+		client:              client,
+		logger:              streamLogger,
+		cancel:              cancel,
+		wg:                  sync.WaitGroup{},
+		watchers:            make(map[string]ContractConfig),
+		lagFromHighestBlock: 0,
 	}
+
+	for _, option := range options {
+		if err := option(streamer); err != nil {
+			streamLogger.Error("failed to apply option", zap.Error(err))
+			return nil, err
+		}
+	}
+
+	return streamer, nil
 }
 
 func (r *RpcLogStreamer) Start() {
@@ -124,12 +129,18 @@ func (r *RpcLogStreamer) Start() {
 	}
 }
 
+func (r *RpcLogStreamer) Stop() {
+	r.cancel()
+	r.wg.Wait()
+}
+
 func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 	fromBlock := watcher.FromBlock
 	logger := r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
-	defer close(watcher.EventChannel)
+	defer close(watcher.backfillChannel)
+	defer close(watcher.reorgChannel)
 
-	timer := time.NewTimer(watcher.maxDisconnectTime)
+	timer := time.NewTimer(watcher.MaxDisconnectTime)
 	defer timer.Stop()
 
 	for {
@@ -152,7 +163,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				"Blockchain reorg detected, resuming from block",
 				zap.Uint64("fromBlock", fromBlock),
 			)
-			timer.Reset(watcher.maxDisconnectTime)
+			timer.Reset(watcher.MaxDisconnectTime)
 
 		default:
 			logs, nextBlock, err := r.GetNextPage(watcher, fromBlock)
@@ -166,7 +177,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				continue
 			}
 			// reset self-termination timer
-			timer.Reset(watcher.maxDisconnectTime)
+			timer.Reset(watcher.MaxDisconnectTime)
 
 			if nextBlock != nil {
 				fromBlock = *nextBlock
@@ -184,7 +195,7 @@ func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
 				zap.Time("time", time.Now()),
 			)
 			for _, log := range logs {
-				watcher.EventChannel <- log
+				watcher.backfillChannel <- log
 			}
 		}
 	}
@@ -201,7 +212,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	}
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
-	highestBlockCanProcess := highestBlock - LAG_FROM_HIGHEST_BLOCK
+	highestBlockCanProcess := highestBlock - uint64(r.lagFromHighestBlock)
 	if fromBlock > highestBlockCanProcess {
 		metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
 		return []types.Log{}, nil, nil
@@ -235,6 +246,22 @@ func (r *RpcLogStreamer) Client() ChainClient {
 	return r.client
 }
 
+func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {
+	if _, ok := r.watchers[id]; !ok {
+		return nil
+	}
+
+	return r.watchers[id].backfillChannel
+}
+
+func (r *RpcLogStreamer) GetReorgChannel(id string) chan uint64 {
+	if _, ok := r.watchers[id]; !ok {
+		return nil
+	}
+
+	return r.watchers[id].reorgChannel
+}
+
 func buildFilterQuery(
 	contractConfig ContractConfig,
 	fromBlock uint64,
@@ -252,9 +279,4 @@ func buildFilterQuery(
 		Addresses: addresses,
 		Topics:    topics,
 	}
-}
-
-func (r *RpcLogStreamer) Stop() {
-	r.cancel()
-	r.wg.Wait()
 }

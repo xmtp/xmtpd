@@ -31,20 +31,12 @@ func startIndexing(
 
 	rpcUrl := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(rpcUrl)
-	cfg.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
-		t,
-		rpcUrl,
-	)
-	cfg.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
-		t,
-		rpcUrl,
-	)
 
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
-	indx := indexer.NewIndexer(ctx, logger)
-	err := indx.StartIndexer(db, cfg, validationService)
+	indx, err := indexer.NewIndexer(ctx, logger, db, cfg, validationService)
 	require.NoError(t, err)
+	indx.StartIndexer()
 
 	return db, queries.New(db), cfg, ctx
 }

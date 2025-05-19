@@ -43,8 +43,11 @@ func NewMetricsServer(
 	}
 	registerCollectors(reg)
 	srv := http.Server{
-		Addr:    addr,
-		Handler: promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}),
+		Addr: addr,
+		Handler: promhttp.HandlerFor(reg, promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+			Registry:          reg,
+		}),
 	}
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "metrics-server", func(ctx context.Context) {

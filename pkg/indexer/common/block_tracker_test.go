@@ -75,9 +75,11 @@ func TestConcurrentUpdates(t *testing.T) {
 	tracker, err := c.NewBlockTracker(ctx, address, querier)
 	require.NoError(t, err)
 
-	var wg sync.WaitGroup
 	numGoroutines := 10
 	updatesPerGoroutine := 100
+
+	errCh := make(chan error, numGoroutines)
+	wg := sync.WaitGroup{}
 
 	// Launch multiple goroutines to update the block number
 	for i := 0; i < numGoroutines; i++ {
@@ -91,12 +93,21 @@ func TestConcurrentUpdates(t *testing.T) {
 					blockNum,
 					testutils.Int64ToHash(int64(blockNum)).Bytes(),
 				)
-				require.NoError(t, err)
+				if err != nil {
+					errCh <- err
+					break
+				}
 			}
+			errCh <- nil
 		}(i * updatesPerGoroutine)
 	}
 
 	wg.Wait()
+
+	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
 
 	// The final block number should be the highest one attempted
 	expectedFinalBlock := uint64((numGoroutines-1)*updatesPerGoroutine + (updatesPerGoroutine - 1))

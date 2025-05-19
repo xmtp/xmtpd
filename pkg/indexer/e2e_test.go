@@ -31,14 +31,6 @@ func startIndexing(
 
 	rpcUrl := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(rpcUrl)
-	cfg.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
-		t,
-		rpcUrl,
-	)
-	cfg.AppChain.IdentityUpdateBroadcasterAddress = testutils.DeployIdentityUpdatesContract(
-		t,
-		rpcUrl,
-	)
 
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 

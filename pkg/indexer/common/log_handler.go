@@ -133,13 +133,19 @@ func IndexLogs(
 							Error("error updating block tracker", zap.Error(trackerErr))
 					}
 
-					reorgChannel <- reorgBlockNumber
+					select {
+					case reorgChannel <- reorgBlockNumber:
+					default:
+						contract.Logger().Warn("reorg signal dropped, channel not ready")
+					}
+
 					continue
 				}
 			}
 		}
 
 		err := retry(
+			ctx,
 			contract.Logger(),
 			100*time.Millisecond,
 			contract.Address().Hex(),
@@ -162,6 +168,7 @@ func IndexLogs(
 }
 
 func retry(
+	ctx context.Context,
 	logger *zap.Logger,
 	sleep time.Duration,
 	address string,

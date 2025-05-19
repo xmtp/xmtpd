@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
-	"github.com/xmtp/xmtpd/pkg/indexer/common"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -59,7 +60,7 @@ func NewAppChain(
 		client,
 		querier,
 		chainLogger,
-		cfg.GroupMessageBroadcasterAddress,
+		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
 		cfg.ChainID,
 	)
 	if err != nil {
@@ -75,7 +76,7 @@ func NewAppChain(
 		db,
 		chainLogger,
 		validationService,
-		cfg.IdentityUpdateBroadcasterAddress,
+		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
 		cfg.ChainID,
 	)
 	if err != nil {
@@ -133,7 +134,7 @@ func (a *AppChain) Start() {
 		&a.wg,
 		"indexer-group-message-broadcaster",
 		func(ctx context.Context) {
-			common.IndexLogs(
+			c.IndexLogs(
 				ctx,
 				a.streamer.Client(),
 				a.GroupMessageBroadcasterEventChannel(),
@@ -148,7 +149,7 @@ func (a *AppChain) Start() {
 		&a.wg,
 		"indexer-identity-update-broadcaster",
 		func(ctx context.Context) {
-			common.IndexLogs(
+			c.IndexLogs(
 				ctx,
 				a.streamer.Client(),
 				a.IdentityUpdateBroadcasterEventChannel(),

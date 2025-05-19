@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	groupMessageName  = "groupMessageBroadcaster"
+	groupMessageName  = "group-message-broadcaster"
 	groupMessageTopic = "MessageSent"
 )
 
 type GroupMessageBroadcaster struct {
-	address string
+	address common.Address
 	topics  []common.Hash
 	logger  *zap.Logger
 	c.IBlockTracker
@@ -34,7 +34,7 @@ func NewGroupMessageBroadcaster(
 	client *ethclient.Client,
 	querier *queries.Queries,
 	logger *zap.Logger,
-	address string,
+	address common.Address,
 	chainID int,
 ) (*GroupMessageBroadcaster, error) {
 	contract, err := groupMessageBroadcasterContract(address, client)
@@ -58,7 +58,7 @@ func NewGroupMessageBroadcaster(
 
 	logger = logger.Named("group-message-broadcaster").
 		With(zap.Int("chainID", chainID)).
-		With(zap.String("contractAddress", address))
+		With(zap.String("contractAddress", address.Hex()))
 
 	groupMessageStorer := NewGroupMessageStorer(querier, logger, contract)
 
@@ -75,7 +75,7 @@ func NewGroupMessageBroadcaster(
 }
 
 func (gm *GroupMessageBroadcaster) Address() common.Address {
-	return common.HexToAddress(gm.address)
+	return gm.address
 }
 
 func (gm *GroupMessageBroadcaster) Topics() []common.Hash {
@@ -87,11 +87,11 @@ func (gm *GroupMessageBroadcaster) Logger() *zap.Logger {
 }
 
 func groupMessageBroadcasterContract(
-	address string,
+	address common.Address,
 	client *ethclient.Client,
 ) (*gm.GroupMessageBroadcaster, error) {
 	return gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(address),
+		address,
 		client,
 	)
 }

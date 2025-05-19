@@ -35,7 +35,7 @@ type ContractConfig struct {
 
 type RpcLogStreamerOption func(*RpcLogStreamer)
 
-func WithLagFromHighestBlock(lagFromHighestBlock uint64) RpcLogStreamerOption {
+func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
 	return func(streamer *RpcLogStreamer) {
 		streamer.lagFromHighestBlock = lagFromHighestBlock
 	}
@@ -44,8 +44,6 @@ func WithLagFromHighestBlock(lagFromHighestBlock uint64) RpcLogStreamerOption {
 func WithContractConfig(
 	cfg ContractConfig,
 ) RpcLogStreamerOption {
-	backfillChannel := make(chan types.Log, 100)
-	reorgChannel := make(chan uint64, 1)
 	return func(streamer *RpcLogStreamer) {
 		streamer.watchers[cfg.ID] = ContractConfig{
 			ID:                cfg.ID,
@@ -53,8 +51,6 @@ func WithContractConfig(
 			ContractAddress:   cfg.ContractAddress,
 			Topics:            cfg.Topics,
 			MaxDisconnectTime: cfg.MaxDisconnectTime,
-			backfillChannel:   backfillChannel,
-			reorgChannel:      reorgChannel,
 		}
 	}
 }
@@ -73,7 +69,7 @@ type RpcLogStreamer struct {
 	client              ChainClient
 	logger              *zap.Logger
 	watchers            map[string]ContractConfig
-	lagFromHighestBlock uint64
+	lagFromHighestBlock uint8
 }
 
 func NewRpcLogStreamer(
@@ -100,6 +96,12 @@ func NewRpcLogStreamer(
 
 	for _, option := range options {
 		option(streamer)
+	}
+
+	for id, watcher := range streamer.watchers {
+		watcher.backfillChannel = make(chan types.Log, 100)
+		watcher.reorgChannel = make(chan uint64, 1)
+		streamer.watchers[id] = watcher
 	}
 
 	return streamer
@@ -200,7 +202,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	}
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
-	highestBlockCanProcess := highestBlock - r.lagFromHighestBlock
+	highestBlockCanProcess := highestBlock - uint64(r.lagFromHighestBlock)
 	if fromBlock > highestBlockCanProcess {
 		metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
 		return []types.Log{}, nil, nil

@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	identityUpdateName  = "identityUpdateBroadcaster"
+	identityUpdateName  = "identity-update-broadcaster"
 	identityUpdateTopic = "IdentityUpdateCreated"
 )
 
 type IdentityUpdateBroadcaster struct {
-	address string
+	address common.Address
 	topics  []common.Hash
 	logger  *zap.Logger
 	c.IBlockTracker
@@ -37,7 +37,7 @@ func NewIdentityUpdateBroadcaster(
 	db *sql.DB,
 	logger *zap.Logger,
 	validationService mlsvalidate.MLSValidationService,
-	address string,
+	address common.Address,
 	chainID int,
 ) (*IdentityUpdateBroadcaster, error) {
 	contract, err := identityUpdateBroadcasterContract(address, client)
@@ -63,7 +63,7 @@ func NewIdentityUpdateBroadcaster(
 
 	logger = logger.Named("identity-update-broadcaster").
 		With(zap.Int("chainID", chainID)).
-		With(zap.String("contractAddress", address))
+		With(zap.String("contractAddress", address.Hex()))
 
 	identityUpdateStorer := NewIdentityUpdateStorer(db, logger, contract, validationService)
 
@@ -80,7 +80,7 @@ func NewIdentityUpdateBroadcaster(
 }
 
 func (iu *IdentityUpdateBroadcaster) Address() common.Address {
-	return common.HexToAddress(iu.address)
+	return iu.address
 }
 
 func (iu *IdentityUpdateBroadcaster) Topics() []common.Hash {
@@ -92,11 +92,11 @@ func (iu *IdentityUpdateBroadcaster) Logger() *zap.Logger {
 }
 
 func identityUpdateBroadcasterContract(
-	address string,
+	address common.Address,
 	client *ethclient.Client,
 ) (*iu.IdentityUpdateBroadcaster, error) {
 	return iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(address),
+		address,
 		client,
 	)
 }

@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -e
 
-profile=${1:-single}
-
-if [ "$1" = "single" ]; then
+if [ -z "$1" ]; then
   profile="single"
-elif [ "$1" = "dual" ]; then
-  profile="dual"
-else
   echo "No profile provided, defaulting to single"
+elif [ "$1" = "single" ] || [ "$1" = "dual" ]; then
+  profile="$1"
+else
+  echo "Invalid profile '$1', defaulting to single"
+  profile="single"
 fi
 
 docker compose \
   -f dev/docker/docker-compose.yml \
   --env-file dev/local.env \
+  --profile ${profile} \
   -p "xmtpd" \
   down --remove-orphans --volumes
 

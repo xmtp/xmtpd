@@ -1,9 +1,9 @@
-x-xmtpd-cli-image: &xmtpd-cli-image ghcr.io/xmtp/xmtpd-cli:sha-d4e697c
-
 services:
   register-node-1:
     platform: linux/amd64
-    image: *xmtpd-cli-image
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -20,7 +20,9 @@ services:
 
   enable-node-1:
     platform: linux/amd64
-    image: *xmtpd-cli-image
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -38,7 +40,9 @@ services:
 
   register-node-2:
     platform: linux/amd64
-    image: *xmtpd-cli-image
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["dual"]
     env_file:
       - ../local.env
@@ -58,7 +62,9 @@ services:
 
   enable-node-2:
     platform: linux/amd64
-    image: *xmtpd-cli-image
+    build:
+      dockerfile: ./dev/docker/Dockerfile-cli
+      context: ../../
     profiles: ["dual"]
     env_file:
       - ../local.env

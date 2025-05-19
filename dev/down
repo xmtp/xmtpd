@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-dev/docker/down
+dev/docker/down "${@}"

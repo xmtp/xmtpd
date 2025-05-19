@@ -3,6 +3,7 @@ x-postgres-image: &x-postgres-image postgres:16
 services:
   db:
     image: *x-postgres-image
+    profiles: ["single", "dual"]
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:
@@ -10,6 +11,7 @@ services:
 
   db2:
     image: *x-postgres-image
+    profiles: ["single"]
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:

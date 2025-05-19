@@ -1,30 +1,18 @@
-# Ignore Git files
-.git
-.gitignore
-.github
+# Ignore everything
+**
 
-# Ignore IDE/editor files
-.idea/
-.vscode/
-*.swp
-*.swo
+# Allow Go module files
+!go.mod
+!go.sum
 
-# Ignore Go test executables and other compiled files
-*.test
-*.out
-*.exe
-*.o
-*.a
-*.so
+# Allow source code
+!*.go
+!*/**/*.go
 
-# Ignore build directories
-build/
-bin/
+# Allow pkg directory
+!pkg/
+!pkg/**
 
-# Ignore all test files
-**/*_test.go
-
-doc/
-
-LICENSE
-README.md
+# Allow tools
+!tools/
+!tooks/**

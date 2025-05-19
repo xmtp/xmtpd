@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"math/big"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -78,11 +79,14 @@ func StartAnvil(t *testing.T, showLogs bool) string {
 		WaitingFor: wait.ForLog("Listening on"),
 	}
 
-	anvilContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-		Logger:           log.Default(),
-	})
+	anvilContainer, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Logger:           log.Default(),
+		},
+	)
 	require.NoError(t, err)
 
 	if showLogs {

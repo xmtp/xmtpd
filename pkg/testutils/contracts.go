@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
@@ -9,7 +11,6 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 const (

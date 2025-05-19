@@ -11,7 +11,7 @@ services:
 
   db2:
     image: *x-postgres-image
-    profiles: ["single"]
+    profiles: ["dual"]
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:

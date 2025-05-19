@@ -57,7 +57,6 @@ func NewGroupMessageBroadcaster(
 	}
 
 	logger = logger.Named("group-message-broadcaster").
-		With(zap.Int("chainID", chainID)).
 		With(zap.String("contractAddress", address.Hex()))
 
 	groupMessageStorer := NewGroupMessageStorer(querier, logger, contract)

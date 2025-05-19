@@ -33,25 +33,38 @@ type ContractConfig struct {
 	reorgChannel      chan uint64
 }
 
-type RpcLogStreamerOption func(*RpcLogStreamer)
+type RpcLogStreamerOption func(*RpcLogStreamer) error
 
 func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
-	return func(streamer *RpcLogStreamer) {
+	return func(streamer *RpcLogStreamer) error {
 		streamer.lagFromHighestBlock = lagFromHighestBlock
+		return nil
 	}
 }
 
 func WithContractConfig(
 	cfg ContractConfig,
 ) RpcLogStreamerOption {
-	return func(streamer *RpcLogStreamer) {
+	return func(streamer *RpcLogStreamer) error {
+		if _, ok := streamer.watchers[cfg.ID]; ok {
+			streamer.logger.Error("contract config already exists", zap.String("id", cfg.ID))
+			return fmt.Errorf("contract config already exists: %s", cfg.ID)
+		}
+
+		backfillChannel := make(chan types.Log, 100)
+		reorgChannel := make(chan uint64, 1)
+
 		streamer.watchers[cfg.ID] = ContractConfig{
 			ID:                cfg.ID,
 			FromBlock:         cfg.FromBlock,
 			ContractAddress:   cfg.ContractAddress,
 			Topics:            cfg.Topics,
 			MaxDisconnectTime: cfg.MaxDisconnectTime,
+			backfillChannel:   backfillChannel,
+			reorgChannel:      reorgChannel,
 		}
+
+		return nil
 	}
 }
 
@@ -96,12 +109,6 @@ func NewRpcLogStreamer(
 
 	for _, option := range options {
 		option(streamer)
-	}
-
-	for id, watcher := range streamer.watchers {
-		watcher.backfillChannel = make(chan types.Log, 100)
-		watcher.reorgChannel = make(chan uint64, 1)
-		streamer.watchers[id] = watcher
 	}
 
 	return streamer

@@ -13,7 +13,6 @@ RUN go mod download
 
 COPY . .
 
-# Build the final node binary
 ARG VERSION=unknown
 RUN go build -ldflags="-X 'main.Version=$VERSION'" -o bin/xmtpd cmd/replication/main.go
 

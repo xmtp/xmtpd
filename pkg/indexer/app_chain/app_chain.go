@@ -50,6 +50,7 @@ func NewAppChain(
 	client, err := blockchain.NewClient(ctxwc, cfg.RpcURL)
 	if err != nil {
 		cancel()
+		client.Close()
 		return nil, err
 	}
 
@@ -65,6 +66,7 @@ func NewAppChain(
 	)
 	if err != nil {
 		cancel()
+		client.Close()
 		return nil, err
 	}
 
@@ -81,12 +83,13 @@ func NewAppChain(
 	)
 	if err != nil {
 		cancel()
+		client.Close()
 		return nil, err
 	}
 
 	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.GetLatestBlock()
 
-	streamer := blockchain.NewRpcLogStreamer(
+	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
 		log,
@@ -111,6 +114,11 @@ func NewAppChain(
 			},
 		),
 	)
+	if err != nil {
+		cancel()
+		client.Close()
+		return nil, err
+	}
 
 	return &AppChain{
 		ctx:                       ctxwc,

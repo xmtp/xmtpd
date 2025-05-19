@@ -91,7 +91,7 @@ func NewRpcLogStreamer(
 	logger *zap.Logger,
 	chainID int,
 	options ...RpcLogStreamerOption,
-) *RpcLogStreamer {
+) (*RpcLogStreamer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	streamLogger := logger.Named("rpcLogStreamer").
@@ -108,10 +108,13 @@ func NewRpcLogStreamer(
 	}
 
 	for _, option := range options {
-		option(streamer)
+		if err := option(streamer); err != nil {
+			streamLogger.Error("failed to apply option", zap.Error(err))
+			return nil, err
+		}
 	}
 
-	return streamer
+	return streamer, nil
 }
 
 func (r *RpcLogStreamer) Start() {

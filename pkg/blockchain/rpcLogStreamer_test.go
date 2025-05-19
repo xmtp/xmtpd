@@ -48,13 +48,14 @@ func TestRpcLogStreamer(t *testing.T) {
 		MaxDisconnectTime: 5 * time.Minute,
 	}
 
-	streamer := blockchain.NewRpcLogStreamer(
+	streamer, err := blockchain.NewRpcLogStreamer(
 		context.Background(),
 		mockClient,
 		testutils.NewLog(t),
 		1,
 		blockchain.WithContractConfig(cfg),
 	)
+	require.NoError(t, err)
 
 	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)
 	require.NoError(t, err)

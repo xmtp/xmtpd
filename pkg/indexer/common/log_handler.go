@@ -145,7 +145,6 @@ func IndexLogs(
 		}
 
 		err := retry(
-			ctx,
 			contract.Logger(),
 			100*time.Millisecond,
 			contract.Address().Hex(),
@@ -168,7 +167,6 @@ func IndexLogs(
 }
 
 func retry(
-	ctx context.Context,
 	logger *zap.Logger,
 	sleep time.Duration,
 	address string,

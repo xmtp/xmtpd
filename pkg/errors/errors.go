@@ -13,6 +13,10 @@ type NonRecoverableError struct {
 }
 
 func (e NonRecoverableError) Error() string {
+	if e.err == nil {
+		return e.msg
+	}
+
 	return fmt.Sprintf("%s: %s", e.msg, e.err.Error())
 }
 
@@ -20,8 +24,8 @@ func (e NonRecoverableError) ShouldRetry() bool {
 	return false
 }
 
-func NewNonRecoverableError(msg string, err error) NonRecoverableError {
-	return NonRecoverableError{msg: msg, err: err}
+func NewNonRecoverableError(msg string, err error) *NonRecoverableError {
+	return &NonRecoverableError{msg: msg, err: err}
 }
 
 type RecoverableError struct {
@@ -30,6 +34,10 @@ type RecoverableError struct {
 }
 
 func (e RecoverableError) Error() string {
+	if e.err == nil {
+		return e.msg
+	}
+
 	return fmt.Sprintf("%s: %s", e.msg, e.err.Error())
 }
 
@@ -37,6 +45,6 @@ func (e RecoverableError) ShouldRetry() bool {
 	return true
 }
 
-func NewRecoverableError(msg string, err error) RecoverableError {
-	return RecoverableError{msg: msg, err: err}
+func NewRecoverableError(msg string, err error) *RecoverableError {
+	return &RecoverableError{msg: msg, err: err}
 }

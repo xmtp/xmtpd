@@ -25,10 +25,6 @@ func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 	queryImpl := queries.New(db)
 	rpcUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(rpcUrl)
-	config.AppChain.GroupMessageBroadcasterAddress = testutils.DeployGroupMessagesContract(
-		t,
-		rpcUrl,
-	)
 
 	client, err := blockchain.NewClient(ctx, config.AppChain.RpcURL)
 	require.NoError(t, err)

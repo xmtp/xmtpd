@@ -1,18 +1,39 @@
 package anvil
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/log"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"math/big"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 )
+
+func streamContainerLogs(t *testing.T, ctx context.Context, container testcontainers.Container) {
+	rc, err := container.Logs(ctx)
+	if err != nil {
+		t.Logf("error streaming logs: %v", err)
+		return
+	}
+	defer func() {
+		_ = rc.Close()
+	}()
+
+	scanner := bufio.NewScanner(rc)
+	for scanner.Scan() {
+		t.Log(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		t.Logf("log scanner error: %v", err)
+	}
+}
 
 func waitForAnvil(t *testing.T, url string) {
 	backgroundCtx := context.Background()
@@ -46,32 +67,37 @@ func waitForAnvil(t *testing.T, url string) {
 
 // StartAnvil starts an ephemeral anvil instance and return the address
 func StartAnvil(t *testing.T, showLogs bool) string {
-	port := networkTestUtils.FindFreePort(t)
+	ctx := t.Context()
 
-	// we need mixed mining to work around https://github.com/xmtp/xmtpd/issues/643
-	cmd := exec.Command(
-		"anvil",
-		"--port",
-		fmt.Sprintf("%d", port),
-		"--mixed-mining",
-		"--block-time",
-		"1",
-	)
-	if showLogs {
-		// (Optional) You can capture stdout/stderr for logs:
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	req := testcontainers.ContainerRequest{
+		Image:        "ghcr.io/xmtp/contracts:sha-cff29fc",
+		ExposedPorts: []string{"8545/tcp"},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.AutoRemove = true
+		},
+		WaitingFor: wait.ForLog("Listening on"),
 	}
 
-	err := cmd.Start()
+	anvilContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+		Logger:           log.Default(),
+	})
 	require.NoError(t, err)
-	url := fmt.Sprintf("http://localhost:%d", port)
-	waitForAnvil(t, url)
+
+	if showLogs {
+		go streamContainerLogs(t, ctx, anvilContainer)
+	}
 
 	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		_ = anvilContainer.Terminate(ctx)
 	})
 
-	return url
+	mappedPort, err := anvilContainer.MappedPort(ctx, "8545/tcp")
+	require.NoError(t, err)
+
+	anvilURL := fmt.Sprintf("http://localhost:%s", mappedPort.Port())
+	waitForAnvil(t, anvilURL)
+
+	return anvilURL
 }

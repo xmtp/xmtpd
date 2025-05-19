@@ -19,12 +19,6 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	rpcUrl := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(rpcUrl)
 
-	// Set the nodes contract address to a random smart contract instead of the fixed deployment
-	contractsOptions.SettlementChain.RateRegistryAddress = testutils.DeployRatesRegistryContract(
-		t,
-		rpcUrl,
-	)
-
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.LOCAL_PRIVATE_KEY,
 		contractsOptions.AppChain.ChainID,

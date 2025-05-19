@@ -1,6 +1,6 @@
-# Metrics catalog
+# xmptd OpenMetrics catalog
 
-This document catalogs the Prometheus metrics instrumentation for xmptd.
+This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/open_metrics_spec/) instrumentation for xmptd.
 
 | Name | Type | Description | File |
 |------|------|-------------|------|

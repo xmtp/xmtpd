@@ -76,6 +76,17 @@ By default, we expose Prometheus metrics on port `8008`.
 curl http://localhost:8008
 ```
 
+## About the XMTP testnet
+
+The XMTP testnet environment lives in [XMTP Sepolia Chain](https://xmtp-testnet.explorer.alchemy.com/).
+
+The XMTP testnet nodes operated by Ephemera include:
+
+| DNS name                           | Location   | Public key                                                           |
+| ---------------------------------- | ---------- | -------------------------------------------------------------------- |
+| https://grpc.testnet.xmtp.network  | US-EAST-2  | 0x03e5442c5d1fe2f02b6b9a1a386383a7766860b40a6079a0223994ffa2ce10512c |
+| https://grpc2.testnet.xmtp.network | EU-NORTH-1 | 0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371 |
+
 ## Deploy an xmtpd node to XMTP testnet
 
 See [Deploy an xmtpd node to XMTP testnet](/doc/deploy.md).

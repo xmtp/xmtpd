@@ -72,6 +72,10 @@ func dumpToMarkdown(metrics []Metric) {
 	})
 
 	var sb strings.Builder
+	sb.WriteString("# xmptd OpenMetrics catalog\n\n")
+	sb.WriteString(
+		"This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/open_metrics_spec/) instrumentation for xmptd.\n\n",
+	)
 	sb.WriteString("| Name | Type | Description | File |\n")
 	sb.WriteString("|------|------|-------------|------|\n")
 

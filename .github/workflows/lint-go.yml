@@ -4,17 +4,10 @@ on:
     branches:
       - main
   pull_request:
-    paths:
-      - ".github/workflows/lint-go.yml"
-      - "pkg/**"
-      - "cmd/**"
-      - "dev/**"
-      - "go.mod"
-      - "go.sum"
-      - "tools.go"
-      - ".golangci.yaml"
+
 permissions:
   contents: read
+
 jobs:
   lint-go:
     name: Lint-Go

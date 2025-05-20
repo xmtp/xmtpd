@@ -5,14 +5,7 @@ on:
       - main
       - rel/**
   pull_request:
-    paths:
-      - ".github/workflows/test.yml"
-      - "pkg/**"
-      - "cmd/**"
-      - "dev/**"
-      - "go.mod"
-      - "go.sum"
-      - "tools.go"
+
 jobs:
   test:
     name: Test (Node)

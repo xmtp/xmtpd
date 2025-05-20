@@ -29,7 +29,7 @@ For more information about the onchain protocol, deployments, and source code, s
 
 Use the script provided in `dev/up` to automatically handle the deployment for you. The blockchain starts at <http://localhost:7545/>.
 
-This method automatically pre-registers two nodes.
+This method automatically pre-registers one node.
 
 ## Register a node with the local network
 

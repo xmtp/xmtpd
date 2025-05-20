@@ -13,15 +13,15 @@ Prompt them to ensure that the public key and address are correct as they are im
 Only members of `@ephemerahq/backend` can currently register nodes.
 
 ```bash
-export XMTPD_CONTRACTS_RPC_URL="https://rpc-testnet-staging-88dqtxdinc.t.conduit.xyz/"
+export XMTPD_CONTRACTS_RPC_URL="https://xmtp-testnet.g.alchemy.com/v2/<apikey>"
 export XMTPD_CONTRACTS_CHAIN_ID=34498
 export XMTPD_CONTRACTS_NODES_ADDRESS=<depends>
 export PRIVATE_KEY=<secret>
 
-dev/cli register-node \
+./dev/cmd/cli register-node \
     --http-address=<node DNS> \
     --node-owner-address=<node address> \
-    --admin-private-key=$PRIVATE_KEY \
+    --admin.private-key=$PRIVATE_KEY \
     --node-signing-key-pub=<node pub-key>
 ```
 

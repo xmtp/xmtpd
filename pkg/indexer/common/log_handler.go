@@ -149,6 +149,7 @@ func IndexLogs(
 			contract.Logger(),
 			100*time.Millisecond,
 			contract.Address().Hex(),
+			event.BlockNumber,
 			func() re.RetryableError {
 				return contract.StoreLog(ctx, event)
 			},
@@ -172,6 +173,7 @@ func retry(
 	logger *zap.Logger,
 	sleep time.Duration,
 	address string,
+	blockNumber uint64,
 	fn func() re.RetryableError,
 ) error {
 	for {
@@ -180,7 +182,11 @@ func retry(
 			return ctx.Err()
 		default:
 			if err := fn(); err != nil {
-				logger.Error("error storing log", zap.Error(err))
+				logger.Error("error storing log",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Error(err),
+				)
+
 				if err.ShouldRetry() {
 					metrics.EmitIndexerRetryableStorageError(address)
 
@@ -191,6 +197,7 @@ func retry(
 						continue
 					}
 				}
+
 				return err
 			}
 			return nil

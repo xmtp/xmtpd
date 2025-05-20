@@ -3,6 +3,8 @@ package app_chain
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,6 +23,8 @@ import (
 const (
 	lagFromHighestBlock = 0
 )
+
+var ErrInitializingAppChain = errors.New("initializing app chain")
 
 // An AppChain has a GroupMessageBroadcaster and IdentityUpdateBroadcaster contract.
 type AppChain struct {
@@ -51,7 +55,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	querier := queries.New(db)
@@ -63,11 +67,12 @@ func NewAppChain(
 		chainLogger,
 		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
 		cfg.ChainID,
+		cfg.GroupMessageBroadcasterStartBlock,
 	)
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	groupMessageLatestBlockNumber, _ := groupMessageBroadcaster.GetLatestBlock()
@@ -80,11 +85,12 @@ func NewAppChain(
 		validationService,
 		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
 		cfg.ChainID,
+		cfg.IdentityUpdateBroadcasterStartBlock,
 	)
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.GetLatestBlock()
@@ -117,7 +123,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	return &AppChain{

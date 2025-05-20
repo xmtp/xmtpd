@@ -135,13 +135,17 @@ func (r *RpcLogStreamer) Stop() {
 }
 
 func (r *RpcLogStreamer) watchContract(watcher ContractConfig) {
-	fromBlock := watcher.FromBlock
-	logger := r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
+	var (
+		logger    = r.logger.With(zap.String("contractAddress", watcher.ContractAddress.Hex()))
+		timer     = time.NewTimer(watcher.MaxDisconnectTime)
+		fromBlock = watcher.FromBlock
+	)
+
 	defer close(watcher.backfillChannel)
 	defer close(watcher.reorgChannel)
-
-	timer := time.NewTimer(watcher.MaxDisconnectTime)
 	defer timer.Stop()
+
+	logger.Info("Starting watcher", zap.Uint64("fromBlock", fromBlock))
 
 	for {
 		select {

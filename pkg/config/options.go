@@ -32,11 +32,13 @@ type ContractsOptions struct {
 }
 
 type AppChainOptions struct {
-	RpcURL                           string        `long:"rpc-url"                             env:"XMTPD_APP_CHAIN_RPC_URL"                           description:"Blockchain RPC URL"`
-	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
-	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
-	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
-	IdentityUpdateBroadcasterAddress string        `long:"identity-update-broadcaster-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS" description:"Identity update broadcaster contract address"`
+	RpcURL                              string        `long:"rpc-url"                                 env:"XMTPD_APP_CHAIN_RPC_URL"                               description:"Blockchain RPC URL"`
+	ChainID                             int           `long:"chain-id"                                env:"XMTPD_APP_CHAIN_CHAIN_ID"                              description:"Chain ID for the application chain"                           default:"31337"`
+	MaxChainDisconnectTime              time.Duration `long:"max-chain-disconnect-time"               env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"             description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+	GroupMessageBroadcasterAddress      string        `long:"group-message-broadcaster-address"       env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"       description:"Group message broadcaster contract address"`
+	GroupMessageBroadcasterStartBlock   uint64        `long:"group-message-broadcaster-start-block"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_START_BLOCK"   description:"Start block for the group message broadcaster"                default:"0"`
+	IdentityUpdateBroadcasterAddress    string        `long:"identity-update-broadcaster-address"     env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS"     description:"Identity update broadcaster contract address"`
+	IdentityUpdateBroadcasterStartBlock uint64        `long:"identity-update-broadcaster-start-block" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_START_BLOCK" description:"Start block for the identity update broadcaster"              default:"0"`
 }
 
 type SettlementChainOptions struct {

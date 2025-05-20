@@ -36,6 +36,7 @@ func NewGroupMessageBroadcaster(
 	logger *zap.Logger,
 	address common.Address,
 	chainID int,
+	startBlock uint64,
 ) (*GroupMessageBroadcaster, error) {
 	contract, err := groupMessageBroadcasterContract(address, client)
 	if err != nil {
@@ -44,8 +45,10 @@ func NewGroupMessageBroadcaster(
 
 	groupMessagesTracker, err := c.NewBlockTracker(
 		ctx,
+		client,
 		address,
 		querier,
+		startBlock,
 	)
 	if err != nil {
 		return nil, err

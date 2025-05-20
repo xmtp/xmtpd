@@ -39,6 +39,7 @@ func NewIdentityUpdateBroadcaster(
 	validationService mlsvalidate.MLSValidationService,
 	address common.Address,
 	chainID int,
+	startBlock uint64,
 ) (*IdentityUpdateBroadcaster, error) {
 	contract, err := identityUpdateBroadcasterContract(address, client)
 	if err != nil {
@@ -49,8 +50,10 @@ func NewIdentityUpdateBroadcaster(
 
 	identityUpdatesTracker, err := c.NewBlockTracker(
 		ctx,
+		client,
 		address,
 		querier,
+		startBlock,
 	)
 	if err != nil {
 		return nil, err

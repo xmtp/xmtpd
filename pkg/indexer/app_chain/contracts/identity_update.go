@@ -62,7 +62,6 @@ func NewIdentityUpdateBroadcaster(
 	}
 
 	logger = logger.Named("identity-update-broadcaster").
-		With(zap.Int("chainID", chainID)).
 		With(zap.String("contractAddress", address.Hex()))
 
 	identityUpdateStorer := NewIdentityUpdateStorer(db, logger, contract, validationService)

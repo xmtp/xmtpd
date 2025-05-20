@@ -145,6 +145,7 @@ func IndexLogs(
 		}
 
 		err := retry(
+			ctx,
 			contract.Logger(),
 			100*time.Millisecond,
 			contract.Address().Hex(),
@@ -167,21 +168,32 @@ func IndexLogs(
 }
 
 func retry(
+	ctx context.Context,
 	logger *zap.Logger,
 	sleep time.Duration,
 	address string,
 	fn func() re.RetryableError,
 ) error {
 	for {
-		if err := fn(); err != nil {
-			logger.Error("error storing log", zap.Error(err))
-			if err.ShouldRetry() {
-				metrics.EmitIndexerRetryableStorageError(address)
-				time.Sleep(sleep)
-				continue
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			if err := fn(); err != nil {
+				logger.Error("error storing log", zap.Error(err))
+				if err.ShouldRetry() {
+					metrics.EmitIndexerRetryableStorageError(address)
+
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case <-time.After(sleep):
+						continue
+					}
+				}
+				return err
 			}
-			return err
+			return nil
 		}
-		return nil
 	}
 }

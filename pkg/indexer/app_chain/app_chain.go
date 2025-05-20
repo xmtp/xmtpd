@@ -55,7 +55,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	querier := queries.New(db)
@@ -72,7 +72,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	groupMessageLatestBlockNumber, _ := groupMessageBroadcaster.GetLatestBlock()
@@ -90,7 +90,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.GetLatestBlock()
@@ -123,7 +123,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	return &AppChain{

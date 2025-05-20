@@ -4,9 +4,7 @@ on:
     branches:
       - main
   pull_request:
-    paths:
-      - ".github/workflows/lint-spellcheck.yml"
-      - "dev/**"
+
 jobs:
   lint-spellcheck:
     name: Lint Spellcheck

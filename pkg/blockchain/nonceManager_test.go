@@ -162,17 +162,28 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	numClients := 20
+	errCh := make(chan error, numClients)
 
 	for i := 0; i < numClients; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			nonce, err := nonceManager.GetNonce(ctx)
-			require.NoError(t, err)
+			if err != nil {
+				errCh <- err
+				return
+			}
 			err = nonce.Consume()
-			require.NoError(t, err)
+			if err != nil {
+				errCh <- err
+				return
+			}
 		}()
 	}
 
 	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
 }

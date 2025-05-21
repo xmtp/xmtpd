@@ -39,12 +39,11 @@ type MigrateNodesOptions struct {
 	InFile       string                   `                                        long:"in-file" description:"File to read the nodes from"`
 }
 
-type GetMaxCanonicalOptions struct {
-}
+type GetMaxCanonicalOptions struct{}
 
 type SetMaxCanonicalOptions struct {
 	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	Limit        uint8                    `long:"limit" description:"Limit of max canonical nodes" required:"true"`
+	Limit        uint8                    `                                        long:"limit" description:"Limit of max canonical nodes" required:"true"`
 }
 
 type GetPubKeyOptions struct {

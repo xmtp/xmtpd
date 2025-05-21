@@ -3,8 +3,9 @@ package migrator
 import (
 	"context"
 	"encoding/json"
-	"github.com/pkg/errors"
 	"os"
+
+	"github.com/pkg/errors"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/blockchain"

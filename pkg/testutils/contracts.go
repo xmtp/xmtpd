@@ -51,10 +51,10 @@ func BuildMessageSentLog(
 	eventData, err := BuildMessageSentEvent(messageBytes)
 	require.NoError(t, err)
 
-	abi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
+	gmabi, err := gm.GroupMessageBroadcasterMetaData.GetAbi()
 	require.NoError(t, err)
 
-	topic0, err := utils.GetEventTopic(abi, "MessageSent")
+	topic0, err := utils.GetEventTopic(gmabi, "MessageSent")
 	require.NoError(t, err)
 
 	topic1 := common.BytesToHash(groupID[:])                       // indexed bytes32 groupId
@@ -71,12 +71,21 @@ func BuildMessageSentLog(
 	}
 }
 
-func BuildIdentityUpdateEvent(inboxId [32]byte, update []byte, sequenceID uint64) ([]byte, error) {
-	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
+func BuildIdentityUpdateEvent(update []byte) ([]byte, error) {
+	iuabi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
-	return abi.Events["IdentityUpdateCreated"].Inputs.Pack(inboxId, update, sequenceID)
+
+	inputs := iuabi.Events["IdentityUpdateCreated"].Inputs
+	var nonIndexed abi.Arguments
+	for _, input := range inputs {
+		if !input.Indexed {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	return nonIndexed.Pack(update)
 }
 
 // Build a log message for an IdentityUpdateCreated event
@@ -88,17 +97,25 @@ func BuildIdentityUpdateLog(
 ) types.Log {
 	messageBytes, err := proto.Marshal(clientEnvelope)
 	require.NoError(t, err)
-	eventData, err := BuildIdentityUpdateEvent(inboxId, messageBytes, sequenceID)
+	eventData, err := BuildIdentityUpdateEvent(messageBytes)
 	require.NoError(t, err)
 
-	abi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
+	iuabi, err := iu.IdentityUpdateBroadcasterMetaData.GetAbi()
 	require.NoError(t, err)
 
-	topic, err := utils.GetEventTopic(abi, "IdentityUpdateCreated")
+	topic0, err := utils.GetEventTopic(iuabi, "IdentityUpdateCreated")
 	require.NoError(t, err)
 
+	topic1 := common.BytesToHash(inboxId[:])                       // indexed bytes32 inboxId
+	topic2 := common.BigToHash(new(big.Int).SetUint64(sequenceID)) // indexed uint64 sequenceId
+
+	// Step 6: Assemble the log
 	return types.Log{
-		Topics: []common.Hash{topic},
-		Data:   eventData,
+		Topics: []common.Hash{
+			topic0, // event signature
+			topic1, // groupId
+			topic2, // sequenceId
+		},
+		Data: eventData, // ABI-encoded `message` (non-indexed)
 	}
 }

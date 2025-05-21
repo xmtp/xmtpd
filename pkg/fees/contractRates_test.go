@@ -14,6 +14,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
+const TEST_PAGE_SIZE = 5
+
 func buildFetcher(t *testing.T) (*ContractRatesFetcher, *feesMock.MockRatesContract) {
 	mockContract := feesMock.NewMockRatesContract(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -24,6 +26,7 @@ func buildFetcher(t *testing.T) (*ContractRatesFetcher, *feesMock.MockRatesContr
 		ctx:             ctx,
 		contract:        mockContract,
 		refreshInterval: 100 * time.Millisecond,
+		pageSize:        TEST_PAGE_SIZE,
 	}
 
 	return fetcher, mockContract
@@ -43,6 +46,10 @@ func TestLoadGetRates(t *testing.T) {
 	fetcher, mockContract := buildFetcher(t)
 
 	mockContract.EXPECT().
+		GetRatesCount(mock.Anything).
+		Return(big.NewInt(1), nil)
+
+	mockContract.EXPECT().
 		GetRates(mock.Anything, big.NewInt(0), mock.Anything).
 		Return([]rateregistry.IRateRegistryRates{buildRates(100, 1), buildRates(200, 2)}, nil)
 
@@ -56,35 +63,47 @@ func TestLoadGetRates(t *testing.T) {
 }
 
 func TestCanPaginate(t *testing.T) {
-	t.Skip()
 	fetcher, mockContract := buildFetcher(t)
 
 	mockContract.EXPECT().
+		GetRatesCount(mock.Anything).
+		Return(big.NewInt(6), nil)
+
+	mockContract.EXPECT().
 		GetRates(mock.Anything, big.NewInt(0), mock.Anything).
-		Return([]rateregistry.IRateRegistryRates{buildRates(100, 1), buildRates(200, 2)}, nil).
+		Return([]rateregistry.IRateRegistryRates{buildRates(100, 1), buildRates(200, 2), buildRates(300, 3), buildRates(400, 4), buildRates(500, 5)}, nil).
 		Times(1)
 
 	mockContract.EXPECT().
-		GetRates(mock.Anything, big.NewInt(2), mock.Anything).
-		Return([]rateregistry.IRateRegistryRates{buildRates(300, 3)}, nil).
+		GetRates(mock.Anything, big.NewInt(5), mock.Anything).
+		Return([]rateregistry.IRateRegistryRates{buildRates(600, 6)}, nil).
 		Times(1)
 
 	require.NoError(t, fetcher.Start())
 
-	require.Len(t, fetcher.rates, 3)
+	require.Len(t, fetcher.rates, 6)
 	require.Equal(t, fetcher.rates[0].rates.MessageFee, currency.PicoDollar(100))
 	require.Equal(t, fetcher.rates[1].rates.MessageFee, currency.PicoDollar(200))
 	require.Equal(t, fetcher.rates[2].rates.MessageFee, currency.PicoDollar(300))
+	require.Equal(t, fetcher.rates[3].rates.MessageFee, currency.PicoDollar(400))
+	require.Equal(t, fetcher.rates[4].rates.MessageFee, currency.PicoDollar(500))
+	require.Equal(t, fetcher.rates[5].rates.MessageFee, currency.PicoDollar(600))
 }
 
 func TestGetRates(t *testing.T) {
 	fetcher, mockContract := buildFetcher(t)
 
-	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0), mock.Anything).Return([]rateregistry.IRateRegistryRates{
-		buildRates(100, 100),
-		buildRates(200, 200),
-		buildRates(300, 300),
-	}, nil)
+	mockContract.EXPECT().
+		GetRatesCount(mock.Anything).
+		Return(big.NewInt(3), nil)
+
+	mockContract.EXPECT().
+		GetRates(mock.Anything, big.NewInt(0), mock.Anything).
+		Return([]rateregistry.IRateRegistryRates{
+			buildRates(100, 100),
+			buildRates(200, 200),
+			buildRates(300, 300),
+		}, nil)
 
 	require.NoError(t, fetcher.Start())
 
@@ -112,8 +131,14 @@ func TestGetRates(t *testing.T) {
 func TestFailIfNoRates(t *testing.T) {
 	fetcher, mockContract := buildFetcher(t)
 
-	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0), mock.Anything).Return([]rateregistry.IRateRegistryRates{},
-		nil)
+	mockContract.EXPECT().
+		GetRatesCount(mock.Anything).
+		Return(big.NewInt(1), nil)
+
+	mockContract.EXPECT().
+		GetRates(mock.Anything, big.NewInt(0), mock.Anything).
+		Return([]rateregistry.IRateRegistryRates{},
+			nil)
 
 	require.Error(t, fetcher.Start())
 }
@@ -121,11 +146,17 @@ func TestFailIfNoRates(t *testing.T) {
 func TestGetRatesBeforeFirstRate(t *testing.T) {
 	fetcher, mockContract := buildFetcher(t)
 
-	mockContract.EXPECT().GetRates(mock.Anything, big.NewInt(0), mock.Anything).Return([]rateregistry.IRateRegistryRates{
-		buildRates(100, 100),
-		buildRates(200, 200),
-		buildRates(300, 300),
-	}, nil)
+	mockContract.EXPECT().
+		GetRatesCount(mock.Anything).
+		Return(big.NewInt(3), nil)
+
+	mockContract.EXPECT().
+		GetRates(mock.Anything, big.NewInt(0), mock.Anything).
+		Return([]rateregistry.IRateRegistryRates{
+			buildRates(100, 100),
+			buildRates(200, 200),
+			buildRates(300, 300),
+		}, nil)
 
 	require.NoError(t, fetcher.Start())
 

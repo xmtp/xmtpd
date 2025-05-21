@@ -85,6 +85,64 @@ func (_c *MockRatesContract_GetRates_Call) RunAndReturn(run func(*bind.CallOpts,
 	return _c
 }
 
+// GetRatesCount provides a mock function with given fields: opts
+func (_m *MockRatesContract) GetRatesCount(opts *bind.CallOpts) (*big.Int, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRatesCount")
+	}
+
+	var r0 *big.Int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts) (*big.Int, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts) *big.Int); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*bind.CallOpts) error); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockRatesContract_GetRatesCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRatesCount'
+type MockRatesContract_GetRatesCount_Call struct {
+	*mock.Call
+}
+
+// GetRatesCount is a helper method to define mock.On call
+//   - opts *bind.CallOpts
+func (_e *MockRatesContract_Expecter) GetRatesCount(opts interface{}) *MockRatesContract_GetRatesCount_Call {
+	return &MockRatesContract_GetRatesCount_Call{Call: _e.mock.On("GetRatesCount", opts)}
+}
+
+func (_c *MockRatesContract_GetRatesCount_Call) Run(run func(opts *bind.CallOpts)) *MockRatesContract_GetRatesCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*bind.CallOpts))
+	})
+	return _c
+}
+
+func (_c *MockRatesContract_GetRatesCount_Call) Return(_a0 *big.Int, _a1 error) *MockRatesContract_GetRatesCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockRatesContract_GetRatesCount_Call) RunAndReturn(run func(*bind.CallOpts) (*big.Int, error)) *MockRatesContract_GetRatesCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockRatesContract creates a new instance of MockRatesContract. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockRatesContract(t interface {

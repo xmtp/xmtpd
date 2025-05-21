@@ -5,17 +5,6 @@ x-cli-image: &cli-image
   image: ghcr.io/xmtp/xmtpd-cli:dev
 
 services:
-  display-nodes:
-    <<: *cli-image
-    profiles: [ "single", "dual" ]
-    env_file:
-      - ../local.env
-    command:
-      [
-        "get-all-nodes"
-      ]
-    restart: no
-    network_mode: host
   register-node-1:
     <<: *cli-image
     profiles: ["single", "dual"]

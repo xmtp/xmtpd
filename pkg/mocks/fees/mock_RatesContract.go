@@ -25,42 +25,29 @@ func (_m *MockRatesContract) EXPECT() *MockRatesContract_Expecter {
 	return &MockRatesContract_Expecter{mock: &_m.Mock}
 }
 
-// GetRates provides a mock function with given fields: opts, fromIndex
-func (_m *MockRatesContract) GetRates(opts *bind.CallOpts, fromIndex *big.Int) (struct {
-	Rates   []rateregistry.IRateRegistryRates
-	HasMore bool
-}, error) {
-	ret := _m.Called(opts, fromIndex)
+// GetRates provides a mock function with given fields: opts, fromIndex, count
+func (_m *MockRatesContract) GetRates(opts *bind.CallOpts, fromIndex *big.Int, count *big.Int) ([]rateregistry.IRateRegistryRates, error) {
+	ret := _m.Called(opts, fromIndex, count)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRates")
 	}
 
-	var r0 struct {
-		Rates   []rateregistry.IRateRegistryRates
-		HasMore bool
-	}
+	var r0 []rateregistry.IRateRegistryRates
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*bind.CallOpts, *big.Int) (struct {
-		Rates   []rateregistry.IRateRegistryRates
-		HasMore bool
-	}, error)); ok {
-		return rf(opts, fromIndex)
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts, *big.Int, *big.Int) ([]rateregistry.IRateRegistryRates, error)); ok {
+		return rf(opts, fromIndex, count)
 	}
-	if rf, ok := ret.Get(0).(func(*bind.CallOpts, *big.Int) struct {
-		Rates   []rateregistry.IRateRegistryRates
-		HasMore bool
-	}); ok {
-		r0 = rf(opts, fromIndex)
+	if rf, ok := ret.Get(0).(func(*bind.CallOpts, *big.Int, *big.Int) []rateregistry.IRateRegistryRates); ok {
+		r0 = rf(opts, fromIndex, count)
 	} else {
-		r0 = ret.Get(0).(struct {
-			Rates   []rateregistry.IRateRegistryRates
-			HasMore bool
-		})
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]rateregistry.IRateRegistryRates)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*bind.CallOpts, *big.Int) error); ok {
-		r1 = rf(opts, fromIndex)
+	if rf, ok := ret.Get(1).(func(*bind.CallOpts, *big.Int, *big.Int) error); ok {
+		r1 = rf(opts, fromIndex, count)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -76,29 +63,24 @@ type MockRatesContract_GetRates_Call struct {
 // GetRates is a helper method to define mock.On call
 //   - opts *bind.CallOpts
 //   - fromIndex *big.Int
-func (_e *MockRatesContract_Expecter) GetRates(opts interface{}, fromIndex interface{}) *MockRatesContract_GetRates_Call {
-	return &MockRatesContract_GetRates_Call{Call: _e.mock.On("GetRates", opts, fromIndex)}
+//   - count *big.Int
+func (_e *MockRatesContract_Expecter) GetRates(opts interface{}, fromIndex interface{}, count interface{}) *MockRatesContract_GetRates_Call {
+	return &MockRatesContract_GetRates_Call{Call: _e.mock.On("GetRates", opts, fromIndex, count)}
 }
 
-func (_c *MockRatesContract_GetRates_Call) Run(run func(opts *bind.CallOpts, fromIndex *big.Int)) *MockRatesContract_GetRates_Call {
+func (_c *MockRatesContract_GetRates_Call) Run(run func(opts *bind.CallOpts, fromIndex *big.Int, count *big.Int)) *MockRatesContract_GetRates_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*bind.CallOpts), args[1].(*big.Int))
+		run(args[0].(*bind.CallOpts), args[1].(*big.Int), args[2].(*big.Int))
 	})
 	return _c
 }
 
-func (_c *MockRatesContract_GetRates_Call) Return(_a0 struct {
-	Rates   []rateregistry.IRateRegistryRates
-	HasMore bool
-}, _a1 error) *MockRatesContract_GetRates_Call {
+func (_c *MockRatesContract_GetRates_Call) Return(_a0 []rateregistry.IRateRegistryRates, _a1 error) *MockRatesContract_GetRates_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockRatesContract_GetRates_Call) RunAndReturn(run func(*bind.CallOpts, *big.Int) (struct {
-	Rates   []rateregistry.IRateRegistryRates
-	HasMore bool
-}, error)) *MockRatesContract_GetRates_Call {
+func (_c *MockRatesContract_GetRates_Call) RunAndReturn(run func(*bind.CallOpts, *big.Int, *big.Int) ([]rateregistry.IRateRegistryRates, error)) *MockRatesContract_GetRates_Call {
 	_c.Call.Return(run)
 	return _c
 }

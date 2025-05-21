@@ -20,16 +20,11 @@ const MAX_REFRESH_INTERVAL = 60 * time.Minute
 
 // Dumbed down version of the RatesManager contract interface
 type RatesContract interface {
-	GetRates(opts *bind.CallOpts, fromIndex *big.Int) (struct {
-		Rates   []rateregistry.IRateRegistryRates
-		HasMore bool
-	}, error)
-}
-
-// ratesResponse is an alias for the return type of GetRates to improve readability
-type ratesResponse struct {
-	Rates   []rateregistry.IRateRegistryRates
-	HasMore bool
+	GetRates(
+		opts *bind.CallOpts,
+		fromIndex *big.Int,
+		count *big.Int,
+	) ([]rateregistry.IRateRegistryRates, error)
 }
 
 type indexedRates struct {
@@ -43,7 +38,7 @@ type ContractRatesFetcher struct {
 	ctx             context.Context
 	wg              sync.WaitGroup
 	logger          *zap.Logger
-	contract        *rateregistry.RateRegistryCaller
+	contract        RatesContract
 	rates           []*indexedRates
 	refreshInterval time.Duration
 	lastRefresh     time.Time

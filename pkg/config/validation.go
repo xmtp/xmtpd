@@ -231,9 +231,15 @@ func validateHexAddress(address string, fieldName string, set map[string]struct{
 }
 
 func validateWebsocketURL(url string, fieldName string, set map[string]struct{}) {
+	dialer := &ws.Dialer{
+		HandshakeTimeout: 15 * time.Second,
+	}
+
 	// Dial returns an error if the URL is invalid, or if the connection fails.
-	_, _, err := ws.DefaultDialer.Dial(url, nil)
+	conn, _, err := dialer.Dial(url, nil)
 	if err != nil {
 		set[fmt.Sprintf("--%s is invalid", fieldName)] = struct{}{}
 	}
+
+	conn.Close()
 }

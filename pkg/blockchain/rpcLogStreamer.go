@@ -138,8 +138,12 @@ func (r *RpcLogStreamer) Stop() {
 func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 	var (
 		logger    = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
-		timer     = time.NewTimer(cfg.MaxDisconnectTime)
-		fromBlock = cfg.FromBlock
+		subLogger = logger.Named("subscription").
+				With(zap.String("contractAddress", cfg.Address.Hex()))
+		timer                = time.NewTimer(cfg.MaxDisconnectTime)
+		fromBlock            = cfg.FromBlock
+		highestBackfillBlock = fromBlock - 1
+		isSubEnabled         = false
 	)
 
 	defer close(cfg.backfillChannel)
@@ -147,13 +151,25 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 	defer close(cfg.reorgChannel)
 	defer timer.Stop()
 
-	innerSubCh, err := r.subscribeContract(cfg)
+	highestSubBlock, err := r.client.BlockNumber(r.ctx)
+	if err != nil {
+		logger.Error("failed to get highest block", zap.Error(err))
+		return
+	}
+
+	innerBackfillCh, cancelBackfill, err := r.retrieveHistoricalLogs(cfg, fromBlock)
+	if err != nil {
+		logger.Error("failed to retrieve historical logs", zap.Error(err))
+		return
+	}
+
+	innerSubCh, err := r.subscribeContract(cfg, subLogger)
 	if err != nil {
 		logger.Error("failed to subscribe to contract", zap.Error(err))
 		return
 	}
 
-	logger.Info("Starting watcher", zap.Uint64("fromBlock", fromBlock))
+	logger.Info("Starting watcher")
 
 	for {
 		select {
@@ -181,55 +197,126 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		case log, open := <-innerSubCh:
 			if !open {
 				// TODO: Should this be fatal?
-				logger.Error("Subscription channel closed")
+				subLogger.Error("Subscription channel closed")
 				return
 			}
 
-			// TODO: Send logs only when backfilling is done.
-			// In the meantime, logs should be stored in order.
-
-			select {
-			case cfg.subChannel <- log:
-			default:
-				// TODO: Handle this.
-				logger.Debug("Error sending log to subChannel")
+			if log.BlockNumber > highestSubBlock {
+				highestSubBlock = log.BlockNumber
 			}
 
-		default:
-			logs, nextBlock, err := r.GetNextPage(cfg, fromBlock)
-			if err != nil {
-				logger.Error(
-					"Error getting next page",
-					zap.Uint64("fromBlock", fromBlock),
-					zap.Error(err),
-				)
-				time.Sleep(sleepTimeOnError)
+			if !isSubEnabled {
+				// TODO: Consider creating a log buffer, when within a reasonable distance from the highestSubBlock.
+				// Re-sending logs through the channel is not a problem.
 				continue
 			}
+
+			subLogger.Debug(
+				"Sending log to subscription channel",
+				zap.Uint64("fromBlock", log.BlockNumber),
+			)
+
+			cfg.subChannel <- log
+
+			// TODO: Does the timer makes sense while using a subscription with keepalive?
+			timer.Reset(cfg.MaxDisconnectTime)
+
+		case log, open := <-innerBackfillCh:
+			if !open {
+				continue
+			}
+
+			if isSubEnabled {
+				continue
+			}
+
+			if log.BlockNumber > highestBackfillBlock {
+				highestBackfillBlock = log.BlockNumber
+			}
+
+			cfg.backfillChannel <- log
 
 			timer.Reset(cfg.MaxDisconnectTime)
 
-			if nextBlock != nil {
-				fromBlock = *nextBlock
-			}
+			// Check if subscription has to be enabled, only after processing all logs.
+			// Duplicated logs are not a problem, lost logs are.
+			if highestBackfillBlock-uint64(r.lagFromHighestBlock) >= highestSubBlock {
+				logger.Debug(
+					"Backfill complete, enabling subscription mode",
+					zap.Uint64("blockNumber", highestBackfillBlock),
+				)
 
-			if len(logs) == 0 {
-				time.Sleep(sleepTimeNoLogs)
-				continue
-			}
+				isSubEnabled = true
 
-			logger.Debug(
-				"Got logs",
-				zap.Int("numLogs", len(logs)),
-				zap.Uint64("fromBlock", fromBlock),
-				zap.Time("time", time.Now()),
-			)
-
-			for _, log := range logs {
-				cfg.backfillChannel <- log
+				cancelBackfill()
 			}
 		}
 	}
+}
+
+func (r *RpcLogStreamer) retrieveHistoricalLogs(
+	cfg ContractConfig,
+	fromBlock uint64,
+) (chan types.Log, context.CancelFunc, error) {
+	var (
+		innerBackfillCh = make(chan types.Log, 100)
+		logger          = r.logger.Named("backfiller").
+				With(zap.String("contractAddress", cfg.Address.Hex()))
+	)
+
+	ctxwc, cancel := context.WithCancel(r.ctx)
+
+	tracing.GoPanicWrap(
+		ctxwc,
+		&r.wg,
+		fmt.Sprintf("rpcLogStreamer-watcher-backfiller-%v", cfg.Address),
+		func(ctx context.Context) {
+			defer close(innerBackfillCh)
+
+			logger.Info("Backfilling logs", zap.Uint64("fromBlock", fromBlock))
+
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Debug("backfiller context cancelled, stopping")
+					return
+
+				default:
+					logs, nextBlock, err := r.GetNextPage(cfg, fromBlock)
+					if err != nil {
+						logger.Error(
+							"Error getting next page",
+							zap.Uint64("fromBlock", fromBlock),
+							zap.Error(err),
+						)
+						time.Sleep(sleepTimeOnError)
+						continue
+					}
+
+					if nextBlock != nil {
+						fromBlock = *nextBlock
+					}
+
+					if len(logs) == 0 {
+						time.Sleep(sleepTimeNoLogs)
+						continue
+					}
+
+					logger.Debug(
+						"Got logs",
+						zap.Int("numLogs", len(logs)),
+						zap.Uint64("fromBlock", fromBlock),
+						zap.Time("time", time.Now()),
+					)
+
+					for _, log := range logs {
+						innerBackfillCh <- log
+					}
+				}
+			}
+		})
+
+	return innerBackfillCh, cancel, nil
 }
 
 func (r *RpcLogStreamer) GetNextPage(
@@ -273,12 +360,13 @@ func (r *RpcLogStreamer) GetNextPage(
 	return logs, &nextBlockNumber, nil
 }
 
-func (r *RpcLogStreamer) subscribeContract(cfg ContractConfig) (chan types.Log, error) {
+func (r *RpcLogStreamer) subscribeContract(
+	cfg ContractConfig,
+	logger *zap.Logger,
+) (chan types.Log, error) {
 	var (
 		innerSubCh = make(chan types.Log, 100)
 		query      = buildSubscriptionFilterQuery(cfg)
-		logger     = r.logger.Named("subscription").
-				With(zap.String("contractAddress", cfg.Address.Hex()))
 	)
 
 	sub, err := r.buildSubscription(query, innerSubCh)
@@ -299,7 +387,7 @@ func (r *RpcLogStreamer) subscribeContract(cfg ContractConfig) (chan types.Log, 
 
 			for {
 				select {
-				case <-r.ctx.Done():
+				case <-ctx.Done():
 					logger.Debug("subscription context cancelled, stopping")
 					return
 
@@ -318,7 +406,7 @@ func (r *RpcLogStreamer) subscribeContract(cfg ContractConfig) (chan types.Log, 
 					expBackoff := backoff.NewExponentialBackOff()
 					expBackoff.InitialInterval = 1 * time.Second
 
-					sub, err = backoff.Retry(
+					sub, err = backoff.Retry[ethereum.Subscription](
 						r.ctx,
 						rebuildOperation,
 						backoff.WithBackOff(expBackoff),

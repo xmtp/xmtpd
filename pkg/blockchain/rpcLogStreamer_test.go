@@ -43,7 +43,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	cfg := blockchain.ContractConfig{
 		ID:                "testContract",
 		FromBlock:         fromBlock,
-		ContractAddress:   address,
+		Address:           address,
 		Topics:            []common.Hash{topic},
 		MaxDisconnectTime: 5 * time.Minute,
 	}

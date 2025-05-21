@@ -10,7 +10,7 @@ import (
 )
 
 func TestRegisterNodeArgParse(t *testing.T) {
-	httpAddress := "http://localhost:8545"
+	httpAddress := "ws://localhost:8545"
 	ownerAddress := testutils.RandomAddress()
 	adminPrivateKey := utils.EcdsaPrivateKeyToString(testutils.RandomPrivateKey(t))
 	signingKeyPub := utils.EcdsaPublicKeyToString(

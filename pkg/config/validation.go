@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	ws "github.com/gorilla/websocket"
 )
 
 func ValidateServerOptions(options *ServerOptions) error {
@@ -113,7 +114,8 @@ func validateAppChainConfig(
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateField(
+	// TODO: For now, we only validate RpcURL, until deployments are migrated to WssURL.
+	validateWebsocketURL(
 		options.Contracts.AppChain.RpcURL,
 		"contracts.app-chain.rpc-url",
 		missingSet,
@@ -145,7 +147,8 @@ func validateSettlementChainConfig(
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateField(
+	// TODO: For now, we only validate RpcURL, until deployments are migrated to WssURL.
+	validateWebsocketURL(
 		options.Contracts.SettlementChain.RpcURL,
 		"contracts.settlement-chain.rpc-url",
 		missingSet,
@@ -223,6 +226,14 @@ func validateHexAddress(address string, fieldName string, set map[string]struct{
 		set[fmt.Sprintf("--%s is required", fieldName)] = struct{}{}
 	}
 	if !common.IsHexAddress(address) || common.HexToAddress(address) == (common.Address{}) {
+		set[fmt.Sprintf("--%s is invalid", fieldName)] = struct{}{}
+	}
+}
+
+func validateWebsocketURL(url string, fieldName string, set map[string]struct{}) {
+	// Dial returns an error if the URL is invalid, or if the connection fails.
+	_, _, err := ws.DefaultDialer.Dial(url, nil)
+	if err != nil {
 		set[fmt.Sprintf("--%s is invalid", fieldName)] = struct{}{}
 	}
 }

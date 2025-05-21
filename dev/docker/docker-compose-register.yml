@@ -1,9 +1,12 @@
+x-cli-image: &cli-image
+  build:
+    context: ../../
+    dockerfile: ./dev/docker/Dockerfile-cli
+  image: ghcr.io/xmtp/xmtpd-cli:dev
+
 services:
   register-node-1:
-    platform: linux/amd64
-    build:
-      dockerfile: ./dev/docker/Dockerfile-cli
-      context: ../../
+    <<: *cli-image
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -19,10 +22,7 @@ services:
     network_mode: host
 
   enable-node-1:
-    platform: linux/amd64
-    build:
-      dockerfile: ./dev/docker/Dockerfile-cli
-      context: ../../
+    <<: *cli-image
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
@@ -39,10 +39,7 @@ services:
     network_mode: host
 
   register-node-2:
-    platform: linux/amd64
-    build:
-      dockerfile: ./dev/docker/Dockerfile-cli
-      context: ../../
+    <<: *cli-image
     profiles: ["dual"]
     env_file:
       - ../local.env
@@ -61,10 +58,7 @@ services:
     network_mode: host
 
   enable-node-2:
-    platform: linux/amd64
-    build:
-      dockerfile: ./dev/docker/Dockerfile-cli
-      context: ../../
+    <<: *cli-image
     profiles: ["dual"]
     env_file:
       - ../local.env

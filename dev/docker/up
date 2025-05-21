@@ -27,6 +27,7 @@ docker compose \
   --profile ${profile} \
   -p "xmtpd_register_nodes" \
   up \
+  --build \
   --remove-orphans
 
 echo

@@ -11,6 +11,12 @@ type NodeRegistryAdminOptions struct {
 	AdminPrivateKey string `long:"private-key" description:"Private key of the admin to administer the node" required:"true"`
 }
 
+// RateRegistryAdminOptions is the options for the rate registry admin.
+// It is intended to be used as a namespace inside a command option struct.
+type RateRegistryAdminOptions struct {
+	AdminPrivateKey string `long:"private-key" description:"Private key of the admin to administer the rates" required:"true"`
+}
+
 // NodeRegistryManagerOptions is the options for the node registry manager.
 // It is intended to be used as a namespace inside a command option struct.
 type NodeRegistryManagerOptions struct {
@@ -51,12 +57,11 @@ type GetPubKeyOptions struct {
 }
 
 type AddRatesOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
-	MessageFee      uint64 `long:"message-fee"       description:"Message fee"`
-	StorageFee      uint64 `long:"storage-fee"       description:"Storage fee"`
-	CongestionFee   uint64 `long:"congestion-fee"    description:"Congestion fee"`
-	TargetRate      uint64 `long:"target-rate"       description:"Target rate per minute"`
-	DelayDays       uint   `long:"delay-days"        description:"Delay the rates going into effect for N days"    default:"0"`
+	AdminOptions  RateRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	MessageFee    uint64                   `long:"message-fee"       description:"Message fee" required:"true"`
+	StorageFee    uint64                   `long:"storage-fee"       description:"Storage fee" required:"true"`
+	CongestionFee uint64                   `long:"congestion-fee"    description:"Congestion fee" required:"true"`
+	TargetRate    uint64                   `long:"target-rate"       description:"Target rate per minute" required:"true"`
 }
 
 type GetRatesOptions struct{}

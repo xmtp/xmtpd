@@ -255,7 +255,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 			}
 			n.logger.Info("set parameter",
 				zap.String("key", NODE_REGISTRY_MAX_CANONICAL_NODES_KEY),
-				zap.Uint8("parameter", parameterSet.Value[31]),
+				zap.Uint64("parameter", decodeBytes32ToUint64(parameterSet.Value)),
 			)
 		},
 	)

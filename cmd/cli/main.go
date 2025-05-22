@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"strings"
@@ -96,6 +98,9 @@ func parseOptions(args []string) (*CLI, error) {
 	}
 	if _, err := parser.AddCommand("set-http-address", "Set the HTTP address of a node", "", &setHttpAddressOptions); err != nil {
 		return nil, fmt.Errorf("could not add set-http-address command: %s", err)
+	}
+	if _, err := parser.AddCommand("add-rates", "Add rates of the rates manager", "", &addRatesOptions); err != nil {
+		return nil, fmt.Errorf("could not add add-rates command: %s", err)
 	}
 
 	// Getter commands
@@ -200,11 +205,10 @@ func registerNode(logger *zap.Logger, options *CLI) {
 	}
 
 	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
+	registryAdmin, err := setupNodeRegistryAdmin(
 		ctx,
 		logger,
 		options.RegisterNode.AdminOptions.AdminPrivateKey,
-		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -265,11 +269,10 @@ func isPubKeyAlreadyRegistered(logger *zap.Logger, options *CLI, pubKey string) 
 
 func addNodeToNetwork(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
+	registryAdmin, err := setupNodeRegistryAdmin(
 		ctx,
 		logger,
 		options.NetworkAdminOptions.AdminOptions.AdminPrivateKey,
-		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -287,11 +290,10 @@ func addNodeToNetwork(logger *zap.Logger, options *CLI) {
 
 func setMaxCanonical(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
+	registryAdmin, err := setupNodeRegistryAdmin(
 		ctx,
 		logger,
 		options.SetMaxCanonicalOptions.AdminOptions.AdminPrivateKey,
-		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -309,11 +311,10 @@ func setMaxCanonical(logger *zap.Logger, options *CLI) {
 
 func removeNodeFromNetwork(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
+	registryAdmin, err := setupNodeRegistryAdmin(
 		ctx,
 		logger,
 		options.NetworkAdminOptions.AdminOptions.AdminPrivateKey,
-		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -336,11 +337,10 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not import nodes from file", zap.Error(err))
 	}
 
-	newRegistryAdmin, err := setupRegistryAdmin(
+	newRegistryAdmin, err := setupNodeRegistryAdmin(
 		ctx,
 		logger,
 		options.MigrateNodes.AdminOptions.AdminPrivateKey,
-		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -383,6 +383,39 @@ func getRates(logger *zap.Logger, options *CLI) {
 	logger.Info("rates fetched successfully", zap.Any("rates", rates))
 }
 
+func addRates(logger *zap.Logger, options *CLI) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
+	defer cancel()
+
+	registryAdmin, err := setupRateRegistryAdmin(ctx, logger, options.AddRates.AdminOptions.AdminPrivateKey, options.Contracts.SettlementChain.ChainID, options)
+	if err != nil {
+		logger.Fatal("could not setup registry admin", zap.Error(err))
+	}
+
+	if options.AddRates.MessageFee > math.MaxInt64 {
+		logger.Fatal("adding message fee too big", zap.Uint64("fee", options.AddRates.MessageFee))
+	}
+	if options.AddRates.StorageFee > math.MaxInt64 {
+		logger.Fatal("adding storage fee too big", zap.Uint64("fee", options.AddRates.StorageFee))
+	}
+	if options.AddRates.CongestionFee > math.MaxInt64 {
+		logger.Fatal("adding congestion fee too big", zap.Uint64("fee", options.AddRates.CongestionFee))
+	}
+
+	rates := fees.Rates{
+		MessageFee:          currency.PicoDollar(options.AddRates.MessageFee),
+		StorageFee:          currency.PicoDollar(options.AddRates.MessageFee),
+		CongestionFee:       currency.PicoDollar(options.AddRates.MessageFee),
+		TargetRatePerMinute: options.AddRates.TargetRate,
+	}
+
+	err = registryAdmin.AddRates(ctx, rates)
+	if err != nil {
+		logger.Fatal("could not add rates to registry", zap.Error(err))
+	}
+
+}
+
 /*
 *
 Node manager commands
@@ -391,11 +424,10 @@ Node manager commands
 
 func setHttpAddress(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	registryAdmin, err := setupRegistryAdmin(
+	registryAdmin, err := setupNodeRegistryAdmin(
 		ctx,
 		logger,
 		options.SetHttpAddress.NodeManagerOptions.NodePrivateKey,
-		options.Contracts.SettlementChain.ChainID,
 		options,
 	)
 	if err != nil {
@@ -606,6 +638,9 @@ func main() {
 	case "get-rates":
 		getRates(logger, options)
 		return
+	case "add-rates":
+		addRates(logger, options)
+		return
 	case "get-max-canonical-nodes":
 		getMaxCanonicalNodes(logger, options)
 		return
@@ -618,14 +653,50 @@ func main() {
 	}
 }
 
-// setupRegistryAdmin creates and returns a node registry admin
-func setupRegistryAdmin(
+// setupNodeRegistryAdmin creates and returns a node registry admin
+func setupNodeRegistryAdmin(
+	ctx context.Context,
+	logger *zap.Logger,
+	privateKey string,
+	options *CLI,
+) (blockchain.INodeRegistryAdmin, error) {
+	chainClient, err := blockchain.NewClient(
+		ctx,
+		options.Contracts.SettlementChain.RpcURL,
+	)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		options.Contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create registry admin: %w", err)
+	}
+
+	return registryAdmin, nil
+}
+
+// setupRateRegistryAdmin creates and returns a rate registry admin
+func setupRateRegistryAdmin(
 	ctx context.Context,
 	logger *zap.Logger,
 	privateKey string,
 	chainID int,
 	options *CLI,
-) (blockchain.INodeRegistryAdmin, error) {
+) (*blockchain.RatesAdmin, error) {
 	chainClient, err := blockchain.NewClient(
 		ctx,
 		options.Contracts.SettlementChain.RpcURL,
@@ -642,7 +713,7 @@ func setupRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+	registryAdmin, err := blockchain.NewRatesAdmin(
 		logger,
 		chainClient,
 		signer,

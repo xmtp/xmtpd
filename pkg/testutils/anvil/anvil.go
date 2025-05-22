@@ -71,7 +71,7 @@ func StartAnvil(t *testing.T, showLogs bool) string {
 	ctx := t.Context()
 
 	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/xmtp/contracts:sha-cff29fc",
+		Image:        "ghcr.io/xmtp/contracts:sha-73fd9e9",
 		ExposedPorts: []string{"8545/tcp"},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.AutoRemove = true

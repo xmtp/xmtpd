@@ -58,10 +58,10 @@ type GetPubKeyOptions struct {
 
 type AddRatesOptions struct {
 	AdminOptions  RateRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	MessageFee    uint64                   `long:"message-fee"       description:"Message fee" required:"true"`
-	StorageFee    uint64                   `long:"storage-fee"       description:"Storage fee" required:"true"`
-	CongestionFee uint64                   `long:"congestion-fee"    description:"Congestion fee" required:"true"`
-	TargetRate    uint64                   `long:"target-rate"       description:"Target rate per minute" required:"true"`
+	MessageFee    uint64                   `                                        long:"message-fee"    description:"Message fee"            required:"true"`
+	StorageFee    uint64                   `                                        long:"storage-fee"    description:"Storage fee"            required:"true"`
+	CongestionFee uint64                   `                                        long:"congestion-fee" description:"Congestion fee"         required:"true"`
+	TargetRate    uint64                   `                                        long:"target-rate"    description:"Target rate per minute" required:"true"`
 }
 
 type GetRatesOptions struct{}

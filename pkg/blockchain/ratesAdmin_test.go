@@ -2,13 +2,14 @@ package blockchain_test
 
 import (
 	"context"
+	"math"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
-	"math"
-	"testing"
 )
 
 func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
@@ -42,18 +43,14 @@ func TestAddRates(t *testing.T) {
 		TargetRatePerMinute: 100 * 60,
 	}
 
-	var err error
-
-	err = ratesAdmin.AddRates(context.Background(), rates)
+	err := ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
 }
 
 func TestAddNegativeRates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
-	var err error
-
-	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
+	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee: -100,
 	})
 	require.ErrorContains(t, err, "must be positive")
@@ -72,9 +69,7 @@ func TestAddNegativeRates(t *testing.T) {
 func TestAdd0Rates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
-	var err error
-
-	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
+	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee:          0,
 		StorageFee:          0,
 		CongestionFee:       0,
@@ -86,9 +81,7 @@ func TestAdd0Rates(t *testing.T) {
 func TestAddLargeRates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
-	var err error
-
-	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
+	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee:          math.MaxInt64,
 		StorageFee:          math.MaxInt64,
 		CongestionFee:       math.MaxInt64,
@@ -107,9 +100,7 @@ func TestAddRatesAgain(t *testing.T) {
 		TargetRatePerMinute: 1000,
 	}
 
-	var err error
-
-	err = ratesAdmin.AddRates(context.Background(), rates)
+	err := ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
 
 	err = ratesAdmin.AddRates(context.Background(), rates)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,7 +15,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"go.uber.org/zap"
-	"strings"
 )
 
 const (
@@ -76,7 +77,6 @@ func (r *RatesAdmin) AddRates(
 	ctx context.Context,
 	rates fees.Rates,
 ) error {
-
 	err := ExecuteTransaction(
 		ctx,
 		r.signer,

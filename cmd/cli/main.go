@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/xmtp/xmtpd/pkg/currency"
 	"log"
 	"math"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/currency"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
@@ -387,7 +388,13 @@ func addRates(logger *zap.Logger, options *CLI) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
 	defer cancel()
 
-	registryAdmin, err := setupRateRegistryAdmin(ctx, logger, options.AddRates.AdminOptions.AdminPrivateKey, options.Contracts.SettlementChain.ChainID, options)
+	registryAdmin, err := setupRateRegistryAdmin(
+		ctx,
+		logger,
+		options.AddRates.AdminOptions.AdminPrivateKey,
+		options.Contracts.SettlementChain.ChainID,
+		options,
+	)
 	if err != nil {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}
@@ -399,7 +406,10 @@ func addRates(logger *zap.Logger, options *CLI) {
 		logger.Fatal("adding storage fee too big", zap.Uint64("fee", options.AddRates.StorageFee))
 	}
 	if options.AddRates.CongestionFee > math.MaxInt64 {
-		logger.Fatal("adding congestion fee too big", zap.Uint64("fee", options.AddRates.CongestionFee))
+		logger.Fatal(
+			"adding congestion fee too big",
+			zap.Uint64("fee", options.AddRates.CongestionFee),
+		)
 	}
 
 	rates := fees.Rates{
@@ -413,7 +423,6 @@ func addRates(logger *zap.Logger, options *CLI) {
 	if err != nil {
 		logger.Fatal("could not add rates to registry", zap.Error(err))
 	}
-
 }
 
 /*

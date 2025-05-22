@@ -152,7 +152,6 @@ func (a *AppChain) Start() {
 				ctx,
 				a.streamer.Client(),
 				a.GroupMessageBroadcasterEventChannel(),
-				a.GroupMessageBroadcasterSubscriptionChannel(),
 				a.GroupMessageBroadcasterReorgChannel(),
 				a.groupMessageBroadcaster,
 			)
@@ -168,7 +167,6 @@ func (a *AppChain) Start() {
 				ctx,
 				a.streamer.Client(),
 				a.IdentityUpdateBroadcasterEventChannel(),
-				a.IdentityUpdateBroadcasterSubscriptionChannel(),
 				a.IdentityUpdateBroadcasterReorgChannel(),
 				a.identityUpdateBroadcaster,
 			)
@@ -192,20 +190,12 @@ func (a *AppChain) GroupMessageBroadcasterEventChannel() <-chan types.Log {
 	return a.streamer.GetEventChannel(contracts.GroupMessageBroadcasterName(a.chainID))
 }
 
-func (a *AppChain) GroupMessageBroadcasterSubscriptionChannel() <-chan types.Log {
-	return a.streamer.GetSubscriptionChannel(contracts.GroupMessageBroadcasterName(a.chainID))
-}
-
 func (a *AppChain) GroupMessageBroadcasterReorgChannel() chan uint64 {
 	return a.streamer.GetReorgChannel(contracts.GroupMessageBroadcasterName(a.chainID))
 }
 
 func (a *AppChain) IdentityUpdateBroadcasterEventChannel() <-chan types.Log {
 	return a.streamer.GetEventChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
-}
-
-func (a *AppChain) IdentityUpdateBroadcasterSubscriptionChannel() <-chan types.Log {
-	return a.streamer.GetSubscriptionChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
 }
 
 func (a *AppChain) IdentityUpdateBroadcasterReorgChannel() chan uint64 {

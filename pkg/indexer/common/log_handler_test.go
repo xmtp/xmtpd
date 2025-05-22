@@ -20,14 +20,13 @@ import (
 // TODO: Add more test coverage.
 
 type logHandlerTest struct {
-	backfillChannel chan types.Log
-	subChannel      chan types.Log
-	reorgChannel    chan uint64
-	ctx             context.Context
-	cancel          context.CancelFunc
-	event           types.Log
-	newBlockNumber  uint64
-	newBlockHash    common.Hash
+	eventChannel   chan types.Log
+	reorgChannel   chan uint64
+	ctx            context.Context
+	cancel         context.CancelFunc
+	event          types.Log
+	newBlockNumber uint64
+	newBlockHash   common.Hash
 }
 
 func setup(t *testing.T) logHandlerTest {
@@ -45,14 +44,13 @@ func setup(t *testing.T) logHandlerTest {
 	}
 
 	return logHandlerTest{
-		backfillChannel: make(chan types.Log, 10),
-		subChannel:      make(chan types.Log, 10),
-		reorgChannel:    make(chan uint64, 1),
-		ctx:             ctx,
-		cancel:          cancel,
-		event:           event,
-		newBlockNumber:  blockNumber,
-		newBlockHash:    blockHash,
+		eventChannel:   make(chan types.Log, 10),
+		reorgChannel:   make(chan uint64, 1),
+		ctx:            ctx,
+		cancel:         cancel,
+		event:          event,
+		newBlockNumber: blockNumber,
+		newBlockHash:   blockHash,
 	}
 }
 
@@ -60,12 +58,10 @@ func TestIndexLogsSuccess(t *testing.T) {
 	cfg := setup(t)
 	defer func() {
 		cfg.cancel()
-		close(cfg.backfillChannel)
-		close(cfg.subChannel)
+		close(cfg.eventChannel)
 	}()
 
-	cfg.backfillChannel <- cfg.event
-	cfg.subChannel <- cfg.event
+	cfg.eventChannel <- cfg.event
 
 	mockClient := blockchainMocks.NewMockChainClient(t)
 
@@ -99,8 +95,7 @@ func TestIndexLogsSuccess(t *testing.T) {
 	go c.IndexLogs(
 		cfg.ctx,
 		mockClient,
-		cfg.backfillChannel,
-		cfg.subChannel,
+		cfg.eventChannel,
 		cfg.reorgChannel,
 		contract,
 	)
@@ -123,7 +118,7 @@ func TestIndexLogsRetryableError(t *testing.T) {
 	cfg := setup(t)
 	defer func() {
 		cfg.cancel()
-		close(cfg.backfillChannel)
+		close(cfg.eventChannel)
 		close(cfg.reorgChannel)
 	}()
 
@@ -161,14 +156,12 @@ func TestIndexLogsRetryableError(t *testing.T) {
 			}
 		})
 
-	cfg.backfillChannel <- cfg.event
-	cfg.subChannel <- cfg.event
+	cfg.eventChannel <- cfg.event
 
 	go c.IndexLogs(
 		cfg.ctx,
 		mockClient,
-		cfg.backfillChannel,
-		cfg.subChannel,
+		cfg.eventChannel,
 		cfg.reorgChannel,
 		contract,
 	)

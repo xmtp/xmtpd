@@ -57,7 +57,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)
+	logs, nextPage, err := streamer.GetNextPage(context.Background(), cfg, fromBlock)
 	require.NoError(t, err)
 	expectedNextPage := uint64(11)
 	require.Equal(t, &expectedNextPage, nextPage)

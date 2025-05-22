@@ -25,8 +25,7 @@ The only non-retriable errors should be things like malformed events or failed v
 func IndexLogs(
 	ctx context.Context,
 	client blockchain.ChainClient,
-	backfillChannel <-chan types.Log,
-	subscriptionChannel <-chan types.Log,
+	eventChannel <-chan types.Log,
 	reorgChannel chan<- uint64,
 	contract IContract,
 ) {
@@ -52,8 +51,21 @@ func IndexLogs(
 			contract.Logger().Debug("IndexLogs context cancelled, exiting log handler")
 			return
 
-		case event := <-backfillChannel:
+		case event, open := <-eventChannel:
+			if !open {
+				contract.Logger().Debug("IndexLogs event channel closed, exiting log handler")
+				return
+			}
+
+			// TODO: Handle reorged event in future PR.
+			// This should be handled by the IReorgHandler, and have a different implementaton per contract.
+			// Backfilled logs always have Removed = false. Only subscription logs can be reorged.
+			if event.Removed {
+				contract.Logger().Debug("detected reorged event", zap.Any("log", event))
+			}
+
 			now := time.Now()
+
 			// 1.1 Handle active reorg state first
 			if reorgDetectedAt > 0 {
 				// Under a reorg, future events are no-op
@@ -148,37 +160,6 @@ func IndexLogs(
 						continue
 					}
 				}
-			}
-
-			err := retry(
-				ctx,
-				contract.Logger(),
-				100*time.Millisecond,
-				contract.Address().Hex(),
-				event.BlockNumber,
-				func() re.RetryableError {
-					return contract.StoreLog(ctx, event)
-				},
-			)
-			if err != nil {
-				continue
-			}
-
-			contract.Logger().Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
-			if trackerErr := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
-				contract.Logger().Error("error updating block tracker", zap.Error(trackerErr))
-			}
-
-			metrics.EmitIndexerLogProcessingTime(time.Since(now))
-
-		case event := <-subscriptionChannel:
-			now := time.Now()
-
-			// TODO: Handle reorged event in future PR.
-			// This should be handled by the IReorgHandler, and have a different implementaton per contract.
-			if event.Removed {
-				contract.Logger().Debug("skipping reorged event", zap.Any("log", event))
-				continue
 			}
 
 			err := retry(

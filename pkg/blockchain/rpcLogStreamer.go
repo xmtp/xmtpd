@@ -31,8 +31,7 @@ type ContractConfig struct {
 	Address           common.Address
 	Topics            []common.Hash
 	MaxDisconnectTime time.Duration
-	backfillChannel   chan types.Log
-	subChannel        chan types.Log
+	eventChannel      chan types.Log
 	reorgChannel      chan uint64
 }
 
@@ -60,8 +59,7 @@ func WithContractConfig(
 			Address:           cfg.Address,
 			Topics:            cfg.Topics,
 			MaxDisconnectTime: cfg.MaxDisconnectTime,
-			backfillChannel:   make(chan types.Log, 100),
-			subChannel:        make(chan types.Log, 100),
+			eventChannel:      make(chan types.Log, 100),
 			reorgChannel:      make(chan uint64, 1),
 		}
 
@@ -140,30 +138,31 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		logger    = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		subLogger = logger.Named("subscription").
 				With(zap.String("contractAddress", cfg.Address.Hex()))
-		timer                = time.NewTimer(cfg.MaxDisconnectTime)
-		fromBlock            = cfg.FromBlock
-		highestBackfillBlock = fromBlock - 1
 		isSubEnabled         = false
+		backfillStartBlock   = cfg.FromBlock
+		highestBackfillBlock uint64
 	)
 
-	defer close(cfg.backfillChannel)
-	defer close(cfg.subChannel)
-	defer close(cfg.reorgChannel)
-	defer timer.Stop()
+	if backfillStartBlock > 0 {
+		highestBackfillBlock = backfillStartBlock - 1
+	}
 
-	highestSubBlock, err := r.client.BlockNumber(r.ctx)
+	defer close(cfg.eventChannel)
+	defer close(cfg.reorgChannel)
+
+	backfillEndBlock, err := r.client.BlockNumber(r.ctx)
 	if err != nil {
 		logger.Error("failed to get highest block", zap.Error(err))
 		return
 	}
 
-	innerBackfillCh, cancelBackfill, err := r.retrieveHistoricalLogs(cfg, fromBlock)
+	innerBackfillCh, cancelBackfill, err := r.buildBackfillChannel(cfg, backfillStartBlock)
 	if err != nil {
 		logger.Error("failed to retrieve historical logs", zap.Error(err))
 		return
 	}
 
-	innerSubCh, err := r.subscribeContract(cfg, subLogger)
+	innerSubCh, err := r.buildSubscriptionChannel(cfg, subLogger)
 	if err != nil {
 		logger.Error("failed to subscribe to contract", zap.Error(err))
 		return
@@ -177,37 +176,33 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 			logger.Debug("Context cancelled, stopping watcher")
 			return
 
-		case <-timer.C:
-			logger.Fatal(
-				"Max disconnect time exceeded. Node might drift too far away from expected state. Shutting down...",
-			)
-
 		case reorgBlock, open := <-cfg.reorgChannel:
 			if !open {
 				logger.Debug("Reorg channel closed")
 				return
 			}
-			fromBlock = reorgBlock
+			backfillStartBlock = reorgBlock
 			logger.Warn(
 				"Blockchain reorg detected, resuming from block",
-				zap.Uint64("fromBlock", fromBlock),
+				zap.Uint64("fromBlock", backfillStartBlock),
 			)
-			timer.Reset(cfg.MaxDisconnectTime)
 
 		case log, open := <-innerSubCh:
 			if !open {
-				// TODO: Should this be fatal?
-				subLogger.Error("Subscription channel closed")
+				subLogger.Fatal("subscription channel closed, closing watcher")
 				return
 			}
 
-			if log.BlockNumber > highestSubBlock {
-				highestSubBlock = log.BlockNumber
-			}
-
 			if !isSubEnabled {
-				// TODO: Consider creating a log buffer, when within a reasonable distance from the highestSubBlock.
-				// Re-sending logs through the channel is not a problem.
+				// backfillEndBlock is a moving target.
+				// Subscription is always ahead of backfill, so we update backfillEndBlock when a new log is received.
+				if log.BlockNumber > backfillEndBlock {
+					backfillEndBlock = log.BlockNumber
+				}
+
+				// TODO: Next PR to introduce a log buffer.
+				// The buffer has to be of size lagFromHighestBlock, at minimum.
+
 				continue
 			}
 
@@ -216,16 +211,15 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 				zap.Uint64("fromBlock", log.BlockNumber),
 			)
 
-			cfg.subChannel <- log
-
-			// TODO: Does the timer makes sense while using a subscription with keepalive?
-			timer.Reset(cfg.MaxDisconnectTime)
+			cfg.eventChannel <- log
 
 		case log, open := <-innerBackfillCh:
 			if !open {
 				continue
 			}
 
+			// This is a guard, this case shouldn't happen.
+			// When the subscription is enabled the backfill is always cancelled.
 			if isSubEnabled {
 				continue
 			}
@@ -234,13 +228,11 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 				highestBackfillBlock = log.BlockNumber
 			}
 
-			cfg.backfillChannel <- log
+			cfg.eventChannel <- log
 
-			timer.Reset(cfg.MaxDisconnectTime)
-
-			// Check if subscription has to be enabled, only after processing all logs.
+			// Check if subscription has to be enabled only after processing all logs in the last batch.
 			// Duplicated logs are not a problem, lost logs are.
-			if highestBackfillBlock-uint64(r.lagFromHighestBlock) >= highestSubBlock {
+			if highestBackfillBlock+uint64(r.lagFromHighestBlock) >= backfillEndBlock {
 				logger.Debug(
 					"Backfill complete, enabling subscription mode",
 					zap.Uint64("blockNumber", highestBackfillBlock),
@@ -249,12 +241,14 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 				isSubEnabled = true
 
 				cancelBackfill()
+
+				// TODO: Next PR to send buffered logs when switched to subscription mode.
 			}
 		}
 	}
 }
 
-func (r *RpcLogStreamer) retrieveHistoricalLogs(
+func (r *RpcLogStreamer) buildBackfillChannel(
 	cfg ContractConfig,
 	fromBlock uint64,
 ) (chan types.Log, context.CancelFunc, error) {
@@ -282,7 +276,7 @@ func (r *RpcLogStreamer) retrieveHistoricalLogs(
 					return
 
 				default:
-					logs, nextBlock, err := r.GetNextPage(cfg, fromBlock)
+					logs, nextBlock, err := r.GetNextPage(ctx, cfg, fromBlock)
 					if err != nil {
 						logger.Error(
 							"Error getting next page",
@@ -320,11 +314,12 @@ func (r *RpcLogStreamer) retrieveHistoricalLogs(
 }
 
 func (r *RpcLogStreamer) GetNextPage(
+	ctx context.Context,
 	config ContractConfig,
 	fromBlock uint64,
 ) (logs []types.Log, nextBlock *uint64, err error) {
 	contractAddress := config.Address.Hex()
-	highestBlock, err := r.client.BlockNumber(r.ctx)
+	highestBlock, err := r.client.BlockNumber(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -344,7 +339,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
 		return r.client.FilterLogs(
-			r.ctx,
+			ctx,
 			buildFilterQuery(config, fromBlock, toBlock),
 		)
 	})
@@ -360,7 +355,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	return logs, &nextBlockNumber, nil
 }
 
-func (r *RpcLogStreamer) subscribeContract(
+func (r *RpcLogStreamer) buildSubscriptionChannel(
 	cfg ContractConfig,
 	logger *zap.Logger,
 ) (chan types.Log, error) {
@@ -406,7 +401,7 @@ func (r *RpcLogStreamer) subscribeContract(
 					expBackoff := backoff.NewExponentialBackOff()
 					expBackoff.InitialInterval = 1 * time.Second
 
-					sub, err = backoff.Retry[ethereum.Subscription](
+					sub, err = backoff.Retry(
 						r.ctx,
 						rebuildOperation,
 						backoff.WithBackOff(expBackoff),
@@ -420,6 +415,8 @@ func (r *RpcLogStreamer) subscribeContract(
 						)
 						return
 					}
+
+					logger.Info("Subscription rebuilt")
 				}
 			}
 		})
@@ -452,15 +449,7 @@ func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {
 		return nil
 	}
 
-	return r.watchers[id].backfillChannel
-}
-
-func (r *RpcLogStreamer) GetSubscriptionChannel(id string) chan types.Log {
-	if _, ok := r.watchers[id]; !ok {
-		return nil
-	}
-
-	return r.watchers[id].subChannel
+	return r.watchers[id].eventChannel
 }
 
 func (r *RpcLogStreamer) GetReorgChannel(id string) chan uint64 {

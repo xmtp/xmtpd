@@ -5,6 +5,9 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"strings"
+
+	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,6 +17,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
+)
+
+const (
+	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY = "xmtp.nodeRegistry.maxCanonicalNodes"
 )
 
 type INodeRegistryAdmin interface {
@@ -30,10 +37,11 @@ type INodeRegistryAdmin interface {
 }
 
 type nodeRegistryAdmin struct {
-	client   *ethclient.Client
-	signer   TransactionSigner
-	logger   *zap.Logger
-	contract *noderegistry.NodeRegistry
+	client            *ethclient.Client
+	signer            TransactionSigner
+	logger            *zap.Logger
+	nodeContract      *noderegistry.NodeRegistry
+	parameterContract *paramReg.SettlementChainParameterRegistry
 }
 
 var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
@@ -44,7 +52,7 @@ func NewNodeRegistryAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*nodeRegistryAdmin, error) {
-	contract, err := noderegistry.NewNodeRegistry(
+	nodeContract, err := noderegistry.NewNodeRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
 		client,
 	)
@@ -52,11 +60,20 @@ func NewNodeRegistryAdmin(
 		return nil, err
 	}
 
+	paramContract, err := paramReg.NewSettlementChainParameterRegistry(
+		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &nodeRegistryAdmin{
-		client:   client,
-		signer:   signer,
-		logger:   logger.Named("NodeRegistryAdmin"),
-		contract: contract,
+		client:            client,
+		signer:            signer,
+		logger:            logger.Named("NodeRegistryAdmin"),
+		nodeContract:      nodeContract,
+		parameterContract: paramContract,
 	}, nil
 }
 
@@ -79,7 +96,7 @@ func (n *nodeRegistryAdmin) AddNode(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.AddNode(
+			return n.nodeContract.AddNode(
 				opts,
 				ownerAddress,
 				signingKey,
@@ -87,7 +104,7 @@ func (n *nodeRegistryAdmin) AddNode(
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeAdded(*log)
+			return n.nodeContract.ParseNodeAdded(*log)
 		},
 		func(event interface{}) {
 			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAdded)
@@ -115,13 +132,13 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.AddToNetwork(
+			return n.nodeContract.AddToNetwork(
 				opts,
 				nodeId,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeAddedToCanonicalNetwork(*log)
+			return n.nodeContract.ParseNodeAddedToCanonicalNetwork(*log)
 		},
 		func(event interface{}) {
 			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAddedToCanonicalNetwork)
@@ -148,13 +165,13 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.RemoveFromNetwork(
+			return n.nodeContract.RemoveFromNetwork(
 				opts,
 				nodeId,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeRemovedFromCanonicalNetwork(*log)
+			return n.nodeContract.ParseNodeRemovedFromCanonicalNetwork(*log)
 		},
 		func(event interface{}) {
 			nodeRemoved, ok := event.(*noderegistry.NodeRegistryNodeRemovedFromCanonicalNetwork)
@@ -182,14 +199,14 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetHttpAddress(
+			return n.nodeContract.SetHttpAddress(
 				opts,
 				nodeId,
 				httpAddress,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseHttpAddressUpdated(*log)
+			return n.nodeContract.ParseHttpAddressUpdated(*log)
 		},
 		func(event interface{}) {
 			httpAddressUpdated, ok := event.(*noderegistry.NodeRegistryHttpAddressUpdated)
@@ -211,20 +228,53 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 	ctx context.Context,
 	limit uint8,
 ) error {
-	// TODO set the actual limit
-
-	return ExecuteTransaction(
+	err := ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.UpdateMaxCanonicalNodes(
+			key := []byte(NODE_REGISTRY_MAX_CANONICAL_NODES_KEY)
+
+			var value [32]byte
+			// store uint8 in the last byte for big-endian compatibility
+			value[31] = limit
+
+			return n.parameterContract.Set0(opts, key, value)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.parameterContract.ParseParameterSet(*log)
+		},
+		func(event interface{}) {
+			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
+			if !ok {
+				n.logger.Error(
+					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
+				)
+				return
+			}
+			n.logger.Info("set parameter",
+				zap.String("key", NODE_REGISTRY_MAX_CANONICAL_NODES_KEY),
+				zap.Uint8("parameter", parameterSet.Value[31]),
+			)
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.nodeContract.UpdateMaxCanonicalNodes(
 				opts,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseMaxCanonicalNodesUpdated(*log)
+			return n.nodeContract.ParseMaxCanonicalNodesUpdated(*log)
 		},
 		func(event interface{}) {
 			maxCanonicalUpdated, ok := event.(*noderegistry.NodeRegistryMaxCanonicalNodesUpdated)
@@ -239,4 +289,14 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 			)
 		},
 	)
+	if err != nil {
+		if strings.Contains(err.Error(), "NoChange") {
+			n.logger.Info("No update needed",
+				zap.Uint8("limit", limit),
+			)
+			return nil
+		}
+		return err
+	}
+	return nil
 }

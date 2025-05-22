@@ -80,3 +80,14 @@ func TestAddNodeBadOwner(t *testing.T) {
 	err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
 	require.ErrorContains(t, err, "invalid owner address provided")
 }
+
+func TestSetMaxCanonical(t *testing.T) {
+	registry, _, ctx := buildRegistry(t)
+
+	err := registry.SetMaxCanonical(ctx, 16)
+	require.NoError(t, err)
+
+	// do it again to make sure the command does not fail with NoChange
+	err = registry.SetMaxCanonical(ctx, 16)
+	require.NoError(t, err)
+}

@@ -18,6 +18,7 @@ const (
 	NODE_REGISTRY_ADDRESS             = "0xf82fd040a85154B4914a6cF81aCc3F83316c72CD"
 	GROUP_MESSAGE_BROADCAST_ADDRESS   = "0x7D7df4ed008d64b9b816007b69dcbf559b9C5494"
 	IDENTITY_UPDATE_BROADCAST_ADDRESS = "0xDCbC334a97c6a8DBe7d673bd52fA56718708BC9C"
+	PARAMETER_REGISTRY_ADDRESS        = "0x7FFc148AF5f00C56D78Bce732fC79a08007eC8be"
 )
 
 func NewContractsOptions(rpcUrl string) config.ContractsOptions {
@@ -36,6 +37,7 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 			RateRegistryRefreshInterval: 10 * time.Second,
 			RateRegistryAddress:         RATE_REGISTRY_ADDRESS,
 			NodeRegistryAddress:         NODE_REGISTRY_ADDRESS,
+			ParameterRegistryAddress:    PARAMETER_REGISTRY_ADDRESS,
 		},
 	}
 }

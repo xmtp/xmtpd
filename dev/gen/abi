@@ -16,7 +16,7 @@ mkdir -p "${build_dir}" "${output_dir}" "${abi_dir}"
 curl_cmd="curl -L -s -f"
 owner="xmtp"
 repository="smart-contracts"
-contracts=("GroupMessageBroadcaster" "IdentityUpdateBroadcaster" "NodeRegistry" "RateRegistry" "PayerRegistry" "PayerReportManager")
+contracts=("GroupMessageBroadcaster" "IdentityUpdateBroadcaster" "NodeRegistry" "RateRegistry" "PayerRegistry" "PayerReportManager" "SettlementChainParameterRegistry")
 
 function check_release() {
     local build_info_url="${release_url}/build-info.json"

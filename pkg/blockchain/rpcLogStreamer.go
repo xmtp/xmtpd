@@ -215,6 +215,7 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 
 		case log, open := <-innerBackfillCh:
 			if !open {
+				innerBackfillCh = nil
 				continue
 			}
 

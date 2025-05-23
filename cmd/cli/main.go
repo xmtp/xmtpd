@@ -6,14 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/xmtp/xmtpd/pkg/currency"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
@@ -399,23 +396,10 @@ func addRates(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}
 
-	if options.AddRates.MessageFee > math.MaxInt64 {
-		logger.Fatal("adding message fee too big", zap.Uint64("fee", options.AddRates.MessageFee))
-	}
-	if options.AddRates.StorageFee > math.MaxInt64 {
-		logger.Fatal("adding storage fee too big", zap.Uint64("fee", options.AddRates.StorageFee))
-	}
-	if options.AddRates.CongestionFee > math.MaxInt64 {
-		logger.Fatal(
-			"adding congestion fee too big",
-			zap.Uint64("fee", options.AddRates.CongestionFee),
-		)
-	}
-
 	rates := fees.Rates{
-		MessageFee:          currency.PicoDollar(options.AddRates.MessageFee),
-		StorageFee:          currency.PicoDollar(options.AddRates.MessageFee),
-		CongestionFee:       currency.PicoDollar(options.AddRates.MessageFee),
+		MessageFee:          options.AddRates.MessageFee,
+		StorageFee:          options.AddRates.StorageFee,
+		CongestionFee:       options.AddRates.CongestionFee,
 		TargetRatePerMinute: options.AddRates.TargetRate,
 	}
 

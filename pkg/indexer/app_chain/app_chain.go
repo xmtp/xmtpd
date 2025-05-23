@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// The app chain can't have a lag from the highest block.
 	lagFromHighestBlock = 0
 )
 

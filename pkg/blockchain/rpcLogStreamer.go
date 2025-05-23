@@ -138,29 +138,13 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		logger    = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		subLogger = logger.Named("subscription").
 				With(zap.String("contractAddress", cfg.Address.Hex()))
-		isSubEnabled         = false
-		backfillStartBlock   = cfg.FromBlock
-		highestBackfillBlock uint64
+		backfillFromBlock    = cfg.FromBlock
+		backfillHighestBlock = uint64(0)
+		unsafeReorgDistance  = uint64(600) // TODO: Configured per chain.
 	)
-
-	if backfillStartBlock > 0 {
-		highestBackfillBlock = backfillStartBlock - 1
-	}
 
 	defer close(cfg.eventChannel)
 	defer close(cfg.reorgChannel)
-
-	backfillEndBlock, err := r.client.BlockNumber(r.ctx)
-	if err != nil {
-		logger.Error("failed to get highest block", zap.Error(err))
-		return
-	}
-
-	innerBackfillCh, cancelBackfill, err := r.buildBackfillChannel(cfg, backfillStartBlock)
-	if err != nil {
-		logger.Error("failed to retrieve historical logs", zap.Error(err))
-		return
-	}
 
 	innerSubCh, err := r.buildSubscriptionChannel(cfg, subLogger)
 	if err != nil {
@@ -168,173 +152,120 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		return
 	}
 
-	logger.Info("Starting watcher")
+	// TODO: Start buffering subscription logs immediately.
+
+backfillLoop:
+	for {
+		select {
+		case <-r.ctx.Done():
+			logger.Error("Context cancelled, stopping watcher")
+			return
+
+		default:
+			logs, nextBlock, highestBlock, err := r.GetNextPage(r.ctx, cfg, backfillFromBlock)
+			if err != nil {
+				logger.Error(
+					"Error getting next page",
+					zap.Uint64("fromBlock", backfillFromBlock),
+					zap.Error(err),
+				)
+				time.Sleep(sleepTimeOnError)
+				continue
+			}
+
+			if nextBlock != nil {
+				backfillFromBlock = *nextBlock
+				backfillHighestBlock = *nextBlock - 1
+			}
+
+			if len(logs) == 0 {
+				time.Sleep(sleepTimeNoLogs)
+				continue
+			}
+
+			logger.Debug(
+				"Got logs",
+				zap.Int("numLogs", len(logs)),
+				zap.Uint64("fromBlock", backfillFromBlock),
+				zap.Time("time", time.Now()),
+			)
+
+			for _, log := range logs {
+				cfg.eventChannel <- log
+			}
+
+			if backfillHighestBlock >= highestBlock-unsafeReorgDistance {
+				// TODO: Once the unsafe reorg distance is reached, we can discard from the buffer anything generated before it.
+				// For Base (2s block time), ~600 blocks is safe enough, as Ethereum finality is reached in ~12.8 minutes.
+				// For Orbit (250ms block time) with AnyTrust:
+				// - Hard finality depends on the DA committee batch posting, that's 1 hour between batches - 14400 blocks.
+				// - Soft finality with AnyTrust is reached in less than ~30 seconds - 120 blocks.
+				//
+
+				logger.Debug(
+					"Reached unsafe reorg distance, discarding safe logs and keeping only unsafe logs",
+					zap.Uint64("highestBackfillBlock", backfillHighestBlock),
+				)
+			}
+
+			if backfillHighestBlock >= highestBlock {
+				logger.Info(
+					"Backfill complete, switching to websocket subscription mode",
+					zap.Uint64("highestBackfillBlock", backfillHighestBlock),
+				)
+
+				break backfillLoop
+			}
+		}
+	}
+
+	// TODO: Apply buffered logs.
 
 	for {
 		select {
 		case <-r.ctx.Done():
-			logger.Debug("Context cancelled, stopping watcher")
+			logger.Error("Context cancelled, stopping watcher")
 			return
-
-		case reorgBlock, open := <-cfg.reorgChannel:
-			if !open {
-				logger.Debug("Reorg channel closed")
-				return
-			}
-			backfillStartBlock = reorgBlock
-			logger.Warn(
-				"Blockchain reorg detected, resuming from block",
-				zap.Uint64("fromBlock", backfillStartBlock),
-			)
 
 		case log, open := <-innerSubCh:
 			if !open {
-				subLogger.Fatal("subscription channel closed, closing watcher")
+				subLogger.Error("subscription channel closed, closing watcher")
 				return
 			}
 
-			if !isSubEnabled {
-				// backfillEndBlock is a moving target.
-				// Subscription is always ahead of backfill, so we update backfillEndBlock when a new log is received.
-				if log.BlockNumber > backfillEndBlock {
-					backfillEndBlock = log.BlockNumber
-				}
-
-				// TODO: Next PR to introduce a log buffer.
-				// The buffer has to be of size lagFromHighestBlock, at minimum.
-
-				continue
-			}
-
-			subLogger.Debug(
-				"Sending log to subscription channel",
-				zap.Uint64("fromBlock", log.BlockNumber),
+			logger.Debug(
+				"Received log from subscription channel",
+				zap.Uint64("blockNumber", log.BlockNumber),
 			)
 
-			cfg.eventChannel <- log
-
-		case log, open := <-innerBackfillCh:
-			if !open {
-				innerBackfillCh = nil
-				continue
-			}
-
-			// This is a guard, this case shouldn't happen.
-			// When the subscription is enabled the backfill is always cancelled.
-			if isSubEnabled {
-				continue
-			}
-
-			if log.BlockNumber > highestBackfillBlock {
-				highestBackfillBlock = log.BlockNumber
-			}
+			// TODO: Implement timelocking for logs in chains with lagFromHighestBlock > 0.
 
 			cfg.eventChannel <- log
-
-			// Check if subscription has to be enabled only after processing all logs in the last batch.
-			// Duplicated logs are not a problem, lost logs are.
-			if highestBackfillBlock+uint64(r.lagFromHighestBlock) >= backfillEndBlock {
-				logger.Debug(
-					"Backfill complete, enabling subscription mode",
-					zap.Uint64("blockNumber", highestBackfillBlock),
-				)
-
-				isSubEnabled = true
-
-				cancelBackfill()
-
-				// TODO: Next PR to send buffered logs when switched to subscription mode.
-			}
 		}
 	}
-}
-
-func (r *RpcLogStreamer) buildBackfillChannel(
-	cfg ContractConfig,
-	fromBlock uint64,
-) (chan types.Log, context.CancelFunc, error) {
-	var (
-		innerBackfillCh = make(chan types.Log, 100)
-		logger          = r.logger.Named("backfiller").
-				With(zap.String("contractAddress", cfg.Address.Hex()))
-	)
-
-	ctxwc, cancel := context.WithCancel(r.ctx)
-
-	tracing.GoPanicWrap(
-		ctxwc,
-		&r.wg,
-		fmt.Sprintf("rpcLogStreamer-watcher-backfiller-%v", cfg.Address),
-		func(ctx context.Context) {
-			defer close(innerBackfillCh)
-
-			logger.Info("Backfilling logs", zap.Uint64("fromBlock", fromBlock))
-
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Debug("backfiller context cancelled, stopping")
-					return
-
-				default:
-					logs, nextBlock, err := r.GetNextPage(ctx, cfg, fromBlock)
-					if err != nil {
-						logger.Error(
-							"Error getting next page",
-							zap.Uint64("fromBlock", fromBlock),
-							zap.Error(err),
-						)
-						time.Sleep(sleepTimeOnError)
-						continue
-					}
-
-					if nextBlock != nil {
-						fromBlock = *nextBlock
-					}
-
-					if len(logs) == 0 {
-						time.Sleep(sleepTimeNoLogs)
-						continue
-					}
-
-					logger.Debug(
-						"Got logs",
-						zap.Int("numLogs", len(logs)),
-						zap.Uint64("fromBlock", fromBlock),
-						zap.Time("time", time.Now()),
-					)
-
-					for _, log := range logs {
-						innerBackfillCh <- log
-					}
-				}
-			}
-		})
-
-	return innerBackfillCh, cancel, nil
 }
 
 func (r *RpcLogStreamer) GetNextPage(
 	ctx context.Context,
 	config ContractConfig,
 	fromBlock uint64,
-) (logs []types.Log, nextBlock *uint64, err error) {
+) (logs []types.Log, nextBlock *uint64, highestBlock uint64, err error) {
 	contractAddress := config.Address.Hex()
-	highestBlock, err := r.client.BlockNumber(ctx)
+	highestBlock, err = r.client.BlockNumber(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
-	highestBlockCanProcess := highestBlock - uint64(r.lagFromHighestBlock)
-	if fromBlock > highestBlockCanProcess {
-		metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
-		return []types.Log{}, nil, nil
+	if fromBlock > highestBlock {
+		// TODO: Move this metric to the subscription in a subsequent PR.
+		// metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
+		return []types.Log{}, nil, 0, nil
 	}
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlock)
 
-	toBlock := min(fromBlock+backfillBlocks, highestBlockCanProcess)
+	toBlock := min(fromBlock+backfillBlocks, highestBlock)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
@@ -345,7 +276,7 @@ func (r *RpcLogStreamer) GetNextPage(
 		)
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
@@ -353,7 +284,7 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	nextBlockNumber := toBlock + 1
 
-	return logs, &nextBlockNumber, nil
+	return logs, &nextBlockNumber, highestBlock, nil
 }
 
 func (r *RpcLogStreamer) buildSubscriptionChannel(

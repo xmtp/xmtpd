@@ -43,7 +43,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	cfg := blockchain.ContractConfig{
 		ID:                "testContract",
 		FromBlock:         fromBlock,
-		ContractAddress:   address,
+		Address:           address,
 		Topics:            []common.Hash{topic},
 		MaxDisconnectTime: 5 * time.Minute,
 	}
@@ -57,7 +57,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	logs, nextPage, err := streamer.GetNextPage(cfg, fromBlock)
+	logs, nextPage, _, err := streamer.GetNextPage(context.Background(), cfg, fromBlock)
 	require.NoError(t, err)
 	expectedNextPage := uint64(11)
 	require.Equal(t, &expectedNextPage, nextPage)

@@ -100,7 +100,7 @@ func StartAnvil(t *testing.T, showLogs bool) string {
 	mappedPort, err := anvilContainer.MappedPort(ctx, "8545/tcp")
 	require.NoError(t, err)
 
-	anvilURL := fmt.Sprintf("http://localhost:%s", mappedPort.Port())
+	anvilURL := fmt.Sprintf("ws://localhost:%s", mappedPort.Port())
 	waitForAnvil(t, anvilURL)
 
 	return anvilURL

@@ -19,34 +19,49 @@ import (
 
 // TODO: Add more test coverage.
 
-func setup() (chan types.Log, chan uint64, context.Context, context.CancelFunc, types.Log, uint64, common.Hash) {
-	channel := make(chan types.Log, 10)
-	reorgChannel := make(chan uint64, 1)
-	ctx, cancel := context.WithCancel(context.Background())
+type logHandlerTest struct {
+	eventChannel   chan types.Log
+	reorgChannel   chan uint64
+	ctx            context.Context
+	cancel         context.CancelFunc
+	event          types.Log
+	newBlockNumber uint64
+	newBlockHash   common.Hash
+}
 
-	newBlockNumber := uint64(10)
-	newBlockHash := common.HexToHash(
+func setup(t *testing.T) logHandlerTest {
+	ctx, cancel := context.WithCancel(t.Context())
+
+	blockNumber := uint64(10)
+	blockHash := common.HexToHash(
 		"0x0000000000000000000000000000000000000000000000000000000000000000",
 	)
 
 	event := types.Log{
 		Address:     common.HexToAddress("0x123"),
-		BlockNumber: newBlockNumber,
-		BlockHash:   newBlockHash,
+		BlockNumber: blockNumber,
+		BlockHash:   blockHash,
 	}
 
-	return channel, reorgChannel, ctx, cancel, event, newBlockNumber, newBlockHash
+	return logHandlerTest{
+		eventChannel:   make(chan types.Log, 10),
+		reorgChannel:   make(chan uint64, 1),
+		ctx:            ctx,
+		cancel:         cancel,
+		event:          event,
+		newBlockNumber: blockNumber,
+		newBlockHash:   blockHash,
+	}
 }
 
 func TestIndexLogsSuccess(t *testing.T) {
-	channel, reorgChannel, ctx, cancel, event, newBlockNumber, newBlockHash := setup()
+	cfg := setup(t)
 	defer func() {
-		cancel()
-		close(channel)
-		close(reorgChannel)
+		cfg.cancel()
+		close(cfg.eventChannel)
 	}()
 
-	channel <- event
+	cfg.eventChannel <- cfg.event
 
 	mockClient := blockchainMocks.NewMockChainClient(t)
 
@@ -64,24 +79,24 @@ func TestIndexLogsSuccess(t *testing.T) {
 		Return(common.HexToAddress("0x123"))
 
 	contract.EXPECT().
-		UpdateLatestBlock(mock.Anything, newBlockNumber, newBlockHash.Bytes()).
+		UpdateLatestBlock(mock.Anything, cfg.newBlockNumber, cfg.newBlockHash.Bytes()).
 		Run(func(ctx context.Context, blockNum uint64, blockHash []byte) {
 			wg.Done()
 		}).
 		Return(nil)
 
 	contract.EXPECT().
-		StoreLog(mock.Anything, event).
+		StoreLog(mock.Anything, cfg.event).
 		Run(func(ctx context.Context, log types.Log) {
 			wg.Done()
 		}).
 		Return(nil)
 
 	go c.IndexLogs(
-		ctx,
+		cfg.ctx,
 		mockClient,
-		channel,
-		reorgChannel,
+		cfg.eventChannel,
+		cfg.reorgChannel,
 		contract,
 	)
 
@@ -100,11 +115,11 @@ func TestIndexLogsSuccess(t *testing.T) {
 }
 
 func TestIndexLogsRetryableError(t *testing.T) {
-	channel, reorgChannel, ctx, cancel, event, _, _ := setup()
+	cfg := setup(t)
 	defer func() {
-		cancel()
-		close(channel)
-		close(reorgChannel)
+		cfg.cancel()
+		close(cfg.eventChannel)
+		close(cfg.reorgChannel)
 	}()
 
 	var wg sync.WaitGroup
@@ -126,7 +141,7 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		Return(common.HexToAddress("0x123"))
 
 	contract.EXPECT().
-		StoreLog(mock.Anything, event).
+		StoreLog(mock.Anything, cfg.event).
 		RunAndReturn(func(ctx context.Context, log types.Log) errorMocks.RetryableError {
 			wg.Done()
 			attemptNumber++
@@ -141,13 +156,13 @@ func TestIndexLogsRetryableError(t *testing.T) {
 			}
 		})
 
-	channel <- event
+	cfg.eventChannel <- cfg.event
 
 	go c.IndexLogs(
-		ctx,
+		cfg.ctx,
 		mockClient,
-		channel,
-		reorgChannel,
+		cfg.eventChannel,
+		cfg.reorgChannel,
 		contract,
 	)
 

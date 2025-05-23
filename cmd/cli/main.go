@@ -658,7 +658,7 @@ func setupNodeRegistryAdmin(
 		options.Contracts.SettlementChain.RpcURL,
 	)
 	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
+		return nil, err
 	}
 
 	signer, err := blockchain.NewPrivateKeySigner(
@@ -695,7 +695,7 @@ func setupRateRegistryAdmin(
 		options.Contracts.SettlementChain.RpcURL,
 	)
 	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
+		return nil, err
 	}
 
 	signer, err := blockchain.NewPrivateKeySigner(

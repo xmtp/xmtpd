@@ -39,6 +39,7 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 			NodeRegistryAddress:         NODE_REGISTRY_ADDRESS,
 			ParameterRegistryAddress:    PARAMETER_REGISTRY_ADDRESS,
 		},
+		BackfillBlockSize: 500,
 	}
 }
 

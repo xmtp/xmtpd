@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	BACKFILL_BLOCKS    = uint64(1000)
 	ERROR_SLEEP_TIME   = 100 * time.Millisecond
 	NO_LOGS_SLEEP_TIME = 100 * time.Millisecond
 )
@@ -38,6 +37,17 @@ type RpcLogStreamerOption func(*RpcLogStreamer) error
 func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
 	return func(streamer *RpcLogStreamer) error {
 		streamer.lagFromHighestBlock = lagFromHighestBlock
+		return nil
+	}
+}
+
+func WithBackfillBlockSize(backfillBlockSize uint64) RpcLogStreamerOption {
+	return func(streamer *RpcLogStreamer) error {
+		if backfillBlockSize == 0 {
+			return fmt.Errorf("backfillBlockSize must be > 0, got %d", backfillBlockSize)
+		}
+
+		streamer.backfillBlockSize = backfillBlockSize
 		return nil
 	}
 }
@@ -83,6 +93,7 @@ type RpcLogStreamer struct {
 	logger              *zap.Logger
 	watchers            map[string]ContractConfig
 	lagFromHighestBlock uint8
+	backfillBlockSize   uint64
 }
 
 func NewRpcLogStreamer(
@@ -105,6 +116,7 @@ func NewRpcLogStreamer(
 		wg:                  sync.WaitGroup{},
 		watchers:            make(map[string]ContractConfig),
 		lagFromHighestBlock: 0,
+		backfillBlockSize:   500,
 	}
 
 	for _, option := range options {
@@ -220,7 +232,7 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlock)
 
-	toBlock := min(fromBlock+BACKFILL_BLOCKS, highestBlockCanProcess)
+	toBlock := min(fromBlock+r.backfillBlockSize, highestBlockCanProcess)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504

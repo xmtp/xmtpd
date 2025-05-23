@@ -41,6 +41,7 @@ func NewAppChain(
 	cfg config.AppChainOptions,
 	db *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
+	blockSize uint64,
 ) (*AppChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
@@ -113,6 +114,7 @@ func NewAppChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
+		blockchain.WithBackfillBlockSize(blockSize),
 	)
 	if err != nil {
 		cancel()

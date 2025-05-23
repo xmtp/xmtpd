@@ -47,6 +47,7 @@ type ContractRatesFetcher struct {
 	refreshInterval time.Duration
 	lastRefresh     time.Time
 	pageSize        int64
+	currentIndex    *big.Int
 }
 
 // NewContractRatesFetcher creates a new ContractRatesFetcher using the provided eth client
@@ -70,6 +71,7 @@ func NewContractRatesFetcher(
 		ctx:             ctx,
 		refreshInterval: options.SettlementChain.RateRegistryRefreshInterval,
 		pageSize:        MAX_RATES_PAGE,
+		currentIndex:    big.NewInt(0),
 	}, nil
 }
 
@@ -105,28 +107,29 @@ func (c *ContractRatesFetcher) refreshData() error {
 		return err
 	}
 
-	fromIndex := big.NewInt(0)
 	newRates := make([]*indexedRates, 0)
-	for fromIndex.Cmp(availableRatesCount) < 0 {
+	newRates = append(newRates, c.rates...)
+
+	for c.currentIndex.Cmp(availableRatesCount) < 0 {
 		toFetch := big.NewInt(c.pageSize)
 
 		// Adjust page size if near the end
-		remaining := new(big.Int).Sub(availableRatesCount, fromIndex)
+		remaining := new(big.Int).Sub(availableRatesCount, c.currentIndex)
 		if remaining.Cmp(toFetch) < 0 {
 			toFetch = remaining
 		}
 
 		c.logger.Info("getting page",
-			zap.Int64("fromIndex", fromIndex.Int64()),
+			zap.Int64("fromIndex", c.currentIndex.Int64()),
 			zap.Int64("count", toFetch.Int64()),
 		)
 
 		// Step 3: Get rates
-		resp, err := c.contract.GetRates(&bind.CallOpts{Context: c.ctx}, fromIndex, toFetch)
+		resp, err := c.contract.GetRates(&bind.CallOpts{Context: c.ctx}, c.currentIndex, toFetch)
 		if err != nil {
 			c.logger.Error("error calling contract",
 				zap.Error(err),
-				zap.Int64("fromIndex", fromIndex.Int64()),
+				zap.Int64("fromIndex", c.currentIndex.Int64()),
 			)
 			return err
 		}
@@ -134,7 +137,7 @@ func (c *ContractRatesFetcher) refreshData() error {
 		newRates = append(newRates, transformRates(resp)...)
 
 		// Step 4: Increment the index for the next page
-		fromIndex = fromIndex.Add(fromIndex, toFetch)
+		c.currentIndex = c.currentIndex.Add(c.currentIndex, toFetch)
 	}
 
 	if err = validateRates(newRates); err != nil {

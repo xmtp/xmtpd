@@ -54,7 +54,6 @@ func TestRpcLogStreamer(t *testing.T) {
 		testutils.NewLog(t),
 		1,
 		blockchain.WithContractConfig(cfg),
-		blockchain.WithBackfillBlockSize(500),
 	)
 	require.NoError(t, err)
 

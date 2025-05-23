@@ -116,6 +116,7 @@ func NewRpcLogStreamer(
 		wg:                  sync.WaitGroup{},
 		watchers:            make(map[string]ContractConfig),
 		lagFromHighestBlock: 0,
+		backfillBlockSize:   500,
 	}
 
 	for _, option := range options {

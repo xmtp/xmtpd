@@ -43,6 +43,10 @@ func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
 
 func WithBackfillBlockSize(backfillBlockSize uint64) RpcLogStreamerOption {
 	return func(streamer *RpcLogStreamer) error {
+		if backfillBlockSize == 0 {
+			return fmt.Errorf("backfillBlockSize must be > 0, got %d", backfillBlockSize)
+		}
+
 		streamer.backfillBlockSize = backfillBlockSize
 		return nil
 	}

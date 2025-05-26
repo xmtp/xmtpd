@@ -30,6 +30,7 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 			MaxChainDisconnectTime:           10 * time.Second,
 			GroupMessageBroadcasterAddress:   GROUP_MESSAGE_BROADCAST_ADDRESS,
 			IdentityUpdateBroadcasterAddress: IDENTITY_UPDATE_BROADCAST_ADDRESS,
+			BackfillBlockSize:                500,
 		},
 		SettlementChain: config.SettlementChainOptions{
 			RpcURL:                      rpcUrl,
@@ -41,8 +42,8 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 			ParameterRegistryAddress:    PARAMETER_REGISTRY_ADDRESS,
 			PayerRegistryAddress:        PAYER_REGISTRY_ADDRESS,
 			MaxChainDisconnectTime:      10 * time.Second,
+			BackfillBlockSize:           500,
 		},
-		BackfillBlockSize: 500,
 	}
 }
 

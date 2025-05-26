@@ -38,7 +38,6 @@ func NewIndexer(
 		cfg.AppChain,
 		db,
 		validationService,
-		cfg.BackfillBlockSize,
 	)
 	if err != nil {
 		cancel()
@@ -50,7 +49,6 @@ func NewIndexer(
 		indexerLogger,
 		cfg.SettlementChain,
 		db,
-		cfg.BackfillBlockSize,
 	)
 	if err != nil {
 		cancel()

@@ -135,10 +135,8 @@ func NewAppChain(
 }
 
 func (a *AppChain) Start() {
-	// Start the streamer.
 	a.streamer.Start()
 
-	// Start the group message broadcaster.
 	tracing.GoPanicWrap(
 		a.ctx,
 		&a.wg,
@@ -153,7 +151,6 @@ func (a *AppChain) Start() {
 			)
 		})
 
-	// Start the identity update broadcaster.
 	tracing.GoPanicWrap(
 		a.ctx,
 		&a.wg,
@@ -174,6 +171,10 @@ func (a *AppChain) Stop() {
 
 	if a.streamer != nil {
 		a.streamer.Stop()
+	}
+
+	if a.client != nil {
+		a.client.Close()
 	}
 
 	a.cancel()

@@ -103,41 +103,45 @@ func NewSettlementChain(
 	}, nil
 }
 
-func (a *SettlementChain) Start() {
-	a.streamer.Start()
+func (s *SettlementChain) Start() {
+	s.streamer.Start()
 
 	tracing.GoPanicWrap(
-		a.ctx,
-		&a.wg,
+		s.ctx,
+		&s.wg,
 		"indexer-payer-registry",
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				a.streamer.Client(),
-				a.PayerRegistryEventChannel(),
-				a.PayerRegistryReorgChannel(),
-				a.payerRegistry,
+				s.streamer.Client(),
+				s.PayerRegistryEventChannel(),
+				s.PayerRegistryReorgChannel(),
+				s.payerRegistry,
 			)
 		})
 }
 
-func (a *SettlementChain) Stop() {
-	a.log.Debug("Stopping settlement chain")
+func (s *SettlementChain) Stop() {
+	s.log.Debug("Stopping settlement chain")
 
-	if a.streamer != nil {
-		a.streamer.Stop()
+	if s.streamer != nil {
+		s.streamer.Stop()
 	}
 
-	a.cancel()
-	a.wg.Wait()
+	if s.client != nil {
+		s.client.Close()
+	}
 
-	a.log.Debug("Settlement chain stopped")
+	s.cancel()
+	s.wg.Wait()
+
+	s.log.Debug("Settlement chain stopped")
 }
 
-func (a *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
-	return a.streamer.GetEventChannel(contracts.PayerRegistryName(a.chainID))
+func (s *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
+	return s.streamer.GetEventChannel(contracts.PayerRegistryName(s.chainID))
 }
 
-func (a *SettlementChain) PayerRegistryReorgChannel() chan uint64 {
-	return a.streamer.GetReorgChannel(contracts.PayerRegistryName(a.chainID))
+func (s *SettlementChain) PayerRegistryReorgChannel() chan uint64 {
+	return s.streamer.GetReorgChannel(contracts.PayerRegistryName(s.chainID))
 }

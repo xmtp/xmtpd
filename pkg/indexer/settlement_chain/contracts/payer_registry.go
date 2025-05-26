@@ -13,18 +13,14 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	payerRegistryName = "payer-registry"
-)
+const payerRegistryName = "payer-registry"
 
-var (
-	payerRegistryTopic = []string{
-		"Deposit",
-		"WithdrawalRequested",
-		"WithdrawalCancelled",
-		"UsageSettled",
-	}
-)
+var payerRegistryTopic = []string{
+	"Deposit",
+	"WithdrawalRequested",
+	"WithdrawalCancelled",
+	"UsageSettled",
+}
 
 type PayerRegistry struct {
 	address common.Address

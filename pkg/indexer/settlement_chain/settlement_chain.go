@@ -48,7 +48,6 @@ func NewSettlementChain(
 	client, err := blockchain.NewClient(ctxwc, cfg.RpcURL)
 	if err != nil {
 		cancel()
-		client.Close()
 		return nil, err
 	}
 

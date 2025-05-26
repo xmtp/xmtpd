@@ -102,6 +102,16 @@ func TestStorePayerRegistryWithdrawalRequested(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestStorePayerRegistryWithdrawalCancelled(t *testing.T) {
+	tester := buildPayerRegistryStorerTester(t)
+
+	log := tester.newLog(t, "WithdrawalCancelled")
+
+	err := tester.storer.StoreLog(t.Context(), log)
+
+	require.NoError(t, err)
+}
+
 func buildPayerRegistryStorerTester(t *testing.T) *payerRegistryStorerTester {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)

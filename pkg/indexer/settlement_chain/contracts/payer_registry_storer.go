@@ -3,7 +3,6 @@ package contracts
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,7 +59,6 @@ func (s *PayerRegistryStorer) StoreLog(
 
 	event, err := s.abi.EventByID(log.Topics[0])
 	if err != nil {
-		fmt.Println("error", err)
 		return re.NewNonRecoverableError(ErrParsePayerRegistryLog, err)
 	}
 

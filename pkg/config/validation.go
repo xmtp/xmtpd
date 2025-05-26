@@ -165,6 +165,16 @@ func validateSettlementChainConfig(
 		"contracts.settlement-chain.node-registry-refresh-interval",
 		customSet,
 	)
+	validateHexAddress(
+		options.Contracts.SettlementChain.PayerRegistryAddress,
+		"contracts.settlement-chain.payer-registry-address",
+		missingSet,
+	)
+	validateField(
+		options.Contracts.SettlementChain.MaxChainDisconnectTime,
+		"contracts.settlement-chain.max-chain-disconnect-time",
+		customSet,
+	)
 }
 
 // normalizeSingleChainConfig copies values from deprecated fields to new fields for single-chain deployments.

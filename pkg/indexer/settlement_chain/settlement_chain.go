@@ -1,0 +1,144 @@
+package settlement_chain
+
+import (
+	"context"
+	"database/sql"
+	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts"
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"go.uber.org/zap"
+)
+
+const (
+	// TODO: Modify after introducing changes to rpc log streamer.
+	lagFromHighestBlock = 0
+)
+
+type SettlementChain struct {
+	ctx           context.Context
+	cancel        context.CancelFunc
+	wg            sync.WaitGroup
+	client        *ethclient.Client
+	log           *zap.Logger
+	streamer      *blockchain.RpcLogStreamer
+	payerRegistry *contracts.PayerRegistry
+	chainID       int
+}
+
+func NewSettlementChain(
+	ctxwc context.Context,
+	log *zap.Logger,
+	cfg config.SettlementChainOptions,
+	db *sql.DB,
+	blockSize uint64,
+) (*SettlementChain, error) {
+	ctxwc, cancel := context.WithCancel(ctxwc)
+
+	chainLogger := log.Named("settlement-chain").
+		With(zap.Int("chainID", cfg.ChainID))
+
+	client, err := blockchain.NewClient(ctxwc, cfg.RpcURL)
+	if err != nil {
+		cancel()
+		client.Close()
+		return nil, err
+	}
+
+	querier := queries.New(db)
+
+	payerRegistry, err := contracts.NewPayerRegistry(
+		ctxwc,
+		client,
+		querier,
+		chainLogger,
+		common.HexToAddress(cfg.PayerRegistryAddress),
+		cfg.ChainID,
+	)
+	if err != nil {
+		cancel()
+		client.Close()
+		return nil, err
+	}
+
+	payerRegistryLatestBlockNumber, _ := payerRegistry.GetLatestBlock()
+
+	streamer, err := blockchain.NewRpcLogStreamer(
+		ctxwc,
+		client,
+		log,
+		cfg.ChainID,
+		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
+		blockchain.WithContractConfig(
+			blockchain.ContractConfig{
+				ID:                contracts.PayerRegistryName(cfg.ChainID),
+				FromBlock:         payerRegistryLatestBlockNumber,
+				ContractAddress:   payerRegistry.Address(),
+				Topics:            payerRegistry.Topics(),
+				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
+			},
+		),
+		blockchain.WithBackfillBlockSize(blockSize),
+	)
+	if err != nil {
+		cancel()
+		client.Close()
+		return nil, err
+	}
+
+	return &SettlementChain{
+		ctx:           ctxwc,
+		cancel:        cancel,
+		client:        client,
+		log:           chainLogger,
+		streamer:      streamer,
+		chainID:       cfg.ChainID,
+		payerRegistry: payerRegistry,
+	}, nil
+}
+
+func (a *SettlementChain) Start() {
+	a.streamer.Start()
+
+	tracing.GoPanicWrap(
+		a.ctx,
+		&a.wg,
+		"indexer-payer-registry",
+		func(ctx context.Context) {
+			c.IndexLogs(
+				ctx,
+				a.streamer.Client(),
+				a.PayerRegistryEventChannel(),
+				a.PayerRegistryReorgChannel(),
+				a.payerRegistry,
+			)
+		})
+}
+
+func (a *SettlementChain) Stop() {
+	a.log.Debug("Stopping settlement chain")
+
+	if a.streamer != nil {
+		a.streamer.Stop()
+	}
+
+	a.cancel()
+	a.wg.Wait()
+
+	a.log.Debug("Settlement chain stopped")
+}
+
+func (a *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
+	return a.streamer.GetEventChannel(contracts.PayerRegistryName(a.chainID))
+}
+
+func (a *SettlementChain) PayerRegistryReorgChannel() chan uint64 {
+	return a.streamer.GetReorgChannel(contracts.PayerRegistryName(a.chainID))
+}

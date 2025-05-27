@@ -96,7 +96,6 @@ func (w *SubmitterWorker) submitReports(ctx context.Context) error {
 	return nil
 }
 
-func (w *SubmitterWorker) submitReport(_ *payerreport.PayerReportWithStatus) error {
-	w.log.Warn("submission not hooked up yet!")
-	return nil
+func (w *SubmitterWorker) submitReport(report *payerreport.PayerReportWithStatus) error {
+	return w.reportsAdmin.SubmitPayerReport(w.ctx, report)
 }

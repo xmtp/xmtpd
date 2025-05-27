@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -24,6 +25,7 @@ func NewTestServer(
 	db *sql.DB,
 	registry r.NodeRegistry,
 	privateKey *ecdsa.PrivateKey,
+	payerReportsDomainSeparator common.Hash,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
 
@@ -32,6 +34,9 @@ func NewTestServer(
 			AppChain: config.AppChainOptions{
 				RpcURL:                 "http://localhost:8545",
 				MaxChainDisconnectTime: 5 * time.Minute,
+			},
+			SettlementChain: config.SettlementChainOptions{
+				TempPayerReportsDomainSeparator: payerReportsDomainSeparator[:],
 			},
 		},
 		MlsValidation: config.MlsValidationOptions{

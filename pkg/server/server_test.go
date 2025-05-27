@@ -45,6 +45,9 @@ func TestCreateServer(t *testing.T) {
 
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
+	// TODO(nm): remove
+	domainSeparator := testutils.RandomDomainSeparator()
+
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		server1Port,
@@ -52,6 +55,7 @@ func TestCreateServer(t *testing.T) {
 		dbs[0],
 		registry,
 		privateKey1,
+		domainSeparator,
 	)
 	server2 := serverTestUtils.NewTestServer(
 		t,
@@ -60,6 +64,7 @@ func TestCreateServer(t *testing.T) {
 		dbs[1],
 		registry,
 		privateKey2,
+		domainSeparator,
 	)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
@@ -163,6 +168,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		dbs[0],
 		registry,
 		privateKey1,
+		testutils.RandomDomainSeparator(),
 	)
 	defer func() {
 		server1.Shutdown(0)

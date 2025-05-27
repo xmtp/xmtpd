@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	messageApiMocks "github.com/xmtp/xmtpd/pkg/mocks/message_api"
+	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -57,6 +58,7 @@ func newTestOriginatorStream(
 		lastEnvelope,
 		stream,
 		calculator,
+		payerreportMocks.NewMockIPayerReportStore(t),
 	)
 }
 

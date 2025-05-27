@@ -6,8 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/docker/docker/api/types/container"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log"
 	"os"
@@ -15,6 +13,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -156,7 +157,7 @@ func runContainer(
 			{
 				HostFilePath:      testutils.GetScriptPath("../../dev/environments/anvil.json"),
 				ContainerFilePath: "/cfg/anvil.json",
-				FileMode:          0644,
+				FileMode:          0o644,
 			},
 		},
 		ExposedPorts: []string{"5050/tcp"},

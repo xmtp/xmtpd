@@ -176,7 +176,7 @@ func (w *AttestationWorker) getPreviousReport(
 func (w *AttestationWorker) submitAttestation(
 	report *payerreport.PayerReportWithStatus,
 ) error {
-	nodeSignature, err := w.registrant.SignPayerReportAttestation(report.ID, w.domainSeparator)
+	nodeSignature, err := w.registrant.SignPayerReportAttestation(report.ID)
 	if err != nil {
 		return err
 	}

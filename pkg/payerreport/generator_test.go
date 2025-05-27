@@ -17,10 +17,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func setup(t *testing.T) (*sql.DB, *PayerReportManager) {
+func setup(t *testing.T) (*sql.DB, *PayerReportGenerator) {
 	db, _ := testutils.NewDB(t, context.Background())
 
-	generator := NewPayerReportManager(testutils.NewLog(t), queries.New(db))
+	generator := NewPayerReportGenerator(testutils.NewLog(t), queries.New(db))
 
 	return db, generator
 }

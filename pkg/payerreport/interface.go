@@ -23,24 +23,19 @@ type PayerReportGenerationParams struct {
 	NumHours                int
 }
 
-type PayerReportGenerator interface {
+type IPayerReportGenerator interface {
 	GenerateReport(
 		ctx context.Context,
 		params PayerReportGenerationParams,
 	) (*PayerReportWithInputs, error)
 }
 
-type PayerReportVerifier interface {
+type IPayerReportVerifier interface {
 	IsValidReport(
 		ctx context.Context,
 		prevReport *PayerReport,
 		newReport *PayerReport,
 	) (bool, error)
-}
-
-type IPayerReportManager interface {
-	PayerReportGenerator
-	PayerReportVerifier
 }
 
 type IPayerReportStore interface {

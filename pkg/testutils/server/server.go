@@ -35,9 +35,6 @@ func NewTestServer(
 				RpcURL:                 "http://localhost:8545",
 				MaxChainDisconnectTime: 5 * time.Minute,
 			},
-			SettlementChain: config.SettlementChainOptions{
-				TempPayerReportsDomainSeparator: payerReportsDomainSeparator[:],
-			},
 		},
 		MlsValidation: config.MlsValidationOptions{
 			GrpcAddress: "http://localhost:60051",

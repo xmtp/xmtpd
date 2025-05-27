@@ -171,7 +171,10 @@ func NewReplicationServer(
 			writerDB,
 			fees.NewFeeCalculator(getRatesFetcher()),
 			payerreport.NewStore(writerDB, log),
-			common.BytesToHash(options.Contracts.SettlementChain.TempPayerReportsDomainSeparator),
+			// TODO(nm): replace with real domain separator
+			common.HexToHash(
+				"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
+			),
 		)
 		if err != nil {
 			return nil, err

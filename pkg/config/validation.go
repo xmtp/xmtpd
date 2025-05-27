@@ -73,6 +73,14 @@ func ValidatePruneOptions(options PruneOptions) error {
 		missingSet["--DB.WriterConnectionString"] = struct{}{}
 	}
 
+	if options.Contracts.SettlementChain.NodeRegistryAddress == "" {
+		missingSet["--contracts.settlement-chain.node-registry-address"] = struct{}{}
+	}
+
+	if options.Signer.PrivateKey == "" {
+		missingSet["--signer.private-key"] = struct{}{}
+	}
+
 	if len(missingSet) > 0 {
 		var errorMessages []string
 		for err := range missingSet {
@@ -80,6 +88,10 @@ func ValidatePruneOptions(options PruneOptions) error {
 		}
 
 		return fmt.Errorf("missing required arguments: %s", strings.Join(errorMessages, ", "))
+	}
+
+	if options.PruneConfig.MaxCycles < 1 {
+		return fmt.Errorf("max-cycles must be greater than 0")
 	}
 
 	return nil

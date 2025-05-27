@@ -25,7 +25,7 @@ func testAttestationWorker(
 	store := payerreport.NewStore(db, log)
 	mockRegistrant := registrantMocks.NewMockIRegistrant(t)
 	mockRegistrant.EXPECT().
-		SignPayerReportAttestation(mock.Anything, mock.Anything).
+		SignPayerReportAttestation(mock.Anything).
 		Return(&payerreport.NodeSignature{
 			Signature: []byte("signature"),
 			NodeID:    1,

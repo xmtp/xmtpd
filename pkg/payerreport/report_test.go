@@ -101,7 +101,7 @@ func TestGetDigest(t *testing.T) {
 		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
 	)
 
-	builtID, err := buildPayerReportID(
+	builtID, err := BuildPayerReportID(
 		originatorNodeID,
 		startSequenceID,
 		endSequenceID,

@@ -162,6 +162,12 @@ func NewReplicationServer(
 	}
 
 	if options.Sync.Enable {
+		domainSeparator, err := getDomainSeparator(ctx, log, options)
+		if err != nil {
+			log.Error("failed to get domain separator", zap.Error(err))
+			return nil, err
+		}
+
 		s.syncServer, err = sync.NewSyncServer(
 			s.ctx,
 			log,
@@ -170,10 +176,7 @@ func NewReplicationServer(
 			writerDB,
 			fees.NewFeeCalculator(getRatesFetcher()),
 			payerreport.NewStore(writerDB, log),
-			// TODO(nm): temporary. will be replaced in the next PR
-			common.HexToHash(
-				"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
-			),
+			domainSeparator,
 		)
 		if err != nil {
 			return nil, err
@@ -391,4 +394,38 @@ func getRatesFetcher() fees.IRatesFetcher {
 		StorageFee:    currency.PicoDollar(100),
 		CongestionFee: currency.PicoDollar(100),
 	})
+}
+
+func getDomainSeparator(
+	ctx context.Context,
+	log *zap.Logger,
+	options config.ServerOptions,
+) (common.Hash, error) {
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.Signer.PrivateKey,
+		options.Contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	settlementChainClient, err := blockchain.NewClient(
+		ctx,
+		options.Contracts.SettlementChain.RpcURL,
+	)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	reportsManager, err := blockchain.NewReportsManager(
+		log,
+		settlementChainClient,
+		signer,
+		options.Contracts.SettlementChain,
+	)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return reportsManager.GetDomainSeparator(ctx)
 }

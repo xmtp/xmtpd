@@ -1,7 +1,6 @@
 package registrant
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -19,7 +18,6 @@ type IRegistrant interface {
 	) (*envelopes.OriginatorEnvelope, error)
 	SignPayerReportAttestation(
 		reportID payerreport.ReportID,
-		domainSeparator common.Hash,
 	) (*payerreport.NodeSignature, error)
 	SignClientEnvelopeToSelf(unsignedClientEnvelope []byte) ([]byte, error)
 	TokenFactory() authn.TokenFactory

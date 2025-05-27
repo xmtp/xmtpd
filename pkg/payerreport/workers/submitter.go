@@ -21,8 +21,8 @@ type SubmitterWorker struct {
 	wg               *sync.WaitGroup
 	payerReportStore payerreport.IPayerReportStore
 	registry         registry.NodeRegistry
+	reportsAdmin     blockchain.PayerReportsManager
 	myNodeID         uint32
-	reportsAdmin     blockchain.PayerReportsAdmin
 }
 
 func NewSubmitterWorker(
@@ -30,8 +30,8 @@ func NewSubmitterWorker(
 	log *zap.Logger,
 	payerReportStore payerreport.IPayerReportStore,
 	registry registry.NodeRegistry,
+	reportsManager blockchain.PayerReportsManager,
 	myNodeID uint32,
-	reportsAdmin blockchain.PayerReportsAdmin,
 ) *SubmitterWorker {
 	ctx, cancel := context.WithCancel(ctx)
 	return &SubmitterWorker{
@@ -42,7 +42,7 @@ func NewSubmitterWorker(
 		payerReportStore: payerReportStore,
 		registry:         registry,
 		myNodeID:         myNodeID,
-		reportsAdmin:     reportsAdmin,
+		reportsAdmin:     reportsManager,
 	}
 }
 
@@ -55,7 +55,7 @@ func (w *SubmitterWorker) Start() {
 			case <-w.ctx.Done():
 				return
 			case <-time.After(wait):
-				if err := w.submitReports(ctx); err != nil {
+				if err := w.SubmitReports(ctx); err != nil {
 					w.log.Error("error submitting reports", zap.Error(err))
 				}
 			}
@@ -70,7 +70,7 @@ func (w *SubmitterWorker) Stop() error {
 	return nil
 }
 
-func (w *SubmitterWorker) submitReports(ctx context.Context) error {
+func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	allNodes, err := w.registry.GetNodes()
 	if err != nil {
 		return err

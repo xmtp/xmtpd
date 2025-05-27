@@ -3,6 +3,7 @@ package payerreport
 import (
 	"errors"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -27,8 +28,18 @@ func generateMerkleTree(payers payerMap) (*merkle.MerkleTree, error) {
 		leaf []byte
 		err  error
 	)
-	for address, fees := range payers {
-		if leaf, err = buildLeaf(address, fees); err != nil {
+
+	payerAddresses := make([]common.Address, 0, len(payers))
+	for address := range payers {
+		payerAddresses = append(payerAddresses, address)
+	}
+
+	sort.Slice(payerAddresses, func(i, j int) bool {
+		return payerAddresses[i].Cmp(payerAddresses[j]) < 0
+	})
+
+	for _, address := range payerAddresses {
+		if leaf, err = buildLeaf(address, payers[address]); err != nil {
 			return nil, err
 		}
 		leaves = append(leaves, leaf)

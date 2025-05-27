@@ -3,18 +3,10 @@ package utils
 import (
 	"encoding/binary"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
 )
-
-var nodeIdArrayType = abi.Arguments{
-	{
-		Name: "activeNodeIDs",
-		Type: abi.Type{T: abi.SliceTy, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
-	},
-}
 
 func HashPayerSignatureInput(originatorID uint32, unsignedClientEnvelope []byte) []byte {
 	targetBytes := make([]byte, 4)

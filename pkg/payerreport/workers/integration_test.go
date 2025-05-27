@@ -7,7 +7,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
@@ -17,6 +21,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
@@ -28,11 +33,8 @@ import (
 )
 
 var (
-	server1NodeID   = uint32(100)
-	server2NodeID   = uint32(200)
-	domainSeparator = common.HexToHash(
-		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
-	)
+	server1NodeID = uint32(100)
+	server2NodeID = uint32(200)
 )
 
 type multiNodeTestScaffold struct {
@@ -46,6 +48,72 @@ type multiNodeTestScaffold struct {
 	reportGenerators   []*workers.GeneratorWorker
 	attestationWorkers []*workers.AttestationWorker
 	payerReportStores  []payerreport.IPayerReportStore
+	log                *zap.Logger
+	registrants        []*registrant.Registrant
+	registry           registry.NodeRegistry
+	reportsManager     blockchain.PayerReportsManager
+}
+
+func setupBlockchain(
+	t *testing.T,
+	nodes []registry.Node,
+) (registry.NodeRegistry, blockchain.PayerReportsManager, config.ContractsOptions) {
+	log := testutils.NewLog(t)
+	rpcUrl := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcUrl)
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		testutils.GetPayerOptions(t).PrivateKey,
+		contractsOptions.SettlementChain.ChainID,
+	)
+	require.NoError(t, err)
+
+	client, err := blockchain.NewClient(t.Context(), contractsOptions.SettlementChain.WssURL)
+	require.NoError(t, err)
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		log,
+		client,
+		signer,
+		contractsOptions,
+	)
+	require.NoError(t, err)
+
+	for _, node := range nodes {
+		_, err := registryAdmin.AddNode(
+			t.Context(),
+			ethcrypto.PubkeyToAddress(*node.SigningKey).String(),
+			node.SigningKey,
+			node.HttpAddress,
+		)
+		require.NoError(t, err)
+
+		err = registryAdmin.AddToNetwork(t.Context(), node.NodeID)
+		require.NoError(t, err)
+	}
+
+	registry, err := registry.NewSmartContractRegistry(
+		t.Context(),
+		client,
+		testutils.NewLog(t),
+		contractsOptions,
+	)
+	require.NoError(t, err)
+
+	err = registry.Start()
+	require.NoError(t, err)
+	t.Cleanup(registry.Stop)
+
+	fromRegistry, err := registry.GetNodes()
+	require.NoError(t, err)
+	require.Equal(t, len(fromRegistry), len(nodes))
+
+	reportsManager, err := blockchain.NewReportsManager(
+		log, client, signer, contractsOptions.SettlementChain,
+	)
+	require.NoError(t, err)
+
+	return registry, reportsManager, contractsOptions
 }
 
 func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
@@ -69,7 +137,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registryTestUtils.CreateNode(server2NodeID, server2Port, privateKey2),
 	}
 
-	registry := registryTestUtils.CreateMockRegistry(t, nodes)
+	registry, reportsManager, contractsOptions := setupBlockchain(t, nodes)
+
+	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
+	require.NoError(t, err)
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
@@ -78,6 +149,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		dbs[0],
 		registry,
 		privateKey1,
+		contractsOptions,
 	)
 	server2 := serverTestUtils.NewTestServer(
 		t,
@@ -86,6 +158,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		dbs[1],
 		registry,
 		privateKey2,
+		contractsOptions,
 	)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
@@ -151,6 +224,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	)
 
 	t.Cleanup(func() {
+		log.Info("Shutting down servers")
 		server1.Shutdown(0)
 		server2.Shutdown(0)
 	})
@@ -167,11 +241,15 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		clients:          []message_api.ReplicationApiClient{client1, client2},
 		dbs:              dbs,
 		reportGenerators: []*workers.GeneratorWorker{reportGenerator1, reportGenerator2},
+		registrants:      []*registrant.Registrant{registrant1, registrant2},
 		attestationWorkers: []*workers.AttestationWorker{
 			attestationWorker1,
 			attestationWorker2,
 		},
 		payerReportStores: []payerreport.IPayerReportStore{payerReportStore1, payerReportStore2},
+		log:               log,
+		registry:          registry,
+		reportsManager:    reportsManager,
 	}
 }
 
@@ -217,7 +295,49 @@ func (s *multiNodeTestScaffold) getMessagesFromTopic(
 	return response.Envelopes
 }
 
-func TestCanGenerateAndSubmitReport(t *testing.T) {
+func TestValidSignature(t *testing.T) {
+	scaffold := setupMultiNodeTest(t)
+	reportsManager := scaffold.reportsManager
+
+	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
+	require.NoError(t, err)
+
+	payerReport, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
+		OriginatorNodeID:    100,
+		StartSequenceID:     0,
+		EndSequenceID:       1,
+		EndMinuteSinceEpoch: 10,
+		Payers:              map[common.Address]currency.PicoDollar{},
+		NodeIDs:             []uint32{100, 200},
+		DomainSeparator:     domainSeparator,
+	})
+
+	require.NoError(t, err)
+
+	signatures := make([]payerreport.NodeSignature, len(scaffold.registrants))
+
+	for idx, registrant := range scaffold.registrants {
+		signature, err := registrant.SignPayerReportAttestation(payerReport.ID)
+		require.NoError(t, err)
+		signatures[idx] = *signature
+	}
+
+	reportWithStatus := payerreport.PayerReportWithStatus{
+		PayerReport:           payerReport.PayerReport,
+		AttestationSignatures: signatures,
+	}
+
+	// Ensure the report ID matches the one we built
+	reportID, err := reportsManager.GetReportID(t.Context(), &reportWithStatus)
+	require.NoError(t, err)
+	require.Equal(t, reportID, payerReport.ID)
+
+	// Submit the report to the blockchain
+	err = reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus)
+	require.NoError(t, err)
+}
+
+func TestCanGenerateReport(t *testing.T) {
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
@@ -323,4 +443,31 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 			require.Len(t, report.AttestationSignatures, 2)
 		}
 	}
+
+	submitterWorker := workers.NewSubmitterWorker(
+		t.Context(),
+		scaffold.log,
+		scaffold.payerReportStores[0],
+		scaffold.registry,
+		scaffold.reportsManager,
+		scaffold.nodeIDs[0],
+	)
+	err = submitterWorker.SubmitReports(t.Context())
+	require.NoError(t, err)
+
+	fetchedReports, err := scaffold.payerReportStores[0].FetchReports(
+		t.Context(),
+		payerreport.NewFetchReportsQuery().WithOriginatorNodeID(scaffold.nodeIDs[0]),
+	)
+	require.NoError(t, err)
+	require.Len(t, fetchedReports, 1)
+	fetchedReportID := fetchedReports[0].ID
+
+	report, err := scaffold.reportsManager.GetReport(t.Context(), scaffold.nodeIDs[0], 0)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		report.ID,
+		fetchedReportID,
+	)
 }

@@ -138,7 +138,7 @@ func (p *PayerReport) ToClientEnvelope() (*envelopes.ClientEnvelope, error) {
 	})
 }
 
-func buildPayerReportID(
+func BuildPayerReportID(
 	originatorNodeID uint32,
 	startSequenceID uint64,
 	endSequenceID uint64,
@@ -176,7 +176,7 @@ func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, er
 	}
 	merkleRoot := common.BytesToHash(tree.Root())
 
-	reportID, err := buildPayerReportID(
+	reportID, err := BuildPayerReportID(
 		params.OriginatorNodeID,
 		params.StartSequenceID,
 		params.EndSequenceID,

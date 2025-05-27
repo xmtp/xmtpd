@@ -1,8 +1,11 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -13,8 +16,9 @@ func ValidateServerOptions(options *ServerOptions) error {
 	missingSet := make(map[string]struct{})
 	customSet := make(map[string]struct{})
 
-	if !isMultiChainDeployment(*options) {
-		normalizeSingleChainConfig(options)
+	err := ParseJSONConfig(&options.Contracts)
+	if err != nil {
+		return err
 	}
 
 	validateBlockchainConfig(options, missingSet, customSet)
@@ -81,9 +85,77 @@ func ValidatePruneOptions(options PruneOptions) error {
 	return nil
 }
 
-func isMultiChainDeployment(options ServerOptions) bool {
-	return options.Contracts.AppChain.RpcURL != "" ||
-		options.Contracts.SettlementChain.RpcURL != ""
+func ParseJSONConfig(options *ContractsOptions) error {
+	if options.ConfigFilePath != "" && options.ConfigJson != "" {
+		return errors.New("--config-file and --config-json cannot be used together")
+	}
+
+	if options.ConfigFilePath != "" {
+		file, err := os.Open(options.ConfigFilePath)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = file.Close()
+		}()
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			return err
+		}
+
+		// Unmarshal JSON into the Config struct
+		var config ChainConfig
+		if err := json.Unmarshal(data, &config); err != nil {
+			return err
+		}
+
+		fillConfigFromJson(options, &config)
+	}
+
+	if options.ConfigJson != "" {
+		// Unmarshal JSON into the Config struct
+		var config ChainConfig
+		if err := json.Unmarshal([]byte(options.ConfigJson), &config); err != nil {
+			return err
+		}
+
+		fillConfigFromJson(options, &config)
+	}
+
+	return nil
+}
+
+func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
+	// Explicitly specified ENV variables in options take precedence!
+	// Only fill in values from the JSON if the relevant fields in options are empty or zero.
+
+	// AppChainOptions
+	if options.AppChain.GroupMessageBroadcasterAddress == "" {
+		options.AppChain.GroupMessageBroadcasterAddress = config.GroupMessageBroadcaster
+	}
+	if options.AppChain.IdentityUpdateBroadcasterAddress == "" {
+		options.AppChain.IdentityUpdateBroadcasterAddress = config.IdentityUpdateBroadcaster
+	}
+	if options.AppChain.ChainID == 0 || options.AppChain.ChainID == 31337 {
+		options.AppChain.ChainID = config.AppChainID
+	}
+
+	// SettlementChainOptions
+	if options.SettlementChain.NodeRegistryAddress == "" {
+		options.SettlementChain.NodeRegistryAddress = config.NodeRegistry
+	}
+	if options.SettlementChain.RateRegistryAddress == "" {
+		options.SettlementChain.RateRegistryAddress = config.RateRegistry
+	}
+	if options.SettlementChain.ParameterRegistryAddress == "" {
+		options.SettlementChain.ParameterRegistryAddress = config.SettlementChainParameterRegistry
+	}
+	if options.SettlementChain.ChainID == 0 || options.SettlementChain.ChainID == 31337 {
+		options.SettlementChain.ChainID = config.SettlementChainID
+	}
+
+	// TODO add payers and reports
 }
 
 func validateBlockchainConfig(
@@ -165,39 +237,6 @@ func validateSettlementChainConfig(
 		"contracts.settlement-chain.node-registry-refresh-interval",
 		customSet,
 	)
-}
-
-// normalizeSingleChainConfig copies values from deprecated fields to new fields for single-chain deployments.
-func normalizeSingleChainConfig(options *ServerOptions) {
-	if options.Contracts.RpcUrl != "" {
-		options.Contracts.AppChain.RpcURL = options.Contracts.RpcUrl
-		options.Contracts.SettlementChain.RpcURL = options.Contracts.RpcUrl
-	}
-	if options.Contracts.NodesContract.NodesContractAddress != "" {
-		options.Contracts.SettlementChain.NodeRegistryAddress = options.Contracts.NodesContract.NodesContractAddress
-	}
-	if options.Contracts.MessagesContractAddress != "" {
-		options.Contracts.AppChain.GroupMessageBroadcasterAddress = options.Contracts.MessagesContractAddress
-	}
-	if options.Contracts.IdentityUpdatesContractAddress != "" {
-		options.Contracts.AppChain.IdentityUpdateBroadcasterAddress = options.Contracts.IdentityUpdatesContractAddress
-	}
-	if options.Contracts.RateRegistryContractAddress != "" {
-		options.Contracts.SettlementChain.RateRegistryAddress = options.Contracts.RateRegistryContractAddress
-	}
-	if options.Contracts.RatesRefreshInterval > 0 {
-		options.Contracts.SettlementChain.RateRegistryRefreshInterval = options.Contracts.RatesRefreshInterval
-	}
-	if options.Contracts.ChainID > 0 {
-		options.Contracts.AppChain.ChainID = options.Contracts.ChainID
-		options.Contracts.SettlementChain.ChainID = options.Contracts.ChainID
-	}
-	if options.Contracts.RegistryRefreshInterval > 0 {
-		options.Contracts.SettlementChain.NodeRegistryRefreshInterval = options.Contracts.RegistryRefreshInterval
-	}
-	if options.Contracts.MaxChainDisconnectTime > 0 {
-		options.Contracts.AppChain.MaxChainDisconnectTime = options.Contracts.MaxChainDisconnectTime
-	}
 }
 
 // validateField checks if a field meets the validation requirements and adds appropriate errors.

@@ -52,7 +52,7 @@ func main() {
 	if namespace == "" {
 		namespace = utils.BuildNamespace(
 			options.Signer.PrivateKey,
-			options.Contracts.NodesContractAddress,
+			options.Contracts.NodeRegistryAddress,
 		)
 	}
 

@@ -10,6 +10,8 @@ services:
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
+    volumes:
+      - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
         "register-node",
@@ -17,6 +19,7 @@ services:
         "--node-owner-address=${ANVIL_ACC_1_ADDRESS}",
         "--node-signing-key-pub=${ANVIL_ACC_1_PUBLIC_KEY}",
         "--admin.private-key=${PRIVATE_KEY}",
+        "--contracts.config-file-path=/cfg/anvil.json",
       ]
     restart: no
     network_mode: host
@@ -26,11 +29,14 @@ services:
     profiles: ["single", "dual"]
     env_file:
       - ../local.env
+    volumes:
+      - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
         "add-node-to-network",
         "--admin.private-key=${PRIVATE_KEY}",
         "--node-id=100",
+        "--contracts.config-file-path=/cfg/anvil.json",
       ]
     depends_on:
       register-node-1:
@@ -43,6 +49,8 @@ services:
     profiles: ["dual"]
     env_file:
       - ../local.env
+    volumes:
+      - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
         "register-node",
@@ -50,6 +58,7 @@ services:
         "--node-owner-address=${ANVIL_ACC_2_ADDRESS}",
         "--node-signing-key-pub=${ANVIL_ACC_2_PUBLIC_KEY}",
         "--admin.private-key=${PRIVATE_KEY}",
+        "--contracts.config-file-path=/cfg/anvil.json",
       ]
     depends_on:
       enable-node-1:
@@ -62,11 +71,14 @@ services:
     profiles: ["dual"]
     env_file:
       - ../local.env
+    volumes:
+      - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
         "add-node-to-network",
         "--admin.private-key=${PRIVATE_KEY}",
         "--node-id=200",
+        "--contracts.config-file-path=/cfg/anvil.json",
       ]
     depends_on:
       register-node-2:

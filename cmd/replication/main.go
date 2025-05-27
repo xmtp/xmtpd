@@ -86,7 +86,7 @@ func main() {
 			if namespace == "" {
 				namespace = utils.BuildNamespace(
 					options.Signer.PrivateKey,
-					options.Contracts.NodesContract.NodesContractAddress,
+					options.Contracts.SettlementChain.NodeRegistryAddress,
 				)
 			}
 			dbInstance, err = db.NewNamespacedDB(

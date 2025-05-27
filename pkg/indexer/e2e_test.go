@@ -30,7 +30,7 @@ func startIndexing(
 	db, _ := testutils.NewDB(t, ctx)
 
 	rpcUrl := anvil.StartAnvil(t, false)
-	cfg := testutils.NewContractsOptions(rpcUrl)
+	cfg := testutils.NewContractsOptions(t, rpcUrl)
 
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 

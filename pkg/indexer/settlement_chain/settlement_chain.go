@@ -85,11 +85,11 @@ func NewSettlementChain(
 	}
 
 	payerReportManagerLatestBlockNumber, _ := payerReportManager.GetLatestBlock()
+
 	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
-		log,
-		cfg.ChainID,
+		chainLogger,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{
@@ -118,13 +118,14 @@ func NewSettlementChain(
 	}
 
 	return &SettlementChain{
-		ctx:           ctxwc,
-		cancel:        cancel,
-		client:        client,
-		log:           chainLogger,
-		streamer:      streamer,
-		chainID:       cfg.ChainID,
-		payerRegistry: payerRegistry,
+		ctx:                ctxwc,
+		cancel:             cancel,
+		client:             client,
+		log:                chainLogger,
+		streamer:           streamer,
+		chainID:            cfg.ChainID,
+		payerRegistry:      payerRegistry,
+		payerReportManager: payerReportManager,
 	}, nil
 }
 

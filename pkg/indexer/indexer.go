@@ -7,16 +7,18 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain"
+	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"go.uber.org/zap"
 )
 
 type Indexer struct {
-	ctx      context.Context
-	log      *zap.Logger
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
-	appChain *app_chain.AppChain
+	ctx             context.Context
+	log             *zap.Logger
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
+	appChain        *app_chain.AppChain
+	settlementChain *settlement_chain.SettlementChain
 }
 
 func NewIndexer(
@@ -36,7 +38,17 @@ func NewIndexer(
 		cfg.AppChain,
 		db,
 		validationService,
-		cfg.BackfillBlockSize,
+	)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	settlementChain, err := settlement_chain.NewSettlementChain(
+		ctx,
+		indexerLogger,
+		cfg.SettlementChain,
+		db,
 	)
 	if err != nil {
 		cancel()
@@ -44,10 +56,11 @@ func NewIndexer(
 	}
 
 	return &Indexer{
-		ctx:      ctx,
-		log:      indexerLogger,
-		cancel:   cancel,
-		appChain: appChain,
+		ctx:             ctx,
+		log:             indexerLogger,
+		cancel:          cancel,
+		appChain:        appChain,
+		settlementChain: settlementChain,
 	}, nil
 }
 
@@ -58,6 +71,10 @@ func (i *Indexer) Close() {
 		i.appChain.Stop()
 	}
 
+	if i.settlementChain != nil {
+		i.settlementChain.Stop()
+	}
+
 	i.cancel()
 	i.wg.Wait()
 
@@ -66,4 +83,5 @@ func (i *Indexer) Close() {
 
 func (i *Indexer) StartIndexer() {
 	i.appChain.Start()
+	i.settlementChain.Start()
 }

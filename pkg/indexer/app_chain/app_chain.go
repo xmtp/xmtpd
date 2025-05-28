@@ -41,7 +41,6 @@ func NewAppChain(
 	cfg config.AppChainOptions,
 	db *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
-	blockSize uint64,
 ) (*AppChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
@@ -93,8 +92,7 @@ func NewAppChain(
 	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
-		log,
-		cfg.ChainID,
+		chainLogger,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{
@@ -114,7 +112,7 @@ func NewAppChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(blockSize),
+		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()
@@ -135,10 +133,8 @@ func NewAppChain(
 }
 
 func (a *AppChain) Start() {
-	// Start the streamer.
 	a.streamer.Start()
 
-	// Start the group message broadcaster.
 	tracing.GoPanicWrap(
 		a.ctx,
 		&a.wg,
@@ -153,7 +149,6 @@ func (a *AppChain) Start() {
 			)
 		})
 
-	// Start the identity update broadcaster.
 	tracing.GoPanicWrap(
 		a.ctx,
 		&a.wg,
@@ -174,6 +169,10 @@ func (a *AppChain) Stop() {
 
 	if a.streamer != nil {
 		a.streamer.Stop()
+	}
+
+	if a.client != nil {
+		a.client.Close()
 	}
 
 	a.cancel()

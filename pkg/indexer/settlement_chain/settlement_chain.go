@@ -23,14 +23,15 @@ const (
 )
 
 type SettlementChain struct {
-	ctx           context.Context
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
-	client        *ethclient.Client
-	log           *zap.Logger
-	streamer      *blockchain.RpcLogStreamer
-	payerRegistry *contracts.PayerRegistry
-	chainID       int
+	ctx                context.Context
+	cancel             context.CancelFunc
+	wg                 sync.WaitGroup
+	client             *ethclient.Client
+	log                *zap.Logger
+	streamer           *blockchain.RpcLogStreamer
+	payerRegistry      *contracts.PayerRegistry
+	payerReportManager *contracts.PayerReportManager
+	chainID            int
 }
 
 func NewSettlementChain(
@@ -68,11 +69,26 @@ func NewSettlementChain(
 
 	payerRegistryLatestBlockNumber, _ := payerRegistry.GetLatestBlock()
 
+	payerReportManager, err := contracts.NewPayerReportManager(
+		ctxwc,
+		client,
+		querier,
+		chainLogger,
+		common.HexToAddress(cfg.PayerReportManagerAddress),
+		cfg.ChainID,
+	)
+	if err != nil {
+		cancel()
+		client.Close()
+		return nil, err
+	}
+
+	payerReportManagerLatestBlockNumber, _ := payerReportManager.GetLatestBlock()
+
 	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
-		log,
-		cfg.ChainID,
+		chainLogger,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{
@@ -83,7 +99,16 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		blockchain.WithContractConfig(
+			blockchain.ContractConfig{
+				ID:                contracts.PayerReportManagerName(cfg.ChainID),
+				FromBlock:         payerReportManagerLatestBlockNumber,
+				ContractAddress:   payerReportManager.Address(),
+				Topics:            payerReportManager.Topics(),
+				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
+			},
+		),
+		blockchain.WithBackfillBlockSize(blockSize),
 	)
 	if err != nil {
 		cancel()
@@ -92,13 +117,14 @@ func NewSettlementChain(
 	}
 
 	return &SettlementChain{
-		ctx:           ctxwc,
-		cancel:        cancel,
-		client:        client,
-		log:           chainLogger,
-		streamer:      streamer,
-		chainID:       cfg.ChainID,
-		payerRegistry: payerRegistry,
+		ctx:                ctxwc,
+		cancel:             cancel,
+		client:             client,
+		log:                chainLogger,
+		streamer:           streamer,
+		chainID:            cfg.ChainID,
+		payerRegistry:      payerRegistry,
+		payerReportManager: payerReportManager,
 	}, nil
 }
 
@@ -116,6 +142,20 @@ func (s *SettlementChain) Start() {
 				s.PayerRegistryEventChannel(),
 				s.PayerRegistryReorgChannel(),
 				s.payerRegistry,
+			)
+		})
+
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		"indexer-payer-report-manager",
+		func(ctx context.Context) {
+			c.IndexLogs(
+				ctx,
+				s.streamer.Client(),
+				s.PayerReportManagerEventChannel(),
+				s.PayerReportManagerReorgChannel(),
+				s.payerReportManager,
 			)
 		})
 }
@@ -143,4 +183,12 @@ func (s *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
 
 func (s *SettlementChain) PayerRegistryReorgChannel() chan uint64 {
 	return s.streamer.GetReorgChannel(contracts.PayerRegistryName(s.chainID))
+}
+
+func (s *SettlementChain) PayerReportManagerEventChannel() <-chan types.Log {
+	return s.streamer.GetEventChannel(contracts.PayerReportManagerName(s.chainID))
+}
+
+func (s *SettlementChain) PayerReportManagerReorgChannel() chan uint64 {
+	return s.streamer.GetReorgChannel(contracts.PayerReportManagerName(s.chainID))
 }

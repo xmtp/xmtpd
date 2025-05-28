@@ -170,6 +170,11 @@ func validateSettlementChainConfig(
 		"contracts.settlement-chain.payer-registry-address",
 		missingSet,
 	)
+	validateHexAddress(
+		options.Contracts.SettlementChain.PayerReportManagerAddress,
+		"contracts.settlement-chain.payer-report-manager-address",
+		missingSet,
+	)
 	validateField(
 		options.Contracts.SettlementChain.MaxChainDisconnectTime,
 		"contracts.settlement-chain.max-chain-disconnect-time",

@@ -20,6 +20,7 @@ const (
 	IDENTITY_UPDATE_BROADCAST_ADDRESS = "0xDCbC334a97c6a8DBe7d673bd52fA56718708BC9C"
 	PARAMETER_REGISTRY_ADDRESS        = "0x7FFc148AF5f00C56D78Bce732fC79a08007eC8be"
 	PAYER_REGISTRY_ADDRESS            = "0x6ADCc064469C3b69ED6Fa4DbeFA21490FD200D7c"
+	PAYER_REPORT_MANAGER_ADDRESS      = "0x2aA7BC557FF0b9B55FFD82274706DD2aD37E687B"
 )
 
 func NewContractsOptions(rpcUrl string) config.ContractsOptions {
@@ -41,6 +42,7 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 			NodeRegistryAddress:         NODE_REGISTRY_ADDRESS,
 			ParameterRegistryAddress:    PARAMETER_REGISTRY_ADDRESS,
 			PayerRegistryAddress:        PAYER_REGISTRY_ADDRESS,
+			PayerReportManagerAddress:   PAYER_REPORT_MANAGER_ADDRESS,
 			MaxChainDisconnectTime:      10 * time.Second,
 			BackfillBlockSize:           500,
 		},

@@ -52,7 +52,6 @@ type SettlementChainOptions struct {
 	ParameterRegistryAddress    string        `long:"parameter-registry-address"     env:"XMTPD_SETTLEMENT_CHAIN_PARAMETER_REGISTRY_ADDRESS"     description:"Parameter Registry contract address"`
 	PayerRegistryAddress        string        `long:"payer-registry-address"         env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REGISTRY_ADDRESS"         description:"Payer Registry contract address"`
 	PayerReportManagerAddress   string        `long:"payer-report-manager-address"   env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REPORT_MANAGER_ADDRESS"   description:"Payer Report Manager contract address"`
-	MaxChainDisconnectTime      time.Duration `long:"max-chain-disconnect-time"      env:"XMTPD_SETTLEMENT_CHAIN_MAX_CHAIN_DISCONNECT_TIME"      description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
 }
 
 type DbOptions struct {

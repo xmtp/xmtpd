@@ -108,7 +108,7 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(blockSize),
+		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()

@@ -39,7 +39,6 @@ func NewSettlementChain(
 	log *zap.Logger,
 	cfg config.SettlementChainOptions,
 	db *sql.DB,
-	blockSize uint64,
 ) (*SettlementChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
@@ -109,7 +108,7 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(blockSize),
+		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()

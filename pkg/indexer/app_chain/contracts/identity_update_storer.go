@@ -200,17 +200,6 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 			}
 
-			if err = querier.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
-				BlockNumber:          event.BlockNumber,
-				BlockHash:            event.BlockHash.Bytes(),
-				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
-				OriginatorSequenceID: int64(msgSent.SequenceId),
-				IsCanonical:          true, // New messages are always canonical
-			}); err != nil {
-				s.logger.Error(ErrInsertBlockchainMessage, zap.Error(err))
-				return re.NewRecoverableError(ErrInsertBlockchainMessage, err)
-			}
-
 			return nil
 		},
 	)

@@ -68,7 +68,7 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	payerRegistryLatestBlockNumber, _ := payerRegistry.GetLatestBlock()
+	payerRegistryLatestBlockNumber, payerRegistryLatestBlockHash := payerRegistry.GetLatestBlock()
 
 	payerReportManager, err := contracts.NewPayerReportManager(
 		ctxwc,
@@ -85,7 +85,7 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	payerReportManagerLatestBlockNumber, _ := payerReportManager.GetLatestBlock()
+	payerReportManagerLatestBlockNumber, payerReportManagerLatestBlockHash := payerReportManager.GetLatestBlock()
 
 	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
@@ -95,7 +95,8 @@ func NewSettlementChain(
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{
 				ID:                contracts.PayerRegistryName(cfg.ChainID),
-				FromBlock:         payerRegistryLatestBlockNumber,
+				FromBlockNumber:   payerRegistryLatestBlockNumber,
+				FromBlockHash:     payerRegistryLatestBlockHash,
 				Address:           payerRegistry.Address(),
 				Topics:            payerRegistry.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
@@ -104,7 +105,8 @@ func NewSettlementChain(
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{
 				ID:                contracts.PayerReportManagerName(cfg.ChainID),
-				FromBlock:         payerReportManagerLatestBlockNumber,
+				FromBlockNumber:   payerReportManagerLatestBlockNumber,
+				FromBlockHash:     payerReportManagerLatestBlockHash,
 				Address:           payerReportManager.Address(),
 				Topics:            payerReportManager.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
@@ -140,9 +142,7 @@ func (s *SettlementChain) Start() {
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				s.streamer.Client(),
 				s.PayerRegistryEventChannel(),
-				s.PayerRegistryReorgChannel(),
 				s.payerRegistry,
 			)
 		})
@@ -154,9 +154,7 @@ func (s *SettlementChain) Start() {
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				s.streamer.Client(),
 				s.PayerReportManagerEventChannel(),
-				s.PayerReportManagerReorgChannel(),
 				s.payerReportManager,
 			)
 		})
@@ -183,14 +181,6 @@ func (s *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
 	return s.streamer.GetEventChannel(contracts.PayerRegistryName(s.chainID))
 }
 
-func (s *SettlementChain) PayerRegistryReorgChannel() chan uint64 {
-	return s.streamer.GetReorgChannel(contracts.PayerRegistryName(s.chainID))
-}
-
 func (s *SettlementChain) PayerReportManagerEventChannel() <-chan types.Log {
 	return s.streamer.GetEventChannel(contracts.PayerReportManagerName(s.chainID))
-}
-
-func (s *SettlementChain) PayerReportManagerReorgChannel() chan uint64 {
-	return s.streamer.GetReorgChannel(contracts.PayerReportManagerName(s.chainID))
 }

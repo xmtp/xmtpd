@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	errorMocks "github.com/xmtp/xmtpd/pkg/errors"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
-	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/common"
 	"go.uber.org/zap"
 )
@@ -21,7 +20,6 @@ import (
 
 type logHandlerTest struct {
 	eventChannel   chan types.Log
-	reorgChannel   chan uint64
 	ctx            context.Context
 	cancel         context.CancelFunc
 	event          types.Log
@@ -45,7 +43,6 @@ func setup(t *testing.T) logHandlerTest {
 
 	return logHandlerTest{
 		eventChannel:   make(chan types.Log, 10),
-		reorgChannel:   make(chan uint64, 1),
 		ctx:            ctx,
 		cancel:         cancel,
 		event:          event,
@@ -62,8 +59,6 @@ func TestIndexLogsSuccess(t *testing.T) {
 	}()
 
 	cfg.eventChannel <- cfg.event
-
-	mockClient := blockchainMocks.NewMockChainClient(t)
 
 	var wg sync.WaitGroup
 	wg.Add(2) // Expecting two calls: StoreLog and UpdateLatestBlock
@@ -94,9 +89,7 @@ func TestIndexLogsSuccess(t *testing.T) {
 
 	go c.IndexLogs(
 		cfg.ctx,
-		mockClient,
 		cfg.eventChannel,
-		cfg.reorgChannel,
 		contract,
 	)
 
@@ -119,7 +112,6 @@ func TestIndexLogsRetryableError(t *testing.T) {
 	defer func() {
 		cfg.cancel()
 		close(cfg.eventChannel)
-		close(cfg.reorgChannel)
 	}()
 
 	var wg sync.WaitGroup
@@ -127,8 +119,6 @@ func TestIndexLogsRetryableError(t *testing.T) {
 
 	// Will fail for the first call with a retryable error and a non-retryable error on the second call
 	attemptNumber := 0
-
-	mockClient := blockchainMocks.NewMockChainClient(t)
 
 	contract := indexerMocks.NewMockIContract(t)
 
@@ -160,9 +150,7 @@ func TestIndexLogsRetryableError(t *testing.T) {
 
 	go c.IndexLogs(
 		cfg.ctx,
-		mockClient,
 		cfg.eventChannel,
-		cfg.reorgChannel,
 		contract,
 	)
 

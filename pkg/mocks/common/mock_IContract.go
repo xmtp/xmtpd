@@ -76,71 +76,6 @@ func (_c *MockIContract_Address_Call) RunAndReturn(run func() common.Address) *M
 	return _c
 }
 
-// FindReorgPoint provides a mock function with given fields: detectedAt
-func (_m *MockIContract) FindReorgPoint(detectedAt uint64) (uint64, []byte, error) {
-	ret := _m.Called(detectedAt)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindReorgPoint")
-	}
-
-	var r0 uint64
-	var r1 []byte
-	var r2 error
-	if rf, ok := ret.Get(0).(func(uint64) (uint64, []byte, error)); ok {
-		return rf(detectedAt)
-	}
-	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
-		r0 = rf(detectedAt)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(uint64) []byte); ok {
-		r1 = rf(detectedAt)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]byte)
-		}
-	}
-
-	if rf, ok := ret.Get(2).(func(uint64) error); ok {
-		r2 = rf(detectedAt)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
-}
-
-// MockIContract_FindReorgPoint_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindReorgPoint'
-type MockIContract_FindReorgPoint_Call struct {
-	*mock.Call
-}
-
-// FindReorgPoint is a helper method to define mock.On call
-//   - detectedAt uint64
-func (_e *MockIContract_Expecter) FindReorgPoint(detectedAt interface{}) *MockIContract_FindReorgPoint_Call {
-	return &MockIContract_FindReorgPoint_Call{Call: _e.mock.On("FindReorgPoint", detectedAt)}
-}
-
-func (_c *MockIContract_FindReorgPoint_Call) Run(run func(detectedAt uint64)) *MockIContract_FindReorgPoint_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(uint64))
-	})
-	return _c
-}
-
-func (_c *MockIContract_FindReorgPoint_Call) Return(_a0 uint64, _a1 []byte, _a2 error) *MockIContract_FindReorgPoint_Call {
-	_c.Call.Return(_a0, _a1, _a2)
-	return _c
-}
-
-func (_c *MockIContract_FindReorgPoint_Call) RunAndReturn(run func(uint64) (uint64, []byte, error)) *MockIContract_FindReorgPoint_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetLatestBlock provides a mock function with no fields
 func (_m *MockIContract) GetLatestBlock() (uint64, []byte) {
 	ret := _m.Called()
@@ -194,6 +129,55 @@ func (_c *MockIContract_GetLatestBlock_Call) Return(_a0 uint64, _a1 []byte) *Moc
 }
 
 func (_c *MockIContract_GetLatestBlock_Call) RunAndReturn(run func() (uint64, []byte)) *MockIContract_GetLatestBlock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HandleLog provides a mock function with given fields: ctx, event
+func (_m *MockIContract) HandleLog(ctx context.Context, event types.Log) retryable_errors.RetryableError {
+	ret := _m.Called(ctx, event)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HandleLog")
+	}
+
+	var r0 retryable_errors.RetryableError
+	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryable_errors.RetryableError); ok {
+		r0 = rf(ctx, event)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(retryable_errors.RetryableError)
+		}
+	}
+
+	return r0
+}
+
+// MockIContract_HandleLog_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HandleLog'
+type MockIContract_HandleLog_Call struct {
+	*mock.Call
+}
+
+// HandleLog is a helper method to define mock.On call
+//   - ctx context.Context
+//   - event types.Log
+func (_e *MockIContract_Expecter) HandleLog(ctx interface{}, event interface{}) *MockIContract_HandleLog_Call {
+	return &MockIContract_HandleLog_Call{Call: _e.mock.On("HandleLog", ctx, event)}
+}
+
+func (_c *MockIContract_HandleLog_Call) Run(run func(ctx context.Context, event types.Log)) *MockIContract_HandleLog_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(types.Log))
+	})
+	return _c
+}
+
+func (_c *MockIContract_HandleLog_Call) Return(_a0 retryable_errors.RetryableError) *MockIContract_HandleLog_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIContract_HandleLog_Call) RunAndReturn(run func(context.Context, types.Log) retryable_errors.RetryableError) *MockIContract_HandleLog_Call {
 	_c.Call.Return(run)
 	return _c
 }

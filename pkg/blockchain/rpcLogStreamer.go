@@ -1,7 +1,10 @@
 package blockchain
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -24,15 +27,17 @@ const (
 	sleepTimeNoLogs  = 100 * time.Millisecond
 )
 
+var ErrReorg = errors.New("blockchain reorg detected")
+
 // Struct defining all the information required to filter events from logs
 type ContractConfig struct {
 	ID                string
-	FromBlock         uint64
+	FromBlockNumber   uint64
+	FromBlockHash     []byte
 	Address           common.Address
 	Topics            []common.Hash
 	MaxDisconnectTime time.Duration
 	eventChannel      chan types.Log
-	reorgChannel      chan uint64
 }
 
 type RpcLogStreamerOption func(*RpcLogStreamer) error
@@ -66,12 +71,12 @@ func WithContractConfig(
 
 		streamer.watchers[cfg.ID] = ContractConfig{
 			ID:                cfg.ID,
-			FromBlock:         cfg.FromBlock,
+			FromBlockNumber:   cfg.FromBlockNumber,
+			FromBlockHash:     cfg.FromBlockHash,
 			Address:           cfg.Address,
 			Topics:            cfg.Topics,
 			MaxDisconnectTime: cfg.MaxDisconnectTime,
 			eventChannel:      make(chan types.Log, 100),
-			reorgChannel:      make(chan uint64, 1),
 		}
 
 		return nil
@@ -149,13 +154,13 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		logger    = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		subLogger = logger.Named("subscription").
 				With(zap.String("contractAddress", cfg.Address.Hex()))
-		backfillFromBlock    = cfg.FromBlock
-		backfillHighestBlock = uint64(0)
-		unsafeReorgDistance  = uint64(600) // TODO: Configured per chain.
+		backfillFromBlockNumber = cfg.FromBlockNumber
+		backfillFromBlockHash   = cfg.FromBlockHash
+		backfillHighestBlock    = uint64(0)
+		unsafeReorgDistance     = uint64(600) // TODO: Configured per chain.
 	)
 
 	defer close(cfg.eventChannel)
-	defer close(cfg.reorgChannel)
 
 	innerSubCh, err := r.buildSubscriptionChannel(cfg, subLogger)
 	if err != nil {
@@ -173,11 +178,11 @@ backfillLoop:
 			return
 
 		default:
-			logs, nextBlock, highestBlock, err := r.GetNextPage(r.ctx, cfg, backfillFromBlock)
+			logs, nextBlock, nextBlockHash, highestBlock, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
 			if err != nil {
 				logger.Error(
 					"Error getting next page",
-					zap.Uint64("fromBlock", backfillFromBlock),
+					zap.Uint64("fromBlock", backfillFromBlockNumber),
 					zap.Error(err),
 				)
 				time.Sleep(sleepTimeOnError)
@@ -185,7 +190,8 @@ backfillLoop:
 			}
 
 			if nextBlock != nil {
-				backfillFromBlock = *nextBlock
+				backfillFromBlockNumber = *nextBlock
+				backfillFromBlockHash = nextBlockHash
 				backfillHighestBlock = *nextBlock - 1
 			}
 
@@ -197,7 +203,7 @@ backfillLoop:
 			logger.Debug(
 				"Got logs",
 				zap.Int("numLogs", len(logs)),
-				zap.Uint64("fromBlock", backfillFromBlock),
+				zap.Uint64("fromBlock", backfillFromBlockNumber),
 				zap.Time("time", time.Now()),
 			)
 
@@ -258,44 +264,80 @@ backfillLoop:
 
 func (r *RpcLogStreamer) GetNextPage(
 	ctx context.Context,
-	config ContractConfig,
-	fromBlock uint64,
-) (logs []types.Log, nextBlock *uint64, highestBlock uint64, err error) {
-	contractAddress := config.Address.Hex()
+	cfg ContractConfig,
+	fromBlockNumber uint64,
+	fromBlockHash []byte,
+) (logs []types.Log, nextBlockNumber *uint64, nextBlockHash []byte, highestBlock uint64, err error) {
+	contractAddress := cfg.Address.Hex()
+
+	if fromBlockNumber > 0 {
+		block, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
+		if err != nil {
+			return nil, nil, nil, 0, err
+		}
+
+		if len(fromBlockHash) == 32 &&
+			!bytes.Equal(fromBlockHash, block.ParentHash().Bytes()) {
+			r.logger.Error(
+				"blockchain reorg detected",
+				zap.Uint64("blockNumber", fromBlockNumber),
+				zap.String("expectedParentHash", hex.EncodeToString(fromBlockHash)),
+				zap.String("gotParentHash", block.ParentHash().Hex()),
+			)
+
+			nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber-1)))
+			if err != nil {
+				return nil, nil, nil, 0, err
+			}
+
+			number := nextBlock.Number().Uint64()
+			hash := nextBlock.Hash().Bytes()
+
+			return nil, &number, hash, highestBlock, ErrReorg
+		}
+	}
+
 	highestBlock, err = r.client.BlockNumber(ctx)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, nil, 0, err
 	}
+
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
-	if fromBlock > highestBlock {
+	if fromBlockNumber > highestBlock {
 		// TODO: Move this metric to the subscription in a subsequent PR.
 		// metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
-		return []types.Log{}, nil, 0, nil
+		return []types.Log{}, nil, nil, 0, nil
 	}
 
-	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlock)
+	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)
 
-	toBlock := min(fromBlock+backfillBlocks, highestBlock)
+	toBlock := min(fromBlockNumber+backfillBlocks, highestBlock)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
 		return r.client.FilterLogs(
 			ctx,
-			buildFilterQuery(config, fromBlock, toBlock),
+			buildFilterQuery(cfg, fromBlockNumber, toBlock),
 		)
 	})
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, nil, 0, err
 	}
 
 	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
 
-	nextBlockNumber := toBlock + 1
+	nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(toBlock+1)))
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
 
-	return logs, &nextBlockNumber, highestBlock, nil
+	number := nextBlock.Number().Uint64()
+	hash := nextBlock.Hash().Bytes()
+
+	return logs, &number, hash, highestBlock, nil
 }
 
 func (r *RpcLogStreamer) buildSubscriptionChannel(
@@ -383,24 +425,12 @@ func (r *RpcLogStreamer) buildSubscription(
 	return sub, nil
 }
 
-func (r *RpcLogStreamer) Client() ChainClient {
-	return r.client
-}
-
 func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {
 	if _, ok := r.watchers[id]; !ok {
 		return nil
 	}
 
 	return r.watchers[id].eventChannel
-}
-
-func (r *RpcLogStreamer) GetReorgChannel(id string) chan uint64 {
-	if _, ok := r.watchers[id]; !ok {
-		return nil
-	}
-
-	return r.watchers[id].reorgChannel
 }
 
 func buildFilterQuery(cfg ContractConfig, from uint64, to uint64) ethereum.FilterQuery {

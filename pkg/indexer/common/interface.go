@@ -21,7 +21,7 @@ type IBlockTracker interface {
 }
 
 type IReorgHandler interface {
-	FindReorgPoint(detectedAt uint64) (uint64, []byte, error)
+	HandleLog(ctx context.Context, event types.Log) re.RetryableError
 }
 
 // An IContract is a contract that can be indexed.

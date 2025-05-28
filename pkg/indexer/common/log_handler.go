@@ -45,126 +45,145 @@ func IndexLogs(
 		reorgInProgress   bool
 	)
 
-	// We don't need to listen for the ctx.Done() here, since the eventChannel will be closed when the parent context is canceled
-	for event := range eventChannel {
-		now := time.Now()
-		// 1.1 Handle active reorg state first
-		if reorgDetectedAt > 0 {
-			// Under a reorg, future events are no-op
-			if event.BlockNumber >= reorgDetectedAt {
-				contract.Logger().Debug("discarding future event due to reorg",
-					zap.Uint64("eventBlockNumber", event.BlockNumber),
-					zap.Uint64("reorgBlockNumber", reorgBeginsAt))
-				continue
-			}
-			contract.Logger().Info("starting processing reorg",
-				zap.Uint64("eventBlockNumber", event.BlockNumber),
-				zap.Uint64("reorgBlockNumber", reorgBeginsAt))
+	for {
+		select {
+		case <-ctx.Done():
+			contract.Logger().Debug("IndexLogs context cancelled, exiting log handler")
+			return
 
-			// When all future events have been discarded, it means we've reached the reorg point
-			storedBlockNumber, storedBlockHash = contract.GetLatestBlock()
-			lastBlockSeen = event.BlockNumber
-			reorgDetectedAt = 0
-			reorgInProgress = true
-		}
-
-		// 1.2 Handle deactivation of reorg state
-		if reorgInProgress && event.BlockNumber > reorgFinishesAt {
-			contract.Logger().Info("finished processing reorg",
-				zap.Uint64("eventBlockNumber", event.BlockNumber),
-				zap.Uint64("reorgFinishesAt", reorgFinishesAt))
-			reorgInProgress = false
-		}
-
-		// 2. Get the latest block from tracker once per block
-		if lastBlockSeen > 0 && lastBlockSeen != event.BlockNumber {
-			storedBlockNumber, storedBlockHash = contract.GetLatestBlock()
-		}
-		lastBlockSeen = event.BlockNumber
-
-		// 3. Check for reorgs, when:
-		// - There are no reorgs in progress
-		// - There's a stored block
-		// - The event block number is greater than the stored block number
-		// - The check interval has passed
-		skipReorgHandling := false
-		if !reorgInProgress &&
-			storedBlockNumber > 0 &&
-			event.BlockNumber > storedBlockNumber &&
-			event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
-			onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
-			if err != nil {
-				contract.Logger().
-					Warn("error querying block from the blockchain, proceeding with event processing",
-						zap.Uint64("blockNumber", storedBlockNumber),
-						zap.Error(err),
-					)
-				skipReorgHandling = true
+		case event, open := <-eventChannel:
+			if !open {
+				contract.Logger().Debug("IndexLogs event channel closed, exiting log handler")
+				return
 			}
 
-			if !skipReorgHandling {
-				reorgCheckAt = event.BlockNumber
-				contract.Logger().Debug("blockchain reorg periodic check",
-					zap.Uint64("blockNumber", reorgCheckAt),
-				)
+			// TODO: Handle reorged event in future PR.
+			// This should be handled by the IReorgHandler, and have a different implementaton per contract.
+			// Backfilled logs always have Removed = false. Only subscription logs can be reorged.
+			if event.Removed {
+				contract.Logger().Debug("detected reorged event", zap.Any("log", event))
+			}
 
-				if storedBlockHash != nil &&
-					!bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
-					contract.Logger().Warn("blockchain reorg detected",
-						zap.Uint64("storedBlockNumber", storedBlockNumber),
-						zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
-						zap.String("onchainBlockHash", onchainBlock.Hash().String()),
-					)
+			now := time.Now()
 
-					reorgBlockNumber, reorgBlockHash, err := contract.FindReorgPoint(
-						storedBlockNumber,
-					)
-					if err != nil && !errors.Is(err, ErrNoBlocksFound) {
-						contract.Logger().Error("reorg point not found", zap.Error(err))
-						continue
-					}
-
-					reorgDetectedAt = storedBlockNumber
-					reorgBeginsAt = reorgBlockNumber
-					reorgFinishesAt = storedBlockNumber
-
-					if trackerErr := contract.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash); trackerErr != nil {
-						contract.Logger().
-							Error("error updating block tracker", zap.Error(trackerErr))
-					}
-
-					select {
-					case reorgChannel <- reorgBlockNumber:
-					default:
-						contract.Logger().Warn("reorg signal dropped, channel not ready")
-					}
-
+			// 1.1 Handle active reorg state first
+			if reorgDetectedAt > 0 {
+				// Under a reorg, future events are no-op
+				if event.BlockNumber >= reorgDetectedAt {
+					contract.Logger().Debug("discarding future event due to reorg",
+						zap.Uint64("eventBlockNumber", event.BlockNumber),
+						zap.Uint64("reorgBlockNumber", reorgBeginsAt))
 					continue
 				}
+				contract.Logger().Info("starting processing reorg",
+					zap.Uint64("eventBlockNumber", event.BlockNumber),
+					zap.Uint64("reorgBlockNumber", reorgBeginsAt))
+
+				// When all future events have been discarded, it means we've reached the reorg point
+				storedBlockNumber, storedBlockHash = contract.GetLatestBlock()
+				lastBlockSeen = event.BlockNumber
+				reorgDetectedAt = 0
+				reorgInProgress = true
 			}
-		}
 
-		err := retry(
-			ctx,
-			contract.Logger(),
-			100*time.Millisecond,
-			contract.Address().Hex(),
-			func() re.RetryableError {
-				return contract.StoreLog(ctx, event)
-			},
-		)
-		if err != nil {
-			continue
-		}
+			// 1.2 Handle deactivation of reorg state
+			if reorgInProgress && event.BlockNumber > reorgFinishesAt {
+				contract.Logger().Info("finished processing reorg",
+					zap.Uint64("eventBlockNumber", event.BlockNumber),
+					zap.Uint64("reorgFinishesAt", reorgFinishesAt))
+				reorgInProgress = false
+			}
 
-		contract.Logger().Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
-		if trackerErr := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
-			contract.Logger().Error("error updating block tracker", zap.Error(trackerErr))
+			// 2. Get the latest block from tracker once per block
+			if lastBlockSeen > 0 && lastBlockSeen != event.BlockNumber {
+				storedBlockNumber, storedBlockHash = contract.GetLatestBlock()
+			}
+			lastBlockSeen = event.BlockNumber
+
+			// 3. Check for reorgs, when:
+			// - There are no reorgs in progress
+			// - There's a stored block
+			// - The event block number is greater than the stored block number
+			// - The check interval has passed
+			skipReorgHandling := false
+			if !reorgInProgress &&
+				storedBlockNumber > 0 &&
+				event.BlockNumber > storedBlockNumber &&
+				event.BlockNumber >= reorgCheckAt+reorgCheckInterval {
+				onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(storedBlockNumber)))
+				if err != nil {
+					contract.Logger().
+						Warn("error querying block from the blockchain, proceeding with event processing",
+							zap.Uint64("blockNumber", storedBlockNumber),
+							zap.Error(err),
+						)
+					skipReorgHandling = true
+				}
+
+				if !skipReorgHandling {
+					reorgCheckAt = event.BlockNumber
+					contract.Logger().Debug("blockchain reorg periodic check",
+						zap.Uint64("blockNumber", reorgCheckAt),
+					)
+
+					if storedBlockHash != nil &&
+						!bytes.Equal(storedBlockHash, onchainBlock.Hash().Bytes()) {
+						contract.Logger().Warn("blockchain reorg detected",
+							zap.Uint64("storedBlockNumber", storedBlockNumber),
+							zap.String("storedBlockHash", hex.EncodeToString(storedBlockHash)),
+							zap.String("onchainBlockHash", onchainBlock.Hash().String()),
+						)
+
+						reorgBlockNumber, reorgBlockHash, err := contract.FindReorgPoint(
+							storedBlockNumber,
+						)
+						if err != nil && !errors.Is(err, ErrNoBlocksFound) {
+							contract.Logger().Error("reorg point not found", zap.Error(err))
+							continue
+						}
+
+						reorgDetectedAt = storedBlockNumber
+						reorgBeginsAt = reorgBlockNumber
+						reorgFinishesAt = storedBlockNumber
+
+						if trackerErr := contract.UpdateLatestBlock(ctx, reorgBlockNumber, reorgBlockHash); trackerErr != nil {
+							contract.Logger().
+								Error("error updating block tracker", zap.Error(trackerErr))
+						}
+
+						select {
+						case reorgChannel <- reorgBlockNumber:
+						default:
+							contract.Logger().Warn("reorg signal dropped, channel not ready")
+						}
+
+						continue
+					}
+				}
+			}
+
+			err := retry(
+				ctx,
+				contract.Logger(),
+				100*time.Millisecond,
+				contract.Address().Hex(),
+				event.BlockNumber,
+				func() re.RetryableError {
+					return contract.StoreLog(ctx, event)
+				},
+			)
+			if err != nil {
+				continue
+			}
+
+			contract.Logger().Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
+			if trackerErr := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
+				contract.Logger().Error("error updating block tracker", zap.Error(trackerErr))
+			}
+
+			metrics.EmitIndexerLogProcessingTime(time.Since(now))
 		}
-		metrics.EmitIndexerLogProcessingTime(time.Since(now))
 	}
-
-	contract.Logger().Debug("exit log handler")
 }
 
 func retry(
@@ -172,15 +191,21 @@ func retry(
 	logger *zap.Logger,
 	sleep time.Duration,
 	address string,
+	blockNumber uint64,
 	fn func() re.RetryableError,
 ) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+
 		default:
 			if err := fn(); err != nil {
-				logger.Error("error storing log", zap.Error(err))
+				logger.Error("error storing log",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Error(err),
+				)
+
 				if err.ShouldRetry() {
 					metrics.EmitIndexerRetryableStorageError(address)
 
@@ -191,8 +216,10 @@ func retry(
 						continue
 					}
 				}
+
 				return err
 			}
+
 			return nil
 		}
 	}

@@ -52,7 +52,6 @@ func TestRpcLogStreamer(t *testing.T) {
 		context.Background(),
 		mockClient,
 		testutils.NewLog(t),
-		1,
 		blockchain.WithContractConfig(cfg),
 	)
 	require.NoError(t, err)

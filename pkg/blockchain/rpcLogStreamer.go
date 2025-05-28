@@ -100,13 +100,11 @@ func NewRpcLogStreamer(
 	ctx context.Context,
 	client ChainClient,
 	logger *zap.Logger,
-	chainID int,
 	options ...RpcLogStreamerOption,
 ) (*RpcLogStreamer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	streamLogger := logger.Named("rpcLogStreamer").
-		With(zap.Int("chainID", chainID))
+	streamLogger := logger.Named("rpcLogStreamer")
 
 	streamer := &RpcLogStreamer{
 		ctx:                 ctx,

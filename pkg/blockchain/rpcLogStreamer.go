@@ -157,7 +157,6 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		backfillFromBlockNumber = cfg.FromBlockNumber
 		backfillFromBlockHash   = cfg.FromBlockHash
 		backfillHighestBlock    = uint64(0)
-		unsafeReorgDistance     = uint64(600) // TODO: Configured per chain.
 	)
 
 	defer close(cfg.eventChannel)
@@ -209,20 +208,6 @@ backfillLoop:
 
 			for _, log := range logs {
 				cfg.eventChannel <- log
-			}
-
-			if backfillHighestBlock >= highestBlock-unsafeReorgDistance {
-				// TODO: Once the unsafe reorg distance is reached, we can discard from the buffer anything generated before it.
-				// For Base (2s block time), ~600 blocks is safe enough, as Ethereum finality is reached in ~12.8 minutes.
-				// For Orbit (250ms block time) with AnyTrust:
-				// - Hard finality depends on the DA committee batch posting, that's 1 hour between batches - 14400 blocks.
-				// - Soft finality with AnyTrust is reached in less than ~30 seconds - 120 blocks.
-				//
-
-				logger.Debug(
-					"Reached unsafe reorg distance, discarding safe logs and keeping only unsafe logs",
-					zap.Uint64("highestBackfillBlock", backfillHighestBlock),
-				)
 			}
 
 			if backfillHighestBlock >= highestBlock {

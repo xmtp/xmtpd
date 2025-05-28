@@ -93,8 +93,7 @@ func NewAppChain(
 	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
-		log,
-		cfg.ChainID,
+		chainLogger,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{

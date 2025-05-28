@@ -38,6 +38,7 @@ func NewPayerReportManager(
 	logger *zap.Logger,
 	address common.Address,
 	chainID int,
+	startBlock uint64,
 ) (*PayerReportManager, error) {
 	contract, err := payerReportManagerContract(address, client)
 	if err != nil {
@@ -46,8 +47,10 @@ func NewPayerReportManager(
 
 	payerReportManagerTracker, err := c.NewBlockTracker(
 		ctx,
+		client,
 		address,
 		querier,
+		startBlock,
 	)
 	if err != nil {
 		return nil, err

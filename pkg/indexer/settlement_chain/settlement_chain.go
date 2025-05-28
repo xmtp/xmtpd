@@ -60,6 +60,7 @@ func NewSettlementChain(
 		chainLogger,
 		common.HexToAddress(cfg.PayerRegistryAddress),
 		cfg.ChainID,
+		cfg.PayerRegistryStartBlock,
 	)
 	if err != nil {
 		cancel()
@@ -76,6 +77,7 @@ func NewSettlementChain(
 		chainLogger,
 		common.HexToAddress(cfg.PayerReportManagerAddress),
 		cfg.ChainID,
+		cfg.PayerReportManagerStartBlock,
 	)
 	if err != nil {
 		cancel()
@@ -94,7 +96,7 @@ func NewSettlementChain(
 			blockchain.ContractConfig{
 				ID:                contracts.PayerRegistryName(cfg.ChainID),
 				FromBlock:         payerRegistryLatestBlockNumber,
-				ContractAddress:   payerRegistry.Address(),
+				Address:           payerRegistry.Address(),
 				Topics:            payerRegistry.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
@@ -103,7 +105,7 @@ func NewSettlementChain(
 			blockchain.ContractConfig{
 				ID:                contracts.PayerReportManagerName(cfg.ChainID),
 				FromBlock:         payerReportManagerLatestBlockNumber,
-				ContractAddress:   payerReportManager.Address(),
+				Address:           payerReportManager.Address(),
 				Topics:            payerReportManager.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},

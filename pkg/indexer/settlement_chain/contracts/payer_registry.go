@@ -40,6 +40,7 @@ func NewPayerRegistry(
 	logger *zap.Logger,
 	address common.Address,
 	chainID int,
+	startBlock uint64,
 ) (*PayerRegistry, error) {
 	contract, err := payerRegistryContract(address, client)
 	if err != nil {
@@ -48,8 +49,10 @@ func NewPayerRegistry(
 
 	payerRegistryTracker, err := c.NewBlockTracker(
 		ctx,
+		client,
 		address,
 		querier,
+		startBlock,
 	)
 	if err != nil {
 		return nil, err

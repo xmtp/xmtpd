@@ -17,9 +17,9 @@ func NewPayerRegistryReorgHandler(logger *zap.Logger) *PayerRegistryReorgHandler
 }
 
 func (h *PayerRegistryReorgHandler) HandleLog(
-	ctx context.Context,
+	_ context.Context,
 	event types.Log,
 ) re.RetryableError {
-	h.logger.Info("handling reorged event", zap.Any("log", event))
+	h.logger.Info("handling reorged event", zap.Any("blockNumber", event.BlockNumber))
 	return nil
 }

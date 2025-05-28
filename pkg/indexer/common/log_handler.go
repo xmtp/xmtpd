@@ -36,8 +36,14 @@ func IndexLogs(
 			// This should be handled by the IReorgHandler, and have a different implementaton per contract.
 			// Backfilled logs always have Removed = false. Only subscription logs can be reorged.
 			if event.Removed {
-				contract.Logger().Debug("detected reorged event", zap.Any("log", event))
-				_ = contract.HandleLog(ctx, event)
+				if err := contract.HandleLog(ctx, event); err != nil {
+					contract.Logger().
+						Error("reorg handling failed",
+							zap.Error(err),
+							zap.Uint64("blockNumber", event.BlockNumber),
+							zap.String("blockHash", event.BlockHash.Hex()),
+						)
+				}
 			}
 
 			now := time.Now()

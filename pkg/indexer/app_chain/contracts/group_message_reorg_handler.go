@@ -17,9 +17,9 @@ func NewGroupMessageReorgHandler(logger *zap.Logger) *GroupMessageReorgHandler {
 }
 
 func (h *GroupMessageReorgHandler) HandleLog(
-	ctx context.Context,
+	_ context.Context,
 	event types.Log,
 ) re.RetryableError {
-	h.logger.Info("handling reorged event", zap.Any("log", event))
+	h.logger.Info("handling reorged event", zap.Any("blockNumber", event.BlockNumber))
 	return nil
 }

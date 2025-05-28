@@ -31,8 +31,28 @@ func TestRpcLogStreamer(t *testing.T) {
 		Data:    []byte("foo"),
 	}
 
+	// Create mock blocks with proper headers
+	header2 := &types.Header{
+		Number:     big.NewInt(2),
+		ParentHash: common.Hash{}, // Empty parent hash for simplicity
+	}
+	mockBlock2 := types.NewBlockWithHeader(header2)
+
+	header11 := &types.Header{
+		Number: big.NewInt(11),
+	}
+	mockBlock11 := types.NewBlockWithHeader(header11)
+
 	mockClient := mocks.NewMockChainClient(t)
-	mockClient.On("BlockNumber", mock.Anything).Return(uint64(lastBlock), nil)
+
+	// Mock BlockByNumber call for fromBlockNumber+1 (block 2) - for reorg detection
+	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(fromBlock+1))).
+		Return(mockBlock2, nil)
+
+	// Mock BlockNumber call to get the highest block
+	mockClient.On("BlockNumber", mock.Anything).Return(lastBlock, nil)
+
+	// Mock FilterLogs call
 	mockClient.On("FilterLogs", mock.Anything, ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(fromBlock)),
 		ToBlock:   big.NewInt(int64(lastBlock)),
@@ -40,9 +60,14 @@ func TestRpcLogStreamer(t *testing.T) {
 		Topics:    [][]common.Hash{{topic}},
 	}).Return([]types.Log{logMessage}, nil)
 
+	// Mock BlockByNumber call for toBlock+1 (block 11) - for getting next block hash
+	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(lastBlock+1))).
+		Return(mockBlock11, nil)
+
 	cfg := blockchain.ContractConfig{
 		ID:                "testContract",
 		FromBlockNumber:   fromBlock,
+		FromBlockHash:     []byte{},
 		Address:           address,
 		Topics:            []common.Hash{topic},
 		MaxDisconnectTime: 5 * time.Minute,

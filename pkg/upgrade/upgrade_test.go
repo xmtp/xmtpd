@@ -1,7 +1,6 @@
 package upgrade_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -16,7 +15,6 @@ var (
 )
 
 func TestUpgradeToLatest(t *testing.T) {
-	ctx := context.Background()
 	for _, version := range xmtpdVersions {
 		image := fmt.Sprintf("%s:%s", ghcrRepository, version)
 
@@ -25,7 +23,6 @@ func TestUpgradeToLatest(t *testing.T) {
 			t.Logf("Starting old container")
 			err := runContainer(
 				t,
-				ctx,
 				image,
 				fmt.Sprintf("xmtpd_test_%s", version),
 				envVars,
@@ -35,7 +32,6 @@ func TestUpgradeToLatest(t *testing.T) {
 			t.Logf("Starting new container")
 			err = runContainer(
 				t,
-				ctx,
 				"ghcr.io/xmtp/xmtpd:dev",
 				"xmtpd_test_dev",
 				envVars,
@@ -46,14 +42,19 @@ func TestUpgradeToLatest(t *testing.T) {
 }
 
 func TestLatestVersion(t *testing.T) {
-	ctx := context.Background()
 	envVars := constructVariables(t)
 	err := runContainer(
 		t,
-		ctx,
 		"ghcr.io/xmtp/xmtpd:dev",
 		"xmtpd_test_dev",
 		envVars,
 	)
 	require.NoError(t, err, "Failed to start latest version container")
+
+	err = runXDBG(t, GeneratorTypeIdentity, 10)
+	require.NoError(t, err, "Failed to execute XDBG")
+	err = runXDBG(t, GeneratorTypeGroup, 10)
+	require.NoError(t, err, "Failed to execute XDBG")
+	err = runXDBG(t, GeneratorTypeMessage, 10)
+	require.NoError(t, err, "Failed to execute XDBG")
 }

@@ -1,6 +1,8 @@
 package utils
 
-import "time"
+import (
+	"time"
+)
 
 func MinutesSinceEpoch(timestamp time.Time) int32 {
 	durationSinceEpoch := timestamp.Sub(time.Unix(0, 0))

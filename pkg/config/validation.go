@@ -117,6 +117,8 @@ func ParseJSONConfig(options *ContractsOptions) error {
 			return err
 		}
 
+		fmt.Println("data", string(data))
+
 		// Unmarshal JSON into the Config struct
 		var config ChainConfig
 		if err := json.Unmarshal(data, &config); err != nil {
@@ -164,11 +166,15 @@ func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
 	if options.SettlementChain.ParameterRegistryAddress == "" {
 		options.SettlementChain.ParameterRegistryAddress = config.SettlementChainParameterRegistry
 	}
+	if options.SettlementChain.PayerRegistryAddress == "" {
+		options.SettlementChain.PayerRegistryAddress = config.PayerRegistry
+	}
+	if options.SettlementChain.PayerReportManagerAddress == "" {
+		options.SettlementChain.PayerReportManagerAddress = config.PayerReportManager
+	}
 	if options.SettlementChain.ChainID == 0 || options.SettlementChain.ChainID == 31337 {
 		options.SettlementChain.ChainID = config.SettlementChainID
 	}
-
-	// TODO add payers and reports
 }
 
 func validateBlockchainConfig(

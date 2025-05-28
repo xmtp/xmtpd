@@ -1,30 +1,41 @@
 package common_test
 
 import (
+	"math/big"
 	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-var address = common.HexToAddress("0x0000000000000000000000000000000000000000")
+var (
+	address   = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	mockBlock = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
+)
 
 func TestInitialize(t *testing.T) {
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
-	tracker, err := c.NewBlockTracker(ctx, address, querier)
+	mockClient := blockchain.NewMockChainClient(t)
+	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock, nil)
+
+	tracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
+
 	blockNumber, blockHash := tracker.GetLatestBlock()
 	require.NoError(t, err)
 	require.NotNil(t, tracker)
-	require.Equal(t, uint64(0), blockNumber)
-	require.Equal(t, common.Hash{}.Bytes(), blockHash)
+	require.Equal(t, mockBlock.NumberU64(), blockNumber)
+	require.Equal(t, mockBlock.Hash().Bytes(), blockHash)
 }
 
 func TestUpdateLatestBlock(t *testing.T) {
@@ -32,7 +43,11 @@ func TestUpdateLatestBlock(t *testing.T) {
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
 
-	tracker, err := c.NewBlockTracker(ctx, address, querier)
+	mockClient := blockchain.NewMockChainClient(t)
+	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock, nil)
+
+	tracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
 
 	blockHigh := testutils.Int64ToHash(100).Bytes()
@@ -60,7 +75,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 	require.Equal(t, blockHigh, blockHash)
 
 	// Verify persistence
-	newTracker, err := c.NewBlockTracker(ctx, address, querier)
+	newTracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
 	blockNumber, blockHash = newTracker.GetLatestBlock()
 	require.Equal(t, uint64(100), blockNumber)
@@ -71,8 +86,12 @@ func TestConcurrentUpdates(t *testing.T) {
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	querier := queries.New(db)
+	mockClient := blockchain.NewMockChainClient(t)
 
-	tracker, err := c.NewBlockTracker(ctx, address, querier)
+	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock, nil)
+
+	tracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
 
 	numGoroutines := 10
@@ -118,7 +137,7 @@ func TestConcurrentUpdates(t *testing.T) {
 	require.Equal(t, expectedFinalHash, blockHash)
 
 	// Verify persistence
-	newTracker, err := c.NewBlockTracker(ctx, address, querier)
+	newTracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
 	blockNumber, blockHash = newTracker.GetLatestBlock()
 	require.Equal(t, expectedFinalBlock, blockNumber)
@@ -133,9 +152,13 @@ func TestMultipleContractAddresses(t *testing.T) {
 	address1 := common.HexToAddress("0x0000000000000000000000000000000000000001")
 	address2 := common.HexToAddress("0x0000000000000000000000000000000000000002")
 
-	tracker1, err := c.NewBlockTracker(ctx, address1, querier)
+	mockClient := blockchain.NewMockChainClient(t)
+	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock, nil)
+
+	tracker1, err := c.NewBlockTracker(ctx, mockClient, address1, querier, 0)
 	require.NoError(t, err)
-	tracker2, err := c.NewBlockTracker(ctx, address2, querier)
+	tracker2, err := c.NewBlockTracker(ctx, mockClient, address2, querier, 0)
 	require.NoError(t, err)
 
 	blockHash1 := testutils.Int64ToHash(100).Bytes()
@@ -156,9 +179,9 @@ func TestMultipleContractAddresses(t *testing.T) {
 	require.Equal(t, blockHash2, blockHash)
 
 	// Verify persistence for both addresses
-	newTracker1, err := c.NewBlockTracker(ctx, address1, querier)
+	newTracker1, err := c.NewBlockTracker(ctx, mockClient, address1, querier, 0)
 	require.NoError(t, err)
-	newTracker2, err := c.NewBlockTracker(ctx, address2, querier)
+	newTracker2, err := c.NewBlockTracker(ctx, mockClient, address2, querier, 0)
 	require.NoError(t, err)
 
 	blockNumber, blockHash = newTracker1.GetLatestBlock()

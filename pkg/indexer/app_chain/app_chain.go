@@ -3,6 +3,8 @@ package app_chain
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -19,8 +21,11 @@ import (
 )
 
 const (
+	// The app chain can't have a lag from the highest block.
 	lagFromHighestBlock = 0
 )
+
+var ErrInitializingAppChain = errors.New("initializing app chain")
 
 // An AppChain has a GroupMessageBroadcaster and IdentityUpdateBroadcaster contract.
 type AppChain struct {
@@ -41,7 +46,6 @@ func NewAppChain(
 	cfg config.AppChainOptions,
 	db *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
-	blockSize uint64,
 ) (*AppChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
@@ -52,7 +56,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	querier := queries.New(db)
@@ -64,11 +68,12 @@ func NewAppChain(
 		chainLogger,
 		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
 		cfg.ChainID,
+		cfg.GroupMessageBroadcasterStartBlock,
 	)
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	groupMessageLatestBlockNumber, _ := groupMessageBroadcaster.GetLatestBlock()
@@ -81,11 +86,12 @@ func NewAppChain(
 		validationService,
 		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
 		cfg.ChainID,
+		cfg.IdentityUpdateBroadcasterStartBlock,
 	)
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.GetLatestBlock()
@@ -93,14 +99,13 @@ func NewAppChain(
 	streamer, err := blockchain.NewRpcLogStreamer(
 		ctxwc,
 		client,
-		log,
-		cfg.ChainID,
+		chainLogger,
 		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
 		blockchain.WithContractConfig(
 			blockchain.ContractConfig{
 				ID:                contracts.GroupMessageBroadcasterName(cfg.ChainID),
 				FromBlock:         groupMessageLatestBlockNumber,
-				ContractAddress:   groupMessageBroadcaster.Address(),
+				Address:           groupMessageBroadcaster.Address(),
 				Topics:            groupMessageBroadcaster.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
@@ -109,17 +114,17 @@ func NewAppChain(
 			blockchain.ContractConfig{
 				ID:                contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
 				FromBlock:         identityUpdateLatestBlockNumber,
-				ContractAddress:   identityUpdateBroadcaster.Address(),
+				Address:           identityUpdateBroadcaster.Address(),
 				Topics:            identityUpdateBroadcaster.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(blockSize),
+		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()
 		client.Close()
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	return &AppChain{
@@ -135,10 +140,8 @@ func NewAppChain(
 }
 
 func (a *AppChain) Start() {
-	// Start the streamer.
 	a.streamer.Start()
 
-	// Start the group message broadcaster.
 	tracing.GoPanicWrap(
 		a.ctx,
 		&a.wg,
@@ -153,7 +156,6 @@ func (a *AppChain) Start() {
 			)
 		})
 
-	// Start the identity update broadcaster.
 	tracing.GoPanicWrap(
 		a.ctx,
 		&a.wg,
@@ -174,6 +176,10 @@ func (a *AppChain) Stop() {
 
 	if a.streamer != nil {
 		a.streamer.Stop()
+	}
+
+	if a.client != nil {
+		a.client.Close()
 	}
 
 	a.cancel()

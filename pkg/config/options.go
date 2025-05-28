@@ -26,6 +26,8 @@ type ContractsOptions struct {
 	MaxChainDisconnectTime         time.Duration `long:"max-chain-disconnect-time" env:"XMTPD_CONTRACTS_MAX_CHAIN_DISCONNECT_TIME" description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
 	NodesContract                  NodesContractOption
 
+	BackfillBlockSize uint64 `long:"backfill-block-size" env:"XMTPD_CONTRACTS_BACKFILL_BLOCK_SIZE" description:"Maximal size of a backfill block" default:"500"`
+
 	// New options for app and settlement chains multi-chain deployments.
 	AppChain        AppChainOptions        `group:"Application Chain Options" namespace:"app-chain"`
 	SettlementChain SettlementChainOptions `group:"Settlement Chain Options"  namespace:"settlement-chain"`
@@ -54,6 +56,7 @@ type SettlementChainOptions struct {
 	NodeRegistryRefreshInterval time.Duration `long:"node-registry-refresh-interval" env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry" default:"60s"`
 	RateRegistryAddress         string        `long:"rate-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_ADDRESS"          description:"Rate registry contract address"`
 	RateRegistryRefreshInterval time.Duration `long:"rate-registry-refresh-interval" env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the rate registry"  default:"300s"`
+	ParameterRegistryAddress    string        `long:"parameter-registry-address"     env:"XMTPD_SETTLEMENT_CHAIN_PARAMETER_REGISTRY_ADDRESS"     description:"Parameter Registry contract address"`
 }
 
 type DbOptions struct {

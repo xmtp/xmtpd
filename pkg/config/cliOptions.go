@@ -1,5 +1,7 @@
 package config
 
+import "github.com/xmtp/xmtpd/pkg/currency"
+
 type GlobalOptions struct {
 	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
 	Log       LogOptions       `group:"Log Options"       namespace:"log"`
@@ -9,6 +11,12 @@ type GlobalOptions struct {
 // It is intended to be used as a namespace inside a command option struct.
 type NodeRegistryAdminOptions struct {
 	AdminPrivateKey string `long:"private-key" description:"Private key of the admin to administer the node" required:"true"`
+}
+
+// RateRegistryAdminOptions is the options for the rate registry admin.
+// It is intended to be used as a namespace inside a command option struct.
+type RateRegistryAdminOptions struct {
+	AdminPrivateKey string `long:"private-key" description:"Private key of the admin to administer the rates" required:"true"`
 }
 
 // NodeRegistryManagerOptions is the options for the node registry manager.
@@ -31,7 +39,7 @@ type GetAllNodesOptions struct {
 }
 
 type GetNodeOptions struct {
-	NodeId int64 `long:"node-id" description:"NodeId of the node to get" required:"true"`
+	NodeId uint32 `long:"node-id" description:"NodeId of the node to get" required:"true"`
 }
 
 type MigrateNodesOptions struct {
@@ -39,55 +47,44 @@ type MigrateNodesOptions struct {
 	InFile       string                   `                                        long:"in-file" description:"File to read the nodes from"`
 }
 
+type GetMaxCanonicalOptions struct{}
+
+type SetMaxCanonicalOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Limit        uint8                    `                                        long:"limit" description:"Limit of max canonical nodes" required:"true"`
+}
+
 type GetPubKeyOptions struct {
 	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`
 }
 
 type AddRatesOptions struct {
-	AdminPrivateKey string `long:"admin-private-key" description:"Private key of the admin to administer the node"`
-	MessageFee      uint64 `long:"message-fee"       description:"Message fee"`
-	StorageFee      uint64 `long:"storage-fee"       description:"Storage fee"`
-	CongestionFee   uint64 `long:"congestion-fee"    description:"Congestion fee"`
-	TargetRate      uint64 `long:"target-rate"       description:"Target rate per minute"`
-	DelayDays       uint   `long:"delay-days"        description:"Delay the rates going into effect for N days"    default:"0"`
+	AdminOptions  RateRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	MessageFee    currency.PicoDollar      `                                        long:"message-fee"    description:"Message fee"            required:"true"`
+	StorageFee    currency.PicoDollar      `                                        long:"storage-fee"    description:"Storage fee"            required:"true"`
+	CongestionFee currency.PicoDollar      `                                        long:"congestion-fee" description:"Congestion fee"         required:"true"`
+	TargetRate    uint64                   `                                        long:"target-rate"    description:"Target rate per minute" required:"true"`
 }
 
 type GetRatesOptions struct{}
 
 type RegisterNodeOptions struct {
-	AdminOptions              NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	HttpAddress               string                   `                                        long:"http-address"                  description:"HTTP address to register for the node"                            required:"true"`
-	OwnerAddress              string                   `                                        long:"node-owner-address"            description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
-	SigningKeyPub             string                   `                                        long:"node-signing-key-pub"          description:"Signing key of the node to register"                              required:"true"`
-	MinMonthlyFeeMicroDollars int64                    `                                        long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"                         required:"false"`
-	Force                     bool                     `                                        long:"force"                         description:"Register even if pubkey already exists"                           required:"false"`
+	AdminOptions  NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	HttpAddress   string                   `                                        long:"http-address"         description:"HTTP address to register for the node"                            required:"true"`
+	OwnerAddress  string                   `                                        long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
+	SigningKeyPub string                   `                                        long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
+	Force         bool                     `                                        long:"force"                description:"Register even if pubkey already exists"                           required:"false"`
 }
 
 type NetworkAdminOptions struct {
 	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	NodeId       int64                    `                                        long:"node-id" description:"NodeId to add to the network"`
+	NodeId       uint32                   `                                        long:"node-id" description:"NodeId to add to the network"`
 }
 
 type SetHttpAddressOptions struct {
 	NodeManagerOptions NodeRegistryManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
 	Address            string                     `                                                      long:"address" description:"New HTTP address"`
-	NodeId             int64                      `                                                      long:"node-id" description:"NodeId to add to the network"`
-}
-
-type SetMinMonthlyFeeOptions struct {
-	NodeManagerOptions        NodeRegistryManagerOptions `group:"Node Manager Options" namespace:"node-manager"`
-	MinMonthlyFeeMicroDollars int64                      `                                                      long:"min-monthly-fee-micro-dollars" description:"Minimum monthly fee to register the node"`
-	NodeId                    int64                      `                                                      long:"node-id"                       description:"NodeId to add to the network"`
-}
-
-type SetMaxActiveNodesOptions struct {
-	AdminOptions   NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	MaxActiveNodes uint8                    `                                        long:"max-active-nodes" description:"Maximum number of active nodes"`
-}
-
-type SetNodeOperatorCommissionPercentOptions struct {
-	AdminOptions      NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	CommissionPercent int64                    `                                        long:"commission-percent" description:"Commission percent to set for the node operator"`
+	NodeId             uint32                     `                                                      long:"node-id" description:"NodeId to add to the network"`
 }
 
 type IdentityUpdatesStressOptions struct {

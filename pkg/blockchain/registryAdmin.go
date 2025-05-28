@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"math/big"
+	"strings"
+
+	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,27 +19,29 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY = "xmtp.nodeRegistry.maxCanonicalNodes"
+)
+
 type INodeRegistryAdmin interface {
 	AddNode(
 		ctx context.Context,
 		owner string,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
-		minMonthlyFeeMicroDollars int64,
 	) error
-	AddToNetwork(ctx context.Context, nodeId int64) error
-	RemoveFromNetwork(ctx context.Context, nodeId int64) error
-	SetHttpAddress(ctx context.Context, nodeId int64, httpAddress string) error
-	SetMinMonthlyFee(ctx context.Context, nodeId int64, minMonthlyFeeMicroDollars int64) error
-	SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error
-	SetNodeOperatorCommissionPercent(ctx context.Context, commissionPercent int64) error
+	AddToNetwork(ctx context.Context, nodeId uint32) error
+	RemoveFromNetwork(ctx context.Context, nodeId uint32) error
+	SetHttpAddress(ctx context.Context, nodeId uint32, httpAddress string) error
+	SetMaxCanonical(ctx context.Context, limit uint8) error
 }
 
 type nodeRegistryAdmin struct {
-	client   *ethclient.Client
-	signer   TransactionSigner
-	logger   *zap.Logger
-	contract *noderegistry.NodeRegistry
+	client            *ethclient.Client
+	signer            TransactionSigner
+	logger            *zap.Logger
+	nodeContract      *noderegistry.NodeRegistry
+	parameterContract *paramReg.SettlementChainParameterRegistry
 }
 
 var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
@@ -48,7 +52,7 @@ func NewNodeRegistryAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*nodeRegistryAdmin, error) {
-	contract, err := noderegistry.NewNodeRegistry(
+	nodeContract, err := noderegistry.NewNodeRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
 		client,
 	)
@@ -56,11 +60,20 @@ func NewNodeRegistryAdmin(
 		return nil, err
 	}
 
+	paramContract, err := paramReg.NewSettlementChainParameterRegistry(
+		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &nodeRegistryAdmin{
-		client:   client,
-		signer:   signer,
-		logger:   logger.Named("NodeRegistryAdmin"),
-		contract: contract,
+		client:            client,
+		signer:            signer,
+		logger:            logger.Named("NodeRegistryAdmin"),
+		nodeContract:      nodeContract,
+		parameterContract: paramContract,
 	}, nil
 }
 
@@ -69,14 +82,9 @@ func (n *nodeRegistryAdmin) AddNode(
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
-	minMonthlyFeeMicroDollars int64,
 ) error {
 	if !common.IsHexAddress(owner) {
 		return fmt.Errorf("invalid owner address provided %s", owner)
-	}
-
-	if minMonthlyFeeMicroDollars < 0 {
-		return fmt.Errorf("invalid min monthly fee provided %d", minMonthlyFeeMicroDollars)
 	}
 
 	ownerAddress := common.HexToAddress(owner)
@@ -88,16 +96,15 @@ func (n *nodeRegistryAdmin) AddNode(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.AddNode(
+			return n.nodeContract.AddNode(
 				opts,
 				ownerAddress,
 				signingKey,
 				httpAddress,
-				big.NewInt(minMonthlyFeeMicroDollars),
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeAdded(*log)
+			return n.nodeContract.ParseNodeAdded(*log)
 		},
 		func(event interface{}) {
 			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAdded)
@@ -106,11 +113,10 @@ func (n *nodeRegistryAdmin) AddNode(
 				return
 			}
 			n.logger.Info("node added to registry",
-				zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
+				zap.Uint32("node_id", nodeAdded.NodeId),
 				zap.String("owner", nodeAdded.Owner.Hex()),
 				zap.String("http_address", nodeAdded.HttpAddress),
-				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningKeyPub)),
-				zap.String("min_monthly_fee", nodeAdded.MinMonthlyFeeMicroDollars.String()),
+				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningPublicKey)),
 			)
 		},
 	)
@@ -118,7 +124,7 @@ func (n *nodeRegistryAdmin) AddNode(
 
 func (n *nodeRegistryAdmin) AddToNetwork(
 	ctx context.Context,
-	nodeId int64,
+	nodeId uint32,
 ) error {
 	return ExecuteTransaction(
 		ctx,
@@ -126,13 +132,13 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.AddToNetwork(
+			return n.nodeContract.AddToNetwork(
 				opts,
-				big.NewInt(nodeId),
+				nodeId,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeAddedToCanonicalNetwork(*log)
+			return n.nodeContract.ParseNodeAddedToCanonicalNetwork(*log)
 		},
 		func(event interface{}) {
 			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAddedToCanonicalNetwork)
@@ -143,7 +149,7 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 				return
 			}
 			n.logger.Info("node added to canonical network",
-				zap.Uint64("node_id", nodeAdded.NodeId.Uint64()),
+				zap.Uint32("node_id", nodeAdded.NodeId),
 			)
 		},
 	)
@@ -151,7 +157,7 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 
 func (n *nodeRegistryAdmin) RemoveFromNetwork(
 	ctx context.Context,
-	nodeId int64,
+	nodeId uint32,
 ) error {
 	return ExecuteTransaction(
 		ctx,
@@ -159,13 +165,13 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.RemoveFromNetwork(
+			return n.nodeContract.RemoveFromNetwork(
 				opts,
-				big.NewInt(nodeId),
+				nodeId,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeRemovedFromCanonicalNetwork(*log)
+			return n.nodeContract.ParseNodeRemovedFromCanonicalNetwork(*log)
 		},
 		func(event interface{}) {
 			nodeRemoved, ok := event.(*noderegistry.NodeRegistryNodeRemovedFromCanonicalNetwork)
@@ -176,7 +182,7 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 				return
 			}
 			n.logger.Info("node removed from canonical network",
-				zap.Uint64("node_id", nodeRemoved.NodeId.Uint64()),
+				zap.Uint32("node_id", nodeRemoved.NodeId),
 			)
 		},
 	)
@@ -184,7 +190,7 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 
 func (n *nodeRegistryAdmin) SetHttpAddress(
 	ctx context.Context,
-	nodeId int64,
+	nodeId uint32,
 	httpAddress string,
 ) error {
 	return ExecuteTransaction(
@@ -193,14 +199,14 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetHttpAddress(
+			return n.nodeContract.SetHttpAddress(
 				opts,
-				big.NewInt(nodeId),
+				nodeId,
 				httpAddress,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseHttpAddressUpdated(*log)
+			return n.nodeContract.ParseHttpAddressUpdated(*log)
 		},
 		func(event interface{}) {
 			httpAddressUpdated, ok := event.(*noderegistry.NodeRegistryHttpAddressUpdated)
@@ -211,117 +217,86 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 				return
 			}
 			n.logger.Info("http address updated",
-				zap.Uint64("node_id", httpAddressUpdated.NodeId.Uint64()),
-				zap.String("http_address", httpAddressUpdated.NewHttpAddress),
+				zap.Uint32("node_id", httpAddressUpdated.NodeId),
+				zap.String("http_address", httpAddressUpdated.HttpAddress),
 			)
 		},
 	)
 }
 
-func (n *nodeRegistryAdmin) SetMinMonthlyFee(
+func (n *nodeRegistryAdmin) SetMaxCanonical(
 	ctx context.Context,
-	nodeId int64,
-	minMonthlyFeeMicroDollars int64,
+	limit uint8,
 ) error {
-	return ExecuteTransaction(
+	err := ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetMinMonthlyFee(
-				opts,
-				big.NewInt(nodeId),
-				big.NewInt(minMonthlyFeeMicroDollars),
-			)
+			key := []byte(NODE_REGISTRY_MAX_CANONICAL_NODES_KEY)
+
+			var value [32]byte
+			// store uint8 in the last byte for big-endian compatibility
+			value[31] = limit
+
+			return n.parameterContract.Set0(opts, key, value)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseMinMonthlyFeeUpdated(*log)
+			return n.parameterContract.ParseParameterSet(*log)
 		},
 		func(event interface{}) {
-			minMonthlyFeeUpdated, ok := event.(*noderegistry.NodeRegistryMinMonthlyFeeUpdated)
+			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
 			if !ok {
 				n.logger.Error(
-					"min monthly fee updated event is not of type NodesMinMonthlyFeeUpdated",
+					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
 				)
 				return
 			}
-			n.logger.Info(
-				"min monthly fee updated",
-				zap.Uint64("node_id", minMonthlyFeeUpdated.NodeId.Uint64()),
-				zap.String(
-					"min_monthly_fee",
-					minMonthlyFeeUpdated.MinMonthlyFeeMicroDollars.String(),
-				),
+			n.logger.Info("set parameter",
+				zap.String("key", NODE_REGISTRY_MAX_CANONICAL_NODES_KEY),
+				zap.Uint64("parameter", decodeBytes32ToUint64(parameterSet.Value)),
 			)
 		},
 	)
-}
-
-func (n *nodeRegistryAdmin) SetMaxActiveNodes(ctx context.Context, maxActiveNodes uint8) error {
-	return ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetMaxActiveNodes(opts, maxActiveNodes)
-		},
-		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseMaxActiveNodesUpdated(*log)
-		},
-		func(event interface{}) {
-			maxActiveNodesUpdated, ok := event.(*noderegistry.NodeRegistryMaxActiveNodesUpdated)
-			if !ok {
-				n.logger.Error(
-					"max active nodes updated event is not of type NodesMaxActiveNodesUpdated",
-				)
-				return
-			}
-			n.logger.Info("max active nodes set",
-				zap.Uint8("max_active_nodes", maxActiveNodesUpdated.NewMaxActiveNodes),
-			)
-		},
-	)
-}
-
-func (n *nodeRegistryAdmin) SetNodeOperatorCommissionPercent(
-	ctx context.Context,
-	commissionPercent int64,
-) error {
-	if commissionPercent < 0 || commissionPercent > 10000 {
-		return fmt.Errorf("invalid commission percent provided %d", commissionPercent)
+	if err != nil {
+		return err
 	}
 
-	return ExecuteTransaction(
+	err = ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.contract.SetNodeOperatorCommissionPercent(
+			return n.nodeContract.UpdateMaxCanonicalNodes(
 				opts,
-				big.NewInt(commissionPercent),
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.contract.ParseNodeOperatorCommissionPercentUpdated(*log)
+			return n.nodeContract.ParseMaxCanonicalNodesUpdated(*log)
 		},
 		func(event interface{}) {
-			nodeOperatorCommissionPercentUpdated, ok := event.(*noderegistry.NodeRegistryNodeOperatorCommissionPercentUpdated)
+			maxCanonicalUpdated, ok := event.(*noderegistry.NodeRegistryMaxCanonicalNodesUpdated)
 			if !ok {
 				n.logger.Error(
-					"node operator commission percent updated event is not of type NodesNodeOperatorCommissionPercentUpdated",
+					"unexpected event type, not of type NodeRegistryMaxCanonicalNodesUpdated",
 				)
 				return
 			}
-			n.logger.Info(
-				"node operator commission percent updated",
-				zap.Uint64(
-					"node_operator_commission_percent",
-					nodeOperatorCommissionPercentUpdated.NewCommissionPercent.Uint64(),
-				),
+			n.logger.Info("updated max canonical nodes",
+				zap.Uint8("limit", maxCanonicalUpdated.MaxCanonicalNodes),
 			)
 		},
 	)
+	if err != nil {
+		if strings.Contains(err.Error(), "NoChange") {
+			n.logger.Info("No update needed",
+				zap.Uint8("limit", limit),
+			)
+			return nil
+		}
+		return err
+	}
+	return nil
 }

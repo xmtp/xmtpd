@@ -36,6 +36,7 @@ func NewIndexer(
 		cfg.AppChain,
 		db,
 		validationService,
+		cfg.BackfillBlockSize,
 	)
 	if err != nil {
 		cancel()

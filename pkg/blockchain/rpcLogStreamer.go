@@ -44,6 +44,17 @@ func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
 	}
 }
 
+func WithBackfillBlockSize(backfillBlockSize uint64) RpcLogStreamerOption {
+	return func(streamer *RpcLogStreamer) error {
+		if backfillBlockSize == 0 {
+			return fmt.Errorf("backfillBlockSize must be > 0, got %d", backfillBlockSize)
+		}
+
+		streamer.backfillBlockSize = backfillBlockSize
+		return nil
+	}
+}
+
 func WithContractConfig(
 	cfg ContractConfig,
 ) RpcLogStreamerOption {
@@ -82,6 +93,7 @@ type RpcLogStreamer struct {
 	logger              *zap.Logger
 	watchers            map[string]ContractConfig
 	lagFromHighestBlock uint8
+	backfillBlockSize   uint64
 }
 
 func NewRpcLogStreamer(
@@ -104,6 +116,7 @@ func NewRpcLogStreamer(
 		wg:                  sync.WaitGroup{},
 		watchers:            make(map[string]ContractConfig),
 		lagFromHighestBlock: 0,
+		backfillBlockSize:   500,
 	}
 
 	for _, option := range options {

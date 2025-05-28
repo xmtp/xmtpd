@@ -2,13 +2,12 @@ package blockchain_test
 
 import (
 	"context"
-	"math/big"
+	"math"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
@@ -37,28 +36,73 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 func TestAddRates(t *testing.T) {
 	ratesAdmin := buildRatesAdmin(t)
 
-	rates := rateregistry.RateRegistryRates{
+	rates := fees.Rates{
 		MessageFee:          100,
 		StorageFee:          200,
 		CongestionFee:       300,
 		TargetRatePerMinute: 100 * 60,
-		StartTime:           1000,
 	}
 
-	var err error
+	err := ratesAdmin.AddRates(context.Background(), rates)
+	require.NoError(t, err)
+}
+
+func TestAddNegativeRates(t *testing.T) {
+	ratesAdmin := buildRatesAdmin(t)
+
+	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
+		MessageFee: -100,
+	})
+	require.ErrorContains(t, err, "must be positive")
+
+	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
+		StorageFee: -100,
+	})
+	require.ErrorContains(t, err, "must be positive")
+
+	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
+		CongestionFee: -100,
+	})
+	require.ErrorContains(t, err, "must be positive")
+}
+
+func TestAdd0Rates(t *testing.T) {
+	ratesAdmin := buildRatesAdmin(t)
+
+	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
+		MessageFee:          0,
+		StorageFee:          0,
+		CongestionFee:       0,
+		TargetRatePerMinute: 0,
+	})
+	require.NoError(t, err)
+}
+
+func TestAddLargeRates(t *testing.T) {
+	ratesAdmin := buildRatesAdmin(t)
+
+	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
+		MessageFee:          math.MaxInt64,
+		StorageFee:          math.MaxInt64,
+		CongestionFee:       math.MaxInt64,
+		TargetRatePerMinute: math.MaxUint64,
+	})
+	require.NoError(t, err)
+}
+
+func TestAddRatesAgain(t *testing.T) {
+	ratesAdmin := buildRatesAdmin(t)
+
+	rates := fees.Rates{
+		MessageFee:          5,
+		StorageFee:          16,
+		CongestionFee:       700,
+		TargetRatePerMinute: 1000,
+	}
+
+	err := ratesAdmin.AddRates(context.Background(), rates)
+	require.NoError(t, err)
 
 	err = ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
-
-	var returnedRates struct {
-		Rates   []rateregistry.RateRegistryRates
-		HasMore bool
-	}
-
-	returnedRates, err = ratesAdmin.Contract().GetRates(&bind.CallOpts{}, big.NewInt(0))
-
-	require.NoError(t, err)
-	require.Len(t, returnedRates.Rates, 1)
-	require.False(t, returnedRates.HasMore)
-	require.Equal(t, returnedRates.Rates[0], rates)
 }

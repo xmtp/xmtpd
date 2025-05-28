@@ -14,8 +14,11 @@ import (
 
 type INodeRegistryCaller interface {
 	GetAllNodes(ctx context.Context) ([]noderegistry.INodeRegistryNodeWithId, error)
-	GetNode(ctx context.Context, nodeId int64) (noderegistry.INodeRegistryNode, error)
-	OwnerOf(ctx context.Context, nodeId int64) (common.Address, error)
+	GetNode(ctx context.Context, nodeId uint32) (noderegistry.INodeRegistryNode, error)
+	OwnerOf(ctx context.Context, nodeId uint32) (common.Address, error)
+	GetMaxCanonicalNodes(
+		ctx context.Context,
+	) (uint8, error)
 }
 
 type nodeRegistryCaller struct {
@@ -54,18 +57,26 @@ func (n *nodeRegistryCaller) GetAllNodes(
 
 func (n *nodeRegistryCaller) GetNode(
 	ctx context.Context,
-	nodeId int64,
+	nodeId uint32,
 ) (noderegistry.INodeRegistryNode, error) {
 	return n.contract.GetNode(&bind.CallOpts{
 		Context: ctx,
-	}, big.NewInt(nodeId))
+	}, nodeId)
 }
 
 func (n *nodeRegistryCaller) OwnerOf(
 	ctx context.Context,
-	nodeId int64,
+	nodeId uint32,
 ) (common.Address, error) {
 	return n.contract.OwnerOf(&bind.CallOpts{
 		Context: ctx,
-	}, big.NewInt(nodeId))
+	}, big.NewInt(int64(nodeId)))
+}
+
+func (n *nodeRegistryCaller) GetMaxCanonicalNodes(
+	ctx context.Context,
+) (uint8, error) {
+	return n.contract.MaxCanonicalNodes(&bind.CallOpts{
+		Context: ctx,
+	})
 }

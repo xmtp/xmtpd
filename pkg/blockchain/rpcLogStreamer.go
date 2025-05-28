@@ -255,6 +255,11 @@ func (r *RpcLogStreamer) GetNextPage(
 ) (logs []types.Log, nextBlockNumber *uint64, nextBlockHash []byte, highestBlock uint64, err error) {
 	contractAddress := cfg.Address.Hex()
 
+	highestBlock, err = r.client.BlockNumber(ctx)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
 	if fromBlockNumber > 0 {
 		block, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
 		if err != nil {
@@ -280,11 +285,6 @@ func (r *RpcLogStreamer) GetNextPage(
 
 			return nil, &number, hash, highestBlock, ErrReorg
 		}
-	}
-
-	highestBlock, err = r.client.BlockNumber(ctx)
-	if err != nil {
-		return nil, nil, nil, 0, err
 	}
 
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)

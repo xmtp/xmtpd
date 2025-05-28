@@ -1,49 +1,43 @@
-# How to deploy a local environment
+# Deploy a local environment for developing with xmtpd
 
-**⚠️ Experimental:** warning, this file might be out of date!
+**⚠️ Experimental:** This file might be out of date!
 
-## XMTP Sepolia information
+This document describes how to deploy a local environment for developing with xmtpd.
 
-The current testnet environment lives in [XMTP Sepolia Chain](https://xmtp-testnet.explorer.alchemy.com/).
+The local environment includes everything you need to run xmtpd, including:
 
-### Deploy XMTPD nodes
+- Required databases
+- The MLS validation service
+- A blockchain with all the contracts
 
-Node deployment is currently fully handled by [Ephemera](https://github.com/ephemeraHQ) and only members of `@ephemerahq/backend` have access to it.
+Use one of the following methods to deploy a local environment:
 
-The nodes run by Ephemera are:
-
-| DNS Name                           | Location   | Public Key                                                           |
-| ---------------------------------- | ---------- | -------------------------------------------------------------------- |
-| https://grpc.testnet.xmtp.network  | US-EAST-2  | 0x03e5442c5d1fe2f02b6b9a1a386383a7766860b40a6079a0223994ffa2ce10512c |
-| https://grpc2.testnet.xmtp.network | EU-NORTH-1 | 0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371 |
-
-For more info, refer to the infrastructure README.
-
-## Local developer environment
-
-Refer to [XMTP Contracts](https://github.com/xmtp/smart-contracts) for further information regarding the on-chain protocol, deployments and source code.
-
-There are two ways of deploying a local environment:
+- Use the XMTP Contracts Image
+- Use the `dev/up` automation
 
 ### Use the XMTP Contracts Image
 
-The [XMTP Contracts Image](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image) can be used to deploy a local environment and test `xmtpd` with it.
+You can use the XMTP Contracts Image to deploy a local environment, and test `xmtpd` with it. 
 
-The documentation contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
+The XMTP Contracts Image [documentation](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image) contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
 
-`dev/local.env` contains by default sane values for local deployments. Modify what is necessary.
+By default, `dev/local.env` contains sane values for local deployments. Modify what's necessary.
+
+For more information about the onchain protocol, deployments, and source code, see the XMTP [smart-contracts](https://github.com/xmtp/smart-contracts) repo.
 
 ### Use the dev/up automation
 
-Use the script provided in `dev/up`, which will automatically handle the deployment for you. The blockchain is started at <http://localhost:7545/>
+Use the script provided in `dev/up` to automatically handle the deployment for you. The blockchain starts at <http://localhost:7545/>.
 
-This method automatically pre-register two nodes.
+This method automatically pre-registers one node.
 
-### Register nodes manually
+## Register a node with the local network
 
-Before nodes can start or peer, they need to be registered with the contract.
+Once you've deployed your local environment, manually register your nodes to use it.
 
-To do so, run:
+Before a node can start or peer on the local network, you must first register it.
+
+To register a node on the local network, run:
 
 ```shell
 # Modify environment variables to match your local environment.
@@ -62,11 +56,9 @@ dev/cmd/cli register-node \
     --node-signing-key-pub=${NODE_SIGNING_KEY_PUB}
 ```
 
-You need to register all (both) nodes with their correct DNS entries and public keys.
+### Verify node registration
 
-### Verify a node registration
-
-To verify registration, use:
+To verify node registration on the local network, run:
 
 ```shell
 export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
@@ -78,7 +70,7 @@ dev/cmd/get-all-nodes \
     --admin.private-key=$PRIVATE_KEY
 ```
 
-And you should get something along these lines:
+The response should look something like this:
 
 ```json
 {
@@ -107,9 +99,11 @@ And you should get something along these lines:
 }
 ```
 
-### Verify deployed nodes
+### Verify node deployment
 
-The easiest way is to use [GRPC Health Probe](https://github.com/grpc-ecosystem/grpc-health-probe)
+The easiest way to verify node deployment on the local network is to use the [gRPC Health Probe](https://github.com/grpc-ecosystem/grpc-health-probe).
+
+For example, you can run:
 
 ```shell
 grpc-health-probe -tls -addr grpc.testnet.xmtp.network:443

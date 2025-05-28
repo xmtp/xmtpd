@@ -45,11 +45,6 @@ function download_release_artifacts() {
         exit 1
     fi
 
-    if ! ${curl_cmd} -o "${bin_file}" "${bin_file_url}"; then
-        echo "Error: Failed to download BIN file"
-        exit 1
-    fi
-
     echo -e "\033[32m✔\033[0m Artifacts downloaded successfully."
 }
 
@@ -63,7 +58,6 @@ function gen_go_bindings() {
     echo "⧖ Generating bindings for ${contract}"
 
     if ! go tool --modfile=tools/go.mod abigen --abi "${abi_file}" \
-                 --bin "${bin_file}" \
                  --pkg "${package}" \
                  --type "${contract}" \
                  --out "${output_artifact}"; then
@@ -76,9 +70,7 @@ function gen_go_bindings() {
 
 function generate() {
     abi_file_url="${release_url}/${contract}.abi.json"
-    bin_file_url="${release_url}/${contract}.bin.json"
     abi_file="${build_dir}/${contract}.abi.json"
-    bin_file="${build_dir}/${contract}.bin.json"
 
     download_release_artifacts
     gen_go_bindings

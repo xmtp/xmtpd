@@ -304,7 +304,7 @@ func (r *RpcLogStreamer) buildSubscriptionChannel(
 ) (chan types.Log, error) {
 	var (
 		innerSubCh = make(chan types.Log, 100)
-		query      = buildSubscriptionFilterQuery(cfg)
+		query      = buildBaseFilterQuery(cfg)
 	)
 
 	sub, err := r.buildSubscription(query, innerSubCh)
@@ -403,34 +403,17 @@ func (r *RpcLogStreamer) GetReorgChannel(id string) chan uint64 {
 	return r.watchers[id].reorgChannel
 }
 
-func buildFilterQuery(
-	contractConfig ContractConfig,
-	fromBlock uint64,
-	toBlock uint64,
-) ethereum.FilterQuery {
-	addresses := []common.Address{contractConfig.Address}
-	topics := [][]common.Hash{}
-	for _, topic := range contractConfig.Topics {
-		topics = append(topics, []common.Hash{topic})
-	}
+func buildFilterQuery(cfg ContractConfig, from uint64, to uint64) ethereum.FilterQuery {
+	query := buildBaseFilterQuery(cfg)
+	query.FromBlock = new(big.Int).SetUint64(from)
+	query.ToBlock = new(big.Int).SetUint64(to)
 
-	return ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(fromBlock),
-		ToBlock:   new(big.Int).SetUint64(toBlock),
-		Addresses: addresses,
-		Topics:    topics,
-	}
+	return query
 }
 
-func buildSubscriptionFilterQuery(cfg ContractConfig) ethereum.FilterQuery {
-	addresses := []common.Address{cfg.Address}
-	topics := [][]common.Hash{}
-	for _, topic := range cfg.Topics {
-		topics = append(topics, []common.Hash{topic})
-	}
-
+func buildBaseFilterQuery(cfg ContractConfig) ethereum.FilterQuery {
 	return ethereum.FilterQuery{
-		Addresses: addresses,
-		Topics:    topics,
+		Addresses: []common.Address{cfg.Address},
+		Topics:    [][]common.Hash{cfg.Topics},
 	}
 }

@@ -117,8 +117,6 @@ func ParseJSONConfig(options *ContractsOptions) error {
 			return err
 		}
 
-		fmt.Println("data", string(data))
-
 		// Unmarshal JSON into the Config struct
 		var config ChainConfig
 		if err := json.Unmarshal(data, &config); err != nil {

@@ -116,16 +116,5 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 	}
 
-	if err = s.queries.InsertBlockchainMessage(ctx, queries.InsertBlockchainMessageParams{
-		BlockNumber:          event.BlockNumber,
-		BlockHash:            event.BlockHash.Bytes(),
-		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,
-		OriginatorSequenceID: int64(msgSent.SequenceId),
-		IsCanonical:          true, // New messages are always canonical
-	}); err != nil {
-		s.logger.Error(ErrInsertBlockchainMessage, zap.Error(err))
-		return re.NewRecoverableError(ErrInsertBlockchainMessage, err)
-	}
-
 	return nil
 }

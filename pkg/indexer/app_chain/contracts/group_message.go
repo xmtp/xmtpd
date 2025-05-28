@@ -64,7 +64,7 @@ func NewGroupMessageBroadcaster(
 
 	groupMessageStorer := NewGroupMessageStorer(querier, logger, contract)
 
-	reorgHandler := c.NewChainReorgHandler(ctx, client, querier)
+	reorgHandler := NewGroupMessageReorgHandler(logger)
 
 	return &GroupMessageBroadcaster{
 		address:       address,

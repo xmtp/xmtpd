@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -139,12 +140,11 @@ func pullImage(imageName string) error {
 
 func runContainer(
 	t *testing.T,
-	ctx context.Context,
 	imageName string,
 	containerName string,
 	envVars map[string]string,
-) (err error) {
-	ctxwc, cancel := context.WithTimeout(ctx, 10*time.Second)
+) error {
+	ctxwc, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
 	envVars["XMTPD_CONTRACTS_CONFIG_FILE_PATH"] = "/cfg/anvil.json"
@@ -181,4 +181,81 @@ func runContainer(
 	testcontainers.CleanupContainer(t, xmtpContainer)
 
 	return err
+}
+
+type GeneratorType string
+
+const (
+	GeneratorTypeIdentity GeneratorType = "identity"
+	GeneratorTypeGroup    GeneratorType = "group"
+	GeneratorTypeMessage  GeneratorType = "message"
+)
+
+func (e GeneratorType) String() string {
+	return string(e)
+}
+
+func runXDBG(
+	t *testing.T,
+	genType GeneratorType,
+	count uint64,
+) error {
+	ctxwc, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	dbVolumePath := "/tmp/testcontainer-xdbg-db"
+	_ = os.MkdirAll(dbVolumePath, 0o755)
+
+	req := testcontainers.ContainerRequest{
+		Image: "ghcr.io/xmtp/xdbg:main",
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
+			hc.Binds = append(hc.Binds, fmt.Sprintf("%s:/root/.local/share/xdbg/", dbVolumePath))
+		},
+		Cmd: []string{
+			"-u", "http://host.docker.internal:5050", "-p", "http://host.docker.internal:5050", "-d", "generate", "-e", genType.String(), "-a", strconv.FormatUint(count, 10),
+		},
+		WaitingFor: wait.ForExit(),
+	}
+
+	xmtpContainer, err := testcontainers.GenericContainer(
+		ctxwc,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Logger:           log.Default(),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	testcontainers.CleanupContainer(t, xmtpContainer)
+
+	state, err := xmtpContainer.State(ctxwc)
+	if err != nil {
+		return err
+	}
+
+	if state.ExitCode != 0 {
+		// Grab logs
+		logs, logErr := xmtpContainer.Logs(ctxwc)
+		if logErr != nil {
+			return fmt.Errorf(
+				"Container exited with code %d, but failed to get logs: %v",
+				state.ExitCode,
+				logErr,
+			)
+		}
+		defer func() {
+			_ = logs.Close()
+		}()
+
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, logs)
+
+		return fmt.Errorf("Container exited with code %d\nLogs:\n%s", state.ExitCode, buf.String())
+	}
+
+	return nil
 }

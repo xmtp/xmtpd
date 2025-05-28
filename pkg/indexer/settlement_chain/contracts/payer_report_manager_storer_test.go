@@ -84,7 +84,7 @@ func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorer
 	db, _ := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
 	rpcUrl := anvil.StartAnvil(t, false)
-	config := testutils.NewContractsOptions(rpcUrl)
+	config := testutils.NewContractsOptions(t, rpcUrl)
 
 	// Chain client.
 	client, err := blockchain.NewClient(ctx, config.AppChain.RpcURL)

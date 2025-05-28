@@ -1,0 +1,14 @@
+{
+  "appChainDeploymentBlock": 0,
+  "appChainId": 31337,
+  "distributionManager": "0x73A4846B953EFcD9242A3e94666DEE3312EE8a5F",
+  "groupMessageBroadcaster": "0x8c5908AFbd1a5C25590D78eC7Bb0422262BDE6a1",
+  "identityUpdateBroadcaster": "0x2c7A0c3856ca0CC9bf339E19fE25ca4c1f57A567",
+  "nodeRegistry": "0xB47363AfbeAf04a8Fbaf6bE085050A979d2a9794",
+  "payerRegistry": "0x95E856F1542EB9Eb1BFB6019f0D438584b1652ed",
+  "payerReportManager": "0x87cbA0310D1f1a2bF15408b54d987Bf3ec45B2a5",
+  "rateRegistry": "0xe9Fb03945475587B03eA28b8118E2bc5B753E3E9",
+  "settlementChainDeploymentBlock": 0,
+  "settlementChainId": 31337,
+  "settlementChainParameterRegistry": "0x866e7279B86a71093F2a601883b9c66EdB320ddD"
+}

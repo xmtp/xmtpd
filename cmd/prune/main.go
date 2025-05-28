@@ -33,6 +33,11 @@ func main() {
 		}
 	}
 
+	err = config.ParseJSONConfig(&options.Contracts)
+	if err != nil {
+		fatal("Could not parse JSON contracts config: %s", err)
+	}
+
 	err = config.ValidatePruneOptions(options)
 	if err != nil {
 		fatal("Could not validate options: %s", err)
@@ -52,7 +57,7 @@ func main() {
 	if namespace == "" {
 		namespace = utils.BuildNamespace(
 			options.Signer.PrivateKey,
-			options.Contracts.NodesContractAddress,
+			options.Contracts.SettlementChain.NodeRegistryAddress,
 		)
 	}
 

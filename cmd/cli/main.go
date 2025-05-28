@@ -134,6 +134,10 @@ func parseOptions(args []string) (*CLI, error) {
 		return nil, errors.New("no command provided")
 	}
 
+	if err := config.ParseJSONConfig(&options.Contracts); err != nil {
+		return nil, fmt.Errorf("could not parse contracts JSON config: %s", err)
+	}
+
 	return &CLI{
 		options,
 		parser.Active.Name,

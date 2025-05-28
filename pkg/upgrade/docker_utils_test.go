@@ -10,18 +10,17 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go/wait"
+
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
@@ -34,14 +33,8 @@ func skipIfNotEnabled() {
 	}
 }
 
-func getScriptPath(scriptName string) string {
-	_, filename, _, _ := runtime.Caller(0)
-	baseDir := filepath.Dir(filename)
-	return filepath.Join(baseDir, scriptName)
-}
-
 func loadEnvFromShell() (map[string]string, error) {
-	scriptPath := getScriptPath("./scripts/load_env.sh")
+	scriptPath := testutils.GetScriptPath("./scripts/load_env.sh")
 	cmd := exec.Command(scriptPath)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
@@ -95,7 +88,7 @@ func constructVariables(t *testing.T) map[string]string {
 }
 
 func buildDevImage() error {
-	scriptPath := getScriptPath("../../dev/docker/build")
+	scriptPath := testutils.GetScriptPath("../../dev/docker/build")
 
 	// Set a 5-minute timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -154,12 +147,20 @@ func runContainer(
 	ctxwc, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	req := testcontainers.ContainerRequest{
-		Image:        imageName,
-		Name:         containerName,
-		Env:          envVars,
-		ExposedPorts: []string{"5050/tcp"},
+	envVars["XMTPD_CONTRACTS_CONFIG_FILE_PATH"] = "/cfg/anvil.json"
 
+	req := testcontainers.ContainerRequest{
+		Image: imageName,
+		Name:  containerName,
+		Env:   envVars,
+		Files: []testcontainers.ContainerFile{
+			{
+				HostFilePath:      testutils.GetScriptPath("../../dev/environments/anvil.json"),
+				ContainerFilePath: "/cfg/anvil.json",
+				FileMode:          0o644,
+			},
+		},
+		ExposedPorts: []string{"5050/tcp"},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 		},

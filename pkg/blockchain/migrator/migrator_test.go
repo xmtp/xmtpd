@@ -23,7 +23,7 @@ func setupRegistry(
 	})
 	logger := testutils.NewLog(t)
 	rpcUrl := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(rpcUrl)
+	contractsOptions := testutils.NewContractsOptions(t, rpcUrl)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,

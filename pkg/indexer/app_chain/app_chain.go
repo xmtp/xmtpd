@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// The app chain can't have a lag from the highest block.
 	lagFromHighestBlock = 0
 )
 
@@ -105,7 +106,7 @@ func NewAppChain(
 			blockchain.ContractConfig{
 				ID:                contracts.GroupMessageBroadcasterName(cfg.ChainID),
 				FromBlock:         groupMessageLatestBlockNumber,
-				ContractAddress:   groupMessageBroadcaster.Address(),
+				Address:           groupMessageBroadcaster.Address(),
 				Topics:            groupMessageBroadcaster.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
@@ -114,7 +115,7 @@ func NewAppChain(
 			blockchain.ContractConfig{
 				ID:                contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
 				FromBlock:         identityUpdateLatestBlockNumber,
-				ContractAddress:   identityUpdateBroadcaster.Address(),
+				Address:           identityUpdateBroadcaster.Address(),
 				Topics:            identityUpdateBroadcaster.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},

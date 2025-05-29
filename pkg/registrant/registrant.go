@@ -12,7 +12,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -118,10 +117,8 @@ func (r *Registrant) SignStagedEnvelope(
 
 func (r *Registrant) SignPayerReportAttestation(
 	reportID payerreport.ReportID,
-	domainSeparator common.Hash,
 ) (*payerreport.NodeSignature, error) {
-	digest := utils.HashPayerReportInput(reportID[:], domainSeparator)
-	sig, err := r.sign(digest[:])
+	sig, err := r.sign(reportID[:])
 	if err != nil {
 		return nil, err
 	}

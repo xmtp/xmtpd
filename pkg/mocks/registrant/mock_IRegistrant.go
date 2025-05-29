@@ -3,9 +3,7 @@
 package registrant
 
 import (
-	common "github.com/ethereum/go-ethereum/common"
 	authn "github.com/xmtp/xmtpd/pkg/authn"
-
 	currency "github.com/xmtp/xmtpd/pkg/currency"
 
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -133,9 +131,9 @@ func (_c *MockIRegistrant_SignClientEnvelopeToSelf_Call) RunAndReturn(run func([
 	return _c
 }
 
-// SignPayerReportAttestation provides a mock function with given fields: reportID, domainSeparator
-func (_m *MockIRegistrant) SignPayerReportAttestation(reportID payerreport.ReportID, domainSeparator common.Hash) (*payerreport.NodeSignature, error) {
-	ret := _m.Called(reportID, domainSeparator)
+// SignPayerReportAttestation provides a mock function with given fields: reportID
+func (_m *MockIRegistrant) SignPayerReportAttestation(reportID payerreport.ReportID) (*payerreport.NodeSignature, error) {
+	ret := _m.Called(reportID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SignPayerReportAttestation")
@@ -143,19 +141,19 @@ func (_m *MockIRegistrant) SignPayerReportAttestation(reportID payerreport.Repor
 
 	var r0 *payerreport.NodeSignature
 	var r1 error
-	if rf, ok := ret.Get(0).(func(payerreport.ReportID, common.Hash) (*payerreport.NodeSignature, error)); ok {
-		return rf(reportID, domainSeparator)
+	if rf, ok := ret.Get(0).(func(payerreport.ReportID) (*payerreport.NodeSignature, error)); ok {
+		return rf(reportID)
 	}
-	if rf, ok := ret.Get(0).(func(payerreport.ReportID, common.Hash) *payerreport.NodeSignature); ok {
-		r0 = rf(reportID, domainSeparator)
+	if rf, ok := ret.Get(0).(func(payerreport.ReportID) *payerreport.NodeSignature); ok {
+		r0 = rf(reportID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*payerreport.NodeSignature)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(payerreport.ReportID, common.Hash) error); ok {
-		r1 = rf(reportID, domainSeparator)
+	if rf, ok := ret.Get(1).(func(payerreport.ReportID) error); ok {
+		r1 = rf(reportID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -170,14 +168,13 @@ type MockIRegistrant_SignPayerReportAttestation_Call struct {
 
 // SignPayerReportAttestation is a helper method to define mock.On call
 //   - reportID payerreport.ReportID
-//   - domainSeparator common.Hash
-func (_e *MockIRegistrant_Expecter) SignPayerReportAttestation(reportID interface{}, domainSeparator interface{}) *MockIRegistrant_SignPayerReportAttestation_Call {
-	return &MockIRegistrant_SignPayerReportAttestation_Call{Call: _e.mock.On("SignPayerReportAttestation", reportID, domainSeparator)}
+func (_e *MockIRegistrant_Expecter) SignPayerReportAttestation(reportID interface{}) *MockIRegistrant_SignPayerReportAttestation_Call {
+	return &MockIRegistrant_SignPayerReportAttestation_Call{Call: _e.mock.On("SignPayerReportAttestation", reportID)}
 }
 
-func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Run(run func(reportID payerreport.ReportID, domainSeparator common.Hash)) *MockIRegistrant_SignPayerReportAttestation_Call {
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Run(run func(reportID payerreport.ReportID)) *MockIRegistrant_SignPayerReportAttestation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(payerreport.ReportID), args[1].(common.Hash))
+		run(args[0].(payerreport.ReportID))
 	})
 	return _c
 }
@@ -187,7 +184,7 @@ func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Return(_a0 *payerrepo
 	return _c
 }
 
-func (_c *MockIRegistrant_SignPayerReportAttestation_Call) RunAndReturn(run func(payerreport.ReportID, common.Hash) (*payerreport.NodeSignature, error)) *MockIRegistrant_SignPayerReportAttestation_Call {
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) RunAndReturn(run func(payerreport.ReportID) (*payerreport.NodeSignature, error)) *MockIRegistrant_SignPayerReportAttestation_Call {
 	_c.Call.Return(run)
 	return _c
 }

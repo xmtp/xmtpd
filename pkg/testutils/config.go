@@ -7,7 +7,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 )
 
-const BLOCKCHAIN_RPC_URL = "http://localhost:7545"
+const BLOCKCHAIN_RPC_URL = "http://localhost:8545"
 
 // This is the private key that anvil has funded by default
 // This is safe to commit
@@ -42,6 +42,7 @@ func NewContractsOptions(rpcUrl string) config.ContractsOptions {
 			RateRegistryAddress:         RATE_REGISTRY_ADDRESS,
 			NodeRegistryAddress:         NODE_REGISTRY_ADDRESS,
 			ParameterRegistryAddress:    PARAMETER_REGISTRY_ADDRESS,
+			PayerReportManagerAddress:   PAYER_REPORT_MANAGER_ADDRESS,
 		},
 		BackfillBlockSize: 500,
 	}

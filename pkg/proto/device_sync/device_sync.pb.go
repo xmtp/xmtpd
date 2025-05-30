@@ -30,6 +30,7 @@ const (
 	BackupElementSelection_BACKUP_ELEMENT_SELECTION_UNSPECIFIED BackupElementSelection = 0
 	BackupElementSelection_BACKUP_ELEMENT_SELECTION_MESSAGES    BackupElementSelection = 1
 	BackupElementSelection_BACKUP_ELEMENT_SELECTION_CONSENT     BackupElementSelection = 2
+	BackupElementSelection_BACKUP_ELEMENT_SELECTION_EVENT       BackupElementSelection = 3
 )
 
 // Enum value maps for BackupElementSelection.
@@ -38,11 +39,13 @@ var (
 		0: "BACKUP_ELEMENT_SELECTION_UNSPECIFIED",
 		1: "BACKUP_ELEMENT_SELECTION_MESSAGES",
 		2: "BACKUP_ELEMENT_SELECTION_CONSENT",
+		3: "BACKUP_ELEMENT_SELECTION_EVENT",
 	}
 	BackupElementSelection_value = map[string]int32{
 		"BACKUP_ELEMENT_SELECTION_UNSPECIFIED": 0,
 		"BACKUP_ELEMENT_SELECTION_MESSAGES":    1,
 		"BACKUP_ELEMENT_SELECTION_CONSENT":     2,
+		"BACKUP_ELEMENT_SELECTION_EVENT":       3,
 	}
 )
 
@@ -82,6 +85,7 @@ type BackupElement struct {
 	//	*BackupElement_Group
 	//	*BackupElement_GroupMessage
 	//	*BackupElement_Consent
+	//	*BackupElement_Event
 	Element       isBackupElement_Element `protobuf_oneof:"element"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -160,6 +164,15 @@ func (x *BackupElement) GetConsent() *ConsentSave {
 	return nil
 }
 
+func (x *BackupElement) GetEvent() *EventSave {
+	if x != nil {
+		if x, ok := x.Element.(*BackupElement_Event); ok {
+			return x.Event
+		}
+	}
+	return nil
+}
+
 type isBackupElement_Element interface {
 	isBackupElement_Element()
 }
@@ -180,6 +193,10 @@ type BackupElement_Consent struct {
 	Consent *ConsentSave `protobuf:"bytes,4,opt,name=consent,proto3,oneof"`
 }
 
+type BackupElement_Event struct {
+	Event *EventSave `protobuf:"bytes,5,opt,name=event,proto3,oneof"`
+}
+
 func (*BackupElement_Metadata) isBackupElement_Element() {}
 
 func (*BackupElement_Group) isBackupElement_Element() {}
@@ -187,6 +204,8 @@ func (*BackupElement_Group) isBackupElement_Element() {}
 func (*BackupElement_GroupMessage) isBackupElement_Element() {}
 
 func (*BackupElement_Consent) isBackupElement_Element() {}
+
+func (*BackupElement_Event) isBackupElement_Element() {}
 
 // Proto representation of backup metadata
 // (Backup version is explicitly missing - it's stored as a header.)
@@ -323,12 +342,13 @@ var File_device_sync_device_sync_proto protoreflect.FileDescriptor
 
 const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\n" +
-	"\x1ddevice_sync/device_sync.proto\x12\x10xmtp.device_sync\x1a device_sync/consent_backup.proto\x1a\x1edevice_sync/group_backup.proto\x1a device_sync/message_backup.proto\"\xc4\x02\n" +
+	"\x1ddevice_sync/device_sync.proto\x12\x10xmtp.device_sync\x1a device_sync/consent_backup.proto\x1a\x1edevice_sync/event_backup.proto\x1a\x1edevice_sync/group_backup.proto\x1a device_sync/message_backup.proto\"\x86\x03\n" +
 	"\rBackupElement\x12B\n" +
 	"\bmetadata\x18\x01 \x01(\v2$.xmtp.device_sync.BackupMetadataSaveH\x00R\bmetadata\x12@\n" +
 	"\x05group\x18\x02 \x01(\v2(.xmtp.device_sync.group_backup.GroupSaveH\x00R\x05group\x12X\n" +
 	"\rgroup_message\x18\x03 \x01(\v21.xmtp.device_sync.message_backup.GroupMessageSaveH\x00R\fgroupMessage\x12H\n" +
-	"\aconsent\x18\x04 \x01(\v2,.xmtp.device_sync.consent_backup.ConsentSaveH\x00R\aconsentB\t\n" +
+	"\aconsent\x18\x04 \x01(\v2,.xmtp.device_sync.consent_backup.ConsentSaveH\x00R\aconsent\x12@\n" +
+	"\x05event\x18\x05 \x01(\v2(.xmtp.device_sync.event_backup.EventSaveH\x00R\x05eventB\t\n" +
 	"\aelement\"\xd4\x01\n" +
 	"\x12BackupMetadataSave\x12D\n" +
 	"\belements\x18\x02 \x03(\x0e2(.xmtp.device_sync.BackupElementSelectionR\belements\x12$\n" +
@@ -342,11 +362,12 @@ const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\bstart_ns\x18\x02 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
 	"\x06end_ns\x18\x03 \x01(\x03H\x01R\x05endNs\x88\x01\x01B\v\n" +
 	"\t_start_nsB\t\n" +
-	"\a_end_ns*\x8f\x01\n" +
+	"\a_end_ns*\xb3\x01\n" +
 	"\x16BackupElementSelection\x12(\n" +
 	"$BACKUP_ELEMENT_SELECTION_UNSPECIFIED\x10\x00\x12%\n" +
 	"!BACKUP_ELEMENT_SELECTION_MESSAGES\x10\x01\x12$\n" +
-	" BACKUP_ELEMENT_SELECTION_CONSENT\x10\x02B\xb1\x01\n" +
+	" BACKUP_ELEMENT_SELECTION_CONSENT\x10\x02\x12\"\n" +
+	"\x1eBACKUP_ELEMENT_SELECTION_EVENT\x10\x03B\xb1\x01\n" +
 	"\x14com.xmtp.device_syncB\x0fDeviceSyncProtoP\x01Z+github.com/xmtp/xmtpd/pkg/proto/device_sync\xa2\x02\x03XDX\xaa\x02\x0fXmtp.DeviceSync\xca\x02\x0fXmtp\\DeviceSync\xe2\x02\x1bXmtp\\DeviceSync\\GPBMetadata\xea\x02\x10Xmtp::DeviceSyncb\x06proto3"
 
 var (
@@ -371,19 +392,21 @@ var file_device_sync_device_sync_proto_goTypes = []any{
 	(*GroupSave)(nil),           // 4: xmtp.device_sync.group_backup.GroupSave
 	(*GroupMessageSave)(nil),    // 5: xmtp.device_sync.message_backup.GroupMessageSave
 	(*ConsentSave)(nil),         // 6: xmtp.device_sync.consent_backup.ConsentSave
+	(*EventSave)(nil),           // 7: xmtp.device_sync.event_backup.EventSave
 }
 var file_device_sync_device_sync_proto_depIdxs = []int32{
 	2, // 0: xmtp.device_sync.BackupElement.metadata:type_name -> xmtp.device_sync.BackupMetadataSave
 	4, // 1: xmtp.device_sync.BackupElement.group:type_name -> xmtp.device_sync.group_backup.GroupSave
 	5, // 2: xmtp.device_sync.BackupElement.group_message:type_name -> xmtp.device_sync.message_backup.GroupMessageSave
 	6, // 3: xmtp.device_sync.BackupElement.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
-	0, // 4: xmtp.device_sync.BackupMetadataSave.elements:type_name -> xmtp.device_sync.BackupElementSelection
-	0, // 5: xmtp.device_sync.BackupOptions.elements:type_name -> xmtp.device_sync.BackupElementSelection
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 4: xmtp.device_sync.BackupElement.event:type_name -> xmtp.device_sync.event_backup.EventSave
+	0, // 5: xmtp.device_sync.BackupMetadataSave.elements:type_name -> xmtp.device_sync.BackupElementSelection
+	0, // 6: xmtp.device_sync.BackupOptions.elements:type_name -> xmtp.device_sync.BackupElementSelection
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_device_sync_device_sync_proto_init() }
@@ -392,6 +415,7 @@ func file_device_sync_device_sync_proto_init() {
 		return
 	}
 	file_device_sync_consent_backup_proto_init()
+	file_device_sync_event_backup_proto_init()
 	file_device_sync_group_backup_proto_init()
 	file_device_sync_message_backup_proto_init()
 	file_device_sync_device_sync_proto_msgTypes[0].OneofWrappers = []any{
@@ -399,6 +423,7 @@ func file_device_sync_device_sync_proto_init() {
 		(*BackupElement_Group)(nil),
 		(*BackupElement_GroupMessage)(nil),
 		(*BackupElement_Consent)(nil),
+		(*BackupElement_Event)(nil),
 	}
 	file_device_sync_device_sync_proto_msgTypes[1].OneofWrappers = []any{}
 	file_device_sync_device_sync_proto_msgTypes[2].OneofWrappers = []any{}

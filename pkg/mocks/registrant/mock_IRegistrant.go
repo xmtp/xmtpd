@@ -10,6 +10,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
+
 	queries "github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
@@ -67,6 +69,120 @@ func (_c *MockIRegistrant_NodeID_Call) Return(_a0 uint32) *MockIRegistrant_NodeI
 }
 
 func (_c *MockIRegistrant_NodeID_Call) RunAndReturn(run func() uint32) *MockIRegistrant_NodeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SignClientEnvelopeToSelf provides a mock function with given fields: unsignedClientEnvelope
+func (_m *MockIRegistrant) SignClientEnvelopeToSelf(unsignedClientEnvelope []byte) ([]byte, error) {
+	ret := _m.Called(unsignedClientEnvelope)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SignClientEnvelopeToSelf")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]byte) ([]byte, error)); ok {
+		return rf(unsignedClientEnvelope)
+	}
+	if rf, ok := ret.Get(0).(func([]byte) []byte); ok {
+		r0 = rf(unsignedClientEnvelope)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]byte) error); ok {
+		r1 = rf(unsignedClientEnvelope)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIRegistrant_SignClientEnvelopeToSelf_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SignClientEnvelopeToSelf'
+type MockIRegistrant_SignClientEnvelopeToSelf_Call struct {
+	*mock.Call
+}
+
+// SignClientEnvelopeToSelf is a helper method to define mock.On call
+//   - unsignedClientEnvelope []byte
+func (_e *MockIRegistrant_Expecter) SignClientEnvelopeToSelf(unsignedClientEnvelope interface{}) *MockIRegistrant_SignClientEnvelopeToSelf_Call {
+	return &MockIRegistrant_SignClientEnvelopeToSelf_Call{Call: _e.mock.On("SignClientEnvelopeToSelf", unsignedClientEnvelope)}
+}
+
+func (_c *MockIRegistrant_SignClientEnvelopeToSelf_Call) Run(run func(unsignedClientEnvelope []byte)) *MockIRegistrant_SignClientEnvelopeToSelf_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].([]byte))
+	})
+	return _c
+}
+
+func (_c *MockIRegistrant_SignClientEnvelopeToSelf_Call) Return(_a0 []byte, _a1 error) *MockIRegistrant_SignClientEnvelopeToSelf_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIRegistrant_SignClientEnvelopeToSelf_Call) RunAndReturn(run func([]byte) ([]byte, error)) *MockIRegistrant_SignClientEnvelopeToSelf_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SignPayerReportAttestation provides a mock function with given fields: reportID
+func (_m *MockIRegistrant) SignPayerReportAttestation(reportID payerreport.ReportID) (payerreport.NodeSignature, error) {
+	ret := _m.Called(reportID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SignPayerReportAttestation")
+	}
+
+	var r0 payerreport.NodeSignature
+	var r1 error
+	if rf, ok := ret.Get(0).(func(payerreport.ReportID) (payerreport.NodeSignature, error)); ok {
+		return rf(reportID)
+	}
+	if rf, ok := ret.Get(0).(func(payerreport.ReportID) payerreport.NodeSignature); ok {
+		r0 = rf(reportID)
+	} else {
+		r0 = ret.Get(0).(payerreport.NodeSignature)
+	}
+
+	if rf, ok := ret.Get(1).(func(payerreport.ReportID) error); ok {
+		r1 = rf(reportID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIRegistrant_SignPayerReportAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SignPayerReportAttestation'
+type MockIRegistrant_SignPayerReportAttestation_Call struct {
+	*mock.Call
+}
+
+// SignPayerReportAttestation is a helper method to define mock.On call
+//   - reportID payerreport.ReportID
+func (_e *MockIRegistrant_Expecter) SignPayerReportAttestation(reportID interface{}) *MockIRegistrant_SignPayerReportAttestation_Call {
+	return &MockIRegistrant_SignPayerReportAttestation_Call{Call: _e.mock.On("SignPayerReportAttestation", reportID)}
+}
+
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Run(run func(reportID payerreport.ReportID)) *MockIRegistrant_SignPayerReportAttestation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(payerreport.ReportID))
+	})
+	return _c
+}
+
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Return(_a0 payerreport.NodeSignature, _a1 error) *MockIRegistrant_SignPayerReportAttestation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) RunAndReturn(run func(payerreport.ReportID) (payerreport.NodeSignature, error)) *MockIRegistrant_SignPayerReportAttestation_Call {
 	_c.Call.Return(run)
 	return _c
 }

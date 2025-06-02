@@ -16,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -112,6 +113,24 @@ func (r *Registrant) SignStagedEnvelope(
 	}
 
 	return &signedEnv, nil
+}
+
+func (r *Registrant) SignPayerReportAttestation(
+	reportID payerreport.ReportID,
+) (*payerreport.NodeSignature, error) {
+	sig, err := r.sign(reportID[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return &payerreport.NodeSignature{
+		NodeID:    r.record.NodeID,
+		Signature: sig,
+	}, nil
+}
+
+func (r *Registrant) SignClientEnvelopeToSelf(unsignedClientEnvelope []byte) ([]byte, error) {
+	return utils.SignClientEnvelope(r.record.NodeID, unsignedClientEnvelope, r.privateKey)
 }
 
 func getRegistryRecord(

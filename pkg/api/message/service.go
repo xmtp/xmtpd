@@ -362,6 +362,13 @@ func (s *Service) PublishPayerEnvelopes(
 	targetTopic := payerEnv.ClientEnvelope.TargetTopic()
 	topicKind := targetTopic.Kind()
 
+	if targetTopic.IsReserved() {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			"reserved topics cannot be published to by Payers",
+		)
+	}
+
 	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
 		if err = s.validateKeyPackage(ctx, &payerEnv.ClientEnvelope); err != nil {
 			return nil, err

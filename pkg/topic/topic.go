@@ -82,3 +82,9 @@ func (t Topic) Kind() TopicKind {
 func (t Topic) Identifier() []byte {
 	return t.identifier
 }
+
+// Reserved topics can only be published to by the node itself, and not through Payers
+func (t Topic) IsReserved() bool {
+	return t.kind == TOPIC_KIND_PAYER_REPORTS_V1 ||
+		t.kind == TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1
+}

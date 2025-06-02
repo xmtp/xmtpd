@@ -68,6 +68,21 @@ func CreateGroupMessageClientEnvelope(
 	}
 }
 
+func CreatePayerReportClientEnvelope(
+	originatorID uint32,
+) *envelopes.ClientEnvelope {
+	return &envelopes.ClientEnvelope{
+		Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORTS_V1, utils.Uint32ToBytes(originatorID)).
+				Bytes(),
+			TargetOriginator: &originatorID,
+		},
+		Payload: &envelopes.ClientEnvelope_PayerReport{
+			PayerReport: &envelopes.PayerReport{},
+		},
+	}
+}
+
 func CreateIdentityUpdateClientEnvelope(
 	inboxID [32]byte,
 	update *associations.IdentityUpdate,

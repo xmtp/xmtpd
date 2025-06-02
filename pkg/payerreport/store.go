@@ -100,7 +100,6 @@ func (s *Store) FetchReports(
 	query *FetchReportsQuery,
 ) ([]*PayerReportWithStatus, error) {
 	params := query.toParams()
-	s.log.Info("Fetching reports", zap.Any("params", params))
 	rows, err := s.queries.FetchPayerReports(ctx, params)
 	if err != nil {
 		return nil, err
@@ -257,7 +256,7 @@ func (s *Store) StoreSyncedReport(
 
 	payerReportProto := payerReportProtoWrapper.PayerReport
 
-	reportID, err := buildPayerReportID(
+	reportID, err := BuildPayerReportID(
 		payerReportProto.OriginatorNodeId,
 		payerReportProto.StartSequenceId,
 		payerReportProto.EndSequenceId,

@@ -14,14 +14,16 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type payerReportManagerStorerTester struct {
-	abi    *abi.ABI
-	storer *PayerReportManagerStorer
+	abi     *abi.ABI
+	storer  *PayerReportManagerStorer
+	queries *queries.Queries
 }
 
 func TestStorePayerReportManagerErrorNoTopics(t *testing.T) {
@@ -59,11 +61,50 @@ func TestStorePayerReportManagerErrorUnknownEvent(t *testing.T) {
 func TestStorePayerReportManagerPayerReportSubmitted(t *testing.T) {
 	tester := buildPayerReportManagerStorerTester(t)
 
-	log := tester.newLog(t, "PayerReportSubmitted")
+	originatorNodeID := uint32(1)
+
+	log := tester.newPayerReportSubmittedLog(t, &payerreport.PayerReport{
+		OriginatorNodeID: originatorNodeID,
+		StartSequenceID:  0,
+		EndSequenceID:    100,
+		PayersMerkleRoot: testutils.RandomGroupID(),
+		ActiveNodeIDs:    []uint32{1, 2, 3},
+	}, 0)
 
 	err := tester.storer.StoreLog(t.Context(), log)
-
 	require.NoError(t, err)
+
+	res, queryErr := tester.queries.FetchPayerReports(t.Context(), queries.FetchPayerReportsParams{
+		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
+	})
+	require.Nil(t, queryErr)
+	require.Len(t, res, 1)
+}
+
+func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
+	tester := buildPayerReportManagerStorerTester(t)
+
+	originatorNodeID := uint32(1)
+
+	log := tester.newPayerReportSubmittedLog(t, &payerreport.PayerReport{
+		OriginatorNodeID: originatorNodeID,
+		StartSequenceID:  0,
+		EndSequenceID:    100,
+		PayersMerkleRoot: testutils.RandomGroupID(),
+		ActiveNodeIDs:    []uint32{1, 2, 3},
+	}, 0)
+
+	err := tester.storer.StoreLog(t.Context(), log)
+	require.NoError(t, err)
+
+	err = tester.storer.StoreLog(t.Context(), log)
+	require.NoError(t, err)
+
+	res, queryErr := tester.queries.FetchPayerReports(t.Context(), queries.FetchPayerReportsParams{
+		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
+	})
+	require.Nil(t, queryErr)
+	require.Len(t, res, 1)
 }
 
 func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {
@@ -82,7 +123,6 @@ func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorer
 
 	// Dependencies.
 	db, _ := testutils.NewDB(t, ctx)
-	queryImpl := queries.New(db)
 	rpcUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, rpcUrl)
 
@@ -98,15 +138,16 @@ func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorer
 	require.NoError(t, err)
 
 	// Storer and ABI.
-	storer, err := NewPayerReportManagerStorer(queryImpl, testutils.NewLog(t), contract)
+	storer, err := NewPayerReportManagerStorer(db, testutils.NewLog(t), contract)
 	require.NoError(t, err)
 
 	abi, err := p.PayerReportManagerMetaData.GetAbi()
 	require.NoError(t, err)
 
 	return &payerReportManagerStorerTester{
-		abi:    abi,
-		storer: storer,
+		abi:     abi,
+		storer:  storer,
+		queries: queries.New(db),
 	}
 }
 
@@ -117,4 +158,20 @@ func (st *payerReportManagerStorerTester) newLog(t *testing.T, event string) typ
 	return types.Log{
 		Topics: []common.Hash{topic},
 	}
+}
+
+func (st *payerReportManagerStorerTester) newPayerReportSubmittedLog(
+	t *testing.T,
+	report *payerreport.PayerReport,
+	payerReportIndex uint64,
+) types.Log {
+	return testutils.BuildPayerReportSubmittedEvent(
+		t,
+		report.OriginatorNodeID,
+		payerReportIndex,
+		report.StartSequenceID,
+		report.EndSequenceID,
+		report.PayersMerkleRoot,
+		report.ActiveNodeIDs,
+	)
 }

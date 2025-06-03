@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
@@ -19,14 +20,15 @@ import (
 // attestationWorker is responsible for periodically checking for reports that need attestation
 // and signing them with the node's private key.
 type AttestationWorker struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	log          *zap.Logger
-	registrant   registrant.IRegistrant
-	store        payerreport.IPayerReportStore
-	verifier     payerreport.IPayerReportVerifier
-	wg           sync.WaitGroup
-	pollInterval time.Duration
+	ctx             context.Context
+	cancel          context.CancelFunc
+	log             *zap.Logger
+	registrant      registrant.IRegistrant
+	store           payerreport.IPayerReportStore
+	verifier        payerreport.IPayerReportVerifier
+	wg              sync.WaitGroup
+	pollInterval    time.Duration
+	domainSeparator common.Hash
 }
 
 // NewAttestationWorker creates and starts a new attestation worker that will periodically
@@ -39,18 +41,20 @@ func NewAttestationWorker(
 	registrant registrant.IRegistrant,
 	store payerreport.IPayerReportStore,
 	pollInterval time.Duration,
+	domainSeparator common.Hash,
 ) *AttestationWorker {
 	ctx, cancel := context.WithCancel(ctx)
 
 	worker := &AttestationWorker{
-		ctx:          ctx,
-		log:          log.Named("attestationworker"),
-		registrant:   registrant,
-		store:        store,
-		verifier:     payerreport.NewPayerReportVerifier(log, store),
-		wg:           sync.WaitGroup{},
-		cancel:       cancel,
-		pollInterval: pollInterval,
+		ctx:             ctx,
+		log:             log.Named("attestationworker"),
+		registrant:      registrant,
+		store:           store,
+		verifier:        payerreport.NewPayerReportVerifier(log, store),
+		wg:              sync.WaitGroup{},
+		cancel:          cancel,
+		pollInterval:    pollInterval,
+		domainSeparator: domainSeparator,
 	}
 
 	return worker

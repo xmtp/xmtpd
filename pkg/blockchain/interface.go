@@ -51,6 +51,16 @@ type IBlockchainPublisher interface {
 	) (*gm.GroupMessageBroadcasterMessageSent, error)
 }
 
-type PayerReportsAdmin interface {
+type PayerReportsManager interface {
 	SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) error
+	GetReport(
+		ctx context.Context,
+		originatorNodeID uint32,
+		index uint64,
+	) (*payerreport.PayerReport, error)
+	GetDomainSeparator(ctx context.Context) (common.Hash, error)
+	GetReportID(
+		ctx context.Context,
+		payerReport *payerreport.PayerReportWithStatus,
+	) (payerreport.ReportID, error)
 }

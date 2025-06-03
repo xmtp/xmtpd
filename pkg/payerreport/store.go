@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -16,6 +17,8 @@ import (
 )
 
 var (
+	ErrNoActiveNodeIDs             = errors.New("no active node IDs")
+	ErrInvalidReportID             = errors.New("invalid report ID")
 	ErrOriginatorNodeIDTooLarge    = errors.New("originator node ID is > max int32")
 	ErrStartSequenceIDTooLarge     = errors.New("start sequence ID is > max int64")
 	ErrEndSequenceIDTooLarge       = errors.New("end sequence ID is > max int64")
@@ -23,6 +26,7 @@ var (
 	ErrNodesCountTooLarge          = errors.New("nodes count is > max int32")
 	ErrActiveNodeIDTooLarge        = errors.New("active node ID is > max int32")
 	ErrReportNotFound              = errors.New("report not found")
+	ErrReportNil                   = errors.New("report is nil")
 )
 
 type Store struct {
@@ -41,28 +45,28 @@ func NewStore(db *sql.DB, log *zap.Logger) *Store {
 
 // Store a report in the database. No validations have been performed, and no originator envelope is stored.
 // This function is primarily used for testing
-func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (ReportID, error) {
+func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (*ReportID, error) {
 	params, err := prepareStoreReportParams(report)
 	if err != nil {
-		return ReportID{}, err
+		return nil, err
 	}
-
-	id := ReportID(params.ID)
 
 	_, err = s.queries.InsertOrIgnorePayerReport(ctx, *params)
 	if err != nil {
-		return id, err
+		return nil, err
 	}
 
-	return id, nil
+	return &report.ID, nil
 }
 
 // Store an attestation in the database
 func (s *Store) StoreAttestation(ctx context.Context, attestation *PayerReportAttestation) error {
-	reportID, err := attestation.Report.ID()
-	if err != nil {
-		return err
+	if attestation.Report == nil {
+		return ErrReportNil
 	}
+
+	reportID := attestation.Report.ID[:]
+
 	// Validate NodeID (assuming it should fit within int32 range for consistency with other node IDs)
 	if attestation.NodeSignature.NodeID > math.MaxInt32 {
 		return ErrOriginatorNodeIDTooLarge
@@ -96,7 +100,6 @@ func (s *Store) FetchReports(
 	query *FetchReportsQuery,
 ) ([]*PayerReportWithStatus, error) {
 	params := query.toParams()
-	s.log.Info("Fetching reports", zap.Any("params", params))
 	rows, err := s.queries.FetchPayerReports(ctx, params)
 	if err != nil {
 		return nil, err
@@ -128,20 +131,15 @@ func (s *Store) CreatePayerReport(
 	ctx context.Context,
 	report *PayerReport,
 	payerEnvelope *envelopes.PayerEnvelope,
-) (ReportID, error) {
-	reportID, err := report.ID()
-	if err != nil {
-		return ReportID{}, err
-	}
-
+) (*ReportID, error) {
 	payerEnvelopeBytes, err := payerEnvelope.Bytes()
 	if err != nil {
-		return reportID, err
+		return nil, err
 	}
 
 	payerReportParams, err := prepareStoreReportParams(report)
 	if err != nil {
-		return reportID, err
+		return nil, err
 	}
 
 	if err = db.RunInTx(
@@ -174,10 +172,10 @@ func (s *Store) CreatePayerReport(
 			return nil
 		},
 	); err != nil {
-		return reportID, err
+		return nil, err
 	}
 
-	return reportID, nil
+	return &report.ID, nil
 }
 
 // To be called by the attester of a report. Updates the attestation status of the report and
@@ -189,16 +187,16 @@ func (s *Store) CreateAttestation(
 ) error {
 	allowedPrevStatuses := []int16{int16(AttestationPending)}
 	toStatus := AttestationApproved
-
 	targetTopic := payerEnvelope.TargetTopic().Bytes()
+	reportID := attestation.Report.ID[:]
+
 	envelopeBytes, err := payerEnvelope.Bytes()
 	if err != nil {
 		return err
 	}
 
-	reportID, err := attestation.Report.ID()
-	if err != nil {
-		return err
+	if attestation.Report == nil {
+		return ErrReportNil
 	}
 
 	return db.RunInTx(
@@ -209,7 +207,7 @@ func (s *Store) CreateAttestation(
 			if err = tx.InsertOrIgnorePayerReportAttestation(
 				ctx,
 				queries.InsertOrIgnorePayerReportAttestationParams{
-					PayerReportID: reportID[:],
+					PayerReportID: reportID,
 					NodeID:        int64(attestation.NodeSignature.NodeID),
 					Signature:     attestation.NodeSignature.Signature,
 				},
@@ -218,7 +216,7 @@ func (s *Store) CreateAttestation(
 			}
 
 			err := tx.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
-				ReportID:   reportID[:],
+				ReportID:   reportID,
 				NewStatus:  int16(toStatus),
 				PrevStatus: allowedPrevStatuses,
 			})
@@ -243,6 +241,7 @@ func (s *Store) StoreSyncedReport(
 	ctx context.Context,
 	envelope *envelopes.OriginatorEnvelope,
 	payerID int32,
+	domainSeparator common.Hash,
 ) error {
 	originatorEnvelopeBytes, err := envelope.Bytes()
 	if err != nil {
@@ -257,7 +256,20 @@ func (s *Store) StoreSyncedReport(
 
 	payerReportProto := payerReportProtoWrapper.PayerReport
 
+	reportID, err := BuildPayerReportID(
+		payerReportProto.OriginatorNodeId,
+		payerReportProto.StartSequenceId,
+		payerReportProto.EndSequenceId,
+		common.BytesToHash(payerReportProto.PayersMerkleRoot),
+		payerReportProto.ActiveNodeIds,
+		domainSeparator,
+	)
+	if err != nil {
+		return err
+	}
+
 	payerReport := &PayerReport{
+		ID:                  *reportID,
 		OriginatorNodeID:    payerReportProto.OriginatorNodeId,
 		StartSequenceID:     payerReportProto.StartSequenceId,
 		EndSequenceID:       payerReportProto.EndSequenceId,
@@ -416,8 +428,8 @@ func convertPayerReport(report *queries.PayerReport) (*PayerReportWithStatus, er
 		SubmissionStatus:  SubmissionStatus(report.SubmissionStatus),
 		AttestationStatus: AttestationStatus(report.AttestationStatus),
 		CreatedAt:         report.CreatedAt.Time,
-		ID:                ReportID(id),
 		PayerReport: PayerReport{
+			ID:                  ReportID(id),
 			OriginatorNodeID:    uint32(report.OriginatorNodeID),
 			StartSequenceID:     uint64(report.StartSequenceID),
 			EndSequenceID:       uint64(report.EndSequenceID),
@@ -431,18 +443,18 @@ func convertPayerReport(report *queries.PayerReport) (*PayerReportWithStatus, er
 func prepareStoreReportParams(
 	report *PayerReport,
 ) (*queries.InsertOrIgnorePayerReportParams, error) {
-	id, err := report.ID()
-	if err != nil {
-		return nil, err
-	}
-
 	var (
+		err                 error
 		originatorNodeID    int32
 		endMinuteSinceEpoch int32
 		startSequenceID     int64
 		endSequenceID       int64
 		activeNodeIDs       []int32
 	)
+
+	if len(report.ID) != 32 {
+		return nil, ErrInvalidReportID
+	}
 
 	// The originator node ID is stored as an int32 in the database, but
 	// a uint32 on the network. Do not allow anything larger than max int32
@@ -466,8 +478,12 @@ func prepareStoreReportParams(
 		return nil, ErrEndMinuteSinceEpochTooLarge
 	}
 
+	if len(activeNodeIDs) == 0 {
+		return nil, ErrNoActiveNodeIDs
+	}
+
 	return &queries.InsertOrIgnorePayerReportParams{
-		ID:                  id[:],
+		ID:                  report.ID[:],
 		OriginatorNodeID:    originatorNodeID,
 		StartSequenceID:     startSequenceID,
 		EndSequenceID:       endSequenceID,

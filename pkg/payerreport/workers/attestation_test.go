@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
@@ -11,6 +12,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
+
+var domainSeparator = common.BytesToHash(testutils.RandomBytes(32))
 
 func testAttestationWorker(
 	t *testing.T,
@@ -35,7 +38,7 @@ func testAttestationWorker(
 	mockRegistrant.EXPECT().NodeID().Return(uint32(1)).Maybe()
 
 	verifier := payerreportMocks.NewMockIPayerReportVerifier(t)
-	worker := NewAttestationWorker(ctx, log, mockRegistrant, store, pollInterval)
+	worker := NewAttestationWorker(ctx, log, mockRegistrant, store, pollInterval, domainSeparator)
 	worker.verifier = verifier
 
 	return worker, store, mockRegistrant, verifier
@@ -48,7 +51,8 @@ func storeReport(
 ) *payerreport.PayerReportWithStatus {
 	id, err := store.StoreReport(t.Context(), report)
 	require.NoError(t, err)
-	reportWithStatus, err := store.FetchReport(t.Context(), id)
+	require.NotNil(t, id)
+	reportWithStatus, err := store.FetchReport(t.Context(), *id)
 	require.NoError(t, err)
 
 	return reportWithStatus
@@ -74,10 +78,12 @@ func setReportAttestationStatus(
 func TestFindReport(t *testing.T) {
 	worker, store, _, _ := testAttestationWorker(t, time.Second)
 
-	report, err := payerreport.NewPayerReport(payerreport.NewPayerReportParams{
+	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID: 1,
 		StartSequenceID:  1,
 		EndSequenceID:    10,
+		DomainSeparator:  domainSeparator,
+		NodeIDs:          []uint32{1},
 	})
 	require.NoError(t, err)
 	storedReport := storeReport(t, store, &report.PayerReport)
@@ -97,12 +103,14 @@ func TestFindReport(t *testing.T) {
 func TestAttestFirstReport(t *testing.T) {
 	worker, store, _, mockVerifier := testAttestationWorker(t, time.Second)
 
-	report, err := payerreport.NewPayerReport(payerreport.NewPayerReportParams{
+	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
 		NodeIDs:          []uint32{1},
+		DomainSeparator:  domainSeparator,
 	})
+	require.NoError(t, err)
 	storedReport := storeReport(t, store, &report.PayerReport)
 	require.NoError(t, err)
 

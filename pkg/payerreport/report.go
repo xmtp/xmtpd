@@ -2,6 +2,8 @@ package payerreport
 
 import (
 	"encoding/hex"
+	"errors"
+	"log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -16,6 +18,10 @@ import (
 
 // The arguments to use for hashing the payer report ID both on and off chain
 var payerReportMessageHash = abi.Arguments{
+	{
+		Name: "typeHash",
+		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
+	},
 	{
 		Name: "originatorNodeID",
 		Type: abi.Type{T: abi.UintTy, Size: 32},
@@ -33,8 +39,8 @@ var payerReportMessageHash = abi.Arguments{
 		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
 	},
 	{
-		Name: "activeNodeIds",
-		Type: abi.Type{T: abi.SliceTy, Elem: &abi.Type{T: abi.UintTy, Size: 32}},
+		Name: "activeNodeIdsHash",
+		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
 	},
 }
 
@@ -61,6 +67,7 @@ func (r ReportID) String() string {
 }
 
 type PayerReport struct {
+	ID ReportID
 	// The Originator Node that the report is about
 	OriginatorNodeID uint32
 	// The report applies to messages with sequence IDs > StartSequenceID
@@ -70,17 +77,19 @@ type PayerReport struct {
 	// The timestamp of the message at EndSequenceID
 	EndMinuteSinceEpoch uint32
 	// The merkle root of the Payers mapping
-	PayersMerkleRoot [32]byte
+	PayersMerkleRoot common.Hash
 	// The active node IDs in the report
 	ActiveNodeIDs []uint32
 }
 
-type NewPayerReportParams struct {
-	OriginatorNodeID uint32
-	StartSequenceID  uint64
-	EndSequenceID    uint64
-	Payers           map[common.Address]currency.PicoDollar
-	NodeIDs          []uint32
+type BuildPayerReportParams struct {
+	OriginatorNodeID    uint32
+	StartSequenceID     uint64
+	EndSequenceID       uint64
+	EndMinuteSinceEpoch uint32
+	Payers              map[common.Address]currency.PicoDollar
+	NodeIDs             []uint32
+	DomainSeparator     common.Hash
 }
 
 // A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
@@ -101,8 +110,6 @@ type PayerReportWithStatus struct {
 	AttestationStatus AttestationStatus
 	// The timestamp of when the report was inserted into the node's database
 	CreatedAt time.Time
-	// The ID of the report
-	ID ReportID
 }
 
 func (p *PayerReport) ToProto() *proto.PayerReport {
@@ -131,37 +138,68 @@ func (p *PayerReport) ToClientEnvelope() (*envelopes.ClientEnvelope, error) {
 	})
 }
 
-func (p *PayerReport) ID() (ReportID, error) {
+func BuildPayerReportID(
+	originatorNodeID uint32,
+	startSequenceID uint64,
+	endSequenceID uint64,
+	payersMerkleRoot common.Hash,
+	activeNodeIDs []uint32,
+	domainSeparator common.Hash,
+) (*ReportID, error) {
+	if domainSeparator == (common.Hash{}) {
+		return nil, errors.New("domain separator is required")
+	}
+
+	nodeIdsHash := utils.PackAndHashNodeIDs(activeNodeIDs)
+
 	packedBytes, err := payerReportMessageHash.Pack(
-		p.OriginatorNodeID,
-		p.StartSequenceID,
-		p.EndSequenceID,
-		p.PayersMerkleRoot,
-		p.ActiveNodeIDs,
+		PAYER_REPORT_DIGEST_TYPE_HASH,
+		originatorNodeID,
+		startSequenceID,
+		endSequenceID,
+		payersMerkleRoot,
+		nodeIdsHash,
 	)
 	if err != nil {
-		return ReportID{}, err
+		log.Printf("error packing payer report message hash: %v\n", err)
+		return nil, err
 	}
-	hash, err := utils.SliceToArray32(utils.HashPayerReportInput(packedBytes))
-	if err != nil {
-		return ReportID{}, err
-	}
-	return ReportID(hash), nil
+	hash := utils.HashPayerReportInput(packedBytes, domainSeparator)
+	reportID := ReportID(hash)
+	return &reportID, nil
 }
 
-func NewPayerReport(params NewPayerReportParams) (*PayerReportWithInputs, error) {
-	merkleRoot := buildMerkleRoot(params.Payers)
+func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, error) {
+	tree, err := generateMerkleTree(params.Payers)
+	if err != nil {
+		return nil, err
+	}
+	merkleRoot := common.BytesToHash(tree.Root())
+
+	reportID, err := BuildPayerReportID(
+		params.OriginatorNodeID,
+		params.StartSequenceID,
+		params.EndSequenceID,
+		merkleRoot,
+		params.NodeIDs,
+		params.DomainSeparator,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	return &PayerReportWithInputs{
 		PayerReport: PayerReport{
-			OriginatorNodeID: params.OriginatorNodeID,
-			StartSequenceID:  params.StartSequenceID,
-			EndSequenceID:    params.EndSequenceID,
-			PayersMerkleRoot: merkleRoot,
-			ActiveNodeIDs:    params.NodeIDs,
+			ID:                  *reportID,
+			OriginatorNodeID:    params.OriginatorNodeID,
+			StartSequenceID:     params.StartSequenceID,
+			EndSequenceID:       params.EndSequenceID,
+			EndMinuteSinceEpoch: params.EndMinuteSinceEpoch,
+			PayersMerkleRoot:    merkleRoot,
+			ActiveNodeIDs:       params.NodeIDs,
 		},
 		Payers:     params.Payers,
 		NodeIDs:    params.NodeIDs,
-		MerkleTree: nil,
+		MerkleTree: tree,
 	}, nil
 }

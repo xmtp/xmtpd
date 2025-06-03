@@ -44,6 +44,8 @@ func TestCreateServer(t *testing.T) {
 
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
+	contractsOptions := testutils.NewContractsOptions(t, testutils.BLOCKCHAIN_RPC_URL)
+
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		server1Port,
@@ -51,6 +53,7 @@ func TestCreateServer(t *testing.T) {
 		dbs[0],
 		registry,
 		privateKey1,
+		contractsOptions,
 	)
 	server2 := serverTestUtils.NewTestServer(
 		t,
@@ -59,6 +62,7 @@ func TestCreateServer(t *testing.T) {
 		dbs[1],
 		registry,
 		privateKey2,
+		contractsOptions,
 	)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
@@ -155,6 +159,8 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	nodes := []r.Node{registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1)}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
+	contractsOptions := testutils.NewContractsOptions(t, testutils.BLOCKCHAIN_RPC_URL)
+
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		server1Port,
@@ -162,6 +168,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		dbs[0],
 		registry,
 		privateKey1,
+		contractsOptions,
 	)
 	defer func() {
 		server1.Shutdown(0)

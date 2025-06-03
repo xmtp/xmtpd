@@ -2,11 +2,8 @@ package payerreport
 
 import (
 	"context"
-	"encoding/binary"
-	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -16,20 +13,23 @@ import (
 type payerMap map[common.Address]currency.PicoDollar
 
 type PayerReportGenerator struct {
-	log      *zap.Logger
-	queries  *queries.Queries
-	registry registry.NodeRegistry
+	log             *zap.Logger
+	queries         *queries.Queries
+	registry        registry.NodeRegistry
+	domainSeparator common.Hash
 }
 
 func NewPayerReportGenerator(
 	log *zap.Logger,
 	queries *queries.Queries,
 	registry registry.NodeRegistry,
+	domainSeparator common.Hash,
 ) *PayerReportGenerator {
 	return &PayerReportGenerator{
-		log:      log.Named("reportgenerator"),
-		queries:  queries,
-		registry: registry,
+		log:             log.Named("reportgenerator"),
+		queries:         queries,
+		registry:        registry,
+		domainSeparator: domainSeparator,
 	}
 }
 
@@ -63,18 +63,15 @@ func (p *PayerReportGenerator) GenerateReport(
 	// Returns an empty report rather than an error here
 	if endSequenceID == 0 {
 		payers := make(map[common.Address]currency.PicoDollar)
-		return &PayerReportWithInputs{
-			PayerReport: PayerReport{
-				OriginatorNodeID:    uint32(originatorID),
-				StartSequenceID:     params.LastReportEndSequenceID,
-				EndSequenceID:       params.LastReportEndSequenceID,
-				EndMinuteSinceEpoch: 0,
-				// TODO: Implement merkle calculation
-				PayersMerkleRoot: buildMerkleRoot(payers),
-				ActiveNodeIDs:    activeNodeIDs,
-			},
-			Payers: payers,
-		}, nil
+		return BuildPayerReport(BuildPayerReportParams{
+			OriginatorNodeID:    uint32(originatorID),
+			StartSequenceID:     params.LastReportEndSequenceID,
+			EndSequenceID:       params.LastReportEndSequenceID,
+			EndMinuteSinceEpoch: 0,
+			Payers:              payers,
+			NodeIDs:             activeNodeIDs,
+			DomainSeparator:     p.domainSeparator,
+		})
 	}
 
 	payers, err := p.queries.BuildPayerReport(
@@ -90,18 +87,15 @@ func (p *PayerReportGenerator) GenerateReport(
 	}
 	mappedPayers := buildPayersMap(payers)
 
-	return &PayerReportWithInputs{
-		PayerReport: PayerReport{
-			OriginatorNodeID:    uint32(originatorID),
-			StartSequenceID:     params.LastReportEndSequenceID,
-			EndSequenceID:       uint64(endSequenceID),
-			EndMinuteSinceEpoch: uint32(endMinute),
-			// TODO: Implement merkle calculation
-			PayersMerkleRoot: buildMerkleRoot(mappedPayers),
-			ActiveNodeIDs:    activeNodeIDs,
-		},
-		Payers: mappedPayers,
-	}, nil
+	return BuildPayerReport(BuildPayerReportParams{
+		OriginatorNodeID:    uint32(originatorID),
+		StartSequenceID:     params.LastReportEndSequenceID,
+		EndSequenceID:       uint64(endSequenceID),
+		EndMinuteSinceEpoch: uint32(endMinute),
+		NodeIDs:             activeNodeIDs,
+		Payers:              mappedPayers,
+		DomainSeparator:     p.domainSeparator,
+	})
 }
 
 /*
@@ -155,31 +149,6 @@ func buildPayersMap(rows []queries.BuildPayerReportRow) payerMap {
 		)
 	}
 	return payersMap
-}
-
-// Totally fake function to get a merkle root from a payer map
-func buildMerkleRoot(payers payerMap) [32]byte {
-	keys := []common.Address{}
-	for payerAddress := range payers {
-		keys = append(keys, payerAddress)
-	}
-	sort.SliceStable(keys, func(i int, j int) bool {
-		return keys[i].String() < keys[j].String()
-	})
-
-	var out [32]byte
-	d := ethcrypto.NewKeccakState()
-	for _, key := range keys {
-		d.Write(key[:])
-		// Convert spend (uint64) to bytes and write it to the hash
-		spendBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(spendBytes, uint64(payers[key]))
-		d.Write(spendBytes)
-	}
-	//nolint:errcheck
-	d.Read(out[:])
-
-	return out
 }
 
 func extractActiveNodeIDs(nodes []registry.Node) []uint32 {

@@ -9,6 +9,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// An ILogStreamer streams logs from a source through a channel.
+type ILogStreamer interface {
+	GetEventChannel(id string) <-chan types.Log
+	Start()
+	Stop()
+}
+
 // Takes a log event and stores it, returning either an error that may be retriable, non-retriable, or nil.
 type ILogStorer interface {
 	StoreLog(ctx context.Context, event types.Log) re.RetryableError

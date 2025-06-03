@@ -1,4 +1,4 @@
-package blockchain
+package rpc_streamer
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/ethereum/go-ethereum"
@@ -98,7 +99,7 @@ type RpcLogStreamer struct {
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	wg                  sync.WaitGroup
-	client              ChainClient
+	client              blockchain.ChainClient
 	logger              *zap.Logger
 	watchers            map[string]ContractConfig
 	lagFromHighestBlock uint8
@@ -107,13 +108,13 @@ type RpcLogStreamer struct {
 
 func NewRpcLogStreamer(
 	ctx context.Context,
-	client ChainClient,
+	client blockchain.ChainClient,
 	logger *zap.Logger,
 	options ...RpcLogStreamerOption,
 ) (*RpcLogStreamer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	streamLogger := logger.Named("rpcLogStreamer")
+	streamLogger := logger.Named("rpc-log-streamer")
 
 	streamer := &RpcLogStreamer{
 		ctx:                 ctx,
@@ -186,7 +187,7 @@ backfillLoop:
 						cfg.eventChannel <- log
 					}
 
-					logger.Info("Backfill complete, switching to subscription…")
+					logger.Info("Backfill complete, switching to subscription.")
 					break backfillLoop
 
 				case ErrReorg:
@@ -442,7 +443,7 @@ func (r *RpcLogStreamer) buildSubscription(
 	return sub, nil
 }
 
-func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {
+func (r *RpcLogStreamer) GetEventChannel(id string) <-chan types.Log {
 	if _, ok := r.watchers[id]; !ok {
 		return nil
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	streamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -28,7 +29,7 @@ type SettlementChain struct {
 	wg                 sync.WaitGroup
 	client             *ethclient.Client
 	log                *zap.Logger
-	streamer           *blockchain.RpcLogStreamer
+	streamer           c.ILogStreamer
 	payerRegistry      *contracts.PayerRegistry
 	payerReportManager *contracts.PayerReportManager
 	chainID            int
@@ -87,13 +88,13 @@ func NewSettlementChain(
 
 	payerReportManagerLatestBlockNumber, payerReportManagerLatestBlockHash := payerReportManager.GetLatestBlock()
 
-	streamer, err := blockchain.NewRpcLogStreamer(
+	streamer, err := streamer.NewRpcLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
-		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.PayerRegistryName(cfg.ChainID),
 				FromBlockNumber:   payerRegistryLatestBlockNumber,
 				FromBlockHash:     payerRegistryLatestBlockHash,
@@ -102,8 +103,8 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.PayerReportManagerName(cfg.ChainID),
 				FromBlockNumber:   payerReportManagerLatestBlockNumber,
 				FromBlockHash:     payerReportManagerLatestBlockHash,
@@ -112,7 +113,7 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		streamer.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()

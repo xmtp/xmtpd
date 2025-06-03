@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	streamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -34,7 +35,7 @@ type AppChain struct {
 	wg                        sync.WaitGroup
 	client                    *ethclient.Client
 	log                       *zap.Logger
-	streamer                  *blockchain.RpcLogStreamer
+	streamer                  c.ILogStreamer
 	groupMessageBroadcaster   *contracts.GroupMessageBroadcaster
 	identityUpdateBroadcaster *contracts.IdentityUpdateBroadcaster
 	chainID                   int
@@ -96,13 +97,13 @@ func NewAppChain(
 
 	identityUpdateLatestBlockNumber, identityUpdateLatestBlockHash := identityUpdateBroadcaster.GetLatestBlock()
 
-	streamer, err := blockchain.NewRpcLogStreamer(
+	streamer, err := streamer.NewRpcLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
-		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.GroupMessageBroadcasterName(cfg.ChainID),
 				FromBlockNumber:   groupMessageLatestBlockNumber,
 				FromBlockHash:     groupMessageLatestBlockHash,
@@ -111,8 +112,8 @@ func NewAppChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
 				FromBlockNumber:   identityUpdateLatestBlockNumber,
 				FromBlockHash:     identityUpdateLatestBlockHash,
@@ -121,7 +122,7 @@ func NewAppChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		streamer.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()

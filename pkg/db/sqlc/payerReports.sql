@@ -174,6 +174,12 @@ SET attestation_status = @new_status
 WHERE id = @report_id
 	AND attestation_status IN (sqlc.slice(prev_status));
 
+-- name: SetReportSubmissionStatus :exec
+UPDATE payer_reports
+SET submission_status = @new_status
+WHERE id = @report_id
+	AND submission_status IN (sqlc.slice(prev_status));
+
 -- name: FetchAttestations :many
 SELECT *
 FROM payer_report_attestations

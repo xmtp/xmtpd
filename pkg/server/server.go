@@ -249,12 +249,12 @@ func NewReplicationServer(
 
 	if cfg.options.Sync.Enable {
 		s.syncServer, err = sync.NewSyncServer(
-			s.ctx,
-			cfg.log,
-			s.nodeRegistry,
-			s.registrant,
-			cfg.db,
-			fees.NewFeeCalculator(getRatesFetcher()),
+			sync.WithContext(s.ctx),
+			sync.WithLogger(cfg.log),
+			sync.WithNodeRegistry(s.nodeRegistry),
+			sync.WithRegistrant(s.registrant),
+			sync.WithDB(cfg.db),
+			sync.WithFeeCalculator(fees.NewFeeCalculator(getRatesFetcher())),
 		)
 		if err != nil {
 			return nil, err

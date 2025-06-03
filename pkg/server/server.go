@@ -42,61 +42,61 @@ import (
 )
 
 type ReplicationServerConfig struct {
-	ctx               context.Context
-	db                *sql.DB
-	log               *zap.Logger
-	nodeRegistry      registry.NodeRegistry
-	options           *config.ServerOptions
-	serverVersion     *semver.Version
-	listenAddress     string
-	httpListenAddress string
+	Ctx               context.Context
+	DB                *sql.DB
+	Log               *zap.Logger
+	NodeRegistry      registry.NodeRegistry
+	Options           *config.ServerOptions
+	ServerVersion     *semver.Version
+	ListenAddress     string
+	HttpListenAddress string
 }
 
 func WithContext(ctx context.Context) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.ctx = ctx
+		cfg.Ctx = ctx
 	}
 }
 
 func WithDB(db *sql.DB) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.db = db
+		cfg.DB = db
 	}
 }
 
 func WithLogger(log *zap.Logger) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.log = log
+		cfg.Log = log
 	}
 }
 
 func WithNodeRegistry(reg registry.NodeRegistry) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.nodeRegistry = reg
+		cfg.NodeRegistry = reg
 	}
 }
 
 func WithServerOptions(opts *config.ServerOptions) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.options = opts
+		cfg.Options = opts
 	}
 }
 
 func WithServerVersion(version *semver.Version) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.serverVersion = version
+		cfg.ServerVersion = version
 	}
 }
 
 func WithListenAddress(addr string) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.listenAddress = addr
+		cfg.ListenAddress = addr
 	}
 }
 
 func WithHTTPListenAddress(addr string) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.httpListenAddress = addr
+		cfg.HttpListenAddress = addr
 	}
 }
 
@@ -130,31 +130,31 @@ func NewReplicationServer(
 		opt(cfg)
 	}
 
-	if cfg.options == nil {
-		return nil, errors.New("server options not provided")
+	if cfg.Options == nil {
+		return nil, errors.New("server Options not provided")
 	}
 
-	if cfg.ctx == nil {
+	if cfg.Ctx == nil {
 		return nil, errors.New("context not provided")
 	}
 
-	if cfg.log == nil {
+	if cfg.Log == nil {
 		return nil, errors.New("logger not provided")
 	}
 
-	if cfg.nodeRegistry == nil {
+	if cfg.NodeRegistry == nil {
 		return nil, errors.New("node registry not provided")
 	}
 
-	if cfg.db == nil {
+	if cfg.DB == nil {
 		return nil, errors.New("database not provided")
 	}
 
-	if cfg.listenAddress == "" {
+	if cfg.ListenAddress == "" {
 		return nil, errors.New("listen address not provided")
 	}
 
-	if cfg.httpListenAddress == "" {
+	if cfg.HttpListenAddress == "" {
 		return nil, errors.New("http listen address not provided")
 	}
 
@@ -165,50 +165,50 @@ func NewReplicationServer(
 	)
 
 	var mtcs *metrics.Server
-	if cfg.options.Metrics.Enable {
+	if cfg.Options.Metrics.Enable {
 		promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 		promReg.MustRegister(collectors.NewGoCollector())
 		promReg.MustRegister(clientMetrics)
 
-		mtcs, err = metrics.NewMetricsServer(cfg.ctx,
-			cfg.options.Metrics.Address,
-			cfg.options.Metrics.Port,
-			cfg.log,
+		mtcs, err = metrics.NewMetricsServer(cfg.Ctx,
+			cfg.Options.Metrics.Address,
+			cfg.Options.Metrics.Port,
+			cfg.Log,
 			promReg,
 		)
 		if err != nil {
-			cfg.log.Error("initializing metrics server", zap.Error(err))
+			cfg.Log.Error("initializing metrics server", zap.Error(err))
 			return nil, err
 		}
 	}
 
 	s := &ReplicationServer{
-		options:      cfg.options,
-		log:          cfg.log,
-		nodeRegistry: cfg.nodeRegistry,
+		options:      cfg.Options,
+		log:          cfg.Log,
+		nodeRegistry: cfg.NodeRegistry,
 		metrics:      mtcs,
 	}
-	s.ctx, s.cancel = context.WithCancel(cfg.ctx)
+	s.ctx, s.cancel = context.WithCancel(cfg.Ctx)
 
-	if cfg.options.Replication.Enable || cfg.options.Sync.Enable {
+	if cfg.Options.Replication.Enable || cfg.Options.Sync.Enable {
 		s.registrant, err = registrant.NewRegistrant(
 			s.ctx,
-			cfg.log,
-			queries.New(cfg.db),
-			cfg.nodeRegistry,
-			cfg.options.Signer.PrivateKey,
-			cfg.serverVersion,
+			cfg.Log,
+			queries.New(cfg.DB),
+			cfg.NodeRegistry,
+			cfg.Options.Signer.PrivateKey,
+			cfg.ServerVersion,
 		)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if cfg.options.Indexer.Enable || cfg.options.Replication.Enable {
+	if cfg.Options.Indexer.Enable || cfg.Options.Replication.Enable {
 		s.validationService, err = mlsvalidate.NewMlsValidationService(
-			cfg.ctx,
-			cfg.log,
-			cfg.options.MlsValidation,
+			cfg.Ctx,
+			cfg.Log,
+			cfg.Options.MlsValidation,
 			clientMetrics,
 		)
 		if err != nil {
@@ -216,13 +216,13 @@ func NewReplicationServer(
 		}
 	}
 
-	if cfg.options.Indexer.Enable {
+	if cfg.Options.Indexer.Enable {
 		s.indx, err = indexer.NewIndexer(
-			indexer.WithDB(cfg.db),
-			indexer.WithLogger(cfg.log),
-			indexer.WithContext(cfg.ctx),
+			indexer.WithDB(cfg.DB),
+			indexer.WithLogger(cfg.Log),
+			indexer.WithContext(cfg.Ctx),
 			indexer.WithValidationService(s.validationService),
-			indexer.WithContractsOptions(&cfg.options.Contracts),
+			indexer.WithContractsOptions(&cfg.Options.Contracts),
 		)
 		if err != nil {
 			return nil, err
@@ -230,10 +230,10 @@ func NewReplicationServer(
 
 		s.indx.StartIndexer()
 
-		cfg.log.Info("Indexer service enabled")
+		cfg.Log.Info("Indexer service enabled")
 	}
 
-	if cfg.options.Payer.Enable || cfg.options.Replication.Enable {
+	if cfg.Options.Payer.Enable || cfg.Options.Replication.Enable {
 		err = startAPIServer(
 			s,
 			cfg,
@@ -244,23 +244,23 @@ func NewReplicationServer(
 			return nil, err
 		}
 
-		cfg.log.Info("API server started", zap.Int("port", cfg.options.API.Port))
+		cfg.Log.Info("API server started", zap.Int("port", cfg.Options.API.Port))
 	}
 
-	if cfg.options.Sync.Enable {
+	if cfg.Options.Sync.Enable {
 		s.syncServer, err = sync.NewSyncServer(
 			sync.WithContext(s.ctx),
-			sync.WithLogger(cfg.log),
+			sync.WithLogger(cfg.Log),
 			sync.WithNodeRegistry(s.nodeRegistry),
 			sync.WithRegistrant(s.registrant),
-			sync.WithDB(cfg.db),
+			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(fees.NewFeeCalculator(getRatesFetcher())),
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		cfg.log.Info("Sync service enabled")
+		cfg.Log.Info("Sync service enabled")
 	}
 
 	return s, nil
@@ -275,30 +275,30 @@ func startAPIServer(
 	var err error
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		if cfg.options.Replication.Enable {
+		if cfg.Options.Replication.Enable {
 
-			s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.log, cfg.db)
+			s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.Log, cfg.DB)
 
 			replicationService, err := message.NewReplicationApiService(
 				s.ctx,
-				cfg.log,
+				cfg.Log,
 				s.registrant,
-				cfg.db,
+				cfg.DB,
 				s.validationService,
 				s.cursorUpdater,
 				getRatesFetcher(),
-				cfg.options.Replication,
+				cfg.Options.Replication,
 			)
 			if err != nil {
 				return err
 			}
 			message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-			cfg.log.Info("Replication service enabled")
+			cfg.Log.Info("Replication service enabled")
 
 			metadataService, err := metadata.NewMetadataApiService(
 				s.ctx,
-				cfg.log,
+				cfg.Log,
 				s.cursorUpdater,
 			)
 			if err != nil {
@@ -306,48 +306,48 @@ func startAPIServer(
 			}
 			metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
 
-			cfg.log.Info("Metadata service enabled")
+			cfg.Log.Info("Metadata service enabled")
 		}
 
-		if cfg.options.Payer.Enable {
-			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.options.Payer.PrivateKey)
+		if cfg.Options.Payer.Enable {
+			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.Options.Payer.PrivateKey)
 			if err != nil {
 				return err
 			}
 
 			signer, err := blockchain.NewPrivateKeySigner(
-				cfg.options.Payer.PrivateKey,
-				cfg.options.Contracts.AppChain.ChainID,
+				cfg.Options.Payer.PrivateKey,
+				cfg.Options.Contracts.AppChain.ChainID,
 			)
 			if err != nil {
-				cfg.log.Fatal("initializing signer", zap.Error(err))
+				cfg.Log.Fatal("initializing signer", zap.Error(err))
 			}
 
 			appChainClient, err := blockchain.NewClient(
 				s.ctx,
-				cfg.options.Contracts.AppChain.RpcURL,
+				cfg.Options.Contracts.AppChain.RpcURL,
 			)
 			if err != nil {
-				cfg.log.Fatal("initializing blockchain client", zap.Error(err))
+				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))
 			}
 
-			nonceManager := blockchain.NewSQLBackedNonceManager(cfg.db, cfg.log)
+			nonceManager := blockchain.NewSQLBackedNonceManager(cfg.DB, cfg.Log)
 
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 				s.ctx,
-				cfg.log,
+				cfg.Log,
 				appChainClient,
 				signer,
-				cfg.options.Contracts,
+				cfg.Options.Contracts,
 				nonceManager,
 			)
 			if err != nil {
-				cfg.log.Fatal("initializing message publisher", zap.Error(err))
+				cfg.Log.Fatal("initializing message publisher", zap.Error(err))
 			}
 
 			payerService, err := payer.NewPayerApiService(
 				s.ctx,
-				cfg.log,
+				cfg.Log,
 				s.nodeRegistry,
 				payerPrivateKey,
 				blockchainPublisher,
@@ -359,14 +359,14 @@ func startAPIServer(
 			}
 			payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
-			cfg.log.Info("Payer service enabled")
+			cfg.Log.Info("Payer service enabled")
 		}
 
 		return nil
 	}
 
 	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
-		if cfg.options.Replication.Enable {
+		if cfg.Options.Replication.Enable {
 			err = metadata_api.RegisterMetadataApiHandler(s.ctx, gwmux, conn)
 			if err != nil {
 				return err
@@ -378,7 +378,7 @@ func startAPIServer(
 			}
 		}
 
-		if cfg.options.Payer.Enable {
+		if cfg.Options.Payer.Enable {
 			err = payer_api.RegisterPayerApiHandler(s.ctx, gwmux, conn)
 			if err != nil {
 				return err
@@ -391,10 +391,10 @@ func startAPIServer(
 
 	if s.nodeRegistry != nil && s.registrant != nil {
 		jwtVerifier, err = authn.NewRegistryVerifier(
-			cfg.log,
+			cfg.Log,
 			s.nodeRegistry,
 			s.registrant.NodeID(),
-			cfg.serverVersion,
+			cfg.ServerVersion,
 		)
 		if err != nil {
 			return err
@@ -403,13 +403,13 @@ func startAPIServer(
 
 	s.apiServer, err = api.NewAPIServer(
 		api.WithContext(s.ctx),
-		api.WithLogger(cfg.log),
-		api.WithHTTPListenAddress(cfg.httpListenAddress),
-		api.WithListenAddress(cfg.listenAddress),
+		api.WithLogger(cfg.Log),
+		api.WithHTTPListenAddress(cfg.HttpListenAddress),
+		api.WithListenAddress(cfg.ListenAddress),
 		api.WithJWTVerifier(jwtVerifier),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
-		api.WithReflection(cfg.options.Reflection.Enable),
+		api.WithReflection(cfg.Options.Reflection.Enable),
 		api.WithPrometheusRegistry(promReg),
 	)
 	if err != nil {

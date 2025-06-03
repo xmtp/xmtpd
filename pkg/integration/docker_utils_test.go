@@ -1,4 +1,4 @@
-package upgrade_test
+package integration_test
 
 import (
 	"bufio"
@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go/wait"
 
@@ -25,11 +27,14 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-const testFlag = "ENABLE_UPGRADE_TESTS"
+const (
+	testFlag   = "ENABLE_INTEGRATION_TESTS"
+	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-78a5ac2"
+)
 
 func skipIfNotEnabled() {
 	if _, isSet := os.LookupEnv(testFlag); !isSet {
-		fmt.Printf("Skipping upgrade test. %s is not set\n", testFlag)
+		fmt.Printf("Skipping integration test. %s is not set\n", testFlag)
 		os.Exit(0)
 	}
 }
@@ -65,6 +70,7 @@ func loadEnvFromShell() (map[string]string, error) {
 func expandVars(vars map[string]string) {
 	vars["XMTPD_REPLICATION_ENABLE"] = "true"
 	vars["XMTPD_INDEXER_ENABLE"] = "true"
+	vars["XMTPD_PAYER_ENABLE"] = "true"
 
 	dbName := testutils.GetCallerName(3) + "_" + testutils.RandomStringLower(6)
 
@@ -143,7 +149,7 @@ func runContainer(
 	imageName string,
 	containerName string,
 	envVars map[string]string,
-) error {
+) (testcontainers.Container, error) {
 	ctxwc, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
@@ -180,7 +186,7 @@ func runContainer(
 
 	testcontainers.CleanupContainer(t, xmtpContainer)
 
-	return err
+	return xmtpContainer, err
 }
 
 type GeneratorType string
@@ -197,6 +203,7 @@ func (e GeneratorType) String() string {
 
 func runXDBG(
 	t *testing.T,
+	xmtpdPort nat.Port,
 	genType GeneratorType,
 	count uint64,
 ) error {
@@ -206,19 +213,21 @@ func runXDBG(
 	dbVolumePath := "/tmp/testcontainer-xdbg-db"
 	_ = os.MkdirAll(dbVolumePath, 0o755)
 
+	targetAddr := fmt.Sprintf("http://host.docker.internal:%d", xmtpdPort.Int())
+
 	req := testcontainers.ContainerRequest{
-		Image: "ghcr.io/xmtp/xdbg:main",
+		Image: XDBG_IMAGE,
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 			hc.Binds = append(hc.Binds, fmt.Sprintf("%s:/root/.local/share/xdbg/", dbVolumePath))
 		},
 		Cmd: []string{
-			"-u", "http://host.docker.internal:5050", "-p", "http://host.docker.internal:5050", "-d", "generate", "-e", genType.String(), "-a", strconv.FormatUint(count, 10),
+			"-u", targetAddr, "-p", targetAddr, "-d", "generate", "-e", genType.String(), "-a", strconv.FormatUint(count, 10),
 		},
 		WaitingFor: wait.ForExit(),
 	}
 
-	xmtpContainer, err := testcontainers.GenericContainer(
+	xdbgContainer, err := testcontainers.GenericContainer(
 		ctxwc,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
@@ -230,19 +239,25 @@ func runXDBG(
 		return err
 	}
 
-	testcontainers.CleanupContainer(t, xmtpContainer)
+	testcontainers.CleanupContainer(t, xdbgContainer)
 
-	state, err := xmtpContainer.State(ctxwc)
+	return handleExitedContainer(ctxwc, xdbgContainer)
+}
+
+func handleExitedContainer(
+	context context.Context,
+	exitedContainer testcontainers.Container,
+) error {
+	state, err := exitedContainer.State(context)
 	if err != nil {
 		return err
 	}
 
 	if state.ExitCode != 0 {
-		// Grab logs
-		logs, logErr := xmtpContainer.Logs(ctxwc)
+		logs, logErr := exitedContainer.Logs(context)
 		if logErr != nil {
 			return fmt.Errorf(
-				"Container exited with code %d, but failed to get logs: %v",
+				"container exited with code %d, but failed to get logs: %v",
 				state.ExitCode,
 				logErr,
 			)
@@ -254,7 +269,7 @@ func runXDBG(
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, logs)
 
-		return fmt.Errorf("Container exited with code %d\nLogs:\n%s", state.ExitCode, buf.String())
+		return fmt.Errorf("container exited with code %d\nLogs:\n%s", state.ExitCode, buf.String())
 	}
 
 	return nil

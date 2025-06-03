@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Upgrade Tests
+    name: Integration Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,9 +29,9 @@ jobs:
         with:
           version: v1.0.0
 
-      - name: Run Upgrade Tests
+      - name: Run Integration Tests
         run: |
           export GOPATH="${HOME}/go/"
           export PATH="${PATH}:${GOPATH}/bin"
-          export ENABLE_UPGRADE_TESTS=1
-          go test github.com/xmtp/xmtpd/pkg/upgrade -v
+          export ENABLE_INTEGRATION_TESTS=1
+          go test github.com/xmtp/xmtpd/pkg/integration -v

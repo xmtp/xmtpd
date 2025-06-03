@@ -402,15 +402,15 @@ func startAPIServer(
 	}
 
 	s.apiServer, err = api.NewAPIServer(
-		s.ctx,
-		cfg.log,
-		cfg.listenAddress,
-		cfg.httpListenAddress,
-		cfg.options.Reflection.Enable,
-		serviceRegistrationFunc,
-		httpRegistrationFunc,
-		jwtVerifier,
-		promReg,
+		api.WithContext(s.ctx),
+		api.WithLogger(cfg.log),
+		api.WithHTTPListenAddress(cfg.httpListenAddress),
+		api.WithListenAddress(cfg.listenAddress),
+		api.WithJWTVerifier(jwtVerifier),
+		api.WithRegistrationFunc(serviceRegistrationFunc),
+		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
+		api.WithReflection(cfg.options.Reflection.Enable),
+		api.WithPrometheusRegistry(promReg),
 	)
 	if err != nil {
 		return err

@@ -507,3 +507,33 @@ func (q *Queries) SetReportAttestationStatus(ctx context.Context, arg SetReportA
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
 }
+
+const setReportSubmissionStatus = `-- name: SetReportSubmissionStatus :exec
+UPDATE payer_reports
+SET submission_status = $1
+WHERE id = $2
+	AND submission_status IN ($3)
+`
+
+type SetReportSubmissionStatusParams struct {
+	NewStatus  int16
+	ReportID   []byte
+	PrevStatus []int16
+}
+
+func (q *Queries) SetReportSubmissionStatus(ctx context.Context, arg SetReportSubmissionStatusParams) error {
+	query := setReportSubmissionStatus
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.NewStatus)
+	queryParams = append(queryParams, arg.ReportID)
+	if len(arg.PrevStatus) > 0 {
+		for _, v := range arg.PrevStatus {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:prev_status*/?", strings.Repeat(",?", len(arg.PrevStatus))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:prev_status*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}

@@ -2,35 +2,44 @@ package contracts
 
 import (
 	"context"
+	"database/sql"
+	"encoding/hex"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	p "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	re "github.com/xmtp/xmtpd/pkg/errors"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"go.uber.org/zap"
 )
 
 const (
 	ErrParsePayerReportManagerLog       = "error parsing payer report manager log"
 	ErrPayerReportManagerUnhandledEvent = "unknown payer report manager event"
+	ErrBuildPayerReportID               = "error building payer report id"
+	ErrStoreReport                      = "error storing report"
+	ErrSetReportSubmissionStatus        = "error setting report submission status"
 
 	payerReportManagerPayerReportSubmittedEvent     = "PayerReportSubmitted"
 	payerReportManagerPayerReportSubsetSettledEvent = "PayerReportSubsetSettled"
 )
 
 type PayerReportManagerStorer struct {
-	abi     *abi.ABI
-	queries *queries.Queries
-	logger  *zap.Logger
+	abi             *abi.ABI
+	store           payerreport.IPayerReportStore
+	logger          *zap.Logger
+	contract        *p.PayerReportManager
+	domainSeparator common.Hash
 }
 
 var _ c.ILogStorer = &PayerReportManagerStorer{}
 
 func NewPayerReportManagerStorer(
-	queries *queries.Queries,
+	db *sql.DB,
 	logger *zap.Logger,
 	contract *p.PayerReportManager,
 ) (*PayerReportManagerStorer, error) {
@@ -39,10 +48,19 @@ func NewPayerReportManagerStorer(
 		return nil, err
 	}
 
+	domainSeparator, err := contract.DOMAINSEPARATOR(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	store := payerreport.NewStore(db, logger)
+
 	return &PayerReportManagerStorer{
-		abi:     abi,
-		queries: queries,
-		logger:  logger.Named("storer"),
+		abi:             abi,
+		store:           store,
+		logger:          logger.Named("storer"),
+		contract:        contract,
+		domainSeparator: common.Hash(domainSeparator),
 	}, nil
 }
 
@@ -61,7 +79,23 @@ func (s *PayerReportManagerStorer) StoreLog(
 
 	switch event.Name {
 	case payerReportManagerPayerReportSubmittedEvent:
-		s.logger.Info("PayerReportSubmitted", zap.Any("log", log))
+		var parsedEvent *p.PayerReportManagerPayerReportSubmitted
+		if parsedEvent, err = s.contract.ParsePayerReportSubmitted(log); err != nil {
+			return re.NewNonRecoverableError(ErrParsePayerReportManagerLog, err)
+		}
+
+		if err := s.setReportSubmitted(ctx, parsedEvent); err != nil {
+			return err
+		}
+
+		s.logger.Info(
+			"Successfully stored payer report submitted event",
+			zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
+			zap.Uint64("startSequenceID", parsedEvent.StartSequenceId),
+			zap.Uint64("endSequenceID", parsedEvent.EndSequenceId),
+			zap.String("payersMerkleRoot", hex.EncodeToString(parsedEvent.PayersMerkleRoot[:])),
+			zap.Uint32s("activeNodeIDs", parsedEvent.NodeIds),
+		)
 	case payerReportManagerPayerReportSubsetSettledEvent:
 		s.logger.Info("PayerReportSubsetSettled", zap.Any("log", log))
 	default:
@@ -70,6 +104,52 @@ func (s *PayerReportManagerStorer) StoreLog(
 			ErrPayerReportManagerUnhandledEvent,
 			errors.New(event.Name),
 		)
+	}
+
+	return nil
+}
+
+func (s *PayerReportManagerStorer) setReportSubmitted(
+	ctx context.Context,
+	event *p.PayerReportManagerPayerReportSubmitted,
+) re.RetryableError {
+	var reportID *payerreport.ReportID
+	var err error
+
+	if reportID, err = payerreport.BuildPayerReportID(
+		event.OriginatorNodeId,
+		event.StartSequenceId,
+		event.EndSequenceId,
+		event.EndMinuteSinceEpoch,
+		event.PayersMerkleRoot,
+		event.NodeIds,
+		s.domainSeparator,
+	); err != nil {
+		return re.NewNonRecoverableError(ErrBuildPayerReportID, err)
+	}
+
+	report := &payerreport.PayerReport{
+		ID:                  *reportID,
+		OriginatorNodeID:    event.OriginatorNodeId,
+		StartSequenceID:     event.StartSequenceId,
+		EndSequenceID:       event.EndSequenceId,
+		EndMinuteSinceEpoch: event.EndMinuteSinceEpoch,
+		PayersMerkleRoot:    event.PayersMerkleRoot,
+		ActiveNodeIDs:       event.NodeIds,
+	}
+
+	if err = s.store.StoreReport(ctx, report); err != nil {
+		return re.NewRecoverableError(ErrStoreReport, err)
+	}
+	// Will only set the status to Submitted if it was previously Pending.
+	// If it is already settled, this is a no-op
+	if err = s.store.SetReportSubmissionStatus(
+		ctx,
+		*reportID,
+		[]payerreport.SubmissionStatus{payerreport.SubmissionPending},
+		payerreport.SubmissionSubmitted,
+	); err != nil {
+		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
 	}
 
 	return nil

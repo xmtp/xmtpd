@@ -1,28 +1,48 @@
 package integration_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestXDBGRealMLSPayloads(t *testing.T) {
-	envVars := constructVariables(t)
-	container, err := runContainer(
-		t,
-		"ghcr.io/xmtp/xmtpd:dev",
-		"xmtpd_test_dev",
-		envVars,
-	)
-	require.NoError(t, err, "Failed to start latest version container")
+	network := MakeDockerNetwork(t)
 
-	port, err := container.MappedPort(t.Context(), "5050/tcp")
+	xmtpdContainer, err := NewXmtpdContainerBuilder(t).
+		WithImage("ghcr.io/xmtp/xmtpd:dev").
+		WithNetwork(network).
+		Build(t)
+
 	require.NoError(t, err)
 
-	err = runXDBG(t, port, GeneratorTypeIdentity, 10)
+	name, err := xmtpdContainer.Name(t.Context())
 	require.NoError(t, err)
-	err = runXDBG(t, port, GeneratorTypeGroup, 10)
+
+	target := fmt.Sprintf("http:/%s:5050", name)
+
+	err = NewXdbgContainerBuilder().
+		WithNetwork(network).
+		WithTarget(target).
+		WithGeneratorType(GeneratorTypeIdentity).
+		WithCount(10).
+		Build(t)
 	require.NoError(t, err)
-	err = runXDBG(t, port, GeneratorTypeMessage, 10)
+
+	err = NewXdbgContainerBuilder().
+		WithNetwork(network).
+		WithTarget(target).
+		WithGeneratorType(GeneratorTypeGroup).
+		WithCount(10).
+		Build(t)
+	require.NoError(t, err)
+
+	err = NewXdbgContainerBuilder().
+		WithNetwork(network).
+		WithTarget(target).
+		WithGeneratorType(GeneratorTypeMessage).
+		WithCount(10).
+		Build(t)
 	require.NoError(t, err)
 }

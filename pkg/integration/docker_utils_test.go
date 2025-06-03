@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-connections/nat"
+	"github.com/testcontainers/testcontainers-go/network"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	testFlag   = "ENABLE_INTEGRATION_TESTS"
-	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-78a5ac2"
+	testFlag          = "ENABLE_INTEGRATION_TESTS"
+	XDBG_IMAGE        = "ghcr.io/xmtp/xdbg:sha-78a5ac2"
+	XMTP_NETWORK_NAME = "integration-test-network"
 )
 
 func skipIfNotEnabled() {
@@ -144,51 +145,6 @@ func pullImage(imageName string) error {
 	return err
 }
 
-func runContainer(
-	t *testing.T,
-	imageName string,
-	containerName string,
-	envVars map[string]string,
-) (testcontainers.Container, error) {
-	ctxwc, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-
-	envVars["XMTPD_CONTRACTS_CONFIG_FILE_PATH"] = "/cfg/anvil.json"
-
-	req := testcontainers.ContainerRequest{
-		Image: imageName,
-		Name:  containerName,
-		Env:   envVars,
-		Files: []testcontainers.ContainerFile{
-			{
-				HostFilePath:      testutils.GetScriptPath("../../dev/environments/anvil.json"),
-				ContainerFilePath: "/cfg/anvil.json",
-				FileMode:          0o644,
-			},
-		},
-		ExposedPorts: []string{"5050/tcp"},
-		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
-		},
-		WaitingFor: wait.ForLog(
-			"serving grpc",
-		), // TODO: Ideally we wait for health/liveness probe
-	}
-
-	xmtpContainer, err := testcontainers.GenericContainer(
-		ctxwc,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-			Logger:           log.Default(),
-		},
-	)
-
-	testcontainers.CleanupContainer(t, xmtpContainer)
-
-	return xmtpContainer, err
-}
-
 type GeneratorType string
 
 const (
@@ -199,51 +155,6 @@ const (
 
 func (e GeneratorType) String() string {
 	return string(e)
-}
-
-func runXDBG(
-	t *testing.T,
-	xmtpdPort nat.Port,
-	genType GeneratorType,
-	count uint64,
-) error {
-	ctxwc, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-
-	dbVolumePath := "/tmp/testcontainer-xdbg-db"
-	if err := os.MkdirAll(dbVolumePath, 0o755); err != nil {
-		return fmt.Errorf("failed to create volume directory: %w", err)
-	}
-
-	targetAddr := fmt.Sprintf("http://host.docker.internal:%d", xmtpdPort.Int())
-
-	req := testcontainers.ContainerRequest{
-		Image: XDBG_IMAGE,
-		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
-			hc.Binds = append(hc.Binds, fmt.Sprintf("%s:/root/.local/share/xdbg/", dbVolumePath))
-		},
-		Cmd: []string{
-			"-u", targetAddr, "-p", targetAddr, "-d", "generate", "-e", genType.String(), "-a", strconv.FormatUint(count, 10),
-		},
-		WaitingFor: wait.ForExit(),
-	}
-
-	xdbgContainer, err := testcontainers.GenericContainer(
-		ctxwc,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-			Logger:           log.Default(),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	testcontainers.CleanupContainer(t, xdbgContainer)
-
-	return handleExitedContainer(ctxwc, xdbgContainer)
 }
 
 func handleExitedContainer(
@@ -275,4 +186,172 @@ func handleExitedContainer(
 	}
 
 	return nil
+}
+
+type XmtpdContainerBuilder struct {
+	imageName     string
+	containerName string
+	envVars       map[string]string
+	files         []testcontainers.ContainerFile
+	exposedPorts  []string
+	networkName   string
+}
+
+func NewXmtpdContainerBuilder(t *testing.T) *XmtpdContainerBuilder {
+	envVars := constructVariables(t)
+	envVars["XMTPD_CONTRACTS_CONFIG_FILE_PATH"] = "/cfg/anvil.json"
+
+	return &XmtpdContainerBuilder{
+		envVars: envVars,
+		files: []testcontainers.ContainerFile{{
+			HostFilePath:      testutils.GetScriptPath("../../dev/environments/anvil.json"),
+			ContainerFilePath: "/cfg/anvil.json",
+			FileMode:          0o644,
+		}},
+	}
+}
+
+func (b *XmtpdContainerBuilder) WithImage(imageName string) *XmtpdContainerBuilder {
+	b.imageName = imageName
+	return b
+}
+
+func (b *XmtpdContainerBuilder) WithContainerName(name string) *XmtpdContainerBuilder {
+	b.containerName = name
+	return b
+}
+
+func (b *XmtpdContainerBuilder) WithEnvVars(envVars map[string]string) *XmtpdContainerBuilder {
+	for k, v := range envVars {
+		b.envVars[k] = v
+	}
+	return b
+}
+
+func (b *XmtpdContainerBuilder) WithFile(file testcontainers.ContainerFile) *XmtpdContainerBuilder {
+	b.files = append(b.files, file)
+	return b
+}
+
+func (b *XmtpdContainerBuilder) WithPort(port string) *XmtpdContainerBuilder {
+	b.exposedPorts = append(b.exposedPorts, port)
+	return b
+}
+
+func (b *XmtpdContainerBuilder) WithNetwork(networkName string) *XmtpdContainerBuilder {
+	b.networkName = networkName
+	return b
+}
+
+func (b *XmtpdContainerBuilder) Build(t *testing.T) (testcontainers.Container, error) {
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	req := testcontainers.ContainerRequest{
+		Image:        b.imageName,
+		Name:         b.containerName,
+		Env:          b.envVars,
+		Files:        b.files,
+		ExposedPorts: b.exposedPorts,
+		Networks:     []string{b.networkName},
+		WaitingFor:   wait.ForLog("serving grpc"),
+	}
+
+	xmtpdContainer, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Logger:           log.Default(),
+		},
+	)
+
+	testcontainers.CleanupContainer(t, xmtpdContainer)
+
+	return xmtpdContainer, err
+}
+
+type XdbgContainerBuilder struct {
+	image        string
+	networkNames []string
+	targetAddr   string
+	genType      GeneratorType
+	count        string
+	dbVolumePath string
+	waitStrategy wait.Strategy
+}
+
+func NewXdbgContainerBuilder() *XdbgContainerBuilder {
+	return &XdbgContainerBuilder{
+		image:        XDBG_IMAGE,
+		dbVolumePath: "/tmp/testcontainer-xdbg-db",
+		waitStrategy: wait.ForExit(),
+	}
+}
+
+func (b *XdbgContainerBuilder) WithNetwork(network string) *XdbgContainerBuilder {
+	b.networkNames = []string{network}
+	return b
+}
+
+func (b *XdbgContainerBuilder) WithTarget(addr string) *XdbgContainerBuilder {
+	b.targetAddr = addr
+	return b
+}
+
+func (b *XdbgContainerBuilder) WithGeneratorType(genType GeneratorType) *XdbgContainerBuilder {
+	b.genType = genType
+	return b
+}
+
+func (b *XdbgContainerBuilder) WithCount(count uint64) *XdbgContainerBuilder {
+	b.count = strconv.FormatUint(count, 10)
+	return b
+}
+
+func (b *XdbgContainerBuilder) Build(t *testing.T) error {
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := os.MkdirAll(b.dbVolumePath, 0o755); err != nil {
+		return fmt.Errorf("failed to create volume directory: %w", err)
+	}
+
+	req := testcontainers.ContainerRequest{
+		Image:    b.image,
+		Networks: b.networkNames,
+		Cmd: []string{
+			"-u", b.targetAddr,
+			"-p", b.targetAddr,
+			"-d", "generate",
+			"-e", b.genType.String(),
+			"-a", b.count,
+		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.Binds = append(hc.Binds, fmt.Sprintf("%s:/root/.local/share/xdbg/", b.dbVolumePath))
+		},
+		WaitingFor: b.waitStrategy,
+	}
+
+	xdbgContainer, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Logger:           log.Default(),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	testcontainers.CleanupContainer(t, xdbgContainer)
+
+	return handleExitedContainer(ctx, xdbgContainer)
+}
+
+func MakeDockerNetwork(t *testing.T) string {
+	net, err := network.New(t.Context())
+	require.NoError(t, err)
+	return net.Name
 }

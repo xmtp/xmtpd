@@ -19,35 +19,25 @@ func TestUpgradeToLatest(t *testing.T) {
 		image := fmt.Sprintf("%s:%s", ghcrRepository, version)
 
 		t.Run(version, func(t *testing.T) {
-			envVars := constructVariables(t)
 			t.Logf("Starting old container")
-			_, err := runContainer(
-				t,
-				image,
-				fmt.Sprintf("xmtpd_test_%s", version),
-				envVars,
-			)
-			require.NoError(t, err, "Failed to start container version %s", version)
+			_, err := NewXmtpdContainerBuilder(t).
+				WithImage(image).
+				Build(t)
+			require.NoError(t, err)
 
 			t.Logf("Starting new container")
-			_, err = runContainer(
-				t,
-				"ghcr.io/xmtp/xmtpd:dev",
-				"xmtpd_test_dev",
-				envVars,
-			)
+			_, err = NewXmtpdContainerBuilder(t).
+				WithImage("ghcr.io/xmtp/xmtpd:dev").
+				Build(t)
 			require.NoError(t, err, "Failed to start dev container")
 		})
 	}
 }
 
 func TestLatestVersion(t *testing.T) {
-	envVars := constructVariables(t)
-	_, err := runContainer(
-		t,
-		"ghcr.io/xmtp/xmtpd:dev",
-		"xmtpd_test_dev",
-		envVars,
-	)
-	require.NoError(t, err, "Failed to start latest version container")
+	_, err := NewXmtpdContainerBuilder(t).
+		WithImage("ghcr.io/xmtp/xmtpd:dev").
+		Build(t)
+
+	require.NoError(t, err)
 }

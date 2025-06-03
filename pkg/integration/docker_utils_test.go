@@ -211,7 +211,9 @@ func runXDBG(
 	defer cancel()
 
 	dbVolumePath := "/tmp/testcontainer-xdbg-db"
-	_ = os.MkdirAll(dbVolumePath, 0o755)
+	if err := os.MkdirAll(dbVolumePath, 0o755); err != nil {
+		return fmt.Errorf("failed to create volume directory: %w", err)
+	}
 
 	targetAddr := fmt.Sprintf("http://host.docker.internal:%d", xmtpdPort.Int())
 

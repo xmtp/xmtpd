@@ -172,7 +172,13 @@ WHERE sqlc.narg(min_attestations)::INT IS NULL
 UPDATE payer_reports
 SET attestation_status = @new_status
 WHERE id = @report_id
-	AND attestation_status IN (sqlc.slice(prev_status));
+	AND attestation_status = ANY(sqlc.arg(prev_status)::SMALLINT []);
+
+-- name: SetReportSubmissionStatus :exec
+UPDATE payer_reports
+SET submission_status = @new_status
+WHERE id = @report_id
+	AND submission_status = ANY(sqlc.arg(prev_status)::SMALLINT []);
 
 -- name: FetchAttestations :many
 SELECT *

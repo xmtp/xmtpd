@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -34,12 +35,13 @@ var _ c.IContract = &PayerReportManager{}
 func NewPayerReportManager(
 	ctx context.Context,
 	client *ethclient.Client,
-	querier *queries.Queries,
+	db *sql.DB,
 	logger *zap.Logger,
 	address common.Address,
 	chainID int,
 	startBlock uint64,
 ) (*PayerReportManager, error) {
+	querier := queries.New(db)
 	contract, err := payerReportManagerContract(address, client)
 	if err != nil {
 		return nil, err
@@ -64,7 +66,7 @@ func NewPayerReportManager(
 	logger = logger.Named("payer-report-manager").
 		With(zap.String("contractAddress", address.Hex()))
 
-	payerReportManagerStorer, err := NewPayerReportManagerStorer(querier, logger, contract)
+	payerReportManagerStorer, err := NewPayerReportManagerStorer(db, logger, contract)
 	if err != nil {
 		return nil, err
 	}

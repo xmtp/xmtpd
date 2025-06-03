@@ -132,6 +132,8 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		log:          cfg.Log.Named("api"),
 	}
 
+	s.log.Info("Creating API server")
+
 	srvMetrics := grpcprom.NewServerMetrics(
 		grpcprom.WithServerHandlingTimeHistogram(
 			grpcprom.WithHistogramBuckets(

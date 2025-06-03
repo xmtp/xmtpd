@@ -34,7 +34,13 @@ func startIndexing(
 
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
-	indx, err := indexer.NewIndexer(ctx, logger, db, cfg, validationService)
+	indx, err := indexer.NewIndexer(
+		indexer.WithDB(db),
+		indexer.WithLogger(logger),
+		indexer.WithContext(ctx),
+		indexer.WithValidationService(validationService),
+		indexer.WithContractsOptions(&cfg),
+	)
 	require.NoError(t, err)
 	indx.StartIndexer()
 

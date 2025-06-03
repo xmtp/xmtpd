@@ -218,11 +218,11 @@ func NewReplicationServer(
 
 	if cfg.options.Indexer.Enable {
 		s.indx, err = indexer.NewIndexer(
-			cfg.ctx,
-			cfg.log,
-			cfg.db,
-			cfg.options.Contracts,
-			s.validationService,
+			indexer.WithDB(cfg.db),
+			indexer.WithLogger(cfg.log),
+			indexer.WithContext(cfg.ctx),
+			indexer.WithValidationService(s.validationService),
+			indexer.WithContractsOptions(&cfg.options.Contracts),
 		)
 		if err != nil {
 			return nil, err

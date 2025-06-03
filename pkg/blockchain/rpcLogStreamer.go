@@ -25,7 +25,7 @@ const (
 	defaultLagFromHighestBlock = 0
 	maxSubReconnectionRetries  = 10
 	sleepTimeOnError           = 100 * time.Millisecond
-	sleepTimeNoLogs            = 100 * time.Millisecond
+	sleepTimeOnNoLogs          = 100 * time.Millisecond
 )
 
 var (
@@ -190,7 +190,7 @@ backfillLoop:
 					break backfillLoop
 
 				case ErrReorg:
-					logger.Warn("Reorg detected, rolled back to block", zap.Uint64("newFrom", *response.NextBlockNumber))
+					logger.Warn("Reorg detected, rolled back to block", zap.Uint64("fromBlock", *response.NextBlockNumber))
 
 				default:
 					logger.Error(
@@ -210,7 +210,7 @@ backfillLoop:
 			}
 
 			if len(response.Logs) == 0 {
-				time.Sleep(sleepTimeNoLogs)
+				time.Sleep(sleepTimeOnNoLogs)
 				continue
 			}
 
@@ -270,13 +270,14 @@ func (r *RpcLogStreamer) GetNextPage(
 		return GetNextPageResponse{}, err
 	}
 
-	// It's fine to not check for reorgs at block height 0.
+	// Do not check for reorgs at block height 0. Genesis does not have a parent.
 	if fromBlockNumber > 0 {
 		block, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
 		if err != nil {
 			return GetNextPageResponse{}, err
 		}
 
+		// Compare the current hash against the next block's parent hash.
 		if len(fromBlockHash) == 32 &&
 			!bytes.Equal(fromBlockHash, block.ParentHash().Bytes()) {
 			r.logger.Error(
@@ -286,6 +287,8 @@ func (r *RpcLogStreamer) GetNextPage(
 				zap.String("gotParentHash", block.ParentHash().Hex()),
 			)
 
+			// If the current hash doesn't match the next block's parent hash,
+			// move one block back and use that hash as the new starting point.
 			nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber-1)))
 			if err != nil {
 				return GetNextPageResponse{}, err
@@ -305,9 +308,11 @@ func (r *RpcLogStreamer) GetNextPage(
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
 	if fromBlockNumber > highestBlock {
-		// TODO: Move this metric to the subscription in a subsequent PR.
-		// metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
-		return GetNextPageResponse{}, fmt.Errorf("fromBlockNumber > highestBlock")
+		return GetNextPageResponse{}, fmt.Errorf(
+			"fromBlockNumber is higher than highestBlock: %d > %d",
+			fromBlockNumber,
+			highestBlock,
+		)
 	}
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)

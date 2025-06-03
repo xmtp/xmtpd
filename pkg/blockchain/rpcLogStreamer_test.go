@@ -23,50 +23,47 @@ import (
 func TestRpcLogStreamer(t *testing.T) {
 	address := testutils.RandomAddress()
 	topic := testutils.RandomLogTopic()
-	fromBlock := uint64(1)
-	lastBlock := uint64(10)
+	backfillFromBlock := uint64(1)
+	backfillToBlock := uint64(10)
 	logMessage := types.Log{
 		Address: address,
 		Topics:  []common.Hash{topic},
 		Data:    []byte("foo"),
 	}
 
-	// Create mock blocks with proper headers
-	header2 := &types.Header{
+	mockBlock2 := types.NewBlockWithHeader(&types.Header{
 		Number:     big.NewInt(2),
-		ParentHash: common.Hash{}, // Empty parent hash for simplicity
-	}
-	mockBlock2 := types.NewBlockWithHeader(header2)
+		ParentHash: common.Hash{},
+	})
 
-	header11 := &types.Header{
+	mockBlock11 := types.NewBlockWithHeader(&types.Header{
 		Number: big.NewInt(11),
-	}
-	mockBlock11 := types.NewBlockWithHeader(header11)
+	})
 
 	mockClient := mocks.NewMockChainClient(t)
 
-	// Mock BlockByNumber call for fromBlockNumber+1 (block 2) - for reorg detection
-	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(fromBlock+1))).
+	// Mock BlockByNumber call for fromBlockNumber+1 (block 2) - for reorg detection.
+	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(backfillFromBlock+1))).
 		Return(mockBlock2, nil)
 
-	// Mock BlockNumber call to get the highest block
-	mockClient.On("BlockNumber", mock.Anything).Return(lastBlock, nil)
+	// Mock BlockNumber call to get the highest block.
+	mockClient.On("BlockNumber", mock.Anything).Return(mockBlock11.NumberU64(), nil)
 
 	// Mock FilterLogs call
 	mockClient.On("FilterLogs", mock.Anything, ethereum.FilterQuery{
-		FromBlock: big.NewInt(int64(fromBlock)),
-		ToBlock:   big.NewInt(int64(lastBlock)),
+		FromBlock: big.NewInt(int64(backfillFromBlock)),
+		ToBlock:   big.NewInt(int64(backfillToBlock)),
 		Addresses: []common.Address{address},
 		Topics:    [][]common.Hash{{topic}},
 	}).Return([]types.Log{logMessage}, nil)
 
 	// Mock BlockByNumber call for toBlock+1 (block 11) - for getting next block hash
-	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(lastBlock+1))).
+	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(backfillToBlock+1))).
 		Return(mockBlock11, nil)
 
 	cfg := blockchain.ContractConfig{
 		ID:                "testContract",
-		FromBlockNumber:   fromBlock,
+		FromBlockNumber:   backfillFromBlock,
 		FromBlockHash:     []byte{},
 		Address:           address,
 		Topics:            []common.Hash{topic},
@@ -78,13 +75,13 @@ func TestRpcLogStreamer(t *testing.T) {
 		mockClient,
 		testutils.NewLog(t),
 		blockchain.WithContractConfig(cfg),
+		blockchain.WithBackfillBlockSize(9),
 	)
 	require.NoError(t, err)
 
-	logs, nextPage, _, _, err := streamer.GetNextPage(context.Background(), cfg, fromBlock, nil)
+	response, err := streamer.GetNextPage(context.Background(), cfg, backfillFromBlock, nil)
 	require.NoError(t, err)
-	expectedNextPage := uint64(11)
-	require.Equal(t, &expectedNextPage, nextPage)
-	require.Equal(t, 1, len(logs))
-	require.Equal(t, logs[0].Address, address)
+	require.Equal(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
+	require.Equal(t, 1, len(response.Logs))
+	require.Equal(t, response.Logs[0].Address, address)
 }

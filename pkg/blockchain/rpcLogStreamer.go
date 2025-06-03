@@ -21,13 +21,17 @@ import (
 )
 
 const (
-	backfillBlocks   = uint64(1000)
-	maxSubRetries    = 10
-	sleepTimeOnError = 100 * time.Millisecond
-	sleepTimeNoLogs  = 100 * time.Millisecond
+	defaultBackfillBlockSize   = 500
+	defaultLagFromHighestBlock = 0
+	maxSubReconnectionRetries  = 10
+	sleepTimeOnError           = 100 * time.Millisecond
+	sleepTimeNoLogs            = 100 * time.Millisecond
 )
 
-var ErrReorg = errors.New("blockchain reorg detected")
+var (
+	ErrReorg         = errors.New("blockchain reorg detected")
+	ErrEndOfBackfill = errors.New("end of backfill")
+)
 
 // Struct defining all the information required to filter events from logs
 type ContractConfig struct {
@@ -118,8 +122,8 @@ func NewRpcLogStreamer(
 		cancel:              cancel,
 		wg:                  sync.WaitGroup{},
 		watchers:            make(map[string]ContractConfig),
-		lagFromHighestBlock: 0,
-		backfillBlockSize:   500,
+		lagFromHighestBlock: defaultLagFromHighestBlock,
+		backfillBlockSize:   defaultBackfillBlockSize,
 	}
 
 	for _, option := range options {
@@ -156,7 +160,6 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 				With(zap.String("contractAddress", cfg.Address.Hex()))
 		backfillFromBlockNumber = cfg.FromBlockNumber
 		backfillFromBlockHash   = cfg.FromBlockHash
-		backfillHighestBlock    = uint64(0)
 	)
 
 	defer close(cfg.eventChannel)
@@ -167,8 +170,6 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		return
 	}
 
-	// TODO: Start buffering subscription logs immediately.
-
 backfillLoop:
 	for {
 		select {
@@ -177,51 +178,54 @@ backfillLoop:
 			return
 
 		default:
-			logs, nextBlock, nextBlockHash, highestBlock, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
+			response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
 			if err != nil {
-				logger.Error(
-					"Error getting next page",
-					zap.Uint64("fromBlock", backfillFromBlockNumber),
-					zap.Error(err),
-				)
-				time.Sleep(sleepTimeOnError)
-				continue
+				switch err {
+				case ErrEndOfBackfill:
+					for _, log := range response.Logs {
+						cfg.eventChannel <- log
+					}
+
+					logger.Info("Backfill complete, switching to subscription…")
+					break backfillLoop
+
+				case ErrReorg:
+					logger.Warn("Reorg detected, rolled back to block", zap.Uint64("newFrom", *response.NextBlockNumber))
+
+				default:
+					logger.Error(
+						"Error getting next page",
+						zap.Uint64("fromBlock", backfillFromBlockNumber),
+						zap.Error(err),
+					)
+
+					time.Sleep(sleepTimeOnError)
+					continue
+				}
 			}
 
-			if nextBlock != nil {
-				backfillFromBlockNumber = *nextBlock
-				backfillFromBlockHash = nextBlockHash
-				backfillHighestBlock = *nextBlock - 1
+			if response.NextBlockNumber != nil {
+				backfillFromBlockNumber = *response.NextBlockNumber
+				backfillFromBlockHash = response.NextBlockHash
 			}
 
-			if len(logs) == 0 {
+			if len(response.Logs) == 0 {
 				time.Sleep(sleepTimeNoLogs)
 				continue
 			}
 
 			logger.Debug(
 				"Got logs",
-				zap.Int("numLogs", len(logs)),
+				zap.Int("numLogs", len(response.Logs)),
 				zap.Uint64("fromBlock", backfillFromBlockNumber),
 				zap.Time("time", time.Now()),
 			)
 
-			for _, log := range logs {
+			for _, log := range response.Logs {
 				cfg.eventChannel <- log
-			}
-
-			if backfillHighestBlock >= highestBlock {
-				logger.Info(
-					"Backfill complete, switching to websocket subscription mode",
-					zap.Uint64("highestBackfillBlock", backfillHighestBlock),
-				)
-
-				break backfillLoop
 			}
 		}
 	}
-
-	// TODO: Apply buffered logs.
 
 	for {
 		select {
@@ -247,23 +251,30 @@ backfillLoop:
 	}
 }
 
+type GetNextPageResponse struct {
+	Logs            []types.Log
+	NextBlockNumber *uint64
+	NextBlockHash   []byte
+}
+
 func (r *RpcLogStreamer) GetNextPage(
 	ctx context.Context,
 	cfg ContractConfig,
 	fromBlockNumber uint64,
 	fromBlockHash []byte,
-) (logs []types.Log, nextBlockNumber *uint64, nextBlockHash []byte, highestBlock uint64, err error) {
+) (GetNextPageResponse, error) {
 	contractAddress := cfg.Address.Hex()
 
-	highestBlock, err = r.client.BlockNumber(ctx)
+	highestBlock, err := r.client.BlockNumber(ctx)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return GetNextPageResponse{}, err
 	}
 
+	// It's fine to not check for reorgs at block height 0.
 	if fromBlockNumber > 0 {
 		block, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
 		if err != nil {
-			return nil, nil, nil, 0, err
+			return GetNextPageResponse{}, err
 		}
 
 		if len(fromBlockHash) == 32 &&
@@ -277,13 +288,17 @@ func (r *RpcLogStreamer) GetNextPage(
 
 			nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber-1)))
 			if err != nil {
-				return nil, nil, nil, 0, err
+				return GetNextPageResponse{}, err
 			}
 
 			number := nextBlock.Number().Uint64()
 			hash := nextBlock.Hash().Bytes()
 
-			return nil, &number, hash, highestBlock, ErrReorg
+			return GetNextPageResponse{
+				Logs:            []types.Log{},
+				NextBlockNumber: &number,
+				NextBlockHash:   hash,
+			}, ErrReorg
 		}
 	}
 
@@ -292,37 +307,49 @@ func (r *RpcLogStreamer) GetNextPage(
 	if fromBlockNumber > highestBlock {
 		// TODO: Move this metric to the subscription in a subsequent PR.
 		// metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
-		return []types.Log{}, nil, nil, 0, nil
+		return GetNextPageResponse{}, fmt.Errorf("fromBlockNumber > highestBlock")
 	}
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)
 
-	toBlock := min(fromBlockNumber+backfillBlocks, highestBlock)
+	toBlock := min(fromBlockNumber+r.backfillBlockSize, highestBlock)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
-	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
+	logs, err := metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
 		return r.client.FilterLogs(
 			ctx,
 			buildFilterQuery(cfg, fromBlockNumber, toBlock),
 		)
 	})
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return GetNextPageResponse{}, err
 	}
 
 	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
 
+	if toBlock+1 > highestBlock {
+		return GetNextPageResponse{
+			Logs:            logs,
+			NextBlockNumber: nil,
+			NextBlockHash:   nil,
+		}, ErrEndOfBackfill
+	}
+
 	nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(toBlock+1)))
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return GetNextPageResponse{}, err
 	}
 
 	number := nextBlock.Number().Uint64()
 	hash := nextBlock.Hash().Bytes()
 
-	return logs, &number, hash, highestBlock, nil
+	return GetNextPageResponse{
+		Logs:            logs,
+		NextBlockNumber: &number,
+		NextBlockHash:   hash,
+	}, nil
 }
 
 func (r *RpcLogStreamer) buildSubscriptionChannel(
@@ -375,7 +402,7 @@ func (r *RpcLogStreamer) buildSubscriptionChannel(
 						r.ctx,
 						rebuildOperation,
 						backoff.WithBackOff(expBackoff),
-						backoff.WithMaxTries(maxSubRetries),
+						backoff.WithMaxTries(maxSubReconnectionRetries),
 						backoff.WithMaxElapsedTime(cfg.MaxDisconnectTime),
 					)
 					if err != nil {

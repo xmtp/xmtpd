@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/hex"
@@ -39,31 +38,38 @@ func NewTestServer(
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
 
-	server, err := s.NewReplicationServer(context.Background(), log, config.ServerOptions{
-		Contracts: config.ContractsOptions{
-			AppChain: config.AppChainOptions{
-				RpcURL:                 "ws://localhost:8545",
-				MaxChainDisconnectTime: 5 * time.Minute,
+	server, err := s.NewReplicationServer(s.WithContext(t.Context()),
+		s.WithLogger(log),
+		s.WithDB(db),
+		s.WithNodeRegistry(registry),
+		s.WithServerVersion(testutils.GetLatestVersion(t)),
+		s.WithListenAddress(fmt.Sprintf("localhost:%d", port)),
+		s.WithHTTPListenAddress(fmt.Sprintf("localhost:%d", httpPort)),
+		s.WithServerOptions(&config.ServerOptions{
+			Contracts: config.ContractsOptions{
+				AppChain: config.AppChainOptions{
+					RpcURL:                 "ws://localhost:8545",
+					MaxChainDisconnectTime: 5 * time.Minute,
+				},
 			},
-		},
-		MlsValidation: config.MlsValidationOptions{
-			GrpcAddress: "http://localhost:60051",
-		},
-		Signer: config.SignerOptions{
-			PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
-		},
-		API: config.ApiOptions{
-			Port:     port,
-			HTTPPort: httpPort,
-		},
-		Sync: config.SyncOptions{
-			Enable: true,
-		},
-		Replication: config.ReplicationOptions{
-			Enable:                true,
-			SendKeepAliveInterval: 30 * time.Second,
-		},
-	}, registry, db, fmt.Sprintf("localhost:%d", port), fmt.Sprintf("localhost:%d", httpPort), testutils.GetLatestVersion(t))
+			MlsValidation: config.MlsValidationOptions{
+				GrpcAddress: "http://localhost:60051",
+			},
+			Signer: config.SignerOptions{
+				PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
+			},
+			API: config.ApiOptions{
+				Port:     port,
+				HTTPPort: httpPort,
+			},
+			Sync: config.SyncOptions{
+				Enable: true,
+			},
+			Replication: config.ReplicationOptions{
+				Enable:                true,
+				SendKeepAliveInterval: 30 * time.Second,
+			},
+		}))
 	require.NoError(t, err)
 
 	return server

@@ -1,4 +1,4 @@
-package blockchain_test
+package rpc_streamer_test
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
 
+	"github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 
@@ -61,7 +61,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(backfillToBlock+1))).
 		Return(mockBlock11, nil)
 
-	cfg := blockchain.ContractConfig{
+	cfg := rpc_streamer.ContractConfig{
 		ID:                "testContract",
 		FromBlockNumber:   backfillFromBlock,
 		FromBlockHash:     []byte{},
@@ -70,12 +70,12 @@ func TestRpcLogStreamer(t *testing.T) {
 		MaxDisconnectTime: 5 * time.Minute,
 	}
 
-	streamer, err := blockchain.NewRpcLogStreamer(
+	streamer, err := rpc_streamer.NewRpcLogStreamer(
 		context.Background(),
 		mockClient,
 		testutils.NewLog(t),
-		blockchain.WithContractConfig(cfg),
-		blockchain.WithBackfillBlockSize(9),
+		rpc_streamer.WithContractConfig(cfg),
+		rpc_streamer.WithBackfillBlockSize(9),
 	)
 	require.NoError(t, err)
 

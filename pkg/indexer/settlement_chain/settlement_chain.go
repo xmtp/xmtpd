@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	streamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -28,7 +29,7 @@ type SettlementChain struct {
 	wg                 sync.WaitGroup
 	client             *ethclient.Client
 	log                *zap.Logger
-	streamer           *blockchain.RpcLogStreamer
+	streamer           c.ILogStreamer
 	payerRegistry      *contracts.PayerRegistry
 	payerReportManager *contracts.PayerReportManager
 	chainID            int
@@ -68,7 +69,7 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	payerRegistryLatestBlockNumber, _ := payerRegistry.GetLatestBlock()
+	payerRegistryLatestBlockNumber, payerRegistryLatestBlockHash := payerRegistry.GetLatestBlock()
 
 	payerReportManager, err := contracts.NewPayerReportManager(
 		ctxwc,
@@ -85,32 +86,34 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	payerReportManagerLatestBlockNumber, _ := payerReportManager.GetLatestBlock()
+	payerReportManagerLatestBlockNumber, payerReportManagerLatestBlockHash := payerReportManager.GetLatestBlock()
 
-	streamer, err := blockchain.NewRpcLogStreamer(
+	streamer, err := streamer.NewRpcLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
-		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.PayerRegistryName(cfg.ChainID),
-				FromBlock:         payerRegistryLatestBlockNumber,
+				FromBlockNumber:   payerRegistryLatestBlockNumber,
+				FromBlockHash:     payerRegistryLatestBlockHash,
 				Address:           payerRegistry.Address(),
 				Topics:            payerRegistry.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.PayerReportManagerName(cfg.ChainID),
-				FromBlock:         payerReportManagerLatestBlockNumber,
+				FromBlockNumber:   payerReportManagerLatestBlockNumber,
+				FromBlockHash:     payerReportManagerLatestBlockHash,
 				Address:           payerReportManager.Address(),
 				Topics:            payerReportManager.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		streamer.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()
@@ -140,9 +143,7 @@ func (s *SettlementChain) Start() {
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				s.streamer.Client(),
 				s.PayerRegistryEventChannel(),
-				s.PayerRegistryReorgChannel(),
 				s.payerRegistry,
 			)
 		})
@@ -154,9 +155,7 @@ func (s *SettlementChain) Start() {
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				s.streamer.Client(),
 				s.PayerReportManagerEventChannel(),
-				s.PayerReportManagerReorgChannel(),
 				s.payerReportManager,
 			)
 		})
@@ -183,14 +182,6 @@ func (s *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
 	return s.streamer.GetEventChannel(contracts.PayerRegistryName(s.chainID))
 }
 
-func (s *SettlementChain) PayerRegistryReorgChannel() chan uint64 {
-	return s.streamer.GetReorgChannel(contracts.PayerRegistryName(s.chainID))
-}
-
 func (s *SettlementChain) PayerReportManagerEventChannel() <-chan types.Log {
 	return s.streamer.GetEventChannel(contracts.PayerReportManagerName(s.chainID))
-}
-
-func (s *SettlementChain) PayerReportManagerReorgChannel() chan uint64 {
-	return s.streamer.GetReorgChannel(contracts.PayerReportManagerName(s.chainID))
 }

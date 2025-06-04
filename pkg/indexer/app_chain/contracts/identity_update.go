@@ -69,7 +69,7 @@ func NewIdentityUpdateBroadcaster(
 
 	identityUpdateStorer := NewIdentityUpdateStorer(db, logger, contract, validationService)
 
-	reorgHandler := c.NewChainReorgHandler(ctx, client, querier)
+	reorgHandler := NewIdentityUpdateReorgHandler(logger)
 
 	return &IdentityUpdateBroadcaster{
 		address:       address,

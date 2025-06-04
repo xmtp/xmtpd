@@ -69,7 +69,7 @@ func NewPayerReportManager(
 		return nil, err
 	}
 
-	reorgHandler := c.NewChainReorgHandler(ctx, client, querier)
+	reorgHandler := NewPayerReportManagerReorgHandler(logger)
 
 	return &PayerReportManager{
 		address:       address,

@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	streamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -34,7 +35,7 @@ type AppChain struct {
 	wg                        sync.WaitGroup
 	client                    *ethclient.Client
 	log                       *zap.Logger
-	streamer                  *blockchain.RpcLogStreamer
+	streamer                  c.ILogStreamer
 	groupMessageBroadcaster   *contracts.GroupMessageBroadcaster
 	identityUpdateBroadcaster *contracts.IdentityUpdateBroadcaster
 	chainID                   int
@@ -76,7 +77,7 @@ func NewAppChain(
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
-	groupMessageLatestBlockNumber, _ := groupMessageBroadcaster.GetLatestBlock()
+	groupMessageLatestBlockNumber, groupMessageLatestBlockHash := groupMessageBroadcaster.GetLatestBlock()
 
 	identityUpdateBroadcaster, err := contracts.NewIdentityUpdateBroadcaster(
 		ctxwc,
@@ -94,32 +95,34 @@ func NewAppChain(
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
-	identityUpdateLatestBlockNumber, _ := identityUpdateBroadcaster.GetLatestBlock()
+	identityUpdateLatestBlockNumber, identityUpdateLatestBlockHash := identityUpdateBroadcaster.GetLatestBlock()
 
-	streamer, err := blockchain.NewRpcLogStreamer(
+	streamer, err := streamer.NewRpcLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
-		blockchain.WithLagFromHighestBlock(lagFromHighestBlock),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.GroupMessageBroadcasterName(cfg.ChainID),
-				FromBlock:         groupMessageLatestBlockNumber,
+				FromBlockNumber:   groupMessageLatestBlockNumber,
+				FromBlockHash:     groupMessageLatestBlockHash,
 				Address:           groupMessageBroadcaster.Address(),
 				Topics:            groupMessageBroadcaster.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithContractConfig(
-			blockchain.ContractConfig{
+		streamer.WithContractConfig(
+			streamer.ContractConfig{
 				ID:                contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
-				FromBlock:         identityUpdateLatestBlockNumber,
+				FromBlockNumber:   identityUpdateLatestBlockNumber,
+				FromBlockHash:     identityUpdateLatestBlockHash,
 				Address:           identityUpdateBroadcaster.Address(),
 				Topics:            identityUpdateBroadcaster.Topics(),
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		blockchain.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		streamer.WithBackfillBlockSize(cfg.BackfillBlockSize),
 	)
 	if err != nil {
 		cancel()
@@ -149,9 +152,7 @@ func (a *AppChain) Start() {
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				a.streamer.Client(),
 				a.GroupMessageBroadcasterEventChannel(),
-				a.GroupMessageBroadcasterReorgChannel(),
 				a.groupMessageBroadcaster,
 			)
 		})
@@ -163,9 +164,7 @@ func (a *AppChain) Start() {
 		func(ctx context.Context) {
 			c.IndexLogs(
 				ctx,
-				a.streamer.Client(),
 				a.IdentityUpdateBroadcasterEventChannel(),
-				a.IdentityUpdateBroadcasterReorgChannel(),
 				a.identityUpdateBroadcaster,
 			)
 		})
@@ -192,14 +191,6 @@ func (a *AppChain) GroupMessageBroadcasterEventChannel() <-chan types.Log {
 	return a.streamer.GetEventChannel(contracts.GroupMessageBroadcasterName(a.chainID))
 }
 
-func (a *AppChain) GroupMessageBroadcasterReorgChannel() chan uint64 {
-	return a.streamer.GetReorgChannel(contracts.GroupMessageBroadcasterName(a.chainID))
-}
-
 func (a *AppChain) IdentityUpdateBroadcasterEventChannel() <-chan types.Log {
 	return a.streamer.GetEventChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
-}
-
-func (a *AppChain) IdentityUpdateBroadcasterReorgChannel() chan uint64 {
-	return a.streamer.GetReorgChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
 }

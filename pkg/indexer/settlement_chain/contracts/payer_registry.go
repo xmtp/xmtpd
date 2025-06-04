@@ -71,7 +71,7 @@ func NewPayerRegistry(
 		return nil, err
 	}
 
-	reorgHandler := c.NewChainReorgHandler(ctx, client, querier)
+	reorgHandler := NewPayerRegistryReorgHandler(logger)
 
 	return &PayerRegistry{
 		address:       address,

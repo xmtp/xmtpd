@@ -311,5 +311,7 @@ func validateWebsocketURL(url string, fieldName string, set map[string]struct{})
 		set[fmt.Sprintf("--%s is invalid", fieldName)] = struct{}{}
 	}
 
-	_ = conn.Close()
+	if conn != nil {
+		_ = conn.Close()
+	}
 }

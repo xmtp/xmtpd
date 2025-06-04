@@ -1,13 +1,17 @@
-package blockchain
+package rpc_streamer
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/ethereum/go-ethereum"
@@ -18,21 +22,27 @@ import (
 )
 
 const (
-	backfillBlocks   = uint64(1000)
-	maxSubRetries    = 10
-	sleepTimeOnError = 100 * time.Millisecond
-	sleepTimeNoLogs  = 100 * time.Millisecond
+	defaultBackfillBlockSize   = 500
+	defaultLagFromHighestBlock = 0
+	maxSubReconnectionRetries  = 10
+	sleepTimeOnError           = 100 * time.Millisecond
+	sleepTimeOnNoLogs          = 100 * time.Millisecond
+)
+
+var (
+	ErrReorg         = errors.New("blockchain reorg detected")
+	ErrEndOfBackfill = errors.New("end of backfill")
 )
 
 // Struct defining all the information required to filter events from logs
 type ContractConfig struct {
 	ID                string
-	FromBlock         uint64
+	FromBlockNumber   uint64
+	FromBlockHash     []byte
 	Address           common.Address
 	Topics            []common.Hash
 	MaxDisconnectTime time.Duration
 	eventChannel      chan types.Log
-	reorgChannel      chan uint64
 }
 
 type RpcLogStreamerOption func(*RpcLogStreamer) error
@@ -66,12 +76,12 @@ func WithContractConfig(
 
 		streamer.watchers[cfg.ID] = ContractConfig{
 			ID:                cfg.ID,
-			FromBlock:         cfg.FromBlock,
+			FromBlockNumber:   cfg.FromBlockNumber,
+			FromBlockHash:     cfg.FromBlockHash,
 			Address:           cfg.Address,
 			Topics:            cfg.Topics,
 			MaxDisconnectTime: cfg.MaxDisconnectTime,
 			eventChannel:      make(chan types.Log, 100),
-			reorgChannel:      make(chan uint64, 1),
 		}
 
 		return nil
@@ -89,7 +99,7 @@ type RpcLogStreamer struct {
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	wg                  sync.WaitGroup
-	client              ChainClient
+	client              blockchain.ChainClient
 	logger              *zap.Logger
 	watchers            map[string]ContractConfig
 	lagFromHighestBlock uint8
@@ -98,13 +108,13 @@ type RpcLogStreamer struct {
 
 func NewRpcLogStreamer(
 	ctx context.Context,
-	client ChainClient,
+	client blockchain.ChainClient,
 	logger *zap.Logger,
 	options ...RpcLogStreamerOption,
 ) (*RpcLogStreamer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	streamLogger := logger.Named("rpcLogStreamer")
+	streamLogger := logger.Named("rpc-log-streamer")
 
 	streamer := &RpcLogStreamer{
 		ctx:                 ctx,
@@ -113,8 +123,8 @@ func NewRpcLogStreamer(
 		cancel:              cancel,
 		wg:                  sync.WaitGroup{},
 		watchers:            make(map[string]ContractConfig),
-		lagFromHighestBlock: 0,
-		backfillBlockSize:   500,
+		lagFromHighestBlock: defaultLagFromHighestBlock,
+		backfillBlockSize:   defaultBackfillBlockSize,
 	}
 
 	for _, option := range options {
@@ -149,21 +159,17 @@ func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 		logger    = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		subLogger = logger.Named("subscription").
 				With(zap.String("contractAddress", cfg.Address.Hex()))
-		backfillFromBlock    = cfg.FromBlock
-		backfillHighestBlock = uint64(0)
-		unsafeReorgDistance  = uint64(600) // TODO: Configured per chain.
+		backfillFromBlockNumber = cfg.FromBlockNumber
+		backfillFromBlockHash   = cfg.FromBlockHash
 	)
 
 	defer close(cfg.eventChannel)
-	defer close(cfg.reorgChannel)
 
 	innerSubCh, err := r.buildSubscriptionChannel(cfg, subLogger)
 	if err != nil {
 		logger.Error("failed to subscribe to contract", zap.Error(err))
 		return
 	}
-
-	// TODO: Start buffering subscription logs immediately.
 
 backfillLoop:
 	for {
@@ -173,64 +179,54 @@ backfillLoop:
 			return
 
 		default:
-			logs, nextBlock, highestBlock, err := r.GetNextPage(r.ctx, cfg, backfillFromBlock)
+			response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
 			if err != nil {
-				logger.Error(
-					"Error getting next page",
-					zap.Uint64("fromBlock", backfillFromBlock),
-					zap.Error(err),
-				)
-				time.Sleep(sleepTimeOnError)
-				continue
+				switch err {
+				case ErrEndOfBackfill:
+					for _, log := range response.Logs {
+						cfg.eventChannel <- log
+					}
+
+					logger.Info("Backfill complete, switching to subscription.")
+					break backfillLoop
+
+				case ErrReorg:
+					logger.Warn("Reorg detected, rolled back to block", zap.Uint64("fromBlock", *response.NextBlockNumber))
+
+				default:
+					logger.Error(
+						"Error getting next page",
+						zap.Uint64("fromBlock", backfillFromBlockNumber),
+						zap.Error(err),
+					)
+
+					time.Sleep(sleepTimeOnError)
+					continue
+				}
 			}
 
-			if nextBlock != nil {
-				backfillFromBlock = *nextBlock
-				backfillHighestBlock = *nextBlock - 1
+			if response.NextBlockNumber != nil {
+				backfillFromBlockNumber = *response.NextBlockNumber
+				backfillFromBlockHash = response.NextBlockHash
 			}
 
-			if len(logs) == 0 {
-				time.Sleep(sleepTimeNoLogs)
+			if len(response.Logs) == 0 {
+				time.Sleep(sleepTimeOnNoLogs)
 				continue
 			}
 
 			logger.Debug(
 				"Got logs",
-				zap.Int("numLogs", len(logs)),
-				zap.Uint64("fromBlock", backfillFromBlock),
+				zap.Int("numLogs", len(response.Logs)),
+				zap.Uint64("fromBlock", backfillFromBlockNumber),
 				zap.Time("time", time.Now()),
 			)
 
-			for _, log := range logs {
+			for _, log := range response.Logs {
 				cfg.eventChannel <- log
-			}
-
-			if backfillHighestBlock >= highestBlock-unsafeReorgDistance {
-				// TODO: Once the unsafe reorg distance is reached, we can discard from the buffer anything generated before it.
-				// For Base (2s block time), ~600 blocks is safe enough, as Ethereum finality is reached in ~12.8 minutes.
-				// For Orbit (250ms block time) with AnyTrust:
-				// - Hard finality depends on the DA committee batch posting, that's 1 hour between batches - 14400 blocks.
-				// - Soft finality with AnyTrust is reached in less than ~30 seconds - 120 blocks.
-				//
-
-				logger.Debug(
-					"Reached unsafe reorg distance, discarding safe logs and keeping only unsafe logs",
-					zap.Uint64("highestBackfillBlock", backfillHighestBlock),
-				)
-			}
-
-			if backfillHighestBlock >= highestBlock {
-				logger.Info(
-					"Backfill complete, switching to websocket subscription mode",
-					zap.Uint64("highestBackfillBlock", backfillHighestBlock),
-				)
-
-				break backfillLoop
 			}
 		}
 	}
-
-	// TODO: Apply buffered logs.
 
 	for {
 		select {
@@ -256,46 +252,110 @@ backfillLoop:
 	}
 }
 
+type GetNextPageResponse struct {
+	Logs            []types.Log
+	NextBlockNumber *uint64
+	NextBlockHash   []byte
+}
+
 func (r *RpcLogStreamer) GetNextPage(
 	ctx context.Context,
-	config ContractConfig,
-	fromBlock uint64,
-) (logs []types.Log, nextBlock *uint64, highestBlock uint64, err error) {
-	contractAddress := config.Address.Hex()
-	highestBlock, err = r.client.BlockNumber(ctx)
+	cfg ContractConfig,
+	fromBlockNumber uint64,
+	fromBlockHash []byte,
+) (GetNextPageResponse, error) {
+	contractAddress := cfg.Address.Hex()
+
+	highestBlock, err := r.client.BlockNumber(ctx)
 	if err != nil {
-		return nil, nil, 0, err
+		return GetNextPageResponse{}, err
 	}
+
+	// Do not check for reorgs at block height 0. Genesis does not have a parent.
+	if fromBlockNumber > 0 {
+		block, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
+		if err != nil {
+			return GetNextPageResponse{}, err
+		}
+
+		// Compare the current hash against the next block's parent hash.
+		if len(fromBlockHash) == 32 &&
+			!bytes.Equal(fromBlockHash, block.ParentHash().Bytes()) {
+			r.logger.Error(
+				"blockchain reorg detected",
+				zap.Uint64("blockNumber", fromBlockNumber),
+				zap.String("expectedParentHash", hex.EncodeToString(fromBlockHash)),
+				zap.String("gotParentHash", block.ParentHash().Hex()),
+			)
+
+			// If the current hash doesn't match the next block's parent hash,
+			// move one block back and use that hash as the new starting point.
+			nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber-1)))
+			if err != nil {
+				return GetNextPageResponse{}, err
+			}
+
+			number := nextBlock.Number().Uint64()
+			hash := nextBlock.Hash().Bytes()
+
+			return GetNextPageResponse{
+				Logs:            []types.Log{},
+				NextBlockNumber: &number,
+				NextBlockHash:   hash,
+			}, ErrReorg
+		}
+	}
+
 	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
 
-	if fromBlock > highestBlock {
-		// TODO: Move this metric to the subscription in a subsequent PR.
-		// metrics.EmitIndexerCurrentBlockLag(contractAddress, 0)
-		return []types.Log{}, nil, 0, nil
+	if fromBlockNumber > highestBlock {
+		return GetNextPageResponse{}, fmt.Errorf(
+			"fromBlockNumber is higher than highestBlock: %d > %d",
+			fromBlockNumber,
+			highestBlock,
+		)
 	}
 
-	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlock)
+	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)
 
-	toBlock := min(fromBlock+backfillBlocks, highestBlock)
+	toBlock := min(fromBlockNumber+r.backfillBlockSize, highestBlock)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
-	logs, err = metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
+	logs, err := metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
 		return r.client.FilterLogs(
 			ctx,
-			buildFilterQuery(config, fromBlock, toBlock),
+			buildFilterQuery(cfg, fromBlockNumber, toBlock),
 		)
 	})
 	if err != nil {
-		return nil, nil, 0, err
+		return GetNextPageResponse{}, err
 	}
 
 	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
 
-	nextBlockNumber := toBlock + 1
+	if toBlock+1 > highestBlock {
+		return GetNextPageResponse{
+			Logs:            logs,
+			NextBlockNumber: nil,
+			NextBlockHash:   nil,
+		}, ErrEndOfBackfill
+	}
 
-	return logs, &nextBlockNumber, highestBlock, nil
+	nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(toBlock+1)))
+	if err != nil {
+		return GetNextPageResponse{}, err
+	}
+
+	number := nextBlock.Number().Uint64()
+	hash := nextBlock.Hash().Bytes()
+
+	return GetNextPageResponse{
+		Logs:            logs,
+		NextBlockNumber: &number,
+		NextBlockHash:   hash,
+	}, nil
 }
 
 func (r *RpcLogStreamer) buildSubscriptionChannel(
@@ -348,7 +408,7 @@ func (r *RpcLogStreamer) buildSubscriptionChannel(
 						r.ctx,
 						rebuildOperation,
 						backoff.WithBackOff(expBackoff),
-						backoff.WithMaxTries(maxSubRetries),
+						backoff.WithMaxTries(maxSubReconnectionRetries),
 						backoff.WithMaxElapsedTime(cfg.MaxDisconnectTime),
 					)
 					if err != nil {
@@ -383,24 +443,12 @@ func (r *RpcLogStreamer) buildSubscription(
 	return sub, nil
 }
 
-func (r *RpcLogStreamer) Client() ChainClient {
-	return r.client
-}
-
-func (r *RpcLogStreamer) GetEventChannel(id string) chan types.Log {
+func (r *RpcLogStreamer) GetEventChannel(id string) <-chan types.Log {
 	if _, ok := r.watchers[id]; !ok {
 		return nil
 	}
 
 	return r.watchers[id].eventChannel
-}
-
-func (r *RpcLogStreamer) GetReorgChannel(id string) chan uint64 {
-	if _, ok := r.watchers[id]; !ok {
-		return nil
-	}
-
-	return r.watchers[id].reorgChannel
 }
 
 func buildFilterQuery(cfg ContractConfig, from uint64, to uint64) ethereum.FilterQuery {

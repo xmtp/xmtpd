@@ -12,7 +12,7 @@ import (
 // An ILogStreamer streams logs from a source through a channel.
 type ILogStreamer interface {
 	GetEventChannel(id string) <-chan types.Log
-	Start()
+	Start() error
 	Stop()
 }
 

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -131,10 +132,13 @@ func NewReplicationServer(
 	if options.Indexer.Enable {
 		s.indx, err = indexer.NewIndexer(ctx, log, writerDB, options.Contracts, s.validationService)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create indexer: %w", err)
 		}
 
-		s.indx.StartIndexer()
+		err = s.indx.StartIndexer()
+		if err != nil {
+			return nil, fmt.Errorf("failed to start indexer: %w", err)
+		}
 
 		log.Info("Indexer service enabled")
 	}

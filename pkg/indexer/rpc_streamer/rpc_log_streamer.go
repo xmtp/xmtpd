@@ -137,8 +137,13 @@ func NewRpcLogStreamer(
 	return streamer, nil
 }
 
-func (r *RpcLogStreamer) Start() {
+func (r *RpcLogStreamer) Start() error {
 	for _, watcher := range r.watchers {
+		err := r.validateWatcher(watcher)
+		if err != nil {
+			return err
+		}
+
 		tracing.GoPanicWrap(
 			r.ctx,
 			&r.wg,
@@ -147,6 +152,8 @@ func (r *RpcLogStreamer) Start() {
 				r.watchContract(watcher)
 			})
 	}
+
+	return nil
 }
 
 func (r *RpcLogStreamer) Stop() {
@@ -156,18 +163,15 @@ func (r *RpcLogStreamer) Stop() {
 
 func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
 	var (
-		logger    = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
-		subLogger = logger.Named("subscription").
-				With(zap.String("contractAddress", cfg.Address.Hex()))
+		logger                  = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		backfillFromBlockNumber = cfg.FromBlockNumber
 		backfillFromBlockHash   = cfg.FromBlockHash
 	)
 
 	defer close(cfg.eventChannel)
 
-	innerSubCh, err := r.buildSubscriptionChannel(cfg, subLogger)
+	innerSubCh, err := r.buildSubscriptionChannel(cfg, logger)
 	if err != nil {
-		logger.Error("failed to subscribe to contract", zap.Error(err))
 		return
 	}
 
@@ -236,7 +240,6 @@ backfillLoop:
 
 		case log, open := <-innerSubCh:
 			if !open {
-				subLogger.Error("subscription channel closed, closing watcher")
 				return
 			}
 
@@ -273,35 +276,33 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	// Do not check for reorgs at block height 0. Genesis does not have a parent.
 	if fromBlockNumber > 0 {
-		block, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
+		parentBlockHeader, err := r.client.HeaderByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
 		if err != nil {
 			return GetNextPageResponse{}, err
 		}
 
 		// Compare the current hash against the next block's parent hash.
 		if len(fromBlockHash) == 32 &&
-			!bytes.Equal(fromBlockHash, block.ParentHash().Bytes()) {
-			r.logger.Error(
+			!bytes.Equal(fromBlockHash, parentBlockHeader.ParentHash.Bytes()) {
+			r.logger.Warn(
 				"blockchain reorg detected",
 				zap.Uint64("blockNumber", fromBlockNumber),
 				zap.String("expectedParentHash", hex.EncodeToString(fromBlockHash)),
-				zap.String("gotParentHash", block.ParentHash().Hex()),
+				zap.String("gotParentHash", parentBlockHeader.ParentHash.Hex()),
 			)
 
 			// If the current hash doesn't match the next block's parent hash,
 			// move one block back and use that hash as the new starting point.
-			nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(fromBlockNumber-1)))
+			nextBlockNumber := uint64(fromBlockNumber - 1)
+			nextBlockHash, err := r.client.HeaderByNumber(ctx, big.NewInt(int64(nextBlockNumber)))
 			if err != nil {
 				return GetNextPageResponse{}, err
 			}
 
-			number := nextBlock.Number().Uint64()
-			hash := nextBlock.Hash().Bytes()
-
 			return GetNextPageResponse{
 				Logs:            []types.Log{},
-				NextBlockNumber: &number,
-				NextBlockHash:   hash,
+				NextBlockNumber: &nextBlockNumber,
+				NextBlockHash:   nextBlockHash.Hash().Bytes(),
 			}, ErrReorg
 		}
 	}
@@ -343,29 +344,38 @@ func (r *RpcLogStreamer) GetNextPage(
 		}, ErrEndOfBackfill
 	}
 
-	nextBlock, err := r.client.BlockByNumber(ctx, big.NewInt(int64(toBlock+1)))
+	nextBlockNumber := uint64(toBlock + 1)
+	nextBlockHash, err := r.client.HeaderByNumber(ctx, big.NewInt(int64(nextBlockNumber)))
 	if err != nil {
 		return GetNextPageResponse{}, err
 	}
 
-	number := nextBlock.Number().Uint64()
-	hash := nextBlock.Hash().Bytes()
-
 	return GetNextPageResponse{
 		Logs:            logs,
-		NextBlockNumber: &number,
-		NextBlockHash:   hash,
+		NextBlockNumber: &nextBlockNumber,
+		NextBlockHash:   nextBlockHash.Hash().Bytes(),
 	}, nil
 }
 
 func (r *RpcLogStreamer) buildSubscriptionChannel(
 	cfg ContractConfig,
-	logger *zap.Logger,
+	log *zap.Logger,
 ) (chan types.Log, error) {
 	var (
+		logger     = log.Named("subscription")
 		innerSubCh = make(chan types.Log, 100)
 		query      = buildBaseFilterQuery(cfg)
 	)
+
+	highestBlock, err := r.client.BlockNumber(r.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Usually, FromBlock is ignored by the RPC nodes when subscribing to logs.
+	// However, some implementations will set FromBlock to 0 if not present.
+	// That would cause a failure if the RPC doesn't support big lookback ranges.
+	query.FromBlock = new(big.Int).SetUint64(highestBlock)
 
 	sub, err := r.buildSubscription(query, innerSubCh)
 	if err != nil {
@@ -443,6 +453,29 @@ func (r *RpcLogStreamer) buildSubscription(
 	return sub, nil
 }
 
+func (r *RpcLogStreamer) validateWatcher(cfg ContractConfig) error {
+	var (
+		testCh = make(chan types.Log, 100)
+		query  = buildBaseFilterQuery(cfg)
+	)
+
+	defer close(testCh)
+
+	highestBlock, err := r.client.BlockNumber(r.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get highest block: %w", err)
+	}
+
+	query.FromBlock = new(big.Int).SetUint64(highestBlock)
+
+	_, err = r.buildSubscription(query, testCh)
+	if err != nil {
+		return fmt.Errorf("failed to validate watcher %s: %w", cfg.Address.Hex(), err)
+	}
+
+	return nil
+}
+
 func (r *RpcLogStreamer) GetEventChannel(id string) <-chan types.Log {
 	if _, ok := r.watchers[id]; !ok {
 		return nil
@@ -453,6 +486,7 @@ func (r *RpcLogStreamer) GetEventChannel(id string) <-chan types.Log {
 
 func buildFilterQuery(cfg ContractConfig, from uint64, to uint64) ethereum.FilterQuery {
 	query := buildBaseFilterQuery(cfg)
+
 	query.FromBlock = new(big.Int).SetUint64(from)
 	query.ToBlock = new(big.Int).SetUint64(to)
 

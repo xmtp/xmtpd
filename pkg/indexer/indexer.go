@@ -81,7 +81,11 @@ func (i *Indexer) Close() {
 	i.log.Debug("Closed")
 }
 
-func (i *Indexer) StartIndexer() {
-	i.appChain.Start()
-	i.settlementChain.Start()
+func (i *Indexer) StartIndexer() error {
+	err := i.appChain.Start()
+	if err != nil {
+		return err
+	}
+
+	return i.settlementChain.Start()
 }

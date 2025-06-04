@@ -468,10 +468,12 @@ func (r *RpcLogStreamer) validateWatcher(cfg ContractConfig) error {
 
 	query.FromBlock = new(big.Int).SetUint64(highestBlock)
 
-	_, err = r.buildSubscription(query, testCh)
+	sub, err := r.buildSubscription(query, testCh)
 	if err != nil {
 		return fmt.Errorf("failed to validate watcher %s: %w", cfg.Address.Hex(), err)
 	}
+
+	defer sub.Unsubscribe()
 
 	return nil
 }

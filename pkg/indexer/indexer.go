@@ -3,8 +3,8 @@ package indexer
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"

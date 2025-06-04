@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"

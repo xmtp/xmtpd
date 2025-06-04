@@ -290,7 +290,9 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 		},
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "NoChange") {
+		// 0xa88ee577 is the error code for NoChange
+		// cast sig "NoChange()"
+		if strings.Contains(err.Error(), "0xa88ee577") {
 			n.logger.Info("No update needed",
 				zap.Uint8("limit", limit),
 			)

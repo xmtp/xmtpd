@@ -37,23 +37,17 @@ type syncWorker struct {
 }
 
 func startSyncWorker(
-	ctx context.Context,
-	log *zap.Logger,
-	nodeRegistry registry.NodeRegistry,
-	registrant *registrant.Registrant,
-	store *sql.DB,
-	feeCalculator fees.IFeeCalculator,
+	cfg *SyncServerConfig,
 ) (*syncWorker, error) {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(cfg.Ctx)
 
 	s := &syncWorker{
 		ctx:           ctx,
-		log:           log.Named("syncWorker"),
-		nodeRegistry:  nodeRegistry,
-		registrant:    registrant,
-		store:         store,
-		feeCalculator: feeCalculator,
-		wg:            sync.WaitGroup{},
+		log:           cfg.Log.Named("syncWorker"),
+		nodeRegistry:  cfg.NodeRegistry,
+		registrant:    cfg.Registrant,
+		store:         cfg.DB,
+		feeCalculator: cfg.FeeCalculator,
 		subscriptions: make(map[uint32]struct{}),
 		cancel:        cancel,
 	}

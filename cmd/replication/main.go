@@ -125,14 +125,14 @@ func main() {
 		}
 
 		s, err := server.NewReplicationServer(
-			ctx,
-			logger,
-			options,
-			chainRegistry,
-			dbInstance,
-			fmt.Sprintf("0.0.0.0:%d", options.API.Port),
-			fmt.Sprintf("0.0.0.0:%d", options.API.HTTPPort),
-			version,
+			server.WithContext(ctx),
+			server.WithLogger(logger),
+			server.WithServerOptions(&options),
+			server.WithNodeRegistry(chainRegistry),
+			server.WithDB(dbInstance),
+			server.WithListenAddress(fmt.Sprintf("0.0.0.0:%d", options.API.Port)),
+			server.WithHTTPListenAddress(fmt.Sprintf("0.0.0.0:%d", options.API.HTTPPort)),
+			server.WithServerVersion(version),
 		)
 		if err != nil {
 			logger.Fatal("initializing server", zap.Error(err))

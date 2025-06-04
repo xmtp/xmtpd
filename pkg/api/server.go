@@ -26,6 +26,56 @@ import (
 
 type RegistrationFunc func(server *grpc.Server) error
 
+type ApiServerConfig struct {
+	Ctx                  context.Context
+	Log                  *zap.Logger
+	ListenAddress        string
+	HTTPListenAddress    string
+	EnableReflection     bool
+	RegistrationFunc     RegistrationFunc
+	HTTPRegistrationFunc HttpRegistrationFunc
+	JWTVerifier          authn.JWTVerifier
+	PromRegistry         *prometheus.Registry
+}
+
+type ApiServerOption func(*ApiServerConfig)
+
+func WithContext(ctx context.Context) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.Ctx = ctx }
+}
+
+func WithLogger(log *zap.Logger) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.Log = log }
+}
+
+func WithListenAddress(addr string) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.ListenAddress = addr }
+}
+
+func WithHTTPListenAddress(addr string) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.HTTPListenAddress = addr }
+}
+
+func WithReflection(enabled bool) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.EnableReflection = enabled }
+}
+
+func WithRegistrationFunc(fn RegistrationFunc) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.RegistrationFunc = fn }
+}
+
+func WithHTTPRegistrationFunc(fn HttpRegistrationFunc) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.HTTPRegistrationFunc = fn }
+}
+
+func WithJWTVerifier(verifier authn.JWTVerifier) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.JWTVerifier = verifier }
+}
+
+func WithPrometheusRegistry(reg *prometheus.Registry) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.PromRegistry = reg }
+}
+
 type ApiServer struct {
 	ctx          context.Context
 	grpcListener net.Listener
@@ -35,56 +85,72 @@ type ApiServer struct {
 	wg           sync.WaitGroup
 }
 
-func NewAPIServer(
-	ctx context.Context,
-	log *zap.Logger,
-	listenAddress string,
-	httpListenAddress string,
-	enableReflection bool,
-	registrationFunc RegistrationFunc,
-	httpRegistrationFunc HttpRegistrationFunc,
-	jwtVerifier authn.JWTVerifier,
-	registry *prometheus.Registry,
-) (*ApiServer, error) {
-	grpcListener, err := net.Listen("tcp", listenAddress)
+func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
+	cfg := &ApiServerConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	if cfg.Ctx == nil {
+		return nil, fmt.Errorf("context is required")
+	}
+
+	if cfg.Log == nil {
+		return nil, fmt.Errorf("logger is required")
+	}
+
+	if cfg.PromRegistry == nil {
+		return nil, fmt.Errorf("prometheus registry is required")
+	}
+
+	if cfg.ListenAddress == "" || cfg.HTTPListenAddress == "" {
+		return nil, fmt.Errorf("both listenAddress and httpListenAddress are required")
+	}
+	if cfg.RegistrationFunc == nil {
+		return nil, fmt.Errorf("grpc registration function is required")
+	}
+	if cfg.HTTPRegistrationFunc == nil {
+		return nil, fmt.Errorf("http registration function is required")
+	}
+
+	grpcListener, err := net.Listen("tcp", cfg.ListenAddress)
 	if err != nil {
 		return nil, err
 	}
-
-	httpListener, err := net.Listen("tcp", httpListenAddress)
+	httpListener, err := net.Listen("tcp", cfg.HTTPListenAddress)
 	if err != nil {
 		return nil, err
 	}
 
 	s := &ApiServer{
-		ctx: ctx,
+		ctx: cfg.Ctx,
 		grpcListener: &proxyproto.Listener{
 			Listener:          grpcListener,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
 		httpListener: httpListener,
-		log:          log.Named("api"),
-		wg:           sync.WaitGroup{},
+		log:          cfg.Log.Named("api"),
 	}
+
 	s.log.Info("Creating API server")
-
-	loggingInterceptor, err := server.NewLoggingInterceptor(log)
-	if err != nil {
-		return nil, err
-	}
-
-	openConnectionsInterceptor, err := server.NewOpenConnectionsInterceptor()
-	if err != nil {
-		return nil, err
-	}
 
 	srvMetrics := grpcprom.NewServerMetrics(
 		grpcprom.WithServerHandlingTimeHistogram(
 			grpcprom.WithHistogramBuckets(
 				[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
 			),
-		))
-	registry.MustRegister(srvMetrics)
+		),
+	)
+	cfg.PromRegistry.MustRegister(srvMetrics)
+
+	loggingInterceptor, err := server.NewLoggingInterceptor(cfg.Log)
+	if err != nil {
+		return nil, err
+	}
+	openConnectionsInterceptor, err := server.NewOpenConnectionsInterceptor()
+	if err != nil {
+		return nil, err
+	}
 
 	unary := []grpc.UnaryServerInterceptor{
 		srvMetrics.UnaryServerInterceptor(),
@@ -97,49 +163,43 @@ func NewAPIServer(
 		loggingInterceptor.Stream(),
 	}
 
-	if jwtVerifier != nil {
-		interceptor := server.NewAuthInterceptor(jwtVerifier, log)
-		unary = append(unary, interceptor.Unary())
-		stream = append(stream, interceptor.Stream())
+	if cfg.JWTVerifier != nil {
+		authInterceptor := server.NewAuthInterceptor(cfg.JWTVerifier, cfg.Log)
+		unary = append(unary, authInterceptor.Unary())
+		stream = append(stream, authInterceptor.Stream())
 	}
 
-	options := []grpc.ServerOption{
+	s.grpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(unary...),
 		grpc.ChainStreamInterceptor(stream...),
 		grpc.Creds(insecure.NewCredentials()),
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Time: 5 * time.Minute,
-		}),
+		grpc.KeepaliveParams(keepalive.ServerParameters{Time: 5 * time.Minute}),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			PermitWithoutStream: true,
 			MinTime:             15 * time.Second,
 		}),
-		// grpc.MaxRecvMsgSize(s.Config.Options.MaxMsgSize),
-	}
+	)
 
-	s.grpcServer = grpc.NewServer(options...)
-	if err := registrationFunc(s.grpcServer); err != nil {
+	if err := cfg.RegistrationFunc(s.grpcServer); err != nil {
 		return nil, err
 	}
 
-	if enableReflection {
-		// Register reflection service on gRPC server.
+	if cfg.EnableReflection {
 		reflection.Register(s.grpcServer)
 		s.log.Info("enabling gRPC Server Reflection")
 	}
 
-	healthcheck := health.NewServer()
-	healthgrpc.RegisterHealthServer(s.grpcServer, healthcheck)
+	healthgrpc.RegisterHealthServer(s.grpcServer, health.NewServer())
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
 		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))
-		if err = s.grpcServer.Serve(s.grpcListener); err != nil &&
+		if err := s.grpcServer.Serve(s.grpcListener); err != nil &&
 			!isErrUseOfClosedConnection(err) {
 			s.log.Error("serving grpc", zap.Error(err))
 		}
 	})
 
-	if err := s.startHTTP(ctx, log, httpRegistrationFunc); err != nil {
+	if err := s.startHTTP(cfg.Ctx, cfg.Log, cfg.HTTPRegistrationFunc); err != nil {
 		return nil, err
 	}
 

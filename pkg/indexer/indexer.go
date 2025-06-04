@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"errors"
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -12,6 +13,46 @@ import (
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"go.uber.org/zap"
 )
+
+type IndexerConfig struct {
+	ctx               context.Context
+	log               *zap.Logger
+	dB                *sql.DB
+	contractsConfig   *config.ContractsOptions
+	validationService mlsvalidate.MLSValidationService
+}
+
+type IndexerOption func(*IndexerConfig)
+
+func WithContext(ctx context.Context) IndexerOption {
+	return func(cfg *IndexerConfig) {
+		cfg.ctx = ctx
+	}
+}
+
+func WithLogger(log *zap.Logger) IndexerOption {
+	return func(cfg *IndexerConfig) {
+		cfg.log = log
+	}
+}
+
+func WithDB(db *sql.DB) IndexerOption {
+	return func(cfg *IndexerConfig) {
+		cfg.dB = db
+	}
+}
+
+func WithContractsOptions(c *config.ContractsOptions) IndexerOption {
+	return func(cfg *IndexerConfig) {
+		cfg.contractsConfig = c
+	}
+}
+
+func WithValidationService(vs mlsvalidate.MLSValidationService) IndexerOption {
+	return func(cfg *IndexerConfig) {
+		cfg.validationService = vs
+	}
+}
 
 type Indexer struct {
 	ctx             context.Context
@@ -22,23 +63,40 @@ type Indexer struct {
 	settlementChain *settlement_chain.SettlementChain
 }
 
-func NewIndexer(
-	ctx context.Context,
-	log *zap.Logger,
-	db *sql.DB,
-	cfg config.ContractsOptions,
-	validationService mlsvalidate.MLSValidationService,
-) (*Indexer, error) {
-	ctx, cancel := context.WithCancel(ctx)
+func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
+	cfg := &IndexerConfig{}
 
-	indexerLogger := log.Named("indexer")
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	if cfg.ctx == nil {
+		return nil, errors.New("indexer: context is required")
+	}
+	if cfg.log == nil {
+		return nil, errors.New("indexer: logger is required")
+	}
+
+	if cfg.dB == nil {
+		return nil, errors.New("indexer: DB is required")
+	}
+	if cfg.validationService == nil {
+		return nil, errors.New("indexer: ValidationService is required")
+	}
+
+	if cfg.contractsConfig == nil {
+		return nil, errors.New("indexer: contracts config is required")
+	}
+
+	ctx, cancel := context.WithCancel(cfg.ctx)
+	indexerLogger := cfg.log.Named("indexer")
 
 	appChain, err := app_chain.NewAppChain(
 		ctx,
 		indexerLogger,
-		cfg.AppChain,
-		db,
-		validationService,
+		cfg.contractsConfig.AppChain,
+		cfg.dB,
+		cfg.validationService,
 	)
 	if err != nil {
 		cancel()
@@ -48,8 +106,8 @@ func NewIndexer(
 	settlementChain, err := settlement_chain.NewSettlementChain(
 		ctx,
 		indexerLogger,
-		cfg.SettlementChain,
-		db,
+		cfg.contractsConfig.SettlementChain,
+		cfg.dB,
 	)
 	if err != nil {
 		cancel()
@@ -58,8 +116,8 @@ func NewIndexer(
 
 	return &Indexer{
 		ctx:             ctx,
-		log:             indexerLogger,
 		cancel:          cancel,
+		log:             indexerLogger,
 		appChain:        appChain,
 		settlementChain: settlementChain,
 	}, nil

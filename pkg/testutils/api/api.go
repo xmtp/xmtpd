@@ -183,15 +183,15 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 	}
 
 	svr, err := api.NewAPIServer(
-		ctx,
-		log,
-		"localhost:0", /*listenAddress*/
-		"localhost:0",
-		true, /*enableReflection*/
-		serviceRegistrationFunc,
-		httpRegistrationFunc,
-		jwtVerifier,
-		prometheus.NewRegistry(),
+		api.WithContext(ctx),
+		api.WithLogger(log),
+		api.WithHTTPListenAddress("localhost:0"),
+		api.WithListenAddress("localhost:0"),
+		api.WithJWTVerifier(jwtVerifier),
+		api.WithRegistrationFunc(serviceRegistrationFunc),
+		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
+		api.WithReflection(true),
+		api.WithPrometheusRegistry(prometheus.NewRegistry()),
 	)
 	require.NoError(t, err)
 

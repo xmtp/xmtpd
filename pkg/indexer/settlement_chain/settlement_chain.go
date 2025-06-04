@@ -133,8 +133,11 @@ func NewSettlementChain(
 	}, nil
 }
 
-func (s *SettlementChain) Start() {
-	s.streamer.Start()
+func (s *SettlementChain) Start() error {
+	err := s.streamer.Start()
+	if err != nil {
+		return err
+	}
 
 	tracing.GoPanicWrap(
 		s.ctx,
@@ -159,6 +162,8 @@ func (s *SettlementChain) Start() {
 				s.payerReportManager,
 			)
 		})
+
+	return nil
 }
 
 func (s *SettlementChain) Stop() {

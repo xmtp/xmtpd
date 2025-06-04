@@ -36,7 +36,9 @@ func startIndexing(
 
 	indx, err := indexer.NewIndexer(ctx, logger, db, cfg, validationService)
 	require.NoError(t, err)
-	indx.StartIndexer()
+
+	err = indx.StartIndexer()
+	require.NoError(t, err)
 
 	return db, queries.New(db), cfg, ctx
 }

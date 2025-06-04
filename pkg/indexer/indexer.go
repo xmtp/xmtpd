@@ -3,6 +3,7 @@ package indexer
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -81,7 +82,16 @@ func (i *Indexer) Close() {
 	i.log.Debug("Closed")
 }
 
-func (i *Indexer) StartIndexer() {
-	i.appChain.Start()
-	i.settlementChain.Start()
+func (i *Indexer) StartIndexer() error {
+	err := i.appChain.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start app chain: %w", err)
+	}
+
+	err = i.settlementChain.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start settlement chain: %w", err)
+	}
+
+	return nil
 }

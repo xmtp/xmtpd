@@ -42,9 +42,9 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	mockClient := mocks.NewMockChainClient(t)
 
-	// Mock BlockByNumber call for fromBlockNumber+1 (block 2) - for reorg detection.
-	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(backfillFromBlock+1))).
-		Return(mockBlock2, nil)
+	// Mock HeaderByNumber call for fromBlockNumber+1 (block 2) - for reorg detection.
+	mockClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(backfillFromBlock+1))).
+		Return(mockBlock2.Header(), nil)
 
 	// Mock BlockNumber call to get the highest block.
 	mockClient.On("BlockNumber", mock.Anything).Return(mockBlock11.NumberU64(), nil)
@@ -58,8 +58,8 @@ func TestRpcLogStreamer(t *testing.T) {
 	}).Return([]types.Log{logMessage}, nil)
 
 	// Mock BlockByNumber call for toBlock+1 (block 11) - for getting next block hash
-	mockClient.On("BlockByNumber", mock.Anything, big.NewInt(int64(backfillToBlock+1))).
-		Return(mockBlock11, nil)
+	mockClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(backfillToBlock+1))).
+		Return(mockBlock11.Header(), nil)
 
 	cfg := rpc_streamer.ContractConfig{
 		ID:                "testContract",

@@ -25,8 +25,8 @@ func TestInitialize(t *testing.T) {
 	querier := queries.New(db)
 
 	mockClient := blockchain.NewMockChainClient(t)
-	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
-		Return(mockBlock, nil)
+	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock.Header(), nil)
 
 	tracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
@@ -44,8 +44,8 @@ func TestUpdateLatestBlock(t *testing.T) {
 	querier := queries.New(db)
 
 	mockClient := blockchain.NewMockChainClient(t)
-	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
-		Return(mockBlock, nil)
+	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock.Header(), nil)
 
 	tracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
@@ -88,8 +88,8 @@ func TestConcurrentUpdates(t *testing.T) {
 	querier := queries.New(db)
 	mockClient := blockchain.NewMockChainClient(t)
 
-	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
-		Return(mockBlock, nil)
+	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock.Header(), nil)
 
 	tracker, err := c.NewBlockTracker(ctx, mockClient, address, querier, 0)
 	require.NoError(t, err)
@@ -153,8 +153,8 @@ func TestMultipleContractAddresses(t *testing.T) {
 	address2 := common.HexToAddress("0x0000000000000000000000000000000000000002")
 
 	mockClient := blockchain.NewMockChainClient(t)
-	mockClient.On("BlockByNumber", ctx, big.NewInt(0)).
-		Return(mockBlock, nil)
+	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
+		Return(mockBlock.Header(), nil)
 
 	tracker1, err := c.NewBlockTracker(ctx, mockClient, address1, querier, 0)
 	require.NoError(t, err)

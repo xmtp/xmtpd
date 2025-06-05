@@ -47,14 +47,14 @@ func NewBlockTracker(
 	client blockchain.ChainClient,
 	address common.Address,
 	queries *queries.Queries,
-	startBlock uint64,
+	deploymentBlock uint64,
 ) (*BlockTracker, error) {
 	bt := &BlockTracker{
 		address: address,
 		queries: queries,
 	}
 
-	latest, err := loadLatestBlock(ctx, client, address, queries, startBlock)
+	latest, err := loadLatestBlock(ctx, client, address, queries, deploymentBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -117,14 +117,14 @@ func (bt *BlockTracker) updateDB(ctx context.Context, block uint64, hash []byte)
 
 // loadLatestBlock returns the latest block for an address.
 // - returns an error if querying the database fails.
-// - returns the stored block number and hash if the db contains a row for the address.
-// - returns the start block number and hash if the db does not contain a row for the address and there is a start block number.
+// - returns the stored block number and hash if the db contains a valid block number for the address.
+// - returns the deployment block number and hash if the db does not contain a block number for the address.
 func loadLatestBlock(
 	ctx context.Context,
 	client blockchain.ChainClient,
 	address common.Address,
 	querier *queries.Queries,
-	startBlock uint64,
+	deploymentBlock uint64,
 ) (*Block, error) {
 	block := &Block{
 		number: atomic.Uint64{},
@@ -132,19 +132,21 @@ func loadLatestBlock(
 	}
 
 	storedBlock, err := querier.GetLatestBlock(ctx, address.Hex())
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return block, err
-	}
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			header, err := client.HeaderByNumber(ctx, big.NewInt(int64(deploymentBlock)))
+			if err != nil {
+				return nil, err
+			}
 
-	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		onchainBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(startBlock)))
-		if err != nil {
+			block.save(deploymentBlock, header.Hash().Bytes())
+
+			return block, nil
+
+		default:
 			return nil, err
 		}
-
-		block.save(uint64(onchainBlock.NumberU64()), onchainBlock.Hash().Bytes())
-
-		return block, nil
 	}
 
 	if storedBlock.BlockNumber < 0 {

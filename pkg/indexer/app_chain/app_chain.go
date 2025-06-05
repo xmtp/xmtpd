@@ -69,7 +69,7 @@ func NewAppChain(
 		chainLogger,
 		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
 		cfg.ChainID,
-		cfg.GroupMessageBroadcasterStartBlock,
+		cfg.DeploymentBlock,
 	)
 	if err != nil {
 		cancel()
@@ -87,7 +87,7 @@ func NewAppChain(
 		validationService,
 		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
 		cfg.ChainID,
-		cfg.IdentityUpdateBroadcasterStartBlock,
+		cfg.DeploymentBlock,
 	)
 	if err != nil {
 		cancel()

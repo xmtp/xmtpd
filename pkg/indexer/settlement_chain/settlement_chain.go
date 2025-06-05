@@ -61,7 +61,7 @@ func NewSettlementChain(
 		chainLogger,
 		common.HexToAddress(cfg.PayerRegistryAddress),
 		cfg.ChainID,
-		cfg.PayerRegistryStartBlock,
+		cfg.DeploymentBlock,
 	)
 	if err != nil {
 		cancel()
@@ -78,7 +78,7 @@ func NewSettlementChain(
 		chainLogger,
 		common.HexToAddress(cfg.PayerReportManagerAddress),
 		cfg.ChainID,
-		cfg.PayerReportManagerStartBlock,
+		cfg.DeploymentBlock,
 	)
 	if err != nil {
 		cancel()

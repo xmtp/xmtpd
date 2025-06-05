@@ -1,4 +1,4 @@
-package upgrade_test
+package integration_test
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 func setup() {
 	start := time.Now() // Start tracking time
-	fmt.Println("=== SETUP UpgradeTestSetup")
+	fmt.Println("=== SETUP IntegrationTestSetup")
 	fmt.Println("    Setting up before all tests...")
 
 	// Measure time for building dev image

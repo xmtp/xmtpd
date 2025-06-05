@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewClient(ctx context.Context, rpcUrl string) (*ethclient.Client, error) {
-	return ethclient.DialContext(ctx, rpcUrl)
+func NewClient(ctx context.Context, wsUrl string) (*ethclient.Client, error) {
+	return ethclient.DialContext(ctx, wsUrl)
 }
 
 // ExecuteTransaction is a helper function that:

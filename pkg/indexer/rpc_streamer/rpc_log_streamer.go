@@ -269,7 +269,7 @@ func (r *RpcLogStreamer) GetNextPage(
 	fromBlockNumber uint64,
 	fromBlockHash []byte,
 ) (GetNextPageResponse, error) {
-	r.logger.Info(
+	r.logger.Debug(
 		"Getting next page",
 		zap.Uint64("fromBlockNumber", fromBlockNumber),
 		zap.String("fromBlockHash", hex.EncodeToString(fromBlockHash)),
@@ -292,13 +292,6 @@ func (r *RpcLogStreamer) GetNextPage(
 		// Compare the current hash against the next block's parent hash.
 		if len(fromBlockHash) == 32 &&
 			!bytes.Equal(fromBlockHash, nextBlockHeader.ParentHash.Bytes()) {
-			r.logger.Warn(
-				"blockchain reorg detected",
-				zap.Uint64("blockNumber", fromBlockNumber),
-				zap.String("expectedParentHash", hex.EncodeToString(fromBlockHash)),
-				zap.String("gotParentHash", nextBlockHeader.ParentHash.Hex()),
-			)
-
 			// If the current hash doesn't match the next block's parent hash,
 			// move one block back and use that hash as the new starting point.
 			nextBlockNumber := fromBlockNumber - 1

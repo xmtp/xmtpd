@@ -12,8 +12,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 )
 
-const BLOCKCHAIN_RPC_URL = "http://localhost:7545"
-
 // This is the private key that anvil has funded by default
 // This is safe to commit
 const (
@@ -22,7 +20,7 @@ const (
 	PATH_TO_JSON_FILE = "dev/environments/anvil.json"
 )
 
-func NewContractsOptions(t *testing.T, rpcUrl string) config.ContractsOptions {
+func NewContractsOptions(t *testing.T, wsUrl string) config.ContractsOptions {
 	file, err := os.Open(GetScriptPath(THIS_FILE_DEPTH, PATH_TO_JSON_FILE))
 	require.NoError(t, err)
 
@@ -39,7 +37,7 @@ func NewContractsOptions(t *testing.T, rpcUrl string) config.ContractsOptions {
 
 	return config.ContractsOptions{
 		AppChain: config.AppChainOptions{
-			RpcURL:                           rpcUrl,
+			WssURL:                           wsUrl,
 			ChainID:                          31337,
 			MaxChainDisconnectTime:           10 * time.Second,
 			GroupMessageBroadcasterAddress:   chainConfig.GroupMessageBroadcaster,
@@ -47,7 +45,7 @@ func NewContractsOptions(t *testing.T, rpcUrl string) config.ContractsOptions {
 			BackfillBlockSize:                500,
 		},
 		SettlementChain: config.SettlementChainOptions{
-			RpcURL:                      rpcUrl,
+			WssURL:                      wsUrl,
 			NodeRegistryRefreshInterval: 100 * time.Millisecond,
 			ChainID:                     31337,
 			RateRegistryRefreshInterval: 10 * time.Second,

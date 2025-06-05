@@ -126,8 +126,8 @@ func StressIdentityUpdates(
 	return nil
 }
 
-func getCurrentNonce(ctx context.Context, privateKey, rpcUrl string) (uint64, error) {
-	client, err := ethclient.Dial(rpcUrl)
+func getCurrentNonce(ctx context.Context, privateKey, wsUrl string) (uint64, error) {
+	client, err := ethclient.Dial(wsUrl)
 	if err != nil {
 		return 0, fmt.Errorf("failed to connect to Ethereum node: %s", err)
 	}

@@ -10,7 +10,7 @@ The cli can be used as a docker image using `ghcr.io/xmtp/xmtpd-cli:sha-8d6f925`
 
 ```shell
 go run cmd/cli/main.go get-all-nodes \
-    --contracts.rpc-url <RPC_URL> \
+    --contracts.rpc-url <WSS_URL> \
     --contracts.nodes-address <NODES_REGISTRY_V1_CONTRACT_ADDRESS> \
     --out-file nodes.json
 ```

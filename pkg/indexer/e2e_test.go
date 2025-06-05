@@ -29,8 +29,8 @@ func startIndexing(
 	logger := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, ctx)
 
-	rpcUrl := anvil.StartAnvil(t, false)
-	cfg := testutils.NewContractsOptions(t, rpcUrl)
+	wsUrl := anvil.StartAnvil(t, false)
+	cfg := testutils.NewContractsOptions(t, wsUrl)
 
 	validationService := mlsvalidate.NewMockMLSValidationService(t)
 
@@ -63,7 +63,7 @@ func messagePublisher(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsCfg.AppChain.RpcURL)
+	client, err := blockchain.NewClient(ctx, contractsCfg.AppChain.WssURL)
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, testutils.NewLog(t))

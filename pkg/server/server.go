@@ -329,7 +329,7 @@ func startAPIServer(
 
 			appChainClient, err := blockchain.NewClient(
 				s.ctx,
-				cfg.Options.Contracts.AppChain.RpcURL,
+				cfg.Options.Contracts.AppChain.WssURL,
 			)
 			if err != nil {
 				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))

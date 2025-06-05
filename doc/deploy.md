@@ -17,7 +17,7 @@ Use one of the following methods to deploy a local environment:
 
 ### Use the XMTP Contracts Image
 
-You can use the XMTP Contracts Image to deploy a local environment, and test `xmtpd` with it. 
+You can use the XMTP Contracts Image to deploy a local environment, and test `xmtpd` with it.
 
 The XMTP Contracts Image [documentation](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image) contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
 
@@ -41,7 +41,7 @@ To register a node on the local network, run:
 
 ```shell
 # Modify environment variables to match your local environment.
-export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
+export XMTPD_SETTLEMENT_CHAIN_WSS_URL="ws://localhost:7545/"
 export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=31337
 export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
 export ADMIN_PRIVATE_KEY="0xDEADBEEF"
@@ -61,7 +61,7 @@ dev/cmd/cli register-node \
 To verify node registration on the local network, run:
 
 ```shell
-export XMTPD_SETTLEMENT_CHAIN_RPC_URL="http://localhost:7545/"
+export XMTPD_SETTLEMENT_CHAIN_WSS_URL="ws://localhost:7545/"
 export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=31337
 export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS="0xDEADBEEF"
 export ADMIN_PRIVATE_KEY="0xDEADBEEF"

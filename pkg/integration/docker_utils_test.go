@@ -253,8 +253,11 @@ func (b *XmtpdContainerBuilder) Build(t *testing.T) (testcontainers.Container, e
 		Env:          b.envVars,
 		Files:        b.files,
 		ExposedPorts: b.exposedPorts,
-		Networks:     []string{b.networkName},
-		WaitingFor:   wait.ForLog("serving grpc"),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
+		},
+		Networks:   []string{b.networkName},
+		WaitingFor: wait.ForLog("serving grpc"),
 	}
 
 	xmtpdContainer, err := testcontainers.GenericContainer(
@@ -328,6 +331,7 @@ func (b *XdbgContainerBuilder) Build(t *testing.T) error {
 			"-a", b.count,
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 			hc.Binds = append(hc.Binds, fmt.Sprintf("%s:/root/.local/share/xdbg/", b.dbVolumePath))
 		},
 		WaitingFor: b.waitStrategy,

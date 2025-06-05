@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -34,6 +35,23 @@ func ExecuteTransaction(
 	if signer == nil {
 		return fmt.Errorf("no signer provided")
 	}
+
+	from := signer.FromAddress()
+
+	// Check balance before sending
+	balance, err := client.BalanceAt(ctx, from, nil)
+	if err != nil {
+		return fmt.Errorf("failed to check balance: %w", err)
+	}
+	if balance.Cmp(big.NewInt(0)) == 0 {
+		return fmt.Errorf("account %s has zero balance", from.Hex())
+	}
+
+	logger.Debug(
+		"Sender balance",
+		zap.String("address", from.Hex()),
+		zap.String("balance", balance.String()),
+	)
 
 	tx, err := txFunc(&bind.TransactOpts{
 		Context: ctx,

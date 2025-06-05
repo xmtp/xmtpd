@@ -3,51 +3,9 @@ package payerreport
 import (
 	"context"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/xmtp/xmtpd/pkg/currency"
-	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/envelopes"
 )
-
-type PayerReport struct {
-	// The Originator Node that the report is about
-	OriginatorNodeID uint32
-	// The report applies to messages with sequence IDs > StartSequenceID
-	StartSequenceID uint64
-	// The report applies to messages with sequence IDs <= EndSequenceID
-	EndSequenceID uint64
-	// The payers in the report and the number of messages they paid for
-	Payers map[common.Address]currency.PicoDollar
-	// The merkle root of the Payers mapping
-	PayersMerkleRoot []byte
-	// The active node IDs in the report
-	ActiveNodeIds []uint32
-}
-
-func (p *PayerReport) ToProto() *proto.PayerReport {
-	return &proto.PayerReport{
-		OriginatorNodeId: p.OriginatorNodeID,
-		StartSequenceId:  p.StartSequenceID,
-		EndSequenceId:    p.EndSequenceID,
-		PayersMerkleRoot: p.PayersMerkleRoot,
-		ActiveNodeIds:    p.ActiveNodeIds,
-	}
-}
-
-func (p *PayerReport) ID() ([]byte, error) {
-	packedBytes, err := payerReportMessageHash.Pack(
-		p.OriginatorNodeID,
-		p.StartSequenceID,
-		p.EndSequenceID,
-		utils.SliceToArray32(p.PayersMerkleRoot),
-		p.ActiveNodeIds,
-	)
-	if err != nil {
-		return nil, err
-	}
-	// Return the keccak256 hash
-	return utils.HashPayerReportInput(packedBytes), nil
-}
 
 type NodeSignature struct {
 	NodeID    uint32
@@ -65,11 +23,54 @@ type PayerReportGenerationParams struct {
 	NumHours                int
 }
 
-type IPayerReportManager interface {
-	GenerateReport(ctx context.Context, params PayerReportGenerationParams) (*PayerReport, error)
-	AttestReport(
+type PayerReportGenerator interface {
+	GenerateReport(
+		ctx context.Context,
+		params PayerReportGenerationParams,
+	) (*PayerReportWithInputs, error)
+}
+
+type PayerReportVerifier interface {
+	IsValidReport(
 		ctx context.Context,
 		prevReport *PayerReport,
 		newReport *PayerReport,
-	) (*PayerReportAttestation, error)
+	) (bool, error)
+}
+
+type IPayerReportManager interface {
+	PayerReportGenerator
+	PayerReportVerifier
+}
+
+type IPayerReportStore interface {
+	CreatePayerReport(
+		ctx context.Context,
+		report *PayerReport,
+		payerEnvelope *envelopes.PayerEnvelope,
+	) (ReportID, error)
+	CreateAttestation(
+		ctx context.Context,
+		attestation *PayerReportAttestation,
+		payerEnvelope *envelopes.PayerEnvelope,
+	) error
+	FetchReport(ctx context.Context, id ReportID) (*PayerReportWithStatus, error)
+	FetchReports(ctx context.Context, query *FetchReportsQuery) ([]*PayerReportWithStatus, error)
+	StoreSyncedReport(
+		ctx context.Context,
+		envelope *envelopes.OriginatorEnvelope,
+		payerID int32,
+	) error
+	StoreSyncedAttestation(
+		ctx context.Context,
+		envelope *envelopes.OriginatorEnvelope,
+		payerID int32,
+	) error
+	SetReportAttestationStatus(
+		ctx context.Context,
+		id ReportID,
+		fromStatus []AttestationStatus,
+		toStatus AttestationStatus,
+	) error
+	Queries() *queries.Queries
 }

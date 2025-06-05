@@ -158,7 +158,9 @@ func (r *RatesAdmin) AddRates(
 		},
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "NoChange") {
+		// 0xa88ee577 is the error code for NoChange
+		// cast sig "NoChange()"
+		if strings.Contains(err.Error(), "0xa88ee577") {
 			r.logger.Info("No update needed",
 				zap.Uint64("messageFee", uint64(rates.MessageFee)),
 				zap.Uint64("storageFee", uint64(rates.StorageFee)),

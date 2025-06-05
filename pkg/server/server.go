@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -225,10 +226,13 @@ func NewReplicationServer(
 			indexer.WithContractsOptions(&cfg.Options.Contracts),
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to initialize indexer: %w", err)
 		}
 
-		s.indx.StartIndexer()
+		err = s.indx.StartIndexer()
+		if err != nil {
+			return nil, fmt.Errorf("failed to start indexer: %w", err)
+		}
 
 		cfg.Log.Info("Indexer service enabled")
 	}

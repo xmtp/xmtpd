@@ -142,8 +142,11 @@ func NewAppChain(
 	}, nil
 }
 
-func (a *AppChain) Start() {
-	a.streamer.Start()
+func (a *AppChain) Start() error {
+	err := a.streamer.Start()
+	if err != nil {
+		return err
+	}
 
 	tracing.GoPanicWrap(
 		a.ctx,
@@ -168,6 +171,8 @@ func (a *AppChain) Start() {
 				a.identityUpdateBroadcaster,
 			)
 		})
+
+	return nil
 }
 
 func (a *AppChain) Stop() {

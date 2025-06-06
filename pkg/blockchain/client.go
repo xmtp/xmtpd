@@ -8,6 +8,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,6 +21,8 @@ func NewClient(ctx context.Context, rpcUrl string) (*ethclient.Client, error) {
 }
 
 // ExecuteTransaction is a helper function that:
+// - estimates the gas required for the transaction
+// - checks if the sender has enough balance to cover the gas cost
 // - executes a transaction
 // - waits for it to be mined
 // - processes the event logs
@@ -38,7 +41,7 @@ func ExecuteTransaction(
 
 	from := signer.FromAddress()
 
-	// Check balance before sending
+	// Step 1: Check balance before sending.
 	balance, err := client.BalanceAt(ctx, from, nil)
 	if err != nil {
 		return fmt.Errorf("failed to check balance: %w", err)
@@ -53,20 +56,73 @@ func ExecuteTransaction(
 		zap.String("balance", balance.String()),
 	)
 
-	tx, err := txFunc(&bind.TransactOpts{
+	// Step 2: Prepare dry-run tx for gas estimation.
+	opts := &bind.TransactOpts{
 		Context: ctx,
-		From:    signer.FromAddress(),
+		From:    from,
 		Signer:  signer.SignerFunc(),
-	})
-	if err != nil {
-		return err
+		NoSend:  true,
 	}
 
+	dryRunTx, err := txFunc(opts)
+	if err != nil {
+		return fmt.Errorf("failed to simulate tx (NoSend=true): %w", err)
+	}
+
+	// Step 3: Estimate gas using ethclient.EstimateGas.
+	msg := ethereum.CallMsg{
+		From:  from,
+		To:    dryRunTx.To(),
+		Data:  dryRunTx.Data(), // Not directly available — see note below
+		Value: dryRunTx.Value(),
+	}
+
+	// Step 4: Fallback for GasPrice.
+	gasPrice := dryRunTx.GasPrice()
+	if gasPrice == nil {
+		gasPrice, err = client.SuggestGasPrice(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get gas price: %w", err)
+		}
+	}
+
+	estimatedGas, err := client.EstimateGas(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("gas estimation failed: %w", err)
+	}
+
+	logger.Debug(
+		"Gas estimation",
+		zap.String("address", from.Hex()),
+		zap.Uint64("gas", estimatedGas),
+	)
+
+	// Step 5: Check for balance sufficiency.
+	required := new(big.Int).Mul(big.NewInt(int64(estimatedGas)), gasPrice)
+	if balance.Cmp(required) < 0 {
+		return fmt.Errorf(
+			"insufficient funds: need %s, have %s",
+			required.String(),
+			balance.String(),
+		)
+	}
+
+	// Step 6: Send the real tx.
+	opts.NoSend = false
+	opts.GasLimit = estimatedGas
+	opts.GasPrice = gasPrice
+
+	tx, err := txFunc(opts)
+	if err != nil {
+		return fmt.Errorf("failed to send tx: %w", err)
+	}
+
+	// Step 7: Wait for receipt.
 	receipt, err := WaitForTransaction(
 		ctx,
 		logger,
 		client,
-		2*time.Second,
+		10*time.Second,
 		250*time.Millisecond,
 		tx.Hash(),
 	)
@@ -74,6 +130,7 @@ func ExecuteTransaction(
 		return err
 	}
 
+	// Step 8: Parse and handle logs.
 	for _, log := range receipt.Logs {
 		event, err := eventParser(log)
 		if err != nil {

@@ -63,7 +63,7 @@ func registerRandomNode(
 	httpAddress := testutils.RandomString(30)
 	publicKey := testutils.RandomPrivateKey(t).PublicKey
 	require.Eventually(t, func() bool {
-		err := registryAdmin.AddNode(context.Background(), ownerAddress, &publicKey, httpAddress)
+		_, err := registryAdmin.AddNode(context.Background(), ownerAddress, &publicKey, httpAddress)
 		return err == nil
 	}, 1*time.Second, 50*time.Millisecond)
 
@@ -128,7 +128,7 @@ func TestRegistryWrite(t *testing.T) {
 	require.Equal(t, 2, len(nodes))
 
 	registryAdmin2, registryCaller2 := setupRegistry(t)
-	err = WriteToRegistry(testutils.NewLog(t), nodes, registryAdmin2)
+	err = WriteToRegistry(t.Context(), nodes, registryAdmin2)
 	require.NoError(t, err)
 
 	restoredNodes, err := ReadFromRegistry(registryCaller2)

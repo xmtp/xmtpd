@@ -29,7 +29,7 @@ type INodeRegistryAdmin interface {
 		owner string,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
-	) error
+	) (uint32, error)
 	AddToNetwork(ctx context.Context, nodeId uint32) error
 	RemoveFromNetwork(ctx context.Context, nodeId uint32) error
 	SetHttpAddress(ctx context.Context, nodeId uint32, httpAddress string) error
@@ -82,15 +82,16 @@ func (n *nodeRegistryAdmin) AddNode(
 	owner string,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
-) error {
+) (uint32, error) {
 	if !common.IsHexAddress(owner) {
-		return fmt.Errorf("invalid owner address provided %s", owner)
+		return 0, fmt.Errorf("invalid owner address provided %s", owner)
 	}
 
 	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
-	return ExecuteTransaction(
+	nodeId := uint32(0)
+	err := ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
@@ -118,8 +119,14 @@ func (n *nodeRegistryAdmin) AddNode(
 				zap.String("http_address", nodeAdded.HttpAddress),
 				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningPublicKey)),
 			)
+			nodeId = nodeAdded.NodeId
 		},
 	)
+	if err != nil {
+		return 0, err
+	}
+
+	return nodeId, nil
 }
 
 func (n *nodeRegistryAdmin) AddToNetwork(

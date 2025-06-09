@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
 )
 
 type SerializableNode struct {
@@ -52,19 +51,17 @@ func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]Serializabl
 }
 
 func WriteToRegistry(
-	logger *zap.Logger,
+	ctx context.Context,
 	nodes []SerializableNode,
 	chainAdmin blockchain.INodeRegistryAdmin,
 ) error {
-	ctx := context.Background()
-
 	for _, node := range nodes {
 		signingKey, err := utils.ParseEcdsaPublicKey(node.SigningKeyPub)
 		if err != nil {
 			return err
 		}
 
-		err = chainAdmin.AddNode(
+		nodeId, err := chainAdmin.AddNode(
 			ctx,
 			node.OwnerAddress,
 			signingKey,
@@ -72,6 +69,13 @@ func WriteToRegistry(
 		)
 		if err != nil {
 			return err
+		}
+
+		if node.InCanonicalNetwork {
+			err = chainAdmin.AddToNetwork(ctx, nodeId)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

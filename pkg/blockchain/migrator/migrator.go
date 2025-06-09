@@ -61,7 +61,7 @@ func WriteToRegistry(
 			return err
 		}
 
-		err = chainAdmin.AddNode(
+		nodeId, err := chainAdmin.AddNode(
 			ctx,
 			node.OwnerAddress,
 			signingKey,
@@ -72,7 +72,7 @@ func WriteToRegistry(
 		}
 
 		if node.InCanonicalNetwork {
-			err = chainAdmin.AddToNetwork(ctx, node.NodeID)
+			err = chainAdmin.AddToNetwork(ctx, nodeId)
 			if err != nil {
 				return err
 			}

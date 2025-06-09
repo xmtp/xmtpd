@@ -222,7 +222,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not decompress public key", zap.Error(err))
 	}
 
-	err = registryAdmin.AddNode(
+	_, err = registryAdmin.AddNode(
 		ctx,
 		options.RegisterNode.OwnerAddress,
 		signingKeyPub,

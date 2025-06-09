@@ -55,10 +55,10 @@ xmtpd-cli rates add --message-fee 1000000000000000000 --storage-fee 100000000000
 	cmd.PersistentFlags().
 		Uint64("target-rate", 0, "target rate to use")
 
-	cmd.MarkFlagRequired("message-fee")
-	cmd.MarkFlagRequired("storage-fee")
-	cmd.MarkFlagRequired("congestion-fee")
-	cmd.MarkFlagRequired("target-rate")
+	_ = cmd.MarkFlagRequired("message-fee")
+	_ = cmd.MarkFlagRequired("storage-fee")
+	_ = cmd.MarkFlagRequired("congestion-fee")
+	_ = cmd.MarkFlagRequired("target-rate")
 
 	return &cmd
 }
@@ -183,7 +183,7 @@ func setupRateRegistryAdmin(
 
 	contracts, err := config.ContractOptionsFromEnv(configFile)
 	if err != nil {
-		logger.Fatal("could not load config from file", zap.Error(err))
+		return nil, fmt.Errorf("could not load config from file: %w", err)
 	}
 
 	chainClient, err := blockchain.NewClient(ctx, rpcURL)

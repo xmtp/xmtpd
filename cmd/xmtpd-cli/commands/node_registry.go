@@ -40,17 +40,10 @@ func registerNodeCmd() *cobra.Command {
 		Short: "Register a node",
 		Run:   registerNodeHandler,
 		Example: `
-<<<<<<< HEAD
 Usage: xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
 
 Register a node:
 xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
-=======
-Usage: xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
-
-Register a node:
-xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
->>>>>>> fa5dda4 (Add new xmtpd-cli based onspf13/cobra)
 `,
 	}
 
@@ -63,9 +56,9 @@ xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-ad
 	cmd.PersistentFlags().
 		String("http-address", "", "HTTP address to use")
 
-	cmd.MarkFlagRequired("owner-address")
-	cmd.MarkFlagRequired("signing-key-pub")
-	cmd.MarkFlagRequired("http-address")
+	_ = cmd.MarkFlagRequired("owner-address")
+	_ = cmd.MarkFlagRequired("signing-key-pub")
+	_ = cmd.MarkFlagRequired("http-address")
 
 	cmd.PersistentFlags().
 		Bool("force", false, "force the registration")
@@ -435,7 +428,6 @@ func setHttpAddressHandler(cmd *cobra.Command, _ []string) {
 	)
 }
 
-// setupNodeRegistryAdmin creates and returns a node registry admin
 func setupNodeRegistryAdmin(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -460,7 +452,7 @@ func setupNodeRegistryAdmin(
 
 	contracts, err := config.ContractOptionsFromEnv(configFile)
 	if err != nil {
-		logger.Fatal("could not load config from file", zap.Error(err))
+		return nil, fmt.Errorf("could not load config from file: %w", err)
 	}
 
 	chainClient, err := blockchain.NewClient(

@@ -130,17 +130,17 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			PayerRegistryAddress:        config.PayerRegistry,
 			PayerReportManagerAddress:   config.PayerReportManager,
 			ChainID:                     config.SettlementChainID,
-			NodeRegistryRefreshInterval: 60 * time.Second,  // Default value from struct tag
-			RateRegistryRefreshInterval: 300 * time.Second, // Default value from struct tag
-			MaxChainDisconnectTime:      300 * time.Second, // Default value from struct tag
-			BackfillBlockPageSize:       500,               // Default value from struct tag
+			NodeRegistryRefreshInterval: 60 * time.Second,
+			RateRegistryRefreshInterval: 300 * time.Second,
+			MaxChainDisconnectTime:      300 * time.Second,
+			BackfillBlockPageSize:       500,
 		},
 		AppChain: AppChainOptions{
 			GroupMessageBroadcasterAddress:   config.GroupMessageBroadcaster,
 			IdentityUpdateBroadcasterAddress: config.IdentityUpdateBroadcaster,
 			ChainID:                          config.AppChainID,
-			MaxChainDisconnectTime:           300 * time.Second, // Default value from struct tag
-			BackfillBlockPageSize:            500,               // Default value from struct tag
+			MaxChainDisconnectTime:           300 * time.Second,
+			BackfillBlockPageSize:            500,
 		},
 	}, nil
 }
@@ -149,8 +149,6 @@ func ParseJSONConfig(options *ContractsOptions) error {
 	if options.ConfigFilePath != "" && options.ConfigJson != "" {
 		return errors.New("--config-file and --config-json cannot be used together")
 	}
-
-	//filePath := os.Getenv("XMTPD_CONTRACTS_CONFIG_FILE_PATH")
 
 	if options.ConfigFilePath != "" {
 		file, err := os.Open(options.ConfigFilePath)

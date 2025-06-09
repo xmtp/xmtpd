@@ -73,7 +73,7 @@ func ExecuteTransaction(
 	msg := ethereum.CallMsg{
 		From:  from,
 		To:    dryRunTx.To(),
-		Data:  dryRunTx.Data(), // Not directly available — see note below
+		Data:  dryRunTx.Data(),
 		Value: dryRunTx.Value(),
 	}
 

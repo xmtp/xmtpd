@@ -22,11 +22,12 @@ import (
 )
 
 const (
-	defaultBackfillBlockSize   = 500
-	defaultLagFromHighestBlock = 0
-	maxSubReconnectionRetries  = 10
-	sleepTimeOnError           = 100 * time.Millisecond
-	sleepTimeOnNoLogs          = 100 * time.Millisecond
+	defaultBackfillBlockPageSize = 500
+	defaultExpectedLogsPerBlock  = 1
+	defaultLagFromHighestBlock   = 0
+	maxSubReconnectionRetries    = 10
+	sleepTimeOnError             = 100 * time.Millisecond
+	sleepTimeOnNoLogs            = 100 * time.Millisecond
 )
 
 var (
@@ -36,13 +37,14 @@ var (
 
 // Struct defining all the information required to filter events from logs
 type ContractConfig struct {
-	ID                string
-	FromBlockNumber   uint64
-	FromBlockHash     []byte
-	Address           common.Address
-	Topics            []common.Hash
-	MaxDisconnectTime time.Duration
-	eventChannel      chan types.Log
+	ID                   string
+	FromBlockNumber      uint64
+	FromBlockHash        []byte
+	Address              common.Address
+	Topics               []common.Hash
+	MaxDisconnectTime    time.Duration
+	ExpectedLogsPerBlock uint64
+	eventChannel         chan types.Log
 }
 
 type RpcLogStreamerOption func(*RpcLogStreamer) error
@@ -54,35 +56,34 @@ func WithLagFromHighestBlock(lagFromHighestBlock uint8) RpcLogStreamerOption {
 	}
 }
 
-func WithBackfillBlockSize(backfillBlockSize uint64) RpcLogStreamerOption {
+func WithBackfillBlockPageSize(backfillBlockSize uint64) RpcLogStreamerOption {
 	return func(streamer *RpcLogStreamer) error {
 		if backfillBlockSize == 0 {
-			return fmt.Errorf("backfillBlockSize must be > 0, got %d", backfillBlockSize)
+			return fmt.Errorf("backfillBlockPageSize must be > 0, got %d", backfillBlockSize)
 		}
 
-		streamer.backfillBlockSize = backfillBlockSize
+		streamer.backfillBlockPageSize = backfillBlockSize
 		return nil
 	}
 }
 
-func WithContractConfig(
-	cfg ContractConfig,
-) RpcLogStreamerOption {
+func WithContractConfig(cfg *ContractConfig) RpcLogStreamerOption {
 	return func(streamer *RpcLogStreamer) error {
+		if cfg == nil {
+			return fmt.Errorf("contract config is nil")
+		}
+
 		if _, ok := streamer.watchers[cfg.ID]; ok {
 			streamer.logger.Error("contract config already exists", zap.String("id", cfg.ID))
 			return fmt.Errorf("contract config already exists: %s", cfg.ID)
 		}
 
-		streamer.watchers[cfg.ID] = ContractConfig{
-			ID:                cfg.ID,
-			FromBlockNumber:   cfg.FromBlockNumber,
-			FromBlockHash:     cfg.FromBlockHash,
-			Address:           cfg.Address,
-			Topics:            cfg.Topics,
-			MaxDisconnectTime: cfg.MaxDisconnectTime,
-			eventChannel:      make(chan types.Log, 100),
+		config := *cfg
+		if config.ExpectedLogsPerBlock == 0 {
+			config.ExpectedLogsPerBlock = defaultExpectedLogsPerBlock
 		}
+
+		streamer.watchers[cfg.ID] = &config
 
 		return nil
 	}
@@ -96,14 +97,14 @@ to get a complete history of events on a chain.
 *
 */
 type RpcLogStreamer struct {
-	ctx                 context.Context
-	cancel              context.CancelFunc
-	wg                  sync.WaitGroup
-	client              blockchain.ChainClient
-	logger              *zap.Logger
-	watchers            map[string]ContractConfig
-	lagFromHighestBlock uint8
-	backfillBlockSize   uint64
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	wg                    sync.WaitGroup
+	client                blockchain.ChainClient
+	logger                *zap.Logger
+	watchers              map[string]*ContractConfig
+	lagFromHighestBlock   uint8
+	backfillBlockPageSize uint64
 }
 
 func NewRpcLogStreamer(
@@ -117,14 +118,14 @@ func NewRpcLogStreamer(
 	streamLogger := logger.Named("rpc-log-streamer")
 
 	streamer := &RpcLogStreamer{
-		ctx:                 ctx,
-		client:              client,
-		logger:              streamLogger,
-		cancel:              cancel,
-		wg:                  sync.WaitGroup{},
-		watchers:            make(map[string]ContractConfig),
-		lagFromHighestBlock: defaultLagFromHighestBlock,
-		backfillBlockSize:   defaultBackfillBlockSize,
+		ctx:                   ctx,
+		client:                client,
+		logger:                streamLogger,
+		cancel:                cancel,
+		wg:                    sync.WaitGroup{},
+		watchers:              make(map[string]*ContractConfig),
+		lagFromHighestBlock:   defaultLagFromHighestBlock,
+		backfillBlockPageSize: defaultBackfillBlockPageSize,
 	}
 
 	for _, option := range options {
@@ -132,6 +133,10 @@ func NewRpcLogStreamer(
 			streamLogger.Error("failed to apply option", zap.Error(err))
 			return nil, err
 		}
+	}
+
+	for _, w := range streamer.watchers {
+		w.eventChannel = make(chan types.Log, streamer.backfillBlockPageSize*w.ExpectedLogsPerBlock)
 	}
 
 	return streamer, nil
@@ -161,7 +166,7 @@ func (r *RpcLogStreamer) Stop() {
 	r.wg.Wait()
 }
 
-func (r *RpcLogStreamer) watchContract(cfg ContractConfig) {
+func (r *RpcLogStreamer) watchContract(cfg *ContractConfig) {
 	var (
 		logger                  = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		backfillFromBlockNumber = cfg.FromBlockNumber
@@ -265,7 +270,7 @@ type GetNextPageResponse struct {
 
 func (r *RpcLogStreamer) GetNextPage(
 	ctx context.Context,
-	cfg ContractConfig,
+	cfg *ContractConfig,
 	fromBlockNumber uint64,
 	fromBlockHash []byte,
 ) (GetNextPageResponse, error) {
@@ -320,14 +325,14 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)
 
-	toBlock := min(fromBlockNumber+r.backfillBlockSize, highestBlock)
+	toBlock := min(fromBlockNumber+r.backfillBlockPageSize, highestBlock)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err := metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
 		return r.client.FilterLogs(
 			ctx,
-			buildFilterQuery(cfg, fromBlockNumber, toBlock),
+			buildFilterQuery(*cfg, fromBlockNumber, toBlock),
 		)
 	})
 	if err != nil {
@@ -359,12 +364,12 @@ func (r *RpcLogStreamer) GetNextPage(
 }
 
 func (r *RpcLogStreamer) buildSubscriptionChannel(
-	cfg ContractConfig,
+	cfg *ContractConfig,
 	log *zap.Logger,
 ) (chan types.Log, error) {
 	var (
 		innerSubCh = make(chan types.Log, 100)
-		query      = buildBaseFilterQuery(cfg)
+		query      = buildBaseFilterQuery(*cfg)
 		logger     = log.Named("subscription")
 	)
 
@@ -455,10 +460,18 @@ func (r *RpcLogStreamer) buildSubscription(
 	return sub, nil
 }
 
-func (r *RpcLogStreamer) validateWatcher(cfg ContractConfig) error {
+func (r *RpcLogStreamer) validateWatcher(cfg *ContractConfig) error {
+	if cfg == nil {
+		return fmt.Errorf("watcher is nil")
+	}
+
+	if cfg.eventChannel == nil {
+		return fmt.Errorf("event channel is nil")
+	}
+
 	var (
 		testCh = make(chan types.Log, 100)
-		query  = buildBaseFilterQuery(cfg)
+		query  = buildBaseFilterQuery(*cfg)
 	)
 
 	defer close(testCh)

@@ -94,7 +94,7 @@ func NewSettlementChain(
 		chainLogger,
 		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
 		streamer.WithContractConfig(
-			streamer.ContractConfig{
+			&streamer.ContractConfig{
 				ID:                contracts.PayerRegistryName(cfg.ChainID),
 				FromBlockNumber:   payerRegistryLatestBlockNumber,
 				FromBlockHash:     payerRegistryLatestBlockHash,
@@ -104,7 +104,7 @@ func NewSettlementChain(
 			},
 		),
 		streamer.WithContractConfig(
-			streamer.ContractConfig{
+			&streamer.ContractConfig{
 				ID:                contracts.PayerReportManagerName(cfg.ChainID),
 				FromBlockNumber:   payerReportManagerLatestBlockNumber,
 				FromBlockHash:     payerReportManagerLatestBlockHash,
@@ -113,7 +113,7 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		streamer.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		streamer.WithBackfillBlockPageSize(cfg.BackfillBlockPageSize),
 	)
 	if err != nil {
 		cancel()

@@ -42,7 +42,7 @@ func NewContractsOptions(t *testing.T, wsUrl string) config.ContractsOptions {
 			MaxChainDisconnectTime:           10 * time.Second,
 			GroupMessageBroadcasterAddress:   chainConfig.GroupMessageBroadcaster,
 			IdentityUpdateBroadcasterAddress: chainConfig.IdentityUpdateBroadcaster,
-			BackfillBlockSize:                500,
+			BackfillBlockPageSize:            500,
 		},
 		SettlementChain: config.SettlementChainOptions{
 			WssURL:                      wsUrl,
@@ -55,7 +55,7 @@ func NewContractsOptions(t *testing.T, wsUrl string) config.ContractsOptions {
 			PayerRegistryAddress:        chainConfig.PayerRegistry,
 			PayerReportManagerAddress:   chainConfig.PayerReportManager,
 			MaxChainDisconnectTime:      10 * time.Second,
-			BackfillBlockSize:           500,
+			BackfillBlockPageSize:       500,
 		},
 	}
 }

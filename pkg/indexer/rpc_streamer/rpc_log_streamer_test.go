@@ -61,7 +61,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	mockClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(backfillToBlock+1))).
 		Return(mockBlock11.Header(), nil)
 
-	cfg := rpc_streamer.ContractConfig{
+	cfg := &rpc_streamer.ContractConfig{
 		ID:                "testContract",
 		FromBlockNumber:   backfillFromBlock,
 		FromBlockHash:     []byte{},
@@ -75,7 +75,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		mockClient,
 		testutils.NewLog(t),
 		rpc_streamer.WithContractConfig(cfg),
-		rpc_streamer.WithBackfillBlockSize(9),
+		rpc_streamer.WithBackfillBlockPageSize(9),
 	)
 	require.NoError(t, err)
 

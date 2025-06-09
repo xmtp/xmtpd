@@ -88,14 +88,17 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 		ownerAddress  = viper.GetString("owner-address")
 		signingKeyPub = viper.GetString("signing-key-pub")
 		httpAddress   = viper.GetString("http-address")
+		force         = viper.GetBool("force")
 	)
 
-	for _, node := range nodes {
-		if node.SigningKeyPub == signingKeyPub {
-			logger.Fatal(
-				"signing key public key already registered",
-				zap.String("signing-key-pub", signingKeyPub),
-			)
+	if !force {
+		for _, node := range nodes {
+			if node.SigningKeyPub == signingKeyPub {
+				logger.Fatal(
+					"signing key public key already registered",
+					zap.String("signing-key-pub", signingKeyPub),
+				)
+			}
 		}
 	}
 
@@ -511,7 +514,7 @@ func setupNodeRegistryCaller(
 		contracts,
 	)
 	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
+		logger.Fatal("could not create registry caller", zap.Error(err))
 	}
 
 	return caller, nil

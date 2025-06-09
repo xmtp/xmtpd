@@ -128,7 +128,7 @@ func TestRegistryWrite(t *testing.T) {
 	require.Equal(t, 2, len(nodes))
 
 	registryAdmin2, registryCaller2 := setupRegistry(t)
-	err = WriteToRegistry(testutils.NewLog(t), nodes, registryAdmin2)
+	err = WriteToRegistry(t.Context(), nodes, registryAdmin2)
 	require.NoError(t, err)
 
 	restoredNodes, err := ReadFromRegistry(registryCaller2)

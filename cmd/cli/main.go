@@ -349,7 +349,7 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}
 
-	err = migrator.WriteToRegistry(logger, nodes, newRegistryAdmin)
+	err = migrator.WriteToRegistry(ctx, nodes, newRegistryAdmin)
 	if err != nil {
 		logger.Fatal("could not write nodes to registry", zap.Error(err))
 	}

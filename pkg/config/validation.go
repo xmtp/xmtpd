@@ -98,10 +98,59 @@ func ValidatePruneOptions(options PruneOptions) error {
 	return nil
 }
 
+func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
+	if filePath == "" {
+		return ContractsOptions{}, errors.New("config file path is not set")
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return ContractsOptions{}, err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return ContractsOptions{}, err
+	}
+
+	var config ChainConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return ContractsOptions{}, err
+	}
+
+	// Set default values for missing options in environment json.
+	return ContractsOptions{
+		SettlementChain: SettlementChainOptions{
+			NodeRegistryAddress:         config.NodeRegistry,
+			RateRegistryAddress:         config.RateRegistry,
+			ParameterRegistryAddress:    config.SettlementChainParameterRegistry,
+			PayerRegistryAddress:        config.PayerRegistry,
+			PayerReportManagerAddress:   config.PayerReportManager,
+			ChainID:                     config.SettlementChainID,
+			NodeRegistryRefreshInterval: 60 * time.Second,  // Default value from struct tag
+			RateRegistryRefreshInterval: 300 * time.Second, // Default value from struct tag
+			MaxChainDisconnectTime:      300 * time.Second, // Default value from struct tag
+			BackfillBlockSize:           500,               // Default value from struct tag
+		},
+		AppChain: AppChainOptions{
+			GroupMessageBroadcasterAddress:   config.GroupMessageBroadcaster,
+			IdentityUpdateBroadcasterAddress: config.IdentityUpdateBroadcaster,
+			ChainID:                          config.AppChainID,
+			MaxChainDisconnectTime:           300 * time.Second, // Default value from struct tag
+			BackfillBlockSize:                500,               // Default value from struct tag
+		},
+	}, nil
+}
+
 func ParseJSONConfig(options *ContractsOptions) error {
 	if options.ConfigFilePath != "" && options.ConfigJson != "" {
 		return errors.New("--config-file and --config-json cannot be used together")
 	}
+
+	//filePath := os.Getenv("XMTPD_CONTRACTS_CONFIG_FILE_PATH")
 
 	if options.ConfigFilePath != "" {
 		file, err := os.Open(options.ConfigFilePath)

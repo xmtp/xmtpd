@@ -257,10 +257,9 @@ func validateAppChainConfig(
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	// TODO: For now, we only validate RpcURL, until deployments are migrated to WssURL.
 	validateWebsocketURL(
-		options.Contracts.AppChain.RpcURL,
-		"contracts.app-chain.rpc-url",
+		options.Contracts.AppChain.WssURL,
+		"contracts.app-chain.wss-url",
 		missingSet,
 	)
 	validateField(
@@ -290,10 +289,9 @@ func validateSettlementChainConfig(
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	// TODO: For now, we only validate RpcURL, until deployments are migrated to WssURL.
 	validateWebsocketURL(
-		options.Contracts.SettlementChain.RpcURL,
-		"contracts.settlement-chain.rpc-url",
+		options.Contracts.SettlementChain.WssURL,
+		"contracts.settlement-chain.wss-url",
 		missingSet,
 	)
 	validateField(

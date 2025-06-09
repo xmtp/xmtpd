@@ -18,26 +18,20 @@ type ContractsOptions struct {
 }
 
 type AppChainOptions struct {
-	// RpcURL is deprecated, use WssURL instead.
-	// TODO: For now, we only validate RpcURL, until deployments are migrated to WssURL.
-	RpcURL                           string        `long:"rpc-url"                             env:"XMTPD_APP_CHAIN_RPC_URL"                           description:"Blockchain RPC URL"`
 	WssURL                           string        `long:"wss-url"                             env:"XMTPD_APP_CHAIN_WSS_URL"                           description:"Blockchain WSS URL"`
 	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
 	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
-	BackfillBlockSize                uint64        `long:"backfill-block-size"                 env:"XMTPD_APP_CHAIN_BACKFILL_BLOCK_SIZE"               description:"Maximal size of a backfill block"                             default:"500"`
+	BackfillBlockPageSize            uint64        `long:"backfill-block-page-size"            env:"XMTPD_APP_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"          description:"Maximal size of a backfill block page"                        default:"500"`
 	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
 	IdentityUpdateBroadcasterAddress string        `long:"identity-update-broadcaster-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS" description:"Identity update broadcaster contract address"`
 	DeploymentBlock                  uint64        `long:"deployment-block"                    env:"XMTPD_APP_CHAIN_DEPLOYMENT_BLOCK"                  description:"Deployment block for the application chain"                   default:"0"`
 }
 
 type SettlementChainOptions struct {
-	// RpcURL is deprecated, use WssURL instead.
-	// TODO: For now, we only validate RpcURL, until deployments are migrated to WssURL.
-	RpcURL                      string        `long:"rpc-url"                        env:"XMTPD_SETTLEMENT_CHAIN_RPC_URL"                        description:"Blockchain RPC URL"`
 	WssURL                      string        `long:"wss-url"                        env:"XMTPD_SETTLEMENT_CHAIN_WSS_URL"                        description:"Blockchain WSS URL"`
 	ChainID                     int           `long:"chain-id"                       env:"XMTPD_SETTLEMENT_CHAIN_CHAIN_ID"                       description:"Chain ID for the settlement chain"                            default:"31337"`
 	MaxChainDisconnectTime      time.Duration `long:"max-chain-disconnect-time"      env:"XMTPD_SETTLEMENT_CHAIN_MAX_CHAIN_DISCONNECT_TIME"      description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
-	BackfillBlockSize           uint64        `long:"backfill-block-size"            env:"XMTPD_SETTLEMENT_CHAIN_BACKFILL_BLOCK_SIZE"            description:"Maximal size of a backfill block"                             default:"500"`
+	BackfillBlockPageSize       uint64        `long:"backfill-block-page-size"       env:"XMTPD_SETTLEMENT_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"       description:"Maximal size of a backfill block page"                        default:"500"`
 	NodeRegistryAddress         string        `long:"node-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS"          description:"Node Registry contract address"`
 	NodeRegistryRefreshInterval time.Duration `long:"node-registry-refresh-interval" env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry"                      default:"60s"`
 	RateRegistryAddress         string        `long:"rate-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_ADDRESS"          description:"Rate registry contract address"`

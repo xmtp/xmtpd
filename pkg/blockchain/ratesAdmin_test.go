@@ -15,8 +15,8 @@ import (
 func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	ctx := context.Background()
 	logger := testutils.NewLog(t)
-	rpcUrl := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, rpcUrl)
+	wsUrl := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.LOCAL_PRIVATE_KEY,
@@ -24,7 +24,7 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsOptions.AppChain.RpcURL)
+	client, err := blockchain.NewClient(ctx, contractsOptions.AppChain.WssURL)
 	require.NoError(t, err)
 
 	ratesAdmin, err := blockchain.NewRatesAdmin(logger, client, signer, contractsOptions)

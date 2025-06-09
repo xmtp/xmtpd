@@ -48,7 +48,7 @@ func NewTestServer(
 		s.WithServerOptions(&config.ServerOptions{
 			Contracts: config.ContractsOptions{
 				AppChain: config.AppChainOptions{
-					RpcURL:                 "ws://localhost:8545",
+					WssURL:                 "ws://localhost:8545",
 					MaxChainDisconnectTime: 5 * time.Minute,
 				},
 			},

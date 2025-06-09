@@ -24,10 +24,10 @@ type Watcher struct {
 func NewWatcher(
 	ctx context.Context,
 	logger *zap.Logger,
-	rpcURL string,
+	wsUrl string,
 	watchedContract common.Address,
 ) (*Watcher, error) {
-	ethClient, err := ethclient.Dial(rpcURL)
+	ethClient, err := ethclient.Dial(wsUrl)
 	if err != nil {
 		return nil, err
 	}

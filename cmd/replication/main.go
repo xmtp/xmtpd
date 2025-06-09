@@ -104,7 +104,7 @@ func main() {
 
 		settlementChainClient, err := blockchain.NewClient(
 			ctx,
-			options.Contracts.SettlementChain.RpcURL,
+			options.Contracts.SettlementChain.WssURL,
 		)
 		if err != nil {
 			logger.Fatal("initializing blockchain client", zap.Error(err))

@@ -24,6 +24,10 @@ import (
 const (
 	// The app chain can't have a lag from the highest block.
 	lagFromHighestBlock = 0
+
+	// XMTP app chain is based on Arbitrum Orbit, which manages a maximum of 1.5M gas/block.
+	// Given the average size of identity updates and group messages, 50 is a reasonable number.
+	defaultLogsPerBlock = 50
 )
 
 var ErrInitializingAppChain = errors.New("initializing app chain")
@@ -53,7 +57,7 @@ func NewAppChain(
 	chainLogger := log.Named("app-chain").
 		With(zap.Int("chainID", cfg.ChainID))
 
-	client, err := blockchain.NewClient(ctxwc, cfg.RpcURL)
+	client, err := blockchain.NewClient(ctxwc, cfg.WssURL)
 	if err != nil {
 		cancel()
 		client.Close()
@@ -103,26 +107,28 @@ func NewAppChain(
 		chainLogger,
 		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
 		streamer.WithContractConfig(
-			streamer.ContractConfig{
-				ID:                contracts.GroupMessageBroadcasterName(cfg.ChainID),
-				FromBlockNumber:   groupMessageLatestBlockNumber,
-				FromBlockHash:     groupMessageLatestBlockHash,
-				Address:           groupMessageBroadcaster.Address(),
-				Topics:            groupMessageBroadcaster.Topics(),
-				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
+			&streamer.ContractConfig{
+				ID:                   contracts.GroupMessageBroadcasterName(cfg.ChainID),
+				FromBlockNumber:      groupMessageLatestBlockNumber,
+				FromBlockHash:        groupMessageLatestBlockHash,
+				Address:              groupMessageBroadcaster.Address(),
+				Topics:               groupMessageBroadcaster.Topics(),
+				MaxDisconnectTime:    cfg.MaxChainDisconnectTime,
+				ExpectedLogsPerBlock: defaultLogsPerBlock,
 			},
 		),
 		streamer.WithContractConfig(
-			streamer.ContractConfig{
-				ID:                contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
-				FromBlockNumber:   identityUpdateLatestBlockNumber,
-				FromBlockHash:     identityUpdateLatestBlockHash,
-				Address:           identityUpdateBroadcaster.Address(),
-				Topics:            identityUpdateBroadcaster.Topics(),
-				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
+			&streamer.ContractConfig{
+				ID:                   contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
+				FromBlockNumber:      identityUpdateLatestBlockNumber,
+				FromBlockHash:        identityUpdateLatestBlockHash,
+				Address:              identityUpdateBroadcaster.Address(),
+				Topics:               identityUpdateBroadcaster.Topics(),
+				MaxDisconnectTime:    cfg.MaxChainDisconnectTime,
+				ExpectedLogsPerBlock: defaultLogsPerBlock,
 			},
 		),
-		streamer.WithBackfillBlockSize(cfg.BackfillBlockSize),
+		streamer.WithBackfillBlockPageSize(cfg.BackfillBlockPageSize),
 	)
 	if err != nil {
 		cancel()

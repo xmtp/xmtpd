@@ -13,9 +13,9 @@ Prompt them to ensure that the public key and address are correct as they are im
 Only members of `@ephemerahq/backend` can currently register nodes.
 
 ```bash
-export XMTPD_CONTRACTS_RPC_URL="https://xmtp-testnet.g.alchemy.com/v2/<apikey>"
-export XMTPD_CONTRACTS_CHAIN_ID=34498
-export XMTPD_CONTRACTS_NODES_ADDRESS=<depends>
+export XMTPD_SETTLEMENT_CHAIN_WSS_URL="https://xmtp-testnet.g.alchemy.com/v2/<apikey>"
+export XMTPD_SETTLEMENT_CHAIN_CHAIN_ID=34498
+export XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS=<depends>
 export PRIVATE_KEY=<secret>
 
 ./dev/cmd/cli register-node \

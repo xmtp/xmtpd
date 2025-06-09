@@ -119,12 +119,16 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 		logger.Fatal("could not decompress public key", zap.Error(err))
 	}
 
-	err = admin.AddNode(ctx, ownerAddress, parsedSigningKeyPub, httpAddress)
+	nodeID, err := admin.AddNode(ctx, ownerAddress, parsedSigningKeyPub, httpAddress)
 	if err != nil {
 		logger.Fatal("could not add node", zap.Error(err))
 	}
 
-	logger.Info("Node registered", zap.String("owner-address", ownerAddress))
+	logger.Info(
+		"Node registered",
+		zap.String("owner-address", ownerAddress),
+		zap.Uint32("node-id", nodeID),
+	)
 }
 
 func canonicalNetworkCmd() *cobra.Command {

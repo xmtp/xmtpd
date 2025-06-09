@@ -133,14 +133,14 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			NodeRegistryRefreshInterval: 60 * time.Second,  // Default value from struct tag
 			RateRegistryRefreshInterval: 300 * time.Second, // Default value from struct tag
 			MaxChainDisconnectTime:      300 * time.Second, // Default value from struct tag
-			BackfillBlockSize:           500,               // Default value from struct tag
+			BackfillBlockPageSize:       500,               // Default value from struct tag
 		},
 		AppChain: AppChainOptions{
 			GroupMessageBroadcasterAddress:   config.GroupMessageBroadcaster,
 			IdentityUpdateBroadcasterAddress: config.IdentityUpdateBroadcaster,
 			ChainID:                          config.AppChainID,
 			MaxChainDisconnectTime:           300 * time.Second, // Default value from struct tag
-			BackfillBlockSize:                500,               // Default value from struct tag
+			BackfillBlockPageSize:            500,               // Default value from struct tag
 		},
 	}, nil
 }

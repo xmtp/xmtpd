@@ -193,7 +193,11 @@ func (s *originatorStream) validateEnvelope(
 
 	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
 		// TODO(rich) Submit misbehavior report and continue
-		s.log.Error("Received out of order envelope")
+		s.log.Error(
+			"Received out of order envelope",
+			zap.Any("envelope", env),
+			zap.Any("lastEnvelope", s.lastEnvelope),
+		)
 	}
 
 	if env.OriginatorSequenceID() > lastSequenceID {
@@ -270,7 +274,7 @@ func (s *originatorStream) storeEnvelope(env *envUtils.OriginatorEnvelope) error
 		return err
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		s.log.Info("Envelope already inserted")
+		s.log.Debug("Envelope already inserted", zap.Uint32("originatorID", env.OriginatorNodeID()), zap.Uint64("sequenceID", env.OriginatorSequenceID()))
 		return nil
 	}
 

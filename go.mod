@@ -133,7 +133,10 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/cors v1.11.1 // indirect
+<<<<<<< HEAD
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+=======
+>>>>>>> fa5dda4 (Add new xmtpd-cli based onspf13/cobra)
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.9.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect

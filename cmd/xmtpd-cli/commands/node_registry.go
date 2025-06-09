@@ -40,10 +40,17 @@ func registerNodeCmd() *cobra.Command {
 		Short: "Register a node",
 		Run:   registerNodeHandler,
 		Example: `
+<<<<<<< HEAD
 Usage: xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
 
 Register a node:
 xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
+=======
+Usage: xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
+
+Register a node:
+xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
+>>>>>>> fa5dda4 (Add new xmtpd-cli based onspf13/cobra)
 `,
 	}
 

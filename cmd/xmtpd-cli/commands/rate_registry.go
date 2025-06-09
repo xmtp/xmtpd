@@ -36,10 +36,10 @@ func addRatesCommand() *cobra.Command {
 		Short: "Add rates to the rate registry",
 		Run:   addRatesHandler,
 		Example: `
-Usage: xmtpd rates add --message-fee <message-fee> --storage-fee <storage-fee> --congestion-fee <congestion-fee> --target-rate <target-rate>
+Usage: xmtpd-cli rates add --message-fee <message-fee> --storage-fee <storage-fee> --congestion-fee <congestion-fee> --target-rate <target-rate>
 
 Example:
-xmtpd rates add --message-fee 1000000000000000000 --storage-fee 1000000000000000000 --congestion-fee 1000000000000000000 --target-rate 1000000000000000000
+xmtpd-cli rates add --message-fee 1000000000000000000 --storage-fee 1000000000000000000 --congestion-fee 1000000000000000000 --target-rate 1000000000000000000
 `,
 	}
 
@@ -118,10 +118,10 @@ func getRatesCommand() *cobra.Command {
 		Short: "Get rates from the rate registry",
 		Run:   getRatesHandler,
 		Example: `
-Usage: xmtpd rates get
+Usage: xmtpd-cli rates get
 
 Example:
-xmtpd rates get
+xmtpd-cli rates get
 `,
 	}
 

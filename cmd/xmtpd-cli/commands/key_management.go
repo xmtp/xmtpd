@@ -30,10 +30,10 @@ func generateKeyCommand() *cobra.Command {
 		Short: "Generate a new key pair",
 		Run:   generateKeyHandler,
 		Example: `
-Usage: xmtpd keys generate
+Usage: xmtpd-cli keys generate
 
 Example:
-xmtpd keys generate
+xmtpd-cli keys generate
 `,
 	}
 
@@ -65,10 +65,10 @@ func getPubKeyCommand() *cobra.Command {
 		Short: "Get the public key for a private key",
 		Run:   getPubKeyHandler,
 		Example: `
-Usage: xmtpd keys get-public-key --private-key <private-key>
+Usage: xmtpd-cli keys get-public-key --private-key <private-key>
 
 Example:
-xmtpd keys get-public-key --private-key <private-key>
+xmtpd-cli keys get-public-key --private-key <private-key>
 `,
 	}
 

@@ -40,10 +40,10 @@ func registerNodeCmd() *cobra.Command {
 		Short: "Register a node",
 		Run:   registerNodeHandler,
 		Example: `
-Usage: xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
+Usage: xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
 
 Register a node:
-xmtpd nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
+xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
 `,
 	}
 
@@ -126,13 +126,13 @@ func canonicalNetworkCmd() *cobra.Command {
 		Short: "Manage the canonical network",
 		Run:   canonicalNetworkHandler,
 		Example: `
-Usage: xmtpd nodes canonical-network {--add | --remove} --node-id <node-id>
+Usage: xmtpd-cli nodes canonical-network {--add | --remove} --node-id <node-id>
 
 Add a node to the canonical network:
-xmtpd nodes canonical-network --add --node-id <node-id>
+xmtpd-cli nodes canonical-network --add --node-id <node-id>
 
 Remove a node from the canonical network:
-xmtpd nodes canonical-network --remove --node-id <node-id>
+xmtpd-cli nodes canonical-network --remove --node-id <node-id>
 `,
 	}
 
@@ -204,16 +204,16 @@ func getNodeCmd() *cobra.Command {
 		Short: "Get and export nodes",
 		Run:   getNodeHandler,
 		Example: `
-Usage: xmtpd nodes get {--all | --node-id <node-id>} [--export <file>]
+Usage: xmtpd-cli nodes get {--all | --node-id <node-id>} [--export <file>]
 
 Get all nodes:
-xmtpd nodes get --all
+xmtpd-cli nodes get --all
 
 Get a specific node:
-xmtpd nodes get --node-id <node-id>
+xmtpd-cli nodes get --node-id <node-id>
 
 Export all nodesto file:
-xmtpd nodes get --all --export <file>
+xmtpd-cli nodes get --all --export <file>
 `,
 	}
 
@@ -307,13 +307,13 @@ func maxCanonicalCmd() *cobra.Command {
 		Short: "Manage the maximum canonical size",
 		Run:   maxCanonicalHandler,
 		Example: `
-Usage: xmtpd nodes max-canonical [--set <size>]
+Usage: xmtpd-cli nodes max-canonical [--set <size>]
 
 Set the maximum canonical size:
-xmtpd nodes max-canonical --set <size>
+xmtpd-cli nodes max-canonical --set <size>
 
 Get the current maximum canonical size:
-xmtpd nodes max-canonical
+xmtpd-cli nodes max-canonical
 `,
 	}
 
@@ -369,10 +369,10 @@ func setHttpAddressCmd() *cobra.Command {
 		Short: "Set the HTTP address of a node",
 		Run:   setHttpAddressHandler,
 		Example: `
-Usage: xmtpd nodes set-http-address --node-id <node-id> --http-address <address>
+Usage: xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 
 Set the HTTP address of a node:
-xmtpd nodes set-http-address --node-id <node-id> --http-address <address>
+xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 `,
 	}
 

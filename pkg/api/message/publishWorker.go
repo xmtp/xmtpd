@@ -191,7 +191,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		return false
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		logger.Debug("Envelope already inserted")
+		logger.Debug("Envelope already inserted", zap.Int32("originatorID", originatorID), zap.Int64("sequenceID", stagedEnv.ID))
 	}
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere

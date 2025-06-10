@@ -42,7 +42,7 @@ jobs:
           export PATH="${PATH}:${GOPATH}/bin"
           go test -v ./... -race
       - uses: datadog/junit-upload-github-action@v2
-        if: github.event.pull_request.head.repo.full_name == github.repository
+        if: github.ref == 'refs/heads/main'
         with:
           api_key: ${{ secrets.DD_API_KEY }}
           service: xmtp-node-go

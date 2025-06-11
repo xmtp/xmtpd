@@ -359,10 +359,12 @@ func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[s
 	u, err := url.Parse(wsURL)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		return
 	}
 
 	if u.Scheme != "ws" && u.Scheme != "wss" {
 		set[fmt.Sprintf("--%s is invalid, expected ws or wss, got %s", fieldName, u.Scheme)] = struct{}{}
+		return
 	}
 
 	ctx := context.Background()
@@ -370,13 +372,19 @@ func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[s
 	client, err := ethclient.DialContext(ctx, wsURL)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		return
 	}
 
-	defer client.Close()
+	defer func() {
+		if client != nil {
+			client.Close()
+		}
+	}()
 
 	cID, err := client.ChainID(ctx)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		return
 	}
 
 	if cID.Int64() != int64(chainID) {

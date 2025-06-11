@@ -1,16 +1,18 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	ws "github.com/gorilla/websocket"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func ValidateServerOptions(options *ServerOptions) error {
@@ -255,15 +257,16 @@ func validateAppChainConfig(
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateWebsocketURL(
-		options.Contracts.AppChain.WssURL,
-		"contracts.app-chain.wss-url",
-		missingSet,
-	)
 	validateField(
 		options.Contracts.AppChain.ChainID,
 		"contracts.app-chain.chain-id",
 		customSet,
+	)
+	validateWebsocketURL(
+		options.Contracts.AppChain.WssURL,
+		options.Contracts.AppChain.ChainID,
+		"contracts.app-chain.wss-url",
+		missingSet,
 	)
 	validateHexAddress(
 		options.Contracts.AppChain.GroupMessageBroadcasterAddress,
@@ -287,15 +290,16 @@ func validateSettlementChainConfig(
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateWebsocketURL(
-		options.Contracts.SettlementChain.WssURL,
-		"contracts.settlement-chain.wss-url",
-		missingSet,
-	)
 	validateField(
 		options.Contracts.SettlementChain.ChainID,
 		"contracts.settlement-chain.chain-id",
 		customSet,
+	)
+	validateWebsocketURL(
+		options.Contracts.SettlementChain.WssURL,
+		options.Contracts.SettlementChain.ChainID,
+		"contracts.settlement-chain.wss-url",
+		missingSet,
 	)
 	validateHexAddress(
 		options.Contracts.SettlementChain.NodeRegistryAddress,
@@ -351,18 +355,31 @@ func validateHexAddress(address string, fieldName string, set map[string]struct{
 	}
 }
 
-func validateWebsocketURL(url string, fieldName string, set map[string]struct{}) {
-	dialer := &ws.Dialer{
-		HandshakeTimeout: 15 * time.Second,
-	}
-
-	// Dial returns an error if the URL is invalid, or if the connection fails.
-	conn, _, err := dialer.Dial(url, nil)
+func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[string]struct{}) {
+	u, err := url.Parse(wsURL)
 	if err != nil {
-		set[fmt.Sprintf("--%s is invalid", fieldName)] = struct{}{}
+		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
 	}
 
-	if conn != nil {
-		_ = conn.Close()
+	if u.Scheme != "ws" && u.Scheme != "wss" {
+		set[fmt.Sprintf("--%s is invalid, expected ws or wss, got %s", fieldName, u.Scheme)] = struct{}{}
+	}
+
+	ctx := context.Background()
+
+	client, err := ethclient.DialContext(ctx, wsURL)
+	if err != nil {
+		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+	}
+
+	defer client.Close()
+
+	cID, err := client.ChainID(ctx)
+	if err != nil {
+		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+	}
+
+	if cID.Int64() != int64(chainID) {
+		set[fmt.Sprintf("--%s is invalid, expected chain ID %d, got %d", fieldName, chainID, cID.Int64())] = struct{}{}
 	}
 }

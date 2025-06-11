@@ -33,7 +33,7 @@ func IndexLogs(
 			}
 
 			// TODO: Handle reorged event in future PR.
-			// This should be handled by the IReorgHandler, and have a different implementaton per contract.
+			// This should be handled by the IReorgHandler, and have a different implementation per contract.
 			// Backfilled logs always have Removed = false. Only subscription logs can be reorged.
 			if event.Removed {
 				if err := contract.HandleLog(ctx, event); err != nil {

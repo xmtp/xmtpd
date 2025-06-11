@@ -13,7 +13,7 @@ func TestNotifier(t *testing.T) {
 	channel, cancel := registry.register()
 	getCurrentCount := CountChannel(channel)
 
-	// Make sure the value is getting writter to the channel
+	// Make sure the value is getting written to the channel
 	registry.trigger(1)
 	// Sleep for 10ms since we read from the channel in a goroutinee
 	time.Sleep(10 * time.Millisecond)

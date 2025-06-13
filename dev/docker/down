@@ -14,13 +14,13 @@ fi
 docker compose \
   -f dev/docker/docker-compose.yml \
   --env-file dev/local.env \
-  --profile ${profile} \
+  --profile "${profile}" \
   -p "xmtpd" \
   down --remove-orphans --volumes
 
 docker compose \
   -f dev/docker/docker-compose-register.yml \
   --env-file dev/local.env \
-  --profile ${profile} \
+  --profile "${profile}" \
   -p "xmtpd_register_nodes" \
   down --remove-orphans --volumes

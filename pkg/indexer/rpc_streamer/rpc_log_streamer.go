@@ -238,6 +238,9 @@ backfillLoop:
 		}
 	}
 
+	// from now on we are operating on the subscription, and we no longer check what the highest block is
+	metrics.EmitIndexerCurrentBlockLag(cfg.Address.Hex(), 0)
+
 	for {
 		select {
 		case <-r.ctx.Done():
@@ -254,6 +257,10 @@ backfillLoop:
 				"Received log from subscription channel",
 				zap.Uint64("blockNumber", log.BlockNumber),
 			)
+
+			metrics.EmitIndexerCurrentBlock(cfg.Address.Hex(), log.BlockNumber)
+			metrics.EmitIndexerNumLogsFound(cfg.Address.Hex(), 1)
+			metrics.EmitIndexerMaxBlock(cfg.Address.Hex(), log.BlockNumber)
 
 			// TODO: Implement timelocking for logs in chains with lagFromHighestBlock > 0.
 

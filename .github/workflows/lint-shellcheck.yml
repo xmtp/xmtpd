@@ -1,4 +1,4 @@
-name: Lint Spellcheck
+name: Lint Shellcheck
 on:
   push:
     branches:
@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  lint-spellcheck:
-    name: Lint Spellcheck
+  lint-shellcheck:
+    name: Lint Shellcheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

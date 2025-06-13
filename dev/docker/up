@@ -15,7 +15,7 @@ fi
 docker compose \
   -f dev/docker/docker-compose.yml \
   --env-file dev/local.env \
-  --profile ${profile} \
+  --profile "${profile}" \
   -p "xmtpd" \
   up -d \
   --remove-orphans \
@@ -24,7 +24,7 @@ docker compose \
 docker compose \
   -f dev/docker/docker-compose-register.yml \
   --env-file dev/local.env \
-  --profile ${profile} \
+  --profile "${profile}" \
   -p "xmtpd_register_nodes" \
   up \
   --build \

@@ -14,12 +14,12 @@ export NODE_OPERATOR_PRIVATE_KEY=$ANVIL_ACC_2_PRIVATE_KEY
 
 NODE_ID=$(dev/cmd/cli register-node \
     --http-address=http://localhost:5051 \
-    --node-owner-address=$NODE_ADDRESS \
-    --admin.private-key=$PRIVATE_KEY \
-    --node-signing-key-pub=$XMTPD_SIGNER_PUBLIC_KEY | jq -r '.node_id')
+    --node-owner-address="$NODE_ADDRESS" \
+    --admin.private-key="$PRIVATE_KEY" \
+    --node-signing-key-pub="$XMTPD_SIGNER_PUBLIC_KEY" | jq -r '.node_id')
 
 dev/cmd/cli add-node-to-network \
-    --admin.private-key=${PRIVATE_KEY} \
-    --node-id=${NODE_ID}
+    --admin.private-key="${PRIVATE_KEY}" \
+    --node-id="${NODE_ID}"
 
 echo -e "\033[32m✔\033[0m Node with ID $NODE_ID has been registered and enabled"

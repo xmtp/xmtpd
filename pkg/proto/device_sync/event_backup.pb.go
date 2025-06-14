@@ -23,6 +23,64 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type EventLevelSave int32
+
+const (
+	EventLevelSave_EVENT_LEVEL_SAVE_UNSPECIFIED EventLevelSave = 0
+	EventLevelSave_EVENT_LEVEL_SAVE_NONE        EventLevelSave = 1
+	EventLevelSave_EVENT_LEVEL_SAVE_SUCCESS     EventLevelSave = 2
+	EventLevelSave_EVENT_LEVEL_SAVE_WARN        EventLevelSave = 3
+	EventLevelSave_EVENT_LEVEL_SAVE_ERROR       EventLevelSave = 4
+	EventLevelSave_EVENT_LEVEL_SAVE_FAULT       EventLevelSave = 5
+)
+
+// Enum value maps for EventLevelSave.
+var (
+	EventLevelSave_name = map[int32]string{
+		0: "EVENT_LEVEL_SAVE_UNSPECIFIED",
+		1: "EVENT_LEVEL_SAVE_NONE",
+		2: "EVENT_LEVEL_SAVE_SUCCESS",
+		3: "EVENT_LEVEL_SAVE_WARN",
+		4: "EVENT_LEVEL_SAVE_ERROR",
+		5: "EVENT_LEVEL_SAVE_FAULT",
+	}
+	EventLevelSave_value = map[string]int32{
+		"EVENT_LEVEL_SAVE_UNSPECIFIED": 0,
+		"EVENT_LEVEL_SAVE_NONE":        1,
+		"EVENT_LEVEL_SAVE_SUCCESS":     2,
+		"EVENT_LEVEL_SAVE_WARN":        3,
+		"EVENT_LEVEL_SAVE_ERROR":       4,
+		"EVENT_LEVEL_SAVE_FAULT":       5,
+	}
+)
+
+func (x EventLevelSave) Enum() *EventLevelSave {
+	p := new(EventLevelSave)
+	*p = x
+	return p
+}
+
+func (x EventLevelSave) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EventLevelSave) Descriptor() protoreflect.EnumDescriptor {
+	return file_device_sync_event_backup_proto_enumTypes[0].Descriptor()
+}
+
+func (EventLevelSave) Type() protoreflect.EnumType {
+	return &file_device_sync_event_backup_proto_enumTypes[0]
+}
+
+func (x EventLevelSave) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EventLevelSave.Descriptor instead.
+func (EventLevelSave) EnumDescriptor() ([]byte, []int) {
+	return file_device_sync_event_backup_proto_rawDescGZIP(), []int{0}
+}
+
 // Proto representation of a client record save
 type EventSave struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -30,6 +88,8 @@ type EventSave struct {
 	Event         string                 `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
 	Details       []byte                 `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
 	GroupId       []byte                 `protobuf:"bytes,4,opt,name=group_id,json=groupId,proto3,oneof" json:"group_id,omitempty"`
+	Level         EventLevelSave         `protobuf:"varint,5,opt,name=level,proto3,enum=xmtp.device_sync.event_backup.EventLevelSave" json:"level,omitempty"`
+	Icon          *string                `protobuf:"bytes,6,opt,name=icon,proto3,oneof" json:"icon,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -92,17 +152,41 @@ func (x *EventSave) GetGroupId() []byte {
 	return nil
 }
 
+func (x *EventSave) GetLevel() EventLevelSave {
+	if x != nil {
+		return x.Level
+	}
+	return EventLevelSave_EVENT_LEVEL_SAVE_UNSPECIFIED
+}
+
+func (x *EventSave) GetIcon() string {
+	if x != nil && x.Icon != nil {
+		return *x.Icon
+	}
+	return ""
+}
+
 var File_device_sync_event_backup_proto protoreflect.FileDescriptor
 
 const file_device_sync_event_backup_proto_rawDesc = "" +
 	"\n" +
-	"\x1edevice_sync/event_backup.proto\x12\x1dxmtp.device_sync.event_backup\"\x8c\x01\n" +
+	"\x1edevice_sync/event_backup.proto\x12\x1dxmtp.device_sync.event_backup\"\xf3\x01\n" +
 	"\tEventSave\x12\"\n" +
 	"\rcreated_at_ns\x18\x01 \x01(\x03R\vcreatedAtNs\x12\x14\n" +
 	"\x05event\x18\x02 \x01(\tR\x05event\x12\x18\n" +
 	"\adetails\x18\x03 \x01(\fR\adetails\x12\x1e\n" +
-	"\bgroup_id\x18\x04 \x01(\fH\x00R\agroupId\x88\x01\x01B\v\n" +
-	"\t_group_idB\xf0\x01\n" +
+	"\bgroup_id\x18\x04 \x01(\fH\x00R\agroupId\x88\x01\x01\x12C\n" +
+	"\x05level\x18\x05 \x01(\x0e2-.xmtp.device_sync.event_backup.EventLevelSaveR\x05level\x12\x17\n" +
+	"\x04icon\x18\x06 \x01(\tH\x01R\x04icon\x88\x01\x01B\v\n" +
+	"\t_group_idB\a\n" +
+	"\x05_icon*\xbe\x01\n" +
+	"\x0eEventLevelSave\x12 \n" +
+	"\x1cEVENT_LEVEL_SAVE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15EVENT_LEVEL_SAVE_NONE\x10\x01\x12\x1c\n" +
+	"\x18EVENT_LEVEL_SAVE_SUCCESS\x10\x02\x12\x19\n" +
+	"\x15EVENT_LEVEL_SAVE_WARN\x10\x03\x12\x1a\n" +
+	"\x16EVENT_LEVEL_SAVE_ERROR\x10\x04\x12\x1a\n" +
+	"\x16EVENT_LEVEL_SAVE_FAULT\x10\x05B\xf0\x01\n" +
 	"!com.xmtp.device_sync.event_backupB\x10EventBackupProtoP\x01Z+github.com/xmtp/xmtpd/pkg/proto/device_sync\xa2\x02\x03XDE\xaa\x02\x1bXmtp.DeviceSync.EventBackup\xca\x02\x1bXmtp\\DeviceSync\\EventBackup\xe2\x02'Xmtp\\DeviceSync\\EventBackup\\GPBMetadata\xea\x02\x1dXmtp::DeviceSync::EventBackupb\x06proto3"
 
 var (
@@ -117,16 +201,19 @@ func file_device_sync_event_backup_proto_rawDescGZIP() []byte {
 	return file_device_sync_event_backup_proto_rawDescData
 }
 
+var file_device_sync_event_backup_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_device_sync_event_backup_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_device_sync_event_backup_proto_goTypes = []any{
-	(*EventSave)(nil), // 0: xmtp.device_sync.event_backup.EventSave
+	(EventLevelSave)(0), // 0: xmtp.device_sync.event_backup.EventLevelSave
+	(*EventSave)(nil),   // 1: xmtp.device_sync.event_backup.EventSave
 }
 var file_device_sync_event_backup_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: xmtp.device_sync.event_backup.EventSave.level:type_name -> xmtp.device_sync.event_backup.EventLevelSave
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_device_sync_event_backup_proto_init() }
@@ -140,13 +227,14 @@ func file_device_sync_event_backup_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_sync_event_backup_proto_rawDesc), len(file_device_sync_event_backup_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_device_sync_event_backup_proto_goTypes,
 		DependencyIndexes: file_device_sync_event_backup_proto_depIdxs,
+		EnumInfos:         file_device_sync_event_backup_proto_enumTypes,
 		MessageInfos:      file_device_sync_event_backup_proto_msgTypes,
 	}.Build()
 	File_device_sync_event_backup_proto = out.File

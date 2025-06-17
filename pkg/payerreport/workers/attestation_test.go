@@ -15,13 +15,13 @@ import (
 func testAttestationWorker(
 	t *testing.T,
 	pollInterval time.Duration,
-) (*attestationWorker, *payerreport.Store, *registrantMocks.MockIRegistrant, *payerreportMocks.MockPayerReportVerifier) {
+) (*attestationWorker, *payerreport.Store, *registrantMocks.MockIRegistrant, *payerreportMocks.MockIPayerReportVerifier) {
 	log := testutils.NewLog(t)
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 	store := payerreport.NewStore(db, log)
 	mockRegistrant := registrantMocks.NewMockIRegistrant(t)
-	verifier := payerreportMocks.NewMockPayerReportVerifier(t)
+	verifier := payerreportMocks.NewMockIPayerReportVerifier(t)
 	worker := NewAttestationWorker(ctx, log, mockRegistrant, verifier, store, pollInterval)
 
 	return worker, store, mockRegistrant, verifier

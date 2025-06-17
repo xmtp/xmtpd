@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
 )
@@ -19,4 +20,17 @@ func Uint32ToInt32(u uint32) (int32, error) {
 		return 0, ErrIntOverflow
 	}
 	return int32(u), nil
+}
+
+func Uint32ToBytes(u uint32) []byte {
+	a := make([]byte, 4)
+	binary.LittleEndian.PutUint32(a, u)
+	return a
+}
+
+func Uint32FromBytes(b []byte) (uint32, error) {
+	if len(b) != 4 {
+		return 0, errors.New("invalid byte slice length")
+	}
+	return binary.LittleEndian.Uint32(b), nil
 }

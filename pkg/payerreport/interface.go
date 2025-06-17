@@ -12,11 +12,6 @@ type NodeSignature struct {
 	Signature []byte
 }
 
-type PayerReportAttestation struct {
-	Report        *PayerReport
-	NodeSignature NodeSignature
-}
-
 type PayerReportGenerationParams struct {
 	OriginatorID            uint32
 	LastReportEndSequenceID uint64

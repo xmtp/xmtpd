@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
 	"github.com/Masterminds/semver/v3"
@@ -259,6 +260,7 @@ func NewReplicationServer(
 			sync.WithRegistrant(s.registrant),
 			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(fees.NewFeeCalculator(getRatesFetcher())),
+			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Log)),
 		)
 		if err != nil {
 			return nil, err

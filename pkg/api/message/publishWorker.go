@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registrant"
+	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -95,6 +96,7 @@ func (p *publishWorker) start() {
 			return
 		case new_batch := <-p.listener:
 			for _, stagedEnv := range new_batch {
+				p.log.Info("publishing envelope", zap.Int64("sequenceID", stagedEnv.ID))
 				for !p.publishStagedEnvelope(stagedEnv) {
 					// Infinite retry on failure to publish; we cannot
 					// continue to the next envelope until this one is processed
@@ -116,10 +118,20 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 	retentionDays := env.RetentionDays()
 
-	baseFee, congestionFee, err := p.calculateFees(&stagedEnv, retentionDays)
+	parsedTopic, err := topic.ParseTopic(stagedEnv.Topic)
 	if err != nil {
-		logger.Error("Failed to calculate fees", zap.Error(err))
 		return false
+	}
+	isReserved := parsedTopic.IsReserved()
+
+	var baseFee, congestionFee currency.PicoDollar
+	// We do not charge fees for messages on reserved topics.
+	// These topics should be blocked from regular publishing and messages can only be produced by the node itself.
+	if !isReserved {
+		if baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays); err != nil {
+			logger.Error("Failed to calculate fees", zap.Error(err))
+			return false
+		}
 	}
 
 	originatorEnv, err := p.registrant.SignStagedEnvelope(
@@ -184,6 +196,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 			SpendPicodollars:  int64(baseFee) + int64(congestionFee),
 		},
 	)
+
 	if p.ctx.Err() != nil {
 		return false
 	} else if err != nil {

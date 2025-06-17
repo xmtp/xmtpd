@@ -338,6 +338,59 @@ func TestPublishEnvelopeFees(t *testing.T) {
 	)
 }
 
+func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
+	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	querier := queries.New(db)
+
+	clientEnv := envelopeTestUtils.CreatePayerReportClientEnvelope(100)
+
+	// Create a payer envelope with a reserved topic (PAYER_REPORTS_V1)
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		clientEnv,
+	)
+
+	// Attempt to publish the envelope through the API
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "reserved topics")
+
+	payerEnvelopeBytes, err := proto.Marshal(payerEnvelope)
+	require.NoError(t, err)
+
+	// Write to the DB directly to simulate publishing to a reserved topic
+	// since the API will eventually block publishing to reserved topics
+	_, err = querier.InsertStagedOriginatorEnvelope(
+		context.Background(),
+		queries.InsertStagedOriginatorEnvelopeParams{
+			Topic:         clientEnv.Aad.TargetTopic,
+			PayerEnvelope: payerEnvelopeBytes,
+		},
+	)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		envs, err := querier.
+			SelectGatewayEnvelopes(context.Background(), queries.SelectGatewayEnvelopesParams{})
+		require.NoError(t, err)
+		if len(envs) != 1 {
+			return false
+		}
+		originatorEnv, err := envelopeUtils.NewOriginatorEnvelopeFromBytes(
+			envs[0].OriginatorEnvelope,
+		)
+		require.NoError(t, err)
+		return originatorEnv.UnsignedOriginatorEnvelope.BaseFee() == currency.PicoDollar(0) &&
+			originatorEnv.UnsignedOriginatorEnvelope.CongestionFee() == currency.PicoDollar(0)
+	}, 2*time.Second, 500*time.Millisecond)
+}
+
 func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 

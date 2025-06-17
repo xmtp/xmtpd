@@ -132,22 +132,24 @@ func (_c *MockIRegistrant_SignClientEnvelopeToSelf_Call) RunAndReturn(run func([
 }
 
 // SignPayerReportAttestation provides a mock function with given fields: reportID
-func (_m *MockIRegistrant) SignPayerReportAttestation(reportID payerreport.ReportID) (payerreport.NodeSignature, error) {
+func (_m *MockIRegistrant) SignPayerReportAttestation(reportID payerreport.ReportID) (*payerreport.NodeSignature, error) {
 	ret := _m.Called(reportID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SignPayerReportAttestation")
 	}
 
-	var r0 payerreport.NodeSignature
+	var r0 *payerreport.NodeSignature
 	var r1 error
-	if rf, ok := ret.Get(0).(func(payerreport.ReportID) (payerreport.NodeSignature, error)); ok {
+	if rf, ok := ret.Get(0).(func(payerreport.ReportID) (*payerreport.NodeSignature, error)); ok {
 		return rf(reportID)
 	}
-	if rf, ok := ret.Get(0).(func(payerreport.ReportID) payerreport.NodeSignature); ok {
+	if rf, ok := ret.Get(0).(func(payerreport.ReportID) *payerreport.NodeSignature); ok {
 		r0 = rf(reportID)
 	} else {
-		r0 = ret.Get(0).(payerreport.NodeSignature)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*payerreport.NodeSignature)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(payerreport.ReportID) error); ok {
@@ -177,19 +179,19 @@ func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Run(run func(reportID
 	return _c
 }
 
-func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Return(_a0 payerreport.NodeSignature, _a1 error) *MockIRegistrant_SignPayerReportAttestation_Call {
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) Return(_a0 *payerreport.NodeSignature, _a1 error) *MockIRegistrant_SignPayerReportAttestation_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIRegistrant_SignPayerReportAttestation_Call) RunAndReturn(run func(payerreport.ReportID) (payerreport.NodeSignature, error)) *MockIRegistrant_SignPayerReportAttestation_Call {
+func (_c *MockIRegistrant_SignPayerReportAttestation_Call) RunAndReturn(run func(payerreport.ReportID) (*payerreport.NodeSignature, error)) *MockIRegistrant_SignPayerReportAttestation_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// SignStagedEnvelope provides a mock function with given fields: stagedEnv, baseFee, congestionFee
-func (_m *MockIRegistrant) SignStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope, baseFee currency.PicoDollar, congestionFee currency.PicoDollar) (*envelopes.OriginatorEnvelope, error) {
-	ret := _m.Called(stagedEnv, baseFee, congestionFee)
+// SignStagedEnvelope provides a mock function with given fields: stagedEnv, baseFee, congestionFee, retentionDays
+func (_m *MockIRegistrant) SignStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope, baseFee currency.PicoDollar, congestionFee currency.PicoDollar, retentionDays uint32) (*envelopes.OriginatorEnvelope, error) {
+	ret := _m.Called(stagedEnv, baseFee, congestionFee, retentionDays)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SignStagedEnvelope")
@@ -197,19 +199,19 @@ func (_m *MockIRegistrant) SignStagedEnvelope(stagedEnv queries.StagedOriginator
 
 	var r0 *envelopes.OriginatorEnvelope
 	var r1 error
-	if rf, ok := ret.Get(0).(func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar) (*envelopes.OriginatorEnvelope, error)); ok {
-		return rf(stagedEnv, baseFee, congestionFee)
+	if rf, ok := ret.Get(0).(func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar, uint32) (*envelopes.OriginatorEnvelope, error)); ok {
+		return rf(stagedEnv, baseFee, congestionFee, retentionDays)
 	}
-	if rf, ok := ret.Get(0).(func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar) *envelopes.OriginatorEnvelope); ok {
-		r0 = rf(stagedEnv, baseFee, congestionFee)
+	if rf, ok := ret.Get(0).(func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar, uint32) *envelopes.OriginatorEnvelope); ok {
+		r0 = rf(stagedEnv, baseFee, congestionFee, retentionDays)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*envelopes.OriginatorEnvelope)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar) error); ok {
-		r1 = rf(stagedEnv, baseFee, congestionFee)
+	if rf, ok := ret.Get(1).(func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar, uint32) error); ok {
+		r1 = rf(stagedEnv, baseFee, congestionFee, retentionDays)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -226,13 +228,14 @@ type MockIRegistrant_SignStagedEnvelope_Call struct {
 //   - stagedEnv queries.StagedOriginatorEnvelope
 //   - baseFee currency.PicoDollar
 //   - congestionFee currency.PicoDollar
-func (_e *MockIRegistrant_Expecter) SignStagedEnvelope(stagedEnv interface{}, baseFee interface{}, congestionFee interface{}) *MockIRegistrant_SignStagedEnvelope_Call {
-	return &MockIRegistrant_SignStagedEnvelope_Call{Call: _e.mock.On("SignStagedEnvelope", stagedEnv, baseFee, congestionFee)}
+//   - retentionDays uint32
+func (_e *MockIRegistrant_Expecter) SignStagedEnvelope(stagedEnv interface{}, baseFee interface{}, congestionFee interface{}, retentionDays interface{}) *MockIRegistrant_SignStagedEnvelope_Call {
+	return &MockIRegistrant_SignStagedEnvelope_Call{Call: _e.mock.On("SignStagedEnvelope", stagedEnv, baseFee, congestionFee, retentionDays)}
 }
 
-func (_c *MockIRegistrant_SignStagedEnvelope_Call) Run(run func(stagedEnv queries.StagedOriginatorEnvelope, baseFee currency.PicoDollar, congestionFee currency.PicoDollar)) *MockIRegistrant_SignStagedEnvelope_Call {
+func (_c *MockIRegistrant_SignStagedEnvelope_Call) Run(run func(stagedEnv queries.StagedOriginatorEnvelope, baseFee currency.PicoDollar, congestionFee currency.PicoDollar, retentionDays uint32)) *MockIRegistrant_SignStagedEnvelope_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(queries.StagedOriginatorEnvelope), args[1].(currency.PicoDollar), args[2].(currency.PicoDollar))
+		run(args[0].(queries.StagedOriginatorEnvelope), args[1].(currency.PicoDollar), args[2].(currency.PicoDollar), args[3].(uint32))
 	})
 	return _c
 }
@@ -242,7 +245,7 @@ func (_c *MockIRegistrant_SignStagedEnvelope_Call) Return(_a0 *envelopes.Origina
 	return _c
 }
 
-func (_c *MockIRegistrant_SignStagedEnvelope_Call) RunAndReturn(run func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar) (*envelopes.OriginatorEnvelope, error)) *MockIRegistrant_SignStagedEnvelope_Call {
+func (_c *MockIRegistrant_SignStagedEnvelope_Call) RunAndReturn(run func(queries.StagedOriginatorEnvelope, currency.PicoDollar, currency.PicoDollar, uint32) (*envelopes.OriginatorEnvelope, error)) *MockIRegistrant_SignStagedEnvelope_Call {
 	_c.Call.Return(run)
 	return _c
 }

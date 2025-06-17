@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -56,11 +57,8 @@ func (p *PayerReportVerifier) IsValidReport(
 	prevReport *PayerReport,
 	newReport *PayerReport,
 ) (bool, error) {
-	newReportID, err := newReport.ID()
-	if err != nil {
-		p.log.Error("failed to get report id", zap.Error(err))
-		return false, nil
-	}
+	var err error
+	newReportID := newReport.ID
 
 	log := p.log.With(
 		zap.String("new_report_id", newReportID.String()),
@@ -151,7 +149,12 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	}
 
 	payerMap := buildPayersMap(reportData)
-	merkleRoot := buildMerkleRoot(payerMap)
+	merkleTree, err := generateMerkleTree(payerMap)
+	if err != nil {
+		return false, err
+	}
+
+	merkleRoot := common.BytesToHash(merkleTree.Root())
 	if report.PayersMerkleRoot != merkleRoot {
 		return false, ErrMerkleRootMismatch
 	}

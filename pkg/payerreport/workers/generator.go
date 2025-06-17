@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
@@ -38,15 +39,21 @@ func NewGeneratorWorker(
 	registry registry.NodeRegistry,
 	registrant registrant.IRegistrant,
 	minReportInterval time.Duration,
+	domainSeparator common.Hash,
 ) *GeneratorWorker {
 	ctx, cancel := context.WithCancel(ctx)
 
 	worker := &GeneratorWorker{
-		ctx:               ctx,
-		cancel:            cancel,
-		log:               log.Named("generatorworker"),
-		store:             store,
-		generator:         payerreport.NewPayerReportGenerator(log, store.Queries(), registry),
+		ctx:    ctx,
+		cancel: cancel,
+		log:    log.Named("generatorworker"),
+		store:  store,
+		generator: payerreport.NewPayerReportGenerator(
+			log,
+			store.Queries(),
+			registry,
+			domainSeparator,
+		),
 		registry:          registry,
 		registrant:        registrant,
 		myNodeID:          registrant.NodeID(),

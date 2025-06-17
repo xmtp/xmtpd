@@ -16,7 +16,9 @@ type IRegistrant interface {
 		congestionFee currency.PicoDollar,
 		retentionDays uint32,
 	) (*envelopes.OriginatorEnvelope, error)
-	SignPayerReportAttestation(reportID payerreport.ReportID) (*payerreport.NodeSignature, error)
+	SignPayerReportAttestation(
+		reportID payerreport.ReportID,
+	) (*payerreport.NodeSignature, error)
 	SignClientEnvelopeToSelf(unsignedClientEnvelope []byte) ([]byte, error)
 	TokenFactory() authn.TokenFactory
 }

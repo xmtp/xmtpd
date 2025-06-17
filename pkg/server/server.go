@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
@@ -253,6 +255,11 @@ func NewReplicationServer(
 	}
 
 	if cfg.Options.Sync.Enable {
+		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Log, *cfg.Options)
+		if err != nil {
+			log.Error("failed to get domain separator", zap.Error(err))
+			return nil, err
+		}
 		s.syncServer, err = sync.NewSyncServer(
 			sync.WithContext(s.ctx),
 			sync.WithLogger(cfg.Log),
@@ -261,6 +268,7 @@ func NewReplicationServer(
 			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(fees.NewFeeCalculator(getRatesFetcher())),
 			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Log)),
+			sync.WithPayerReportDomainSeparator(domainSeparator),
 		)
 		if err != nil {
 			return nil, err
@@ -475,4 +483,38 @@ func getRatesFetcher() fees.IRatesFetcher {
 		StorageFee:    currency.PicoDollar(100),
 		CongestionFee: currency.PicoDollar(100),
 	})
+}
+
+func getDomainSeparator(
+	ctx context.Context,
+	log *zap.Logger,
+	options config.ServerOptions,
+) (common.Hash, error) {
+	signer, err := blockchain.NewPrivateKeySigner(
+		options.Signer.PrivateKey,
+		options.Contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	settlementChainClient, err := blockchain.NewClient(
+		ctx,
+		options.Contracts.SettlementChain.WssURL,
+	)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	reportsManager, err := blockchain.NewReportsManager(
+		log,
+		settlementChainClient,
+		signer,
+		options.Contracts.SettlementChain,
+	)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return reportsManager.GetDomainSeparator(ctx)
 }

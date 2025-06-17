@@ -23,6 +23,7 @@ func NewTestServer(
 	db *sql.DB,
 	registry r.NodeRegistry,
 	privateKey *ecdsa.PrivateKey,
+	contractsOptions config.ContractsOptions,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
 
@@ -34,12 +35,7 @@ func NewTestServer(
 		s.WithListenAddress(fmt.Sprintf("localhost:%d", port)),
 		s.WithHTTPListenAddress(fmt.Sprintf("localhost:%d", httpPort)),
 		s.WithServerOptions(&config.ServerOptions{
-			Contracts: config.ContractsOptions{
-				AppChain: config.AppChainOptions{
-					WssURL:                 "ws://localhost:8545",
-					MaxChainDisconnectTime: 5 * time.Minute,
-				},
-			},
+			Contracts: contractsOptions,
 			MlsValidation: config.MlsValidationOptions{
 				GrpcAddress: "http://localhost:60051",
 			},

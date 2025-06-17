@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
@@ -45,6 +46,10 @@ func TestCreateServer(t *testing.T) {
 
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
+	wsUrl := anvil.StartAnvil(t, false)
+
+	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
+
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		server1Port,
@@ -52,6 +57,7 @@ func TestCreateServer(t *testing.T) {
 		dbs[0],
 		registry,
 		privateKey1,
+		contractsOptions,
 	)
 	server2 := serverTestUtils.NewTestServer(
 		t,
@@ -60,6 +66,7 @@ func TestCreateServer(t *testing.T) {
 		dbs[1],
 		registry,
 		privateKey2,
+		contractsOptions,
 	)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
@@ -157,6 +164,9 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	nodes := []r.Node{registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1)}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
+	wsUrl := anvil.StartAnvil(t, false)
+
+	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
@@ -165,6 +175,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		dbs[0],
 		registry,
 		privateKey1,
+		contractsOptions,
 	)
 	defer func() {
 		server1.Shutdown(0)

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -20,6 +21,7 @@ type SubmitterWorker struct {
 	wg               *sync.WaitGroup
 	payerReportStore payerreport.IPayerReportStore
 	registry         registry.NodeRegistry
+	reportsAdmin     blockchain.PayerReportsManager
 	myNodeID         uint32
 }
 
@@ -28,6 +30,7 @@ func NewSubmitterWorker(
 	log *zap.Logger,
 	payerReportStore payerreport.IPayerReportStore,
 	registry registry.NodeRegistry,
+	reportsManager blockchain.PayerReportsManager,
 	myNodeID uint32,
 ) *SubmitterWorker {
 	ctx, cancel := context.WithCancel(ctx)
@@ -39,6 +42,7 @@ func NewSubmitterWorker(
 		payerReportStore: payerReportStore,
 		registry:         registry,
 		myNodeID:         myNodeID,
+		reportsAdmin:     reportsManager,
 	}
 }
 
@@ -51,7 +55,7 @@ func (w *SubmitterWorker) Start() {
 			case <-w.ctx.Done():
 				return
 			case <-time.After(wait):
-				if err := w.submitReports(ctx); err != nil {
+				if err := w.SubmitReports(ctx); err != nil {
 					w.log.Error("error submitting reports", zap.Error(err))
 				}
 			}
@@ -66,7 +70,7 @@ func (w *SubmitterWorker) Stop() error {
 	return nil
 }
 
-func (w *SubmitterWorker) submitReports(ctx context.Context) error {
+func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	allNodes, err := w.registry.GetNodes()
 	if err != nil {
 		return err
@@ -97,7 +101,6 @@ func (w *SubmitterWorker) submitReports(ctx context.Context) error {
 	return nil
 }
 
-func (w *SubmitterWorker) submitReport(_ *payerreport.PayerReportWithStatus) error {
-	w.log.Warn("submission not hooked up yet!")
-	return nil
+func (w *SubmitterWorker) submitReport(report *payerreport.PayerReportWithStatus) error {
+	return w.reportsAdmin.SubmitPayerReport(w.ctx, report)
 }

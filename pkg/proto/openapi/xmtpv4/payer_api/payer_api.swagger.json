@@ -523,16 +523,6 @@
       },
       "title": "SignedPublicKey"
     },
-    "message_contentsWelcomeWrapperAlgorithm": {
-      "type": "string",
-      "enum": [
-        "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
-        "WELCOME_WRAPPER_ALGORITHM_CURVE25519",
-        "WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6"
-      ],
-      "default": "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
-      "title": "Describes the algorithm used to encrypt the Welcome Wrapper"
-    },
     "payer_apiGetReaderNodeRequest": {
       "type": "object"
     },
@@ -677,9 +667,6 @@
         "hpkePublicKey": {
           "type": "string",
           "format": "byte"
-        },
-        "wrapperAlgorithm": {
-          "$ref": "#/definitions/message_contentsWelcomeWrapperAlgorithm"
         }
       },
       "title": "Version 1 of the WelcomeMessageInput format"

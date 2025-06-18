@@ -100,6 +100,15 @@ type SignerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"`
 }
 
+type MigratorOptions struct {
+	ReaderConnectionString string        `long:"reader-connection-string" env:"XMTPD_MIGRATION_DB_READER_CONNECTION_STRING" description:"Reader connection string"`
+	ReadTimeout            time.Duration `long:"read-timeout"             env:"XMTPD_MIGRATION_DB_READ_TIMEOUT"             description:"Timeout for reading from the database"          default:"10s"`
+	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_MIGRATION_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration" default:"30s"`
+	BatchSize              int32         `long:"batch-size"               env:"XMTPD_MIGRATION_DB_BATCH_SIZE"               description:"Batch size for migration"                       default:"1000"`
+	PollInterval           time.Duration `long:"process-interval"         env:"XMTPD_MIGRATION_DB_PROCESS_INTERVAL"         description:"Interval for processing migration"              default:"10s"`
+	Namespace              string        `long:"namespace"                env:"XMTPD_MIGRATION_DB_NAMESPACE"                description:"Namespace for migration"                        default:""`
+}
+
 type ServerOptions struct {
 	API           ApiOptions           `group:"API Options"            namespace:"api"`
 	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
@@ -114,5 +123,6 @@ type ServerOptions struct {
 	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`
 	Sync          SyncOptions          `group:"Sync Options"           namespace:"sync"`
 	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
+	Migration     MigratorOptions      `group:"Migration Options"      namespace:"migration"`
 	Version       bool                 `                                                          short:"v" long:"version" description:"Output binary version and exit"`
 }

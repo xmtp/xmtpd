@@ -1,6 +1,7 @@
 package db_migrator
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -15,14 +16,22 @@ const (
 	welcomeMessagesTableName = "welcome_messages"
 )
 
-// DataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
-type DataTransformer interface {
+// Reader defines the interface for reading records from the source database.
+type Reader interface {
+	Fetch(ctx context.Context, lastID int64, limit int32) ([]Record, int64, error)
+}
+
+// Transformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
+type Transformer interface {
 	Transform(record Record) (*envelopes.OriginatorEnvelope, error)
 }
 
+// Record defines a record from the source database,
+// that can scanned and ordered by some ID.
 type Record interface {
 	GetID() int64
 	TableName() string
+	Scan(rows *sql.Rows) error
 }
 
 // TODO: Probably not needed if they can be derived from InboxLog (IdentityUpdates).
@@ -44,6 +53,17 @@ func (a AddressLog) TableName() string {
 	return addressLogTableName
 }
 
+// Scan implements the Scannable interface for AddressLog
+func (a *AddressLog) Scan(rows *sql.Rows) error {
+	return rows.Scan(
+		&a.ID,
+		&a.Address,
+		&a.InboxID,
+		&a.AssociationSequenceID,
+		&a.RevocationSequenceID,
+	)
+}
+
 // GroupMessage represents the group_messages table from the source database.
 // Order by ID ASC.
 type GroupMessage struct {
@@ -60,6 +80,17 @@ func (g GroupMessage) GetID() int64 {
 
 func (g GroupMessage) TableName() string {
 	return groupMessagesTableName
+}
+
+// Scan implements the Scannable interface for GroupMessage
+func (g *GroupMessage) Scan(rows *sql.Rows) error {
+	return rows.Scan(
+		&g.ID,
+		&g.CreatedAt,
+		&g.GroupID,
+		&g.Data,
+		&g.GroupIDDataHash,
+	)
 }
 
 // InboxLog represents the inbox_log table from the source database.
@@ -79,6 +110,16 @@ func (i InboxLog) TableName() string {
 	return inboxLogTableName
 }
 
+// Scan implements the Scannable interface for InboxLog
+func (i *InboxLog) Scan(rows *sql.Rows) error {
+	return rows.Scan(
+		&i.SequenceID,
+		&i.InboxID,
+		&i.ServerTimestampNs,
+		&i.IdentityUpdateProto,
+	)
+}
+
 // Installation represents the installations table from the source database.
 // Order by CreatedAt ASC.
 type Installation struct {
@@ -94,6 +135,16 @@ func (i Installation) GetID() int64 {
 
 func (i Installation) TableName() string {
 	return installationsTableName
+}
+
+// Scan implements the Scannable interface for Installation
+func (i *Installation) Scan(rows *sql.Rows) error {
+	return rows.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.KeyPackage,
+	)
 }
 
 // WelcomeMessage represents the welcome_messages table from the source database.
@@ -114,4 +165,17 @@ func (w WelcomeMessage) GetID() int64 {
 
 func (w WelcomeMessage) TableName() string {
 	return welcomeMessagesTableName
+}
+
+// Scan implements the Scannable interface for WelcomeMessage
+func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
+	return rows.Scan(
+		&w.ID,
+		&w.CreatedAt,
+		&w.InstallationKey,
+		&w.Data,
+		&w.HpkePublicKey,
+		&w.InstallationKeyDataHash,
+		&w.WrapperAlgorithm,
+	)
 }

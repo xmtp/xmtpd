@@ -20,7 +20,6 @@ func (s *dbMigrator) insertOriginatorEnvelope(
 	_ context.Context,
 	_ *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
-
 	// TODO: Insert gateway envelope.
 	// If InboxLog (IdentityUpdates), derive AddressLog and insert both?
 

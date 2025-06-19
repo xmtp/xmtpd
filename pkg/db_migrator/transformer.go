@@ -70,7 +70,6 @@ func (t *transformer) createBasicEnvelope(
 	_ []byte,
 	_ []byte,
 ) (*envelopes.OriginatorEnvelope, error) {
-
 	// 1. Create a ClientEnvelope with the appropriate authenticated data and payload
 	// 2. Create a PayerEnvelope containing the ClientEnvelope
 	// 3. Create an UnsignedOriginatorEnvelope with the PayerEnvelope

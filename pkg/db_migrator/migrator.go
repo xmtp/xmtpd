@@ -12,18 +12,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 )
 
 // TODO: Better ordering of tables. Custom type.
 const (
-	addressLogTableName      = "address_log"
-	groupMessagesTableName   = "group_messages"
-	inboxLogTableName        = "inbox_log"
-	installationsTableName   = "installations"
-	welcomeMessagesTableName = "welcome_messages"
-
 	sleepTimeOnNoRows = 10 * time.Second
 	sleepTimeOnError  = 1 * time.Second
 )
@@ -41,11 +36,10 @@ var (
 )
 
 type DBMigratorConfig struct {
-	ctx         context.Context
-	log         *zap.Logger
-	db          *sql.DB
-	transformer DataTransformer
-	options     *config.MigratorOptions
+	ctx     context.Context
+	log     *zap.Logger
+	db      *sql.DB
+	options *config.MigratorOptions
 }
 
 type DBMigratorOption func(*DBMigratorConfig)
@@ -65,12 +59,6 @@ func WithLogger(log *zap.Logger) DBMigratorOption {
 func WithDestinationDB(db *sql.DB) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
 		cfg.db = db
-	}
-}
-
-func WithTransformer(transformer DataTransformer) DBMigratorOption {
-	return func(cfg *DBMigratorConfig) {
-		cfg.transformer = transformer
 	}
 }
 
@@ -112,15 +100,15 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		return nil, errors.New("logger is required")
 	}
 
-	if cfg.transformer == nil {
-		return nil, errors.New("transformer is required")
-	}
-
 	if cfg.db == nil {
 		return nil, errors.New("destination database is required")
 	}
 
 	if cfg.options == nil {
+		return nil, errors.New("migrator options are required")
+	}
+
+	if cfg.options.ReaderConnectionString == "" {
 		return nil, errors.New("reader connection string is required")
 	}
 
@@ -142,12 +130,14 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 	}
 
 	return &dbMigrator{
-		ctx:         ctx,
-		cancel:      cancel,
-		log:         logger,
-		dst:         cfg.db,
-		src:         srcDB,
-		transformer: cfg.transformer,
+		ctx:          ctx,
+		cancel:       cancel,
+		log:          logger,
+		dst:          cfg.db,
+		src:          srcDB,
+		transformer:  NewTransformer(),
+		batchSize:    cfg.options.BatchSize,
+		pollInterval: cfg.options.PollInterval,
 	}, nil
 }
 
@@ -194,13 +184,20 @@ func (s *dbMigrator) Stop() error {
 
 // migrationWorker continuously processes migration for a specific table.
 func (s *dbMigrator) migrationWorker(tableName string) {
+	recvChan := make(chan Record, s.batchSize*2)
+	wrtrChan := make(chan *envelopes.OriginatorEnvelope, s.batchSize*2)
+
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
-		fmt.Sprintf("migration-worker-%s", tableName),
+		fmt.Sprintf("reader-%s", tableName),
 		func(ctx context.Context) {
-			logger := s.log.Named("worker").With(zap.String("table", tableName))
-			logger.Info("migration worker started")
+			defer close(recvChan)
+
+			logger := s.log.Named("reader").With(zap.String("table", tableName))
+			logger.Info("started")
+
+			dstQueries := queries.New(s.dst)
 
 			ticker := time.NewTicker(s.pollInterval)
 			defer ticker.Stop()
@@ -208,11 +205,11 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info("migration worker stopping")
+					logger.Info("context cancelled, stopping")
 					return
 
 				case <-ticker.C:
-					err := s.migrateTableBatch(ctx, logger, tableName)
+					records, newLastID, err := s.nextRecords(ctx, logger, dstQueries, tableName)
 					if err != nil {
 						switch err {
 						case ErrNoRows:
@@ -222,133 +219,114 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 						default:
 							logger.Error("migration batch failed", zap.Error(err))
 							time.Sleep(sleepTimeOnError)
-
-							// TODO: Handle error and possible connection retry.
 						}
+
+						continue
+					}
+
+					for _, record := range records {
+						select {
+						case <-ctx.Done():
+							logger.Info("context cancelled, stopping")
+							return
+
+						case recvChan <- record:
+						}
+					}
+
+					logger.Debug("batch sent to transformer",
+						zap.Int("total_fetched", len(records)),
+						zap.Int64("new_last_id", newLastID))
+
+					if err := dstQueries.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+						LastMigratedID: newLastID,
+						SourceTable:    tableName,
+					}); err != nil {
+						logger.Error("failed to update migration progress", zap.Error(err))
 					}
 				}
 			}
 		})
-}
 
-// migrateTableBatch processes a batch of records for a specific table.
-func (s *dbMigrator) migrateTableBatch(
-	ctx context.Context,
-	logger *zap.Logger,
-	tableName string,
-) error {
-	dstQueries := queries.New(s.dst)
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		fmt.Sprintf("transformer-%s", tableName),
+		func(ctx context.Context) {
+			logger := s.log.Named("transformer").With(zap.String("table", tableName))
+			logger.Info("started")
 
-	// Get migration progress for current table.
-	lastMigratedID, err := dstQueries.GetMigrationProgress(ctx, tableName)
-	if err != nil {
-		return fmt.Errorf("failed to get migration progress: %w", err)
-	}
+			defer close(wrtrChan)
 
-	// Get next batch of records from source database.
-	records, newLastID, err := s.getNextBatch(ctx, logger, tableName, lastMigratedID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNoRows
-		}
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Info("context cancelled, stopping")
+					return
 
-		return fmt.Errorf("failed to fetch batch from source database: %w", err)
-	}
+				case record, open := <-recvChan:
+					if !open {
+						logger.Info("channel closed, stopping")
+						return
+					}
 
-	if len(records) == 0 {
-		return ErrNoRows
-	}
+					envelope, err := s.transformer.Transform(record)
+					if err != nil {
+						logger.Error(
+							"failed to transform record",
+							zap.Error(err),
+							zap.Any("record", record),
+						)
 
-	// Transform records to the xmtpd originator envelope format,
-	// and inserts them into the destination database.
-	processed := 0
-	for _, record := range records {
-		if err := s.processRecord(ctx, tableName, record); err != nil {
-			logger.Error("Failed to process record", zap.Error(err), zap.Any("record", record))
-			continue
-		}
-		processed++
-	}
+						// TODO: Continue, break, alert, metrics?
+						continue
+					}
 
-	// Update migration progress.
-	if processed > 0 {
-		if err := dstQueries.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-			LastMigratedID: newLastID,
-			SourceTable:    tableName,
-		}); err != nil {
-			return fmt.Errorf("failed to update migration progress: %w", err)
-		}
+					select {
+					case <-ctx.Done():
+						logger.Info("context cancelled, stopping")
+						return
 
-		logger.Info("Migration batch completed",
-			zap.Int("processed", processed),
-			zap.Int("total_fetched", len(records)),
-			zap.Int64("new_last_id", newLastID))
-	}
+					case wrtrChan <- envelope:
+						logger.Debug("envelope sent to writer", zap.Any("envelope", envelope))
+					}
+				}
+			}
+		})
 
-	return nil
-}
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		fmt.Sprintf("writer-%s", tableName),
+		func(ctx context.Context) {
+			logger := s.log.Named("writer").With(zap.String("table", tableName))
+			logger.Info("started")
 
-// processRecord transforms and inserts a single record.
-// TODO: Divide processRecord into producer (transform) and consumer (insert) functions?
-func (s *dbMigrator) processRecord(
-	ctx context.Context,
-	tableName string,
-	record interface{},
-) error {
-	var (
-		envelope *envelopes.OriginatorEnvelope
-		err      error
-	)
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Info("context cancelled, stopping")
+					return
 
-	// Transform the record based on its type.
-	switch tableName {
-	case "address_log":
-		addressLog, ok := record.(AddressLog)
-		if !ok {
-			return fmt.Errorf("invalid record type for address_log")
-		}
-		envelope, err = s.transformer.TransformAddressLog(&addressLog)
+				case envelope, open := <-wrtrChan:
+					if !open {
+						logger.Info("channel closed, stopping")
+						return
+					}
 
-	case "group_messages":
-		groupMessage, ok := record.(GroupMessage)
-		if !ok {
-			return fmt.Errorf("invalid record type for group_messages")
-		}
-		envelope, err = s.transformer.TransformGroupMessage(&groupMessage)
-
-	case "inbox_log":
-		inboxLog, ok := record.(InboxLog)
-		if !ok {
-			return fmt.Errorf("invalid record type for inbox_log")
-		}
-		envelope, err = s.transformer.TransformInboxLog(&inboxLog)
-
-	case "installations":
-		installation, ok := record.(Installation)
-		if !ok {
-			return fmt.Errorf("invalid record type for installations")
-		}
-		envelope, err = s.transformer.TransformInstallation(&installation)
-
-	case "welcome_messages":
-		welcomeMessage, ok := record.(WelcomeMessage)
-		if !ok {
-			return fmt.Errorf("invalid record type for welcome_messages")
-		}
-		envelope, err = s.transformer.TransformWelcomeMessage(&welcomeMessage)
-
-	default:
-		return fmt.Errorf("unknown table: %s", tableName)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to transform record: %w", err)
-	}
-
-	if envelope == nil {
-		return nil
-	}
-
-	// Insert the envelope into the destination database.
-	return s.insertOriginatorEnvelope(ctx, envelope)
+					err := retry(
+						ctx,
+						logger,
+						50*time.Millisecond,
+						func() re.RetryableError {
+							return s.insertOriginatorEnvelope(ctx, envelope)
+						},
+					)
+					if err != nil {
+						logger.Error("failed to insert envelope", zap.Error(err))
+						continue
+					}
+				}
+			}
+		})
 }

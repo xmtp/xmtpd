@@ -53,7 +53,6 @@ func (a AddressLog) TableName() string {
 	return addressLogTableName
 }
 
-// Scan implements the Scannable interface for AddressLog
 func (a *AddressLog) Scan(rows *sql.Rows) error {
 	return rows.Scan(
 		&a.ID,
@@ -82,7 +81,6 @@ func (g GroupMessage) TableName() string {
 	return groupMessagesTableName
 }
 
-// Scan implements the Scannable interface for GroupMessage
 func (g *GroupMessage) Scan(rows *sql.Rows) error {
 	return rows.Scan(
 		&g.ID,
@@ -110,7 +108,6 @@ func (i InboxLog) TableName() string {
 	return inboxLogTableName
 }
 
-// Scan implements the Scannable interface for InboxLog
 func (i *InboxLog) Scan(rows *sql.Rows) error {
 	return rows.Scan(
 		&i.SequenceID,
@@ -137,7 +134,6 @@ func (i Installation) TableName() string {
 	return installationsTableName
 }
 
-// Scan implements the Scannable interface for Installation
 func (i *Installation) Scan(rows *sql.Rows) error {
 	return rows.Scan(
 		&i.ID,
@@ -167,7 +163,6 @@ func (w WelcomeMessage) TableName() string {
 	return welcomeMessagesTableName
 }
 
-// Scan implements the Scannable interface for WelcomeMessage
 func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 	return rows.Scan(
 		&w.ID,

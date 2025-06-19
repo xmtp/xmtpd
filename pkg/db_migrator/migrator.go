@@ -73,8 +73,9 @@ type dbMigrator struct {
 	wg     sync.WaitGroup
 	log    *zap.Logger
 
-	reader map[string]Reader
-	writer *sql.DB
+	writer  *sql.DB
+	reader  *sql.DB
+	readers map[string]Reader
 
 	transformer Transformer
 
@@ -113,7 +114,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 
 	logger := cfg.log.Named("migrator")
 
-	srcDB, err := db.ConnectToDB(
+	source, err := db.ConnectToDB(
 		cfg.ctx,
 		logger,
 		cfg.options.ReaderConnectionString,
@@ -126,11 +127,11 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 	}
 
 	sources := map[string]Reader{
-		addressLogTableName:      NewAddressLogReader(srcDB),
-		groupMessagesTableName:   NewGroupMessageReader(srcDB),
-		inboxLogTableName:        NewInboxLogReader(srcDB),
-		installationsTableName:   NewInstallationReader(srcDB),
-		welcomeMessagesTableName: NewWelcomeMessageReader(srcDB),
+		addressLogTableName:      NewAddressLogReader(source),
+		groupMessagesTableName:   NewGroupMessageReader(source),
+		inboxLogTableName:        NewInboxLogReader(source),
+		installationsTableName:   NewInstallationReader(source),
+		welcomeMessagesTableName: NewWelcomeMessageReader(source),
 	}
 
 	ctx, cancel := context.WithCancel(cfg.ctx)
@@ -140,14 +141,15 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		cancel:       cancel,
 		log:          logger,
 		writer:       cfg.db,
-		reader:       sources,
+		reader:       source,
+		readers:      sources,
 		transformer:  NewTransformer(),
 		batchSize:    cfg.options.BatchSize,
 		pollInterval: cfg.options.PollInterval,
 	}, nil
 }
 
-func (s *dbMigrator) Start(ctx context.Context) error {
+func (s *dbMigrator) Start() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -178,7 +180,13 @@ func (s *dbMigrator) Stop() error {
 	s.wg.Wait()
 	s.running = false
 
-	// TODO: Close all source and destination connections.
+	if err := s.reader.Close(); err != nil {
+		s.log.Error("failed to close connection to source database", zap.Error(err))
+	}
+
+	if err := s.writer.Close(); err != nil {
+		s.log.Error("failed to close connection to destination database", zap.Error(err))
+	}
 
 	s.log.Info("Migration service stopped")
 
@@ -200,7 +208,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 			logger := s.log.Named("reader").With(zap.String("table", tableName))
 			logger.Info("started")
 
-			dstQueries := queries.New(s.writer)
+			wrtrQueries := queries.New(s.writer)
 
 			ticker := time.NewTicker(s.pollInterval)
 			defer ticker.Stop()
@@ -212,7 +220,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 					return
 
 				case <-ticker.C:
-					records, newLastID, err := s.nextRecords(ctx, logger, dstQueries, tableName)
+					records, newLastID, err := s.nextRecords(ctx, logger, wrtrQueries, tableName)
 					if err != nil {
 						switch err {
 						case ErrNoRows:
@@ -241,7 +249,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 						zap.Int("total_fetched", len(records)),
 						zap.Int64("new_last_id", newLastID))
 
-					if err := dstQueries.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+					if err := wrtrQueries.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
 						LastMigratedID: newLastID,
 						SourceTable:    tableName,
 					}); err != nil {

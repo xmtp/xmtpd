@@ -8,6 +8,18 @@ import (
 
 type transformer struct{}
 
+func NewTransformer() *transformer {
+	return &transformer{}
+}
+
+func (t *transformer) Transform(
+	record Record,
+) (*envelopes.OriginatorEnvelope, error) {
+	return nil, fmt.Errorf(
+		"Transform not implemented",
+	)
+}
+
 // TransformAddressLog converts AddressLog to appropriate XMTP envelope format.
 func (t *transformer) TransformAddressLog(
 	addressLog *AddressLog,

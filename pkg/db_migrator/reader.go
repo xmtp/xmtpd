@@ -3,58 +3,44 @@ package db_migrator
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"go.uber.org/zap"
 )
 
-// AddressLog represents the address_log table from the source database.
-type AddressLog struct {
-	ID                    int64         `db:"id"`
-	Address               string        `db:"address"`
-	InboxID               []byte        `db:"inbox_id"`
-	AssociationSequenceID sql.NullInt64 `db:"association_sequence_id"`
-	RevocationSequenceID  sql.NullInt64 `db:"revocation_sequence_id"`
-}
-
-// GroupMessage represents the group_messages table from the source database.
-type GroupMessage struct {
-	ID              int64     `db:"id"`
-	CreatedAt       time.Time `db:"created_at"`
-	GroupID         []byte    `db:"group_id"`
-	Data            []byte    `db:"data"`
-	GroupIDDataHash []byte    `db:"group_id_data_hash"`
-}
-
-// InboxLog represents the inbox_log table from the source database.
-type InboxLog struct {
-	SequenceID          int64  `db:"sequence_id"`
-	InboxID             []byte `db:"inbox_id"`
-	ServerTimestampNs   int64  `db:"server_timestamp_ns"`
-	IdentityUpdateProto []byte `db:"identity_update_proto"`
-}
-
-// Installation represents the installations table from the source database.
-type Installation struct {
-	ID         []byte `db:"id"`
-	CreatedAt  int64  `db:"created_at"`
-	UpdatedAt  int64  `db:"updated_at"`
-	KeyPackage []byte `db:"key_package"`
-}
-
-// WelcomeMessage represents the welcome_messages table from the source database.
-type WelcomeMessage struct {
-	ID                      int64     `db:"id"`
-	CreatedAt               time.Time `db:"created_at"`
-	InstallationKey         []byte    `db:"installation_key"`
-	Data                    []byte    `db:"data"`
-	HpkePublicKey           []byte    `db:"hpke_public_key"`
-	InstallationKeyDataHash []byte    `db:"installation_key_data_hash"`
-	WrapperAlgorithm        int16     `db:"wrapper_algorithm"`
-}
-
 // TODO: Refine querying and scanning of records.
+
+// migrateTableBatch processes a batch of records for a specific table.
+func (s *dbMigrator) nextRecords(
+	ctx context.Context,
+	log *zap.Logger,
+	dstQueries *queries.Queries,
+	tableName string,
+) ([]Record, int64, error) {
+	// Get migration progress for current table.
+	lastMigratedID, err := dstQueries.GetMigrationProgress(ctx, tableName)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get migration progress: %w", err)
+	}
+
+	// Get next batch of records from source database.
+	records, newLastID, err := s.getNextBatch(ctx, log, tableName, lastMigratedID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, 0, ErrNoRows
+		}
+
+		return nil, 0, fmt.Errorf("failed to fetch batch from source database: %w", err)
+	}
+
+	if len(records) == 0 {
+		return nil, 0, ErrNoRows
+	}
+
+	return records, newLastID, nil
+}
 
 // getNextBatch fetches a batch of records from the source database.
 func (s *dbMigrator) getNextBatch(
@@ -62,16 +48,16 @@ func (s *dbMigrator) getNextBatch(
 	log *zap.Logger,
 	tableName string,
 	lastID int64,
-) ([]interface{}, int64, error) {
+) ([]Record, int64, error) {
 	var (
-		records []interface{}
+		records = make([]Record, 0, s.batchSize)
 		maxID   int64
 	)
 
 	log.Debug("fetching next batch", zap.String("table", tableName), zap.Int64("lastID", lastID))
 
 	switch tableName {
-	case "address_log":
+	case addressLogTableName:
 		query := "SELECT id, address, inbox_id, association_sequence_id, revocation_sequence_id FROM address_log WHERE id > $1 ORDER BY id ASC LIMIT $2"
 		rows, err := s.src.QueryContext(ctx, query, lastID, s.batchSize)
 		if err != nil {
@@ -97,7 +83,7 @@ func (s *dbMigrator) getNextBatch(
 			}
 		}
 
-	case "group_messages":
+	case groupMessagesTableName:
 		query := "SELECT id, created_at, group_id, data, group_id_data_hash FROM group_messages WHERE id > $1 ORDER BY id ASC LIMIT $2"
 		rows, err := s.src.QueryContext(ctx, query, lastID, s.batchSize)
 		if err != nil {
@@ -123,7 +109,7 @@ func (s *dbMigrator) getNextBatch(
 			}
 		}
 
-	case "inbox_log":
+	case inboxLogTableName:
 		query := "SELECT sequence_id, inbox_id, server_timestamp_ns, identity_update_proto FROM inbox_log WHERE sequence_id > $1 ORDER BY sequence_id ASC LIMIT $2"
 		rows, err := s.src.QueryContext(ctx, query, lastID, s.batchSize)
 		if err != nil {
@@ -148,7 +134,7 @@ func (s *dbMigrator) getNextBatch(
 			}
 		}
 
-	case "installations":
+	case installationsTableName:
 		query := "SELECT id, created_at, updated_at, key_package FROM installations WHERE created_at > $1 ORDER BY created_at ASC LIMIT $2"
 		rows, err := s.src.QueryContext(ctx, query, lastID, s.batchSize)
 		if err != nil {
@@ -168,7 +154,7 @@ func (s *dbMigrator) getNextBatch(
 			}
 		}
 
-	case "welcome_messages":
+	case welcomeMessagesTableName:
 		query := "SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm FROM welcome_messages WHERE id > $1 ORDER BY id ASC LIMIT $2"
 		rows, err := s.src.QueryContext(ctx, query, lastID, s.batchSize)
 		if err != nil {

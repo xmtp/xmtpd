@@ -29,7 +29,7 @@ func (s *dbMigrator) nextRecords(
 	)
 
 	// Get reader for current table.
-	reader, ok := s.reader[tableName]
+	reader, ok := s.readers[tableName]
 	if !ok {
 		return nil, 0, fmt.Errorf("unknown table: %s", tableName)
 	}
@@ -88,6 +88,10 @@ func (r *GenericReader[T]) Fetch(
 		return nil, 0, err
 	}
 
+	defer func() {
+		_ = rows.Close()
+	}()
+
 	var (
 		records = make([]Record, 0, limit)
 		maxID   int64
@@ -108,10 +112,6 @@ func (r *GenericReader[T]) Fetch(
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, err
-	}
-
-	if err := rows.Close(); err != nil {
 		return nil, 0, err
 	}
 

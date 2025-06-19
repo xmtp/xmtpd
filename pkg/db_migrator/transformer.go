@@ -12,12 +12,29 @@ func NewTransformer() *transformer {
 	return &transformer{}
 }
 
-func (t *transformer) Transform(
-	record Record,
-) (*envelopes.OriginatorEnvelope, error) {
-	return nil, fmt.Errorf(
-		"Transform not implemented",
-	)
+func (t *transformer) Transform(record Record) (*envelopes.OriginatorEnvelope, error) {
+	switch record.TableName() {
+	case addressLogTableName:
+		return t.TransformAddressLog(record.(*AddressLog))
+
+	case groupMessagesTableName:
+		return t.TransformGroupMessage(record.(*GroupMessage))
+
+	case inboxLogTableName:
+		return t.TransformInboxLog(record.(*InboxLog))
+
+	case installationsTableName:
+		return t.TransformInstallation(record.(*Installation))
+
+	case welcomeMessagesTableName:
+		return t.TransformWelcomeMessage(record.(*WelcomeMessage))
+
+	default:
+		return nil, fmt.Errorf(
+			"Transform not implemented for table: %s",
+			record.TableName(),
+		)
+	}
 }
 
 // TransformAddressLog converts AddressLog to appropriate XMTP envelope format.

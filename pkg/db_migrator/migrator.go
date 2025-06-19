@@ -17,7 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: Better ordering of tables. Custom type.
 const (
 	sleepTimeOnNoRows = 10 * time.Second
 	sleepTimeOnError  = 1 * time.Second
@@ -74,10 +73,10 @@ type dbMigrator struct {
 	wg     sync.WaitGroup
 	log    *zap.Logger
 
-	src *sql.DB
-	dst *sql.DB
+	reader map[string]Reader
+	writer *sql.DB
 
-	transformer DataTransformer
+	transformer Transformer
 
 	running      bool
 	batchSize    int32
@@ -112,12 +111,10 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		return nil, errors.New("reader connection string is required")
 	}
 
-	ctx, cancel := context.WithCancel(cfg.ctx)
-
-	logger := cfg.log.Named("migration-service")
+	logger := cfg.log.Named("migrator")
 
 	srcDB, err := db.ConnectToDB(
-		ctx,
+		cfg.ctx,
 		logger,
 		cfg.options.ReaderConnectionString,
 		cfg.options.Namespace,
@@ -125,16 +122,25 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		cfg.options.ReadTimeout,
 	)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
+
+	sources := map[string]Reader{
+		addressLogTableName:      NewAddressLogReader(srcDB),
+		groupMessagesTableName:   NewGroupMessageReader(srcDB),
+		inboxLogTableName:        NewInboxLogReader(srcDB),
+		installationsTableName:   NewInstallationReader(srcDB),
+		welcomeMessagesTableName: NewWelcomeMessageReader(srcDB),
+	}
+
+	ctx, cancel := context.WithCancel(cfg.ctx)
 
 	return &dbMigrator{
 		ctx:          ctx,
 		cancel:       cancel,
 		log:          logger,
-		dst:          cfg.db,
-		src:          srcDB,
+		writer:       cfg.db,
+		reader:       sources,
 		transformer:  NewTransformer(),
 		batchSize:    cfg.options.BatchSize,
 		pollInterval: cfg.options.PollInterval,
@@ -172,10 +178,7 @@ func (s *dbMigrator) Stop() error {
 	s.wg.Wait()
 	s.running = false
 
-	if err := s.src.Close(); err != nil {
-		s.log.Error("Failed to close source database connection", zap.Error(err))
-		return err
-	}
+	// TODO: Close all source and destination connections.
 
 	s.log.Info("Migration service stopped")
 
@@ -197,7 +200,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 			logger := s.log.Named("reader").With(zap.String("table", tableName))
 			logger.Info("started")
 
-			dstQueries := queries.New(s.dst)
+			dstQueries := queries.New(s.writer)
 
 			ticker := time.NewTicker(s.pollInterval)
 			defer ticker.Stop()
@@ -213,7 +216,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 					if err != nil {
 						switch err {
 						case ErrNoRows:
-							logger.Info("no logs to migrate")
+							logger.Info(ErrNoRows.Error())
 							time.Sleep(sleepTimeOnNoRows)
 
 						default:

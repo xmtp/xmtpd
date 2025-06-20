@@ -1,4 +1,4 @@
-package db_migrator
+package migrator
 
 import (
 	"context"
@@ -9,19 +9,13 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	groupMessageOriginatorID   = 10
-	welcomeMessageOriginatorID = 11
-	inboxLogOriginatorID       = 12 // IdentityUpdates in xmtpd.
-	installationOriginatorID   = 13 // KeyPackages in xmtpd.
-)
-
 func (s *dbMigrator) insertOriginatorEnvelope(
-	_ context.Context,
-	_ *envelopes.OriginatorEnvelope,
+	ctx context.Context,
+	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
+	// TODO: Run in db tx.
 	// TODO: Insert gateway envelope.
-	// If InboxLog (IdentityUpdates), derive AddressLog and insert both?
+	// If InboxLog (IdentityUpdates), derive AddressLog and insert both.
 
 	return nil
 }

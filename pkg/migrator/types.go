@@ -1,4 +1,4 @@
-package db_migrator
+package migrator
 
 import (
 	"context"
@@ -9,34 +9,44 @@ import (
 )
 
 const (
-	addressLogTableName      = "address_log"
-	groupMessagesTableName   = "group_messages"
-	inboxLogTableName        = "inbox_log"
-	installationsTableName   = "installations"
-	welcomeMessagesTableName = "welcome_messages"
+	addressLogTableName = "address_log"
+
+	groupMessagesTableName          = "group_messages"
+	groupMessageOriginatorID uint32 = 10
+
+	welcomeMessagesTableName          = "welcome_messages"
+	welcomeMessageOriginatorID uint32 = 11
+
+	// IdentityUpdates in xmtpd.
+	inboxLogTableName           = "inbox_log"
+	inboxLogOriginatorID uint32 = 12
+
+	// KeyPackages in xmtpd.
+	installationsTableName          = "installations"
+	installationOriginatorID uint32 = 13
 )
 
-// Reader defines the interface for reading records from the source database.
-type Reader interface {
-	Fetch(ctx context.Context, lastID int64, limit int32) ([]Record, int64, error)
+// IDataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
+type IDataTransformer interface {
+	Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error)
 }
 
-// Transformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
-type Transformer interface {
-	Transform(record Record) (*envelopes.OriginatorEnvelope, error)
+// ISourceReader defines the interface for reading records from the source database.
+type ISourceReader interface {
+	Fetch(ctx context.Context, lastID int64, limit int32) ([]ISourceRecord, int64, error)
 }
 
-// Record defines a record from the source database,
+// ISourceRecord defines a record from the source database,
 // that can scanned and ordered by some ID.
-type Record interface {
+type ISourceRecord interface {
 	GetID() int64
 	TableName() string
 	Scan(rows *sql.Rows) error
 }
 
-// TODO: Probably not needed if they can be derived from InboxLog (IdentityUpdates).
 // AddressLog represents the address_log table from the source database.
 // Order by association_sequence_id ASC.
+// TODO: Probably not needed if they can be derived from InboxLog (IdentityUpdates).
 type AddressLog struct {
 	ID                    int64         `db:"id"`
 	Address               string        `db:"address"`

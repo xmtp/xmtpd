@@ -1,4 +1,4 @@
-package db_migrator
+package migrator
 
 import (
 	"context"
@@ -75,9 +75,9 @@ type dbMigrator struct {
 
 	writer  *sql.DB
 	reader  *sql.DB
-	readers map[string]Reader
+	readers map[string]ISourceReader
 
-	transformer Transformer
+	transformer IDataTransformer
 
 	running      bool
 	batchSize    int32
@@ -126,7 +126,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		return nil, err
 	}
 
-	sources := map[string]Reader{
+	sources := map[string]ISourceReader{
 		addressLogTableName:      NewAddressLogReader(source),
 		groupMessagesTableName:   NewGroupMessageReader(source),
 		inboxLogTableName:        NewInboxLogReader(source),
@@ -195,7 +195,7 @@ func (s *dbMigrator) Stop() error {
 
 // migrationWorker continuously processes migration for a specific table.
 func (s *dbMigrator) migrationWorker(tableName string) {
-	recvChan := make(chan Record, s.batchSize*2)
+	recvChan := make(chan ISourceRecord, s.batchSize*2)
 	wrtrChan := make(chan *envelopes.OriginatorEnvelope, s.batchSize*2)
 
 	tracing.GoPanicWrap(

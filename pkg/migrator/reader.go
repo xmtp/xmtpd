@@ -1,4 +1,4 @@
-package db_migrator
+package migrator
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func (s *dbMigrator) nextRecords(
 	log *zap.Logger,
 	dstQueries *queries.Queries,
 	tableName string,
-) ([]Record, int64, error) {
+) ([]ISourceRecord, int64, error) {
 	// Get migration progress for current table.
 	lastMigratedID, err := dstQueries.GetMigrationProgress(ctx, tableName)
 	if err != nil {
@@ -57,20 +57,20 @@ func (s *dbMigrator) nextRecords(
 	return records, newLastID, nil
 }
 
-// GenericReader provides a generic implementation for fetching records from database tables
-type GenericReader[T Record] struct {
+// DBReader provides a generic implementation for fetching records from database tables.
+type DBReader[T ISourceRecord] struct {
 	db      *sql.DB
 	query   string
 	factory func() T
 }
 
-// NewGenericReader creates a new generic reader for the specified table and type
-func NewGenericReader[T Record](
+// NewDBReader creates a new reader for the specified table and type.
+func NewDBReader[T ISourceRecord](
 	db *sql.DB,
 	query string,
 	factory func() T,
-) *GenericReader[T] {
-	return &GenericReader[T]{
+) *DBReader[T] {
+	return &DBReader[T]{
 		db:      db,
 		query:   query,
 		factory: factory,
@@ -78,11 +78,11 @@ func NewGenericReader[T Record](
 }
 
 // Fetch rows from the database and return a slice of records.
-func (r *GenericReader[T]) Fetch(
+func (r *DBReader[T]) Fetch(
 	ctx context.Context,
 	lastID int64,
 	limit int32,
-) ([]Record, int64, error) {
+) ([]ISourceRecord, int64, error) {
 	rows, err := r.db.QueryContext(ctx, r.query, lastID, limit)
 	if err != nil {
 		return nil, 0, err
@@ -93,7 +93,7 @@ func (r *GenericReader[T]) Fetch(
 	}()
 
 	var (
-		records = make([]Record, 0, limit)
+		records = make([]ISourceRecord, 0, limit)
 		maxID   int64
 	)
 
@@ -121,7 +121,7 @@ func (r *GenericReader[T]) Fetch(
 // TODO: Review all DB queries and make sure they are correct.
 
 type AddressLogReader struct {
-	*GenericReader[*AddressLog]
+	*DBReader[*AddressLog]
 }
 
 func NewAddressLogReader(db *sql.DB) *AddressLogReader {
@@ -133,7 +133,7 @@ func NewAddressLogReader(db *sql.DB) *AddressLogReader {
 		LIMIT $2
 	`
 	return &AddressLogReader{
-		GenericReader: NewGenericReader(
+		DBReader: NewDBReader(
 			db,
 			query,
 			func() *AddressLog { return &AddressLog{} },
@@ -142,7 +142,7 @@ func NewAddressLogReader(db *sql.DB) *AddressLogReader {
 }
 
 type GroupMessageReader struct {
-	*GenericReader[*GroupMessage]
+	*DBReader[*GroupMessage]
 }
 
 func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
@@ -154,7 +154,7 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 		LIMIT $2
 	`
 	return &GroupMessageReader{
-		GenericReader: NewGenericReader(
+		DBReader: NewDBReader(
 			db,
 			query,
 			func() *GroupMessage { return &GroupMessage{} },
@@ -163,7 +163,7 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 }
 
 type InboxLogReader struct {
-	*GenericReader[*InboxLog]
+	*DBReader[*InboxLog]
 }
 
 func NewInboxLogReader(db *sql.DB) *InboxLogReader {
@@ -175,7 +175,7 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 		LIMIT $2
 	`
 	return &InboxLogReader{
-		GenericReader: NewGenericReader(
+		DBReader: NewDBReader(
 			db,
 			query,
 			func() *InboxLog { return &InboxLog{} },
@@ -184,7 +184,7 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 }
 
 type InstallationReader struct {
-	*GenericReader[*Installation]
+	*DBReader[*Installation]
 }
 
 func NewInstallationReader(db *sql.DB) *InstallationReader {
@@ -196,7 +196,7 @@ func NewInstallationReader(db *sql.DB) *InstallationReader {
 		LIMIT $2
 	`
 	return &InstallationReader{
-		GenericReader: NewGenericReader(
+		DBReader: NewDBReader(
 			db,
 			query,
 			func() *Installation { return &Installation{} },
@@ -205,7 +205,7 @@ func NewInstallationReader(db *sql.DB) *InstallationReader {
 }
 
 type WelcomeMessageReader struct {
-	*GenericReader[*WelcomeMessage]
+	*DBReader[*WelcomeMessage]
 }
 
 func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
@@ -217,7 +217,7 @@ func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
 		LIMIT $2
 	`
 	return &WelcomeMessageReader{
-		GenericReader: NewGenericReader(
+		DBReader: NewDBReader(
 			db,
 			query,
 			func() *WelcomeMessage { return &WelcomeMessage{} },

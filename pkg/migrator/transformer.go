@@ -1,4 +1,4 @@
-package db_migrator
+package migrator
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ func NewTransformer() *transformer {
 	return &transformer{}
 }
 
-func (t *transformer) Transform(record Record) (*envelopes.OriginatorEnvelope, error) {
+func (t *transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error) {
 	switch record.TableName() {
 	case addressLogTableName:
 		return t.TransformAddressLog(record.(*AddressLog))

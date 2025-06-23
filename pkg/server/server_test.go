@@ -69,6 +69,7 @@ func TestCreateServer(t *testing.T) {
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
 				Replication: true,
+				Sync:        true,
 			},
 		},
 	)
@@ -83,6 +84,7 @@ func TestCreateServer(t *testing.T) {
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
 				Replication: true,
+				Sync:        true,
 			},
 		},
 	)

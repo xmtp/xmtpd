@@ -236,20 +236,10 @@ func (s *ApiServer) Close(timeout time.Duration) {
 			s.grpcServer.Stop()
 		}
 	}
-	if s.grpcListener != nil {
-		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {
-			s.log.Error("Error while closing grpc listener", zap.Error(err))
-		}
-		s.grpcListener = nil
-	}
 
-	if s.httpListener != nil {
-		err := s.httpListener.Close()
-		if err != nil {
-			s.log.Error("Error while closing http listener", zap.Error(err))
-		}
-		s.httpListener = nil
-	}
+	// Important: Do not close grpcListener or httpListener here.
+	// Their ownership and lifecycle are managed by the caller (e.g., main).
+	// This method only stops the gRPC server and waits for internal routines to complete.
 
 	s.wg.Wait()
 	s.log.Debug("closed")

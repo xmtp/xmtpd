@@ -185,9 +185,15 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 
 	grpcListener, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = grpcListener.Close()
+	})
 
 	httpListener, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = httpListener.Close()
+	})
 
 	svr, err := api.NewAPIServer(
 		api.WithContext(ctx),

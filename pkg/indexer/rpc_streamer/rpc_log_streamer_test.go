@@ -24,7 +24,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	address := testutils.RandomAddress()
 	topic := testutils.RandomLogTopic()
 	backfillFromBlock := uint64(1)
-	backfillToBlock := uint64(10)
+	backfillToBlock := uint64(11)
 	logMessage := types.Log{
 		Address: address,
 		Topics:  []common.Hash{topic},
@@ -52,13 +52,12 @@ func TestRpcLogStreamer(t *testing.T) {
 	// Mock FilterLogs call
 	mockClient.On("FilterLogs", mock.Anything, ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(backfillFromBlock)),
-		ToBlock:   big.NewInt(int64(backfillToBlock)),
+		ToBlock:   big.NewInt(int64(backfillToBlock - 1)),
 		Addresses: []common.Address{address},
 		Topics:    [][]common.Hash{{topic}},
 	}).Return([]types.Log{logMessage}, nil)
 
-	// Mock BlockByNumber call for toBlock+1 (block 11) - for getting next block hash
-	mockClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(backfillToBlock+1))).
+	mockClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(backfillToBlock))).
 		Return(mockBlock11.Header(), nil)
 
 	cfg := &rpc_streamer.ContractConfig{
@@ -75,13 +74,13 @@ func TestRpcLogStreamer(t *testing.T) {
 		mockClient,
 		testutils.NewLog(t),
 		rpc_streamer.WithContractConfig(cfg),
-		rpc_streamer.WithBackfillBlockPageSize(9),
+		rpc_streamer.WithBackfillBlockPageSize(10),
 	)
 	require.NoError(t, err)
 
 	response, err := streamer.GetNextPage(context.Background(), cfg, backfillFromBlock, nil)
 	require.NoError(t, err)
-	require.Equal(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
-	require.Equal(t, 1, len(response.Logs))
-	require.Equal(t, response.Logs[0].Address, address)
+	require.EqualValues(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
+	require.EqualValues(t, 1, len(response.Logs))
+	require.EqualValues(t, response.Logs[0].Address, address)
 }

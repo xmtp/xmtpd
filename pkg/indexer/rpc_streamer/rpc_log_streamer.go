@@ -332,7 +332,10 @@ func (r *RpcLogStreamer) GetNextPage(
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)
 
-	toBlock := min(fromBlockNumber+r.backfillBlockPageSize, highestBlock)
+	// Define the upper bound of the block range to fetch logs from.
+	// The range is inclusive, so we subtract 1 to ensure that exactly `backfillBlockPageSize` blocks
+	// are queried per page. Without this, we would query one extra block per page (off-by-one error).
+	toBlock := min(fromBlockNumber+r.backfillBlockPageSize-1, highestBlock)
 
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504

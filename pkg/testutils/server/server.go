@@ -16,42 +16,56 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
+type EnabledServices struct {
+	Indexer     bool
+	Sync        bool
+	Replication bool
+}
+
+type TestServerCfg struct {
+	Port             int
+	HttpPort         int
+	Db               *sql.DB
+	Registry         r.NodeRegistry
+	PrivateKey       *ecdsa.PrivateKey
+	ContractsOptions config.ContractsOptions
+	Services         EnabledServices
+}
+
 func NewTestServer(
 	t *testing.T,
-	port int,
-	httpPort int,
-	db *sql.DB,
-	registry r.NodeRegistry,
-	privateKey *ecdsa.PrivateKey,
-	contractsOptions config.ContractsOptions,
+	cfg TestServerCfg,
 ) *s.ReplicationServer {
 	log := testutils.NewLog(t)
 
 	server, err := s.NewReplicationServer(s.WithContext(t.Context()),
 		s.WithLogger(log),
-		s.WithDB(db),
-		s.WithNodeRegistry(registry),
+		s.WithDB(cfg.Db),
+		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
-		s.WithListenAddress(fmt.Sprintf("localhost:%d", port)),
-		s.WithHTTPListenAddress(fmt.Sprintf("localhost:%d", httpPort)),
+		s.WithListenAddress(fmt.Sprintf("localhost:%d", cfg.Port)),
+		s.WithHTTPListenAddress(fmt.Sprintf("localhost:%d", cfg.HttpPort)),
 		s.WithServerOptions(&config.ServerOptions{
-			Contracts: contractsOptions,
+			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{
 				GrpcAddress: "http://localhost:60051",
 			},
 			Signer: config.SignerOptions{
-				PrivateKey: hex.EncodeToString(crypto.FromECDSA(privateKey)),
+				PrivateKey: hex.EncodeToString(crypto.FromECDSA(cfg.PrivateKey)),
 			},
 			API: config.ApiOptions{
-				Port:     port,
-				HTTPPort: httpPort,
+				Port:     cfg.Port,
+				HTTPPort: cfg.HttpPort,
 			},
 			Sync: config.SyncOptions{
-				Enable: true,
+				Enable: cfg.Services.Sync,
 			},
 			Replication: config.ReplicationOptions{
-				Enable:                true,
+				Enable:                cfg.Services.Replication,
 				SendKeepAliveInterval: 30 * time.Second,
+			},
+			Indexer: config.IndexerOptions{
+				Enable: cfg.Services.Indexer,
 			},
 		}))
 	require.NoError(t, err)

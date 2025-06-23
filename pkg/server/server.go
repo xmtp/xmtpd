@@ -240,19 +240,17 @@ func NewReplicationServer(
 		cfg.Log.Info("Indexer service enabled")
 	}
 
-	if cfg.Options.Payer.Enable || cfg.Options.Replication.Enable {
-		err = startAPIServer(
-			s,
-			cfg,
-			clientMetrics,
-			promReg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.Log.Info("API server started", zap.Int("port", cfg.Options.API.Port))
+	err = startAPIServer(
+		s,
+		cfg,
+		clientMetrics,
+		promReg,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	cfg.Log.Info("API server started", zap.Int("port", cfg.Options.API.Port))
 
 	if cfg.Options.Sync.Enable {
 		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Log, *cfg.Options)

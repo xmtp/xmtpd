@@ -144,21 +144,33 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
-		server1Port,
-		httpServer1Port,
-		dbs[0],
-		registry,
-		privateKey1,
-		contractsOptions,
+		serverTestUtils.TestServerCfg{
+			Port:             server1Port,
+			HttpPort:         httpServer1Port,
+			Db:               dbs[0],
+			Registry:         registry,
+			PrivateKey:       privateKey1,
+			ContractsOptions: contractsOptions,
+			Services: serverTestUtils.EnabledServices{
+				Replication: true,
+				Sync:        true,
+			},
+		},
 	)
 	server2 := serverTestUtils.NewTestServer(
 		t,
-		server2Port,
-		httpServer2Port,
-		dbs[1],
-		registry,
-		privateKey2,
-		contractsOptions,
+		serverTestUtils.TestServerCfg{
+			Port:             server2Port,
+			HttpPort:         httpServer2Port,
+			Db:               dbs[1],
+			Registry:         registry,
+			PrivateKey:       privateKey2,
+			ContractsOptions: contractsOptions,
+			Services: serverTestUtils.EnabledServices{
+				Replication: true,
+				Sync:        true,
+			},
+		},
 	)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())

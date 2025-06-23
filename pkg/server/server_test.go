@@ -1,8 +1,16 @@
 package server_test
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -52,21 +60,33 @@ func TestCreateServer(t *testing.T) {
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
-		server1Port,
-		httpServer1Port,
-		dbs[0],
-		registry,
-		privateKey1,
-		contractsOptions,
+		serverTestUtils.TestServerCfg{
+			Port:             server1Port,
+			HttpPort:         httpServer1Port,
+			Db:               dbs[0],
+			Registry:         registry,
+			PrivateKey:       privateKey1,
+			ContractsOptions: contractsOptions,
+			Services: serverTestUtils.EnabledServices{
+				Replication: true,
+				Sync:        true,
+			},
+		},
 	)
 	server2 := serverTestUtils.NewTestServer(
 		t,
-		server2Port,
-		httpServer2Port,
-		dbs[1],
-		registry,
-		privateKey2,
-		contractsOptions,
+		serverTestUtils.TestServerCfg{
+			Port:             server2Port,
+			HttpPort:         httpServer2Port,
+			Db:               dbs[1],
+			Registry:         registry,
+			PrivateKey:       privateKey2,
+			ContractsOptions: contractsOptions,
+			Services: serverTestUtils.EnabledServices{
+				Replication: true,
+				Sync:        true,
+			},
+		},
 	)
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
@@ -170,12 +190,17 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
-		server1Port,
-		httpServer1Port,
-		dbs[0],
-		registry,
-		privateKey1,
-		contractsOptions,
+		serverTestUtils.TestServerCfg{
+			Port:             server1Port,
+			HttpPort:         httpServer1Port,
+			Db:               dbs[0],
+			Registry:         registry,
+			PrivateKey:       privateKey1,
+			ContractsOptions: contractsOptions,
+			Services: serverTestUtils.EnabledServices{
+				Replication: true,
+			},
+		},
 	)
 	defer func() {
 		server1.Shutdown(0)
@@ -213,4 +238,68 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, q1.Envelopes, 1)
+}
+
+func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
+	ctx := t.Context()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	grpcPort := networkTestUtils.FindFreePort(t)
+	httpPort := networkTestUtils.FindFreePort(t)
+
+	nodes := []r.Node{registryTestUtils.CreateNode(server1NodeID, grpcPort, privateKey)}
+	registry := registryTestUtils.CreateMockRegistry(t, nodes)
+	wsURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, wsURL)
+
+	server := serverTestUtils.NewTestServer(t, serverTestUtils.TestServerCfg{
+		Port:             grpcPort,
+		HttpPort:         httpPort,
+		Db:               dbs[0],
+		Registry:         registry,
+		PrivateKey:       privateKey,
+		ContractsOptions: contractsOptions,
+		Services:         serverTestUtils.EnabledServices{}, // even if empty
+	})
+	defer server.Shutdown(0)
+
+	t.Run("HTTP /healthz should return SERVING", func(t *testing.T) {
+		url := fmt.Sprintf("http://localhost:%d/healthz", httpPort)
+
+		require.Eventually(t, func() bool {
+			resp, err := http.Get(url)
+			if err != nil {
+				return false
+			}
+			defer func() { _ = resp.Body.Close() }()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return false
+			}
+
+			return resp.StatusCode == http.StatusOK && strings.Contains(string(body), "SERVING")
+		}, 3*time.Second, 100*time.Millisecond)
+	})
+
+	t.Run("gRPC /v1/health should return SERVING", func(t *testing.T) {
+		var grpcResp *grpc_health_v1.HealthCheckResponse
+
+		require.Eventually(t, func() bool {
+			conn, err := grpc.NewClient(
+				fmt.Sprintf("dns:///localhost:%d", grpcPort),
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+			)
+			if err != nil {
+				return false
+			}
+			defer func() { _ = conn.Close() }()
+
+			healthClient := grpc_health_v1.NewHealthClient(conn)
+			grpcResp, err = healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+			return err == nil && grpcResp.GetStatus() == grpc_health_v1.HealthCheckResponse_SERVING
+		}, 3*time.Second, 100*time.Millisecond)
+	})
 }

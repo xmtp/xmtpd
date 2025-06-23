@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -23,8 +23,8 @@ type EnabledServices struct {
 }
 
 type TestServerCfg struct {
-	Port             int
-	HttpPort         int
+	GRPCListener     net.Listener
+	HTTPListener     net.Listener
 	Db               *sql.DB
 	Registry         r.NodeRegistry
 	PrivateKey       *ecdsa.PrivateKey
@@ -43,8 +43,8 @@ func NewTestServer(
 		s.WithDB(cfg.Db),
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
-		s.WithListenAddress(fmt.Sprintf("localhost:%d", cfg.Port)),
-		s.WithHTTPListenAddress(fmt.Sprintf("localhost:%d", cfg.HttpPort)),
+		s.WithGRPCListener(cfg.GRPCListener),
+		s.WithHTTPListener(cfg.HTTPListener),
 		s.WithServerOptions(&config.ServerOptions{
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{
@@ -52,10 +52,6 @@ func NewTestServer(
 			},
 			Signer: config.SignerOptions{
 				PrivateKey: hex.EncodeToString(crypto.FromECDSA(cfg.PrivateKey)),
-			},
-			API: config.ApiOptions{
-				Port:     cfg.Port,
-				HTTPPort: cfg.HttpPort,
 			},
 			Sync: config.SyncOptions{
 				Enable: cfg.Services.Sync,

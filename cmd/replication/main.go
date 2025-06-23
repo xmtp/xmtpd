@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"sync"
 	"time"
@@ -124,14 +125,24 @@ func main() {
 			logger.Fatal("starting smart contract registry", zap.Error(err))
 		}
 
+		grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.API.Port))
+		if err != nil {
+			logger.Fatal("initializing grpc listener", zap.Error(err))
+		}
+
+		httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.API.HTTPPort))
+		if err != nil {
+			logger.Fatal("initializing http listener", zap.Error(err))
+		}
+
 		s, err := server.NewReplicationServer(
 			server.WithContext(ctx),
 			server.WithLogger(logger),
 			server.WithServerOptions(&options),
 			server.WithNodeRegistry(chainRegistry),
 			server.WithDB(dbInstance),
-			server.WithListenAddress(fmt.Sprintf("0.0.0.0:%d", options.API.Port)),
-			server.WithHTTPListenAddress(fmt.Sprintf("0.0.0.0:%d", options.API.HTTPPort)),
+			server.WithGRPCListener(grpcListener),
+			server.WithHTTPListener(httpListener),
 			server.WithServerVersion(version),
 		)
 		if err != nil {

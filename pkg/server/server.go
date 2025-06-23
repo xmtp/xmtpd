@@ -46,14 +46,14 @@ import (
 )
 
 type ReplicationServerConfig struct {
-	Ctx               context.Context
-	DB                *sql.DB
-	Log               *zap.Logger
-	NodeRegistry      registry.NodeRegistry
-	Options           *config.ServerOptions
-	ServerVersion     *semver.Version
-	ListenAddress     string
-	HttpListenAddress string
+	Ctx           context.Context
+	DB            *sql.DB
+	Log           *zap.Logger
+	NodeRegistry  registry.NodeRegistry
+	Options       *config.ServerOptions
+	ServerVersion *semver.Version
+	GRPCListener  net.Listener
+	HTTPListener  net.Listener
 }
 
 func WithContext(ctx context.Context) ReplicationServerOption {
@@ -92,15 +92,15 @@ func WithServerVersion(version *semver.Version) ReplicationServerOption {
 	}
 }
 
-func WithListenAddress(addr string) ReplicationServerOption {
+func WithGRPCListener(listener net.Listener) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.ListenAddress = addr
+		cfg.GRPCListener = listener
 	}
 }
 
-func WithHTTPListenAddress(addr string) ReplicationServerOption {
+func WithHTTPListener(listener net.Listener) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.HttpListenAddress = addr
+		cfg.HTTPListener = listener
 	}
 }
 
@@ -154,12 +154,12 @@ func NewReplicationServer(
 		return nil, errors.New("database not provided")
 	}
 
-	if cfg.ListenAddress == "" {
-		return nil, errors.New("listen address not provided")
+	if cfg.GRPCListener == nil {
+		return nil, errors.New("GRPC listener not provided")
 	}
 
-	if cfg.HttpListenAddress == "" {
-		return nil, errors.New("http listen address not provided")
+	if cfg.HTTPListener == nil {
+		return nil, errors.New("http listener not provided")
 	}
 
 	promReg := prometheus.NewRegistry()
@@ -416,8 +416,8 @@ func startAPIServer(
 	s.apiServer, err = api.NewAPIServer(
 		api.WithContext(s.ctx),
 		api.WithLogger(cfg.Log),
-		api.WithHTTPListenAddress(cfg.HttpListenAddress),
-		api.WithListenAddress(cfg.ListenAddress),
+		api.WithGRPCListener(cfg.GRPCListener),
+		api.WithHTTPListener(cfg.HTTPListener),
 		api.WithJWTVerifier(jwtVerifier),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),

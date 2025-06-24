@@ -287,7 +287,7 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 	defer server.Shutdown(0)
 
 	t.Run("HTTP /healthz should return SERVING", func(t *testing.T) {
-		url := fmt.Sprintf("http://localhost:%d/healthz", httpPort)
+		url := fmt.Sprintf("http://localhost:%d/healthz", httpPort.Addr().(*net.TCPAddr).Port)
 
 		require.Eventually(t, func() bool {
 			resp, err := http.Get(url)
@@ -310,7 +310,7 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			conn, err := grpc.NewClient(
-				fmt.Sprintf("dns:///localhost:%d", grpcPort),
+				fmt.Sprintf("dns:///localhost:%d", grpcPort.Addr().(*net.TCPAddr).Port),
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			if err != nil {

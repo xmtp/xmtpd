@@ -218,6 +218,7 @@ func (s *dbMigrator) Stop() error {
 func (s *dbMigrator) migrationWorker(tableName string) {
 	recvChan := make(chan ISourceRecord, s.batchSize*2)
 	wrtrChan := make(chan *envelopes.OriginatorEnvelope, s.batchSize*2)
+	wrtrQueries := queries.New(s.writer)
 
 	tracing.GoPanicWrap(
 		s.ctx,
@@ -228,8 +229,6 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 
 			logger := s.log.Named("reader").With(zap.String("table", tableName))
 			logger.Info("started")
-
-			wrtrQueries := queries.New(s.writer)
 
 			ticker := time.NewTicker(s.pollInterval)
 			defer ticker.Stop()
@@ -351,7 +350,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 						logger,
 						50*time.Millisecond,
 						func() re.RetryableError {
-							return s.insertOriginatorEnvelope(ctx, envelope)
+							return s.insertOriginatorEnvelope(envelope, wrtrQueries)
 						},
 					)
 					if err != nil {

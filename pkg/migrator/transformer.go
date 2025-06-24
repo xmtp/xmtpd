@@ -290,6 +290,9 @@ func (t *transformer) buildAndSignPayerEnvelope(
 	return envelopes.NewPayerEnvelope(protoPayerEnvelope)
 }
 
+// TODO: Set congestion fee.
+// TODO: Set base fee.
+
 func (t *transformer) buildAndSignOriginatorEnvelope(
 	payerEnvelope *envelopes.PayerEnvelope,
 	sequenceID uint64,
@@ -308,8 +311,8 @@ func (t *transformer) buildAndSignOriginatorEnvelope(
 		OriginatorSequenceId:     sequenceID,
 		OriginatorNs:             time.Now().UnixNano(),
 		PayerEnvelopeBytes:       payerEnvelopeBytes,
-		BaseFeePicodollars:       0, // TODO: Set base fee?
-		CongestionFeePicodollars: 0, // TODO: Set congestion fee?
+		BaseFeePicodollars:       0,
+		CongestionFeePicodollars: 0,
 		ExpiryUnixtime: uint64(
 			time.Now().AddDate(0, 0, int(payerEnvelope.Proto().GetMessageRetentionDays())).Unix(),
 		),

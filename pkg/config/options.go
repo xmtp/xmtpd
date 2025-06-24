@@ -101,6 +101,9 @@ type SignerOptions struct {
 }
 
 type MigratorOptions struct {
+	Enable                 bool          `long:"enable"                   env:"XMTPD_MIGRATION_ENABLE"                      description:"Enable the migrator"`
+	PayerPrivateKey        string        `long:"payer-private-key"        env:"XMTPD_MIGRATION_PAYER_PRIVATE_KEY"           description:"Private key used to sign messages"`
+	NodeSigningKey         string        `long:"node-signing-key"         env:"XMTPD_MIGRATION_NODE_SIGNING_KEY"            description:"Private key used to sign messages"`
 	ReaderConnectionString string        `long:"reader-connection-string" env:"XMTPD_MIGRATION_DB_READER_CONNECTION_STRING" description:"Reader connection string"`
 	ReadTimeout            time.Duration `long:"read-timeout"             env:"XMTPD_MIGRATION_DB_READ_TIMEOUT"             description:"Timeout for reading from the database"          default:"10s"`
 	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_MIGRATION_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration" default:"30s"`

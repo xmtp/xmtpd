@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -24,7 +25,6 @@ const (
 
 var (
 	tables = []string{
-		addressLogTableName,
 		groupMessagesTableName,
 		inboxLogTableName,
 		installationsTableName,
@@ -68,21 +68,23 @@ func WithMigratorConfig(options *config.MigratorOptions) DBMigratorOption {
 }
 
 type dbMigrator struct {
+	// Internals.
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+	mu     sync.RWMutex
 	log    *zap.Logger
 
-	writer  *sql.DB
-	reader  *sql.DB
-	readers map[string]ISourceReader
-
+	// Data management.
+	writer      *sql.DB
+	reader      *sql.DB
+	readers     map[string]ISourceReader
 	transformer IDataTransformer
 
-	running      bool
-	batchSize    int32
+	// Configuration.
 	pollInterval time.Duration
-	mu           sync.RWMutex
+	batchSize    int32
+	running      bool
 }
 
 func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
@@ -112,6 +114,24 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		return nil, errors.New("reader connection string is required")
 	}
 
+	if cfg.options.PayerPrivateKey == "" {
+		return nil, errors.New("payer private key is required")
+	}
+
+	if cfg.options.NodeSigningKey == "" {
+		return nil, errors.New("node signing key is required")
+	}
+
+	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.options.PayerPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
+	}
+
+	nodeSigningKey, err := utils.ParseEcdsaPrivateKey(cfg.options.NodeSigningKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse node signing key: %v", err)
+	}
+
 	logger := cfg.log.Named("migrator")
 
 	source, err := db.ConnectToDB(
@@ -127,12 +147,13 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 	}
 
 	sources := map[string]ISourceReader{
-		addressLogTableName:      NewAddressLogReader(source),
 		groupMessagesTableName:   NewGroupMessageReader(source),
 		inboxLogTableName:        NewInboxLogReader(source),
 		installationsTableName:   NewInstallationReader(source),
 		welcomeMessagesTableName: NewWelcomeMessageReader(source),
 	}
+
+	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
 
 	ctx, cancel := context.WithCancel(cfg.ctx)
 
@@ -143,7 +164,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		writer:       cfg.db,
 		reader:       source,
 		readers:      sources,
-		transformer:  NewTransformer(),
+		transformer:  transformer,
 		batchSize:    cfg.options.BatchSize,
 		pollInterval: cfg.options.PollInterval,
 	}, nil

@@ -120,27 +120,6 @@ func (r *DBReader[T]) Fetch(
 
 // TODO: Review all DB queries and make sure they are correct.
 
-type AddressLogReader struct {
-	*DBReader[*AddressLog]
-}
-
-func NewAddressLogReader(db *sql.DB) *AddressLogReader {
-	query := `
-		SELECT id, address, inbox_id, association_sequence_id, revocation_sequence_id
-		FROM address_log
-		WHERE id > $1
-		ORDER BY id ASC
-		LIMIT $2
-	`
-	return &AddressLogReader{
-		DBReader: NewDBReader(
-			db,
-			query,
-			func() *AddressLog { return &AddressLog{} },
-		),
-	}
-}
-
 type GroupMessageReader struct {
 	*DBReader[*GroupMessage]
 }

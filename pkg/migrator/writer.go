@@ -9,13 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// TODO: Run in db tx.
+// TODO: Insert gateway envelope.
+// TODO: Increment unsettled usage.
+// If InboxLog (IdentityUpdates), derive AddressLog and insert both.
+
 func (s *dbMigrator) insertOriginatorEnvelope(
 	ctx context.Context,
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
-	// TODO: Run in db tx.
-	// TODO: Insert gateway envelope.
-	// If InboxLog (IdentityUpdates), derive AddressLog and insert both.
 
 	return nil
 }

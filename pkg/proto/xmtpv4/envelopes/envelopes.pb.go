@@ -73,13 +73,12 @@ func (x *Cursor) GetNodeIdToSequenceId() map[uint32]uint64 {
 // Data visible to the server that has been authenticated by the client.
 type AuthenticatedData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Deprecated: Marked as deprecated in xmtpv4/envelopes/envelopes.proto.
-	TargetOriginator *uint32 `protobuf:"varint,1,opt,name=target_originator,json=targetOriginator,proto3,oneof" json:"target_originator,omitempty"`
-	TargetTopic      []byte  `protobuf:"bytes,2,opt,name=target_topic,json=targetTopic,proto3" json:"target_topic,omitempty"`
-	DependsOn        *Cursor `protobuf:"bytes,3,opt,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	IsCommit         bool    `protobuf:"varint,4,opt,name=is_commit,json=isCommit,proto3" json:"is_commit,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Do NOT reuse tag 1 — previously used by target_originator
+	TargetTopic   []byte  `protobuf:"bytes,2,opt,name=target_topic,json=targetTopic,proto3" json:"target_topic,omitempty"`
+	DependsOn     *Cursor `protobuf:"bytes,3,opt,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	IsCommit      bool    `protobuf:"varint,4,opt,name=is_commit,json=isCommit,proto3" json:"is_commit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AuthenticatedData) Reset() {
@@ -110,14 +109,6 @@ func (x *AuthenticatedData) ProtoReflect() protoreflect.Message {
 // Deprecated: Use AuthenticatedData.ProtoReflect.Descriptor instead.
 func (*AuthenticatedData) Descriptor() ([]byte, []int) {
 	return file_xmtpv4_envelopes_envelopes_proto_rawDescGZIP(), []int{1}
-}
-
-// Deprecated: Marked as deprecated in xmtpv4/envelopes/envelopes.proto.
-func (x *AuthenticatedData) GetTargetOriginator() uint32 {
-	if x != nil && x.TargetOriginator != nil {
-		return *x.TargetOriginator
-	}
-	return 0
 }
 
 func (x *AuthenticatedData) GetTargetTopic() []byte {
@@ -602,14 +593,12 @@ const file_xmtpv4_envelopes_envelopes_proto_rawDesc = "" +
 	"\x16node_id_to_sequence_id\x18\x01 \x03(\v25.xmtp.xmtpv4.envelopes.Cursor.NodeIdToSequenceIdEntryR\x12nodeIdToSequenceId\x1aE\n" +
 	"\x17NodeIdToSequenceIdEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xdd\x01\n" +
-	"\x11AuthenticatedData\x124\n" +
-	"\x11target_originator\x18\x01 \x01(\rB\x02\x18\x01H\x00R\x10targetOriginator\x88\x01\x01\x12!\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\x91\x01\n" +
+	"\x11AuthenticatedData\x12!\n" +
 	"\ftarget_topic\x18\x02 \x01(\fR\vtargetTopic\x12<\n" +
 	"\n" +
 	"depends_on\x18\x03 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\tdependsOn\x12\x1b\n" +
-	"\tis_commit\x18\x04 \x01(\bR\bisCommitB\x14\n" +
-	"\x12_target_originator\"\xd8\x04\n" +
+	"\tis_commit\x18\x04 \x01(\bR\bisCommit\"\xd8\x04\n" +
 	"\x0eClientEnvelope\x12:\n" +
 	"\x03aad\x18\x01 \x01(\v2(.xmtp.xmtpv4.envelopes.AuthenticatedDataR\x03aad\x12I\n" +
 	"\rgroup_message\x18\x02 \x01(\v2\".xmtp.mls.api.v1.GroupMessageInputH\x00R\fgroupMessage\x12O\n" +
@@ -697,7 +686,6 @@ func file_xmtpv4_envelopes_envelopes_proto_init() {
 		return
 	}
 	file_xmtpv4_envelopes_payer_report_proto_init()
-	file_xmtpv4_envelopes_envelopes_proto_msgTypes[1].OneofWrappers = []any{}
 	file_xmtpv4_envelopes_envelopes_proto_msgTypes[2].OneofWrappers = []any{
 		(*ClientEnvelope_GroupMessage)(nil),
 		(*ClientEnvelope_WelcomeMessage)(nil),

@@ -497,6 +497,16 @@
       },
       "title": "Full representation of a group message"
     },
+    "message_contentsWelcomeWrapperAlgorithm": {
+      "type": "string",
+      "enum": [
+        "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
+        "WELCOME_WRAPPER_ALGORITHM_CURVE25519",
+        "WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6"
+      ],
+      "default": "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
+      "title": "Describes the algorithm used to encrypt the Welcome Wrapper"
+    },
     "mlsapiv1PagingInfo": {
       "type": "object",
       "properties": {
@@ -878,6 +888,13 @@
         "hpkePublicKey": {
           "type": "string",
           "format": "byte"
+        },
+        "wrapperAlgorithm": {
+          "$ref": "#/definitions/message_contentsWelcomeWrapperAlgorithm"
+        },
+        "messageCursor": {
+          "type": "string",
+          "format": "uint64"
         }
       },
       "title": "Version 1 of the WelcomeMessageInput format"
@@ -904,6 +921,13 @@
         "hpkePublicKey": {
           "type": "string",
           "format": "byte"
+        },
+        "wrapperAlgorithm": {
+          "$ref": "#/definitions/message_contentsWelcomeWrapperAlgorithm"
+        },
+        "messageCursor": {
+          "type": "string",
+          "format": "uint64"
         }
       },
       "title": "Version 1 of the WelcomeMessage format"

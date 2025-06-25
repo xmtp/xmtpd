@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -182,11 +183,23 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 		return nil
 	}
 
+	grpcListener, err := net.Listen("tcp", "localhost:0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = grpcListener.Close()
+	})
+
+	httpListener, err := net.Listen("tcp", "localhost:0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = httpListener.Close()
+	})
+
 	svr, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(log),
-		api.WithHTTPListenAddress("localhost:0"),
-		api.WithListenAddress("localhost:0"),
+		api.WithGRPCListener(grpcListener),
+		api.WithHTTPListener(httpListener),
 		api.WithJWTVerifier(jwtVerifier),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),

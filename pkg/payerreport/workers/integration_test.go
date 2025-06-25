@@ -3,6 +3,7 @@ package workers_test
 import (
 	"crypto/ecdsa"
 	"database/sql"
+	"net"
 	"testing"
 	"time"
 
@@ -126,15 +127,23 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	payerPrivateKey1 := testutils.RandomPrivateKey(t)
 	payerPrivateKey2 := testutils.RandomPrivateKey(t)
 
-	server1Port := networkTestUtils.FindFreePort(t)
-	server2Port := networkTestUtils.FindFreePort(t)
+	server1Port := networkTestUtils.OpenFreePort(t)
+	server2Port := networkTestUtils.OpenFreePort(t)
 
-	httpServer1Port := networkTestUtils.FindFreePort(t)
-	httpServer2Port := networkTestUtils.FindFreePort(t)
+	httpServer1Port := networkTestUtils.OpenFreePort(t)
+	httpServer2Port := networkTestUtils.OpenFreePort(t)
 
 	nodes := []registry.Node{
-		registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1),
-		registryTestUtils.CreateNode(server2NodeID, server2Port, privateKey2),
+		registryTestUtils.CreateNode(
+			server1NodeID,
+			server1Port.Addr().(*net.TCPAddr).Port,
+			privateKey1,
+		),
+		registryTestUtils.CreateNode(
+			server2NodeID,
+			server2Port.Addr().(*net.TCPAddr).Port,
+			privateKey2,
+		),
 	}
 
 	registry, reportsManager, contractsOptions := setupBlockchain(t, nodes)
@@ -145,8 +154,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server1Port,
-			HttpPort:         httpServer1Port,
+			GRPCListener:     server1Port,
+			HTTPListener:     httpServer1Port,
 			Db:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -160,8 +169,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	server2 := serverTestUtils.NewTestServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server2Port,
-			HttpPort:         httpServer2Port,
+			GRPCListener:     server2Port,
+			HTTPListener:     httpServer2Port,
 			Db:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,

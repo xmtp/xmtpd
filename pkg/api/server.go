@@ -29,8 +29,8 @@ type RegistrationFunc func(server *grpc.Server) error
 type ApiServerConfig struct {
 	Ctx                  context.Context
 	Log                  *zap.Logger
-	ListenAddress        string
-	HTTPListenAddress    string
+	GRPCListener         net.Listener
+	HTTPListener         net.Listener
 	EnableReflection     bool
 	RegistrationFunc     RegistrationFunc
 	HTTPRegistrationFunc HttpRegistrationFunc
@@ -48,12 +48,12 @@ func WithLogger(log *zap.Logger) ApiServerOption {
 	return func(cfg *ApiServerConfig) { cfg.Log = log }
 }
 
-func WithListenAddress(addr string) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.ListenAddress = addr }
+func WithGRPCListener(listener net.Listener) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.GRPCListener = listener }
 }
 
-func WithHTTPListenAddress(addr string) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.HTTPListenAddress = addr }
+func WithHTTPListener(listener net.Listener) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.HTTPListener = listener }
 }
 
 func WithReflection(enabled bool) ApiServerOption {
@@ -103,8 +103,8 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, fmt.Errorf("prometheus registry is required")
 	}
 
-	if cfg.ListenAddress == "" || cfg.HTTPListenAddress == "" {
-		return nil, fmt.Errorf("both listenAddress and httpListenAddress are required")
+	if cfg.GRPCListener == nil || cfg.HTTPListener == nil {
+		return nil, fmt.Errorf("both GRPCListener and HTTPListener are required")
 	}
 	if cfg.RegistrationFunc == nil {
 		return nil, fmt.Errorf("grpc registration function is required")
@@ -113,22 +113,13 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, fmt.Errorf("http registration function is required")
 	}
 
-	grpcListener, err := net.Listen("tcp", cfg.ListenAddress)
-	if err != nil {
-		return nil, err
-	}
-	httpListener, err := net.Listen("tcp", cfg.HTTPListenAddress)
-	if err != nil {
-		return nil, err
-	}
-
 	s := &ApiServer{
 		ctx: cfg.Ctx,
 		grpcListener: &proxyproto.Listener{
-			Listener:          grpcListener,
+			Listener:          cfg.GRPCListener,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		httpListener: httpListener,
+		httpListener: cfg.HTTPListener,
 		log:          cfg.Log.Named("api"),
 	}
 
@@ -246,18 +237,11 @@ func (s *ApiServer) Close(timeout time.Duration) {
 		}
 	}
 	if s.grpcListener != nil {
-		if err := s.grpcListener.Close(); err != nil && !isErrUseOfClosedConnection(err) {
-			s.log.Error("Error while closing grpc listener", zap.Error(err))
-		}
-		s.grpcListener = nil
+		_ = s.grpcListener.Close()
 	}
 
 	if s.httpListener != nil {
-		err := s.httpListener.Close()
-		if err != nil {
-			s.log.Error("Error while closing http listener", zap.Error(err))
-		}
-		s.httpListener = nil
+		_ = s.httpListener.Close()
 	}
 
 	s.wg.Wait()

@@ -3,6 +3,7 @@ package server_test
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -41,15 +42,23 @@ func TestCreateServer(t *testing.T) {
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	server1Port := networkTestUtils.FindFreePort(t)
-	server2Port := networkTestUtils.FindFreePort(t)
+	server1Port := networkTestUtils.OpenFreePort(t)
+	server2Port := networkTestUtils.OpenFreePort(t)
 
-	httpServer1Port := networkTestUtils.FindFreePort(t)
-	httpServer2Port := networkTestUtils.FindFreePort(t)
+	httpServer1Port := networkTestUtils.OpenFreePort(t)
+	httpServer2Port := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
-		registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1),
-		registryTestUtils.CreateNode(server2NodeID, server2Port, privateKey2),
+		registryTestUtils.CreateNode(
+			server1NodeID,
+			server1Port.Addr().(*net.TCPAddr).Port,
+			privateKey1,
+		),
+		registryTestUtils.CreateNode(
+			server2NodeID,
+			server2Port.Addr().(*net.TCPAddr).Port,
+			privateKey2,
+		),
 	}
 
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
@@ -61,8 +70,8 @@ func TestCreateServer(t *testing.T) {
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server1Port,
-			HttpPort:         httpServer1Port,
+			GRPCListener:     server1Port,
+			HTTPListener:     httpServer1Port,
 			Db:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -76,8 +85,8 @@ func TestCreateServer(t *testing.T) {
 	server2 := serverTestUtils.NewTestServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server2Port,
-			HttpPort:         httpServer2Port,
+			GRPCListener:     server2Port,
+			HTTPListener:     httpServer2Port,
 			Db:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -177,12 +186,18 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	dbs := testutils.NewDBs(t, ctx, 1)
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	server1Port := networkTestUtils.FindFreePort(t)
-	httpServer1Port := networkTestUtils.FindFreePort(t)
+	server1Port := networkTestUtils.OpenFreePort(t)
+	httpServer1Port := networkTestUtils.OpenFreePort(t)
 
 	nodeId1 := server1NodeID
 
-	nodes := []r.Node{registryTestUtils.CreateNode(server1NodeID, server1Port, privateKey1)}
+	nodes := []r.Node{
+		registryTestUtils.CreateNode(
+			server1NodeID,
+			server1Port.Addr().(*net.TCPAddr).Port,
+			privateKey1,
+		),
+	}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 	wsUrl := anvil.StartAnvil(t, false)
 
@@ -191,8 +206,8 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	server1 := serverTestUtils.NewTestServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server1Port,
-			HttpPort:         httpServer1Port,
+			GRPCListener:     server1Port,
+			HTTPListener:     httpServer1Port,
 			Db:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -246,17 +261,23 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	grpcPort := networkTestUtils.FindFreePort(t)
-	httpPort := networkTestUtils.FindFreePort(t)
+	grpcPort := networkTestUtils.OpenFreePort(t)
+	httpPort := networkTestUtils.OpenFreePort(t)
 
-	nodes := []r.Node{registryTestUtils.CreateNode(server1NodeID, grpcPort, privateKey)}
+	nodes := []r.Node{
+		registryTestUtils.CreateNode(
+			server1NodeID,
+			grpcPort.Addr().(*net.TCPAddr).Port,
+			privateKey,
+		),
+	}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 	wsURL := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(t, wsURL)
 
 	server := serverTestUtils.NewTestServer(t, serverTestUtils.TestServerCfg{
-		Port:             grpcPort,
-		HttpPort:         httpPort,
+		GRPCListener:     grpcPort,
+		HTTPListener:     httpPort,
 		Db:               dbs[0],
 		Registry:         registry,
 		PrivateKey:       privateKey,
@@ -266,7 +287,7 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 	defer server.Shutdown(0)
 
 	t.Run("HTTP /healthz should return SERVING", func(t *testing.T) {
-		url := fmt.Sprintf("http://localhost:%d/healthz", httpPort)
+		url := fmt.Sprintf("http://localhost:%d/healthz", httpPort.Addr().(*net.TCPAddr).Port)
 
 		require.Eventually(t, func() bool {
 			resp, err := http.Get(url)
@@ -289,7 +310,7 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			conn, err := grpc.NewClient(
-				fmt.Sprintf("dns:///localhost:%d", grpcPort),
+				fmt.Sprintf("dns:///localhost:%d", grpcPort.Addr().(*net.TCPAddr).Port),
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			if err != nil {

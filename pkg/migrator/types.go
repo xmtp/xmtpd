@@ -9,8 +9,6 @@ import (
 )
 
 const (
-	addressLogTableName = "address_log"
-
 	groupMessagesTableName          = "group_messages"
 	groupMessageOriginatorID uint32 = 10
 
@@ -42,35 +40,6 @@ type ISourceRecord interface {
 	GetID() int64
 	TableName() string
 	Scan(rows *sql.Rows) error
-}
-
-// AddressLog represents the address_log table from the source database.
-// Order by association_sequence_id ASC.
-// TODO: Probably not needed if they can be derived from InboxLog (IdentityUpdates).
-type AddressLog struct {
-	ID                    int64         `db:"id"`
-	Address               string        `db:"address"`
-	InboxID               []byte        `db:"inbox_id"`
-	AssociationSequenceID sql.NullInt64 `db:"association_sequence_id"`
-	RevocationSequenceID  sql.NullInt64 `db:"revocation_sequence_id"`
-}
-
-func (a AddressLog) GetID() int64 {
-	return a.AssociationSequenceID.Int64
-}
-
-func (a AddressLog) TableName() string {
-	return addressLogTableName
-}
-
-func (a *AddressLog) Scan(rows *sql.Rows) error {
-	return rows.Scan(
-		&a.ID,
-		&a.Address,
-		&a.InboxID,
-		&a.AssociationSequenceID,
-		&a.RevocationSequenceID,
-	)
 }
 
 // GroupMessage represents the group_messages table from the source database.

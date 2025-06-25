@@ -221,6 +221,7 @@ func (t *transformer) TransformWelcomeMessage(
 	)
 }
 
+// originatorEnvelope builds and signs an originator envelope from a client envelope.
 func (t *transformer) originatorEnvelope(
 	protoClientEnvelope *proto.ClientEnvelope,
 	originatorID uint32,

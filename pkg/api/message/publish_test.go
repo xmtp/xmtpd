@@ -2,6 +2,7 @@ package message_test
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -390,6 +391,86 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	}, 2*time.Second, 500*time.Millisecond)
 }
 
+func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+
+	tests := []struct {
+		name        string
+		expiry      uint32
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name:        "0 expiry",
+			expiry:      0,
+			wantErr:     true,
+			expectedErr: "invalid expiry retention days",
+		},
+		{
+			name:        "short expiry",
+			expiry:      1,
+			wantErr:     true,
+			expectedErr: "invalid expiry retention days",
+		},
+		{
+			name:    "minimal expiry",
+			expiry:  2,
+			wantErr: false,
+		},
+		{
+			name:    "1 week expiry",
+			expiry:  7,
+			wantErr: false,
+		},
+		{
+			name:    "30 day expiry",
+			expiry:  30,
+			wantErr: false,
+		},
+		{
+			name:    "90 day expiry",
+			expiry:  90,
+			wantErr: false,
+		},
+		{
+			name:        "5 year expiry",
+			expiry:      5 * 365,
+			wantErr:     true,
+			expectedErr: "invalid expiry retention days",
+		},
+		{
+			name:    "infinite expiry",
+			expiry:  math.MaxUint32,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payerEnvelope := envelopeTestUtils.CreatePayerEnvelopeWithExpiration(
+				t,
+				envelopeTestUtils.DefaultClientEnvelopeNodeId,
+				tt.expiry,
+			)
+
+			_, err := api.PublishPayerEnvelopes(
+				context.Background(),
+				&message_api.PublishPayerEnvelopesRequest{
+					PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+				},
+			)
+			if tt.wantErr {
+				if tt.expectedErr == "" {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, tt.expectedErr)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
 
 func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)

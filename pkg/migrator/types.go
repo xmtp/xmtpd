@@ -24,9 +24,20 @@ const (
 	installationOriginatorID uint32 = 13
 )
 
+var originatorIDToTableName = map[uint32]string{
+	groupMessageOriginatorID:   groupMessagesTableName,
+	welcomeMessageOriginatorID: welcomeMessagesTableName,
+	inboxLogOriginatorID:       inboxLogTableName,
+	installationOriginatorID:   installationsTableName,
+}
+
 // IDataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
 type IDataTransformer interface {
 	Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error)
+}
+
+type IDestinationWriter interface {
+	Write(ctx context.Context, env *envelopes.OriginatorEnvelope) error
 }
 
 // ISourceReader defines the interface for reading records from the source database.

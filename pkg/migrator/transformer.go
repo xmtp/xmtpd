@@ -138,6 +138,7 @@ func (t *transformer) TransformInboxLog(
 		return nil, fmt.Errorf("failed to unmarshal IdentityUpdateProto: %w", err)
 	}
 
+	// Is identityUpdateProto everything we need?
 	protoClientEnvelope := &proto.ClientEnvelope{
 		Payload: &proto.ClientEnvelope_IdentityUpdate{
 			IdentityUpdate: &identityUpdateProto,

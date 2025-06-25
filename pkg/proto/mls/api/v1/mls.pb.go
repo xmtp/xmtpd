@@ -11,6 +11,7 @@ package apiv1
 import (
 	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options"
 	message_contents "github.com/xmtp/xmtpd/pkg/proto/message_contents"
+	message_contents1 "github.com/xmtp/xmtpd/pkg/proto/mls/message_contents"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -1251,14 +1252,16 @@ func (x *SubscribeWelcomeMessagesRequest) GetFilters() []*SubscribeWelcomeMessag
 
 // Version 1 of the WelcomeMessage format
 type WelcomeMessage_V1 struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	CreatedNs       uint64                 `protobuf:"varint,2,opt,name=created_ns,json=createdNs,proto3" json:"created_ns,omitempty"`
-	InstallationKey []byte                 `protobuf:"bytes,3,opt,name=installation_key,json=installationKey,proto3" json:"installation_key,omitempty"`
-	Data            []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
-	HpkePublicKey   []byte                 `protobuf:"bytes,5,opt,name=hpke_public_key,json=hpkePublicKey,proto3" json:"hpke_public_key,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState                    `protogen:"open.v1"`
+	Id               uint64                                    `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	CreatedNs        uint64                                    `protobuf:"varint,2,opt,name=created_ns,json=createdNs,proto3" json:"created_ns,omitempty"`
+	InstallationKey  []byte                                    `protobuf:"bytes,3,opt,name=installation_key,json=installationKey,proto3" json:"installation_key,omitempty"`
+	Data             []byte                                    `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	HpkePublicKey    []byte                                    `protobuf:"bytes,5,opt,name=hpke_public_key,json=hpkePublicKey,proto3" json:"hpke_public_key,omitempty"`
+	WrapperAlgorithm message_contents1.WelcomeWrapperAlgorithm `protobuf:"varint,6,opt,name=wrapper_algorithm,json=wrapperAlgorithm,proto3,enum=xmtp.mls.message_contents.WelcomeWrapperAlgorithm" json:"wrapper_algorithm,omitempty"`
+	MessageCursor    uint64                                    `protobuf:"varint,7,opt,name=message_cursor,json=messageCursor,proto3" json:"message_cursor,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *WelcomeMessage_V1) Reset() {
@@ -1326,14 +1329,30 @@ func (x *WelcomeMessage_V1) GetHpkePublicKey() []byte {
 	return nil
 }
 
+func (x *WelcomeMessage_V1) GetWrapperAlgorithm() message_contents1.WelcomeWrapperAlgorithm {
+	if x != nil {
+		return x.WrapperAlgorithm
+	}
+	return message_contents1.WelcomeWrapperAlgorithm(0)
+}
+
+func (x *WelcomeMessage_V1) GetMessageCursor() uint64 {
+	if x != nil {
+		return x.MessageCursor
+	}
+	return 0
+}
+
 // Version 1 of the WelcomeMessageInput format
 type WelcomeMessageInput_V1 struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	InstallationKey []byte                 `protobuf:"bytes,1,opt,name=installation_key,json=installationKey,proto3" json:"installation_key,omitempty"`
-	Data            []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	HpkePublicKey   []byte                 `protobuf:"bytes,3,opt,name=hpke_public_key,json=hpkePublicKey,proto3" json:"hpke_public_key,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState                    `protogen:"open.v1"`
+	InstallationKey  []byte                                    `protobuf:"bytes,1,opt,name=installation_key,json=installationKey,proto3" json:"installation_key,omitempty"`
+	Data             []byte                                    `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	HpkePublicKey    []byte                                    `protobuf:"bytes,3,opt,name=hpke_public_key,json=hpkePublicKey,proto3" json:"hpke_public_key,omitempty"`
+	WrapperAlgorithm message_contents1.WelcomeWrapperAlgorithm `protobuf:"varint,4,opt,name=wrapper_algorithm,json=wrapperAlgorithm,proto3,enum=xmtp.mls.message_contents.WelcomeWrapperAlgorithm" json:"wrapper_algorithm,omitempty"`
+	MessageCursor    uint64                                    `protobuf:"varint,5,opt,name=message_cursor,json=messageCursor,proto3" json:"message_cursor,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *WelcomeMessageInput_V1) Reset() {
@@ -1385,6 +1404,20 @@ func (x *WelcomeMessageInput_V1) GetHpkePublicKey() []byte {
 		return x.HpkePublicKey
 	}
 	return nil
+}
+
+func (x *WelcomeMessageInput_V1) GetWrapperAlgorithm() message_contents1.WelcomeWrapperAlgorithm {
+	if x != nil {
+		return x.WrapperAlgorithm
+	}
+	return message_contents1.WelcomeWrapperAlgorithm(0)
+}
+
+func (x *WelcomeMessageInput_V1) GetMessageCursor() uint64 {
+	if x != nil {
+		return x.MessageCursor
+	}
+	return 0
 }
 
 // Version 1 of the GroupMessage format
@@ -1924,23 +1957,27 @@ var File_mls_api_v1_mls_proto protoreflect.FileDescriptor
 
 const file_mls_api_v1_mls_proto_rawDesc = "" +
 	"\n" +
-	"\x14mls/api/v1/mls.proto\x12\x0fxmtp.mls.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a message_contents/signature.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\"\xee\x01\n" +
+	"\x14mls/api/v1/mls.proto\x12\x0fxmtp.mls.api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a message_contents/signature.proto\x1a-mls/message_contents/wrapper_encryption.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\"\xf6\x02\n" +
 	"\x0eWelcomeMessage\x124\n" +
-	"\x02v1\x18\x01 \x01(\v2\".xmtp.mls.api.v1.WelcomeMessage.V1H\x00R\x02v1\x1a\x9a\x01\n" +
+	"\x02v1\x18\x01 \x01(\v2\".xmtp.mls.api.v1.WelcomeMessage.V1H\x00R\x02v1\x1a\xa2\x02\n" +
 	"\x02V1\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x1d\n" +
 	"\n" +
 	"created_ns\x18\x02 \x01(\x04R\tcreatedNs\x12)\n" +
 	"\x10installation_key\x18\x03 \x01(\fR\x0finstallationKey\x12\x12\n" +
 	"\x04data\x18\x04 \x01(\fR\x04data\x12&\n" +
-	"\x0fhpke_public_key\x18\x05 \x01(\fR\rhpkePublicKeyB\t\n" +
-	"\aversion\"\xc8\x01\n" +
+	"\x0fhpke_public_key\x18\x05 \x01(\fR\rhpkePublicKey\x12_\n" +
+	"\x11wrapper_algorithm\x18\x06 \x01(\x0e22.xmtp.mls.message_contents.WelcomeWrapperAlgorithmR\x10wrapperAlgorithm\x12%\n" +
+	"\x0emessage_cursor\x18\a \x01(\x04R\rmessageCursorB\t\n" +
+	"\aversion\"\xd1\x02\n" +
 	"\x13WelcomeMessageInput\x129\n" +
-	"\x02v1\x18\x01 \x01(\v2'.xmtp.mls.api.v1.WelcomeMessageInput.V1H\x00R\x02v1\x1ak\n" +
+	"\x02v1\x18\x01 \x01(\v2'.xmtp.mls.api.v1.WelcomeMessageInput.V1H\x00R\x02v1\x1a\xf3\x01\n" +
 	"\x02V1\x12)\n" +
 	"\x10installation_key\x18\x01 \x01(\fR\x0finstallationKey\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12&\n" +
-	"\x0fhpke_public_key\x18\x03 \x01(\fR\rhpkePublicKeyB\t\n" +
+	"\x0fhpke_public_key\x18\x03 \x01(\fR\rhpkePublicKey\x12_\n" +
+	"\x11wrapper_algorithm\x18\x04 \x01(\x0e22.xmtp.mls.message_contents.WelcomeWrapperAlgorithmR\x10wrapperAlgorithm\x12%\n" +
+	"\x0emessage_cursor\x18\x05 \x01(\x04R\rmessageCursorB\t\n" +
 	"\aversion\"\xf4\x01\n" +
 	"\fGroupMessage\x122\n" +
 	"\x02v1\x18\x01 \x01(\v2 .xmtp.mls.api.v1.GroupMessage.V1H\x00R\x02v1\x1a\xa4\x01\n" +
@@ -2107,7 +2144,8 @@ var file_mls_api_v1_mls_proto_goTypes = []any{
 	(*SubscribeGroupMessagesRequest_Filter)(nil),                 // 32: xmtp.mls.api.v1.SubscribeGroupMessagesRequest.Filter
 	(*SubscribeWelcomeMessagesRequest_Filter)(nil),               // 33: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.Filter
 	(*message_contents.Signature)(nil),                           // 34: xmtp.message_contents.Signature
-	(*emptypb.Empty)(nil),                                        // 35: google.protobuf.Empty
+	(message_contents1.WelcomeWrapperAlgorithm)(0),               // 35: xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	(*emptypb.Empty)(nil),                                        // 36: google.protobuf.Empty
 }
 var file_mls_api_v1_mls_proto_depIdxs = []int32{
 	23, // 0: xmtp.mls.api.v1.WelcomeMessage.v1:type_name -> xmtp.mls.api.v1.WelcomeMessage.V1
@@ -2130,36 +2168,38 @@ var file_mls_api_v1_mls_proto_depIdxs = []int32{
 	16, // 17: xmtp.mls.api.v1.QueryWelcomeMessagesResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
 	32, // 18: xmtp.mls.api.v1.SubscribeGroupMessagesRequest.filters:type_name -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest.Filter
 	33, // 19: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.filters:type_name -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.Filter
-	28, // 20: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.new_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.NewInstallationUpdate
-	29, // 21: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.revoked_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.RevokedInstallationUpdate
-	30, // 22: xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates.updates:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update
-	5,  // 23: xmtp.mls.api.v1.MlsApi.SendGroupMessages:input_type -> xmtp.mls.api.v1.SendGroupMessagesRequest
-	6,  // 24: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:input_type -> xmtp.mls.api.v1.SendWelcomeMessagesRequest
-	8,  // 25: xmtp.mls.api.v1.MlsApi.RegisterInstallation:input_type -> xmtp.mls.api.v1.RegisterInstallationRequest
-	10, // 26: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:input_type -> xmtp.mls.api.v1.UploadKeyPackageRequest
-	11, // 27: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:input_type -> xmtp.mls.api.v1.FetchKeyPackagesRequest
-	13, // 28: xmtp.mls.api.v1.MlsApi.RevokeInstallation:input_type -> xmtp.mls.api.v1.RevokeInstallationRequest
-	14, // 29: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:input_type -> xmtp.mls.api.v1.GetIdentityUpdatesRequest
-	17, // 30: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:input_type -> xmtp.mls.api.v1.QueryGroupMessagesRequest
-	19, // 31: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:input_type -> xmtp.mls.api.v1.QueryWelcomeMessagesRequest
-	21, // 32: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:input_type -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest
-	22, // 33: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:input_type -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest
-	35, // 34: xmtp.mls.api.v1.MlsApi.SendGroupMessages:output_type -> google.protobuf.Empty
-	35, // 35: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:output_type -> google.protobuf.Empty
-	9,  // 36: xmtp.mls.api.v1.MlsApi.RegisterInstallation:output_type -> xmtp.mls.api.v1.RegisterInstallationResponse
-	35, // 37: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:output_type -> google.protobuf.Empty
-	12, // 38: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:output_type -> xmtp.mls.api.v1.FetchKeyPackagesResponse
-	35, // 39: xmtp.mls.api.v1.MlsApi.RevokeInstallation:output_type -> google.protobuf.Empty
-	15, // 40: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:output_type -> xmtp.mls.api.v1.GetIdentityUpdatesResponse
-	18, // 41: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:output_type -> xmtp.mls.api.v1.QueryGroupMessagesResponse
-	20, // 42: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:output_type -> xmtp.mls.api.v1.QueryWelcomeMessagesResponse
-	3,  // 43: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:output_type -> xmtp.mls.api.v1.GroupMessage
-	1,  // 44: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:output_type -> xmtp.mls.api.v1.WelcomeMessage
-	34, // [34:45] is the sub-list for method output_type
-	23, // [23:34] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	35, // 20: xmtp.mls.api.v1.WelcomeMessage.V1.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	35, // 21: xmtp.mls.api.v1.WelcomeMessageInput.V1.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	28, // 22: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.new_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.NewInstallationUpdate
+	29, // 23: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.revoked_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.RevokedInstallationUpdate
+	30, // 24: xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates.updates:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update
+	5,  // 25: xmtp.mls.api.v1.MlsApi.SendGroupMessages:input_type -> xmtp.mls.api.v1.SendGroupMessagesRequest
+	6,  // 26: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:input_type -> xmtp.mls.api.v1.SendWelcomeMessagesRequest
+	8,  // 27: xmtp.mls.api.v1.MlsApi.RegisterInstallation:input_type -> xmtp.mls.api.v1.RegisterInstallationRequest
+	10, // 28: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:input_type -> xmtp.mls.api.v1.UploadKeyPackageRequest
+	11, // 29: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:input_type -> xmtp.mls.api.v1.FetchKeyPackagesRequest
+	13, // 30: xmtp.mls.api.v1.MlsApi.RevokeInstallation:input_type -> xmtp.mls.api.v1.RevokeInstallationRequest
+	14, // 31: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:input_type -> xmtp.mls.api.v1.GetIdentityUpdatesRequest
+	17, // 32: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:input_type -> xmtp.mls.api.v1.QueryGroupMessagesRequest
+	19, // 33: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:input_type -> xmtp.mls.api.v1.QueryWelcomeMessagesRequest
+	21, // 34: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:input_type -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest
+	22, // 35: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:input_type -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest
+	36, // 36: xmtp.mls.api.v1.MlsApi.SendGroupMessages:output_type -> google.protobuf.Empty
+	36, // 37: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:output_type -> google.protobuf.Empty
+	9,  // 38: xmtp.mls.api.v1.MlsApi.RegisterInstallation:output_type -> xmtp.mls.api.v1.RegisterInstallationResponse
+	36, // 39: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:output_type -> google.protobuf.Empty
+	12, // 40: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:output_type -> xmtp.mls.api.v1.FetchKeyPackagesResponse
+	36, // 41: xmtp.mls.api.v1.MlsApi.RevokeInstallation:output_type -> google.protobuf.Empty
+	15, // 42: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:output_type -> xmtp.mls.api.v1.GetIdentityUpdatesResponse
+	18, // 43: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:output_type -> xmtp.mls.api.v1.QueryGroupMessagesResponse
+	20, // 44: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:output_type -> xmtp.mls.api.v1.QueryWelcomeMessagesResponse
+	3,  // 45: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:output_type -> xmtp.mls.api.v1.GroupMessage
+	1,  // 46: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:output_type -> xmtp.mls.api.v1.WelcomeMessage
+	36, // [36:47] is the sub-list for method output_type
+	25, // [25:36] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_mls_api_v1_mls_proto_init() }

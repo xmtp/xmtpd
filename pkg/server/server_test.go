@@ -120,9 +120,8 @@ func TestCreateServer(t *testing.T) {
 				t,
 				nodeId1,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetOriginator: &nodeId1,
-					TargetTopic:      targetTopic,
-					DependsOn:        &envelopes.Cursor{},
+					TargetTopic: targetTopic,
+					DependsOn:   &envelopes.Cursor{},
 				}),
 			)},
 		},
@@ -135,9 +134,8 @@ func TestCreateServer(t *testing.T) {
 				t,
 				nodeId2,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetOriginator: &nodeId2,
-					TargetTopic:      targetTopic,
-					DependsOn:        &envelopes.Cursor{},
+					TargetTopic: targetTopic,
+					DependsOn:   &envelopes.Cursor{},
 				}),
 			)},
 		},

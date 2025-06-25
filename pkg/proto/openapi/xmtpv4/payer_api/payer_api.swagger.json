@@ -351,13 +351,10 @@
     "envelopesAuthenticatedData": {
       "type": "object",
       "properties": {
-        "targetOriginator": {
-          "type": "integer",
-          "format": "int64"
-        },
         "targetTopic": {
           "type": "string",
-          "format": "byte"
+          "format": "byte",
+          "title": "Do NOT reuse tag 1 — previously used by target_originator"
         },
         "dependsOn": {
           "$ref": "#/definitions/xmtpv4envelopesCursor"

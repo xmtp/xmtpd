@@ -207,18 +207,11 @@ func (s *Service) groupEnvelopes(
 				newClientEnvelopeWithIndex(i, clientEnvelope),
 			)
 		} else {
-			// backwards compatibility
-			var targetNodeId uint32
-			// nolint:staticcheck
-			if aad.GetTargetOriginator() != 0 {
-				targetNodeId = aad.GetTargetOriginator()
-			} else {
-				node, err := s.nodeSelector.GetNode(targetTopic)
-				if err != nil {
-					return nil, err
-				}
-				targetNodeId = node
+			targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+			if err != nil {
+				return nil, err
 			}
+
 			out.forNodes[targetNodeId] = append(out.forNodes[targetNodeId], newClientEnvelopeWithIndex(i, clientEnvelope))
 		}
 	}
@@ -408,17 +401,9 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	// backwards compatibility
-	var targetNodeId uint32
-	// nolint:staticcheck
-	if clientEnvelope.Aad().GetTargetOriginator() >= 100 {
-		targetNodeId = clientEnvelope.Aad().GetTargetOriginator()
-	} else {
-		node, err := s.nodeSelector.GetNode(targetTopic)
-		if err != nil {
-			return nil, err
-		}
-		targetNodeId = node
+	targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+	if err != nil {
+		return nil, err
 	}
 
 	s.log.Debug(
@@ -519,9 +504,7 @@ func shouldSendToBlockchain(targetTopic topic.Topic, aad *envelopesProto.Authent
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		return true
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		// nolint:staticcheck
-		return aad.GetIsCommit() || aad.GetTargetOriginator() != 0 &&
-			aad.GetTargetOriginator() < uint32(constants.MAX_BLOCKCHAIN_ORIGINATOR_ID)
+		return aad.GetIsCommit()
 	default:
 		return false
 	}

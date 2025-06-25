@@ -94,29 +94,6 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 	require.ErrorContains(t, err, "invalid wire-format data")
 }
 
-func TestMismatchingAADOriginatorOnPublishNoLongerFails(t *testing.T) {
-	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
-
-	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
-
-	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	// nolint:staticcheck
-	clientEnv.Aad.TargetOriginator = &nid
-	_, err := api.PublishPayerEnvelopes(
-		context.Background(),
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{
-				envelopeTestUtils.CreatePayerEnvelope(
-					t,
-					envelopeTestUtils.DefaultClientEnvelopeNodeId,
-					clientEnv,
-				),
-			},
-		},
-	)
-	require.NoError(t, err)
-}
-
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
 	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
@@ -157,12 +134,9 @@ func TestMissingTopicOnPublish(t *testing.T) {
 func TestKeyPackageValidationSuccess(t *testing.T) {
 	api, _, apiMocks := apiTestUtils.NewTestReplicationAPIClient(t)
 
-	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
-
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		TargetOriginator: &nid,
-		DependsOn:        &envelopes.Cursor{},
+		TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+		DependsOn:   &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
 		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
@@ -203,9 +177,8 @@ func TestKeyPackageValidationFail(t *testing.T) {
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-		TargetTopic:      topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		TargetOriginator: &nid,
-		DependsOn:        &envelopes.Cursor{},
+		TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+		DependsOn:   &envelopes.Cursor{},
 	})
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
 		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
@@ -266,9 +239,8 @@ func publishPayerEnvelopeWithNodeIDAndCursor(
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t, nodeId,
 				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetOriginator: &nodeId,
-					TargetTopic:      targetTopic,
-					DependsOn:        cursor,
+					TargetTopic: targetTopic,
+					DependsOn:   cursor,
 				}),
 			)},
 		},

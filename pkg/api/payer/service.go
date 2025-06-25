@@ -515,7 +515,7 @@ func DetermineRetentionPolicy(
 	targetTopic topic.Topic,
 	aad *envelopesProto.AuthenticatedData,
 ) uint32 {
-	//TODO: mkysel determine expiration for welcomes and key packages
+	// TODO: mkysel determine expiration for welcomes and key packages
 
 	switch targetTopic.Kind() {
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:

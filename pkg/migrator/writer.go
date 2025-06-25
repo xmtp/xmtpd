@@ -174,7 +174,6 @@ func (m *dbMigrator) insertOriginatorEnvelope(
 
 			return nil
 		})
-
 	if err != nil {
 		var retryableError re.RetryableError
 		if errors.As(err, &retryableError) {

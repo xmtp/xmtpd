@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
+	messageContents "github.com/xmtp/xmtpd/pkg/proto/mls/message_contents"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -205,6 +206,9 @@ func (t *transformer) TransformWelcomeMessage(
 						InstallationKey: welcomeMessage.InstallationKey,
 						Data:            welcomeMessage.Data,
 						HpkePublicKey:   welcomeMessage.HpkePublicKey,
+						WrapperAlgorithm: messageContents.WelcomeWrapperAlgorithm(
+							welcomeMessage.WrapperAlgorithm,
+						),
 					},
 				},
 			},

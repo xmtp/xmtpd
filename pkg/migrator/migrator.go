@@ -1,3 +1,16 @@
+/*
+Package migrator implements a service that migrates data from a source database to a destination database.
+
+The data to migrate (source) is expected to be of the types defined in xmtp/proto MLS V1.
+https://github.com/xmtp/proto/blob/main/proto/mls/api/v1/mls.proto
+
+Upon migration, the data is transformed and written into the xmtpd database, in the originator_envelopes table.
+- The OriginatorEnvelope will have a hardcoded originator ID, based on the type of data. See types.go.
+- Original sequence IDs are preserved.
+- Expiry (retentionDays) are set based on the type of data.
+- Congestion fee and base fee are calculated and set, based on retentionDays.
+- Payer and originator envelopes are signed with the payer and node signing keys, respectively.
+*/
 package migrator
 
 import (
@@ -13,6 +26,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -23,22 +37,12 @@ const (
 	sleepTimeOnError  = 1 * time.Second
 )
 
-var (
-	tables = []string{
-		groupMessagesTableName,
-		inboxLogTableName,
-		installationsTableName,
-		welcomeMessagesTableName,
-	}
-
-	ErrNoRows = errors.New("no logs to migrate")
-)
-
 type DBMigratorConfig struct {
-	ctx     context.Context
-	log     *zap.Logger
-	db      *sql.DB
-	options *config.MigratorOptions
+	ctx               context.Context
+	log               *zap.Logger
+	db                *sql.DB
+	validationService mlsvalidate.MLSValidationService
+	options           *config.MigratorOptions
 }
 
 type DBMigratorOption func(*DBMigratorConfig)
@@ -61,6 +65,12 @@ func WithDestinationDB(db *sql.DB) DBMigratorOption {
 	}
 }
 
+func WithMLSValidationService(validationService mlsvalidate.MLSValidationService) DBMigratorOption {
+	return func(cfg *DBMigratorConfig) {
+		cfg.validationService = validationService
+	}
+}
+
 func WithMigratorConfig(options *config.MigratorOptions) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
 		cfg.options = options
@@ -76,10 +86,11 @@ type dbMigrator struct {
 	log    *zap.Logger
 
 	// Data management.
-	writer      *sql.DB
-	reader      *sql.DB
-	readers     map[string]ISourceReader
-	transformer IDataTransformer
+	writer            *sql.DB
+	reader            *sql.DB
+	readers           map[string]ISourceReader
+	transformer       IDataTransformer
+	validationService mlsvalidate.MLSValidationService
 
 	// Configuration.
 	pollInterval time.Duration
@@ -104,6 +115,10 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 
 	if cfg.db == nil {
 		return nil, errors.New("destination database is required")
+	}
+
+	if cfg.validationService == nil {
+		return nil, errors.New("MLS validation service is required")
 	}
 
 	if cfg.options == nil {
@@ -134,7 +149,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 
 	logger := cfg.log.Named("migrator")
 
-	source, err := db.ConnectToDB(
+	reader, err := db.ConnectToDB(
 		cfg.ctx,
 		logger,
 		cfg.options.ReaderConnectionString,
@@ -146,11 +161,11 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 		return nil, err
 	}
 
-	sources := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(source),
-		inboxLogTableName:        NewInboxLogReader(source),
-		installationsTableName:   NewInstallationReader(source),
-		welcomeMessagesTableName: NewWelcomeMessageReader(source),
+	readers := map[string]ISourceReader{
+		groupMessagesTableName:   NewGroupMessageReader(reader),
+		inboxLogTableName:        NewInboxLogReader(reader),
+		installationsTableName:   NewInstallationReader(reader),
+		welcomeMessagesTableName: NewWelcomeMessageReader(reader),
 	}
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
@@ -158,80 +173,90 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 	ctx, cancel := context.WithCancel(cfg.ctx)
 
 	return &dbMigrator{
-		ctx:          ctx,
-		cancel:       cancel,
-		log:          logger,
-		writer:       cfg.db,
-		reader:       source,
-		readers:      sources,
-		transformer:  transformer,
-		batchSize:    cfg.options.BatchSize,
-		pollInterval: cfg.options.PollInterval,
+		ctx:               ctx,
+		cancel:            cancel,
+		wg:                sync.WaitGroup{},
+		mu:                sync.RWMutex{},
+		log:               logger,
+		writer:            cfg.db,
+		reader:            reader,
+		readers:           readers,
+		transformer:       transformer,
+		validationService: cfg.validationService,
+		pollInterval:      cfg.options.PollInterval,
+		batchSize:         cfg.options.BatchSize,
+		running:           false,
 	}, nil
 }
 
-func (s *dbMigrator) Start() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (m *dbMigrator) Start() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if s.running {
+	if m.running {
 		return fmt.Errorf("migration service is already running")
 	}
 
-	s.running = true
+	m.running = true
 
-	for _, table := range tables {
-		s.migrationWorker(table)
+	for tableName := range m.readers {
+		m.migrationWorker(tableName)
 	}
 
-	s.log.Info("Migration service started", zap.Strings("tables", tables))
+	m.log.Info("Migration service started")
 
 	return nil
 }
 
-func (s *dbMigrator) Stop() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (m *dbMigrator) Stop() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if !s.running {
+	if !m.running {
 		return nil
 	}
 
-	s.cancel()
-	s.wg.Wait()
-	s.running = false
+	m.cancel()
+	m.wg.Wait()
+	m.running = false
 
-	if err := s.reader.Close(); err != nil {
-		s.log.Error("failed to close connection to source database", zap.Error(err))
+	if err := m.reader.Close(); err != nil {
+		m.log.Error("failed to close connection to source database", zap.Error(err))
 	}
 
-	if err := s.writer.Close(); err != nil {
-		s.log.Error("failed to close connection to destination database", zap.Error(err))
+	if err := m.writer.Close(); err != nil {
+		m.log.Error("failed to close connection to destination database", zap.Error(err))
 	}
 
-	s.log.Info("Migration service stopped")
+	m.log.Info("Migration service stopped")
 
 	return nil
 }
 
 // migrationWorker continuously processes migration for a specific table.
-func (s *dbMigrator) migrationWorker(tableName string) {
-	recvChan := make(chan ISourceRecord, s.batchSize*2)
-	wrtrChan := make(chan *envelopes.OriginatorEnvelope, s.batchSize*2)
-	wrtrQueries := queries.New(s.writer)
+func (m *dbMigrator) migrationWorker(tableName string) {
+	recvChan := make(chan ISourceRecord, m.batchSize*2)
+	wrtrChan := make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
+	wrtrQueries := queries.New(m.writer)
 
 	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
+		m.ctx,
+		&m.wg,
 		fmt.Sprintf("reader-%s", tableName),
 		func(ctx context.Context) {
 			defer close(recvChan)
 
-			logger := s.log.Named("reader").With(zap.String("table", tableName))
+			logger := m.log.Named("reader").With(zap.String("table", tableName))
 			logger.Info("started")
 
-			ticker := time.NewTicker(s.pollInterval)
+			ticker := time.NewTicker(m.pollInterval)
 			defer ticker.Stop()
+
+			reader, ok := m.readers[tableName]
+			if !ok {
+				m.log.Error("unknown table", zap.String("table", tableName))
+				return
+			}
 
 			for {
 				select {
@@ -240,11 +265,22 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 					return
 
 				case <-ticker.C:
-					records, newLastID, err := s.nextRecords(ctx, logger, wrtrQueries, tableName)
+					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
+					if err != nil {
+						logger.Error("failed to get migration progress", zap.Error(err))
+						return
+					}
+
+					logger.Debug(
+						"getting next batch of records",
+						zap.Int64("lastMigratedID", lastMigratedID),
+					)
+
+					records, newLastID, err := reader.Fetch(ctx, lastMigratedID, m.batchSize)
 					if err != nil {
 						switch err {
-						case ErrNoRows:
-							logger.Info(ErrNoRows.Error())
+						case sql.ErrNoRows:
+							logger.Info("no more records to migrate for now")
 							time.Sleep(sleepTimeOnNoRows)
 
 						default:
@@ -254,6 +290,18 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 
 						continue
 					}
+
+					if len(records) == 0 {
+						logger.Info("no more records to migrate for now")
+						time.Sleep(sleepTimeOnNoRows)
+						continue
+					}
+
+					logger.Debug(
+						"fetched batch of records",
+						zap.Int("count", len(records)),
+						zap.Int64("lastID", newLastID),
+					)
 
 					for _, record := range records {
 						select {
@@ -268,23 +316,16 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 					logger.Debug("batch sent to transformer",
 						zap.Int("total_fetched", len(records)),
 						zap.Int64("new_last_id", newLastID))
-
-					if err := wrtrQueries.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-						LastMigratedID: newLastID,
-						SourceTable:    tableName,
-					}); err != nil {
-						logger.Error("failed to update migration progress", zap.Error(err))
-					}
 				}
 			}
 		})
 
 	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
+		m.ctx,
+		&m.wg,
 		fmt.Sprintf("transformer-%s", tableName),
 		func(ctx context.Context) {
-			logger := s.log.Named("transformer").With(zap.String("table", tableName))
+			logger := m.log.Named("transformer").With(zap.String("table", tableName))
 			logger.Info("started")
 
 			defer close(wrtrChan)
@@ -301,7 +342,7 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 						return
 					}
 
-					envelope, err := s.transformer.Transform(record)
+					envelope, err := m.transformer.Transform(record)
 					if err != nil {
 						logger.Error(
 							"failed to transform record",
@@ -326,11 +367,11 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 		})
 
 	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
+		m.ctx,
+		&m.wg,
 		fmt.Sprintf("writer-%s", tableName),
 		func(ctx context.Context) {
-			logger := s.log.Named("writer").With(zap.String("table", tableName))
+			logger := m.log.Named("writer").With(zap.String("table", tableName))
 			logger.Info("started")
 
 			for {
@@ -350,11 +391,13 @@ func (s *dbMigrator) migrationWorker(tableName string) {
 						logger,
 						50*time.Millisecond,
 						func() re.RetryableError {
-							return s.insertOriginatorEnvelope(envelope, wrtrQueries)
+							return m.insertOriginatorEnvelope(envelope)
 						},
 					)
 					if err != nil {
 						logger.Error("failed to insert envelope", zap.Error(err))
+
+						// TODO: Send to failed table? Alerts, metrics?
 						continue
 					}
 				}

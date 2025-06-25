@@ -3,59 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
-
-	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"go.uber.org/zap"
 )
-
-// migrateTableBatch processes a batch of records for a specific table.
-func (s *dbMigrator) nextRecords(
-	ctx context.Context,
-	log *zap.Logger,
-	dstQueries *queries.Queries,
-	tableName string,
-) ([]ISourceRecord, int64, error) {
-	// Get migration progress for current table.
-	lastMigratedID, err := dstQueries.GetMigrationProgress(ctx, tableName)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get migration progress: %w", err)
-	}
-
-	log.Debug(
-		"getting next batch of records",
-		zap.Int64("lastMigratedID", lastMigratedID),
-	)
-
-	// Get reader for current table.
-	reader, ok := s.readers[tableName]
-	if !ok {
-		return nil, 0, fmt.Errorf("unknown table: %s", tableName)
-	}
-
-	// Fetch next batch of records from source database.
-	records, newLastID, err := reader.Fetch(ctx, lastMigratedID, s.batchSize)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, 0, ErrNoRows
-		}
-
-		return nil, 0, fmt.Errorf("failed to fetch batch from source database: %w", err)
-	}
-
-	log.Debug(
-		"fetched batch of records",
-		zap.Int("count", len(records)),
-		zap.Int64("lastID", newLastID),
-	)
-
-	if len(records) == 0 {
-		return nil, 0, ErrNoRows
-	}
-
-	return records, newLastID, nil
-}
 
 // DBReader provides a generic implementation for fetching records from database tables.
 type DBReader[T ISourceRecord] struct {

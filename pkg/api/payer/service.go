@@ -3,7 +3,6 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
-	"math"
 	"math/rand"
 	"time"
 
@@ -504,14 +503,14 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 			Bytes: payerSignature,
 		},
 		TargetOriginator: originatorID,
-		MessageRetentionDays: DetermineRetentionPolicy(
+		MessageRetentionDays: determineRetentionPolicy(
 			clientEnvelope.TargetTopic(),
 			clientEnvelope.Aad(),
 		),
 	}, nil
 }
 
-func DetermineRetentionPolicy(
+func determineRetentionPolicy(
 	targetTopic topic.Topic,
 	aad *envelopesProto.AuthenticatedData,
 ) uint32 {
@@ -519,10 +518,10 @@ func DetermineRetentionPolicy(
 
 	switch targetTopic.Kind() {
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		return uint32(math.MaxUint32)
+		panic("should not be called for identity updates")
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
 		if aad.GetIsCommit() {
-			return uint32(math.MaxUint32)
+			panic("should not be called for commits")
 		}
 	}
 

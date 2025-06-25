@@ -188,7 +188,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 
 		var err error
 		defer func() {
-			if err != nil {
+			if err != nil && s.ctx.Err() == nil {
 				s.log.Error(
 					"Error connecting to node. Retrying...",
 					zap.String("address", node.HttpAddress),

@@ -14,12 +14,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-/*
-*
-BlockTracker keeps a database record of the latest block that has been indexed for a contract address
-and allows the user to increase the value.
-*
-*/
+// BlockTracker keeps a database record of the latest block that has been indexed for a contract address
+// and allows the user to increase the value.
 type BlockTracker struct {
 	latest  *Block
 	address common.Address
@@ -41,7 +37,7 @@ var ErrEmptyBlockHash = errors.New("block hash is empty")
 
 var _ IBlockTracker = &BlockTracker{}
 
-// Return a new BlockTracker initialized to the latest block from the DB
+// NewBlockTracker returns a new BlockTracker initialized to the latest block from the DB.
 func NewBlockTracker(
 	ctx context.Context,
 	client blockchain.ChainClient,

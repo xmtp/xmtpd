@@ -69,8 +69,6 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	payerRegistryLatestBlockNumber, payerRegistryLatestBlockHash := payerRegistry.GetLatestBlock()
-
 	payerReportManager, err := contracts.NewPayerReportManager(
 		ctxwc,
 		client,
@@ -86,30 +84,22 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	payerReportManagerLatestBlockNumber, payerReportManagerLatestBlockHash := payerReportManager.GetLatestBlock()
-
-	streamer, err := streamer.NewRpcLogStreamer(
+	streamer, err := streamer.NewRPCLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
 		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
 		streamer.WithContractConfig(
 			&streamer.ContractConfig{
-				ID:                contracts.PayerRegistryName(cfg.ChainID),
-				FromBlockNumber:   payerRegistryLatestBlockNumber,
-				FromBlockHash:     payerRegistryLatestBlockHash,
-				Address:           payerRegistry.Address(),
-				Topics:            payerRegistry.Topics(),
+				ID:                payerRegistry.ID(cfg.ChainID),
+				Contract:          payerRegistry,
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
 		streamer.WithContractConfig(
 			&streamer.ContractConfig{
-				ID:                contracts.PayerReportManagerName(cfg.ChainID),
-				FromBlockNumber:   payerReportManagerLatestBlockNumber,
-				FromBlockHash:     payerReportManagerLatestBlockHash,
-				Address:           payerReportManager.Address(),
-				Topics:            payerReportManager.Topics(),
+				ID:                payerReportManager.ID(cfg.ChainID),
+				Contract:          payerReportManager,
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
@@ -184,9 +174,9 @@ func (s *SettlementChain) Stop() {
 }
 
 func (s *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {
-	return s.streamer.GetEventChannel(contracts.PayerRegistryName(s.chainID))
+	return s.streamer.GetEventChannel(s.payerRegistry.ID(s.chainID))
 }
 
 func (s *SettlementChain) PayerReportManagerEventChannel() <-chan types.Log {
-	return s.streamer.GetEventChannel(contracts.PayerReportManagerName(s.chainID))
+	return s.streamer.GetEventChannel(s.payerReportManager.ID(s.chainID))
 }

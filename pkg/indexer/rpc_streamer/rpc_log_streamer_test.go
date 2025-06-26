@@ -10,6 +10,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+	cMocks "github.com/xmtp/xmtpd/pkg/mocks/common"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +26,11 @@ func TestRpcLogStreamer(t *testing.T) {
 	topic := testutils.RandomLogTopic()
 	backfillFromBlock := uint64(1)
 	backfillToBlock := uint64(11)
+
+	mockContract := cMocks.NewMockIContract(t)
+	mockContract.On("Address").Return(address)
+	mockContract.On("Topics").Return([]common.Hash{topic})
+
 	logMessage := types.Log{
 		Address: address,
 		Topics:  []common.Hash{topic},
@@ -62,14 +68,11 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	cfg := &rpc_streamer.ContractConfig{
 		ID:                "testContract",
-		FromBlockNumber:   backfillFromBlock,
-		FromBlockHash:     []byte{},
-		Address:           address,
-		Topics:            []common.Hash{topic},
+		Contract:          mockContract,
 		MaxDisconnectTime: 5 * time.Minute,
 	}
 
-	streamer, err := rpc_streamer.NewRpcLogStreamer(
+	streamer, err := rpc_streamer.NewRPCLogStreamer(
 		context.Background(),
 		mockClient,
 		testutils.NewLog(t),
@@ -78,7 +81,13 @@ func TestRpcLogStreamer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	response, err := streamer.GetNextPage(context.Background(), cfg, backfillFromBlock, nil)
+	response, err := streamer.GetNextPage(
+		context.Background(),
+		cfg,
+		testutils.NewLog(t),
+		backfillFromBlock,
+		nil,
+	)
 	require.NoError(t, err)
 	require.EqualValues(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
 	require.EqualValues(t, 1, len(response.Logs))

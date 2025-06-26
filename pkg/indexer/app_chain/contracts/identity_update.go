@@ -3,7 +3,6 @@ package contracts
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -103,8 +102,8 @@ func identityUpdateBroadcasterContract(
 	)
 }
 
-func IdentityUpdateBroadcasterName(chainID int) string {
-	return fmt.Sprintf("%s-%v", identityUpdateName, chainID)
+func (iu *IdentityUpdateBroadcaster) ID(chainID int) string {
+	return c.ID(identityUpdateName, chainID)
 }
 
 func identityUpdateBroadcasterTopic() (common.Hash, error) {

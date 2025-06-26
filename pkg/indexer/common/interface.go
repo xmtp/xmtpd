@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,12 +17,12 @@ type ILogStreamer interface {
 	Stop()
 }
 
-// Takes a log event and stores it, returning either an error that may be retriable, non-retriable, or nil.
+// ILogStorer stores logs, returning either an error that may be retriable, non-retriable, or nil.
 type ILogStorer interface {
 	StoreLog(ctx context.Context, event types.Log) re.RetryableError
 }
 
-// Tracks the latest block number and hash for a contract.
+// IBlockTracker tracks the latest block number and hash for a contract.
 type IBlockTracker interface {
 	GetLatestBlock() (uint64, []byte)
 	UpdateLatestBlock(ctx context.Context, block uint64, hash []byte) error
@@ -39,4 +40,9 @@ type IContract interface {
 	Address() common.Address
 	Topics() []common.Hash
 	Logger() *zap.Logger
+	ID(chainID int) string
+}
+
+func ID(name string, chainID int) string {
+	return fmt.Sprintf("%s-%v", name, chainID)
 }

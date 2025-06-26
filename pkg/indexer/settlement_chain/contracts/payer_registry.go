@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -105,8 +104,8 @@ func payerRegistryContract(
 	)
 }
 
-func PayerRegistryName(chainID int) string {
-	return fmt.Sprintf("%s-%v", payerRegistryName, chainID)
+func (pr *PayerRegistry) ID(chainID int) string {
+	return c.ID(payerRegistryName, chainID)
 }
 
 func payerRegistryTopics() ([]common.Hash, error) {

@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -98,8 +97,8 @@ func groupMessageBroadcasterContract(
 	)
 }
 
-func GroupMessageBroadcasterName(chainID int) string {
-	return fmt.Sprintf("%s-%v", groupMessageName, chainID)
+func (gm *GroupMessageBroadcaster) ID(chainID int) string {
+	return c.ID(groupMessageName, chainID)
 }
 
 func groupMessageBroadcasterTopic() (common.Hash, error) {

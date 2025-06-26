@@ -81,8 +81,6 @@ func NewAppChain(
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
-	groupMessageLatestBlockNumber, groupMessageLatestBlockHash := groupMessageBroadcaster.GetLatestBlock()
-
 	identityUpdateBroadcaster, err := contracts.NewIdentityUpdateBroadcaster(
 		ctxwc,
 		client,
@@ -99,31 +97,23 @@ func NewAppChain(
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
-	identityUpdateLatestBlockNumber, identityUpdateLatestBlockHash := identityUpdateBroadcaster.GetLatestBlock()
-
-	streamer, err := streamer.NewRpcLogStreamer(
+	streamer, err := streamer.NewRPCLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
 		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
 		streamer.WithContractConfig(
 			&streamer.ContractConfig{
-				ID:                   contracts.GroupMessageBroadcasterName(cfg.ChainID),
-				FromBlockNumber:      groupMessageLatestBlockNumber,
-				FromBlockHash:        groupMessageLatestBlockHash,
-				Address:              groupMessageBroadcaster.Address(),
-				Topics:               groupMessageBroadcaster.Topics(),
+				ID:                   groupMessageBroadcaster.ID(cfg.ChainID),
+				Contract:             groupMessageBroadcaster,
 				MaxDisconnectTime:    cfg.MaxChainDisconnectTime,
 				ExpectedLogsPerBlock: defaultLogsPerBlock,
 			},
 		),
 		streamer.WithContractConfig(
 			&streamer.ContractConfig{
-				ID:                   contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
-				FromBlockNumber:      identityUpdateLatestBlockNumber,
-				FromBlockHash:        identityUpdateLatestBlockHash,
-				Address:              identityUpdateBroadcaster.Address(),
-				Topics:               identityUpdateBroadcaster.Topics(),
+				ID:                   identityUpdateBroadcaster.ID(cfg.ChainID),
+				Contract:             identityUpdateBroadcaster,
 				MaxDisconnectTime:    cfg.MaxChainDisconnectTime,
 				ExpectedLogsPerBlock: defaultLogsPerBlock,
 			},
@@ -199,9 +189,9 @@ func (a *AppChain) Stop() {
 }
 
 func (a *AppChain) GroupMessageBroadcasterEventChannel() <-chan types.Log {
-	return a.streamer.GetEventChannel(contracts.GroupMessageBroadcasterName(a.chainID))
+	return a.streamer.GetEventChannel(a.groupMessageBroadcaster.ID(a.chainID))
 }
 
 func (a *AppChain) IdentityUpdateBroadcasterEventChannel() <-chan types.Log {
-	return a.streamer.GetEventChannel(contracts.IdentityUpdateBroadcasterName(a.chainID))
+	return a.streamer.GetEventChannel(a.identityUpdateBroadcaster.ID(a.chainID))
 }

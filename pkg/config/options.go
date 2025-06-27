@@ -63,6 +63,11 @@ type MetricsOptions struct {
 	Port    int    `long:"metrics-port"    env:"XMTPD_METRICS_METRICS_PORT"    description:"Listening HTTP port of the metrics server" default:"8008"`
 }
 
+type DebugOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_DEBUG_ENABLE" description:"Enable the pprof debug server"`
+	Port   int  `long:"port"   env:"XMTPD_DEBUG_PORT"   description:"Port to listen on"             default:"6060"`
+}
+
 type PayerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
 	Enable     bool   `long:"enable"      env:"XMTPD_PAYER_ENABLE"      description:"Enable the payer API"`
@@ -114,5 +119,6 @@ type ServerOptions struct {
 	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`
 	Sync          SyncOptions          `group:"Sync Options"           namespace:"sync"`
 	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
+	Debug         DebugOptions         `group:"Debug Options"          namespace:"debug"`
 	Version       bool                 `                                                          short:"v" long:"version" description:"Output binary version and exit"`
 }

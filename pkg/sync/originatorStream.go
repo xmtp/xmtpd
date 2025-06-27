@@ -87,7 +87,12 @@ func (s *originatorStream) listen() error {
 			select {
 			case <-s.ctx.Done():
 				return
-			case env := <-writeQueue:
+			case env, ok := <-writeQueue:
+				if !ok {
+					s.log.Error("writeQueue is closed")
+					return
+				}
+
 				if env == nil {
 					continue
 				}

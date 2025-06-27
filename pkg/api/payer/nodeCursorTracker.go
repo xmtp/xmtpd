@@ -95,7 +95,14 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 				"Wait for cursor was unsuccessful after %s",
 				time.Since(start),
 			)
-		case err := <-errCh:
+		case err, ok := <-errCh:
+			if !ok {
+				return status.Errorf(
+					codes.Internal,
+					"error getting node cursor: error channel closed",
+				)
+			}
+
 			if errors.Is(ctx.Err(), context.Canceled) {
 				return nil
 			}
@@ -103,7 +110,14 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 				return status.Errorf(codes.Aborted, "node terminated. Cancelled wait for cursor")
 			}
 			return err
-		case resp := <-respCh:
+		case resp, ok := <-respCh:
+			if !ok {
+				return status.Errorf(
+					codes.Internal,
+					"error getting node cursor: response channel closed",
+				)
+			}
+
 			if resp == nil || resp.LatestSync == nil {
 				return status.Errorf(codes.Internal, "error getting node cursor: response is nil")
 			}

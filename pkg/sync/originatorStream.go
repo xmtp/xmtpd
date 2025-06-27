@@ -124,7 +124,12 @@ func (s *originatorStream) listen() error {
 			s.log.Info("Context canceled, stopping stream listener")
 			return backoff.Permanent(s.ctx.Err())
 
-		case envs := <-recvChan:
+		case envs, ok := <-recvChan:
+			if !ok {
+				s.log.Error("recvChan is closed")
+				return backoff.Permanent(errors.New("recvChan is closed"))
+			}
+
 			if envs == nil || len(envs.Envelopes) == 0 {
 				continue
 			}
@@ -143,7 +148,12 @@ func (s *originatorStream) listen() error {
 				writeQueue <- parsedEnv
 			}
 
-		case err := <-errChan:
+		case err, ok := <-errChan:
+			if !ok {
+				s.log.Error("errChan is closed")
+				return backoff.Permanent(errors.New("errChan is closed"))
+			}
+
 			if err == io.EOF {
 				s.log.Info("Stream closed with EOF")
 				// reset backoff to 1 second

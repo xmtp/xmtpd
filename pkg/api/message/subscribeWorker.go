@@ -210,7 +210,12 @@ func (s *subscribeWorker) start() {
 		select {
 		case <-s.ctx.Done():
 			return
-		case new_batch := <-s.dbSubscription:
+		case new_batch, ok := <-s.dbSubscription:
+			if !ok {
+				s.log.Error("dbSubscription is closed")
+				return
+			}
+
 			s.log.Debug("Received new batch", zap.Int("numEnvelopes", len(new_batch)))
 			envs := make([]*envelopes.OriginatorEnvelope, 0, len(new_batch))
 			for _, row := range new_batch {

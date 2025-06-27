@@ -1,3 +1,4 @@
+// Package common contains interfaces for the indexer.
 package common
 
 import (
@@ -16,22 +17,23 @@ type ILogStreamer interface {
 	Stop()
 }
 
-// Takes a log event and stores it, returning either an error that may be retriable, non-retriable, or nil.
+// ILogStorer takes a log event and stores it, returning either an error that may be retriable, non-retriable, or nil.
 type ILogStorer interface {
 	StoreLog(ctx context.Context, event types.Log) re.RetryableError
 }
 
-// Tracks the latest block number and hash for a contract.
+// IBlockTracker tracks the latest block number and hash for a contract.
 type IBlockTracker interface {
 	GetLatestBlock() (uint64, []byte)
 	UpdateLatestBlock(ctx context.Context, block uint64, hash []byte) error
 }
 
+// IReorgHandler handles reorgs.
 type IReorgHandler interface {
 	HandleLog(ctx context.Context, event types.Log) re.RetryableError
 }
 
-// An IContract is a contract that can be indexed.
+// IContract is a contract that can be indexed.
 type IContract interface {
 	IBlockTracker
 	IReorgHandler

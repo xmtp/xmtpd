@@ -4,17 +4,17 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/sha3"
 )
 
-/*
-- IndexLogs will run until the eventChannel is closed, passing each event to the logStorer.
-- If an event fails to be stored, and the error is retryable, it will sleep for 100ms and try again.
-- The only non-retriable errors should be things like malformed events or failed validations.
-*/
+// IndexLogs will run until the eventChannel is closed, passing each event to the logStorer.
+// If an event fails to be stored, and the error is retryable, it will sleep for 100ms and try again.
+// The only non-retriable errors should be things like malformed events or failed validations.
 func IndexLogs(
 	ctx context.Context,
 	eventChannel <-chan types.Log,
@@ -30,6 +30,17 @@ func IndexLogs(
 			if !open {
 				contract.Logger().Debug("IndexLogs event channel closed, exiting log handler")
 				return
+			}
+
+			if IsUpdateProgressEvent(event) {
+				contract.Logger().
+					Debug("UpdateProgress event received", zap.Uint64("blockNumber", event.BlockNumber))
+
+				if err := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); err != nil {
+					contract.Logger().Error("error updating block tracker", zap.Error(err))
+				}
+
+				continue
 			}
 
 			// TODO: Handle reorged event in future PR.
@@ -108,5 +119,32 @@ func retry(
 
 			return nil
 		}
+	}
+}
+
+// UpdateProgressEventSignature returns the Keccak256 hash of the UpdateProgress() event signature.
+func UpdateProgressEventSignature() common.Hash {
+	eventSignature := "UpdateProgress()"
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write([]byte(eventSignature))
+	return common.BytesToHash(hash.Sum(nil))
+}
+
+// IsUpdateProgressEvent checks if a log is an UpdateProgress event.
+func IsUpdateProgressEvent(log types.Log) bool {
+	if len(log.Topics) == 0 {
+		return false
+	}
+
+	return log.Topics[0] == UpdateProgressEventSignature()
+}
+
+// NewUpdateProgressLog creates a types.Log with topic UpdateProgress().
+func NewUpdateProgressLog(blockNumber uint64, blockHash []byte) types.Log {
+	return types.Log{
+		BlockNumber: blockNumber,
+		BlockHash:   common.Hash(blockHash),
+		Topics:      []common.Hash{UpdateProgressEventSignature()},
+		Data:        []byte{},
 	}
 }

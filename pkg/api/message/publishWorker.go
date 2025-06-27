@@ -94,7 +94,12 @@ func (p *publishWorker) start() {
 		select {
 		case <-p.ctx.Done():
 			return
-		case new_batch := <-p.listener:
+		case new_batch, ok := <-p.listener:
+			if !ok {
+				p.log.Error("listener is closed")
+				return
+			}
+
 			for _, stagedEnv := range new_batch {
 				p.log.Info("publishing envelope", zap.Int64("sequenceID", stagedEnv.ID))
 				for !p.publishStagedEnvelope(stagedEnv) {

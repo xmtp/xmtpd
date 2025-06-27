@@ -91,6 +91,10 @@ func main() {
 					logger.Fatal("starting pprof server", zap.Error(err))
 				}
 			}()
+
+			defer func() {
+				_ = pprofServer.Shutdown(ctx)
+			}()
 		}
 
 		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable ||

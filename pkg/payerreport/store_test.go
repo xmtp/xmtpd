@@ -28,8 +28,9 @@ func insertRandomReport(
 	store *Store,
 ) *PayerReportWithStatus {
 	startID := testutils.RandomInt64()
-	reportID, err := store.StoreReport(t.Context(), &PayerReport{
-		ID:               ReportID(randomBytes32()),
+	reportID := ReportID(randomBytes32())
+	err := store.StoreReport(t.Context(), &PayerReport{
+		ID:               reportID,
 		OriginatorNodeID: uint32(testutils.RandomInt32()),
 		StartSequenceID:  uint64(startID),
 		EndSequenceID:    uint64(startID + 10),
@@ -39,7 +40,7 @@ func insertRandomReport(
 	require.NoError(t, err)
 	require.NotNil(t, reportID)
 
-	returnedVal, err := store.FetchReport(t.Context(), *reportID)
+	returnedVal, err := store.FetchReport(t.Context(), reportID)
 	require.NoError(t, err)
 	return returnedVal
 }
@@ -129,14 +130,12 @@ func TestStoreAndRetrieve(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			store := createTestStore(t)
-			id, err := store.StoreReport(context.Background(), &c.report)
+			err := store.StoreReport(context.Background(), &c.report)
 			if c.expectErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, id)
-				require.Len(t, id, 32)
-				storedReport, err := store.FetchReport(context.Background(), *id)
+				storedReport, err := store.FetchReport(context.Background(), c.report.ID)
 				require.NoError(t, err)
 				require.Equal(t, c.report, storedReport.PayerReport)
 			}
@@ -154,17 +153,21 @@ func TestIdempotentStore(t *testing.T) {
 		DomainSeparator:  domainSeparator,
 	})
 	require.NoError(t, err)
+	require.Len(t, report.ID, 32)
 
-	returnedID, err := store.StoreReport(context.Background(), &report.PayerReport)
+	err = store.StoreReport(context.Background(), &report.PayerReport)
 	require.NoError(t, err)
-	require.NotNil(t, returnedID)
-	require.Len(t, returnedID, 32)
-	require.Equal(t, report.ID, *returnedID)
 
-	newID, err := store.StoreReport(context.Background(), &report.PayerReport)
+	err = store.StoreReport(context.Background(), &report.PayerReport)
 	require.NoError(t, err)
-	require.NotNil(t, newID)
-	require.Equal(t, newID, returnedID)
+
+	storedReports, err := store.FetchReports(
+		context.Background(),
+		NewFetchReportsQuery().WithOriginatorNodeID(report.OriginatorNodeID),
+	)
+	require.NoError(t, err)
+	require.Len(t, storedReports, 1)
+	require.Equal(t, report.ID, storedReports[0].ID)
 }
 
 func TestFetchReport(t *testing.T) {
@@ -261,8 +264,10 @@ func TestFetchReport(t *testing.T) {
 func TestStoreAttestation(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
+	reportID := ReportID(randomBytes32())
 
 	report := PayerReport{
+		ID:               reportID,
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
@@ -271,7 +276,7 @@ func TestStoreAttestation(t *testing.T) {
 	}
 
 	// First, store the report so that the attestation can reference it
-	reportID, err := store.StoreReport(ctx, &report)
+	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
 	attestation := &PayerReportAttestation{
@@ -285,7 +290,7 @@ func TestStoreAttestation(t *testing.T) {
 	require.NoError(t, store.StoreAttestation(ctx, attestation))
 
 	// Verify we can fetch the attestation we just stored
-	fetchedReport, err := store.FetchReport(ctx, *reportID)
+	fetchedReport, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
 	require.Len(t, fetchedReport.AttestationSignatures, 1)
 	require.Equal(
@@ -298,8 +303,10 @@ func TestStoreAttestation(t *testing.T) {
 func TestStoreAttestationInvalidNodeID(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
+	reportID := ReportID(randomBytes32())
 
 	report := PayerReport{
+		ID:               reportID,
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
@@ -307,7 +314,7 @@ func TestStoreAttestationInvalidNodeID(t *testing.T) {
 		ActiveNodeIDs:    []uint32{1},
 	}
 
-	_, err := store.StoreReport(ctx, &report)
+	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
 	attestation := &PayerReportAttestation{
@@ -325,8 +332,10 @@ func TestStoreAttestationInvalidNodeID(t *testing.T) {
 func TestSetReportAttestationStatus(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
+	reportID := ReportID(randomBytes32())
 
 	report := PayerReport{
+		ID:               reportID,
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
@@ -334,7 +343,7 @@ func TestSetReportAttestationStatus(t *testing.T) {
 		ActiveNodeIDs:    []uint32{1},
 	}
 
-	reportID, err := store.StoreReport(ctx, &report)
+	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
 	// Move from Pending -> Approved
@@ -342,13 +351,13 @@ func TestSetReportAttestationStatus(t *testing.T) {
 		t,
 		store.SetReportAttestationStatus(
 			ctx,
-			*reportID,
+			reportID,
 			[]AttestationStatus{AttestationPending},
 			AttestationApproved,
 		),
 	)
 
-	fetched, err := store.FetchReport(ctx, *reportID)
+	fetched, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
 	require.Equal(t, AttestationStatus(AttestationApproved), fetched.AttestationStatus)
 }
@@ -390,8 +399,10 @@ func TestCreatePayerReport(t *testing.T) {
 func TestCreateAttestation(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
+	reportID := ReportID(randomBytes32())
 
 	report := PayerReport{
+		ID:               reportID,
 		OriginatorNodeID: 4,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
@@ -399,7 +410,7 @@ func TestCreateAttestation(t *testing.T) {
 		ActiveNodeIDs:    []uint32{4},
 	}
 
-	reportID, err := store.StoreReport(ctx, &report)
+	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
 	attestation := &PayerReportAttestation{
@@ -416,7 +427,7 @@ func TestCreateAttestation(t *testing.T) {
 
 	require.NoError(t, store.CreateAttestation(ctx, attestation, payerEnv))
 
-	fetchedReport, err := store.FetchReport(ctx, *reportID)
+	fetchedReport, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
 	require.Equal(t, AttestationStatus(AttestationApproved), fetchedReport.AttestationStatus)
 	require.Len(t, fetchedReport.AttestationSignatures, 1)
@@ -473,21 +484,23 @@ func TestStoreSyncedReport(t *testing.T) {
 func TestStoreSyncedAttestation(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
+	reportID := ReportID(randomBytes32())
 
 	// First create and store the base report so that the attestation references a real report ID
 	baseReport := PayerReport{
+		ID:               reportID,
 		OriginatorNodeID: 8,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
 		PayersMerkleRoot: randomBytes32(),
 		ActiveNodeIDs:    []uint32{8},
 	}
-	reportID, err := store.StoreReport(ctx, &baseReport)
+	err := store.StoreReport(ctx, &baseReport)
 	require.NoError(t, err)
 
 	// Build attestation envelope
 	sigBytes := []byte("sig")
-	clientEnv := createPayerReportAttestationClientEnvelope(*reportID, 9, sigBytes)
+	clientEnv := createPayerReportAttestationClientEnvelope(reportID, 9, sigBytes)
 	payerProto := envTestUtils.CreatePayerEnvelope(t, baseReport.OriginatorNodeID, clientEnv)
 	originatorProto := envTestUtils.CreateOriginatorEnvelope(
 		t,
@@ -502,7 +515,7 @@ func TestStoreSyncedAttestation(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, store.StoreSyncedAttestation(ctx, originatorEnv, payerID))
 
-	fetchedReport, err := store.FetchReport(ctx, *reportID)
+	fetchedReport, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
 	require.Len(t, fetchedReport.AttestationSignatures, 1)
 	require.Equal(t, uint32(9), fetchedReport.AttestationSignatures[0].NodeID)

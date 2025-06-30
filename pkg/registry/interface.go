@@ -13,9 +13,6 @@ type NodeRegistryContract interface {
 	GetAllNodes(opts *bind.CallOpts) ([]noderegistry.INodeRegistryNodeWithId, error)
 }
 
-// Unregister the callback
-type CancelSubscription func()
-
 /*
 *
 The NodeRegistry is responsible for fetching the list of nodes from the registry contract
@@ -24,7 +21,7 @@ and notifying listeners when the list of nodes changes.
 type NodeRegistry interface {
 	GetNodes() ([]Node, error)
 	GetNode(uint32) (*Node, error)
-	OnNewNodes() (<-chan []Node, CancelSubscription)
-	OnChangedNode(uint32) (<-chan Node, CancelSubscription)
+	OnNewNodes() <-chan []Node
+	OnChangedNode(uint32) <-chan Node
 	Stop()
 }

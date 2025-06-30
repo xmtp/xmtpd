@@ -93,8 +93,7 @@ func (s *syncWorker) subscribeToRegistry() {
 		&s.wg,
 		"node-registry-listener",
 		func(ctx context.Context) {
-			newNodesCh, cancelNewNodes := s.nodeRegistry.OnNewNodes()
-			defer cancelNewNodes()
+			newNodesCh := s.nodeRegistry.OnNewNodes()
 			for {
 				select {
 				case <-ctx.Done():
@@ -146,6 +145,9 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 			).Start()
 		})
 
+	changeListener := NewNodeRegistryWatcher(s.ctx, s.log, nodeid, s.nodeRegistry)
+	changeListener.Watch()
+
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
@@ -157,8 +159,11 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 				case <-ctx.Done():
 					return
 				default:
-					config := s.setupNodeRegistration(ctx, nodeid)
-					s.subscribeToNodeRegistration(config, writeQueue)
+					notifierCtx, notifierCancel := context.WithCancel(ctx)
+					changeListener.RegisterCancelFunction(notifierCancel)
+					s.subscribeToNodeRegistration(
+						NodeRegistration{ctx: notifierCtx, cancel: notifierCancel, nodeid: nodeid}, writeQueue,
+					)
 				}
 			}
 		})
@@ -257,42 +262,6 @@ type NodeRegistration struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	nodeid uint32
-}
-
-func (s *syncWorker) setupNodeRegistration(
-	ctx context.Context,
-	nodeid uint32,
-) NodeRegistration {
-	notifierCtx, notifierCancel := context.WithCancel(ctx)
-	registryChan, cancelSub := s.nodeRegistry.OnChangedNode(nodeid)
-
-	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
-		fmt.Sprintf("node-subscribe-%d-notifier", nodeid),
-		func(ctx context.Context) {
-			defer cancelSub()
-			select {
-			case <-ctx.Done():
-				// this indicates that the node is shutting down
-				// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
-				notifierCancel()
-			case _, ok := <-registryChan:
-				if !ok {
-					s.log.Error("registryChan is closed")
-					return
-				}
-
-				// this indicates that the registry has changed, and we need to rebuild the connection
-				s.log.Info(
-					"Node has been updated in the registry, terminating and rebuilding...",
-				)
-				notifierCancel()
-			}
-		},
-	)
-
-	return NodeRegistration{ctx: notifierCtx, cancel: notifierCancel, nodeid: nodeid}
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {

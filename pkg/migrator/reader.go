@@ -66,8 +66,6 @@ func (r *DBReader[T]) Fetch(
 	return records, maxID, nil
 }
 
-// TODO: Review all DB queries and make sure they are correct.
-
 type GroupMessageReader struct {
 	*DBReader[*GroupMessage]
 }

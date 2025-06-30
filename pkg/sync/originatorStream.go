@@ -208,9 +208,12 @@ func (s *originatorStream) validateEnvelope(
 	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
 		// TODO(rich) Submit misbehavior report and continue
 		s.log.Error(
-			"Received out of order envelope",
-			zap.Any("envelope", env),
-			zap.Any("lastEnvelope", s.lastEnvelope),
+			"Received out-of-order envelope",
+			zap.Uint64("expectedSequenceID", lastSequenceID+1),
+			zap.Uint64("actualSequenceID", env.OriginatorSequenceID()),
+			zap.Int64("lastTimestampNs", lastNs),
+			zap.Int64("actualTimestampNs", env.OriginatorNs()),
+			zap.Uint32("originatorId", env.OriginatorNodeID()),
 		)
 	}
 

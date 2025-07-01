@@ -2,19 +2,23 @@ package migrator_test
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"math"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
+	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 var (
@@ -78,21 +82,249 @@ func TestTransformGroupMessage(t *testing.T) {
 	require.NotNil(t, payload)
 	require.IsType(t, &proto.ClientEnvelope_GroupMessage{}, payload)
 
-	groupMessagePayload := payload.(*proto.ClientEnvelope_GroupMessage)
+	groupMessagePayload, ok := payload.(*proto.ClientEnvelope_GroupMessage)
+	require.True(t, ok)
 	require.NotNil(t, groupMessagePayload.GroupMessage)
-	require.IsType(t, &mlsv1.GroupMessageInput{
-		Version: &mlsv1.GroupMessageInput_V1_{
-			V1: &mlsv1.GroupMessageInput_V1{
-				Data: migratedGroupMessage.Data,
-			},
-		},
-	}, groupMessagePayload.GroupMessage)
-	require.Equal(t, migratedGroupMessage.Data, groupMessagePayload.GroupMessage.GetV1().GetData())
+	require.IsType(t, &mlsv1.GroupMessageInput{}, groupMessagePayload.GroupMessage)
+
+	groupMessageV1 := groupMessagePayload.GroupMessage.GetV1()
+	require.NotNil(t, groupMessageV1)
+	require.Equal(t, migratedGroupMessage.Data, groupMessageV1.GetData())
 
 	// Payer checks: expiration. Should not expire.
 	require.Equal(
 		t,
 		uint32(math.MaxUint32),
+		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
+	)
+
+	// Originator node checks: fees.
+	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	require.Equal(
+		t,
+		uint64(0),
+		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+	)
+
+	// Signature checks.
+	checkPayerSignature(t, envelope)
+	checkOriginatorSignature(t, envelope)
+}
+
+func TestTransformInboxLog(t *testing.T) {
+	var (
+		ctx         = t.Context()
+		db, cleanup = testdata.NewTestDB(t, ctx)
+		reader      = migrator.NewInboxLogReader(db)
+		transformer = newTestTransformer(t)
+	)
+
+	defer cleanup()
+
+	records, _, err := reader.Fetch(ctx, 0, 1)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.IsType(t, &migrator.InboxLog{}, records[0])
+
+	migratedInboxLog, ok := records[0].(*migrator.InboxLog)
+	require.True(t, ok)
+
+	envelope, err := transformer.Transform(migratedInboxLog)
+	require.NoError(t, err)
+	require.NotNil(t, envelope)
+
+	// OriginatorEnvelope check: Target topic has to be equal to TOPIC_KIND_GROUP_MESSAGES_V1 and the groupID.
+	checkTopic(
+		t,
+		envelope,
+		topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, migratedInboxLog.InboxID[:]),
+	)
+
+	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
+	require.Equal(t, migrator.InboxLogOriginatorID, envelope.OriginatorNodeID())
+
+	// OriginatorEnvelope check: Sequence ID has to be the ID of the record.
+	require.Equal(t, uint64(migratedInboxLog.SequenceID), envelope.OriginatorSequenceID())
+
+	// OriginatorEnvelope check: Payload checks.
+	payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload()
+	require.NotNil(t, payload)
+	require.IsType(t, &proto.ClientEnvelope_IdentityUpdate{}, payload)
+
+	identityUpdatePayload, ok := payload.(*proto.ClientEnvelope_IdentityUpdate)
+	require.True(t, ok)
+	require.NotNil(t, identityUpdatePayload.IdentityUpdate)
+	require.IsType(t, &associations.IdentityUpdate{}, identityUpdatePayload.IdentityUpdate)
+
+	require.Equal(
+		t,
+		hex.EncodeToString(migratedInboxLog.InboxID[:]),
+		identityUpdatePayload.IdentityUpdate.InboxId,
+	)
+
+	migratedIdentityUpdateProto := &associations.IdentityUpdate{}
+	err = protobuf.Unmarshal(migratedInboxLog.IdentityUpdateProto, migratedIdentityUpdateProto)
+	require.NoError(t, err)
+
+	require.True(
+		t,
+		protobuf.Equal(migratedIdentityUpdateProto, identityUpdatePayload.IdentityUpdate),
+	)
+
+	// Payer checks: expiration. Should not expire.
+	require.Equal(
+		t,
+		uint32(math.MaxUint32),
+		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
+	)
+
+	// Originator node checks: fees.
+	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	require.Equal(
+		t,
+		uint64(0),
+		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+	)
+
+	// Signature checks.
+	checkPayerSignature(t, envelope)
+	checkOriginatorSignature(t, envelope)
+}
+
+func TestTransformInstallation(t *testing.T) {
+	var (
+		ctx         = t.Context()
+		db, cleanup = testdata.NewTestDB(t, ctx)
+		reader      = migrator.NewInstallationReader(db)
+		transformer = newTestTransformer(t)
+	)
+
+	defer cleanup()
+
+	records, _, err := reader.Fetch(ctx, 0, 1)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.IsType(t, &migrator.Installation{}, records[0])
+
+	migratedInstallation, ok := records[0].(*migrator.Installation)
+	require.True(t, ok)
+
+	envelope, err := transformer.Transform(migratedInstallation)
+	require.NoError(t, err)
+	require.NotNil(t, envelope)
+
+	// OriginatorEnvelope check: Target topic has to be equal to TOPIC_KIND_GROUP_MESSAGES_V1 and the groupID.
+	checkTopic(
+		t,
+		envelope,
+		topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, migratedInstallation.ID[:]),
+	)
+
+	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
+	require.Equal(t, migrator.InstallationOriginatorID, envelope.OriginatorNodeID())
+
+	// OriginatorEnvelope check: Sequence ID has to be the ID of the record.
+	require.Equal(t, uint64(migratedInstallation.CreatedAt), envelope.OriginatorSequenceID())
+
+	// OriginatorEnvelope check: Payload checks.
+	payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload()
+	require.NotNil(t, payload)
+	require.IsType(t, &proto.ClientEnvelope_UploadKeyPackage{}, payload)
+
+	uploadKeyPackagePayload, ok := payload.(*proto.ClientEnvelope_UploadKeyPackage)
+	require.True(t, ok)
+	require.NotNil(t, uploadKeyPackagePayload.UploadKeyPackage)
+	require.IsType(t, &mlsv1.UploadKeyPackageRequest{}, uploadKeyPackagePayload.UploadKeyPackage)
+
+	require.Equal(
+		t,
+		uploadKeyPackagePayload.UploadKeyPackage.KeyPackage.GetKeyPackageTlsSerialized(),
+		migratedInstallation.KeyPackage,
+	)
+
+	// Payer checks: expiration. Should not expire.
+	require.Equal(
+		t,
+		uint32(constants.DEFAULT_STORAGE_DURATION_DAYS),
+		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
+	)
+
+	// Originator node checks: fees.
+	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	require.Equal(
+		t,
+		uint64(0),
+		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+	)
+
+	// Signature checks.
+	checkPayerSignature(t, envelope)
+	checkOriginatorSignature(t, envelope)
+}
+
+func TestTransformWelcomeMessage(t *testing.T) {
+	var (
+		ctx         = t.Context()
+		db, cleanup = testdata.NewTestDB(t, ctx)
+		reader      = migrator.NewWelcomeMessageReader(db)
+		transformer = newTestTransformer(t)
+	)
+
+	defer cleanup()
+
+	records, _, err := reader.Fetch(ctx, 0, 1)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.IsType(t, &migrator.WelcomeMessage{}, records[0])
+
+	migratedWelcomeMessage, ok := records[0].(*migrator.WelcomeMessage)
+	require.True(t, ok)
+
+	envelope, err := transformer.Transform(migratedWelcomeMessage)
+	require.NoError(t, err)
+	require.NotNil(t, envelope)
+
+	// OriginatorEnvelope check: Target topic has to be equal to TOPIC_KIND_GROUP_MESSAGES_V1 and the groupID.
+	checkTopic(
+		t,
+		envelope,
+		topic.NewTopic(
+			topic.TOPIC_KIND_WELCOME_MESSAGES_V1,
+			migratedWelcomeMessage.InstallationKey[:],
+		),
+	)
+
+	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
+	require.Equal(t, migrator.WelcomeMessageOriginatorID, envelope.OriginatorNodeID())
+
+	// OriginatorEnvelope check: Sequence ID has to be the ID of the record.
+	require.Equal(t, uint64(migratedWelcomeMessage.ID), envelope.OriginatorSequenceID())
+
+	// OriginatorEnvelope check: Payload checks.
+	payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload()
+	require.NotNil(t, payload)
+	require.IsType(t, &proto.ClientEnvelope_WelcomeMessage{}, payload)
+
+	welcomeMessagePayload, ok := payload.(*proto.ClientEnvelope_WelcomeMessage)
+	require.True(t, ok)
+	require.NotNil(t, welcomeMessagePayload.WelcomeMessage)
+	require.IsType(t, &mlsv1.WelcomeMessageInput{}, welcomeMessagePayload.WelcomeMessage)
+
+	welcomeMessageV1 := welcomeMessagePayload.WelcomeMessage.GetV1()
+	require.NotNil(t, welcomeMessageV1)
+	require.Equal(t, migratedWelcomeMessage.InstallationKey, welcomeMessageV1.InstallationKey)
+	require.Equal(t, migratedWelcomeMessage.Data, welcomeMessageV1.Data)
+	require.Equal(t, migratedWelcomeMessage.HpkePublicKey, welcomeMessageV1.HpkePublicKey)
+	require.Equal(
+		t,
+		migratedWelcomeMessage.WrapperAlgorithm,
+		int16(welcomeMessageV1.WrapperAlgorithm),
+	)
+
+	// Payer checks: expiration. Should not expire.
+	require.Equal(
+		t,
+		uint32(constants.DEFAULT_STORAGE_DURATION_DAYS),
 		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 

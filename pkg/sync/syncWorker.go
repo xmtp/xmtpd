@@ -162,7 +162,12 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 					notifierCtx, notifierCancel := context.WithCancel(ctx)
 					changeListener.RegisterCancelFunction(notifierCancel)
 					s.subscribeToNodeRegistration(
-						NodeRegistration{ctx: notifierCtx, cancel: notifierCancel, nodeid: nodeid}, writeQueue,
+						NodeRegistration{
+							ctx:    notifierCtx,
+							cancel: notifierCancel,
+							nodeid: nodeid,
+						},
+						writeQueue,
 					)
 				}
 			}

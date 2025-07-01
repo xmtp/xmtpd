@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -52,9 +53,13 @@ func NewMetricsServer(
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "metrics-server", func(ctx context.Context) {
 		s.log.Info("serving metrics http", zap.String("address", s.http.Addr().String()))
-		err = srv.Serve(s.http)
-		if err != nil {
-			s.log.Error("serving http", zap.Error(err))
+		if err := srv.Serve(s.http); err != nil {
+			switch {
+			case errors.Is(err, http.ErrServerClosed), errors.Is(err, net.ErrClosed):
+				s.log.Info("metrics server closing", zap.Error(err))
+			default:
+				s.log.Error("error serving http", zap.Error(err))
+			}
 		}
 	})
 

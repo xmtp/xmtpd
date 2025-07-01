@@ -175,7 +175,9 @@ func ConnectToDB(
 		return nil, fmt.Errorf("failed to parse DSN: %w", err)
 	}
 
-	config.ConnConfig.Database = namespace
+	if namespace != "" {
+		config.ConnConfig.Database = namespace
+	}
 
 	db, err := newPGXDB(ctx, config, waitForDB)
 	if err != nil {

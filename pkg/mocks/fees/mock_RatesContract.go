@@ -5,7 +5,7 @@ package fees
 import (
 	big "math/big"
 
-	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
+	bind "github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 
 	mock "github.com/stretchr/testify/mock"
 

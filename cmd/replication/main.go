@@ -16,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/debug"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -81,6 +82,21 @@ func main() {
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
 		var dbInstance *sql.DB
+
+		if options.Debug.Enable {
+			pprofServer := debug.NewServer(options.Debug.Port)
+			go func() {
+				err := pprofServer.Start(ctx)
+				if err != nil {
+					logger.Fatal("starting pprof server", zap.Error(err))
+				}
+			}()
+
+			defer func() {
+				_ = pprofServer.Shutdown(ctx)
+			}()
+		}
+
 		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable ||
 			options.Payer.Enable {
 			namespace := options.DB.NameOverride

@@ -8,7 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
 )
 
-func Test_GroupMessageReader(t *testing.T) {
+func TestGroupMessageReader(t *testing.T) {
 	ctx := t.Context()
 
 	db, cleanup := testdata.NewTestDB(t, ctx)
@@ -55,14 +55,13 @@ func Test_GroupMessageReader(t *testing.T) {
 			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
-				_, ok := record.(*migrator.GroupMessage)
-				require.True(t, ok)
+				require.IsType(t, &migrator.GroupMessage{}, record)
 			}
 		})
 	}
 }
 
-func Test_InboxLogReader(t *testing.T) {
+func TestInboxLogReader(t *testing.T) {
 	ctx := t.Context()
 
 	db, cleanup := testdata.NewTestDB(t, ctx)
@@ -109,14 +108,13 @@ func Test_InboxLogReader(t *testing.T) {
 			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
-				_, ok := record.(*migrator.InboxLog)
-				require.True(t, ok)
+				require.IsType(t, &migrator.InboxLog{}, record)
 			}
 		})
 	}
 }
 
-func Test_InstallationReader(t *testing.T) {
+func TestInstallationReader(t *testing.T) {
 	ctx := t.Context()
 
 	db, cleanup := testdata.NewTestDB(t, ctx)
@@ -163,14 +161,13 @@ func Test_InstallationReader(t *testing.T) {
 			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
-				_, ok := record.(*migrator.Installation)
-				require.True(t, ok)
+				require.IsType(t, &migrator.Installation{}, record)
 			}
 		})
 	}
 }
 
-func Test_WelcomeMessageReader(t *testing.T) {
+func TestWelcomeMessageReader(t *testing.T) {
 	ctx := t.Context()
 
 	db, cleanup := testdata.NewTestDB(t, ctx)
@@ -217,8 +214,7 @@ func Test_WelcomeMessageReader(t *testing.T) {
 			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
-				_, ok := record.(*migrator.WelcomeMessage)
-				require.True(t, ok)
+				require.IsType(t, &migrator.WelcomeMessage{}, record)
 			}
 		})
 	}

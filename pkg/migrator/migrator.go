@@ -77,7 +77,7 @@ func WithMigratorConfig(options *config.MigratorOptions) DBMigratorOption {
 	}
 }
 
-type dbMigrator struct {
+type Migrator struct {
 	// Internals.
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -98,7 +98,7 @@ type dbMigrator struct {
 	running      bool
 }
 
-func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
+func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	cfg := &DBMigratorConfig{}
 
 	for _, opt := range opts {
@@ -172,7 +172,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 
 	ctx, cancel := context.WithCancel(cfg.ctx)
 
-	return &dbMigrator{
+	return &Migrator{
 		ctx:               ctx,
 		cancel:            cancel,
 		wg:                sync.WaitGroup{},
@@ -189,7 +189,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 	}, nil
 }
 
-func (m *dbMigrator) Start() error {
+func (m *Migrator) Start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -208,7 +208,7 @@ func (m *dbMigrator) Start() error {
 	return nil
 }
 
-func (m *dbMigrator) Stop() error {
+func (m *Migrator) Stop() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -234,7 +234,7 @@ func (m *dbMigrator) Stop() error {
 }
 
 // migrationWorker continuously processes migration for a specific table.
-func (m *dbMigrator) migrationWorker(tableName string) {
+func (m *Migrator) migrationWorker(tableName string) {
 	recvChan := make(chan ISourceRecord, m.batchSize*2)
 	wrtrChan := make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
 	wrtrQueries := queries.New(m.writer)

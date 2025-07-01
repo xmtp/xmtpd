@@ -10,32 +10,32 @@ import (
 
 const (
 	groupMessagesTableName          = "group_messages"
-	groupMessageOriginatorID uint32 = 10
+	GroupMessageOriginatorID uint32 = 10
 
 	welcomeMessagesTableName          = "welcome_messages"
-	welcomeMessageOriginatorID uint32 = 11
+	WelcomeMessageOriginatorID uint32 = 11
 
 	// IdentityUpdates in xmtpd.
 	inboxLogTableName           = "inbox_log"
-	inboxLogOriginatorID uint32 = 12
+	InboxLogOriginatorID uint32 = 12
 
 	// KeyPackages in xmtpd.
 	installationsTableName          = "installations"
-	installationOriginatorID uint32 = 13
+	InstallationOriginatorID uint32 = 13
 )
 
 var originatorIDToTableName = map[uint32]string{
-	groupMessageOriginatorID:   groupMessagesTableName,
-	welcomeMessageOriginatorID: welcomeMessagesTableName,
-	inboxLogOriginatorID:       inboxLogTableName,
-	installationOriginatorID:   installationsTableName,
+	GroupMessageOriginatorID:   groupMessagesTableName,
+	WelcomeMessageOriginatorID: welcomeMessagesTableName,
+	InboxLogOriginatorID:       inboxLogTableName,
+	InstallationOriginatorID:   installationsTableName,
 }
 
 func isValidOriginatorID(originatorID uint32) bool {
-	return originatorID == groupMessageOriginatorID ||
-		originatorID == welcomeMessageOriginatorID ||
-		originatorID == inboxLogOriginatorID ||
-		originatorID == installationOriginatorID
+	return originatorID == GroupMessageOriginatorID ||
+		originatorID == WelcomeMessageOriginatorID ||
+		originatorID == InboxLogOriginatorID ||
+		originatorID == InstallationOriginatorID
 }
 
 // IDataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.

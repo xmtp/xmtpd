@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (m *dbMigrator) insertOriginatorEnvelope(
+func (m *Migrator) insertOriginatorEnvelope(
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
 	if env == nil {
@@ -50,7 +50,7 @@ func (m *dbMigrator) insertOriginatorEnvelope(
 		&sql.TxOptions{Isolation: sql.LevelRepeatableRead},
 		func(ctx context.Context, querier *queries.Queries) error {
 			// When handling identity updates, we need to derive the address log updates from the association state.
-			if env.OriginatorNodeID() == inboxLogOriginatorID {
+			if env.OriginatorNodeID() == InboxLogOriginatorID {
 				inboxIDBytes, inboxIDStr, err := getInboxID(
 					&env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope,
 				)
@@ -211,7 +211,7 @@ func getInboxID(clientEnvelope *envelopes.ClientEnvelope) ([32]byte, string, err
 	return inboxID, inboxIDStr, nil
 }
 
-func (m *dbMigrator) validateIdentityUpdate(
+func (m *Migrator) validateIdentityUpdate(
 	ctx context.Context,
 	querier *queries.Queries,
 	inboxID [32]byte,
@@ -225,7 +225,7 @@ func (m *dbMigrator) validateIdentityUpdate(
 			Topics: []db.Topic{
 				db.Topic(topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxID[:]).Bytes()),
 			},
-			OriginatorNodeIds: []int32{int32(inboxLogOriginatorID)},
+			OriginatorNodeIds: []int32{int32(InboxLogOriginatorID)},
 			RowLimit:          256,
 		},
 	)

@@ -65,9 +65,9 @@ func (w *NodeRegistryWatcher) RegisterCancelFunction(fn func()) {
 }
 
 func (w *NodeRegistryWatcher) triggerCancel() {
+	w.fnLock.Lock()
+	defer w.fnLock.Unlock()
 	if w.cancelFn != nil {
-		w.fnLock.Lock()
-		defer w.fnLock.Unlock()
 		w.cancelFn()
 		w.cancelFn = nil
 	}

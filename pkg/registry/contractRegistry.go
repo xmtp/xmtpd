@@ -42,8 +42,8 @@ type SmartContractRegistry struct {
 	nodes      map[uint32]Node
 	nodesMutex sync.RWMutex
 	// Notifiers for new nodes and changed nodes
-	newNodesNotifier          *notifier[[]Node]
-	changedNodeNotifiers      map[uint32]*notifier[Node]
+	newNodesNotifier          *SingleNotificationNotifier[[]Node]
+	changedNodeNotifiers      map[uint32]*SingleNotificationNotifier[Node]
 	changedNodeNotifiersMutex sync.RWMutex
 	cancel                    context.CancelFunc
 }
@@ -74,7 +74,7 @@ func NewSmartContractRegistry(
 		logger:               logger.Named("smartContractRegistry"),
 		newNodesNotifier:     newNotifier[[]Node](),
 		nodes:                make(map[uint32]Node),
-		changedNodeNotifiers: make(map[uint32]*notifier[Node]),
+		changedNodeNotifiers: make(map[uint32]*SingleNotificationNotifier[Node]),
 		cancel:               cancel,
 	}, nil
 }
@@ -102,13 +102,13 @@ func (s *SmartContractRegistry) Start() error {
 	return nil
 }
 
-func (s *SmartContractRegistry) OnNewNodes() (<-chan []Node, CancelSubscription) {
+func (s *SmartContractRegistry) OnNewNodes() <-chan []Node {
 	return s.newNodesNotifier.register()
 }
 
 func (s *SmartContractRegistry) OnChangedNode(
 	nodeId uint32,
-) (<-chan Node, CancelSubscription) {
+) <-chan Node {
 	s.changedNodeNotifiersMutex.Lock()
 	defer s.changedNodeNotifiersMutex.Unlock()
 

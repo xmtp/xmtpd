@@ -25,15 +25,13 @@ func CreateMockRegistry(t *testing.T, nodes []r.Node) *registryMocks.MockNodeReg
 
 	nodesChan := make(chan []r.Node)
 	mockRegistry.On("OnNewNodes").Maybe().
-		Return((<-chan []r.Node)(nodesChan), r.CancelSubscription(func() {}))
+		Return((<-chan []r.Node)(nodesChan))
 
 	for _, node := range nodes {
 		nodeChan := make(chan r.Node)
 		mockRegistry.On("OnChangedNode", node.NodeID).
 			Maybe().
-			Return((<-chan r.Node)(nodeChan), r.CancelSubscription(func() {
-				close(nodeChan)
-			}))
+			Return((<-chan r.Node)(nodeChan))
 		mockRegistry.On("GetNode", node.NodeID).Maybe().Return(&node, nil)
 	}
 

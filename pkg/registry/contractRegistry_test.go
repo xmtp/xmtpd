@@ -71,8 +71,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 
 	registry.SetContractForTest(mockContract)
 
-	sub, cancelSub := registry.OnNewNodes()
-	defer cancelSub()
+	sub := registry.OnNewNodes()
 	require.NoError(t, registry.Start())
 	defer registry.Stop()
 	newNodes := <-sub
@@ -127,11 +126,8 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	// Override the contract in the registry with a mock before calling Start
 	registry.SetContractForTest(mockContract)
 
-	sub, cancelSub := registry.OnChangedNode(1)
-	defer cancelSub()
-	counterSub, cancelCounter := registry.OnChangedNode(1)
-	getCurrentCount := r.CountChannel(counterSub)
-	defer cancelCounter()
+	sub := registry.OnChangedNode(1)
+	getCurrentCount := r.CountChannel(sub)
 	go func() {
 		for node := range sub {
 			require.Equal(t, node.HttpAddress, "http://bar.com")
@@ -177,8 +173,7 @@ func TestStopOnContextCancel(t *testing.T) {
 
 	registry.SetContractForTest(mockContract)
 
-	sub, cancelSub := registry.OnNewNodes()
-	defer cancelSub()
+	sub := registry.OnNewNodes()
 	getCurrentCount := r.CountChannel(sub)
 
 	require.NoError(t, registry.Start())

@@ -59,11 +59,16 @@ func TestNotifierConcurrent(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 }
 
-func CountChannel[Kind any](ch <-chan Kind) func() int {
+func CountChannel[Kind any](ch <-chan Kind, validators ...func(Kind)) func() int {
 	var count int
 	var mutex sync.RWMutex
 	go func() {
-		for range ch {
+		for v := range ch {
+			for _, validate := range validators {
+				if validate != nil {
+					validate(v)
+				}
+			}
 			mutex.Lock()
 			count++
 			mutex.Unlock()

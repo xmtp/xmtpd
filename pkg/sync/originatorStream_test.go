@@ -1,7 +1,9 @@
 package sync
 
 import (
+	"context"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,37 +44,54 @@ func mockSubscriptionOnePage(
 	return stream
 }
 
+func newTestEnvelopeSink(
+	t *testing.T,
+	writeQueue chan *envUtils.OriginatorEnvelope,
+	ctx context.Context,
+) *EnvelopeSink {
+	log := testutils.NewLog(t)
+	calculator := feesTestUtils.NewTestFeeCalculator()
+	db, _ := testutils.NewDB(t, ctx)
+
+	return newEnvelopeSink(
+		ctx,
+		db,
+		log,
+		calculator,
+		payerreportMocks.NewMockIPayerReportStore(t),
+		payerReportDomainSeparator,
+		writeQueue,
+	)
+}
+
 func newTestOriginatorStream(
 	t *testing.T,
 	node *registry.Node,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	lastEnvelope *envUtils.OriginatorEnvelope,
+	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
 	log := testutils.NewLog(t)
-	calculator := feesTestUtils.NewTestFeeCalculator()
-	db, _ := testutils.NewDB(t, t.Context())
 
 	return newOriginatorStream(
 		t.Context(),
-		db,
 		log,
 		node,
 		lastEnvelope,
 		stream,
-		calculator,
-		payerreportMocks.NewMockIPayerReportStore(t),
-		payerReportDomainSeparator,
+		writeQueue,
 	)
 }
 
 func getAllMessagesForOriginator(
 	t *testing.T,
-	originatorStream *originatorStream,
+	storer *EnvelopeSink,
+	nodeID uint32,
 ) []queries.GatewayEnvelope {
-	envs, err := originatorStream.queries.SelectGatewayEnvelopes(
+	envs, err := storer.queries.SelectGatewayEnvelopes(
 		t.Context(),
 		queries.SelectGatewayEnvelopesParams{
-			OriginatorNodeIds: []int32{int32(originatorStream.node.NodeID)},
+			OriginatorNodeIds: []int32{int32(nodeID)},
 		},
 	)
 	require.NoError(t, err)
@@ -87,7 +106,13 @@ func TestSyncWorkerSuccess(t *testing.T) {
 
 	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
 
-	origStream := newTestOriginatorStream(t, &node, stream, nil)
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go func() {
+		dbStorerInstance.Start()
+	}()
+	origStream := newTestOriginatorStream(t, &node, stream, nil, writeQueue)
 
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
@@ -95,7 +120,7 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	require.Equal(t, retryAfter.Duration.Seconds(), float64(1))
 
 	require.Eventually(t, func() bool {
-		envs := getAllMessagesForOriginator(t, origStream)
+		envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
 		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
 	}, 1*time.Second, 50*time.Millisecond)
 }
@@ -113,7 +138,13 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{envelope})
 	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
 
-	origStream := newTestOriginatorStream(t, &node, stream, nil)
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go func() {
+		dbStorerInstance.Start()
+	}()
+	origStream := newTestOriginatorStream(t, &node, stream, nil, writeQueue)
 
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
@@ -121,6 +152,37 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 
 	// Give the write worker a chance to save the envelope
 	time.Sleep(50 * time.Millisecond)
-	envs := getAllMessagesForOriginator(t, origStream)
+	envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
 	require.Len(t, envs, 0)
+}
+
+func TestEnvelopeSinkShutdownViaClose(t *testing.T) {
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		dbStorerInstance.Start()
+	}()
+
+	close(writeQueue)
+	wg.Wait()
+}
+
+func TestEnvelopeSinkShutdownViaContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		dbStorerInstance.Start()
+	}()
+
+	cancel()
+
+	wg.Wait()
 }

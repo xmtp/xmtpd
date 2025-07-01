@@ -128,18 +128,37 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 
 	s.subscriptions[nodeid] = struct{}{}
 
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		fmt.Sprintf("node-subscribe-%d-db", nodeid),
+		func(ctx context.Context) {
+			newEnvelopeSink(
+				ctx,
+				s.store,
+				s.log,
+				s.feeCalculator,
+				s.payerReportStore,
+				s.payerReportDomainSeparator,
+				writeQueue,
+			).Start()
+		})
+
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
 		fmt.Sprintf("node-subscribe-%d", nodeid),
 		func(ctx context.Context) {
+			defer close(writeQueue)
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				default:
 					config := s.setupNodeRegistration(ctx, nodeid)
-					s.subscribeToNodeRegistration(config)
+					s.subscribeToNodeRegistration(config, writeQueue)
 				}
 			}
 		})
@@ -147,6 +166,7 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 
 func (s *syncWorker) subscribeToNodeRegistration(
 	registration NodeRegistration,
+	writeQueue chan *envUtils.OriginatorEnvelope,
 ) {
 	connectionsStatusCounter := metrics.NewSyncConnectionsStatusCounter(registration.nodeid)
 	defer connectionsStatusCounter.Close()
@@ -207,7 +227,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 			return "", err
 		}
 
-		stream, err = s.setupStream(registration.ctx, *node, conn)
+		stream, err = s.setupStream(registration.ctx, *node, conn, writeQueue)
 		if err != nil {
 			return "", err
 		}
@@ -301,6 +321,7 @@ func (s *syncWorker) setupStream(
 	ctx context.Context,
 	node registry.Node,
 	conn *grpc.ClientConn,
+	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (*originatorStream, error) {
 	result, err := queries.New(s.store).SelectVectorClock(ctx)
 	if err != nil {
@@ -350,13 +371,10 @@ func (s *syncWorker) setupStream(
 
 	return newOriginatorStream(
 		s.ctx,
-		s.store,
 		s.log,
 		&node,
 		lastEnvelope,
 		stream,
-		s.feeCalculator,
-		s.payerReportStore,
-		s.payerReportDomainSeparator,
+		writeQueue,
 	), nil
 }

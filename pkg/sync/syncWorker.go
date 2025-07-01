@@ -257,7 +257,12 @@ func (s *syncWorker) setupNodeRegistration(
 				// this indicates that the node is shutting down
 				// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
 				notifierCancel()
-			case <-registryChan:
+			case _, ok := <-registryChan:
+				if !ok {
+					s.log.Error("registryChan is closed")
+					return
+				}
+
 				// this indicates that the registry has changed, and we need to rebuild the connection
 				s.log.Info(
 					"Node has been updated in the registry, terminating and rebuilding...",

@@ -31,6 +31,13 @@ var originatorIDToTableName = map[uint32]string{
 	installationOriginatorID:   installationsTableName,
 }
 
+func isValidOriginatorID(originatorID uint32) bool {
+	return originatorID == groupMessageOriginatorID ||
+		originatorID == welcomeMessageOriginatorID ||
+		originatorID == inboxLogOriginatorID ||
+		originatorID == installationOriginatorID
+}
+
 // IDataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
 type IDataTransformer interface {
 	Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error)

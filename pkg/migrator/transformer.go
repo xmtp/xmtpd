@@ -253,6 +253,10 @@ func (t *transformer) buildAndSignPayerEnvelope(
 	protoClientEnvelope *proto.ClientEnvelope,
 	originatorID uint32,
 ) (*envelopes.PayerEnvelope, error) {
+	if !isValidOriginatorID(originatorID) {
+		return nil, fmt.Errorf("invalid originatorID: %d", originatorID)
+	}
+
 	if protoClientEnvelope == nil {
 		return nil, fmt.Errorf("protoClientEnvelope is nil")
 	}
@@ -276,11 +280,11 @@ func (t *transformer) buildAndSignPayerEnvelope(
 		return nil, fmt.Errorf("failed to sign client envelope: %w", err)
 	}
 
-	// TODO: Change expiration for group messages and identity updates.
-
 	retentionDays := uint32(math.MaxUint32)
 
-	if !clientEnvelope.Aad().IsCommit {
+	// group messages and identity updates are stored forever (MaxUint32).
+	// welcome messages and installations are stored for the default duration.
+	if originatorID == installationOriginatorID || originatorID == welcomeMessageOriginatorID {
 		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
 	}
 

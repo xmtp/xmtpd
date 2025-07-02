@@ -267,6 +267,11 @@ func (m *Migrator) migrationWorker(tableName string) {
 				case <-ticker.C:
 					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
 					if err != nil {
+						if ctx.Err() != nil {
+							logger.Info("context cancelled, stopping")
+							return
+						}
+
 						logger.Error("failed to get migration progress", zap.Error(err))
 						return
 					}
@@ -284,7 +289,10 @@ func (m *Migrator) migrationWorker(tableName string) {
 							time.Sleep(sleepTimeOnNoRows)
 
 						default:
-							logger.Error("migration batch failed", zap.Error(err))
+							logger.Error(
+								"getting next batch of records failed, retrying",
+								zap.Error(err),
+							)
 							time.Sleep(sleepTimeOnError)
 						}
 
@@ -313,9 +321,11 @@ func (m *Migrator) migrationWorker(tableName string) {
 						}
 					}
 
-					logger.Debug("batch sent to transformer",
-						zap.Int("total_fetched", len(records)),
-						zap.Int64("new_last_id", newLastID))
+					logger.Debug(
+						"sent batch to transformer",
+						zap.Int("count", len(records)),
+						zap.Int64("lastID", newLastID),
+					)
 				}
 			}
 		})

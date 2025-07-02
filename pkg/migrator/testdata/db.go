@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,6 +38,8 @@ func NewMigratorTestDB(t *testing.T, ctx context.Context) (db *sql.DB, dsn strin
 		"sslmode=disable",
 	)
 	require.NoError(t, err)
+
+	fmt.Printf("### DEBUG: dsn: %s\n", dsn)
 
 	db, err = sql.Open("postgres", dsn)
 	require.NoError(t, err)

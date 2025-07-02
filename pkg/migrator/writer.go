@@ -38,6 +38,13 @@ func (m *Migrator) insertOriginatorEnvelope(
 		return re.NewNonRecoverableError("recover payer address failed", err)
 	}
 
+	querier := queries.New(m.writer)
+	payerID, err := querier.FindOrCreatePayer(m.ctx, payerAddress.Hex())
+	if err != nil {
+		m.log.Error("find or create payer failed", zap.Error(err))
+		return re.NewRecoverableError("find or create payer failed", err)
+	}
+
 	originatorEnvelopeBytes, err := proto.Marshal(env.Proto())
 	if err != nil {
 		m.log.Error("marshall originator envelope failed", zap.Error(err))
@@ -47,7 +54,7 @@ func (m *Migrator) insertOriginatorEnvelope(
 	err = db.RunInTx(
 		m.ctx,
 		m.writer,
-		&sql.TxOptions{Isolation: sql.LevelRepeatableRead},
+		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
 			// When handling identity updates, we need to derive the address log updates from the association state.
 			if env.OriginatorNodeID() == InboxLogOriginatorID {
@@ -126,12 +133,6 @@ func (m *Migrator) insertOriginatorEnvelope(
 						}
 					}
 				}
-			}
-
-			payerID, err := querier.FindOrCreatePayer(m.ctx, payerAddress.Hex())
-			if err != nil {
-				m.log.Error("find or create payer failed", zap.Error(err))
-				return re.NewNonRecoverableError("find or create payer failed", err)
 			}
 
 			_, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{

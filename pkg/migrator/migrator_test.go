@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
@@ -16,6 +17,17 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
+)
+
+const (
+	groupMessageAmount   int64 = 19
+	groupMessageLastID   int64 = 19
+	inboxLogAmount       int64 = 19
+	inboxLogLastID       int64 = 19
+	welcomeMessageAmount int64 = 19
+	welcomeMessageLastID int64 = 19
+	installationAmount   int64 = 19
+	installationLastID   int64 = 1717490371754970003
 )
 
 type migratorTest struct {
@@ -62,7 +74,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			ReadTimeout:            1 * time.Second,
 			WaitForDB:              5 * time.Second,
 			BatchSize:              1000,
-			PollInterval:           1 * time.Second,
+			PollInterval:           500 * time.Millisecond,
 		}),
 	)
 	require.NoError(t, err)
@@ -77,24 +89,30 @@ func newMigratorTest(t *testing.T) *migratorTest {
 
 func TestMigrator(t *testing.T) {
 	test := newMigratorTest(t)
-	//defer test.cleanup()
+	defer test.cleanup()
 
-	err := test.migrator.Start()
-	require.NoError(t, err)
+	require.NoError(t, test.migrator.Start())
 
-	time.Sleep(5 * time.Second)
+	<-time.After(1 * time.Second)
 
-	checkMigrationState(t, test.db)
+	checkMigrationTrackerState(t, test.ctx, test.db)
+	checkGatewayEnvelopesLastID(t, test.ctx, test.db)
+	checkGatewayEnvelopesMigratedAmount(t, test.ctx, test.db)
+	checkGatewayEnvelopesAreUnique(t, test.ctx, test.db)
 
-	err = test.migrator.Stop()
-	require.NoError(t, err)
+	require.NoError(t, test.migrator.Stop())
 }
 
-func checkMigrationState(t *testing.T, db *sql.DB) {
-	rows, err := db.QueryContext(t.Context(), "SELECT * FROM migration_tracker")
+func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
+	rows, err := db.QueryContext(ctx, "SELECT * FROM migration_tracker")
 	require.NoError(t, err)
 
-	defer rows.Close()
+	defer func() {
+		err := rows.Close()
+		require.NoError(t, err)
+	}()
+
+	state := make(map[string]int64)
 
 	for rows.Next() {
 		var (
@@ -107,8 +125,159 @@ func checkMigrationState(t *testing.T, db *sql.DB) {
 		err := rows.Scan(&tableName, &lastMigratedID, &createdAt, &updatedAt)
 		require.NoError(t, err)
 
-		t.Logf("tableName: %s, lastMigratedID: %d", tableName, lastMigratedID)
+		state[tableName] = lastMigratedID
 	}
 
 	require.NoError(t, rows.Err())
+
+	require.Equal(t, groupMessageLastID, state["group_messages"])
+	require.Equal(t, welcomeMessageLastID, state["welcome_messages"])
+	require.Equal(t, inboxLogLastID, state["inbox_log"])
+	require.Equal(t, installationLastID, state["installations"])
+}
+
+func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) {
+	querier := queries.New(db)
+
+	lastGroupMessageID, err := querier.GetLatestSequenceId(
+		ctx,
+		int32(migrator.GroupMessageOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, groupMessageLastID, lastGroupMessageID)
+
+	lastInboxLogID, err := querier.GetLatestSequenceId(
+		ctx,
+		int32(migrator.InboxLogOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, inboxLogLastID, lastInboxLogID)
+
+	lastWelcomeMessageID, err := querier.GetLatestSequenceId(
+		ctx,
+		int32(migrator.WelcomeMessageOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, welcomeMessageLastID, lastWelcomeMessageID)
+
+	lastInstallationID, err := querier.GetLatestSequenceId(
+		ctx,
+		int32(migrator.InstallationOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, installationLastID, lastInstallationID)
+}
+
+func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *sql.DB) {
+	groupMessageAmount, err := getGatewayEnvelopesAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.GroupMessageOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, groupMessageAmount, groupMessageAmount)
+
+	inboxLogAmount, err := getGatewayEnvelopesAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.InboxLogOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, inboxLogAmount, inboxLogAmount)
+
+	welcomeMessageAmount, err := getGatewayEnvelopesAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.WelcomeMessageOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, welcomeMessageAmount, welcomeMessageAmount)
+
+	installationAmount, err := getGatewayEnvelopesAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.InstallationOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, installationAmount, installationAmount)
+}
+
+func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.DB) {
+	groupMessageUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.GroupMessageOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, groupMessageAmount, groupMessageUniqueAmount)
+
+	inboxLogUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.InboxLogOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, inboxLogAmount, inboxLogUniqueAmount)
+
+	welcomeMessageUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.WelcomeMessageOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, welcomeMessageAmount, welcomeMessageUniqueAmount)
+
+	installationUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+		t,
+		ctx,
+		db,
+		int32(migrator.InstallationOriginatorID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, installationAmount, installationUniqueAmount)
+}
+
+func getGatewayEnvelopesAmount(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	originatorNodeID int32,
+) (int64, error) {
+	var (
+		count              int64
+		getEnvelopesAmount = `SELECT COUNT(*)::BIGINT
+FROM gateway_envelopes
+WHERE originator_node_id = $1`
+	)
+
+	row := db.QueryRowContext(ctx, getEnvelopesAmount, originatorNodeID)
+	require.NoError(t, row.Scan(&count))
+
+	return count, nil
+}
+
+func getGatewayEnvelopesUniqueAmount(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	originatorNodeID int32,
+) (int64, error) {
+	var (
+		count              int64
+		getEnvelopesAmount = `SELECT COUNT(DISTINCT originator_sequence_id)::BIGINT
+FROM gateway_envelopes 
+WHERE originator_node_id = $1`
+	)
+
+	row := db.QueryRowContext(ctx, getEnvelopesAmount, originatorNodeID)
+	require.NoError(t, row.Scan(&count))
+
+	return count, nil
 }

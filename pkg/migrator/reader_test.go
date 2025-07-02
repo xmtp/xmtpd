@@ -11,7 +11,7 @@ import (
 func TestGroupMessageReader(t *testing.T) {
 	ctx := t.Context()
 
-	db, cleanup := testdata.NewTestDB(t, ctx)
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
 	reader := migrator.NewGroupMessageReader(db)
@@ -64,7 +64,7 @@ func TestGroupMessageReader(t *testing.T) {
 func TestInboxLogReader(t *testing.T) {
 	ctx := t.Context()
 
-	db, cleanup := testdata.NewTestDB(t, ctx)
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
 	reader := migrator.NewInboxLogReader(db)
@@ -117,7 +117,7 @@ func TestInboxLogReader(t *testing.T) {
 func TestInstallationReader(t *testing.T) {
 	ctx := t.Context()
 
-	db, cleanup := testdata.NewTestDB(t, ctx)
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
 	reader := migrator.NewInstallationReader(db)
@@ -170,7 +170,7 @@ func TestInstallationReader(t *testing.T) {
 func TestWelcomeMessageReader(t *testing.T) {
 	ctx := t.Context()
 
-	db, cleanup := testdata.NewTestDB(t, ctx)
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
 	reader := migrator.NewWelcomeMessageReader(db)

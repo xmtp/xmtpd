@@ -21,7 +21,7 @@ const (
 	dbVersion  = "postgres:16-alpine"
 )
 
-func NewTestDB(t *testing.T, ctx context.Context) (*sql.DB, func()) {
+func NewMigratorTestDB(t *testing.T, ctx context.Context) (db *sql.DB, dsn string, cleanup func()) {
 	postgresContainer, err := postgres.Run(ctx,
 		dbVersion,
 		postgres.WithInitScripts(filepath.Join("testdata", "schema.sql")),
@@ -32,16 +32,13 @@ func NewTestDB(t *testing.T, ctx context.Context) (*sql.DB, func()) {
 	)
 	require.NoError(t, err)
 
-	connString, err := postgresContainer.ConnectionString(
+	dsn, err = postgresContainer.ConnectionString(
 		ctx,
-		dbName,
-		dbUser,
-		dbPassword,
 		"sslmode=disable",
 	)
 	require.NoError(t, err)
 
-	db, err := sql.Open("postgres", connString)
+	db, err = sql.Open("postgres", dsn)
 	require.NoError(t, err)
 
 	insertInstallations(t, ctx, db)
@@ -49,7 +46,7 @@ func NewTestDB(t *testing.T, ctx context.Context) (*sql.DB, func()) {
 	insertWelcomeMessages(t, ctx, db)
 	insertInboxLog(t, ctx, db)
 
-	return db, func() {
+	return db, dsn, func() {
 		if err := postgresContainer.Terminate(ctx); err != nil {
 			t.Logf("failed to terminate container: %s", err)
 		}

@@ -1,7 +1,9 @@
 package migrator_test
 
 import (
+	"context"
 	"crypto/ecdsa"
+	"database/sql"
 	"encoding/hex"
 	"math"
 	"testing"
@@ -21,38 +23,53 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-var (
-	payerPrivateKey    *ecdsa.PrivateKey
-	payerAddress       string
-	nodeSigningKey     *ecdsa.PrivateKey
-	nodeSigningAddress string
-)
+type transformerTest struct {
+	ctx             context.Context
+	cleanup         func()
+	db              *sql.DB
+	transformer     *migrator.Transformer
+	payerPrivateKey *ecdsa.PrivateKey
+	nodePrivateKey  *ecdsa.PrivateKey
+	payerAddress    string
+	nodeAddress     string
+}
 
-func newTestTransformer(t *testing.T) *migrator.Transformer {
-	payerPrivateKey = testutils.RandomPrivateKey(t)
-	nodeSigningKey = testutils.RandomPrivateKey(t)
-	payerAddress = crypto.PubkeyToAddress(payerPrivateKey.PublicKey).Hex()
-	nodeSigningAddress = crypto.PubkeyToAddress(nodeSigningKey.PublicKey).Hex()
+func newTransformerTest(t *testing.T) *transformerTest {
+	var (
+		ctx             = t.Context()
+		db, _, cleanup  = testdata.NewMigratorTestDB(t, ctx)
+		payerPrivateKey = testutils.RandomPrivateKey(t)
+		nodePrivateKey  = testutils.RandomPrivateKey(t)
+		payerAddress    = crypto.PubkeyToAddress(payerPrivateKey.PublicKey).Hex()
+		nodeAddress     = crypto.PubkeyToAddress(nodePrivateKey.PublicKey).Hex()
+	)
 
 	transformer := migrator.NewTransformer(
 		payerPrivateKey,
-		nodeSigningKey,
+		nodePrivateKey,
 	)
 
-	return transformer
+	return &transformerTest{
+		ctx:             ctx,
+		cleanup:         cleanup,
+		db:              db,
+		transformer:     transformer,
+		payerPrivateKey: payerPrivateKey,
+		nodePrivateKey:  nodePrivateKey,
+		payerAddress:    payerAddress,
+		nodeAddress:     nodeAddress,
+	}
 }
 
 func TestTransformGroupMessage(t *testing.T) {
 	var (
-		ctx         = t.Context()
-		db, cleanup = testdata.NewTestDB(t, ctx)
-		reader      = migrator.NewGroupMessageReader(db)
-		transformer = newTestTransformer(t)
+		test   = newTransformerTest(t)
+		reader = migrator.NewGroupMessageReader(test.db)
 	)
 
-	defer cleanup()
+	defer test.cleanup()
 
-	records, _, err := reader.Fetch(ctx, 0, 1)
+	records, _, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.GroupMessage{}, records[0])
@@ -60,7 +77,7 @@ func TestTransformGroupMessage(t *testing.T) {
 	migratedGroupMessage, ok := records[0].(*migrator.GroupMessage)
 	require.True(t, ok)
 
-	envelope, err := transformer.Transform(migratedGroupMessage)
+	envelope, err := test.transformer.Transform(migratedGroupMessage)
 	require.NoError(t, err)
 	require.NotNil(t, envelope)
 
@@ -107,21 +124,19 @@ func TestTransformGroupMessage(t *testing.T) {
 	)
 
 	// Signature checks.
-	checkPayerSignature(t, envelope)
-	checkOriginatorSignature(t, envelope)
+	checkPayerSignature(t, envelope, test.payerAddress)
+	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
 }
 
 func TestTransformInboxLog(t *testing.T) {
 	var (
-		ctx         = t.Context()
-		db, cleanup = testdata.NewTestDB(t, ctx)
-		reader      = migrator.NewInboxLogReader(db)
-		transformer = newTestTransformer(t)
+		test   = newTransformerTest(t)
+		reader = migrator.NewInboxLogReader(test.db)
 	)
 
-	defer cleanup()
+	defer test.cleanup()
 
-	records, _, err := reader.Fetch(ctx, 0, 1)
+	records, _, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.InboxLog{}, records[0])
@@ -129,7 +144,7 @@ func TestTransformInboxLog(t *testing.T) {
 	migratedInboxLog, ok := records[0].(*migrator.InboxLog)
 	require.True(t, ok)
 
-	envelope, err := transformer.Transform(migratedInboxLog)
+	envelope, err := test.transformer.Transform(migratedInboxLog)
 	require.NoError(t, err)
 	require.NotNil(t, envelope)
 
@@ -187,21 +202,19 @@ func TestTransformInboxLog(t *testing.T) {
 	)
 
 	// Signature checks.
-	checkPayerSignature(t, envelope)
-	checkOriginatorSignature(t, envelope)
+	checkPayerSignature(t, envelope, test.payerAddress)
+	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
 }
 
 func TestTransformInstallation(t *testing.T) {
 	var (
-		ctx         = t.Context()
-		db, cleanup = testdata.NewTestDB(t, ctx)
-		reader      = migrator.NewInstallationReader(db)
-		transformer = newTestTransformer(t)
+		test   = newTransformerTest(t)
+		reader = migrator.NewInstallationReader(test.db)
 	)
 
-	defer cleanup()
+	defer test.cleanup()
 
-	records, _, err := reader.Fetch(ctx, 0, 1)
+	records, _, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.Installation{}, records[0])
@@ -209,7 +222,7 @@ func TestTransformInstallation(t *testing.T) {
 	migratedInstallation, ok := records[0].(*migrator.Installation)
 	require.True(t, ok)
 
-	envelope, err := transformer.Transform(migratedInstallation)
+	envelope, err := test.transformer.Transform(migratedInstallation)
 	require.NoError(t, err)
 	require.NotNil(t, envelope)
 
@@ -258,21 +271,19 @@ func TestTransformInstallation(t *testing.T) {
 	)
 
 	// Signature checks.
-	checkPayerSignature(t, envelope)
-	checkOriginatorSignature(t, envelope)
+	checkPayerSignature(t, envelope, test.payerAddress)
+	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
 }
 
 func TestTransformWelcomeMessage(t *testing.T) {
 	var (
-		ctx         = t.Context()
-		db, cleanup = testdata.NewTestDB(t, ctx)
-		reader      = migrator.NewWelcomeMessageReader(db)
-		transformer = newTestTransformer(t)
+		test   = newTransformerTest(t)
+		reader = migrator.NewWelcomeMessageReader(test.db)
 	)
 
-	defer cleanup()
+	defer test.cleanup()
 
-	records, _, err := reader.Fetch(ctx, 0, 1)
+	records, _, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.WelcomeMessage{}, records[0])
@@ -280,7 +291,7 @@ func TestTransformWelcomeMessage(t *testing.T) {
 	migratedWelcomeMessage, ok := records[0].(*migrator.WelcomeMessage)
 	require.True(t, ok)
 
-	envelope, err := transformer.Transform(migratedWelcomeMessage)
+	envelope, err := test.transformer.Transform(migratedWelcomeMessage)
 	require.NoError(t, err)
 	require.NotNil(t, envelope)
 
@@ -337,8 +348,8 @@ func TestTransformWelcomeMessage(t *testing.T) {
 	)
 
 	// Signature checks.
-	checkPayerSignature(t, envelope)
-	checkOriginatorSignature(t, envelope)
+	checkPayerSignature(t, envelope, test.payerAddress)
+	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
 }
 
 func checkTopic(
@@ -360,7 +371,7 @@ func checkTopic(
 	)
 }
 
-func checkPayerSignature(t *testing.T, env *envelopes.OriginatorEnvelope) {
+func checkPayerSignature(t *testing.T, env *envelopes.OriginatorEnvelope, payerAddress string) {
 	// Can recover the payer signature.
 	payerSignature := env.UnsignedOriginatorEnvelope.PayerEnvelope.Proto().GetPayerSignature()
 	require.NotNil(t, payerSignature)
@@ -375,7 +386,12 @@ func checkPayerSignature(t *testing.T, env *envelopes.OriginatorEnvelope) {
 	)
 }
 
-func checkOriginatorSignature(t *testing.T, env *envelopes.OriginatorEnvelope) {
+func checkOriginatorSignature(
+	t *testing.T,
+	env *envelopes.OriginatorEnvelope,
+	nodeSigningKey *ecdsa.PrivateKey,
+	nodeAddress string,
+) {
 	// Can recover the originator signature.
 	recoveredSignature := env.Proto().GetOriginatorSignature()
 	require.NotNil(t, recoveredSignature)
@@ -397,5 +413,5 @@ func checkOriginatorSignature(t *testing.T, env *envelopes.OriginatorEnvelope) {
 	// Both addresses are the same.
 	publicKey, err := crypto.SigToPub(hash, recoveredSignature.Bytes)
 	require.NoError(t, err)
-	require.Equal(t, nodeSigningAddress, crypto.PubkeyToAddress(*publicKey).Hex())
+	require.Equal(t, nodeAddress, crypto.PubkeyToAddress(*publicKey).Hex())
 }

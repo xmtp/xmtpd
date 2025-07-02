@@ -65,7 +65,7 @@ func (m *Migrator) insertOriginatorEnvelope(
 					return re.NewNonRecoverableError("get inbox ID failed", err)
 				}
 
-				associationState, err := m.validateIdentityUpdate(
+				associationState, err := m.getAssociationStateFromEnvelopes(
 					ctx,
 					querier,
 					inboxIDBytes,
@@ -212,7 +212,7 @@ func getInboxID(clientEnvelope *envelopes.ClientEnvelope) ([32]byte, string, err
 	return inboxID, inboxIDStr, nil
 }
 
-func (m *Migrator) validateIdentityUpdate(
+func (m *Migrator) getAssociationStateFromEnvelopes(
 	ctx context.Context,
 	querier *queries.Queries,
 	inboxID [32]byte,

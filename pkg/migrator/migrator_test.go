@@ -20,6 +20,10 @@ import (
 )
 
 const (
+	// Note that there must be 18 address_log entries in total.
+	// In the testdata set there are 2 identity updates, updating the same inboxID.
+	// Check rows 6 and 7 in testdata/inbox_log.csv
+	addressLogAmount     int64 = 18
 	groupMessageAmount   int64 = 19
 	groupMessageLastID   int64 = 19
 	inboxLogAmount       int64 = 19
@@ -99,6 +103,7 @@ func TestMigrator(t *testing.T) {
 	checkGatewayEnvelopesLastID(t, test.ctx, test.db)
 	checkGatewayEnvelopesMigratedAmount(t, test.ctx, test.db)
 	checkGatewayEnvelopesAreUnique(t, test.ctx, test.db)
+	checkAddressLogAmount(t, test.ctx, test.db)
 
 	require.NoError(t, test.migrator.Stop())
 }
@@ -137,111 +142,122 @@ func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
 }
 
 func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) {
-	querier := queries.New(db)
-
-	lastGroupMessageID, err := querier.GetLatestSequenceId(
+	require.Equal(t, groupMessageLastID, getGatewayEnvelopesLastSequenceID(
+		t,
 		ctx,
+		db,
 		int32(migrator.GroupMessageOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, groupMessageLastID, lastGroupMessageID)
+	))
 
-	lastInboxLogID, err := querier.GetLatestSequenceId(
+	require.Equal(t, inboxLogLastID, getGatewayEnvelopesLastSequenceID(
+		t,
 		ctx,
+		db,
 		int32(migrator.InboxLogOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, inboxLogLastID, lastInboxLogID)
+	))
 
-	lastWelcomeMessageID, err := querier.GetLatestSequenceId(
+	require.Equal(t, welcomeMessageLastID, getGatewayEnvelopesLastSequenceID(
+		t,
 		ctx,
+		db,
 		int32(migrator.WelcomeMessageOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, welcomeMessageLastID, lastWelcomeMessageID)
+	))
 
-	lastInstallationID, err := querier.GetLatestSequenceId(
+	require.Equal(t, installationLastID, getGatewayEnvelopesLastSequenceID(
+		t,
 		ctx,
+		db,
 		int32(migrator.InstallationOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, installationLastID, lastInstallationID)
+	))
 }
 
 func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *sql.DB) {
-	groupMessageAmount, err := getGatewayEnvelopesAmount(
+	require.Equal(t, groupMessageAmount, getGatewayEnvelopesAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.GroupMessageOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, groupMessageAmount, groupMessageAmount)
+	))
 
-	inboxLogAmount, err := getGatewayEnvelopesAmount(
+	require.Equal(t, inboxLogAmount, getGatewayEnvelopesAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.InboxLogOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, inboxLogAmount, inboxLogAmount)
+	))
 
-	welcomeMessageAmount, err := getGatewayEnvelopesAmount(
+	require.Equal(t, welcomeMessageAmount, getGatewayEnvelopesAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.WelcomeMessageOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, welcomeMessageAmount, welcomeMessageAmount)
+	))
 
-	installationAmount, err := getGatewayEnvelopesAmount(
+	require.Equal(t, installationAmount, getGatewayEnvelopesAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.InstallationOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, installationAmount, installationAmount)
+	))
 }
 
 func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.DB) {
-	groupMessageUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+	require.Equal(t, groupMessageAmount, getGatewayEnvelopesUniqueAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.GroupMessageOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, groupMessageAmount, groupMessageUniqueAmount)
+	))
 
-	inboxLogUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+	require.Equal(t, inboxLogAmount, getGatewayEnvelopesUniqueAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.InboxLogOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, inboxLogAmount, inboxLogUniqueAmount)
+	))
 
-	welcomeMessageUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+	require.Equal(t, welcomeMessageAmount, getGatewayEnvelopesUniqueAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.WelcomeMessageOriginatorID),
-	)
-	require.NoError(t, err)
-	require.Equal(t, welcomeMessageAmount, welcomeMessageUniqueAmount)
+	))
 
-	installationUniqueAmount, err := getGatewayEnvelopesUniqueAmount(
+	require.Equal(t, installationAmount, getGatewayEnvelopesUniqueAmount(
 		t,
 		ctx,
 		db,
 		int32(migrator.InstallationOriginatorID),
+	))
+}
+
+func checkAddressLogAmount(t *testing.T, ctx context.Context, db *sql.DB) {
+	var (
+		count int64
+		query = `SELECT COUNT(*)::BIGINT FROM address_log`
+	)
+
+	row := db.QueryRowContext(ctx, query)
+	require.NoError(t, row.Scan(&count))
+
+	require.Equal(t, addressLogAmount, count)
+}
+
+func getGatewayEnvelopesLastSequenceID(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	originatorNodeID int32,
+) int64 {
+	querier := queries.New(db)
+
+	lastSequenceID, err := querier.GetLatestSequenceId(
+		ctx,
+		originatorNodeID,
 	)
 	require.NoError(t, err)
-	require.Equal(t, installationAmount, installationUniqueAmount)
+
+	return lastSequenceID
 }
 
 func getGatewayEnvelopesAmount(
@@ -249,7 +265,7 @@ func getGatewayEnvelopesAmount(
 	ctx context.Context,
 	db *sql.DB,
 	originatorNodeID int32,
-) (int64, error) {
+) int64 {
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(*)::BIGINT
@@ -260,7 +276,7 @@ WHERE originator_node_id = $1`
 	row := db.QueryRowContext(ctx, getEnvelopesAmount, originatorNodeID)
 	require.NoError(t, row.Scan(&count))
 
-	return count, nil
+	return count
 }
 
 func getGatewayEnvelopesUniqueAmount(
@@ -268,7 +284,7 @@ func getGatewayEnvelopesUniqueAmount(
 	ctx context.Context,
 	db *sql.DB,
 	originatorNodeID int32,
-) (int64, error) {
+) int64 {
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(DISTINCT originator_sequence_id)::BIGINT
@@ -279,5 +295,5 @@ WHERE originator_node_id = $1`
 	row := db.QueryRowContext(ctx, getEnvelopesAmount, originatorNodeID)
 	require.NoError(t, row.Scan(&count))
 
-	return count, nil
+	return count
 }

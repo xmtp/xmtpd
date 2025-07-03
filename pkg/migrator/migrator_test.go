@@ -6,15 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
-	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -32,6 +30,8 @@ const (
 	welcomeMessageLastID int64 = 19
 	installationAmount   int64 = 19
 	installationLastID   int64 = 1717490371754970003
+
+	mlsValidationServiceAddress = "http://localhost:60051"
 )
 
 type migratorTest struct {
@@ -43,27 +43,24 @@ type migratorTest struct {
 
 func newMigratorTest(t *testing.T) *migratorTest {
 	var (
-		ctx                  = t.Context()
-		writerDB, _          = testutils.NewDB(t, ctx)
-		_, dsn, cleanup      = testdata.NewMigratorTestDB(t, ctx)
-		mlsValidationService = mlsvalidateMock.NewMockMLSValidationService(
-			t,
-		)
+		ctx             = t.Context()
+		writerDB, _     = testutils.NewDB(t, ctx)
+		_, dsn, cleanup = testdata.NewMigratorTestDB(t, ctx)
 		payerPrivateKey = testutils.RandomPrivateKey(t)
 		nodePrivateKey  = testutils.RandomPrivateKey(t)
 	)
 
-	mlsValidationService.EXPECT().
-		GetAssociationStateFromEnvelopes(mock.Anything, mock.Anything, mock.Anything).
-		Return(&mlsvalidate.AssociationStateResult{
-			StateDiff: &associations.AssociationStateDiff{
-				NewMembers: []*associations.MemberIdentifier{{
-					Kind: &associations.MemberIdentifier_EthereumAddress{
-						EthereumAddress: "0x12345",
-					},
-				}},
-			},
-		}, nil)
+	mlsValidationService, err := mlsvalidate.NewMlsValidationService(
+		ctx,
+		testutils.NewLog(t),
+		config.MlsValidationOptions{
+			GrpcAddress: mlsValidationServiceAddress,
+		},
+		grpcprom.NewClientMetrics(
+			grpcprom.WithClientHandlingTimeHistogram(),
+		),
+	)
+	require.NoError(t, err)
 
 	migrator, err := migrator.NewMigrationService(
 		migrator.WithContext(ctx),

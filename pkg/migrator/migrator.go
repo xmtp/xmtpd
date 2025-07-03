@@ -77,7 +77,7 @@ func WithMigratorConfig(options *config.MigratorOptions) DBMigratorOption {
 	}
 }
 
-type dbMigrator struct {
+type Migrator struct {
 	// Internals.
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -98,7 +98,7 @@ type dbMigrator struct {
 	running      bool
 }
 
-func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
+func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	cfg := &DBMigratorConfig{}
 
 	for _, opt := range opts {
@@ -172,7 +172,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 
 	ctx, cancel := context.WithCancel(cfg.ctx)
 
-	return &dbMigrator{
+	return &Migrator{
 		ctx:               ctx,
 		cancel:            cancel,
 		wg:                sync.WaitGroup{},
@@ -189,7 +189,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*dbMigrator, error) {
 	}, nil
 }
 
-func (m *dbMigrator) Start() error {
+func (m *Migrator) Start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -208,7 +208,7 @@ func (m *dbMigrator) Start() error {
 	return nil
 }
 
-func (m *dbMigrator) Stop() error {
+func (m *Migrator) Stop() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -234,7 +234,7 @@ func (m *dbMigrator) Stop() error {
 }
 
 // migrationWorker continuously processes migration for a specific table.
-func (m *dbMigrator) migrationWorker(tableName string) {
+func (m *Migrator) migrationWorker(tableName string) {
 	recvChan := make(chan ISourceRecord, m.batchSize*2)
 	wrtrChan := make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
 	wrtrQueries := queries.New(m.writer)
@@ -267,6 +267,11 @@ func (m *dbMigrator) migrationWorker(tableName string) {
 				case <-ticker.C:
 					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
 					if err != nil {
+						if ctx.Err() != nil {
+							logger.Info("context cancelled, stopping")
+							return
+						}
+
 						logger.Error("failed to get migration progress", zap.Error(err))
 						return
 					}
@@ -284,7 +289,10 @@ func (m *dbMigrator) migrationWorker(tableName string) {
 							time.Sleep(sleepTimeOnNoRows)
 
 						default:
-							logger.Error("migration batch failed", zap.Error(err))
+							logger.Error(
+								"getting next batch of records failed, retrying",
+								zap.Error(err),
+							)
 							time.Sleep(sleepTimeOnError)
 						}
 
@@ -313,9 +321,11 @@ func (m *dbMigrator) migrationWorker(tableName string) {
 						}
 					}
 
-					logger.Debug("batch sent to transformer",
-						zap.Int("total_fetched", len(records)),
-						zap.Int64("new_last_id", newLastID))
+					logger.Debug(
+						"sent batch to transformer",
+						zap.Int("count", len(records)),
+						zap.Int64("lastID", newLastID),
+					)
 				}
 			}
 		})

@@ -18,10 +18,7 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-// TODO: Validate payer envelope.
-// TODO: Validate key package.
-
-type transformer struct {
+type Transformer struct {
 	payerPrivateKey *ecdsa.PrivateKey
 	nodeSigningKey  *ecdsa.PrivateKey
 }
@@ -29,14 +26,14 @@ type transformer struct {
 func NewTransformer(
 	payerPrivateKey *ecdsa.PrivateKey,
 	nodeSigningKey *ecdsa.PrivateKey,
-) *transformer {
-	return &transformer{
+) *Transformer {
+	return &Transformer{
 		payerPrivateKey: payerPrivateKey,
 		nodeSigningKey:  nodeSigningKey,
 	}
 }
 
-func (t *transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error) {
+func (t *Transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error) {
 	switch record.TableName() {
 	case groupMessagesTableName:
 		data, ok := record.(*GroupMessage)
@@ -79,7 +76,7 @@ func (t *transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnve
 }
 
 // TransformGroupMessage converts GroupMessage to appropriate XMTPD envelope format.
-func (t *transformer) TransformGroupMessage(
+func (t *Transformer) TransformGroupMessage(
 	groupMessage *GroupMessage,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if groupMessage == nil {
@@ -112,13 +109,13 @@ func (t *transformer) TransformGroupMessage(
 
 	return t.originatorEnvelope(
 		protoClientEnvelope,
-		groupMessageOriginatorID,
+		GroupMessageOriginatorID,
 		uint64(groupMessage.ID),
 	)
 }
 
 // TransformInboxLog converts InboxLog to appropriate XMTPD IdentityUpdate envelope format.
-func (t *transformer) TransformInboxLog(
+func (t *Transformer) TransformInboxLog(
 	inboxLog *InboxLog,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if inboxLog == nil {
@@ -152,13 +149,13 @@ func (t *transformer) TransformInboxLog(
 
 	return t.originatorEnvelope(
 		protoClientEnvelope,
-		inboxLogOriginatorID,
+		InboxLogOriginatorID,
 		uint64(inboxLog.SequenceID),
 	)
 }
 
 // TransformInstallation converts Installation to appropriate XMTPD KeyPackage envelope format.
-func (t *transformer) TransformInstallation(
+func (t *Transformer) TransformInstallation(
 	installation *Installation,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if installation == nil {
@@ -185,13 +182,13 @@ func (t *transformer) TransformInstallation(
 
 	return t.originatorEnvelope(
 		protoClientEnvelope,
-		installationOriginatorID,
+		InstallationOriginatorID,
 		uint64(installation.CreatedAt),
 	)
 }
 
 // TransformWelcomeMessage converts WelcomeMessage to appropriate XMTPD envelope format.
-func (t *transformer) TransformWelcomeMessage(
+func (t *Transformer) TransformWelcomeMessage(
 	welcomeMessage *WelcomeMessage,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if welcomeMessage == nil {
@@ -221,13 +218,13 @@ func (t *transformer) TransformWelcomeMessage(
 
 	return t.originatorEnvelope(
 		protoClientEnvelope,
-		welcomeMessageOriginatorID,
+		WelcomeMessageOriginatorID,
 		uint64(welcomeMessage.ID),
 	)
 }
 
 // originatorEnvelope builds and signs an originator envelope from a client envelope.
-func (t *transformer) originatorEnvelope(
+func (t *Transformer) originatorEnvelope(
 	protoClientEnvelope *proto.ClientEnvelope,
 	originatorID uint32,
 	sequenceID uint64,
@@ -249,7 +246,7 @@ func (t *transformer) originatorEnvelope(
 	return originatorEnvelope, nil
 }
 
-func (t *transformer) buildAndSignPayerEnvelope(
+func (t *Transformer) buildAndSignPayerEnvelope(
 	protoClientEnvelope *proto.ClientEnvelope,
 	originatorID uint32,
 ) (*envelopes.PayerEnvelope, error) {
@@ -284,7 +281,7 @@ func (t *transformer) buildAndSignPayerEnvelope(
 
 	// group messages and identity updates are stored forever (MaxUint32).
 	// welcome messages and installations are stored for the default duration.
-	if originatorID == installationOriginatorID || originatorID == welcomeMessageOriginatorID {
+	if originatorID == InstallationOriginatorID || originatorID == WelcomeMessageOriginatorID {
 		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
 	}
 
@@ -303,7 +300,7 @@ func (t *transformer) buildAndSignPayerEnvelope(
 // TODO: Set congestion fee.
 // TODO: Set base fee.
 
-func (t *transformer) buildAndSignOriginatorEnvelope(
+func (t *Transformer) buildAndSignOriginatorEnvelope(
 	payerEnvelope *envelopes.PayerEnvelope,
 	sequenceID uint64,
 ) (*envelopes.OriginatorEnvelope, error) {

@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"net"
+	"net/http"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum"
@@ -13,11 +16,60 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"go.uber.org/zap"
 )
 
-func NewClient(ctx context.Context, wsUrl string) (*ethclient.Client, error) {
-	return ethclient.DialContext(ctx, wsUrl)
+type ClientOption func(*clientConfig)
+
+type clientConfig struct {
+	wsURL     string
+	tcpDialer *net.Dialer
+}
+
+func WithKeepAliveConfig(cfg net.KeepAliveConfig) ClientOption {
+	return func(c *clientConfig) {
+		c.tcpDialer = &net.Dialer{
+			Timeout:         10 * time.Second,
+			KeepAliveConfig: cfg,
+		}
+	}
+}
+
+func WithWebSocketURL(url string) ClientOption {
+	return func(c *clientConfig) {
+		c.wsURL = url
+	}
+}
+
+func NewClient(ctx context.Context, opts ...ClientOption) (*ethclient.Client, error) {
+	config := &clientConfig{
+		tcpDialer: &net.Dialer{
+			Timeout: 10 * time.Second,
+			KeepAliveConfig: net.KeepAliveConfig{
+				Enable:   true,
+				Idle:     4 * time.Second,
+				Interval: 2 * time.Second,
+				Count:    10,
+			},
+		},
+	}
+
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	dialer := websocket.Dialer{
+		NetDialContext: config.tcpDialer.DialContext,
+		Proxy:          http.ProxyFromEnvironment,
+	}
+
+	rpcClient, err := rpc.DialOptions(ctx, config.wsURL, rpc.WithWebsocketDialer(dialer))
+	if err != nil {
+		return nil, err
+	}
+
+	return ethclient.NewClient(rpcClient), nil
 }
 
 // ExecuteTransaction is a helper function that:
@@ -142,7 +194,7 @@ func ExecuteTransaction(
 	return nil
 }
 
-// Waits for the given transaction hash to have been submitted to the chain and soft confirmed
+// WaitForTransaction waits for the given transaction hash to have been submitted to the chain and soft confirmed.
 func WaitForTransaction(
 	ctx context.Context,
 	logger *zap.Logger,

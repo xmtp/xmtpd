@@ -30,7 +30,10 @@ func buildIdentityUpdateStorer(
 	wsUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, wsUrl)
 
-	client, err := blockchain.NewClient(ctx, config.AppChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(config.AppChain.WssURL),
+	)
 	require.NoError(t, err)
 	contract, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(config.AppChain.IdentityUpdateBroadcasterAddress),

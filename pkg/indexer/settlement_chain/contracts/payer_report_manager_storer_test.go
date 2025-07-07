@@ -87,7 +87,10 @@ func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorer
 	config := testutils.NewContractsOptions(t, wsUrl)
 
 	// Chain client.
-	client, err := blockchain.NewClient(ctx, config.AppChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(config.AppChain.WssURL),
+	)
 	require.NoError(t, err)
 
 	// Contract.

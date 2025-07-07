@@ -39,7 +39,7 @@ func streamContainerLogs(t *testing.T, ctx context.Context, container testcontai
 func waitForAnvil(t *testing.T, url string) {
 	backgroundCtx := context.Background()
 	// Create a client to connect to the Anvil instance
-	client, err := blockchain.NewClient(backgroundCtx, url)
+	client, err := blockchain.NewClient(backgroundCtx, blockchain.WithWebSocketURL(url))
 	require.NoError(t, err)
 
 	// Try to get the chain ID to verify the connection is working

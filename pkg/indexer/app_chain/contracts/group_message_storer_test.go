@@ -26,7 +26,10 @@ func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 	wsUrl := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, wsUrl)
 
-	client, err := blockchain.NewClient(ctx, config.AppChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(config.AppChain.WssURL),
+	)
 	require.NoError(t, err)
 	contract, err := gm.NewGroupMessageBroadcaster(
 		common.HexToAddress(config.AppChain.GroupMessageBroadcasterAddress),

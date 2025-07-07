@@ -26,7 +26,10 @@ func buildRegistry(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsOptions.SettlementChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+	)
 	require.NoError(t, err)
 
 	registry, err := blockchain.NewNodeRegistryAdmin(logger, client, signer, contractsOptions)

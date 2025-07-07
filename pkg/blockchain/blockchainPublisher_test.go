@@ -25,7 +25,10 @@ func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsOptions.SettlementChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		client.Close()

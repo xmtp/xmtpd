@@ -337,7 +337,7 @@ func startAPIServer(
 
 			appChainClient, err := blockchain.NewClient(
 				s.ctx,
-				cfg.Options.Contracts.AppChain.WssURL,
+				blockchain.WithWebSocketURL(cfg.Options.Contracts.AppChain.WssURL),
 			)
 			if err != nil {
 				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))
@@ -499,7 +499,7 @@ func getDomainSeparator(
 
 	settlementChainClient, err := blockchain.NewClient(
 		ctx,
-		options.Contracts.SettlementChain.WssURL,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
 	)
 	if err != nil {
 		return common.Hash{}, err

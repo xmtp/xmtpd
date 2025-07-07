@@ -16,6 +16,71 @@
     "application/json"
   ],
   "paths": {
+    "/mls/v1/batch-publish-commit-log": {
+      "post": {
+        "operationId": "MlsApi_BatchPublishCommitLog",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BatchPublishCommitLogRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MlsApi"
+        ]
+      }
+    },
+    "/mls/v1/batch-query-commit-log": {
+      "post": {
+        "operationId": "MlsApi_BatchQueryCommitLog",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BatchQueryCommitLogResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BatchQueryCommitLogRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MlsApi"
+        ]
+      }
+    },
     "/mls/v1/fetch-key-packages": {
       "post": {
         "summary": "Get one or more Key Packages by installation_id",
@@ -497,6 +562,19 @@
       },
       "title": "Full representation of a group message"
     },
+    "message_contentsCommitLogEntry": {
+      "type": "object",
+      "properties": {
+        "sequenceId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedCommitLogEntry": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
     "message_contentsWelcomeWrapperAlgorithm": {
       "type": "string",
       "enum": [
@@ -558,6 +636,42 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1BatchPublishCommitLogRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PublishCommitLogRequest"
+          }
+        }
+      }
+    },
+    "v1BatchQueryCommitLogRequest": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1QueryCommitLogRequest"
+          }
+        }
+      }
+    },
+    "v1BatchQueryCommitLogResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1QueryCommitLogResponse"
           }
         }
       }
@@ -667,6 +781,50 @@
       },
       "description": "This would be a serialized MLS key package that the node would\n parse, validate, and then store.",
       "title": "A wrapper around the Key Package bytes"
+    },
+    "v1PublishCommitLogRequest": {
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "format": "byte"
+        },
+        "encryptedCommitLogEntry": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "v1QueryCommitLogRequest": {
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "format": "byte"
+        },
+        "pagingInfo": {
+          "$ref": "#/definitions/mlsapiv1PagingInfo"
+        }
+      }
+    },
+    "v1QueryCommitLogResponse": {
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "format": "byte"
+        },
+        "commitLogEntries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/message_contentsCommitLogEntry"
+          }
+        },
+        "pagingInfo": {
+          "$ref": "#/definitions/mlsapiv1PagingInfo"
+        }
+      }
     },
     "v1QueryGroupMessagesRequest": {
       "type": "object",

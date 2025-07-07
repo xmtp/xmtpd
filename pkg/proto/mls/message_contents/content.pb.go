@@ -382,6 +382,7 @@ type PlaintextEnvelope_V2 struct {
 	//	*PlaintextEnvelope_V2_DeviceSyncRequest
 	//	*PlaintextEnvelope_V2_DeviceSyncReply
 	//	*PlaintextEnvelope_V2_UserPreferenceUpdate
+	//	*PlaintextEnvelope_V2_ReaddRequest
 	MessageType   isPlaintextEnvelope_V2_MessageType `protobuf_oneof:"message_type"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -467,6 +468,15 @@ func (x *PlaintextEnvelope_V2) GetUserPreferenceUpdate() *device_sync.V1UserPref
 	return nil
 }
 
+func (x *PlaintextEnvelope_V2) GetReaddRequest() *ReaddRequest {
+	if x != nil {
+		if x, ok := x.MessageType.(*PlaintextEnvelope_V2_ReaddRequest); ok {
+			return x.ReaddRequest
+		}
+	}
+	return nil
+}
+
 type isPlaintextEnvelope_V2_MessageType interface {
 	isPlaintextEnvelope_V2_MessageType()
 }
@@ -491,6 +501,11 @@ type PlaintextEnvelope_V2_UserPreferenceUpdate struct {
 	UserPreferenceUpdate *device_sync.V1UserPreferenceUpdate `protobuf:"bytes,5,opt,name=user_preference_update,json=userPreferenceUpdate,proto3,oneof"`
 }
 
+type PlaintextEnvelope_V2_ReaddRequest struct {
+	// A readd request for fork recovery
+	ReaddRequest *ReaddRequest `protobuf:"bytes,6,opt,name=readd_request,json=readdRequest,proto3,oneof"`
+}
+
 func (*PlaintextEnvelope_V2_Content) isPlaintextEnvelope_V2_MessageType() {}
 
 func (*PlaintextEnvelope_V2_DeviceSyncRequest) isPlaintextEnvelope_V2_MessageType() {}
@@ -499,11 +514,13 @@ func (*PlaintextEnvelope_V2_DeviceSyncReply) isPlaintextEnvelope_V2_MessageType(
 
 func (*PlaintextEnvelope_V2_UserPreferenceUpdate) isPlaintextEnvelope_V2_MessageType() {}
 
+func (*PlaintextEnvelope_V2_ReaddRequest) isPlaintextEnvelope_V2_MessageType() {}
+
 var File_mls_message_contents_content_proto protoreflect.FileDescriptor
 
 const file_mls_message_contents_content_proto_rawDesc = "" +
 	"\n" +
-	"\"mls/message_contents/content.proto\x12\x19xmtp.mls.message_contents\x1a\x19device_sync/content.proto\"\x95\x01\n" +
+	"\"mls/message_contents/content.proto\x12\x19xmtp.mls.message_contents\x1a\x19device_sync/content.proto\x1a&mls/message_contents/out_of_band.proto\"\x95\x01\n" +
 	"\rContentTypeId\x12!\n" +
 	"\fauthority_id\x18\x01 \x01(\tR\vauthorityId\x12\x17\n" +
 	"\atype_id\x18\x02 \x01(\tR\x06typeId\x12#\n" +
@@ -521,19 +538,20 @@ const file_mls_message_contents_content_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\v\n" +
 	"\t_fallbackB\x0e\n" +
-	"\f_compression\"\xeb\x04\n" +
+	"\f_compression\"\xbb\x05\n" +
 	"\x11PlaintextEnvelope\x12A\n" +
 	"\x02v1\x18\x01 \x01(\v2/.xmtp.mls.message_contents.PlaintextEnvelope.V1H\x00R\x02v1\x12A\n" +
 	"\x02v2\x18\x02 \x01(\v2/.xmtp.mls.message_contents.PlaintextEnvelope.V2H\x00R\x02v2\x1aG\n" +
 	"\x02V1\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\fR\acontent\x12'\n" +
-	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x1a\xfb\x02\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x1a\xcb\x03\n" +
 	"\x02V2\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x12\x1a\n" +
 	"\acontent\x18\x02 \x01(\fH\x00R\acontent\x12]\n" +
 	"\x13device_sync_request\x18\x03 \x01(\v2+.xmtp.device_sync.content.DeviceSyncRequestH\x00R\x11deviceSyncRequest\x12W\n" +
 	"\x11device_sync_reply\x18\x04 \x01(\v2).xmtp.device_sync.content.DeviceSyncReplyH\x00R\x0fdeviceSyncReply\x12h\n" +
-	"\x16user_preference_update\x18\x05 \x01(\v20.xmtp.device_sync.content.V1UserPreferenceUpdateH\x00R\x14userPreferenceUpdateB\x0e\n" +
+	"\x16user_preference_update\x18\x05 \x01(\v20.xmtp.device_sync.content.V1UserPreferenceUpdateH\x00R\x14userPreferenceUpdate\x12N\n" +
+	"\rreadd_request\x18\x06 \x01(\v2'.xmtp.mls.message_contents.ReaddRequestH\x00R\freaddRequestB\x0e\n" +
 	"\fmessage_typeB\t\n" +
 	"\acontent*<\n" +
 	"\vCompression\x12\x17\n" +
@@ -566,21 +584,23 @@ var file_mls_message_contents_content_proto_goTypes = []any{
 	(*device_sync.DeviceSyncRequest)(nil),      // 7: xmtp.device_sync.content.DeviceSyncRequest
 	(*device_sync.DeviceSyncReply)(nil),        // 8: xmtp.device_sync.content.DeviceSyncReply
 	(*device_sync.V1UserPreferenceUpdate)(nil), // 9: xmtp.device_sync.content.V1UserPreferenceUpdate
+	(*ReaddRequest)(nil),                       // 10: xmtp.mls.message_contents.ReaddRequest
 }
 var file_mls_message_contents_content_proto_depIdxs = []int32{
-	1, // 0: xmtp.mls.message_contents.EncodedContent.type:type_name -> xmtp.mls.message_contents.ContentTypeId
-	4, // 1: xmtp.mls.message_contents.EncodedContent.parameters:type_name -> xmtp.mls.message_contents.EncodedContent.ParametersEntry
-	0, // 2: xmtp.mls.message_contents.EncodedContent.compression:type_name -> xmtp.mls.message_contents.Compression
-	5, // 3: xmtp.mls.message_contents.PlaintextEnvelope.v1:type_name -> xmtp.mls.message_contents.PlaintextEnvelope.V1
-	6, // 4: xmtp.mls.message_contents.PlaintextEnvelope.v2:type_name -> xmtp.mls.message_contents.PlaintextEnvelope.V2
-	7, // 5: xmtp.mls.message_contents.PlaintextEnvelope.V2.device_sync_request:type_name -> xmtp.device_sync.content.DeviceSyncRequest
-	8, // 6: xmtp.mls.message_contents.PlaintextEnvelope.V2.device_sync_reply:type_name -> xmtp.device_sync.content.DeviceSyncReply
-	9, // 7: xmtp.mls.message_contents.PlaintextEnvelope.V2.user_preference_update:type_name -> xmtp.device_sync.content.V1UserPreferenceUpdate
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	1,  // 0: xmtp.mls.message_contents.EncodedContent.type:type_name -> xmtp.mls.message_contents.ContentTypeId
+	4,  // 1: xmtp.mls.message_contents.EncodedContent.parameters:type_name -> xmtp.mls.message_contents.EncodedContent.ParametersEntry
+	0,  // 2: xmtp.mls.message_contents.EncodedContent.compression:type_name -> xmtp.mls.message_contents.Compression
+	5,  // 3: xmtp.mls.message_contents.PlaintextEnvelope.v1:type_name -> xmtp.mls.message_contents.PlaintextEnvelope.V1
+	6,  // 4: xmtp.mls.message_contents.PlaintextEnvelope.v2:type_name -> xmtp.mls.message_contents.PlaintextEnvelope.V2
+	7,  // 5: xmtp.mls.message_contents.PlaintextEnvelope.V2.device_sync_request:type_name -> xmtp.device_sync.content.DeviceSyncRequest
+	8,  // 6: xmtp.mls.message_contents.PlaintextEnvelope.V2.device_sync_reply:type_name -> xmtp.device_sync.content.DeviceSyncReply
+	9,  // 7: xmtp.mls.message_contents.PlaintextEnvelope.V2.user_preference_update:type_name -> xmtp.device_sync.content.V1UserPreferenceUpdate
+	10, // 8: xmtp.mls.message_contents.PlaintextEnvelope.V2.readd_request:type_name -> xmtp.mls.message_contents.ReaddRequest
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_content_proto_init() }
@@ -588,6 +608,7 @@ func file_mls_message_contents_content_proto_init() {
 	if File_mls_message_contents_content_proto != nil {
 		return
 	}
+	file_mls_message_contents_out_of_band_proto_init()
 	file_mls_message_contents_content_proto_msgTypes[1].OneofWrappers = []any{}
 	file_mls_message_contents_content_proto_msgTypes[2].OneofWrappers = []any{
 		(*PlaintextEnvelope_V1_)(nil),
@@ -598,6 +619,7 @@ func file_mls_message_contents_content_proto_init() {
 		(*PlaintextEnvelope_V2_DeviceSyncRequest)(nil),
 		(*PlaintextEnvelope_V2_DeviceSyncReply)(nil),
 		(*PlaintextEnvelope_V2_UserPreferenceUpdate)(nil),
+		(*PlaintextEnvelope_V2_ReaddRequest)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

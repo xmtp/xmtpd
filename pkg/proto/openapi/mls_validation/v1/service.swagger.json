@@ -486,6 +486,9 @@
         },
         "groupId": {
           "type": "string"
+        },
+        "isCommit": {
+          "type": "boolean"
         }
       },
       "title": "An individual response to one message"

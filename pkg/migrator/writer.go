@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (m *dbMigrator) insertOriginatorEnvelope(
+func (m *Migrator) insertOriginatorEnvelope(
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
 	if env == nil {
@@ -38,6 +38,13 @@ func (m *dbMigrator) insertOriginatorEnvelope(
 		return re.NewNonRecoverableError("recover payer address failed", err)
 	}
 
+	querier := queries.New(m.writer)
+	payerID, err := querier.FindOrCreatePayer(m.ctx, payerAddress.Hex())
+	if err != nil {
+		m.log.Error("find or create payer failed", zap.Error(err))
+		return re.NewRecoverableError("find or create payer failed", err)
+	}
+
 	originatorEnvelopeBytes, err := proto.Marshal(env.Proto())
 	if err != nil {
 		m.log.Error("marshall originator envelope failed", zap.Error(err))
@@ -47,10 +54,10 @@ func (m *dbMigrator) insertOriginatorEnvelope(
 	err = db.RunInTx(
 		m.ctx,
 		m.writer,
-		&sql.TxOptions{Isolation: sql.LevelRepeatableRead},
+		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
 			// When handling identity updates, we need to derive the address log updates from the association state.
-			if env.OriginatorNodeID() == inboxLogOriginatorID {
+			if env.OriginatorNodeID() == InboxLogOriginatorID {
 				inboxIDBytes, inboxIDStr, err := getInboxID(
 					&env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope,
 				)
@@ -58,7 +65,7 @@ func (m *dbMigrator) insertOriginatorEnvelope(
 					return re.NewNonRecoverableError("get inbox ID failed", err)
 				}
 
-				associationState, err := m.validateIdentityUpdate(
+				associationState, err := m.getAssociationStateFromEnvelopes(
 					ctx,
 					querier,
 					inboxIDBytes,
@@ -126,12 +133,6 @@ func (m *dbMigrator) insertOriginatorEnvelope(
 						}
 					}
 				}
-			}
-
-			payerID, err := querier.FindOrCreatePayer(m.ctx, payerAddress.Hex())
-			if err != nil {
-				m.log.Error("find or create payer failed", zap.Error(err))
-				return re.NewNonRecoverableError("find or create payer failed", err)
 			}
 
 			_, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
@@ -211,7 +212,7 @@ func getInboxID(clientEnvelope *envelopes.ClientEnvelope) ([32]byte, string, err
 	return inboxID, inboxIDStr, nil
 }
 
-func (m *dbMigrator) validateIdentityUpdate(
+func (m *Migrator) getAssociationStateFromEnvelopes(
 	ctx context.Context,
 	querier *queries.Queries,
 	inboxID [32]byte,
@@ -225,7 +226,7 @@ func (m *dbMigrator) validateIdentityUpdate(
 			Topics: []db.Topic{
 				db.Topic(topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxID[:]).Bytes()),
 			},
-			OriginatorNodeIds: []int32{int32(inboxLogOriginatorID)},
+			OriginatorNodeIds: []int32{int32(InboxLogOriginatorID)},
 			RowLimit:          256,
 		},
 	)

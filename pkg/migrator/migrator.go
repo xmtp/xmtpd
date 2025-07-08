@@ -293,7 +293,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 								"getting next batch of records failed, retrying",
 								zap.Error(err),
 							)
-							time.Sleep(sleepTimeOnError)
+
+							select {
+							case <-ctx.Done():
+								return
+							case <-time.After(sleepTimeOnError):
+							}
 						}
 
 						continue
@@ -301,7 +306,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 					if len(records) == 0 {
 						logger.Info("no more records to migrate for now")
-						time.Sleep(sleepTimeOnNoRows)
+
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(sleepTimeOnNoRows):
+						}
+
 						continue
 					}
 

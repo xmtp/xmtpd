@@ -20,7 +20,7 @@ type ContractsOptions struct {
 type AppChainOptions struct {
 	WssURL                           string        `long:"wss-url"                             env:"XMTPD_APP_CHAIN_WSS_URL"                           description:"Blockchain WSS URL"`
 	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
-	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"60s"`
 	BackfillBlockPageSize            uint64        `long:"backfill-block-page-size"            env:"XMTPD_APP_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"          description:"Maximal size of a backfill block page"                        default:"500"`
 	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
 	IdentityUpdateBroadcasterAddress string        `long:"identity-update-broadcaster-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS" description:"Identity update broadcaster contract address"`

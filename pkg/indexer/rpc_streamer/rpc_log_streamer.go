@@ -171,11 +171,12 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 		logger                  = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
 		backfillFromBlockNumber = cfg.FromBlockNumber
 		backfillFromBlockHash   = cfg.FromBlockHash
+		innerSubCh              = make(chan types.Log, cfg.ExpectedLogsPerBlock*10)
 	)
 
 	defer close(cfg.eventChannel)
 
-	innerSubCh, err := r.buildSubscriptionChannel(cfg, logger)
+	sub, err := r.buildSubscription(cfg, innerSubCh)
 	if err != nil {
 		logger.Error("failed to subscribe to contract", zap.Error(err))
 		return
@@ -187,6 +188,19 @@ backfillLoop:
 		case <-r.ctx.Done():
 			logger.Error("Context cancelled, stopping watcher")
 			return
+
+		case err, open := <-sub.Err():
+			if !open {
+				logger.Error("subscription channel closed, closing watcher")
+				return
+			}
+
+			logger.Error("subscription error, rebuilding", zap.Error(err))
+			sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
+			if err != nil {
+				logger.Error("failed to rebuild subscription, closing", zap.Error(err))
+				return
+			}
 
 		default:
 			response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
@@ -260,11 +274,43 @@ backfillLoop:
 			logger.Error("Context cancelled, stopping watcher")
 			return
 
+		case err, open := <-sub.Err():
+			if !open {
+				logger.Error("subscription channel closed, closing watcher")
+				return
+			}
+
+			logger.Error("subscription error, rebuilding", zap.Error(err))
+			sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
+			if err != nil {
+				logger.Error("failed to rebuild subscription, closing", zap.Error(err))
+				return
+			}
+
+			logs, err := r.backfillPage(r.ctx, cfg, backfillFromBlockNumber)
+			if err != nil {
+				logger.Error("failed to backfill page, closing", zap.Error(err))
+				return
+			}
+
+			logger.Debug(
+				"Got logs",
+				zap.Int("numLogs", len(logs)),
+				zap.Uint64("fromBlock", backfillFromBlockNumber),
+				zap.Time("time", time.Now()),
+			)
+
+			for _, log := range logs {
+				cfg.eventChannel <- log
+			}
+
 		case log, open := <-innerSubCh:
 			if !open {
 				logger.Error("subscription channel closed, closing watcher")
 				return
 			}
+
+			backfillFromBlockNumber = log.BlockNumber
 
 			logger.Debug(
 				"Received log from subscription channel",
@@ -386,15 +432,54 @@ func (r *RPCLogStreamer) GetNextPage(
 	}, nil
 }
 
-func (r *RPCLogStreamer) buildSubscriptionChannel(
+// backfillPage is a trimmed down version of GetNextPage,
+// which will always backfill from the from block to the highest block.
+func (r *RPCLogStreamer) backfillPage(
+	ctx context.Context,
 	cfg *ContractConfig,
-	log *zap.Logger,
-) (chan types.Log, error) {
-	var (
-		innerSubCh = make(chan types.Log, 100)
-		query      = buildBaseFilterQuery(*cfg)
-		logger     = log.Named("subscription")
+	from uint64,
+) ([]types.Log, error) {
+	r.logger.Debug(
+		"Backfilling page",
+		zap.Uint64("fromBlockNumber", from),
 	)
+
+	contractAddress := cfg.Address.Hex()
+
+	highestBlock, err := r.client.BlockNumber(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
+
+	if from > highestBlock {
+		return nil, ErrEndOfBackfill
+	}
+
+	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-from)
+
+	logs, err := metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
+		return r.client.FilterLogs(
+			ctx,
+			buildFilterQuery(*cfg, from, highestBlock),
+		)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	metrics.EmitIndexerCurrentBlock(contractAddress, highestBlock)
+	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
+
+	return logs, nil
+}
+
+func (r *RPCLogStreamer) buildSubscription(
+	cfg *ContractConfig,
+	innerSubCh chan types.Log,
+) (sub ethereum.Subscription, err error) {
+	query := buildBaseFilterQuery(*cfg)
 
 	highestBlock, err := r.client.BlockNumber(r.ctx)
 	if err != nil {
@@ -407,70 +492,6 @@ func (r *RPCLogStreamer) buildSubscriptionChannel(
 	// would cause a failure if the RPC doesn't support big lookback ranges.
 	query.FromBlock = new(big.Int).SetUint64(highestBlock)
 
-	sub, err := r.buildSubscription(query, innerSubCh)
-	if err != nil {
-		logger.Error("failed to subscribe to contract", zap.Error(err))
-		return nil, err
-	}
-
-	tracing.GoPanicWrap(
-		r.ctx,
-		&r.wg,
-		fmt.Sprintf("rpcLogStreamer-watcher-subscription-%v", cfg.Address),
-		func(ctx context.Context) {
-			defer close(innerSubCh)
-			defer sub.Unsubscribe()
-
-			logger.Info("Subscribed to contract")
-
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Debug("subscription context cancelled, stopping")
-					return
-
-				case err := <-sub.Err():
-					if err == nil {
-						continue
-					}
-
-					logger.Error("subscription error, rebuilding", zap.Error(err))
-
-					rebuildOperation := func() (ethereum.Subscription, error) {
-						sub, err = r.buildSubscription(query, innerSubCh)
-						return sub, err
-					}
-
-					expBackoff := backoff.NewExponentialBackOff()
-					expBackoff.InitialInterval = 1 * time.Second
-
-					sub, err = backoff.Retry(
-						r.ctx,
-						rebuildOperation,
-						backoff.WithBackOff(expBackoff),
-						backoff.WithMaxTries(maxSubReconnectionRetries),
-						backoff.WithMaxElapsedTime(cfg.MaxDisconnectTime),
-					)
-					if err != nil {
-						logger.Error(
-							"failed to rebuild subscription, closing",
-							zap.Error(err),
-						)
-						return
-					}
-
-					logger.Info("Subscription rebuilt")
-				}
-			}
-		})
-
-	return innerSubCh, nil
-}
-
-func (r *RPCLogStreamer) buildSubscription(
-	query ethereum.FilterQuery,
-	innerSubCh chan types.Log,
-) (sub ethereum.Subscription, err error) {
 	sub, err = r.client.SubscribeFilterLogs(
 		r.ctx,
 		query,
@@ -479,6 +500,38 @@ func (r *RPCLogStreamer) buildSubscription(
 	if err != nil {
 		return nil, err
 	}
+
+	return sub, nil
+}
+
+func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
+	cfg *ContractConfig,
+	innerSubCh chan types.Log,
+) (sub ethereum.Subscription, err error) {
+	rebuildOperation := func() (ethereum.Subscription, error) {
+		sub, err = r.buildSubscription(cfg, innerSubCh)
+		return sub, err
+	}
+
+	expBackoff := backoff.NewExponentialBackOff()
+	expBackoff.InitialInterval = 1 * time.Second
+
+	sub, err = backoff.Retry(
+		r.ctx,
+		rebuildOperation,
+		backoff.WithBackOff(expBackoff),
+		backoff.WithMaxTries(maxSubReconnectionRetries),
+		backoff.WithMaxElapsedTime(cfg.MaxDisconnectTime),
+	)
+	if err != nil {
+		r.logger.Error(
+			"failed to rebuild subscription, closing",
+			zap.Error(err),
+		)
+		return
+	}
+
+	r.logger.Info("Subscription rebuilt")
 
 	return sub, nil
 }
@@ -492,21 +545,10 @@ func (r *RPCLogStreamer) validateWatcher(cfg *ContractConfig) error {
 		return fmt.Errorf("event channel is nil")
 	}
 
-	var (
-		testCh = make(chan types.Log, 100)
-		query  = buildBaseFilterQuery(*cfg)
-	)
-
+	testCh := make(chan types.Log, 100)
 	defer close(testCh)
 
-	highestBlock, err := r.client.BlockNumber(r.ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get highest block: %w", err)
-	}
-
-	query.FromBlock = new(big.Int).SetUint64(highestBlock)
-
-	sub, err := r.buildSubscription(query, testCh)
+	sub, err := r.buildSubscription(cfg, testCh)
 	if err != nil {
 		return fmt.Errorf("failed to validate watcher %s: %w", cfg.Address.Hex(), err)
 	}

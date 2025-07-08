@@ -12,7 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
-	streamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
+	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -46,7 +46,10 @@ func NewSettlementChain(
 	chainLogger := log.Named("settlement-chain").
 		With(zap.Int("chainID", cfg.ChainID))
 
-	client, err := blockchain.NewClient(ctxwc, cfg.WssURL)
+	client, err := blockchain.NewClient(
+		ctxwc,
+		blockchain.WithWebSocketURL(cfg.WssURL),
+	)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -88,13 +91,13 @@ func NewSettlementChain(
 
 	payerReportManagerLatestBlockNumber, payerReportManagerLatestBlockHash := payerReportManager.GetLatestBlock()
 
-	streamer, err := streamer.NewRpcLogStreamer(
+	streamer, err := rpcstreamer.NewRPCLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
-		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
-		streamer.WithContractConfig(
-			&streamer.ContractConfig{
+		rpcstreamer.WithLagFromHighestBlock(lagFromHighestBlock),
+		rpcstreamer.WithContractConfig(
+			&rpcstreamer.ContractConfig{
 				ID:                contracts.PayerRegistryName(cfg.ChainID),
 				FromBlockNumber:   payerRegistryLatestBlockNumber,
 				FromBlockHash:     payerRegistryLatestBlockHash,
@@ -103,8 +106,8 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		streamer.WithContractConfig(
-			&streamer.ContractConfig{
+		rpcstreamer.WithContractConfig(
+			&rpcstreamer.ContractConfig{
 				ID:                contracts.PayerReportManagerName(cfg.ChainID),
 				FromBlockNumber:   payerReportManagerLatestBlockNumber,
 				FromBlockHash:     payerReportManagerLatestBlockHash,
@@ -113,7 +116,7 @@ func NewSettlementChain(
 				MaxDisconnectTime: cfg.MaxChainDisconnectTime,
 			},
 		),
-		streamer.WithBackfillBlockPageSize(cfg.BackfillBlockPageSize),
+		rpcstreamer.WithBackfillBlockPageSize(cfg.BackfillBlockPageSize),
 	)
 	if err != nil {
 		cancel()

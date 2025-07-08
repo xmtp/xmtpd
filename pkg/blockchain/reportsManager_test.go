@@ -20,7 +20,10 @@ func buildReportsManager(t *testing.T) blockchain.PayerReportsManager {
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(t.Context(), contractsOptions.SettlementChain.WssURL)
+	client, err := blockchain.NewClient(
+		t.Context(),
+		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+	)
 	require.NoError(t, err)
 
 	reportsManager, err := blockchain.NewReportsManager(

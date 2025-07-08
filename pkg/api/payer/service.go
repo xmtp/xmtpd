@@ -3,7 +3,6 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
-	"math"
 	"math/rand"
 	"time"
 
@@ -483,20 +482,35 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
-	retentionDays := uint32(math.MaxUint32)
-
-	if !clientEnvelope.Aad().IsCommit {
-		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
-	}
-
 	return &envelopesProto.PayerEnvelope{
 		UnsignedClientEnvelope: envelopeBytes,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
-		TargetOriginator:     originatorID,
-		MessageRetentionDays: retentionDays,
+		TargetOriginator: originatorID,
+		MessageRetentionDays: determineRetentionPolicy(
+			clientEnvelope.TargetTopic(),
+			clientEnvelope.Aad(),
+		),
 	}, nil
+}
+
+func determineRetentionPolicy(
+	targetTopic topic.Topic,
+	aad *envelopesProto.AuthenticatedData,
+) uint32 {
+	// TODO: mkysel determine expiration for welcomes and key packages
+
+	switch targetTopic.Kind() {
+	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
+		panic("should not be called for identity updates")
+	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
+		if aad.GetIsCommit() {
+			panic("should not be called for commits")
+		}
+	}
+
+	return constants.DEFAULT_STORAGE_DURATION_DAYS
 }
 
 func shouldSendToBlockchain(targetTopic topic.Topic, aad *envelopesProto.AuthenticatedData) bool {

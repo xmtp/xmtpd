@@ -15,7 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
-	streamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
+	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -57,7 +57,10 @@ func NewAppChain(
 	chainLogger := log.Named("app-chain").
 		With(zap.Int("chainID", cfg.ChainID))
 
-	client, err := blockchain.NewClient(ctxwc, cfg.WssURL)
+	client, err := blockchain.NewClient(
+		ctxwc,
+		blockchain.WithWebSocketURL(cfg.WssURL),
+	)
 	if err != nil {
 		cancel()
 		client.Close()
@@ -101,13 +104,13 @@ func NewAppChain(
 
 	identityUpdateLatestBlockNumber, identityUpdateLatestBlockHash := identityUpdateBroadcaster.GetLatestBlock()
 
-	streamer, err := streamer.NewRpcLogStreamer(
+	streamer, err := rpcstreamer.NewRPCLogStreamer(
 		ctxwc,
 		client,
 		chainLogger,
-		streamer.WithLagFromHighestBlock(lagFromHighestBlock),
-		streamer.WithContractConfig(
-			&streamer.ContractConfig{
+		rpcstreamer.WithLagFromHighestBlock(lagFromHighestBlock),
+		rpcstreamer.WithContractConfig(
+			&rpcstreamer.ContractConfig{
 				ID:                   contracts.GroupMessageBroadcasterName(cfg.ChainID),
 				FromBlockNumber:      groupMessageLatestBlockNumber,
 				FromBlockHash:        groupMessageLatestBlockHash,
@@ -117,8 +120,8 @@ func NewAppChain(
 				ExpectedLogsPerBlock: defaultLogsPerBlock,
 			},
 		),
-		streamer.WithContractConfig(
-			&streamer.ContractConfig{
+		rpcstreamer.WithContractConfig(
+			&rpcstreamer.ContractConfig{
 				ID:                   contracts.IdentityUpdateBroadcasterName(cfg.ChainID),
 				FromBlockNumber:      identityUpdateLatestBlockNumber,
 				FromBlockHash:        identityUpdateLatestBlockHash,
@@ -128,7 +131,7 @@ func NewAppChain(
 				ExpectedLogsPerBlock: defaultLogsPerBlock,
 			},
 		),
-		streamer.WithBackfillBlockPageSize(cfg.BackfillBlockPageSize),
+		rpcstreamer.WithBackfillBlockPageSize(cfg.BackfillBlockPageSize),
 	)
 	if err != nil {
 		cancel()

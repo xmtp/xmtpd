@@ -93,8 +93,7 @@ func (s *syncWorker) subscribeToRegistry() {
 		&s.wg,
 		"node-registry-listener",
 		func(ctx context.Context) {
-			newNodesCh, cancelNewNodes := s.nodeRegistry.OnNewNodes()
-			defer cancelNewNodes()
+			newNodesCh := s.nodeRegistry.OnNewNodes()
 			for {
 				select {
 				case <-ctx.Done():
@@ -128,18 +127,48 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 
 	s.subscriptions[nodeid] = struct{}{}
 
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+
+	tracing.GoPanicWrap(
+		s.ctx,
+		&s.wg,
+		fmt.Sprintf("node-subscribe-%d-db", nodeid),
+		func(ctx context.Context) {
+			newEnvelopeSink(
+				ctx,
+				s.store,
+				s.log,
+				s.feeCalculator,
+				s.payerReportStore,
+				s.payerReportDomainSeparator,
+				writeQueue,
+			).Start()
+		})
+
+	changeListener := NewNodeRegistryWatcher(s.ctx, s.log, nodeid, s.nodeRegistry)
+	changeListener.Watch()
+
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
 		fmt.Sprintf("node-subscribe-%d", nodeid),
 		func(ctx context.Context) {
+			defer close(writeQueue)
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				default:
-					config := s.setupNodeRegistration(ctx, nodeid)
-					s.subscribeToNodeRegistration(config)
+					notifierCtx, notifierCancel := context.WithCancel(ctx)
+					changeListener.RegisterCancelFunction(notifierCancel)
+					s.subscribeToNodeRegistration(
+						NodeRegistration{
+							ctx:    notifierCtx,
+							cancel: notifierCancel,
+							nodeid: nodeid,
+						},
+						writeQueue,
+					)
 				}
 			}
 		})
@@ -147,6 +176,7 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 
 func (s *syncWorker) subscribeToNodeRegistration(
 	registration NodeRegistration,
+	writeQueue chan *envUtils.OriginatorEnvelope,
 ) {
 	connectionsStatusCounter := metrics.NewSyncConnectionsStatusCounter(registration.nodeid)
 	defer connectionsStatusCounter.Close()
@@ -207,7 +237,7 @@ func (s *syncWorker) subscribeToNodeRegistration(
 			return "", err
 		}
 
-		stream, err = s.setupStream(registration.ctx, *node, conn)
+		stream, err = s.setupStream(registration.ctx, *node, conn, writeQueue)
 		if err != nil {
 			return "", err
 		}
@@ -239,37 +269,6 @@ type NodeRegistration struct {
 	nodeid uint32
 }
 
-func (s *syncWorker) setupNodeRegistration(
-	ctx context.Context,
-	nodeid uint32,
-) NodeRegistration {
-	notifierCtx, notifierCancel := context.WithCancel(ctx)
-	registryChan, cancelSub := s.nodeRegistry.OnChangedNode(nodeid)
-
-	tracing.GoPanicWrap(
-		s.ctx,
-		&s.wg,
-		fmt.Sprintf("node-subscribe-%d-notifier", nodeid),
-		func(ctx context.Context) {
-			defer cancelSub()
-			select {
-			case <-ctx.Done():
-				// this indicates that the node is shutting down
-				// the notifierCtx should have been shut down already,but it can't hurt to cancel it just in case
-				notifierCancel()
-			case <-registryChan:
-				// this indicates that the registry has changed, and we need to rebuild the connection
-				s.log.Info(
-					"Node has been updated in the registry, terminating and rebuilding...",
-				)
-				notifierCancel()
-			}
-		},
-	)
-
-	return NodeRegistration{ctx: notifierCtx, cancel: notifierCancel, nodeid: nodeid}
-}
-
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
 	s.log.Info(fmt.Sprintf("Attempting to connect to %s...", node.HttpAddress))
 
@@ -296,6 +295,7 @@ func (s *syncWorker) setupStream(
 	ctx context.Context,
 	node registry.Node,
 	conn *grpc.ClientConn,
+	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (*originatorStream, error) {
 	result, err := queries.New(s.store).SelectVectorClock(ctx)
 	if err != nil {
@@ -345,13 +345,10 @@ func (s *syncWorker) setupStream(
 
 	return newOriginatorStream(
 		s.ctx,
-		s.store,
 		s.log,
 		&node,
 		lastEnvelope,
 		stream,
-		s.feeCalculator,
-		s.payerReportStore,
-		s.payerReportDomainSeparator,
+		writeQueue,
 	), nil
 }

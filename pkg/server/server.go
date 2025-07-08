@@ -337,7 +337,7 @@ func startAPIServer(
 
 			appChainClient, err := blockchain.NewClient(
 				s.ctx,
-				cfg.Options.Contracts.AppChain.WssURL,
+				blockchain.WithWebSocketURL(cfg.Options.Contracts.AppChain.WssURL),
 			)
 			if err != nil {
 				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))
@@ -438,7 +438,8 @@ func (s *ReplicationServer) Addr() net.Addr {
 func (s *ReplicationServer) WaitForShutdown(timeout time.Duration) {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
-	<-termChannel
+	sig := <-termChannel
+	s.log.Info("Received OS signal, shutting down", zap.String("signal", sig.String()))
 	s.Shutdown(timeout)
 }
 
@@ -498,7 +499,7 @@ func getDomainSeparator(
 
 	settlementChainClient, err := blockchain.NewClient(
 		ctx,
-		options.Contracts.SettlementChain.WssURL,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
 	)
 	if err != nil {
 		return common.Hash{}, err

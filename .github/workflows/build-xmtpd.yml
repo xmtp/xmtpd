@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - rel/**
+    tags:
+      - 'v*'
   pull_request:
   workflow_dispatch:
 
@@ -45,6 +47,7 @@ jobs:
             type=ref,event=tag
             type=ref,event=pr
             type=sha
+            type=semver,pattern={{version}}
       - name: Set up Docker image file based on the matrix variable
         id: set_dockerfile
         run: |

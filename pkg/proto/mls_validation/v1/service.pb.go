@@ -723,6 +723,7 @@ type ValidateGroupMessagesResponse_ValidationResponse struct {
 	IsOk          bool                   `protobuf:"varint,1,opt,name=is_ok,json=isOk,proto3" json:"is_ok,omitempty"`
 	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	GroupId       string                 `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	IsCommit      bool                   `protobuf:"varint,4,opt,name=is_commit,json=isCommit,proto3" json:"is_commit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -778,6 +779,13 @@ func (x *ValidateGroupMessagesResponse_ValidationResponse) GetGroupId() string {
 	return ""
 }
 
+func (x *ValidateGroupMessagesResponse_ValidationResponse) GetIsCommit() bool {
+	if x != nil {
+		return x.IsCommit
+	}
+	return false
+}
+
 var File_mls_validation_v1_service_proto protoreflect.FileDescriptor
 
 const file_mls_validation_v1_service_proto_rawDesc = "" +
@@ -821,13 +829,14 @@ const file_mls_validation_v1_service_proto_rawDesc = "" +
 	"\x1cValidateGroupMessagesRequest\x12h\n" +
 	"\x0egroup_messages\x18\x01 \x03(\v2A.xmtp.mls_validation.v1.ValidateGroupMessagesRequest.GroupMessageR\rgroupMessages\x1aZ\n" +
 	"\fGroupMessage\x12J\n" +
-	"\"group_message_bytes_tls_serialized\x18\x01 \x01(\fR\x1egroupMessageBytesTlsSerialized\"\xf2\x01\n" +
+	"\"group_message_bytes_tls_serialized\x18\x01 \x01(\fR\x1egroupMessageBytesTlsSerialized\"\x90\x02\n" +
 	"\x1dValidateGroupMessagesResponse\x12f\n" +
-	"\tresponses\x18\x01 \x03(\v2H.xmtp.mls_validation.v1.ValidateGroupMessagesResponse.ValidationResponseR\tresponses\x1ai\n" +
+	"\tresponses\x18\x01 \x03(\v2H.xmtp.mls_validation.v1.ValidateGroupMessagesResponse.ValidationResponseR\tresponses\x1a\x86\x01\n" +
 	"\x12ValidationResponse\x12\x13\n" +
 	"\x05is_ok\x18\x01 \x01(\bR\x04isOk\x12#\n" +
 	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x19\n" +
-	"\bgroup_id\x18\x03 \x01(\tR\agroupId\"\xb6\x01\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\agroupId\x12\x1b\n" +
+	"\tis_commit\x18\x04 \x01(\bR\bisCommit\"\xb6\x01\n" +
 	"\x1aGetAssociationStateRequest\x12K\n" +
 	"\vold_updates\x18\x01 \x03(\v2*.xmtp.identity.associations.IdentityUpdateR\n" +
 	"oldUpdates\x12K\n" +

@@ -4,38 +4,30 @@ import (
 	"sync"
 )
 
-type notifier[ValueType any] struct {
+type SingleNotificationNotifier[ValueType any] struct {
 	channels map[chan<- ValueType]bool
 	mutex    sync.RWMutex
 }
 
-func newNotifier[ValueType any]() *notifier[ValueType] {
-	return &notifier[ValueType]{
+func newNotifier[ValueType any]() *SingleNotificationNotifier[ValueType] {
+	return &SingleNotificationNotifier[ValueType]{
 		channels: make(map[chan<- ValueType]bool),
 	}
 }
 
-func (c *notifier[Node]) register() (<-chan Node, CancelSubscription) {
+func (c *SingleNotificationNotifier[ValueType]) register() <-chan ValueType {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	newChannel := make(chan Node)
+	newChannel := make(chan ValueType, 1)
 	c.channels[newChannel] = true
 
-	return newChannel, func() {
-		c.mutex.Lock()
-		defer c.mutex.Unlock()
-		close(newChannel)
-		delete(c.channels, newChannel)
-	}
+	return newChannel
 }
 
-func (c *notifier[any]) trigger(value any) {
+func (c *SingleNotificationNotifier[ValueType]) trigger(value ValueType) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	for channel := range c.channels {
-		// Write to the channel in a goroutine to avoid blocking the caller
-		go func(channel chan<- any) {
-			channel <- value
-		}(channel)
+		channel <- value
 	}
 }

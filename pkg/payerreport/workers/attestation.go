@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// attestationWorker is responsible for periodically checking for reports that need attestation
+// AttestationWorker is responsible for periodically checking for reports that need attestation
 // and signing them with the node's private key.
 type AttestationWorker struct {
 	ctx             context.Context
@@ -93,7 +93,7 @@ func (w *AttestationWorker) Stop() {
 	w.wg.Wait()
 }
 
-// attestReports fetches all reports with pending attestation status
+// AttestReports fetches all reports with pending attestation status
 // and attempts to attest each one.
 // Returns an error if there was a problem fetching the reports.
 func (w *AttestationWorker) AttestReports() error {

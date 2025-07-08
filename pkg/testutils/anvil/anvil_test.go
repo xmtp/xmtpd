@@ -12,7 +12,7 @@ import (
 func TestStartAnvil(t *testing.T) {
 	anvilUrl := StartAnvil(t, true)
 
-	client, err := blockchain.NewClient(context.Background(), anvilUrl)
+	client, err := blockchain.NewClient(context.Background(), blockchain.WithWebSocketURL(anvilUrl))
 	require.NoError(t, err)
 
 	chainId, err := client.ChainID(context.Background())
@@ -31,7 +31,10 @@ func TestStartConcurrent(t *testing.T) {
 			url := StartAnvil(t, false)
 			require.NotEmpty(t, url, "Empty URL for anvil instance %d", i)
 
-			client, err := blockchain.NewClient(context.Background(), url)
+			client, err := blockchain.NewClient(
+				context.Background(),
+				blockchain.WithWebSocketURL(url),
+			)
 			require.NoError(t, err, "Failed to connect to anvil instance %d", i)
 
 			chainId, err := client.ChainID(context.Background())

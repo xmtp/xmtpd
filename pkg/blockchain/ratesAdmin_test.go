@@ -24,7 +24,10 @@ func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsOptions.AppChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(contractsOptions.AppChain.WssURL),
+	)
 	require.NoError(t, err)
 
 	ratesAdmin, err := blockchain.NewRatesAdmin(logger, client, signer, contractsOptions)

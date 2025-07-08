@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -236,7 +237,10 @@ func registerNode(logger *zap.Logger, options *CLI) {
 func isPubKeyAlreadyRegistered(logger *zap.Logger, options *CLI, pubKey string) bool {
 	chainClient, err := blockchain.NewClient(
 		context.Background(),
-		options.Contracts.SettlementChain.WssURL,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
 	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
@@ -358,7 +362,13 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 func getRates(logger *zap.Logger, options *CLI) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*15))
 	defer cancel()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.WssURL)
+	chainClient, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
+	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -449,7 +459,13 @@ Getter commands
 
 func getMaxCanonicalNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.WssURL)
+	chainClient, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
+	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -472,7 +488,13 @@ func getMaxCanonicalNodes(logger *zap.Logger, options *CLI) {
 
 func getAllNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.WssURL)
+	chainClient, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
+	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -507,7 +529,13 @@ func getAllNodes(logger *zap.Logger, options *CLI) {
 
 func getNode(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	chainClient, err := blockchain.NewClient(ctx, options.Contracts.SettlementChain.WssURL)
+	chainClient, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
+	)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}
@@ -659,7 +687,10 @@ func setupNodeRegistryAdmin(
 ) (blockchain.INodeRegistryAdmin, error) {
 	chainClient, err := blockchain.NewClient(
 		ctx,
-		options.Contracts.SettlementChain.WssURL,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
 	)
 	if err != nil {
 		return nil, err
@@ -696,7 +727,10 @@ func setupRateRegistryAdmin(
 ) (*blockchain.RatesAdmin, error) {
 	chainClient, err := blockchain.NewClient(
 		ctx,
-		options.Contracts.SettlementChain.WssURL,
+		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
 	)
 	if err != nil {
 		return nil, err

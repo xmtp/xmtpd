@@ -443,3 +443,25 @@ func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 		})
 	}
 }
+
+func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
+
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
+		TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+			Bytes(),
+		DependsOn: &envelopes.Cursor{},
+		IsCommit:  true,
+	})
+	_, err := api.PublishPayerEnvelopes(
+		context.Background(),
+		&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
+				envelopeTestUtils.CreatePayerEnvelope(t, nid, clientEnv),
+			},
+		},
+	)
+	require.ErrorContains(t, err, "published via the blockchain")
+}

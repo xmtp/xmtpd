@@ -10,8 +10,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// / Maps from a URL, as defined in https://pkg.go.dev/net/url#URL, to a gRPC target,
-// / as defined in https://github.com/grpc/grpc/blob/master/doc/naming.md
+// Maps from a URL, as defined in https://pkg.go.dev/net/url#URL, to a gRPC target,
+// as defined in https://github.com/grpc/grpc/blob/master/doc/naming.md
 func HttpAddressToGrpcTarget(httpAddress string) (string, bool, error) {
 	url, err := url.Parse(httpAddress)
 	if err != nil {

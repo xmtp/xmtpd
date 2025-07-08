@@ -2,9 +2,12 @@ package payer_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	registry2 "github.com/xmtp/xmtpd/pkg/testutils/registry"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
@@ -25,7 +28,7 @@ func TestClientManager(t *testing.T) {
 	server1, _, _ := apiTestUtils.NewTestAPIServer(t)
 	server2, _, _ := apiTestUtils.NewTestAPIServer(t)
 
-	nodeRegistry := registry.NewFixedNodeRegistry([]registry.Node{
+	mockRegistry := registry2.CreateMockRegistry(t, []registry.Node{
 		{
 			NodeID:      100,
 			HttpAddress: formatAddress(server1.Addr().String()),
@@ -36,7 +39,9 @@ func TestClientManager(t *testing.T) {
 		},
 	})
 
-	cm := payer.NewClientManager(testutils.NewLog(t), nodeRegistry, prometheus.NewClientMetrics())
+	mockRegistry.On("GetNode", uint32(300)).Maybe().Return(nil, errors.New("node not found"))
+
+	cm := payer.NewClientManager(testutils.NewLog(t), mockRegistry, prometheus.NewClientMetrics())
 
 	client1, err := cm.GetClient(100)
 	require.NoError(t, err)

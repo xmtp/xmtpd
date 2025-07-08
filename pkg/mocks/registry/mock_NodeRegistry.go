@@ -136,7 +136,7 @@ func (_c *MockNodeRegistry_GetNodes_Call) RunAndReturn(run func() ([]registry.No
 }
 
 // OnChangedNode provides a mock function with given fields: _a0
-func (_m *MockNodeRegistry) OnChangedNode(_a0 uint32) (<-chan registry.Node, registry.CancelSubscription) {
+func (_m *MockNodeRegistry) OnChangedNode(_a0 uint32) <-chan registry.Node {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -144,10 +144,6 @@ func (_m *MockNodeRegistry) OnChangedNode(_a0 uint32) (<-chan registry.Node, reg
 	}
 
 	var r0 <-chan registry.Node
-	var r1 registry.CancelSubscription
-	if rf, ok := ret.Get(0).(func(uint32) (<-chan registry.Node, registry.CancelSubscription)); ok {
-		return rf(_a0)
-	}
 	if rf, ok := ret.Get(0).(func(uint32) <-chan registry.Node); ok {
 		r0 = rf(_a0)
 	} else {
@@ -156,15 +152,7 @@ func (_m *MockNodeRegistry) OnChangedNode(_a0 uint32) (<-chan registry.Node, reg
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(uint32) registry.CancelSubscription); ok {
-		r1 = rf(_a0)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(registry.CancelSubscription)
-		}
-	}
-
-	return r0, r1
+	return r0
 }
 
 // MockNodeRegistry_OnChangedNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OnChangedNode'
@@ -185,18 +173,18 @@ func (_c *MockNodeRegistry_OnChangedNode_Call) Run(run func(_a0 uint32)) *MockNo
 	return _c
 }
 
-func (_c *MockNodeRegistry_OnChangedNode_Call) Return(_a0 <-chan registry.Node, _a1 registry.CancelSubscription) *MockNodeRegistry_OnChangedNode_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockNodeRegistry_OnChangedNode_Call) Return(_a0 <-chan registry.Node) *MockNodeRegistry_OnChangedNode_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockNodeRegistry_OnChangedNode_Call) RunAndReturn(run func(uint32) (<-chan registry.Node, registry.CancelSubscription)) *MockNodeRegistry_OnChangedNode_Call {
+func (_c *MockNodeRegistry_OnChangedNode_Call) RunAndReturn(run func(uint32) <-chan registry.Node) *MockNodeRegistry_OnChangedNode_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // OnNewNodes provides a mock function with no fields
-func (_m *MockNodeRegistry) OnNewNodes() (<-chan []registry.Node, registry.CancelSubscription) {
+func (_m *MockNodeRegistry) OnNewNodes() <-chan []registry.Node {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
@@ -204,10 +192,6 @@ func (_m *MockNodeRegistry) OnNewNodes() (<-chan []registry.Node, registry.Cance
 	}
 
 	var r0 <-chan []registry.Node
-	var r1 registry.CancelSubscription
-	if rf, ok := ret.Get(0).(func() (<-chan []registry.Node, registry.CancelSubscription)); ok {
-		return rf()
-	}
 	if rf, ok := ret.Get(0).(func() <-chan []registry.Node); ok {
 		r0 = rf()
 	} else {
@@ -216,15 +200,7 @@ func (_m *MockNodeRegistry) OnNewNodes() (<-chan []registry.Node, registry.Cance
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func() registry.CancelSubscription); ok {
-		r1 = rf()
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(registry.CancelSubscription)
-		}
-	}
-
-	return r0, r1
+	return r0
 }
 
 // MockNodeRegistry_OnNewNodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OnNewNodes'
@@ -244,12 +220,12 @@ func (_c *MockNodeRegistry_OnNewNodes_Call) Run(run func()) *MockNodeRegistry_On
 	return _c
 }
 
-func (_c *MockNodeRegistry_OnNewNodes_Call) Return(_a0 <-chan []registry.Node, _a1 registry.CancelSubscription) *MockNodeRegistry_OnNewNodes_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockNodeRegistry_OnNewNodes_Call) Return(_a0 <-chan []registry.Node) *MockNodeRegistry_OnNewNodes_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockNodeRegistry_OnNewNodes_Call) RunAndReturn(run func() (<-chan []registry.Node, registry.CancelSubscription)) *MockNodeRegistry_OnNewNodes_Call {
+func (_c *MockNodeRegistry_OnNewNodes_Call) RunAndReturn(run func() <-chan []registry.Node) *MockNodeRegistry_OnNewNodes_Call {
 	_c.Call.Return(run)
 	return _c
 }

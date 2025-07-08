@@ -69,7 +69,10 @@ func setupBlockchain(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(t.Context(), contractsOptions.SettlementChain.WssURL)
+	client, err := blockchain.NewClient(
+		t.Context(),
+		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+	)
 	require.NoError(t, err)
 
 	registryAdmin, err := blockchain.NewNodeRegistryAdmin(

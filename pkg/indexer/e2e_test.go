@@ -63,7 +63,10 @@ func messagePublisher(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsCfg.AppChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(contractsCfg.AppChain.WssURL),
+	)
 	require.NoError(t, err)
 
 	nonceManager := blockchain.NewSQLBackedNonceManager(db, testutils.NewLog(t))

@@ -46,7 +46,10 @@ func NewSettlementChain(
 	chainLogger := log.Named("settlement-chain").
 		With(zap.Int("chainID", cfg.ChainID))
 
-	client, err := blockchain.NewClient(ctxwc, cfg.WssURL)
+	client, err := blockchain.NewClient(
+		ctxwc,
+		blockchain.WithWebSocketURL(cfg.WssURL),
+	)
 	if err != nil {
 		cancel()
 		return nil, err

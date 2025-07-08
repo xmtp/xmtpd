@@ -31,7 +31,10 @@ func setupRegistry(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(ctx, contractsOptions.SettlementChain.WssURL)
+	client, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+	)
 	t.Cleanup(func() {
 		client.Close()
 	})

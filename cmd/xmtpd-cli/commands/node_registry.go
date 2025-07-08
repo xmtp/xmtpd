@@ -457,7 +457,7 @@ func setupNodeRegistryAdmin(
 
 	chainClient, err := blockchain.NewClient(
 		ctx,
-		rpcURL,
+		blockchain.WithWebSocketURL(rpcURL),
 	)
 	if err != nil {
 		return nil, err
@@ -506,7 +506,7 @@ func setupNodeRegistryCaller(
 		logger.Fatal("could not load config from file", zap.Error(err))
 	}
 
-	chainClient, err := blockchain.NewClient(ctx, rpcURL)
+	chainClient, err := blockchain.NewClient(ctx, blockchain.WithWebSocketURL(rpcURL))
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}

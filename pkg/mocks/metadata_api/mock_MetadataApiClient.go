@@ -99,6 +99,80 @@ func (_c *MockMetadataApiClient_GetSyncCursor_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetVersion provides a mock function with given fields: ctx, in, opts
+func (_m *MockMetadataApiClient) GetVersion(ctx context.Context, in *metadata_api.GetVersionRequest, opts ...grpc.CallOption) (*metadata_api.GetVersionResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVersion")
+	}
+
+	var r0 *metadata_api.GetVersionResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *metadata_api.GetVersionRequest, ...grpc.CallOption) (*metadata_api.GetVersionResponse, error)); ok {
+		return rf(ctx, in, opts...)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *metadata_api.GetVersionRequest, ...grpc.CallOption) *metadata_api.GetVersionResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*metadata_api.GetVersionResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *metadata_api.GetVersionRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockMetadataApiClient_GetVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVersion'
+type MockMetadataApiClient_GetVersion_Call struct {
+	*mock.Call
+}
+
+// GetVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *metadata_api.GetVersionRequest
+//   - opts ...grpc.CallOption
+func (_e *MockMetadataApiClient_Expecter) GetVersion(ctx interface{}, in interface{}, opts ...interface{}) *MockMetadataApiClient_GetVersion_Call {
+	return &MockMetadataApiClient_GetVersion_Call{Call: _e.mock.On("GetVersion",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *MockMetadataApiClient_GetVersion_Call) Run(run func(ctx context.Context, in *metadata_api.GetVersionRequest, opts ...grpc.CallOption)) *MockMetadataApiClient_GetVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		run(args[0].(context.Context), args[1].(*metadata_api.GetVersionRequest), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *MockMetadataApiClient_GetVersion_Call) Return(_a0 *metadata_api.GetVersionResponse, _a1 error) *MockMetadataApiClient_GetVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockMetadataApiClient_GetVersion_Call) RunAndReturn(run func(context.Context, *metadata_api.GetVersionRequest, ...grpc.CallOption) (*metadata_api.GetVersionResponse, error)) *MockMetadataApiClient_GetVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SubscribeSyncCursor provides a mock function with given fields: ctx, in, opts
 func (_m *MockMetadataApiClient) SubscribeSyncCursor(ctx context.Context, in *metadata_api.GetSyncCursorRequest, opts ...grpc.CallOption) (metadata_api.MetadataApi_SubscribeSyncCursorClient, error) {
 	_va := make([]interface{}, len(opts))

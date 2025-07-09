@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -14,20 +15,23 @@ import (
 
 type Service struct {
 	metadata_api.UnimplementedMetadataApiServer
-	ctx context.Context
-	log *zap.Logger
-	cu  CursorUpdater
+	ctx     context.Context
+	log     *zap.Logger
+	cu      CursorUpdater
+	version *semver.Version
 }
 
 func NewMetadataApiService(
 	ctx context.Context,
 	log *zap.Logger,
 	updater CursorUpdater,
+	version *semver.Version,
 ) (*Service, error) {
 	return &Service{
-		ctx: ctx,
-		log: log,
-		cu:  updater,
+		ctx:     ctx,
+		log:     log,
+		cu:      updater,
+		version: version,
 	}, nil
 }
 
@@ -87,4 +91,18 @@ func (s *Service) SubscribeSyncCursor(
 			return nil
 		}
 	}
+}
+
+func (s *Service) GetVersion(
+	_ context.Context,
+	_ *metadata_api.GetVersionRequest,
+) (*metadata_api.GetVersionResponse, error) {
+	if s.version == nil {
+		s.log.Error("version is not set")
+		return nil, status.Errorf(codes.Internal, "version is not set")
+	}
+
+	return &metadata_api.GetVersionResponse{
+		Version: s.version.String(),
+	}, nil
 }

@@ -312,6 +312,7 @@ func startAPIServer(
 				s.ctx,
 				cfg.Log,
 				s.cursorUpdater,
+				cfg.ServerVersion,
 			)
 			if err != nil {
 				return err

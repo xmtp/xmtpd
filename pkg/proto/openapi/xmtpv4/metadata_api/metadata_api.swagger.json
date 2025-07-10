@@ -88,6 +88,38 @@
           "MetadataApi"
         ]
       }
+    },
+    "/mls/v2/metadata/version": {
+      "post": {
+        "operationId": "MetadataApi_GetVersion",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetVersionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetVersionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MetadataApi"
+        ]
+      }
     }
   },
   "definitions": {
@@ -99,6 +131,17 @@
       "properties": {
         "latestSync": {
           "$ref": "#/definitions/xmtpv4envelopesCursor"
+        }
+      }
+    },
+    "metadata_apiGetVersionRequest": {
+      "type": "object"
+    },
+    "metadata_apiGetVersionResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
         }
       }
     },

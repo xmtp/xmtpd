@@ -8,6 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -201,6 +204,19 @@ backfillLoop:
 					logger.Warn("Reorg detected, rolled back to block", zap.Uint64("fromBlock", *response.NextBlockNumber))
 
 				default:
+					if isBlockPageSizeError(err) {
+						blockPageSize, err := extractBlockPageSize(err.Error())
+						if err != nil {
+							logger.Error("incorrect backfill block page size, please check your configuration", zap.Error(err))
+							continue
+						}
+
+						logger.Info("Adjusting backfill block page size", zap.Uint64("newBlockPageSize", blockPageSize))
+						r.backfillBlockPageSize = blockPageSize
+
+						continue
+					}
+
 					logger.Error(
 						"Error getting next page",
 						zap.Uint64("fromBlock", backfillFromBlockNumber),
@@ -522,4 +538,39 @@ func buildBaseFilterQuery(cfg ContractConfig) ethereum.FilterQuery {
 		Addresses: []common.Address{cfg.Address},
 		Topics:    [][]common.Hash{cfg.Topics},
 	}
+}
+
+func isBlockPageSizeError(err error) bool {
+	// This function has to be extended in the case XMTP chain is running on a different RPC provider.
+	return strings.Contains(err.Error(), "You can make eth_getLogs requests with up to a")
+}
+
+func extractBlockPageSize(s string) (uint64, error) {
+	// Example error message:
+	// You can make eth_getLogs requests with up to a 500 block range. Based on your parameters, this block range should work: [0x19a788b, 0x19a7a7e]
+	re, err := regexp.Compile(
+		`(?i)eth_getLogs\s+requests\s+with\s+up\s+to\s+a\s+(\d+)\s+block\s+range`,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to compile regex: %w", err)
+	}
+
+	matches := re.FindStringSubmatch(s)
+	if len(matches) != 2 {
+		return 0, fmt.Errorf("failed to extract block range from string: %q", s)
+	}
+
+	blockPageSize, err := strconv.ParseUint(matches[1], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse block range: %w", err)
+	}
+
+	if blockPageSize == 0 {
+		return 0, fmt.Errorf("block page size is 0")
+	}
+
+	// The error message is inclusive, so we subtract 1 to get the correct block page size.
+	blockPageSize--
+
+	return blockPageSize, nil
 }

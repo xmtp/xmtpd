@@ -31,7 +31,7 @@ WITH to_delete AS (
     WHERE expiry IS NOT NULL
       AND expiry < EXTRACT(EPOCH FROM now())::bigint
     ORDER BY expiry
-    LIMIT 1000
+    LIMIT $1
         FOR UPDATE SKIP LOCKED
 )
 DELETE FROM gateway_envelopes ge
@@ -47,8 +47,8 @@ type DeleteExpiredEnvelopesBatchRow struct {
 	Expiry               sql.NullInt64
 }
 
-func (q *Queries) DeleteExpiredEnvelopesBatch(ctx context.Context) ([]DeleteExpiredEnvelopesBatchRow, error) {
-	rows, err := q.db.QueryContext(ctx, deleteExpiredEnvelopesBatch)
+func (q *Queries) DeleteExpiredEnvelopesBatch(ctx context.Context, batchSize int32) ([]DeleteExpiredEnvelopesBatchRow, error) {
+	rows, err := q.db.QueryContext(ctx, deleteExpiredEnvelopesBatch, batchSize)
 	if err != nil {
 		return nil, err
 	}

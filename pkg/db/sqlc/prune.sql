@@ -11,7 +11,7 @@ WITH to_delete AS (
     WHERE expiry IS NOT NULL
       AND expiry < EXTRACT(EPOCH FROM now())::bigint
     ORDER BY expiry
-    LIMIT 1000
+    LIMIT @batch_size
         FOR UPDATE SKIP LOCKED
 )
 DELETE FROM gateway_envelopes ge

@@ -26,7 +26,7 @@ func NewPruneExecutor(
 	writerDB *sql.DB,
 	config *config.PruneConfig,
 ) *Executor {
-	if config.BatchSize < 0 {
+	if config.BatchSize <= 0 {
 		log.Panic("Batch size must be greater than 0")
 	}
 

@@ -288,6 +288,10 @@ backfillLoop:
 			logger.Info("backfilling page", zap.Uint64("fromBlock", backfillFromBlockNumber))
 			logs, err := r.backfillPage(r.ctx, cfg, backfillFromBlockNumber)
 			if err != nil {
+				if err == ErrEndOfBackfill {
+					continue
+				}
+
 				logger.Error("failed to backfill page, closing", zap.Error(err))
 				return
 			}

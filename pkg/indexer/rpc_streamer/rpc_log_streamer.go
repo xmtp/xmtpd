@@ -189,10 +189,9 @@ backfillLoop:
 			logger.Error("Context cancelled, stopping watcher")
 			return
 
-		case err, open := <-sub.Err():
-			if !open {
-				logger.Error("subscription channel closed, closing watcher")
-				return
+		case err := <-sub.Err():
+			if err == nil {
+				continue
 			}
 
 			logger.Error("subscription error, rebuilding", zap.Error(err))
@@ -274,10 +273,9 @@ backfillLoop:
 			logger.Error("Context cancelled, stopping watcher")
 			return
 
-		case err, open := <-sub.Err():
-			if !open {
-				logger.Error("subscription channel closed, closing watcher")
-				return
+		case err := <-sub.Err():
+			if err == nil {
+				continue
 			}
 
 			logger.Error("subscription error, rebuilding", zap.Error(err))
@@ -287,6 +285,7 @@ backfillLoop:
 				return
 			}
 
+			logger.Info("backfilling page", zap.Uint64("fromBlock", backfillFromBlockNumber))
 			logs, err := r.backfillPage(r.ctx, cfg, backfillFromBlockNumber)
 			if err != nil {
 				logger.Error("failed to backfill page, closing", zap.Error(err))

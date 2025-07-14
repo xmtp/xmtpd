@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	"math"
 	"time"
 
@@ -376,11 +377,10 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
-	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 && payerEnv.ClientEnvelope.Aad().IsCommit {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"commit messages must be published via the blockchain",
-		)
+	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 {
+		if err = s.validateGroupMessage(ctx, &payerEnv.ClientEnvelope); err != nil {
+			return nil, err
+		}
 	}
 
 	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
@@ -576,6 +576,44 @@ func (s *Service) validateKeyPackage(
 
 	if !validationResult[0].IsOk {
 		return status.Errorf(codes.InvalidArgument, "key package validation failed")
+	}
+
+	return nil
+}
+
+func (s *Service) validateGroupMessage(
+	ctx context.Context,
+	clientEnv *envelopes.ClientEnvelope,
+) error {
+	if clientEnv.Aad().IsCommit {
+		return status.Errorf(
+			codes.InvalidArgument,
+			"commit messages must be published via the blockchain",
+		)
+	}
+
+	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_GroupMessage)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "invalid payload type")
+	}
+
+	validationResult, err := s.validationService.ValidateGroupMessages(
+		ctx,
+		[]*mlsv1.GroupMessageInput{payload.GroupMessage},
+	)
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not validate group message: %v", err)
+	}
+
+	if len(validationResult) == 0 {
+		return status.Errorf(codes.Internal, "no validation results")
+	}
+
+	if validationResult[0].IsCommit {
+		return status.Errorf(
+			codes.InvalidArgument,
+			"commit messages must be published via the blockchain",
+		)
 	}
 
 	return nil

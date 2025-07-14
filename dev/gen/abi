@@ -49,7 +49,9 @@ function download_release_artifacts() {
 }
 
 function gen_go_bindings() {
-    local package="$(echo "${contract}" | tr '[:upper:]' '[:lower:]')"
+    local package
+    package="$(echo "${contract}" | tr '[:upper:]' '[:lower:]')"
+
     local package_dir="${abi_dir}/${package}"
     local output_artifact="${package_dir}/${contract}.go"
 

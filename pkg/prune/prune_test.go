@@ -65,6 +65,8 @@ func makeTestExecutor(
 	db *sql.DB,
 	config *config.PruneConfig,
 ) *prune.Executor {
+	config.BatchSize = 1000
+
 	return prune.NewPruneExecutor(
 		ctx,
 		testutils.NewLog(t),

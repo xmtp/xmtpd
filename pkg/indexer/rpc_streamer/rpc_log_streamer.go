@@ -207,8 +207,17 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				if err != nil {
 					switch err {
 					case ErrEndOfBackfill:
-						for _, log := range response.Logs {
-							cfg.eventChannel <- log
+						if response.NextBlockNumber != nil {
+							backfillFromBlockNumber = *response.NextBlockNumber
+							backfillFromBlockHash = response.NextBlockHash
+						}
+
+						if len(response.Logs) > 0 {
+							for _, log := range response.Logs {
+								cfg.eventChannel <- log
+							}
+						} else {
+							cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
 						}
 
 						logger.Info("Backfill complete, switching to subscription.")

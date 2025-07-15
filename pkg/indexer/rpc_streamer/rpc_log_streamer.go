@@ -182,151 +182,136 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 		return
 	}
 
-backfillLoop:
 	for {
-		select {
-		case <-r.ctx.Done():
-			logger.Error("Context cancelled, stopping watcher")
-			return
-
-		case err := <-sub.Err():
-			if err == nil {
-				continue
-			}
-
-			logger.Error("subscription error, rebuilding", zap.Error(err))
-			sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
-			if err != nil {
-				logger.Error("failed to rebuild subscription, closing", zap.Error(err))
+	backfillLoop:
+		for {
+			select {
+			case <-r.ctx.Done():
+				logger.Error("Context cancelled, stopping watcher")
 				return
-			}
 
-		default:
-			response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
-			if err != nil {
-				switch err {
-				case ErrEndOfBackfill:
-					for _, log := range response.Logs {
-						cfg.eventChannel <- log
-					}
+			case err := <-sub.Err():
+				if err == nil {
+					continue
+				}
 
-					logger.Info("Backfill complete, switching to subscription.")
-					break backfillLoop
+				logger.Error("subscription error, rebuilding", zap.Error(err))
+				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
+				if err != nil {
+					logger.Error("failed to rebuild subscription, closing", zap.Error(err))
+					r.Stop()
+				}
 
-				case ErrReorg:
-					logger.Warn("Reorg detected, rolled back to block", zap.Uint64("fromBlock", *response.NextBlockNumber))
+			default:
+				response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
+				if err != nil {
+					switch err {
+					case ErrEndOfBackfill:
+						for _, log := range response.Logs {
+							cfg.eventChannel <- log
+						}
 
-				default:
-					if isBlockPageSizeError(err) {
-						blockPageSize, err := extractBlockPageSize(err.Error())
-						if err != nil {
-							logger.Error("incorrect backfill block page size, please check your configuration", zap.Error(err))
+						logger.Info("Backfill complete, switching to subscription.")
+						break backfillLoop
+
+					case ErrReorg:
+						logger.Warn("Reorg detected, rolled back to block", zap.Uint64("fromBlock", *response.NextBlockNumber))
+
+					default:
+						if isBlockPageSizeError(err) {
+							blockPageSize, err := extractBlockPageSize(err.Error())
+							if err != nil {
+								logger.Error("incorrect backfill block page size, please check your configuration", zap.Error(err))
+								continue
+							}
+
+							logger.Info("Adjusting backfill block page size", zap.Uint64("newBlockPageSize", blockPageSize))
+							r.backfillBlockPageSize = blockPageSize
+
 							continue
 						}
 
-						logger.Info("Adjusting backfill block page size", zap.Uint64("newBlockPageSize", blockPageSize))
-						r.backfillBlockPageSize = blockPageSize
+						logger.Error(
+							"Error getting next page",
+							zap.Uint64("fromBlock", backfillFromBlockNumber),
+							zap.Error(err),
+						)
 
+						time.Sleep(sleepTimeOnError)
 						continue
 					}
+				}
 
-					logger.Error(
-						"Error getting next page",
-						zap.Uint64("fromBlock", backfillFromBlockNumber),
-						zap.Error(err),
-					)
+				if response.NextBlockNumber != nil {
+					backfillFromBlockNumber = *response.NextBlockNumber
+					backfillFromBlockHash = response.NextBlockHash
+				}
 
-					time.Sleep(sleepTimeOnError)
+				if len(response.Logs) == 0 {
+					cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
 					continue
 				}
-			}
 
-			if response.NextBlockNumber != nil {
-				backfillFromBlockNumber = *response.NextBlockNumber
-				backfillFromBlockHash = response.NextBlockHash
-			}
+				logger.Debug(
+					"Got logs",
+					zap.Int("numLogs", len(response.Logs)),
+					zap.Uint64("fromBlock", backfillFromBlockNumber),
+					zap.Time("time", time.Now()),
+				)
 
-			if len(response.Logs) == 0 {
-				cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
-				continue
-			}
-
-			logger.Debug(
-				"Got logs",
-				zap.Int("numLogs", len(response.Logs)),
-				zap.Uint64("fromBlock", backfillFromBlockNumber),
-				zap.Time("time", time.Now()),
-			)
-
-			for _, log := range response.Logs {
-				cfg.eventChannel <- log
+				for _, log := range response.Logs {
+					cfg.eventChannel <- log
+				}
 			}
 		}
-	}
 
-	// From now on we are operating on the subscription, and we no longer check what the highest block is.
-	metrics.EmitIndexerCurrentBlockLag(cfg.Address.Hex(), 0)
+		// From now on we are operating on the subscription, and we no longer check what the highest block is.
+		metrics.EmitIndexerCurrentBlockLag(cfg.Address.Hex(), 0)
 
-	for {
-		select {
-		case <-r.ctx.Done():
-			logger.Error("Context cancelled, stopping watcher")
-			return
-
-		case err := <-sub.Err():
-			if err == nil {
-				continue
-			}
-
-			logger.Error("subscription error, rebuilding", zap.Error(err))
-			sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
-			if err != nil {
-				logger.Error("failed to rebuild subscription, closing", zap.Error(err))
+	subscriptionLoop:
+		for {
+			select {
+			case <-r.ctx.Done():
+				logger.Error("Context cancelled, stopping watcher")
 				return
-			}
 
-			logger.Info("backfilling page", zap.Uint64("fromBlock", backfillFromBlockNumber))
-			logs, err := r.backfillPage(r.ctx, cfg, backfillFromBlockNumber)
-			if err != nil {
-				if err == ErrEndOfBackfill {
+			case err := <-sub.Err():
+				if err == nil {
 					continue
 				}
 
-				logger.Error("failed to backfill page, closing", zap.Error(err))
-				return
-			}
+				logger.Error("subscription error, rebuilding", zap.Error(err))
+				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
+				if err != nil {
+					logger.Error("failed to rebuild subscription, closing", zap.Error(err))
+					r.Stop()
+				}
 
-			logger.Debug(
-				"Got logs",
-				zap.Int("numLogs", len(logs)),
-				zap.Uint64("fromBlock", backfillFromBlockNumber),
-				zap.Time("time", time.Now()),
-			)
+				// Backfill everything that was missed.
+				break subscriptionLoop
 
-			for _, log := range logs {
+			case log, open := <-innerSubCh:
+				if !open {
+					logger.Error("subscription channel closed, closing watcher")
+					return
+				}
+
+				backfillFromBlockNumber = log.BlockNumber
+				backfillFromBlockHash = log.BlockHash.Bytes()
+
+				logger.Debug(
+					"Received log from subscription channel",
+					zap.Uint64("blockNumber", log.BlockNumber),
+				)
+
+				metrics.EmitIndexerCurrentBlock(cfg.Address.Hex(), log.BlockNumber)
+				metrics.EmitIndexerNumLogsFound(cfg.Address.Hex(), 1)
+				metrics.EmitIndexerMaxBlock(cfg.Address.Hex(), log.BlockNumber)
+
+				// TODO: Implement timelocking for logs in chains with lagFromHighestBlock > 0.
+
 				cfg.eventChannel <- log
 			}
-
-		case log, open := <-innerSubCh:
-			if !open {
-				logger.Error("subscription channel closed, closing watcher")
-				return
-			}
-
-			backfillFromBlockNumber = log.BlockNumber
-
-			logger.Debug(
-				"Received log from subscription channel",
-				zap.Uint64("blockNumber", log.BlockNumber),
-			)
-
-			metrics.EmitIndexerCurrentBlock(cfg.Address.Hex(), log.BlockNumber)
-			metrics.EmitIndexerNumLogsFound(cfg.Address.Hex(), 1)
-			metrics.EmitIndexerMaxBlock(cfg.Address.Hex(), log.BlockNumber)
-
-			// TODO: Implement timelocking for logs in chains with lagFromHighestBlock > 0.
-
-			cfg.eventChannel <- log
 		}
 	}
 }
@@ -435,49 +420,6 @@ func (r *RPCLogStreamer) GetNextPage(
 	}, nil
 }
 
-// backfillPage is a trimmed down version of GetNextPage,
-// which will always backfill from the from block to the highest block.
-func (r *RPCLogStreamer) backfillPage(
-	ctx context.Context,
-	cfg *ContractConfig,
-	from uint64,
-) ([]types.Log, error) {
-	r.logger.Debug(
-		"Backfilling page",
-		zap.Uint64("fromBlockNumber", from),
-	)
-
-	contractAddress := cfg.Address.Hex()
-
-	highestBlock, err := r.client.BlockNumber(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
-
-	if from > highestBlock {
-		return nil, ErrEndOfBackfill
-	}
-
-	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-from)
-
-	logs, err := metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
-		return r.client.FilterLogs(
-			ctx,
-			buildFilterQuery(*cfg, from, highestBlock),
-		)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	metrics.EmitIndexerCurrentBlock(contractAddress, highestBlock)
-	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
-
-	return logs, nil
-}
-
 func (r *RPCLogStreamer) buildSubscription(
 	cfg *ContractConfig,
 	innerSubCh chan types.Log,
@@ -507,6 +449,9 @@ func (r *RPCLogStreamer) buildSubscription(
 	return sub, nil
 }
 
+// buildSubscriptionWithBackoff builds a subscription with backoff.
+// It guarantees the indexer is not disconnected from the chain for
+// more than cfg.MaxDisconnectTime.
 func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 	cfg *ContractConfig,
 	innerSubCh chan types.Log,

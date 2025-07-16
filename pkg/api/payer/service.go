@@ -6,6 +6,9 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
+
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -40,6 +43,7 @@ type Service struct {
 	nodeSelector        NodeSelectorAlgorithm
 	nodeCursorTracker   *NodeCursorTracker
 	nodeRegistry        registry.NodeRegistry
+	validationService   mlsvalidate.MLSValidationService
 }
 
 func NewPayerApiService(
@@ -50,6 +54,7 @@ func NewPayerApiService(
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	metadataApiClient MetadataApiClientConstructor,
 	clientMetrics *grpcprom.ClientMetrics,
+	validationService mlsvalidate.MLSValidationService,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
@@ -72,6 +77,7 @@ func NewPayerApiService(
 		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, metadataClient),
 		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: nodeRegistry},
 		nodeRegistry:        nodeRegistry,
+		validationService:   validationService,
 	}, nil
 }
 
@@ -169,15 +175,15 @@ func (s *Service) PublishClientEnvelopes(
 // A struct that groups client envelopes by their intended destination
 type groupedEnvelopes struct {
 	// Mapping of originator ID to a list of client envelopes targeting that originator
-	forNodes map[uint32][]clientEnvelopeWithIndex
+	forNodes map[uint32][]ClientEnvelopeWithIndex
 	// Messages meant to be sent to the blockchain
-	forBlockchain []clientEnvelopeWithIndex
+	forBlockchain []ClientEnvelopeWithIndex
 }
 
 func (s *Service) groupEnvelopes(
 	rawEnvelopes []*envelopesProto.ClientEnvelope,
 ) (*groupedEnvelopes, error) {
-	out := groupedEnvelopes{forNodes: make(map[uint32][]clientEnvelopeWithIndex)}
+	out := groupedEnvelopes{forNodes: make(map[uint32][]ClientEnvelopeWithIndex)}
 
 	for i, rawClientEnvelope := range rawEnvelopes {
 		clientEnvelope, err := envelopes.NewClientEnvelope(rawClientEnvelope)
@@ -197,21 +203,33 @@ func (s *Service) groupEnvelopes(
 				i,
 			)
 		}
-		targetTopic := clientEnvelope.TargetTopic()
-		aad := clientEnvelope.Aad()
 
-		if shouldSendToBlockchain(targetTopic, aad) {
+		sendToBlockchain, isCommit, err := s.shouldSendToBlockchain(clientEnvelope)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.InvalidArgument,
+				"Could not determine if client envelope at index %d should be sent to blockchain: %v",
+				i,
+				err,
+			)
+		}
+
+		if sendToBlockchain {
 			out.forBlockchain = append(
 				out.forBlockchain,
-				newClientEnvelopeWithIndex(i, clientEnvelope),
+				ClientEnvelopeWithIndex{
+					originalIndex: i,
+					payload:       clientEnvelope,
+					isCommit:      isCommit,
+				},
 			)
 		} else {
-			targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+			targetNodeId, err := s.nodeSelector.GetNode(clientEnvelope.TargetTopic())
 			if err != nil {
 				return nil, err
 			}
 
-			out.forNodes[targetNodeId] = append(out.forNodes[targetNodeId], newClientEnvelopeWithIndex(i, clientEnvelope))
+			out.forNodes[targetNodeId] = append(out.forNodes[targetNodeId], ClientEnvelopeWithIndex{originalIndex: i, payload: clientEnvelope, isCommit: isCommit})
 		}
 	}
 
@@ -221,7 +239,7 @@ func (s *Service) groupEnvelopes(
 func (s *Service) publishToNodeWithRetry(
 	ctx context.Context,
 	originatorID uint32,
-	indexedEnvelopes []clientEnvelopeWithIndex,
+	indexedEnvelopes []ClientEnvelopeWithIndex,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	var banlist []uint32
 	var result []*envelopesProto.OriginatorEnvelope
@@ -260,7 +278,7 @@ func (s *Service) publishToNodeWithRetry(
 func (s *Service) publishToNodes(
 	ctx context.Context,
 	originatorID uint32,
-	indexedEnvelopes []clientEnvelopeWithIndex,
+	indexedEnvelopes []ClientEnvelopeWithIndex,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	conn, err := s.clientManager.GetClient(originatorID)
 	if err != nil {
@@ -456,11 +474,11 @@ func buildUnsignedOriginatorEnvelopeFromChain(
 }
 
 func (s *Service) signAllClientEnvelopes(originatorID uint32,
-	indexedEnvelopes []clientEnvelopeWithIndex,
+	indexedEnvelopes []ClientEnvelopeWithIndex,
 ) ([]*envelopesProto.PayerEnvelope, error) {
 	out := make([]*envelopesProto.PayerEnvelope, len(indexedEnvelopes))
 	for i, indexedEnvelope := range indexedEnvelopes {
-		envelope, err := s.signClientEnvelope(originatorID, indexedEnvelope.payload)
+		envelope, err := s.signClientEnvelope(originatorID, indexedEnvelope)
 		if err != nil {
 			return nil, err
 		}
@@ -470,9 +488,9 @@ func (s *Service) signAllClientEnvelopes(originatorID uint32,
 }
 
 func (s *Service) signClientEnvelope(originatorID uint32,
-	clientEnvelope *envelopes.ClientEnvelope,
+	clientEnvelope ClientEnvelopeWithIndex,
 ) (*envelopesProto.PayerEnvelope, error) {
-	envelopeBytes, err := clientEnvelope.Bytes()
+	envelopeBytes, err := clientEnvelope.payload.Bytes()
 	if err != nil {
 		return nil, err
 	}
@@ -489,15 +507,15 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		},
 		TargetOriginator: originatorID,
 		MessageRetentionDays: determineRetentionPolicy(
-			clientEnvelope.TargetTopic(),
-			clientEnvelope.Aad(),
+			clientEnvelope.payload.TargetTopic(),
+			clientEnvelope.isCommit,
 		),
 	}, nil
 }
 
 func determineRetentionPolicy(
 	targetTopic topic.Topic,
-	aad *envelopesProto.AuthenticatedData,
+	isCommit *bool,
 ) uint32 {
 	// TODO: mkysel determine expiration for welcomes and key packages
 
@@ -505,7 +523,10 @@ func determineRetentionPolicy(
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		panic("should not be called for identity updates")
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		if aad.GetIsCommit() {
+		if isCommit == nil {
+			panic("isCommit should not be nil for group messages")
+		}
+		if *isCommit {
 			panic("should not be called for commits")
 		}
 	}
@@ -513,29 +534,38 @@ func determineRetentionPolicy(
 	return constants.DEFAULT_STORAGE_DURATION_DAYS
 }
 
-func shouldSendToBlockchain(targetTopic topic.Topic, aad *envelopesProto.AuthenticatedData) bool {
-	switch targetTopic.Kind() {
+func (s *Service) shouldSendToBlockchain(
+	clientEnvelope *envelopes.ClientEnvelope,
+) (bool, *bool, error) {
+	switch clientEnvelope.TargetTopic().Kind() {
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		return true
+		return true, nil, nil
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		return aad.GetIsCommit()
+		switch payload := clientEnvelope.Payload().(type) {
+		case *envelopesProto.ClientEnvelope_GroupMessage:
+			groupInputs := []*mlsv1.GroupMessageInput{payload.GroupMessage}
+			result, err := s.validationService.ValidateGroupMessages(s.ctx, groupInputs)
+			if err != nil {
+				return false, nil, err
+			}
+			if len(result) != 1 {
+				return false, nil, status.Errorf(codes.InvalidArgument, "invalid number of group messages")
+			}
+
+			return result[0].IsCommit, &result[0].IsCommit, nil
+
+		default:
+			panic("mismatched payload type")
+		}
+
 	default:
-		return false
+		return false, nil, nil
 	}
 }
 
 // Wrap a ClientEnvelope in a type that retains the original index from the request inputs
-type clientEnvelopeWithIndex struct {
+type ClientEnvelopeWithIndex struct {
 	originalIndex int
 	payload       *envelopes.ClientEnvelope
-}
-
-func newClientEnvelopeWithIndex(
-	index int,
-	payload *envelopes.ClientEnvelope,
-) clientEnvelopeWithIndex {
-	return clientEnvelopeWithIndex{
-		originalIndex: index,
-		payload:       payload,
-	}
+	isCommit      *bool
 }

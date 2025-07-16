@@ -376,13 +376,6 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
-	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 && payerEnv.ClientEnvelope.Aad().IsCommit {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"commit messages must be published via the blockchain",
-		)
-	}
-
 	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
 		if err = s.validateKeyPackage(ctx, &payerEnv.ClientEnvelope); err != nil {
 			return nil, err

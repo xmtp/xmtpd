@@ -65,7 +65,7 @@ func TestGetReaderNode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			svc, _, registryMocks, _ := buildPayerService(t)
+			svc, _, registryMocks, _, _ := buildPayerService(t)
 
 			registryMocks.On("GetNodes").Return(tt.nodes, tt.registryError)
 

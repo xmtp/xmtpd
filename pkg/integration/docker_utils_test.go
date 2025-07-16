@@ -30,7 +30,6 @@ import (
 const (
 	testFlag          = "ENABLE_INTEGRATION_TESTS"
 	XDBG_IMAGE        = "ghcr.io/xmtp/xdbg:sha-78a5ac2"
-	XMTP_NETWORK_NAME = "integration-test-network"
 )
 
 func skipIfNotEnabled() {

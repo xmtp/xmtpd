@@ -105,7 +105,6 @@ func TestInvalidClientEnvelope(t *testing.T) {
 
 func buildAad(topic *topic.Topic) *envelopesProto.AuthenticatedData {
 	return &envelopesProto.AuthenticatedData{
-		IsCommit:    true,
 		TargetTopic: topic.Bytes(),
 		DependsOn:   &envelopesProto.Cursor{},
 	}

@@ -208,7 +208,7 @@ func NewReplicationServer(
 		}
 	}
 
-	if cfg.Options.Indexer.Enable || cfg.Options.Replication.Enable {
+	if cfg.Options.Indexer.Enable || cfg.Options.Replication.Enable || cfg.Options.Payer.Enable {
 		s.validationService, err = mlsvalidate.NewMlsValidationService(
 			cfg.Ctx,
 			cfg.Log,
@@ -366,6 +366,7 @@ func startAPIServer(
 				blockchainPublisher,
 				nil,
 				clientMetrics,
+				s.validationService,
 			)
 			if err != nil {
 				return err

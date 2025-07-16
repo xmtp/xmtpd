@@ -5,6 +5,10 @@ import (
 	"testing"
 	"time"
 
+	mlsvalidate2 "github.com/xmtp/xmtpd/pkg/mlsvalidate"
+
+	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
+
 	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -68,7 +72,7 @@ func (m *MockSubscribeSyncCursorClient) Recv() (*metadata_api.GetSyncCursorRespo
 
 func buildPayerService(
 	t *testing.T,
-) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient) {
+) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient, *mlsvalidate.MockMLSValidationService) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	log := testutils.NewLog(t)
@@ -78,6 +82,8 @@ func buildPayerService(
 
 	require.NoError(t, err)
 	mockMessagePublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
+
+	mockMLSvalidation := mlsvalidate.NewMockMLSValidationService(t)
 
 	metaMocks := metadataMocks.NewMockMetadataApiClient(t)
 	payerService, err := payer.NewPayerApiService(
@@ -90,15 +96,16 @@ func buildPayerService(
 			mockClient: metaMocks,
 		},
 		nil,
+		mockMLSvalidation,
 	)
 	require.NoError(t, err)
 
-	return payerService, mockMessagePublisher, mockRegistry, metaMocks
+	return payerService, mockMessagePublisher, mockRegistry, metaMocks, mockMLSvalidation
 }
 
 func TestPublishIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
-	svc, mockMessagePublisher, registryMocks, metaMocks := buildPayerService(t)
+	svc, mockMessagePublisher, registryMocks, metaMocks, _ := buildPayerService(t)
 
 	inboxId := testutils.RandomInboxId()
 	inboxIdBytes, err := utils.ParseInboxId(inboxId)
@@ -176,7 +183,7 @@ func TestPublishToNodes(t *testing.T) {
 	originatorServer, _, _ := apiTestUtils.NewTestAPIServer(t)
 
 	ctx := context.Background()
-	svc, _, mockRegistry, _ := buildPayerService(t)
+	svc, _, mockRegistry, _, mockValidation := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
 		HttpAddress: formatAddress(originatorServer.Addr().String()),
@@ -185,6 +192,12 @@ func TestPublishToNodes(t *testing.T) {
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		testutils.GetHealthyNode(100),
 	}, nil)
+
+	mockValidation.EXPECT().
+		ValidateGroupMessages(mock.Anything, mock.Anything).
+		Return([]mlsvalidate2.GroupMessageValidationResult{
+			{IsCommit: false},
+		}, nil)
 
 	groupId := testutils.RandomGroupID()
 	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(

@@ -176,7 +176,8 @@ func (s *MLSValidationServiceImpl) ValidateGroupMessages(
 			return nil, fmt.Errorf("validation failed with error %s", response.ErrorMessage)
 		}
 		out[i] = GroupMessageValidationResult{
-			GroupId: response.GroupId,
+			GroupId:  response.GroupId,
+			IsCommit: response.IsCommit,
 		}
 	}
 

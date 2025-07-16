@@ -164,7 +164,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	readers := map[string]ISourceReader{
 		groupMessagesTableName:   NewGroupMessageReader(reader),
 		inboxLogTableName:        NewInboxLogReader(reader),
-		installationsTableName:   NewInstallationReader(reader),
+		keyPackagesTableName:     NewKeyPackageReader(reader),
 		welcomeMessagesTableName: NewWelcomeMessageReader(reader),
 	}
 

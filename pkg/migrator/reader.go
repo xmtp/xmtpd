@@ -108,23 +108,23 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 	}
 }
 
-type InstallationReader struct {
-	*DBReader[*Installation]
+type KeyPackageReader struct {
+	*DBReader[*KeyPackage]
 }
 
-func NewInstallationReader(db *sql.DB) *InstallationReader {
+func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 	query := `
-		SELECT id, created_at, updated_at, key_package
-		FROM installations
-		WHERE created_at > $1
-		ORDER BY created_at ASC
+		SELECT sequence_id, installation_id, key_package
+		FROM key_packages
+		WHERE sequence_id > $1
+		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
-	return &InstallationReader{
+	return &KeyPackageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
-			func() *Installation { return &Installation{} },
+			func() *KeyPackage { return &KeyPackage{} },
 		),
 	}
 }

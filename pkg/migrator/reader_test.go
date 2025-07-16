@@ -114,13 +114,13 @@ func TestInboxLogReader(t *testing.T) {
 	}
 }
 
-func TestInstallationReader(t *testing.T) {
+func TestKeyPackageReader(t *testing.T) {
 	ctx := t.Context()
 
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewInstallationReader(db)
+	reader := migrator.NewKeyPackageReader(db)
 
 	cases := []struct {
 		name      string
@@ -138,19 +138,19 @@ func TestInstallationReader(t *testing.T) {
 			name:      "Fetch 5",
 			lastID:    0,
 			limit:     5,
-			wantMaxID: 1717242270261135027,
+			wantMaxID: 5,
 		},
 		{
 			name:      "Fetch 10",
 			lastID:    5,
 			limit:     10,
-			wantMaxID: 1717473253760941762,
+			wantMaxID: 15,
 		},
 		{
 			name:      "Fetch all",
 			lastID:    10,
 			limit:     9999,
-			wantMaxID: 1717490371754970003, // Max ID in the test data
+			wantMaxID: 19,
 		},
 	}
 
@@ -161,7 +161,7 @@ func TestInstallationReader(t *testing.T) {
 			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
-				require.IsType(t, &migrator.Installation{}, record)
+				require.IsType(t, &migrator.KeyPackage{}, record)
 			}
 		})
 	}

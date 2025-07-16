@@ -1,7 +1,6 @@
-CREATE TABLE installations(
-	id BYTEA PRIMARY KEY,
-	created_at BIGINT NOT NULL,
-	updated_at BIGINT NOT NULL,
+CREATE TABLE key_packages(
+	sequence_id BIGSERIAL PRIMARY KEY,
+	installation_id BYTEA NOT NULL,
 	key_package BYTEA NOT NULL
 );
 

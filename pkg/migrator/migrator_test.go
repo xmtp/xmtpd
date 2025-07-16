@@ -28,8 +28,8 @@ const (
 	inboxLogLastID       int64 = 19
 	welcomeMessageAmount int64 = 19
 	welcomeMessageLastID int64 = 19
-	installationAmount   int64 = 19
-	installationLastID   int64 = 1717490371754970003
+	keyPackageAmount     int64 = 19
+	keyPackageLastID     int64 = 19
 
 	mlsValidationServiceAddress = "http://localhost:60051"
 )
@@ -135,7 +135,7 @@ func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
 	require.Equal(t, groupMessageLastID, state["group_messages"])
 	require.Equal(t, welcomeMessageLastID, state["welcome_messages"])
 	require.Equal(t, inboxLogLastID, state["inbox_log"])
-	require.Equal(t, installationLastID, state["installations"])
+	require.Equal(t, keyPackageLastID, state["key_packages"])
 }
 
 func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) {
@@ -160,11 +160,11 @@ func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) 
 		int32(migrator.WelcomeMessageOriginatorID),
 	))
 
-	require.Equal(t, installationLastID, getGatewayEnvelopesLastSequenceID(
+	require.Equal(t, keyPackageLastID, getGatewayEnvelopesLastSequenceID(
 		t,
 		ctx,
 		db,
-		int32(migrator.InstallationOriginatorID),
+		int32(migrator.KeyPackagesOriginatorID),
 	))
 }
 
@@ -190,11 +190,11 @@ func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *
 		int32(migrator.WelcomeMessageOriginatorID),
 	))
 
-	require.Equal(t, installationAmount, getGatewayEnvelopesAmount(
+	require.Equal(t, keyPackageAmount, getGatewayEnvelopesAmount(
 		t,
 		ctx,
 		db,
-		int32(migrator.InstallationOriginatorID),
+		int32(migrator.KeyPackagesOriginatorID),
 	))
 }
 
@@ -220,11 +220,11 @@ func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.D
 		int32(migrator.WelcomeMessageOriginatorID),
 	))
 
-	require.Equal(t, installationAmount, getGatewayEnvelopesUniqueAmount(
+	require.Equal(t, keyPackageAmount, getGatewayEnvelopesUniqueAmount(
 		t,
 		ctx,
 		db,
-		int32(migrator.InstallationOriginatorID),
+		int32(migrator.KeyPackagesOriginatorID),
 	))
 }
 

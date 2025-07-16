@@ -51,13 +51,13 @@ func (t *Transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnve
 
 		return t.TransformInboxLog(data)
 
-	case installationsTableName:
-		data, ok := record.(*Installation)
+	case keyPackagesTableName:
+		data, ok := record.(*KeyPackage)
 		if !ok {
 			return nil, fmt.Errorf("invalid record type: %T", record)
 		}
 
-		return t.TransformInstallation(data)
+		return t.TransformKeyPackage(data)
 
 	case welcomeMessagesTableName:
 		data, ok := record.(*WelcomeMessage)
@@ -154,15 +154,15 @@ func (t *Transformer) TransformInboxLog(
 	)
 }
 
-// TransformInstallation converts Installation to appropriate XMTPD KeyPackage envelope format.
-func (t *Transformer) TransformInstallation(
-	installation *Installation,
+// TransformKeyPackage converts a V3 KeyPackage to appropriate XMTPD KeyPackage envelope format.
+func (t *Transformer) TransformKeyPackage(
+	keyPackage *KeyPackage,
 ) (*envelopes.OriginatorEnvelope, error) {
-	if installation == nil {
-		return nil, fmt.Errorf("installation is nil")
+	if keyPackage == nil {
+		return nil, fmt.Errorf("keyPackage is nil")
 	}
 
-	if len(installation.KeyPackage) <= 0 {
+	if len(keyPackage.KeyPackage) <= 0 {
 		return nil, fmt.Errorf("keyPackage is empty")
 	}
 
@@ -170,20 +170,20 @@ func (t *Transformer) TransformInstallation(
 		Payload: &proto.ClientEnvelope_UploadKeyPackage{
 			UploadKeyPackage: &mlsv1.UploadKeyPackageRequest{
 				KeyPackage: &mlsv1.KeyPackageUpload{
-					KeyPackageTlsSerialized: installation.KeyPackage,
+					KeyPackageTlsSerialized: keyPackage.KeyPackage,
 				},
 			},
 		},
 		Aad: &proto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, installation.ID[:]).
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, keyPackage.InstallationID[:]).
 				Bytes(),
 		},
 	}
 
 	return t.originatorEnvelope(
 		protoClientEnvelope,
-		InstallationOriginatorID,
-		uint64(installation.CreatedAt),
+		KeyPackagesOriginatorID,
+		uint64(keyPackage.SequenceID),
 	)
 }
 
@@ -281,7 +281,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 
 	// group messages and identity updates are stored forever (MaxUint32).
 	// welcome messages and installations are stored for the default duration.
-	if originatorID == InstallationOriginatorID || originatorID == WelcomeMessageOriginatorID {
+	if originatorID == KeyPackagesOriginatorID || originatorID == WelcomeMessageOriginatorID {
 		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
 	}
 

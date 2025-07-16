@@ -206,10 +206,10 @@ func TestTransformInboxLog(t *testing.T) {
 	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
 }
 
-func TestTransformInstallation(t *testing.T) {
+func TestTransformKeyPackage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewInstallationReader(test.db)
+		reader = migrator.NewKeyPackageReader(test.db)
 	)
 
 	defer test.cleanup()
@@ -217,9 +217,9 @@ func TestTransformInstallation(t *testing.T) {
 	records, _, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
-	require.IsType(t, &migrator.Installation{}, records[0])
+	require.IsType(t, &migrator.KeyPackage{}, records[0])
 
-	migratedInstallation, ok := records[0].(*migrator.Installation)
+	migratedInstallation, ok := records[0].(*migrator.KeyPackage)
 	require.True(t, ok)
 
 	envelope, err := test.transformer.Transform(migratedInstallation)
@@ -230,14 +230,14 @@ func TestTransformInstallation(t *testing.T) {
 	checkTopic(
 		t,
 		envelope,
-		topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, migratedInstallation.ID[:]),
+		topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, migratedInstallation.InstallationID[:]),
 	)
 
 	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
-	require.Equal(t, migrator.InstallationOriginatorID, envelope.OriginatorNodeID())
+	require.Equal(t, migrator.KeyPackagesOriginatorID, envelope.OriginatorNodeID())
 
 	// OriginatorEnvelope check: Sequence ID has to be the ID of the record.
-	require.Equal(t, uint64(migratedInstallation.CreatedAt), envelope.OriginatorSequenceID())
+	require.Equal(t, uint64(migratedInstallation.SequenceID), envelope.OriginatorSequenceID())
 
 	// OriginatorEnvelope check: Payload checks.
 	payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload()
@@ -255,7 +255,7 @@ func TestTransformInstallation(t *testing.T) {
 		migratedInstallation.KeyPackage,
 	)
 
-	// Payer checks: expiration. Should not expire.
+	// Payer checks: expiration.
 	require.Equal(
 		t,
 		uint32(constants.DEFAULT_STORAGE_DURATION_DAYS),
@@ -332,7 +332,7 @@ func TestTransformWelcomeMessage(t *testing.T) {
 		int16(welcomeMessageV1.WrapperAlgorithm),
 	)
 
-	// Payer checks: expiration. Should not expire.
+	// Payer checks: expiration.
 	require.Equal(
 		t,
 		uint32(constants.DEFAULT_STORAGE_DURATION_DAYS),

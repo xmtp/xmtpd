@@ -41,7 +41,7 @@ func NewMigratorTestDB(t *testing.T, ctx context.Context) (db *sql.DB, dsn strin
 	db, err = sql.Open("postgres", dsn)
 	require.NoError(t, err)
 
-	insertInstallations(t, ctx, db)
+	insertKeyPackages(t, ctx, db)
 	insertGroupMessages(t, ctx, db)
 	insertWelcomeMessages(t, ctx, db)
 	insertInboxLog(t, ctx, db)
@@ -58,8 +58,8 @@ func decodeBytea(hexStr string) ([]byte, error) {
 	return hex.DecodeString(hexStr)
 }
 
-func insertInstallations(t *testing.T, ctx context.Context, db *sql.DB) {
-	f, err := os.Open(filepath.Join("testdata", "installations.csv"))
+func insertKeyPackages(t *testing.T, ctx context.Context, db *sql.DB) {
+	f, err := os.Open(filepath.Join("testdata", "key_packages.csv"))
 	require.NoError(t, err)
 	defer f.Close()
 
@@ -72,18 +72,17 @@ func insertInstallations(t *testing.T, ctx context.Context, db *sql.DB) {
 			continue
 		}
 
-		id, err := decodeBytea(row[0])
+		id, err := decodeBytea(row[1])
 		require.NoError(t, err)
 
-		keyPackage, err := decodeBytea(row[3])
+		keyPackage, err := decodeBytea(row[2])
 		require.NoError(t, err)
 
 		_, err = db.ExecContext(
 			ctx,
-			"INSERT INTO installations (id, created_at, updated_at, key_package) VALUES ($1, $2, $3, $4)",
+			"INSERT INTO key_packages (sequence_id, installation_id, key_package) VALUES ($1, $2, $3)",
+			row[0],
 			id,
-			row[1],
-			row[2],
 			keyPackage,
 		)
 		require.NoError(t, err)

@@ -19,23 +19,22 @@ const (
 	inboxLogTableName           = "inbox_log"
 	InboxLogOriginatorID uint32 = 12
 
-	// KeyPackages in xmtpd.
-	installationsTableName          = "installations"
-	InstallationOriginatorID uint32 = 13
+	keyPackagesTableName           = "key_packages"
+	KeyPackagesOriginatorID uint32 = 13
 )
 
 var originatorIDToTableName = map[uint32]string{
 	GroupMessageOriginatorID:   groupMessagesTableName,
 	WelcomeMessageOriginatorID: welcomeMessagesTableName,
 	InboxLogOriginatorID:       inboxLogTableName,
-	InstallationOriginatorID:   installationsTableName,
+	KeyPackagesOriginatorID:    keyPackagesTableName,
 }
 
 func isValidOriginatorID(originatorID uint32) bool {
 	return originatorID == GroupMessageOriginatorID ||
 		originatorID == WelcomeMessageOriginatorID ||
 		originatorID == InboxLogOriginatorID ||
-		originatorID == InstallationOriginatorID
+		originatorID == KeyPackagesOriginatorID
 }
 
 // IDataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
@@ -114,28 +113,26 @@ func (i *InboxLog) Scan(rows *sql.Rows) error {
 	)
 }
 
-// Installation represents the installations table from the source database.
+// KeyPackage represents the key_packages table from the source database.
 // Order by CreatedAt ASC.
-type Installation struct {
-	ID         []byte `db:"id"`
-	CreatedAt  int64  `db:"created_at"`
-	UpdatedAt  int64  `db:"updated_at"`
-	KeyPackage []byte `db:"key_package"`
+type KeyPackage struct {
+	SequenceID     int64  `db:"sequence_id"`
+	InstallationID []byte `db:"installation_id"`
+	KeyPackage     []byte `db:"key_package"`
 }
 
-func (i Installation) GetID() int64 {
-	return i.CreatedAt
+func (i KeyPackage) GetID() int64 {
+	return i.SequenceID
 }
 
-func (i Installation) TableName() string {
-	return installationsTableName
+func (i KeyPackage) TableName() string {
+	return keyPackagesTableName
 }
 
-func (i *Installation) Scan(rows *sql.Rows) error {
+func (i *KeyPackage) Scan(rows *sql.Rows) error {
 	return rows.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.SequenceID,
+		&i.InstallationID,
 		&i.KeyPackage,
 	)
 }

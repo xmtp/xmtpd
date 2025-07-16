@@ -22,8 +22,6 @@ jobs:
       packages: write
     env:
       DOCKER_METADATA_PR_HEAD_SHA: true
-    outputs:
-      xmtpd_digest: ${{ steps.set_xmtpd_digest.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,19 +70,66 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: "VERSION=${{ steps.ghd.outputs.describe }}"
 
-      - name: Set xmtpd digest output
-        if: ${{ matrix.image == 'xmtpd' }}
-        id: set_xmtpd_digest
-        run: echo "digest=${{ steps.push.outputs.digest }}" >> $GITHUB_OUTPUT
+      - name: Save digest output
+        run: |
+          echo "digest=${{ steps.push.outputs.digest }}" > ${{ matrix.image }}.txt
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.image }}-digest
+          path: ${{ matrix.image }}.txt
 
   deploy:
-    name: Deploy new images to infra
+    name: Aggregate digests & deploy to infra
     runs-on: ubuntu-latest
     needs: push_to_registry
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download xmtpd digest
+        uses: actions/download-artifact@v4
+        with:
+          name: xmtpd-digest
+          path: digests
+
+      - name: Download xmtpd-cli digest
+        uses: actions/download-artifact@v4
+        with:
+          name: xmtpd-cli-digest
+          path: digests
+
+      - name: Download xmtpd-prune digest
+        uses: actions/download-artifact@v4
+        with:
+          name: xmtpd-prune-digest
+          path: digests
+
+      - name: Read and export digests
+        id: digests
+        run: |
+          set -euo pipefail
+          
+          XMTPD_DIGEST=$(cut -d= -f2 digests/xmtpd.txt)
+          CLI_DIGEST=$(cut -d= -f2 digests/xmtpd-cli.txt)
+          PRUNE_DIGEST=$(cut -d= -f2 digests/xmtpd-prune.txt)
+          
+          if [[ -z "$XMTPD_DIGEST" || -z "$CLI_DIGEST" || -z "$PRUNE_DIGEST" ]]; then
+            echo "✖️  One or more digests are empty – aborting deploy." >&2
+            exit 1
+          fi
+          
+          XMTPD_IMAGE="ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"
+          CLI_IMAGE="ghcr.io/xmtp/xmtpd-cli@$CLI_DIGEST"
+          PRUNE_IMAGE="ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"
+          
+          echo "xmtpd_image=$XMTPD_IMAGE"     >> $GITHUB_OUTPUT
+          echo "cli_image=$CLI_IMAGE"         >> $GITHUB_OUTPUT
+          echo "prune_image=$PRUNE_IMAGE"     >> $GITHUB_OUTPUT
+
+
       - name: Deploy Testnet
         uses: xmtp-labs/terraform-deployer@v1
         timeout-minutes: 45
@@ -93,6 +138,6 @@ jobs:
           terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
           terraform-org: xmtp
           terraform-workspace: testnet-staging
-          variable-name: xmtpd_server_docker_image
-          variable-value: "ghcr.io/xmtp/xmtpd@${{ needs.push_to_registry.outputs.xmtpd_digest }}"
-          variable-value-required-prefix: "ghcr.io/xmtp/xmtpd@sha256:"
+          variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image"
+          variable-value: "${{ steps.digests.outputs.xmtpd_image }},${{ steps.digests.outputs.prune_image }}"
+          variable-value-required-prefix: "ghcr.io/xmtp/"

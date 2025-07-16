@@ -75,7 +75,7 @@ type AuthenticatedData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Do NOT reuse tag 1 — previously used by target_originator
 	TargetTopic   []byte  `protobuf:"bytes,2,opt,name=target_topic,json=targetTopic,proto3" json:"target_topic,omitempty"`
-	DependsOn     *Cursor `protobuf:"bytes,3,opt,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"` // Do NOT reuse tag 1 — previously used by is_commit
+	DependsOn     *Cursor `protobuf:"bytes,3,opt,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"` // Do NOT reuse tag 4 — previously used by is_commit
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -162,6 +162,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 			ctx,
 			log,
 			metadata.NewCursorUpdater(ctx, log, db),
+			testutils.GetLatestVersion(t),
 		)
 		require.NoError(t, err)
 		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)

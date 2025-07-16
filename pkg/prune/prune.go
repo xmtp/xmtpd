@@ -26,6 +26,10 @@ func NewPruneExecutor(
 	writerDB *sql.DB,
 	config *config.PruneConfig,
 ) *Executor {
+	if config.BatchSize <= 0 {
+		log.Panic("Batch size must be greater than 0")
+	}
+
 	return &Executor{
 		ctx:      ctx,
 		log:      log,
@@ -58,7 +62,7 @@ func (e *Executor) Run() error {
 			break
 		}
 
-		rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx)
+		rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx, e.config.BatchSize)
 		if err != nil {
 			return err
 		}

@@ -20,7 +20,7 @@ type ContractsOptions struct {
 type AppChainOptions struct {
 	WssURL                           string        `long:"wss-url"                             env:"XMTPD_APP_CHAIN_WSS_URL"                           description:"Blockchain WSS URL"`
 	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
-	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"60s"`
 	BackfillBlockPageSize            uint64        `long:"backfill-block-page-size"            env:"XMTPD_APP_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"          description:"Maximal size of a backfill block page"                        default:"500"`
 	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
 	IdentityUpdateBroadcasterAddress string        `long:"identity-update-broadcaster-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS" description:"Identity update broadcaster contract address"`
@@ -61,6 +61,11 @@ type MetricsOptions struct {
 	Enable  bool   `long:"enable"          env:"XMTPD_METRICS_ENABLE"          description:"Enable the metrics server"`
 	Address string `long:"metrics-address" env:"XMTPD_METRICS_METRICS_ADDRESS" description:"Listening address of the metrics server"   default:"127.0.0.1"`
 	Port    int    `long:"metrics-port"    env:"XMTPD_METRICS_METRICS_PORT"    description:"Listening HTTP port of the metrics server" default:"8008"`
+}
+
+type DebugOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_DEBUG_ENABLE" description:"Enable the pprof debug server"`
+	Port   int  `long:"port"   env:"XMTPD_DEBUG_PORT"   description:"Port to listen on"             default:"6060"`
 }
 
 type PayerOptions struct {
@@ -127,5 +132,6 @@ type ServerOptions struct {
 	Sync          SyncOptions          `group:"Sync Options"           namespace:"sync"`
 	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
 	Migration     MigratorOptions      `group:"Migration Options"      namespace:"migration"`
+	Debug         DebugOptions         `group:"Debug Options"          namespace:"debug"`
 	Version       bool                 `                                                          short:"v" long:"version" description:"Output binary version and exit"`
 }

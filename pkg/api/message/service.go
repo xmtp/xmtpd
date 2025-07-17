@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	"math"
 	"time"
+
+	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 
 	"github.com/xmtp/xmtpd/pkg/config"
 

@@ -586,12 +586,6 @@ func (s *Service) validateGroupMessage(
 	ctx context.Context,
 	clientEnv *envelopes.ClientEnvelope,
 ) error {
-	if clientEnv.Aad().IsCommit {
-		return status.Errorf(
-			codes.InvalidArgument,
-			"commit messages must be published via the blockchain",
-		)
-	}
 
 	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_GroupMessage)
 	if !ok {

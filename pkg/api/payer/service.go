@@ -315,16 +315,6 @@ func (s *Service) publishToBlockchain(
 	var desiredSequenceId uint64
 	kind := targetTopic.Kind()
 
-	// Get the group ID as [32]byte
-	idBytes, err := utils.BytesToId(identifier)
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"error converting identifier to group ID: %v",
-			err,
-		)
-	}
-
 	// Serialize the clientEnvelope for publishing
 	payload, err := clientEnvelope.Bytes()
 	if err != nil {
@@ -341,6 +331,16 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
+		// Get the group ID as [32]byte
+		idBytes, err := utils.BytesToPaddedId(identifier)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.Internal,
+				"error converting identifier to group ID: %v",
+				err,
+			)
+		}
+
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
 
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("group_message", func() (*gm.GroupMessageBroadcasterMessageSent, error) {
@@ -368,6 +368,16 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
+		// Get the group ID as [32]byte
+		idBytes, err := utils.BytesToId(identifier)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.Internal,
+				"error converting identifier to inbox ID: %v",
+				err,
+			)
+		}
+
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("identity_update", func() (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			return s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload)

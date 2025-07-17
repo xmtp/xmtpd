@@ -6,6 +6,8 @@ import (
 	"errors"
 	"math"
 
+	"github.com/xmtp/xmtpd/pkg/utils"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -63,7 +65,10 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewNonRecoverableError(ErrParseGroupMessage, err)
 	}
 
-	topicStruct := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, msgSent.GroupId[:])
+	topicStruct := topic.NewTopic(
+		topic.TOPIC_KIND_GROUP_MESSAGES_V1,
+		utils.PaddedIdToBytes(msgSent.GroupId),
+	)
 
 	clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Message)
 	if err != nil {

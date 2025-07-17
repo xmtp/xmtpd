@@ -24,3 +24,19 @@ func BytesToId(bytes []byte) ([32]byte, error) {
 	copy(result[:], bytes)
 	return result, nil
 }
+
+func BytesToPaddedId(bytes []byte) ([32]byte, error) {
+	// TODO(mkysel) this is a temporary solution. we need to know whether MLS is varlength or 16 strict
+
+	if len(bytes) != 16 {
+		return [32]byte{}, fmt.Errorf("invalid bytes length: expected 16 bytes, got %d", len(bytes))
+	}
+
+	var result [32]byte
+	copy(result[0:16], bytes)
+	return result, nil
+}
+
+func PaddedIdToBytes(paddedId [32]byte) []byte {
+	return paddedId[0:16]
+}

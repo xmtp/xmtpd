@@ -75,8 +75,7 @@ type AuthenticatedData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Do NOT reuse tag 1 — previously used by target_originator
 	TargetTopic   []byte  `protobuf:"bytes,2,opt,name=target_topic,json=targetTopic,proto3" json:"target_topic,omitempty"`
-	DependsOn     *Cursor `protobuf:"bytes,3,opt,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	IsCommit      bool    `protobuf:"varint,4,opt,name=is_commit,json=isCommit,proto3" json:"is_commit,omitempty"`
+	DependsOn     *Cursor `protobuf:"bytes,3,opt,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"` // Do NOT reuse tag 4 — previously used by is_commit
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -123,13 +122,6 @@ func (x *AuthenticatedData) GetDependsOn() *Cursor {
 		return x.DependsOn
 	}
 	return nil
-}
-
-func (x *AuthenticatedData) GetIsCommit() bool {
-	if x != nil {
-		return x.IsCommit
-	}
-	return false
 }
 
 type ClientEnvelope struct {
@@ -593,12 +585,11 @@ const file_xmtpv4_envelopes_envelopes_proto_rawDesc = "" +
 	"\x16node_id_to_sequence_id\x18\x01 \x03(\v25.xmtp.xmtpv4.envelopes.Cursor.NodeIdToSequenceIdEntryR\x12nodeIdToSequenceId\x1aE\n" +
 	"\x17NodeIdToSequenceIdEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\x91\x01\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"t\n" +
 	"\x11AuthenticatedData\x12!\n" +
 	"\ftarget_topic\x18\x02 \x01(\fR\vtargetTopic\x12<\n" +
 	"\n" +
-	"depends_on\x18\x03 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\tdependsOn\x12\x1b\n" +
-	"\tis_commit\x18\x04 \x01(\bR\bisCommit\"\xd8\x04\n" +
+	"depends_on\x18\x03 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\tdependsOn\"\xd8\x04\n" +
 	"\x0eClientEnvelope\x12:\n" +
 	"\x03aad\x18\x01 \x01(\v2(.xmtp.xmtpv4.envelopes.AuthenticatedDataR\x03aad\x12I\n" +
 	"\rgroup_message\x18\x02 \x01(\v2\".xmtp.mls.api.v1.GroupMessageInputH\x00R\fgroupMessage\x12O\n" +

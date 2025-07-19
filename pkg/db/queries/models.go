@@ -40,6 +40,13 @@ type LatestBlock struct {
 	BlockHash       []byte
 }
 
+type MigrationTracker struct {
+	SourceTable    string
+	LastMigratedID int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type NodeInfo struct {
 	NodeID      int32
 	PublicKey   []byte

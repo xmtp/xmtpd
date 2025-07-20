@@ -81,8 +81,5 @@ func main() {
 		log.Fatalf("Failed to build payer service: %v", err)
 	}
 
-	err = payerService.Serve(context.Background())
-	if err != nil {
-		log.Fatalf("Failed to serve payer service: %v", err)
-	}
+	payerService.WaitForShutdown()
 }

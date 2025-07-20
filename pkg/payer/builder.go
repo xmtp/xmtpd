@@ -1,0 +1,354 @@
+package payer
+
+import (
+	"context"
+	"fmt"
+	"net"
+
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/xmtp/xmtpd/pkg/api"
+	"github.com/xmtp/xmtpd/pkg/api/payer"
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
+	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+)
+
+var (
+	ErrMissingConfig = errors.New("config must be provided and not nil")
+	ErrUnauthorized  = errors.New("unauthorized")
+)
+
+type PayerServiceBuilder struct {
+	identityFn          IdentityFn
+	authorizers         []AuthorizePublishFn
+	config              *config.PayerConfig
+	blockchainPublisher blockchain.IBlockchainPublisher
+	nodeRegistry        registry.NodeRegistry
+	logger              *zap.Logger
+	metricsServer       *metrics.Server
+	ctx                 context.Context
+	promRegistry        *prometheus.Registry
+	clientMetrics       *grpcprom.ClientMetrics
+}
+
+func NewPayerServiceBuilder(config *config.PayerConfig) IPayerServiceBuilder {
+	return &PayerServiceBuilder{
+		config: config,
+	}
+}
+
+func (b *PayerServiceBuilder) WithIdentityFn(identityFn IdentityFn) IPayerServiceBuilder {
+	b.identityFn = identityFn
+	return b
+}
+
+func (b *PayerServiceBuilder) WithAuthorizers(
+	authorizers ...AuthorizePublishFn,
+) IPayerServiceBuilder {
+	b.authorizers = authorizers
+	return b
+}
+
+func (b *PayerServiceBuilder) WithBlockchainPublisher(
+	blockchainPublisher blockchain.IBlockchainPublisher,
+) IPayerServiceBuilder {
+	b.blockchainPublisher = blockchainPublisher
+	return b
+}
+
+func (b *PayerServiceBuilder) WithNodeRegistry(
+	nodeRegistry registry.NodeRegistry,
+) IPayerServiceBuilder {
+	b.nodeRegistry = nodeRegistry
+	return b
+}
+
+func (b *PayerServiceBuilder) WithLogger(
+	logger *zap.Logger,
+) IPayerServiceBuilder {
+	b.logger = logger
+	return b
+}
+
+func (b *PayerServiceBuilder) WithMetricsServer(
+	metricsServer *metrics.Server,
+) IPayerServiceBuilder {
+	b.metricsServer = metricsServer
+	return b
+}
+
+func (b *PayerServiceBuilder) WithContext(
+	ctx context.Context,
+) IPayerServiceBuilder {
+	b.ctx = ctx
+	return b
+}
+
+func (b *PayerServiceBuilder) WithPromRegistry(
+	promRegistry *prometheus.Registry,
+) IPayerServiceBuilder {
+	b.promRegistry = promRegistry
+	return b
+}
+
+func (b *PayerServiceBuilder) WithClientMetrics(
+	clientMetrics *grpcprom.ClientMetrics,
+) IPayerServiceBuilder {
+	b.clientMetrics = clientMetrics
+	return b
+}
+
+func (b *PayerServiceBuilder) Build() (PayerService, error) {
+	if b.config == nil {
+		return nil, ErrMissingConfig
+	}
+
+	if b.identityFn == nil {
+		b.identityFn = IPIdentityFn
+	}
+
+	// Use injected context or default to background context
+	ctx := b.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// Create logger if not provided
+	if b.logger == nil {
+		logger, _, err := utils.BuildLogger(b.config.Log)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build logger")
+		}
+		b.logger = logger
+	}
+
+	// Create blockchain publisher if not provided
+	if b.blockchainPublisher == nil {
+		blockchainPublisher, err := setupBlockchainPublisher(ctx, b.logger, b.config)
+		if err != nil {
+			return nil, err
+		}
+		b.blockchainPublisher = blockchainPublisher
+	}
+
+	// Create node registry if not provided
+	if b.nodeRegistry == nil {
+		nodeRegistry, err := setupNodeRegistry(ctx, b.logger, b.config)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to setup node registry")
+		}
+		b.nodeRegistry = nodeRegistry
+	}
+
+	// Create metrics server if not provided and metrics are enabled
+	promRegistry := b.promRegistry
+	clientMetrics := b.clientMetrics
+	if b.config.Metrics.Enable && b.metricsServer == nil {
+		metricsServer, promReg, clientMet, err := setupMetrics(
+			ctx,
+			b.logger,
+			&b.config.Metrics,
+			b.promRegistry,
+			b.clientMetrics,
+		)
+		if err != nil {
+			return nil, err
+		}
+		b.metricsServer = metricsServer
+		promRegistry = promReg
+		clientMetrics = clientMet
+	}
+
+	return b.buildPayerService(ctx, promRegistry, clientMetrics)
+}
+
+func (b *PayerServiceBuilder) buildPayerService(
+	ctx context.Context,
+	promRegistry *prometheus.Registry,
+	clientMetrics *grpcprom.ClientMetrics,
+) (PayerService, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
+	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(b.config.Payer.PrivateKey)
+	if err != nil {
+		cancel()
+		return nil, errors.Wrap(err, "failed to parse payer private key")
+	}
+
+	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
+		payerService, err := payer.NewPayerApiService(
+			ctx,
+			b.logger,
+			b.nodeRegistry,
+			payerPrivateKey,
+			b.blockchainPublisher,
+			nil,
+			clientMetrics,
+		)
+		if err != nil {
+			return err
+		}
+		payer_api.RegisterPayerApiServer(grpcServer, payerService)
+
+		return nil
+	}
+
+	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
+		return payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
+	}
+
+	httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.HTTPPort))
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.Port))
+	if err != nil {
+		_ = httpListener.Close()
+		cancel()
+		return nil, err
+	}
+
+	apiServer, err := api.NewAPIServer(
+		api.WithContext(ctx),
+		api.WithLogger(b.logger),
+		api.WithHTTPListener(httpListener),
+		api.WithGRPCListener(grpcListener),
+		api.WithRegistrationFunc(serviceRegistrationFunc),
+		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
+		api.WithPrometheusRegistry(promRegistry),
+	)
+	if err != nil {
+		cancel()
+		return nil, errors.Wrap(err, "failed to initialize api server")
+	}
+
+	return &payerServiceImpl{
+		apiServer:           apiServer,
+		ctx:                 ctx,
+		cancel:              cancel,
+		log:                 b.logger,
+		identityFn:          b.identityFn,
+		authorizers:         b.authorizers,
+		metrics:             b.metricsServer,
+		config:              b.config,
+		blockchainPublisher: b.blockchainPublisher,
+		nodeRegistry:        b.nodeRegistry,
+	}, nil
+}
+
+func setupNodeRegistry(
+	ctx context.Context,
+	log *zap.Logger,
+	cfg *config.PayerConfig,
+) (registry.NodeRegistry, error) {
+	settlementChainClient, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(cfg.Contracts.SettlementChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	chainRegistry, err := registry.NewSmartContractRegistry(
+		ctx,
+		settlementChainClient,
+		log,
+		cfg.Contracts,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return chainRegistry, nil
+}
+
+func setupBlockchainPublisher(
+	ctx context.Context,
+	log *zap.Logger,
+	cfg *config.PayerConfig,
+) (*blockchain.BlockchainPublisher, error) {
+	signer, err := blockchain.NewPrivateKeySigner(
+		cfg.Payer.PrivateKey,
+		cfg.Contracts.AppChain.ChainID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	appChainClient, err := blockchain.NewClient(
+		ctx,
+		blockchain.WithWebSocketURL(cfg.Contracts.AppChain.WssURL),
+		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
+			Enable: false,
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return blockchain.NewBlockchainPublisher(
+		ctx,
+		log,
+		appChainClient,
+		signer,
+		cfg.Contracts,
+		nil, // TODO:(nm) Add Redis-backed nonce manager
+	)
+}
+
+// If metrics are enabled, sets them up
+func setupMetrics(
+	ctx context.Context,
+	log *zap.Logger,
+	metricsOptions *config.MetricsOptions,
+	promRegistry *prometheus.Registry,
+	clientMetrics *grpcprom.ClientMetrics,
+) (*metrics.Server, *prometheus.Registry, *grpcprom.ClientMetrics, error) {
+	// Use provided registry or create new one
+	promReg := promRegistry
+	if promReg == nil {
+		promReg = prometheus.NewRegistry()
+		promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+		promReg.MustRegister(collectors.NewGoCollector())
+	}
+
+	// Use provided client metrics or create new ones
+	clientMet := clientMetrics
+	if clientMet == nil {
+		clientMet = grpcprom.NewClientMetrics(
+			grpcprom.WithClientHandlingTimeHistogram(),
+		)
+	}
+
+	// Register client metrics if we have a registry
+	if clientMet != nil {
+		promReg.MustRegister(clientMet)
+	}
+
+	mtcs, err := metrics.NewMetricsServer(ctx,
+		metricsOptions.Address,
+		metricsOptions.Port,
+		log,
+		promReg,
+	)
+	if err != nil {
+		log.Error("initializing metrics server", zap.Error(err))
+		return nil, nil, nil, err
+	}
+
+	return mtcs, promReg, clientMet, nil
+}

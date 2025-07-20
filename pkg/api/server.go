@@ -99,10 +99,6 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.PromRegistry == nil {
-		return nil, fmt.Errorf("prometheus registry is required")
-	}
-
 	if cfg.ListenAddress == "" || cfg.HTTPListenAddress == "" {
 		return nil, fmt.Errorf("both listenAddress and httpListenAddress are required")
 	}
@@ -134,15 +130,6 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 
 	s.log.Info("Creating API server")
 
-	srvMetrics := grpcprom.NewServerMetrics(
-		grpcprom.WithServerHandlingTimeHistogram(
-			grpcprom.WithHistogramBuckets(
-				[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
-			),
-		),
-	)
-	cfg.PromRegistry.MustRegister(srvMetrics)
-
 	loggingInterceptor, err := server.NewLoggingInterceptor(cfg.Log)
 	if err != nil {
 		return nil, err
@@ -153,14 +140,27 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 	}
 
 	unary := []grpc.UnaryServerInterceptor{
-		srvMetrics.UnaryServerInterceptor(),
 		openConnectionsInterceptor.Unary(),
 		loggingInterceptor.Unary(),
 	}
 	stream := []grpc.StreamServerInterceptor{
-		srvMetrics.StreamServerInterceptor(),
 		openConnectionsInterceptor.Stream(),
 		loggingInterceptor.Stream(),
+	}
+
+	if cfg.PromRegistry != nil {
+		srvMetrics := grpcprom.NewServerMetrics(
+			grpcprom.WithServerHandlingTimeHistogram(
+				grpcprom.WithHistogramBuckets(
+					[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
+				),
+			),
+		)
+		cfg.PromRegistry.MustRegister(srvMetrics)
+		unary = append([]grpc.UnaryServerInterceptor{srvMetrics.UnaryServerInterceptor()}, unary...)
+		stream = append(
+			[]grpc.StreamServerInterceptor{srvMetrics.StreamServerInterceptor()},
+			stream...)
 	}
 
 	if cfg.JWTVerifier != nil {

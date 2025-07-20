@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -32,7 +33,7 @@ type BlockchainPublisher struct {
 	messagesContract       *gm.GroupMessageBroadcaster
 	identityUpdateContract *iu.IdentityUpdateBroadcaster
 	logger                 *zap.Logger
-	nonceManager           NonceManager
+	nonceManager           noncemanager.NonceManager
 	replenishCancel        context.CancelFunc
 	wg                     sync.WaitGroup
 }
@@ -43,7 +44,7 @@ func NewBlockchainPublisher(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractOptions config.ContractsOptions,
-	nonceManager NonceManager,
+	nonceManager noncemanager.NonceManager,
 ) (*BlockchainPublisher, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
@@ -232,12 +233,12 @@ func findLog[T any](
 
 func withNonce[T any](ctx context.Context,
 	logger *zap.Logger,
-	nonceManager NonceManager,
+	nonceManager noncemanager.NonceManager,
 	create func(context.Context, big.Int) (*types.Transaction, error),
 	wait func(context.Context, *types.Transaction) (*T, error),
 ) (*T, error) {
 	var tx *types.Transaction
-	var nonceContext *NonceContext
+	var nonceContext *noncemanager.NonceContext
 	var err error
 
 	for {

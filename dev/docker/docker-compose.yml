@@ -29,6 +29,11 @@ services:
     ports:
       - 60051:50051
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
+
   prometheus:
     image: ubuntu/prometheus
     ports:

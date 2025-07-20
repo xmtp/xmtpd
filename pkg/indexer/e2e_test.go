@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	sqlnonce "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
@@ -69,7 +70,7 @@ func messagePublisher(
 	)
 	require.NoError(t, err)
 
-	nonceManager := blockchain.NewSQLBackedNonceManager(db, testutils.NewLog(t))
+	nonceManager := sqlnonce.NewSQLBackedNonceManager(db, testutils.NewLog(t))
 
 	publisher, err := blockchain.NewBlockchainPublisher(
 		ctx,

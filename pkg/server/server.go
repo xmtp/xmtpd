@@ -32,6 +32,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	sqlnonce "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer"
@@ -344,7 +345,7 @@ func startAPIServer(
 				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))
 			}
 
-			nonceManager := blockchain.NewSQLBackedNonceManager(cfg.DB, cfg.Log)
+			nonceManager := sqlnonce.NewSQLBackedNonceManager(cfg.DB, cfg.Log)
 
 			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
 				s.ctx,

@@ -36,6 +36,8 @@ packages:
     interfaces:
       ChainClient:
       IBlockchainPublisher:
+  github.com/xmtp/xmtpd/pkg/blockchain/noncemanager:
+    interfaces:
       NonceManager:
   github.com/xmtp/xmtpd/pkg/errors:
     interfaces:

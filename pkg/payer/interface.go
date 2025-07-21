@@ -6,6 +6,7 @@ import (
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
@@ -50,6 +51,7 @@ type IPayerServiceBuilder interface {
 	WithContext(ctx context.Context) IPayerServiceBuilder
 	WithPromRegistry(promRegistry *prometheus.Registry) IPayerServiceBuilder
 	WithClientMetrics(clientMetrics *grpcprom.ClientMetrics) IPayerServiceBuilder
+	WithNonceManager(nonceManager noncemanager.NonceManager) IPayerServiceBuilder
 	Build() (PayerService, error)
 }
 

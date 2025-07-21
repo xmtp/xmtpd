@@ -3,15 +3,19 @@ package payer
 import (
 	"context"
 	"fmt"
+	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/redis/go-redis/v9"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
+	redisnoncemanager "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/redis"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
@@ -37,6 +41,7 @@ type PayerServiceBuilder struct {
 	ctx                 context.Context
 	promRegistry        *prometheus.Registry
 	clientMetrics       *grpcprom.ClientMetrics
+	nonceManager        noncemanager.NonceManager
 }
 
 func NewPayerServiceBuilder(config *config.PayerConfig) IPayerServiceBuilder {
@@ -54,6 +59,13 @@ func (b *PayerServiceBuilder) WithAuthorizers(
 	authorizers ...AuthorizePublishFn,
 ) IPayerServiceBuilder {
 	b.authorizers = authorizers
+	return b
+}
+
+func (b *PayerServiceBuilder) WithNonceManager(
+	nonceManager noncemanager.NonceManager,
+) IPayerServiceBuilder {
+	b.nonceManager = nonceManager
 	return b
 }
 
@@ -148,6 +160,14 @@ func (b *PayerServiceBuilder) Build() (PayerService, error) {
 		b.nodeRegistry = nodeRegistry
 	}
 
+	if b.nonceManager == nil {
+		nonceManager, err := setupNonceManager(ctx, b.logger, b.config)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to setup nonce manager")
+		}
+		b.nonceManager = nonceManager
+	}
+
 	// Create metrics server if not provided and metrics are enabled
 	var promRegistry *prometheus.Registry = b.promRegistry
 	var clientMetrics *grpcprom.ClientMetrics = b.clientMetrics
@@ -231,6 +251,52 @@ func (b *PayerServiceBuilder) buildPayerService(
 		blockchainPublisher: b.blockchainPublisher,
 		nodeRegistry:        b.nodeRegistry,
 	}, nil
+}
+
+func setupRedisClient(
+	ctx context.Context,
+	redisUrl string,
+	timeout time.Duration,
+) (redis.UniversalClient, error) {
+	if redisUrl == "" {
+		return nil, fmt.Errorf("redis URL is empty")
+	}
+
+	opts, err := redis.ParseURL(redisUrl)
+	if err != nil {
+		return nil, err
+	}
+	client := redis.NewClient(opts)
+	deadline := time.Now().Add(timeout)
+	for {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf(
+				"context canceled while connecting to Redis at %s: %w",
+				redisUrl,
+				ctx.Err(),
+			)
+		}
+		if _, err := client.Ping(ctx).Result(); err == nil {
+			break
+		} else if time.Now().After(deadline) {
+			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisUrl, timeout, err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return client, nil
+}
+
+func setupNonceManager(
+	ctx context.Context,
+	log *zap.Logger,
+	cfg *config.PayerConfig,
+) (noncemanager.NonceManager, error) {
+	redisClient, err := setupRedisClient(ctx, cfg.Redis.RedisUrl, 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	return redisnoncemanager.NewRedisBackedNonceManager(redisClient, log, cfg.Redis.KeyPrefix), nil
 }
 
 func setupNodeRegistry(

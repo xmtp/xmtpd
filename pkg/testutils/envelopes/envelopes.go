@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -32,6 +33,21 @@ func UnmarshalUnsignedOriginatorEnvelope(
 	return unsignedOriginatorEnvelope
 }
 
+func getRealisticGroupMessagePayload() []byte {
+	b, err := hex.DecodeString(
+		"0001000210ed8344ef48284cf0ed2f74fc53b1887a000000000000000101001cf0abcef28080027c94c2ade64f6c3e" +
+			"d6c7feaf5d75ed5927d1521ab340cb375f3b8a50520540c7c2cb9f6646812646ec8a9b74868f3049ef66d706e6e9b6" +
+			"45014571d67b9483b1af909f5008ebfff94d870e74fd0c2791feb3ef08f92cf55b645d7992103fa18012d8f225b13d" +
+			"589ce366ad8d041744f4e18e6b63b90c67325c24cb5a7e1d3e5717df5fa402b52e0e418f671053e10236337ac0e408" +
+			"0de124f36e59a6a70dbf9f5d62cdfc60004bb16fbc1f89a289bd8edc08b137ffba4dc948f1867b17ea4962a8740082" +
+			"7eccf73a4e8cbf965b2ef7070d0a604cb6fe70a6e52a0c1eb52bfe2273c4",
+	)
+	if err != nil {
+		panic("could not generate bytes")
+	}
+	return b
+}
+
 func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.ClientEnvelope {
 	if len(aad) == 0 {
 		aad = append(aad, &envelopes.AuthenticatedData{
@@ -40,12 +56,13 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 			DependsOn: &envelopes.Cursor{},
 		})
 	}
+
 	return &envelopes.ClientEnvelope{
 		Payload: &envelopes.ClientEnvelope_GroupMessage{
 			GroupMessage: &mlsv1.GroupMessageInput{
 				Version: &mlsv1.GroupMessageInput_V1_{
 					V1: &mlsv1.GroupMessageInput_V1{
-						Data: []byte("test message"),
+						Data: getRealisticGroupMessagePayload(),
 					},
 				},
 			},

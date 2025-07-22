@@ -41,8 +41,16 @@ func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.Client
 		})
 	}
 	return &envelopes.ClientEnvelope{
-		Payload: &envelopes.ClientEnvelope_GroupMessage{},
-		Aad:     aad[0],
+		Payload: &envelopes.ClientEnvelope_GroupMessage{
+			GroupMessage: &mlsv1.GroupMessageInput{
+				Version: &mlsv1.GroupMessageInput_V1_{
+					V1: &mlsv1.GroupMessageInput_V1{
+						Data: []byte("test message"),
+					},
+				},
+			},
+		},
+		Aad: aad[0],
 	}
 }
 

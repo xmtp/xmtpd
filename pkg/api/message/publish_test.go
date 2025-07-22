@@ -22,7 +22,15 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, db, mocks := apiTestUtils.NewTestReplicationAPIClient(t)
+
+	mocks.MockValidationService.On(
+		"ValidateGroupMessages",
+		mock.Anything,
+		mock.Anything,
+	).Return([]mlsvalidate.GroupMessageValidationResult{
+		{GroupId: "", IsCommit: false},
+	}, nil)
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -267,7 +275,15 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 }
 
 func TestPublishEnvelopeFees(t *testing.T) {
-	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, db, mocks := apiTestUtils.NewTestReplicationAPIClient(t)
+
+	mocks.MockValidationService.On(
+		"ValidateGroupMessages",
+		mock.Anything,
+		mock.Anything,
+	).Return([]mlsvalidate.GroupMessageValidationResult{
+		{GroupId: "", IsCommit: false},
+	}, nil)
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -364,7 +380,15 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 }
 
 func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
-	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, _, mocks := apiTestUtils.NewTestReplicationAPIClient(t)
+
+	mocks.MockValidationService.On(
+		"ValidateGroupMessages",
+		mock.Anything,
+		mock.Anything,
+	).Return([]mlsvalidate.GroupMessageValidationResult{
+		{GroupId: "", IsCommit: false},
+	}, nil)
 
 	tests := []struct {
 		name        string

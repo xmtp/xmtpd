@@ -127,7 +127,6 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 	}
 
 	if err := ctx.Err(); err != nil {
-		m.logger.Warn("WaitForTransaction called with already-cancelled context", zap.Error(err))
 		return nil, fmt.Errorf("parent context already canceled: %w", err)
 	}
 

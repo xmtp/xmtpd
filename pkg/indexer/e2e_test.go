@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/utils"
+
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/indexer"
 
@@ -90,7 +92,8 @@ func TestStoreMessages(t *testing.T) {
 
 	message := testutils.RandomBytes(78)
 	groupID := testutils.RandomGroupID()
-	msgTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
+	msgTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, utils.PaddedIdToBytes(groupID)).
+		Bytes()
 
 	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
 	clientEnvelopeBytes, err := proto.Marshal(clientEnvelope)

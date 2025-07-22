@@ -26,7 +26,7 @@ func BytesToId(bytes []byte) ([32]byte, error) {
 }
 
 func BytesToPaddedId(bytes []byte) ([32]byte, error) {
-	// TODO(mkysel) this is a temporary solution. we need to know whether MLS is varlength or 16 strict
+	// TODO(mkysel) this is a temporary solution. we need to switch the contracts to 16bytes to match MLS
 
 	if len(bytes) != 16 {
 		return [32]byte{}, fmt.Errorf("invalid bytes length: expected 16 bytes, got %d", len(bytes))

@@ -587,7 +587,7 @@ func (s *Service) validateGroupMessage(
 	clientEnv *envelopes.ClientEnvelope,
 ) error {
 	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_GroupMessage)
-	if !ok {
+	if !ok || payload.GroupMessage == nil {
 		return status.Errorf(codes.InvalidArgument, "invalid payload type")
 	}
 

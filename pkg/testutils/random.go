@@ -52,7 +52,6 @@ func RandomLogTopic() common.Hash {
 func RandomGroupID() [32]byte {
 	var groupID [32]byte
 	copy(groupID[:], RandomBytes(32))
-
 	return groupID
 }
 

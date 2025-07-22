@@ -29,7 +29,7 @@ import (
 
 const (
 	testFlag   = "ENABLE_INTEGRATION_TESTS"
-	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-78a5ac2"
+	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-cd0ffca"
 )
 
 func skipIfNotEnabled() {

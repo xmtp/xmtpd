@@ -180,7 +180,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishToNodes(t *testing.T) {
-	originatorServer, _, _ := apiTestUtils.NewTestAPIServer(t)
+	originatorServer, _, mocks := apiTestUtils.NewTestAPIServer(t)
 
 	ctx := context.Background()
 	svc, _, mockRegistry, _, mockValidation := buildPayerService(t)
@@ -193,11 +193,21 @@ func TestPublishToNodes(t *testing.T) {
 		testutils.GetHealthyNode(100),
 	}, nil)
 
-	mockValidation.EXPECT().
-		ValidateGroupMessages(mock.Anything, mock.Anything).
-		Return([]mlsvalidate2.GroupMessageValidationResult{
-			{IsCommit: false},
-		}, nil)
+	mocks.MockValidationService.On(
+		"ValidateGroupMessages",
+		mock.Anything,
+		mock.Anything,
+	).Return([]mlsvalidate2.GroupMessageValidationResult{
+		{GroupId: "", IsCommit: false},
+	}, nil)
+
+	mockValidation.On(
+		"ValidateGroupMessages",
+		mock.Anything,
+		mock.Anything,
+	).Return([]mlsvalidate2.GroupMessageValidationResult{
+		{GroupId: "", IsCommit: false},
+	}, nil)
 
 	groupId := testutils.RandomGroupID()
 	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(

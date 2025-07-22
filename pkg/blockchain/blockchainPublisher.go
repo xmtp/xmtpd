@@ -126,10 +126,6 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
-	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("parent context already canceled: %w", err)
-	}
-
 	return withNonce(
 		ctx,
 		m.logger,

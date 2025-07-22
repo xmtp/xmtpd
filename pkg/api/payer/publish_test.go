@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	mlsvalidate2 "github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 
-	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
+	validateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 
 	"github.com/xmtp/xmtpd/pkg/constants"
 
@@ -72,7 +72,7 @@ func (m *MockSubscribeSyncCursorClient) Recv() (*metadata_api.GetSyncCursorRespo
 
 func buildPayerService(
 	t *testing.T,
-) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient, *mlsvalidate.MockMLSValidationService) {
+) (*payer.Service, *blockchainMocks.MockIBlockchainPublisher, *registryMocks.MockNodeRegistry, *metadataMocks.MockMetadataApiClient, *validateMocks.MockMLSValidationService) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	log := testutils.NewLog(t)
@@ -83,7 +83,7 @@ func buildPayerService(
 	require.NoError(t, err)
 	mockMessagePublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
 
-	mockMLSvalidation := mlsvalidate.NewMockMLSValidationService(t)
+	mockMLSvalidation := validateMocks.NewMockMLSValidationService(t)
 
 	metaMocks := metadataMocks.NewMockMetadataApiClient(t)
 	payerService, err := payer.NewPayerApiService(
@@ -197,7 +197,7 @@ func TestPublishToNodes(t *testing.T) {
 		"ValidateGroupMessages",
 		mock.Anything,
 		mock.Anything,
-	).Return([]mlsvalidate2.GroupMessageValidationResult{
+	).Return([]mlsvalidate.GroupMessageValidationResult{
 		{GroupId: "", IsCommit: false},
 	}, nil)
 
@@ -205,7 +205,7 @@ func TestPublishToNodes(t *testing.T) {
 		"ValidateGroupMessages",
 		mock.Anything,
 		mock.Anything,
-	).Return([]mlsvalidate2.GroupMessageValidationResult{
+	).Return([]mlsvalidate.GroupMessageValidationResult{
 		{GroupId: "", IsCommit: false},
 	}, nil)
 

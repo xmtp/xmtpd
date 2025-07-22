@@ -9,7 +9,10 @@ CREATE TABLE group_messages(
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	group_id BYTEA NOT NULL,
 	data BYTEA NOT NULL,
-	group_id_data_hash BYTEA NOT NULL
+	group_id_data_hash BYTEA NOT NULL,
+	is_commit BOOLEAN DEFAULT NULL,
+	sender_hmac BYTEA,
+	should_push BOOLEAN
 );
 
 CREATE TABLE welcome_messages(
@@ -19,7 +22,8 @@ CREATE TABLE welcome_messages(
 	data BYTEA NOT NULL,
 	hpke_public_key BYTEA NOT NULL,
 	installation_key_data_hash BYTEA NOT NULL,
-	wrapper_algorithm SMALLINT NOT NULL DEFAULT 0
+	wrapper_algorithm SMALLINT NOT NULL DEFAULT 0,
+	welcome_metadata BYTEA
 );
 
 CREATE TABLE inbox_log(

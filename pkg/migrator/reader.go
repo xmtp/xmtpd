@@ -72,7 +72,7 @@ type GroupMessageReader struct {
 
 func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 	query := `
-		SELECT id, created_at, group_id, data, group_id_data_hash
+		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
 		WHERE id > $1
 		ORDER BY id ASC
@@ -135,7 +135,7 @@ type WelcomeMessageReader struct {
 
 func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
 	query := `
-		SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm
+		SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm, welcome_metadata
 		FROM welcome_messages
 		WHERE id > $1
 		ORDER BY id ASC

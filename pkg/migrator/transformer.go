@@ -96,7 +96,9 @@ func (t *Transformer) TransformGroupMessage(
 			GroupMessage: &mlsv1.GroupMessageInput{
 				Version: &mlsv1.GroupMessageInput_V1_{
 					V1: &mlsv1.GroupMessageInput_V1{
-						Data: groupMessage.Data,
+						Data:       groupMessage.Data,
+						SenderHmac: groupMessage.SenderHmac,
+						ShouldPush: groupMessage.ShouldPush.Bool,
 					},
 				},
 			},
@@ -206,6 +208,7 @@ func (t *Transformer) TransformWelcomeMessage(
 						WrapperAlgorithm: messageContents.WelcomeWrapperAlgorithm(
 							welcomeMessage.WrapperAlgorithm,
 						),
+						WelcomeMetadata: welcomeMessage.WelcomeMetadata,
 					},
 				},
 			},

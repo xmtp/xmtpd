@@ -164,9 +164,17 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 	)
 }
 
+/*
+	function bootstrapMessages(
+		bytes16[] calldata groupIds_,
+		bytes[] calldata messages_,
+		uint64[] calldata sequenceIds_
+	)
+*/
+
 func (m *BlockchainPublisher) PublishIdentityUpdate(
 	ctx context.Context,
-	inboxId [32]byte,
+	inboxID [32]byte,
 	identityUpdate []byte,
 ) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 	if len(identityUpdate) == 0 {
@@ -183,7 +191,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 				Nonce:   &nonce,
 				From:    m.signer.FromAddress(),
 				Signer:  m.signer.SignerFunc(),
-			}, inboxId, identityUpdate)
+			}, inboxID, identityUpdate)
 		},
 		func(ctx context.Context, transaction *types.Transaction) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			receipt, err := WaitForTransaction(
@@ -210,6 +218,14 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		},
 	)
 }
+
+/*
+   function bootstrapIdentityUpdates(
+       bytes32[] calldata inboxIds_,
+       bytes[] calldata identityUpdates_,
+       uint64[] calldata sequenceIds_
+   )
+*/
 
 func findLog[T any](
 	receipt *types.Receipt,

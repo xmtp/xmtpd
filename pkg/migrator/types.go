@@ -59,11 +59,14 @@ type ISourceRecord interface {
 // GroupMessage represents the group_messages table from the source database.
 // Order by ID ASC.
 type GroupMessage struct {
-	ID              int64     `db:"id"`
-	CreatedAt       time.Time `db:"created_at"`
-	GroupID         []byte    `db:"group_id"`
-	Data            []byte    `db:"data"`
-	GroupIDDataHash []byte    `db:"group_id_data_hash"`
+	ID              int64        `db:"id"`
+	CreatedAt       time.Time    `db:"created_at"`
+	GroupID         []byte       `db:"group_id"`
+	Data            []byte       `db:"data"`
+	GroupIDDataHash []byte       `db:"group_id_data_hash"`
+	IsCommit        sql.NullBool `db:"is_commit"`
+	SenderHmac      []byte       `db:"sender_hmac"`
+	ShouldPush      sql.NullBool `db:"should_push"`
 }
 
 func (g GroupMessage) GetID() int64 {
@@ -81,6 +84,9 @@ func (g *GroupMessage) Scan(rows *sql.Rows) error {
 		&g.GroupID,
 		&g.Data,
 		&g.GroupIDDataHash,
+		&g.IsCommit,
+		&g.SenderHmac,
+		&g.ShouldPush,
 	)
 }
 
@@ -144,6 +150,7 @@ type WelcomeMessage struct {
 	HpkePublicKey           []byte    `db:"hpke_public_key"`
 	InstallationKeyDataHash []byte    `db:"installation_key_data_hash"`
 	WrapperAlgorithm        int16     `db:"wrapper_algorithm"`
+	WelcomeMetadata         []byte    `db:"welcome_metadata"`
 }
 
 func (w WelcomeMessage) GetID() int64 {
@@ -163,5 +170,6 @@ func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 		&w.HpkePublicKey,
 		&w.InstallationKeyDataHash,
 		&w.WrapperAlgorithm,
+		&w.WelcomeMetadata,
 	)
 }

@@ -112,14 +112,20 @@ func insertGroupMessages(t *testing.T, ctx context.Context, db *sql.DB) {
 		hash, err := decodeBytea(row[4])
 		require.NoError(t, err)
 
+		senderHMAC, err := decodeBytea(row[6])
+		require.NoError(t, err)
+
 		_, err = db.ExecContext(
 			ctx,
-			"INSERT INTO group_messages (id, created_at, group_id, data, group_id_data_hash) VALUES ($1, $2, $3, $4, $5)",
+			"INSERT INTO group_messages (id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 			row[0],
 			row[1],
 			groupID,
 			data,
 			hash,
+			row[5],
+			senderHMAC,
+			row[7],
 		)
 		require.NoError(t, err)
 	}
@@ -151,9 +157,12 @@ func insertWelcomeMessages(t *testing.T, ctx context.Context, db *sql.DB) {
 		installationKeyDataHash, err := decodeBytea(row[5])
 		require.NoError(t, err)
 
+		welcomeMetadata, err := decodeBytea(row[7])
+		require.NoError(t, err)
+
 		_, err = db.ExecContext(
 			ctx,
-			"INSERT INTO welcome_messages (id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+			"INSERT INTO welcome_messages (id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm, welcome_metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 			row[0],
 			row[1],
 			installationKey,
@@ -161,6 +170,7 @@ func insertWelcomeMessages(t *testing.T, ctx context.Context, db *sql.DB) {
 			hpkePublicKey,
 			installationKeyDataHash,
 			row[6],
+			welcomeMetadata,
 		)
 		require.NoError(t, err)
 	}

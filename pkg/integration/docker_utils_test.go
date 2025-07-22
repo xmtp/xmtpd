@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"strconv"
@@ -222,9 +223,7 @@ func (b *XmtpdContainerBuilder) WithContainerName(name string) *XmtpdContainerBu
 }
 
 func (b *XmtpdContainerBuilder) WithEnvVars(envVars map[string]string) *XmtpdContainerBuilder {
-	for k, v := range envVars {
-		b.envVars[k] = v
-	}
+	maps.Copy(b.envVars, envVars)
 	return b
 }
 

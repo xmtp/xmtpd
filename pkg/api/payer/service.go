@@ -341,7 +341,6 @@ func (s *Service) publishToBlockchain(
 			)
 		}
 
-
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
 
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("group_message", func() (*gm.GroupMessageBroadcasterMessageSent, error) {

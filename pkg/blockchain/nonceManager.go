@@ -74,16 +74,11 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 		return nil, err
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
-
 	txQuerier := queries.New(s.db).WithTx(tx)
 
 	nonce, err := txQuerier.GetNextAvailableNonce(ctx)
 	if err != nil {
+		_ = tx.Rollback()
 		return nil, err
 	}
 
@@ -95,6 +90,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 		Cancel: func() {
 			<-s.limiter.semaphore
 			s.limiter.wg.Done()
+			s.logger.Debug("Abandoned Nonce", zap.Int64("nonce", nonce))
 			_ = tx.Rollback()
 		},
 		Consume: func() error {
@@ -102,9 +98,11 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*NonceContext, er
 			s.limiter.wg.Done()
 			_, err = txQuerier.DeleteAvailableNonce(ctx, nonce)
 			if err != nil {
+				s.logger.Error("Failed to consume nonce", zap.Error(err))
 				_ = tx.Rollback()
 				return err
 			}
+			s.logger.Debug("Consumed Nonce", zap.Int64("nonce", nonce))
 			return tx.Commit()
 		},
 	}

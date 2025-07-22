@@ -126,6 +126,11 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, errors.New("message is empty")
 	}
 
+	if err := ctx.Err(); err != nil {
+		m.logger.Warn("WaitForTransaction called with already-cancelled context", zap.Error(err))
+		return nil, fmt.Errorf("parent context already canceled: %w", err)
+	}
+
 	return withNonce(
 		ctx,
 		m.logger,
@@ -290,23 +295,12 @@ func withNonce[T any](ctx context.Context,
 		break
 	}
 
-	defer func() {
-		if err != nil {
-			nonceContext.Cancel()
-		}
-	}()
-
-	val, err := wait(ctx, tx)
-	if err != nil {
-		return nil, err
-	}
-
 	err = nonceContext.Consume()
 	if err != nil {
-		return nil, err
+		logger.Error("error consuming nonce", zap.Error(err))
 	}
 
-	return val, nil
+	return wait(ctx, tx)
 }
 
 func (m *BlockchainPublisher) Close() {

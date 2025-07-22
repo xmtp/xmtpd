@@ -205,7 +205,15 @@ func WaitForTransaction(
 ) (*types.Receipt, error) {
 	// Enforce the timeout with a context so that slow requests get aborted if the function has
 	// run out of time
+	logger.Info("initial ctx.Err()", zap.Error(ctx.Err()))
+
+	if err := ctx.Err(); err != nil {
+		logger.Warn("WaitForTransaction called with already-cancelled context", zap.Error(err))
+		return nil, fmt.Errorf("parent context already canceled: %w", err)
+	}
+
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
+	logger.Info("after setting deadline", zap.Error(ctx.Err()))
 	defer cancel()
 
 	// Ticker to track polling interval
@@ -216,6 +224,8 @@ func WaitForTransaction(
 	defer func() {
 		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
 	}()
+
+	logger.Info("now", zap.Time("now", now))
 
 	for {
 		receipt, err := client.TransactionReceipt(ctx, hash)
@@ -232,6 +242,7 @@ func WaitForTransaction(
 
 		select {
 		case <-ctx.Done():
+			logger.Info("ctx.Done()", zap.Error(ctx.Err()), zap.Time("now", time.Now()))
 			return nil, fmt.Errorf("timed out")
 		case <-ticker.C:
 			continue

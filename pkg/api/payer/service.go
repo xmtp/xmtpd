@@ -544,7 +544,6 @@ func determineRetentionPolicy(
 	return constants.DEFAULT_STORAGE_DURATION_DAYS
 }
 
-
 // shouldSendToBlockchain determines whether a given ClientEnvelope should be forwarded to the blockchain.
 //
 // It inspects the topic kind of the envelope and, for group messages, invokes validation logic to determine whether the
@@ -554,15 +553,22 @@ func determineRetentionPolicy(
 //   - clientEnvelope (*envelopes.ClientEnvelope): The client envelope to inspect and validate.
 //
 // Returns:
+//
 //   - bool: A general indication of whether the message should be sent to the blockchain.
-//           - true: send to blockchain
-//           - false: do not send
+//
+//   - true: send to blockchain
+//
+//   - false: do not send
 //
 //   - *bool: A specific indication of commit status (only for group messages):
-//           - nil: not a group message or unknown commit state
-//           - non-nil pointer to bool:
-//               - true: this is a commit and should be sent
-//               - false: this is not a commit and should not be sent
+//
+//   - nil: not a group message or unknown commit state
+//
+//   - non-nil pointer to bool:
+//
+//   - true: this is a commit and should be sent
+//
+//   - false: this is not a commit and should not be sent
 //
 //   - error: Any error encountered during validation. If non-nil, the decision is considered invalid.
 func (s *Service) shouldSendToBlockchain(

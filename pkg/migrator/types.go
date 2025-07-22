@@ -9,18 +9,15 @@ import (
 )
 
 const (
-	groupMessagesTableName          = "group_messages"
-	GroupMessageOriginatorID uint32 = 10
+	groupMessagesTableName   = "group_messages"
+	welcomeMessagesTableName = "welcome_messages"
+	inboxLogTableName        = "inbox_log"
+	keyPackagesTableName     = "key_packages"
 
-	welcomeMessagesTableName          = "welcome_messages"
+	GroupMessageOriginatorID   uint32 = 10
 	WelcomeMessageOriginatorID uint32 = 11
-
-	// IdentityUpdates in xmtpd.
-	inboxLogTableName           = "inbox_log"
-	InboxLogOriginatorID uint32 = 12
-
-	keyPackagesTableName           = "key_packages"
-	KeyPackagesOriginatorID uint32 = 13
+	InboxLogOriginatorID       uint32 = 12
+	KeyPackagesOriginatorID    uint32 = 13
 )
 
 var originatorIDToTableName = map[uint32]string{

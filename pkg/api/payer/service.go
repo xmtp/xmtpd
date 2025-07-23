@@ -359,7 +359,7 @@ func (s *Service) publishToBlockchain(
 		if err != nil {
 			return nil, status.Errorf(
 				codes.Internal,
-				"error converting identifier to group ID: %v",
+				"error converting identifier to inbox ID: %v",
 				err,
 			)
 		}

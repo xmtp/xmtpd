@@ -87,8 +87,7 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	ctx := context.Background()
 	storer := buildGroupMessageStorer(t)
 
-	var groupID [32]byte
-	copy(groupID[:], testutils.RandomBytes(32))
+	groupID := testutils.RandomGroupID()
 	message := testutils.RandomBytes(30)
 	sequenceID := uint64(1)
 

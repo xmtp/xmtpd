@@ -36,6 +36,7 @@ type IPayerReportManagerPayerReport struct {
 	FeesSettled      *big.Int
 	Offset           uint32
 	IsSettled        bool
+	ProtocolFeeRate  uint16
 	PayersMerkleRoot [32]byte
 	NodeIds          []uint32
 }
@@ -48,7 +49,7 @@ type IPayerReportManagerPayerReportSignature struct {
 
 // PayerReportManagerMetaData contains all meta data concerning the PayerReportManager contract.
 var PayerReportManagerMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nodeRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"DOMAIN_SEPARATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"domainSeparator_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"PAYER_REPORT_TYPEHASH\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"eip712Domain\",\"inputs\":[],\"outputs\":[{\"name\":\"fields_\",\"type\":\"bytes1\",\"internalType\":\"bytes1\"},{\"name\":\"name_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"version_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"chainId_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"verifyingContract_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"salt_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"extensions_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPayerReport\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"payerReport_\",\"type\":\"tuple\",\"internalType\":\"structIPayerReportManager.PayerReport\",\"components\":[{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"feesSettled\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"offset\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isSettled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"payersMerkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPayerReportDigest\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"startSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"payersMerkleRoot_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds_\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"}],\"outputs\":[{\"name\":\"digest_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPayerReports\",\"inputs\":[{\"name\":\"originatorNodeIds_\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"},{\"name\":\"payerReportIndices_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[{\"name\":\"payerReports_\",\"type\":\"tuple[]\",\"internalType\":\"structIPayerReportManager.PayerReport[]\",\"components\":[{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"feesSettled\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"offset\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isSettled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"payersMerkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"nodeRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"payerRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"settle\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"payerFees_\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"proofElements_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"submit\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"startSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"payersMerkleRoot_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds_\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"},{\"name\":\"signatures_\",\"type\":\"tuple[]\",\"internalType\":\"structIPayerReportManager.PayerReportSignature[]\",\"components\":[{\"name\":\"nodeId\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[{\"name\":\"payerReportIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"EIP712DomainChanged\",\"inputs\":[],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PayerReportSubmitted\",\"inputs\":[{\"name\":\"originatorNodeId\",\"type\":\"uint32\",\"indexed\":true,\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"endSequenceId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"},{\"name\":\"payersMerkleRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"nodeIds\",\"type\":\"uint32[]\",\"indexed\":false,\"internalType\":\"uint32[]\"},{\"name\":\"signingNodeIds\",\"type\":\"uint32[]\",\"indexed\":false,\"internalType\":\"uint32[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PayerReportSubsetSettled\",\"inputs\":[{\"name\":\"originatorNodeId\",\"type\":\"uint32\",\"indexed\":true,\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"count\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"remaining\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"feesSettled\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InsufficientSignatures\",\"inputs\":[{\"name\":\"validSignatureCount\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"requiredSignatureCount\",\"type\":\"uint8\",\"internalType\":\"uint8\"}]},{\"type\":\"error\",\"name\":\"InvalidBitCount32Input\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidLeafCount\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidProof\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidSequenceIds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidStartSequenceId\",\"inputs\":[{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"lastSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"}]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoLeaves\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoProofElements\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerReportEntirelySettled\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerReportIndexOutOfBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SettleUsageFailed\",\"inputs\":[{\"name\":\"returnData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"UnorderedNodeIds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroNodeRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroPayerRegistry\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nodeRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"DOMAIN_SEPARATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"domainSeparator_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"ONE_HUNDRED_PERCENT\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint16\",\"internalType\":\"uint16\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"PAYER_REPORT_TYPEHASH\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"eip712Domain\",\"inputs\":[],\"outputs\":[{\"name\":\"fields_\",\"type\":\"bytes1\",\"internalType\":\"bytes1\"},{\"name\":\"name_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"version_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"chainId_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"verifyingContract_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"salt_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"extensions_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPayerReport\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"payerReport_\",\"type\":\"tuple\",\"internalType\":\"structIPayerReportManager.PayerReport\",\"components\":[{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"feesSettled\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"offset\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isSettled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"protocolFeeRate\",\"type\":\"uint16\",\"internalType\":\"uint16\"},{\"name\":\"payersMerkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPayerReportDigest\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"startSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endMinuteSinceEpoch_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"payersMerkleRoot_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds_\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"}],\"outputs\":[{\"name\":\"digest_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPayerReports\",\"inputs\":[{\"name\":\"originatorNodeIds_\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"},{\"name\":\"payerReportIndices_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[{\"name\":\"payerReports_\",\"type\":\"tuple[]\",\"internalType\":\"structIPayerReportManager.PayerReport[]\",\"components\":[{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"feesSettled\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"offset\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"isSettled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"protocolFeeRate\",\"type\":\"uint16\",\"internalType\":\"uint16\"},{\"name\":\"payersMerkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"nodeRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"payerRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"protocolFeeRate\",\"inputs\":[],\"outputs\":[{\"name\":\"protocolFeeRate_\",\"type\":\"uint16\",\"internalType\":\"uint16\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"protocolFeeRateParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"settle\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"payerFees_\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"proofElements_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"submit\",\"inputs\":[{\"name\":\"originatorNodeId_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"startSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endSequenceId_\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"endMinuteSinceEpoch_\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"payersMerkleRoot_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"nodeIds_\",\"type\":\"uint32[]\",\"internalType\":\"uint32[]\"},{\"name\":\"signatures_\",\"type\":\"tuple[]\",\"internalType\":\"structIPayerReportManager.PayerReportSignature[]\",\"components\":[{\"name\":\"nodeId\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[{\"name\":\"payerReportIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateProtocolFeeRate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"EIP712DomainChanged\",\"inputs\":[],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PayerReportSubmitted\",\"inputs\":[{\"name\":\"originatorNodeId\",\"type\":\"uint32\",\"indexed\":true,\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"endSequenceId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"},{\"name\":\"endMinuteSinceEpoch\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"payersMerkleRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"nodeIds\",\"type\":\"uint32[]\",\"indexed\":false,\"internalType\":\"uint32[]\"},{\"name\":\"signingNodeIds\",\"type\":\"uint32[]\",\"indexed\":false,\"internalType\":\"uint32[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PayerReportSubsetSettled\",\"inputs\":[{\"name\":\"originatorNodeId\",\"type\":\"uint32\",\"indexed\":true,\"internalType\":\"uint32\"},{\"name\":\"payerReportIndex\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"count\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"remaining\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"},{\"name\":\"feesSettled\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProtocolFeeRateUpdated\",\"inputs\":[{\"name\":\"protocolFeeRate\",\"type\":\"uint16\",\"indexed\":false,\"internalType\":\"uint16\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InsufficientSignatures\",\"inputs\":[{\"name\":\"validSignatureCount\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"requiredSignatureCount\",\"type\":\"uint8\",\"internalType\":\"uint8\"}]},{\"type\":\"error\",\"name\":\"InvalidBitCount32Input\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidLeafCount\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidProof\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidProtocolFeeRate\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidSequenceIds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidStartSequenceId\",\"inputs\":[{\"name\":\"startSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"lastSequenceId\",\"type\":\"uint64\",\"internalType\":\"uint64\"}]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoLeaves\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoProofElements\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerFeesLengthTooLong\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerReportEntirelySettled\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerReportIndexOutOfBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SettleUsageFailed\",\"inputs\":[{\"name\":\"returnData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"UnorderedNodeIds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroNodeRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroPayerRegistry\",\"inputs\":[]}]",
 }
 
 // PayerReportManagerABI is the input ABI used to generate the binding from.
@@ -228,6 +229,37 @@ func (_PayerReportManager *PayerReportManagerCallerSession) DOMAINSEPARATOR() ([
 	return _PayerReportManager.Contract.DOMAINSEPARATOR(&_PayerReportManager.CallOpts)
 }
 
+// ONEHUNDREDPERCENT is a free data retrieval call binding the contract method 0xdd0081c7.
+//
+// Solidity: function ONE_HUNDRED_PERCENT() view returns(uint16)
+func (_PayerReportManager *PayerReportManagerCaller) ONEHUNDREDPERCENT(opts *bind.CallOpts) (uint16, error) {
+	var out []interface{}
+	err := _PayerReportManager.contract.Call(opts, &out, "ONE_HUNDRED_PERCENT")
+
+	if err != nil {
+		return *new(uint16), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint16)).(*uint16)
+
+	return out0, err
+
+}
+
+// ONEHUNDREDPERCENT is a free data retrieval call binding the contract method 0xdd0081c7.
+//
+// Solidity: function ONE_HUNDRED_PERCENT() view returns(uint16)
+func (_PayerReportManager *PayerReportManagerSession) ONEHUNDREDPERCENT() (uint16, error) {
+	return _PayerReportManager.Contract.ONEHUNDREDPERCENT(&_PayerReportManager.CallOpts)
+}
+
+// ONEHUNDREDPERCENT is a free data retrieval call binding the contract method 0xdd0081c7.
+//
+// Solidity: function ONE_HUNDRED_PERCENT() view returns(uint16)
+func (_PayerReportManager *PayerReportManagerCallerSession) ONEHUNDREDPERCENT() (uint16, error) {
+	return _PayerReportManager.Contract.ONEHUNDREDPERCENT(&_PayerReportManager.CallOpts)
+}
+
 // PAYERREPORTTYPEHASH is a free data retrieval call binding the contract method 0x3d8fcde2.
 //
 // Solidity: function PAYER_REPORT_TYPEHASH() view returns(bytes32)
@@ -331,7 +363,7 @@ func (_PayerReportManager *PayerReportManagerCallerSession) Eip712Domain() (stru
 
 // GetPayerReport is a free data retrieval call binding the contract method 0x22ccd722.
 //
-// Solidity: function getPayerReport(uint32 originatorNodeId_, uint256 payerReportIndex_) view returns((uint64,uint64,uint96,uint32,bool,bytes32,uint32[]) payerReport_)
+// Solidity: function getPayerReport(uint32 originatorNodeId_, uint256 payerReportIndex_) view returns((uint64,uint64,uint96,uint32,bool,uint16,bytes32,uint32[]) payerReport_)
 func (_PayerReportManager *PayerReportManagerCaller) GetPayerReport(opts *bind.CallOpts, originatorNodeId_ uint32, payerReportIndex_ *big.Int) (IPayerReportManagerPayerReport, error) {
 	var out []interface{}
 	err := _PayerReportManager.contract.Call(opts, &out, "getPayerReport", originatorNodeId_, payerReportIndex_)
@@ -348,24 +380,24 @@ func (_PayerReportManager *PayerReportManagerCaller) GetPayerReport(opts *bind.C
 
 // GetPayerReport is a free data retrieval call binding the contract method 0x22ccd722.
 //
-// Solidity: function getPayerReport(uint32 originatorNodeId_, uint256 payerReportIndex_) view returns((uint64,uint64,uint96,uint32,bool,bytes32,uint32[]) payerReport_)
+// Solidity: function getPayerReport(uint32 originatorNodeId_, uint256 payerReportIndex_) view returns((uint64,uint64,uint96,uint32,bool,uint16,bytes32,uint32[]) payerReport_)
 func (_PayerReportManager *PayerReportManagerSession) GetPayerReport(originatorNodeId_ uint32, payerReportIndex_ *big.Int) (IPayerReportManagerPayerReport, error) {
 	return _PayerReportManager.Contract.GetPayerReport(&_PayerReportManager.CallOpts, originatorNodeId_, payerReportIndex_)
 }
 
 // GetPayerReport is a free data retrieval call binding the contract method 0x22ccd722.
 //
-// Solidity: function getPayerReport(uint32 originatorNodeId_, uint256 payerReportIndex_) view returns((uint64,uint64,uint96,uint32,bool,bytes32,uint32[]) payerReport_)
+// Solidity: function getPayerReport(uint32 originatorNodeId_, uint256 payerReportIndex_) view returns((uint64,uint64,uint96,uint32,bool,uint16,bytes32,uint32[]) payerReport_)
 func (_PayerReportManager *PayerReportManagerCallerSession) GetPayerReport(originatorNodeId_ uint32, payerReportIndex_ *big.Int) (IPayerReportManagerPayerReport, error) {
 	return _PayerReportManager.Contract.GetPayerReport(&_PayerReportManager.CallOpts, originatorNodeId_, payerReportIndex_)
 }
 
-// GetPayerReportDigest is a free data retrieval call binding the contract method 0x12bd2837.
+// GetPayerReportDigest is a free data retrieval call binding the contract method 0x356e1189.
 //
-// Solidity: function getPayerReportDigest(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, bytes32 payersMerkleRoot_, uint32[] nodeIds_) view returns(bytes32 digest_)
-func (_PayerReportManager *PayerReportManagerCaller) GetPayerReportDigest(opts *bind.CallOpts, originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, payersMerkleRoot_ [32]byte, nodeIds_ []uint32) ([32]byte, error) {
+// Solidity: function getPayerReportDigest(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, uint32 endMinuteSinceEpoch_, bytes32 payersMerkleRoot_, uint32[] nodeIds_) view returns(bytes32 digest_)
+func (_PayerReportManager *PayerReportManagerCaller) GetPayerReportDigest(opts *bind.CallOpts, originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, endMinuteSinceEpoch_ uint32, payersMerkleRoot_ [32]byte, nodeIds_ []uint32) ([32]byte, error) {
 	var out []interface{}
-	err := _PayerReportManager.contract.Call(opts, &out, "getPayerReportDigest", originatorNodeId_, startSequenceId_, endSequenceId_, payersMerkleRoot_, nodeIds_)
+	err := _PayerReportManager.contract.Call(opts, &out, "getPayerReportDigest", originatorNodeId_, startSequenceId_, endSequenceId_, endMinuteSinceEpoch_, payersMerkleRoot_, nodeIds_)
 
 	if err != nil {
 		return *new([32]byte), err
@@ -377,23 +409,23 @@ func (_PayerReportManager *PayerReportManagerCaller) GetPayerReportDigest(opts *
 
 }
 
-// GetPayerReportDigest is a free data retrieval call binding the contract method 0x12bd2837.
+// GetPayerReportDigest is a free data retrieval call binding the contract method 0x356e1189.
 //
-// Solidity: function getPayerReportDigest(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, bytes32 payersMerkleRoot_, uint32[] nodeIds_) view returns(bytes32 digest_)
-func (_PayerReportManager *PayerReportManagerSession) GetPayerReportDigest(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, payersMerkleRoot_ [32]byte, nodeIds_ []uint32) ([32]byte, error) {
-	return _PayerReportManager.Contract.GetPayerReportDigest(&_PayerReportManager.CallOpts, originatorNodeId_, startSequenceId_, endSequenceId_, payersMerkleRoot_, nodeIds_)
+// Solidity: function getPayerReportDigest(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, uint32 endMinuteSinceEpoch_, bytes32 payersMerkleRoot_, uint32[] nodeIds_) view returns(bytes32 digest_)
+func (_PayerReportManager *PayerReportManagerSession) GetPayerReportDigest(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, endMinuteSinceEpoch_ uint32, payersMerkleRoot_ [32]byte, nodeIds_ []uint32) ([32]byte, error) {
+	return _PayerReportManager.Contract.GetPayerReportDigest(&_PayerReportManager.CallOpts, originatorNodeId_, startSequenceId_, endSequenceId_, endMinuteSinceEpoch_, payersMerkleRoot_, nodeIds_)
 }
 
-// GetPayerReportDigest is a free data retrieval call binding the contract method 0x12bd2837.
+// GetPayerReportDigest is a free data retrieval call binding the contract method 0x356e1189.
 //
-// Solidity: function getPayerReportDigest(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, bytes32 payersMerkleRoot_, uint32[] nodeIds_) view returns(bytes32 digest_)
-func (_PayerReportManager *PayerReportManagerCallerSession) GetPayerReportDigest(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, payersMerkleRoot_ [32]byte, nodeIds_ []uint32) ([32]byte, error) {
-	return _PayerReportManager.Contract.GetPayerReportDigest(&_PayerReportManager.CallOpts, originatorNodeId_, startSequenceId_, endSequenceId_, payersMerkleRoot_, nodeIds_)
+// Solidity: function getPayerReportDigest(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, uint32 endMinuteSinceEpoch_, bytes32 payersMerkleRoot_, uint32[] nodeIds_) view returns(bytes32 digest_)
+func (_PayerReportManager *PayerReportManagerCallerSession) GetPayerReportDigest(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, endMinuteSinceEpoch_ uint32, payersMerkleRoot_ [32]byte, nodeIds_ []uint32) ([32]byte, error) {
+	return _PayerReportManager.Contract.GetPayerReportDigest(&_PayerReportManager.CallOpts, originatorNodeId_, startSequenceId_, endSequenceId_, endMinuteSinceEpoch_, payersMerkleRoot_, nodeIds_)
 }
 
 // GetPayerReports is a free data retrieval call binding the contract method 0xb881bca0.
 //
-// Solidity: function getPayerReports(uint32[] originatorNodeIds_, uint256[] payerReportIndices_) view returns((uint64,uint64,uint96,uint32,bool,bytes32,uint32[])[] payerReports_)
+// Solidity: function getPayerReports(uint32[] originatorNodeIds_, uint256[] payerReportIndices_) view returns((uint64,uint64,uint96,uint32,bool,uint16,bytes32,uint32[])[] payerReports_)
 func (_PayerReportManager *PayerReportManagerCaller) GetPayerReports(opts *bind.CallOpts, originatorNodeIds_ []uint32, payerReportIndices_ []*big.Int) ([]IPayerReportManagerPayerReport, error) {
 	var out []interface{}
 	err := _PayerReportManager.contract.Call(opts, &out, "getPayerReports", originatorNodeIds_, payerReportIndices_)
@@ -410,14 +442,14 @@ func (_PayerReportManager *PayerReportManagerCaller) GetPayerReports(opts *bind.
 
 // GetPayerReports is a free data retrieval call binding the contract method 0xb881bca0.
 //
-// Solidity: function getPayerReports(uint32[] originatorNodeIds_, uint256[] payerReportIndices_) view returns((uint64,uint64,uint96,uint32,bool,bytes32,uint32[])[] payerReports_)
+// Solidity: function getPayerReports(uint32[] originatorNodeIds_, uint256[] payerReportIndices_) view returns((uint64,uint64,uint96,uint32,bool,uint16,bytes32,uint32[])[] payerReports_)
 func (_PayerReportManager *PayerReportManagerSession) GetPayerReports(originatorNodeIds_ []uint32, payerReportIndices_ []*big.Int) ([]IPayerReportManagerPayerReport, error) {
 	return _PayerReportManager.Contract.GetPayerReports(&_PayerReportManager.CallOpts, originatorNodeIds_, payerReportIndices_)
 }
 
 // GetPayerReports is a free data retrieval call binding the contract method 0xb881bca0.
 //
-// Solidity: function getPayerReports(uint32[] originatorNodeIds_, uint256[] payerReportIndices_) view returns((uint64,uint64,uint96,uint32,bool,bytes32,uint32[])[] payerReports_)
+// Solidity: function getPayerReports(uint32[] originatorNodeIds_, uint256[] payerReportIndices_) view returns((uint64,uint64,uint96,uint32,bool,uint16,bytes32,uint32[])[] payerReports_)
 func (_PayerReportManager *PayerReportManagerCallerSession) GetPayerReports(originatorNodeIds_ []uint32, payerReportIndices_ []*big.Int) ([]IPayerReportManagerPayerReport, error) {
 	return _PayerReportManager.Contract.GetPayerReports(&_PayerReportManager.CallOpts, originatorNodeIds_, payerReportIndices_)
 }
@@ -455,16 +487,16 @@ func (_PayerReportManager *PayerReportManagerCallerSession) Implementation() (co
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_PayerReportManager *PayerReportManagerCaller) MigratorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_PayerReportManager *PayerReportManagerCaller) MigratorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerReportManager.contract.Call(opts, &out, "migratorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -472,15 +504,15 @@ func (_PayerReportManager *PayerReportManagerCaller) MigratorParameterKey(opts *
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_PayerReportManager *PayerReportManagerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_PayerReportManager *PayerReportManagerSession) MigratorParameterKey() (string, error) {
 	return _PayerReportManager.Contract.MigratorParameterKey(&_PayerReportManager.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_PayerReportManager *PayerReportManagerCallerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_PayerReportManager *PayerReportManagerCallerSession) MigratorParameterKey() (string, error) {
 	return _PayerReportManager.Contract.MigratorParameterKey(&_PayerReportManager.CallOpts)
 }
 
@@ -577,6 +609,68 @@ func (_PayerReportManager *PayerReportManagerCallerSession) PayerRegistry() (com
 	return _PayerReportManager.Contract.PayerRegistry(&_PayerReportManager.CallOpts)
 }
 
+// ProtocolFeeRate is a free data retrieval call binding the contract method 0x58f85880.
+//
+// Solidity: function protocolFeeRate() view returns(uint16 protocolFeeRate_)
+func (_PayerReportManager *PayerReportManagerCaller) ProtocolFeeRate(opts *bind.CallOpts) (uint16, error) {
+	var out []interface{}
+	err := _PayerReportManager.contract.Call(opts, &out, "protocolFeeRate")
+
+	if err != nil {
+		return *new(uint16), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint16)).(*uint16)
+
+	return out0, err
+
+}
+
+// ProtocolFeeRate is a free data retrieval call binding the contract method 0x58f85880.
+//
+// Solidity: function protocolFeeRate() view returns(uint16 protocolFeeRate_)
+func (_PayerReportManager *PayerReportManagerSession) ProtocolFeeRate() (uint16, error) {
+	return _PayerReportManager.Contract.ProtocolFeeRate(&_PayerReportManager.CallOpts)
+}
+
+// ProtocolFeeRate is a free data retrieval call binding the contract method 0x58f85880.
+//
+// Solidity: function protocolFeeRate() view returns(uint16 protocolFeeRate_)
+func (_PayerReportManager *PayerReportManagerCallerSession) ProtocolFeeRate() (uint16, error) {
+	return _PayerReportManager.Contract.ProtocolFeeRate(&_PayerReportManager.CallOpts)
+}
+
+// ProtocolFeeRateParameterKey is a free data retrieval call binding the contract method 0xacc48f0f.
+//
+// Solidity: function protocolFeeRateParameterKey() pure returns(string key_)
+func (_PayerReportManager *PayerReportManagerCaller) ProtocolFeeRateParameterKey(opts *bind.CallOpts) (string, error) {
+	var out []interface{}
+	err := _PayerReportManager.contract.Call(opts, &out, "protocolFeeRateParameterKey")
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
+}
+
+// ProtocolFeeRateParameterKey is a free data retrieval call binding the contract method 0xacc48f0f.
+//
+// Solidity: function protocolFeeRateParameterKey() pure returns(string key_)
+func (_PayerReportManager *PayerReportManagerSession) ProtocolFeeRateParameterKey() (string, error) {
+	return _PayerReportManager.Contract.ProtocolFeeRateParameterKey(&_PayerReportManager.CallOpts)
+}
+
+// ProtocolFeeRateParameterKey is a free data retrieval call binding the contract method 0xacc48f0f.
+//
+// Solidity: function protocolFeeRateParameterKey() pure returns(string key_)
+func (_PayerReportManager *PayerReportManagerCallerSession) ProtocolFeeRateParameterKey() (string, error) {
+	return _PayerReportManager.Contract.ProtocolFeeRateParameterKey(&_PayerReportManager.CallOpts)
+}
+
 // Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.
 //
 // Solidity: function initialize() returns()
@@ -640,25 +734,46 @@ func (_PayerReportManager *PayerReportManagerTransactorSession) Settle(originato
 	return _PayerReportManager.Contract.Settle(&_PayerReportManager.TransactOpts, originatorNodeId_, payerReportIndex_, payerFees_, proofElements_)
 }
 
-// Submit is a paid mutator transaction binding the contract method 0xb8712eec.
+// Submit is a paid mutator transaction binding the contract method 0x844446cd.
 //
-// Solidity: function submit(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, bytes32 payersMerkleRoot_, uint32[] nodeIds_, (uint32,bytes)[] signatures_) returns(uint256 payerReportIndex_)
-func (_PayerReportManager *PayerReportManagerTransactor) Submit(opts *bind.TransactOpts, originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, payersMerkleRoot_ [32]byte, nodeIds_ []uint32, signatures_ []IPayerReportManagerPayerReportSignature) (*types.Transaction, error) {
-	return _PayerReportManager.contract.Transact(opts, "submit", originatorNodeId_, startSequenceId_, endSequenceId_, payersMerkleRoot_, nodeIds_, signatures_)
+// Solidity: function submit(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, uint32 endMinuteSinceEpoch_, bytes32 payersMerkleRoot_, uint32[] nodeIds_, (uint32,bytes)[] signatures_) returns(uint256 payerReportIndex_)
+func (_PayerReportManager *PayerReportManagerTransactor) Submit(opts *bind.TransactOpts, originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, endMinuteSinceEpoch_ uint32, payersMerkleRoot_ [32]byte, nodeIds_ []uint32, signatures_ []IPayerReportManagerPayerReportSignature) (*types.Transaction, error) {
+	return _PayerReportManager.contract.Transact(opts, "submit", originatorNodeId_, startSequenceId_, endSequenceId_, endMinuteSinceEpoch_, payersMerkleRoot_, nodeIds_, signatures_)
 }
 
-// Submit is a paid mutator transaction binding the contract method 0xb8712eec.
+// Submit is a paid mutator transaction binding the contract method 0x844446cd.
 //
-// Solidity: function submit(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, bytes32 payersMerkleRoot_, uint32[] nodeIds_, (uint32,bytes)[] signatures_) returns(uint256 payerReportIndex_)
-func (_PayerReportManager *PayerReportManagerSession) Submit(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, payersMerkleRoot_ [32]byte, nodeIds_ []uint32, signatures_ []IPayerReportManagerPayerReportSignature) (*types.Transaction, error) {
-	return _PayerReportManager.Contract.Submit(&_PayerReportManager.TransactOpts, originatorNodeId_, startSequenceId_, endSequenceId_, payersMerkleRoot_, nodeIds_, signatures_)
+// Solidity: function submit(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, uint32 endMinuteSinceEpoch_, bytes32 payersMerkleRoot_, uint32[] nodeIds_, (uint32,bytes)[] signatures_) returns(uint256 payerReportIndex_)
+func (_PayerReportManager *PayerReportManagerSession) Submit(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, endMinuteSinceEpoch_ uint32, payersMerkleRoot_ [32]byte, nodeIds_ []uint32, signatures_ []IPayerReportManagerPayerReportSignature) (*types.Transaction, error) {
+	return _PayerReportManager.Contract.Submit(&_PayerReportManager.TransactOpts, originatorNodeId_, startSequenceId_, endSequenceId_, endMinuteSinceEpoch_, payersMerkleRoot_, nodeIds_, signatures_)
 }
 
-// Submit is a paid mutator transaction binding the contract method 0xb8712eec.
+// Submit is a paid mutator transaction binding the contract method 0x844446cd.
 //
-// Solidity: function submit(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, bytes32 payersMerkleRoot_, uint32[] nodeIds_, (uint32,bytes)[] signatures_) returns(uint256 payerReportIndex_)
-func (_PayerReportManager *PayerReportManagerTransactorSession) Submit(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, payersMerkleRoot_ [32]byte, nodeIds_ []uint32, signatures_ []IPayerReportManagerPayerReportSignature) (*types.Transaction, error) {
-	return _PayerReportManager.Contract.Submit(&_PayerReportManager.TransactOpts, originatorNodeId_, startSequenceId_, endSequenceId_, payersMerkleRoot_, nodeIds_, signatures_)
+// Solidity: function submit(uint32 originatorNodeId_, uint64 startSequenceId_, uint64 endSequenceId_, uint32 endMinuteSinceEpoch_, bytes32 payersMerkleRoot_, uint32[] nodeIds_, (uint32,bytes)[] signatures_) returns(uint256 payerReportIndex_)
+func (_PayerReportManager *PayerReportManagerTransactorSession) Submit(originatorNodeId_ uint32, startSequenceId_ uint64, endSequenceId_ uint64, endMinuteSinceEpoch_ uint32, payersMerkleRoot_ [32]byte, nodeIds_ []uint32, signatures_ []IPayerReportManagerPayerReportSignature) (*types.Transaction, error) {
+	return _PayerReportManager.Contract.Submit(&_PayerReportManager.TransactOpts, originatorNodeId_, startSequenceId_, endSequenceId_, endMinuteSinceEpoch_, payersMerkleRoot_, nodeIds_, signatures_)
+}
+
+// UpdateProtocolFeeRate is a paid mutator transaction binding the contract method 0xd3444eee.
+//
+// Solidity: function updateProtocolFeeRate() returns()
+func (_PayerReportManager *PayerReportManagerTransactor) UpdateProtocolFeeRate(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _PayerReportManager.contract.Transact(opts, "updateProtocolFeeRate")
+}
+
+// UpdateProtocolFeeRate is a paid mutator transaction binding the contract method 0xd3444eee.
+//
+// Solidity: function updateProtocolFeeRate() returns()
+func (_PayerReportManager *PayerReportManagerSession) UpdateProtocolFeeRate() (*types.Transaction, error) {
+	return _PayerReportManager.Contract.UpdateProtocolFeeRate(&_PayerReportManager.TransactOpts)
+}
+
+// UpdateProtocolFeeRate is a paid mutator transaction binding the contract method 0xd3444eee.
+//
+// Solidity: function updateProtocolFeeRate() returns()
+func (_PayerReportManager *PayerReportManagerTransactorSession) UpdateProtocolFeeRate() (*types.Transaction, error) {
+	return _PayerReportManager.Contract.UpdateProtocolFeeRate(&_PayerReportManager.TransactOpts)
 }
 
 // PayerReportManagerEIP712DomainChangedIterator is returned from FilterEIP712DomainChanged and is used to iterate over the raw logs and unpacked data for EIP712DomainChanged events raised by the PayerReportManager contract.
@@ -1141,19 +1256,20 @@ func (it *PayerReportManagerPayerReportSubmittedIterator) Close() error {
 
 // PayerReportManagerPayerReportSubmitted represents a PayerReportSubmitted event raised by the PayerReportManager contract.
 type PayerReportManagerPayerReportSubmitted struct {
-	OriginatorNodeId uint32
-	PayerReportIndex *big.Int
-	StartSequenceId  uint64
-	EndSequenceId    uint64
-	PayersMerkleRoot [32]byte
-	NodeIds          []uint32
-	SigningNodeIds   []uint32
-	Raw              types.Log // Blockchain specific contextual infos
+	OriginatorNodeId    uint32
+	PayerReportIndex    *big.Int
+	StartSequenceId     uint64
+	EndSequenceId       uint64
+	EndMinuteSinceEpoch uint32
+	PayersMerkleRoot    [32]byte
+	NodeIds             []uint32
+	SigningNodeIds      []uint32
+	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterPayerReportSubmitted is a free log retrieval operation binding the contract event 0xf12df7b91b93c52175586285d72faca087327f0686c9c38e514bf9f67ef59365.
+// FilterPayerReportSubmitted is a free log retrieval operation binding the contract event 0xc51249b9e6e78c1a6b57bbca4dd3ff04bff48ba6f7246ab4d109a89e8a824dda.
 //
-// Solidity: event PayerReportSubmitted(uint32 indexed originatorNodeId, uint256 indexed payerReportIndex, uint64 startSequenceId, uint64 indexed endSequenceId, bytes32 payersMerkleRoot, uint32[] nodeIds, uint32[] signingNodeIds)
+// Solidity: event PayerReportSubmitted(uint32 indexed originatorNodeId, uint256 indexed payerReportIndex, uint64 startSequenceId, uint64 indexed endSequenceId, uint32 endMinuteSinceEpoch, bytes32 payersMerkleRoot, uint32[] nodeIds, uint32[] signingNodeIds)
 func (_PayerReportManager *PayerReportManagerFilterer) FilterPayerReportSubmitted(opts *bind.FilterOpts, originatorNodeId []uint32, payerReportIndex []*big.Int, endSequenceId []uint64) (*PayerReportManagerPayerReportSubmittedIterator, error) {
 
 	var originatorNodeIdRule []interface{}
@@ -1177,9 +1293,9 @@ func (_PayerReportManager *PayerReportManagerFilterer) FilterPayerReportSubmitte
 	return &PayerReportManagerPayerReportSubmittedIterator{contract: _PayerReportManager.contract, event: "PayerReportSubmitted", logs: logs, sub: sub}, nil
 }
 
-// WatchPayerReportSubmitted is a free log subscription operation binding the contract event 0xf12df7b91b93c52175586285d72faca087327f0686c9c38e514bf9f67ef59365.
+// WatchPayerReportSubmitted is a free log subscription operation binding the contract event 0xc51249b9e6e78c1a6b57bbca4dd3ff04bff48ba6f7246ab4d109a89e8a824dda.
 //
-// Solidity: event PayerReportSubmitted(uint32 indexed originatorNodeId, uint256 indexed payerReportIndex, uint64 startSequenceId, uint64 indexed endSequenceId, bytes32 payersMerkleRoot, uint32[] nodeIds, uint32[] signingNodeIds)
+// Solidity: event PayerReportSubmitted(uint32 indexed originatorNodeId, uint256 indexed payerReportIndex, uint64 startSequenceId, uint64 indexed endSequenceId, uint32 endMinuteSinceEpoch, bytes32 payersMerkleRoot, uint32[] nodeIds, uint32[] signingNodeIds)
 func (_PayerReportManager *PayerReportManagerFilterer) WatchPayerReportSubmitted(opts *bind.WatchOpts, sink chan<- *PayerReportManagerPayerReportSubmitted, originatorNodeId []uint32, payerReportIndex []*big.Int, endSequenceId []uint64) (event.Subscription, error) {
 
 	var originatorNodeIdRule []interface{}
@@ -1228,9 +1344,9 @@ func (_PayerReportManager *PayerReportManagerFilterer) WatchPayerReportSubmitted
 	}), nil
 }
 
-// ParsePayerReportSubmitted is a log parse operation binding the contract event 0xf12df7b91b93c52175586285d72faca087327f0686c9c38e514bf9f67ef59365.
+// ParsePayerReportSubmitted is a log parse operation binding the contract event 0xc51249b9e6e78c1a6b57bbca4dd3ff04bff48ba6f7246ab4d109a89e8a824dda.
 //
-// Solidity: event PayerReportSubmitted(uint32 indexed originatorNodeId, uint256 indexed payerReportIndex, uint64 startSequenceId, uint64 indexed endSequenceId, bytes32 payersMerkleRoot, uint32[] nodeIds, uint32[] signingNodeIds)
+// Solidity: event PayerReportSubmitted(uint32 indexed originatorNodeId, uint256 indexed payerReportIndex, uint64 startSequenceId, uint64 indexed endSequenceId, uint32 endMinuteSinceEpoch, bytes32 payersMerkleRoot, uint32[] nodeIds, uint32[] signingNodeIds)
 func (_PayerReportManager *PayerReportManagerFilterer) ParsePayerReportSubmitted(log types.Log) (*PayerReportManagerPayerReportSubmitted, error) {
 	event := new(PayerReportManagerPayerReportSubmitted)
 	if err := _PayerReportManager.contract.UnpackLog(event, "PayerReportSubmitted", log); err != nil {
@@ -1390,6 +1506,140 @@ func (_PayerReportManager *PayerReportManagerFilterer) WatchPayerReportSubsetSet
 func (_PayerReportManager *PayerReportManagerFilterer) ParsePayerReportSubsetSettled(log types.Log) (*PayerReportManagerPayerReportSubsetSettled, error) {
 	event := new(PayerReportManagerPayerReportSubsetSettled)
 	if err := _PayerReportManager.contract.UnpackLog(event, "PayerReportSubsetSettled", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// PayerReportManagerProtocolFeeRateUpdatedIterator is returned from FilterProtocolFeeRateUpdated and is used to iterate over the raw logs and unpacked data for ProtocolFeeRateUpdated events raised by the PayerReportManager contract.
+type PayerReportManagerProtocolFeeRateUpdatedIterator struct {
+	Event *PayerReportManagerProtocolFeeRateUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PayerReportManagerProtocolFeeRateUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PayerReportManagerProtocolFeeRateUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PayerReportManagerProtocolFeeRateUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PayerReportManagerProtocolFeeRateUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PayerReportManagerProtocolFeeRateUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PayerReportManagerProtocolFeeRateUpdated represents a ProtocolFeeRateUpdated event raised by the PayerReportManager contract.
+type PayerReportManagerProtocolFeeRateUpdated struct {
+	ProtocolFeeRate uint16
+	Raw             types.Log // Blockchain specific contextual infos
+}
+
+// FilterProtocolFeeRateUpdated is a free log retrieval operation binding the contract event 0x1b89f70e2fb3771e6a9f5cd2d2ad3439b823b67e0e69bdeb89b7d68a35fdd5c9.
+//
+// Solidity: event ProtocolFeeRateUpdated(uint16 protocolFeeRate)
+func (_PayerReportManager *PayerReportManagerFilterer) FilterProtocolFeeRateUpdated(opts *bind.FilterOpts) (*PayerReportManagerProtocolFeeRateUpdatedIterator, error) {
+
+	logs, sub, err := _PayerReportManager.contract.FilterLogs(opts, "ProtocolFeeRateUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return &PayerReportManagerProtocolFeeRateUpdatedIterator{contract: _PayerReportManager.contract, event: "ProtocolFeeRateUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchProtocolFeeRateUpdated is a free log subscription operation binding the contract event 0x1b89f70e2fb3771e6a9f5cd2d2ad3439b823b67e0e69bdeb89b7d68a35fdd5c9.
+//
+// Solidity: event ProtocolFeeRateUpdated(uint16 protocolFeeRate)
+func (_PayerReportManager *PayerReportManagerFilterer) WatchProtocolFeeRateUpdated(opts *bind.WatchOpts, sink chan<- *PayerReportManagerProtocolFeeRateUpdated) (event.Subscription, error) {
+
+	logs, sub, err := _PayerReportManager.contract.WatchLogs(opts, "ProtocolFeeRateUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PayerReportManagerProtocolFeeRateUpdated)
+				if err := _PayerReportManager.contract.UnpackLog(event, "ProtocolFeeRateUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseProtocolFeeRateUpdated is a log parse operation binding the contract event 0x1b89f70e2fb3771e6a9f5cd2d2ad3439b823b67e0e69bdeb89b7d68a35fdd5c9.
+//
+// Solidity: event ProtocolFeeRateUpdated(uint16 protocolFeeRate)
+func (_PayerReportManager *PayerReportManagerFilterer) ParseProtocolFeeRateUpdated(log types.Log) (*PayerReportManagerProtocolFeeRateUpdated, error) {
+	event := new(PayerReportManagerProtocolFeeRateUpdated)
+	if err := _PayerReportManager.contract.UnpackLog(event, "ProtocolFeeRateUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

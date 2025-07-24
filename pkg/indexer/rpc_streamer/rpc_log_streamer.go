@@ -483,7 +483,7 @@ func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 			"failed to rebuild subscription, closing",
 			zap.Error(err),
 		)
-		return
+		return nil, err
 	}
 
 	r.logger.Info("Subscription rebuilt")

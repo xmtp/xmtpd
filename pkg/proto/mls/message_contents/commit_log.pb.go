@@ -10,6 +10,7 @@
 package message_contents
 
 import (
+	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -172,11 +173,12 @@ func (x *PlaintextCommitLogEntry) GetAppliedEpochAuthenticator() []byte {
 }
 
 type CommitLogEntry struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	SequenceId              uint64                 `protobuf:"varint,1,opt,name=sequence_id,json=sequenceId,proto3" json:"sequence_id,omitempty"`
-	EncryptedCommitLogEntry []byte                 `protobuf:"bytes,2,opt,name=encrypted_commit_log_entry,json=encryptedCommitLogEntry,proto3" json:"encrypted_commit_log_entry,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                    protoimpl.MessageState                    `protogen:"open.v1"`
+	SequenceId               uint64                                    `protobuf:"varint,1,opt,name=sequence_id,json=sequenceId,proto3" json:"sequence_id,omitempty"`
+	SerializedCommitLogEntry []byte                                    `protobuf:"bytes,2,opt,name=serialized_commit_log_entry,json=serializedCommitLogEntry,proto3" json:"serialized_commit_log_entry,omitempty"`
+	Signature                *associations.RecoverableEd25519Signature `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *CommitLogEntry) Reset() {
@@ -216,9 +218,16 @@ func (x *CommitLogEntry) GetSequenceId() uint64 {
 	return 0
 }
 
-func (x *CommitLogEntry) GetEncryptedCommitLogEntry() []byte {
+func (x *CommitLogEntry) GetSerializedCommitLogEntry() []byte {
 	if x != nil {
-		return x.EncryptedCommitLogEntry
+		return x.SerializedCommitLogEntry
+	}
+	return nil
+}
+
+func (x *CommitLogEntry) GetSignature() *associations.RecoverableEd25519Signature {
+	if x != nil {
+		return x.Signature
 	}
 	return nil
 }
@@ -227,18 +236,19 @@ var File_mls_message_contents_commit_log_proto protoreflect.FileDescriptor
 
 const file_mls_message_contents_commit_log_proto_rawDesc = "" +
 	"\n" +
-	"%mls/message_contents/commit_log.proto\x12\x19xmtp.mls.message_contents\"\xdc\x02\n" +
+	"%mls/message_contents/commit_log.proto\x12\x19xmtp.mls.message_contents\x1a%identity/associations/signature.proto\"\xdc\x02\n" +
 	"\x17PlaintextCommitLogEntry\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\fR\agroupId\x12,\n" +
 	"\x12commit_sequence_id\x18\x02 \x01(\x04R\x10commitSequenceId\x128\n" +
 	"\x18last_epoch_authenticator\x18\x03 \x01(\fR\x16lastEpochAuthenticator\x12L\n" +
 	"\rcommit_result\x18\x04 \x01(\x0e2'.xmtp.mls.message_contents.CommitResultR\fcommitResult\x120\n" +
 	"\x14applied_epoch_number\x18\x05 \x01(\x04R\x12appliedEpochNumber\x12>\n" +
-	"\x1bapplied_epoch_authenticator\x18\x06 \x01(\fR\x19appliedEpochAuthenticator\"n\n" +
+	"\x1bapplied_epoch_authenticator\x18\x06 \x01(\fR\x19appliedEpochAuthenticator\"\xc7\x01\n" +
 	"\x0eCommitLogEntry\x12\x1f\n" +
 	"\vsequence_id\x18\x01 \x01(\x04R\n" +
-	"sequenceId\x12;\n" +
-	"\x1aencrypted_commit_log_entry\x18\x02 \x01(\fR\x17encryptedCommitLogEntry*\xa3\x01\n" +
+	"sequenceId\x12=\n" +
+	"\x1bserialized_commit_log_entry\x18\x02 \x01(\fR\x18serializedCommitLogEntry\x12U\n" +
+	"\tsignature\x18\x03 \x01(\v27.xmtp.identity.associations.RecoverableEd25519SignatureR\tsignature*\xa3\x01\n" +
 	"\fCommitResult\x12\x1d\n" +
 	"\x19COMMIT_RESULT_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15COMMIT_RESULT_APPLIED\x10\x01\x12\x1d\n" +
@@ -262,17 +272,19 @@ func file_mls_message_contents_commit_log_proto_rawDescGZIP() []byte {
 var file_mls_message_contents_commit_log_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_mls_message_contents_commit_log_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_mls_message_contents_commit_log_proto_goTypes = []any{
-	(CommitResult)(0),               // 0: xmtp.mls.message_contents.CommitResult
-	(*PlaintextCommitLogEntry)(nil), // 1: xmtp.mls.message_contents.PlaintextCommitLogEntry
-	(*CommitLogEntry)(nil),          // 2: xmtp.mls.message_contents.CommitLogEntry
+	(CommitResult)(0),                                // 0: xmtp.mls.message_contents.CommitResult
+	(*PlaintextCommitLogEntry)(nil),                  // 1: xmtp.mls.message_contents.PlaintextCommitLogEntry
+	(*CommitLogEntry)(nil),                           // 2: xmtp.mls.message_contents.CommitLogEntry
+	(*associations.RecoverableEd25519Signature)(nil), // 3: xmtp.identity.associations.RecoverableEd25519Signature
 }
 var file_mls_message_contents_commit_log_proto_depIdxs = []int32{
 	0, // 0: xmtp.mls.message_contents.PlaintextCommitLogEntry.commit_result:type_name -> xmtp.mls.message_contents.CommitResult
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 1: xmtp.mls.message_contents.CommitLogEntry.signature:type_name -> xmtp.identity.associations.RecoverableEd25519Signature
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_commit_log_proto_init() }

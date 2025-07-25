@@ -31,7 +31,7 @@ var (
 
 // GroupMessageBroadcasterMetaData contains all meta data concerning the GroupMessageBroadcaster contract.
 var GroupMessageBroadcasterMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addMessage\",\"inputs\":[{\"name\":\"groupId_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"message_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"maxPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"minPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"paused_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pausedParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"updateMaxPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMinPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePauseStatus\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MessageSent\",\"inputs\":[{\"name\":\"groupId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"message\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"},{\"name\":\"sequenceId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MinPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PauseStatusUpdated\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":true,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMaxPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMinPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidPayloadSize\",\"inputs\":[{\"name\":\"actualSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"minSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Paused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addMessage\",\"inputs\":[{\"name\":\"groupId_\",\"type\":\"bytes16\",\"internalType\":\"bytes16\"},{\"name\":\"message_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"bootstrapMessages\",\"inputs\":[{\"name\":\"groupIds_\",\"type\":\"bytes16[]\",\"internalType\":\"bytes16[]\"},{\"name\":\"messages_\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"sequenceIds_\",\"type\":\"uint64[]\",\"internalType\":\"uint64[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"maxPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"minPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"paused_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pausedParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"payloadBootstrapper\",\"inputs\":[],\"outputs\":[{\"name\":\"payloadBootstrapper_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"payloadBootstrapperParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"updateMaxPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMinPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePauseStatus\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePayloadBootstrapper\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MessageSent\",\"inputs\":[{\"name\":\"groupId\",\"type\":\"bytes16\",\"indexed\":true,\"internalType\":\"bytes16\"},{\"name\":\"message\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"},{\"name\":\"sequenceId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MinPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PauseStatusUpdated\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":true,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PayloadBootstrapperUpdated\",\"inputs\":[{\"name\":\"payloadBootstrapper\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyArray\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMaxPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMinPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidPayloadSize\",\"inputs\":[{\"name\":\"actualSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"minSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotPaused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotPayloadBootstrapper\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Paused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]}]",
 }
 
 // GroupMessageBroadcasterABI is the input ABI used to generate the binding from.
@@ -244,16 +244,16 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MaxPayload
 
 // MaxPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x0cb858ea.
 //
-// Solidity: function maxPayloadSizeParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MaxPayloadSizeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function maxPayloadSizeParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MaxPayloadSizeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _GroupMessageBroadcaster.contract.Call(opts, &out, "maxPayloadSizeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -261,30 +261,30 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MaxPayloadSizePar
 
 // MaxPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x0cb858ea.
 //
-// Solidity: function maxPayloadSizeParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) MaxPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function maxPayloadSizeParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) MaxPayloadSizeParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.MaxPayloadSizeParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
 // MaxPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x0cb858ea.
 //
-// Solidity: function maxPayloadSizeParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MaxPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function maxPayloadSizeParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MaxPayloadSizeParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.MaxPayloadSizeParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MigratorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MigratorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _GroupMessageBroadcaster.contract.Call(opts, &out, "migratorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -292,15 +292,15 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MigratorParameter
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) MigratorParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.MigratorParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MigratorParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.MigratorParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
@@ -337,16 +337,16 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MinPayload
 
 // MinPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x9218415d.
 //
-// Solidity: function minPayloadSizeParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MinPayloadSizeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function minPayloadSizeParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MinPayloadSizeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _GroupMessageBroadcaster.contract.Call(opts, &out, "minPayloadSizeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -354,15 +354,15 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) MinPayloadSizePar
 
 // MinPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x9218415d.
 //
-// Solidity: function minPayloadSizeParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) MinPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function minPayloadSizeParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) MinPayloadSizeParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.MinPayloadSizeParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
 // MinPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x9218415d.
 //
-// Solidity: function minPayloadSizeParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MinPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function minPayloadSizeParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) MinPayloadSizeParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.MinPayloadSizeParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
@@ -430,16 +430,16 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) Paused() (
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) PausedParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) PausedParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _GroupMessageBroadcaster.contract.Call(opts, &out, "pausedParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -447,37 +447,120 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) PausedParameterKe
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) PausedParameterKey() ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) PausedParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.PausedParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) PausedParameterKey() ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) PausedParameterKey() (string, error) {
 	return _GroupMessageBroadcaster.Contract.PausedParameterKey(&_GroupMessageBroadcaster.CallOpts)
 }
 
-// AddMessage is a paid mutator transaction binding the contract method 0x4dff26b5.
+// PayloadBootstrapper is a free data retrieval call binding the contract method 0x405a11fc.
 //
-// Solidity: function addMessage(bytes32 groupId_, bytes message_) returns()
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactor) AddMessage(opts *bind.TransactOpts, groupId_ [32]byte, message_ []byte) (*types.Transaction, error) {
+// Solidity: function payloadBootstrapper() view returns(address payloadBootstrapper_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) PayloadBootstrapper(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _GroupMessageBroadcaster.contract.Call(opts, &out, "payloadBootstrapper")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// PayloadBootstrapper is a free data retrieval call binding the contract method 0x405a11fc.
+//
+// Solidity: function payloadBootstrapper() view returns(address payloadBootstrapper_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) PayloadBootstrapper() (common.Address, error) {
+	return _GroupMessageBroadcaster.Contract.PayloadBootstrapper(&_GroupMessageBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapper is a free data retrieval call binding the contract method 0x405a11fc.
+//
+// Solidity: function payloadBootstrapper() view returns(address payloadBootstrapper_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) PayloadBootstrapper() (common.Address, error) {
+	return _GroupMessageBroadcaster.Contract.PayloadBootstrapper(&_GroupMessageBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapperParameterKey is a free data retrieval call binding the contract method 0x4600f300.
+//
+// Solidity: function payloadBootstrapperParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCaller) PayloadBootstrapperParameterKey(opts *bind.CallOpts) (string, error) {
+	var out []interface{}
+	err := _GroupMessageBroadcaster.contract.Call(opts, &out, "payloadBootstrapperParameterKey")
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
+}
+
+// PayloadBootstrapperParameterKey is a free data retrieval call binding the contract method 0x4600f300.
+//
+// Solidity: function payloadBootstrapperParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) PayloadBootstrapperParameterKey() (string, error) {
+	return _GroupMessageBroadcaster.Contract.PayloadBootstrapperParameterKey(&_GroupMessageBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapperParameterKey is a free data retrieval call binding the contract method 0x4600f300.
+//
+// Solidity: function payloadBootstrapperParameterKey() pure returns(string key_)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterCallerSession) PayloadBootstrapperParameterKey() (string, error) {
+	return _GroupMessageBroadcaster.Contract.PayloadBootstrapperParameterKey(&_GroupMessageBroadcaster.CallOpts)
+}
+
+// AddMessage is a paid mutator transaction binding the contract method 0x7e4af76c.
+//
+// Solidity: function addMessage(bytes16 groupId_, bytes message_) returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactor) AddMessage(opts *bind.TransactOpts, groupId_ [16]byte, message_ []byte) (*types.Transaction, error) {
 	return _GroupMessageBroadcaster.contract.Transact(opts, "addMessage", groupId_, message_)
 }
 
-// AddMessage is a paid mutator transaction binding the contract method 0x4dff26b5.
+// AddMessage is a paid mutator transaction binding the contract method 0x7e4af76c.
 //
-// Solidity: function addMessage(bytes32 groupId_, bytes message_) returns()
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) AddMessage(groupId_ [32]byte, message_ []byte) (*types.Transaction, error) {
+// Solidity: function addMessage(bytes16 groupId_, bytes message_) returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) AddMessage(groupId_ [16]byte, message_ []byte) (*types.Transaction, error) {
 	return _GroupMessageBroadcaster.Contract.AddMessage(&_GroupMessageBroadcaster.TransactOpts, groupId_, message_)
 }
 
-// AddMessage is a paid mutator transaction binding the contract method 0x4dff26b5.
+// AddMessage is a paid mutator transaction binding the contract method 0x7e4af76c.
 //
-// Solidity: function addMessage(bytes32 groupId_, bytes message_) returns()
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactorSession) AddMessage(groupId_ [32]byte, message_ []byte) (*types.Transaction, error) {
+// Solidity: function addMessage(bytes16 groupId_, bytes message_) returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactorSession) AddMessage(groupId_ [16]byte, message_ []byte) (*types.Transaction, error) {
 	return _GroupMessageBroadcaster.Contract.AddMessage(&_GroupMessageBroadcaster.TransactOpts, groupId_, message_)
+}
+
+// BootstrapMessages is a paid mutator transaction binding the contract method 0xcbc3a5ea.
+//
+// Solidity: function bootstrapMessages(bytes16[] groupIds_, bytes[] messages_, uint64[] sequenceIds_) returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactor) BootstrapMessages(opts *bind.TransactOpts, groupIds_ [][16]byte, messages_ [][]byte, sequenceIds_ []uint64) (*types.Transaction, error) {
+	return _GroupMessageBroadcaster.contract.Transact(opts, "bootstrapMessages", groupIds_, messages_, sequenceIds_)
+}
+
+// BootstrapMessages is a paid mutator transaction binding the contract method 0xcbc3a5ea.
+//
+// Solidity: function bootstrapMessages(bytes16[] groupIds_, bytes[] messages_, uint64[] sequenceIds_) returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) BootstrapMessages(groupIds_ [][16]byte, messages_ [][]byte, sequenceIds_ []uint64) (*types.Transaction, error) {
+	return _GroupMessageBroadcaster.Contract.BootstrapMessages(&_GroupMessageBroadcaster.TransactOpts, groupIds_, messages_, sequenceIds_)
+}
+
+// BootstrapMessages is a paid mutator transaction binding the contract method 0xcbc3a5ea.
+//
+// Solidity: function bootstrapMessages(bytes16[] groupIds_, bytes[] messages_, uint64[] sequenceIds_) returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactorSession) BootstrapMessages(groupIds_ [][16]byte, messages_ [][]byte, sequenceIds_ []uint64) (*types.Transaction, error) {
+	return _GroupMessageBroadcaster.Contract.BootstrapMessages(&_GroupMessageBroadcaster.TransactOpts, groupIds_, messages_, sequenceIds_)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.
@@ -583,6 +666,27 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) UpdatePauseStatu
 // Solidity: function updatePauseStatus() returns()
 func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactorSession) UpdatePauseStatus() (*types.Transaction, error) {
 	return _GroupMessageBroadcaster.Contract.UpdatePauseStatus(&_GroupMessageBroadcaster.TransactOpts)
+}
+
+// UpdatePayloadBootstrapper is a paid mutator transaction binding the contract method 0x886bd989.
+//
+// Solidity: function updatePayloadBootstrapper() returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactor) UpdatePayloadBootstrapper(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _GroupMessageBroadcaster.contract.Transact(opts, "updatePayloadBootstrapper")
+}
+
+// UpdatePayloadBootstrapper is a paid mutator transaction binding the contract method 0x886bd989.
+//
+// Solidity: function updatePayloadBootstrapper() returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterSession) UpdatePayloadBootstrapper() (*types.Transaction, error) {
+	return _GroupMessageBroadcaster.Contract.UpdatePayloadBootstrapper(&_GroupMessageBroadcaster.TransactOpts)
+}
+
+// UpdatePayloadBootstrapper is a paid mutator transaction binding the contract method 0x886bd989.
+//
+// Solidity: function updatePayloadBootstrapper() returns()
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterTransactorSession) UpdatePayloadBootstrapper() (*types.Transaction, error) {
+	return _GroupMessageBroadcaster.Contract.UpdatePayloadBootstrapper(&_GroupMessageBroadcaster.TransactOpts)
 }
 
 // GroupMessageBroadcasterInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the GroupMessageBroadcaster contract.
@@ -932,16 +1036,16 @@ func (it *GroupMessageBroadcasterMessageSentIterator) Close() error {
 
 // GroupMessageBroadcasterMessageSent represents a MessageSent event raised by the GroupMessageBroadcaster contract.
 type GroupMessageBroadcasterMessageSent struct {
-	GroupId    [32]byte
+	GroupId    [16]byte
 	Message    []byte
 	SequenceId uint64
 	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterMessageSent is a free log retrieval operation binding the contract event 0x91f47151424884a46811ed593aa8a02ee5012e9332a4dcf1e9236a8ed4443c3e.
+// FilterMessageSent is a free log retrieval operation binding the contract event 0xe69329a8fa6c24860e47ba6211a332cf49c3e692bdbcc4bf5500d724bf9ccd05.
 //
-// Solidity: event MessageSent(bytes32 indexed groupId, bytes message, uint64 indexed sequenceId)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) FilterMessageSent(opts *bind.FilterOpts, groupId [][32]byte, sequenceId []uint64) (*GroupMessageBroadcasterMessageSentIterator, error) {
+// Solidity: event MessageSent(bytes16 indexed groupId, bytes message, uint64 indexed sequenceId)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) FilterMessageSent(opts *bind.FilterOpts, groupId [][16]byte, sequenceId []uint64) (*GroupMessageBroadcasterMessageSentIterator, error) {
 
 	var groupIdRule []interface{}
 	for _, groupIdItem := range groupId {
@@ -960,10 +1064,10 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) FilterMessageSe
 	return &GroupMessageBroadcasterMessageSentIterator{contract: _GroupMessageBroadcaster.contract, event: "MessageSent", logs: logs, sub: sub}, nil
 }
 
-// WatchMessageSent is a free log subscription operation binding the contract event 0x91f47151424884a46811ed593aa8a02ee5012e9332a4dcf1e9236a8ed4443c3e.
+// WatchMessageSent is a free log subscription operation binding the contract event 0xe69329a8fa6c24860e47ba6211a332cf49c3e692bdbcc4bf5500d724bf9ccd05.
 //
-// Solidity: event MessageSent(bytes32 indexed groupId, bytes message, uint64 indexed sequenceId)
-func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) WatchMessageSent(opts *bind.WatchOpts, sink chan<- *GroupMessageBroadcasterMessageSent, groupId [][32]byte, sequenceId []uint64) (event.Subscription, error) {
+// Solidity: event MessageSent(bytes16 indexed groupId, bytes message, uint64 indexed sequenceId)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) WatchMessageSent(opts *bind.WatchOpts, sink chan<- *GroupMessageBroadcasterMessageSent, groupId [][16]byte, sequenceId []uint64) (event.Subscription, error) {
 
 	var groupIdRule []interface{}
 	for _, groupIdItem := range groupId {
@@ -1007,9 +1111,9 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) WatchMessageSen
 	}), nil
 }
 
-// ParseMessageSent is a log parse operation binding the contract event 0x91f47151424884a46811ed593aa8a02ee5012e9332a4dcf1e9236a8ed4443c3e.
+// ParseMessageSent is a log parse operation binding the contract event 0xe69329a8fa6c24860e47ba6211a332cf49c3e692bdbcc4bf5500d724bf9ccd05.
 //
-// Solidity: event MessageSent(bytes32 indexed groupId, bytes message, uint64 indexed sequenceId)
+// Solidity: event MessageSent(bytes16 indexed groupId, bytes message, uint64 indexed sequenceId)
 func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) ParseMessageSent(log types.Log) (*GroupMessageBroadcasterMessageSent, error) {
 	event := new(GroupMessageBroadcasterMessageSent)
 	if err := _GroupMessageBroadcaster.contract.UnpackLog(event, "MessageSent", log); err != nil {
@@ -1445,6 +1549,150 @@ func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) WatchPauseStatu
 func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) ParsePauseStatusUpdated(log types.Log) (*GroupMessageBroadcasterPauseStatusUpdated, error) {
 	event := new(GroupMessageBroadcasterPauseStatusUpdated)
 	if err := _GroupMessageBroadcaster.contract.UnpackLog(event, "PauseStatusUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator is returned from FilterPayloadBootstrapperUpdated and is used to iterate over the raw logs and unpacked data for PayloadBootstrapperUpdated events raised by the GroupMessageBroadcaster contract.
+type GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator struct {
+	Event *GroupMessageBroadcasterPayloadBootstrapperUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(GroupMessageBroadcasterPayloadBootstrapperUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(GroupMessageBroadcasterPayloadBootstrapperUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// GroupMessageBroadcasterPayloadBootstrapperUpdated represents a PayloadBootstrapperUpdated event raised by the GroupMessageBroadcaster contract.
+type GroupMessageBroadcasterPayloadBootstrapperUpdated struct {
+	PayloadBootstrapper common.Address
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterPayloadBootstrapperUpdated is a free log retrieval operation binding the contract event 0x38ecae7c300c129540d5181b5e16ec68d73e388d6add9ad70e63307f6794e2a9.
+//
+// Solidity: event PayloadBootstrapperUpdated(address indexed payloadBootstrapper)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) FilterPayloadBootstrapperUpdated(opts *bind.FilterOpts, payloadBootstrapper []common.Address) (*GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator, error) {
+
+	var payloadBootstrapperRule []interface{}
+	for _, payloadBootstrapperItem := range payloadBootstrapper {
+		payloadBootstrapperRule = append(payloadBootstrapperRule, payloadBootstrapperItem)
+	}
+
+	logs, sub, err := _GroupMessageBroadcaster.contract.FilterLogs(opts, "PayloadBootstrapperUpdated", payloadBootstrapperRule)
+	if err != nil {
+		return nil, err
+	}
+	return &GroupMessageBroadcasterPayloadBootstrapperUpdatedIterator{contract: _GroupMessageBroadcaster.contract, event: "PayloadBootstrapperUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchPayloadBootstrapperUpdated is a free log subscription operation binding the contract event 0x38ecae7c300c129540d5181b5e16ec68d73e388d6add9ad70e63307f6794e2a9.
+//
+// Solidity: event PayloadBootstrapperUpdated(address indexed payloadBootstrapper)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) WatchPayloadBootstrapperUpdated(opts *bind.WatchOpts, sink chan<- *GroupMessageBroadcasterPayloadBootstrapperUpdated, payloadBootstrapper []common.Address) (event.Subscription, error) {
+
+	var payloadBootstrapperRule []interface{}
+	for _, payloadBootstrapperItem := range payloadBootstrapper {
+		payloadBootstrapperRule = append(payloadBootstrapperRule, payloadBootstrapperItem)
+	}
+
+	logs, sub, err := _GroupMessageBroadcaster.contract.WatchLogs(opts, "PayloadBootstrapperUpdated", payloadBootstrapperRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(GroupMessageBroadcasterPayloadBootstrapperUpdated)
+				if err := _GroupMessageBroadcaster.contract.UnpackLog(event, "PayloadBootstrapperUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParsePayloadBootstrapperUpdated is a log parse operation binding the contract event 0x38ecae7c300c129540d5181b5e16ec68d73e388d6add9ad70e63307f6794e2a9.
+//
+// Solidity: event PayloadBootstrapperUpdated(address indexed payloadBootstrapper)
+func (_GroupMessageBroadcaster *GroupMessageBroadcasterFilterer) ParsePayloadBootstrapperUpdated(log types.Log) (*GroupMessageBroadcasterPayloadBootstrapperUpdated, error) {
+	event := new(GroupMessageBroadcasterPayloadBootstrapperUpdated)
+	if err := _GroupMessageBroadcaster.contract.UnpackLog(event, "PayloadBootstrapperUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

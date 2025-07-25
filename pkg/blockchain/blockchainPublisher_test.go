@@ -54,28 +54,28 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		inboxId        [32]byte
+		inboxID        [32]byte
 		identityUpdate []byte
 		ctx            context.Context
 		wantErr        bool
 	}{
 		{
 			name:           "cancelled context",
-			inboxId:        testutils.RandomGroupID(),
+			inboxID:        testutils.RandomInboxIDBytes(),
 			identityUpdate: testutils.RandomBytes(100),
 			ctx:            testutils.CancelledContext(),
 			wantErr:        true,
 		},
 		{
 			name:           "empty update",
-			inboxId:        testutils.RandomGroupID(),
+			inboxID:        testutils.RandomInboxIDBytes(),
 			identityUpdate: []byte{},
 			ctx:            context.Background(),
 			wantErr:        true,
 		},
 		{
 			name:           "happy path",
-			inboxId:        testutils.RandomGroupID(),
+			inboxID:        testutils.RandomInboxIDBytes(),
 			identityUpdate: testutils.RandomBytes(104),
 			ctx:            context.Background(),
 			wantErr:        false,
@@ -87,7 +87,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			t.Parallel()
 			logMessage, err := publisher.PublishIdentityUpdate(
 				tt.ctx,
-				tt.inboxId,
+				tt.inboxID,
 				tt.identityUpdate,
 			)
 			if tt.wantErr {
@@ -96,7 +96,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, logMessage)
-			require.Equal(t, tt.inboxId, logMessage.InboxId)
+			require.Equal(t, tt.inboxID, logMessage.InboxId)
 			require.Equal(t, tt.identityUpdate, logMessage.Update)
 			require.Greater(t, logMessage.SequenceId, uint64(0))
 			require.NotNil(t, logMessage.Raw.TxHash)
@@ -109,7 +109,7 @@ func TestPublishGroupMessage(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		groupID [32]byte
+		groupID [16]byte
 		message []byte
 		ctx     context.Context
 		wantErr bool

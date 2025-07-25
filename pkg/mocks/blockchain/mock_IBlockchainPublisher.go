@@ -24,9 +24,9 @@ func (_m *MockIBlockchainPublisher) EXPECT() *MockIBlockchainPublisher_Expecter 
 	return &MockIBlockchainPublisher_Expecter{mock: &_m.Mock}
 }
 
-// PublishGroupMessage provides a mock function with given fields: ctx, groupdId, message
-func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, groupdId [32]byte, message []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error) {
-	ret := _m.Called(ctx, groupdId, message)
+// PublishGroupMessage provides a mock function with given fields: ctx, groupID, message
+func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, groupID [16]byte, message []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error) {
+	ret := _m.Called(ctx, groupID, message)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PublishGroupMessage")
@@ -34,19 +34,19 @@ func (_m *MockIBlockchainPublisher) PublishGroupMessage(ctx context.Context, gro
 
 	var r0 *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)); ok {
-		return rf(ctx, groupdId, message)
+	if rf, ok := ret.Get(0).(func(context.Context, [16]byte, []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)); ok {
+		return rf(ctx, groupID, message)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent); ok {
-		r0 = rf(ctx, groupdId, message)
+	if rf, ok := ret.Get(0).(func(context.Context, [16]byte, []byte) *groupmessagebroadcaster.GroupMessageBroadcasterMessageSent); ok {
+		r0 = rf(ctx, groupID, message)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [32]byte, []byte) error); ok {
-		r1 = rf(ctx, groupdId, message)
+	if rf, ok := ret.Get(1).(func(context.Context, [16]byte, []byte) error); ok {
+		r1 = rf(ctx, groupID, message)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -61,15 +61,15 @@ type MockIBlockchainPublisher_PublishGroupMessage_Call struct {
 
 // PublishGroupMessage is a helper method to define mock.On call
 //   - ctx context.Context
-//   - groupdId [32]byte
+//   - groupID [16]byte
 //   - message []byte
-func (_e *MockIBlockchainPublisher_Expecter) PublishGroupMessage(ctx interface{}, groupdId interface{}, message interface{}) *MockIBlockchainPublisher_PublishGroupMessage_Call {
-	return &MockIBlockchainPublisher_PublishGroupMessage_Call{Call: _e.mock.On("PublishGroupMessage", ctx, groupdId, message)}
+func (_e *MockIBlockchainPublisher_Expecter) PublishGroupMessage(ctx interface{}, groupID interface{}, message interface{}) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+	return &MockIBlockchainPublisher_PublishGroupMessage_Call{Call: _e.mock.On("PublishGroupMessage", ctx, groupID, message)}
 }
 
-func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Run(run func(ctx context.Context, groupdId [32]byte, message []byte)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Run(run func(ctx context.Context, groupID [16]byte, message []byte)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([32]byte), args[2].([]byte))
+		run(args[0].(context.Context), args[1].([16]byte), args[2].([]byte))
 	})
 	return _c
 }
@@ -79,14 +79,14 @@ func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) Return(_a0 *groupme
 	return _c
 }
 
-func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) RunAndReturn(run func(context.Context, [32]byte, []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
+func (_c *MockIBlockchainPublisher_PublishGroupMessage_Call) RunAndReturn(run func(context.Context, [16]byte, []byte) (*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)) *MockIBlockchainPublisher_PublishGroupMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// PublishIdentityUpdate provides a mock function with given fields: ctx, inboxId, identityUpdate
-func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, inboxId [32]byte, identityUpdate []byte) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
-	ret := _m.Called(ctx, inboxId, identityUpdate)
+// PublishIdentityUpdate provides a mock function with given fields: ctx, inboxID, identityUpdate
+func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, inboxID [32]byte, identityUpdate []byte) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+	ret := _m.Called(ctx, inboxID, identityUpdate)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PublishIdentityUpdate")
@@ -95,10 +95,10 @@ func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, i
 	var r0 *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) (*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)); ok {
-		return rf(ctx, inboxId, identityUpdate)
+		return rf(ctx, inboxID, identityUpdate)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, [32]byte, []byte) *identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated); ok {
-		r0 = rf(ctx, inboxId, identityUpdate)
+		r0 = rf(ctx, inboxID, identityUpdate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated)
@@ -106,7 +106,7 @@ func (_m *MockIBlockchainPublisher) PublishIdentityUpdate(ctx context.Context, i
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, [32]byte, []byte) error); ok {
-		r1 = rf(ctx, inboxId, identityUpdate)
+		r1 = rf(ctx, inboxID, identityUpdate)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -121,13 +121,13 @@ type MockIBlockchainPublisher_PublishIdentityUpdate_Call struct {
 
 // PublishIdentityUpdate is a helper method to define mock.On call
 //   - ctx context.Context
-//   - inboxId [32]byte
+//   - inboxID [32]byte
 //   - identityUpdate []byte
-func (_e *MockIBlockchainPublisher_Expecter) PublishIdentityUpdate(ctx interface{}, inboxId interface{}, identityUpdate interface{}) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
-	return &MockIBlockchainPublisher_PublishIdentityUpdate_Call{Call: _e.mock.On("PublishIdentityUpdate", ctx, inboxId, identityUpdate)}
+func (_e *MockIBlockchainPublisher_Expecter) PublishIdentityUpdate(ctx interface{}, inboxID interface{}, identityUpdate interface{}) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
+	return &MockIBlockchainPublisher_PublishIdentityUpdate_Call{Call: _e.mock.On("PublishIdentityUpdate", ctx, inboxID, identityUpdate)}
 }
 
-func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Run(run func(ctx context.Context, inboxId [32]byte, identityUpdate []byte)) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
+func (_c *MockIBlockchainPublisher_PublishIdentityUpdate_Call) Run(run func(ctx context.Context, inboxID [32]byte, identityUpdate []byte)) *MockIBlockchainPublisher_PublishIdentityUpdate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].([32]byte), args[2].([]byte))
 	})

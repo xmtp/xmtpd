@@ -40,7 +40,7 @@ type IRateRegistryRates struct {
 
 // RateRegistryMetaData contains all meta data concerning the RateRegistry contract.
 var RateRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"congestionFeeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"getRates\",\"inputs\":[{\"name\":\"fromIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"count_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"rates_\",\"type\":\"tuple[]\",\"internalType\":\"structIRateRegistry.Rates[]\",\"components\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"targetRatePerMinute\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"internalType\":\"uint64\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRatesCount\",\"inputs\":[],\"outputs\":[{\"name\":\"count_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"messageFeeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"storageFeeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"targetRatePerMinuteParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"updateRates\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RatesUpdated\",\"inputs\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"targetRatePerMinute\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"EndIndexOutOfRange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FromIndexOutOfRange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroCount\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"congestionFeeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"getRates\",\"inputs\":[{\"name\":\"fromIndex_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"count_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"rates_\",\"type\":\"tuple[]\",\"internalType\":\"structIRateRegistry.Rates[]\",\"components\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"targetRatePerMinute\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"startTime\",\"type\":\"uint64\",\"internalType\":\"uint64\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRatesCount\",\"inputs\":[],\"outputs\":[{\"name\":\"count_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"messageFeeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"storageFeeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"targetRatePerMinuteParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"updateRates\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RatesUpdated\",\"inputs\":[{\"name\":\"messageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"storageFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"congestionFee\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"},{\"name\":\"targetRatePerMinute\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"EndIndexOutOfRange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FromIndexOutOfRange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroCount\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]}]",
 }
 
 // RateRegistryABI is the input ABI used to generate the binding from.
@@ -191,16 +191,16 @@ func (_RateRegistry *RateRegistryTransactorRaw) Transact(opts *bind.TransactOpts
 
 // CongestionFeeParameterKey is a free data retrieval call binding the contract method 0xed7e6986.
 //
-// Solidity: function congestionFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCaller) CongestionFeeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function congestionFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCaller) CongestionFeeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _RateRegistry.contract.Call(opts, &out, "congestionFeeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -208,15 +208,15 @@ func (_RateRegistry *RateRegistryCaller) CongestionFeeParameterKey(opts *bind.Ca
 
 // CongestionFeeParameterKey is a free data retrieval call binding the contract method 0xed7e6986.
 //
-// Solidity: function congestionFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistrySession) CongestionFeeParameterKey() ([]byte, error) {
+// Solidity: function congestionFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistrySession) CongestionFeeParameterKey() (string, error) {
 	return _RateRegistry.Contract.CongestionFeeParameterKey(&_RateRegistry.CallOpts)
 }
 
 // CongestionFeeParameterKey is a free data retrieval call binding the contract method 0xed7e6986.
 //
-// Solidity: function congestionFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCallerSession) CongestionFeeParameterKey() ([]byte, error) {
+// Solidity: function congestionFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCallerSession) CongestionFeeParameterKey() (string, error) {
 	return _RateRegistry.Contract.CongestionFeeParameterKey(&_RateRegistry.CallOpts)
 }
 
@@ -315,16 +315,16 @@ func (_RateRegistry *RateRegistryCallerSession) Implementation() (common.Address
 
 // MessageFeeParameterKey is a free data retrieval call binding the contract method 0x63c03291.
 //
-// Solidity: function messageFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCaller) MessageFeeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function messageFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCaller) MessageFeeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _RateRegistry.contract.Call(opts, &out, "messageFeeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -332,30 +332,30 @@ func (_RateRegistry *RateRegistryCaller) MessageFeeParameterKey(opts *bind.CallO
 
 // MessageFeeParameterKey is a free data retrieval call binding the contract method 0x63c03291.
 //
-// Solidity: function messageFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistrySession) MessageFeeParameterKey() ([]byte, error) {
+// Solidity: function messageFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistrySession) MessageFeeParameterKey() (string, error) {
 	return _RateRegistry.Contract.MessageFeeParameterKey(&_RateRegistry.CallOpts)
 }
 
 // MessageFeeParameterKey is a free data retrieval call binding the contract method 0x63c03291.
 //
-// Solidity: function messageFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCallerSession) MessageFeeParameterKey() ([]byte, error) {
+// Solidity: function messageFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCallerSession) MessageFeeParameterKey() (string, error) {
 	return _RateRegistry.Contract.MessageFeeParameterKey(&_RateRegistry.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCaller) MigratorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCaller) MigratorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _RateRegistry.contract.Call(opts, &out, "migratorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -363,15 +363,15 @@ func (_RateRegistry *RateRegistryCaller) MigratorParameterKey(opts *bind.CallOpt
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistrySession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistrySession) MigratorParameterKey() (string, error) {
 	return _RateRegistry.Contract.MigratorParameterKey(&_RateRegistry.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCallerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCallerSession) MigratorParameterKey() (string, error) {
 	return _RateRegistry.Contract.MigratorParameterKey(&_RateRegistry.CallOpts)
 }
 
@@ -408,16 +408,16 @@ func (_RateRegistry *RateRegistryCallerSession) ParameterRegistry() (common.Addr
 
 // StorageFeeParameterKey is a free data retrieval call binding the contract method 0xba3261d5.
 //
-// Solidity: function storageFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCaller) StorageFeeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function storageFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCaller) StorageFeeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _RateRegistry.contract.Call(opts, &out, "storageFeeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -425,30 +425,30 @@ func (_RateRegistry *RateRegistryCaller) StorageFeeParameterKey(opts *bind.CallO
 
 // StorageFeeParameterKey is a free data retrieval call binding the contract method 0xba3261d5.
 //
-// Solidity: function storageFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistrySession) StorageFeeParameterKey() ([]byte, error) {
+// Solidity: function storageFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistrySession) StorageFeeParameterKey() (string, error) {
 	return _RateRegistry.Contract.StorageFeeParameterKey(&_RateRegistry.CallOpts)
 }
 
 // StorageFeeParameterKey is a free data retrieval call binding the contract method 0xba3261d5.
 //
-// Solidity: function storageFeeParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCallerSession) StorageFeeParameterKey() ([]byte, error) {
+// Solidity: function storageFeeParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCallerSession) StorageFeeParameterKey() (string, error) {
 	return _RateRegistry.Contract.StorageFeeParameterKey(&_RateRegistry.CallOpts)
 }
 
 // TargetRatePerMinuteParameterKey is a free data retrieval call binding the contract method 0x49156e09.
 //
-// Solidity: function targetRatePerMinuteParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCaller) TargetRatePerMinuteParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function targetRatePerMinuteParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCaller) TargetRatePerMinuteParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _RateRegistry.contract.Call(opts, &out, "targetRatePerMinuteParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -456,15 +456,15 @@ func (_RateRegistry *RateRegistryCaller) TargetRatePerMinuteParameterKey(opts *b
 
 // TargetRatePerMinuteParameterKey is a free data retrieval call binding the contract method 0x49156e09.
 //
-// Solidity: function targetRatePerMinuteParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistrySession) TargetRatePerMinuteParameterKey() ([]byte, error) {
+// Solidity: function targetRatePerMinuteParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistrySession) TargetRatePerMinuteParameterKey() (string, error) {
 	return _RateRegistry.Contract.TargetRatePerMinuteParameterKey(&_RateRegistry.CallOpts)
 }
 
 // TargetRatePerMinuteParameterKey is a free data retrieval call binding the contract method 0x49156e09.
 //
-// Solidity: function targetRatePerMinuteParameterKey() pure returns(bytes key_)
-func (_RateRegistry *RateRegistryCallerSession) TargetRatePerMinuteParameterKey() ([]byte, error) {
+// Solidity: function targetRatePerMinuteParameterKey() pure returns(string key_)
+func (_RateRegistry *RateRegistryCallerSession) TargetRatePerMinuteParameterKey() (string, error) {
 	return _RateRegistry.Contract.TargetRatePerMinuteParameterKey(&_RateRegistry.CallOpts)
 }
 

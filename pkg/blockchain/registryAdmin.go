@@ -241,13 +241,11 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			key := []byte(NODE_REGISTRY_MAX_CANONICAL_NODES_KEY)
-
 			var value [32]byte
 			// store uint8 in the last byte for big-endian compatibility
 			value[31] = limit
 
-			return n.parameterContract.Set0(opts, key, value)
+			return n.parameterContract.Set(opts, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, value)
 		},
 		func(log *types.Log) (interface{}, error) {
 			return n.parameterContract.ParseParameterSet(*log)

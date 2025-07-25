@@ -100,15 +100,12 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
 	svc, mockMessagePublisher, registryMocks, metaMocks := buildPayerService(t)
 
-	inboxId := testutils.RandomInboxId()
-	inboxIdBytes, err := utils.ParseInboxId(inboxId)
-	require.NoError(t, err)
-
+	inboxID := testutils.RandomInboxIDBytes()
 	txnHash := common.Hash{1, 2, 3}
 	sequenceId := uint64(99)
 
 	identityUpdate := &associations.IdentityUpdate{
-		InboxId: inboxId,
+		InboxId: utils.HexEncode(inboxID[:]),
 	}
 
 	mockStream := &MockSubscribeSyncCursorClient{
@@ -134,7 +131,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		testutils.GetHealthyNode(100),
 	}, nil)
 
-	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxIdBytes, identityUpdate)
+	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxID, identityUpdate)
 	envelopeBytes, err := proto.Marshal(envelope)
 	require.NoError(t, err)
 

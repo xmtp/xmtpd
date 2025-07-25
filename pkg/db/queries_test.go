@@ -15,7 +15,7 @@ func getAddressLogState(
 	t *testing.T,
 	querier *queries.Queries,
 	address string,
-	inboxId string,
+	inboxID string,
 ) *queries.GetAddressLogsRow {
 	addressLogs, err := querier.GetAddressLogs(context.Background(), []string{address})
 	require.NoError(t, err)
@@ -25,7 +25,7 @@ func getAddressLogState(
 	}
 
 	addressLog := addressLogs[0]
-	require.Equal(t, addressLog.InboxID, inboxId)
+	require.Equal(t, addressLog.InboxID, inboxID)
 
 	return &addressLog
 }
@@ -36,19 +36,19 @@ func TestInsertAddressLog(t *testing.T) {
 
 	querier := queries.New(db)
 	address := testutils.RandomString(20)
-	inboxId := testutils.RandomInboxId()
+	inboxID := testutils.RandomInboxIDString()
 
 	_, err := querier.InsertAddressLog(
 		ctx,
 		queries.InsertAddressLogParams{
 			Address:               address,
-			InboxID:               inboxId,
+			InboxID:               inboxID,
 			AssociationSequenceID: xmtpd_db.NullInt64(1),
 		},
 	)
 	require.NoError(t, err)
 
-	addressLog := getAddressLogState(t, querier, address, inboxId)
+	addressLog := getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
 	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(1))
 
@@ -57,13 +57,13 @@ func TestInsertAddressLog(t *testing.T) {
 		ctx,
 		queries.InsertAddressLogParams{
 			Address:               address,
-			InboxID:               inboxId,
+			InboxID:               inboxID,
 			AssociationSequenceID: xmtpd_db.NullInt64(2),
 		},
 	)
 	require.NoError(t, err)
 
-	addressLog = getAddressLogState(t, querier, address, inboxId)
+	addressLog = getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
 	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(2))
 
@@ -72,14 +72,14 @@ func TestInsertAddressLog(t *testing.T) {
 		ctx,
 		queries.InsertAddressLogParams{
 			Address:               address,
-			InboxID:               inboxId,
+			InboxID:               inboxID,
 			AssociationSequenceID: xmtpd_db.NullInt64(1),
 		},
 	)
 	require.NoError(t, err)
 	require.Equal(t, numRows, int64(0))
 
-	addressLog = getAddressLogState(t, querier, address, inboxId)
+	addressLog = getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
 	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(2))
 }
@@ -91,13 +91,13 @@ func TestRevokeAddressLog(t *testing.T) {
 	querier := queries.New(db)
 
 	address := testutils.RandomString(20)
-	inboxId := testutils.RandomInboxId()
+	inboxID := testutils.RandomInboxIDString()
 
 	_, err := querier.InsertAddressLog(
 		ctx,
 		queries.InsertAddressLogParams{
 			Address:               address,
-			InboxID:               inboxId,
+			InboxID:               inboxID,
 			AssociationSequenceID: xmtpd_db.NullInt64(1),
 		},
 	)
@@ -107,14 +107,14 @@ func TestRevokeAddressLog(t *testing.T) {
 		ctx,
 		queries.RevokeAddressFromLogParams{
 			Address:              address,
-			InboxID:              inboxId,
+			InboxID:              inboxID,
 			RevocationSequenceID: xmtpd_db.NullInt64(2),
 		},
 	)
 	require.NoError(t, err)
 	require.Equal(t, numRows, int64(1))
 
-	addressLog := getAddressLogState(t, querier, address, inboxId)
+	addressLog := getAddressLogState(t, querier, address, inboxID)
 	require.Nil(t, addressLog)
 
 	// Now try to associate it a second time
@@ -123,14 +123,14 @@ func TestRevokeAddressLog(t *testing.T) {
 		ctx,
 		queries.InsertAddressLogParams{
 			Address:               address,
-			InboxID:               inboxId,
+			InboxID:               inboxID,
 			AssociationSequenceID: xmtpd_db.NullInt64(3),
 		},
 	)
 	require.NoError(t, err)
 	require.Equal(t, numRows, int64(1))
 
-	addressLog = getAddressLogState(t, querier, address, inboxId)
+	addressLog = getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
 	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(3))
 }
@@ -152,7 +152,7 @@ func TestFindOrCreatePayer(t *testing.T) {
 
 	require.NotEqual(t, id1, id2)
 
-	reinsertId, err := querier.FindOrCreatePayer(ctx, address1)
+	reinsertID, err := querier.FindOrCreatePayer(ctx, address1)
 	require.NoError(t, err)
-	require.Equal(t, id1, reinsertId)
+	require.Equal(t, id1, reinsertID)
 }

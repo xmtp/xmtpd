@@ -31,7 +31,7 @@ var (
 
 // IdentityUpdateBroadcasterMetaData contains all meta data concerning the IdentityUpdateBroadcaster contract.
 var IdentityUpdateBroadcasterMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addIdentityUpdate\",\"inputs\":[{\"name\":\"inboxId_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"identityUpdate_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"maxPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"minPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"paused_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pausedParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"updateMaxPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMinPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePauseStatus\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"IdentityUpdateCreated\",\"inputs\":[{\"name\":\"inboxId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"update\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"},{\"name\":\"sequenceId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MinPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PauseStatusUpdated\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":true,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMaxPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMinPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidPayloadSize\",\"inputs\":[{\"name\":\"actualSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"minSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Paused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addIdentityUpdate\",\"inputs\":[{\"name\":\"inboxId_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"identityUpdate_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"bootstrapIdentityUpdates\",\"inputs\":[{\"name\":\"inboxIds_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"identityUpdates_\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"sequenceIds_\",\"type\":\"uint64[]\",\"internalType\":\"uint64[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"maxPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"minPayloadSize\",\"inputs\":[],\"outputs\":[{\"name\":\"size_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minPayloadSizeParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"paused_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pausedParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"payloadBootstrapper\",\"inputs\":[],\"outputs\":[{\"name\":\"payloadBootstrapper_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"payloadBootstrapperParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"updateMaxPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMinPayloadSize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePauseStatus\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePayloadBootstrapper\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"IdentityUpdateCreated\",\"inputs\":[{\"name\":\"inboxId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"update\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"},{\"name\":\"sequenceId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MinPayloadSizeUpdated\",\"inputs\":[{\"name\":\"size\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PauseStatusUpdated\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":true,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PayloadBootstrapperUpdated\",\"inputs\":[{\"name\":\"payloadBootstrapper\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyArray\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMaxPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMinPayloadSize\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidPayloadSize\",\"inputs\":[{\"name\":\"actualSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"minSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxSize_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotPaused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotPayloadBootstrapper\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Paused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]}]",
 }
 
 // IdentityUpdateBroadcasterABI is the input ABI used to generate the binding from.
@@ -244,16 +244,16 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MaxPay
 
 // MaxPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x0cb858ea.
 //
-// Solidity: function maxPayloadSizeParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MaxPayloadSizeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function maxPayloadSizeParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MaxPayloadSizeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _IdentityUpdateBroadcaster.contract.Call(opts, &out, "maxPayloadSizeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -261,30 +261,30 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MaxPayloadSiz
 
 // MaxPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x0cb858ea.
 //
-// Solidity: function maxPayloadSizeParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) MaxPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function maxPayloadSizeParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) MaxPayloadSizeParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.MaxPayloadSizeParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
 // MaxPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x0cb858ea.
 //
-// Solidity: function maxPayloadSizeParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MaxPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function maxPayloadSizeParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MaxPayloadSizeParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.MaxPayloadSizeParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MigratorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MigratorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _IdentityUpdateBroadcaster.contract.Call(opts, &out, "migratorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -292,15 +292,15 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MigratorParam
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) MigratorParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.MigratorParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MigratorParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.MigratorParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
@@ -337,16 +337,16 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MinPay
 
 // MinPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x9218415d.
 //
-// Solidity: function minPayloadSizeParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MinPayloadSizeParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function minPayloadSizeParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MinPayloadSizeParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _IdentityUpdateBroadcaster.contract.Call(opts, &out, "minPayloadSizeParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -354,15 +354,15 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) MinPayloadSiz
 
 // MinPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x9218415d.
 //
-// Solidity: function minPayloadSizeParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) MinPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function minPayloadSizeParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) MinPayloadSizeParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.MinPayloadSizeParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
 // MinPayloadSizeParameterKey is a free data retrieval call binding the contract method 0x9218415d.
 //
-// Solidity: function minPayloadSizeParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MinPayloadSizeParameterKey() ([]byte, error) {
+// Solidity: function minPayloadSizeParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) MinPayloadSizeParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.MinPayloadSizeParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
@@ -430,16 +430,16 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) Paused
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) PausedParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) PausedParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _IdentityUpdateBroadcaster.contract.Call(opts, &out, "pausedParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -447,16 +447,78 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) PausedParamet
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) PausedParameterKey() ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) PausedParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.PausedParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) PausedParameterKey() ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) PausedParameterKey() (string, error) {
 	return _IdentityUpdateBroadcaster.Contract.PausedParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapper is a free data retrieval call binding the contract method 0x405a11fc.
+//
+// Solidity: function payloadBootstrapper() view returns(address payloadBootstrapper_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) PayloadBootstrapper(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _IdentityUpdateBroadcaster.contract.Call(opts, &out, "payloadBootstrapper")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// PayloadBootstrapper is a free data retrieval call binding the contract method 0x405a11fc.
+//
+// Solidity: function payloadBootstrapper() view returns(address payloadBootstrapper_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) PayloadBootstrapper() (common.Address, error) {
+	return _IdentityUpdateBroadcaster.Contract.PayloadBootstrapper(&_IdentityUpdateBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapper is a free data retrieval call binding the contract method 0x405a11fc.
+//
+// Solidity: function payloadBootstrapper() view returns(address payloadBootstrapper_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) PayloadBootstrapper() (common.Address, error) {
+	return _IdentityUpdateBroadcaster.Contract.PayloadBootstrapper(&_IdentityUpdateBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapperParameterKey is a free data retrieval call binding the contract method 0x4600f300.
+//
+// Solidity: function payloadBootstrapperParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCaller) PayloadBootstrapperParameterKey(opts *bind.CallOpts) (string, error) {
+	var out []interface{}
+	err := _IdentityUpdateBroadcaster.contract.Call(opts, &out, "payloadBootstrapperParameterKey")
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
+}
+
+// PayloadBootstrapperParameterKey is a free data retrieval call binding the contract method 0x4600f300.
+//
+// Solidity: function payloadBootstrapperParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) PayloadBootstrapperParameterKey() (string, error) {
+	return _IdentityUpdateBroadcaster.Contract.PayloadBootstrapperParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
+}
+
+// PayloadBootstrapperParameterKey is a free data retrieval call binding the contract method 0x4600f300.
+//
+// Solidity: function payloadBootstrapperParameterKey() pure returns(string key_)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterCallerSession) PayloadBootstrapperParameterKey() (string, error) {
+	return _IdentityUpdateBroadcaster.Contract.PayloadBootstrapperParameterKey(&_IdentityUpdateBroadcaster.CallOpts)
 }
 
 // AddIdentityUpdate is a paid mutator transaction binding the contract method 0xba74fc7c.
@@ -478,6 +540,27 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) AddIdentityU
 // Solidity: function addIdentityUpdate(bytes32 inboxId_, bytes identityUpdate_) returns()
 func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterTransactorSession) AddIdentityUpdate(inboxId_ [32]byte, identityUpdate_ []byte) (*types.Transaction, error) {
 	return _IdentityUpdateBroadcaster.Contract.AddIdentityUpdate(&_IdentityUpdateBroadcaster.TransactOpts, inboxId_, identityUpdate_)
+}
+
+// BootstrapIdentityUpdates is a paid mutator transaction binding the contract method 0x4e23d458.
+//
+// Solidity: function bootstrapIdentityUpdates(bytes32[] inboxIds_, bytes[] identityUpdates_, uint64[] sequenceIds_) returns()
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterTransactor) BootstrapIdentityUpdates(opts *bind.TransactOpts, inboxIds_ [][32]byte, identityUpdates_ [][]byte, sequenceIds_ []uint64) (*types.Transaction, error) {
+	return _IdentityUpdateBroadcaster.contract.Transact(opts, "bootstrapIdentityUpdates", inboxIds_, identityUpdates_, sequenceIds_)
+}
+
+// BootstrapIdentityUpdates is a paid mutator transaction binding the contract method 0x4e23d458.
+//
+// Solidity: function bootstrapIdentityUpdates(bytes32[] inboxIds_, bytes[] identityUpdates_, uint64[] sequenceIds_) returns()
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) BootstrapIdentityUpdates(inboxIds_ [][32]byte, identityUpdates_ [][]byte, sequenceIds_ []uint64) (*types.Transaction, error) {
+	return _IdentityUpdateBroadcaster.Contract.BootstrapIdentityUpdates(&_IdentityUpdateBroadcaster.TransactOpts, inboxIds_, identityUpdates_, sequenceIds_)
+}
+
+// BootstrapIdentityUpdates is a paid mutator transaction binding the contract method 0x4e23d458.
+//
+// Solidity: function bootstrapIdentityUpdates(bytes32[] inboxIds_, bytes[] identityUpdates_, uint64[] sequenceIds_) returns()
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterTransactorSession) BootstrapIdentityUpdates(inboxIds_ [][32]byte, identityUpdates_ [][]byte, sequenceIds_ []uint64) (*types.Transaction, error) {
+	return _IdentityUpdateBroadcaster.Contract.BootstrapIdentityUpdates(&_IdentityUpdateBroadcaster.TransactOpts, inboxIds_, identityUpdates_, sequenceIds_)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.
@@ -583,6 +666,27 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) UpdatePauseS
 // Solidity: function updatePauseStatus() returns()
 func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterTransactorSession) UpdatePauseStatus() (*types.Transaction, error) {
 	return _IdentityUpdateBroadcaster.Contract.UpdatePauseStatus(&_IdentityUpdateBroadcaster.TransactOpts)
+}
+
+// UpdatePayloadBootstrapper is a paid mutator transaction binding the contract method 0x886bd989.
+//
+// Solidity: function updatePayloadBootstrapper() returns()
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterTransactor) UpdatePayloadBootstrapper(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _IdentityUpdateBroadcaster.contract.Transact(opts, "updatePayloadBootstrapper")
+}
+
+// UpdatePayloadBootstrapper is a paid mutator transaction binding the contract method 0x886bd989.
+//
+// Solidity: function updatePayloadBootstrapper() returns()
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterSession) UpdatePayloadBootstrapper() (*types.Transaction, error) {
+	return _IdentityUpdateBroadcaster.Contract.UpdatePayloadBootstrapper(&_IdentityUpdateBroadcaster.TransactOpts)
+}
+
+// UpdatePayloadBootstrapper is a paid mutator transaction binding the contract method 0x886bd989.
+//
+// Solidity: function updatePayloadBootstrapper() returns()
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterTransactorSession) UpdatePayloadBootstrapper() (*types.Transaction, error) {
+	return _IdentityUpdateBroadcaster.Contract.UpdatePayloadBootstrapper(&_IdentityUpdateBroadcaster.TransactOpts)
 }
 
 // IdentityUpdateBroadcasterIdentityUpdateCreatedIterator is returned from FilterIdentityUpdateCreated and is used to iterate over the raw logs and unpacked data for IdentityUpdateCreated events raised by the IdentityUpdateBroadcaster contract.
@@ -1445,6 +1549,150 @@ func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterFilterer) WatchPauseS
 func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterFilterer) ParsePauseStatusUpdated(log types.Log) (*IdentityUpdateBroadcasterPauseStatusUpdated, error) {
 	event := new(IdentityUpdateBroadcasterPauseStatusUpdated)
 	if err := _IdentityUpdateBroadcaster.contract.UnpackLog(event, "PauseStatusUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator is returned from FilterPayloadBootstrapperUpdated and is used to iterate over the raw logs and unpacked data for PayloadBootstrapperUpdated events raised by the IdentityUpdateBroadcaster contract.
+type IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator struct {
+	Event *IdentityUpdateBroadcasterPayloadBootstrapperUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(IdentityUpdateBroadcasterPayloadBootstrapperUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(IdentityUpdateBroadcasterPayloadBootstrapperUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// IdentityUpdateBroadcasterPayloadBootstrapperUpdated represents a PayloadBootstrapperUpdated event raised by the IdentityUpdateBroadcaster contract.
+type IdentityUpdateBroadcasterPayloadBootstrapperUpdated struct {
+	PayloadBootstrapper common.Address
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterPayloadBootstrapperUpdated is a free log retrieval operation binding the contract event 0x38ecae7c300c129540d5181b5e16ec68d73e388d6add9ad70e63307f6794e2a9.
+//
+// Solidity: event PayloadBootstrapperUpdated(address indexed payloadBootstrapper)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterFilterer) FilterPayloadBootstrapperUpdated(opts *bind.FilterOpts, payloadBootstrapper []common.Address) (*IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator, error) {
+
+	var payloadBootstrapperRule []interface{}
+	for _, payloadBootstrapperItem := range payloadBootstrapper {
+		payloadBootstrapperRule = append(payloadBootstrapperRule, payloadBootstrapperItem)
+	}
+
+	logs, sub, err := _IdentityUpdateBroadcaster.contract.FilterLogs(opts, "PayloadBootstrapperUpdated", payloadBootstrapperRule)
+	if err != nil {
+		return nil, err
+	}
+	return &IdentityUpdateBroadcasterPayloadBootstrapperUpdatedIterator{contract: _IdentityUpdateBroadcaster.contract, event: "PayloadBootstrapperUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchPayloadBootstrapperUpdated is a free log subscription operation binding the contract event 0x38ecae7c300c129540d5181b5e16ec68d73e388d6add9ad70e63307f6794e2a9.
+//
+// Solidity: event PayloadBootstrapperUpdated(address indexed payloadBootstrapper)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterFilterer) WatchPayloadBootstrapperUpdated(opts *bind.WatchOpts, sink chan<- *IdentityUpdateBroadcasterPayloadBootstrapperUpdated, payloadBootstrapper []common.Address) (event.Subscription, error) {
+
+	var payloadBootstrapperRule []interface{}
+	for _, payloadBootstrapperItem := range payloadBootstrapper {
+		payloadBootstrapperRule = append(payloadBootstrapperRule, payloadBootstrapperItem)
+	}
+
+	logs, sub, err := _IdentityUpdateBroadcaster.contract.WatchLogs(opts, "PayloadBootstrapperUpdated", payloadBootstrapperRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(IdentityUpdateBroadcasterPayloadBootstrapperUpdated)
+				if err := _IdentityUpdateBroadcaster.contract.UnpackLog(event, "PayloadBootstrapperUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParsePayloadBootstrapperUpdated is a log parse operation binding the contract event 0x38ecae7c300c129540d5181b5e16ec68d73e388d6add9ad70e63307f6794e2a9.
+//
+// Solidity: event PayloadBootstrapperUpdated(address indexed payloadBootstrapper)
+func (_IdentityUpdateBroadcaster *IdentityUpdateBroadcasterFilterer) ParsePayloadBootstrapperUpdated(log types.Log) (*IdentityUpdateBroadcasterPayloadBootstrapperUpdated, error) {
+	event := new(IdentityUpdateBroadcasterPayloadBootstrapperUpdated)
+	if err := _IdentityUpdateBroadcaster.contract.UnpackLog(event, "PayloadBootstrapperUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

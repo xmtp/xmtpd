@@ -87,6 +87,7 @@ func (r *ReportsManager) SubmitPayerReport(
 				report.OriginatorNodeID,
 				report.StartSequenceID,
 				report.EndSequenceID,
+				report.EndMinuteSinceEpoch,
 				report.PayersMerkleRoot,
 				report.ActiveNodeIDs,
 				signatures,
@@ -136,9 +137,17 @@ func (r *ReportsManager) GetReportID(
 	ctx context.Context,
 	payerReport *payerreport.PayerReportWithStatus,
 ) (payerreport.ReportID, error) {
-	digest, err := r.reportManagerContract.GetPayerReportDigest(&bind.CallOpts{
-		Context: ctx,
-	}, payerReport.OriginatorNodeID, payerReport.StartSequenceID, payerReport.EndSequenceID, payerReport.PayersMerkleRoot, payerReport.ActiveNodeIDs)
+	digest, err := r.reportManagerContract.GetPayerReportDigest(
+		&bind.CallOpts{
+			Context: ctx,
+		},
+		payerReport.OriginatorNodeID,
+		payerReport.StartSequenceID,
+		payerReport.EndSequenceID,
+		payerReport.EndMinuteSinceEpoch,
+		payerReport.PayersMerkleRoot,
+		payerReport.ActiveNodeIDs,
+	)
 	if err != nil {
 		return payerreport.ReportID{}, err
 	}

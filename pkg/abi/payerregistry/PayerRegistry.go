@@ -37,7 +37,7 @@ type IPayerRegistryPayerFee struct {
 
 // PayerRegistryMetaData contains all meta data concerning the PayerRegistry contract.
 var PayerRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"token_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelWithdrawal\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"excess\",\"inputs\":[],\"outputs\":[{\"name\":\"excess_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"feeDistributor\",\"inputs\":[],\"outputs\":[{\"name\":\"feeDistributor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"feeDistributorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"finalizeWithdrawal\",\"inputs\":[{\"name\":\"recipient_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getBalance\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"balance_\",\"type\":\"int104\",\"internalType\":\"int104\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBalances\",\"inputs\":[{\"name\":\"payers_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"balances_\",\"type\":\"int104[]\",\"internalType\":\"int104[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPendingWithdrawal\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingWithdrawal_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"withdrawableTimestamp_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"minimumDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"minimumDeposit_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minimumDepositParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"paused_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pausedParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"requestWithdrawal\",\"inputs\":[{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"sendExcessToFeeDistributor\",\"inputs\":[],\"outputs\":[{\"name\":\"excess_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"settleUsage\",\"inputs\":[{\"name\":\"payerFees_\",\"type\":\"tuple[]\",\"internalType\":\"structIPayerRegistry.PayerFee[]\",\"components\":[{\"name\":\"payer\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fee\",\"type\":\"uint96\",\"internalType\":\"uint96\"}]}],\"outputs\":[{\"name\":\"feesSettled_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"settler\",\"inputs\":[],\"outputs\":[{\"name\":\"settler_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"settlerParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"token\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalDebt\",\"inputs\":[],\"outputs\":[{\"name\":\"totalDebt_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalDeposits\",\"inputs\":[],\"outputs\":[{\"name\":\"totalDeposits_\",\"type\":\"int104\",\"internalType\":\"int104\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalWithdrawable\",\"inputs\":[],\"outputs\":[{\"name\":\"totalWithdrawable_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateFeeDistributor\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMinimumDeposit\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePauseStatus\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateSettler\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateWithdrawLockPeriod\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawLockPeriod\",\"inputs\":[],\"outputs\":[{\"name\":\"withdrawLockPeriod_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"withdrawLockPeriodParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"Deposit\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExcessTransferred\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeDistributorUpdated\",\"inputs\":[{\"name\":\"feeDistributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MinimumDepositUpdated\",\"inputs\":[{\"name\":\"minimumDeposit\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PauseStatusUpdated\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":true,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SettlerUpdated\",\"inputs\":[{\"name\":\"settler\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UsageSettled\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawLockPeriodUpdated\",\"inputs\":[{\"name\":\"withdrawLockPeriod\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawalCancelled\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawalFinalized\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawalRequested\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"},{\"name\":\"withdrawableTimestamp\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InsufficientBalance\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientDeposit\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"minimumDeposit\",\"type\":\"uint96\",\"internalType\":\"uint96\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoExcess\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoPendingWithdrawal\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotSettler\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Paused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerInDebt\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PendingWithdrawalExists\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TransferFailed\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TransferFromFailed\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"WithdrawalNotReady\",\"inputs\":[{\"name\":\"timestamp\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"withdrawableTimestamp\",\"type\":\"uint32\",\"internalType\":\"uint32\"}]},{\"type\":\"error\",\"name\":\"ZeroFeeDistributor\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMinimumDeposit\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroSettler\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroWithdrawalAmount\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"parameterRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feeToken_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelWithdrawal\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositFromUnderlying\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositFromUnderlyingWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"excess\",\"inputs\":[],\"outputs\":[{\"name\":\"excess_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"feeDistributor\",\"inputs\":[],\"outputs\":[{\"name\":\"feeDistributor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"feeDistributorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"feeToken\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"finalizeWithdrawal\",\"inputs\":[{\"name\":\"recipient_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"finalizeWithdrawalIntoUnderlying\",\"inputs\":[{\"name\":\"recipient_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getBalance\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"balance_\",\"type\":\"int104\",\"internalType\":\"int104\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBalances\",\"inputs\":[{\"name\":\"payers_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"balances_\",\"type\":\"int104[]\",\"internalType\":\"int104[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPendingWithdrawal\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingWithdrawal_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"withdrawableTimestamp_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"minimumDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"minimumDeposit_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"minimumDepositParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"parameterRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"paused_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pausedParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"requestWithdrawal\",\"inputs\":[{\"name\":\"amount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"sendExcessToFeeDistributor\",\"inputs\":[],\"outputs\":[{\"name\":\"excess_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"settleUsage\",\"inputs\":[{\"name\":\"payerFees_\",\"type\":\"tuple[]\",\"internalType\":\"structIPayerRegistry.PayerFee[]\",\"components\":[{\"name\":\"payer\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"fee\",\"type\":\"uint96\",\"internalType\":\"uint96\"}]}],\"outputs\":[{\"name\":\"feesSettled_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"settler\",\"inputs\":[],\"outputs\":[{\"name\":\"settler_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"settlerParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"totalDebt\",\"inputs\":[],\"outputs\":[{\"name\":\"totalDebt_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalDeposits\",\"inputs\":[],\"outputs\":[{\"name\":\"totalDeposits_\",\"type\":\"int104\",\"internalType\":\"int104\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalWithdrawable\",\"inputs\":[],\"outputs\":[{\"name\":\"totalWithdrawable_\",\"type\":\"uint96\",\"internalType\":\"uint96\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateFeeDistributor\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMinimumDeposit\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePauseStatus\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateSettler\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateWithdrawLockPeriod\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawLockPeriod\",\"inputs\":[],\"outputs\":[{\"name\":\"withdrawLockPeriod_\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"withdrawLockPeriodParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"Deposit\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExcessTransferred\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeDistributorUpdated\",\"inputs\":[{\"name\":\"feeDistributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MinimumDepositUpdated\",\"inputs\":[{\"name\":\"minimumDeposit\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PauseStatusUpdated\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":true,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SettlerUpdated\",\"inputs\":[{\"name\":\"settler\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UsageSettled\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawLockPeriodUpdated\",\"inputs\":[{\"name\":\"withdrawLockPeriod\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawalCancelled\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawalFinalized\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WithdrawalRequested\",\"inputs\":[{\"name\":\"payer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint96\",\"indexed\":false,\"internalType\":\"uint96\"},{\"name\":\"withdrawableTimestamp\",\"type\":\"uint32\",\"indexed\":false,\"internalType\":\"uint32\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InsufficientBalance\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientDeposit\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"minimumDeposit\",\"type\":\"uint96\",\"internalType\":\"uint96\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoChange\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoExcess\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoPendingWithdrawal\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotSettler\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Paused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PayerInDebt\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PendingWithdrawalExists\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TransferFromFailed\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"WithdrawalNotReady\",\"inputs\":[{\"name\":\"timestamp\",\"type\":\"uint32\",\"internalType\":\"uint32\"},{\"name\":\"withdrawableTimestamp\",\"type\":\"uint32\",\"internalType\":\"uint32\"}]},{\"type\":\"error\",\"name\":\"ZeroFeeDistributor\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroFeeToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMinimumDeposit\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroParameterRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroPayer\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroRecipient\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroSettler\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroWithdrawalAmount\",\"inputs\":[]}]",
 }
 
 // PayerRegistryABI is the input ABI used to generate the binding from.
@@ -250,16 +250,16 @@ func (_PayerRegistry *PayerRegistryCallerSession) FeeDistributor() (common.Addre
 
 // FeeDistributorParameterKey is a free data retrieval call binding the contract method 0x18daabc5.
 //
-// Solidity: function feeDistributorParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCaller) FeeDistributorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function feeDistributorParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCaller) FeeDistributorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerRegistry.contract.Call(opts, &out, "feeDistributorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -267,16 +267,47 @@ func (_PayerRegistry *PayerRegistryCaller) FeeDistributorParameterKey(opts *bind
 
 // FeeDistributorParameterKey is a free data retrieval call binding the contract method 0x18daabc5.
 //
-// Solidity: function feeDistributorParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistrySession) FeeDistributorParameterKey() ([]byte, error) {
+// Solidity: function feeDistributorParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistrySession) FeeDistributorParameterKey() (string, error) {
 	return _PayerRegistry.Contract.FeeDistributorParameterKey(&_PayerRegistry.CallOpts)
 }
 
 // FeeDistributorParameterKey is a free data retrieval call binding the contract method 0x18daabc5.
 //
-// Solidity: function feeDistributorParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCallerSession) FeeDistributorParameterKey() ([]byte, error) {
+// Solidity: function feeDistributorParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCallerSession) FeeDistributorParameterKey() (string, error) {
 	return _PayerRegistry.Contract.FeeDistributorParameterKey(&_PayerRegistry.CallOpts)
+}
+
+// FeeToken is a free data retrieval call binding the contract method 0x647846a5.
+//
+// Solidity: function feeToken() view returns(address)
+func (_PayerRegistry *PayerRegistryCaller) FeeToken(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _PayerRegistry.contract.Call(opts, &out, "feeToken")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// FeeToken is a free data retrieval call binding the contract method 0x647846a5.
+//
+// Solidity: function feeToken() view returns(address)
+func (_PayerRegistry *PayerRegistrySession) FeeToken() (common.Address, error) {
+	return _PayerRegistry.Contract.FeeToken(&_PayerRegistry.CallOpts)
+}
+
+// FeeToken is a free data retrieval call binding the contract method 0x647846a5.
+//
+// Solidity: function feeToken() view returns(address)
+func (_PayerRegistry *PayerRegistryCallerSession) FeeToken() (common.Address, error) {
+	return _PayerRegistry.Contract.FeeToken(&_PayerRegistry.CallOpts)
 }
 
 // GetBalance is a free data retrieval call binding the contract method 0xf8b2cb4f.
@@ -419,16 +450,16 @@ func (_PayerRegistry *PayerRegistryCallerSession) Implementation() (common.Addre
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCaller) MigratorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCaller) MigratorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerRegistry.contract.Call(opts, &out, "migratorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -436,15 +467,15 @@ func (_PayerRegistry *PayerRegistryCaller) MigratorParameterKey(opts *bind.CallO
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistrySession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistrySession) MigratorParameterKey() (string, error) {
 	return _PayerRegistry.Contract.MigratorParameterKey(&_PayerRegistry.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCallerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCallerSession) MigratorParameterKey() (string, error) {
 	return _PayerRegistry.Contract.MigratorParameterKey(&_PayerRegistry.CallOpts)
 }
 
@@ -481,16 +512,16 @@ func (_PayerRegistry *PayerRegistryCallerSession) MinimumDeposit() (*big.Int, er
 
 // MinimumDepositParameterKey is a free data retrieval call binding the contract method 0x7a303d33.
 //
-// Solidity: function minimumDepositParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCaller) MinimumDepositParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function minimumDepositParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCaller) MinimumDepositParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerRegistry.contract.Call(opts, &out, "minimumDepositParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -498,15 +529,15 @@ func (_PayerRegistry *PayerRegistryCaller) MinimumDepositParameterKey(opts *bind
 
 // MinimumDepositParameterKey is a free data retrieval call binding the contract method 0x7a303d33.
 //
-// Solidity: function minimumDepositParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistrySession) MinimumDepositParameterKey() ([]byte, error) {
+// Solidity: function minimumDepositParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistrySession) MinimumDepositParameterKey() (string, error) {
 	return _PayerRegistry.Contract.MinimumDepositParameterKey(&_PayerRegistry.CallOpts)
 }
 
 // MinimumDepositParameterKey is a free data retrieval call binding the contract method 0x7a303d33.
 //
-// Solidity: function minimumDepositParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCallerSession) MinimumDepositParameterKey() ([]byte, error) {
+// Solidity: function minimumDepositParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCallerSession) MinimumDepositParameterKey() (string, error) {
 	return _PayerRegistry.Contract.MinimumDepositParameterKey(&_PayerRegistry.CallOpts)
 }
 
@@ -574,16 +605,16 @@ func (_PayerRegistry *PayerRegistryCallerSession) Paused() (bool, error) {
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCaller) PausedParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCaller) PausedParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerRegistry.contract.Call(opts, &out, "pausedParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -591,15 +622,15 @@ func (_PayerRegistry *PayerRegistryCaller) PausedParameterKey(opts *bind.CallOpt
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistrySession) PausedParameterKey() ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistrySession) PausedParameterKey() (string, error) {
 	return _PayerRegistry.Contract.PausedParameterKey(&_PayerRegistry.CallOpts)
 }
 
 // PausedParameterKey is a free data retrieval call binding the contract method 0xcc5999af.
 //
-// Solidity: function pausedParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCallerSession) PausedParameterKey() ([]byte, error) {
+// Solidity: function pausedParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCallerSession) PausedParameterKey() (string, error) {
 	return _PayerRegistry.Contract.PausedParameterKey(&_PayerRegistry.CallOpts)
 }
 
@@ -636,16 +667,16 @@ func (_PayerRegistry *PayerRegistryCallerSession) Settler() (common.Address, err
 
 // SettlerParameterKey is a free data retrieval call binding the contract method 0x028d1638.
 //
-// Solidity: function settlerParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCaller) SettlerParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function settlerParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCaller) SettlerParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerRegistry.contract.Call(opts, &out, "settlerParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -653,47 +684,16 @@ func (_PayerRegistry *PayerRegistryCaller) SettlerParameterKey(opts *bind.CallOp
 
 // SettlerParameterKey is a free data retrieval call binding the contract method 0x028d1638.
 //
-// Solidity: function settlerParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistrySession) SettlerParameterKey() ([]byte, error) {
+// Solidity: function settlerParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistrySession) SettlerParameterKey() (string, error) {
 	return _PayerRegistry.Contract.SettlerParameterKey(&_PayerRegistry.CallOpts)
 }
 
 // SettlerParameterKey is a free data retrieval call binding the contract method 0x028d1638.
 //
-// Solidity: function settlerParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCallerSession) SettlerParameterKey() ([]byte, error) {
+// Solidity: function settlerParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCallerSession) SettlerParameterKey() (string, error) {
 	return _PayerRegistry.Contract.SettlerParameterKey(&_PayerRegistry.CallOpts)
-}
-
-// Token is a free data retrieval call binding the contract method 0xfc0c546a.
-//
-// Solidity: function token() view returns(address)
-func (_PayerRegistry *PayerRegistryCaller) Token(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _PayerRegistry.contract.Call(opts, &out, "token")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Token is a free data retrieval call binding the contract method 0xfc0c546a.
-//
-// Solidity: function token() view returns(address)
-func (_PayerRegistry *PayerRegistrySession) Token() (common.Address, error) {
-	return _PayerRegistry.Contract.Token(&_PayerRegistry.CallOpts)
-}
-
-// Token is a free data retrieval call binding the contract method 0xfc0c546a.
-//
-// Solidity: function token() view returns(address)
-func (_PayerRegistry *PayerRegistryCallerSession) Token() (common.Address, error) {
-	return _PayerRegistry.Contract.Token(&_PayerRegistry.CallOpts)
 }
 
 // TotalDebt is a free data retrieval call binding the contract method 0xfc7b9c18.
@@ -822,16 +822,16 @@ func (_PayerRegistry *PayerRegistryCallerSession) WithdrawLockPeriod() (uint32, 
 
 // WithdrawLockPeriodParameterKey is a free data retrieval call binding the contract method 0xaf1a77c5.
 //
-// Solidity: function withdrawLockPeriodParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCaller) WithdrawLockPeriodParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function withdrawLockPeriodParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCaller) WithdrawLockPeriodParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _PayerRegistry.contract.Call(opts, &out, "withdrawLockPeriodParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -839,15 +839,15 @@ func (_PayerRegistry *PayerRegistryCaller) WithdrawLockPeriodParameterKey(opts *
 
 // WithdrawLockPeriodParameterKey is a free data retrieval call binding the contract method 0xaf1a77c5.
 //
-// Solidity: function withdrawLockPeriodParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistrySession) WithdrawLockPeriodParameterKey() ([]byte, error) {
+// Solidity: function withdrawLockPeriodParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistrySession) WithdrawLockPeriodParameterKey() (string, error) {
 	return _PayerRegistry.Contract.WithdrawLockPeriodParameterKey(&_PayerRegistry.CallOpts)
 }
 
 // WithdrawLockPeriodParameterKey is a free data retrieval call binding the contract method 0xaf1a77c5.
 //
-// Solidity: function withdrawLockPeriodParameterKey() pure returns(bytes key_)
-func (_PayerRegistry *PayerRegistryCallerSession) WithdrawLockPeriodParameterKey() ([]byte, error) {
+// Solidity: function withdrawLockPeriodParameterKey() pure returns(string key_)
+func (_PayerRegistry *PayerRegistryCallerSession) WithdrawLockPeriodParameterKey() (string, error) {
 	return _PayerRegistry.Contract.WithdrawLockPeriodParameterKey(&_PayerRegistry.CallOpts)
 }
 
@@ -893,6 +893,48 @@ func (_PayerRegistry *PayerRegistryTransactorSession) Deposit(payer_ common.Addr
 	return _PayerRegistry.Contract.Deposit(&_PayerRegistry.TransactOpts, payer_, amount_)
 }
 
+// DepositFromUnderlying is a paid mutator transaction binding the contract method 0x64461986.
+//
+// Solidity: function depositFromUnderlying(address payer_, uint96 amount_) returns()
+func (_PayerRegistry *PayerRegistryTransactor) DepositFromUnderlying(opts *bind.TransactOpts, payer_ common.Address, amount_ *big.Int) (*types.Transaction, error) {
+	return _PayerRegistry.contract.Transact(opts, "depositFromUnderlying", payer_, amount_)
+}
+
+// DepositFromUnderlying is a paid mutator transaction binding the contract method 0x64461986.
+//
+// Solidity: function depositFromUnderlying(address payer_, uint96 amount_) returns()
+func (_PayerRegistry *PayerRegistrySession) DepositFromUnderlying(payer_ common.Address, amount_ *big.Int) (*types.Transaction, error) {
+	return _PayerRegistry.Contract.DepositFromUnderlying(&_PayerRegistry.TransactOpts, payer_, amount_)
+}
+
+// DepositFromUnderlying is a paid mutator transaction binding the contract method 0x64461986.
+//
+// Solidity: function depositFromUnderlying(address payer_, uint96 amount_) returns()
+func (_PayerRegistry *PayerRegistryTransactorSession) DepositFromUnderlying(payer_ common.Address, amount_ *big.Int) (*types.Transaction, error) {
+	return _PayerRegistry.Contract.DepositFromUnderlying(&_PayerRegistry.TransactOpts, payer_, amount_)
+}
+
+// DepositFromUnderlyingWithPermit is a paid mutator transaction binding the contract method 0x367ce0e8.
+//
+// Solidity: function depositFromUnderlyingWithPermit(address payer_, uint96 amount_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_) returns()
+func (_PayerRegistry *PayerRegistryTransactor) DepositFromUnderlyingWithPermit(opts *bind.TransactOpts, payer_ common.Address, amount_ *big.Int, deadline_ *big.Int, v_ uint8, r_ [32]byte, s_ [32]byte) (*types.Transaction, error) {
+	return _PayerRegistry.contract.Transact(opts, "depositFromUnderlyingWithPermit", payer_, amount_, deadline_, v_, r_, s_)
+}
+
+// DepositFromUnderlyingWithPermit is a paid mutator transaction binding the contract method 0x367ce0e8.
+//
+// Solidity: function depositFromUnderlyingWithPermit(address payer_, uint96 amount_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_) returns()
+func (_PayerRegistry *PayerRegistrySession) DepositFromUnderlyingWithPermit(payer_ common.Address, amount_ *big.Int, deadline_ *big.Int, v_ uint8, r_ [32]byte, s_ [32]byte) (*types.Transaction, error) {
+	return _PayerRegistry.Contract.DepositFromUnderlyingWithPermit(&_PayerRegistry.TransactOpts, payer_, amount_, deadline_, v_, r_, s_)
+}
+
+// DepositFromUnderlyingWithPermit is a paid mutator transaction binding the contract method 0x367ce0e8.
+//
+// Solidity: function depositFromUnderlyingWithPermit(address payer_, uint96 amount_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_) returns()
+func (_PayerRegistry *PayerRegistryTransactorSession) DepositFromUnderlyingWithPermit(payer_ common.Address, amount_ *big.Int, deadline_ *big.Int, v_ uint8, r_ [32]byte, s_ [32]byte) (*types.Transaction, error) {
+	return _PayerRegistry.Contract.DepositFromUnderlyingWithPermit(&_PayerRegistry.TransactOpts, payer_, amount_, deadline_, v_, r_, s_)
+}
+
 // DepositWithPermit is a paid mutator transaction binding the contract method 0x7e9b9b18.
 //
 // Solidity: function depositWithPermit(address payer_, uint96 amount_, uint256 deadline_, uint8 v_, bytes32 r_, bytes32 s_) returns()
@@ -933,6 +975,27 @@ func (_PayerRegistry *PayerRegistrySession) FinalizeWithdrawal(recipient_ common
 // Solidity: function finalizeWithdrawal(address recipient_) returns()
 func (_PayerRegistry *PayerRegistryTransactorSession) FinalizeWithdrawal(recipient_ common.Address) (*types.Transaction, error) {
 	return _PayerRegistry.Contract.FinalizeWithdrawal(&_PayerRegistry.TransactOpts, recipient_)
+}
+
+// FinalizeWithdrawalIntoUnderlying is a paid mutator transaction binding the contract method 0x4b1709a4.
+//
+// Solidity: function finalizeWithdrawalIntoUnderlying(address recipient_) returns()
+func (_PayerRegistry *PayerRegistryTransactor) FinalizeWithdrawalIntoUnderlying(opts *bind.TransactOpts, recipient_ common.Address) (*types.Transaction, error) {
+	return _PayerRegistry.contract.Transact(opts, "finalizeWithdrawalIntoUnderlying", recipient_)
+}
+
+// FinalizeWithdrawalIntoUnderlying is a paid mutator transaction binding the contract method 0x4b1709a4.
+//
+// Solidity: function finalizeWithdrawalIntoUnderlying(address recipient_) returns()
+func (_PayerRegistry *PayerRegistrySession) FinalizeWithdrawalIntoUnderlying(recipient_ common.Address) (*types.Transaction, error) {
+	return _PayerRegistry.Contract.FinalizeWithdrawalIntoUnderlying(&_PayerRegistry.TransactOpts, recipient_)
+}
+
+// FinalizeWithdrawalIntoUnderlying is a paid mutator transaction binding the contract method 0x4b1709a4.
+//
+// Solidity: function finalizeWithdrawalIntoUnderlying(address recipient_) returns()
+func (_PayerRegistry *PayerRegistryTransactorSession) FinalizeWithdrawalIntoUnderlying(recipient_ common.Address) (*types.Transaction, error) {
+	return _PayerRegistry.Contract.FinalizeWithdrawalIntoUnderlying(&_PayerRegistry.TransactOpts, recipient_)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0x8129fc1c.

@@ -10,7 +10,7 @@ import (
 
 const (
 	// Update this if event changes
-	EXPECTED_MESSAGE_SENT_SIGNATURE = "MessageSent(bytes32,bytes,uint64)"
+	EXPECTED_MESSAGE_SENT_SIGNATURE = "MessageSent(bytes16,bytes,uint64)"
 )
 
 func TestGetEventSignature(t *testing.T) {

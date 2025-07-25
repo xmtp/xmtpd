@@ -47,12 +47,12 @@ func TestGetAssociationState(t *testing.T) {
 		grpcClient: apiClient,
 	}
 
-	inboxId := testutils.RandomInboxId()
+	inboxID := testutils.RandomInboxIDString()
 	address := testutils.RandomAddress().String()
 
 	mockResponse := proto.GetAssociationStateResponse{
 		AssociationState: &associations.AssociationState{
-			InboxId: inboxId,
+			InboxId: inboxID,
 		},
 		StateDiff: &associations.AssociationStateDiff{
 			NewMembers: []*associations.MemberIdentifier{{
@@ -72,6 +72,6 @@ func TestGetAssociationState(t *testing.T) {
 		[]*associations.IdentityUpdate{},
 	)
 	require.NoError(t, err)
-	require.Equal(t, inboxId, res.AssociationState.InboxId)
+	require.Equal(t, inboxID, res.AssociationState.InboxId)
 	require.Equal(t, address, res.StateDiff.NewMembers[0].GetEthereumAddress())
 }

@@ -31,7 +31,7 @@ var (
 
 // SettlementChainParameterRegistryMetaData contains all meta data concerning the SettlementChainParameterRegistry contract.
 var SettlementChainParameterRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"adminParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"}],\"outputs\":[{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"admins_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isAdmin\",\"inputs\":[{\"name\":\"account_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAdmin_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"key_\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ParameterSet\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes\",\"indexed\":true,\"internalType\":\"bytes\"},{\"name\":\"value\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoKeyComponents\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoKeys\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"StringsInsufficientHexLength\",\"inputs\":[{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"adminParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"string[]\",\"internalType\":\"string[]\"}],\"outputs\":[{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"admins_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isAdmin\",\"inputs\":[{\"name\":\"account_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAdmin_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"string[]\",\"internalType\":\"string[]\"},{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ParameterSet\",\"inputs\":[{\"name\":\"key\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"value\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyAdmins\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoKeyComponents\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoKeys\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"StringsInsufficientHexLength\",\"inputs\":[{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ZeroAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]}]",
 }
 
 // SettlementChainParameterRegistryABI is the input ABI used to generate the binding from.
@@ -182,16 +182,16 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransac
 
 // AdminParameterKey is a free data retrieval call binding the contract method 0x9f40b625.
 //
-// Solidity: function adminParameterKey() pure returns(bytes key_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) AdminParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function adminParameterKey() pure returns(string key_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) AdminParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _SettlementChainParameterRegistry.contract.Call(opts, &out, "adminParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -199,55 +199,24 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller)
 
 // AdminParameterKey is a free data retrieval call binding the contract method 0x9f40b625.
 //
-// Solidity: function adminParameterKey() pure returns(bytes key_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) AdminParameterKey() ([]byte, error) {
+// Solidity: function adminParameterKey() pure returns(string key_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) AdminParameterKey() (string, error) {
 	return _SettlementChainParameterRegistry.Contract.AdminParameterKey(&_SettlementChainParameterRegistry.CallOpts)
 }
 
 // AdminParameterKey is a free data retrieval call binding the contract method 0x9f40b625.
 //
-// Solidity: function adminParameterKey() pure returns(bytes key_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) AdminParameterKey() ([]byte, error) {
+// Solidity: function adminParameterKey() pure returns(string key_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) AdminParameterKey() (string, error) {
 	return _SettlementChainParameterRegistry.Contract.AdminParameterKey(&_SettlementChainParameterRegistry.CallOpts)
 }
 
-// Get is a free data retrieval call binding the contract method 0x7257a3e3.
+// Get is a free data retrieval call binding the contract method 0x693ec85e.
 //
-// Solidity: function get(bytes[] keys_) view returns(bytes32[] values_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) Get(opts *bind.CallOpts, keys_ [][]byte) ([][32]byte, error) {
+// Solidity: function get(string key_) view returns(bytes32 value_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) Get(opts *bind.CallOpts, key_ string) ([32]byte, error) {
 	var out []interface{}
-	err := _SettlementChainParameterRegistry.contract.Call(opts, &out, "get", keys_)
-
-	if err != nil {
-		return *new([][32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([][32]byte)).(*[][32]byte)
-
-	return out0, err
-
-}
-
-// Get is a free data retrieval call binding the contract method 0x7257a3e3.
-//
-// Solidity: function get(bytes[] keys_) view returns(bytes32[] values_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Get(keys_ [][]byte) ([][32]byte, error) {
-	return _SettlementChainParameterRegistry.Contract.Get(&_SettlementChainParameterRegistry.CallOpts, keys_)
-}
-
-// Get is a free data retrieval call binding the contract method 0x7257a3e3.
-//
-// Solidity: function get(bytes[] keys_) view returns(bytes32[] values_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) Get(keys_ [][]byte) ([][32]byte, error) {
-	return _SettlementChainParameterRegistry.Contract.Get(&_SettlementChainParameterRegistry.CallOpts, keys_)
-}
-
-// Get0 is a free data retrieval call binding the contract method 0xd6d7d525.
-//
-// Solidity: function get(bytes key_) view returns(bytes32 value_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) Get0(opts *bind.CallOpts, key_ []byte) ([32]byte, error) {
-	var out []interface{}
-	err := _SettlementChainParameterRegistry.contract.Call(opts, &out, "get0", key_)
+	err := _SettlementChainParameterRegistry.contract.Call(opts, &out, "get", key_)
 
 	if err != nil {
 		return *new([32]byte), err
@@ -259,18 +228,49 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller)
 
 }
 
-// Get0 is a free data retrieval call binding the contract method 0xd6d7d525.
+// Get is a free data retrieval call binding the contract method 0x693ec85e.
 //
-// Solidity: function get(bytes key_) view returns(bytes32 value_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Get0(key_ []byte) ([32]byte, error) {
-	return _SettlementChainParameterRegistry.Contract.Get0(&_SettlementChainParameterRegistry.CallOpts, key_)
+// Solidity: function get(string key_) view returns(bytes32 value_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Get(key_ string) ([32]byte, error) {
+	return _SettlementChainParameterRegistry.Contract.Get(&_SettlementChainParameterRegistry.CallOpts, key_)
 }
 
-// Get0 is a free data retrieval call binding the contract method 0xd6d7d525.
+// Get is a free data retrieval call binding the contract method 0x693ec85e.
 //
-// Solidity: function get(bytes key_) view returns(bytes32 value_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) Get0(key_ []byte) ([32]byte, error) {
-	return _SettlementChainParameterRegistry.Contract.Get0(&_SettlementChainParameterRegistry.CallOpts, key_)
+// Solidity: function get(string key_) view returns(bytes32 value_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) Get(key_ string) ([32]byte, error) {
+	return _SettlementChainParameterRegistry.Contract.Get(&_SettlementChainParameterRegistry.CallOpts, key_)
+}
+
+// Get0 is a free data retrieval call binding the contract method 0xb5cbae61.
+//
+// Solidity: function get(string[] keys_) view returns(bytes32[] values_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) Get0(opts *bind.CallOpts, keys_ []string) ([][32]byte, error) {
+	var out []interface{}
+	err := _SettlementChainParameterRegistry.contract.Call(opts, &out, "get0", keys_)
+
+	if err != nil {
+		return *new([][32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([][32]byte)).(*[][32]byte)
+
+	return out0, err
+
+}
+
+// Get0 is a free data retrieval call binding the contract method 0xb5cbae61.
+//
+// Solidity: function get(string[] keys_) view returns(bytes32[] values_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Get0(keys_ []string) ([][32]byte, error) {
+	return _SettlementChainParameterRegistry.Contract.Get0(&_SettlementChainParameterRegistry.CallOpts, keys_)
+}
+
+// Get0 is a free data retrieval call binding the contract method 0xb5cbae61.
+//
+// Solidity: function get(string[] keys_) view returns(bytes32[] values_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) Get0(keys_ []string) ([][32]byte, error) {
+	return _SettlementChainParameterRegistry.Contract.Get0(&_SettlementChainParameterRegistry.CallOpts, keys_)
 }
 
 // Implementation is a free data retrieval call binding the contract method 0x5c60da1b.
@@ -337,16 +337,16 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerS
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) MigratorParameterKey(opts *bind.CallOpts) ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller) MigratorParameterKey(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
 	err := _SettlementChainParameterRegistry.contract.Call(opts, &out, "migratorParameterKey")
 
 	if err != nil {
-		return *new([]byte), err
+		return *new(string), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
 
 	return out0, err
 
@@ -354,15 +354,15 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCaller)
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) MigratorParameterKey() (string, error) {
 	return _SettlementChainParameterRegistry.Contract.MigratorParameterKey(&_SettlementChainParameterRegistry.CallOpts)
 }
 
 // MigratorParameterKey is a free data retrieval call binding the contract method 0x8aab82ba.
 //
-// Solidity: function migratorParameterKey() pure returns(bytes key_)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) MigratorParameterKey() ([]byte, error) {
+// Solidity: function migratorParameterKey() pure returns(string key_)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryCallerSession) MigratorParameterKey() (string, error) {
 	return _SettlementChainParameterRegistry.Contract.MigratorParameterKey(&_SettlementChainParameterRegistry.CallOpts)
 }
 
@@ -408,46 +408,46 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransac
 	return _SettlementChainParameterRegistry.Contract.Migrate(&_SettlementChainParameterRegistry.TransactOpts)
 }
 
-// Set is a paid mutator transaction binding the contract method 0x1df893cc.
+// Set is a paid mutator transaction binding the contract method 0x2e3196a5.
 //
-// Solidity: function set(bytes[] keys_, bytes32[] values_) returns()
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactor) Set(opts *bind.TransactOpts, keys_ [][]byte, values_ [][32]byte) (*types.Transaction, error) {
-	return _SettlementChainParameterRegistry.contract.Transact(opts, "set", keys_, values_)
+// Solidity: function set(string key_, bytes32 value_) returns()
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactor) Set(opts *bind.TransactOpts, key_ string, value_ [32]byte) (*types.Transaction, error) {
+	return _SettlementChainParameterRegistry.contract.Transact(opts, "set", key_, value_)
 }
 
-// Set is a paid mutator transaction binding the contract method 0x1df893cc.
+// Set is a paid mutator transaction binding the contract method 0x2e3196a5.
 //
-// Solidity: function set(bytes[] keys_, bytes32[] values_) returns()
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Set(keys_ [][]byte, values_ [][32]byte) (*types.Transaction, error) {
-	return _SettlementChainParameterRegistry.Contract.Set(&_SettlementChainParameterRegistry.TransactOpts, keys_, values_)
+// Solidity: function set(string key_, bytes32 value_) returns()
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Set(key_ string, value_ [32]byte) (*types.Transaction, error) {
+	return _SettlementChainParameterRegistry.Contract.Set(&_SettlementChainParameterRegistry.TransactOpts, key_, value_)
 }
 
-// Set is a paid mutator transaction binding the contract method 0x1df893cc.
+// Set is a paid mutator transaction binding the contract method 0x2e3196a5.
 //
-// Solidity: function set(bytes[] keys_, bytes32[] values_) returns()
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactorSession) Set(keys_ [][]byte, values_ [][32]byte) (*types.Transaction, error) {
-	return _SettlementChainParameterRegistry.Contract.Set(&_SettlementChainParameterRegistry.TransactOpts, keys_, values_)
+// Solidity: function set(string key_, bytes32 value_) returns()
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactorSession) Set(key_ string, value_ [32]byte) (*types.Transaction, error) {
+	return _SettlementChainParameterRegistry.Contract.Set(&_SettlementChainParameterRegistry.TransactOpts, key_, value_)
 }
 
-// Set0 is a paid mutator transaction binding the contract method 0x23d56420.
+// Set0 is a paid mutator transaction binding the contract method 0xfa482768.
 //
-// Solidity: function set(bytes key_, bytes32 value_) returns()
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactor) Set0(opts *bind.TransactOpts, key_ []byte, value_ [32]byte) (*types.Transaction, error) {
-	return _SettlementChainParameterRegistry.contract.Transact(opts, "set0", key_, value_)
+// Solidity: function set(string[] keys_, bytes32[] values_) returns()
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactor) Set0(opts *bind.TransactOpts, keys_ []string, values_ [][32]byte) (*types.Transaction, error) {
+	return _SettlementChainParameterRegistry.contract.Transact(opts, "set0", keys_, values_)
 }
 
-// Set0 is a paid mutator transaction binding the contract method 0x23d56420.
+// Set0 is a paid mutator transaction binding the contract method 0xfa482768.
 //
-// Solidity: function set(bytes key_, bytes32 value_) returns()
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Set0(key_ []byte, value_ [32]byte) (*types.Transaction, error) {
-	return _SettlementChainParameterRegistry.Contract.Set0(&_SettlementChainParameterRegistry.TransactOpts, key_, value_)
+// Solidity: function set(string[] keys_, bytes32[] values_) returns()
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistrySession) Set0(keys_ []string, values_ [][32]byte) (*types.Transaction, error) {
+	return _SettlementChainParameterRegistry.Contract.Set0(&_SettlementChainParameterRegistry.TransactOpts, keys_, values_)
 }
 
-// Set0 is a paid mutator transaction binding the contract method 0x23d56420.
+// Set0 is a paid mutator transaction binding the contract method 0xfa482768.
 //
-// Solidity: function set(bytes key_, bytes32 value_) returns()
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactorSession) Set0(key_ []byte, value_ [32]byte) (*types.Transaction, error) {
-	return _SettlementChainParameterRegistry.Contract.Set0(&_SettlementChainParameterRegistry.TransactOpts, key_, value_)
+// Solidity: function set(string[] keys_, bytes32[] values_) returns()
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryTransactorSession) Set0(keys_ []string, values_ [][32]byte) (*types.Transaction, error) {
+	return _SettlementChainParameterRegistry.Contract.Set0(&_SettlementChainParameterRegistry.TransactOpts, keys_, values_)
 }
 
 // SettlementChainParameterRegistryInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the SettlementChainParameterRegistry contract.
@@ -802,10 +802,10 @@ type SettlementChainParameterRegistryParameterSet struct {
 	Raw   types.Log // Blockchain specific contextual infos
 }
 
-// FilterParameterSet is a free log retrieval operation binding the contract event 0x9577bebd11e9d897c6432d7db290e4a2101d3e13e93e0bb00ca291c37ff6bc54.
+// FilterParameterSet is a free log retrieval operation binding the contract event 0xc063108e912e305db70af8c44a1bf9903bc2cd6a73412249a9dbd2f654024583.
 //
-// Solidity: event ParameterSet(bytes indexed key, bytes32 indexed value)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFilterer) FilterParameterSet(opts *bind.FilterOpts, key [][]byte, value [][32]byte) (*SettlementChainParameterRegistryParameterSetIterator, error) {
+// Solidity: event ParameterSet(string indexed key, bytes32 indexed value)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFilterer) FilterParameterSet(opts *bind.FilterOpts, key []string, value [][32]byte) (*SettlementChainParameterRegistryParameterSetIterator, error) {
 
 	var keyRule []interface{}
 	for _, keyItem := range key {
@@ -823,10 +823,10 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFiltere
 	return &SettlementChainParameterRegistryParameterSetIterator{contract: _SettlementChainParameterRegistry.contract, event: "ParameterSet", logs: logs, sub: sub}, nil
 }
 
-// WatchParameterSet is a free log subscription operation binding the contract event 0x9577bebd11e9d897c6432d7db290e4a2101d3e13e93e0bb00ca291c37ff6bc54.
+// WatchParameterSet is a free log subscription operation binding the contract event 0xc063108e912e305db70af8c44a1bf9903bc2cd6a73412249a9dbd2f654024583.
 //
-// Solidity: event ParameterSet(bytes indexed key, bytes32 indexed value)
-func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFilterer) WatchParameterSet(opts *bind.WatchOpts, sink chan<- *SettlementChainParameterRegistryParameterSet, key [][]byte, value [][32]byte) (event.Subscription, error) {
+// Solidity: event ParameterSet(string indexed key, bytes32 indexed value)
+func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFilterer) WatchParameterSet(opts *bind.WatchOpts, sink chan<- *SettlementChainParameterRegistryParameterSet, key []string, value [][32]byte) (event.Subscription, error) {
 
 	var keyRule []interface{}
 	for _, keyItem := range key {
@@ -869,9 +869,9 @@ func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFiltere
 	}), nil
 }
 
-// ParseParameterSet is a log parse operation binding the contract event 0x9577bebd11e9d897c6432d7db290e4a2101d3e13e93e0bb00ca291c37ff6bc54.
+// ParseParameterSet is a log parse operation binding the contract event 0xc063108e912e305db70af8c44a1bf9903bc2cd6a73412249a9dbd2f654024583.
 //
-// Solidity: event ParameterSet(bytes indexed key, bytes32 indexed value)
+// Solidity: event ParameterSet(string indexed key, bytes32 indexed value)
 func (_SettlementChainParameterRegistry *SettlementChainParameterRegistryFilterer) ParseParameterSet(log types.Log) (*SettlementChainParameterRegistryParameterSet, error) {
 	event := new(SettlementChainParameterRegistryParameterSet)
 	if err := _SettlementChainParameterRegistry.contract.UnpackLog(event, "ParameterSet", log); err != nil {

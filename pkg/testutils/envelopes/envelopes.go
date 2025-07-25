@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -19,6 +20,27 @@ import (
 
 const DefaultClientEnvelopeNodeId = uint32(100)
 
+const (
+	MINIMAL_COMMIT_PAYLOAD      = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000103000000"
+	MINIMAL_APPLICATION_PAYLOAD = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000101000000"
+)
+
+func GetRealisticGroupMessagePayload(makeCommit bool) []byte {
+	if makeCommit {
+		b, err := hex.DecodeString(MINIMAL_COMMIT_PAYLOAD)
+		if err != nil {
+			panic("could not generate bytes")
+		}
+		return b
+	} else {
+		b, err := hex.DecodeString(MINIMAL_APPLICATION_PAYLOAD)
+		if err != nil {
+			panic("could not generate bytes")
+		}
+		return b
+	}
+}
+
 func UnmarshalUnsignedOriginatorEnvelope(
 	t *testing.T,
 	bytes []byte,
@@ -32,17 +54,42 @@ func UnmarshalUnsignedOriginatorEnvelope(
 	return unsignedOriginatorEnvelope
 }
 
-func CreateClientEnvelope(aad ...*envelopes.AuthenticatedData) *envelopes.ClientEnvelope {
-	if len(aad) == 0 {
-		aad = append(aad, &envelopes.AuthenticatedData{
+type ClientEnvelopeOptions struct {
+	Aad      *envelopes.AuthenticatedData
+	IsCommit bool
+}
+
+func CreateClientEnvelope(options ...*ClientEnvelopeOptions) *envelopes.ClientEnvelope {
+	var aad *envelopes.AuthenticatedData
+	var isCommit bool
+
+	if len(options) == 0 {
+		aad = &envelopes.AuthenticatedData{
 			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
 				Bytes(),
 			DependsOn: &envelopes.Cursor{},
-		})
+		}
+		isCommit = false
+	} else {
+		option := options[0]
+		if option.IsCommit {
+			isCommit = true
+		}
+		if option.Aad != nil {
+			aad = option.Aad
+		}
 	}
 	return &envelopes.ClientEnvelope{
-		Payload: &envelopes.ClientEnvelope_GroupMessage{},
-		Aad:     aad[0],
+		Payload: &envelopes.ClientEnvelope_GroupMessage{
+			GroupMessage: &mlsv1.GroupMessageInput{
+				Version: &mlsv1.GroupMessageInput_V1_{
+					V1: &mlsv1.GroupMessageInput_V1{
+						Data: GetRealisticGroupMessagePayload(isCommit),
+					},
+				},
+			},
+		},
+		Aad: aad,
 	}
 }
 
@@ -198,10 +245,10 @@ func CreateOriginatorEnvelopeWithTopic(
 	topic []byte,
 ) *envelopes.OriginatorEnvelope {
 	payerEnv := CreatePayerEnvelope(t, originatorNodeID, CreateClientEnvelope(
-		&envelopes.AuthenticatedData{
+		&ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
 			TargetTopic: topic,
 			DependsOn:   nil,
-		},
+		}},
 	))
 
 	return CreateOriginatorEnvelope(t, originatorNodeID, originatorSequenceID, payerEnv)

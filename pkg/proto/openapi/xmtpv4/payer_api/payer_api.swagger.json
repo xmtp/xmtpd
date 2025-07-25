@@ -357,10 +357,8 @@
           "title": "Do NOT reuse tag 1 — previously used by target_originator"
         },
         "dependsOn": {
-          "$ref": "#/definitions/xmtpv4envelopesCursor"
-        },
-        "isCommit": {
-          "type": "boolean"
+          "$ref": "#/definitions/xmtpv4envelopesCursor",
+          "title": "Do NOT reuse tag 4 — previously used by is_commit"
         }
       },
       "description": "Data visible to the server that has been authenticated by the client."

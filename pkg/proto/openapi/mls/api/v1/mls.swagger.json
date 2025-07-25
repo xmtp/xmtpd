@@ -562,6 +562,22 @@
       },
       "title": "Full representation of a group message"
     },
+    "associationsRecoverableEd25519Signature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "64 bytes [R(32 bytes) || S(32 bytes)]"
+        },
+        "publicKey": {
+          "type": "string",
+          "format": "byte",
+          "title": "32 bytes"
+        }
+      },
+      "title": "EdDSA signature for 25519"
+    },
     "message_contentsCommitLogEntry": {
       "type": "object",
       "properties": {
@@ -569,9 +585,12 @@
           "type": "string",
           "format": "uint64"
         },
-        "encryptedCommitLogEntry": {
+        "serializedCommitLogEntry": {
           "type": "string",
           "format": "byte"
+        },
+        "signature": {
+          "$ref": "#/definitions/associationsRecoverableEd25519Signature"
         }
       }
     },
@@ -789,9 +808,12 @@
           "type": "string",
           "format": "byte"
         },
-        "encryptedCommitLogEntry": {
+        "serializedCommitLogEntry": {
           "type": "string",
           "format": "byte"
+        },
+        "signature": {
+          "$ref": "#/definitions/associationsRecoverableEd25519Signature"
         }
       }
     },

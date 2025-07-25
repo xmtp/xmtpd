@@ -8,6 +8,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/deserializer"
+
 	"github.com/xmtp/xmtpd/pkg/config"
 
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
@@ -376,11 +378,10 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
-	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 && payerEnv.ClientEnvelope.Aad().IsCommit {
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"commit messages must be published via the blockchain",
-		)
+	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 {
+		if err = s.validateGroupMessage(ctx, &payerEnv.ClientEnvelope); err != nil {
+			return nil, err
+		}
 	}
 
 	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
@@ -422,6 +423,30 @@ func (s *Service) PublishPayerEnvelopes(
 	return &message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
 	}, nil
+}
+
+func (s *Service) validateGroupMessage(
+	ctx context.Context,
+	clientEnv *envelopes.ClientEnvelope,
+) error {
+	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_GroupMessage)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "invalid payload type")
+	}
+
+	isCommit, err := deserializer.IsGroupMessageCommit(payload)
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, "invalid group message")
+	}
+
+	if isCommit {
+		return status.Errorf(
+			codes.InvalidArgument,
+			"commit messages must be published via the blockchain",
+		)
+	}
+
+	return nil
 }
 
 func (s *Service) GetInboxIds(

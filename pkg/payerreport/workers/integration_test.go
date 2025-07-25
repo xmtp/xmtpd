@@ -288,9 +288,11 @@ func (s *multiNodeTestScaffold) publishRandomMessage(
 		s.nodeIDs[nodeIndex],
 		s.payerPrivateKeys[payerIndex],
 		10,
-		envelopeTestUtils.CreateClientEnvelope(&protoEnvelopes.AuthenticatedData{
-			TargetTopic: topic,
-		}),
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &protoEnvelopes.AuthenticatedData{
+				TargetTopic: topic,
+			}},
+		),
 	)
 
 	_, err := s.clients[nodeIndex].PublishPayerEnvelopes(

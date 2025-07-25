@@ -3,6 +3,7 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	"math/rand"
 	"time"
 
@@ -303,7 +304,7 @@ func (s *Service) publishToBlockchain(
 	var (
 		targetTopic         = clientEnvelope.TargetTopic()
 		identifier          = targetTopic.Identifier()
-		desiredOriginatorId = uint32(1) // TODO: determine this from the chain
+		desiredOriginatorId uint32
 		desiredSequenceId   uint64
 		kind                = targetTopic.Kind()
 	)
@@ -324,6 +325,8 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
+		desiredOriginatorId = contracts.GROUP_MESSAGE_ORIGINATOR_ID
+
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
 
 		// Get the group ID as [16]byte
@@ -361,6 +364,8 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
+		desiredOriginatorId = contracts.IDENTITY_UPDATE_ORIGINATOR_ID
+
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
 
 		// Get the inbox ID as [32]byte

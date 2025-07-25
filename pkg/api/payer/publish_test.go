@@ -189,7 +189,7 @@ func TestPublishToNodes(t *testing.T) {
 	groupId := testutils.RandomGroupID()
 	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 		groupId,
-		[]byte("test message"),
+		envelopesTestUtils.GetRealisticGroupMessagePayload(false),
 	)
 
 	publishResponse, err := svc.PublishClientEnvelopes(
@@ -230,4 +230,34 @@ func TestPublishToNodes(t *testing.T) {
 		10,
 		"expiry time should be roughly now + DEFAULT_STORAGE_DURATION_DAYS",
 	)
+}
+
+func TestPublishCommitIsRejected(t *testing.T) {
+	originatorServer, _, _ := apiTestUtils.NewTestAPIServer(t)
+
+	ctx := context.Background()
+	svc, _, mockRegistry, _ := buildPayerService(t)
+
+	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
+		HttpAddress: formatAddress(originatorServer.Addr().String()),
+	}, nil)
+
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		testutils.GetHealthyNode(100),
+	}, nil)
+
+	groupId := testutils.RandomGroupID()
+	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(
+		groupId,
+		envelopesTestUtils.GetRealisticGroupMessagePayload(true),
+	)
+
+	_, err := svc.PublishClientEnvelopes(
+		ctx,
+		&payer_api.PublishClientEnvelopesRequest{
+			Envelopes: []*envelopesProto.ClientEnvelope{testGroupMessage},
+		},
+	)
+
+	require.Error(t, err)
 }

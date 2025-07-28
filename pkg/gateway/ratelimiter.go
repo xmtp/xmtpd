@@ -8,8 +8,8 @@ import (
 )
 
 type RateLimit struct {
-	MaxRequests int
-	Window      time.Duration
+	Limit  int
+	Window time.Duration
 }
 
 func NewRateLimitAuthorizer(config *config.GatewayConfig, rateLimit RateLimit) AuthorizePublishFn {

@@ -180,6 +180,7 @@ func transformOnChainReport(
 		nodeID,
 		report.StartSequenceId,
 		report.EndSequenceId,
+		report.EndMinuteSinceEpoch,
 		report.PayersMerkleRoot,
 		report.NodeIds,
 		domainSeparator,
@@ -189,11 +190,12 @@ func transformOnChainReport(
 	}
 
 	return &payerreport.PayerReport{
-		ID:               *id,
-		OriginatorNodeID: nodeID,
-		StartSequenceID:  report.StartSequenceId,
-		EndSequenceID:    report.EndSequenceId,
-		PayersMerkleRoot: report.PayersMerkleRoot,
-		ActiveNodeIDs:    report.NodeIds,
+		ID:                  *id,
+		OriginatorNodeID:    nodeID,
+		StartSequenceID:     report.StartSequenceId,
+		EndSequenceID:       report.EndSequenceId,
+		EndMinuteSinceEpoch: report.EndMinuteSinceEpoch,
+		PayersMerkleRoot:    report.PayersMerkleRoot,
+		ActiveNodeIDs:       report.NodeIds,
 	}, nil
 }

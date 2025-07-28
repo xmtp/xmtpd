@@ -260,6 +260,7 @@ func (s *Store) StoreSyncedReport(
 		payerReportProto.OriginatorNodeId,
 		payerReportProto.StartSequenceId,
 		payerReportProto.EndSequenceId,
+		payerReportProto.EndMinuteSinceEpoch,
 		common.BytesToHash(payerReportProto.PayersMerkleRoot),
 		payerReportProto.ActiveNodeIds,
 		domainSeparator,

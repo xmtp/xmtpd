@@ -35,6 +35,10 @@ var payerReportMessageHash = abi.Arguments{
 		Type: abi.Type{T: abi.UintTy, Size: 64},
 	},
 	{
+		Name: "endMinuteSinceEpoch",
+		Type: abi.Type{T: abi.UintTy, Size: 32},
+	},
+	{
 		Name: "payersMerkleRoot",
 		Type: abi.Type{T: abi.FixedBytesTy, Size: 32},
 	},
@@ -142,6 +146,7 @@ func BuildPayerReportID(
 	originatorNodeID uint32,
 	startSequenceID uint64,
 	endSequenceID uint64,
+	endMinuteSinceEpoch uint32,
 	payersMerkleRoot common.Hash,
 	activeNodeIDs []uint32,
 	domainSeparator common.Hash,
@@ -157,6 +162,7 @@ func BuildPayerReportID(
 		originatorNodeID,
 		startSequenceID,
 		endSequenceID,
+		endMinuteSinceEpoch,
 		payersMerkleRoot,
 		nodeIdsHash,
 	)
@@ -180,6 +186,7 @@ func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, er
 		params.OriginatorNodeID,
 		params.StartSequenceID,
 		params.EndSequenceID,
+		params.EndMinuteSinceEpoch,
 		merkleRoot,
 		params.NodeIDs,
 		params.DomainSeparator,

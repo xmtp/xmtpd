@@ -379,7 +379,7 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 
 	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 {
-		if err = s.validateGroupMessage(ctx, &payerEnv.ClientEnvelope); err != nil {
+		if err = s.validateGroupMessage(&payerEnv.ClientEnvelope); err != nil {
 			return nil, err
 		}
 	}
@@ -426,7 +426,6 @@ func (s *Service) PublishPayerEnvelopes(
 }
 
 func (s *Service) validateGroupMessage(
-	ctx context.Context,
 	clientEnv *envelopes.ClientEnvelope,
 ) error {
 	payload, ok := clientEnv.Payload().(*envelopesProto.ClientEnvelope_GroupMessage)

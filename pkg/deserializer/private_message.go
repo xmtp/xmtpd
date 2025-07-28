@@ -13,17 +13,6 @@ type PrivateMessageIn struct {
 	// and more
 }
 
-func (s *Sender) IsMember() bool {
-	return s.Type == SenderTypeMember
-}
-
-func (s *Sender) AsMember() *uint32 {
-	if s.Type == SenderTypeMember {
-		return s.LeafIndex
-	}
-	return nil
-}
-
 func (p *PrivateMessageIn) TLSDeserialize(r *bytes.Reader) error {
 	groupID, err := readVariableOpaqueVec(r)
 	if err != nil {

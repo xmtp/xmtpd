@@ -94,7 +94,7 @@ func CreateClientEnvelope(options ...*ClientEnvelopeOptions) *envelopes.ClientEn
 }
 
 func CreateGroupMessageClientEnvelope(
-	groupID [32]byte,
+	groupID [16]byte,
 	message []byte,
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{

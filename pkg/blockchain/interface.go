@@ -41,12 +41,12 @@ type TransactionSigner interface {
 type IBlockchainPublisher interface {
 	PublishIdentityUpdate(
 		ctx context.Context,
-		inboxId [32]byte,
+		inboxID [32]byte,
 		identityUpdate []byte,
 	) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error)
 	PublishGroupMessage(
 		ctx context.Context,
-		groupdId [32]byte,
+		groupID [16]byte,
 		message []byte,
 	) (*gm.GroupMessageBroadcasterMessageSent, error)
 }

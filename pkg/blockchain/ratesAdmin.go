@@ -83,11 +83,11 @@ func (r *RatesAdmin) AddRates(
 		r.logger,
 		r.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			keys := [][]byte{
-				[]byte(RATE_REGISTRY_MESSAGE_FEE_KEY),
-				[]byte(RATE_REGISTRY_STORAGE_FEE_KEY),
-				[]byte(RATE_REGISTRY_CONGESTION_FEE_KEY),
-				[]byte(RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY),
+			keys := []string{
+				RATE_REGISTRY_MESSAGE_FEE_KEY,
+				RATE_REGISTRY_STORAGE_FEE_KEY,
+				RATE_REGISTRY_CONGESTION_FEE_KEY,
+				RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
 			}
 
 			if rates.MessageFee < 0 {
@@ -107,7 +107,7 @@ func (r *RatesAdmin) AddRates(
 				encodeUint64ToBytes32(rates.TargetRatePerMinute),
 			}
 
-			return r.parameterContract.Set(opts, keys, values)
+			return r.parameterContract.Set0(opts, keys, values)
 		},
 		func(log *types.Log) (interface{}, error) {
 			return r.parameterContract.ParseParameterSet(*log)

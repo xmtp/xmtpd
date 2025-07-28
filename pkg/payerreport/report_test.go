@@ -81,7 +81,7 @@ func TestGetDigest(t *testing.T) {
 		"ea13edf2a1dffdeb6f76acdbc46a352bd5b9071e7a3a5e6a63a498a9caa547fa",
 	)
 	expectedDigest := common.Hex2Bytes(
-		"1ec269bb27455a17e615c98f34f05a635943526e8fddff7b6a81a73bb1468b9c",
+		"79f316f2836745161f3020e431db382ce57aab339df1429de068a62bf940295b",
 	)
 	require.Equal(t, len(expectedNodeIDsHash), 32)
 	require.Equal(t, len(expectedDigest), 32)
@@ -97,6 +97,7 @@ func TestGetDigest(t *testing.T) {
 	originatorNodeID := uint32(1)
 	startSequenceID := uint64(2)
 	endSequenceID := uint64(3)
+	endMinuteSinceEpoch := uint32(4)
 	domainSeparator := common.HexToHash(
 		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
 	)
@@ -105,6 +106,7 @@ func TestGetDigest(t *testing.T) {
 		originatorNodeID,
 		startSequenceID,
 		endSequenceID,
+		endMinuteSinceEpoch,
 		payersMerkleRoot,
 		nodeIDs,
 		domainSeparator,

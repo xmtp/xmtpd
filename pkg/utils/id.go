@@ -1,26 +1,31 @@
 package utils
 
-import (
-	"encoding/hex"
-	"fmt"
-)
+import "fmt"
 
-func ParseInboxId(inboxIdString string) ([32]byte, error) {
-	// Decode the hex string
-	decoded, err := hex.DecodeString(inboxIdString)
-	if err != nil {
-		return [32]byte{}, err
-	}
-
-	return BytesToId(decoded)
-}
-
-func BytesToId(bytes []byte) ([32]byte, error) {
-	if len(bytes) != 32 {
-		return [32]byte{}, fmt.Errorf("invalid bytes length: expected 32 bytes, got %d", len(bytes))
+func ParseInboxID(inboxID []byte) ([32]byte, error) {
+	if len(inboxID) != 32 {
+		return [32]byte{}, fmt.Errorf(
+			"invalid bytes length: expected 32 bytes, got %d",
+			len(inboxID),
+		)
 	}
 
 	var result [32]byte
-	copy(result[:], bytes)
+	copy(result[:], inboxID)
+
+	return result, nil
+}
+
+func ParseGroupID(groupID []byte) ([16]byte, error) {
+	if len(groupID) != 16 {
+		return [16]byte{}, fmt.Errorf(
+			"invalid bytes length: expected 16 bytes, got %d",
+			len(groupID),
+		)
+	}
+
+	var result [16]byte
+	copy(result[:], groupID)
+
 	return result, nil
 }

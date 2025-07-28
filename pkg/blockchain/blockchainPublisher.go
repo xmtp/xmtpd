@@ -119,7 +119,7 @@ func NewBlockchainPublisher(
 
 func (m *BlockchainPublisher) PublishGroupMessage(
 	ctx context.Context,
-	groupID [32]byte,
+	groupID [16]byte,
 	message []byte,
 ) (*gm.GroupMessageBroadcasterMessageSent, error) {
 	if len(message) == 0 {

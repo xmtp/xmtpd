@@ -63,18 +63,16 @@ func TestStoreIdentityUpdate(t *testing.T) {
 			},
 		}, nil)
 
-	// Using the RandomInboxId function, since they are both 32 bytes and we treat inbox IDs as
-	// strings outside the blockchain
-	inboxId := testutils.RandomGroupID()
+	inboxID := testutils.RandomInboxIDBytes()
 	identityUpdate := associations.IdentityUpdate{
-		InboxId: utils.HexEncode(inboxId[:]),
+		InboxId: utils.HexEncode(inboxID[:]),
 	}
 	sequenceID := uint64(1)
 
 	logMessage := testutils.BuildIdentityUpdateLog(
 		t,
-		inboxId,
-		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		inboxID,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxID, &identityUpdate),
 		sequenceID,
 	)
 
@@ -102,7 +100,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 
 	getInboxIdResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
-	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxId[:]))
+	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxID[:]))
 }
 
 func TestStoreSequential(t *testing.T) {
@@ -133,18 +131,16 @@ func TestStoreSequential(t *testing.T) {
 			}, nil
 		})
 
-	// Using the RandomGroupID function, since they are both 32 bytes and we treat inbox IDs as
-	// strings outside the blockchain
-	inboxId := testutils.RandomGroupID()
+	inboxID := testutils.RandomInboxIDBytes()
 	identityUpdate := associations.IdentityUpdate{
-		InboxId: utils.HexEncode(inboxId[:]),
+		InboxId: utils.HexEncode(inboxID[:]),
 	}
 	sequenceID := uint64(1)
 
 	logMessage := testutils.BuildIdentityUpdateLog(
 		t,
-		inboxId,
-		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		inboxID,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxID, &identityUpdate),
 		sequenceID,
 	)
 
@@ -155,8 +151,8 @@ func TestStoreSequential(t *testing.T) {
 
 	logMessage = testutils.BuildIdentityUpdateLog(
 		t,
-		inboxId,
-		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxId, &identityUpdate),
+		inboxID,
+		envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxID, &identityUpdate),
 		sequenceID+1, // Increment the sequence ID by 1
 	)
 

@@ -80,7 +80,7 @@ func buildPayerService(
 	mockMessagePublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
 
 	metaMocks := metadataMocks.NewMockMetadataApiClient(t)
-	payerService, err := payer.NewPayerApiService(
+	payerService, err := payer.NewPayerAPIService(
 		ctx,
 		log,
 		mockRegistry,

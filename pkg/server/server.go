@@ -358,7 +358,7 @@ func startAPIServer(
 				cfg.Log.Fatal("initializing message publisher", zap.Error(err))
 			}
 
-			payerService, err := payer.NewPayerApiService(
+			payerService, err := payer.NewPayerAPIService(
 				s.ctx,
 				cfg.Log,
 				s.nodeRegistry,

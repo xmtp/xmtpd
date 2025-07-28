@@ -146,7 +146,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-		payerService, err := payer.NewPayerApiService(
+		payerService, err := payer.NewPayerAPIService(
 			ctx,
 			log,
 			mockRegistry,

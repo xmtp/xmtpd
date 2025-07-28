@@ -86,7 +86,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	envelopes, queryErr := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
-			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
+			OriginatorNodeIds: []int32{IdentityUpdateOriginatorID},
 			RowLimit:          10,
 		},
 	)

@@ -8,6 +8,7 @@ import (
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -42,13 +43,13 @@ type Service struct {
 	nodeRegistry        registry.NodeRegistry
 }
 
-func NewPayerApiService(
+func NewPayerAPIService(
 	ctx context.Context,
 	log *zap.Logger,
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
-	metadataApiClient MetadataApiClientConstructor,
+	metadataAPIClient MetadataApiClientConstructor,
 	clientMetrics *grpcprom.ClientMetrics,
 ) (*Service, error) {
 	if clientMetrics == nil {
@@ -57,10 +58,10 @@ func NewPayerApiService(
 
 	var metadataClient MetadataApiClientConstructor
 	clientManager := NewClientManager(log, nodeRegistry, clientMetrics)
-	if metadataApiClient == nil {
+	if metadataAPIClient == nil {
 		metadataClient = &DefaultMetadataApiClientConstructor{clientManager: clientManager}
 	} else {
-		metadataClient = metadataApiClient
+		metadataClient = metadataAPIClient
 	}
 
 	return &Service{
@@ -97,10 +98,10 @@ func (s *Service) GetReaderNode(
 		return nil, status.Errorf(codes.Unavailable, "no nodes available")
 	}
 
-	primaryUrl, backupUrls := getReaderNodeRandom(nodes)
+	primaryURL, backupUrls := getReaderNodeRandom(nodes)
 
 	return &payer_api.GetReaderNodeResponse{
-		ReaderNodeUrl:  primaryUrl,
+		ReaderNodeUrl:  primaryURL,
 		BackupNodeUrls: backupUrls,
 	}, nil
 }
@@ -112,14 +113,14 @@ func getReaderNodeRandom(nodes []registry.Node) (string, []string) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
 
-	primaryUrl := shuffled[0].HttpAddress
+	primaryURL := shuffled[0].HttpAddress
 
 	backupUrls := make([]string, 0, len(shuffled)-1)
 	for _, node := range shuffled[1:] {
 		backupUrls = append(backupUrls, node.HttpAddress)
 	}
 
-	return primaryUrl, backupUrls
+	return primaryURL, backupUrls
 }
 
 func (s *Service) PublishClientEnvelopes(
@@ -134,9 +135,9 @@ func (s *Service) PublishClientEnvelopes(
 	out := make([]*envelopesProto.OriginatorEnvelope, len(req.Envelopes))
 
 	// For each originator found in the request, publish all matching envelopes to the node
-	for originatorId, payloadsWithIndex := range grouped.forNodes {
-		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorId))
-		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorId, payloadsWithIndex)
+	for originatorID, payloadsWithIndex := range grouped.forNodes {
+		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorID))
+		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorID, payloadsWithIndex)
 		if err != nil {
 			s.log.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Error(codes.Internal, "error publishing payer envelopes")
@@ -206,12 +207,12 @@ func (s *Service) groupEnvelopes(
 				newClientEnvelopeWithIndex(i, clientEnvelope),
 			)
 		} else {
-			targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+			targetNodeID, err := s.nodeSelector.GetNode(targetTopic)
 			if err != nil {
 				return nil, err
 			}
 
-			out.forNodes[targetNodeId] = append(out.forNodes[targetNodeId], newClientEnvelopeWithIndex(i, clientEnvelope))
+			out.forNodes[targetNodeID] = append(out.forNodes[targetNodeID], newClientEnvelopeWithIndex(i, clientEnvelope))
 		}
 	}
 
@@ -294,9 +295,9 @@ func (s *Service) publishToBlockchain(
 	var (
 		targetTopic         = clientEnvelope.TargetTopic()
 		identifier          = targetTopic.Identifier()
-		desiredOriginatorId = uint32(1) // TODO: determine this from the chain
-		desiredSequenceId   uint64
 		kind                = targetTopic.Kind()
+		desiredOriginatorID uint32
+		desiredSequenceID   uint64
 	)
 
 	// Serialize the clientEnvelope for publishing
@@ -316,6 +317,8 @@ func (s *Service) publishToBlockchain(
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
+
+		desiredOriginatorID = contracts.GroupMessageOriginatorID
 
 		// Get the group ID as [16]byte
 		groupID, err := utils.ParseGroupID(identifier)
@@ -338,7 +341,7 @@ func (s *Service) publishToBlockchain(
 
 		hash = logMessage.Raw.TxHash
 		unsignedOriginatorEnvelope, err = buildUnsignedOriginatorEnvelopeFromChain(
-			desiredOriginatorId,
+			desiredOriginatorID,
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
@@ -349,10 +352,12 @@ func (s *Service) publishToBlockchain(
 				err,
 			)
 		}
-		desiredSequenceId = logMessage.SequenceId
+		desiredSequenceID = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
+
+		desiredOriginatorID = contracts.IdentityUpdateOriginatorID
 
 		// Get the inbox ID as [32]byte
 		inboxID, err := utils.ParseInboxID(identifier)
@@ -375,7 +380,7 @@ func (s *Service) publishToBlockchain(
 
 		hash = logMessage.Raw.TxHash
 		unsignedOriginatorEnvelope, err = buildUnsignedOriginatorEnvelopeFromChain(
-			desiredOriginatorId,
+			desiredOriginatorID,
 			logMessage.SequenceId,
 			logMessage.Update,
 		)
@@ -386,7 +391,7 @@ func (s *Service) publishToBlockchain(
 				err,
 			)
 		}
-		desiredSequenceId = logMessage.SequenceId
+		desiredSequenceID = logMessage.SequenceId
 
 	default:
 		return nil, status.Errorf(
@@ -396,8 +401,8 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	metrics.EmitPayerNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
-	metrics.EmitPayerMessageOriginated(desiredOriginatorId, 1)
+	metrics.EmitPayerNodePublishDuration(desiredOriginatorID, time.Since(start).Seconds())
+	metrics.EmitPayerMessageOriginated(desiredOriginatorID, 1)
 
 	s.log.Debug(
 		"published message to blockchain",
@@ -413,26 +418,26 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+	targetNodeID, err := s.nodeSelector.GetNode(targetTopic)
 	if err != nil {
 		return nil, err
 	}
 
 	s.log.Debug(
 		"Waiting for message to be processed by node",
-		zap.Uint32("target_node_id", targetNodeId),
+		zap.Uint32("target_node_id", targetNodeID),
 	)
 
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
 		ctx,
-		targetNodeId,
-		desiredOriginatorId,
-		desiredSequenceId,
+		targetNodeID,
+		desiredOriginatorID,
+		desiredSequenceID,
 	)
 	if err != nil {
 		s.log.Error(
 			"Chosen node for cursor check is unreachable",
-			zap.Uint32("targetNodeId", targetNodeId),
+			zap.Uint32("targetNodeId", targetNodeID),
 			zap.Error(err),
 		)
 	}

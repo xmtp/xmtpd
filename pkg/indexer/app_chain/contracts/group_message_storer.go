@@ -17,11 +17,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
-	GROUP_MESSAGE_ORIGINATOR_ID = 0
-)
-
 var (
 	ErrParseGroupMessage               = "error parsing group message"
 	ErrParseClientEnvelope             = "error parsing client envelope"
@@ -106,7 +101,7 @@ func (s *GroupMessageStorer) StoreLog(
 	s.logger.Info("Inserting message from contract", zap.String("topic", topicStruct.String()))
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,
+		OriginatorNodeID:     GroupMessageOriginatorID,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                topicStruct.Bytes(),
 		OriginatorEnvelope:   originatorEnvelopeBytes,

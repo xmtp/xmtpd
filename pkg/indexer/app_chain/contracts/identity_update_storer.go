@@ -26,11 +26,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
-	IDENTITY_UPDATE_ORIGINATOR_ID = 1
-)
-
 var (
 	ErrParseIdentityUpdate    = "error parsing identity update"
 	ErrGetLatestSequenceId    = "get latest sequence id failed"
@@ -76,7 +71,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 		s.db,
 		&sql.TxOptions{Isolation: sql.LevelRepeatableRead},
 		func(ctx context.Context, querier *queries.Queries) error {
-			latestSequenceId, err := querier.GetLatestSequenceId(ctx, IDENTITY_UPDATE_ORIGINATOR_ID)
+			latestSequenceId, err := querier.GetLatestSequenceId(ctx, IdentityUpdateOriginatorID)
 			if err != nil {
 				return re.NewNonRecoverableError(ErrGetLatestSequenceId, err)
 			}
@@ -190,7 +185,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			}
 
 			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
+				OriginatorNodeID:     IdentityUpdateOriginatorID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
 				Topic:                messageTopic.Bytes(),
 				OriginatorEnvelope:   originatorEnvelopeBytes,
@@ -227,7 +222,7 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 			Topics: []db.Topic{
 				db.Topic(topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxId[:]).Bytes()),
 			},
-			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
+			OriginatorNodeIds: []int32{IdentityUpdateOriginatorID},
 			RowLimit:          256,
 		},
 	)
@@ -260,7 +255,7 @@ func buildOriginatorEnvelope(
 	}
 
 	return &envelopesProto.UnsignedOriginatorEnvelope{
-		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
+		OriginatorNodeId:     IdentityUpdateOriginatorID,
 		OriginatorSequenceId: sequenceId,
 		OriginatorNs:         time.Now().UnixNano(),
 		PayerEnvelopeBytes:   payerEnvelopeBytes,

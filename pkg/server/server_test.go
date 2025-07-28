@@ -119,10 +119,12 @@ func TestCreateServer(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
 				nodeId1,
-				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetTopic: targetTopic,
-					DependsOn:   &envelopes.Cursor{},
-				}),
+				envelopeTestUtils.CreateClientEnvelope(
+					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+						TargetTopic: targetTopic,
+						DependsOn:   &envelopes.Cursor{},
+					}},
+				),
 			)},
 		},
 	)
@@ -133,10 +135,12 @@ func TestCreateServer(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
 				nodeId2,
-				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetTopic: targetTopic,
-					DependsOn:   &envelopes.Cursor{},
-				}),
+				envelopeTestUtils.CreateClientEnvelope(
+					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+						TargetTopic: targetTopic,
+						DependsOn:   &envelopes.Cursor{},
+					}},
+				),
 			)},
 		},
 	)
@@ -230,10 +234,12 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
 				nodeId1,
-				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetTopic: targetTopic,
-					DependsOn:   &envelopes.Cursor{},
-				}),
+				envelopeTestUtils.CreateClientEnvelope(
+					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+						TargetTopic: targetTopic,
+						DependsOn:   &envelopes.Cursor{},
+					}},
+				),
 			)},
 		},
 	)

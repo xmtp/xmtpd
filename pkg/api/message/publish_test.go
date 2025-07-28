@@ -134,10 +134,12 @@ func TestMissingTopicOnPublish(t *testing.T) {
 func TestKeyPackageValidationSuccess(t *testing.T) {
 	api, _, apiMocks := apiTestUtils.NewTestReplicationAPIClient(t)
 
-	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-		TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		DependsOn:   &envelopes.Cursor{},
-	})
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(
+		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+			DependsOn:   &envelopes.Cursor{},
+		}},
+	)
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
 		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
 			KeyPackage: &apiv1.KeyPackageUpload{
@@ -176,10 +178,12 @@ func TestKeyPackageValidationFail(t *testing.T) {
 	api, _, apiMocks := apiTestUtils.NewTestReplicationAPIClient(t)
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
-	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-		TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
-		DependsOn:   &envelopes.Cursor{},
-	})
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(
+		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+			DependsOn:   &envelopes.Cursor{},
+		}},
+	)
 	clientEnv.Payload = &envelopes.ClientEnvelope_UploadKeyPackage{
 		UploadKeyPackage: &apiv1.UploadKeyPackageRequest{
 			KeyPackage: &apiv1.KeyPackageUpload{
@@ -237,11 +241,14 @@ func publishPayerEnvelopeWithNodeIDAndCursor(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t, nodeId,
-				envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-					TargetTopic: targetTopic,
-					DependsOn:   cursor,
-				}),
+				t,
+				nodeId,
+				envelopeTestUtils.CreateClientEnvelope(
+					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+						TargetTopic: targetTopic,
+						DependsOn:   cursor,
+					}},
+				),
 			)},
 		},
 	)
@@ -449,12 +456,13 @@ func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 
 	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
 
-	clientEnv := envelopeTestUtils.CreateClientEnvelope(&envelopes.AuthenticatedData{
-		TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
-			Bytes(),
-		DependsOn: &envelopes.Cursor{},
-		IsCommit:  true,
-	})
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(
+		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+				Bytes(),
+			DependsOn: &envelopes.Cursor{},
+		}, IsCommit: true},
+	)
 	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{

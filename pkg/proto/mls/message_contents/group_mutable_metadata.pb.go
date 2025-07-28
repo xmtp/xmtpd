@@ -32,8 +32,11 @@ type GroupMutableMetadataV1 struct {
 	// Creator starts as only super_admin
 	// Only super_admin can add/remove other super_admin
 	SuperAdminList *Inboxes `protobuf:"bytes,3,opt,name=super_admin_list,json=superAdminList,proto3" json:"super_admin_list,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The ED25519 private key used to sign commit log entries
+	// Must match the first entry in the commit log to be valid
+	CommitLogSigner []byte `protobuf:"bytes,4,opt,name=commit_log_signer,json=commitLogSigner,proto3,oneof" json:"commit_log_signer,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GroupMutableMetadataV1) Reset() {
@@ -87,6 +90,13 @@ func (x *GroupMutableMetadataV1) GetSuperAdminList() *Inboxes {
 	return nil
 }
 
+func (x *GroupMutableMetadataV1) GetCommitLogSigner() []byte {
+	if x != nil {
+		return x.CommitLogSigner
+	}
+	return nil
+}
+
 // Wrapper around a list of repeated Inbox Ids
 type Inboxes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -136,17 +146,19 @@ var File_mls_message_contents_group_mutable_metadata_proto protoreflect.FileDesc
 
 const file_mls_message_contents_group_mutable_metadata_proto_rawDesc = "" +
 	"\n" +
-	"1mls/message_contents/group_mutable_metadata.proto\x12\x19xmtp.mls.message_contents\"\xcb\x02\n" +
+	"1mls/message_contents/group_mutable_metadata.proto\x12\x19xmtp.mls.message_contents\"\x92\x03\n" +
 	"\x16GroupMutableMetadataV1\x12a\n" +
 	"\n" +
 	"attributes\x18\x01 \x03(\v2A.xmtp.mls.message_contents.GroupMutableMetadataV1.AttributesEntryR\n" +
 	"attributes\x12A\n" +
 	"\n" +
 	"admin_list\x18\x02 \x01(\v2\".xmtp.mls.message_contents.InboxesR\tadminList\x12L\n" +
-	"\x10super_admin_list\x18\x03 \x01(\v2\".xmtp.mls.message_contents.InboxesR\x0esuperAdminList\x1a=\n" +
+	"\x10super_admin_list\x18\x03 \x01(\v2\".xmtp.mls.message_contents.InboxesR\x0esuperAdminList\x12/\n" +
+	"\x11commit_log_signer\x18\x04 \x01(\fH\x00R\x0fcommitLogSigner\x88\x01\x01\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x14\n" +
+	"\x12_commit_log_signer\"&\n" +
 	"\aInboxes\x12\x1b\n" +
 	"\tinbox_ids\x18\x01 \x03(\tR\binboxIdsB\xf2\x01\n" +
 	"\x1dcom.xmtp.mls.message_contentsB\x19GroupMutableMetadataProtoP\x01Z4github.com/xmtp/xmtpd/pkg/proto/mls/message_contents\xa2\x02\x03XMM\xaa\x02\x18Xmtp.Mls.MessageContents\xca\x02\x18Xmtp\\Mls\\MessageContents\xe2\x02$Xmtp\\Mls\\MessageContents\\GPBMetadata\xea\x02\x1aXmtp::Mls::MessageContentsb\x06proto3"
@@ -185,6 +197,7 @@ func file_mls_message_contents_group_mutable_metadata_proto_init() {
 	if File_mls_message_contents_group_mutable_metadata_proto != nil {
 		return
 	}
+	file_mls_message_contents_group_mutable_metadata_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

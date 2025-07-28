@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"context"
@@ -15,11 +15,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type payerServiceImpl struct {
+type gatewayServiceImpl struct {
 	log                 *zap.Logger
 	identityFn          IdentityFn
 	authorizers         []AuthorizePublishFn
-	config              *config.PayerConfig
+	config              *config.GatewayConfig
 	metrics             *metrics.Server
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -29,7 +29,7 @@ type payerServiceImpl struct {
 }
 
 // Shutdown gracefully stops the API server and cleans up resources.
-func (s *payerServiceImpl) Shutdown(timeout time.Duration) error {
+func (s *gatewayServiceImpl) Shutdown(timeout time.Duration) error {
 	if s.metrics != nil {
 		s.metrics.Close()
 	}
@@ -53,7 +53,7 @@ func (s *payerServiceImpl) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-func (s *payerServiceImpl) WaitForShutdown() {
+func (s *gatewayServiceImpl) WaitForShutdown() {
 	timeout := 5 * time.Second
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)

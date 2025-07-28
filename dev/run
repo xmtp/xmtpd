@@ -5,7 +5,6 @@ set -eu
 . dev/local.env
 
 export XMTPD_REFLECTION_ENABLE=true
-export XMTPD_PAYER_ENABLE=true
 export XMTPD_REPLICATION_ENABLE=true
 export XMTPD_SYNC_ENABLE=true
 export XMTPD_INDEXER_ENABLE=true

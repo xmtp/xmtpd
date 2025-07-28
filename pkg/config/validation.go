@@ -32,10 +32,6 @@ func ValidateServerOptions(options *ServerOptions) error {
 		missingSet,
 	)
 
-	if options.Payer.Enable {
-		validateField(options.Payer.PrivateKey, "payer.private-key", missingSet)
-	}
-
 	if options.Replication.Enable {
 		validateField(options.Signer.PrivateKey, "signer.private-key", missingSet)
 		validateField(options.MlsValidation.GrpcAddress, "mls-validation.grpc-address", missingSet)

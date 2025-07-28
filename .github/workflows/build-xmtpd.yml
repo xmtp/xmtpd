@@ -6,7 +6,7 @@ on:
       - main
       - rel/**
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
   workflow_dispatch:
 
@@ -14,7 +14,7 @@ jobs:
   push_to_registry:
     strategy:
       matrix:
-        image: ["xmtpd", "xmtpd-cli", "xmtpd-prune"]
+        image: ["xmtpd", "xmtpd-cli", "xmtpd-prune", "xmtpd-gateway"]
     name: Push Docker Images to GitHub Packages
     runs-on: ubuntu-latest
     permissions:
@@ -52,9 +52,11 @@ jobs:
           if [[ "${{ matrix.image }}" == "xmtpd" ]]; then
           echo "dockerfile=Dockerfile" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.image }}" == "xmtpd-cli" ]]; then
-          echo "dockerfile=Dockerfile-cli" >> $GITHUB_OUTPUT
+          echo "dockerfile=cli.Dockerfile" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.image }}" == "xmtpd-prune" ]]; then
-          echo "dockerfile=Dockerfile-prune" >> $GITHUB_OUTPUT
+          echo "dockerfile=prune.Dockerfile" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.image }}" == "xmtpd-gateway" ]]; then
+          echo "dockerfile=gateway.Dockerfile" >> $GITHUB_OUTPUT
           else
           echo "Unknown image: ${{ matrix.image }}"
           exit 1
@@ -107,28 +109,36 @@ jobs:
           name: xmtpd-prune-digest
           path: digests
 
+      - name: Download gateway digest
+        uses: actions/download-artifact@v4
+        with:
+          name: xmtpd-gateway-digest
+          path: digests
+
       - name: Read and export digests
         id: digests
         run: |
           set -euo pipefail
-          
+
           XMTPD_DIGEST=$(cut -d= -f2 digests/xmtpd.txt)
           CLI_DIGEST=$(cut -d= -f2 digests/xmtpd-cli.txt)
           PRUNE_DIGEST=$(cut -d= -f2 digests/xmtpd-prune.txt)
-          
-          if [[ -z "$XMTPD_DIGEST" || -z "$CLI_DIGEST" || -z "$PRUNE_DIGEST" ]]; then
+          GATEWAY_DIGEST=$(cut -d= -f2 digests/xmtpd-gateway.txt)
+
+          if [[ -z "$XMTPD_DIGEST" || -z "$CLI_DIGEST" || -z "$PRUNE_DIGEST" || -z "$GATEWAY_DIGEST" ]]; then
             echo "✖️  One or more digests are empty – aborting deploy." >&2
             exit 1
           fi
-          
+
           XMTPD_IMAGE="ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"
           CLI_IMAGE="ghcr.io/xmtp/xmtpd-cli@$CLI_DIGEST"
           PRUNE_IMAGE="ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"
-          
+          GATEWAY_IMAGE="ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST"
+
           echo "xmtpd_image=$XMTPD_IMAGE"     >> $GITHUB_OUTPUT
           echo "cli_image=$CLI_IMAGE"         >> $GITHUB_OUTPUT
           echo "prune_image=$PRUNE_IMAGE"     >> $GITHUB_OUTPUT
-
+          echo "gateway_image=$GATEWAY_IMAGE" >> $GITHUB_OUTPUT
 
       - name: Deploy Testnet
         uses: xmtp-labs/terraform-deployer@v1

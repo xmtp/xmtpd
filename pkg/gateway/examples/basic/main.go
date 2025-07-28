@@ -5,23 +5,23 @@ import (
 	"log"
 	"slices"
 
-	"github.com/xmtp/xmtpd/pkg/payer"
+	"github.com/xmtp/xmtpd/pkg/gateway"
 )
 
 func main() {
-	payerService, err := payer.NewPayerServiceBuilder(payer.MustLoadConfig()).
-		WithAuthorizers(func(ctx context.Context, identity payer.Identity, req payer.PublishRequest) (bool, error) {
+	gatewayService, err := gateway.NewGatewayServiceBuilder(gateway.MustLoadConfig()).
+		WithAuthorizers(func(ctx context.Context, identity gateway.Identity, req gateway.PublishRequest) (bool, error) {
 			// A simple authorization function that allows only the IP 127.0.0.1
 			allowedIPs := []string{"127.0.0.1"}
 			if !slices.Contains(allowedIPs, identity.Identity) {
-				return false, payer.ErrUnauthorized
+				return false, gateway.ErrUnauthorized
 			}
 			return true, nil
 		}).
 		Build() // This will gather all the config from environment variables and flags
 	if err != nil {
-		log.Fatalf("Failed to build payer service: %v", err)
+		log.Fatalf("Failed to build gateway service: %v", err)
 	}
 
-	payerService.WaitForShutdown()
+	gatewayService.WaitForShutdown()
 }

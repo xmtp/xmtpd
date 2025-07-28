@@ -113,7 +113,6 @@ type ServerOptions struct {
 	Indexer       IndexerOptions       `group:"Indexer Options"        namespace:"indexer"`
 	Metrics       MetricsOptions       `group:"Metrics Options"        namespace:"metrics"`
 	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
-	Payer         PayerOptions         `group:"Payer Options"          namespace:"payer"`
 	Reflection    ReflectionOptions    `group:"Reflection Options"     namespace:"reflection"`
 	Replication   ReplicationOptions   `group:"Replication Options"    namespace:"replication"`
 	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`

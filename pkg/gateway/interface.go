@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"context"
@@ -39,22 +39,22 @@ type IdentityFn func(ctx context.Context) (Identity, error)
 
 type AuthorizePublishFn func(ctx context.Context, identity Identity, req PublishRequest) (bool, error)
 
-type IPayerServiceBuilder interface {
-	WithIdentityFn(identityFn IdentityFn) IPayerServiceBuilder
-	WithAuthorizers(authorizers ...AuthorizePublishFn) IPayerServiceBuilder
+type IGatewayServiceBuilder interface {
+	WithIdentityFn(identityFn IdentityFn) IGatewayServiceBuilder
+	WithAuthorizers(authorizers ...AuthorizePublishFn) IGatewayServiceBuilder
 	WithBlockchainPublisher(
 		blockchainPublisher blockchain.IBlockchainPublisher,
-	) IPayerServiceBuilder
-	WithNodeRegistry(nodeRegistry registry.NodeRegistry) IPayerServiceBuilder
-	WithLogger(logger *zap.Logger) IPayerServiceBuilder
-	WithMetricsServer(metricsServer *metrics.Server) IPayerServiceBuilder
-	WithContext(ctx context.Context) IPayerServiceBuilder
-	WithPromRegistry(promRegistry *prometheus.Registry) IPayerServiceBuilder
-	WithClientMetrics(clientMetrics *grpcprom.ClientMetrics) IPayerServiceBuilder
-	WithNonceManager(nonceManager noncemanager.NonceManager) IPayerServiceBuilder
-	Build() (PayerService, error)
+	) IGatewayServiceBuilder
+	WithNodeRegistry(nodeRegistry registry.NodeRegistry) IGatewayServiceBuilder
+	WithLogger(logger *zap.Logger) IGatewayServiceBuilder
+	WithMetricsServer(metricsServer *metrics.Server) IGatewayServiceBuilder
+	WithContext(ctx context.Context) IGatewayServiceBuilder
+	WithPromRegistry(promRegistry *prometheus.Registry) IGatewayServiceBuilder
+	WithClientMetrics(clientMetrics *grpcprom.ClientMetrics) IGatewayServiceBuilder
+	WithNonceManager(nonceManager noncemanager.NonceManager) IGatewayServiceBuilder
+	Build() (GatewayService, error)
 }
 
-type PayerService interface {
+type GatewayService interface {
 	WaitForShutdown()
 }

@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"context"
@@ -19,9 +19,9 @@ import (
 
 // Using mockery-generated mocks from pkg/mocks
 
-func createMinimalTestConfig(t *testing.T) *config.PayerConfig {
+func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
 	wsUrl := anvil.StartAnvil(t, false)
-	return &config.PayerConfig{
+	return &config.GatewayConfig{
 		Payer: testutils.GetPayerOptions(t),
 		API: config.ApiOptions{
 			Port:     0,
@@ -46,15 +46,15 @@ func createMinimalTestConfig(t *testing.T) *config.PayerConfig {
 
 func TestBuilderBasicFunctionality(t *testing.T) {
 	cfg := createMinimalTestConfig(t)
-	builder := NewPayerServiceBuilder(cfg)
+	builder := NewGatewayServiceBuilder(cfg)
 
 	assert.NotNil(t, builder)
-	assert.Equal(t, cfg, builder.(*PayerServiceBuilder).config)
+	assert.Equal(t, cfg, builder.(*GatewayServiceBuilder).config)
 }
 
 func TestBuilderMethodChaining(t *testing.T) {
 	cfg := createMinimalTestConfig(t)
-	builder := NewPayerServiceBuilder(cfg)
+	builder := NewGatewayServiceBuilder(cfg)
 
 	// Test WithIdentityFn
 	identityFn := func(ctx context.Context) (Identity, error) {
@@ -97,7 +97,7 @@ func TestBuilderDependencyStorage(t *testing.T) {
 	customPromRegistry := prometheus.NewRegistry()
 	customClientMetrics := grpcprom.NewClientMetrics()
 
-	builder := NewPayerServiceBuilder(cfg).
+	builder := NewGatewayServiceBuilder(cfg).
 		WithBlockchainPublisher(mockBlockchainPublisher).
 		WithNodeRegistry(mockNodeRegistry).
 		WithNonceManager(mockNonceManager).
@@ -106,7 +106,7 @@ func TestBuilderDependencyStorage(t *testing.T) {
 		WithClientMetrics(customClientMetrics)
 
 	// Verify dependencies are set
-	builderImpl := builder.(*PayerServiceBuilder)
+	builderImpl := builder.(*GatewayServiceBuilder)
 	assert.Equal(t, mockBlockchainPublisher, builderImpl.blockchainPublisher)
 	assert.Equal(t, mockNodeRegistry, builderImpl.nodeRegistry)
 	assert.Equal(t, mockNonceManager, builderImpl.nonceManager)
@@ -117,7 +117,7 @@ func TestBuilderDependencyStorage(t *testing.T) {
 
 func TestBuilderConfigValidation(t *testing.T) {
 	t.Run("nil config", func(t *testing.T) {
-		builder := NewPayerServiceBuilder(nil)
+		builder := NewGatewayServiceBuilder(nil)
 		service, err := builder.Build()
 
 		assert.Error(t, err)
@@ -128,13 +128,12 @@ func TestBuilderConfigValidation(t *testing.T) {
 	t.Run("invalid private key", func(t *testing.T) {
 		cfg := createMinimalTestConfig(t)
 		cfg.Payer.PrivateKey = "invalid_key"
-
 		// Mock dependencies to avoid other errors
 		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
 		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
 		mockLogger := zap.NewNop()
 
-		service, err := NewPayerServiceBuilder(cfg).
+		service, err := NewGatewayServiceBuilder(cfg).
 			WithBlockchainPublisher(mockBlockchainPublisher).
 			WithNodeRegistry(mockNodeRegistry).
 			WithLogger(mockLogger).
@@ -142,7 +141,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, service)
-		assert.Contains(t, err.Error(), "failed to parse payer private key")
+		assert.Contains(t, err.Error(), "failed to parse gateway private key")
 	})
 
 	t.Run("invalid redis url", func(t *testing.T) {
@@ -154,7 +153,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
 		mockLogger := zap.NewNop()
 
-		service, err := NewPayerServiceBuilder(cfg).
+		service, err := NewGatewayServiceBuilder(cfg).
 			WithBlockchainPublisher(mockBlockchainPublisher).
 			WithNodeRegistry(mockNodeRegistry).
 			WithLogger(mockLogger).
@@ -175,7 +174,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
 		mockLogger := zap.NewNop()
 
-		service, err := NewPayerServiceBuilder(cfg).
+		service, err := NewGatewayServiceBuilder(cfg).
 			WithBlockchainPublisher(mockBlockchainPublisher).
 			WithNodeRegistry(mockNodeRegistry).
 			WithLogger(mockLogger).
@@ -189,10 +188,10 @@ func TestBuilderConfigValidation(t *testing.T) {
 
 func TestBuilderDefaultIdentityFunction(t *testing.T) {
 	cfg := createMinimalTestConfig(t)
-	builder := NewPayerServiceBuilder(cfg)
+	builder := NewGatewayServiceBuilder(cfg)
 
 	// Don't set identity function - should default to IPIdentityFn
-	builderImpl := builder.(*PayerServiceBuilder)
+	builderImpl := builder.(*GatewayServiceBuilder)
 	assert.Nil(t, builderImpl.identityFn) // Should be nil before build
 
 	// After setting, verify it's stored
@@ -206,8 +205,8 @@ func TestBuilderContextHandling(t *testing.T) {
 	// Test custom context
 	customCtx := context.Background()
 
-	builder := NewPayerServiceBuilder(cfg).WithContext(customCtx)
-	builderImpl := builder.(*PayerServiceBuilder)
+	builder := NewGatewayServiceBuilder(cfg).WithContext(customCtx)
+	builderImpl := builder.(*GatewayServiceBuilder)
 
 	assert.Equal(t, customCtx, builderImpl.ctx)
 }
@@ -219,11 +218,11 @@ func TestBuilderPrometheusMetricsHandling(t *testing.T) {
 	customPromRegistry := prometheus.NewRegistry()
 	customClientMetrics := grpcprom.NewClientMetrics()
 
-	builder := NewPayerServiceBuilder(cfg).
+	builder := NewGatewayServiceBuilder(cfg).
 		WithPromRegistry(customPromRegistry).
 		WithClientMetrics(customClientMetrics)
 
-	builderImpl := builder.(*PayerServiceBuilder)
+	builderImpl := builder.(*GatewayServiceBuilder)
 	assert.Equal(t, customPromRegistry, builderImpl.promRegistry)
 	assert.Equal(t, customClientMetrics, builderImpl.clientMetrics)
 }
@@ -235,7 +234,7 @@ func TestBuilderAllMethodsReturnBuilder(t *testing.T) {
 	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
 
 	// Test method chaining returns proper interface
-	builder := NewPayerServiceBuilder(cfg).
+	builder := NewGatewayServiceBuilder(cfg).
 		WithIdentityFn(IPIdentityFn).
 		WithAuthorizers().
 		WithNonceManager(mockNonceManager).
@@ -247,5 +246,5 @@ func TestBuilderAllMethodsReturnBuilder(t *testing.T) {
 	assert.NotNil(t, builder)
 
 	// Each method should return the builder interface
-	assert.Implements(t, (*IPayerServiceBuilder)(nil), builder)
+	assert.Implements(t, (*IGatewayServiceBuilder)(nil), builder)
 }

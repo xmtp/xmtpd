@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"context"
@@ -12,7 +12,7 @@ type RateLimit struct {
 	Window      time.Duration
 }
 
-func NewRateLimitAuthorizer(config *config.PayerConfig, rateLimit RateLimit) AuthorizePublishFn {
+func NewRateLimitAuthorizer(config *config.GatewayConfig, rateLimit RateLimit) AuthorizePublishFn {
 	return func(ctx context.Context, identity Identity, req PublishRequest) (bool, error) {
 		// TODO:(nm) Actual implementation
 		return true, nil

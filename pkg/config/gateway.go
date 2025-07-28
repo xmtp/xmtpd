@@ -1,6 +1,6 @@
 package config
 
-type PayerConfig struct {
+type GatewayConfig struct {
 	API       ApiOptions       `group:"API Options"            namespace:"api"`
 	Contracts ContractsOptions `group:"Contracts Options"      namespace:"contracts"`
 	Log       LogOptions       `group:"Log Options"            namespace:"log"`

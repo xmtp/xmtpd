@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-type PayerServiceError interface {
+type GatewayServiceError interface {
 	error
 	Code() codes.Code
 	ClientMessage() string

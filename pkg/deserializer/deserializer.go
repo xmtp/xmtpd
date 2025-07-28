@@ -15,7 +15,7 @@ func DeserializeGroupMessage(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid payload")
 	}
 
-	if payload.GroupMessage.GetV1().Data == nil || len(payload.GroupMessage.GetV1().Data) == 0 {
+	if payload.GroupMessage.GetV1().Data == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "can not process empty payload")
 	}
 

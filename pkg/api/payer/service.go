@@ -3,9 +3,10 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	"math/rand"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 

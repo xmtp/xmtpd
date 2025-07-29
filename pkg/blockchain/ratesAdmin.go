@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,53 +76,35 @@ func (r *RatesAdmin) AddRates(
 	ctx context.Context,
 	rates fees.Rates,
 ) error {
-	err := ExecuteTransaction(
+	keys := []string{
+		RATE_REGISTRY_MESSAGE_FEE_KEY,
+		RATE_REGISTRY_STORAGE_FEE_KEY,
+		RATE_REGISTRY_CONGESTION_FEE_KEY,
+		RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+	}
+
+	if rates.MessageFee < 0 {
+		return errors.New("rates.messageFee must be positive")
+	}
+	if rates.StorageFee < 0 {
+		return errors.New("rates.storageFee must be positive")
+	}
+	if rates.CongestionFee < 0 {
+		return errors.New("rates.congestionFee must be positive")
+	}
+
+	err := SetParameterRegistryKeys(
 		ctx,
 		r.signer,
 		r.logger,
 		r.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			keys := []string{
-				RATE_REGISTRY_MESSAGE_FEE_KEY,
-				RATE_REGISTRY_STORAGE_FEE_KEY,
-				RATE_REGISTRY_CONGESTION_FEE_KEY,
-				RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
-			}
-
-			if rates.MessageFee < 0 {
-				return nil, errors.New("rates.messageFee must be positive")
-			}
-			if rates.StorageFee < 0 {
-				return nil, errors.New("rates.storageFee must be positive")
-			}
-			if rates.CongestionFee < 0 {
-				return nil, errors.New("rates.congestionFee must be positive")
-			}
-
-			values := [][32]byte{
-				encodeUint64ToBytes32(uint64(rates.MessageFee)),
-				encodeUint64ToBytes32(uint64(rates.StorageFee)),
-				encodeUint64ToBytes32(uint64(rates.CongestionFee)),
-				encodeUint64ToBytes32(rates.TargetRatePerMinute),
-			}
-
-			return r.parameterContract.Set0(opts, keys, values)
-		},
-		func(log *types.Log) (interface{}, error) {
-			return r.parameterContract.ParseParameterSet(*log)
-		},
-		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
-			if !ok {
-				r.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
-				return
-			}
-			r.logger.Info("set parameter",
-				zap.String("key", parameterSet.Key.String()),
-				zap.Uint64("parameter", decodeBytes32ToUint64(parameterSet.Value)),
-			)
+		r.parameterContract,
+		keys,
+		[][32]byte{
+			encodeUint64ToBytes32(uint64(rates.MessageFee)),
+			encodeUint64ToBytes32(uint64(rates.StorageFee)),
+			encodeUint64ToBytes32(uint64(rates.CongestionFee)),
+			encodeUint64ToBytes32(rates.TargetRatePerMinute),
 		},
 	)
 	if err != nil {
@@ -138,29 +119,26 @@ func (r *RatesAdmin) AddRates(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return r.ratesContract.UpdateRates(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
-			return r.ratesContract.ParseRatesUpdated(*log)
-		},
-		func(event interface{}) {
-			rateUpdated, ok := event.(*rateregistry.RateRegistryRatesUpdated)
-			if !ok {
-				r.logger.Error(
-					"unexpected event type, not of type RateRegistryRatesUpdated",
+		func(receipt *types.Receipt) error {
+			for _, log := range receipt.Logs {
+				event, err := r.ratesContract.ParseRatesUpdated(*log)
+				if err != nil {
+					return err
+				}
+
+				r.logger.Info("rates updated",
+					zap.Uint64("messageFee", event.MessageFee),
+					zap.Uint64("storageFee", event.StorageFee),
+					zap.Uint64("congestionFee", event.CongestionFee),
+					zap.Uint64("targetRatePerMinute", event.TargetRatePerMinute),
 				)
-				return
 			}
-			r.logger.Info("rates updated",
-				zap.Uint64("messageFee", rateUpdated.MessageFee),
-				zap.Uint64("storageFee", rateUpdated.StorageFee),
-				zap.Uint64("congestionFee", rateUpdated.CongestionFee),
-				zap.Uint64("targetRatePerMinute", rateUpdated.TargetRatePerMinute),
-			)
+
+			return nil
 		},
 	)
 	if err != nil {
-		// 0xa88ee577 is the error code for NoChange
-		// cast sig "NoChange()"
-		if strings.Contains(err.Error(), "0xa88ee577") {
+		if isNoChangeError(err) {
 			r.logger.Info("No update needed",
 				zap.Uint64("messageFee", uint64(rates.MessageFee)),
 				zap.Uint64("storageFee", uint64(rates.StorageFee)),

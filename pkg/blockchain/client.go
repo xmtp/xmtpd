@@ -84,8 +84,7 @@ func ExecuteTransaction(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
-	eventParser func(*types.Log) (interface{}, error),
-	logHandler func(interface{}),
+	receiptHandler func(*types.Receipt) error,
 ) error {
 	if signer == nil {
 		return fmt.Errorf("no signer provided")
@@ -182,13 +181,10 @@ func ExecuteTransaction(
 		return err
 	}
 
-	// Step 8: Parse and handle logs.
-	for _, log := range receipt.Logs {
-		event, err := eventParser(log)
-		if err != nil {
-			continue
-		}
-		logHandler(event)
+	// Step 8: Handle receipt.
+	err = receiptHandler(receipt)
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -244,6 +244,9 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		return nil, err
 	}
 
+	// Create gateway interceptor
+	gatewayInterceptor := NewGatewayInterceptor(b.logger, b.identityFn, b.authorizers)
+
 	apiServer, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(b.logger),
@@ -252,6 +255,8 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithPrometheusRegistry(promRegistry),
+		api.WithUnaryInterceptors(gatewayInterceptor.Unary()),
+		api.WithStreamInterceptors(gatewayInterceptor.Stream()),
 	)
 	if err != nil {
 		cancel()

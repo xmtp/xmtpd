@@ -9,7 +9,7 @@ import (
 
 func main() {
 	gatewayService, err := gateway.NewGatewayServiceBuilder(gateway.MustLoadConfig()).
-		WithAuthorizers(func(ctx context.Context, identity gateway.Identity, req gateway.PublishRequest) (bool, error) {
+		WithAuthorizers(func(ctx context.Context, identity gateway.Identity, req gateway.PublishRequestSummary) (bool, error) {
 			return true, nil
 		}).
 		Build() // This will gather all the config from environment variables and flags

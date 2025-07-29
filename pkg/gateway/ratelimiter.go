@@ -13,7 +13,7 @@ type RateLimit struct {
 }
 
 func NewRateLimitAuthorizer(config *config.GatewayConfig, rateLimit RateLimit) AuthorizePublishFn {
-	return func(ctx context.Context, identity Identity, req PublishRequest) (bool, error) {
+	return func(ctx context.Context, identity Identity, req PublishRequestSummary) (bool, error) {
 		// TODO:(nm) Actual implementation
 		return true, nil
 	}

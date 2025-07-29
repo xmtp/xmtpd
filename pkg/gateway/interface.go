@@ -37,7 +37,7 @@ type PublishRequestSummary struct {
 
 type IdentityFn func(ctx context.Context) (Identity, error)
 
-type AuthorizePublishFn func(ctx context.Context, identity Identity, req PublishRequest) (bool, error)
+type AuthorizePublishFn func(ctx context.Context, identity Identity, req PublishRequestSummary) (bool, error)
 
 type IGatewayServiceBuilder interface {
 	WithIdentityFn(identityFn IdentityFn) IGatewayServiceBuilder

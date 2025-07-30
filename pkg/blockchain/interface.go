@@ -39,6 +39,7 @@ type TransactionSigner interface {
 }
 
 type IBlockchainPublisher interface {
+	Close()
 	PublishIdentityUpdate(
 		ctx context.Context,
 		inboxID [32]byte,

@@ -77,7 +77,7 @@ func NewSettlementChain(
 	payerReportManager, err := contracts.NewPayerReportManager(
 		ctxwc,
 		client,
-		querier,
+		db,
 		chainLogger,
 		common.HexToAddress(cfg.PayerReportManagerAddress),
 		cfg.ChainID,

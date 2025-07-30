@@ -350,6 +350,10 @@ func setupNodeRegistry(
 	if err != nil {
 		return nil, err
 	}
+	err = chainRegistry.Start()
+	if err != nil {
+		return nil, err
+	}
 
 	return chainRegistry, nil
 }

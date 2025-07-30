@@ -2,6 +2,7 @@ package payer
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xmtp/xmtpd/pkg/config"
 	mockblockchain "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+	mocknoncemanager "github.com/xmtp/xmtpd/pkg/mocks/noncemanager"
 	mockregistry "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
@@ -29,6 +31,10 @@ func createMinimalTestConfig(t *testing.T) *config.PayerConfig {
 		Log: config.LogOptions{
 			LogEncoding: "console",
 			LogLevel:    "info",
+		},
+		Redis: config.RedisOptions{
+			RedisUrl:  "redis://localhost:6379",
+			KeyPrefix: fmt.Sprintf("xmtpd:test:%s:", t.Name()),
 		},
 		Metrics: config.MetricsOptions{
 			Enable:  false,
@@ -64,6 +70,11 @@ func TestBuilderMethodChaining(t *testing.T) {
 	result = builder.WithAuthorizers(authFn)
 	assert.Equal(t, builder, result)
 
+	// Test WithNonceManager
+	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
+	result = builder.WithNonceManager(mockNonceManager)
+	assert.Equal(t, builder, result)
+
 	// Test WithContext
 	ctx := context.Background()
 	result = builder.WithContext(ctx)
@@ -81,6 +92,7 @@ func TestBuilderDependencyStorage(t *testing.T) {
 	// Create mock dependencies
 	mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
 	mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
+	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
 	mockLogger := zap.NewNop()
 	customPromRegistry := prometheus.NewRegistry()
 	customClientMetrics := grpcprom.NewClientMetrics()
@@ -88,6 +100,7 @@ func TestBuilderDependencyStorage(t *testing.T) {
 	builder := NewPayerServiceBuilder(cfg).
 		WithBlockchainPublisher(mockBlockchainPublisher).
 		WithNodeRegistry(mockNodeRegistry).
+		WithNonceManager(mockNonceManager).
 		WithLogger(mockLogger).
 		WithPromRegistry(customPromRegistry).
 		WithClientMetrics(customClientMetrics)
@@ -96,6 +109,7 @@ func TestBuilderDependencyStorage(t *testing.T) {
 	builderImpl := builder.(*PayerServiceBuilder)
 	assert.Equal(t, mockBlockchainPublisher, builderImpl.blockchainPublisher)
 	assert.Equal(t, mockNodeRegistry, builderImpl.nodeRegistry)
+	assert.Equal(t, mockNonceManager, builderImpl.nonceManager)
 	assert.Equal(t, mockLogger, builderImpl.logger)
 	assert.Equal(t, customPromRegistry, builderImpl.promRegistry)
 	assert.Equal(t, customClientMetrics, builderImpl.clientMetrics)
@@ -129,6 +143,47 @@ func TestBuilderConfigValidation(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, service)
 		assert.Contains(t, err.Error(), "failed to parse payer private key")
+	})
+
+	t.Run("invalid redis url", func(t *testing.T) {
+		cfg := createMinimalTestConfig(t)
+		cfg.Redis.RedisUrl = "invalid://redis-url"
+
+		// Mock dependencies to avoid other errors
+		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
+		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
+		mockLogger := zap.NewNop()
+
+		service, err := NewPayerServiceBuilder(cfg).
+			WithBlockchainPublisher(mockBlockchainPublisher).
+			WithNodeRegistry(mockNodeRegistry).
+			WithLogger(mockLogger).
+			Build()
+
+		assert.Error(t, err)
+		assert.Nil(t, service)
+		// The error could be from parsing or connection, check that it's Redis-related
+		assert.Contains(t, err.Error(), "redis")
+	})
+
+	t.Run("empty redis url", func(t *testing.T) {
+		cfg := createMinimalTestConfig(t)
+		cfg.Redis.RedisUrl = ""
+
+		// Mock dependencies to avoid other errors
+		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
+		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
+		mockLogger := zap.NewNop()
+
+		service, err := NewPayerServiceBuilder(cfg).
+			WithBlockchainPublisher(mockBlockchainPublisher).
+			WithNodeRegistry(mockNodeRegistry).
+			WithLogger(mockLogger).
+			Build()
+
+		assert.Error(t, err)
+		assert.Nil(t, service)
+		assert.Contains(t, err.Error(), "redis URL is empty")
 	})
 }
 
@@ -176,10 +231,14 @@ func TestBuilderPrometheusMetricsHandling(t *testing.T) {
 func TestBuilderAllMethodsReturnBuilder(t *testing.T) {
 	cfg := createMinimalTestConfig(t)
 
+	// Create mock dependencies for testing
+	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
+
 	// Test method chaining returns proper interface
 	builder := NewPayerServiceBuilder(cfg).
 		WithIdentityFn(IPIdentityFn).
 		WithAuthorizers().
+		WithNonceManager(mockNonceManager).
 		WithContext(context.Background()).
 		WithLogger(zap.NewNop()).
 		WithPromRegistry(prometheus.NewRegistry()).

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/jessevdk/go-flags"
@@ -30,6 +31,11 @@ func LoadConfigFromEnv() (*config.GatewayConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err = config.ParseJSONConfig(&cfg.Contracts); err != nil {
+		return nil, fmt.Errorf("could not parse contracts JSON config: %s", err)
+	}
+
 	return &cfg, nil
 }
 

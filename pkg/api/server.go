@@ -103,10 +103,6 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.PromRegistry == nil {
-		return nil, fmt.Errorf("prometheus registry is required")
-	}
-
 	if cfg.GRPCListener == nil || cfg.HTTPListener == nil {
 		return nil, fmt.Errorf("both GRPCListener and HTTPListener are required")
 	}

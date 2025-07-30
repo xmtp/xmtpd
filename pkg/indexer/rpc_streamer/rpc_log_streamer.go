@@ -100,7 +100,8 @@ type RPCLogStreamer struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	wg                    sync.WaitGroup
-	client                blockchain.ChainClient
+	rpcClient             blockchain.ChainClient
+	wsClient              blockchain.ChainClient
 	logger                *zap.Logger
 	watchers              map[string]*ContractConfig
 	lagFromHighestBlock   uint8
@@ -109,7 +110,8 @@ type RPCLogStreamer struct {
 
 func NewRPCLogStreamer(
 	ctx context.Context,
-	client blockchain.ChainClient,
+	rpcClient blockchain.ChainClient,
+	wsClient blockchain.ChainClient,
 	logger *zap.Logger,
 	options ...RPCLogStreamerOption,
 ) (*RPCLogStreamer, error) {
@@ -119,7 +121,8 @@ func NewRPCLogStreamer(
 
 	streamer := &RPCLogStreamer{
 		ctx:                   ctx,
-		client:                client,
+		rpcClient:             rpcClient,
+		wsClient:              wsClient,
 		logger:                streamLogger,
 		cancel:                cancel,
 		wg:                    sync.WaitGroup{},
@@ -343,14 +346,17 @@ func (r *RPCLogStreamer) GetNextPage(
 
 	contractAddress := cfg.Address.Hex()
 
-	highestBlock, err := r.client.BlockNumber(ctx)
+	highestBlock, err := r.rpcClient.BlockNumber(ctx)
 	if err != nil {
 		return GetNextPageResponse{}, err
 	}
 
 	// Do not check for reorgs at block height 0. Genesis does not have a parent.
 	if fromBlockNumber > 0 {
-		nextBlockHeader, err := r.client.HeaderByNumber(ctx, big.NewInt(int64(fromBlockNumber+1)))
+		nextBlockHeader, err := r.rpcClient.HeaderByNumber(
+			ctx,
+			big.NewInt(int64(fromBlockNumber+1)),
+		)
 		if err != nil {
 			return GetNextPageResponse{}, err
 		}
@@ -361,7 +367,10 @@ func (r *RPCLogStreamer) GetNextPage(
 			// If the current hash doesn't match the next block's parent hash,
 			// move one block back and use that hash as the new starting point.
 			nextBlockNumber := fromBlockNumber - 1
-			nextBlockHash, err := r.client.HeaderByNumber(ctx, big.NewInt(int64(nextBlockNumber)))
+			nextBlockHash, err := r.rpcClient.HeaderByNumber(
+				ctx,
+				big.NewInt(int64(nextBlockNumber)),
+			)
 			if err != nil {
 				return GetNextPageResponse{}, err
 			}
@@ -394,7 +403,7 @@ func (r *RPCLogStreamer) GetNextPage(
 	// TODO:(nm) Use some more clever tactics to fetch the maximum number of logs at one times by parsing error messages
 	// See: https://github.com/joshstevens19/rindexer/blob/master/core/src/indexer/fetch_logs.rs#L504
 	logs, err := metrics.MeasureGetLogs(contractAddress, func() ([]types.Log, error) {
-		return r.client.FilterLogs(
+		return r.rpcClient.FilterLogs(
 			ctx,
 			buildFilterQuery(*cfg, fromBlockNumber, toBlock),
 		)
@@ -415,7 +424,7 @@ func (r *RPCLogStreamer) GetNextPage(
 	}
 
 	nextBlockNumber := uint64(toBlock + 1)
-	nextBlockHash, err := r.client.HeaderByNumber(ctx, big.NewInt(int64(nextBlockNumber)))
+	nextBlockHash, err := r.rpcClient.HeaderByNumber(ctx, big.NewInt(int64(nextBlockNumber)))
 	if err != nil {
 		return GetNextPageResponse{}, err
 	}
@@ -433,7 +442,7 @@ func (r *RPCLogStreamer) buildSubscription(
 ) (sub ethereum.Subscription, err error) {
 	query := buildBaseFilterQuery(*cfg)
 
-	highestBlock, err := r.client.BlockNumber(r.ctx)
+	highestBlock, err := r.wsClient.BlockNumber(r.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -444,7 +453,7 @@ func (r *RPCLogStreamer) buildSubscription(
 	// would cause a failure if the RPC doesn't support big lookback ranges.
 	query.FromBlock = new(big.Int).SetUint64(highestBlock)
 
-	sub, err = r.client.SubscribeFilterLogs(
+	sub, err = r.wsClient.SubscribeFilterLogs(
 		r.ctx,
 		query,
 		innerSubCh,

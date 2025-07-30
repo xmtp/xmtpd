@@ -11,8 +11,8 @@ import (
 
 func buildReportsManager(t *testing.T) blockchain.PayerReportsManager {
 	logger := testutils.NewLog(t)
-	rpcUrl := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, rpcUrl)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -20,9 +20,9 @@ func buildReportsManager(t *testing.T) blockchain.PayerReportsManager {
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(
+	client, err := blockchain.NewRPCClient(
 		t.Context(),
-		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+		contractsOptions.SettlementChain.RPCURL,
 	)
 	require.NoError(t, err)
 

@@ -63,9 +63,9 @@ func TestCreateServer(t *testing.T) {
 
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
-	wsUrl := anvil.StartAnvil(t, false)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
 
-	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
@@ -201,9 +201,9 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		),
 	}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
-	wsUrl := anvil.StartAnvil(t, false)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
 
-	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	server1 := serverTestUtils.NewTestServer(
 		t,
@@ -276,8 +276,8 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 		),
 	}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
-	wsURL := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, wsURL)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	server := serverTestUtils.NewTestServer(t, serverTestUtils.TestServerCfg{
 		GRPCListener:     grpcPort,

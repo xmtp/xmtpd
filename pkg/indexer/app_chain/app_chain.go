@@ -37,7 +37,8 @@ type AppChain struct {
 	ctx                       context.Context
 	cancel                    context.CancelFunc
 	wg                        sync.WaitGroup
-	client                    *ethclient.Client
+	rpcClient                 *ethclient.Client
+	wsClient                  *ethclient.Client
 	log                       *zap.Logger
 	streamer                  c.ILogStreamer
 	groupMessageBroadcaster   *contracts.GroupMessageBroadcaster
@@ -57,13 +58,13 @@ func NewAppChain(
 	chainLogger := log.Named("app-chain").
 		With(zap.Int("chainID", cfg.ChainID))
 
-	client, err := blockchain.NewClient(
+	rpcClient, err := blockchain.NewRPCClient(
 		ctxwc,
-		blockchain.WithWebSocketURL(cfg.WssURL),
+		cfg.RPCURL,
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
@@ -71,7 +72,7 @@ func NewAppChain(
 
 	groupMessageBroadcaster, err := contracts.NewGroupMessageBroadcaster(
 		ctxwc,
-		client,
+		rpcClient,
 		querier,
 		chainLogger,
 		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
@@ -80,7 +81,7 @@ func NewAppChain(
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
@@ -88,7 +89,7 @@ func NewAppChain(
 
 	identityUpdateBroadcaster, err := contracts.NewIdentityUpdateBroadcaster(
 		ctxwc,
-		client,
+		rpcClient,
 		db,
 		chainLogger,
 		validationService,
@@ -98,15 +99,26 @@ func NewAppChain(
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	identityUpdateLatestBlockNumber, identityUpdateLatestBlockHash := identityUpdateBroadcaster.GetLatestBlock()
 
+	wsClient, err := blockchain.NewWebsocketClient(
+		ctxwc,
+		cfg.WssURL,
+	)
+	if err != nil {
+		cancel()
+		rpcClient.Close()
+		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
+	}
+
 	streamer, err := rpcstreamer.NewRPCLogStreamer(
 		ctxwc,
-		client,
+		rpcClient,
+		wsClient,
 		chainLogger,
 		rpcstreamer.WithLagFromHighestBlock(lagFromHighestBlock),
 		rpcstreamer.WithContractConfig(
@@ -135,14 +147,16 @@ func NewAppChain(
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
+		wsClient.Close()
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
 	return &AppChain{
 		ctx:                       ctxwc,
 		cancel:                    cancel,
-		client:                    client,
+		rpcClient:                 rpcClient,
+		wsClient:                  wsClient,
 		log:                       chainLogger,
 		streamer:                  streamer,
 		chainID:                   cfg.ChainID,
@@ -191,8 +205,12 @@ func (a *AppChain) Stop() {
 		a.streamer.Stop()
 	}
 
-	if a.client != nil {
-		a.client.Close()
+	if a.rpcClient != nil {
+		a.rpcClient.Close()
+	}
+
+	if a.wsClient != nil {
+		a.wsClient.Close()
 	}
 
 	a.cancel()

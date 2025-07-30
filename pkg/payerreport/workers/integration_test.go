@@ -60,8 +60,8 @@ func setupBlockchain(
 	nodes []registry.Node,
 ) (registry.NodeRegistry, blockchain.PayerReportsManager, config.ContractsOptions) {
 	log := testutils.NewLog(t)
-	rpcUrl := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, rpcUrl)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -69,9 +69,9 @@ func setupBlockchain(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(
+	client, err := blockchain.NewRPCClient(
 		t.Context(),
-		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+		rpcURL,
 	)
 	require.NoError(t, err)
 

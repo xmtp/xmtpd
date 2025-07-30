@@ -34,6 +34,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer"
+	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -351,17 +352,27 @@ func startAPIServer(
 		}
 	}
 
-	s.apiServer, err = api.NewAPIServer(
+	apiOpts := []api.ApiServerOption{
 		api.WithContext(s.ctx),
 		api.WithLogger(cfg.Log),
 		api.WithGRPCListener(cfg.GRPCListener),
 		api.WithHTTPListener(cfg.HTTPListener),
-		api.WithJWTVerifier(jwtVerifier),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithReflection(cfg.Options.Reflection.Enable),
 		api.WithPrometheusRegistry(promReg),
-	)
+	}
+
+	// Add auth interceptors if JWT verifier is available
+	if jwtVerifier != nil {
+		authInterceptor := server.NewAuthInterceptor(jwtVerifier, cfg.Log)
+		apiOpts = append(apiOpts,
+			api.WithUnaryInterceptors(authInterceptor.Unary()),
+			api.WithStreamInterceptors(authInterceptor.Stream()),
+		)
+	}
+
+	s.apiServer, err = api.NewAPIServer(apiOpts...)
 	if err != nil {
 		return err
 	}

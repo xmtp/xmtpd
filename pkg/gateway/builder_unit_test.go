@@ -64,7 +64,7 @@ func TestBuilderMethodChaining(t *testing.T) {
 	assert.Equal(t, builder, result) // Should return self for chaining
 
 	// Test WithAuthorizers
-	authFn := func(ctx context.Context, identity Identity, req PublishRequest) (bool, error) {
+	authFn := func(ctx context.Context, identity Identity, req PublishRequestSummary) (bool, error) {
 		return true, nil
 	}
 	result = builder.WithAuthorizers(authFn)

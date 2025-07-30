@@ -10,7 +10,7 @@ import (
 
 func main() {
 	gatewayService, err := gateway.NewGatewayServiceBuilder(gateway.MustLoadConfig()).
-		WithAuthorizers(func(ctx context.Context, identity gateway.Identity, req gateway.PublishRequest) (bool, error) {
+		WithAuthorizers(func(ctx context.Context, identity gateway.Identity, req gateway.PublishRequestSummary) (bool, error) {
 			// A simple authorization function that allows only the IP 127.0.0.1
 			allowedIPs := []string{"127.0.0.1"}
 			if !slices.Contains(allowedIPs, identity.Identity) {

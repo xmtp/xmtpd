@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -196,17 +197,25 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 		_ = httpListener.Close()
 	})
 
-	svr, err := api.NewAPIServer(
+	apiOpts := []api.ApiServerOption{
 		api.WithContext(ctx),
 		api.WithLogger(log),
 		api.WithGRPCListener(grpcListener),
 		api.WithHTTPListener(httpListener),
-		api.WithJWTVerifier(jwtVerifier),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithReflection(true),
 		api.WithPrometheusRegistry(prometheus.NewRegistry()),
+	}
+
+	// Add auth interceptors
+	authInterceptor := server.NewAuthInterceptor(jwtVerifier, log)
+	apiOpts = append(apiOpts,
+		api.WithUnaryInterceptors(authInterceptor.Unary()),
+		api.WithStreamInterceptors(authInterceptor.Stream()),
 	)
+
+	svr, err := api.NewAPIServer(apiOpts...)
 	require.NoError(t, err)
 
 	allMocks := ApiServerMocks{

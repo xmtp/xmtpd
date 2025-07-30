@@ -16,7 +16,7 @@ const REDIS_ADDRESS = "localhost:6379"
 // It automatically generates a unique key prefix based on the test name to avoid conflicts.
 // All keys created with this prefix are cleaned up after the test.
 func NewRedisForTest(t *testing.T) (redis.UniversalClient, string) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	keyPrefix := generateTestKeyPrefix(t)
 

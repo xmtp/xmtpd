@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/docker/docker v28.3.0+incompatible
 	github.com/ethereum/go-ethereum v1.16.1
@@ -151,6 +152,7 @@ require (
 	github.com/tinylib/msgp v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/collector/component v1.27.0 // indirect

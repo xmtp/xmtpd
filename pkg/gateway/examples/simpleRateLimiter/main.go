@@ -13,11 +13,11 @@ func main() {
 	gatewayService, err := gateway.NewGatewayServiceBuilder(cfg).
 		// Rate limit to allow 50 requests per minute and 10,000 requests per day
 		WithAuthorizers(gateway.NewRateLimitAuthorizer(cfg, gateway.RateLimit{
-			MaxRequests: 50,
-			Window:      time.Minute,
+			Limit:  50,
+			Window: time.Minute,
 		}), gateway.NewRateLimitAuthorizer(cfg, gateway.RateLimit{
-			MaxRequests: 10000,
-			Window:      time.Hour * 24,
+			Limit:  10000,
+			Window: time.Hour * 24,
 		})).
 		Build()
 	if err != nil {

@@ -29,21 +29,17 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
-	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	sqlnonce "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/sync"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type ReplicationServerConfig struct {
@@ -323,59 +319,6 @@ func startAPIServer(
 			cfg.Log.Info("Metadata service enabled")
 		}
 
-		if cfg.Options.Payer.Enable {
-			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.Options.Payer.PrivateKey)
-			if err != nil {
-				return err
-			}
-
-			signer, err := blockchain.NewPrivateKeySigner(
-				cfg.Options.Payer.PrivateKey,
-				cfg.Options.Contracts.AppChain.ChainID,
-			)
-			if err != nil {
-				cfg.Log.Fatal("initializing signer", zap.Error(err))
-			}
-
-			appChainClient, err := blockchain.NewClient(
-				s.ctx,
-				blockchain.WithWebSocketURL(cfg.Options.Contracts.AppChain.WssURL),
-			)
-			if err != nil {
-				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))
-			}
-
-			nonceManager := sqlnonce.NewSQLBackedNonceManager(cfg.DB, cfg.Log)
-
-			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
-				s.ctx,
-				cfg.Log,
-				appChainClient,
-				signer,
-				cfg.Options.Contracts,
-				nonceManager,
-			)
-			if err != nil {
-				cfg.Log.Fatal("initializing message publisher", zap.Error(err))
-			}
-
-			payerService, err := payer.NewPayerApiService(
-				s.ctx,
-				cfg.Log,
-				s.nodeRegistry,
-				payerPrivateKey,
-				blockchainPublisher,
-				nil,
-				clientMetrics,
-			)
-			if err != nil {
-				return err
-			}
-			payer_api.RegisterPayerApiServer(grpcServer, payerService)
-
-			cfg.Log.Info("Payer service enabled")
-		}
-
 		return nil
 	}
 
@@ -387,13 +330,6 @@ func startAPIServer(
 			}
 
 			err = message_api.RegisterReplicationApiHandler(s.ctx, gwmux, conn)
-			if err != nil {
-				return err
-			}
-		}
-
-		if cfg.Options.Payer.Enable {
-			err = payer_api.RegisterPayerApiHandler(s.ctx, gwmux, conn)
 			if err != nil {
 				return err
 			}

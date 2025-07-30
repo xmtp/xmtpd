@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"context"
@@ -24,8 +24,8 @@ func NewUserIdentity(userID string) Identity {
 	}
 }
 
-func LoadConfigFromEnv() (*config.PayerConfig, error) {
-	var cfg config.PayerConfig
+func LoadConfigFromEnv() (*config.GatewayConfig, error) {
+	var cfg config.GatewayConfig
 	_, err := flags.Parse(&cfg)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func LoadConfigFromEnv() (*config.PayerConfig, error) {
 	return &cfg, nil
 }
 
-func MustLoadConfig() *config.PayerConfig {
+func MustLoadConfig() *config.GatewayConfig {
 	cfg, err := LoadConfigFromEnv()
 	if err != nil {
 		log.Fatalf("Failed to load config from environment: %v", err)

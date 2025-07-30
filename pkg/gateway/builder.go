@@ -1,4 +1,4 @@
-package payer
+package gateway
 
 import (
 	"context"
@@ -31,10 +31,10 @@ var (
 	ErrUnauthorized  = errors.New("unauthorized")
 )
 
-type PayerServiceBuilder struct {
+type GatewayServiceBuilder struct {
 	identityFn          IdentityFn
 	authorizers         []AuthorizePublishFn
-	config              *config.PayerConfig
+	config              *config.GatewayConfig
 	blockchainPublisher blockchain.IBlockchainPublisher
 	nodeRegistry        registry.NodeRegistry
 	logger              *zap.Logger
@@ -45,81 +45,81 @@ type PayerServiceBuilder struct {
 	nonceManager        noncemanager.NonceManager
 }
 
-func NewPayerServiceBuilder(config *config.PayerConfig) IPayerServiceBuilder {
-	return &PayerServiceBuilder{
+func NewGatewayServiceBuilder(config *config.GatewayConfig) IGatewayServiceBuilder {
+	return &GatewayServiceBuilder{
 		config: config,
 	}
 }
 
-func (b *PayerServiceBuilder) WithIdentityFn(identityFn IdentityFn) IPayerServiceBuilder {
+func (b *GatewayServiceBuilder) WithIdentityFn(identityFn IdentityFn) IGatewayServiceBuilder {
 	b.identityFn = identityFn
 	return b
 }
 
-func (b *PayerServiceBuilder) WithAuthorizers(
+func (b *GatewayServiceBuilder) WithAuthorizers(
 	authorizers ...AuthorizePublishFn,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.authorizers = authorizers
 	return b
 }
 
-func (b *PayerServiceBuilder) WithNonceManager(
+func (b *GatewayServiceBuilder) WithNonceManager(
 	nonceManager noncemanager.NonceManager,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.nonceManager = nonceManager
 	return b
 }
 
-func (b *PayerServiceBuilder) WithBlockchainPublisher(
+func (b *GatewayServiceBuilder) WithBlockchainPublisher(
 	blockchainPublisher blockchain.IBlockchainPublisher,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.blockchainPublisher = blockchainPublisher
 	return b
 }
 
-func (b *PayerServiceBuilder) WithNodeRegistry(
+func (b *GatewayServiceBuilder) WithNodeRegistry(
 	nodeRegistry registry.NodeRegistry,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.nodeRegistry = nodeRegistry
 	return b
 }
 
-func (b *PayerServiceBuilder) WithLogger(
+func (b *GatewayServiceBuilder) WithLogger(
 	logger *zap.Logger,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.logger = logger
 	return b
 }
 
-func (b *PayerServiceBuilder) WithMetricsServer(
+func (b *GatewayServiceBuilder) WithMetricsServer(
 	metricsServer *metrics.Server,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.metricsServer = metricsServer
 	return b
 }
 
-func (b *PayerServiceBuilder) WithContext(
+func (b *GatewayServiceBuilder) WithContext(
 	ctx context.Context,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.ctx = ctx
 	return b
 }
 
-func (b *PayerServiceBuilder) WithPromRegistry(
+func (b *GatewayServiceBuilder) WithPromRegistry(
 	promRegistry *prometheus.Registry,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.promRegistry = promRegistry
 	return b
 }
 
-func (b *PayerServiceBuilder) WithClientMetrics(
+func (b *GatewayServiceBuilder) WithClientMetrics(
 	clientMetrics *grpcprom.ClientMetrics,
-) IPayerServiceBuilder {
+) IGatewayServiceBuilder {
 	b.clientMetrics = clientMetrics
 	return b
 }
 
-func (b *PayerServiceBuilder) Build() (PayerService, error) {
+func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 	if b.config == nil {
 		return nil, ErrMissingConfig
 	}
@@ -193,28 +193,28 @@ func (b *PayerServiceBuilder) Build() (PayerService, error) {
 		clientMetrics = clientMet
 	}
 
-	return b.buildPayerService(ctx, promRegistry, clientMetrics)
+	return b.buildGatewayService(ctx, promRegistry, clientMetrics)
 }
 
-func (b *PayerServiceBuilder) buildPayerService(
+func (b *GatewayServiceBuilder) buildGatewayService(
 	ctx context.Context,
 	promRegistry *prometheus.Registry,
 	clientMetrics *grpcprom.ClientMetrics,
-) (PayerService, error) {
+) (GatewayService, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(b.config.Payer.PrivateKey)
+	gatewayPrivateKey, err := utils.ParseEcdsaPrivateKey(b.config.Payer.PrivateKey)
 	if err != nil {
 		cancel()
-		return nil, errors.Wrap(err, "failed to parse payer private key")
+		return nil, errors.Wrap(err, "failed to parse gateway private key")
 	}
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		payerService, err := payer.NewPayerApiService(
+		gatewayApiService, err := payer.NewPayerApiService(
 			ctx,
 			b.logger,
 			b.nodeRegistry,
-			payerPrivateKey,
+			gatewayPrivateKey,
 			b.blockchainPublisher,
 			nil,
 			clientMetrics,
@@ -222,7 +222,7 @@ func (b *PayerServiceBuilder) buildPayerService(
 		if err != nil {
 			return err
 		}
-		payer_api.RegisterPayerApiServer(grpcServer, payerService)
+		payer_api.RegisterPayerApiServer(grpcServer, gatewayApiService)
 
 		return nil
 	}
@@ -258,7 +258,7 @@ func (b *PayerServiceBuilder) buildPayerService(
 		return nil, errors.Wrap(err, "failed to initialize api server")
 	}
 
-	return &payerServiceImpl{
+	return &gatewayServiceImpl{
 		apiServer:           apiServer,
 		ctx:                 ctx,
 		cancel:              cancel,
@@ -310,7 +310,7 @@ func setupRedisClient(
 func setupNonceManager(
 	ctx context.Context,
 	log *zap.Logger,
-	cfg *config.PayerConfig,
+	cfg *config.GatewayConfig,
 ) (noncemanager.NonceManager, error) {
 	redisClient, err := setupRedisClient(ctx, cfg.Redis.RedisUrl, 10*time.Second)
 	if err != nil {
@@ -323,7 +323,7 @@ func setupNonceManager(
 func setupNodeRegistry(
 	ctx context.Context,
 	log *zap.Logger,
-	cfg *config.PayerConfig,
+	cfg *config.GatewayConfig,
 ) (registry.NodeRegistry, error) {
 	settlementChainClient, err := blockchain.NewClient(
 		ctx,
@@ -352,7 +352,7 @@ func setupNodeRegistry(
 func setupBlockchainPublisher(
 	ctx context.Context,
 	log *zap.Logger,
-	cfg *config.PayerConfig,
+	cfg *config.GatewayConfig,
 	nonceManager noncemanager.NonceManager,
 ) (*blockchain.BlockchainPublisher, error) {
 	signer, err := blockchain.NewPrivateKeySigner(

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -eu
+
+. dev/local.env
+
+export XMTPD_REFLECTION_ENABLE=truee
+export XMTPD_METRICS_ENABLE=true
+export XMTPD_METRICS_METRICS_ADDRESS=0.0.0.0
+
+go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/gateway/main.go "$@"

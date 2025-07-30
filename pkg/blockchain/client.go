@@ -20,15 +20,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type ClientOption func(*clientConfig)
+type WebsocketClientOption func(*websocketClientConfig)
 
-type clientConfig struct {
-	wsURL     string
+type websocketClientConfig struct {
 	tcpDialer *net.Dialer
 }
 
-func WithKeepAliveConfig(cfg net.KeepAliveConfig) ClientOption {
-	return func(c *clientConfig) {
+func WithKeepAliveConfig(cfg net.KeepAliveConfig) WebsocketClientOption {
+	return func(c *websocketClientConfig) {
 		c.tcpDialer = &net.Dialer{
 			Timeout:         10 * time.Second,
 			KeepAliveConfig: cfg,
@@ -36,14 +35,14 @@ func WithKeepAliveConfig(cfg net.KeepAliveConfig) ClientOption {
 	}
 }
 
-func WithWebSocketURL(url string) ClientOption {
-	return func(c *clientConfig) {
-		c.wsURL = url
-	}
-}
-
-func NewClient(ctx context.Context, opts ...ClientOption) (*ethclient.Client, error) {
-	config := &clientConfig{
+// NewWebsocketClient creates a new websocket client that can be configured with dialer options.
+// It's used mostly for subscriptions.
+func NewWebsocketClient(
+	ctx context.Context,
+	wsURL string,
+	opts ...WebsocketClientOption,
+) (*ethclient.Client, error) {
+	config := &websocketClientConfig{
 		tcpDialer: &net.Dialer{
 			Timeout: 10 * time.Second,
 			KeepAliveConfig: net.KeepAliveConfig{
@@ -64,12 +63,18 @@ func NewClient(ctx context.Context, opts ...ClientOption) (*ethclient.Client, er
 		Proxy:          http.ProxyFromEnvironment,
 	}
 
-	rpcClient, err := rpc.DialOptions(ctx, config.wsURL, rpc.WithWebsocketDialer(dialer))
+	rpcClient, err := rpc.DialOptions(ctx, wsURL, rpc.WithWebsocketDialer(dialer))
 	if err != nil {
 		return nil, err
 	}
 
 	return ethclient.NewClient(rpcClient), nil
+}
+
+// NewRPCClient creates a new RPC client that can be used for JSON-RPC calls.
+// RPC providers usually implement middleware with optimizations for HTTP JSON-RPC requests.
+func NewRPCClient(ctx context.Context, rpcURL string) (*ethclient.Client, error) {
+	return ethclient.DialContext(ctx, rpcURL)
 }
 
 // ExecuteTransaction is a helper function that:

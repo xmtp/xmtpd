@@ -10,14 +10,17 @@ import (
 )
 
 func TestStartAnvil(t *testing.T) {
-	anvilUrl := StartAnvil(t, true)
+	_, anvilRPCURL := StartAnvil(t, true)
 
-	client, err := blockchain.NewClient(context.Background(), blockchain.WithWebSocketURL(anvilUrl))
+	client, err := blockchain.NewRPCClient(
+		context.Background(),
+		anvilRPCURL,
+	)
 	require.NoError(t, err)
 
-	chainId, err := client.ChainID(context.Background())
+	chainID, err := client.ChainID(context.Background())
 	require.NoError(t, err)
-	require.NotNil(t, chainId)
+	require.NotNil(t, chainID)
 }
 
 func TestStartConcurrent(t *testing.T) {
@@ -28,18 +31,19 @@ func TestStartConcurrent(t *testing.T) {
 		t.Run(fmt.Sprintf("instance-%d", i), func(t *testing.T) {
 			t.Parallel()
 
-			url := StartAnvil(t, false)
-			require.NotEmpty(t, url, "Empty URL for anvil instance %d", i)
+			wsURL, rpcURL := StartAnvil(t, false)
+			require.NotEmpty(t, wsURL, "Empty wsURL for anvil instance %d", i)
+			require.NotEmpty(t, rpcURL, "Empty rpcURL for anvil instance %d", i)
 
-			client, err := blockchain.NewClient(
+			client, err := blockchain.NewRPCClient(
 				context.Background(),
-				blockchain.WithWebSocketURL(url),
+				rpcURL,
 			)
 			require.NoError(t, err, "Failed to connect to anvil instance %d", i)
 
-			chainId, err := client.ChainID(context.Background())
+			chainID, err := client.ChainID(context.Background())
 			require.NoError(t, err, "Failed to get chain ID from anvil instance %d", i)
-			require.NotNil(t, chainId, "Nil chain ID from anvil instance %d", i)
+			require.NotNil(t, chainID, "Nil chain ID from anvil instance %d", i)
 		})
 	}
 }

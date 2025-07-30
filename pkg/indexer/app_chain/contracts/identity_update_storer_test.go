@@ -27,12 +27,12 @@ func buildIdentityUpdateStorer(
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	db, _ := testutils.NewDB(t, ctx)
-	wsUrl := anvil.StartAnvil(t, false)
-	config := testutils.NewContractsOptions(t, wsUrl)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	config := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	client, err := blockchain.NewClient(
+	client, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(config.AppChain.WssURL),
+		config.AppChain.RPCURL,
 	)
 	require.NoError(t, err)
 	contract, err := iu.NewIdentityUpdateBroadcaster(

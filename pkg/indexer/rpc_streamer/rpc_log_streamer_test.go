@@ -72,6 +72,7 @@ func TestRpcLogStreamer(t *testing.T) {
 	streamer, err := rpcstreamer.NewRPCLogStreamer(
 		context.Background(),
 		mockClient,
+		mockClient,
 		testutils.NewLog(t),
 		rpcstreamer.WithContractConfig(cfg),
 		rpcstreamer.WithBackfillBlockPageSize(10),

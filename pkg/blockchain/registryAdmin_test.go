@@ -17,8 +17,8 @@ func buildRegistry(
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
-	wsUrl := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -26,9 +26,9 @@ func buildRegistry(
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(
+	client, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+		contractsOptions.SettlementChain.RPCURL,
 	)
 	require.NoError(t, err)
 

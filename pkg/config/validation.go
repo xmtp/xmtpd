@@ -402,7 +402,7 @@ func validateChainID(url string, expectedChainID int, fieldName string, set map[
 
 	client, err := ethclient.DialContext(ctx, url)
 	if err != nil {
-		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		set[fmt.Sprintf("--%s error dialing, %s", fieldName, err.Error())] = struct{}{}
 		return
 	}
 
@@ -414,7 +414,7 @@ func validateChainID(url string, expectedChainID int, fieldName string, set map[
 
 	chainID, err := client.ChainID(ctx)
 	if err != nil {
-		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		set[fmt.Sprintf("--%s error getting chain ID, %s", fieldName, err.Error())] = struct{}{}
 		return
 	}
 

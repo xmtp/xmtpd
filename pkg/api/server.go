@@ -12,7 +12,6 @@ import (
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pires/go-proxyproto"
-	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -34,8 +33,9 @@ type ApiServerConfig struct {
 	EnableReflection     bool
 	RegistrationFunc     RegistrationFunc
 	HTTPRegistrationFunc HttpRegistrationFunc
-	JWTVerifier          authn.JWTVerifier
 	PromRegistry         *prometheus.Registry
+	UnaryInterceptors    []grpc.UnaryServerInterceptor
+	StreamInterceptors   []grpc.StreamServerInterceptor
 }
 
 type ApiServerOption func(*ApiServerConfig)
@@ -68,12 +68,16 @@ func WithHTTPRegistrationFunc(fn HttpRegistrationFunc) ApiServerOption {
 	return func(cfg *ApiServerConfig) { cfg.HTTPRegistrationFunc = fn }
 }
 
-func WithJWTVerifier(verifier authn.JWTVerifier) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.JWTVerifier = verifier }
-}
-
 func WithPrometheusRegistry(reg *prometheus.Registry) ApiServerOption {
 	return func(cfg *ApiServerConfig) { cfg.PromRegistry = reg }
+}
+
+func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.UnaryInterceptors = append(cfg.UnaryInterceptors, interceptors...) }
+}
+
+func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.StreamInterceptors = append(cfg.StreamInterceptors, interceptors...) }
 }
 
 type ApiServer struct {
@@ -99,13 +103,10 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.PromRegistry == nil {
-		return nil, fmt.Errorf("prometheus registry is required")
-	}
-
 	if cfg.GRPCListener == nil || cfg.HTTPListener == nil {
 		return nil, fmt.Errorf("both GRPCListener and HTTPListener are required")
 	}
+
 	if cfg.RegistrationFunc == nil {
 		return nil, fmt.Errorf("grpc registration function is required")
 	}
@@ -125,15 +126,6 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 
 	s.log.Info("Creating API server")
 
-	srvMetrics := grpcprom.NewServerMetrics(
-		grpcprom.WithServerHandlingTimeHistogram(
-			grpcprom.WithHistogramBuckets(
-				[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
-			),
-		),
-	)
-	cfg.PromRegistry.MustRegister(srvMetrics)
-
 	loggingInterceptor, err := server.NewLoggingInterceptor(cfg.Log)
 	if err != nil {
 		return nil, err
@@ -144,20 +136,31 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 	}
 
 	unary := []grpc.UnaryServerInterceptor{
-		srvMetrics.UnaryServerInterceptor(),
 		openConnectionsInterceptor.Unary(),
 		loggingInterceptor.Unary(),
 	}
 	stream := []grpc.StreamServerInterceptor{
-		srvMetrics.StreamServerInterceptor(),
 		openConnectionsInterceptor.Stream(),
 		loggingInterceptor.Stream(),
 	}
 
-	if cfg.JWTVerifier != nil {
-		authInterceptor := server.NewAuthInterceptor(cfg.JWTVerifier, cfg.Log)
-		unary = append(unary, authInterceptor.Unary())
-		stream = append(stream, authInterceptor.Stream())
+	// Add any additional interceptors from config
+	unary = append(unary, cfg.UnaryInterceptors...)
+	stream = append(stream, cfg.StreamInterceptors...)
+
+	if cfg.PromRegistry != nil {
+		srvMetrics := grpcprom.NewServerMetrics(
+			grpcprom.WithServerHandlingTimeHistogram(
+				grpcprom.WithHistogramBuckets(
+					[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
+				),
+			),
+		)
+		cfg.PromRegistry.MustRegister(srvMetrics)
+		unary = append([]grpc.UnaryServerInterceptor{srvMetrics.UnaryServerInterceptor()}, unary...)
+		stream = append(
+			[]grpc.StreamServerInterceptor{srvMetrics.StreamServerInterceptor()},
+			stream...)
 	}
 
 	s.grpcServer = grpc.NewServer(

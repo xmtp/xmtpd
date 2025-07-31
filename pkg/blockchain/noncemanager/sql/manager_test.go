@@ -1,4 +1,4 @@
-package blockchain_test
+package sql_test
 
 import (
 	"container/heap"
@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
+	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
 )
@@ -49,7 +50,7 @@ func NewTestNonceManager(logger *zap.Logger) *TestNonceManager {
 	return &TestNonceManager{logger: logger}
 }
 
-func (tm *TestNonceManager) GetNonce(ctx context.Context) (*blockchain.NonceContext, error) {
+func (tm *TestNonceManager) GetNonce(ctx context.Context) (*noncemanager.NonceContext, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -65,9 +66,7 @@ func (tm *TestNonceManager) GetNonce(ctx context.Context) (*blockchain.NonceCont
 		tm.nonce++
 	}
 
-	tm.logger.Debug("Generated Nonce", zap.Int64("nonce", nonce))
-
-	return &blockchain.NonceContext{
+	return &noncemanager.NonceContext{
 		Nonce: *new(big.Int).SetInt64(nonce),
 		Cancel: func() {
 			tm.mu.Lock()
@@ -99,7 +98,7 @@ func TestGetNonce_Simple(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
+	nonceManager := sql.NewSQLBackedNonceManager(db, logger)
 	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
@@ -117,7 +116,7 @@ func TestGetNonce_RevertMany(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
+	nonceManager := sql.NewSQLBackedNonceManager(db, logger)
 	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
@@ -136,7 +135,7 @@ func TestGetNonce_ConsumeMany(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
+	nonceManager := sql.NewSQLBackedNonceManager(db, logger)
 	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
@@ -156,7 +155,7 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	nonceManager := blockchain.NewSQLBackedNonceManager(db, logger)
+	nonceManager := sql.NewSQLBackedNonceManager(db, logger)
 	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 

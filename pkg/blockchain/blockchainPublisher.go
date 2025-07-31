@@ -19,20 +19,21 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
 
-/*
-Can publish to the blockchain, signing messages using the provided signer
-*/
+var ErrNoLogsFound = errors.New("no logs found")
+
+// BlockchainPublisher can publish to the blockchain, signing messages using the provided signer.
 type BlockchainPublisher struct {
 	signer                 TransactionSigner
 	client                 *ethclient.Client
 	messagesContract       *gm.GroupMessageBroadcaster
 	identityUpdateContract *iu.IdentityUpdateBroadcaster
 	logger                 *zap.Logger
-	nonceManager           NonceManager
+	nonceManager           noncemanager.NonceManager
 	replenishCancel        context.CancelFunc
 	wg                     sync.WaitGroup
 }
@@ -43,11 +44,12 @@ func NewBlockchainPublisher(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractOptions config.ContractsOptions,
-	nonceManager NonceManager,
+	nonceManager noncemanager.NonceManager,
 ) (*BlockchainPublisher, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
+
 	messagesContract, err := gm.NewGroupMessageBroadcaster(
 		common.HexToAddress(contractOptions.AppChain.GroupMessageBroadcasterAddress),
 		client,
@@ -55,6 +57,7 @@ func NewBlockchainPublisher(
 	if err != nil {
 		return nil, err
 	}
+
 	identityUpdateContract, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(contractOptions.AppChain.IdentityUpdateBroadcasterAddress),
 		client,
@@ -119,14 +122,14 @@ func NewBlockchainPublisher(
 
 func (m *BlockchainPublisher) PublishGroupMessage(
 	ctx context.Context,
-	groupID [32]byte,
+	groupID [16]byte,
 	message []byte,
 ) (*gm.GroupMessageBroadcasterMessageSent, error) {
 	if len(message) == 0 {
 		return nil, errors.New("message is empty")
 	}
 
-	return withNonce(
+	logs, err := withNonce(
 		ctx,
 		m.logger,
 		m.nonceManager,
@@ -138,7 +141,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 				Signer:  m.signer.SignerFunc(),
 			}, groupID, message)
 		},
-		func(ctx context.Context, transaction *types.Transaction) (*gm.GroupMessageBroadcasterMessageSent, error) {
+		func(ctx context.Context, transaction *types.Transaction) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
 			receipt, err := WaitForTransaction(
 				ctx,
 				m.logger,
@@ -155,10 +158,72 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 				return nil, errors.New("transaction receipt is nil")
 			}
 
-			return findLog(
+			return findLogs(
 				receipt,
 				m.messagesContract.ParseMessageSent,
-				"no message sent log found",
+				1,
+			)
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(logs) != 1 {
+		return nil, ErrNoLogsFound
+	}
+
+	return logs[0], nil
+}
+
+func (m *BlockchainPublisher) BootstrapGroupMessages(
+	ctx context.Context,
+	groupIDs [][16]byte,
+	messages [][]byte,
+	sequenceIDs []uint64,
+) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
+	if len(messages) != len(groupIDs) || len(messages) != len(sequenceIDs) {
+		return nil, errors.New("messages, groupIDs, and sequenceIDs must have the same length")
+	}
+
+	return withNonce(
+		ctx,
+		m.logger,
+		m.nonceManager,
+		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+			return m.messagesContract.BootstrapMessages(
+				&bind.TransactOpts{
+					Context: ctx,
+					Nonce:   &nonce,
+					From:    m.signer.FromAddress(),
+					Signer:  m.signer.SignerFunc(),
+				},
+				groupIDs,
+				messages,
+				sequenceIDs,
+			)
+		},
+		func(ctx context.Context, transaction *types.Transaction) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
+			receipt, err := WaitForTransaction(
+				ctx,
+				m.logger,
+				m.client,
+				2*time.Second,
+				250*time.Millisecond,
+				transaction.Hash(),
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			if receipt == nil {
+				return nil, errors.New("transaction receipt is nil")
+			}
+
+			return findLogs(
+				receipt,
+				m.messagesContract.ParseMessageSent,
+				len(groupIDs),
 			)
 		},
 	)
@@ -181,7 +246,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, errors.New("identity update is empty")
 	}
 
-	return withNonce(
+	logs, err := withNonce(
 		ctx,
 		m.logger,
 		m.nonceManager,
@@ -193,7 +258,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 				Signer:  m.signer.SignerFunc(),
 			}, inboxID, identityUpdate)
 		},
-		func(ctx context.Context, transaction *types.Transaction) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+		func(ctx context.Context, transaction *types.Transaction) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			receipt, err := WaitForTransaction(
 				ctx,
 				m.logger,
@@ -210,50 +275,114 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 				return nil, errors.New("transaction receipt is nil")
 			}
 
-			return findLog(
+			return findLogs(
 				receipt,
 				m.identityUpdateContract.ParseIdentityUpdateCreated,
-				"no message sent log found",
+				1,
+			)
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(logs) != 1 {
+		return nil, ErrNoLogsFound
+	}
+
+	return logs[0], nil
+}
+
+func (m *BlockchainPublisher) BootstrapIdentityUpdates(
+	ctx context.Context,
+	inboxIDs [][32]byte,
+	identityUpdates [][]byte,
+	sequenceIDs []uint64,
+) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+	if len(identityUpdates) != len(inboxIDs) || len(identityUpdates) != len(sequenceIDs) {
+		return nil, errors.New(
+			"identityUpdates, inboxIDs, and sequenceIDs must have the same length",
+		)
+	}
+
+	return withNonce(
+		ctx,
+		m.logger,
+		m.nonceManager,
+		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
+			return m.identityUpdateContract.BootstrapIdentityUpdates(
+				&bind.TransactOpts{
+					Context: ctx,
+					Nonce:   &nonce,
+					From:    m.signer.FromAddress(),
+					Signer:  m.signer.SignerFunc(),
+				},
+				inboxIDs,
+				identityUpdates,
+				sequenceIDs,
+			)
+		},
+		func(ctx context.Context, transaction *types.Transaction) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+			receipt, err := WaitForTransaction(
+				ctx,
+				m.logger,
+				m.client,
+				2*time.Second,
+				250*time.Millisecond,
+				transaction.Hash(),
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			if receipt == nil {
+				return nil, errors.New("transaction receipt is nil")
+			}
+
+			return findLogs(
+				receipt,
+				m.identityUpdateContract.ParseIdentityUpdateCreated,
+				len(inboxIDs),
 			)
 		},
 	)
 }
 
-/*
-   function bootstrapIdentityUpdates(
-       bytes32[] calldata inboxIds_,
-       bytes[] calldata identityUpdates_,
-       uint64[] calldata sequenceIds_
-   )
-*/
-
-func findLog[T any](
+func findLogs[T any](
 	receipt *types.Receipt,
-	parse func(types.Log) (*T, error),
-	errorMsg string,
-) (*T, error) {
+	parseFunc func(types.Log) (*T, error),
+	expectedEventCount int,
+) ([]*T, error) {
+	events := make([]*T, 0, expectedEventCount)
+
 	for _, logEntry := range receipt.Logs {
 		if logEntry == nil {
 			continue
 		}
-		event, err := parse(*logEntry)
+
+		event, err := parseFunc(*logEntry)
 		if err != nil {
 			continue
 		}
-		return event, nil
+
+		events = append(events, event)
 	}
 
-	return nil, errors.New(errorMsg)
+	if len(events) == 0 {
+		return nil, ErrNoLogsFound
+	}
+
+	return events, nil
 }
 
 func withNonce[T any](ctx context.Context,
 	logger *zap.Logger,
-	nonceManager NonceManager,
+	nonceManager noncemanager.NonceManager,
 	create func(context.Context, big.Int) (*types.Transaction, error),
-	wait func(context.Context, *types.Transaction) (*T, error),
-) (*T, error) {
+	wait func(context.Context, *types.Transaction) ([]*T, error),
+) ([]*T, error) {
 	var tx *types.Transaction
-	var nonceContext *NonceContext
+	var nonceContext *noncemanager.NonceContext
 	var err error
 
 	for {

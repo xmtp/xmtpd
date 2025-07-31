@@ -33,10 +33,17 @@ func RandomBytes(n int) []byte {
 	return b
 }
 
-func RandomInboxId() string {
+func RandomInboxIDString() string {
 	bytes := RandomBytes(32)
 
 	return utils.HexEncode(bytes)
+}
+
+func RandomInboxIDBytes() [32]byte {
+	var inboxID [32]byte
+	copy(inboxID[:], RandomBytes(32))
+
+	return inboxID
 }
 
 func RandomAddress() common.Address {
@@ -49,9 +56,9 @@ func RandomLogTopic() common.Hash {
 	return common.BytesToHash(bytes)
 }
 
-func RandomGroupID() [32]byte {
-	var groupID [32]byte
-	copy(groupID[:], RandomBytes(32))
+func RandomGroupID() [16]byte {
+	var groupID [16]byte
+	copy(groupID[:], RandomBytes(16))
 
 	return groupID
 }

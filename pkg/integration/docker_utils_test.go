@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"strconv"
@@ -28,9 +29,8 @@ import (
 )
 
 const (
-	testFlag          = "ENABLE_INTEGRATION_TESTS"
-	XDBG_IMAGE        = "ghcr.io/xmtp/xdbg:sha-78a5ac2"
-	XMTP_NETWORK_NAME = "integration-test-network"
+	testFlag   = "ENABLE_INTEGRATION_TESTS"
+	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-26bb960"
 )
 
 func skipIfNotEnabled() {
@@ -71,7 +71,6 @@ func loadEnvFromShell() (map[string]string, error) {
 func expandVars(vars map[string]string) {
 	vars["XMTPD_REPLICATION_ENABLE"] = "true"
 	vars["XMTPD_INDEXER_ENABLE"] = "true"
-	vars["XMTPD_PAYER_ENABLE"] = "true"
 
 	dbName := testutils.GetCallerName(3) + "_" + testutils.RandomStringLower(6)
 
@@ -97,6 +96,32 @@ func constructVariables(t *testing.T) map[string]string {
 
 func buildDevImage() error {
 	scriptPath := testutils.GetScriptPath("../../dev/docker/build")
+
+	// Set a 5-minute timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, scriptPath)
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+
+	// Run the command and check for errors
+	if err := cmd.Run(); err != nil {
+		// Handle timeout separately
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("build process timed out after 5 minutes")
+		} else {
+			return fmt.Errorf("build process failed: %s\n", errBuf.String())
+		}
+	}
+
+	return nil
+}
+
+func buildGatewayDevImage() error {
+	scriptPath := testutils.GetScriptPath("../../dev/docker/build-gateway")
 
 	// Set a 5-minute timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -222,9 +247,7 @@ func (b *XmtpdContainerBuilder) WithContainerName(name string) *XmtpdContainerBu
 }
 
 func (b *XmtpdContainerBuilder) WithEnvVars(envVars map[string]string) *XmtpdContainerBuilder {
-	for k, v := range envVars {
-		b.envVars[k] = v
-	}
+	maps.Copy(b.envVars, envVars)
 	return b
 }
 
@@ -278,6 +301,7 @@ type XdbgContainerBuilder struct {
 	image        string
 	networkNames []string
 	targetAddr   string
+	gatewayAddr  string
 	genType      GeneratorType
 	count        string
 	dbVolumePath string
@@ -299,6 +323,11 @@ func (b *XdbgContainerBuilder) WithNetwork(network string) *XdbgContainerBuilder
 
 func (b *XdbgContainerBuilder) WithTarget(addr string) *XdbgContainerBuilder {
 	b.targetAddr = addr
+	return b
+}
+
+func (b *XdbgContainerBuilder) WithGatewayTarget(addr string) *XdbgContainerBuilder {
+	b.gatewayAddr = addr
 	return b
 }
 
@@ -325,7 +354,7 @@ func (b *XdbgContainerBuilder) Build(t *testing.T) error {
 		Networks: b.networkNames,
 		Cmd: []string{
 			"-u", b.targetAddr,
-			"-p", b.targetAddr,
+			"-p", b.gatewayAddr,
 			"-d", "generate",
 			"-e", b.genType.String(),
 			"-a", b.count,
@@ -358,4 +387,96 @@ func MakeDockerNetwork(t *testing.T) string {
 	net, err := network.New(t.Context())
 	require.NoError(t, err)
 	return net.Name
+}
+
+type XmtpdGatewayContainerBuilder struct {
+	imageName     string
+	containerName string
+	envVars       map[string]string
+	files         []testcontainers.ContainerFile
+	exposedPorts  []string
+	networkName   string
+}
+
+func NewXmtpdGatewayContainerBuilder(t *testing.T) *XmtpdGatewayContainerBuilder {
+	envVars := constructVariables(t)
+	envVars["XMTPD_CONTRACTS_CONFIG_FILE_PATH"] = "/cfg/anvil.json"
+
+	return &XmtpdGatewayContainerBuilder{
+		envVars: envVars,
+		files: []testcontainers.ContainerFile{{
+			HostFilePath:      testutils.GetScriptPath("../../dev/environments/anvil.json"),
+			ContainerFilePath: "/cfg/anvil.json",
+			FileMode:          0o644,
+		}},
+	}
+}
+
+func (b *XmtpdGatewayContainerBuilder) WithImage(imageName string) *XmtpdGatewayContainerBuilder {
+	b.imageName = imageName
+	return b
+}
+
+func (b *XmtpdGatewayContainerBuilder) WithContainerName(
+	name string,
+) *XmtpdGatewayContainerBuilder {
+	b.containerName = name
+	return b
+}
+
+func (b *XmtpdGatewayContainerBuilder) WithEnvVars(
+	envVars map[string]string,
+) *XmtpdGatewayContainerBuilder {
+	maps.Copy(b.envVars, envVars)
+	return b
+}
+
+func (b *XmtpdGatewayContainerBuilder) WithFile(
+	file testcontainers.ContainerFile,
+) *XmtpdGatewayContainerBuilder {
+	b.files = append(b.files, file)
+	return b
+}
+
+func (b *XmtpdGatewayContainerBuilder) WithPort(port string) *XmtpdGatewayContainerBuilder {
+	b.exposedPorts = append(b.exposedPorts, port)
+	return b
+}
+
+func (b *XmtpdGatewayContainerBuilder) WithNetwork(
+	networkName string,
+) *XmtpdGatewayContainerBuilder {
+	b.networkName = networkName
+	return b
+}
+
+func (b *XmtpdGatewayContainerBuilder) Build(t *testing.T) (testcontainers.Container, error) {
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	req := testcontainers.ContainerRequest{
+		Image:        b.imageName,
+		Name:         b.containerName,
+		Env:          b.envVars,
+		Files:        b.files,
+		ExposedPorts: b.exposedPorts,
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
+		},
+		Networks:   []string{b.networkName},
+		WaitingFor: wait.ForLog("serving grpc"),
+	}
+
+	xmtpdContainer, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+			Logger:           log.Default(),
+		},
+	)
+
+	testcontainers.CleanupContainer(t, xmtpdContainer)
+
+	return xmtpdContainer, err
 }

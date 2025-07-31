@@ -1,7 +1,7 @@
 x-cli-image: &cli-image
   build:
     context: ../../
-    dockerfile: ./dev/docker/Dockerfile-cli
+    dockerfile: ./dev/docker/cli.Dockerfile
   image: ghcr.io/xmtp/xmtpd-cli:dev
 
 services:

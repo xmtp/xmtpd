@@ -2,8 +2,12 @@ package payerreport
 
 import "github.com/ethereum/go-ethereum/common"
 
-// The type hash for the payer report digest
-// using a const so
+// PAYER_REPORT_DIGEST_TYPE_HASH is the type hash as defined by EIP-712 for structured data hashing and signing.
+// Calculated as the following keccak256 hash:
+//
+//	keccak256("PayerReport(uint32 originatorNodeId,uint64 startSequenceId,uint64 endSequenceId,uint32 endMinuteSinceEpoch,bytes32 payersMerkleRoot,uint32[] nodeIds)")
+//
+// Reference: https://github.com/xmtp/smart-contracts/blob/main/src/settlement-chain/PayerReportManager.sol#L29
 var PAYER_REPORT_DIGEST_TYPE_HASH = common.HexToHash(
-	"30503e47cf573d37e2be5212eb8a3f06caca0f3ab0d379e7d05758b47b23d658",
+	"3737a2cced99bb28fc5aede45aa81d3ce0aa9137c5f417641835d0d71d303346",
 )

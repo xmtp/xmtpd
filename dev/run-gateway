@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -eu
+
+. dev/local.env
+
+export XMTPD_REFLECTION_ENABLE=true
+export XMTPD_CONTRACTS_CONFIG_FILE_PATH=./dev/environments/anvil.json
+
+go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/gateway/main.go -p 5052 --api.http-port 5057 "$@"

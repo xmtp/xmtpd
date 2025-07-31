@@ -19,7 +19,7 @@ services:
 
   chain:
     platform: linux/amd64
-    image: ghcr.io/xmtp/contracts:v0.4.3
+    image: ghcr.io/xmtp/contracts:v0.5.1
     ports:
       - 7545:8545
 
@@ -28,6 +28,11 @@ services:
     platform: linux/amd64
     ports:
       - 60051:50051
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
 
   prometheus:
     image: ubuntu/prometheus

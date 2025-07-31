@@ -198,8 +198,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				logger.Error("subscription error, rebuilding", zap.Error(err))
 				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
-					logger.Error("failed to rebuild subscription, closing", zap.Error(err))
-					r.Stop()
+					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("maxDisconnectTime", cfg.MaxDisconnectTime.String()))
 				}
 
 			default:
@@ -292,8 +291,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				logger.Error("subscription error, rebuilding", zap.Error(err))
 				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
-					logger.Error("failed to rebuild subscription, closing", zap.Error(err))
-					r.Stop()
+					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("maxDisconnectTime", cfg.MaxDisconnectTime.String()))
 				}
 
 				// Backfill everything that was missed.
@@ -485,7 +483,7 @@ func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 			"failed to rebuild subscription, closing",
 			zap.Error(err),
 		)
-		return
+		return nil, err
 	}
 
 	r.logger.Info("Subscription rebuilt")

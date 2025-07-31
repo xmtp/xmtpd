@@ -6,6 +6,10 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
+
+	"github.com/xmtp/xmtpd/pkg/deserializer"
+
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -197,16 +201,23 @@ func (s *Service) groupEnvelopes(
 				i,
 			)
 		}
-		targetTopic := clientEnvelope.TargetTopic()
-		aad := clientEnvelope.Aad()
 
-		if shouldSendToBlockchain(targetTopic, aad) {
+		toBlockchain, err := shouldSendToBlockchain(clientEnvelope)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.InvalidArgument,
+				"Client envelope at index %d can not be parsed: %v",
+				i, err,
+			)
+		}
+
+		if toBlockchain {
 			out.forBlockchain = append(
 				out.forBlockchain,
 				newClientEnvelopeWithIndex(i, clientEnvelope),
 			)
 		} else {
-			targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+			targetNodeId, err := s.nodeSelector.GetNode(clientEnvelope.TargetTopic())
 			if err != nil {
 				return nil, err
 			}
@@ -291,21 +302,13 @@ func (s *Service) publishToBlockchain(
 	ctx context.Context,
 	clientEnvelope *envelopes.ClientEnvelope,
 ) (*envelopesProto.OriginatorEnvelope, error) {
-	targetTopic := clientEnvelope.TargetTopic()
-	identifier := targetTopic.Identifier()
-	desiredOriginatorId := uint32(1) // TODO: determine this from the chain
-	var desiredSequenceId uint64
-	kind := targetTopic.Kind()
-
-	// Get the group ID as [32]byte
-	idBytes, err := utils.BytesToId(identifier)
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"error converting identifier to group ID: %v",
-			err,
-		)
-	}
+	var (
+		targetTopic         = clientEnvelope.TargetTopic()
+		identifier          = targetTopic.Identifier()
+		desiredOriginatorId uint32
+		desiredSequenceId   uint64
+		kind                = targetTopic.Kind()
+	)
 
 	// Serialize the clientEnvelope for publishing
 	payload, err := clientEnvelope.Bytes()
@@ -323,10 +326,22 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
+		desiredOriginatorId = contracts.GROUP_MESSAGE_ORIGINATOR_ID
+
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
 
+		// Get the group ID as [16]byte
+		groupID, err := utils.ParseGroupID(identifier)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.Internal,
+				"error converting identifier to group ID: %v",
+				err,
+			)
+		}
+
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("group_message", func() (*gm.GroupMessageBroadcasterMessageSent, error) {
-			return s.blockchainPublisher.PublishGroupMessage(ctx, idBytes, payload)
+			return s.blockchainPublisher.PublishGroupMessage(ctx, groupID, payload)
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
 		}
@@ -350,9 +365,22 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceId = logMessage.SequenceId
 
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
+		desiredOriginatorId = contracts.IDENTITY_UPDATE_ORIGINATOR_ID
+
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
+
+		// Get the inbox ID as [32]byte
+		inboxID, err := utils.ParseInboxID(identifier)
+		if err != nil {
+			return nil, status.Errorf(
+				codes.Internal,
+				"error converting identifier to inbox ID: %v",
+				err,
+			)
+		}
+
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("identity_update", func() (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
-			return s.blockchainPublisher.PublishIdentityUpdate(ctx, idBytes, payload)
+			return s.blockchainPublisher.PublishIdentityUpdate(ctx, inboxID, payload)
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
 		}
@@ -482,45 +510,64 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
+	retentionDuration, err := determineRetentionPolicy(
+		clientEnvelope,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &envelopesProto.PayerEnvelope{
 		UnsignedClientEnvelope: envelopeBytes,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
-		TargetOriginator: originatorID,
-		MessageRetentionDays: determineRetentionPolicy(
-			clientEnvelope.TargetTopic(),
-			clientEnvelope.Aad(),
-		),
+		TargetOriginator:     originatorID,
+		MessageRetentionDays: retentionDuration,
 	}, nil
 }
 
-func determineRetentionPolicy(
-	targetTopic topic.Topic,
-	aad *envelopesProto.AuthenticatedData,
-) uint32 {
+func determineRetentionPolicy(clientEnvelope *envelopes.ClientEnvelope) (uint32, error) {
 	// TODO: mkysel determine expiration for welcomes and key packages
 
-	switch targetTopic.Kind() {
+	switch clientEnvelope.TargetTopic().Kind() {
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
 		panic("should not be called for identity updates")
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		if aad.GetIsCommit() {
-			panic("should not be called for commits")
+		switch payload := clientEnvelope.Payload().(type) {
+		case *envelopesProto.ClientEnvelope_GroupMessage:
+			isCommit, err := deserializer.IsGroupMessageCommit(payload)
+			if err != nil {
+				return 0, err
+			}
+			if isCommit {
+				panic("should not be called for group message commits")
+			}
+		default:
+			panic("mismatched payload type")
 		}
 	}
 
-	return constants.DEFAULT_STORAGE_DURATION_DAYS
+	return constants.DEFAULT_STORAGE_DURATION_DAYS, nil
 }
 
-func shouldSendToBlockchain(targetTopic topic.Topic, aad *envelopesProto.AuthenticatedData) bool {
-	switch targetTopic.Kind() {
+func shouldSendToBlockchain(clientEnvelope *envelopes.ClientEnvelope) (bool, error) {
+	switch clientEnvelope.TargetTopic().Kind() {
 	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		return true
+		return true, nil
 	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		return aad.GetIsCommit()
+		switch payload := clientEnvelope.Payload().(type) {
+		case *envelopesProto.ClientEnvelope_GroupMessage:
+			isCommit, err := deserializer.IsGroupMessageCommit(payload)
+			if err != nil {
+				return false, err
+			}
+			return isCommit, nil
+		default:
+			panic("mismatched payload type")
+		}
 	default:
-		return false
+		return false, nil
 	}
 }
 

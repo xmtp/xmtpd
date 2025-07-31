@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -260,7 +261,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 			}
 			n.logger.Info("set parameter",
 				zap.String("key", NODE_REGISTRY_MAX_CANONICAL_NODES_KEY),
-				zap.Uint64("parameter", decodeBytes32ToUint64(parameterSet.Value)),
+				zap.Uint64("parameter", utils.DecodeBytes32ToUint64(parameterSet.Value)),
 			)
 		},
 	)

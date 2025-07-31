@@ -45,11 +45,23 @@ type IBlockchainPublisher interface {
 		inboxID [32]byte,
 		identityUpdate []byte,
 	) (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error)
+	BootstrapIdentityUpdates(
+		ctx context.Context,
+		inboxIDs [][32]byte,
+		identityUpdates [][]byte,
+		sequenceIDs []uint64,
+	) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error)
 	PublishGroupMessage(
 		ctx context.Context,
 		groupID [16]byte,
 		message []byte,
 	) (*gm.GroupMessageBroadcasterMessageSent, error)
+	BootstrapGroupMessages(
+		ctx context.Context,
+		groupIDs [][16]byte,
+		messages [][]byte,
+		sequenceIDs []uint64,
+	) ([]*gm.GroupMessageBroadcasterMessageSent, error)
 }
 
 type PayerReportsManager interface {

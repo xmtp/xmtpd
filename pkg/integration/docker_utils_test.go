@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testFlag          = "ENABLE_INTEGRATION_TESTS"
-	XDBG_IMAGE        = "ghcr.io/xmtp/xdbg:sha-26bb960"
+	testFlag   = "ENABLE_INTEGRATION_TESTS"
+	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-26bb960"
 )
 
 func skipIfNotEnabled() {
@@ -417,17 +417,23 @@ func (b *XmtpdGatewayContainerBuilder) WithImage(imageName string) *XmtpdGateway
 	return b
 }
 
-func (b *XmtpdGatewayContainerBuilder) WithContainerName(name string) *XmtpdGatewayContainerBuilder {
+func (b *XmtpdGatewayContainerBuilder) WithContainerName(
+	name string,
+) *XmtpdGatewayContainerBuilder {
 	b.containerName = name
 	return b
 }
 
-func (b *XmtpdGatewayContainerBuilder) WithEnvVars(envVars map[string]string) *XmtpdGatewayContainerBuilder {
+func (b *XmtpdGatewayContainerBuilder) WithEnvVars(
+	envVars map[string]string,
+) *XmtpdGatewayContainerBuilder {
 	maps.Copy(b.envVars, envVars)
 	return b
 }
 
-func (b *XmtpdGatewayContainerBuilder) WithFile(file testcontainers.ContainerFile) *XmtpdGatewayContainerBuilder {
+func (b *XmtpdGatewayContainerBuilder) WithFile(
+	file testcontainers.ContainerFile,
+) *XmtpdGatewayContainerBuilder {
 	b.files = append(b.files, file)
 	return b
 }
@@ -437,7 +443,9 @@ func (b *XmtpdGatewayContainerBuilder) WithPort(port string) *XmtpdGatewayContai
 	return b
 }
 
-func (b *XmtpdGatewayContainerBuilder) WithNetwork(networkName string) *XmtpdGatewayContainerBuilder {
+func (b *XmtpdGatewayContainerBuilder) WithNetwork(
+	networkName string,
+) *XmtpdGatewayContainerBuilder {
 	b.networkName = networkName
 	return b
 }

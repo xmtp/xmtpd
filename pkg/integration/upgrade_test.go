@@ -40,4 +40,10 @@ func TestLatestVersion(t *testing.T) {
 		Build(t)
 
 	require.NoError(t, err)
+
+	_, err = NewXmtpdGatewayContainerBuilder(t).
+		WithImage("ghcr.io/xmtp/xmtpd-gateway:dev").
+		Build(t)
+
+	require.NoError(t, err)
 }

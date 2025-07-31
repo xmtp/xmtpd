@@ -111,7 +111,7 @@ func TestTransformGroupMessage(t *testing.T) {
 	// Payer checks: expiration. Should not expire.
 	require.Equal(
 		t,
-		uint32(math.MaxUint32),
+		uint32(math.MaxInt32),
 		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 
@@ -189,7 +189,7 @@ func TestTransformInboxLog(t *testing.T) {
 	// Payer checks: expiration. Should not expire.
 	require.Equal(
 		t,
-		uint32(math.MaxUint32),
+		uint32(math.MaxInt32),
 		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 

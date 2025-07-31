@@ -16,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
@@ -117,6 +118,7 @@ type ReplicationServer struct {
 	syncServer          *sync.SyncServer
 	cursorUpdater       metadata.CursorUpdater
 	blockchainPublisher *blockchain.BlockchainPublisher
+	migratorServer      *migrator.Migrator
 }
 
 type ReplicationServerOption func(*ReplicationServerConfig)
@@ -236,6 +238,25 @@ func NewReplicationServer(
 		}
 
 		cfg.Log.Info("Indexer service enabled")
+	}
+
+	if cfg.Options.MigrationServer.Enable {
+		s.migratorServer, err = migrator.NewMigrationService(
+			migrator.WithContext(cfg.Ctx),
+			migrator.WithLogger(cfg.Log),
+			migrator.WithDestinationDB(cfg.DB),
+			migrator.WithMigratorConfig(&cfg.Options.MigrationServer),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = s.migratorServer.Start()
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.Log.Info("Migration service enabled")
 	}
 
 	err = startAPIServer(
@@ -418,6 +439,12 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 	}
 	if s.apiServer != nil {
 		s.apiServer.Close(timeout)
+	}
+
+	if s.migratorServer != nil {
+		if err := s.migratorServer.Stop(); err != nil {
+			s.log.Error("failed to stop migration service", zap.Error(err))
+		}
 	}
 
 	s.cancel()

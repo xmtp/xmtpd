@@ -168,6 +168,10 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		return nil, err
 	}
 
+	if len(logs) != 1 {
+		return nil, ErrNoLogsFound
+	}
+
 	return logs[0], nil
 }
 
@@ -273,6 +277,10 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		return nil, err
 	}
 
+	if len(logs) != 1 {
+		return nil, ErrNoLogsFound
+	}
+
 	return logs[0], nil
 }
 
@@ -336,7 +344,7 @@ func findLogs[T any](
 	parseFunc func(types.Log) (*T, error),
 	expectedEventCount int,
 ) ([]*T, error) {
-	events := make([]*T, 0)
+	events := make([]*T, 0, expectedEventCount)
 
 	for _, logEntry := range receipt.Logs {
 		if logEntry == nil {
@@ -353,14 +361,6 @@ func findLogs[T any](
 
 	if len(events) == 0 {
 		return nil, ErrNoLogsFound
-	}
-
-	if len(events) != expectedEventCount {
-		return nil, fmt.Errorf(
-			"expected %d logs, got %d",
-			expectedEventCount,
-			len(events),
-		)
 	}
 
 	return events, nil

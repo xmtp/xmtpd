@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
@@ -282,10 +283,21 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 
 	retentionDays := uint32(math.MaxUint32)
 
-	// group messages and identity updates are stored forever (MaxUint32).
-	// welcome messages and installations are stored for the default duration.
-	if originatorID == KeyPackagesOriginatorID || originatorID == WelcomeMessageOriginatorID {
+	switch originatorID {
+	case KeyPackagesOriginatorID, WelcomeMessageOriginatorID:
 		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
+
+	case GroupMessageOriginatorID:
+		payload := clientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
+
+		isCommit, err := deserializer.IsGroupMessageCommit(payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check if group message is commit: %w", err)
+		}
+
+		if !isCommit {
+			retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
+		}
 	}
 
 	protoPayerEnvelope := &proto.PayerEnvelope{
@@ -300,8 +312,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 	return envelopes.NewPayerEnvelope(protoPayerEnvelope)
 }
 
-// TODO: Set congestion fee.
-// TODO: Set base fee.
+// TODO: Does the migrator pay fees?
 
 func (t *Transformer) buildAndSignOriginatorEnvelope(
 	payerEnvelope *envelopes.PayerEnvelope,

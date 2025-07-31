@@ -6,13 +6,12 @@ import (
 	"testing"
 	"time"
 
-	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
-	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -31,7 +30,7 @@ const (
 	keyPackageAmount     int64 = 19
 	keyPackageLastID     int64 = 19
 
-	mlsValidationServiceAddress = "http://localhost:60051"
+	redisAddress = "redis://localhost:6379/15"
 )
 
 type migratorTest struct {
@@ -46,36 +45,30 @@ func newMigratorTest(t *testing.T) *migratorTest {
 		ctx             = t.Context()
 		writerDB, _     = testutils.NewDB(t, ctx)
 		_, dsn, cleanup = testdata.NewMigratorTestDB(t, ctx)
-		payerPrivateKey = testutils.RandomPrivateKey(t)
+		chainConfig     = testdata.NewMigratorBlockchain(t)
 		nodePrivateKey  = testutils.RandomPrivateKey(t)
 	)
 
-	mlsValidationService, err := mlsvalidate.NewMlsValidationService(
-		ctx,
-		testutils.NewLog(t),
-		config.MlsValidationOptions{
-			GrpcAddress: mlsValidationServiceAddress,
-		},
-		grpcprom.NewClientMetrics(
-			grpcprom.WithClientHandlingTimeHistogram(),
-		),
-	)
+	payerPrivateKey, err := crypto.HexToECDSA(testdata.PayerPrivateKeyString)
 	require.NoError(t, err)
 
 	migrator, err := migrator.NewMigrationService(
 		migrator.WithContext(ctx),
 		migrator.WithLogger(testutils.NewLog(t)),
 		migrator.WithDestinationDB(writerDB),
-		migrator.WithMLSValidationService(mlsValidationService),
-		migrator.WithMigratorConfig(&config.MigratorOptions{
+		migrator.WithMigratorConfig(&config.MigrationServerOptions{
 			Enable:                 true,
 			PayerPrivateKey:        utils.EcdsaPrivateKeyToString(payerPrivateKey),
 			NodeSigningKey:         utils.EcdsaPrivateKeyToString(nodePrivateKey),
 			ReaderConnectionString: dsn,
-			ReadTimeout:            1 * time.Second,
+			ReaderTimeout:          1 * time.Second,
 			WaitForDB:              5 * time.Second,
 			BatchSize:              1000,
 			PollInterval:           500 * time.Millisecond,
+			Redis: config.RedisOptions{
+				RedisUrl: redisAddress,
+			},
+			Contracts: chainConfig,
 		}),
 	)
 	require.NoError(t, err)
@@ -94,7 +87,7 @@ func TestMigrator(t *testing.T) {
 
 	require.NoError(t, test.migrator.Start())
 
-	<-time.After(1 * time.Second)
+	<-time.After(5 * time.Second)
 
 	checkMigrationTrackerState(t, test.ctx, test.db)
 	checkGatewayEnvelopesLastID(t, test.ctx, test.db)
@@ -285,7 +278,7 @@ func getGatewayEnvelopesUniqueAmount(
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(DISTINCT originator_sequence_id)::BIGINT
-FROM gateway_envelopes 
+FROM gateway_envelopes
 WHERE originator_node_id = $1`
 	)
 

@@ -11,16 +11,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
-	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
-	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
-func (m *Migrator) insertOriginatorEnvelope(
+func (m *Migrator) insertOriginatorEnvelopeDatabase(
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
 	if env == nil {
@@ -56,85 +52,6 @@ func (m *Migrator) insertOriginatorEnvelope(
 		m.writer,
 		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
-			// When handling identity updates, we need to derive the address log updates from the association state.
-			if env.OriginatorNodeID() == InboxLogOriginatorID {
-				inboxIDBytes, inboxIDStr, err := getInboxID(
-					&env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope,
-				)
-				if err != nil {
-					return re.NewNonRecoverableError("get inbox ID failed", err)
-				}
-
-				associationState, err := m.getAssociationStateFromEnvelopes(
-					ctx,
-					querier,
-					inboxIDBytes,
-					&env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope,
-				)
-				if err != nil {
-					return re.NewNonRecoverableError("validate identity update failed", err)
-				}
-
-				for _, newMember := range associationState.StateDiff.NewMembers {
-					m.log.Info("New member", zap.Any("member", newMember))
-
-					if address, ok := newMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
-						numRows, err := querier.InsertAddressLog(
-							ctx,
-							queries.InsertAddressLogParams{
-								Address: address.EthereumAddress,
-								InboxID: inboxIDStr,
-								AssociationSequenceID: sql.NullInt64{
-									Valid: true,
-									Int64: int64(env.OriginatorSequenceID()),
-								},
-							},
-						)
-						if err != nil {
-							return re.NewRecoverableError("insert address log failed", err)
-						}
-
-						if numRows == 0 {
-							m.log.Warn(
-								"Could not insert address log",
-								zap.String("address", address.EthereumAddress),
-								zap.String("inboxID", inboxIDStr),
-								zap.Int("sequenceID", int(env.OriginatorSequenceID())),
-							)
-						}
-					}
-				}
-
-				for _, removedMember := range associationState.StateDiff.RemovedMembers {
-					m.log.Info("Removed member", zap.Any("member", removedMember))
-
-					if address, ok := removedMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
-						rows, err := querier.RevokeAddressFromLog(
-							ctx,
-							queries.RevokeAddressFromLogParams{
-								Address: address.EthereumAddress,
-								InboxID: inboxIDStr,
-								RevocationSequenceID: sql.NullInt64{
-									Valid: true,
-									Int64: int64(env.OriginatorSequenceID()),
-								},
-							},
-						)
-						if err != nil {
-							return re.NewRecoverableError("revoke address from log failed", err)
-						}
-
-						if rows == 0 {
-							m.log.Warn(
-								"Could not find address log entry to revoke",
-								zap.String("address", address.EthereumAddress),
-								zap.String("inboxID", inboxIDStr),
-							)
-						}
-					}
-				}
-			}
-
 			_, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(env.OriginatorNodeID()),
 				OriginatorSequenceID: int64(env.OriginatorSequenceID()),
@@ -188,63 +105,126 @@ func (m *Migrator) insertOriginatorEnvelope(
 	return nil
 }
 
-func getInboxID(clientEnvelope *envelopes.ClientEnvelope) ([32]byte, string, error) {
-	identityUpdatePayload, ok := clientEnvelope.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
-	if !ok {
-		return [32]byte{}, "", fmt.Errorf("client envelope payload is not an identity update")
-	}
-
-	inboxIDStr := identityUpdatePayload.IdentityUpdate.GetInboxId()
-
-	// TODO: Is this the correct way of getting the inboxID?
-	// Do we need bit padding or anything else?
-	inboxIDBytes, err := utils.HexDecode(inboxIDStr)
-	if err != nil {
-		return [32]byte{}, "", fmt.Errorf("invalid inbox ID format: %w", err)
-	}
-
-	if len(inboxIDBytes) != 32 {
-		return [32]byte{}, "", fmt.Errorf("inbox ID must be 32 bytes")
-	}
-
-	var inboxID [32]byte
-	copy(inboxID[:], inboxIDBytes)
-
-	return inboxID, inboxIDStr, nil
-}
-
-func (m *Migrator) getAssociationStateFromEnvelopes(
-	ctx context.Context,
-	querier *queries.Queries,
-	inboxID [32]byte,
-	clientEnvelope *envelopes.ClientEnvelope,
-) (*mlsvalidate.AssociationStateResult, error) {
-	// Select gateway envelopes from the originator ID 12.
-	// Do not mix with blockchain identity updates.
-	gatewayEnvelopes, err := querier.SelectGatewayEnvelopes(
-		ctx,
-		queries.SelectGatewayEnvelopesParams{
-			Topics: []db.Topic{
-				db.Topic(topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxID[:]).Bytes()),
-			},
-			OriginatorNodeIds: []int32{int32(InboxLogOriginatorID)},
-			RowLimit:          256,
-		},
+func (m *Migrator) insertOriginatorEnvelopeBlockchain(
+	env *envelopes.OriginatorEnvelope,
+) error {
+	var (
+		identifier = env.TargetTopic().Identifier()
+		sequenceID = env.OriginatorSequenceID()
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	identityUpdate, ok := clientEnvelope.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
+	tableName, ok := originatorIDToTableName[env.OriginatorNodeID()]
 	if !ok {
-		return nil, fmt.Errorf("client envelope payload is not an identity update")
+		return fmt.Errorf("invalid originator id: %d", env.OriginatorNodeID())
 	}
 
-	return m.validationService.GetAssociationStateFromEnvelopes(
-		ctx,
-		gatewayEnvelopes,
-		identityUpdate.IdentityUpdate,
-	)
+	clientEnvelopeBytes, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
+	if err != nil {
+		m.log.Error("failed to get payer envelope bytes", zap.Error(err))
+		return fmt.Errorf("failed to get payer envelope bytes: %w", err)
+	}
+
+	querier := queries.New(m.writer)
+
+	switch env.OriginatorNodeID() {
+	case GroupMessageOriginatorID:
+		groupID, err := utils.ParseGroupID(identifier)
+		if err != nil {
+			return fmt.Errorf("error converting identifier to group ID: %w", err)
+		}
+
+		m.log.Debug(
+			"publishing group message",
+			zap.ByteString("group_id", groupID[:]),
+			zap.Uint64("sequence_id", sequenceID),
+		)
+
+		log, err := m.blockchainPublisher.BootstrapGroupMessages(
+			m.ctx,
+			[][16]byte{groupID},
+			[][]byte{clientEnvelopeBytes},
+			[]uint64{sequenceID},
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error publishing group message with sequence ID %d: %w",
+				sequenceID,
+				err,
+			)
+		}
+
+		if len(log) == 0 {
+			return fmt.Errorf(
+				"received nil log publishing group message with sequence ID %d",
+				sequenceID,
+			)
+		}
+
+		err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
+			LastMigratedID: int64(env.OriginatorSequenceID()),
+			SourceTable:    tableName,
+		})
+		if err != nil {
+			m.log.Error("update migration progress failed", zap.Error(err))
+			return fmt.Errorf("update migration progress failed: %w", err)
+		}
+
+		m.log.Debug(
+			"published group message",
+			zap.ByteString("group_id", groupID[:]),
+			zap.Uint64("sequence_id", sequenceID),
+		)
+
+	case InboxLogOriginatorID:
+		inboxID, err := utils.ParseInboxID(identifier)
+		if err != nil {
+			return fmt.Errorf("error converting identifier to inbox ID: %w", err)
+		}
+
+		m.log.Debug(
+			"publishing identity update",
+			zap.ByteString("inbox_id", inboxID[:]),
+			zap.Uint64("sequence_id", sequenceID),
+		)
+
+		log, err := m.blockchainPublisher.BootstrapIdentityUpdates(
+			m.ctx,
+			[][32]byte{inboxID},
+			[][]byte{clientEnvelopeBytes},
+			[]uint64{sequenceID},
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error publishing identity update with sequence ID %d: %w",
+				sequenceID,
+				err,
+			)
+		}
+
+		if len(log) == 0 {
+			return fmt.Errorf(
+				"received nil log publishing identity update with sequence ID %d",
+				sequenceID,
+			)
+		}
+
+		err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
+			LastMigratedID: int64(env.OriginatorSequenceID()),
+			SourceTable:    tableName,
+		})
+		if err != nil {
+			m.log.Error("update migration progress failed", zap.Error(err))
+			return fmt.Errorf("update migration progress failed: %w", err)
+		}
+
+		m.log.Debug(
+			"published identity update",
+			zap.ByteString("inbox_id", inboxID[:]),
+			zap.Uint64("sequence_id", sequenceID),
+		)
+	}
+
+	return nil
 }
 
 func retry(

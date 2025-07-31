@@ -105,32 +105,20 @@ type SignerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"`
 }
 
-type MigratorOptions struct {
-	Enable                 bool          `long:"enable"                   env:"XMTPD_MIGRATION_ENABLE"                      description:"Enable the migrator"`
-	PayerPrivateKey        string        `long:"payer-private-key"        env:"XMTPD_MIGRATION_PAYER_PRIVATE_KEY"           description:"Private key used to sign messages"`
-	NodeSigningKey         string        `long:"node-signing-key"         env:"XMTPD_MIGRATION_NODE_SIGNING_KEY"            description:"Private key used to sign messages"`
-	ReaderConnectionString string        `long:"reader-connection-string" env:"XMTPD_MIGRATION_DB_READER_CONNECTION_STRING" description:"Reader connection string"`
-	ReadTimeout            time.Duration `long:"read-timeout"             env:"XMTPD_MIGRATION_DB_READ_TIMEOUT"             description:"Timeout for reading from the database"          default:"10s"`
-	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_MIGRATION_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration" default:"30s"`
-	BatchSize              int32         `long:"batch-size"               env:"XMTPD_MIGRATION_DB_BATCH_SIZE"               description:"Batch size for migration"                       default:"1000"`
-	PollInterval           time.Duration `long:"process-interval"         env:"XMTPD_MIGRATION_DB_PROCESS_INTERVAL"         description:"Interval for processing migration"              default:"10s"`
-	Namespace              string        `long:"namespace"                env:"XMTPD_MIGRATION_DB_NAMESPACE"                description:"Namespace for migration"                        default:""`
-}
-
 type ServerOptions struct {
-	API           ApiOptions           `group:"API Options"            namespace:"api"`
-	Contracts     ContractsOptions     `group:"Contracts Options"      namespace:"contracts"`
-	DB            DbOptions            `group:"Database Options"       namespace:"db"`
-	Log           LogOptions           `group:"Log Options"            namespace:"log"`
-	Indexer       IndexerOptions       `group:"Indexer Options"        namespace:"indexer"`
-	Metrics       MetricsOptions       `group:"Metrics Options"        namespace:"metrics"`
-	MlsValidation MlsValidationOptions `group:"MLS Validation Options" namespace:"mls-validation"`
-	Reflection    ReflectionOptions    `group:"Reflection Options"     namespace:"reflection"`
-	Replication   ReplicationOptions   `group:"Replication Options"    namespace:"replication"`
-	Signer        SignerOptions        `group:"Signer Options"         namespace:"signer"`
-	Sync          SyncOptions          `group:"Sync Options"           namespace:"sync"`
-	Tracing       TracingOptions       `group:"DD APM Tracing Options" namespace:"tracing"`
-	Migration     MigratorOptions      `group:"Migration Options"      namespace:"migration"`
-	Debug         DebugOptions         `group:"Debug Options"          namespace:"debug"`
-	Version       bool                 `                                                          short:"v" long:"version" description:"Output binary version and exit"`
+	API           ApiOptions             `group:"API Options"            namespace:"api"`
+	Contracts     ContractsOptions       `group:"Contracts Options"      namespace:"contracts"`
+	DB            DbOptions              `group:"Database Options"       namespace:"db"`
+	Log           LogOptions             `group:"Log Options"            namespace:"log"`
+	Indexer       IndexerOptions         `group:"Indexer Options"        namespace:"indexer"`
+	Metrics       MetricsOptions         `group:"Metrics Options"        namespace:"metrics"`
+	MlsValidation MlsValidationOptions   `group:"MLS Validation Options" namespace:"mls-validation"`
+	Reflection    ReflectionOptions      `group:"Reflection Options"     namespace:"reflection"`
+	Replication   ReplicationOptions     `group:"Replication Options"    namespace:"replication"`
+	Signer        SignerOptions          `group:"Signer Options"         namespace:"signer"`
+	Sync          SyncOptions            `group:"Sync Options"           namespace:"sync"`
+	Tracing       TracingOptions         `group:"DD APM Tracing Options" namespace:"tracing"`
+	Migration     MigrationServerOptions `group:"Migration Options"      namespace:"migration"`
+	Debug         DebugOptions           `group:"Debug Options"          namespace:"debug"`
+	Version       bool                   `                                                          short:"v" long:"version" description:"Output binary version and exit"`
 }

@@ -229,14 +229,6 @@ func (m *BlockchainPublisher) BootstrapGroupMessages(
 	)
 }
 
-/*
-	function bootstrapMessages(
-		bytes16[] calldata groupIds_,
-		bytes[] calldata messages_,
-		uint64[] calldata sequenceIds_
-	)
-*/
-
 func (m *BlockchainPublisher) PublishIdentityUpdate(
 	ctx context.Context,
 	inboxID [32]byte,

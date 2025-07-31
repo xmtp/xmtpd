@@ -21,12 +21,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
-	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -38,11 +40,10 @@ const (
 )
 
 type DBMigratorConfig struct {
-	ctx               context.Context
-	log               *zap.Logger
-	db                *sql.DB
-	validationService mlsvalidate.MLSValidationService
-	options           *config.MigratorOptions
+	ctx     context.Context
+	log     *zap.Logger
+	db      *sql.DB
+	options *config.MigrationServerOptions
 }
 
 type DBMigratorOption func(*DBMigratorConfig)
@@ -65,13 +66,7 @@ func WithDestinationDB(db *sql.DB) DBMigratorOption {
 	}
 }
 
-func WithMLSValidationService(validationService mlsvalidate.MLSValidationService) DBMigratorOption {
-	return func(cfg *DBMigratorConfig) {
-		cfg.validationService = validationService
-	}
-}
-
-func WithMigratorConfig(options *config.MigratorOptions) DBMigratorOption {
+func WithMigratorConfig(options *config.MigrationServerOptions) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
 		cfg.options = options
 	}
@@ -86,11 +81,11 @@ type Migrator struct {
 	log    *zap.Logger
 
 	// Data management.
-	writer            *sql.DB
-	reader            *sql.DB
-	readers           map[string]ISourceReader
-	transformer       IDataTransformer
-	validationService mlsvalidate.MLSValidationService
+	writer              *sql.DB
+	reader              *sql.DB
+	readers             map[string]ISourceReader
+	transformer         IDataTransformer
+	blockchainPublisher blockchain.IBlockchainPublisher
 
 	// Configuration.
 	pollInterval time.Duration
@@ -115,10 +110,6 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	if cfg.db == nil {
 		return nil, errors.New("destination database is required")
-	}
-
-	if cfg.validationService == nil {
-		return nil, errors.New("MLS validation service is required")
 	}
 
 	if cfg.options == nil {
@@ -155,7 +146,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		cfg.options.ReaderConnectionString,
 		cfg.options.Namespace,
 		cfg.options.WaitForDB,
-		cfg.options.ReadTimeout,
+		cfg.options.ReaderTimeout,
 	)
 	if err != nil {
 		return nil, err
@@ -170,22 +161,32 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
 
+	nonceManager, err := setupNonceManager(cfg.ctx, logger, cfg.options)
+	if err != nil {
+		return nil, err
+	}
+
+	blockchainPublisher, err := setupBlockchainPublisher(cfg.ctx, logger, cfg.options, nonceManager)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(cfg.ctx)
 
 	return &Migrator{
-		ctx:               ctx,
-		cancel:            cancel,
-		wg:                sync.WaitGroup{},
-		mu:                sync.RWMutex{},
-		log:               logger,
-		writer:            cfg.db,
-		reader:            reader,
-		readers:           readers,
-		transformer:       transformer,
-		validationService: cfg.validationService,
-		pollInterval:      cfg.options.PollInterval,
-		batchSize:         cfg.options.BatchSize,
-		running:           false,
+		ctx:                 ctx,
+		cancel:              cancel,
+		wg:                  sync.WaitGroup{},
+		mu:                  sync.RWMutex{},
+		log:                 logger,
+		writer:              cfg.db,
+		reader:              reader,
+		readers:             readers,
+		transformer:         transformer,
+		blockchainPublisher: blockchainPublisher,
+		pollInterval:        cfg.options.PollInterval,
+		batchSize:           cfg.options.BatchSize,
+		running:             false,
 	}, nil
 }
 
@@ -273,7 +274,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 						}
 
 						logger.Error("failed to get migration progress", zap.Error(err))
-						return
+						continue
 					}
 
 					logger.Debug(
@@ -407,19 +408,71 @@ func (m *Migrator) migrationWorker(tableName string) {
 						return
 					}
 
-					err := retry(
-						ctx,
-						logger,
-						50*time.Millisecond,
-						func() re.RetryableError {
-							return m.insertOriginatorEnvelope(envelope)
-						},
-					)
-					if err != nil {
-						logger.Error("failed to insert envelope", zap.Error(err))
+					switch envelope.OriginatorNodeID() {
+					case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
+						err := retry(
+							ctx,
+							logger,
+							50*time.Millisecond,
+							func() re.RetryableError {
+								return m.insertOriginatorEnvelopeDatabase(envelope)
+							},
+						)
+						if err != nil {
+							// TODO: Send to failed table? Alerts, metrics?
+							logger.Error("failed to insert envelope", zap.Error(err))
+						}
 
-						// TODO: Send to failed table? Alerts, metrics?
-						continue
+					case GroupMessageOriginatorID:
+						payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
+
+						isCommit, err := deserializer.IsGroupMessageCommit(payload)
+						if err != nil {
+							logger.Error(
+								"failed to check if group message is commit",
+								zap.Error(err),
+							)
+
+							// TODO: Send to failed table? Alerts, metrics?
+							continue
+						}
+
+						switch isCommit {
+						case true:
+							err := m.insertOriginatorEnvelopeBlockchain(envelope)
+							if err != nil {
+								logger.Error(
+									"error publishing group message",
+									zap.Error(err),
+								)
+							}
+
+						case false:
+							err := retry(
+								ctx,
+								logger,
+								50*time.Millisecond,
+								func() re.RetryableError {
+									return m.insertOriginatorEnvelopeDatabase(envelope)
+								},
+							)
+							if err != nil {
+								// TODO: Send to failed table? Alerts, metrics?
+								logger.Error(
+									"error publishing group message",
+									zap.Error(err),
+								)
+							}
+						}
+
+					case InboxLogOriginatorID:
+						err := m.insertOriginatorEnvelopeBlockchain(envelope)
+						if err != nil {
+							logger.Error(
+								"error publishing identity update",
+								zap.Error(err),
+							)
+						}
 					}
 				}
 			}

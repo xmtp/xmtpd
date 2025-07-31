@@ -24,6 +24,128 @@ func (_m *MockIBlockchainPublisher) EXPECT() *MockIBlockchainPublisher_Expecter 
 	return &MockIBlockchainPublisher_Expecter{mock: &_m.Mock}
 }
 
+// BootstrapGroupMessages provides a mock function with given fields: ctx, groupIDs, messages, sequenceIDs
+func (_m *MockIBlockchainPublisher) BootstrapGroupMessages(ctx context.Context, groupIDs [][16]byte, messages [][]byte, sequenceIDs []uint64) ([]*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error) {
+	ret := _m.Called(ctx, groupIDs, messages, sequenceIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BootstrapGroupMessages")
+	}
+
+	var r0 []*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][16]byte, [][]byte, []uint64) ([]*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)); ok {
+		return rf(ctx, groupIDs, messages, sequenceIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][16]byte, [][]byte, []uint64) []*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent); ok {
+		r0 = rf(ctx, groupIDs, messages, sequenceIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][16]byte, [][]byte, []uint64) error); ok {
+		r1 = rf(ctx, groupIDs, messages, sequenceIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIBlockchainPublisher_BootstrapGroupMessages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BootstrapGroupMessages'
+type MockIBlockchainPublisher_BootstrapGroupMessages_Call struct {
+	*mock.Call
+}
+
+// BootstrapGroupMessages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupIDs [][16]byte
+//   - messages [][]byte
+//   - sequenceIDs []uint64
+func (_e *MockIBlockchainPublisher_Expecter) BootstrapGroupMessages(ctx interface{}, groupIDs interface{}, messages interface{}, sequenceIDs interface{}) *MockIBlockchainPublisher_BootstrapGroupMessages_Call {
+	return &MockIBlockchainPublisher_BootstrapGroupMessages_Call{Call: _e.mock.On("BootstrapGroupMessages", ctx, groupIDs, messages, sequenceIDs)}
+}
+
+func (_c *MockIBlockchainPublisher_BootstrapGroupMessages_Call) Run(run func(ctx context.Context, groupIDs [][16]byte, messages [][]byte, sequenceIDs []uint64)) *MockIBlockchainPublisher_BootstrapGroupMessages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][16]byte), args[2].([][]byte), args[3].([]uint64))
+	})
+	return _c
+}
+
+func (_c *MockIBlockchainPublisher_BootstrapGroupMessages_Call) Return(_a0 []*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, _a1 error) *MockIBlockchainPublisher_BootstrapGroupMessages_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIBlockchainPublisher_BootstrapGroupMessages_Call) RunAndReturn(run func(context.Context, [][16]byte, [][]byte, []uint64) ([]*groupmessagebroadcaster.GroupMessageBroadcasterMessageSent, error)) *MockIBlockchainPublisher_BootstrapGroupMessages_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BootstrapIdentityUpdates provides a mock function with given fields: ctx, inboxIDs, identityUpdates, sequenceIDs
+func (_m *MockIBlockchainPublisher) BootstrapIdentityUpdates(ctx context.Context, inboxIDs [][32]byte, identityUpdates [][]byte, sequenceIDs []uint64) ([]*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+	ret := _m.Called(ctx, inboxIDs, identityUpdates, sequenceIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BootstrapIdentityUpdates")
+	}
+
+	var r0 []*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][32]byte, [][]byte, []uint64) ([]*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)); ok {
+		return rf(ctx, inboxIDs, identityUpdates, sequenceIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][32]byte, [][]byte, []uint64) []*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated); ok {
+		r0 = rf(ctx, inboxIDs, identityUpdates, sequenceIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][32]byte, [][]byte, []uint64) error); ok {
+		r1 = rf(ctx, inboxIDs, identityUpdates, sequenceIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIBlockchainPublisher_BootstrapIdentityUpdates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BootstrapIdentityUpdates'
+type MockIBlockchainPublisher_BootstrapIdentityUpdates_Call struct {
+	*mock.Call
+}
+
+// BootstrapIdentityUpdates is a helper method to define mock.On call
+//   - ctx context.Context
+//   - inboxIDs [][32]byte
+//   - identityUpdates [][]byte
+//   - sequenceIDs []uint64
+func (_e *MockIBlockchainPublisher_Expecter) BootstrapIdentityUpdates(ctx interface{}, inboxIDs interface{}, identityUpdates interface{}, sequenceIDs interface{}) *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call {
+	return &MockIBlockchainPublisher_BootstrapIdentityUpdates_Call{Call: _e.mock.On("BootstrapIdentityUpdates", ctx, inboxIDs, identityUpdates, sequenceIDs)}
+}
+
+func (_c *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call) Run(run func(ctx context.Context, inboxIDs [][32]byte, identityUpdates [][]byte, sequenceIDs []uint64)) *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][32]byte), args[2].([][]byte), args[3].([]uint64))
+	})
+	return _c
+}
+
+func (_c *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call) Return(_a0 []*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, _a1 error) *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call) RunAndReturn(run func(context.Context, [][32]byte, [][]byte, []uint64) ([]*identityupdatebroadcaster.IdentityUpdateBroadcasterIdentityUpdateCreated, error)) *MockIBlockchainPublisher_BootstrapIdentityUpdates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function with no fields
 func (_m *MockIBlockchainPublisher) Close() {
 	_m.Called()

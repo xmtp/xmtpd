@@ -277,7 +277,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	}, nil
 }
 
-func setupRedisClient(
+func SetupRedisClient(
 	ctx context.Context,
 	redisUrl string,
 	timeout time.Duration,
@@ -317,7 +317,7 @@ func setupNonceManager(
 	log *zap.Logger,
 	cfg *config.GatewayConfig,
 ) (noncemanager.NonceManager, error) {
-	redisClient, err := setupRedisClient(ctx, cfg.Redis.RedisUrl, 10*time.Second)
+	redisClient, err := SetupRedisClient(ctx, cfg.Redis.RedisUrl, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}

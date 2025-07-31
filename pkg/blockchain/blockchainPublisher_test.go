@@ -97,8 +97,8 @@ func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
-	wsUrl := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, wsUrl)
+	wsURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, wsURL)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -185,6 +185,78 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	}
 }
 
+func TestBootstrapIdentityUpdate(t *testing.T) {
+	publisher := buildPublisher(t)
+
+	tests := []struct {
+		name        string
+		inboxIDs    [][32]byte
+		updates     [][]byte
+		sequenceIDs []uint64
+		ctx         context.Context
+		wantErr     bool
+	}{
+		// TODO(borja): Add happy path after including app chain parameter registry.
+		{
+			name:        "fail when contract is not paused",
+			inboxIDs:    [][32]byte{testutils.RandomInboxIDBytes()},
+			updates:     [][]byte{testutils.RandomBytes(100)},
+			sequenceIDs: []uint64{1},
+			ctx:         context.Background(),
+			wantErr:     true,
+		},
+		{
+			name:        "fail on array length mismatch",
+			inboxIDs:    [][32]byte{testutils.RandomInboxIDBytes()},
+			updates:     [][]byte{testutils.RandomBytes(100), testutils.RandomBytes(100)},
+			sequenceIDs: []uint64{1, 2, 3},
+			ctx:         context.Background(),
+			wantErr:     true,
+		},
+		{
+			name:        "fail on empty message",
+			inboxIDs:    [][32]byte{testutils.RandomInboxIDBytes()},
+			updates:     [][]byte{},
+			sequenceIDs: []uint64{1},
+			ctx:         context.Background(),
+			wantErr:     true,
+		},
+		{
+			name:        "fail on cancelled context",
+			inboxIDs:    [][32]byte{testutils.RandomInboxIDBytes()},
+			updates:     [][]byte{testutils.RandomBytes(100)},
+			sequenceIDs: []uint64{1},
+			ctx:         testutils.CancelledContext(),
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			logMessages, err := publisher.BootstrapIdentityUpdates(
+				tt.ctx,
+				tt.inboxIDs,
+				tt.updates,
+				tt.sequenceIDs,
+			)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, logMessages)
+			require.Equal(t, len(tt.inboxIDs), len(logMessages))
+			for i, logMessage := range logMessages {
+				require.Equal(t, tt.inboxIDs[i], logMessage.InboxId)
+				require.Equal(t, tt.updates[i], logMessage.Update)
+				require.Equal(t, tt.sequenceIDs[i], logMessage.SequenceId)
+				require.NotNil(t, logMessage.Raw.TxHash)
+			}
+		})
+	}
+}
+
 func TestPublishGroupMessage(t *testing.T) {
 	publisher := buildPublisher(t)
 
@@ -233,6 +305,78 @@ func TestPublishGroupMessage(t *testing.T) {
 			require.Equal(t, tt.message, logMessage.Message)
 			require.Greater(t, logMessage.SequenceId, uint64(0))
 			require.NotNil(t, logMessage.Raw.TxHash)
+		})
+	}
+}
+
+func TestBootstrapGroupMessages(t *testing.T) {
+	publisher := buildPublisher(t)
+
+	tests := []struct {
+		name        string
+		groupIDs    [][16]byte
+		messages    [][]byte
+		sequenceIDs []uint64
+		ctx         context.Context
+		wantErr     bool
+	}{
+		// TODO(borja): Add happy path after including app chain parameter registry.
+		{
+			name:        "fail when contract is not paused",
+			groupIDs:    [][16]byte{testutils.RandomGroupID()},
+			messages:    [][]byte{testutils.RandomBytes(100)},
+			sequenceIDs: []uint64{1},
+			ctx:         context.Background(),
+			wantErr:     true,
+		},
+		{
+			name:        "fail on array length mismatch",
+			groupIDs:    [][16]byte{testutils.RandomGroupID()},
+			messages:    [][]byte{testutils.RandomBytes(100)},
+			sequenceIDs: []uint64{1, 2, 3},
+			ctx:         context.Background(),
+			wantErr:     true,
+		},
+		{
+			name:        "fail on empty message",
+			groupIDs:    [][16]byte{testutils.RandomGroupID()},
+			messages:    [][]byte{},
+			sequenceIDs: []uint64{1},
+			ctx:         context.Background(),
+			wantErr:     true,
+		},
+		{
+			name:        "fail on cancelled context",
+			groupIDs:    [][16]byte{testutils.RandomGroupID()},
+			messages:    [][]byte{testutils.RandomBytes(100)},
+			sequenceIDs: []uint64{1},
+			ctx:         testutils.CancelledContext(),
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			logMessages, err := publisher.BootstrapGroupMessages(
+				tt.ctx,
+				tt.groupIDs,
+				tt.messages,
+				tt.sequenceIDs,
+			)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, logMessages)
+			require.Equal(t, len(tt.groupIDs), len(logMessages))
+			for i, logMessage := range logMessages {
+				require.Equal(t, tt.groupIDs[i], logMessage.GroupId)
+				require.Equal(t, tt.messages[i], logMessage.Message)
+				require.Equal(t, tt.sequenceIDs[i], logMessage.SequenceId)
+				require.NotNil(t, logMessage.Raw.TxHash)
+			}
 		})
 	}
 }

@@ -259,6 +259,11 @@ func (m *Migrator) migrationWorker(tableName string) {
 				return
 			}
 
+			lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
+			if err != nil {
+				logger.Fatal("failed to get migration progress", zap.Error(err))
+			}
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -266,17 +271,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 					return
 
 				case <-ticker.C:
-					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
-					if err != nil {
-						if ctx.Err() != nil {
-							logger.Info("context cancelled, stopping")
-							return
-						}
-
-						logger.Error("failed to get migration progress", zap.Error(err))
-						continue
-					}
-
 					logger.Debug(
 						"getting next batch of records",
 						zap.Int64("lastMigratedID", lastMigratedID),
@@ -316,6 +310,10 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 						continue
 					}
+
+					// Update migration progress only when we have a batch of records.
+					// newLastID would be 0 if there are currently no more records to migrate.
+					lastMigratedID = newLastID
 
 					logger.Debug(
 						"fetched batch of records",

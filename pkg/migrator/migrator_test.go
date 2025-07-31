@@ -16,14 +16,16 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
+// TODO: Check 19 identity updates are published to the blockchain.
+// TODO: Check 9 group messages are published to the blockchain.
+
 const (
-	// Note that there must be 18 address_log entries in total.
-	// In the testdata set there are 2 identity updates, updating the same inboxID.
-	// Check rows 6 and 7 in testdata/inbox_log.csv
-	addressLogAmount     int64 = 18
-	groupMessageAmount   int64 = 19
-	groupMessageLastID   int64 = 19
-	inboxLogAmount       int64 = 19
+	// 19 total group messages: 10 non-commit, 9 commit.
+	groupMessageAmount int64 = 10
+	groupMessageLastID int64 = 19
+
+	// Identity updates shouldn't be inserted in database.
+	inboxLogAmount       int64 = 0
 	inboxLogLastID       int64 = 19
 	welcomeMessageAmount int64 = 19
 	welcomeMessageLastID int64 = 19
@@ -87,13 +89,13 @@ func TestMigrator(t *testing.T) {
 
 	require.NoError(t, test.migrator.Start())
 
-	<-time.After(5 * time.Second)
+	// Publishing to the blockchain takes time.
+	<-time.After(10 * time.Second)
 
 	checkMigrationTrackerState(t, test.ctx, test.db)
 	checkGatewayEnvelopesLastID(t, test.ctx, test.db)
 	checkGatewayEnvelopesMigratedAmount(t, test.ctx, test.db)
 	checkGatewayEnvelopesAreUnique(t, test.ctx, test.db)
-	checkAddressLogAmount(t, test.ctx, test.db)
 
 	require.NoError(t, test.migrator.Stop())
 }
@@ -137,13 +139,6 @@ func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) 
 		ctx,
 		db,
 		int32(migrator.GroupMessageOriginatorID),
-	))
-
-	require.Equal(t, inboxLogLastID, getGatewayEnvelopesLastSequenceID(
-		t,
-		ctx,
-		db,
-		int32(migrator.InboxLogOriginatorID),
 	))
 
 	require.Equal(t, welcomeMessageLastID, getGatewayEnvelopesLastSequenceID(
@@ -219,18 +214,6 @@ func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.D
 		db,
 		int32(migrator.KeyPackagesOriginatorID),
 	))
-}
-
-func checkAddressLogAmount(t *testing.T, ctx context.Context, db *sql.DB) {
-	var (
-		count int64
-		query = `SELECT COUNT(*)::BIGINT FROM address_log`
-	)
-
-	row := db.QueryRowContext(ctx, query)
-	require.NoError(t, row.Scan(&count))
-
-	require.Equal(t, addressLogAmount, count)
 }
 
 func getGatewayEnvelopesLastSequenceID(

@@ -50,7 +50,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 	err = db.RunInTx(
 		m.ctx,
 		m.writer,
-		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
+		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
 			_, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(env.OriginatorNodeID()),
@@ -133,12 +133,6 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			return fmt.Errorf("error converting identifier to group ID: %w", err)
 		}
 
-		m.log.Debug(
-			"publishing group message",
-			zap.ByteString("group_id", groupID[:]),
-			zap.Uint64("sequence_id", sequenceID),
-		)
-
 		log, err := m.blockchainPublisher.BootstrapGroupMessages(
 			m.ctx,
 			[][16]byte{groupID},
@@ -171,7 +165,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 
 		m.log.Debug(
 			"published group message",
-			zap.ByteString("group_id", groupID[:]),
+			zap.String("group_id", utils.HexEncode(groupID[:])),
 			zap.Uint64("sequence_id", sequenceID),
 		)
 
@@ -183,7 +177,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 
 		m.log.Debug(
 			"publishing identity update",
-			zap.ByteString("inbox_id", inboxID[:]),
+			zap.String("inbox_id", utils.HexEncode(inboxID[:])),
 			zap.Uint64("sequence_id", sequenceID),
 		)
 
@@ -219,7 +213,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 
 		m.log.Debug(
 			"published identity update",
-			zap.ByteString("inbox_id", inboxID[:]),
+			zap.String("inbox_id", utils.HexEncode(inboxID[:])),
 			zap.Uint64("sequence_id", sequenceID),
 		)
 	}

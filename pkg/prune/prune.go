@@ -3,7 +3,6 @@ package prune
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -57,28 +56,24 @@ func (e *Executor) Run() error {
 	cyclesCompleted := 0
 
 	for {
-		if cyclesCompleted >= e.config.MaxCycles {
-			e.log.Warn("Reached maximum pruning cycles", zap.Int("maxCycles", e.config.MaxCycles))
-			break
-		}
-
 		rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx, e.config.BatchSize)
 		if err != nil {
 			return err
-		}
-
-		if len(rows) == 0 {
-			break
 		}
 
 		totalDeletionCount = totalDeletionCount + len(rows)
 
 		e.log.Info("Pruned expired envelopes batch", zap.Int("count", len(rows)))
 
-		for _, row := range rows {
-			e.log.Debug(fmt.Sprintf("Pruning expired envelopes batch row: %v", row))
-		}
 		cyclesCompleted++
+
+		if len(rows) < int(e.config.BatchSize) {
+			break
+		}
+		if cyclesCompleted >= e.config.MaxCycles {
+			e.log.Warn("Reached maximum pruning cycles", zap.Int("maxCycles", e.config.MaxCycles))
+			break
+		}
 	}
 
 	if totalDeletionCount == 0 {

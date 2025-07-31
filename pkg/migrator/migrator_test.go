@@ -32,7 +32,7 @@ const (
 	keyPackageAmount     int64 = 19
 	keyPackageLastID     int64 = 19
 
-	redisAddress = "redis://localhost:6379/15"
+	redisAddress = "redis://localhost:6379/14"
 )
 
 type migratorTest struct {

@@ -26,6 +26,8 @@ func ValidateServerOptions(options *ServerOptions) error {
 
 	validateBlockchainConfig(options, missingSet, customSet)
 
+	validateMigrationOptions(options, missingSet, customSet)
+
 	validateField(
 		options.DB.WriterConnectionString,
 		"db.writer-connection-string",
@@ -94,6 +96,53 @@ func ValidatePruneOptions(options PruneOptions) error {
 	}
 
 	return nil
+}
+
+func validateMigrationOptions(
+	opts *ServerOptions,
+	missingSet map[string]struct{},
+	customSet map[string]struct{},
+) {
+	if opts.MigrationServer.Enable && opts.MigrationClient.Enable {
+		missingSet["--migration-server.enable and --migration-client.enable cannot be used together"] = struct{}{}
+	}
+
+	if opts.MigrationServer.Enable {
+		validateField(
+			opts.MigrationServer.PayerPrivateKey,
+			"migration-server.payer-private-key",
+			missingSet,
+		)
+		validateField(
+			opts.MigrationServer.NodeSigningKey,
+			"migration-server.node-signing-key",
+			missingSet,
+		)
+		validateField(
+			opts.MigrationServer.ReaderConnectionString,
+			"migration-server.reader-connection-string",
+			missingSet,
+		)
+		validateField(
+			opts.MigrationServer.ReaderTimeout,
+			"migration-server.reader-timeout",
+			missingSet,
+		)
+		validateField(
+			opts.MigrationServer.Redis.RedisUrl,
+			"migration-server.redis.redis-url",
+			missingSet,
+		)
+		validateAppChainConfig(opts, missingSet, customSet)
+	}
+
+	if opts.MigrationClient.Enable {
+		validateField(
+			opts.MigrationClient.FromNodeID,
+			"migration-client.from-node-id",
+			missingSet,
+		)
+	}
 }
 
 func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {

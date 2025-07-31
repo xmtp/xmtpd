@@ -281,7 +281,8 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 		return nil, fmt.Errorf("failed to sign client envelope: %w", err)
 	}
 
-	retentionDays := uint32(math.MaxUint32)
+	// Lower than MaxUint32 to avoid overflow.
+	retentionDays := uint32(math.MaxInt32)
 
 	switch originatorID {
 	case KeyPackagesOriginatorID, WelcomeMessageOriginatorID:

@@ -15,8 +15,7 @@ type MigrationServerOptions struct {
 	PollInterval           time.Duration `long:"process-interval"         env:"XMTPD_MIGRATION_DB_PROCESS_INTERVAL"         description:"Interval for processing migration"              default:"10s"`
 	Namespace              string        `long:"namespace"                env:"XMTPD_MIGRATION_DB_NAMESPACE"                description:"Namespace for migration"                        default:""`
 
-	Contracts ContractsOptions `group:"Contracts Options"               namespace:"contracts"`
-	Redis     RedisOptions     `group:"Redis Options for nonce manager" namespace:"redis"`
+	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
 }
 
 type MigrationClientOptions struct {

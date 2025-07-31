@@ -31,8 +31,6 @@ const (
 	welcomeMessageLastID int64 = 19
 	keyPackageAmount     int64 = 19
 	keyPackageLastID     int64 = 19
-
-	redisAddress = "redis://localhost:6379/14"
 )
 
 type migratorTest struct {
@@ -67,10 +65,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			WaitForDB:              5 * time.Second,
 			BatchSize:              1000,
 			PollInterval:           500 * time.Millisecond,
-			Redis: config.RedisOptions{
-				RedisUrl: redisAddress,
-			},
-			Contracts: chainConfig,
+			Contracts:              chainConfig,
 		}),
 	)
 	require.NoError(t, err)

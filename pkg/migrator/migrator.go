@@ -161,12 +161,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
 
-	nonceManager, err := setupNonceManager(cfg.ctx, logger, cfg.options)
-	if err != nil {
-		return nil, err
-	}
-
-	blockchainPublisher, err := setupBlockchainPublisher(cfg.ctx, logger, cfg.options, nonceManager)
+	blockchainPublisher, err := setupBlockchainPublisher(cfg.ctx, logger, cfg.db, cfg.options)
 	if err != nil {
 		return nil, err
 	}

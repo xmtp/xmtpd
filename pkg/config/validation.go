@@ -128,11 +128,6 @@ func validateMigrationOptions(
 			"migration-server.reader-timeout",
 			missingSet,
 		)
-		validateField(
-			opts.MigrationServer.Redis.RedisUrl,
-			"migration-server.redis.redis-url",
-			missingSet,
-		)
 		validateAppChainConfig(opts, missingSet, customSet)
 	}
 

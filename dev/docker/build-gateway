@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -euo pipefail
+
+error() {
+  echo "Error: $1" >&2
+  exit 1
+}
+
+# Get the directory where the script is located
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+
+TOP_LEVEL_DIR=$(realpath "${SCRIPT_DIR}/../.." 2>/dev/null) || error "Failed to resolve top-level directory"
+
+[ -d "$TOP_LEVEL_DIR" ] || error "Top level directory not found: $TOP_LEVEL_DIR"
+
+cd "$TOP_LEVEL_DIR" || error "Failed to change to top level directory"
+
+DOCKER_IMAGE_TAG="${DOCKER_IMAGE_TAG:-dev}"
+DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-ghcr.io/xmtp/xmtpd-gateway}"
+VERSION="$(git describe HEAD --tags --long)"
+
+docker buildx build \
+    --build-arg="VERSION=${VERSION}" \
+    --tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
+    -f dev/docker/gateway.Dockerfile \
+    .

@@ -14,7 +14,6 @@ func TestXDBGRealMLSPayloads(t *testing.T) {
 		WithImage("ghcr.io/xmtp/xmtpd:dev").
 		WithNetwork(network).
 		Build(t)
-
 	require.NoError(t, err)
 
 	name, err := xmtpdContainer.Name(t.Context())
@@ -22,9 +21,21 @@ func TestXDBGRealMLSPayloads(t *testing.T) {
 
 	target := fmt.Sprintf("http:/%s:5050", name)
 
+	gatewayContainer, err := NewXmtpdGatewayContainerBuilder(t).
+		WithImage("ghcr.io/xmtp/xmtpd-gateway:dev").
+		WithNetwork(network).
+		Build(t)
+	require.NoError(t, err)
+
+	gatewayName, err := gatewayContainer.Name(t.Context())
+	require.NoError(t, err)
+
+	gatewayTarget := fmt.Sprintf("http:/%s:5050", gatewayName)
+
 	err = NewXdbgContainerBuilder().
 		WithNetwork(network).
 		WithTarget(target).
+		WithGatewayTarget(gatewayTarget).
 		WithGeneratorType(GeneratorTypeIdentity).
 		WithCount(10).
 		Build(t)
@@ -33,6 +44,7 @@ func TestXDBGRealMLSPayloads(t *testing.T) {
 	err = NewXdbgContainerBuilder().
 		WithNetwork(network).
 		WithTarget(target).
+		WithGatewayTarget(gatewayTarget).
 		WithGeneratorType(GeneratorTypeGroup).
 		WithCount(10).
 		Build(t)
@@ -41,6 +53,7 @@ func TestXDBGRealMLSPayloads(t *testing.T) {
 	err = NewXdbgContainerBuilder().
 		WithNetwork(network).
 		WithTarget(target).
+		WithGatewayTarget(gatewayTarget).
 		WithGeneratorType(GeneratorTypeMessage).
 		WithCount(10).
 		Build(t)

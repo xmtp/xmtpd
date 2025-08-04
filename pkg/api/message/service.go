@@ -616,7 +616,15 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 		lastSeenCursor := s.cu.GetCursor()
 		for nodeId, seqId := range aad.GetDependsOn().NodeIdToSequenceId {
 			lastSeqId, exists := lastSeenCursor.NodeIdToSequenceId[nodeId]
-			if !exists {
+			if nodeId >= 100 {
+				// The failure scenarios of non-commits are different from the blockchain path
+				// and as such should be prevented
+				return status.Errorf(
+					codes.InvalidArgument,
+					"node ID %d specified in DependsOn is not a valid node ID. A message can not depend on a non-commit.",
+					nodeId,
+				)
+			} else if !exists {
 				return status.Errorf(codes.InvalidArgument,
 					"node ID %d specified in DependsOn has not been seen by this node",
 					nodeId,

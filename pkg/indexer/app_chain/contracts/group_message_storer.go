@@ -82,7 +82,11 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewNonRecoverableError(ErrTopicDoesNotMatch, errors.New(ErrTopicDoesNotMatch))
 	}
 
-	originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Message)
+	originatorEnvelope, err := buildOriginatorEnvelope(
+		GROUP_MESSAGE_ORIGINATOR_ID,
+		msgSent.SequenceId,
+		msgSent.Message,
+	)
 	if err != nil {
 		s.logger.Error(ErrBuildOriginatorEnvelope, zap.Error(err))
 		return re.NewNonRecoverableError(ErrBuildOriginatorEnvelope, err)

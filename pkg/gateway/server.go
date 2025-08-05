@@ -57,6 +57,7 @@ func (s *gatewayServiceImpl) WaitForShutdown() {
 	timeout := 5 * time.Second
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
-	<-termChannel
+	sig := <-termChannel
+	s.log.Info("Received OS signal, shutting down", zap.String("signal", sig.String()))
 	_ = s.Shutdown(timeout)
 }

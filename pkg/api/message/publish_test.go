@@ -265,12 +265,29 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 		envelopeTestUtils.DefaultClientEnvelopeNodeId,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
-				1600: 1,
+				97: 1,
 			},
 		},
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "DependsOn has not been seen by this node")
+}
+
+func TestPublishEnvelolopeDependsOnOriginator(t *testing.T) {
+	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+
+	err := publishPayerEnvelopeWithNodeIDAndCursor(
+		t,
+		api,
+		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		&envelopes.Cursor{
+			NodeIdToSequenceId: map[uint32]uint64{
+				100: 1,
+			},
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "A message can not depend on a non-commit")
 }
 
 func TestPublishEnvelopeFees(t *testing.T) {

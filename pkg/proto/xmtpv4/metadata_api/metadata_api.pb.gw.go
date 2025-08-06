@@ -104,6 +104,32 @@ func local_request_MetadataApi_GetVersion_0(ctx context.Context, marshaler runti
 
 }
 
+func request_MetadataApi_GetPayerInfo_0(ctx context.Context, marshaler runtime.Marshaler, client MetadataApiClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetPayerInfoRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetPayerInfo(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MetadataApi_GetPayerInfo_0(ctx context.Context, marshaler runtime.Marshaler, server MetadataApiServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetPayerInfoRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetPayerInfo(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 // RegisterMetadataApiHandlerServer registers the http handlers for service MetadataApi to "mux".
 // UnaryRPC     :call MetadataApiServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
@@ -164,6 +190,31 @@ func RegisterMetadataApiHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		}
 
 		forward_MetadataApi_GetVersion_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_MetadataApi_GetPayerInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/xmtp.xmtpv4.metadata_api.MetadataApi/GetPayerInfo", runtime.WithHTTPPathPattern("/mls/v2/metadata/get-payer-info"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_MetadataApi_GetPayerInfo_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MetadataApi_GetPayerInfo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -274,6 +325,28 @@ func RegisterMetadataApiHandlerClient(ctx context.Context, mux *runtime.ServeMux
 
 	})
 
+	mux.Handle("POST", pattern_MetadataApi_GetPayerInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/xmtp.xmtpv4.metadata_api.MetadataApi/GetPayerInfo", runtime.WithHTTPPathPattern("/mls/v2/metadata/get-payer-info"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_MetadataApi_GetPayerInfo_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MetadataApi_GetPayerInfo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -283,6 +356,8 @@ var (
 	pattern_MetadataApi_SubscribeSyncCursor_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"mls", "v2", "metadata", "subscribe-sync-cursor"}, ""))
 
 	pattern_MetadataApi_GetVersion_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"mls", "v2", "metadata", "version"}, ""))
+
+	pattern_MetadataApi_GetPayerInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"mls", "v2", "metadata", "get-payer-info"}, ""))
 )
 
 var (
@@ -291,4 +366,6 @@ var (
 	forward_MetadataApi_SubscribeSyncCursor_0 = runtime.ForwardResponseStream
 
 	forward_MetadataApi_GetVersion_0 = runtime.ForwardResponseMessage
+
+	forward_MetadataApi_GetPayerInfo_0 = runtime.ForwardResponseMessage
 )

@@ -149,6 +149,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 			OriginatorID:      originatorID,
 			MinutesSinceEpoch: utils.MinutesSinceEpoch(originatorTime),
 			SpendPicodollars:  int64(ourFeeCalculation),
+			MessageCount:      1,
 		},
 	)
 

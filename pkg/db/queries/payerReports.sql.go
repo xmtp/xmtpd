@@ -309,6 +309,72 @@ func (q *Queries) GetLastSequenceIDForOriginatorMinute(ctx context.Context, arg 
 	return last_sequence_id, err
 }
 
+const getPayerByAddress = `-- name: GetPayerByAddress :one
+SELECT id
+FROM payers
+WHERE address = $1
+`
+
+func (q *Queries) GetPayerByAddress(ctx context.Context, address string) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getPayerByAddress, address)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getPayerInfoReport = `-- name: GetPayerInfoReport :many
+SELECT EXTRACT(
+		EPOCH
+		FROM DATE_TRUNC(
+				CASE
+					WHEN $1 = 'hour' THEN 'hour'
+					ELSE 'day'
+				END,
+				TO_TIMESTAMP(minutes_since_epoch * 60)
+			)
+	)::BIGINT AS time_period,
+	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
+	COALESCE(SUM(message_count), 0)::INTEGER AS total_message_count
+FROM unsettled_usage
+WHERE payer_id = $2
+GROUP BY time_period
+ORDER BY time_period
+`
+
+type GetPayerInfoReportParams struct {
+	GroupBy interface{}
+	PayerID int32
+}
+
+type GetPayerInfoReportRow struct {
+	TimePeriod            int64
+	TotalSpendPicodollars int64
+	TotalMessageCount     int32
+}
+
+func (q *Queries) GetPayerInfoReport(ctx context.Context, arg GetPayerInfoReportParams) ([]GetPayerInfoReportRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPayerInfoReport, arg.GroupBy, arg.PayerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPayerInfoReportRow
+	for rows.Next() {
+		var i GetPayerInfoReportRow
+		if err := rows.Scan(&i.TimePeriod, &i.TotalSpendPicodollars, &i.TotalMessageCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPayerUnsettledUsage = `-- name: GetPayerUnsettledUsage :one
 SELECT COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
 	COALESCE(MAX(last_sequence_id), 0)::BIGINT AS last_sequence_id
@@ -382,17 +448,20 @@ INSERT INTO unsettled_usage(
 		originator_id,
 		minutes_since_epoch,
 		spend_picodollars,
-		last_sequence_id
+		last_sequence_id,
+		message_count
 	)
 VALUES (
 		$1,
 		$2,
 		$3,
 		$4,
-		$5
+		$5,
+		$6
 	) ON CONFLICT (payer_id, originator_id, minutes_since_epoch) DO
 UPDATE
 SET spend_picodollars = unsettled_usage.spend_picodollars + $4,
+	message_count = unsettled_usage.message_count + $6,
 	last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, $5)
 `
 
@@ -402,6 +471,7 @@ type IncrementUnsettledUsageParams struct {
 	MinutesSinceEpoch int32
 	SpendPicodollars  int64
 	SequenceID        int64
+	MessageCount      int32
 }
 
 func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnsettledUsageParams) error {
@@ -411,6 +481,7 @@ func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnse
 		arg.MinutesSinceEpoch,
 		arg.SpendPicodollars,
 		arg.SequenceID,
+		arg.MessageCount,
 	)
 	return err
 }

@@ -332,6 +332,7 @@ func startAPIServer(
 				cfg.Log,
 				s.cursorUpdater,
 				cfg.ServerVersion,
+				metadata.NewPayerInfoFetcher(cfg.DB),
 			)
 			if err != nil {
 				return err

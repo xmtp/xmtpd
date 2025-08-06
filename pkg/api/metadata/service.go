@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -15,10 +16,11 @@ import (
 
 type Service struct {
 	metadata_api.UnimplementedMetadataApiServer
-	ctx     context.Context
-	log     *zap.Logger
-	cu      CursorUpdater
-	version *semver.Version
+	ctx              context.Context
+	log              *zap.Logger
+	cu               CursorUpdater
+	version          *semver.Version
+	payerInfoFetcher IPayerInfoFetcher
 }
 
 func NewMetadataApiService(
@@ -26,12 +28,14 @@ func NewMetadataApiService(
 	log *zap.Logger,
 	updater CursorUpdater,
 	version *semver.Version,
+	payerInfoFetcher IPayerInfoFetcher,
 ) (*Service, error) {
 	return &Service{
-		ctx:     ctx,
-		log:     log,
-		cu:      updater,
-		version: version,
+		ctx:              ctx,
+		log:              log,
+		cu:               updater,
+		version:          version,
+		payerInfoFetcher: payerInfoFetcher,
 	}, nil
 }
 
@@ -105,4 +109,65 @@ func (s *Service) GetVersion(
 	return &metadata_api.GetVersionResponse{
 		Version: s.version.String(),
 	}, nil
+}
+
+func (s *Service) GetPayerInfo(
+	ctx context.Context,
+	req *metadata_api.GetPayerInfoRequest,
+) (*metadata_api.GetPayerInfoResponse, error) {
+	if len(req.PayerAddresses) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "payer_addresses cannot be empty")
+	}
+
+	// Map the granularity enum to the internal type
+	var groupBy PayerInfoGroupBy
+	switch req.Granularity {
+	case metadata_api.PayerInfoGranularity_PAYER_INFO_GRANULARITY_HOUR:
+		groupBy = PayerInfoGroupByHour
+	case metadata_api.PayerInfoGranularity_PAYER_INFO_GRANULARITY_DAY:
+		groupBy = PayerInfoGroupByDay
+	default:
+		// Default to hour granularity if unspecified
+		groupBy = PayerInfoGroupByHour
+	}
+
+	// Initialize response
+	response := &metadata_api.GetPayerInfoResponse{
+		PayerInfo: make(map[string]*metadata_api.GetPayerInfoResponse_PayerInfo),
+	}
+
+	// Look up each payer address and fetch their info
+	for _, address := range req.PayerAddresses {
+		// Look up payer ID from the database
+		payerID, err := s.payerInfoFetcher.GetPayerByAddress(ctx, address)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, status.Errorf(codes.NotFound, "payer address not found: %s", address)
+			}
+			s.log.Error("failed to find payer", zap.String("address", address), zap.Error(err))
+			return nil, status.Errorf(codes.Internal, "failed to look up payer")
+		}
+
+		// Fetch payer info from the fetcher
+		payerInfo, err := s.payerInfoFetcher.GetPayerInfo(
+			ctx,
+			payerID,
+			groupBy,
+		)
+		if err != nil {
+			s.log.Error("failed to get payer info",
+				zap.String("address", address),
+				zap.Int32("payerID", payerID),
+				zap.Error(err))
+			return nil, status.Errorf(
+				codes.Internal,
+				"failed to get payer info for address: %s",
+				address,
+			)
+		}
+
+		response.PayerInfo[address] = payerInfo
+	}
+
+	return response, nil
 }

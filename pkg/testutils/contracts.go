@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -165,6 +166,165 @@ func BuildPayerReportSubmittedEvent(
 			originatorNodeIDHash,
 			payerReportIndexHash,
 			endSequenceIDHash,
+		},
+		Data: data,
+	}
+}
+
+func BuildPayerRegistryWithdrawalRequestedLog(
+	t *testing.T,
+	payer common.Address,
+	amount *big.Int,
+	withdrawableTimestamp uint32,
+) types.Log {
+	prabi, err := pr.PayerRegistryMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic0, err := utils.GetEventTopic(prabi, "WithdrawalRequested")
+	require.NoError(t, err)
+
+	inputs := prabi.Events["WithdrawalRequested"].Inputs
+	var nonIndexed abi.Arguments
+	for _, input := range inputs {
+		if !input.Indexed {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	topic1 := common.BytesToHash(payer.Bytes()) // indexed address payer
+
+	data, err := nonIndexed.Pack(amount, withdrawableTimestamp)
+	require.NoError(t, err)
+
+	return types.Log{
+		Topics: []common.Hash{
+			topic0, // event signature
+			topic1, // payer
+		},
+		Data: data,
+	}
+}
+
+func BuildPayerRegistryDepositLog(
+	t *testing.T,
+	payer common.Address,
+	amount *big.Int,
+) types.Log {
+	prabi, err := pr.PayerRegistryMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic0, err := utils.GetEventTopic(prabi, "Deposit")
+	require.NoError(t, err)
+
+	inputs := prabi.Events["Deposit"].Inputs
+	var nonIndexed abi.Arguments
+	for _, input := range inputs {
+		if !input.Indexed {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	topic1 := common.BytesToHash(payer.Bytes()) // indexed address payer
+
+	data, err := nonIndexed.Pack(amount)
+	require.NoError(t, err)
+
+	return types.Log{
+		Topics: []common.Hash{
+			topic0, // event signature
+			topic1, // payer
+		},
+		Data: data,
+	}
+}
+
+func BuildPayerRegistryUsageSettledLog(
+	t *testing.T,
+	payer common.Address,
+	amount *big.Int,
+) types.Log {
+	prabi, err := pr.PayerRegistryMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic0, err := utils.GetEventTopic(prabi, "UsageSettled")
+	require.NoError(t, err)
+
+	inputs := prabi.Events["UsageSettled"].Inputs
+	var nonIndexed abi.Arguments
+	for _, input := range inputs {
+		if !input.Indexed {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	topic1 := common.BytesToHash(payer.Bytes()) // indexed address payer
+
+	data, err := nonIndexed.Pack(amount)
+	require.NoError(t, err)
+
+	return types.Log{
+		Topics: []common.Hash{
+			topic0, // event signature
+			topic1, // payer
+		},
+		Data: data,
+	}
+}
+
+func BuildPayerRegistryWithdrawalCancelledLog(
+	t *testing.T,
+	payer common.Address,
+) types.Log {
+	prabi, err := pr.PayerRegistryMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic0, err := utils.GetEventTopic(prabi, "WithdrawalCancelled")
+	require.NoError(t, err)
+
+	topic1 := common.BytesToHash(payer.Bytes()) // indexed address payer
+
+	return types.Log{
+		Topics: []common.Hash{
+			topic0, // event signature
+			topic1, // payer
+		},
+		Data: []byte{}, // No non-indexed data for this event
+	}
+}
+
+func BuildPayerReportSubsetSettledLog(
+	t *testing.T,
+	originatorNodeID uint32,
+	payerReportIndex uint64,
+	count uint32,
+	remaining uint32,
+	feesSettled *big.Int,
+) types.Log {
+	prmabi, err := prm.PayerReportManagerMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic0, err := utils.GetEventTopic(prmabi, "PayerReportSubsetSettled")
+	require.NoError(t, err)
+
+	inputs := prmabi.Events["PayerReportSubsetSettled"].Inputs
+	var nonIndexed abi.Arguments
+	for _, input := range inputs {
+		if !input.Indexed {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	originatorNodeIDHash := common.BigToHash(big.NewInt(int64(originatorNodeID)))
+	payerReportIndexHash := common.BigToHash(big.NewInt(int64(payerReportIndex)))
+
+	data, err := nonIndexed.Pack(count, remaining, feesSettled)
+	require.NoError(t, err)
+
+	return types.Log{
+		Topics: []common.Hash{
+			topic0,
+			originatorNodeIDHash,
+			payerReportIndexHash,
 		},
 		Data: data,
 	}

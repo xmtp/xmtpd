@@ -9,6 +9,7 @@ import (
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
+	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -66,7 +67,11 @@ func NewPayerRegistry(
 	logger = logger.Named("payer-registry").
 		With(zap.String("contractAddress", address.Hex()))
 
-	payerRegistryStorer, err := NewPayerRegistryStorer(querier, logger, contract)
+	payerRegistryStorer, err := NewPayerRegistryStorer(
+		logger,
+		contract,
+		ledger.NewLedger(logger, querier),
+	)
 	if err != nil {
 		return nil, err
 	}

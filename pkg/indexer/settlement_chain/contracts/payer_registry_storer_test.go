@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -12,104 +13,282 @@ import (
 	"github.com/stretchr/testify/require"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
-	"github.com/xmtp/xmtpd/pkg/utils"
+)
+
+var (
+	ADDRESS_1 = common.HexToAddress("0x1")
+	ADDRESS_2 = common.HexToAddress("0x2")
 )
 
 type payerRegistryStorerTester struct {
+	ctx    context.Context
 	abi    *abi.ABI
 	storer *PayerRegistryStorer
+	ledger ledger.ILedger
 }
 
-func TestStorePayerRegistryErrorNoTopics(t *testing.T) {
-	tester := buildPayerRegistryStorerTester(t)
-
-	err := tester.storer.StoreLog(t.Context(), types.Log{})
-
-	expectedErr := re.NewNonRecoverableError(
-		ErrParsePayerRegistryLog,
-		errors.New("no topics"),
-	)
-
-	require.Error(t, err)
-	require.ErrorAs(t, err, &expectedErr)
+type testCase struct {
+	name          string
+	initialLogs   []types.Log
+	actionLogs    []types.Log
+	validate      func(t *testing.T, tester *payerRegistryStorerTester)
+	expectedError re.RetryableError
 }
 
-func TestStorePayerRegistryErrorUnknownEvent(t *testing.T) {
+// getBalance is a helper function to get balance for an address with errors already checked
+func (st *payerRegistryStorerTester) getBalance(
+	t *testing.T,
+	address common.Address,
+) currency.PicoDollar {
+	payerID, err := st.ledger.FindOrCreatePayer(st.ctx, address)
+	require.NoError(t, err)
+
+	balance, err := st.ledger.GetBalance(st.ctx, payerID)
+	require.NoError(t, err)
+
+	return balance
+}
+
+// setupWithInitialLogs sets up a tester with initial logs already processed
+func setupWithInitialLogs(t *testing.T, logs []types.Log) *payerRegistryStorerTester {
 	tester := buildPayerRegistryStorerTester(t)
 
-	log := types.Log{
-		Topics: []common.Hash{common.HexToHash("UnknownEvent")},
+	for _, log := range logs {
+		err := tester.storer.StoreLog(tester.ctx, log)
+		require.NoError(t, err, "failed to setup initial log")
 	}
 
-	err := tester.storer.StoreLog(t.Context(), log)
-
-	expectedErr := re.NewNonRecoverableError(
-		ErrParsePayerRegistryLog,
-		fmt.Errorf("no event with id: %#x", log.Topics[0].Hex()),
-	)
-
-	require.Error(t, err)
-	require.ErrorAs(t, err, &expectedErr)
+	return tester
 }
 
-func TestStorePayerRegistryErrorUnhandledEvent(t *testing.T) {
-	tester := buildPayerRegistryStorerTester(t)
+// runTestCases executes parameterized test cases
+func runTestCases(t *testing.T, testCases []testCase) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := setupWithInitialLogs(t, tc.initialLogs)
 
-	log := tester.newLog(t, "WithdrawalFinalized")
+			// Execute action logs
+			var lastErr error
+			for _, log := range tc.actionLogs {
+				lastErr = tester.storer.StoreLog(tester.ctx, log)
+				// If we expect an error, we only care about the last one
+				if tc.expectedError != nil {
+					continue
+				}
+				require.NoError(t, lastErr)
+			}
 
-	err := tester.storer.StoreLog(t.Context(), log)
+			// Check expected error
+			if tc.expectedError != nil {
+				require.Error(t, lastErr)
+				require.ErrorAs(t, lastErr, &tc.expectedError)
 
-	expectedErr := re.NewNonRecoverableError(
-		ErrPayerRegistryUnhandledEvent,
-		errors.New("WithdrawalFinalized"),
-	)
+				// Check retryable behavior matches expected
+				if retryableErr, ok := lastErr.(re.RetryableError); ok {
+					expectedRetryable := tc.expectedError.ShouldRetry()
+					actualRetryable := retryableErr.ShouldRetry()
+					require.Equal(t, expectedRetryable, actualRetryable,
+						"expected ShouldRetry()=%v, got %v", expectedRetryable, actualRetryable)
+				} else {
+					t.Fatal("expected error to implement RetryableError interface")
+				}
+			}
 
-	require.Error(t, err)
-	require.ErrorAs(t, err, &expectedErr)
+			if tc.validate != nil {
+				tc.validate(t, tester)
+			}
+		})
+	}
 }
 
-func TestStorePayerRegistryUsageSettled(t *testing.T) {
+func TestPayerRegistryStorer(t *testing.T) {
 	tester := buildPayerRegistryStorerTester(t)
 
-	log := tester.newLog(t, "UsageSettled")
+	testCases := []testCase{
+		// Error cases
+		{
+			name:       "error_no_topics",
+			actionLogs: []types.Log{{}}, // Empty log with no topics
+			expectedError: re.NewNonRecoverableError(
+				ErrParsePayerRegistryLog,
+				errors.New("no topics"),
+			),
+		},
+		{
+			name: "error_unknown_event",
+			actionLogs: []types.Log{{
+				Topics: []common.Hash{common.HexToHash("UnknownEvent")},
+			}},
+			expectedError: re.NewNonRecoverableError(
+				ErrParsePayerRegistryLog,
+				fmt.Errorf("no event with id: %#x", common.HexToHash("UnknownEvent").Hex()),
+			),
+		},
 
-	err := tester.storer.StoreLog(t.Context(), log)
+		// Basic event processing
+		{
+			name: "usage_settled",
+			actionLogs: []types.Log{
+				tester.newUsageSettledLog(t, ADDRESS_1, 10),
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(10)*-1, balance)
+			},
+		},
+		{
+			name: "deposit_single",
+			actionLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 20),
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(20), balance)
+			},
+		},
+		{
+			name: "deposit_multiple",
+			actionLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 10),
+				tester.newDepositLog(t, ADDRESS_1, 20),
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(30), balance)
+			},
+		},
+		{
+			name: "withdrawal_requested",
+			actionLogs: []types.Log{
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 10, 100),
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(10)*-1, balance)
+			},
+		},
 
-	require.NoError(t, err)
+		// Withdrawal cancellation scenarios
+		{
+			name: "withdrawal_cancelled_success",
+			initialLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 50),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 100),
+			},
+			actionLogs: []types.Log{
+				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				balance := tester.getBalance(t, ADDRESS_1)
+				// 50 (deposit) - 20 (withdrawal) + 20 (cancellation) = 50
+				require.Equal(t, currency.FromMicrodollars(50), balance)
+			},
+		},
+		{
+			name: "withdrawal_cancelled_without_prior_withdrawal",
+			actionLogs: []types.Log{
+				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
+			},
+			expectedError: re.NewRecoverableError("error", errors.New("no withdrawal to cancel")),
+		},
+		{
+			name: "multiple_withdrawal_operations",
+			initialLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 100),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 200),
+			},
+			actionLogs: []types.Log{
+				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				balance := tester.getBalance(t, ADDRESS_1)
+				// 100 (deposit) - 30 (first withdrawal) - 20 (second withdrawal) + 20 (cancellation) = 70
+				require.Equal(t, currency.FromMicrodollars(70), balance)
+			},
+		},
+	}
+
+	runTestCases(t, testCases)
 }
 
-func TestStorePayerRegistryDeposit(t *testing.T) {
+func TestStoreLogIdempotency(t *testing.T) {
 	tester := buildPayerRegistryStorerTester(t)
 
-	log := tester.newLog(t, "Deposit")
+	// Create base logs with identical block/tx/index for true duplicates
+	depositLog := tester.newDepositLog(t, ADDRESS_1, 50)
+	withdrawalLog := tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100)
+	usageLog := tester.newUsageSettledLog(t, ADDRESS_1, 25)
+	cancellationLog := tester.newWithdrawalCancelledLog(t, ADDRESS_1)
 
-	err := tester.storer.StoreLog(t.Context(), log)
+	testCases := []testCase{
+		{
+			name: "duplicate_deposit_logs",
+			actionLogs: []types.Log{
+				depositLog,
+				depositLog, // Exact same log
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				// Balance should only reflect one deposit
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(50), balance)
+			},
+		},
+		{
+			name: "duplicate_withdrawal_requested_logs",
+			initialLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 100),
+			},
+			actionLogs: []types.Log{
+				withdrawalLog,
+				withdrawalLog, // Exact same log
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				// Balance should only reflect one withdrawal
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(70), balance) // 100 - 30
+			},
+		},
+		{
+			name: "duplicate_usage_settled_logs",
+			initialLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 100),
+			},
+			actionLogs: []types.Log{
+				usageLog,
+				usageLog, // Exact same log
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				// Balance should only reflect one settlement
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(75), balance) // 100 - 25
+			},
+		},
+		{
+			name: "duplicate_withdrawal_cancelled_logs",
+			initialLogs: []types.Log{
+				tester.newDepositLog(t, ADDRESS_1, 100),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 40, 100),
+			},
+			actionLogs: []types.Log{
+				cancellationLog,
+				cancellationLog, // Exact same log
+			},
+			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
+				// Balance should be fully restored (only one cancellation applied)
+				balance := tester.getBalance(t, ADDRESS_1)
+				require.Equal(t, currency.FromMicrodollars(100), balance) // 100 - 40 + 40
+			},
+		},
+	}
 
-	require.NoError(t, err)
-}
-
-func TestStorePayerRegistryWithdrawalRequested(t *testing.T) {
-	tester := buildPayerRegistryStorerTester(t)
-
-	log := tester.newLog(t, "WithdrawalRequested")
-
-	err := tester.storer.StoreLog(t.Context(), log)
-
-	require.NoError(t, err)
-}
-
-func TestStorePayerRegistryWithdrawalCancelled(t *testing.T) {
-	tester := buildPayerRegistryStorerTester(t)
-
-	log := tester.newLog(t, "WithdrawalCancelled")
-
-	err := tester.storer.StoreLog(t.Context(), log)
-
-	require.NoError(t, err)
+	runTestCases(t, testCases)
 }
 
 func buildPayerRegistryStorerTester(t *testing.T) *payerRegistryStorerTester {
@@ -118,7 +297,6 @@ func buildPayerRegistryStorerTester(t *testing.T) *payerRegistryStorerTester {
 
 	// Dependencies.
 	db, _ := testutils.NewDB(t, ctx)
-	queryImpl := queries.New(db)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
@@ -136,25 +314,78 @@ func buildPayerRegistryStorerTester(t *testing.T) *payerRegistryStorerTester {
 	)
 	require.NoError(t, err)
 
+	payerLedger := ledger.NewLedger(testutils.NewLog(t), queries.New(db))
+
 	// Storer and ABI.
-	storer, err := NewPayerRegistryStorer(queryImpl, testutils.NewLog(t), contract)
+	storer, err := NewPayerRegistryStorer(testutils.NewLog(t), contract, payerLedger)
 	require.NoError(t, err)
 
 	abi, err := pr.PayerRegistryMetaData.GetAbi()
 	require.NoError(t, err)
 
 	return &payerRegistryStorerTester{
+		ctx:    ctx,
 		abi:    abi,
 		storer: storer,
+		ledger: payerLedger,
 	}
 }
 
-// TODO: Placeholder. This will be replaced with newDepositLog, newWithdrawalRequestedLog, etc.
-func (st *payerRegistryStorerTester) newLog(t *testing.T, event string) types.Log {
-	topic, err := utils.GetEventTopic(st.abi, event)
-	require.NoError(t, err)
+func setLogFields(log *types.Log, blocknumber int, logIndex int, txHash common.Hash) {
+	log.BlockNumber = uint64(blocknumber)
+	log.Index = uint(logIndex)
+	log.TxHash = txHash
+}
 
-	return types.Log{
-		Topics: []common.Hash{topic},
-	}
+func (st *payerRegistryStorerTester) newUsageSettledLog(
+	t *testing.T,
+	payerAddress common.Address,
+	amount int64,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryUsageSettledLog(
+		t,
+		payerAddress,
+		big.NewInt(int64(amount)),
+	)
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
+}
+
+func (st *payerRegistryStorerTester) newDepositLog(
+	t *testing.T,
+	payerAddress common.Address,
+	amount int64,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryDepositLog(t, payerAddress, big.NewInt(int64(amount)))
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
+}
+
+func (st *payerRegistryStorerTester) newWithdrawalRequestedLog(
+	t *testing.T,
+	payerAddress common.Address,
+	amount int64,
+	withdrawableTimestamp uint32,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryWithdrawalRequestedLog(
+		t,
+		payerAddress,
+		big.NewInt(int64(amount)),
+		withdrawableTimestamp,
+	)
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
+}
+
+func (st *payerRegistryStorerTester) newWithdrawalCancelledLog(
+	t *testing.T,
+	payerAddress common.Address,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryWithdrawalCancelledLog(t, payerAddress)
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
 }

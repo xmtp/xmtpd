@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"go.uber.org/zap"
@@ -140,6 +141,13 @@ func (l *Ledger) SettleUsage(
 		AmountPicodollars: int64(amount) * -1,
 		EventType:         int16(EVENT_TYPE_SETTLEMENT),
 	})
+}
+
+func (l *Ledger) FindOrCreatePayer(
+	ctx context.Context,
+	payerAddress common.Address,
+) (int32, error) {
+	return l.queries.FindOrCreatePayer(ctx, payerAddress.Hex())
 }
 
 func validateAmount(amount currency.PicoDollar) error {

@@ -34,7 +34,7 @@ type PayerReportManagerStorer struct {
 	abi             *abi.ABI
 	store           payerreport.IPayerReportStore
 	logger          *zap.Logger
-	contract        *p.PayerReportManager
+	contract        PayerReportManagerContract
 	domainSeparator common.Hash
 }
 
@@ -43,7 +43,7 @@ var _ c.ILogStorer = &PayerReportManagerStorer{}
 func NewPayerReportManagerStorer(
 	db *sql.DB,
 	logger *zap.Logger,
-	contract *p.PayerReportManager,
+	contract PayerReportManagerContract,
 ) (*PayerReportManagerStorer, error) {
 	abi, err := p.PayerReportManagerMetaData.GetAbi()
 	if err != nil {
@@ -105,8 +105,27 @@ func (s *PayerReportManagerStorer) StoreLog(
 			return re.NewNonRecoverableError(ErrParsePayerReportManagerLog, err)
 		}
 
-		if err := s.setReportSettled(ctx, parsedEvent); err != nil {
-			return err
+		// Only mark report as settled when all payers have been processed (remaining == 0)
+		if parsedEvent.Remaining == 0 {
+			if err := s.setReportSettled(ctx, parsedEvent); err != nil {
+				return err
+			}
+			s.logger.Info(
+				"Payer report fully settled",
+				zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
+				zap.String("payerReportIndex", parsedEvent.PayerReportIndex.String()),
+				zap.Uint32("count", parsedEvent.Count),
+				zap.String("feesSettled", parsedEvent.FeesSettled.String()),
+			)
+		} else {
+			s.logger.Info(
+				"Payer report partially settled",
+				zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
+				zap.String("payerReportIndex", parsedEvent.PayerReportIndex.String()),
+				zap.Uint32("count", parsedEvent.Count),
+				zap.Uint32("remaining", parsedEvent.Remaining),
+				zap.String("feesSettled", parsedEvent.FeesSettled.String()),
+			)
 		}
 	default:
 		s.logger.Info("Unknown event", zap.String("event", event.Name))

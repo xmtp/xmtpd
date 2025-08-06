@@ -50,3 +50,6 @@ packages:
   github.com/xmtp/xmtpd/pkg/indexer/storer:
     interfaces:
       RetryableError:
+  github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts:
+    interfaces:
+      PayerReportManagerContract:

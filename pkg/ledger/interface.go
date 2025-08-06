@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
 )
 
@@ -33,4 +34,5 @@ type ILedger interface {
 	) error
 	// Get the balance for a payer from the settled usage ledger
 	GetBalance(ctx context.Context, payerID int32) (currency.PicoDollar, error)
+	FindOrCreatePayer(ctx context.Context, payerAddress common.Address) (int32, error)
 }

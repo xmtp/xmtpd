@@ -69,6 +69,14 @@ type Payer struct {
 	Address string
 }
 
+type PayerLedgerEvent struct {
+	EventID           []byte
+	PayerID           int32
+	AmountPicodollars int64
+	EventType         int16
+	CreatedAt         time.Time
+}
+
 type PayerReport struct {
 	ID                  []byte
 	OriginatorNodeID    int32

@@ -5,8 +5,10 @@ script_dir=$(dirname "$(realpath "$0")")
 repo_root=$(realpath "${script_dir}/../../")
 cd "${repo_root}"
 
+GEN_PROTO_BRANCH="${GEN_PROTO_BRANCH:-main}"
+
 rm -rf pkg/proto/**/*.pb.go pkg/proto/**/*.pb.gw.go pkg/proto/**/*.swagger.json
-if ! go tool -modfile=tools/go.mod buf generate https://github.com/xmtp/proto.git#subdir=proto,branch=main; then
+if ! go tool -modfile=tools/go.mod buf generate "https://github.com/xmtp/proto.git#subdir=proto,branch=${GEN_PROTO_BRANCH}"; then
     echo "Failed to generate protobuf definitions"
     exit 1
 fi

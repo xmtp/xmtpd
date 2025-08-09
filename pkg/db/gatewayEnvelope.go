@@ -37,6 +37,10 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			if incrementParams.SequenceID == 0 {
 				incrementParams.SequenceID = insertParams.OriginatorSequenceID
 			}
+			// In this case, the message count is always 1
+			if incrementParams.MessageCount == 0 {
+				incrementParams.MessageCount = 1
+			}
 
 			wg.Add(2)
 

@@ -3,7 +3,6 @@ package migrator
 import (
 	"context"
 	"database/sql"
-	"net"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	sqlmgr "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
@@ -27,12 +26,9 @@ func setupBlockchainPublisher(
 		return nil, err
 	}
 
-	appChainClient, err := blockchain.NewClient(
+	appChainClient, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(cfg.Contracts.AppChain.WssURL),
-		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
-			Enable: false,
-		}),
+		cfg.Contracts.AppChain.RPCURL,
 	)
 	if err != nil {
 		return nil, err

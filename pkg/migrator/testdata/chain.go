@@ -25,8 +25,8 @@ const (
 )
 
 func NewMigratorBlockchain(t *testing.T) config.ContractsOptions {
-	wsURL := anvil.StartAnvil(t, false)
-	cfg := testutils.NewContractsOptions(t, wsURL)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	cfg := testutils.NewContractsOptions(t, wsURL, rpcURL)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		PayerPrivateKeyString,

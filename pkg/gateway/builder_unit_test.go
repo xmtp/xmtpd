@@ -20,14 +20,14 @@ import (
 // Using mockery-generated mocks from pkg/mocks
 
 func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
-	wsUrl := anvil.StartAnvil(t, false)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	return &config.GatewayConfig{
 		Payer: testutils.GetPayerOptions(t),
 		API: config.ApiOptions{
 			Port:     0,
 			HTTPPort: 0,
 		},
-		Contracts: testutils.NewContractsOptions(t, wsUrl),
+		Contracts: testutils.NewContractsOptions(t, wsURL, rpcURL),
 		Log: config.LogOptions{
 			LogEncoding: "console",
 			LogLevel:    "info",

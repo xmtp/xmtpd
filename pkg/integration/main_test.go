@@ -22,6 +22,15 @@ func setup() {
 	}
 	fmt.Printf("    ✔ Dev image built in %v\n", time.Since(imageStart))
 
+	fmt.Println("    ⧖ Building gateway dev image... This may take a while.")
+	imageStart = time.Now()
+	err = buildGatewayDevImage()
+	if err != nil {
+		fmt.Printf("    Error building gateway dev image: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("    ✔ Gateway Dev image built in %v\n", time.Since(imageStart))
+
 	pullStart := time.Now()
 	for _, version := range xmtpdVersions {
 		image := fmt.Sprintf("%s:%s", ghcrRepository, version)

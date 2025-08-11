@@ -3,6 +3,8 @@ package utils
 import (
 	"errors"
 	"math"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var ErrSliceNot32Bytes = errors.New("slice must be 32 bytes long")
@@ -36,4 +38,10 @@ func Int32SliceToUint32Slice(slice []int32) []uint32 {
 	}
 
 	return uintSlice
+}
+
+func AddressTo32Slice(addr common.Address) [32]byte {
+	var result [32]byte
+	copy(result[32-len(addr.Bytes()):], addr.Bytes())
+	return result
 }

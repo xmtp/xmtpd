@@ -16,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
@@ -29,20 +30,18 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
-	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer"
+	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/sync"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 type ReplicationServerConfig struct {
@@ -119,6 +118,7 @@ type ReplicationServer struct {
 	syncServer          *sync.SyncServer
 	cursorUpdater       metadata.CursorUpdater
 	blockchainPublisher *blockchain.BlockchainPublisher
+	migratorServer      *migrator.Migrator
 }
 
 type ReplicationServerOption func(*ReplicationServerConfig)
@@ -240,6 +240,25 @@ func NewReplicationServer(
 		cfg.Log.Info("Indexer service enabled")
 	}
 
+	if cfg.Options.MigrationServer.Enable {
+		s.migratorServer, err = migrator.NewMigrationService(
+			migrator.WithContext(cfg.Ctx),
+			migrator.WithLogger(cfg.Log),
+			migrator.WithDestinationDB(cfg.DB),
+			migrator.WithMigratorConfig(&cfg.Options.MigrationServer),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = s.migratorServer.Start()
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.Log.Info("Migration service enabled")
+	}
+
 	err = startAPIServer(
 		s,
 		cfg,
@@ -322,59 +341,6 @@ func startAPIServer(
 			cfg.Log.Info("Metadata service enabled")
 		}
 
-		if cfg.Options.Payer.Enable {
-			payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.Options.Payer.PrivateKey)
-			if err != nil {
-				return err
-			}
-
-			signer, err := blockchain.NewPrivateKeySigner(
-				cfg.Options.Payer.PrivateKey,
-				cfg.Options.Contracts.AppChain.ChainID,
-			)
-			if err != nil {
-				cfg.Log.Fatal("initializing signer", zap.Error(err))
-			}
-
-			appChainClient, err := blockchain.NewRPCClient(
-				s.ctx,
-				cfg.Options.Contracts.AppChain.RPCURL,
-			)
-			if err != nil {
-				cfg.Log.Fatal("initializing blockchain client", zap.Error(err))
-			}
-
-			nonceManager := blockchain.NewSQLBackedNonceManager(cfg.DB, cfg.Log)
-
-			blockchainPublisher, err := blockchain.NewBlockchainPublisher(
-				s.ctx,
-				cfg.Log,
-				appChainClient,
-				signer,
-				cfg.Options.Contracts,
-				nonceManager,
-			)
-			if err != nil {
-				cfg.Log.Fatal("initializing message publisher", zap.Error(err))
-			}
-
-			payerService, err := payer.NewPayerApiService(
-				s.ctx,
-				cfg.Log,
-				s.nodeRegistry,
-				payerPrivateKey,
-				blockchainPublisher,
-				nil,
-				clientMetrics,
-			)
-			if err != nil {
-				return err
-			}
-			payer_api.RegisterPayerApiServer(grpcServer, payerService)
-
-			cfg.Log.Info("Payer service enabled")
-		}
-
 		return nil
 	}
 
@@ -386,13 +352,6 @@ func startAPIServer(
 			}
 
 			err = message_api.RegisterReplicationApiHandler(s.ctx, gwmux, conn)
-			if err != nil {
-				return err
-			}
-		}
-
-		if cfg.Options.Payer.Enable {
-			err = payer_api.RegisterPayerApiHandler(s.ctx, gwmux, conn)
 			if err != nil {
 				return err
 			}
@@ -414,17 +373,27 @@ func startAPIServer(
 		}
 	}
 
-	s.apiServer, err = api.NewAPIServer(
+	apiOpts := []api.ApiServerOption{
 		api.WithContext(s.ctx),
 		api.WithLogger(cfg.Log),
 		api.WithGRPCListener(cfg.GRPCListener),
 		api.WithHTTPListener(cfg.HTTPListener),
-		api.WithJWTVerifier(jwtVerifier),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithReflection(cfg.Options.Reflection.Enable),
 		api.WithPrometheusRegistry(promReg),
-	)
+	}
+
+	// Add auth interceptors if JWT verifier is available
+	if jwtVerifier != nil {
+		authInterceptor := server.NewAuthInterceptor(jwtVerifier, cfg.Log)
+		apiOpts = append(apiOpts,
+			api.WithUnaryInterceptors(authInterceptor.Unary()),
+			api.WithStreamInterceptors(authInterceptor.Stream()),
+		)
+	}
+
+	s.apiServer, err = api.NewAPIServer(apiOpts...)
 	if err != nil {
 		return err
 	}
@@ -470,6 +439,12 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 	}
 	if s.apiServer != nil {
 		s.apiServer.Close(timeout)
+	}
+
+	if s.migratorServer != nil {
+		if err := s.migratorServer.Stop(); err != nil {
+			s.log.Error("failed to stop migration service", zap.Error(err))
+		}
 	}
 
 	s.cancel()

@@ -168,7 +168,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 				}
 			}
 
-			originatorEnvelope, err := buildOriginatorEnvelope(msgSent.SequenceId, msgSent.Update)
+			originatorEnvelope, err := buildOriginatorEnvelope(
+				IDENTITY_UPDATE_ORIGINATOR_ID,
+				msgSent.SequenceId,
+				msgSent.Update,
+			)
 			if err != nil {
 				s.logger.Error(ErrBuildOriginatorEnvelope, zap.Error(err))
 				return re.NewNonRecoverableError(ErrBuildOriginatorEnvelope, err)
@@ -248,6 +252,7 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 }
 
 func buildOriginatorEnvelope(
+	originatorId uint32,
 	sequenceId uint64,
 	clientEnvelopeBytes []byte,
 ) (*envelopesProto.UnsignedOriginatorEnvelope, error) {
@@ -260,7 +265,7 @@ func buildOriginatorEnvelope(
 	}
 
 	return &envelopesProto.UnsignedOriginatorEnvelope{
-		OriginatorNodeId:     IDENTITY_UPDATE_ORIGINATOR_ID,
+		OriginatorNodeId:     originatorId,
 		OriginatorSequenceId: sequenceId,
 		OriginatorNs:         time.Now().UnixNano(),
 		PayerEnvelopeBytes:   payerEnvelopeBytes,

@@ -101,6 +101,13 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	getInboxIdResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
 	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxID[:]))
+
+	envelope := envelopesTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+		t,
+		deserializedEnvelope.UnsignedOriginatorEnvelope,
+	)
+
+	require.EqualValues(t, IDENTITY_UPDATE_ORIGINATOR_ID, envelope.OriginatorNodeId)
 }
 
 func TestStoreSequential(t *testing.T) {

@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -101,10 +101,10 @@ func (r *RatesAdmin) AddRates(
 			}
 
 			values := [][32]byte{
-				encodeUint64ToBytes32(uint64(rates.MessageFee)),
-				encodeUint64ToBytes32(uint64(rates.StorageFee)),
-				encodeUint64ToBytes32(uint64(rates.CongestionFee)),
-				encodeUint64ToBytes32(rates.TargetRatePerMinute),
+				utils.EncodeUint64ToBytes32(uint64(rates.MessageFee)),
+				utils.EncodeUint64ToBytes32(uint64(rates.StorageFee)),
+				utils.EncodeUint64ToBytes32(uint64(rates.CongestionFee)),
+				utils.EncodeUint64ToBytes32(rates.TargetRatePerMinute),
 			}
 
 			return r.parameterContract.Set0(opts, keys, values)
@@ -122,7 +122,7 @@ func (r *RatesAdmin) AddRates(
 			}
 			r.logger.Info("set parameter",
 				zap.String("key", parameterSet.Key.String()),
-				zap.Uint64("parameter", decodeBytes32ToUint64(parameterSet.Value)),
+				zap.Uint64("parameter", utils.DecodeBytes32ToUint64(parameterSet.Value)),
 			)
 		},
 	)
@@ -173,14 +173,4 @@ func (r *RatesAdmin) AddRates(
 	}
 
 	return nil
-}
-
-func encodeUint64ToBytes32(v uint64) [32]byte {
-	var b [32]byte
-	binary.BigEndian.PutUint64(b[24:], v)
-	return b
-}
-
-func decodeBytes32ToUint64(b [32]byte) uint64 {
-	return binary.BigEndian.Uint64(b[24:]) // last 8 bytes
 }

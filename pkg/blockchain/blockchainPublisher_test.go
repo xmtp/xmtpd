@@ -97,8 +97,9 @@ func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
-	wsURL := anvil.StartAnvil(t, false)
-	contractsOptions := testutils.NewContractsOptions(t, wsURL)
+
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.GetPayerOptions(t).PrivateKey,
@@ -106,9 +107,9 @@ func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewClient(
+	client, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(contractsOptions.SettlementChain.WssURL),
+		contractsOptions.SettlementChain.RPCURL,
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {

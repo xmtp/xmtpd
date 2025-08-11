@@ -119,13 +119,13 @@ func buildPayerRegistryStorerTester(t *testing.T) *payerRegistryStorerTester {
 	// Dependencies.
 	db, _ := testutils.NewDB(t, ctx)
 	queryImpl := queries.New(db)
-	wsUrl := anvil.StartAnvil(t, false)
-	config := testutils.NewContractsOptions(t, wsUrl)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	config := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	// Chain client.
-	client, err := blockchain.NewClient(
+	client, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(config.AppChain.WssURL),
+		config.AppChain.RPCURL,
 	)
 	require.NoError(t, err)
 

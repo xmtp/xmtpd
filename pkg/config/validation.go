@@ -302,6 +302,12 @@ func validateAppChainConfig(
 		"contracts.app-chain.chain-id",
 		customSet,
 	)
+	validateRPCURL(
+		options.Contracts.AppChain.RPCURL,
+		options.Contracts.AppChain.ChainID,
+		"contracts.app-chain.rpc-url",
+		missingSet,
+	)
 	validateWebsocketURL(
 		options.Contracts.AppChain.WssURL,
 		options.Contracts.AppChain.ChainID,
@@ -334,6 +340,12 @@ func validateSettlementChainConfig(
 		options.Contracts.SettlementChain.ChainID,
 		"contracts.settlement-chain.chain-id",
 		customSet,
+	)
+	validateRPCURL(
+		options.Contracts.SettlementChain.RPCURL,
+		options.Contracts.SettlementChain.ChainID,
+		"contracts.settlement-chain.rpc-url",
+		missingSet,
 	)
 	validateWebsocketURL(
 		options.Contracts.SettlementChain.WssURL,
@@ -395,6 +407,21 @@ func validateHexAddress(address string, fieldName string, set map[string]struct{
 	}
 }
 
+func validateRPCURL(rpcURL string, chainID int, fieldName string, set map[string]struct{}) {
+	u, err := url.Parse(rpcURL)
+	if err != nil {
+		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		return
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		set[fmt.Sprintf("--%s is invalid, expected http or https, got %s", fieldName, u.Scheme)] = struct{}{}
+		return
+	}
+
+	validateChainID(rpcURL, chainID, fieldName, set)
+}
+
 func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[string]struct{}) {
 	u, err := url.Parse(wsURL)
 	if err != nil {
@@ -407,11 +434,15 @@ func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[s
 		return
 	}
 
+	validateChainID(wsURL, chainID, fieldName, set)
+}
+
+func validateChainID(url string, expectedChainID int, fieldName string, set map[string]struct{}) {
 	ctx := context.Background()
 
-	client, err := ethclient.DialContext(ctx, wsURL)
+	client, err := ethclient.DialContext(ctx, url)
 	if err != nil {
-		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		set[fmt.Sprintf("--%s error dialing, %s", fieldName, err.Error())] = struct{}{}
 		return
 	}
 
@@ -421,13 +452,13 @@ func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[s
 		}
 	}()
 
-	cID, err := client.ChainID(ctx)
+	chainID, err := client.ChainID(ctx)
 	if err != nil {
-		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
+		set[fmt.Sprintf("--%s error getting chain ID, %s", fieldName, err.Error())] = struct{}{}
 		return
 	}
 
-	if cID.Int64() != int64(chainID) {
-		set[fmt.Sprintf("--%s is invalid, expected chain ID %d, got %d", fieldName, chainID, cID.Int64())] = struct{}{}
+	if chainID.Int64() != int64(expectedChainID) {
+		set[fmt.Sprintf("--%s is invalid, expected chain ID %d, got %d", fieldName, expectedChainID, chainID.Int64())] = struct{}{}
 	}
 }

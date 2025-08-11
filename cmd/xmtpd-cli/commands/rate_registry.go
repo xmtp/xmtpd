@@ -186,7 +186,7 @@ func setupRateRegistryAdmin(
 		return nil, fmt.Errorf("could not load config from file: %w", err)
 	}
 
-	chainClient, err := blockchain.NewClient(ctx, blockchain.WithWebSocketURL(rpcURL))
+	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func setupRatesFetcher(
 		logger.Fatal("could not load config from file", zap.Error(err))
 	}
 
-	chainClient, err := blockchain.NewClient(ctx, blockchain.WithWebSocketURL(rpcURL))
+	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
 	if err != nil {
 		logger.Fatal("could not create chain client", zap.Error(err))
 	}

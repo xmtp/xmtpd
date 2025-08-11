@@ -473,9 +473,9 @@ func getDomainSeparator(
 		return common.Hash{}, err
 	}
 
-	settlementChainClient, err := blockchain.NewClient(
+	settlementChainClient, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(options.Contracts.SettlementChain.WssURL),
+		options.Contracts.SettlementChain.RPCURL,
 	)
 	if err != nil {
 		return common.Hash{}, err

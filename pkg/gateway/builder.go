@@ -330,12 +330,9 @@ func setupNodeRegistry(
 	log *zap.Logger,
 	cfg *config.GatewayConfig,
 ) (registry.NodeRegistry, error) {
-	settlementChainClient, err := blockchain.NewClient(
+	settlementChainClient, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(cfg.Contracts.SettlementChain.WssURL),
-		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
-			Enable: false,
-		}),
+		cfg.Contracts.SettlementChain.RPCURL,
 	)
 	if err != nil {
 		return nil, err
@@ -372,12 +369,9 @@ func setupBlockchainPublisher(
 		return nil, err
 	}
 
-	appChainClient, err := blockchain.NewClient(
+	appChainClient, err := blockchain.NewRPCClient(
 		ctx,
-		blockchain.WithWebSocketURL(cfg.Contracts.AppChain.WssURL),
-		blockchain.WithKeepAliveConfig(net.KeepAliveConfig{
-			Enable: false,
-		}),
+		cfg.Contracts.AppChain.RPCURL,
 	)
 	if err != nil {
 		return nil, err

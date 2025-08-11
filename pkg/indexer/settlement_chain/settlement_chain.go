@@ -27,7 +27,8 @@ type SettlementChain struct {
 	ctx                context.Context
 	cancel             context.CancelFunc
 	wg                 sync.WaitGroup
-	client             *ethclient.Client
+	rpcClient          *ethclient.Client
+	wsClient           *ethclient.Client
 	log                *zap.Logger
 	streamer           c.ILogStreamer
 	payerRegistry      *contracts.PayerRegistry
@@ -46,9 +47,9 @@ func NewSettlementChain(
 	chainLogger := log.Named("settlement-chain").
 		With(zap.Int("chainID", cfg.ChainID))
 
-	client, err := blockchain.NewClient(
+	rpcClient, err := blockchain.NewRPCClient(
 		ctxwc,
-		blockchain.WithWebSocketURL(cfg.WssURL),
+		cfg.RPCURL,
 	)
 	if err != nil {
 		cancel()
@@ -59,7 +60,7 @@ func NewSettlementChain(
 
 	payerRegistry, err := contracts.NewPayerRegistry(
 		ctxwc,
-		client,
+		rpcClient,
 		querier,
 		chainLogger,
 		common.HexToAddress(cfg.PayerRegistryAddress),
@@ -68,7 +69,7 @@ func NewSettlementChain(
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
 		return nil, err
 	}
 
@@ -76,7 +77,7 @@ func NewSettlementChain(
 
 	payerReportManager, err := contracts.NewPayerReportManager(
 		ctxwc,
-		client,
+		rpcClient,
 		querier,
 		chainLogger,
 		common.HexToAddress(cfg.PayerReportManagerAddress),
@@ -85,15 +86,26 @@ func NewSettlementChain(
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
 		return nil, err
 	}
 
 	payerReportManagerLatestBlockNumber, payerReportManagerLatestBlockHash := payerReportManager.GetLatestBlock()
 
+	wsClient, err := blockchain.NewWebsocketClient(
+		ctxwc,
+		cfg.WssURL,
+	)
+	if err != nil {
+		cancel()
+		rpcClient.Close()
+		return nil, err
+	}
+
 	streamer, err := rpcstreamer.NewRPCLogStreamer(
 		ctxwc,
-		client,
+		rpcClient,
+		wsClient,
 		chainLogger,
 		rpcstreamer.WithLagFromHighestBlock(lagFromHighestBlock),
 		rpcstreamer.WithContractConfig(
@@ -120,14 +132,16 @@ func NewSettlementChain(
 	)
 	if err != nil {
 		cancel()
-		client.Close()
+		rpcClient.Close()
+		wsClient.Close()
 		return nil, err
 	}
 
 	return &SettlementChain{
 		ctx:                ctxwc,
 		cancel:             cancel,
-		client:             client,
+		rpcClient:          rpcClient,
+		wsClient:           wsClient,
 		log:                chainLogger,
 		streamer:           streamer,
 		chainID:            cfg.ChainID,
@@ -176,8 +190,12 @@ func (s *SettlementChain) Stop() {
 		s.streamer.Stop()
 	}
 
-	if s.client != nil {
-		s.client.Close()
+	if s.rpcClient != nil {
+		s.rpcClient.Close()
+	}
+
+	if s.wsClient != nil {
+		s.wsClient.Close()
 	}
 
 	s.cancel()

@@ -39,7 +39,7 @@ func streamContainerLogs(t *testing.T, ctx context.Context, container testcontai
 func waitForAnvil(t *testing.T, url string) {
 	backgroundCtx := context.Background()
 	// Create a client to connect to the Anvil instance
-	client, err := blockchain.NewClient(backgroundCtx, blockchain.WithWebSocketURL(url))
+	client, err := blockchain.NewRPCClient(backgroundCtx, url)
 	require.NoError(t, err)
 
 	// Try to get the chain ID to verify the connection is working
@@ -67,7 +67,7 @@ func waitForAnvil(t *testing.T, url string) {
 }
 
 // StartAnvil starts an ephemeral anvil instance and return the address
-func StartAnvil(t *testing.T, showLogs bool) string {
+func StartAnvil(t *testing.T, showLogs bool) (wsURL string, rpcURL string) {
 	ctx := t.Context()
 
 	req := testcontainers.ContainerRequest{
@@ -100,8 +100,9 @@ func StartAnvil(t *testing.T, showLogs bool) string {
 	mappedPort, err := anvilContainer.MappedPort(ctx, "8545/tcp")
 	require.NoError(t, err)
 
-	anvilURL := fmt.Sprintf("ws://localhost:%s", mappedPort.Port())
-	waitForAnvil(t, anvilURL)
+	wsURL = fmt.Sprintf("ws://localhost:%s", mappedPort.Port())
+	rpcURL = fmt.Sprintf("http://localhost:%s", mappedPort.Port())
+	waitForAnvil(t, wsURL)
 
-	return anvilURL
+	return wsURL, rpcURL
 }

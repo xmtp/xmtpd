@@ -5,23 +5,31 @@ UPDATE
 SET address = @address
 RETURNING id;
 
+-- name: GetPayerByAddress :one
+SELECT id
+FROM payers
+WHERE address = @address;
+
 -- name: IncrementUnsettledUsage :exec
 INSERT INTO unsettled_usage(
 		payer_id,
 		originator_id,
 		minutes_since_epoch,
 		spend_picodollars,
-		last_sequence_id
+		last_sequence_id,
+		message_count
 	)
 VALUES (
 		@payer_id,
 		@originator_id,
 		@minutes_since_epoch,
 		@spend_picodollars,
-		@sequence_id
+		@sequence_id,
+		@message_count
 	) ON CONFLICT (payer_id, originator_id, minutes_since_epoch) DO
 UPDATE
 SET spend_picodollars = unsettled_usage.spend_picodollars + @spend_picodollars,
+	message_count = unsettled_usage.message_count + @message_count,
 	last_sequence_id = GREATEST(unsettled_usage.last_sequence_id, @sequence_id);
 
 -- name: GetPayerUnsettledUsage :one
@@ -37,6 +45,24 @@ WHERE payer_id = @payer_id
 		@minutes_since_epoch_lt::BIGINT = 0
 		OR minutes_since_epoch < @minutes_since_epoch_lt::BIGINT
 	);
+
+-- name: GetPayerInfoReport :many
+SELECT EXTRACT(
+		EPOCH
+		FROM DATE_TRUNC(
+				CASE
+					WHEN @group_by = 'hour' THEN 'hour'
+					ELSE 'day'
+				END,
+				TO_TIMESTAMP(minutes_since_epoch * 60)
+			)
+	)::BIGINT AS time_period,
+	COALESCE(SUM(spend_picodollars), 0)::BIGINT AS total_spend_picodollars,
+	COALESCE(SUM(message_count), 0)::INTEGER AS total_message_count
+FROM unsettled_usage
+WHERE payer_id = @payer_id
+GROUP BY time_period
+ORDER BY time_period;
 
 -- name: BuildPayerReport :many
 SELECT payers.address AS payer_address,

@@ -25,6 +25,56 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Whether to group spend by hour or day
+type PayerInfoGranularity int32
+
+const (
+	PayerInfoGranularity_PAYER_INFO_GRANULARITY_UNSPECIFIED PayerInfoGranularity = 0
+	PayerInfoGranularity_PAYER_INFO_GRANULARITY_HOUR        PayerInfoGranularity = 1
+	PayerInfoGranularity_PAYER_INFO_GRANULARITY_DAY         PayerInfoGranularity = 2
+)
+
+// Enum value maps for PayerInfoGranularity.
+var (
+	PayerInfoGranularity_name = map[int32]string{
+		0: "PAYER_INFO_GRANULARITY_UNSPECIFIED",
+		1: "PAYER_INFO_GRANULARITY_HOUR",
+		2: "PAYER_INFO_GRANULARITY_DAY",
+	}
+	PayerInfoGranularity_value = map[string]int32{
+		"PAYER_INFO_GRANULARITY_UNSPECIFIED": 0,
+		"PAYER_INFO_GRANULARITY_HOUR":        1,
+		"PAYER_INFO_GRANULARITY_DAY":         2,
+	}
+)
+
+func (x PayerInfoGranularity) Enum() *PayerInfoGranularity {
+	p := new(PayerInfoGranularity)
+	*p = x
+	return p
+}
+
+func (x PayerInfoGranularity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PayerInfoGranularity) Descriptor() protoreflect.EnumDescriptor {
+	return file_xmtpv4_metadata_api_metadata_api_proto_enumTypes[0].Descriptor()
+}
+
+func (PayerInfoGranularity) Type() protoreflect.EnumType {
+	return &file_xmtpv4_metadata_api_metadata_api_proto_enumTypes[0]
+}
+
+func (x PayerInfoGranularity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PayerInfoGranularity.Descriptor instead.
+func (PayerInfoGranularity) EnumDescriptor() ([]byte, []int) {
+	return file_xmtpv4_metadata_api_metadata_api_proto_rawDescGZIP(), []int{0}
+}
+
 type GetSyncCursorRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -185,6 +235,209 @@ func (x *GetVersionResponse) GetVersion() string {
 	return ""
 }
 
+// Get information about payer spend and message counts for a given time period
+type GetPayerInfoRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PayerAddresses []string               `protobuf:"bytes,1,rep,name=payer_addresses,json=payerAddresses,proto3" json:"payer_addresses,omitempty"`
+	Granularity    PayerInfoGranularity   `protobuf:"varint,2,opt,name=granularity,proto3,enum=xmtp.xmtpv4.metadata_api.PayerInfoGranularity" json:"granularity,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetPayerInfoRequest) Reset() {
+	*x = GetPayerInfoRequest{}
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPayerInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPayerInfoRequest) ProtoMessage() {}
+
+func (x *GetPayerInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPayerInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetPayerInfoRequest) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_metadata_api_metadata_api_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetPayerInfoRequest) GetPayerAddresses() []string {
+	if x != nil {
+		return x.PayerAddresses
+	}
+	return nil
+}
+
+func (x *GetPayerInfoRequest) GetGranularity() PayerInfoGranularity {
+	if x != nil {
+		return x.Granularity
+	}
+	return PayerInfoGranularity_PAYER_INFO_GRANULARITY_UNSPECIFIED
+}
+
+// Response to GetPayerInfoRequest
+type GetPayerInfoResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Map of payer address
+	PayerInfo     map[string]*GetPayerInfoResponse_PayerInfo `protobuf:"bytes,1,rep,name=payer_info,json=payerInfo,proto3" json:"payer_info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPayerInfoResponse) Reset() {
+	*x = GetPayerInfoResponse{}
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPayerInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPayerInfoResponse) ProtoMessage() {}
+
+func (x *GetPayerInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPayerInfoResponse.ProtoReflect.Descriptor instead.
+func (*GetPayerInfoResponse) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_metadata_api_metadata_api_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetPayerInfoResponse) GetPayerInfo() map[string]*GetPayerInfoResponse_PayerInfo {
+	if x != nil {
+		return x.PayerInfo
+	}
+	return nil
+}
+
+type GetPayerInfoResponse_PeriodSummary struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	AmountSpentPicodollars uint64                 `protobuf:"varint,1,opt,name=amount_spent_picodollars,json=amountSpentPicodollars,proto3" json:"amount_spent_picodollars,omitempty"`
+	NumMessages            uint64                 `protobuf:"varint,2,opt,name=num_messages,json=numMessages,proto3" json:"num_messages,omitempty"`
+	PeriodStartUnixSeconds uint64                 `protobuf:"varint,3,opt,name=period_start_unix_seconds,json=periodStartUnixSeconds,proto3" json:"period_start_unix_seconds,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *GetPayerInfoResponse_PeriodSummary) Reset() {
+	*x = GetPayerInfoResponse_PeriodSummary{}
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPayerInfoResponse_PeriodSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPayerInfoResponse_PeriodSummary) ProtoMessage() {}
+
+func (x *GetPayerInfoResponse_PeriodSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPayerInfoResponse_PeriodSummary.ProtoReflect.Descriptor instead.
+func (*GetPayerInfoResponse_PeriodSummary) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_metadata_api_metadata_api_proto_rawDescGZIP(), []int{5, 0}
+}
+
+func (x *GetPayerInfoResponse_PeriodSummary) GetAmountSpentPicodollars() uint64 {
+	if x != nil {
+		return x.AmountSpentPicodollars
+	}
+	return 0
+}
+
+func (x *GetPayerInfoResponse_PeriodSummary) GetNumMessages() uint64 {
+	if x != nil {
+		return x.NumMessages
+	}
+	return 0
+}
+
+func (x *GetPayerInfoResponse_PeriodSummary) GetPeriodStartUnixSeconds() uint64 {
+	if x != nil {
+		return x.PeriodStartUnixSeconds
+	}
+	return 0
+}
+
+type GetPayerInfoResponse_PayerInfo struct {
+	state           protoimpl.MessageState                `protogen:"open.v1"`
+	PeriodSummaries []*GetPayerInfoResponse_PeriodSummary `protobuf:"bytes,1,rep,name=period_summaries,json=periodSummaries,proto3" json:"period_summaries,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetPayerInfoResponse_PayerInfo) Reset() {
+	*x = GetPayerInfoResponse_PayerInfo{}
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPayerInfoResponse_PayerInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPayerInfoResponse_PayerInfo) ProtoMessage() {}
+
+func (x *GetPayerInfoResponse_PayerInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_metadata_api_metadata_api_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPayerInfoResponse_PayerInfo.ProtoReflect.Descriptor instead.
+func (*GetPayerInfoResponse_PayerInfo) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_metadata_api_metadata_api_proto_rawDescGZIP(), []int{5, 1}
+}
+
+func (x *GetPayerInfoResponse_PayerInfo) GetPeriodSummaries() []*GetPayerInfoResponse_PeriodSummary {
+	if x != nil {
+		return x.PeriodSummaries
+	}
+	return nil
+}
+
 var File_xmtpv4_metadata_api_metadata_api_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_metadata_api_metadata_api_proto_rawDesc = "" +
@@ -196,12 +449,32 @@ const file_xmtpv4_metadata_api_metadata_api_proto_rawDesc = "" +
 	"latestSync\"\x13\n" +
 	"\x11GetVersionRequest\".\n" +
 	"\x12GetVersionResponse\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\tR\aversion2\xea\x03\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\"\x90\x01\n" +
+	"\x13GetPayerInfoRequest\x12'\n" +
+	"\x0fpayer_addresses\x18\x01 \x03(\tR\x0epayerAddresses\x12P\n" +
+	"\vgranularity\x18\x02 \x01(\x0e2..xmtp.xmtpv4.metadata_api.PayerInfoGranularityR\vgranularity\"\x8c\x04\n" +
+	"\x14GetPayerInfoResponse\x12\\\n" +
+	"\n" +
+	"payer_info\x18\x01 \x03(\v2=.xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfoEntryR\tpayerInfo\x1a\xa7\x01\n" +
+	"\rPeriodSummary\x128\n" +
+	"\x18amount_spent_picodollars\x18\x01 \x01(\x04R\x16amountSpentPicodollars\x12!\n" +
+	"\fnum_messages\x18\x02 \x01(\x04R\vnumMessages\x129\n" +
+	"\x19period_start_unix_seconds\x18\x03 \x01(\x04R\x16periodStartUnixSeconds\x1at\n" +
+	"\tPayerInfo\x12g\n" +
+	"\x10period_summaries\x18\x01 \x03(\v2<.xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PeriodSummaryR\x0fperiodSummaries\x1av\n" +
+	"\x0ePayerInfoEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12N\n" +
+	"\x05value\x18\x02 \x01(\v28.xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfoR\x05value:\x028\x01*\x7f\n" +
+	"\x14PayerInfoGranularity\x12&\n" +
+	"\"PAYER_INFO_GRANULARITY_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bPAYER_INFO_GRANULARITY_HOUR\x10\x01\x12\x1e\n" +
+	"\x1aPAYER_INFO_GRANULARITY_DAY\x10\x022\x86\x05\n" +
 	"\vMetadataApi\x12\x9d\x01\n" +
 	"\rGetSyncCursor\x12..xmtp.xmtpv4.metadata_api.GetSyncCursorRequest\x1a/.xmtp.xmtpv4.metadata_api.GetSyncCursorResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /mls/v2/metadata/get-sync-cursor\x12\xab\x01\n" +
 	"\x13SubscribeSyncCursor\x12..xmtp.xmtpv4.metadata_api.GetSyncCursorRequest\x1a/.xmtp.xmtpv4.metadata_api.GetSyncCursorResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/mls/v2/metadata/subscribe-sync-cursor0\x01\x12\x8c\x01\n" +
 	"\n" +
-	"GetVersion\x12+.xmtp.xmtpv4.metadata_api.GetVersionRequest\x1a,.xmtp.xmtpv4.metadata_api.GetVersionResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/mls/v2/metadata/versionB\xe3\x01\n" +
+	"GetVersion\x12+.xmtp.xmtpv4.metadata_api.GetVersionRequest\x1a,.xmtp.xmtpv4.metadata_api.GetVersionResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/mls/v2/metadata/version\x12\x99\x01\n" +
+	"\fGetPayerInfo\x12-.xmtp.xmtpv4.metadata_api.GetPayerInfoRequest\x1a..xmtp.xmtpv4.metadata_api.GetPayerInfoResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/mls/v2/metadata/get-payer-infoB\xe3\x01\n" +
 	"\x1ccom.xmtp.xmtpv4.metadata_apiB\x10MetadataApiProtoP\x01Z3github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api\xa2\x02\x03XXM\xaa\x02\x17Xmtp.Xmtpv4.MetadataApi\xca\x02\x17Xmtp\\Xmtpv4\\MetadataApi\xe2\x02#Xmtp\\Xmtpv4\\MetadataApi\\GPBMetadata\xea\x02\x19Xmtp::Xmtpv4::MetadataApib\x06proto3"
 
 var (
@@ -216,27 +489,40 @@ func file_xmtpv4_metadata_api_metadata_api_proto_rawDescGZIP() []byte {
 	return file_xmtpv4_metadata_api_metadata_api_proto_rawDescData
 }
 
-var file_xmtpv4_metadata_api_metadata_api_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_xmtpv4_metadata_api_metadata_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_xmtpv4_metadata_api_metadata_api_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_xmtpv4_metadata_api_metadata_api_proto_goTypes = []any{
-	(*GetSyncCursorRequest)(nil),  // 0: xmtp.xmtpv4.metadata_api.GetSyncCursorRequest
-	(*GetSyncCursorResponse)(nil), // 1: xmtp.xmtpv4.metadata_api.GetSyncCursorResponse
-	(*GetVersionRequest)(nil),     // 2: xmtp.xmtpv4.metadata_api.GetVersionRequest
-	(*GetVersionResponse)(nil),    // 3: xmtp.xmtpv4.metadata_api.GetVersionResponse
-	(*envelopes.Cursor)(nil),      // 4: xmtp.xmtpv4.envelopes.Cursor
+	(PayerInfoGranularity)(0),                  // 0: xmtp.xmtpv4.metadata_api.PayerInfoGranularity
+	(*GetSyncCursorRequest)(nil),               // 1: xmtp.xmtpv4.metadata_api.GetSyncCursorRequest
+	(*GetSyncCursorResponse)(nil),              // 2: xmtp.xmtpv4.metadata_api.GetSyncCursorResponse
+	(*GetVersionRequest)(nil),                  // 3: xmtp.xmtpv4.metadata_api.GetVersionRequest
+	(*GetVersionResponse)(nil),                 // 4: xmtp.xmtpv4.metadata_api.GetVersionResponse
+	(*GetPayerInfoRequest)(nil),                // 5: xmtp.xmtpv4.metadata_api.GetPayerInfoRequest
+	(*GetPayerInfoResponse)(nil),               // 6: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse
+	(*GetPayerInfoResponse_PeriodSummary)(nil), // 7: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PeriodSummary
+	(*GetPayerInfoResponse_PayerInfo)(nil),     // 8: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfo
+	nil,                                        // 9: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfoEntry
+	(*envelopes.Cursor)(nil),                   // 10: xmtp.xmtpv4.envelopes.Cursor
 }
 var file_xmtpv4_metadata_api_metadata_api_proto_depIdxs = []int32{
-	4, // 0: xmtp.xmtpv4.metadata_api.GetSyncCursorResponse.latest_sync:type_name -> xmtp.xmtpv4.envelopes.Cursor
-	0, // 1: xmtp.xmtpv4.metadata_api.MetadataApi.GetSyncCursor:input_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorRequest
-	0, // 2: xmtp.xmtpv4.metadata_api.MetadataApi.SubscribeSyncCursor:input_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorRequest
-	2, // 3: xmtp.xmtpv4.metadata_api.MetadataApi.GetVersion:input_type -> xmtp.xmtpv4.metadata_api.GetVersionRequest
-	1, // 4: xmtp.xmtpv4.metadata_api.MetadataApi.GetSyncCursor:output_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorResponse
-	1, // 5: xmtp.xmtpv4.metadata_api.MetadataApi.SubscribeSyncCursor:output_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorResponse
-	3, // 6: xmtp.xmtpv4.metadata_api.MetadataApi.GetVersion:output_type -> xmtp.xmtpv4.metadata_api.GetVersionResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	10, // 0: xmtp.xmtpv4.metadata_api.GetSyncCursorResponse.latest_sync:type_name -> xmtp.xmtpv4.envelopes.Cursor
+	0,  // 1: xmtp.xmtpv4.metadata_api.GetPayerInfoRequest.granularity:type_name -> xmtp.xmtpv4.metadata_api.PayerInfoGranularity
+	9,  // 2: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.payer_info:type_name -> xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfoEntry
+	7,  // 3: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfo.period_summaries:type_name -> xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PeriodSummary
+	8,  // 4: xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfoEntry.value:type_name -> xmtp.xmtpv4.metadata_api.GetPayerInfoResponse.PayerInfo
+	1,  // 5: xmtp.xmtpv4.metadata_api.MetadataApi.GetSyncCursor:input_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorRequest
+	1,  // 6: xmtp.xmtpv4.metadata_api.MetadataApi.SubscribeSyncCursor:input_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorRequest
+	3,  // 7: xmtp.xmtpv4.metadata_api.MetadataApi.GetVersion:input_type -> xmtp.xmtpv4.metadata_api.GetVersionRequest
+	5,  // 8: xmtp.xmtpv4.metadata_api.MetadataApi.GetPayerInfo:input_type -> xmtp.xmtpv4.metadata_api.GetPayerInfoRequest
+	2,  // 9: xmtp.xmtpv4.metadata_api.MetadataApi.GetSyncCursor:output_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorResponse
+	2,  // 10: xmtp.xmtpv4.metadata_api.MetadataApi.SubscribeSyncCursor:output_type -> xmtp.xmtpv4.metadata_api.GetSyncCursorResponse
+	4,  // 11: xmtp.xmtpv4.metadata_api.MetadataApi.GetVersion:output_type -> xmtp.xmtpv4.metadata_api.GetVersionResponse
+	6,  // 12: xmtp.xmtpv4.metadata_api.MetadataApi.GetPayerInfo:output_type -> xmtp.xmtpv4.metadata_api.GetPayerInfoResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_xmtpv4_metadata_api_metadata_api_proto_init() }
@@ -249,13 +535,14 @@ func file_xmtpv4_metadata_api_metadata_api_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_xmtpv4_metadata_api_metadata_api_proto_rawDesc), len(file_xmtpv4_metadata_api_metadata_api_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_xmtpv4_metadata_api_metadata_api_proto_goTypes,
 		DependencyIndexes: file_xmtpv4_metadata_api_metadata_api_proto_depIdxs,
+		EnumInfos:         file_xmtpv4_metadata_api_metadata_api_proto_enumTypes,
 		MessageInfos:      file_xmtpv4_metadata_api_metadata_api_proto_msgTypes,
 	}.Build()
 	File_xmtpv4_metadata_api_metadata_api_proto = out.File

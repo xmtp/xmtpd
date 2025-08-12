@@ -24,6 +24,7 @@ const (
 	MetadataApi_GetSyncCursor_FullMethodName       = "/xmtp.xmtpv4.metadata_api.MetadataApi/GetSyncCursor"
 	MetadataApi_SubscribeSyncCursor_FullMethodName = "/xmtp.xmtpv4.metadata_api.MetadataApi/SubscribeSyncCursor"
 	MetadataApi_GetVersion_FullMethodName          = "/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion"
+	MetadataApi_GetPayerInfo_FullMethodName        = "/xmtp.xmtpv4.metadata_api.MetadataApi/GetPayerInfo"
 )
 
 // MetadataApiClient is the client API for MetadataApi service.
@@ -33,6 +34,7 @@ type MetadataApiClient interface {
 	GetSyncCursor(ctx context.Context, in *GetSyncCursorRequest, opts ...grpc.CallOption) (*GetSyncCursorResponse, error)
 	SubscribeSyncCursor(ctx context.Context, in *GetSyncCursorRequest, opts ...grpc.CallOption) (MetadataApi_SubscribeSyncCursorClient, error)
 	GetVersion(ctx context.Context, in *GetVersionRequest, opts ...grpc.CallOption) (*GetVersionResponse, error)
+	GetPayerInfo(ctx context.Context, in *GetPayerInfoRequest, opts ...grpc.CallOption) (*GetPayerInfoResponse, error)
 }
 
 type metadataApiClient struct {
@@ -93,6 +95,15 @@ func (c *metadataApiClient) GetVersion(ctx context.Context, in *GetVersionReques
 	return out, nil
 }
 
+func (c *metadataApiClient) GetPayerInfo(ctx context.Context, in *GetPayerInfoRequest, opts ...grpc.CallOption) (*GetPayerInfoResponse, error) {
+	out := new(GetPayerInfoResponse)
+	err := c.cc.Invoke(ctx, MetadataApi_GetPayerInfo_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MetadataApiServer is the server API for MetadataApi service.
 // All implementations must embed UnimplementedMetadataApiServer
 // for forward compatibility
@@ -100,6 +111,7 @@ type MetadataApiServer interface {
 	GetSyncCursor(context.Context, *GetSyncCursorRequest) (*GetSyncCursorResponse, error)
 	SubscribeSyncCursor(*GetSyncCursorRequest, MetadataApi_SubscribeSyncCursorServer) error
 	GetVersion(context.Context, *GetVersionRequest) (*GetVersionResponse, error)
+	GetPayerInfo(context.Context, *GetPayerInfoRequest) (*GetPayerInfoResponse, error)
 	mustEmbedUnimplementedMetadataApiServer()
 }
 
@@ -115,6 +127,9 @@ func (UnimplementedMetadataApiServer) SubscribeSyncCursor(*GetSyncCursorRequest,
 }
 func (UnimplementedMetadataApiServer) GetVersion(context.Context, *GetVersionRequest) (*GetVersionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVersion not implemented")
+}
+func (UnimplementedMetadataApiServer) GetPayerInfo(context.Context, *GetPayerInfoRequest) (*GetPayerInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPayerInfo not implemented")
 }
 func (UnimplementedMetadataApiServer) mustEmbedUnimplementedMetadataApiServer() {}
 
@@ -186,6 +201,24 @@ func _MetadataApi_GetVersion_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetadataApi_GetPayerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPayerInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetadataApiServer).GetPayerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MetadataApi_GetPayerInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetadataApiServer).GetPayerInfo(ctx, req.(*GetPayerInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MetadataApi_ServiceDesc is the grpc.ServiceDesc for MetadataApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -200,6 +233,10 @@ var MetadataApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVersion",
 			Handler:    _MetadataApi_GetVersion_Handler,
+		},
+		{
+			MethodName: "GetPayerInfo",
+			Handler:    _MetadataApi_GetPayerInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

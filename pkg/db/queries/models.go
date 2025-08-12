@@ -102,4 +102,5 @@ type UnsettledUsage struct {
 	MinutesSinceEpoch int32
 	SpendPicodollars  int64
 	LastSequenceID    int64
+	MessageCount      int32
 }

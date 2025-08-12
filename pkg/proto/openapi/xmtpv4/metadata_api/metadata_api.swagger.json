@@ -16,6 +16,38 @@
     "application/json"
   ],
   "paths": {
+    "/mls/v2/metadata/get-payer-info": {
+      "post": {
+        "operationId": "MetadataApi_GetPayerInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetPayerInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/metadata_apiGetPayerInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MetadataApi"
+        ]
+      }
+    },
     "/mls/v2/metadata/get-sync-cursor": {
       "post": {
         "operationId": "MetadataApi_GetSyncCursor",
@@ -123,6 +155,63 @@
     }
   },
   "definitions": {
+    "GetPayerInfoResponsePayerInfo": {
+      "type": "object",
+      "properties": {
+        "periodSummaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetPayerInfoResponsePeriodSummary"
+          }
+        }
+      }
+    },
+    "GetPayerInfoResponsePeriodSummary": {
+      "type": "object",
+      "properties": {
+        "amountSpentPicodollars": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "numMessages": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "periodStartUnixSeconds": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "metadata_apiGetPayerInfoRequest": {
+      "type": "object",
+      "properties": {
+        "payerAddresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "granularity": {
+          "$ref": "#/definitions/metadata_apiPayerInfoGranularity"
+        }
+      },
+      "title": "Get information about payer spend and message counts for a given time period"
+    },
+    "metadata_apiGetPayerInfoResponse": {
+      "type": "object",
+      "properties": {
+        "payerInfo": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/GetPayerInfoResponsePayerInfo"
+          },
+          "title": "Map of payer address"
+        }
+      },
+      "title": "Response to GetPayerInfoRequest"
+    },
     "metadata_apiGetSyncCursorRequest": {
       "type": "object"
     },
@@ -144,6 +233,16 @@
           "type": "string"
         }
       }
+    },
+    "metadata_apiPayerInfoGranularity": {
+      "type": "string",
+      "enum": [
+        "PAYER_INFO_GRANULARITY_UNSPECIFIED",
+        "PAYER_INFO_GRANULARITY_HOUR",
+        "PAYER_INFO_GRANULARITY_DAY"
+      ],
+      "default": "PAYER_INFO_GRANULARITY_UNSPECIFIED",
+      "title": "Whether to group spend by hour or day"
     },
     "protobufAny": {
       "type": "object",

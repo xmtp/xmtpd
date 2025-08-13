@@ -130,8 +130,10 @@ func TestRegistryWrite(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 
+	oldNodes := make([]SerializableNode, 0)
+
 	registryAdmin2, registryCaller2 := setupRegistry(t)
-	err = WriteToRegistry(t.Context(), nodes, registryAdmin2)
+	err = WriteToRegistry(t.Context(), nodes, oldNodes, registryAdmin2)
 	require.NoError(t, err)
 
 	restoredNodes, err := ReadFromRegistry(registryCaller2)
@@ -149,4 +151,138 @@ func TestRegistryWrite(t *testing.T) {
 	// New parameters should be the default values.
 	require.Equal(t, false, restoredNodes[0].InCanonicalNetwork)
 	require.Equal(t, false, restoredNodes[1].InCanonicalNetwork)
+}
+
+// 1) Empty -> New registry: adds nodes, keeps defaults (not in canonical network)
+func TestRegistryWrite_AddsNewNodesAndKeepsDefaults(t *testing.T) {
+	registryAdminSrc, registryCallerSrc := setupRegistry(t)
+
+	// Source: register two random nodes (not in canonical network by default).
+	node1 := registerRandomNode(t, registryAdminSrc)
+	node2 := registerRandomNode(t, registryAdminSrc)
+
+	newNodes, err := ReadFromRegistry(registryCallerSrc)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(newNodes))
+
+	// Destination: fresh/empty registry.
+	registryAdminDst, registryCallerDst := setupRegistry(t)
+
+	oldNodesDst, err := ReadFromRegistry(registryCallerDst)
+	require.NoError(t, err)
+	require.Len(t, oldNodesDst, 0)
+
+	err = WriteToRegistry(t.Context(), newNodes, oldNodesDst, registryAdminDst)
+	require.NoError(t, err)
+
+	restored, err := ReadFromRegistry(registryCallerDst)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(restored))
+
+	require.Equal(t, node1.OwnerAddress, restored[0].OwnerAddress)
+	require.Equal(t, node1.HttpAddress, restored[0].HttpAddress)
+	require.Equal(t, node1.SigningKeyPub, restored[0].SigningKeyPub)
+	require.Equal(t, node2.OwnerAddress, restored[1].OwnerAddress)
+	require.Equal(t, node2.HttpAddress, restored[1].HttpAddress)
+	require.Equal(t, node2.SigningKeyPub, restored[1].SigningKeyPub)
+
+	require.False(t, restored[0].InCanonicalNetwork)
+	require.False(t, restored[1].InCanonicalNetwork)
+}
+
+// 2) Nodes already registered: do NOT re-add; only AddToNetwork when requested
+func TestRegistryWrite_AddsToNetworkForExistingNodes(t *testing.T) {
+	admin, caller := setupRegistry(t)
+
+	// Seed registry with two nodes (not in canonical by default).
+	registerRandomNode(t, admin)
+	registerRandomNode(t, admin)
+
+	existing, err := ReadFromRegistry(caller)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(existing))
+
+	desired := make([]SerializableNode, len(existing))
+	copy(desired, existing)
+	for i := range desired {
+		desired[i].InCanonicalNetwork = true
+	}
+
+	err = WriteToRegistry(t.Context(), desired, existing, admin)
+	require.NoError(t, err)
+
+	after, err := ReadFromRegistry(caller)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(after))
+	require.True(t, after[0].InCanonicalNetwork)
+	require.True(t, after[1].InCanonicalNetwork)
+
+	for i := range after {
+		require.Equal(t, existing[i].OwnerAddress, after[i].OwnerAddress)
+		require.Equal(t, existing[i].HttpAddress, after[i].HttpAddress)
+		require.Equal(t, existing[i].SigningKeyPub, after[i].SigningKeyPub)
+	}
+}
+
+// 3) Mixed case: one node already exists; one is brand new.
+// Existing should be added to network; new should be added then added to network.
+func TestRegistryWrite_MixedExistingAndNew(t *testing.T) {
+	// Target registry where migration will write.
+	adminDst, callerDst := setupRegistry(t)
+
+	// Pre-seed destination with ONE node (exists, not canonical).
+	existingNode := registerRandomNode(t, adminDst)
+
+	// Snapshot "oldNodes" from destination.
+	oldDst, err := ReadFromRegistry(callerDst)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(oldDst))
+	require.Equal(t, existingNode.SigningKeyPub, oldDst[0].SigningKeyPub)
+
+	// Create a NEW node we want to add (use another registry just to fabricate a valid node struct).
+	adminTmp, callerTmp := setupRegistry(t)
+	newNode := registerRandomNode(t, adminTmp)
+	tmpNodes, err := ReadFromRegistry(callerTmp)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(tmpNodes))
+
+	desired := []SerializableNode{
+		{
+			NodeID:             oldDst[0].NodeID,
+			OwnerAddress:       oldDst[0].OwnerAddress,
+			HttpAddress:        oldDst[0].HttpAddress,
+			SigningKeyPub:      oldDst[0].SigningKeyPub,
+			InCanonicalNetwork: true,
+		},
+		{
+			OwnerAddress:       tmpNodes[0].OwnerAddress,
+			HttpAddress:        tmpNodes[0].HttpAddress,
+			SigningKeyPub:      tmpNodes[0].SigningKeyPub,
+			InCanonicalNetwork: true,
+		},
+	}
+
+	err = WriteToRegistry(context.Background(), desired, oldDst, adminDst)
+	require.NoError(t, err)
+
+	after, err := ReadFromRegistry(callerDst)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(after))
+
+	byPub := map[string]SerializableNode{
+		after[0].SigningKeyPub: after[0],
+		after[1].SigningKeyPub: after[1],
+	}
+
+	gotExisting, ok1 := byPub[existingNode.SigningKeyPub]
+	require.True(t, ok1)
+	require.True(t, gotExisting.InCanonicalNetwork)
+	require.Equal(t, existingNode.OwnerAddress, gotExisting.OwnerAddress)
+	require.Equal(t, existingNode.HttpAddress, gotExisting.HttpAddress)
+
+	gotNew, ok2 := byPub[newNode.SigningKeyPub]
+	require.True(t, ok2)
+	require.True(t, gotNew.InCanonicalNetwork)
+	require.Equal(t, tmpNodes[0].OwnerAddress, gotNew.OwnerAddress)
+	require.Equal(t, tmpNodes[0].HttpAddress, gotNew.HttpAddress)
 }

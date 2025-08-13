@@ -334,9 +334,32 @@ func removeNodeFromNetwork(logger *zap.Logger, options *CLI) {
 
 func migrateNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
-	nodes, err := migrator.ImportNodesFromFile(options.MigrateNodes.InFile)
+
+	chainClient, err := blockchain.NewRPCClient(
+		ctx,
+		options.Contracts.SettlementChain.RPCURL,
+	)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	newNodes, err := migrator.ImportNodesFromFile(options.MigrateNodes.InFile)
 	if err != nil {
 		logger.Fatal("could not import nodes from file", zap.Error(err))
+	}
+
+	caller, err := blockchain.NewNodeRegistryCaller(
+		logger,
+		chainClient,
+		options.Contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry admin", zap.Error(err))
+	}
+
+	oldNodes, err := migrator.ReadFromRegistry(caller)
+	if err != nil {
+		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
 
 	newRegistryAdmin, err := setupNodeRegistryAdmin(
@@ -349,7 +372,7 @@ func migrateNodes(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not setup registry admin", zap.Error(err))
 	}
 
-	err = migrator.WriteToRegistry(ctx, nodes, newRegistryAdmin)
+	err = migrator.WriteToRegistry(ctx, newNodes, oldNodes, newRegistryAdmin)
 	if err != nil {
 		logger.Fatal("could not write nodes to registry", zap.Error(err))
 	}

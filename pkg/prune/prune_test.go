@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 
@@ -227,4 +229,31 @@ func TestExecutor_PrunesExpired_LargePayload(t *testing.T) {
 	cnt, err = q.CountExpiredEnvelopes(ctx)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
+}
+
+func TestExecutor_PruneCountWorks(t *testing.T) {
+	ctx := context.Background()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	db := dbs[0]
+
+	setupTestData(t, db, DEFAULT_EXPIRED_CNT, DEFAULT_VALID_CNT)
+
+	logger := testutils.NewCapturingLogger(zapcore.DebugLevel)
+
+	exec := prune.NewPruneExecutor(
+		ctx,
+		logger.Logger,
+		db,
+		&config.PruneConfig{
+			BatchSize:      1000,
+			MaxCycles:      5,
+			CountDeletable: true,
+		},
+	)
+	err := exec.Run()
+	assert.NoError(t, err)
+
+	if !logger.Contains("Count of envelopes eligible for pruning") {
+		t.Errorf("expected log message not found, got: %s", logger.Logs())
+	}
 }

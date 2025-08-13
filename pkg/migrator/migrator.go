@@ -231,9 +231,31 @@ func (m *Migrator) Stop() error {
 
 // migrationWorker continuously processes migration for a specific table.
 func (m *Migrator) migrationWorker(tableName string) {
-	recvChan := make(chan ISourceRecord, m.batchSize*2)
-	wrtrChan := make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
-	wrtrQueries := queries.New(m.writer)
+	var (
+		recvChan    = make(chan ISourceRecord, m.batchSize*2)
+		wrtrChan    = make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
+		wrtrQueries = queries.New(m.writer)
+
+		inflightMu = &sync.Mutex{}
+		inflight   = make(map[int64]struct{})
+	)
+
+	maxInflight := int(m.batchSize) * 4
+	sem := make(chan struct{}, maxInflight)
+	for i := 0; i < maxInflight; i++ {
+		sem <- struct{}{}
+	}
+
+	cleanupInflight := func(ctx context.Context, id int64) {
+		inflightMu.Lock()
+		delete(inflight, id)
+		inflightMu.Unlock()
+
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+		}
+	}
 
 	tracing.GoPanicWrap(
 		m.ctx,
@@ -254,11 +276,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 				return
 			}
 
-			lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
-			if err != nil {
-				logger.Fatal("failed to get migration progress", zap.Error(err))
-			}
-
 			for {
 				select {
 				case <-ctx.Done():
@@ -266,17 +283,27 @@ func (m *Migrator) migrationWorker(tableName string) {
 					return
 
 				case <-ticker.C:
+					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
+					if err != nil {
+						logger.Fatal("failed to get migration progress", zap.Error(err))
+					}
+
 					logger.Debug(
 						"getting next batch of records",
-						zap.Int64("lastMigratedID", lastMigratedID),
+						zap.Int64("last_migrated_id", lastMigratedID),
 					)
 
-					records, newLastID, err := reader.Fetch(ctx, lastMigratedID, m.batchSize)
+					records, err := reader.Fetch(ctx, lastMigratedID, m.batchSize)
 					if err != nil {
 						switch err {
 						case sql.ErrNoRows:
 							logger.Info("no more records to migrate for now")
-							time.Sleep(sleepTimeOnNoRows)
+
+							select {
+							case <-ctx.Done():
+								return
+							case <-time.After(sleepTimeOnNoRows):
+							}
 
 						default:
 							logger.Error(
@@ -306,31 +333,40 @@ func (m *Migrator) migrationWorker(tableName string) {
 						continue
 					}
 
-					// Update migration progress only when we have a batch of records.
-					// newLastID would be 0 if there are currently no more records to migrate.
-					lastMigratedID = newLastID
-
-					logger.Debug(
-						"fetched batch of records",
-						zap.Int("count", len(records)),
-						zap.Int64("lastID", newLastID),
-					)
-
 					for _, record := range records {
+						id := record.GetID()
+
+						inflightMu.Lock()
+						_, seen := inflight[id]
+						inflightMu.Unlock()
+
+						if seen {
+							continue
+						}
+
+						select {
+						case <-ctx.Done():
+							logger.Info("context cancelled, stopping")
+							return
+						case <-sem:
+						}
+
 						select {
 						case <-ctx.Done():
 							logger.Info("context cancelled, stopping")
 							return
 
 						case recvChan <- record:
+							inflightMu.Lock()
+							inflight[id] = struct{}{}
+							inflightMu.Unlock()
+
+							logger.Debug(
+								"sent record to transformer",
+								zap.Int64("id", id),
+							)
 						}
 					}
-
-					logger.Debug(
-						"sent batch to transformer",
-						zap.Int("count", len(records)),
-						zap.Int64("lastID", newLastID),
-					)
 				}
 			}
 		})
@@ -360,12 +396,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 					envelope, err := m.transformer.Transform(record)
 					if err != nil {
 						logger.Error(
-							"failed to transform record",
+							"failed to transform",
 							zap.Error(err),
-							zap.Any("record", record),
+							zap.Int64("id", record.GetID()),
 						)
 
-						// TODO: Continue, break, alert, metrics?
+						cleanupInflight(ctx, record.GetID())
+
 						continue
 					}
 
@@ -375,7 +412,11 @@ func (m *Migrator) migrationWorker(tableName string) {
 						return
 
 					case wrtrChan <- envelope:
-						logger.Debug("envelope sent to writer", zap.Any("envelope", envelope))
+						logger.Debug(
+							"envelope sent to writer",
+							zap.Uint32("originator_id", envelope.OriginatorNodeID()),
+							zap.Uint64("originator_sequence_id", envelope.OriginatorSequenceID()),
+						)
 					}
 				}
 			}
@@ -401,72 +442,84 @@ func (m *Migrator) migrationWorker(tableName string) {
 						return
 					}
 
-					switch envelope.OriginatorNodeID() {
-					case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
-						err := retry(
-							ctx,
-							logger,
-							50*time.Millisecond,
-							func() re.RetryableError {
-								return m.insertOriginatorEnvelopeDatabase(envelope)
-							},
-						)
-						if err != nil {
-							// TODO: Send to failed table? Alerts, metrics?
-							logger.Error("failed to insert envelope", zap.Error(err))
-						}
+					func(env *envelopes.OriginatorEnvelope) {
+						defer cleanupInflight(ctx, int64(env.OriginatorSequenceID()))
 
-					case GroupMessageOriginatorID:
-						payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
-
-						isCommit, err := deserializer.IsGroupMessageCommit(payload)
-						if err != nil {
-							logger.Error(
-								"failed to check if group message is commit",
-								zap.Error(err),
-							)
-
-							// TODO: Send to failed table? Alerts, metrics?
-							continue
-						}
-
-						switch isCommit {
-						case true:
-							err := m.insertOriginatorEnvelopeBlockchain(envelope)
-							if err != nil {
-								logger.Error(
-									"error publishing group message",
-									zap.Error(err),
-								)
-							}
-
-						case false:
+						switch env.OriginatorNodeID() {
+						case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
 							err := retry(
 								ctx,
 								logger,
 								50*time.Millisecond,
 								func() re.RetryableError {
-									return m.insertOriginatorEnvelopeDatabase(envelope)
+									return m.insertOriginatorEnvelopeDatabase(env)
 								},
 							)
 							if err != nil {
-								// TODO: Send to failed table? Alerts, metrics?
+								logger.Error("failed to insert envelope", zap.Error(err))
+							}
+
+						case GroupMessageOriginatorID:
+							payload, ok := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
+							if !ok {
 								logger.Error(
-									"error publishing group message",
+									"unexpected payload type",
+									zap.Uint64(
+										"originator_sequence_id",
+										env.OriginatorSequenceID(),
+									),
+								)
+								return
+							}
+
+							isCommit, err := deserializer.IsGroupMessageCommit(payload)
+							if err != nil {
+								logger.Error(
+									"failed to check if group message is commit",
+									zap.Error(err),
+								)
+								return
+							}
+
+							switch isCommit {
+							case true:
+								// TODO: Wrap in a retry.
+								err := m.insertOriginatorEnvelopeBlockchain(env)
+								if err != nil {
+									logger.Error(
+										"error publishing group message to blockchain",
+										zap.Error(err),
+									)
+								}
+
+							case false:
+								err := retry(
+									ctx,
+									logger,
+									50*time.Millisecond,
+									func() re.RetryableError {
+										return m.insertOriginatorEnvelopeDatabase(env)
+									},
+								)
+								if err != nil {
+									logger.Error(
+										"error publishing group message to database",
+										zap.Error(err),
+									)
+								}
+							}
+
+						case InboxLogOriginatorID:
+							// TODO: Wrap in a retry.
+							err := m.insertOriginatorEnvelopeBlockchain(env)
+							if err != nil {
+								logger.Error(
+									"error publishing identity update",
 									zap.Error(err),
 								)
 							}
 						}
-
-					case InboxLogOriginatorID:
-						err := m.insertOriginatorEnvelopeBlockchain(envelope)
-						if err != nil {
-							logger.Error(
-								"error publishing identity update",
-								zap.Error(err),
-							)
-						}
-					}
+					}(envelope)
 				}
 			}
 		})

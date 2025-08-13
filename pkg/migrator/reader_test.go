@@ -50,9 +50,8 @@ func TestGroupMessageReader(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			records, maxID, err := reader.Fetch(ctx, tc.lastID, tc.limit)
+			records, err := reader.Fetch(ctx, tc.lastID, tc.limit)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
 				require.IsType(t, &migrator.GroupMessage{}, record)
@@ -103,9 +102,8 @@ func TestInboxLogReader(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			records, maxID, err := reader.Fetch(ctx, tc.lastID, tc.limit)
+			records, err := reader.Fetch(ctx, tc.lastID, tc.limit)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
 				require.IsType(t, &migrator.InboxLog{}, record)
@@ -156,9 +154,8 @@ func TestKeyPackageReader(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			records, maxID, err := reader.Fetch(ctx, tc.lastID, tc.limit)
+			records, err := reader.Fetch(ctx, tc.lastID, tc.limit)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
 				require.IsType(t, &migrator.KeyPackage{}, record)
@@ -209,9 +206,8 @@ func TestWelcomeMessageReader(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			records, maxID, err := reader.Fetch(ctx, tc.lastID, tc.limit)
+			records, err := reader.Fetch(ctx, tc.lastID, tc.limit)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantMaxID, maxID)
 
 			for _, record := range records {
 				require.IsType(t, &migrator.WelcomeMessage{}, record)

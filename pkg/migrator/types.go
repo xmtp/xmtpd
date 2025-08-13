@@ -45,7 +45,7 @@ type IDestinationWriter interface {
 
 // ISourceReader defines the interface for reading records from the source database.
 type ISourceReader interface {
-	Fetch(ctx context.Context, lastID int64, limit int32) ([]ISourceRecord, int64, error)
+	Fetch(ctx context.Context, lastID int64, limit int32) ([]ISourceRecord, error)
 }
 
 // ISourceRecord defines a record from the source database,

@@ -69,7 +69,7 @@ func TestTransformGroupMessage(t *testing.T) {
 
 	defer test.cleanup()
 
-	records, _, err := reader.Fetch(test.ctx, 0, 1)
+	records, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.GroupMessage{}, records[0])
@@ -136,7 +136,7 @@ func TestTransformInboxLog(t *testing.T) {
 
 	defer test.cleanup()
 
-	records, _, err := reader.Fetch(test.ctx, 0, 1)
+	records, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.InboxLog{}, records[0])
@@ -214,7 +214,7 @@ func TestTransformKeyPackage(t *testing.T) {
 
 	defer test.cleanup()
 
-	records, _, err := reader.Fetch(test.ctx, 0, 1)
+	records, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.KeyPackage{}, records[0])
@@ -283,7 +283,7 @@ func TestTransformWelcomeMessage(t *testing.T) {
 
 	defer test.cleanup()
 
-	records, _, err := reader.Fetch(test.ctx, 0, 1)
+	records, err := reader.Fetch(test.ctx, 0, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.IsType(t, &migrator.WelcomeMessage{}, records[0])

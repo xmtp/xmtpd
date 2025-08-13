@@ -283,6 +283,14 @@ func (m *Migrator) migrationWorker(tableName string) {
 					return
 
 				case <-ticker.C:
+					inflightPreFetch := maxInflight - len(sem)
+					logger.Debug("pipeline window (pre-fetch)",
+						zap.Int("inflight", inflightPreFetch),
+						zap.Int("available_tokens", len(sem)),
+						zap.Int("recvQ", len(recvChan)),
+						zap.Int("wrtrQ", len(wrtrChan)),
+					)
+
 					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
 					if err != nil {
 						logger.Fatal("failed to get migration progress", zap.Error(err))
@@ -367,6 +375,14 @@ func (m *Migrator) migrationWorker(tableName string) {
 							)
 						}
 					}
+
+					inflightPostEnqueue := maxInflight - len(sem)
+					logger.Debug("pipeline window (post-enqueue)",
+						zap.Int("inflight", inflightPostEnqueue),
+						zap.Int("available_tokens", len(sem)),
+						zap.Int("recvQ", len(recvChan)),
+						zap.Int("wrtrQ", len(wrtrChan)),
+					)
 				}
 			}
 		})
@@ -390,6 +406,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 				case record, open := <-recvChan:
 					if !open {
 						logger.Info("channel closed, stopping")
+
+						cleanupInflight(ctx, record.GetID())
 						return
 					}
 
@@ -402,7 +420,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 						)
 
 						cleanupInflight(ctx, record.GetID())
-
 						continue
 					}
 
@@ -520,6 +537,14 @@ func (m *Migrator) migrationWorker(tableName string) {
 							}
 						}
 					}(envelope)
+
+					inflightPostWrite := maxInflight - len(sem)
+					logger.Debug("pipeline window (post-write)",
+						zap.Int("inflight", inflightPostWrite),
+						zap.Int("available_tokens", len(sem)),
+						zap.Int("recvQ", len(recvChan)),
+						zap.Int("wrtrQ", len(wrtrChan)),
+					)
 				}
 			}
 		})

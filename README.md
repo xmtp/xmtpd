@@ -22,7 +22,7 @@ To keep up with and provide feedback about `xmtpd` development, see the [Issues 
 
 ## Prerequisites
 
-- [Go 1.24](https://go.dev/doc/install) -- On macOS install with `brew install go@1.24`
+- [Go 1.25](https://go.dev/doc/install) -- On macOS install with `brew install go@1.25`
 - [Docker](https://www.docker.com/get-started/)
 - [Foundry](https://github.com/foundry-rs/foundry)
 

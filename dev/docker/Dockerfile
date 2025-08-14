@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-ARG GO_VERSION=1.24
+ARG GO_VERSION=1.25
 FROM golang:${GO_VERSION}-alpine AS builder
 
 # Get build tools and required header files

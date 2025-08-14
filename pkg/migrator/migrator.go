@@ -294,7 +294,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 						zap.Int("wrtrQ", len(wrtrChan)),
 					)
 
-					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
+					lastMigratedID, err := metrics.MeasureReaderLatency(
+						"migration_tracker",
+						func() (int64, error) {
+							return wrtrQueries.GetMigrationProgress(ctx, tableName)
+						},
+					)
 					if err != nil {
 						metrics.EmitMigratorReaderError(
 							"migration_tracker",

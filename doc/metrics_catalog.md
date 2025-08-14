@@ -18,6 +18,17 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_indexer_log_streamer_logs` | `Counter` | Number of logs found by the log streamer | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_streamer_max_block` | `Gauge` | Max block on the chain to be processed by the log streamer | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_retryable_storage_error_count` | `Counter` | Number of retryable storage errors | `pkg/metrics/indexer.go` |
+| `xmtp_migrator_destination_blockchain_last_sequence_id` | `Gauge` | Last sequence ID published to blockchain | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_destination_database_last_sequence_id` | `Gauge` | Last sequence ID persisted in destination database | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_reader_errors_total` | `Counter` | Total number of reader errors | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_reader_fetch_duration_seconds` | `Histogram` | Time spent fetching records from source database | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_reader_num_rows_found` | `Counter` | Number of rows found in source database | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_source_last_sequence_id` | `Gauge` | Last sequence ID pulled from source DB | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_transformer_errors_total` | `Counter` | Total number of transformation errors | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_writer_errors_total` | `Counter` | Total number of writer errors by destination and error type | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_writer_latency_seconds` | `Histogram` | Time spent writing to destination | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_writer_retry_attempts` | `Histogram` | Number of retry attempts before success or failure | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_writer_rows_migrated` | `Counter` | Total number of rows successfully migrated | `pkg/metrics/migrator.go` |
 | `xmtp_payer_failed_attempts_to_publish_to_node_via_banlist` | `Histogram` | Number of failed attempts to publish to a node via banlist | `pkg/metrics/payer.go` |
 | `xmtp_payer_get_reader_node_available_nodes` | `Gauge` | Number of currently available nodes for reader selection | `pkg/metrics/payer.go` |
 | `xmtp_payer_lru_nonce` | `Gauge` | Least recently used blockchain nonce of the payer (not guaranteed to be the highest nonce). | `pkg/metrics/payer.go` |

@@ -28,6 +28,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -309,6 +310,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 						case sql.ErrNoRows:
 							logger.Info("no more records to migrate for now")
 
+							metrics.EmitMigratorReaderNumRowsFound(tableName, 0)
+
 							select {
 							case <-ctx.Done():
 								return
@@ -330,6 +333,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 						continue
 					}
+
+					metrics.EmitMigratorReaderNumRowsFound(tableName, int64(len(records)))
 
 					if len(records) == 0 {
 						logger.Info("no more records to migrate for now")
@@ -370,6 +375,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 							inflightMu.Lock()
 							inflight[id] = struct{}{}
 							inflightMu.Unlock()
+
+							metrics.EmitMigratorSourceLastSequenceID(tableName, id)
 
 							logger.Debug(
 								"sent record to transformer",
@@ -474,6 +481,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 							)
 							if err != nil {
 								logger.Error("failed to insert envelope", zap.Error(err))
+							} else {
+								metrics.EmitMigratorDestLastSequenceIDDatabase(
+									tableName,
+									int64(env.OriginatorSequenceID()),
+								)
+
+								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 							}
 
 						case GroupMessageOriginatorID:
@@ -507,6 +521,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 										"error publishing group message to blockchain",
 										zap.Error(err),
 									)
+								} else {
+									metrics.EmitMigratorDestLastSequenceIDBlockchain(
+										tableName,
+										int64(env.OriginatorSequenceID()),
+									)
+
+									metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 								}
 
 							case false:
@@ -523,6 +544,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 										"error publishing group message to database",
 										zap.Error(err),
 									)
+								} else {
+									metrics.EmitMigratorDestLastSequenceIDDatabase(
+										tableName,
+										int64(env.OriginatorSequenceID()),
+									)
+
+									metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 								}
 							}
 
@@ -534,6 +562,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 									"error publishing identity update",
 									zap.Error(err),
 								)
+							} else {
+								metrics.EmitMigratorDestLastSequenceIDBlockchain(
+									tableName,
+									int64(env.OriginatorSequenceID()),
+								)
+
+								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 							}
 						}
 					}(envelope)

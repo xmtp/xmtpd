@@ -99,6 +99,15 @@ func registerCollectors(reg prometheus.Registerer) {
 		blockchainWaitForTransaction,
 		blockchainPublishPayload,
 		payerGetReaderNodeAvailableNodes,
+		migratorSourceLastSequenceID,
+		migratorDestLastSequenceIDBlockchain,
+		migratorDestLastSequenceIDDatabase,
+		migratorReaderNumRowsFound,
+		migratorTransformerErrors,
+		migratorWriterErrors,
+		migratorWriterLatency,
+		migratorWriterRowsMigrated,
+		migratorWriterRetryAttempts,
 	}
 
 	for _, col := range cols {

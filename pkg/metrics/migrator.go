@@ -2,16 +2,17 @@ package metrics
 
 import "github.com/prometheus/client_golang/prometheus"
 
-var migratorSourceLastSequenceID = prometheus.NewGaugeVec(
+var migratorDestLastSequenceIDBlockchain = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
-		Name: "xmtp_migrator_source_last_sequence_id",
-		Help: "Last sequence ID pulled from source DB",
+		Name: "xmtp_migrator_destination_blockchain_last_sequence_id",
+		Help: "Last sequence ID published to blockchain",
 	},
 	[]string{"table"},
 )
 
-func EmitMigratorSourceLastSequenceID(table string, sequenceID int64) {
-	migratorSourceLastSequenceID.With(prometheus.Labels{"table": table}).Set(float64(sequenceID))
+func EmitMigratorDestLastSequenceIDBlockchain(table string, sequenceID int64) {
+	migratorDestLastSequenceIDBlockchain.With(prometheus.Labels{"table": table}).
+		Set(float64(sequenceID))
 }
 
 var migratorDestLastSequenceIDDatabase = prometheus.NewGaugeVec(
@@ -27,17 +28,19 @@ func EmitMigratorDestLastSequenceIDDatabase(table string, sequenceID int64) {
 		Set(float64(sequenceID))
 }
 
-var migratorDestLastSequenceIDBlockchain = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Name: "xmtp_migrator_destination_blockchain_last_sequence_id",
-		Help: "Last sequence ID published to blockchain",
+var migratorReaderErrors = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_migrator_reader_errors_total",
+		Help: "Total number of reader errors",
 	},
 	[]string{"table"},
 )
 
-func EmitMigratorDestLastSequenceIDBlockchain(table string, sequenceID int64) {
-	migratorDestLastSequenceIDBlockchain.With(prometheus.Labels{"table": table}).
-		Set(float64(sequenceID))
+func EmitMigratorReaderError(table, errorType string) {
+	migratorReaderErrors.With(prometheus.Labels{
+		"table":      table,
+		"error_type": errorType,
+	}).Inc()
 }
 
 var migratorReaderNumRowsFound = prometheus.NewCounterVec(
@@ -52,16 +55,28 @@ func EmitMigratorReaderNumRowsFound(table string, numRows int64) {
 	migratorReaderNumRowsFound.With(prometheus.Labels{"table": table}).Add(float64(numRows))
 }
 
-var migratorWriterRowsMigrated = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "xmtp_migrator_writer_rows_migrated",
-		Help: "Total number of rows successfully migrated",
+var migratorSourceLastSequenceID = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "xmtp_migrator_source_last_sequence_id",
+		Help: "Last sequence ID pulled from source DB",
 	},
 	[]string{"table"},
 )
 
-func EmitMigratorWriterRowsMigrated(table string, numRows int64) {
-	migratorWriterRowsMigrated.With(prometheus.Labels{"table": table}).Add(float64(numRows))
+func EmitMigratorSourceLastSequenceID(table string, sequenceID int64) {
+	migratorSourceLastSequenceID.With(prometheus.Labels{"table": table}).Set(float64(sequenceID))
+}
+
+var migratorTransformerErrors = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_migrator_transformer_errors_total",
+		Help: "Total number of transformation errors",
+	},
+	[]string{"table"},
+)
+
+func EmitMigratorTransformerError(table string) {
+	migratorTransformerErrors.With(prometheus.Labels{"table": table}).Inc()
 }
 
 var migratorWriterErrors = prometheus.NewCounterVec(
@@ -78,18 +93,6 @@ func EmitMigratorWriterError(table, destination, errorType string) {
 		"destination": destination,
 		"error_type":  errorType,
 	}).Inc()
-}
-
-var migratorTransformerErrors = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "xmtp_migrator_transformer_errors_total",
-		Help: "Total number of transformation errors",
-	},
-	[]string{"table"},
-)
-
-func EmitMigratorTransformerError(table string) {
-	migratorTransformerErrors.With(prometheus.Labels{"table": table}).Inc()
 }
 
 var migratorWriterLatency = prometheus.NewHistogramVec(
@@ -116,6 +119,18 @@ var migratorWriterRetryAttempts = prometheus.NewHistogramVec(
 	},
 	[]string{"table", "destination"},
 )
+
+var migratorWriterRowsMigrated = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_migrator_writer_rows_migrated",
+		Help: "Total number of rows successfully migrated",
+	},
+	[]string{"table"},
+)
+
+func EmitMigratorWriterRowsMigrated(table string, numRows int64) {
+	migratorWriterRowsMigrated.With(prometheus.Labels{"table": table}).Add(float64(numRows))
+}
 
 func EmitMigratorWriterRetryAttempts(table, destination string, attempts int) {
 	migratorWriterRetryAttempts.With(prometheus.Labels{

@@ -296,6 +296,11 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 					lastMigratedID, err := wrtrQueries.GetMigrationProgress(ctx, tableName)
 					if err != nil {
+						metrics.EmitMigratorReaderError(
+							"migration_tracker",
+							err.Error(),
+						)
+
 						logger.Fatal("failed to get migration progress", zap.Error(err))
 					}
 
@@ -319,6 +324,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 							}
 
 						default:
+							metrics.EmitMigratorReaderError(tableName, err.Error())
+
 							logger.Error(
 								"getting next batch of records failed, retrying",
 								zap.Error(err),
@@ -426,6 +433,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 							zap.Int64("id", record.GetID()),
 						)
 
+						metrics.EmitMigratorTransformerError(tableName)
+
 						cleanupInflight(ctx, record.GetID())
 						continue
 					}
@@ -475,11 +484,19 @@ func (m *Migrator) migrationWorker(tableName string) {
 								ctx,
 								logger,
 								50*time.Millisecond,
+								tableName,
+								"database",
 								func() re.RetryableError {
 									return m.insertOriginatorEnvelopeDatabase(env)
 								},
 							)
 							if err != nil {
+								metrics.EmitMigratorWriterError(
+									tableName,
+									"database",
+									err.Error(),
+								)
+
 								logger.Error("failed to insert envelope", zap.Error(err))
 							} else {
 								metrics.EmitMigratorDestLastSequenceIDDatabase(
@@ -493,6 +510,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 						case GroupMessageOriginatorID:
 							payload, ok := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
 							if !ok {
+								metrics.EmitMigratorWriterError(
+									tableName,
+									"database",
+									"unexpected payload type",
+								)
+
 								logger.Error(
 									"unexpected payload type",
 									zap.Uint64(
@@ -505,6 +528,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 							isCommit, err := deserializer.IsGroupMessageCommit(payload)
 							if err != nil {
+								metrics.EmitMigratorWriterError(
+									tableName,
+									"database",
+									err.Error(),
+								)
+
 								logger.Error(
 									"failed to check if group message is commit",
 									zap.Error(err),
@@ -517,6 +546,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 								// TODO: Wrap in a retry.
 								err := m.insertOriginatorEnvelopeBlockchain(env)
 								if err != nil {
+									metrics.EmitMigratorWriterError(
+										tableName,
+										"blockchain",
+										err.Error(),
+									)
+
 									logger.Error(
 										"error publishing group message to blockchain",
 										zap.Error(err),
@@ -535,11 +570,19 @@ func (m *Migrator) migrationWorker(tableName string) {
 									ctx,
 									logger,
 									50*time.Millisecond,
+									tableName,
+									"database",
 									func() re.RetryableError {
 										return m.insertOriginatorEnvelopeDatabase(env)
 									},
 								)
 								if err != nil {
+									metrics.EmitMigratorWriterError(
+										tableName,
+										"database",
+										err.Error(),
+									)
+
 									logger.Error(
 										"error publishing group message to database",
 										zap.Error(err),
@@ -558,6 +601,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 							// TODO: Wrap in a retry.
 							err := m.insertOriginatorEnvelopeBlockchain(env)
 							if err != nil {
+								metrics.EmitMigratorWriterError(
+									tableName,
+									"blockchain",
+									err.Error(),
+								)
+
 								logger.Error(
 									"error publishing identity update",
 									zap.Error(err),

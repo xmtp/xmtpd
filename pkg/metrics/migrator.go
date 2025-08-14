@@ -37,7 +37,7 @@ var migratorReaderErrors = prometheus.NewCounterVec(
 		Name: "xmtp_migrator_reader_errors_total",
 		Help: "Total number of reader errors",
 	},
-	[]string{"table"},
+	[]string{"table", "error_type"},
 )
 
 func EmitMigratorReaderError(table, errorType string) {

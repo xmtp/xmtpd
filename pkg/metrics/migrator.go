@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 var migratorDestLastSequenceIDBlockchain = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
@@ -41,6 +45,28 @@ func EmitMigratorReaderError(table, errorType string) {
 		"table":      table,
 		"error_type": errorType,
 	}).Inc()
+}
+
+var migratorReaderFetchDuration = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "xmtp_migrator_reader_fetch_duration_seconds",
+		Help:    "Time spent fetching records from source database",
+		Buckets: []float64{1, 10, 100, 500, 1000, 5000, 10000, 50000, 100000},
+	},
+	[]string{"table"},
+)
+
+func EmitMigratorReaderFetchDuration(table string, duration float64) {
+	migratorReaderFetchDuration.With(prometheus.Labels{"table": table}).Observe(duration)
+}
+
+func MeasureReaderLatency[Return any](table string, fn func() (Return, error)) (Return, error) {
+	start := time.Now()
+	ret, err := fn()
+	if err == nil {
+		EmitMigratorReaderFetchDuration(table, time.Since(start).Seconds())
+	}
+	return ret, err
 }
 
 var migratorReaderNumRowsFound = prometheus.NewCounterVec(
@@ -109,6 +135,18 @@ func EmitMigratorWriterLatency(table, destination string, duration float64) {
 		"table":       table,
 		"destination": destination,
 	}).Observe(duration)
+}
+
+func MeasureWriterLatency(
+	table, destination string,
+	fn func() error,
+) error {
+	start := time.Now()
+	err := fn()
+	if err == nil {
+		EmitMigratorWriterLatency(table, destination, time.Since(start).Seconds())
+	}
+	return err
 }
 
 var migratorWriterRetryAttempts = prometheus.NewHistogramVec(

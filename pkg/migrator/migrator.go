@@ -309,7 +309,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 						zap.Int64("last_migrated_id", lastMigratedID),
 					)
 
-					records, err := reader.Fetch(ctx, lastMigratedID, m.batchSize)
+					records, err := metrics.MeasureReaderLatency(
+						tableName,
+						func() ([]ISourceRecord, error) {
+							return reader.Fetch(ctx, lastMigratedID, m.batchSize)
+						},
+					)
 					if err != nil {
 						switch err {
 						case sql.ErrNoRows:
@@ -480,14 +485,20 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 						switch env.OriginatorNodeID() {
 						case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
-							err := retry(
-								ctx,
-								logger,
-								50*time.Millisecond,
+							err := metrics.MeasureWriterLatency(
 								tableName,
 								"database",
-								func() re.RetryableError {
-									return m.insertOriginatorEnvelopeDatabase(env)
+								func() error {
+									return retry(
+										ctx,
+										logger,
+										50*time.Millisecond,
+										tableName,
+										"database",
+										func() re.RetryableError {
+											return m.insertOriginatorEnvelopeDatabase(env)
+										},
+									)
 								},
 							)
 							if err != nil {
@@ -543,8 +554,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 							switch isCommit {
 							case true:
-								// TODO: Wrap in a retry.
-								err := m.insertOriginatorEnvelopeBlockchain(env)
+								err := metrics.MeasureWriterLatency(
+									tableName,
+									"blockchain",
+									func() error {
+										return m.insertOriginatorEnvelopeBlockchain(env)
+									},
+								)
 								if err != nil {
 									metrics.EmitMigratorWriterError(
 										tableName,
@@ -566,14 +582,20 @@ func (m *Migrator) migrationWorker(tableName string) {
 								}
 
 							case false:
-								err := retry(
-									ctx,
-									logger,
-									50*time.Millisecond,
+								err := metrics.MeasureWriterLatency(
 									tableName,
 									"database",
-									func() re.RetryableError {
-										return m.insertOriginatorEnvelopeDatabase(env)
+									func() error {
+										return retry(
+											ctx,
+											logger,
+											50*time.Millisecond,
+											tableName,
+											"database",
+											func() re.RetryableError {
+												return m.insertOriginatorEnvelopeDatabase(env)
+											},
+										)
 									},
 								)
 								if err != nil {
@@ -598,8 +620,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 							}
 
 						case InboxLogOriginatorID:
-							// TODO: Wrap in a retry.
-							err := m.insertOriginatorEnvelopeBlockchain(env)
+							err := metrics.MeasureWriterLatency(
+								tableName,
+								"blockchain",
+								func() error {
+									return m.insertOriginatorEnvelopeBlockchain(env)
+								},
+							)
 							if err != nil {
 								metrics.EmitMigratorWriterError(
 									tableName,

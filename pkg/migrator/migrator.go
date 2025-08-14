@@ -254,6 +254,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
+		default:
+			// semaphore already full => double-release attempt; don't block
 		}
 	}
 
@@ -406,8 +408,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 				case record, open := <-recvChan:
 					if !open {
 						logger.Info("channel closed, stopping")
-
-						cleanupInflight(ctx, record.GetID())
 						return
 					}
 

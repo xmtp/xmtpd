@@ -30,40 +30,33 @@ func (r *DBReader[T]) Fetch(
 	ctx context.Context,
 	lastID int64,
 	limit int32,
-) ([]ISourceRecord, int64, error) {
+) ([]ISourceRecord, error) {
 	rows, err := r.db.QueryContext(ctx, r.query, lastID, limit)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	defer func() {
 		_ = rows.Close()
 	}()
 
-	var (
-		records = make([]ISourceRecord, 0, limit)
-		maxID   int64
-	)
+	records := make([]ISourceRecord, 0, limit)
 
 	for rows.Next() {
 		record := r.factory()
 
 		if err := record.Scan(rows); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 
 		records = append(records, record)
-
-		if record.GetID() > maxID {
-			maxID = record.GetID()
-		}
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return records, maxID, nil
+	return records, nil
 }
 
 type GroupMessageReader struct {

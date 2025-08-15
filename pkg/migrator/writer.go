@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	re "github.com/xmtp/xmtpd/pkg/errors"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -225,8 +226,11 @@ func retry(
 	ctx context.Context,
 	logger *zap.Logger,
 	sleep time.Duration,
+	tableName string,
+	destination string,
 	fn func() re.RetryableError,
 ) error {
+	attempts := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -237,6 +241,8 @@ func retry(
 				logger.Error("error storing log", zap.Error(err))
 
 				if err.ShouldRetry() {
+					attempts++
+					metrics.EmitMigratorWriterRetryAttempts(tableName, destination, attempts)
 					select {
 					case <-ctx.Done():
 						return ctx.Err()

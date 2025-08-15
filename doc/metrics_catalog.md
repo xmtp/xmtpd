@@ -20,9 +20,10 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_indexer_retryable_storage_error_count` | `Counter` | Number of retryable storage errors | `pkg/metrics/indexer.go` |
 | `xmtp_migrator_destination_blockchain_last_sequence_id` | `Gauge` | Last sequence ID published to blockchain | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_destination_database_last_sequence_id` | `Gauge` | Last sequence ID persisted in destination database | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_e2e_latency_seconds` | `Histogram` | Time spent migrating a message | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_reader_errors_total` | `Counter` | Total number of reader errors | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_reader_fetch_duration_seconds` | `Histogram` | Time spent fetching records from source database | `pkg/metrics/migrator.go` |
-| `xmtp_migrator_reader_num_rows_found` | `Counter` | Number of rows found in source database | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_reader_num_rows_found` | `Counter` | Number of rows fetched from source database | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_source_last_sequence_id` | `Gauge` | Last sequence ID pulled from source DB | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_transformer_errors_total` | `Counter` | Total number of transformation errors | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_writer_errors_total` | `Counter` | Total number of writer errors by destination and error type | `pkg/metrics/migrator.go` |

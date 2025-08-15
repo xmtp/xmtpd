@@ -6,6 +6,22 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var migratorE2ELatency = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "xmtp_migrator_e2e_latency_seconds",
+		Help:    "Time spent migrating a message",
+		Buckets: []float64{0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 60.0},
+	},
+	[]string{"table", "destination"},
+)
+
+func EmitMigratorE2ELatency(table, destination string, duration float64) {
+	migratorE2ELatency.With(prometheus.Labels{
+		"table":       table,
+		"destination": destination,
+	}).Observe(duration)
+}
+
 var migratorDestLastSequenceIDBlockchain = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Name: "xmtp_migrator_destination_blockchain_last_sequence_id",
@@ -51,7 +67,7 @@ var migratorReaderFetchDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Name:    "xmtp_migrator_reader_fetch_duration_seconds",
 		Help:    "Time spent fetching records from source database",
-		Buckets: []float64{1, 10, 100, 500, 1000, 5000, 10000, 50000, 100000},
+		Buckets: []float64{0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 60.0},
 	},
 	[]string{"table"},
 )
@@ -72,7 +88,7 @@ func MeasureReaderLatency[Return any](table string, fn func() (Return, error)) (
 var migratorReaderNumRowsFound = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "xmtp_migrator_reader_num_rows_found",
-		Help: "Number of rows found in source database",
+		Help: "Number of rows fetched from source database",
 	},
 	[]string{"table"},
 )
@@ -125,7 +141,7 @@ var migratorWriterLatency = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Name:    "xmtp_migrator_writer_latency_seconds",
 		Help:    "Time spent writing to destination",
-		Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0},
+		Buckets: []float64{0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 60.0},
 	},
 	[]string{"table", "destination"},
 )

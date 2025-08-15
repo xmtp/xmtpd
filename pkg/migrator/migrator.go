@@ -238,7 +238,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 		wrtrQueries = queries.New(m.writer)
 
 		inflightMu = &sync.Mutex{}
-		inflight   = make(map[int64]struct{})
+		inflight   = make(map[int64]time.Time)
 	)
 
 	maxInflight := int(m.batchSize) * 4
@@ -286,6 +286,8 @@ func (m *Migrator) migrationWorker(tableName string) {
 					return
 
 				case <-ticker.C:
+					startE2ELatency := time.Now()
+
 					inflightPreFetch := maxInflight - len(sem)
 					logger.Debug("pipeline window (pre-fetch)",
 						zap.Int("inflight", inflightPreFetch),
@@ -390,7 +392,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 						case recvChan <- record:
 							inflightMu.Lock()
-							inflight[id] = struct{}{}
+							inflight[id] = startE2ELatency
 							inflightMu.Unlock()
 
 							metrics.EmitMigratorSourceLastSequenceID(tableName, id)
@@ -486,20 +488,65 @@ func (m *Migrator) migrationWorker(tableName string) {
 					}
 
 					func(env *envelopes.OriginatorEnvelope) {
-						defer cleanupInflight(ctx, int64(env.OriginatorSequenceID()))
+						var (
+							err         error
+							destination string
+						)
+
+						defer func() {
+							if err == nil {
+								inflightMu.Lock()
+								startTime, exists := inflight[int64(env.OriginatorSequenceID())]
+								inflightMu.Unlock()
+
+								if exists {
+									metrics.EmitMigratorE2ELatency(
+										tableName,
+										destination,
+										time.Since(startTime).Seconds(),
+									)
+								}
+
+								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
+
+								switch destination {
+								case "database":
+									metrics.EmitMigratorDestLastSequenceIDDatabase(
+										tableName,
+										int64(env.OriginatorSequenceID()),
+									)
+
+								case "blockchain":
+									metrics.EmitMigratorDestLastSequenceIDBlockchain(
+										tableName,
+										int64(env.OriginatorSequenceID()),
+									)
+								}
+							} else {
+								metrics.EmitMigratorWriterError(
+									tableName,
+									destination,
+									err.Error(),
+								)
+							}
+
+							cleanupInflight(ctx, int64(env.OriginatorSequenceID()))
+						}()
 
 						switch env.OriginatorNodeID() {
 						case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
-							err := metrics.MeasureWriterLatency(
+							destination = "database"
+
+							err = metrics.MeasureWriterLatency(
 								tableName,
-								"database",
+								destination,
 								func() error {
 									return retry(
 										ctx,
 										logger,
 										50*time.Millisecond,
 										tableName,
-										"database",
+										destination,
 										func() re.RetryableError {
 											return m.insertOriginatorEnvelopeDatabase(env)
 										},
@@ -507,29 +554,17 @@ func (m *Migrator) migrationWorker(tableName string) {
 								},
 							)
 							if err != nil {
-								metrics.EmitMigratorWriterError(
-									tableName,
-									"database",
-									err.Error(),
-								)
-
 								logger.Error("failed to insert envelope", zap.Error(err))
-							} else {
-								metrics.EmitMigratorDestLastSequenceIDDatabase(
-									tableName,
-									int64(env.OriginatorSequenceID()),
-								)
-
-								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 							}
 
 						case GroupMessageOriginatorID:
+							destination = "database"
+
 							payload, ok := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
 							if !ok {
-								metrics.EmitMigratorWriterError(
-									tableName,
-									"database",
-									"unexpected payload type",
+								err = fmt.Errorf(
+									"group message with sequence ID %d has unexpected payload type",
+									env.OriginatorSequenceID(),
 								)
 
 								logger.Error(
@@ -539,64 +574,54 @@ func (m *Migrator) migrationWorker(tableName string) {
 										env.OriginatorSequenceID(),
 									),
 								)
+
 								return
 							}
 
 							isCommit, err := deserializer.IsGroupMessageCommit(payload)
 							if err != nil {
-								metrics.EmitMigratorWriterError(
-									tableName,
-									"database",
-									err.Error(),
+								err = fmt.Errorf(
+									"failed to check if group message is commit: %w",
+									err,
 								)
 
 								logger.Error(
 									"failed to check if group message is commit",
 									zap.Error(err),
 								)
+
 								return
 							}
 
 							switch isCommit {
 							case true:
-								err := metrics.MeasureWriterLatency(
+								destination = "blockchain"
+
+								err = metrics.MeasureWriterLatency(
 									tableName,
-									"blockchain",
+									destination,
 									func() error {
 										return m.insertOriginatorEnvelopeBlockchain(env)
 									},
 								)
 								if err != nil {
-									metrics.EmitMigratorWriterError(
-										tableName,
-										"blockchain",
-										err.Error(),
-									)
-
 									logger.Error(
 										"error publishing group message to blockchain",
 										zap.Error(err),
 									)
-								} else {
-									metrics.EmitMigratorDestLastSequenceIDBlockchain(
-										tableName,
-										int64(env.OriginatorSequenceID()),
-									)
-
-									metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 								}
 
 							case false:
-								err := metrics.MeasureWriterLatency(
+								err = metrics.MeasureWriterLatency(
 									tableName,
-									"database",
+									destination,
 									func() error {
 										return retry(
 											ctx,
 											logger,
 											50*time.Millisecond,
 											tableName,
-											"database",
+											destination,
 											func() re.RetryableError {
 												return m.insertOriginatorEnvelopeDatabase(env)
 											},
@@ -604,52 +629,28 @@ func (m *Migrator) migrationWorker(tableName string) {
 									},
 								)
 								if err != nil {
-									metrics.EmitMigratorWriterError(
-										tableName,
-										"database",
-										err.Error(),
-									)
-
 									logger.Error(
 										"error publishing group message to database",
 										zap.Error(err),
 									)
-								} else {
-									metrics.EmitMigratorDestLastSequenceIDDatabase(
-										tableName,
-										int64(env.OriginatorSequenceID()),
-									)
-
-									metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 								}
 							}
 
 						case InboxLogOriginatorID:
-							err := metrics.MeasureWriterLatency(
+							destination = "blockchain"
+
+							err = metrics.MeasureWriterLatency(
 								tableName,
-								"blockchain",
+								destination,
 								func() error {
 									return m.insertOriginatorEnvelopeBlockchain(env)
 								},
 							)
 							if err != nil {
-								metrics.EmitMigratorWriterError(
-									tableName,
-									"blockchain",
-									err.Error(),
-								)
-
 								logger.Error(
 									"error publishing identity update",
 									zap.Error(err),
 								)
-							} else {
-								metrics.EmitMigratorDestLastSequenceIDBlockchain(
-									tableName,
-									int64(env.OriginatorSequenceID()),
-								)
-
-								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 							}
 						}
 					}(envelope)

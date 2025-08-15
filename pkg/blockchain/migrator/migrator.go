@@ -50,31 +50,52 @@ func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]Serializabl
 	return serializableNodes, nil
 }
 
+func findNodeWithPubKey(oldNodes []SerializableNode, pubKey string) *uint32 {
+	for _, node := range oldNodes {
+		if node.SigningKeyPub == pubKey {
+			return &node.NodeID
+		}
+	}
+	return nil
+}
+
 func WriteToRegistry(
 	ctx context.Context,
-	nodes []SerializableNode,
+	newNodes []SerializableNode,
+	oldNodes []SerializableNode,
 	chainAdmin blockchain.INodeRegistryAdmin,
 ) error {
-	for _, node := range nodes {
-		signingKey, err := utils.ParseEcdsaPublicKey(node.SigningKeyPub)
-		if err != nil {
-			return err
-		}
+	for _, node := range newNodes {
+		alreadyRegisteredNodeId := findNodeWithPubKey(oldNodes, node.SigningKeyPub)
 
-		nodeId, err := chainAdmin.AddNode(
-			ctx,
-			node.OwnerAddress,
-			signingKey,
-			node.HttpAddress,
-		)
-		if err != nil {
-			return err
-		}
-
-		if node.InCanonicalNetwork {
-			err = chainAdmin.AddToNetwork(ctx, nodeId)
+		if alreadyRegisteredNodeId != nil {
+			if node.InCanonicalNetwork {
+				err := chainAdmin.AddToNetwork(ctx, *alreadyRegisteredNodeId)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			signingKey, err := utils.ParseEcdsaPublicKey(node.SigningKeyPub)
 			if err != nil {
 				return err
+			}
+
+			nodeId, err := chainAdmin.AddNode(
+				ctx,
+				node.OwnerAddress,
+				signingKey,
+				node.HttpAddress,
+			)
+			if err != nil {
+				return err
+			}
+
+			if node.InCanonicalNetwork {
+				err = chainAdmin.AddToNetwork(ctx, nodeId)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

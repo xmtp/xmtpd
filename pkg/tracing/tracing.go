@@ -166,7 +166,12 @@ func GoPanicWrap(
 		}()
 
 		// Also maintain DataDog tracing for backward compatibility
-		expandedLabels := append(labels, "name", name)
+		var expandedLabels []string
+		if len(labels)%2 == 1 {
+			expandedLabels = append(labels[:len(labels)-1], "name", name)
+		} else {
+			expandedLabels = append(labels, "name", name)
+		}
 		pprof.Do(ctx, pprof.Labels(expandedLabels...), func(ctx context.Context) {
 			body(ctx)
 		})

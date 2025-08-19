@@ -163,6 +163,14 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		// Use no-op shutdown function on error
 		otelShutdown = func() {}
 	}
+	
+	// Track whether we should clean up OpenTelemetry on error
+	cleanupOTel := true
+	defer func() {
+		if cleanupOTel {
+			otelShutdown()
+		}
+	}()
 
 	if b.nonceManager == nil {
 		nonceManager, err := setupNonceManager(ctx, b.logger, b.config)
@@ -214,6 +222,9 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		clientMetrics = clientMet
 	}
 
+	// On success, we want to pass the shutdown function to the service
+	// so don't clean it up here
+	cleanupOTel = false
 	return b.buildGatewayService(ctx, promRegistry, clientMetrics, otelShutdown)
 }
 
@@ -224,10 +235,18 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	otelShutdown func(),
 ) (GatewayService, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	
+	// Track whether we should clean up resources on error
+	cleanupResources := true
+	defer func() {
+		if cleanupResources {
+			otelShutdown()
+			cancel()
+		}
+	}()
 
 	gatewayPrivateKey, err := utils.ParseEcdsaPrivateKey(b.config.Payer.PrivateKey)
 	if err != nil {
-		cancel()
 		return nil, errors.Wrap(err, "failed to parse gateway private key")
 	}
 
@@ -255,14 +274,12 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 
 	httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.HTTPPort))
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.Port))
 	if err != nil {
 		_ = httpListener.Close()
-		cancel()
 		return nil, err
 	}
 
@@ -285,10 +302,11 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		api.WithStatsHandlers(otelServerInterceptor.Handler()),
 	)
 	if err != nil {
-		cancel()
 		return nil, errors.Wrap(err, "failed to initialize api server")
 	}
 
+	// Success - don't clean up resources since we're passing them to the service
+	cleanupResources = false
 	return &gatewayServiceImpl{
 		apiServer:           apiServer,
 		ctx:                 ctx,

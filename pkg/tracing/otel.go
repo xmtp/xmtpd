@@ -734,22 +734,17 @@ func WrapWithSpan(
 
 	// Panic recovery and guaranteed cleanup
 	defer func() {
+		var panicked interface{}
 		if r := recover(); r != nil {
-			// Record panic as error
+			panicked = r
 			panicErr := fmt.Errorf("panic: %v", r)
 			span.RecordError(panicErr)
 			span.SetStatus(codes.Error, "panic occurred")
-
-			// Set return error
 			err = panicErr
 		}
-
-		// Always end span, even on panic
 		span.End()
-
-		// Re-panic to maintain original panic behavior
-		if r := recover(); r != nil {
-			panic(r)
+		if panicked != nil {
+			panic(panicked)
 		}
 	}()
 

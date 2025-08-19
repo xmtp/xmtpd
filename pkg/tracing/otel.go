@@ -340,7 +340,8 @@ func NewOTelConfig() *OTelConfig {
 	// Determine if tracing is enabled (OTEL SDK auto-detection or explicit enable)
 	enabled := getEnvBoolOrDefault("XMTPD_TRACING_ENABLE", false) ||
 		os.Getenv("OTEL_SERVICE_NAME") != "" ||
-		os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != ""
+		os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" ||
+		os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") != ""
 
 	// Use OTEL_EXPORTER_OTLP_TRACES_ENDPOINT or fallback to OTEL_EXPORTER_OTLP_ENDPOINT
 	endpoint := getEnvOrDefault("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")

@@ -4,10 +4,16 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -110,6 +116,7 @@ func SpanTag(span Span, key string, value interface{}) {
 // GoPanicWrap extends PanicWrap by running the body in a goroutine and
 // synchronizing the goroutine exit with the WaitGroup.
 // The body must respect cancellation of the Context.
+// Enhanced with OpenTelemetry tracing and flexible labeling.
 func GoPanicWrap(
 	ctx context.Context,
 	wg *sync.WaitGroup,
@@ -117,12 +124,51 @@ func GoPanicWrap(
 	body func(context.Context),
 	labels ...string,
 ) {
+	tracer := otel.Tracer("xmtpd.goroutines")
+
 	wg.Add(1)
-
-	expandedLabels := append(labels, "name", name)
-
-	go pprof.Do(ctx, pprof.Labels(expandedLabels...), func(ctx context.Context) {
+	go func() {
 		defer wg.Done()
-		PanicWrap(ctx, name, body)
-	})
+
+		ctx, span := tracer.Start(ctx, "goroutine."+name)
+		defer span.End()
+
+		// Add goroutine metadata
+		span.SetAttributes(
+			attribute.String("goroutine.name", name),
+			attribute.Int("goroutine.total", runtime.NumGoroutine()),
+		)
+
+		// Add any provided labels as attributes
+		if len(labels) > 0 {
+			attrs := make([]attribute.KeyValue, 0, len(labels)/2)
+			// Use i+1 < len(labels) to prevent index out of bounds for odd slices
+			for i := 0; i+1 < len(labels); i += 2 {
+				attrs = append(attrs, attribute.String(labels[i], labels[i+1]))
+			}
+			if len(labels)%2 == 1 {
+				span.AddEvent("odd number of labels provided", trace.WithAttributes(
+					attribute.String("last_key", labels[len(labels)-1]),
+				))
+			}
+			span.SetAttributes(attrs...)
+		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				// Record the call stack leading to the panic for debugging
+				buf := make([]byte, 64<<10) // 64KB stack trace
+				n := runtime.Stack(buf, false)
+				span.RecordError(fmt.Errorf("panic: %v\n%s", r, buf[:n]))
+				span.SetStatus(codes.Error, "panic occurred")
+				panic(r) // Re-panic to maintain behavior
+			}
+		}()
+
+		// Also maintain DataDog tracing for backward compatibility
+		expandedLabels := append(labels, "name", name)
+		pprof.Do(ctx, pprof.Labels(expandedLabels...), func(ctx context.Context) {
+			body(ctx)
+		})
+	}()
 }

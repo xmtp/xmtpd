@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/interceptors"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
@@ -93,21 +94,31 @@ func (s *syncWorker) subscribeToRegistry() {
 		&s.wg,
 		"node-registry-listener",
 		func(ctx context.Context) {
-			newNodesCh := s.nodeRegistry.OnNewNodes()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case newNodes, ok := <-newNodesCh:
-					if !ok {
-						// data channel closed
-						return
-					}
-					s.log.Info("New nodes received:", zap.Any("nodes", newNodes))
-					for _, node := range newNodes {
-						s.subscribeToNode(node.NodeID)
+			// Add OpenTelemetry tracing for registry operations
+			ctx, span, cleanup := traceSyncWorkerLifecycle(ctx, s.log)
+			defer cleanup(ctx)
+			_ = span // Span available for sub-operations if needed
+
+			ctx, err := traceNodeRegistryOperation(ctx, "subscribe_to_registry", s.log, func(ctx context.Context) error {
+				newNodesCh := s.nodeRegistry.OnNewNodes()
+				for {
+					select {
+					case <-ctx.Done():
+						return nil
+					case newNodes, ok := <-newNodesCh:
+						if !ok {
+							// data channel closed
+							return nil
+						}
+						s.log.Info("New nodes received:", zap.Any("nodes", newNodes))
+						for _, node := range newNodes {
+							s.subscribeToNode(node.NodeID)
+						}
 					}
 				}
+			})
+			if err != nil {
+				s.log.Error("Error in registry subscription", zap.Error(err))
 			}
 		})
 }
@@ -272,22 +283,36 @@ type NodeRegistration struct {
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
 	s.log.Info(fmt.Sprintf("Attempting to connect to %s...", node.HttpAddress))
 
-	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
-	dialOpts := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(interceptor.Unary()),
-		grpc.WithStreamInterceptor(interceptor.Stream()),
-	}
-	conn, err := node.BuildClient(dialOpts...)
-	if err != nil {
-		s.log.Error(
-			"Failed to connect to peer",
-			zap.String("peer", node.HttpAddress),
-			zap.Error(err),
-		)
-		return nil, fmt.Errorf("failed to connect to peer at %s: %v", node.HttpAddress, err)
-	}
+	var conn *grpc.ClientConn
+	_, err := traceNodeConnection(context.Background(), node.NodeID, node.HttpAddress, s.log, func(ctx context.Context) error {
+		// Add OpenTelemetry client stats handler for outgoing calls
+		otelClientInterceptor := interceptors.NewOTelClientInterceptor(s.log)
+		interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
 
-	s.log.Debug(fmt.Sprintf("Successfully opened a connection to peer at %s", node.HttpAddress))
+		dialOpts := []grpc.DialOption{
+			grpc.WithStatsHandler(otelClientInterceptor.Handler()),
+			grpc.WithUnaryInterceptor(interceptor.Unary()),
+			grpc.WithStreamInterceptor(interceptor.Stream()),
+		}
+
+		var err error
+		conn, err = node.BuildClient(dialOpts...)
+		if err != nil {
+			s.log.Error(
+				"Failed to connect to peer",
+				zap.String("peer", node.HttpAddress),
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to connect to peer at %s: %v", node.HttpAddress, err)
+		}
+
+		s.log.Debug(fmt.Sprintf("Successfully opened a connection to peer at %s", node.HttpAddress))
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
 	return conn, nil
 }
 

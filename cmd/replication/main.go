@@ -78,6 +78,24 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Initialize OpenTelemetry tracing if tracing is enabled
+	if options.Tracing.Enable {
+		logger.Info("initializing OpenTelemetry")
+		otelConfig := tracing.NewOTelConfig()
+		otelConfig.ServiceName = "xmtpd-replication"
+		otelConfig.ServiceVersion = Version
+
+		shutdown, err := tracing.InitializeOTel(ctx, otelConfig, logger)
+		if err != nil {
+			logger.Error("failed to initialize OpenTelemetry", zap.Error(err))
+		} else {
+			defer func() {
+				logger.Info("shutting down OpenTelemetry")
+				shutdown()
+			}()
+		}
+	}
+
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {

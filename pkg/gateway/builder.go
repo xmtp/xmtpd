@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -18,9 +19,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	redisnoncemanager "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/redis"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/interceptors"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	oteltracing "github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -143,6 +146,24 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		b.logger = logger
 	}
 
+	// Initialize OpenTelemetry tracing
+	b.logger.Info("initializing OpenTelemetry for gateway")
+	otelConfig := oteltracing.NewOTelConfig()
+	otelConfig.ServiceName = "xmtpd-gateway"
+
+	// Get version from environment variable
+	version := os.Getenv("VERSION")
+	if version == "" {
+		version = "unknown"
+	}
+	otelConfig.ServiceVersion = version
+	otelShutdown, err := oteltracing.InitializeOTel(ctx, otelConfig, b.logger)
+	if err != nil {
+		b.logger.Error("failed to initialize OpenTelemetry", zap.Error(err))
+		// Use no-op shutdown function on error
+		otelShutdown = func() {}
+	}
+
 	if b.nonceManager == nil {
 		nonceManager, err := setupNonceManager(ctx, b.logger, b.config)
 		if err != nil {
@@ -193,13 +214,14 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		clientMetrics = clientMet
 	}
 
-	return b.buildGatewayService(ctx, promRegistry, clientMetrics)
+	return b.buildGatewayService(ctx, promRegistry, clientMetrics, otelShutdown)
 }
 
 func (b *GatewayServiceBuilder) buildGatewayService(
 	ctx context.Context,
 	promRegistry *prometheus.Registry,
 	clientMetrics *grpcprom.ClientMetrics,
+	otelShutdown func(),
 ) (GatewayService, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -247,6 +269,9 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	// Create gateway interceptor
 	gatewayInterceptor := NewGatewayInterceptor(b.logger, b.identityFn, b.authorizers)
 
+	// Create OpenTelemetry server interceptor
+	otelServerInterceptor := interceptors.NewOTelServerInterceptor(b.logger)
+
 	apiServer, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(b.logger),
@@ -257,6 +282,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		api.WithPrometheusRegistry(promRegistry),
 		api.WithUnaryInterceptors(gatewayInterceptor.Unary()),
 		api.WithStreamInterceptors(gatewayInterceptor.Stream()),
+		api.WithStatsHandlers(otelServerInterceptor.Handler()),
 	)
 	if err != nil {
 		cancel()
@@ -274,6 +300,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		config:              b.config,
 		blockchainPublisher: b.blockchainPublisher,
 		nodeRegistry:        b.nodeRegistry,
+		otelShutdown:        otelShutdown,
 	}, nil
 }
 

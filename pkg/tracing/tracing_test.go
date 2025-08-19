@@ -56,7 +56,9 @@ func TestOTelConfig_Integration(t *testing.T) {
 
 	// Override with in-memory tracer for verification
 	tp, getSpans := NewInMemoryTracer()
-	defer tp.Shutdown(context.Background())
+	defer func() {
+		_ = tp.Shutdown(context.Background())
+	}()
 
 	_, span := StartOTelSpan(ctx, "integration.test")
 	SetAttributes(ctx, attribute.String("test.type", "integration"))
@@ -133,13 +135,13 @@ func TestParseResourceAttributes(t *testing.T) {
 			if tt.envValue != "" {
 				t.Setenv("OTEL_RESOURCE_ATTRIBUTES", tt.envValue)
 			} else {
-				os.Unsetenv("OTEL_RESOURCE_ATTRIBUTES")
+				_ = os.Unsetenv("OTEL_RESOURCE_ATTRIBUTES")
 			}
 			defer func() {
 				if originalValue != "" {
-					os.Setenv("OTEL_RESOURCE_ATTRIBUTES", originalValue)
+					_ = os.Setenv("OTEL_RESOURCE_ATTRIBUTES", originalValue)
 				} else {
-					os.Unsetenv("OTEL_RESOURCE_ATTRIBUTES")
+					_ = os.Unsetenv("OTEL_RESOURCE_ATTRIBUTES")
 				}
 			}()
 
@@ -151,7 +153,10 @@ func TestParseResourceAttributes(t *testing.T) {
 			for i, expected := range tt.expected {
 				if i < len(result) {
 					assert.Equal(t, expected.Key, result[i].Key, "Attribute key should match")
-					assert.Equal(t, expected.Value.AsString(), result[i].Value.AsString(), "Attribute value should match")
+					assert.Equal(t,
+						expected.Value.AsString(),
+						result[i].Value.AsString(),
+						"Attribute value should match")
 				}
 			}
 		})

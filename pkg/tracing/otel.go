@@ -722,7 +722,12 @@ func SetOTelStatus(ctx context.Context, code codes.Code, description string) {
 //	err := WrapWithSpan(ctx, "process-data", func(ctx context.Context) error {
 //	  return processData(ctx, data)
 //	}, trace.WithAttributes(attribute.String("data.type", "user")))
-func WrapWithSpan(ctx context.Context, spanName string, fn func(context.Context) error, opts ...trace.SpanStartOption) (err error) {
+func WrapWithSpan(
+	ctx context.Context,
+	spanName string,
+	fn func(context.Context) error,
+	opts ...trace.SpanStartOption,
+) (err error) {
 	ctx, span := StartOTelSpan(ctx, spanName, opts...)
 
 	// Panic recovery and guaranteed cleanup

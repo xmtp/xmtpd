@@ -12,10 +12,11 @@ import (
 
 func TestTraceNodeConnection_Success(t *testing.T) {
 	executed := false
-	ctx, err := traceNodeConnection(context.Background(), 123, "http://test.com", nil, func(ctx context.Context) error {
-		executed = true
-		return nil
-	})
+	ctx, err := traceNodeConnection(context.Background(), 123, "http://test.com", nil,
+		func(ctx context.Context) error {
+			executed = true
+			return nil
+		})
 
 	assert.NoError(t, err)
 	assert.True(t, executed)
@@ -24,9 +25,10 @@ func TestTraceNodeConnection_Success(t *testing.T) {
 
 func TestTraceNodeConnection_Error(t *testing.T) {
 	testErr := errors.New("connection failed")
-	ctx, err := traceNodeConnection(context.Background(), 123, "http://test.com", nil, func(ctx context.Context) error {
-		return testErr
-	})
+	ctx, err := traceNodeConnection(context.Background(), 123, "http://test.com", nil,
+		func(ctx context.Context) error {
+			return testErr
+		})
 
 	assert.Equal(t, testErr, err)
 	assert.NotNil(t, ctx)
@@ -103,7 +105,7 @@ func TestTraceSyncOperation_Panic(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 
 	assert.Panics(t, func() {
-		traceSyncOperation(context.Background(), "test.operation", logger, nil, func(ctx context.Context) error {
+		_, _ = traceSyncOperation(context.Background(), "test.operation", logger, nil, func(ctx context.Context) error {
 			panic("test panic")
 		})
 	})

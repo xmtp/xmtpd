@@ -214,7 +214,10 @@ func traceNodeRegistryOperation(
 }
 
 // traceSyncWorkerLifecycle traces sync worker lifecycle events with OpenTelemetry
-func traceSyncWorkerLifecycle(ctx context.Context, logger *zap.Logger) (context.Context, trace.Span, func(context.Context)) {
+func traceSyncWorkerLifecycle(
+	ctx context.Context,
+	logger *zap.Logger,
+) (context.Context, trace.Span, func(context.Context)) {
 	ctx, span := tracer.Start(ctx, "worker.lifecycle")
 
 	// Add worker attributes with consistent naming

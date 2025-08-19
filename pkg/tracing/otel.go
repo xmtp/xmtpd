@@ -286,10 +286,11 @@ func normalizeOTLPEndpoint(endpoint string) string {
 	}
 
 	// Parse the URL to extract host and port
-	if strings.HasPrefix(endpoint, "http://") {
-		endpoint = strings.TrimPrefix(endpoint, "http://")
-	} else if strings.HasPrefix(endpoint, "https://") {
-		endpoint = strings.TrimPrefix(endpoint, "https://")
+	lower := strings.ToLower(endpoint)
+	if strings.HasPrefix(lower, "http://") {
+		endpoint = endpoint[len("http://"):]
+	} else if strings.HasPrefix(lower, "https://") {
+		endpoint = endpoint[len("https://"):]
 	}
 
 	// Remove path components if present

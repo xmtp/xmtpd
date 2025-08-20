@@ -52,6 +52,7 @@ type Service struct {
 	cu                metadata.CursorUpdater
 	feeCalculator     fees.IFeeCalculator
 	options           config.ReplicationOptions
+	migrationEnabled  bool
 }
 
 func NewReplicationApiService(
@@ -63,6 +64,7 @@ func NewReplicationApiService(
 	updater metadata.CursorUpdater,
 	rateFetcher fees.IRatesFetcher,
 	options config.ReplicationOptions,
+	migrationEnabled bool,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
@@ -89,6 +91,7 @@ func NewReplicationApiService(
 		cu:                updater,
 		feeCalculator:     feeCalculator,
 		options:           options,
+		migrationEnabled:  migrationEnabled,
 	}, nil
 }
 
@@ -346,6 +349,13 @@ func (s *Service) PublishPayerEnvelopes(
 	ctx context.Context,
 	req *message_api.PublishPayerEnvelopesRequest,
 ) (*message_api.PublishPayerEnvelopesResponse, error) {
+	if s.migrationEnabled {
+		return nil, status.Errorf(
+			codes.Internal,
+			"D14N API is read-only while migration is enabled",
+		)
+	}
+
 	if len(req.GetPayerEnvelopes()) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payer envelope")
 	}

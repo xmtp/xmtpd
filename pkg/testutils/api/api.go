@@ -143,6 +143,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 			config.ReplicationOptions{
 				SendKeepAliveInterval: 30 * time.Second,
 			},
+			false,
 		)
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)

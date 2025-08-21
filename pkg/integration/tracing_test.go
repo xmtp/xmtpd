@@ -39,7 +39,11 @@ func waitForHTTPService(t *testing.T, url string, timeout time.Duration) {
 			}
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Failed to close response body: %v", err)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Logf("HTTP service returned status %d, expecting 200", resp.StatusCode)
@@ -156,7 +160,7 @@ func createTestOTelCollector(t *testing.T) (string, func() []map[string]interfac
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		server.Shutdown(ctx)
+		_ = server.Shutdown(ctx)
 	})
 
 	// Get portable host URL for container accessibility
@@ -175,7 +179,7 @@ func testHTTPEndpoints(t *testing.T, client *http.Client, baseURL string, endpoi
 		t.Run(fmt.Sprintf("endpoint_%s", endpoint), func(t *testing.T) {
 			resp, err := client.Get(baseURL + endpoint)
 			require.NoError(t, err, "Request to %s should succeed", endpoint)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			// Acceptable status codes for API endpoints
 			assert.True(t,
@@ -195,7 +199,7 @@ func testGRPCConnection(t *testing.T, grpcEndpoint string) {
 		t.Logf("gRPC endpoint %s not accessible: %v", grpcEndpoint, err)
 		return // Don't fail test, just log - gRPC might need specific proto setup
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	t.Logf("gRPC endpoint %s is accessible", grpcEndpoint)
 
 	// Additional validation: attempt gRPC health check if available
@@ -279,7 +283,11 @@ func TestTracingIntegration_HTTP(t *testing.T) {
 	t.Run("health_check_request", func(t *testing.T) {
 		resp, err := client.Get(xmtpdURL + "/healthz")
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Failed to close response body: %v", err)
+			}
+		}()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
@@ -384,7 +392,7 @@ func TestTracingIntegration_DualTracing(t *testing.T) {
 			resp, err := client.Get(xmtpdURL + "/healthz")
 			require.NoError(t, err, "Request %d should succeed with dual tracing", i+1)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
-			resp.Body.Close()
+			assert.NoError(t, resp.Body.Close())
 
 			// Small delay between requests
 			time.Sleep(500 * time.Millisecond)
@@ -411,7 +419,9 @@ func TestTracingIntegration_DualTracing(t *testing.T) {
 				if err != nil {
 					return false
 				}
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					t.Logf("Failed to close response body: %v", err)
+				}
 				return resp.StatusCode == http.StatusOK
 			}
 			return false
@@ -433,7 +443,9 @@ func TestTracingIntegration_DualTracing(t *testing.T) {
 					t.Errorf("Request %d failed: %v", reqNum, err)
 					return
 				}
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					t.Logf("Failed to close response body: %v", err)
+				}
 			}(i)
 		}
 
@@ -471,7 +483,11 @@ func TestTracingIntegration_DualTracing(t *testing.T) {
 		// For now, we'll just verify the service handles OTEL configuration properly
 		resp, err := client.Get(xmtpdURL + "/healthz")
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Failed to close response body: %v", err)
+			}
+		}()
 		assert.Equal(t, http.StatusOK, resp.StatusCode,
 			"Service should handle dual tracing configuration")
 	})
@@ -516,7 +532,9 @@ func TestTracingIntegration_SpanValidation(t *testing.T) {
 			resp, err := client.Get(xmtpdURL + endpoint)
 			require.NoError(t, err,
 				"XMTPD should handle requests with OTEL config: %s", endpoint)
-			resp.Body.Close()
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Failed to close response body: %v", err)
+			}
 
 			// Service should return proper status codes, not crash
 			assert.True(t,
@@ -538,14 +556,18 @@ func TestTracingIntegration_SpanValidation(t *testing.T) {
 		// Make requests that should generate spans
 		resp, err := client.Get(xmtpdURL + "/healthz")
 		require.NoError(t, err)
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Failed to close response body: %v", err)
+		}
 		t.Logf("Made request to %s/healthz", xmtpdURL)
 
 		// Make a few more requests to increase chances of span generation
 		for i := 0; i < 3; i++ {
 			resp, err := client.Get(xmtpdURL + "/metadata/v1/node")
 			if err == nil {
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					t.Logf("Failed to close response body: %v", err)
+				}
 				t.Logf("Made request %d to %s/metadata/v1/node", i+1, xmtpdURL)
 			}
 			time.Sleep(500 * time.Millisecond)

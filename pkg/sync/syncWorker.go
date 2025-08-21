@@ -289,7 +289,10 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 		func(ctx context.Context) error {
 			// Add OpenTelemetry client stats handler for outgoing calls
 			otelClientInterceptor := interceptors.NewOTelClientInterceptor(s.log)
-			interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
+			interceptor := clientInterceptors.NewAuthInterceptor(
+				s.registrant.TokenFactory(),
+				node.NodeID,
+			)
 
 			dialOpts := []grpc.DialOption{
 				grpc.WithStatsHandler(otelClientInterceptor.Handler()),
@@ -308,7 +311,10 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 				return fmt.Errorf("failed to connect to peer at %s: %v", node.HttpAddress, err)
 			}
 
-			s.log.Debug(fmt.Sprintf("Successfully opened a connection to peer at %s", node.HttpAddress))
+			s.log.Debug(fmt.Sprintf(
+				"Successfully opened a connection to peer at %s",
+				node.HttpAddress,
+			))
 			return nil
 		})
 	if err != nil {

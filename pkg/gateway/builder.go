@@ -163,7 +163,7 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		// Use no-op shutdown function on error
 		otelShutdown = func() {}
 	}
-	
+
 	// Track whether we should clean up OpenTelemetry on error
 	cleanupOTel := true
 	defer func() {
@@ -235,7 +235,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	otelShutdown func(),
 ) (GatewayService, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	
+
 	// Track whether we should clean up resources on error
 	cleanupResources := true
 	defer func() {

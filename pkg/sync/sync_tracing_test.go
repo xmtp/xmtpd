@@ -53,10 +53,15 @@ func TestTraceNodeRegistryOperation_Success(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	executed := false
 
-	ctx, err := traceNodeRegistryOperation(context.Background(), "test_operation", logger, func(ctx context.Context) error {
-		executed = true
-		return nil
-	})
+	ctx, err := traceNodeRegistryOperation(
+		context.Background(),
+		"test_operation",
+		logger,
+		func(ctx context.Context) error {
+			executed = true
+			return nil
+		},
+	)
 
 	assert.NoError(t, err)
 	assert.True(t, executed)
@@ -67,9 +72,14 @@ func TestTraceNodeRegistryOperation_Error(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	testErr := errors.New("registry operation failed")
 
-	ctx, err := traceNodeRegistryOperation(context.Background(), "test_operation", logger, func(ctx context.Context) error {
-		return testErr
-	})
+	ctx, err := traceNodeRegistryOperation(
+		context.Background(),
+		"test_operation",
+		logger,
+		func(ctx context.Context) error {
+			return testErr
+		},
+	)
 
 	assert.Equal(t, testErr, err)
 	assert.NotNil(t, ctx)
@@ -79,10 +89,16 @@ func TestTraceSyncOperation_Success(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	executed := false
 
-	ctx, err := traceSyncOperation(context.Background(), "test.operation", logger, nil, func(ctx context.Context) error {
-		executed = true
-		return nil
-	})
+	ctx, err := traceSyncOperation(
+		context.Background(),
+		"test.operation",
+		logger,
+		nil,
+		func(ctx context.Context) error {
+			executed = true
+			return nil
+		},
+	)
 
 	assert.NoError(t, err)
 	assert.True(t, executed)
@@ -93,9 +109,15 @@ func TestTraceSyncOperation_Error(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	testErr := errors.New("sync operation failed")
 
-	ctx, err := traceSyncOperation(context.Background(), "test.operation", logger, nil, func(ctx context.Context) error {
-		return testErr
-	})
+	ctx, err := traceSyncOperation(
+		context.Background(),
+		"test.operation",
+		logger,
+		nil,
+		func(ctx context.Context) error {
+			return testErr
+		},
+	)
 
 	assert.Equal(t, testErr, err)
 	assert.NotNil(t, ctx)
@@ -105,9 +127,15 @@ func TestTraceSyncOperation_Panic(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 
 	assert.Panics(t, func() {
-		_, _ = traceSyncOperation(context.Background(), "test.operation", logger, nil, func(ctx context.Context) error {
-			panic("test panic")
-		})
+		_, _ = traceSyncOperation(
+			context.Background(),
+			"test.operation",
+			logger,
+			nil,
+			func(ctx context.Context) error {
+				panic("test panic")
+			},
+		)
 	})
 }
 

@@ -26,6 +26,7 @@ type gatewayServiceImpl struct {
 	apiServer           *api.ApiServer
 	nodeRegistry        registry.NodeRegistry
 	blockchainPublisher blockchain.IBlockchainPublisher
+	otelShutdown        func() // OpenTelemetry shutdown function
 }
 
 // Shutdown gracefully stops the API server and cleans up resources.
@@ -40,6 +41,12 @@ func (s *gatewayServiceImpl) Shutdown(timeout time.Duration) error {
 
 	if s.blockchainPublisher != nil {
 		s.blockchainPublisher.Close()
+	}
+
+	// Shutdown OpenTelemetry tracing
+	if s.otelShutdown != nil {
+		s.log.Info("shutting down OpenTelemetry")
+		s.otelShutdown()
 	}
 
 	if s.cancel != nil {

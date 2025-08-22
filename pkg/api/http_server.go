@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -43,7 +43,7 @@ func (s *ApiServer) startHTTP(
 
 	gwServer := &http.Server{
 		Addr:    s.httpListener.Addr().String(),
-		Handler: allowCORS(gwmux),
+		Handler: tracing.WrapHTTPHandler(allowCORS(gwmux), nil),
 	}
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "http", func(ctx context.Context) {

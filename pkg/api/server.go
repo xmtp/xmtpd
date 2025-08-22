@@ -12,6 +12,7 @@ import (
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pires/go-proxyproto"
+	"github.com/xmtp/xmtpd/pkg/interceptors"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -21,6 +22,7 @@ import (
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/stats"
 )
 
 type RegistrationFunc func(server *grpc.Server) error
@@ -36,6 +38,7 @@ type ApiServerConfig struct {
 	PromRegistry         *prometheus.Registry
 	UnaryInterceptors    []grpc.UnaryServerInterceptor
 	StreamInterceptors   []grpc.StreamServerInterceptor
+	StatsHandlers        []stats.Handler
 }
 
 type ApiServerOption func(*ApiServerConfig)
@@ -78,6 +81,10 @@ func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) ApiServe
 
 func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) ApiServerOption {
 	return func(cfg *ApiServerConfig) { cfg.StreamInterceptors = append(cfg.StreamInterceptors, interceptors...) }
+}
+
+func WithStatsHandlers(handlers ...stats.Handler) ApiServerOption {
+	return func(cfg *ApiServerConfig) { cfg.StatsHandlers = append(cfg.StatsHandlers, handlers...) }
 }
 
 type ApiServer struct {
@@ -135,6 +142,9 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, err
 	}
 
+	// Add OpenTelemetry tracing interceptor
+	otelServerInterceptor := interceptors.NewOTelServerInterceptor(cfg.Log)
+
 	unary := []grpc.UnaryServerInterceptor{
 		openConnectionsInterceptor.Unary(),
 		loggingInterceptor.Unary(),
@@ -143,6 +153,9 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		openConnectionsInterceptor.Stream(),
 		loggingInterceptor.Stream(),
 	}
+
+	// Add OTEL stats handler to the config
+	cfg.StatsHandlers = append(cfg.StatsHandlers, otelServerInterceptor.Handler())
 
 	// Add any additional interceptors from config
 	unary = append(unary, cfg.UnaryInterceptors...)
@@ -163,7 +176,8 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 			stream...)
 	}
 
-	s.grpcServer = grpc.NewServer(
+	// Build gRPC server options
+	grpcOpts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(unary...),
 		grpc.ChainStreamInterceptor(stream...),
 		grpc.Creds(insecure.NewCredentials()),
@@ -172,7 +186,14 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 			PermitWithoutStream: true,
 			MinTime:             15 * time.Second,
 		}),
-	)
+	}
+
+	// Add stats handlers if any
+	for _, handler := range cfg.StatsHandlers {
+		grpcOpts = append(grpcOpts, grpc.StatsHandler(handler))
+	}
+
+	s.grpcServer = grpc.NewServer(grpcOpts...)
 
 	if err := cfg.RegistrationFunc(s.grpcServer); err != nil {
 		return nil, err

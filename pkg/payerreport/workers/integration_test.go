@@ -401,7 +401,6 @@ func TestCanGenerateReport(t *testing.T) {
 }
 
 func TestCanGenerateAndAttestReport(t *testing.T) {
-	t.Skip("This test is flaky. See https://github.com/xmtp/xmtpd/issues/913")
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()

@@ -3,14 +3,12 @@ package db
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"regexp"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/xmtp/xmtpd/pkg/migrations"
@@ -106,18 +104,19 @@ func createNamespace(
 		return err
 	}
 
-	// Create database if it doesn't exist
-	_, err = adminConn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s"`, namespace))
+	var exists bool
+	err = adminConn.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)",
+		namespace).Scan(&exists)
 	if err != nil {
-		// Ignore error if database already exists
-		var pgErr *pgconn.PgError
-		// Error code 42P04 is for "duplicate database"
-		// https://www.postgresql.org/docs/current/errcodes-appendix.html
-		if errors.As(err, &pgErr) && pgErr.Code == "42P04" {
-			return nil
-		}
+		return fmt.Errorf("failed to check if database exists: %w", err)
+	}
 
-		return fmt.Errorf("failed to create database: %w", err)
+	if !exists {
+		_, err = adminConn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s"`, namespace))
+		if err != nil {
+			return fmt.Errorf("failed to create database: %w", err)
+		}
 	}
 
 	return nil

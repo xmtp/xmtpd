@@ -550,7 +550,7 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 		common.HexToAddress(options.SetBootstrapperAddress.Address),
 	)
 	if err != nil {
-		logger.Fatal("could not get bootstrapper address", zap.Error(err))
+		logger.Fatal("could not set bootstrapper address", zap.Error(err))
 	}
 }
 

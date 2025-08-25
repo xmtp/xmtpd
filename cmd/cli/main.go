@@ -839,7 +839,7 @@ func setupAppChainAdmin(
 ) (blockchain.IAppChainAdmin, error) {
 	chainClient, err := blockchain.NewRPCClient(
 		ctx,
-		options.Contracts.SettlementChain.RPCURL,
+		options.Contracts.AppChain.RPCURL,
 	)
 	if err != nil {
 		return nil, err
@@ -847,7 +847,7 @@ func setupAppChainAdmin(
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		privateKey,
-		options.Contracts.SettlementChain.ChainID,
+		options.Contracts.AppChain.ChainID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create signer: %w", err)

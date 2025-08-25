@@ -769,12 +769,7 @@ func setupNodeRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	parameterAdmin, err := blockchain.NewParameterAdmin(
-		logger,
-		chainClient,
-		signer,
-		options.Contracts,
-	)
+	parameterAdmin, err := setupParameterAdmin(ctx, logger, privateKey, options)
 	if err != nil {
 		return nil, fmt.Errorf("could not create parameter admin: %w", err)
 	}
@@ -830,6 +825,50 @@ func setupRateRegistryAdmin(
 	return registryAdmin, nil
 }
 
+func setupParameterAdmin(ctx context.Context,
+	logger *zap.Logger,
+	privateKey string,
+	options *CLI,
+) (*blockchain.ParameterAdmin, error) {
+	if options.Contracts.SettlementChain.RPCURL == "" {
+		return nil, fmt.Errorf("rpc url is required")
+	}
+	if options.Contracts.SettlementChain.ChainID == 0 {
+		return nil, fmt.Errorf("chain id is required")
+	}
+	if options.Contracts.SettlementChain.ParameterRegistryAddress == "" {
+		return nil, fmt.Errorf("parameter registry address is required")
+	}
+
+	chainClient, err := blockchain.NewRPCClient(
+		ctx,
+		options.Contracts.SettlementChain.RPCURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		options.Contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	parameterAdmin, err := blockchain.NewParameterAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
+	return parameterAdmin, nil
+}
+
 // setupAppChainAdmin creates and returns a appchain admin
 func setupAppChainAdmin(
 	ctx context.Context,
@@ -837,6 +876,19 @@ func setupAppChainAdmin(
 	privateKey string,
 	options *CLI,
 ) (blockchain.IAppChainAdmin, error) {
+	if options.Contracts.AppChain.RPCURL == "" {
+		return nil, fmt.Errorf("rpc url is required")
+	}
+	if options.Contracts.AppChain.ChainID == 0 {
+		return nil, fmt.Errorf("chain id is required")
+	}
+	if options.Contracts.AppChain.GroupMessageBroadcasterAddress == "" {
+		return nil, fmt.Errorf("group message broadcaster address is required")
+	}
+	if options.Contracts.AppChain.IdentityUpdateBroadcasterAddress == "" {
+		return nil, fmt.Errorf("identity update broadcaster address is required")
+	}
+
 	chainClient, err := blockchain.NewRPCClient(
 		ctx,
 		options.Contracts.AppChain.RPCURL,
@@ -853,12 +905,7 @@ func setupAppChainAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	parameterAdmin, err := blockchain.NewParameterAdmin(
-		logger,
-		chainClient,
-		signer,
-		options.Contracts,
-	)
+	parameterAdmin, err := setupParameterAdmin(ctx, logger, privateKey, options)
 	if err != nil {
 		return nil, fmt.Errorf("could not create parameter admin: %w", err)
 	}

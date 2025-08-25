@@ -305,6 +305,8 @@ func startAPIServer(
 ) error {
 	var err error
 
+	isMigrationEnabled := cfg.Options.MigrationServer.Enable || cfg.Options.MigrationClient.Enable
+
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		if cfg.Options.Replication.Enable {
 
@@ -319,6 +321,7 @@ func startAPIServer(
 				s.cursorUpdater,
 				getRatesFetcher(),
 				cfg.Options.Replication,
+				isMigrationEnabled,
 			)
 			if err != nil {
 				return err

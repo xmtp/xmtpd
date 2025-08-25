@@ -13,6 +13,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type MigrationConfig struct {
+	Enable     bool
+	FromNodeID uint32
+}
+
 type SyncServerConfig struct {
 	Ctx                        context.Context
 	Log                        *zap.Logger
@@ -22,6 +27,7 @@ type SyncServerConfig struct {
 	FeeCalculator              fees.IFeeCalculator
 	PayerReportStore           payerreport.IPayerReportStore
 	PayerReportDomainSeparator common.Hash
+	Migration                  MigrationConfig
 }
 
 type SyncServerOption func(*SyncServerConfig)
@@ -56,6 +62,10 @@ func WithPayerReportStore(store payerreport.IPayerReportStore) SyncServerOption 
 
 func WithPayerReportDomainSeparator(domainSeparator common.Hash) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.PayerReportDomainSeparator = domainSeparator }
+}
+
+func WithMigration(migration MigrationConfig) SyncServerOption {
+	return func(cfg *SyncServerConfig) { cfg.Migration = migration }
 }
 
 type SyncServer struct {

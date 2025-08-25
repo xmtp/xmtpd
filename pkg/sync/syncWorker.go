@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/fees"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -38,6 +40,7 @@ type syncWorker struct {
 	feeCalculator              fees.IFeeCalculator
 	payerReportStore           payerreport.IPayerReportStore
 	payerReportDomainSeparator common.Hash
+	migration                  MigrationConfig
 }
 
 func startSyncWorker(
@@ -55,6 +58,7 @@ func startSyncWorker(
 		subscriptions:              make(map[uint32]struct{}),
 		payerReportStore:           cfg.PayerReportStore,
 		payerReportDomainSeparator: cfg.PayerReportDomainSeparator,
+		migration:                  cfg.Migration,
 		cancel:                     cancel,
 	}
 	if err := s.start(); err != nil {
@@ -309,11 +313,23 @@ func (s *syncWorker) setupStream(
 	)
 	client := message_api.NewReplicationApiClient(conn)
 	nodeID := node.NodeID
+
+	originatorNodeIDs := []uint32{nodeID}
+
+	if s.migration.Enable && nodeID == s.migration.FromNodeID {
+		originatorNodeIDs = []uint32{
+			nodeID,
+			migrator.GroupMessageOriginatorID,
+			migrator.WelcomeMessageOriginatorID,
+			migrator.KeyPackagesOriginatorID,
+		}
+	}
+
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{nodeID},
+				OriginatorNodeIds: originatorNodeIDs,
 				LastSeen: &envelopes.Cursor{
 					NodeIdToSequenceId: vc,
 				},
@@ -335,7 +351,7 @@ func (s *syncWorker) setupStream(
 
 	var lastEnvelope *envUtils.OriginatorEnvelope
 	for _, row := range result {
-		if uint32(row.OriginatorNodeID) == nodeID {
+		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
 			lastEnvelope, err = envUtils.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
 			if err != nil {
 				return nil, err

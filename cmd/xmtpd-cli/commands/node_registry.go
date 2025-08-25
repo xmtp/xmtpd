@@ -471,11 +471,17 @@ func setupNodeRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
+	parameterAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
 	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		chainClient,
 		signer,
 		contracts,
+		parameterAdmin,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry admin: %w", err)

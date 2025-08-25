@@ -43,6 +43,7 @@ type CLI struct {
 	Watcher                config.WatcherOptions
 	GetMaxCanonicalOptions config.GetMaxCanonicalOptions
 	SetMaxCanonicalOptions config.SetMaxCanonicalOptions
+	GetBootstrapperAddress config.GetBootstrapperAddressOptions
 }
 
 /*
@@ -70,6 +71,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var watcherOptions config.WatcherOptions
 	var getMaxCanonicalOptions config.GetMaxCanonicalOptions
 	var setMaxCanonicalOptions config.SetMaxCanonicalOptions
+	var getBootstrapperAddressOptions config.GetBootstrapperAddressOptions
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -112,7 +114,10 @@ func parseOptions(args []string) (*CLI, error) {
 		return nil, fmt.Errorf("could not add get-rates command: %s", err)
 	}
 	if _, err := parser.AddCommand("get-max-canonical-nodes", "Get max canonical nodes for network", "", &getMaxCanonicalOptions); err != nil {
-		return nil, fmt.Errorf("could not add get-rates command: %s", err)
+		return nil, fmt.Errorf("could not add get-max-canonical-nodes command: %s", err)
+	}
+	if _, err := parser.AddCommand("get-bootstrapper-address", "Get bootstrapper address for V3 migration", "", &getBootstrapperAddressOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-bootstrapper-address command: %s", err)
 	}
 
 	// Dev commands
@@ -155,6 +160,7 @@ func parseOptions(args []string) (*CLI, error) {
 		watcherOptions,
 		getMaxCanonicalOptions,
 		setMaxCanonicalOptions,
+		getBootstrapperAddressOptions,
 	}, nil
 }
 
@@ -499,6 +505,26 @@ func getMaxCanonicalNodes(logger *zap.Logger, options *CLI) {
 	logger.Info("max canonical nodes retrieved successfully", zap.Any("limit", limit))
 }
 
+func getBootstrapperAddress(logger *zap.Logger, options *CLI) {
+	//ctx := context.Background()
+	//chainClient, err := blockchain.NewRPCClient(
+	//	ctx,
+	//	options.Contracts.SettlementChain.RPCURL,
+	//)
+	//if err != nil {
+	//	logger.Fatal("could not create chain client", zap.Error(err))
+	//}
+	//
+	//caller, err := blockchain.NewNodeRegistryCaller(
+	//	logger,
+	//	chainClient,
+	//	options.Contracts,
+	//)
+	//if err != nil {
+	//	logger.Fatal("could not create registry admin", zap.Error(err))
+	//}
+}
+
 func getAllNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
 	chainClient, err := blockchain.NewRPCClient(
@@ -682,6 +708,9 @@ func main() {
 	case "start-watcher":
 		startChainWatcher(logger, options)
 		return
+	case "get-bootstrapper-address":
+		getBootstrapperAddress(logger, options)
+		return
 	}
 }
 
@@ -708,11 +737,22 @@ func setupNodeRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
+	parameterAdmin, err := blockchain.NewParameterAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
 	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		chainClient,
 		signer,
 		options.Contracts,
+		parameterAdmin,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry admin: %w", err)

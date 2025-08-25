@@ -54,6 +54,8 @@ type SetMaxCanonicalOptions struct {
 	Limit        uint8                    `                                        long:"limit" description:"Limit of max canonical nodes" required:"true"`
 }
 
+type GetBootstrapperAddressOptions struct{}
+
 type GetPubKeyOptions struct {
 	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`
 }

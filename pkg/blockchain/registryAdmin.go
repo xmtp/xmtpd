@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
-	"github.com/xmtp/xmtpd/pkg/utils"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,10 +15,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
-)
-
-const (
-	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY = "xmtp.nodeRegistry.maxCanonicalNodes"
 )
 
 type INodeRegistryAdmin interface {
@@ -38,11 +31,11 @@ type INodeRegistryAdmin interface {
 }
 
 type nodeRegistryAdmin struct {
-	client            *ethclient.Client
-	signer            TransactionSigner
-	logger            *zap.Logger
-	nodeContract      *noderegistry.NodeRegistry
-	parameterContract *paramReg.SettlementChainParameterRegistry
+	client         *ethclient.Client
+	signer         TransactionSigner
+	logger         *zap.Logger
+	nodeContract   *noderegistry.NodeRegistry
+	parameterAdmin *ParameterAdmin
 }
 
 var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
@@ -52,6 +45,7 @@ func NewNodeRegistryAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
+	parameterAdmin *ParameterAdmin,
 ) (*nodeRegistryAdmin, error) {
 	nodeContract, err := noderegistry.NewNodeRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
@@ -61,20 +55,12 @@ func NewNodeRegistryAdmin(
 		return nil, err
 	}
 
-	paramContract, err := paramReg.NewSettlementChainParameterRegistry(
-		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
-		client,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	return &nodeRegistryAdmin{
-		client:            client,
-		signer:            signer,
-		logger:            logger.Named("NodeRegistryAdmin"),
-		nodeContract:      nodeContract,
-		parameterContract: paramContract,
+		client:         client,
+		signer:         signer,
+		logger:         logger.Named("NodeRegistryAdmin"),
+		nodeContract:   nodeContract,
+		parameterAdmin: parameterAdmin,
 	}, nil
 }
 
@@ -236,35 +222,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 	ctx context.Context,
 	limit uint8,
 ) error {
-	err := ExecuteTransaction(
-		ctx,
-		n.signer,
-		n.logger,
-		n.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			var value [32]byte
-			// store uint8 in the last byte for big-endian compatibility
-			value[31] = limit
-
-			return n.parameterContract.Set(opts, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, value)
-		},
-		func(log *types.Log) (interface{}, error) {
-			return n.parameterContract.ParseParameterSet(*log)
-		},
-		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
-			if !ok {
-				n.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
-				return
-			}
-			n.logger.Info("set parameter",
-				zap.String("key", NODE_REGISTRY_MAX_CANONICAL_NODES_KEY),
-				zap.Uint64("parameter", utils.DecodeBytes32ToUint64(parameterSet.Value)),
-			)
-		},
-	)
+	err := n.parameterAdmin.SetParameter(ctx, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, limit)
 	if err != nil {
 		return err
 	}

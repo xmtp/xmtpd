@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY = "xmtp.nodeRegistry.maxCanonicalNodes"
+	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY    = "xmtp.nodeRegistry.maxCanonicalNodes"
+	IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
 )
 
 type ParameterAdmin struct {
@@ -46,20 +47,43 @@ func NewParameterAdmin(
 	}, nil
 }
 
-func (n *ParameterAdmin) SetParameter(
+func (n *ParameterAdmin) GetParameter(
 	ctx context.Context,
 	paramName string,
-	paramValue uint8,
+) ([32]byte, error) {
+	return n.parameterContract.Get(&bind.CallOpts{
+		Context: ctx,
+	}, paramName)
+}
+
+// Param helpers ---------------------------------------------------------------
+
+func packUint8(v uint8) [32]byte {
+	var out [32]byte
+	out[31] = v // big-endian placement
+	return out
+}
+
+func packAddress(a common.Address) [32]byte {
+	var out [32]byte
+	copy(out[12:], a.Bytes()) // right-align to 32 bytes
+	return out
+}
+
+// shared executor -------------------------------------------------------------
+
+func (n *ParameterAdmin) setParameterBytes32(
+	ctx context.Context,
+	paramName string,
+	value [32]byte,
+	onEvent func(val [32]byte),
 ) error {
-	err := ExecuteTransaction(
+	return ExecuteTransaction(
 		ctx,
 		n.signer,
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			var value [32]byte
-			// store uint8 in the last byte for big-endian compatibility
-			value[31] = paramValue
 			return n.parameterContract.Set(opts, paramName, value)
 		},
 		func(log *types.Log) (interface{}, error) {
@@ -73,15 +97,42 @@ func (n *ParameterAdmin) SetParameter(
 				)
 				return
 			}
-			n.logger.Info("set parameter",
-				zap.String("key", NODE_REGISTRY_MAX_CANONICAL_NODES_KEY),
-				zap.Uint64("parameter", utils.DecodeBytes32ToUint64(parameterSet.Value)),
+			if onEvent != nil {
+				onEvent(parameterSet.Value)
+			}
+		},
+	)
+}
+
+// typed wrappers --------------------------------------------------------------
+
+func (n *ParameterAdmin) SetUint8Parameter(
+	ctx context.Context,
+	paramName string,
+	paramValue uint8,
+) error {
+	return n.setParameterBytes32(ctx, paramName, packUint8(paramValue),
+		func(val [32]byte) {
+			n.logger.Info("set uint8 parameter",
+				zap.String("key", paramName),
+				zap.Uint64("value", utils.DecodeBytes32ToUint64(val)),
 			)
 		},
 	)
-	if err != nil {
-		return err
-	}
+}
 
-	return nil
+func (n *ParameterAdmin) SetAddressParameter(
+	ctx context.Context,
+	paramName string,
+	paramValue common.Address,
+) error {
+	return n.setParameterBytes32(ctx, paramName, packAddress(paramValue),
+		func(val [32]byte) {
+			addr := common.BytesToAddress(val[12:])
+			n.logger.Info("set address parameter",
+				zap.String("key", paramName),
+				zap.String("address", addr.Hex()),
+			)
+		},
+	)
 }

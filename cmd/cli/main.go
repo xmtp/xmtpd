@@ -44,6 +44,7 @@ type CLI struct {
 	GetMaxCanonicalOptions config.GetMaxCanonicalOptions
 	SetMaxCanonicalOptions config.SetMaxCanonicalOptions
 	GetBootstrapperAddress config.GetBootstrapperAddressOptions
+	SetBootstrapperAddress config.SetBootstrapperAddressOptions
 }
 
 /*
@@ -72,6 +73,7 @@ func parseOptions(args []string) (*CLI, error) {
 	var getMaxCanonicalOptions config.GetMaxCanonicalOptions
 	var setMaxCanonicalOptions config.SetMaxCanonicalOptions
 	var getBootstrapperAddressOptions config.GetBootstrapperAddressOptions
+	var setBootstrapperAddressOptions config.SetBootstrapperAddressOptions
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -101,6 +103,9 @@ func parseOptions(args []string) (*CLI, error) {
 	}
 	if _, err := parser.AddCommand("add-rates", "Add rates of the rates manager", "", &addRatesOptions); err != nil {
 		return nil, fmt.Errorf("could not add add-rates command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-bootstrapper-address", "Set bootstrapper address for V3 migration", "", &setBootstrapperAddressOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-bootstrapper-address command: %s", err)
 	}
 
 	// Getter commands
@@ -161,6 +166,7 @@ func parseOptions(args []string) (*CLI, error) {
 		getMaxCanonicalOptions,
 		setMaxCanonicalOptions,
 		getBootstrapperAddressOptions,
+		setBootstrapperAddressOptions,
 	}, nil
 }
 
@@ -506,23 +512,46 @@ func getMaxCanonicalNodes(logger *zap.Logger, options *CLI) {
 }
 
 func getBootstrapperAddress(logger *zap.Logger, options *CLI) {
-	//ctx := context.Background()
-	//chainClient, err := blockchain.NewRPCClient(
-	//	ctx,
-	//	options.Contracts.SettlementChain.RPCURL,
-	//)
-	//if err != nil {
-	//	logger.Fatal("could not create chain client", zap.Error(err))
-	//}
-	//
-	//caller, err := blockchain.NewNodeRegistryCaller(
-	//	logger,
-	//	chainClient,
-	//	options.Contracts,
-	//)
-	//if err != nil {
-	//	logger.Fatal("could not create registry admin", zap.Error(err))
-	//}
+	ctx := context.Background()
+
+	admin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.GetBootstrapperAddress.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup admin", zap.Error(err))
+	}
+
+	addr, err := admin.GetIdentityUpdateBootstrapper(ctx)
+	if err != nil {
+		logger.Fatal("could not get bootstrapper address", zap.Error(err))
+	}
+
+	logger.Info("bootstrapper address retrieved successfully", zap.String("address", addr.String()))
+}
+
+func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+
+	admin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.SetBootstrapperAddress.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup admin", zap.Error(err))
+	}
+
+	err = admin.SetIdentityUpdateBootstrapper(
+		ctx,
+		common.HexToAddress(options.SetBootstrapperAddress.Address),
+	)
+	if err != nil {
+		logger.Fatal("could not get bootstrapper address", zap.Error(err))
+	}
 }
 
 func getAllNodes(logger *zap.Logger, options *CLI) {
@@ -711,6 +740,9 @@ func main() {
 	case "get-bootstrapper-address":
 		getBootstrapperAddress(logger, options)
 		return
+	case "set-bootstrapper-address":
+		setBootstrapperAddress(logger, options)
+		return
 	}
 }
 
@@ -796,4 +828,51 @@ func setupRateRegistryAdmin(
 	}
 
 	return registryAdmin, nil
+}
+
+// setupAppChainAdmin creates and returns a appchain admin
+func setupAppChainAdmin(
+	ctx context.Context,
+	logger *zap.Logger,
+	privateKey string,
+	options *CLI,
+) (blockchain.IAppChainAdmin, error) {
+	chainClient, err := blockchain.NewRPCClient(
+		ctx,
+		options.Contracts.SettlementChain.RPCURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		options.Contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	parameterAdmin, err := blockchain.NewParameterAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
+	appchainAdmin, err := blockchain.NewAppChainAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+		parameterAdmin,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create appchain admin: %w", err)
+	}
+
+	return appchainAdmin, nil
 }

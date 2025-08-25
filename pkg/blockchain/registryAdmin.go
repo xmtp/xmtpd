@@ -222,7 +222,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 	ctx context.Context,
 	limit uint8,
 ) error {
-	err := n.parameterAdmin.SetParameter(ctx, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, limit)
+	err := n.parameterAdmin.SetUint8Parameter(ctx, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, limit)
 	if err != nil {
 		return err
 	}

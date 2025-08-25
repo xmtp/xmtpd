@@ -46,11 +46,11 @@ func TestSetUint8ParameterAndReadBack(t *testing.T) {
 	err := admin.SetUint8Parameter(ctx, key, want)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameter(ctx, key)
+	got, err := admin.GetParameterUint8(ctx, key)
 	require.NoError(t, err)
 
 	// Value should be right-aligned (big-endian), last byte holds our uint8.
-	require.Equal(t, want, got[31], "expected last byte to equal the uint8 value")
+	require.Equal(t, want, got, "expected last byte to equal the uint8 value")
 }
 
 func TestSetUint8ParameterCanOverwrite(t *testing.T) {
@@ -65,9 +65,9 @@ func TestSetUint8ParameterCanOverwrite(t *testing.T) {
 	err = admin.SetUint8Parameter(ctx, key, 255)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameter(ctx, key)
+	got, err := admin.GetParameterUint8(ctx, key)
 	require.NoError(t, err)
-	require.Equal(t, uint8(255), got[31])
+	require.EqualValues(t, 255, got)
 }
 
 func TestSetAddressParameterAndReadBack(t *testing.T) {
@@ -82,12 +82,9 @@ func TestSetAddressParameterAndReadBack(t *testing.T) {
 	err := admin.SetAddressParameter(ctx, key, wantAddr)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameter(ctx, key)
+	addr, err := admin.GetParameterAddress(ctx, key)
 	require.NoError(t, err)
-
-	// Address is right-aligned into bytes32: last 20 bytes are the address.
-	gotAddr := common.BytesToAddress(got[12:])
-	require.Equal(t, wantAddr, gotAddr)
+	require.Equal(t, wantAddr, addr)
 }
 
 func TestSetAddressParameterCanOverwrite(t *testing.T) {
@@ -105,9 +102,7 @@ func TestSetAddressParameterCanOverwrite(t *testing.T) {
 	err = admin.SetAddressParameter(ctx, key, second)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameter(ctx, key)
+	addr, err := admin.GetParameterAddress(ctx, key)
 	require.NoError(t, err)
-
-	gotAddr := common.BytesToAddress(got[12:])
-	require.Equal(t, second, gotAddr)
+	require.Equal(t, second, addr)
 }

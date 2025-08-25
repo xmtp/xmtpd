@@ -64,13 +64,7 @@ func NewAppChainAdmin(
 }
 
 func (a appChainAdmin) GetIdentityUpdateBootstrapper(ctx context.Context) (common.Address, error) {
-	payload, err := a.parameterAdmin.GetParameter(ctx, IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
-	if err != nil {
-		return common.Address{}, err
-	}
-
-	addr := common.BytesToAddress(payload[:])
-	return addr, nil
+	return a.parameterAdmin.GetParameterAddress(ctx, IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
 }
 
 func (a appChainAdmin) SetIdentityUpdateBootstrapper(

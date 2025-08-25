@@ -47,14 +47,36 @@ func NewParameterAdmin(
 	}, nil
 }
 
-func (n *ParameterAdmin) GetParameter(
+func (n *ParameterAdmin) GetParameterAddress(
 	ctx context.Context,
 	paramName string,
-) ([32]byte, error) {
-	return n.parameterContract.Get(&bind.CallOpts{
+) (common.Address, error) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
+
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return common.BytesToAddress(payload[:]), nil
 }
+
+func (n *ParameterAdmin) GetParameterUint8(
+	ctx context.Context,
+	paramName string,
+) (uint8, error) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{
+		Context: ctx,
+	}, paramName)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return payload[31], nil
+}
+
 
 // Param helpers ---------------------------------------------------------------
 

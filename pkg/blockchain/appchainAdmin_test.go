@@ -55,15 +55,8 @@ func TestSetAndGetIdentityUpdateBootstrapper_RoundTrip(t *testing.T) {
 	err := appAdmin.SetIdentityUpdateBootstrapper(ctx, want)
 	require.NoError(t, err)
 
-	// Sanity check the raw storage layout: address should be at bytes32[12:].
-	raw, err := paramAdmin.GetParameter(ctx, blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
+	_, err = paramAdmin.GetParameterAddress(ctx, blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
 	require.NoError(t, err)
-	require.Equal(
-		t,
-		want,
-		common.BytesToAddress(raw[12:]),
-		"parameter registry should store address right-aligned in bytes32",
-	)
 
 	// Now read it back through the getter
 	got, err := appAdmin.GetIdentityUpdateBootstrapper(ctx)
@@ -85,9 +78,9 @@ func TestSetIdentityUpdateBootstrapper_Overwrite(t *testing.T) {
 	require.NoError(t, err)
 
 	// Raw storage should contain the latest value
-	raw, err := paramAdmin.GetParameter(ctx, blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
+	addr, err := paramAdmin.GetParameterAddress(ctx, blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
 	require.NoError(t, err)
-	require.Equal(t, second, common.BytesToAddress(raw[12:]))
+	require.Equal(t, second, addr)
 
 	// Getter should reflect latest value too
 	got, err := appAdmin.GetIdentityUpdateBootstrapper(ctx)

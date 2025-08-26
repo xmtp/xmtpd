@@ -524,12 +524,31 @@ func getBootstrapperAddress(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not setup admin", zap.Error(err))
 	}
 
-	addr, err := admin.GetIdentityUpdateBootstrapper(ctx)
+	iuAddr, err := admin.GetIdentityUpdateBootstrapper(ctx)
 	if err != nil {
 		logger.Fatal("could not get bootstrapper address", zap.Error(err))
 	}
 
-	logger.Info("bootstrapper address retrieved successfully", zap.String("address", addr.String()))
+	logger.Info(
+		"identity update bootstrapper address retrieved successfully",
+		zap.String("IU address", iuAddr.String()),
+	)
+
+	gmAddr, err := admin.GetIdentityUpdateBootstrapper(ctx)
+	if err != nil {
+		logger.Fatal("could not get bootstrapper address", zap.Error(err))
+	}
+
+	logger.Info(
+		"group message bootstrapper address retrieved successfully",
+		zap.String("GM address", gmAddr.String()),
+	)
+
+	if iuAddr.String() != gmAddr.String() {
+		logger.Warn(
+			"identity update bootstrapper address and group message bootstrapper address do not match",
+		)
+	}
 }
 
 func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
@@ -550,7 +569,15 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 		common.HexToAddress(options.SetBootstrapperAddress.Address),
 	)
 	if err != nil {
-		logger.Fatal("could not set bootstrapper address", zap.Error(err))
+		logger.Fatal("could not set identity update bootstrapper address", zap.Error(err))
+	}
+
+	err = admin.SetGroupMessageBootstrapper(
+		ctx,
+		common.HexToAddress(options.SetBootstrapperAddress.Address),
+	)
+	if err != nil {
+		logger.Fatal("could not set identity update bootstrapper address", zap.Error(err))
 	}
 }
 

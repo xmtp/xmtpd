@@ -17,6 +17,8 @@ import (
 type IAppChainAdmin interface {
 	GetIdentityUpdateBootstrapper(ctx context.Context) (common.Address, error)
 	SetIdentityUpdateBootstrapper(ctx context.Context, address common.Address) error
+	GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error)
+	SetGroupMessageBootstrapper(ctx context.Context, address common.Address) error
 }
 
 type appChainAdmin struct {
@@ -96,6 +98,60 @@ func (a appChainAdmin) SetIdentityUpdateBootstrapper(
 			if !ok {
 				a.logger.Error(
 					"unexpected event type, not of type IdentityUpdateBroadcasterPayloadBootstrapperUpdated",
+				)
+				return
+			}
+			a.logger.Info("payload bootstrapper updated",
+				zap.String("payload_bootstrapper", parameterSet.PayloadBootstrapper.Hex()),
+			)
+		},
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "0xa88ee577") {
+			a.logger.Info("No update needed",
+				zap.String("payload_bootstrapper", address.Hex()),
+			)
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (a appChainAdmin) GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error) {
+	return a.parameterAdmin.GetParameterAddress(ctx, GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY)
+}
+
+func (a appChainAdmin) SetGroupMessageBootstrapper(
+	ctx context.Context,
+	address common.Address,
+) error {
+	err := a.parameterAdmin.SetAddressParameter(
+		ctx,
+		GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
+		address,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.groupMessageBroadcaster.UpdatePayloadBootstrapper(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.groupMessageBroadcaster.ParsePayloadBootstrapperUpdated(*log)
+		},
+		func(event interface{}) {
+			parameterSet, ok := event.(*gm.GroupMessageBroadcasterPayloadBootstrapperUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not of type GroupMessageBroadcasterPayloadBootstrapperUpdated",
 				)
 				return
 			}

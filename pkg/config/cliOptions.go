@@ -108,3 +108,18 @@ type WatcherOptions struct {
 	Contract string `long:"contract" description:"Contract address" required:"true"`
 	Wss      string `long:"wss"      description:"WSS URL"          required:"true"`
 }
+
+type SetPauseOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+
+	// Which broadcaster to act on.
+	Target string `long:"target" choice:"identity" required:"true" description:"Which broadcaster to pause: identity or group"`
+
+	// The desired paused state.
+	Paused bool `long:"paused" required:"true" description:"Pause state to set (true/false)"`
+}
+
+type GetPauseOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Target       string                   `                                        long:"target" choice:"identity" required:"true" description:"Which broadcaster to read: identity or group"`
+}

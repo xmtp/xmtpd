@@ -248,7 +248,9 @@ func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused 
 		func(event interface{}) {
 			ev, ok := event.(*iu.IdentityUpdateBroadcasterPauseStatusUpdated)
 			if !ok {
-				a.logger.Error("unexpected event type, not of type IdentityUpdateBroadcasterPauseStatusUpdated")
+				a.logger.Error(
+					"unexpected event type, not of type IdentityUpdateBroadcasterPauseStatusUpdated",
+				)
 				return
 			}
 			a.logger.Info("identity update pause status updated", zap.Bool("paused", ev.Paused))

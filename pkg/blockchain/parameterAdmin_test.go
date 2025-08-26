@@ -106,3 +106,47 @@ func TestSetAddressParameterCanOverwrite(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, second, addr)
 }
+
+func TestGetBoolParameter_Unset_ReturnsFalse(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.False(t, got)
+}
+
+func TestSetBoolParameter_True_RoundTrip(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, true)
+	require.NoError(t, err)
+
+	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.True(t, got)
+}
+
+func TestSetBoolParameter_False_RoundTrip(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, false)
+	require.NoError(t, err)
+
+	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.False(t, got)
+}
+
+func TestSetBoolParameter_True_NoOp(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, true)
+	require.NoError(t, err)
+
+	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, true)
+	require.NoError(t, err)
+}

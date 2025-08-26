@@ -19,6 +19,10 @@ type IAppChainAdmin interface {
 	SetIdentityUpdateBootstrapper(ctx context.Context, address common.Address) error
 	GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error)
 	SetGroupMessageBootstrapper(ctx context.Context, address common.Address) error
+	GetGroupMessagePauseStatus(ctx context.Context) (bool, error)
+	SetGroupMessagePauseStatus(ctx context.Context, paused bool) error
+	GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error)
+	SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error
 }
 
 type appChainAdmin struct {
@@ -170,5 +174,92 @@ func (a appChainAdmin) SetGroupMessageBootstrapper(
 		return err
 	}
 
+	return nil
+}
+
+func (a appChainAdmin) GetGroupMessagePauseStatus(ctx context.Context) (bool, error) {
+	return a.parameterAdmin.GetParameterBool(ctx, GROUP_MESSAGE_PAUSED_KEY)
+}
+
+func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context, paused bool) error {
+	err := a.parameterAdmin.SetBoolParameter(
+		ctx,
+		GROUP_MESSAGE_PAUSED_KEY,
+		paused,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.groupMessageBroadcaster.UpdatePauseStatus(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.groupMessageBroadcaster.ParsePauseStatusUpdated(*log)
+		},
+		func(event interface{}) {
+			parameterSet, ok := event.(*gm.GroupMessageBroadcasterPauseStatusUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not of type GroupMessageBroadcasterPauseStatusUpdated",
+				)
+				return
+			}
+
+			a.logger.Info("pause status updated", zap.Bool("paused", parameterSet.Paused))
+		},
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "0xa88ee577") {
+			a.logger.Info("No update needed")
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (a appChainAdmin) GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error) {
+	return a.parameterAdmin.GetParameterBool(ctx, IDENTITY_UPDATE_PAUSED_KEY)
+}
+
+func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error {
+	if err := a.parameterAdmin.SetBoolParameter(ctx, IDENTITY_UPDATE_PAUSED_KEY, paused); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.identityUpdateBroadcaster.UpdatePauseStatus(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.identityUpdateBroadcaster.ParsePauseStatusUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*iu.IdentityUpdateBroadcasterPauseStatusUpdated)
+			if !ok {
+				a.logger.Error("unexpected event type, not of type IdentityUpdateBroadcasterPauseStatusUpdated")
+				return
+			}
+			a.logger.Info("identity update pause status updated", zap.Bool("paused", ev.Paused))
+		},
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "0xa88ee577") {
+			a.logger.Info("No update needed")
+			return nil
+		}
+		return err
+	}
 	return nil
 }

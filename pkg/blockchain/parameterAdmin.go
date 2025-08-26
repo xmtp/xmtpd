@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,6 +18,8 @@ const (
 	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY    = "xmtp.nodeRegistry.maxCanonicalNodes"
 	IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
 	GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY   = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
+	IDENTITY_UPDATE_PAUSED_KEY               = "xmtp.identityUpdateBroadcaster.paused"
+	GROUP_MESSAGE_PAUSED_KEY                 = "xmtp.groupMessageBroadcaster.paused"
 )
 
 type ParameterAdmin struct {
@@ -76,6 +79,20 @@ func (n *ParameterAdmin) GetParameterUint8(
 	return payload[31], nil
 }
 
+func (n *ParameterAdmin) GetParameterBool(
+	ctx context.Context,
+	paramName string,
+) (bool, error) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{
+		Context: ctx,
+	}, paramName)
+	if err != nil {
+		return false, err
+	}
+
+	return decodeBool(payload)
+}
+
 // Param helpers ---------------------------------------------------------------
 
 func packUint8(v uint8) [32]byte {
@@ -88,6 +105,34 @@ func packAddress(a common.Address) [32]byte {
 	var out [32]byte
 	copy(out[12:], a.Bytes()) // right-align to 32 bytes
 	return out
+}
+
+func packBool(b bool) [32]byte {
+	var out [32]byte
+	if b {
+		out[31] = 1
+	}
+	return out
+}
+
+// decodeBool expects the canonical encoding produced by packBool.
+// It returns (bool, nil) for 0x00/0x01 in the last byte and errors otherwise.
+func decodeBool(val [32]byte) (bool, error) {
+	v := val[31]
+	// Ensure normalization: all other bytes should be zero.
+	for i := 0; i < 31; i++ {
+		if val[i] != 0 {
+			return false, fmt.Errorf("non-canonical bool encoding in bytes32 (non-zero prefix)")
+		}
+	}
+	switch v {
+	case 0:
+		return false, nil
+	case 1:
+		return true, nil
+	default:
+		return false, fmt.Errorf("invalid bool encoding: last byte = %d (want 0 or 1)", v)
+	}
 }
 
 // shared executor -------------------------------------------------------------
@@ -152,6 +197,29 @@ func (n *ParameterAdmin) SetAddressParameter(
 			n.logger.Info("set address parameter",
 				zap.String("key", paramName),
 				zap.String("address", addr.Hex()),
+			)
+		},
+	)
+}
+
+func (n *ParameterAdmin) SetBoolParameter(
+	ctx context.Context,
+	paramName string,
+	paramValue bool,
+) error {
+	return n.setParameterBytes32(ctx, paramName, packBool(paramValue),
+		func(val [32]byte) {
+			b, err := decodeBool(val)
+			if err != nil {
+				n.logger.Warn("set bool parameter (non-canonical value observed in event)",
+					zap.String("key", paramName),
+					zap.Error(err),
+				)
+				return
+			}
+			n.logger.Info("set bool parameter",
+				zap.String("key", paramName),
+				zap.Bool("value", b),
 			)
 		},
 	)

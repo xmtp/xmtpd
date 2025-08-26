@@ -187,3 +187,94 @@ func TestSetGroupMessageBootstrapper_ZeroAddress_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, zero, got, "zero address should round-trip unless validation is added")
 }
+
+func TestSetGroupMessagePauseStatus_ToggleTrueFalse(t *testing.T) {
+	appAdmin, paramAdmin := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	require.NoError(t, appAdmin.SetGroupMessagePauseStatus(ctx, true))
+	got, err := paramAdmin.GetParameterBool(ctx, blockchain.GROUP_MESSAGE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.True(t, got)
+
+	got, err = appAdmin.GetGroupMessagePauseStatus(ctx)
+	require.NoError(t, err)
+	require.True(t, got)
+
+	require.NoError(t, appAdmin.SetGroupMessagePauseStatus(ctx, false))
+	got, err = paramAdmin.GetParameterBool(ctx, blockchain.GROUP_MESSAGE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.False(t, got)
+
+	got, err = appAdmin.GetGroupMessagePauseStatus(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
+}
+
+func TestSetGroupMessagePauseStatus_SetTrue_ThenNoUpdateNeededOnRepeat(t *testing.T) {
+	appAdmin, paramAdmin := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	err := appAdmin.SetGroupMessagePauseStatus(ctx, true)
+	require.NoError(t, err)
+
+	got, err := paramAdmin.GetParameterBool(ctx, blockchain.GROUP_MESSAGE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.True(t, got, "pause flag should be true after first update")
+
+	err = appAdmin.SetGroupMessagePauseStatus(ctx, true)
+	require.NoError(t, err, "idempotent update should not error")
+
+	got, err = appAdmin.GetGroupMessagePauseStatus(ctx)
+	require.NoError(t, err)
+	require.True(t, got)
+}
+
+func TestGroupMessagePause_GetterUnsetReturnsFalse(t *testing.T) {
+	appAdmin, _ := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	got, err := appAdmin.GetGroupMessagePauseStatus(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
+}
+
+func TestIdentityUpdatePause_SetTrue_ThenNoUpdateNeededOnRepeat(t *testing.T) {
+	appAdmin, paramAdmin := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	err := appAdmin.SetIdentityUpdatePauseStatus(ctx, true)
+	require.NoError(t, err)
+
+	b, err := paramAdmin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.True(t, b)
+
+	err = appAdmin.SetIdentityUpdatePauseStatus(ctx, true)
+	require.NoError(t, err)
+}
+
+func TestIdentityUpdatePause_ToggleTrueFalse(t *testing.T) {
+	appAdmin, paramAdmin := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	require.NoError(t, appAdmin.SetIdentityUpdatePauseStatus(ctx, true))
+	b, err := paramAdmin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.True(t, b)
+
+	// Now set false
+	require.NoError(t, appAdmin.SetIdentityUpdatePauseStatus(ctx, false))
+	b, err = paramAdmin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.False(t, b)
+}
+
+func TestIdentityUpdatePause_GetterUnsetReturnsFalse(t *testing.T) {
+	appAdmin, _ := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	got, err := appAdmin.GetIdentityUpdatePauseStatus(ctx)
+	require.NoError(t, err)
+	require.False(t, got)
+}

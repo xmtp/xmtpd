@@ -577,7 +577,7 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 		common.HexToAddress(options.SetBootstrapperAddress.Address),
 	)
 	if err != nil {
-		logger.Fatal("could not set identity update bootstrapper address", zap.Error(err))
+		logger.Fatal("could not set group message bootstrapper address", zap.Error(err))
 	}
 }
 

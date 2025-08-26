@@ -55,7 +55,10 @@ func TestSetAndGetIdentityUpdateBootstrapper_RoundTrip(t *testing.T) {
 	err := appAdmin.SetIdentityUpdateBootstrapper(ctx, want)
 	require.NoError(t, err)
 
-	_, err = paramAdmin.GetParameterAddress(ctx, blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
+	_, err = paramAdmin.GetParameterAddress(
+		ctx,
+		blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
+	)
 	require.NoError(t, err)
 
 	// Now read it back through the getter
@@ -78,7 +81,10 @@ func TestSetIdentityUpdateBootstrapper_Overwrite(t *testing.T) {
 	require.NoError(t, err)
 
 	// Raw storage should contain the latest value
-	addr, err := paramAdmin.GetParameterAddress(ctx, blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
+	addr, err := paramAdmin.GetParameterAddress(
+		ctx,
+		blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
+	)
 	require.NoError(t, err)
 	require.Equal(t, second, addr)
 

@@ -54,7 +54,6 @@ func (n *ParameterAdmin) GetParameterAddress(
 	payload, err := n.parameterContract.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
-
 	if err != nil {
 		return common.Address{}, err
 	}
@@ -69,14 +68,12 @@ func (n *ParameterAdmin) GetParameterUint8(
 	payload, err := n.parameterContract.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
-
 	if err != nil {
 		return 0, err
 	}
 
 	return payload[31], nil
 }
-
 
 // Param helpers ---------------------------------------------------------------
 

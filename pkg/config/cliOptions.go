@@ -54,6 +54,15 @@ type SetMaxCanonicalOptions struct {
 	Limit        uint8                    `                                        long:"limit" description:"Limit of max canonical nodes" required:"true"`
 }
 
+type GetBootstrapperAddressOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type SetBootstrapperAddressOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Address      string                   `                                        long:"address" description:"New bootstrapper address"`
+}
+
 type GetPubKeyOptions struct {
 	PrivateKey string `long:"private-key" description:"Private key you want the public key for" required:"true"`
 }

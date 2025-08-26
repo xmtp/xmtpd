@@ -75,11 +75,15 @@ func setupBlockchain(
 	)
 	require.NoError(t, err)
 
+	parameterAdmin, err := blockchain.NewParameterAdmin(log, client, signer, contractsOptions)
+	require.NoError(t, err)
+
 	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
 		log,
 		client,
 		signer,
 		contractsOptions,
+		parameterAdmin,
 	)
 	require.NoError(t, err)
 

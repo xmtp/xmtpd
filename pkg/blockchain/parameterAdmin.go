@@ -16,6 +16,7 @@ import (
 const (
 	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY    = "xmtp.nodeRegistry.maxCanonicalNodes"
 	IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
+	GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY   = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
 )
 
 type ParameterAdmin struct {

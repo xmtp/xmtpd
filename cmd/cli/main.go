@@ -609,13 +609,13 @@ func setPause(logger *zap.Logger, options *CLI) {
 	}
 
 	switch options.SetPause.Target {
-	case "identity":
+	case config.TargetIdentity:
 		if err := admin.SetIdentityUpdatePauseStatus(ctx, options.SetPause.Paused); err != nil {
 			logger.Fatal("could not set identity pause status", zap.Error(err))
 		}
 		logger.Info("identity update pause status set", zap.Bool("paused", options.SetPause.Paused))
 
-	case "group":
+	case config.TargetGroup:
 		if err := admin.SetGroupMessagePauseStatus(ctx, options.SetPause.Paused); err != nil {
 			logger.Fatal("could not set group message pause status", zap.Error(err))
 		}
@@ -637,14 +637,14 @@ func getPause(logger *zap.Logger, options *CLI) {
 	}
 
 	switch options.GetPause.Target {
-	case "identity":
+	case config.TargetIdentity:
 		paused, err := admin.GetIdentityUpdatePauseStatus(ctx)
 		if err != nil {
 			logger.Fatal("could not get identity pause status", zap.Error(err))
 		}
 		logger.Info("identity pause status", zap.Bool("paused", paused))
 
-	case "group":
+	case config.TargetGroup:
 		paused, err := admin.GetGroupMessagePauseStatus(ctx)
 		if err != nil {
 			logger.Fatal("could not get group pause status", zap.Error(err))

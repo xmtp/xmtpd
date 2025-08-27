@@ -17,6 +17,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/debug"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -157,12 +158,23 @@ func main() {
 			_ = httpListener.Close()
 		}()
 
+		ratesFetcher, err := fees.NewContractRatesFetcher(
+			ctx,
+			settlementChainClient,
+			logger,
+			options.Contracts,
+		)
+		if err != nil {
+			logger.Fatal("initializing rates fetcher", zap.Error(err))
+		}
+
 		s, err := server.NewReplicationServer(
 			server.WithContext(ctx),
 			server.WithLogger(logger),
 			server.WithServerOptions(&options),
 			server.WithNodeRegistry(chainRegistry),
 			server.WithDB(dbInstance),
+			server.WithRatesFetcher(ratesFetcher),
 			server.WithGRPCListener(grpcListener),
 			server.WithHTTPListener(httpListener),
 			server.WithServerVersion(version),

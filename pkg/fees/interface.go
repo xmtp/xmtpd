@@ -36,3 +36,14 @@ type IFeeCalculator interface {
 		originatorID uint32,
 	) (currency.PicoDollar, error)
 }
+
+// A FeeEstimator is a wrapper around the FeeCalculator that provides an estimate of the fees
+// based on recent congestion calculations
+type IFeeEstimator interface {
+	IFeeCalculator
+	EstimateFees(
+		originatorID uint32,
+		payerEnvelopeLength int64,
+		retentionDays uint32,
+	) (currency.PicoDollar, error)
+}

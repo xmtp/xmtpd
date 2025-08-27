@@ -24,6 +24,7 @@ type publishWorker struct {
 	notifier      chan<- bool
 	registrant    *registrant.Registrant
 	store         *sql.DB
+	querier       *queries.Queries
 	subscription  db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
 	lastProcessed atomic.Int64
 	feeCalculator fees.IFeeCalculator
@@ -75,6 +76,7 @@ func startPublishWorker(
 		listener:      listener,
 		registrant:    reg,
 		store:         store,
+		querier:       q,
 		feeCalculator: feeCalculator,
 	}
 	go worker.start()
@@ -133,7 +135,14 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	// We do not charge fees for messages on reserved topics.
 	// These topics should be blocked from regular publishing and messages can only be produced by the node itself.
 	if !isReserved {
-		if baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays); err != nil {
+		if baseFee, congestionFee, err = fees.CalculateStagedOriginatorEnvelopeFees(
+			p.ctx,
+			&stagedEnv,
+			p.feeCalculator,
+			p.querier,
+			p.registrant.NodeID(),
+			retentionDays,
+		); err != nil {
 			logger.Error("Failed to calculate fees", zap.Error(err))
 			return false
 		}
@@ -163,15 +172,13 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		return false
 	}
 
-	q := queries.New(p.store)
-
 	payerAddress, err := validatedEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
 		logger.Error("Failed to recover payer address", zap.Error(err))
 		return false
 	}
 
-	payerId, err := q.FindOrCreatePayer(p.ctx, payerAddress.Hex())
+	payerId, err := p.querier.FindOrCreatePayer(p.ctx, payerAddress.Hex())
 	if err != nil {
 		logger.Error("Failed to find or create payer", zap.Error(err))
 		return false
@@ -213,7 +220,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
-	deleted, err := q.DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)
+	deleted, err := p.querier.DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)
 	if p.ctx.Err() != nil {
 		return true
 	} else if err != nil {
@@ -226,33 +233,4 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	return true
-}
-
-func (p *publishWorker) calculateFees(
-	stagedEnv *queries.StagedOriginatorEnvelope,
-	retentionDays uint32,
-) (currency.PicoDollar, currency.PicoDollar, error) {
-	baseFee, err := p.feeCalculator.CalculateBaseFee(
-		stagedEnv.OriginatorTime,
-		int64(len(stagedEnv.PayerEnvelope)),
-		retentionDays,
-	)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	q := queries.New(p.store)
-	// TODO:nm: Set this to the actual congestion fee
-	// For now we are setting congestion to 0
-	congestionFee, err := p.feeCalculator.CalculateCongestionFee(
-		p.ctx,
-		q,
-		stagedEnv.OriginatorTime,
-		p.registrant.NodeID(),
-	)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	return baseFee, congestionFee, nil
 }

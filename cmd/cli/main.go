@@ -45,6 +45,8 @@ type CLI struct {
 	SetMaxCanonicalOptions config.SetMaxCanonicalOptions
 	GetBootstrapperAddress config.GetBootstrapperAddressOptions
 	SetBootstrapperAddress config.SetBootstrapperAddressOptions
+	SetPause               config.SetPauseOptions
+	GetPause               config.GetPauseOptions
 }
 
 /*
@@ -74,6 +76,8 @@ func parseOptions(args []string) (*CLI, error) {
 	var setMaxCanonicalOptions config.SetMaxCanonicalOptions
 	var getBootstrapperAddressOptions config.GetBootstrapperAddressOptions
 	var setBootstrapperAddressOptions config.SetBootstrapperAddressOptions
+	var setPauseOptions config.SetPauseOptions
+	var getPauseOptions config.GetPauseOptions
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -133,6 +137,14 @@ func parseOptions(args []string) (*CLI, error) {
 		return nil, fmt.Errorf("could not add start-watcher command: %s", err)
 	}
 
+	// Control pause status (both broadcasters)
+	if _, err := parser.AddCommand("set-pause", "Set pause status for a broadcaster (identity/group)", "", &setPauseOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-pause command: %s", err)
+	}
+	if _, err := parser.AddCommand("get-pause", "Get pause status for a broadcaster (identity/group)", "", &getPauseOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-pause command: %s", err)
+	}
+
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			return nil, fmt.Errorf("could not parse options: %s", err)
@@ -167,6 +179,8 @@ func parseOptions(args []string) (*CLI, error) {
 		setMaxCanonicalOptions,
 		getBootstrapperAddressOptions,
 		setBootstrapperAddressOptions,
+		setPauseOptions,
+		getPauseOptions,
 	}, nil
 }
 
@@ -581,6 +595,64 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 	}
 }
 
+func setPause(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+
+	admin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.SetPause.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup appchain admin", zap.Error(err))
+	}
+
+	switch options.SetPause.Target {
+	case config.TargetIdentity:
+		if err := admin.SetIdentityUpdatePauseStatus(ctx, options.SetPause.Paused); err != nil {
+			logger.Fatal("could not set identity pause status", zap.Error(err))
+		}
+		logger.Info("identity update pause status set", zap.Bool("paused", options.SetPause.Paused))
+
+	case config.TargetGroup:
+		if err := admin.SetGroupMessagePauseStatus(ctx, options.SetPause.Paused); err != nil {
+			logger.Fatal("could not set group message pause status", zap.Error(err))
+		}
+		logger.Info("group message pause status set", zap.Bool("paused", options.SetPause.Paused))
+	}
+}
+
+func getPause(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+
+	admin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.GetPause.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup appchain admin", zap.Error(err))
+	}
+
+	switch options.GetPause.Target {
+	case config.TargetIdentity:
+		paused, err := admin.GetIdentityUpdatePauseStatus(ctx)
+		if err != nil {
+			logger.Fatal("could not get identity pause status", zap.Error(err))
+		}
+		logger.Info("identity pause status", zap.Bool("paused", paused))
+
+	case config.TargetGroup:
+		paused, err := admin.GetGroupMessagePauseStatus(ctx)
+		if err != nil {
+			logger.Fatal("could not get group pause status", zap.Error(err))
+		}
+		logger.Info("group pause status", zap.Bool("paused", paused))
+	}
+}
+
 func getAllNodes(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
 	chainClient, err := blockchain.NewRPCClient(
@@ -769,6 +841,12 @@ func main() {
 		return
 	case "set-bootstrapper-address":
 		setBootstrapperAddress(logger, options)
+		return
+	case "set-pause":
+		setPause(logger, options)
+		return
+	case "get-pause":
+		getPause(logger, options)
 		return
 	}
 }

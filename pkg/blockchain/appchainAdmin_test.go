@@ -44,146 +44,165 @@ func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, *blockchain.Pa
 	return appAdmin, paramAdmin
 }
 
-func TestSetAndGetIdentityUpdateBootstrapper_RoundTrip(t *testing.T) {
+func TestBootstrapperAddress(t *testing.T) {
 	appAdmin, paramAdmin := buildAppChainAdmin(t)
 	ctx := context.Background()
 
-	// Use a distinctive non-zero address so alignment issues are obvious.
-	want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
+	type addrCase struct {
+		name string
+		key  string
+		set  func(ctx context.Context, a common.Address) error
+		get  func(ctx context.Context) (common.Address, error)
+	}
 
-	// Set via public API
-	err := appAdmin.SetIdentityUpdateBootstrapper(ctx, want)
-	require.NoError(t, err)
+	cases := []addrCase{
+		{
+			name: "identity",
+			key:  blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
+			set:  appAdmin.SetIdentityUpdateBootstrapper,
+			get:  appAdmin.GetIdentityUpdateBootstrapper,
+		},
+		{
+			name: "group",
+			key:  blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
+			set:  appAdmin.SetGroupMessageBootstrapper,
+			get:  appAdmin.GetGroupMessageBootstrapper,
+		},
+	}
 
-	_, err = paramAdmin.GetParameterAddress(
-		ctx,
-		blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
-	)
-	require.NoError(t, err)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name+"/roundtrip", func(t *testing.T) {
+			want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
 
-	// Now read it back through the getter
-	got, err := appAdmin.GetIdentityUpdateBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, want, got)
+			require.NoError(t, tc.set(ctx, want))
+
+			// storage sanity
+			stored, err := paramAdmin.GetParameterAddress(ctx, tc.key)
+			require.NoError(t, err)
+			require.Equal(t, want, stored)
+
+			// getter
+			got, err := tc.get(ctx)
+			require.NoError(t, err)
+			require.Equal(t, want, got)
+		})
+
+		t.Run(tc.name+"/overwrite", func(t *testing.T) {
+			first := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
+			second := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
+
+			require.NoError(t, tc.set(ctx, first))
+			require.NoError(t, tc.set(ctx, second))
+
+			stored, err := paramAdmin.GetParameterAddress(ctx, tc.key)
+			require.NoError(t, err)
+			require.Equal(t, second, stored)
+
+			got, err := tc.get(ctx)
+			require.NoError(t, err)
+			require.Equal(t, second, got)
+		})
+
+		t.Run(tc.name+"/unset_returns_zero", func(t *testing.T) {
+			newAppAdmin, _ := buildAppChainAdmin(t)
+			got, err := func() (common.Address, error) {
+				switch tc.name {
+				case "identity":
+					return newAppAdmin.GetIdentityUpdateBootstrapper(ctx)
+				default:
+					return newAppAdmin.GetGroupMessageBootstrapper(ctx)
+				}
+			}()
+			require.NoError(t, err)
+			require.Equal(t, common.Address{}, got)
+		})
+
+		t.Run(tc.name+"/zero_address_roundtrip", func(t *testing.T) {
+			var zero common.Address
+			require.NoError(t, tc.set(ctx, zero))
+			got, err := tc.get(ctx)
+			require.NoError(t, err)
+			require.Equal(t, zero, got)
+		})
+	}
 }
 
-func TestSetIdentityUpdateBootstrapper_Overwrite(t *testing.T) {
+func TestPauseFlags(t *testing.T) {
 	appAdmin, paramAdmin := buildAppChainAdmin(t)
 	ctx := context.Background()
 
-	first := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
-	second := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
+	type pauseCase struct {
+		name string
+		key  string
+		set  func(ctx context.Context, paused bool) error
+		get  func(ctx context.Context) (bool, error)
+	}
 
-	err := appAdmin.SetIdentityUpdateBootstrapper(ctx, first)
-	require.NoError(t, err)
+	cases := []pauseCase{
+		{
+			name: "group",
+			key:  blockchain.GROUP_MESSAGE_PAUSED_KEY,
+			set:  appAdmin.SetGroupMessagePauseStatus,
+			get:  appAdmin.GetGroupMessagePauseStatus,
+		},
+		{
+			name: "identity",
+			key:  blockchain.IDENTITY_UPDATE_PAUSED_KEY,
+			set:  appAdmin.SetIdentityUpdatePauseStatus,
+			get:  appAdmin.GetIdentityUpdatePauseStatus,
+		},
+	}
 
-	err = appAdmin.SetIdentityUpdateBootstrapper(ctx, second)
-	require.NoError(t, err)
+	for _, tc := range cases {
+		tc := tc
 
-	// Raw storage should contain the latest value
-	addr, err := paramAdmin.GetParameterAddress(
-		ctx,
-		blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
-	)
-	require.NoError(t, err)
-	require.Equal(t, second, addr)
+		t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
+			require.NoError(t, tc.set(ctx, true))
+			b, err := paramAdmin.GetParameterBool(ctx, tc.key)
+			require.NoError(t, err)
+			require.True(t, b)
 
-	// Getter should reflect latest value too
-	got, err := appAdmin.GetIdentityUpdateBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, second, got)
-}
+			got, err := tc.get(ctx)
+			require.NoError(t, err)
+			require.True(t, got)
 
-func TestGetIdentityUpdateBootstrapper_Unset_ReturnsZeroAddress(t *testing.T) {
-	appAdmin, _ := buildAppChainAdmin(t)
-	ctx := context.Background()
+			require.NoError(t, tc.set(ctx, false))
+			b, err = paramAdmin.GetParameterBool(ctx, tc.key)
+			require.NoError(t, err)
+			require.False(t, b)
 
-	got, err := appAdmin.GetIdentityUpdateBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, (common.Address{}), got, "unset param should decode to 0x000...000")
-}
+			got, err = tc.get(ctx)
+			require.NoError(t, err)
+			require.False(t, got)
+		})
 
-func TestSetIdentityUpdateBootstrapper_ZeroAddress_RoundTrip(t *testing.T) {
-	appAdmin, _ := buildAppChainAdmin(t)
-	ctx := context.Background()
+		t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
+			require.NoError(t, tc.set(ctx, true))
+			require.NoError(t, tc.set(ctx, true))
 
-	var zero common.Address
-	err := appAdmin.SetIdentityUpdateBootstrapper(ctx, zero)
-	require.NoError(t, err)
+			got, err := tc.get(ctx)
+			require.NoError(t, err)
+			require.True(t, got)
+		})
 
-	got, err := appAdmin.GetIdentityUpdateBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, zero, got, "zero address should round-trip unless validation is added")
-}
+		t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
+			newAppAdmin, newParamAdmin := buildAppChainAdmin(t)
 
-func TestSetAndGetGroupMessageBootstrapper_RoundTrip(t *testing.T) {
-	appAdmin, paramAdmin := buildAppChainAdmin(t)
-	ctx := context.Background()
+			var got bool
+			var err error
+			switch tc.name {
+			case "group":
+				got, err = newAppAdmin.GetGroupMessagePauseStatus(ctx)
+			default:
+				got, err = newAppAdmin.GetIdentityUpdatePauseStatus(ctx)
+			}
+			require.NoError(t, err)
+			require.False(t, got)
 
-	// Use a distinctive non-zero address so alignment issues are obvious.
-	want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
-
-	// Set via public API
-	err := appAdmin.SetGroupMessageBootstrapper(ctx, want)
-	require.NoError(t, err)
-
-	_, err = paramAdmin.GetParameterAddress(
-		ctx,
-		blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
-	)
-	require.NoError(t, err)
-
-	// Now read it back through the getter
-	got, err := appAdmin.GetGroupMessageBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, want, got)
-}
-
-func TestSetGroupMessageBootstrapper_Overwrite(t *testing.T) {
-	appAdmin, paramAdmin := buildAppChainAdmin(t)
-	ctx := context.Background()
-
-	first := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
-	second := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
-
-	err := appAdmin.SetGroupMessageBootstrapper(ctx, first)
-	require.NoError(t, err)
-
-	err = appAdmin.SetGroupMessageBootstrapper(ctx, second)
-	require.NoError(t, err)
-
-	// Raw storage should contain the latest value
-	addr, err := paramAdmin.GetParameterAddress(
-		ctx,
-		blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
-	)
-	require.NoError(t, err)
-	require.Equal(t, second, addr)
-
-	// Getter should reflect latest value too
-	got, err := appAdmin.GetGroupMessageBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, second, got)
-}
-
-func TestGetGroupMessageBootstrapper_Unset_ReturnsZeroAddress(t *testing.T) {
-	appAdmin, _ := buildAppChainAdmin(t)
-	ctx := context.Background()
-
-	got, err := appAdmin.GetGroupMessageBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, (common.Address{}), got, "unset param should decode to 0x000...000")
-}
-
-func TestSetGroupMessageBootstrapper_ZeroAddress_RoundTrip(t *testing.T) {
-	appAdmin, _ := buildAppChainAdmin(t)
-	ctx := context.Background()
-
-	var zero common.Address
-	err := appAdmin.SetGroupMessageBootstrapper(ctx, zero)
-	require.NoError(t, err)
-
-	got, err := appAdmin.GetGroupMessageBootstrapper(ctx)
-	require.NoError(t, err)
-	require.Equal(t, zero, got, "zero address should round-trip unless validation is added")
+			b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
+			require.NoError(t, err)
+			require.False(t, b)
+		})
+	}
 }

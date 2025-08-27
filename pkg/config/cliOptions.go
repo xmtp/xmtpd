@@ -1,6 +1,10 @@
 package config
 
-import "github.com/xmtp/xmtpd/pkg/currency"
+import (
+	"fmt"
+
+	"github.com/xmtp/xmtpd/pkg/currency"
+)
 
 type GlobalOptions struct {
 	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
@@ -107,4 +111,36 @@ type IdentityUpdatesStressOptions struct {
 type WatcherOptions struct {
 	Contract string `long:"contract" description:"Contract address" required:"true"`
 	Wss      string `long:"wss"      description:"WSS URL"          required:"true"`
+}
+
+type Target string
+
+const (
+	TargetIdentity Target = "identity"
+	TargetGroup    Target = "group"
+)
+
+func (t *Target) UnmarshalFlag(v string) error {
+	switch v {
+	case string(TargetIdentity), string(TargetGroup):
+		*t = Target(v)
+		return nil
+	default:
+		return fmt.Errorf("invalid target %q (allowed: identity|group)", v)
+	}
+}
+
+type SetPauseOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+
+	// Which broadcaster to act on.
+	Target Target `long:"target" required:"true" description:"Which broadcaster to pause: identity or group"`
+
+	// The desired paused state.
+	Paused bool `long:"paused" required:"true" description:"Pause state to set (true/false)"`
+}
+
+type GetPauseOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Target       Target                   `                                        long:"target" required:"true" description:"Which broadcaster to read: identity or group"`
 }

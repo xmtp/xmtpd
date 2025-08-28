@@ -97,7 +97,8 @@ func main() {
 			}()
 		}
 
-		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable {
+		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable ||
+			options.MigrationServer.Enable {
 			namespace := options.DB.NameOverride
 			if namespace == "" {
 				namespace = utils.BuildNamespace(

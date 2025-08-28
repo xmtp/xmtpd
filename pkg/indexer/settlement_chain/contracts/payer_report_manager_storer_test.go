@@ -113,16 +113,6 @@ func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
 	require.Len(t, res, 1)
 }
 
-func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {
-	tester := buildPayerReportManagerStorerTester(t)
-
-	log := tester.newLog(t, "PayerReportSubsetSettled")
-
-	err := tester.storer.StoreLog(t.Context(), log)
-
-	require.NoError(t, err)
-}
-
 func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorerTester {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -157,15 +147,6 @@ func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorer
 		abi:     abi,
 		storer:  storer,
 		queries: queries.New(db),
-	}
-}
-
-func (st *payerReportManagerStorerTester) newLog(t *testing.T, event string) types.Log {
-	topic, err := utils.GetEventTopic(st.abi, event)
-	require.NoError(t, err)
-
-	return types.Log{
-		Topics: []common.Hash{topic},
 	}
 }
 

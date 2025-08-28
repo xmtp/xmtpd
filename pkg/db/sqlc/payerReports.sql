@@ -168,6 +168,11 @@ FROM rpt
 WHERE sqlc.narg(min_attestations)::INT IS NULL
 	OR attestations_count >= sqlc.narg(min_attestations)::INT;
 
+-- name: FetchPayerReport :one
+SELECT *
+FROM payer_reports
+WHERE id = @id;
+
 -- name: SetReportAttestationStatus :exec
 UPDATE payer_reports
 SET attestation_status = @new_status
@@ -192,3 +197,9 @@ WHERE (
 		sqlc.narg(attester_node_id)::INT IS NULL
 		OR sqlc.narg(attester_node_id)::INT = node_id
 	);
+
+-- name: ClearUnsettledUsage :exec
+DELETE FROM unsettled_usage
+WHERE originator_id = @originator_id
+	AND minutes_since_epoch > @prev_report_end_minute_since_epoch
+	AND minutes_since_epoch <= @end_minute_since_epoch;

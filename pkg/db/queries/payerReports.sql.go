@@ -57,6 +57,24 @@ func (q *Queries) BuildPayerReport(ctx context.Context, arg BuildPayerReportPara
 	return items, nil
 }
 
+const clearUnsettledUsage = `-- name: ClearUnsettledUsage :exec
+DELETE FROM unsettled_usage
+WHERE originator_id = $1
+	AND minutes_since_epoch > $2
+	AND minutes_since_epoch <= $3
+`
+
+type ClearUnsettledUsageParams struct {
+	OriginatorID                  int32
+	PrevReportEndMinuteSinceEpoch int32
+	EndMinuteSinceEpoch           int32
+}
+
+func (q *Queries) ClearUnsettledUsage(ctx context.Context, arg ClearUnsettledUsageParams) error {
+	_, err := q.db.ExecContext(ctx, clearUnsettledUsage, arg.OriginatorID, arg.PrevReportEndMinuteSinceEpoch, arg.EndMinuteSinceEpoch)
+	return err
+}
+
 const fetchAttestations = `-- name: FetchAttestations :many
 SELECT payer_report_id, node_id, signature, payer_report_attestations.created_at, id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, payer_reports.created_at
 FROM payer_report_attestations
@@ -129,6 +147,30 @@ func (q *Queries) FetchAttestations(ctx context.Context, arg FetchAttestationsPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const fetchPayerReport = `-- name: FetchPayerReport :one
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at
+FROM payer_reports
+WHERE id = $1
+`
+
+func (q *Queries) FetchPayerReport(ctx context.Context, id []byte) (PayerReport, error) {
+	row := q.db.QueryRowContext(ctx, fetchPayerReport, id)
+	var i PayerReport
+	err := row.Scan(
+		&i.ID,
+		&i.OriginatorNodeID,
+		&i.StartSequenceID,
+		&i.EndSequenceID,
+		&i.EndMinuteSinceEpoch,
+		&i.PayersMerkleRoot,
+		pq.Array(&i.ActiveNodeIds),
+		&i.SubmissionStatus,
+		&i.AttestationStatus,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const fetchPayerReports = `-- name: FetchPayerReports :many

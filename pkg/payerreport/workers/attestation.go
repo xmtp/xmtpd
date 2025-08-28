@@ -227,10 +227,5 @@ func (w *AttestationWorker) signClientEnvelope(
 }
 
 func (w *AttestationWorker) rejectAttestation(report *payerreport.PayerReportWithStatus) error {
-	return w.store.SetReportAttestationStatus(
-		w.ctx,
-		report.ID,
-		[]payerreport.AttestationStatus{payerreport.AttestationPending},
-		payerreport.AttestationRejected,
-	)
+	return w.store.SetReportAttestationRejected(w.ctx, report.ID)
 }

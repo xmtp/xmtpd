@@ -91,7 +91,7 @@ func ExecuteTransaction(
 	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
 	eventParser func(*types.Log) (interface{}, error),
 	logHandler func(interface{}),
-) *BlockchainError {
+) ProtocolError {
 	if signer == nil {
 		return NewBlockchainError(fmt.Errorf("no signer provided"))
 	}

@@ -108,6 +108,11 @@ var (
 	ErrCompileRegex = fmt.Errorf("error compiling regex")
 )
 
+type ProtocolError interface {
+	error
+	IsNoChange() bool
+}
+
 type BlockchainError struct {
 	msg string
 	err error

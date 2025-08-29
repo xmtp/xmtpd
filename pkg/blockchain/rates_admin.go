@@ -157,21 +157,17 @@ func (r *RatesAdmin) AddRates(
 		},
 	)
 	if err != nil {
-		errorCode, exists := tryExtractProtocolError(err)
-		if exists {
-			if errorCode == "NoChange()" {
-				r.logger.Info("No update needed",
-					zap.Uint64("messageFee", uint64(rates.MessageFee)),
-					zap.Uint64("storageFee", uint64(rates.StorageFee)),
-					zap.Uint64("congestionFee", uint64(rates.CongestionFee)),
-					zap.Uint64("targetRatePerMinute", rates.TargetRatePerMinute),
-				)
-				return nil
-			} else {
-				r.logger.Error("Protocol error", zap.String("errorCode", errorCode))
-			}
+		if err.IsNoChange() {
+			r.logger.Info("No update needed",
+				zap.Uint64("messageFee", uint64(rates.MessageFee)),
+				zap.Uint64("storageFee", uint64(rates.StorageFee)),
+				zap.Uint64("congestionFee", uint64(rates.CongestionFee)),
+				zap.Uint64("targetRatePerMinute", rates.TargetRatePerMinute),
+			)
+			return nil
 		}
 
+		r.logger.Error("Protocol error", zap.String("error", err.Error()))
 		return err
 	}
 

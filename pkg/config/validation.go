@@ -119,6 +119,11 @@ func validateMigrationOptions(
 			missingSet,
 		)
 		validateField(
+			opts.Signer.PrivateKey,
+			"signer.private-key",
+			missingSet,
+		)
+		validateField(
 			opts.MigrationServer.ReaderConnectionString,
 			"migration-server.reader-connection-string",
 			missingSet,

@@ -3,7 +3,6 @@ package blockchain
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -158,9 +157,7 @@ func (r *RatesAdmin) AddRates(
 		},
 	)
 	if err != nil {
-		// 0xa88ee577 is the error code for NoChange
-		// cast sig "NoChange()"
-		if strings.Contains(err.Error(), "0xa88ee577") {
+		if err.IsNoChange() {
 			r.logger.Info("No update needed",
 				zap.Uint64("messageFee", uint64(rates.MessageFee)),
 				zap.Uint64("storageFee", uint64(rates.StorageFee)),
@@ -169,6 +166,8 @@ func (r *RatesAdmin) AddRates(
 			)
 			return nil
 		}
+
+		r.logger.Error("Protocol error", zap.String("error", err.Error()))
 		return err
 	}
 

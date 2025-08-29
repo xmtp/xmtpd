@@ -1,3 +1,4 @@
+// Package blockchain provides infrastructure for interacting with the blockchain.
 package blockchain
 
 import (
@@ -12,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 )
 
-// Construct a raw blockchain listener that can be used to listen for events across many contract event types
+// LogStreamBuilder constructs a raw blockchain listener that can be used to listen for events across many contract event types.
 type LogStreamBuilder interface {
 	ListenForContractEvent(
 		fromBlock uint64,

@@ -44,19 +44,17 @@ func NewStore(db *sql.DB, log *zap.Logger) *Store {
 }
 
 // Store a report in the database. No validations have been performed, and no originator envelope is stored.
-// This function is primarily used for testing
-func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (*ReportID, error) {
+func (s *Store) StoreReport(ctx context.Context, report *PayerReport) error {
 	params, err := prepareStoreReportParams(report)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	_, err = s.queries.InsertOrIgnorePayerReport(ctx, *params)
-	if err != nil {
-		return nil, err
+	if _, err = s.queries.InsertOrIgnorePayerReport(ctx, *params); err != nil {
+		return err
 	}
 
-	return &report.ID, nil
+	return nil
 }
 
 // Store an attestation in the database
@@ -121,6 +119,24 @@ func (s *Store) SetReportAttestationStatus(
 	}
 
 	return s.queries.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
+		ReportID:   id[:],
+		NewStatus:  int16(toStatus),
+		PrevStatus: allowedPrevStatuses,
+	})
+}
+
+func (s *Store) SetReportSubmissionStatus(
+	ctx context.Context,
+	id ReportID,
+	fromStatus []SubmissionStatus,
+	toStatus SubmissionStatus,
+) error {
+	allowedPrevStatuses := make([]int16, len(fromStatus))
+	for idx, status := range fromStatus {
+		allowedPrevStatuses[idx] = int16(status)
+	}
+
+	return s.queries.SetReportSubmissionStatus(ctx, queries.SetReportSubmissionStatusParams{
 		ReportID:   id[:],
 		NewStatus:  int16(toStatus),
 		PrevStatus: allowedPrevStatuses,

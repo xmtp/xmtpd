@@ -351,6 +351,102 @@ func (_c *MockIPayerReportStore_SetReportAttestationStatus_Call) RunAndReturn(ru
 	return _c
 }
 
+// SetReportSubmissionStatus provides a mock function with given fields: ctx, id, fromStatus, toStatus
+func (_m *MockIPayerReportStore) SetReportSubmissionStatus(ctx context.Context, id payerreport.ReportID, fromStatus []payerreport.SubmissionStatus, toStatus payerreport.SubmissionStatus) error {
+	ret := _m.Called(ctx, id, fromStatus, toStatus)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetReportSubmissionStatus")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID, []payerreport.SubmissionStatus, payerreport.SubmissionStatus) error); ok {
+		r0 = rf(ctx, id, fromStatus, toStatus)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockIPayerReportStore_SetReportSubmissionStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportSubmissionStatus'
+type MockIPayerReportStore_SetReportSubmissionStatus_Call struct {
+	*mock.Call
+}
+
+// SetReportSubmissionStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id payerreport.ReportID
+//   - fromStatus []payerreport.SubmissionStatus
+//   - toStatus payerreport.SubmissionStatus
+func (_e *MockIPayerReportStore_Expecter) SetReportSubmissionStatus(ctx interface{}, id interface{}, fromStatus interface{}, toStatus interface{}) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+	return &MockIPayerReportStore_SetReportSubmissionStatus_Call{Call: _e.mock.On("SetReportSubmissionStatus", ctx, id, fromStatus, toStatus)}
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmissionStatus_Call) Run(run func(ctx context.Context, id payerreport.ReportID, fromStatus []payerreport.SubmissionStatus, toStatus payerreport.SubmissionStatus)) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(payerreport.ReportID), args[2].([]payerreport.SubmissionStatus), args[3].(payerreport.SubmissionStatus))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmissionStatus_Call) Return(_a0 error) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmissionStatus_Call) RunAndReturn(run func(context.Context, payerreport.ReportID, []payerreport.SubmissionStatus, payerreport.SubmissionStatus) error) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StoreReport provides a mock function with given fields: ctx, report
+func (_m *MockIPayerReportStore) StoreReport(ctx context.Context, report *payerreport.PayerReport) error {
+	ret := _m.Called(ctx, report)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StoreReport")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport) error); ok {
+		r0 = rf(ctx, report)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockIPayerReportStore_StoreReport_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StoreReport'
+type MockIPayerReportStore_StoreReport_Call struct {
+	*mock.Call
+}
+
+// StoreReport is a helper method to define mock.On call
+//   - ctx context.Context
+//   - report *payerreport.PayerReport
+func (_e *MockIPayerReportStore_Expecter) StoreReport(ctx interface{}, report interface{}) *MockIPayerReportStore_StoreReport_Call {
+	return &MockIPayerReportStore_StoreReport_Call{Call: _e.mock.On("StoreReport", ctx, report)}
+}
+
+func (_c *MockIPayerReportStore_StoreReport_Call) Run(run func(ctx context.Context, report *payerreport.PayerReport)) *MockIPayerReportStore_StoreReport_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*payerreport.PayerReport))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_StoreReport_Call) Return(_a0 error) *MockIPayerReportStore_StoreReport_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_StoreReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport) error) *MockIPayerReportStore_StoreReport_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // StoreSyncedAttestation provides a mock function with given fields: ctx, envelope, payerID
 func (_m *MockIPayerReportStore) StoreSyncedAttestation(ctx context.Context, envelope *envelopes.OriginatorEnvelope, payerID int32) error {
 	ret := _m.Called(ctx, envelope, payerID)

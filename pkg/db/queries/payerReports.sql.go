@@ -8,7 +8,6 @@ package queries
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"github.com/lib/pq"
 )
@@ -553,7 +552,7 @@ const setReportAttestationStatus = `-- name: SetReportAttestationStatus :exec
 UPDATE payer_reports
 SET attestation_status = $1
 WHERE id = $2
-	AND attestation_status IN ($3)
+	AND attestation_status = ANY($3::SMALLINT [])
 `
 
 type SetReportAttestationStatusParams struct {
@@ -563,18 +562,24 @@ type SetReportAttestationStatusParams struct {
 }
 
 func (q *Queries) SetReportAttestationStatus(ctx context.Context, arg SetReportAttestationStatusParams) error {
-	query := setReportAttestationStatus
-	var queryParams []interface{}
-	queryParams = append(queryParams, arg.NewStatus)
-	queryParams = append(queryParams, arg.ReportID)
-	if len(arg.PrevStatus) > 0 {
-		for _, v := range arg.PrevStatus {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:prev_status*/?", strings.Repeat(",?", len(arg.PrevStatus))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:prev_status*/?", "NULL", 1)
-	}
-	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	_, err := q.db.ExecContext(ctx, setReportAttestationStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
+	return err
+}
+
+const setReportSubmissionStatus = `-- name: SetReportSubmissionStatus :exec
+UPDATE payer_reports
+SET submission_status = $1
+WHERE id = $2
+	AND submission_status = ANY($3::SMALLINT [])
+`
+
+type SetReportSubmissionStatusParams struct {
+	NewStatus  int16
+	ReportID   []byte
+	PrevStatus []int16
+}
+
+func (q *Queries) SetReportSubmissionStatus(ctx context.Context, arg SetReportSubmissionStatusParams) error {
+	_, err := q.db.ExecContext(ctx, setReportSubmissionStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
 	return err
 }

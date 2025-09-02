@@ -35,6 +35,7 @@ type IPayerReportVerifier interface {
 }
 
 type IPayerReportStore interface {
+	StoreReport(ctx context.Context, report *PayerReport) error
 	CreatePayerReport(
 		ctx context.Context,
 		report *PayerReport,
@@ -63,6 +64,12 @@ type IPayerReportStore interface {
 		id ReportID,
 		fromStatus []AttestationStatus,
 		toStatus AttestationStatus,
+	) error
+	SetReportSubmissionStatus(
+		ctx context.Context,
+		id ReportID,
+		fromStatus []SubmissionStatus,
+		toStatus SubmissionStatus,
 	) error
 	Queries() *queries.Queries
 }

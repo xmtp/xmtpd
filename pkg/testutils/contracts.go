@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
@@ -118,5 +119,53 @@ func BuildIdentityUpdateLog(
 			topic2, // sequenceID
 		},
 		Data: eventData, // ABI-encoded `message` (non-indexed)
+	}
+}
+
+func BuildPayerReportSubmittedEvent(
+	t *testing.T,
+	originatorNodeID uint32,
+	payerReportIndex uint64,
+	startSequenceID uint64,
+	endSequenceID uint64,
+	endMinuteSinceEpoch uint64,
+	payersMerkleRoot [32]byte,
+	activeNodeIDs []uint32,
+) types.Log {
+	prmabi, err := prm.PayerReportManagerMetaData.GetAbi()
+	require.NoError(t, err)
+
+	topic0, err := utils.GetEventTopic(prmabi, "PayerReportSubmitted")
+	require.NoError(t, err)
+
+	inputs := prmabi.Events["PayerReportSubmitted"].Inputs
+	var nonIndexed abi.Arguments
+	for _, input := range inputs {
+		if !input.Indexed {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	originatorNodeIDHash := common.BigToHash(big.NewInt(int64(originatorNodeID)))
+	payerReportIndexHash := common.BigToHash(big.NewInt(int64(payerReportIndex)))
+	endSequenceIDHash := common.BigToHash(big.NewInt(int64(endSequenceID)))
+
+	data, err := nonIndexed.Pack(
+		startSequenceID,
+		uint32(endMinuteSinceEpoch),
+		payersMerkleRoot,
+		activeNodeIDs,
+		activeNodeIDs,
+	)
+	require.NoError(t, err)
+
+	return types.Log{
+		Topics: []common.Hash{
+			topic0,
+			originatorNodeIDHash,
+			payerReportIndexHash,
+			endSequenceIDHash,
+		},
+		Data: data,
 	}
 }

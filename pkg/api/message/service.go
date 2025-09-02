@@ -50,7 +50,7 @@ type Service struct {
 	subscribeWorker   *subscribeWorker
 	validationService mlsvalidate.MLSValidationService
 	cu                metadata.CursorUpdater
-	feeCalculator     fees.IFeeCalculator
+	feeCalculator     fees.IFeeEstimator
 	options           config.ReplicationOptions
 	migrationEnabled  bool
 }
@@ -70,7 +70,7 @@ func NewReplicationApiService(
 		return nil, errors.New("validation service must not be nil")
 	}
 
-	feeCalculator := fees.NewFeeCalculator(rateFetcher)
+	feeCalculator := fees.NewFeeEstimator(fees.NewFeeCalculator(rateFetcher))
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store, feeCalculator)
 	if err != nil {
 		return nil, err
@@ -410,8 +410,12 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 	s.publishWorker.notifyStagedPublish()
 
-	baseFee, congestionFee, err := s.publishWorker.calculateFees(
+	baseFee, congestionFee, err := fees.CalculateStagedOriginatorEnvelopeFees(
+		ctx,
 		&stagedEnv,
+		s.feeCalculator,
+		queries.New(s.store),
+		s.registrant.NodeID(),
 		payerEnv.Proto().GetMessageRetentionDays(),
 	)
 	if err != nil {

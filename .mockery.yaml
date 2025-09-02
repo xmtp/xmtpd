@@ -16,6 +16,7 @@ packages:
   github.com/xmtp/xmtpd/pkg/fees:
     interfaces:
       RatesContract:
+      IFeeCalculator:
   github.com/xmtp/xmtpd/pkg/mlsvalidate:
     interfaces:
       MLSValidationService:

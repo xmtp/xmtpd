@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
-	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
@@ -53,6 +52,7 @@ type ReplicationServerConfig struct {
 	ServerVersion *semver.Version
 	GRPCListener  net.Listener
 	HTTPListener  net.Listener
+	RatesFetcher  fees.IRatesFetcher
 }
 
 func WithContext(ctx context.Context) ReplicationServerOption {
@@ -100,6 +100,12 @@ func WithGRPCListener(listener net.Listener) ReplicationServerOption {
 func WithHTTPListener(listener net.Listener) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
 		cfg.HTTPListener = listener
+	}
+}
+
+func WithRatesFetcher(fetcher fees.IRatesFetcher) ReplicationServerOption {
+	return func(cfg *ReplicationServerConfig) {
+		cfg.RatesFetcher = fetcher
 	}
 }
 
@@ -160,6 +166,10 @@ func NewReplicationServer(
 
 	if cfg.HTTPListener == nil {
 		return nil, errors.New("http listener not provided")
+	}
+
+	if cfg.RatesFetcher == nil {
+		return nil, errors.New("rates fetcher not provided")
 	}
 
 	promReg := prometheus.NewRegistry()
@@ -283,7 +293,7 @@ func NewReplicationServer(
 			sync.WithNodeRegistry(s.nodeRegistry),
 			sync.WithRegistrant(s.registrant),
 			sync.WithDB(cfg.DB),
-			sync.WithFeeCalculator(fees.NewFeeCalculator(getRatesFetcher())),
+			sync.WithFeeCalculator(fees.NewFeeCalculator(cfg.RatesFetcher)),
 			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Log)),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 		)
@@ -319,7 +329,7 @@ func startAPIServer(
 				cfg.DB,
 				s.validationService,
 				s.cursorUpdater,
-				getRatesFetcher(),
+				cfg.RatesFetcher,
 				cfg.Options.Replication,
 				isMigrationEnabled,
 			)
@@ -452,16 +462,6 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 	}
 
 	s.cancel()
-}
-
-// TODO:nm Replace this with something that fetches rates from the blockchain
-// Will need a rates smart contract first
-func getRatesFetcher() fees.IRatesFetcher {
-	return fees.NewFixedRatesFetcher(&fees.Rates{
-		MessageFee:    currency.PicoDollar(100),
-		StorageFee:    currency.PicoDollar(100),
-		CongestionFee: currency.PicoDollar(100),
-	})
 }
 
 func getDomainSeparator(

@@ -14,6 +14,7 @@ import (
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/fees"
 )
 
 type EnabledServices struct {
@@ -45,6 +46,7 @@ func NewTestServer(
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithGRPCListener(cfg.GRPCListener),
 		s.WithHTTPListener(cfg.HTTPListener),
+		s.WithRatesFetcher(fees.NewTestRatesFetcher()),
 		s.WithServerOptions(&config.ServerOptions{
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{

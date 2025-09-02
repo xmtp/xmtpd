@@ -27,6 +27,11 @@ func FromDollars(dollars float64) (PicoDollar, error) {
 	return PicoDollar(picodollars), nil
 }
 
+// FromMicrodollars converts an int64 microdollar amount to PicoDollar
+func FromMicrodollars(microdollars int64) PicoDollar {
+	return PicoDollar(microdollars * 1e6)
+}
+
 // toDollarsTestOnly converts PicoDollars to a dollar amount (as a float)
 func (p PicoDollar) toDollarsTestOnly() float64 {
 	return float64(p) / PicoDollarsPerDollar

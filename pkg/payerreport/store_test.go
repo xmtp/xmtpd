@@ -332,8 +332,41 @@ func TestStoreAttestationInvalidNodeID(t *testing.T) {
 func TestSetReportAttestationStatus(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
-	reportID := ReportID(randomBytes32())
 
+	desiredStatuses := []AttestationStatus{AttestationApproved, AttestationRejected}
+
+	for _, newStatus := range desiredStatuses {
+		reportID := ReportID(randomBytes32())
+
+		report := PayerReport{
+			ID:               reportID,
+			OriginatorNodeID: 1,
+			StartSequenceID:  0,
+			EndSequenceID:    10,
+			PayersMerkleRoot: randomBytes32(),
+			ActiveNodeIDs:    []uint32{1},
+		}
+
+		err := store.StoreReport(ctx, &report)
+		require.NoError(t, err)
+
+		if newStatus == AttestationApproved {
+			require.NoError(t, store.SetReportAttestationApproved(ctx, reportID))
+		} else {
+			require.NoError(t, store.SetReportAttestationRejected(ctx, reportID))
+		}
+
+		fetched, err := store.FetchReport(ctx, reportID)
+		require.NoError(t, err)
+		require.Equal(t, newStatus, fetched.AttestationStatus)
+	}
+}
+
+func TestInvalidStateTransition(t *testing.T) {
+	store := createTestStore(t)
+	ctx := context.Background()
+
+	reportID := ReportID(randomBytes32())
 	report := PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: 1,
@@ -346,16 +379,10 @@ func TestSetReportAttestationStatus(t *testing.T) {
 	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
-	// Move from Pending -> Approved
-	require.NoError(
-		t,
-		store.SetReportAttestationStatus(
-			ctx,
-			reportID,
-			[]AttestationStatus{AttestationPending},
-			AttestationApproved,
-		),
-	)
+	err = store.SetReportAttestationApproved(ctx, reportID)
+	require.NoError(t, err)
+
+	require.NoError(t, store.SetReportAttestationRejected(ctx, reportID))
 
 	fetched, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
@@ -519,4 +546,381 @@ func TestStoreSyncedAttestation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, fetchedReport.AttestationSignatures, 1)
 	require.Equal(t, uint32(9), fetchedReport.AttestationSignatures[0].NodeID)
+}
+
+func TestSetReportSettled(t *testing.T) {
+	ctx := context.Background()
+	store := createTestStore(t)
+
+	// Helper to create unsettled usage for an originator
+	// Every increment is 100 picodollars
+	createUnsettledUsage := func(originatorID uint32, minutesSinceEpoch int32, payerCount int) {
+		for i := 0; i < payerCount; i++ {
+			payerID, err := store.Queries().FindOrCreatePayer(ctx, testutils.RandomAddress().Hex())
+			require.NoError(t, err)
+
+			err = store.Queries().
+				IncrementUnsettledUsage(ctx, queries.IncrementUnsettledUsageParams{
+					PayerID:           payerID,
+					OriginatorID:      int32(originatorID),
+					MinutesSinceEpoch: minutesSinceEpoch,
+					SpendPicodollars:  100,
+					MessageCount:      1,
+					SequenceID:        int64(i),
+				})
+			require.NoError(t, err)
+		}
+	}
+
+	// Helper to count unsettled usage for an originator
+	countUnsettledUsage := func(originatorID uint32) int {
+		rows, err := store.Queries().BuildPayerReport(ctx, queries.BuildPayerReportParams{
+			OriginatorID:           int32(originatorID),
+			StartMinutesSinceEpoch: 0,
+			EndMinutesSinceEpoch:   1000000, // Large value to include all
+		})
+		require.NoError(t, err)
+		count := 0
+		for _, row := range rows {
+			if row.TotalSpendPicodollars > 0 {
+				count += int(row.TotalSpendPicodollars / 100) // Each entry has 100 picodollars
+			}
+		}
+		return count
+	}
+
+	t.Run("first settled report clears all unsettled usage", func(t *testing.T) {
+		originatorID := uint32(99)
+
+		// Create the first report for this originator
+		report := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 500,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2, 3},
+		}
+		err := store.StoreReport(ctx, report)
+		require.NoError(t, err)
+
+		// Create unsettled usage at various times
+		createUnsettledUsage(originatorID, 100, 2) // Very old usage
+		createUnsettledUsage(originatorID, 300, 2) // Before end minute
+		createUnsettledUsage(originatorID, 450, 3) // Before end minute
+		createUnsettledUsage(originatorID, 500, 2) // At end minute
+		createUnsettledUsage(originatorID, 600, 2) // After end minute (should not be cleared)
+
+		// Verify all unsettled usage exists
+		require.Equal(t, 11, countUnsettledUsage(originatorID))
+
+		// Set to submitted then settled
+		err = store.SetReportSubmitted(ctx, report.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, report.ID)
+		require.NoError(t, err)
+
+		// Since this is the first settled report, all usage up to and including
+		// the end minute should be cleared
+		require.Equal(t, 2, countUnsettledUsage(originatorID))
+
+		// Verify report status changed to settled
+		fetchedReport, err := store.FetchReport(ctx, report.ID)
+		require.NoError(t, err)
+		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+	})
+
+	t.Run("clears unsettled usage only for range since last settled report", func(t *testing.T) {
+		originatorID := uint32(100)
+
+		// Create first report and settle it
+		firstReport := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 300,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2, 3},
+		}
+		err := store.StoreReport(ctx, firstReport)
+		require.NoError(t, err)
+		err = store.SetReportSubmitted(ctx, firstReport.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, firstReport.ID)
+		require.NoError(t, err)
+
+		// Create second report
+		secondReport := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     10,
+			EndSequenceID:       20,
+			EndMinuteSinceEpoch: 500,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2, 3},
+		}
+		err = store.StoreReport(ctx, secondReport)
+		require.NoError(t, err)
+
+		// Create unsettled usage across different time ranges
+		createUnsettledUsage(originatorID, 250, 2) // Before first report (should not be cleared)
+		createUnsettledUsage(originatorID, 350, 3) // Between reports (should be cleared)
+		createUnsettledUsage(originatorID, 450, 2) // Between reports (should be cleared)
+		createUnsettledUsage(originatorID, 500, 2) // At second report end (should be cleared)
+		createUnsettledUsage(originatorID, 600, 2) // After second report (should not be cleared)
+
+		// Verify all unsettled usage exists
+		require.Equal(t, 11, countUnsettledUsage(originatorID))
+
+		// Set second report to submitted then settled
+		err = store.SetReportSubmitted(ctx, secondReport.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, secondReport.ID)
+		require.NoError(t, err)
+
+		// Check that only usage outside the range (300, 500] remains
+		// Should have 2 from minute 250 and 2 from minute 600
+		require.Equal(t, 4, countUnsettledUsage(originatorID))
+
+		// Verify report status changed to settled
+		fetchedReport, err := store.FetchReport(ctx, secondReport.ID)
+		require.NoError(t, err)
+		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+	})
+
+	t.Run("handles multiple reports with submitted and settled states", func(t *testing.T) {
+		originatorID := uint32(101)
+
+		// Create and settle first report
+		report1 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 200,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+		err := store.StoreReport(ctx, report1)
+		require.NoError(t, err)
+		err = store.SetReportSubmitted(ctx, report1.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, report1.ID)
+		require.NoError(t, err)
+
+		// Create and submit (but not settle) second report
+		report2 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     10,
+			EndSequenceID:       20,
+			EndMinuteSinceEpoch: 400,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+		err = store.StoreReport(ctx, report2)
+		require.NoError(t, err)
+		err = store.SetReportSubmitted(ctx, report2.ID)
+		require.NoError(t, err)
+
+		// Create third report
+		report3 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     20,
+			EndSequenceID:       30,
+			EndMinuteSinceEpoch: 600,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+		err = store.StoreReport(ctx, report3)
+		require.NoError(t, err)
+
+		// Create unsettled usage across all time ranges
+		createUnsettledUsage(originatorID, 150, 2) // Before first report
+		createUnsettledUsage(originatorID, 250, 2) // Between first and second
+		createUnsettledUsage(originatorID, 350, 2) // Between first and second
+		createUnsettledUsage(originatorID, 450, 2) // Between second and third
+		createUnsettledUsage(originatorID, 550, 2) // Between second and third
+		createUnsettledUsage(originatorID, 600, 2) // At third report end
+		createUnsettledUsage(originatorID, 700, 2) // After third report
+
+		// Verify all unsettled usage exists
+		require.Equal(t, 14, countUnsettledUsage(originatorID))
+
+		// Settle the third report
+		err = store.SetReportSubmitted(ctx, report3.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, report3.ID)
+		require.NoError(t, err)
+
+		// Should clear usage from last settled/submitted report (report2 at minute 400) to report3 end (minute 600)
+		// Remaining: 150 (2), 250 (2), 350 (2), 700 (2) = 8 total
+		require.Equal(t, 8, countUnsettledUsage(originatorID))
+	})
+
+	t.Run("handles gap when last report is settled vs submitted", func(t *testing.T) {
+		originatorID := uint32(102)
+
+		// Create and submit (but not settle) first report
+		report1 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 300,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+		err := store.StoreReport(ctx, report1)
+		require.NoError(t, err)
+		err = store.SetReportSubmitted(ctx, report1.ID)
+		require.NoError(t, err)
+
+		// Create second report
+		report2 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    originatorID,
+			StartSequenceID:     10,
+			EndSequenceID:       20,
+			EndMinuteSinceEpoch: 500,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+		err = store.StoreReport(ctx, report2)
+		require.NoError(t, err)
+
+		// Create unsettled usage
+		createUnsettledUsage(originatorID, 200, 2) // Before first report
+		createUnsettledUsage(originatorID, 350, 3) // After first report
+		createUnsettledUsage(originatorID, 450, 2) // Between reports
+		createUnsettledUsage(originatorID, 500, 2) // At second report end
+		createUnsettledUsage(originatorID, 600, 2) // After second report
+
+		// Verify all unsettled usage exists
+		require.Equal(t, 11, countUnsettledUsage(originatorID))
+
+		// Settle the second report
+		err = store.SetReportSubmitted(ctx, report2.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, report2.ID)
+		require.NoError(t, err)
+
+		// Should clear usage from last submitted report (report1 at minute 300) to report2 end (minute 500)
+		// Remaining: 200 (2), 600 (2) = 4 total
+		require.Equal(t, 4, countUnsettledUsage(originatorID))
+	})
+
+	t.Run("does not affect other originators", func(t *testing.T) {
+		// Create two reports for different originators
+		report1 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    200,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 400,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+		report2 := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    201,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 400,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1, 2},
+		}
+
+		err := store.StoreReport(ctx, report1)
+		require.NoError(t, err)
+		err = store.StoreReport(ctx, report2)
+		require.NoError(t, err)
+
+		// Create unsettled usage for both originators
+		createUnsettledUsage(report1.OriginatorNodeID, 350, 3)
+		createUnsettledUsage(report2.OriginatorNodeID, 350, 4)
+
+		// Verify both have unsettled usage
+		require.Equal(t, 3, countUnsettledUsage(report1.OriginatorNodeID))
+		require.Equal(t, 4, countUnsettledUsage(report2.OriginatorNodeID))
+
+		// Set first report to submitted then settled
+		err = store.SetReportSubmitted(ctx, report1.ID)
+		require.NoError(t, err)
+		err = store.SetReportSettled(ctx, report1.ID)
+		require.NoError(t, err)
+
+		// Check that only report1's usage was cleared
+		require.Equal(t, 0, countUnsettledUsage(report1.OriginatorNodeID))
+		require.Equal(t, 4, countUnsettledUsage(report2.OriginatorNodeID))
+	})
+
+	t.Run("fails for non-existent report", func(t *testing.T) {
+		nonExistentID := ReportID(randomBytes32())
+		err := store.SetReportSettled(ctx, nonExistentID)
+		require.Error(t, err)
+	})
+
+	t.Run("transitions from pending to settled", func(t *testing.T) {
+		// Create a report in pending state
+		report := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    300,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 300,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1},
+		}
+		err := store.StoreReport(ctx, report)
+		require.NoError(t, err)
+
+		// Verify initial status is pending
+		fetchedReport, err := store.FetchReport(ctx, report.ID)
+		require.NoError(t, err)
+		require.Equal(t, SubmissionStatus(SubmissionPending), fetchedReport.SubmissionStatus)
+
+		// Should be able to transition from pending to settled
+		err = store.SetReportSettled(ctx, report.ID)
+		require.NoError(t, err)
+
+		// Verify status changed
+		fetchedReport, err = store.FetchReport(ctx, report.ID)
+		require.NoError(t, err)
+		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+	})
+
+	t.Run("transitions from submitted to settled", func(t *testing.T) {
+		// Create a report and set it to submitted
+		report := &PayerReport{
+			ID:                  ReportID(randomBytes32()),
+			OriginatorNodeID:    400,
+			StartSequenceID:     0,
+			EndSequenceID:       10,
+			EndMinuteSinceEpoch: 300,
+			PayersMerkleRoot:    randomBytes32(),
+			ActiveNodeIDs:       []uint32{1},
+		}
+		err := store.StoreReport(ctx, report)
+		require.NoError(t, err)
+		err = store.SetReportSubmitted(ctx, report.ID)
+		require.NoError(t, err)
+
+		// Verify status is submitted
+		fetchedReport, err := store.FetchReport(ctx, report.ID)
+		require.NoError(t, err)
+		require.Equal(t, SubmissionStatus(SubmissionSubmitted), fetchedReport.SubmissionStatus)
+
+		// Should be able to transition from submitted to settled
+		err = store.SetReportSettled(ctx, report.ID)
+		require.NoError(t, err)
+
+		// Verify status changed
+		fetchedReport, err = store.FetchReport(ctx, report.ID)
+		require.NoError(t, err)
+		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+	})
 }

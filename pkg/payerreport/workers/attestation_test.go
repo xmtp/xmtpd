@@ -57,23 +57,6 @@ func storeReport(
 	return reportWithStatus
 }
 
-func setReportAttestationStatus(
-	t *testing.T,
-	store payerreport.IPayerReportStore,
-	id payerreport.ReportID,
-	attestationStatus payerreport.AttestationStatus,
-) {
-	require.NoError(
-		t,
-		store.SetReportAttestationStatus(
-			t.Context(),
-			id,
-			[]payerreport.AttestationStatus{payerreport.AttestationPending},
-			attestationStatus,
-		),
-	)
-}
-
 func TestFindReport(t *testing.T) {
 	worker, store, _, _ := testAttestationWorker(t, time.Second)
 
@@ -92,7 +75,13 @@ func TestFindReport(t *testing.T) {
 	require.Len(t, reports, 1)
 	require.Equal(t, storedReport.ID, reports[0].ID)
 
-	setReportAttestationStatus(t, store, storedReport.ID, payerreport.AttestationApproved)
+	require.NoError(
+		t,
+		store.SetReportAttestationApproved(
+			t.Context(),
+			storedReport.ID,
+		),
+	)
 
 	reports, err = worker.findReportsNeedingAttestation()
 	require.NoError(t, err)

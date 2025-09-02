@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -23,6 +24,7 @@ const (
 	ErrBuildPayerReportID               = "error building payer report id"
 	ErrStoreReport                      = "error storing report"
 	ErrSetReportSubmissionStatus        = "error setting report submission status"
+	ErrLoadReportByIndex                = "error loading report by index"
 
 	payerReportManagerPayerReportSubmittedEvent     = "PayerReportSubmitted"
 	payerReportManagerPayerReportSubsetSettledEvent = "PayerReportSubsetSettled"
@@ -98,12 +100,64 @@ func (s *PayerReportManagerStorer) StoreLog(
 		)
 	case payerReportManagerPayerReportSubsetSettledEvent:
 		s.logger.Info("PayerReportSubsetSettled", zap.Any("log", log))
+		var parsedEvent *p.PayerReportManagerPayerReportSubsetSettled
+		if parsedEvent, err = s.contract.ParsePayerReportSubsetSettled(log); err != nil {
+			return re.NewNonRecoverableError(ErrParsePayerReportManagerLog, err)
+		}
+
+		if err := s.setReportSettled(ctx, parsedEvent); err != nil {
+			return err
+		}
 	default:
 		s.logger.Info("Unknown event", zap.String("event", event.Name))
 		return re.NewNonRecoverableError(
 			ErrPayerReportManagerUnhandledEvent,
 			errors.New(event.Name),
 		)
+	}
+
+	return nil
+}
+
+func (s *PayerReportManagerStorer) getReportIDFromIndex(
+	ctx context.Context,
+	nodeID uint32,
+	index *big.Int,
+) (*payerreport.ReportID, error) {
+	result, err := s.contract.GetPayerReport(&bind.CallOpts{
+		Context: ctx,
+	}, nodeID, index)
+	if err != nil {
+		return nil, err
+	}
+
+	reportID, err := payerreport.BuildPayerReportID(
+		nodeID,
+		result.StartSequenceId,
+		result.EndSequenceId,
+		result.EndMinuteSinceEpoch,
+		result.PayersMerkleRoot,
+		result.NodeIds,
+		s.domainSeparator,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return reportID, nil
+}
+
+func (s *PayerReportManagerStorer) setReportSettled(
+	ctx context.Context,
+	event *p.PayerReportManagerPayerReportSubsetSettled,
+) re.RetryableError {
+	reportID, err := s.getReportIDFromIndex(ctx, event.OriginatorNodeId, event.PayerReportIndex)
+	if err != nil {
+		return re.NewRecoverableError(ErrLoadReportByIndex, err)
+	}
+
+	if err = s.store.SetReportSettled(ctx, *reportID); err != nil {
+		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
 	}
 
 	return nil
@@ -143,12 +197,7 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 	}
 	// Will only set the status to Submitted if it was previously Pending.
 	// If it is already settled, this is a no-op
-	if err = s.store.SetReportSubmissionStatus(
-		ctx,
-		*reportID,
-		[]payerreport.SubmissionStatus{payerreport.SubmissionPending},
-		payerreport.SubmissionSubmitted,
-	); err != nil {
+	if err = s.store.SetReportSubmitted(ctx, *reportID); err != nil {
 		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
 	}
 

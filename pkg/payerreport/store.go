@@ -107,40 +107,105 @@ func (s *Store) FetchReports(
 	return convertPayerReports(rows)
 }
 
-func (s *Store) SetReportAttestationStatus(
-	ctx context.Context,
-	id ReportID,
-	fromStatus []AttestationStatus,
-	toStatus AttestationStatus,
-) error {
-	allowedPrevStatuses := make([]int16, len(fromStatus))
-	for idx, status := range fromStatus {
-		allowedPrevStatuses[idx] = int16(status)
-	}
-
-	return s.queries.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
-		ReportID:   id[:],
-		NewStatus:  int16(toStatus),
-		PrevStatus: allowedPrevStatuses,
-	})
+func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID) error {
+	return setReportSubmissionStatus(
+		ctx,
+		s.queries,
+		id,
+		[]SubmissionStatus{SubmissionPending},
+		SubmissionSubmitted,
+	)
 }
 
-func (s *Store) SetReportSubmissionStatus(
-	ctx context.Context,
-	id ReportID,
-	fromStatus []SubmissionStatus,
-	toStatus SubmissionStatus,
-) error {
-	allowedPrevStatuses := make([]int16, len(fromStatus))
-	for idx, status := range fromStatus {
-		allowedPrevStatuses[idx] = int16(status)
-	}
+func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
+	return db.RunInTx(
+		ctx,
+		s.db,
+		&sql.TxOptions{},
+		func(ctx context.Context, txQueries *queries.Queries) error {
+			var (
+				err            error
+				existingReport queries.PayerReport
+			)
+			// Fetch the existing report to get the originator ID and the end minute
+			if existingReport, err = txQueries.FetchPayerReport(ctx, id[:]); err != nil {
+				return err
+			}
 
-	return s.queries.SetReportSubmissionStatus(ctx, queries.SetReportSubmissionStatusParams{
-		ReportID:   id[:],
-		NewStatus:  int16(toStatus),
-		PrevStatus: allowedPrevStatuses,
-	})
+			// Try to fetch the previous report if it exists, to get the end minute of the previous report
+			prevReportQuery := NewFetchReportsQuery().WithSubmissionStatus(SubmissionSubmitted, SubmissionSettled).
+				WithOriginatorNodeID(uint32(existingReport.OriginatorNodeID)).
+				WithEndSequenceID(uint64(existingReport.StartSequenceID))
+
+			prevReports, err := txQueries.FetchPayerReports(ctx, prevReportQuery.toParams())
+			if err != nil {
+				return err
+			}
+
+			// If we have a previous report, only delete unsettled usage for the range between
+			// the previous and current report. This is to protect against cases where
+			// reports are settled in a different order than they were submitted.
+			prevReportEndMinuteSinceEpoch := int32(
+				-1,
+			) // If no previous report, use -1 to clear all usage
+			if len(prevReports) > 0 {
+				prevReportEndMinuteSinceEpoch = prevReports[0].EndMinuteSinceEpoch
+			}
+
+			// Clear any unsettled usage for the originator, since the report is now settled
+			// TODO:(nm) if we are really unlucky and this gets re-orged, we don't have a great way to
+			// recover right now.
+
+			// Ideally this would mark the usage as settled, but the deletion would happen later.
+			if err = txQueries.ClearUnsettledUsage(ctx, queries.ClearUnsettledUsageParams{
+				OriginatorID:                  int32(existingReport.OriginatorNodeID),
+				PrevReportEndMinuteSinceEpoch: prevReportEndMinuteSinceEpoch,
+				EndMinuteSinceEpoch:           int32(existingReport.EndMinuteSinceEpoch),
+			}); err != nil {
+				return err
+			}
+
+			s.log.Info(
+				"Cleared unsettled usage",
+				zap.Any("prevReportEndMinuteSinceEpoch", prevReportEndMinuteSinceEpoch),
+				zap.Any("existingReport.EndMinuteSinceEpoch", existingReport.EndMinuteSinceEpoch),
+			)
+
+			// Set the report to settled
+			if err = setReportSubmissionStatus(
+				ctx,
+				txQueries,
+				id,
+				[]SubmissionStatus{SubmissionSubmitted, SubmissionPending},
+				SubmissionSettled,
+			); err != nil {
+				s.log.Error("Failed to set report submission status", zap.Error(err))
+				return err
+			}
+
+			return nil
+		},
+	)
+}
+
+func (s *Store) SetReportAttestationApproved(ctx context.Context, id ReportID) error {
+	return setReportAttestationStatus(
+		ctx,
+		s.queries,
+		id,
+		[]AttestationStatus{AttestationPending},
+		AttestationApproved,
+	)
+}
+
+func (s *Store) SetReportAttestationRejected(ctx context.Context, id ReportID) error {
+	return setReportAttestationStatus(
+		ctx,
+		s.queries,
+		id,
+		[]AttestationStatus{AttestationPending},
+		AttestationRejected,
+	)
 }
 
 func (s *Store) CreatePayerReport(
@@ -424,6 +489,44 @@ func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWit
 		out = append(out, result)
 	}
 	return out, nil
+}
+
+func setReportAttestationStatus(
+	ctx context.Context,
+	querier *queries.Queries,
+	id ReportID,
+	fromStatus []AttestationStatus,
+	toStatus AttestationStatus,
+) error {
+	allowedPrevStatuses := make([]int16, len(fromStatus))
+	for idx, status := range fromStatus {
+		allowedPrevStatuses[idx] = int16(status)
+	}
+
+	return querier.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
+		ReportID:   id[:],
+		NewStatus:  int16(toStatus),
+		PrevStatus: allowedPrevStatuses,
+	})
+}
+
+func setReportSubmissionStatus(
+	ctx context.Context,
+	querier *queries.Queries,
+	id ReportID,
+	fromStatus []SubmissionStatus,
+	toStatus SubmissionStatus,
+) error {
+	allowedPrevStatuses := make([]int16, len(fromStatus))
+	for idx, status := range fromStatus {
+		allowedPrevStatuses[idx] = int16(status)
+	}
+
+	return querier.SetReportSubmissionStatus(ctx, queries.SetReportSubmissionStatusParams{
+		ReportID:   id[:],
+		NewStatus:  int16(toStatus),
+		PrevStatus: allowedPrevStatuses,
+	})
 }
 
 func convertPayerReport(report *queries.PayerReport) (*PayerReportWithStatus, error) {

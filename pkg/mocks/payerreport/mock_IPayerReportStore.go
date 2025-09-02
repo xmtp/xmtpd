@@ -302,17 +302,17 @@ func (_c *MockIPayerReportStore_Queries_Call) RunAndReturn(run func() *queries.Q
 	return _c
 }
 
-// SetReportAttestationStatus provides a mock function with given fields: ctx, id, fromStatus, toStatus
-func (_m *MockIPayerReportStore) SetReportAttestationStatus(ctx context.Context, id payerreport.ReportID, fromStatus []payerreport.AttestationStatus, toStatus payerreport.AttestationStatus) error {
-	ret := _m.Called(ctx, id, fromStatus, toStatus)
+// SetReportAttestationApproved provides a mock function with given fields: ctx, id
+func (_m *MockIPayerReportStore) SetReportAttestationApproved(ctx context.Context, id payerreport.ReportID) error {
+	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for SetReportAttestationStatus")
+		panic("no return value specified for SetReportAttestationApproved")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID, []payerreport.AttestationStatus, payerreport.AttestationStatus) error); ok {
-		r0 = rf(ctx, id, fromStatus, toStatus)
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID) error); ok {
+		r0 = rf(ctx, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -320,48 +320,46 @@ func (_m *MockIPayerReportStore) SetReportAttestationStatus(ctx context.Context,
 	return r0
 }
 
-// MockIPayerReportStore_SetReportAttestationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportAttestationStatus'
-type MockIPayerReportStore_SetReportAttestationStatus_Call struct {
+// MockIPayerReportStore_SetReportAttestationApproved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportAttestationApproved'
+type MockIPayerReportStore_SetReportAttestationApproved_Call struct {
 	*mock.Call
 }
 
-// SetReportAttestationStatus is a helper method to define mock.On call
+// SetReportAttestationApproved is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id payerreport.ReportID
-//   - fromStatus []payerreport.AttestationStatus
-//   - toStatus payerreport.AttestationStatus
-func (_e *MockIPayerReportStore_Expecter) SetReportAttestationStatus(ctx interface{}, id interface{}, fromStatus interface{}, toStatus interface{}) *MockIPayerReportStore_SetReportAttestationStatus_Call {
-	return &MockIPayerReportStore_SetReportAttestationStatus_Call{Call: _e.mock.On("SetReportAttestationStatus", ctx, id, fromStatus, toStatus)}
+func (_e *MockIPayerReportStore_Expecter) SetReportAttestationApproved(ctx interface{}, id interface{}) *MockIPayerReportStore_SetReportAttestationApproved_Call {
+	return &MockIPayerReportStore_SetReportAttestationApproved_Call{Call: _e.mock.On("SetReportAttestationApproved", ctx, id)}
 }
 
-func (_c *MockIPayerReportStore_SetReportAttestationStatus_Call) Run(run func(ctx context.Context, id payerreport.ReportID, fromStatus []payerreport.AttestationStatus, toStatus payerreport.AttestationStatus)) *MockIPayerReportStore_SetReportAttestationStatus_Call {
+func (_c *MockIPayerReportStore_SetReportAttestationApproved_Call) Run(run func(ctx context.Context, id payerreport.ReportID)) *MockIPayerReportStore_SetReportAttestationApproved_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(payerreport.ReportID), args[2].([]payerreport.AttestationStatus), args[3].(payerreport.AttestationStatus))
+		run(args[0].(context.Context), args[1].(payerreport.ReportID))
 	})
 	return _c
 }
 
-func (_c *MockIPayerReportStore_SetReportAttestationStatus_Call) Return(_a0 error) *MockIPayerReportStore_SetReportAttestationStatus_Call {
+func (_c *MockIPayerReportStore_SetReportAttestationApproved_Call) Return(_a0 error) *MockIPayerReportStore_SetReportAttestationApproved_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockIPayerReportStore_SetReportAttestationStatus_Call) RunAndReturn(run func(context.Context, payerreport.ReportID, []payerreport.AttestationStatus, payerreport.AttestationStatus) error) *MockIPayerReportStore_SetReportAttestationStatus_Call {
+func (_c *MockIPayerReportStore_SetReportAttestationApproved_Call) RunAndReturn(run func(context.Context, payerreport.ReportID) error) *MockIPayerReportStore_SetReportAttestationApproved_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// SetReportSubmissionStatus provides a mock function with given fields: ctx, id, fromStatus, toStatus
-func (_m *MockIPayerReportStore) SetReportSubmissionStatus(ctx context.Context, id payerreport.ReportID, fromStatus []payerreport.SubmissionStatus, toStatus payerreport.SubmissionStatus) error {
-	ret := _m.Called(ctx, id, fromStatus, toStatus)
+// SetReportAttestationRejected provides a mock function with given fields: ctx, id
+func (_m *MockIPayerReportStore) SetReportAttestationRejected(ctx context.Context, id payerreport.ReportID) error {
+	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for SetReportSubmissionStatus")
+		panic("no return value specified for SetReportAttestationRejected")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID, []payerreport.SubmissionStatus, payerreport.SubmissionStatus) error); ok {
-		r0 = rf(ctx, id, fromStatus, toStatus)
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID) error); ok {
+		r0 = rf(ctx, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -369,33 +367,125 @@ func (_m *MockIPayerReportStore) SetReportSubmissionStatus(ctx context.Context, 
 	return r0
 }
 
-// MockIPayerReportStore_SetReportSubmissionStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportSubmissionStatus'
-type MockIPayerReportStore_SetReportSubmissionStatus_Call struct {
+// MockIPayerReportStore_SetReportAttestationRejected_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportAttestationRejected'
+type MockIPayerReportStore_SetReportAttestationRejected_Call struct {
 	*mock.Call
 }
 
-// SetReportSubmissionStatus is a helper method to define mock.On call
+// SetReportAttestationRejected is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id payerreport.ReportID
-//   - fromStatus []payerreport.SubmissionStatus
-//   - toStatus payerreport.SubmissionStatus
-func (_e *MockIPayerReportStore_Expecter) SetReportSubmissionStatus(ctx interface{}, id interface{}, fromStatus interface{}, toStatus interface{}) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
-	return &MockIPayerReportStore_SetReportSubmissionStatus_Call{Call: _e.mock.On("SetReportSubmissionStatus", ctx, id, fromStatus, toStatus)}
+func (_e *MockIPayerReportStore_Expecter) SetReportAttestationRejected(ctx interface{}, id interface{}) *MockIPayerReportStore_SetReportAttestationRejected_Call {
+	return &MockIPayerReportStore_SetReportAttestationRejected_Call{Call: _e.mock.On("SetReportAttestationRejected", ctx, id)}
 }
 
-func (_c *MockIPayerReportStore_SetReportSubmissionStatus_Call) Run(run func(ctx context.Context, id payerreport.ReportID, fromStatus []payerreport.SubmissionStatus, toStatus payerreport.SubmissionStatus)) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+func (_c *MockIPayerReportStore_SetReportAttestationRejected_Call) Run(run func(ctx context.Context, id payerreport.ReportID)) *MockIPayerReportStore_SetReportAttestationRejected_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(payerreport.ReportID), args[2].([]payerreport.SubmissionStatus), args[3].(payerreport.SubmissionStatus))
+		run(args[0].(context.Context), args[1].(payerreport.ReportID))
 	})
 	return _c
 }
 
-func (_c *MockIPayerReportStore_SetReportSubmissionStatus_Call) Return(_a0 error) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+func (_c *MockIPayerReportStore_SetReportAttestationRejected_Call) Return(_a0 error) *MockIPayerReportStore_SetReportAttestationRejected_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockIPayerReportStore_SetReportSubmissionStatus_Call) RunAndReturn(run func(context.Context, payerreport.ReportID, []payerreport.SubmissionStatus, payerreport.SubmissionStatus) error) *MockIPayerReportStore_SetReportSubmissionStatus_Call {
+func (_c *MockIPayerReportStore_SetReportAttestationRejected_Call) RunAndReturn(run func(context.Context, payerreport.ReportID) error) *MockIPayerReportStore_SetReportAttestationRejected_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetReportSettled provides a mock function with given fields: ctx, id
+func (_m *MockIPayerReportStore) SetReportSettled(ctx context.Context, id payerreport.ReportID) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetReportSettled")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockIPayerReportStore_SetReportSettled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportSettled'
+type MockIPayerReportStore_SetReportSettled_Call struct {
+	*mock.Call
+}
+
+// SetReportSettled is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id payerreport.ReportID
+func (_e *MockIPayerReportStore_Expecter) SetReportSettled(ctx interface{}, id interface{}) *MockIPayerReportStore_SetReportSettled_Call {
+	return &MockIPayerReportStore_SetReportSettled_Call{Call: _e.mock.On("SetReportSettled", ctx, id)}
+}
+
+func (_c *MockIPayerReportStore_SetReportSettled_Call) Run(run func(ctx context.Context, id payerreport.ReportID)) *MockIPayerReportStore_SetReportSettled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(payerreport.ReportID))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSettled_Call) Return(_a0 error) *MockIPayerReportStore_SetReportSettled_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSettled_Call) RunAndReturn(run func(context.Context, payerreport.ReportID) error) *MockIPayerReportStore_SetReportSettled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetReportSubmitted provides a mock function with given fields: ctx, id
+func (_m *MockIPayerReportStore) SetReportSubmitted(ctx context.Context, id payerreport.ReportID) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetReportSubmitted")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockIPayerReportStore_SetReportSubmitted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportSubmitted'
+type MockIPayerReportStore_SetReportSubmitted_Call struct {
+	*mock.Call
+}
+
+// SetReportSubmitted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id payerreport.ReportID
+func (_e *MockIPayerReportStore_Expecter) SetReportSubmitted(ctx interface{}, id interface{}) *MockIPayerReportStore_SetReportSubmitted_Call {
+	return &MockIPayerReportStore_SetReportSubmitted_Call{Call: _e.mock.On("SetReportSubmitted", ctx, id)}
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmitted_Call) Run(run func(ctx context.Context, id payerreport.ReportID)) *MockIPayerReportStore_SetReportSubmitted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(payerreport.ReportID))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmitted_Call) Return(_a0 error) *MockIPayerReportStore_SetReportSubmitted_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmitted_Call) RunAndReturn(run func(context.Context, payerreport.ReportID) error) *MockIPayerReportStore_SetReportSubmitted_Call {
 	_c.Call.Return(run)
 	return _c
 }

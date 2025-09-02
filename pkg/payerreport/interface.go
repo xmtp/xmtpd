@@ -59,17 +59,9 @@ type IPayerReportStore interface {
 		envelope *envelopes.OriginatorEnvelope,
 		payerID int32,
 	) error
-	SetReportAttestationStatus(
-		ctx context.Context,
-		id ReportID,
-		fromStatus []AttestationStatus,
-		toStatus AttestationStatus,
-	) error
-	SetReportSubmissionStatus(
-		ctx context.Context,
-		id ReportID,
-		fromStatus []SubmissionStatus,
-		toStatus SubmissionStatus,
-	) error
+	SetReportSubmitted(ctx context.Context, id ReportID) error
+	SetReportSettled(ctx context.Context, id ReportID) error
+	SetReportAttestationApproved(ctx context.Context, id ReportID) error
+	SetReportAttestationRejected(ctx context.Context, id ReportID) error
 	Queries() *queries.Queries
 }

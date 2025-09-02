@@ -91,9 +91,9 @@ func ExecuteTransaction(
 	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
 	eventParser func(*types.Log) (interface{}, error),
 	logHandler func(interface{}),
-) error {
+) ProtocolError {
 	if signer == nil {
-		return fmt.Errorf("no signer provided")
+		return NewBlockchainError(fmt.Errorf("no signer provided"))
 	}
 
 	from := signer.FromAddress()
@@ -101,10 +101,10 @@ func ExecuteTransaction(
 	// Step 1: Check balance before sending.
 	balance, err := client.BalanceAt(ctx, from, nil)
 	if err != nil {
-		return fmt.Errorf("failed to check balance: %w", err)
+		return NewBlockchainError(fmt.Errorf("failed to check balance: %w", err))
 	}
 	if balance.Cmp(big.NewInt(0)) == 0 {
-		return fmt.Errorf("account %s has zero balance", from.Hex())
+		return NewBlockchainError(fmt.Errorf("account %s has zero balance", from.Hex()))
 	}
 
 	logger.Debug(
@@ -123,7 +123,7 @@ func ExecuteTransaction(
 
 	dryRunTx, err := txFunc(opts)
 	if err != nil {
-		return fmt.Errorf("failed to simulate tx (NoSend=true): %w", err)
+		return NewBlockchainError(fmt.Errorf("failed to simulate tx (NoSend=true): %w", err))
 	}
 
 	// Step 3: Estimate gas using ethclient.EstimateGas.
@@ -139,13 +139,13 @@ func ExecuteTransaction(
 	if gasPrice == nil {
 		gasPrice, err = client.SuggestGasPrice(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to get gas price: %w", err)
+			return NewBlockchainError(fmt.Errorf("failed to get gas price: %w", err))
 		}
 	}
 
 	estimatedGas, err := client.EstimateGas(ctx, msg)
 	if err != nil {
-		return fmt.Errorf("gas estimation failed: %w", err)
+		return NewBlockchainError(fmt.Errorf("gas estimation failed: %w", err))
 	}
 
 	logger.Debug(
@@ -157,11 +157,11 @@ func ExecuteTransaction(
 	// Step 5: Check for balance sufficiency.
 	required := new(big.Int).Mul(big.NewInt(int64(estimatedGas)), gasPrice)
 	if balance.Cmp(required) < 0 {
-		return fmt.Errorf(
+		return NewBlockchainError(fmt.Errorf(
 			"insufficient funds: need %s, have %s",
 			required.String(),
 			balance.String(),
-		)
+		))
 	}
 
 	// Step 6: Send the real tx.
@@ -171,7 +171,7 @@ func ExecuteTransaction(
 
 	tx, err := txFunc(opts)
 	if err != nil {
-		return fmt.Errorf("failed to send tx: %w", err)
+		return NewBlockchainError(err)
 	}
 
 	// Step 7: Wait for receipt.
@@ -184,7 +184,7 @@ func ExecuteTransaction(
 		tx.Hash(),
 	)
 	if err != nil {
-		return err
+		return NewBlockchainError(err)
 	}
 
 	// Step 8: Parse and handle logs.

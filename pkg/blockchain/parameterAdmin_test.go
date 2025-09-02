@@ -150,3 +150,29 @@ func TestSetBoolParameter_True_NoOp(t *testing.T) {
 	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, true)
 	require.NoError(t, err)
 }
+
+func TestSetBoolParameter_False_NoOp(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, false)
+	require.NoError(t, err)
+
+	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, false)
+	require.NoError(t, err)
+}
+
+func TestSetBoolParameter_Unset(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, true)
+	require.NoError(t, err)
+
+	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY, false)
+	require.NoError(t, err)
+
+	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_PAUSED_KEY)
+	require.NoError(t, err)
+	require.False(t, got)
+}

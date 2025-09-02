@@ -130,6 +130,30 @@ func (t *Target) UnmarshalFlag(v string) error {
 	}
 }
 
+type PausedFlag bool
+
+const (
+	PausedTrue  PausedFlag = true
+	PausedFalse PausedFlag = false
+)
+
+func (p *PausedFlag) UnmarshalFlag(v string) error {
+	switch v {
+	case "true", "1", "yes", "on":
+		*p = PausedTrue
+		return nil
+	case "false", "0", "no", "off":
+		*p = PausedFalse
+		return nil
+	default:
+		return fmt.Errorf("invalid paused value %q (allowed: true|false)", v)
+	}
+}
+
+func (p *PausedFlag) Bool() bool {
+	return bool(*p)
+}
+
 type SetPauseOptions struct {
 	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
 
@@ -137,7 +161,7 @@ type SetPauseOptions struct {
 	Target Target `long:"target" required:"true" description:"Which broadcaster to pause: identity or group"`
 
 	// The desired paused state.
-	Paused bool `long:"paused" required:"true" description:"Pause state to set (true/false)"`
+	Paused PausedFlag `long:"paused" required:"true" description:"Pause state to set (true/false)"`
 }
 
 type GetPauseOptions struct {

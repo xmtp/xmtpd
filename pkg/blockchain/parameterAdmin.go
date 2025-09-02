@@ -54,12 +54,12 @@ func NewParameterAdmin(
 func (n *ParameterAdmin) GetParameterAddress(
 	ctx context.Context,
 	paramName string,
-) (common.Address, error) {
+) (common.Address, ProtocolError) {
 	payload, err := n.parameterContract.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
-		return common.Address{}, err
+		return common.Address{}, NewBlockchainError(err)
 	}
 
 	return common.BytesToAddress(payload[:]), nil
@@ -68,12 +68,12 @@ func (n *ParameterAdmin) GetParameterAddress(
 func (n *ParameterAdmin) GetParameterUint8(
 	ctx context.Context,
 	paramName string,
-) (uint8, error) {
+) (uint8, ProtocolError) {
 	payload, err := n.parameterContract.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
-		return 0, err
+		return 0, NewBlockchainError(err)
 	}
 
 	return payload[31], nil
@@ -82,15 +82,20 @@ func (n *ParameterAdmin) GetParameterUint8(
 func (n *ParameterAdmin) GetParameterBool(
 	ctx context.Context,
 	paramName string,
-) (bool, error) {
+) (bool, ProtocolError) {
 	payload, err := n.parameterContract.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
-		return false, err
+		return false, NewBlockchainError(err)
 	}
 
-	return decodeBool(payload)
+	b, err := decodeBool(payload)
+	if err != nil {
+		return false, NewBlockchainError(err)
+	}
+
+	return b, nil
 }
 
 // Param helpers ---------------------------------------------------------------
@@ -142,7 +147,7 @@ func (n *ParameterAdmin) setParameterBytes32(
 	paramName string,
 	value [32]byte,
 	onEvent func(val [32]byte),
-) error {
+) ProtocolError {
 	return ExecuteTransaction(
 		ctx,
 		n.signer,
@@ -175,7 +180,7 @@ func (n *ParameterAdmin) SetUint8Parameter(
 	ctx context.Context,
 	paramName string,
 	paramValue uint8,
-) error {
+) ProtocolError {
 	return n.setParameterBytes32(ctx, paramName, packUint8(paramValue),
 		func(val [32]byte) {
 			n.logger.Info("set uint8 parameter",
@@ -190,7 +195,7 @@ func (n *ParameterAdmin) SetAddressParameter(
 	ctx context.Context,
 	paramName string,
 	paramValue common.Address,
-) error {
+) ProtocolError {
 	return n.setParameterBytes32(ctx, paramName, packAddress(paramValue),
 		func(val [32]byte) {
 			addr := common.BytesToAddress(val[12:])
@@ -206,7 +211,7 @@ func (n *ParameterAdmin) SetBoolParameter(
 	ctx context.Context,
 	paramName string,
 	paramValue bool,
-) error {
+) ProtocolError {
 	return n.setParameterBytes32(ctx, paramName, packBool(paramValue),
 		func(val [32]byte) {
 			b, err := decodeBool(val)

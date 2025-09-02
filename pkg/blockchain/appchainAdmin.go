@@ -215,7 +215,7 @@ func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context, paused bo
 		},
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "0xa88ee577") {
+		if err.IsNoChange() {
 			a.logger.Info("No update needed")
 			return nil
 		}
@@ -257,7 +257,7 @@ func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused 
 		},
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "0xa88ee577") {
+		if err.IsNoChange() {
 			a.logger.Info("No update needed")
 			return nil
 		}

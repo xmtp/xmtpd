@@ -6,6 +6,9 @@
     "customFormatter": "golangci-lint-v2"
   },
   "go.formatFlags": ["fmt", "--stdin"],
+  "[go]": {
+    "editor.formatOnSave": true
+  },
   "[sql]": {
     "editor.defaultFormatter": "mtxr.sqltools",
     "editor.formatOnSave": true
@@ -19,15 +22,6 @@
     "typeCase": "upper"
   },
   // Instructions from https://github.com/segmentio/golines
-  "emeraldwalk.runonsave": {
-    "shell": "bash",
-    "commands": [
-      {
-        "match": "\\.go$",
-        "cmd": "golines ${file} -w"
-      }
-    ]
-  },
   "solidity.compileUsingRemoteVersion": "v0.8.28",
   "solidity.formatter": "forge",
   "wake.compiler.solc.remappings": []

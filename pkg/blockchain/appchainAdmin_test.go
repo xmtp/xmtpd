@@ -73,6 +73,7 @@ func TestBootstrapperAddress(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name+"/roundtrip", func(t *testing.T) {
+			var err error
 			want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
 
 			require.NoError(t, tc.set(ctx, want))
@@ -89,6 +90,7 @@ func TestBootstrapperAddress(t *testing.T) {
 		})
 
 		t.Run(tc.name+"/overwrite", func(t *testing.T) {
+			var err error
 			first := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
 			second := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
 
@@ -158,6 +160,7 @@ func TestPauseFlags(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
+			var err error
 			require.NoError(t, tc.set(ctx, true))
 			b, err := paramAdmin.GetParameterBool(ctx, tc.key)
 			require.NoError(t, err)

@@ -273,6 +273,9 @@ func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
 	if options.SettlementChain.DeploymentBlock == 0 {
 		options.SettlementChain.DeploymentBlock = uint64(config.SettlementChainDeploymentBlock)
 	}
+	if options.SettlementChain.GatewayAddress == "" {
+		options.SettlementChain.GatewayAddress = config.SettlementChainGateway
+	}
 }
 
 func validateBlockchainConfig(

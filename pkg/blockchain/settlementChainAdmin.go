@@ -3,6 +3,8 @@ package blockchain
 import (
 	"context"
 
+	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
+
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,6 +18,8 @@ import (
 type ISettlementChainAdmin interface {
 	GetSettlementChainGatewayPauseStatus(ctx context.Context) (bool, error)
 	SetSettlementChainGatewayPauseStatus(ctx context.Context, paused bool) error
+	GetPayerRegistryPauseStatus(ctx context.Context) (bool, error)
+	SetPayerRegistryPauseStatus(ctx context.Context, paused bool) error
 }
 
 type settlementChainAdmin struct {
@@ -24,6 +28,42 @@ type settlementChainAdmin struct {
 	logger                 *zap.Logger
 	parameterAdmin         *ParameterAdmin
 	settlementChainGateway *scg.SettlementChainGateway
+	payerRegistry          *pr.PayerRegistry
+}
+
+var _ ISettlementChainAdmin = (*settlementChainAdmin)(nil)
+
+func NewSettlementChainAdmin(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	signer TransactionSigner,
+	contractsOptions config.ContractsOptions,
+	parameterAdmin *ParameterAdmin,
+) (*settlementChainAdmin, error) {
+	acGateway, err := scg.NewSettlementChainGateway(
+		common.HexToAddress(contractsOptions.SettlementChain.GatewayAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	payerRegistry, err := pr.NewPayerRegistry(
+		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &settlementChainAdmin{
+		client:                 client,
+		signer:                 signer,
+		logger:                 logger.Named("AppChainAdmin"),
+		parameterAdmin:         parameterAdmin,
+		settlementChainGateway: acGateway,
+		payerRegistry:          payerRegistry,
+	}, nil
 }
 
 func (s settlementChainAdmin) GetSettlementChainGatewayPauseStatus(
@@ -75,28 +115,46 @@ func (s settlementChainAdmin) SetSettlementChainGatewayPauseStatus(
 	return nil
 }
 
-var _ ISettlementChainAdmin = (*settlementChainAdmin)(nil)
+func (s settlementChainAdmin) GetPayerRegistryPauseStatus(ctx context.Context) (bool, error) {
+	return s.parameterAdmin.GetParameterBool(ctx, PAYER_REGISTRY_PAUSED_KEY)
+}
 
-func NewSettlementChainAdmin(
-	logger *zap.Logger,
-	client *ethclient.Client,
-	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
-) (*settlementChainAdmin, error) {
-	acGateway, err := scg.NewSettlementChainGateway(
-		common.HexToAddress(contractsOptions.AppChain.GroupMessageBroadcasterAddress),
-		client,
-	)
-	if err != nil {
-		return nil, err
+func (s settlementChainAdmin) SetPayerRegistryPauseStatus(ctx context.Context, paused bool) error {
+	if err := s.parameterAdmin.SetBoolParameter(ctx, PAYER_REGISTRY_PAUSED_KEY, paused); err != nil {
+		return err
 	}
 
-	return &settlementChainAdmin{
-		client:                 client,
-		signer:                 signer,
-		logger:                 logger.Named("AppChainAdmin"),
-		parameterAdmin:         parameterAdmin,
-		settlementChainGateway: acGateway,
-	}, nil
+	err := ExecuteTransaction(
+		ctx,
+		s.signer,
+		s.logger,
+		s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.payerRegistry.UpdatePauseStatus(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.payerRegistry.ParsePauseStatusUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*pr.PayerRegistryPauseStatusUpdated)
+			if !ok {
+				s.logger.Error(
+					"unexpected event type, not of type PayerRegistryPauseStatusUpdated",
+				)
+				return
+			}
+			s.logger.Info(
+				"payer registry pause status updated",
+				zap.Bool("paused", ev.Paused),
+			)
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			s.logger.Info("No update needed")
+			return nil
+		}
+		return err
+	}
+	return nil
 }

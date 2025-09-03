@@ -44,6 +44,7 @@ func NewContractsOptions(t *testing.T, rpcUrl, wsUrl string) config.ContractsOpt
 			GroupMessageBroadcasterAddress:   chainConfig.GroupMessageBroadcaster,
 			IdentityUpdateBroadcasterAddress: chainConfig.IdentityUpdateBroadcaster,
 			BackfillBlockPageSize:            500,
+			GatewayAddress:                   chainConfig.AppChainGateway,
 		},
 		SettlementChain: config.SettlementChainOptions{
 			RPCURL:                      rpcUrl,
@@ -58,6 +59,7 @@ func NewContractsOptions(t *testing.T, rpcUrl, wsUrl string) config.ContractsOpt
 			PayerReportManagerAddress:   chainConfig.PayerReportManager,
 			MaxChainDisconnectTime:      10 * time.Second,
 			BackfillBlockPageSize:       500,
+			GatewayAddress:              chainConfig.SettlementChainGateway,
 		},
 	}
 }

@@ -652,6 +652,14 @@ func setPause(logger *zap.Logger, options *CLI) {
 			"settlement chain gateway pause status set",
 			zap.Bool("paused", options.SetPause.Paused.Bool()),
 		)
+	case config.TargetPayerRegistry:
+		if err := settlementChainAdmin.SetPayerRegistryPauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
+			logger.Fatal("could not set payer registry pause status", zap.Error(err))
+		}
+		logger.Info(
+			"payer registry pause status set",
+			zap.Bool("paused", options.SetPause.Paused.Bool()),
+		)
 	}
 }
 
@@ -704,6 +712,12 @@ func getPause(logger *zap.Logger, options *CLI) {
 			logger.Fatal("could not get settlementchain gateway pause status", zap.Error(err))
 		}
 		logger.Info("settlement-chain gateway pause status", zap.Bool("paused", paused))
+	case config.TargetPayerRegistry:
+		paused, err := settlementChainAdmin.GetPayerRegistryPauseStatus(ctx)
+		if err != nil {
+			logger.Fatal("could not get payer registry pause status", zap.Error(err))
+		}
+		logger.Info("payer registry pause status", zap.Bool("paused", paused))
 	}
 }
 

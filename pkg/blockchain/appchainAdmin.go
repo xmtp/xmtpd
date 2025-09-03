@@ -65,7 +65,7 @@ func NewAppChainAdmin(
 	}
 
 	acGateway, err := acg.NewAppChainGateway(
-		common.HexToAddress(contractsOptions.AppChain.GroupMessageBroadcasterAddress),
+		common.HexToAddress(contractsOptions.AppChain.GatewayAddress),
 		client,
 	)
 	if err != nil {

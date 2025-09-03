@@ -25,6 +25,7 @@ type AppChainOptions struct {
 	BackfillBlockPageSize            uint64        `long:"backfill-block-page-size"            env:"XMTPD_APP_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"          description:"Maximal size of a backfill block page"                        default:"500"`
 	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
 	IdentityUpdateBroadcasterAddress string        `long:"identity-update-broadcaster-address" env:"XMTPD_APP_CHAIN_IDENTITY_UPDATE_BROADCAST_ADDRESS" description:"Identity update broadcaster contract address"`
+	GatewayAddress                   string        `long:"gateway-address"                     env:"XMTPD_APP_CHAIN_GATEWAY_ADDRESS"                   description:"App Chain Gateway contract address"`
 	DeploymentBlock                  uint64        `long:"deployment-block"                    env:"XMTPD_APP_CHAIN_DEPLOYMENT_BLOCK"                  description:"Deployment block for the application chain"                   default:"0"`
 }
 
@@ -41,6 +42,7 @@ type SettlementChainOptions struct {
 	ParameterRegistryAddress    string        `long:"parameter-registry-address"     env:"XMTPD_SETTLEMENT_CHAIN_PARAMETER_REGISTRY_ADDRESS"     description:"Parameter Registry contract address"`
 	PayerRegistryAddress        string        `long:"payer-registry-address"         env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REGISTRY_ADDRESS"         description:"Payer Registry contract address"`
 	PayerReportManagerAddress   string        `long:"payer-report-manager-address"   env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REPORT_MANAGER_ADDRESS"   description:"Payer Report Manager contract address"`
+	GatewayAddress              string        `long:"gateway-address"                env:"XMTPD_SETTLEMENT_CHAIN_GATEWAY_ADDRESS"                description:"Settlement Chain Gateway contract address"`
 	DeploymentBlock             uint64        `long:"deployment-block"               env:"XMTPD_SETTLEMENT_CHAIN_DEPLOYMENT_BLOCK"               description:"Deployment block for the settlement chain"                    default:"0"`
 }
 

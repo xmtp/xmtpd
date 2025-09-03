@@ -247,6 +247,9 @@ func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
 	if options.AppChain.ChainID == 0 || options.AppChain.ChainID == 31337 {
 		options.AppChain.ChainID = config.AppChainID
 	}
+	if options.AppChain.GatewayAddress == "" {
+		options.AppChain.GatewayAddress = config.AppChainGateway
+	}
 	if options.AppChain.DeploymentBlock == 0 {
 		options.AppChain.DeploymentBlock = uint64(config.AppChainDeploymentBlock)
 	}
@@ -272,6 +275,12 @@ func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
 	}
 	if options.SettlementChain.DeploymentBlock == 0 {
 		options.SettlementChain.DeploymentBlock = uint64(config.SettlementChainDeploymentBlock)
+	}
+	if options.SettlementChain.GatewayAddress == "" {
+		options.SettlementChain.GatewayAddress = config.SettlementChainGateway
+	}
+	if options.SettlementChain.DistributionManagerAddress == "" {
+		options.SettlementChain.DistributionManagerAddress = config.DistributionManager
 	}
 }
 

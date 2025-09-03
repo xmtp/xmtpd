@@ -2,6 +2,7 @@ package blockchain_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -112,8 +113,10 @@ func TestBootstrapperAddress(t *testing.T) {
 				switch tc.name {
 				case "identity":
 					return newAppAdmin.GetIdentityUpdateBootstrapper(ctx)
-				default:
+				case "group":
 					return newAppAdmin.GetGroupMessageBootstrapper(ctx)
+				default:
+					return common.Address{}, nil
 				}
 			}()
 			require.NoError(t, err)
@@ -154,58 +157,75 @@ func TestPauseFlags(t *testing.T) {
 			set:  appAdmin.SetIdentityUpdatePauseStatus,
 			get:  appAdmin.GetIdentityUpdatePauseStatus,
 		},
+		{
+			name: "app-chain-gateway",
+			key:  blockchain.APP_CHAIN_GATEWAY_PAUSED_KEY,
+			set:  appAdmin.SetAppChainGatewayPauseStatus,
+			get:  appAdmin.GetAppChainGatewayPauseStatus,
+		},
 	}
 
 	for _, tc := range cases {
 		tc := tc
-
-		t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
-			var err error
-			require.NoError(t, tc.set(ctx, true))
-			b, err := paramAdmin.GetParameterBool(ctx, tc.key)
-			require.NoError(t, err)
-			require.True(t, b)
-
-			got, err := tc.get(ctx)
-			require.NoError(t, err)
-			require.True(t, got)
-
-			require.NoError(t, tc.set(ctx, false))
-			b, err = paramAdmin.GetParameterBool(ctx, tc.key)
-			require.NoError(t, err)
-			require.False(t, b)
-
-			got, err = tc.get(ctx)
-			require.NoError(t, err)
-			require.False(t, got)
-		})
-
-		t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
-			require.NoError(t, tc.set(ctx, true))
-			require.NoError(t, tc.set(ctx, true))
-
-			got, err := tc.get(ctx)
-			require.NoError(t, err)
-			require.True(t, got)
-		})
-
-		t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
-			newAppAdmin, newParamAdmin := buildAppChainAdmin(t)
-
-			var got bool
-			var err error
-			switch tc.name {
-			case "group":
-				got, err = newAppAdmin.GetGroupMessagePauseStatus(ctx)
-			default:
-				got, err = newAppAdmin.GetIdentityUpdatePauseStatus(ctx)
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.name == "app-chain-gateway" {
+				t.Skip(
+					"No contract address known: https://github.com/xmtp/smart-contracts/issues/125",
+				)
 			}
-			require.NoError(t, err)
-			require.False(t, got)
 
-			b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
-			require.NoError(t, err)
-			require.False(t, b)
+			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
+				var err error
+				require.NoError(t, tc.set(ctx, true))
+				b, err := paramAdmin.GetParameterBool(ctx, tc.key)
+				require.NoError(t, err)
+				require.True(t, b)
+
+				got, err := tc.get(ctx)
+				require.NoError(t, err)
+				require.True(t, got)
+
+				require.NoError(t, tc.set(ctx, false))
+				b, err = paramAdmin.GetParameterBool(ctx, tc.key)
+				require.NoError(t, err)
+				require.False(t, b)
+
+				got, err = tc.get(ctx)
+				require.NoError(t, err)
+				require.False(t, got)
+			})
+
+			t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
+				require.NoError(t, tc.set(ctx, true))
+				require.NoError(t, tc.set(ctx, true))
+
+				got, err := tc.get(ctx)
+				require.NoError(t, err)
+				require.True(t, got)
+			})
+
+			t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
+				newAppAdmin, newParamAdmin := buildAppChainAdmin(t)
+
+				var got bool
+				var err error
+				switch tc.name {
+				case "group":
+					got, err = newAppAdmin.GetGroupMessagePauseStatus(ctx)
+				case "identity":
+					got, err = newAppAdmin.GetIdentityUpdatePauseStatus(ctx)
+				case "app-chain-gateway":
+					got, err = newAppAdmin.GetAppChainGatewayPauseStatus(ctx)
+				default:
+					got, err = false, errors.New("invalid option")
+				}
+				require.NoError(t, err)
+				require.False(t, got)
+
+				b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
+				require.NoError(t, err)
+				require.False(t, b)
+			})
 		})
 	}
 }

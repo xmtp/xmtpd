@@ -247,6 +247,9 @@ func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
 	if options.AppChain.ChainID == 0 || options.AppChain.ChainID == 31337 {
 		options.AppChain.ChainID = config.AppChainID
 	}
+	if options.AppChain.GatewayAddress == "" {
+		options.AppChain.GatewayAddress = config.AppChainGateway
+	}
 	if options.AppChain.DeploymentBlock == 0 {
 		options.AppChain.DeploymentBlock = uint64(config.AppChainDeploymentBlock)
 	}

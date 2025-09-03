@@ -23,6 +23,7 @@ const (
 	APP_CHAIN_GATEWAY_PAUSED_KEY             = "xmtp.appChainGateway.paused"
 	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY      = "xmtp.settlementChainGateway.paused"
 	PAYER_REGISTRY_PAUSED_KEY                = "xmtp.payerRegistry.paused"
+	DISTRIBUTION_MANAGER_PAUSED_KEY          = "xmtp.distributionManager.paused"
 )
 
 type ParameterAdmin struct {

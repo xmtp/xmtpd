@@ -60,6 +60,7 @@ func NewContractsOptions(t *testing.T, rpcUrl, wsUrl string) config.ContractsOpt
 			MaxChainDisconnectTime:      10 * time.Second,
 			BackfillBlockPageSize:       500,
 			GatewayAddress:              chainConfig.SettlementChainGateway,
+			DistributionManagerAddress:  chainConfig.DistributionManager,
 		},
 	}
 }

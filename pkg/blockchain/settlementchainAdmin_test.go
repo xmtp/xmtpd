@@ -70,6 +70,12 @@ func TestPauseFlagsSettlement(t *testing.T) {
 			set:  settlementChainAdmin.SetPayerRegistryPauseStatus,
 			get:  settlementChainAdmin.GetPayerRegistryPauseStatus,
 		},
+		{
+			name: "distribution-manager",
+			key:  blockchain.DISTRIBUTION_MANAGER_PAUSED_KEY,
+			set:  settlementChainAdmin.SetDistributionManagerPauseStatus,
+			get:  settlementChainAdmin.GetDistributionManagerPauseStatus,
+		},
 	}
 
 	for _, tc := range cases {
@@ -121,6 +127,8 @@ func TestPauseFlagsSettlement(t *testing.T) {
 					got, err = newSettlementAdmin.GetSettlementChainGatewayPauseStatus(ctx)
 				case "payer-registry":
 					got, err = newSettlementAdmin.GetPayerRegistryPauseStatus(ctx)
+				case "distribution-manager":
+					got, err = newSettlementAdmin.GetDistributionManagerPauseStatus(ctx)
 				default:
 					got, err = false, errors.New("invalid option")
 				}

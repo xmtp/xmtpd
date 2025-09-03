@@ -43,6 +43,7 @@ type SettlementChainOptions struct {
 	PayerRegistryAddress        string        `long:"payer-registry-address"         env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REGISTRY_ADDRESS"         description:"Payer Registry contract address"`
 	PayerReportManagerAddress   string        `long:"payer-report-manager-address"   env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REPORT_MANAGER_ADDRESS"   description:"Payer Report Manager contract address"`
 	GatewayAddress              string        `long:"gateway-address"                env:"XMTPD_SETTLEMENT_CHAIN_GATEWAY_ADDRESS"                description:"Settlement Chain Gateway contract address"`
+	DistributionManagerAddress  string        `long:"distribution-manager-address"   env:"XMTPD_SETTLEMENT_CHAIN_DISTRIBUTION_MANAGER_ADDRESS"   description:"Distribution Manager contract address"`
 	DeploymentBlock             uint64        `long:"deployment-block"               env:"XMTPD_SETTLEMENT_CHAIN_DEPLOYMENT_BLOCK"               description:"Deployment block for the settlement chain"                    default:"0"`
 }
 

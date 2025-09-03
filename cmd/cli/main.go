@@ -601,7 +601,7 @@ func setPause(logger *zap.Logger, options *CLI) {
 	appChainAdmin, err := setupAppChainAdmin(
 		ctx,
 		logger,
-		options.GetPause.AdminOptions.AdminPrivateKey,
+		options.SetPause.AdminOptions.AdminPrivateKey,
 		options,
 	)
 	if err != nil {
@@ -611,7 +611,7 @@ func setPause(logger *zap.Logger, options *CLI) {
 	settlementChainAdmin, err := setupSettlementChainAdmin(
 		ctx,
 		logger,
-		options.GetPause.AdminOptions.AdminPrivateKey,
+		options.SetPause.AdminOptions.AdminPrivateKey,
 		options,
 	)
 	if err != nil {

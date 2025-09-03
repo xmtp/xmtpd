@@ -199,10 +199,15 @@ func setupRateRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
+	paramAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
 	registryAdmin, err := blockchain.NewRatesAdmin(
 		logger,
+		paramAdmin,
 		chainClient,
-		signer,
 		contracts,
 	)
 	if err != nil {

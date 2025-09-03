@@ -192,13 +192,13 @@ func (a appChainAdmin) SetGroupMessageBootstrapper(
 }
 
 func (a appChainAdmin) GetGroupMessagePauseStatus(ctx context.Context) (bool, error) {
-	return a.parameterAdmin.GetParameterBool(ctx, GROUP_MESSAGE_PAUSED_KEY)
+	return a.parameterAdmin.GetParameterBool(ctx, GROUP_MESSAGE_BROADCASTER_PAUSED_KEY)
 }
 
 func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context, paused bool) error {
 	err := a.parameterAdmin.SetBoolParameter(
 		ctx,
-		GROUP_MESSAGE_PAUSED_KEY,
+		GROUP_MESSAGE_BROADCASTER_PAUSED_KEY,
 		paused,
 	)
 	if err != nil {
@@ -240,11 +240,11 @@ func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context, paused bo
 }
 
 func (a appChainAdmin) GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error) {
-	return a.parameterAdmin.GetParameterBool(ctx, IDENTITY_UPDATE_PAUSED_KEY)
+	return a.parameterAdmin.GetParameterBool(ctx, IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY)
 }
 
 func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error {
-	if err := a.parameterAdmin.SetBoolParameter(ctx, IDENTITY_UPDATE_PAUSED_KEY, paused); err != nil {
+	if err := a.parameterAdmin.SetBoolParameter(ctx, IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, paused); err != nil {
 		return err
 	}
 

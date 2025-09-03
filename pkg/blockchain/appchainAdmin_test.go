@@ -147,13 +147,13 @@ func TestPauseFlags(t *testing.T) {
 	cases := []pauseCase{
 		{
 			name: "group",
-			key:  blockchain.GROUP_MESSAGE_PAUSED_KEY,
+			key:  blockchain.GROUP_MESSAGE_BROADCASTER_PAUSED_KEY,
 			set:  appAdmin.SetGroupMessagePauseStatus,
 			get:  appAdmin.GetGroupMessagePauseStatus,
 		},
 		{
 			name: "identity",
-			key:  blockchain.IDENTITY_UPDATE_PAUSED_KEY,
+			key:  blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY,
 			set:  appAdmin.SetIdentityUpdatePauseStatus,
 			get:  appAdmin.GetIdentityUpdatePauseStatus,
 		},

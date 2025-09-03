@@ -2,6 +2,7 @@ package blockchain_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -103,24 +104,26 @@ func TestPauseFlagsSettlement(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, got)
 		})
-		//
-		//t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
-		//	newAppAdmin, newParamAdmin := buildSettlementChainAdmin(t)
-		//
-		//	var got bool
-		//	var err error
-		//	switch tc.name {
-		//	case "group":
-		//		got, err = newAppAdmin.GetGroupMessagePauseStatus(ctx)
-		//	default:
-		//		got, err = newAppAdmin.GetIdentityUpdatePauseStatus(ctx)
-		//	}
-		//	require.NoError(t, err)
-		//	require.False(t, got)
-		//
-		//	b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
-		//	require.NoError(t, err)
-		//	require.False(t, b)
-		//})
+
+		t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
+			newSettlementAdmin, newParamAdmin := buildSettlementChainAdmin(t)
+
+			var got bool
+			var err error
+			switch tc.name {
+			case "settlement-chain-gateway":
+				got, err = newSettlementAdmin.GetSettlementChainGatewayPauseStatus(ctx)
+			case "payer-registry":
+				got, err = newSettlementAdmin.GetPayerRegistryPauseStatus(ctx)
+			default:
+				got, err = false, errors.New("invalid option")
+			}
+			require.NoError(t, err)
+			require.False(t, got)
+
+			b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
+			require.NoError(t, err)
+			require.False(t, b)
+		})
 	}
 }

@@ -2,6 +2,7 @@ package blockchain_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -112,8 +113,10 @@ func TestBootstrapperAddress(t *testing.T) {
 				switch tc.name {
 				case "identity":
 					return newAppAdmin.GetIdentityUpdateBootstrapper(ctx)
-				default:
+				case "group":
 					return newAppAdmin.GetGroupMessageBootstrapper(ctx)
+				default:
+					return common.Address{}, nil
 				}
 			}()
 			require.NoError(t, err)
@@ -203,8 +206,12 @@ func TestPauseFlags(t *testing.T) {
 			switch tc.name {
 			case "group":
 				got, err = newAppAdmin.GetGroupMessagePauseStatus(ctx)
-			default:
+			case "identity":
 				got, err = newAppAdmin.GetIdentityUpdatePauseStatus(ctx)
+			case "app-chain-gateway":
+				got, err = newAppAdmin.GetAppChainGatewayPauseStatus(ctx)
+			default:
+				got, err = false, errors.New("invalid option")
 			}
 			require.NoError(t, err)
 			require.False(t, got)

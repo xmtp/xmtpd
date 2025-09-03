@@ -74,56 +74,63 @@ func TestPauseFlagsSettlement(t *testing.T) {
 
 	for _, tc := range cases {
 		tc := tc
-
-		t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
-			var err error
-			require.NoError(t, tc.set(ctx, true))
-			b, err := paramAdmin.GetParameterBool(ctx, tc.key)
-			require.NoError(t, err)
-			require.True(t, b)
-
-			got, err := tc.get(ctx)
-			require.NoError(t, err)
-			require.True(t, got)
-
-			require.NoError(t, tc.set(ctx, false))
-			b, err = paramAdmin.GetParameterBool(ctx, tc.key)
-			require.NoError(t, err)
-			require.False(t, b)
-
-			got, err = tc.get(ctx)
-			require.NoError(t, err)
-			require.False(t, got)
-		})
-
-		t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
-			require.NoError(t, tc.set(ctx, true))
-			require.NoError(t, tc.set(ctx, true))
-
-			got, err := tc.get(ctx)
-			require.NoError(t, err)
-			require.True(t, got)
-		})
-
-		t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
-			newSettlementAdmin, newParamAdmin := buildSettlementChainAdmin(t)
-
-			var got bool
-			var err error
-			switch tc.name {
-			case "settlement-chain-gateway":
-				got, err = newSettlementAdmin.GetSettlementChainGatewayPauseStatus(ctx)
-			case "payer-registry":
-				got, err = newSettlementAdmin.GetPayerRegistryPauseStatus(ctx)
-			default:
-				got, err = false, errors.New("invalid option")
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.name == "settlement-chain-gateway" {
+				t.Skip(
+					"No contract address known: https://github.com/xmtp/smart-contracts/issues/125",
+				)
 			}
-			require.NoError(t, err)
-			require.False(t, got)
 
-			b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
-			require.NoError(t, err)
-			require.False(t, b)
+			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
+				var err error
+				require.NoError(t, tc.set(ctx, true))
+				b, err := paramAdmin.GetParameterBool(ctx, tc.key)
+				require.NoError(t, err)
+				require.True(t, b)
+
+				got, err := tc.get(ctx)
+				require.NoError(t, err)
+				require.True(t, got)
+
+				require.NoError(t, tc.set(ctx, false))
+				b, err = paramAdmin.GetParameterBool(ctx, tc.key)
+				require.NoError(t, err)
+				require.False(t, b)
+
+				got, err = tc.get(ctx)
+				require.NoError(t, err)
+				require.False(t, got)
+			})
+
+			t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
+				require.NoError(t, tc.set(ctx, true))
+				require.NoError(t, tc.set(ctx, true))
+
+				got, err := tc.get(ctx)
+				require.NoError(t, err)
+				require.True(t, got)
+			})
+
+			t.Run(tc.name+"/getter_unset_returns_false", func(t *testing.T) {
+				newSettlementAdmin, newParamAdmin := buildSettlementChainAdmin(t)
+
+				var got bool
+				var err error
+				switch tc.name {
+				case "settlement-chain-gateway":
+					got, err = newSettlementAdmin.GetSettlementChainGatewayPauseStatus(ctx)
+				case "payer-registry":
+					got, err = newSettlementAdmin.GetPayerRegistryPauseStatus(ctx)
+				default:
+					got, err = false, errors.New("invalid option")
+				}
+				require.NoError(t, err)
+				require.False(t, got)
+
+				b, err := newParamAdmin.GetParameterBool(ctx, tc.key)
+				require.NoError(t, err)
+				require.False(t, b)
+			})
 		})
 	}
 }

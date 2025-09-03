@@ -154,6 +154,12 @@ func TestPauseFlags(t *testing.T) {
 			set:  appAdmin.SetIdentityUpdatePauseStatus,
 			get:  appAdmin.GetIdentityUpdatePauseStatus,
 		},
+		{
+			name: "app-chain-gateway",
+			key:  blockchain.APP_CHAIN_GATEWAY_PAUSED_KEY,
+			set:  appAdmin.SetAppChainGatewayPauseStatus,
+			get:  appAdmin.GetAppChainGatewayPauseStatus,
+		},
 	}
 
 	for _, tc := range cases {

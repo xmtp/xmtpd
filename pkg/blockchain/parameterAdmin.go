@@ -20,6 +20,8 @@ const (
 	GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY   = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
 	IDENTITY_UPDATE_PAUSED_KEY               = "xmtp.identityUpdateBroadcaster.paused"
 	GROUP_MESSAGE_PAUSED_KEY                 = "xmtp.groupMessageBroadcaster.paused"
+	APP_CHAIN_GATEWAY_PAUSED_KEY             = "xmtp.appChainGateway.paused"
+	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY      = "xmtp.settlementChainGateway.paused"
 )
 
 type ParameterAdmin struct {

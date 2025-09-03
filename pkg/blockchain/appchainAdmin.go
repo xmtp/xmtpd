@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -23,6 +25,8 @@ type IAppChainAdmin interface {
 	SetGroupMessagePauseStatus(ctx context.Context, paused bool) error
 	GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error)
 	SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error
+	GetAppChainGatewayPauseStatus(ctx context.Context) (bool, error)
+	SetAppChainGatewayPauseStatus(ctx context.Context, paused bool) error
 }
 
 type appChainAdmin struct {
@@ -32,6 +36,7 @@ type appChainAdmin struct {
 	parameterAdmin            *ParameterAdmin
 	identityUpdateBroadcaster *iu.IdentityUpdateBroadcaster
 	groupMessageBroadcaster   *gm.GroupMessageBroadcaster
+	appChainGateway           *acg.AppChainGateway
 }
 
 var _ IAppChainAdmin = (*appChainAdmin)(nil)
@@ -59,6 +64,14 @@ func NewAppChainAdmin(
 		return nil, err
 	}
 
+	acGateway, err := acg.NewAppChainGateway(
+		common.HexToAddress(contractsOptions.AppChain.GroupMessageBroadcasterAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &appChainAdmin{
 		client:                    client,
 		signer:                    signer,
@@ -66,6 +79,7 @@ func NewAppChainAdmin(
 		parameterAdmin:            parameterAdmin,
 		identityUpdateBroadcaster: iuBroadcaster,
 		groupMessageBroadcaster:   gmBroadcaster,
+		appChainGateway:           acGateway,
 	}, nil
 }
 
@@ -254,6 +268,47 @@ func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused 
 				return
 			}
 			a.logger.Info("identity update pause status updated", zap.Bool("paused", ev.Paused))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			a.logger.Info("No update needed")
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (a appChainAdmin) GetAppChainGatewayPauseStatus(ctx context.Context) (bool, error) {
+	return a.parameterAdmin.GetParameterBool(ctx, APP_CHAIN_GATEWAY_PAUSED_KEY)
+}
+
+func (a appChainAdmin) SetAppChainGatewayPauseStatus(ctx context.Context, paused bool) error {
+	if err := a.parameterAdmin.SetBoolParameter(ctx, APP_CHAIN_GATEWAY_PAUSED_KEY, paused); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.appChainGateway.UpdatePauseStatus(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.appChainGateway.ParsePauseStatusUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*acg.AppChainGatewayPauseStatusUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not of type AppChainGatewayPauseStatusUpdated",
+				)
+				return
+			}
+			a.logger.Info("app-chain gateway pause status updated", zap.Bool("paused", ev.Paused))
 		},
 	)
 	if err != nil {

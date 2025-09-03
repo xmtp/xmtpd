@@ -598,41 +598,7 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 func setPause(logger *zap.Logger, options *CLI) {
 	ctx := context.Background()
 
-	admin, err := setupAppChainAdmin(
-		ctx,
-		logger,
-		options.SetPause.AdminOptions.AdminPrivateKey,
-		options,
-	)
-	if err != nil {
-		logger.Fatal("could not setup appchain admin", zap.Error(err))
-	}
-
-	switch options.SetPause.Target {
-	case config.TargetIdentity:
-		if err := admin.SetIdentityUpdatePauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
-			logger.Fatal("could not set identity pause status", zap.Error(err))
-		}
-		logger.Info(
-			"identity update pause status set",
-			zap.Bool("paused", options.SetPause.Paused.Bool()),
-		)
-
-	case config.TargetGroup:
-		if err := admin.SetGroupMessagePauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
-			logger.Fatal("could not set group message pause status", zap.Error(err))
-		}
-		logger.Info(
-			"group message pause status set",
-			zap.Bool("paused", options.SetPause.Paused.Bool()),
-		)
-	}
-}
-
-func getPause(logger *zap.Logger, options *CLI) {
-	ctx := context.Background()
-
-	admin, err := setupAppChainAdmin(
+	appChainAdmin, err := setupAppChainAdmin(
 		ctx,
 		logger,
 		options.GetPause.AdminOptions.AdminPrivateKey,
@@ -642,20 +608,102 @@ func getPause(logger *zap.Logger, options *CLI) {
 		logger.Fatal("could not setup appchain admin", zap.Error(err))
 	}
 
+	settlementChainAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetPause.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+
+	switch options.SetPause.Target {
+	case config.TargetIdentity:
+		if err := appChainAdmin.SetIdentityUpdatePauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
+			logger.Fatal("could not set identity pause status", zap.Error(err))
+		}
+		logger.Info(
+			"identity update pause status set",
+			zap.Bool("paused", options.SetPause.Paused.Bool()),
+		)
+
+	case config.TargetGroup:
+		if err := appChainAdmin.SetGroupMessagePauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
+			logger.Fatal("could not set group message pause status", zap.Error(err))
+		}
+		logger.Info(
+			"group message pause status set",
+			zap.Bool("paused", options.SetPause.Paused.Bool()),
+		)
+	case config.TargetAppChainGateway:
+		if err := appChainAdmin.SetAppChainGatewayPauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
+			logger.Fatal("could not set appchain gateway pause status", zap.Error(err))
+		}
+		logger.Info(
+			"appchain gateway pause status set",
+			zap.Bool("paused", options.SetPause.Paused.Bool()),
+		)
+	case config.TargetSettlementChainGateway:
+		if err := settlementChainAdmin.SetSettlementChainGatewayPauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
+			logger.Fatal("could not set settlement chain gateway pause status", zap.Error(err))
+		}
+		logger.Info(
+			"settlement chain gateway pause status set",
+			zap.Bool("paused", options.SetPause.Paused.Bool()),
+		)
+	}
+}
+
+func getPause(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+
+	appChainAdmin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.GetPause.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup appchain admin", zap.Error(err))
+	}
+
+	settlementChainAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetPause.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+
 	switch options.GetPause.Target {
 	case config.TargetIdentity:
-		paused, err := admin.GetIdentityUpdatePauseStatus(ctx)
+		paused, err := appChainAdmin.GetIdentityUpdatePauseStatus(ctx)
 		if err != nil {
 			logger.Fatal("could not get identity pause status", zap.Error(err))
 		}
 		logger.Info("identity pause status", zap.Bool("paused", paused))
 
 	case config.TargetGroup:
-		paused, err := admin.GetGroupMessagePauseStatus(ctx)
+		paused, err := appChainAdmin.GetGroupMessagePauseStatus(ctx)
 		if err != nil {
 			logger.Fatal("could not get group pause status", zap.Error(err))
 		}
 		logger.Info("group pause status", zap.Bool("paused", paused))
+	case config.TargetAppChainGateway:
+		paused, err := appChainAdmin.GetAppChainGatewayPauseStatus(ctx)
+		if err != nil {
+			logger.Fatal("could not get appchain gateway pause status", zap.Error(err))
+		}
+		logger.Info("app-chain gateway pause status", zap.Bool("paused", paused))
+	case config.TargetSettlementChainGateway:
+		paused, err := settlementChainAdmin.GetSettlementChainGatewayPauseStatus(ctx)
+		if err != nil {
+			logger.Fatal("could not get settlementchain gateway pause status", zap.Error(err))
+		}
+		logger.Info("settlement-chain gateway pause status", zap.Bool("paused", paused))
 	}
 }
 
@@ -1033,4 +1081,53 @@ func setupAppChainAdmin(
 	}
 
 	return appchainAdmin, nil
+}
+
+// setupSettlementChainAdmin creates and returns a settlementchain admin
+func setupSettlementChainAdmin(
+	ctx context.Context,
+	logger *zap.Logger,
+	privateKey string,
+	options *CLI,
+) (blockchain.ISettlementChainAdmin, error) {
+	if options.Contracts.SettlementChain.RPCURL == "" {
+		return nil, fmt.Errorf("rpc url is required")
+	}
+	if options.Contracts.SettlementChain.ChainID == 0 {
+		return nil, fmt.Errorf("chain id is required")
+	}
+
+	chainClient, err := blockchain.NewRPCClient(
+		ctx,
+		options.Contracts.SettlementChain.RPCURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		options.Contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	parameterAdmin, err := setupParameterAdmin(ctx, logger, privateKey, options)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
+	settlementChainAdmin, err := blockchain.NewSettlementChainAdmin(
+		logger,
+		chainClient,
+		signer,
+		options.Contracts,
+		parameterAdmin,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create settlementchain admin: %w", err)
+	}
+
+	return settlementChainAdmin, nil
 }

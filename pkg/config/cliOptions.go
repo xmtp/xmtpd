@@ -116,13 +116,22 @@ type WatcherOptions struct {
 type Target string
 
 const (
-	TargetIdentity Target = "identity"
-	TargetGroup    Target = "group"
+	TargetIdentity               Target = "identity"
+	TargetGroup                  Target = "group"
+	TargetAppChainGateway        Target = "app-chain-gateway"
+	TargetDistributionManager    Target = "distribution-manager"
+	TargetPayerRegistry          Target = "payer-registry"
+	TargetSettlementChainGateway Target = "settlement-chain-gateway"
 )
 
 func (t *Target) UnmarshalFlag(v string) error {
 	switch v {
-	case string(TargetIdentity), string(TargetGroup):
+	case string(TargetIdentity),
+		string(TargetGroup),
+		string(TargetAppChainGateway),
+		string(TargetDistributionManager),
+		string(TargetPayerRegistry),
+		string(TargetSettlementChainGateway):
 		*t = Target(v)
 		return nil
 	default:

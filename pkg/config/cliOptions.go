@@ -135,7 +135,10 @@ func (t *Target) UnmarshalFlag(v string) error {
 		*t = Target(v)
 		return nil
 	default:
-		return fmt.Errorf("invalid target %q (allowed: identity|group)", v)
+		return fmt.Errorf(
+			"invalid target %q (allowed: identity|group|app-chain-gateway|distribution-manager|payer-registry|settlement-chain-gateway)",
+			v,
+		)
 	}
 }
 

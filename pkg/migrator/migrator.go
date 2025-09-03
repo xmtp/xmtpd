@@ -169,7 +169,13 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
 
-	blockchainPublisher, err := setupBlockchainPublisher(cfg.ctx, logger, cfg.db, cfg.options.PayerPrivateKey, cfg.contracts)
+	blockchainPublisher, err := setupBlockchainPublisher(
+		cfg.ctx,
+		logger,
+		cfg.db,
+		cfg.options.PayerPrivateKey,
+		cfg.contracts,
+	)
 	if err != nil {
 		return nil, err
 	}

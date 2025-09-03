@@ -34,7 +34,7 @@ func buildSettlementChainAdmin(
 	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
-	appAdmin, err := blockchain.NewSettlementChainAdmin(
+	settlementChainAdmin, err := blockchain.NewSettlementChainAdmin(
 		logger,
 		client,
 		signer,
@@ -43,11 +43,11 @@ func buildSettlementChainAdmin(
 	)
 	require.NoError(t, err)
 
-	return appAdmin, paramAdmin
+	return settlementChainAdmin, paramAdmin
 }
 
 func TestPauseFlagsSettlement(t *testing.T) {
-	appAdmin, paramAdmin := buildSettlementChainAdmin(t)
+	settlementChainAdmin, paramAdmin := buildSettlementChainAdmin(t)
 	ctx := context.Background()
 
 	type pauseCase struct {
@@ -61,14 +61,14 @@ func TestPauseFlagsSettlement(t *testing.T) {
 		{
 			name: "settlement-chain-gateway",
 			key:  blockchain.SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY,
-			set:  appAdmin.SetSettlementChainGatewayPauseStatus,
-			get:  appAdmin.GetSettlementChainGatewayPauseStatus,
+			set:  settlementChainAdmin.SetSettlementChainGatewayPauseStatus,
+			get:  settlementChainAdmin.GetSettlementChainGatewayPauseStatus,
 		},
 		{
 			name: "payer-registry",
 			key:  blockchain.PAYER_REGISTRY_PAUSED_KEY,
-			set:  appAdmin.SetPayerRegistryPauseStatus,
-			get:  appAdmin.GetPayerRegistryPauseStatus,
+			set:  settlementChainAdmin.SetPayerRegistryPauseStatus,
+			get:  settlementChainAdmin.GetPayerRegistryPauseStatus,
 		},
 	}
 

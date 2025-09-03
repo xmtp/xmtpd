@@ -124,6 +124,10 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, errors.New("migrator options are required")
 	}
 
+	if cfg.contracts == nil {
+		return nil, errors.New("contracts are required")
+	}
+
 	if cfg.options.ReaderConnectionString == "" {
 		return nil, errors.New("reader connection string is required")
 	}

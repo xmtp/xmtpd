@@ -246,6 +246,7 @@ func NewReplicationServer(
 			migrator.WithLogger(cfg.Log),
 			migrator.WithDestinationDB(cfg.DB),
 			migrator.WithMigratorConfig(&cfg.Options.MigrationServer),
+			migrator.WithContractsOptions(&cfg.Options.Contracts),
 		)
 		if err != nil {
 			return nil, err

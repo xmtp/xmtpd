@@ -2,6 +2,7 @@ package blockchain_test
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -68,6 +69,104 @@ func TestSetUint8ParameterCanOverwrite(t *testing.T) {
 	got, err := admin.GetParameterUint8(ctx, key)
 	require.NoError(t, err)
 	require.EqualValues(t, 255, got)
+}
+
+func TestSetUint16ParameterAndReadBack(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	const key = blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY // uint16 param
+	const want uint16 = 12345
+
+	err := admin.SetUint16Parameter(ctx, key, want)
+	require.NoError(t, err)
+
+	got, err := admin.GetParameterUint16(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, want, got)
+}
+
+func TestSetUint16Parameter_ZeroAndMax(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	const key = blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY
+
+	// zero
+	require.NoError(t, admin.SetUint16Parameter(ctx, key, 0))
+	got0, err := admin.GetParameterUint16(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, got0)
+
+	// max
+	require.NoError(t, admin.SetUint16Parameter(ctx, key, math.MaxUint16))
+	gotMax, err := admin.GetParameterUint16(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, math.MaxUint16, gotMax)
+}
+
+func TestSetUint16ParameterCanOverwrite(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	const key = blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY
+
+	require.NoError(t, admin.SetUint16Parameter(ctx, key, 1))
+	require.NoError(t, admin.SetUint16Parameter(ctx, key, 65535))
+
+	got, err := admin.GetParameterUint16(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, 65535, got)
+}
+
+func TestSetUint32ParameterAndReadBack(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	// Use any key; the registry stores bytes32 agnostically.
+	// We'll use a rate key in a fresh chain instance for isolation.
+	const key = blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY
+	const want uint32 = 3_000_000_001
+
+	err := admin.SetUint32Parameter(ctx, key, want)
+	require.NoError(t, err)
+
+	got, err := admin.GetParameterUint32(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, want, got)
+}
+
+func TestSetUint32Parameter_ZeroAndMax(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	const key = blockchain.RATE_REGISTRY_STORAGE_FEE_KEY // fresh chain per test
+
+	// zero
+	require.NoError(t, admin.SetUint32Parameter(ctx, key, 0))
+	got0, err := admin.GetParameterUint32(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, got0)
+
+	// max
+	require.NoError(t, admin.SetUint32Parameter(ctx, key, math.MaxUint32))
+	gotMax, err := admin.GetParameterUint32(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, math.MaxUint32, gotMax)
+}
+
+func TestSetUint32ParameterCanOverwrite(t *testing.T) {
+	admin := buildParameterAdmin(t)
+	ctx := context.Background()
+
+	const key = blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY
+
+	require.NoError(t, admin.SetUint32Parameter(ctx, key, 42))
+	require.NoError(t, admin.SetUint32Parameter(ctx, key, 99_999_999))
+
+	got, err := admin.GetParameterUint32(ctx, key)
+	require.NoError(t, err)
+	require.EqualValues(t, 99_999_999, got)
 }
 
 func TestSetAddressParameterAndReadBack(t *testing.T) {

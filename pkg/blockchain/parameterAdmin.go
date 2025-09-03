@@ -94,14 +94,60 @@ func (n *ParameterAdmin) GetParameterUint8(
 	ctx context.Context,
 	paramName string,
 ) (uint8, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{
-		Context: ctx,
-	}, paramName)
+	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
+	v, derr := decodeUint8(payload)
+	if derr != nil {
+		return 0, NewBlockchainError(derr)
+	}
+	return v, nil
+}
 
-	return payload[31], nil
+func (n *ParameterAdmin) GetParameterUint16(
+	ctx context.Context,
+	paramName string,
+) (uint16, ProtocolError) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	if err != nil {
+		return 0, NewBlockchainError(err)
+	}
+	v, derr := decodeUint16(payload)
+	if derr != nil {
+		return 0, NewBlockchainError(derr)
+	}
+	return v, nil
+}
+
+func (n *ParameterAdmin) GetParameterUint32(
+	ctx context.Context,
+	paramName string,
+) (uint32, ProtocolError) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	if err != nil {
+		return 0, NewBlockchainError(err)
+	}
+	v, derr := decodeUint32(payload)
+	if derr != nil {
+		return 0, NewBlockchainError(derr)
+	}
+	return v, nil
+}
+
+func (n *ParameterAdmin) GetParameterUint64(
+	ctx context.Context,
+	paramName string,
+) (uint64, ProtocolError) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	if err != nil {
+		return 0, NewBlockchainError(err)
+	}
+	v, derr := decodeUint64(payload)
+	if derr != nil {
+		return 0, NewBlockchainError(derr)
+	}
+	return v, nil
 }
 
 func (n *ParameterAdmin) GetParameterBool(
@@ -123,24 +169,40 @@ func (n *ParameterAdmin) GetParameterBool(
 	return b, nil
 }
 
-func (n *ParameterAdmin) GetParameterUint64(
-	ctx context.Context,
-	paramName string,
-) (uint64, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{
-		Context: ctx,
-	}, paramName)
-	if err != nil {
-		return 0, NewBlockchainError(err)
-	}
-	return utils.DecodeBytes32ToUint64(payload), nil
-}
-
 // Param helpers ---------------------------------------------------------------
 
 func packUint8(v uint8) [32]byte {
 	var out [32]byte
-	out[31] = v // big-endian placement
+	out[31] = v
+	return out
+}
+
+func packUint16(v uint16) [32]byte {
+	var out [32]byte
+	out[30] = byte(v >> 8)
+	out[31] = byte(v)
+	return out
+}
+
+func packUint32(v uint32) [32]byte {
+	var out [32]byte
+	out[28] = byte(v >> 24)
+	out[29] = byte(v >> 16)
+	out[30] = byte(v >> 8)
+	out[31] = byte(v)
+	return out
+}
+
+func packUint64(v uint64) [32]byte {
+	var out [32]byte
+	out[24] = byte(v >> 56)
+	out[25] = byte(v >> 48)
+	out[26] = byte(v >> 40)
+	out[27] = byte(v >> 32)
+	out[28] = byte(v >> 24)
+	out[29] = byte(v >> 16)
+	out[30] = byte(v >> 8)
+	out[31] = byte(v)
 	return out
 }
 
@@ -158,8 +220,54 @@ func packBool(b bool) [32]byte {
 	return out
 }
 
-func packUint64(v uint64) [32]byte {
-	return utils.EncodeUint64ToBytes32(v)
+// decodeUint8 expects the value to be in the last byte, others zero.
+func decodeUint8(val [32]byte) (uint8, error) {
+	for i := 0; i < 31; i++ {
+		if val[i] != 0 {
+			return 0, fmt.Errorf("non-canonical uint8 encoding in bytes32 (non-zero prefix)")
+		}
+	}
+	return val[31], nil
+}
+
+// decodeUint16 expects the value to be in the last 2 bytes, others zero.
+func decodeUint16(val [32]byte) (uint16, error) {
+	for i := 0; i < 30; i++ {
+		if val[i] != 0 {
+			return 0, fmt.Errorf("non-canonical uint16 encoding in bytes32 (non-zero prefix)")
+		}
+	}
+	return (uint16(val[30]) << 8) | uint16(val[31]), nil
+}
+
+// decodeUint32 expects the value to be in the last 4 bytes, others zero.
+func decodeUint32(val [32]byte) (uint32, error) {
+	for i := 0; i < 28; i++ {
+		if val[i] != 0 {
+			return 0, fmt.Errorf("non-canonical uint32 encoding in bytes32 (non-zero prefix)")
+		}
+	}
+	return (uint32(val[28]) << 24) |
+		(uint32(val[29]) << 16) |
+		(uint32(val[30]) << 8) |
+		uint32(val[31]), nil
+}
+
+// decodeUint64 expects the value to be in the last 8 bytes, others zero.
+func decodeUint64(val [32]byte) (uint64, error) {
+	for i := 0; i < 24; i++ {
+		if val[i] != 0 {
+			return 0, fmt.Errorf("non-canonical uint64 encoding in bytes32 (non-zero prefix)")
+		}
+	}
+	return (uint64(val[24]) << 56) |
+		(uint64(val[25]) << 48) |
+		(uint64(val[26]) << 40) |
+		(uint64(val[27]) << 32) |
+		(uint64(val[28]) << 24) |
+		(uint64(val[29]) << 16) |
+		(uint64(val[30]) << 8) |
+		uint64(val[31]), nil
 }
 
 // decodeBool expects the canonical encoding produced by packBool.
@@ -257,9 +365,86 @@ func (n *ParameterAdmin) SetUint8Parameter(
 ) ProtocolError {
 	return n.setParameterBytes32(ctx, paramName, packUint8(paramValue),
 		func(val [32]byte) {
+			u8, err := decodeUint8(val)
+			if err != nil {
+				n.logger.Warn("set uint8 parameter (non-canonical value observed in event)",
+					zap.String("key", paramName),
+					zap.Error(err),
+				)
+				return
+			}
 			n.logger.Info("set uint8 parameter",
 				zap.String("key", paramName),
-				zap.Uint64("value", utils.DecodeBytes32ToUint64(val)),
+				zap.Uint8("value", u8),
+			)
+		},
+	)
+}
+
+func (n *ParameterAdmin) SetUint16Parameter(
+	ctx context.Context,
+	paramName string,
+	paramValue uint16,
+) ProtocolError {
+	return n.setParameterBytes32(ctx, paramName, packUint16(paramValue),
+		func(val [32]byte) {
+			u16, err := decodeUint16(val)
+			if err != nil {
+				n.logger.Warn("set uint16 parameter (non-canonical value observed in event)",
+					zap.String("key", paramName),
+					zap.Error(err),
+				)
+				return
+			}
+			n.logger.Info("set uint16 parameter",
+				zap.String("key", paramName),
+				zap.Uint16("value", u16),
+			)
+		},
+	)
+}
+
+func (n *ParameterAdmin) SetUint32Parameter(
+	ctx context.Context,
+	paramName string,
+	paramValue uint32,
+) ProtocolError {
+	return n.setParameterBytes32(ctx, paramName, packUint32(paramValue),
+		func(val [32]byte) {
+			u32, err := decodeUint32(val)
+			if err != nil {
+				n.logger.Warn("set uint32 parameter (non-canonical value observed in event)",
+					zap.String("key", paramName),
+					zap.Error(err),
+				)
+				return
+			}
+			n.logger.Info("set uint32 parameter",
+				zap.String("key", paramName),
+				zap.Uint32("value", u32),
+			)
+		},
+	)
+}
+
+func (n *ParameterAdmin) SetUint64Parameter(
+	ctx context.Context,
+	paramName string,
+	paramValue uint64,
+) ProtocolError {
+	return n.setParameterBytes32(ctx, paramName, packUint64(paramValue),
+		func(val [32]byte) {
+			u64, err := decodeUint64(val)
+			if err != nil {
+				n.logger.Warn("set uint64 parameter (non-canonical value observed in event)",
+					zap.String("key", paramName),
+					zap.Error(err),
+				)
+				return
+			}
+			n.logger.Info("set uint64 parameter",
+				zap.String("key", paramName),
+				zap.Uint64("value", u64),
 			)
 		},
 	)
@@ -304,21 +489,6 @@ func (n *ParameterAdmin) SetBoolParameter(
 	)
 }
 
-func (n *ParameterAdmin) SetUint64Parameter(
-	ctx context.Context,
-	paramName string,
-	paramValue uint64,
-) ProtocolError {
-	return n.setParameterBytes32(ctx, paramName, packUint64(paramValue),
-		func(val [32]byte) {
-			n.logger.Info("set uint64 parameter",
-				zap.String("key", paramName),
-				zap.Uint64("value", utils.DecodeBytes32ToUint64(val)),
-			)
-		},
-	)
-}
-
 type Uint64Param struct {
 	Name  string
 	Value uint64
@@ -332,7 +502,7 @@ func (n *ParameterAdmin) SetManyUint64Parameters(
 	vals := make([][32]byte, len(items))
 	for i, it := range items {
 		keys[i] = it.Name
-		vals[i] = utils.EncodeUint64ToBytes32(it.Value)
+		vals[i] = packUint64(it.Value)
 	}
 	return n.setParametersBytes32Many(ctx, keys, vals)
 }

@@ -229,3 +229,99 @@ func TestPauseFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
+	appAdmin, paramAdmin := buildAppChainAdmin(t)
+	ctx := context.Background()
+
+	type sizeCase struct {
+		name string
+		key  string
+		set  func(ctx context.Context, size uint64) error
+		get  func(ctx context.Context) (uint64, error)
+	}
+
+	cases := []sizeCase{
+		{
+			name: "group/max",
+			key:  blockchain.GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+			set:  appAdmin.SetGroupMessageMaxPayloadSize,
+			get:  appAdmin.GetGroupMessageMaxPayloadSize,
+		},
+		{
+			name: "group/min",
+			key:  blockchain.GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+			set:  appAdmin.SetGroupMessageMinPayloadSize,
+			get:  appAdmin.GetGroupMessageMinPayloadSize,
+		},
+		{
+			name: "identity/max",
+			key:  blockchain.IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+			set:  appAdmin.SetIdentityUpdateMaxPayloadSize,
+			get:  appAdmin.GetIdentityUpdateMaxPayloadSize,
+		},
+		{
+			name: "identity/min",
+			key:  blockchain.IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+			set:  appAdmin.SetIdentityUpdateMinPayloadSize,
+			get:  appAdmin.GetIdentityUpdateMinPayloadSize,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Run(tc.name+"/read_default", func(t *testing.T) {
+				t.Skip(
+					"Some defaults are pre-set https://github.com/xmtp/smart-contracts/issues/126",
+				)
+				gotDefault, err := tc.get(ctx)
+				require.NoError(t, err)
+				require.EqualValues(t, 0, gotDefault)
+
+				rawDefault, err := paramAdmin.GetParameterUint64(ctx, tc.key)
+				require.NoError(t, err)
+				require.EqualValues(t, 0, rawDefault)
+			})
+
+			t.Run(tc.name+"/write_read_back", func(t *testing.T) {
+				const v1 uint64 = 1024
+				require.NoError(t, tc.set(ctx, v1))
+
+				gotV1, err := tc.get(ctx)
+				require.NoError(t, err)
+				require.EqualValues(t, v1, gotV1)
+
+				rawV1, err := paramAdmin.GetParameterUint64(ctx, tc.key)
+				require.NoError(t, err)
+				require.EqualValues(t, v1, rawV1)
+			})
+
+			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {
+				const v1 uint64 = 1024
+				require.NoError(t, tc.set(ctx, v1))
+
+				require.NoError(t, tc.set(ctx, v1))
+			})
+
+			t.Run(tc.name+"/write_back_to_zero", func(t *testing.T) {
+				const v1 uint64 = 1024
+				require.NoError(t, tc.set(ctx, v1))
+
+				const v2 uint64 = 0
+				err := tc.set(ctx, v2)
+
+				switch tc.name {
+				case "group/max":
+					require.ErrorContains(t, err, "0x1d8e7a4a") // invalid max
+				case "group/min":
+					require.NoError(t, err)
+				case "identity/max":
+					require.ErrorContains(t, err, "0x1d8e7a4a")
+				case "identity/min":
+					require.NoError(t, err)
+				}
+			})
+		})
+	}
+}

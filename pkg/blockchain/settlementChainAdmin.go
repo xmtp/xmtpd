@@ -5,6 +5,7 @@ import (
 
 	dm "github.com/xmtp/xmtpd/pkg/abi/distributionmanager"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
+	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -22,6 +23,22 @@ type ISettlementChainAdmin interface {
 	SetPayerRegistryPauseStatus(ctx context.Context, paused bool) error
 	GetDistributionManagerPauseStatus(ctx context.Context) (bool, error)
 	SetDistributionManagerPauseStatus(ctx context.Context, paused bool) error
+
+	GetDistributionManagerProtocolFeesRecipient(ctx context.Context) (common.Address, error)
+	SetDistributionManagerProtocolFeesRecipient(ctx context.Context, addr common.Address) error
+	GetNodeRegistryAdmin(ctx context.Context) (common.Address, error)
+	SetNodeRegistryAdmin(ctx context.Context, addr common.Address) error
+
+	GetPayerRegistryMinimumDeposit(ctx context.Context) (uint64, error)
+	SetPayerRegistryMinimumDeposit(ctx context.Context, v uint64) error
+	GetPayerRegistryWithdrawLockPeriod(ctx context.Context) (uint32, error)
+	SetPayerRegistryWithdrawLockPeriod(ctx context.Context, v uint32) error
+
+	GetPayerReportManagerProtocolFeeRate(ctx context.Context) (uint16, error)
+	SetPayerReportManagerProtocolFeeRate(ctx context.Context, v uint16) error
+
+	GetRateRegistryMigrator(ctx context.Context) (common.Address, error)
+	SetRateRegistryMigrator(ctx context.Context, addr common.Address) error
 }
 
 type settlementChainAdmin struct {
@@ -32,6 +49,7 @@ type settlementChainAdmin struct {
 	settlementChainGateway *scg.SettlementChainGateway
 	payerRegistry          *pr.PayerRegistry
 	distributionManager    *dm.DistributionManager
+	payerReportManager     *prm.PayerReportManager
 }
 
 var _ ISettlementChainAdmin = (*settlementChainAdmin)(nil)
@@ -67,6 +85,14 @@ func NewSettlementChainAdmin(
 		return nil, err
 	}
 
+	payerReportManager, err := prm.NewPayerReportManager(
+		common.HexToAddress(contractsOptions.SettlementChain.PayerReportManagerAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &settlementChainAdmin{
 		client:                 client,
 		signer:                 signer,
@@ -75,6 +101,7 @@ func NewSettlementChainAdmin(
 		settlementChainGateway: acGateway,
 		payerRegistry:          payerRegistry,
 		distributionManager:    distributionManager,
+		payerReportManager:     payerReportManager,
 	}, nil
 }
 
@@ -216,4 +243,205 @@ func (s settlementChainAdmin) SetDistributionManagerPauseStatus(
 		return err
 	}
 	return nil
+}
+
+func (s settlementChainAdmin) GetDistributionManagerProtocolFeesRecipient(
+	ctx context.Context,
+) (common.Address, error) {
+	return s.parameterAdmin.GetParameterAddress(
+		ctx,
+		DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+	)
+}
+
+func (s settlementChainAdmin) SetDistributionManagerProtocolFeesRecipient(
+	ctx context.Context,
+	addr common.Address,
+) error {
+	if err := s.parameterAdmin.SetAddressParameter(ctx, DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY, addr); err != nil {
+		return err
+	}
+
+	// Apply on-chain (adjust ABI names if they differ in your bindings)
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.distributionManager.UpdateProtocolFeesRecipient(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.distributionManager.ParseProtocolFeesRecipientUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*dm.DistributionManagerProtocolFeesRecipientUpdated)
+			if !ok {
+				s.logger.Error(
+					"unexpected event type, not DistributionManagerProtocolFeesRecipientUpdated",
+				)
+				return
+			}
+			s.logger.Info("distribution manager protocol fees recipient updated",
+				zap.String("protocolFeesRecipient", ev.ProtocolFeesRecipient.Hex()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			s.logger.Info("No update needed (distribution manager protocol fees recipient)",
+				zap.String("protocolFeesRecipient", addr.Hex()))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetNodeRegistryAdmin(ctx context.Context) (common.Address, error) {
+	return s.parameterAdmin.GetParameterAddress(ctx, NODE_REGISTRY_ADMIN_KEY)
+}
+
+func (s settlementChainAdmin) SetNodeRegistryAdmin(ctx context.Context, addr common.Address) error {
+	return s.parameterAdmin.SetAddressParameter(ctx, NODE_REGISTRY_ADMIN_KEY, addr)
+}
+
+func (s settlementChainAdmin) GetPayerRegistryMinimumDeposit(ctx context.Context) (uint64, error) {
+	return s.parameterAdmin.GetParameterUint64(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY)
+}
+
+func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(ctx context.Context, v uint64) error {
+	// TODO(mkysel) our contracts have uint96 so they can handle more than the uint64 we're capping here
+	// https://github.com/xmtp/smart-contracts/issues/127
+
+	if err := s.parameterAdmin.SetUint64Parameter(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY, v); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.payerRegistry.UpdateMinimumDeposit(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.payerRegistry.ParseMinimumDepositUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*pr.PayerRegistryMinimumDepositUpdated)
+			if !ok {
+				s.logger.Error("unexpected event type, not PayerRegistryMinimumDepositUpdated")
+				return
+			}
+			s.logger.Info("payer registry minimum deposit updated",
+				zap.Uint64("minimumDeposit", ev.MinimumDeposit.Uint64()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			s.logger.Info("No update needed (payer registry minimum deposit)",
+				zap.Uint64("minimumDeposit", v))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetPayerRegistryWithdrawLockPeriod(
+	ctx context.Context,
+) (uint32, error) {
+	return s.parameterAdmin.GetParameterUint32(ctx, PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY)
+}
+
+func (s settlementChainAdmin) SetPayerRegistryWithdrawLockPeriod(
+	ctx context.Context,
+	v uint32,
+) error {
+	if err := s.parameterAdmin.SetUint32Parameter(ctx, PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY, v); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.payerRegistry.UpdateWithdrawLockPeriod(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.payerRegistry.ParseWithdrawLockPeriodUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*pr.PayerRegistryWithdrawLockPeriodUpdated)
+			if !ok {
+				s.logger.Error("unexpected event type, not PayerRegistryWithdrawLockPeriodUpdated")
+				return
+			}
+			s.logger.Info("payer registry withdraw lock period updated",
+				zap.Uint32("withdrawLockPeriod", ev.WithdrawLockPeriod))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			s.logger.Info("No update needed (payer registry withdraw lock period)",
+				zap.Uint32("withdrawLockPeriod", v))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetPayerReportManagerProtocolFeeRate(
+	ctx context.Context,
+) (uint16, error) {
+	return s.parameterAdmin.GetParameterUint16(ctx, PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY)
+}
+
+func (s settlementChainAdmin) SetPayerReportManagerProtocolFeeRate(
+	ctx context.Context,
+	v uint16,
+) error {
+	if err := s.parameterAdmin.SetUint16Parameter(ctx, PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY, v); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.payerReportManager.UpdateProtocolFeeRate(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.payerReportManager.ParseProtocolFeeRateUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*prm.PayerReportManagerProtocolFeeRateUpdated)
+			if !ok {
+				s.logger.Error(
+					"unexpected event type, not PayerReportManagerProtocolFeeRateUpdated",
+				)
+				return
+			}
+			s.logger.Info("payer report manager protocol fee updated",
+				zap.Uint16("protocolFeeRate", ev.ProtocolFeeRate))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			s.logger.Info("No update needed (payer report manager protocol fee)",
+				zap.Uint16("protocolFeeRate", v))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetRateRegistryMigrator(ctx context.Context) (common.Address, error) {
+	return s.parameterAdmin.GetParameterAddress(ctx, RATE_REGISTRY_MIGRATOR_KEY)
+}
+
+func (s settlementChainAdmin) SetRateRegistryMigrator(
+	ctx context.Context,
+	addr common.Address,
+) error {
+	return s.parameterAdmin.SetAddressParameter(ctx, RATE_REGISTRY_MIGRATOR_KEY, addr)
 }

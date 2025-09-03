@@ -1076,6 +1076,11 @@ func setupAppChainAdmin(
 		return nil, fmt.Errorf("identity update broadcaster address is required")
 	}
 
+	// TODO(mkysel) https://github.com/xmtp/smart-contracts/issues/125
+	//if options.Contracts.AppChain.GatewayAddress == "" {
+	//	return nil, fmt.Errorf("gateway address is required")
+	//}
+
 	chainClient, err := blockchain.NewRPCClient(
 		ctx,
 		options.Contracts.AppChain.RPCURL,
@@ -1124,6 +1129,18 @@ func setupSettlementChainAdmin(
 	if options.Contracts.SettlementChain.ChainID == 0 {
 		return nil, fmt.Errorf("chain id is required")
 	}
+
+	if options.Contracts.SettlementChain.PayerRegistryAddress == "" {
+		return nil, fmt.Errorf("payer registry address is required")
+	}
+	if options.Contracts.SettlementChain.DistributionManagerAddress == "" {
+		return nil, fmt.Errorf("distribution manager address is required")
+	}
+
+	// TODO(mkysel) https://github.com/xmtp/smart-contracts/issues/125
+	//if options.Contracts.SettlementChain.GatewayAddress == "" {
+	//	return nil, fmt.Errorf("gateway address is required")
+	//}
 
 	chainClient, err := blockchain.NewRPCClient(
 		ctx,

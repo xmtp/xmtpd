@@ -41,10 +41,11 @@ const (
 )
 
 type DBMigratorConfig struct {
-	ctx     context.Context
-	log     *zap.Logger
-	db      *sql.DB
-	options *config.MigrationServerOptions
+	ctx       context.Context
+	log       *zap.Logger
+	db        *sql.DB
+	options   *config.MigrationServerOptions
+	contracts *config.ContractsOptions
 }
 
 type DBMigratorOption func(*DBMigratorConfig)
@@ -70,6 +71,12 @@ func WithDestinationDB(db *sql.DB) DBMigratorOption {
 func WithMigratorConfig(options *config.MigrationServerOptions) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
 		cfg.options = options
+	}
+}
+
+func WithContractsOptions(contracts *config.ContractsOptions) DBMigratorOption {
+	return func(cfg *DBMigratorConfig) {
+		cfg.contracts = contracts
 	}
 }
 
@@ -117,6 +124,10 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, errors.New("migrator options are required")
 	}
 
+	if cfg.contracts == nil {
+		return nil, errors.New("contracts are required")
+	}
+
 	if cfg.options.ReaderConnectionString == "" {
 		return nil, errors.New("reader connection string is required")
 	}
@@ -162,7 +173,13 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
 
-	blockchainPublisher, err := setupBlockchainPublisher(cfg.ctx, logger, cfg.db, cfg.options)
+	blockchainPublisher, err := setupBlockchainPublisher(
+		cfg.ctx,
+		logger,
+		cfg.db,
+		cfg.options.PayerPrivateKey,
+		cfg.contracts,
+	)
 	if err != nil {
 		return nil, err
 	}

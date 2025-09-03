@@ -14,8 +14,6 @@ type MigrationServerOptions struct {
 	BatchSize              int32         `long:"batch-size"               env:"XMTPD_MIGRATION_DB_BATCH_SIZE"               description:"Batch size for migration"                       default:"1000"`
 	PollInterval           time.Duration `long:"process-interval"         env:"XMTPD_MIGRATION_DB_PROCESS_INTERVAL"         description:"Interval for processing migration"              default:"10s"`
 	Namespace              string        `long:"namespace"                env:"XMTPD_MIGRATION_DB_NAMESPACE"                description:"Namespace for migration"                        default:""`
-
-	Contracts ContractsOptions `group:"Contracts Options" namespace:"contracts"`
 }
 
 type MigrationClientOptions struct {

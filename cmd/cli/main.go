@@ -660,6 +660,14 @@ func setPause(logger *zap.Logger, options *CLI) {
 			"payer registry pause status set",
 			zap.Bool("paused", options.SetPause.Paused.Bool()),
 		)
+	case config.TargetDistributionManager:
+		if err := settlementChainAdmin.SetDistributionManagerPauseStatus(ctx, options.SetPause.Paused.Bool()); err != nil {
+			logger.Fatal("could not set distribution manager pause status", zap.Error(err))
+		}
+		logger.Info(
+			"distribution manager pause status set",
+			zap.Bool("paused", options.SetPause.Paused.Bool()),
+		)
 	}
 }
 
@@ -718,6 +726,12 @@ func getPause(logger *zap.Logger, options *CLI) {
 			logger.Fatal("could not get payer registry pause status", zap.Error(err))
 		}
 		logger.Info("payer registry pause status", zap.Bool("paused", paused))
+	case config.TargetDistributionManager:
+		paused, err := settlementChainAdmin.GetDistributionManagerPauseStatus(ctx)
+		if err != nil {
+			logger.Fatal("could not get distribution manager pause status", zap.Error(err))
+		}
+		logger.Info("distribution manager pause status", zap.Bool("paused", paused))
 	}
 }
 

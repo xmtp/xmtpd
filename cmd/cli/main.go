@@ -1257,7 +1257,7 @@ func setRateMigrator(logger *zap.Logger, options *CLI) {
 	scAdmin, err := setupSettlementChainAdmin(
 		ctx,
 		logger,
-		options.GetRateMigrator.AdminOptions.AdminPrivateKey,
+		options.SetRateMigrator.AdminOptions.AdminPrivateKey,
 		options,
 	)
 	if err != nil {

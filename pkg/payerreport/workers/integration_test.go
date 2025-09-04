@@ -449,6 +449,8 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
 	}, 2*time.Second, 50*time.Millisecond)
 
+	<-time.After(5 * time.Second)
+
 	// Get the attestations of the two reports from both nodes
 	for nodeIndex := range 2 {
 		// See all the reports from the perspective of node1

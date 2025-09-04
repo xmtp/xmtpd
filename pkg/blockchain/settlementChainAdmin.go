@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"math/big"
 
 	dm "github.com/xmtp/xmtpd/pkg/abi/distributionmanager"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
@@ -29,8 +30,8 @@ type ISettlementChainAdmin interface {
 	GetNodeRegistryAdmin(ctx context.Context) (common.Address, error)
 	SetNodeRegistryAdmin(ctx context.Context, addr common.Address) error
 
-	GetPayerRegistryMinimumDeposit(ctx context.Context) (uint64, error)
-	SetPayerRegistryMinimumDeposit(ctx context.Context, v uint64) error
+	GetPayerRegistryMinimumDeposit(ctx context.Context) (*big.Int, error)
+	SetPayerRegistryMinimumDeposit(ctx context.Context, v *big.Int) error
 	GetPayerRegistryWithdrawLockPeriod(ctx context.Context) (uint32, error)
 	SetPayerRegistryWithdrawLockPeriod(ctx context.Context, v uint32) error
 
@@ -303,15 +304,17 @@ func (s settlementChainAdmin) SetNodeRegistryAdmin(ctx context.Context, addr com
 	return s.parameterAdmin.SetAddressParameter(ctx, NODE_REGISTRY_ADMIN_KEY, addr)
 }
 
-func (s settlementChainAdmin) GetPayerRegistryMinimumDeposit(ctx context.Context) (uint64, error) {
-	return s.parameterAdmin.GetParameterUint64(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY)
+func (s settlementChainAdmin) GetPayerRegistryMinimumDeposit(
+	ctx context.Context,
+) (*big.Int, error) {
+	return s.parameterAdmin.GetParameterUint96(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY)
 }
 
-func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(ctx context.Context, v uint64) error {
-	// TODO(mkysel) our contracts have uint96 so they can handle more than the uint64 we're capping here
-	// https://github.com/xmtp/smart-contracts/issues/127
-
-	if err := s.parameterAdmin.SetUint64Parameter(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY, v); err != nil {
+func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(
+	ctx context.Context,
+	v *big.Int,
+) error {
+	if err := s.parameterAdmin.SetUint96Parameter(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY, v); err != nil {
 		return err
 	}
 
@@ -337,7 +340,7 @@ func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(ctx context.Context
 	if err != nil {
 		if err.IsNoChange() {
 			s.logger.Info("No update needed (payer registry minimum deposit)",
-				zap.Uint64("minimumDeposit", v))
+				zap.Uint64("minimumDeposit", v.Uint64()))
 			return nil
 		}
 		return err

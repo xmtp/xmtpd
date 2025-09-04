@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -46,6 +47,8 @@ const (
 
 	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY = "xmtp.settlementChainGateway.paused"
 )
+
+var uint96Size = 12
 
 type ParameterAdmin struct {
 	client            *ethclient.Client
@@ -150,6 +153,21 @@ func (n *ParameterAdmin) GetParameterUint64(
 	return v, nil
 }
 
+func (n *ParameterAdmin) GetParameterUint96(
+	ctx context.Context,
+	paramName string,
+) (*big.Int, ProtocolError) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	if err != nil {
+		return nil, NewBlockchainError(err)
+	}
+	u, derr := decodeUint96Big(payload)
+	if derr != nil {
+		return nil, NewBlockchainError(derr)
+	}
+	return u, nil
+}
+
 func (n *ParameterAdmin) GetParameterBool(
 	ctx context.Context,
 	paramName string,
@@ -170,6 +188,13 @@ func (n *ParameterAdmin) GetParameterBool(
 }
 
 // Param helpers ---------------------------------------------------------------
+
+func IsUint96(v *big.Int) bool {
+	if v == nil || v.Sign() < 0 {
+		return false
+	}
+	return v.BitLen() <= 96
+}
 
 func packUint8(v uint8) [32]byte {
 	var out [32]byte
@@ -204,6 +229,33 @@ func packUint64(v uint64) [32]byte {
 	out[30] = byte(v >> 8)
 	out[31] = byte(v)
 	return out
+}
+
+// packUint96Big encodes v (uint96) into a canonical bytes32 (right-aligned, big-endian).
+// Errors if v is nil, negative, or exceeds 2^96-1.
+func packUint96Big(v *big.Int) ([32]byte, error) {
+	var out [32]byte
+	if v == nil {
+		return out, fmt.Errorf("uint96: nil value")
+	}
+	if v.Sign() < 0 {
+		return out, fmt.Errorf("uint96: negative value %s", v.String())
+	}
+	if v.BitLen() > 96 {
+		return out, fmt.Errorf("uint96: overflow (%s > 2^96-1)", v.String())
+	}
+
+	b := v.Bytes()
+	n := len(b)
+	if n == 0 {
+		return out, nil
+	}
+	if n > uint96Size {
+		// Redundant (BitLen>96 already caught), but keep for safety.
+		return out, fmt.Errorf("uint96: overflow (%d bytes > 12)", n)
+	}
+	copy(out[32-uint96Size+(uint96Size-n):], b)
+	return out, nil
 }
 
 func packAddress(a common.Address) [32]byte {
@@ -268,6 +320,24 @@ func decodeUint64(val [32]byte) (uint64, error) {
 		(uint64(val[29]) << 16) |
 		(uint64(val[30]) << 8) |
 		uint64(val[31]), nil
+}
+
+// decodeUint96Big decodes a canonical bytes32 (right-aligned, big-endian) into *big.Int.
+// It enforces zero-prefix canonicalization: bytes[0:20] must be all zero.
+func decodeUint96Big(val [32]byte) (*big.Int, error) {
+	// Ensure canonical zero prefix (first 20 bytes must be zero)
+	for i := 0; i < 32-uint96Size; i++ { // 0..19
+		if val[i] != 0 {
+			return nil, fmt.Errorf("uint96: non-canonical encoding (non-zero prefix)")
+		}
+	}
+	// Interpret last 12 bytes as big-endian unsigned integer
+	u := new(big.Int).SetBytes(val[32-uint96Size:]) // val[20:32]
+	// Bound check (paranoid; should always pass if prefix is zero and size is 12)
+	if u.BitLen() > 96 {
+		return nil, fmt.Errorf("uint96: decoded value exceeds 96 bits")
+	}
+	return u, nil
 }
 
 // decodeBool expects the canonical encoding produced by packBool.
@@ -445,6 +515,33 @@ func (n *ParameterAdmin) SetUint64Parameter(
 			n.logger.Info("set uint64 parameter",
 				zap.String("key", paramName),
 				zap.Uint64("value", u64),
+			)
+		},
+	)
+}
+
+func (n *ParameterAdmin) SetUint96Parameter(
+	ctx context.Context,
+	paramName string,
+	v *big.Int,
+) ProtocolError {
+	enc, err := packUint96Big(v)
+	if err != nil {
+		return NewBlockchainError(err)
+	}
+	return n.setParameterBytes32(ctx, paramName, enc,
+		func(val [32]byte) {
+			u, derr := decodeUint96Big(val)
+			if derr != nil {
+				n.logger.Warn("set uint96 parameter (non-canonical value observed in event)",
+					zap.String("key", paramName),
+					zap.Error(derr),
+				)
+				return
+			}
+			n.logger.Info("set uint96 parameter",
+				zap.String("key", paramName),
+				zap.String("value", u.String()),
 			)
 		},
 	)

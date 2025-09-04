@@ -3,6 +3,7 @@ package blockchain_test
 import (
 	"context"
 	"errors"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -291,17 +292,17 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 	}
 }
 
-func TestPayerRegistry_Uint64Params_ReadDefault_WriteThenRead(t *testing.T) {
+func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 	scAdmin, paramAdmin := buildSettlementChainAdmin(t)
 	ctx := context.Background()
 
-	type u64Case struct {
+	type u96Case struct {
 		name string
 		key  string
-		set  func(context.Context, uint64) error
-		get  func(context.Context) (uint64, error)
+		set  func(context.Context, *big.Int) error
+		get  func(context.Context) (*big.Int, error)
 	}
-	cases := []u64Case{
+	cases := []u96Case{
 		{
 			name: "minimumDeposit",
 			key:  blockchain.PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY,
@@ -327,30 +328,30 @@ func TestPayerRegistry_Uint64Params_ReadDefault_WriteThenRead(t *testing.T) {
 			})
 
 			t.Run(tc.name+"/write_read_back", func(t *testing.T) {
-				const v1 uint64 = 1024
+				v1 := big.NewInt(1024)
 				require.NoError(t, tc.set(ctx, v1))
 
 				gotV1, err := tc.get(ctx)
 				require.NoError(t, err)
 				require.EqualValues(t, v1, gotV1)
 
-				rawV1, err := paramAdmin.GetParameterUint64(ctx, tc.key)
+				rawV1, err := paramAdmin.GetParameterUint96(ctx, tc.key)
 				require.NoError(t, err)
 				require.EqualValues(t, v1, rawV1)
 			})
 
 			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {
-				const v1 uint64 = 1024
+				v1 := big.NewInt(1024)
 				require.NoError(t, tc.set(ctx, v1))
 
 				require.NoError(t, tc.set(ctx, v1))
 			})
 
 			t.Run(tc.name+"/write_back_to_zero", func(t *testing.T) {
-				const v1 uint64 = 1024
+				v1 := big.NewInt(1024)
 				require.NoError(t, tc.set(ctx, v1))
 
-				const v2 uint64 = 0
+				v2 := big.NewInt(0)
 				err := tc.set(ctx, v2)
 
 				switch tc.name {

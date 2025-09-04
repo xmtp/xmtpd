@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -20,7 +19,7 @@ import (
 type INodeRegistryAdmin interface {
 	AddNode(
 		ctx context.Context,
-		owner string,
+		ownerAddress common.Address,
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
 	) (uint32, error)
@@ -66,15 +65,10 @@ func NewNodeRegistryAdmin(
 
 func (n *nodeRegistryAdmin) AddNode(
 	ctx context.Context,
-	owner string,
+	ownerAddress common.Address,
 	signingKeyPub *ecdsa.PublicKey,
 	httpAddress string,
 ) (uint32, error) {
-	if !common.IsHexAddress(owner) {
-		return 0, fmt.Errorf("invalid owner address provided %s", owner)
-	}
-
-	ownerAddress := common.HexToAddress(owner)
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
 	nodeId := uint32(0)

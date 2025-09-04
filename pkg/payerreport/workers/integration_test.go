@@ -90,7 +90,7 @@ func setupBlockchain(
 	for _, node := range nodes {
 		_, err := registryAdmin.AddNode(
 			t.Context(),
-			ethcrypto.PubkeyToAddress(*node.SigningKey).String(),
+			ethcrypto.PubkeyToAddress(*node.SigningKey),
 			node.SigningKey,
 			node.HttpAddress,
 		)

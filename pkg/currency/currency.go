@@ -7,10 +7,14 @@ import (
 )
 
 // PicoDollar is a type to represent currency with 12 decimal precision
-type PicoDollar int64
+type (
+	PicoDollar  int64
+	MicroDollar int64
+)
 
 const (
-	PicoDollarsPerDollar = 1e12
+	MicroDollarsPerDollar = 1e6
+	PicoDollarsPerDollar  = 1e12
 )
 
 // FromDollars converts a dollar amount (as a float) to Picodollars
@@ -28,7 +32,7 @@ func FromDollars(dollars float64) (PicoDollar, error) {
 }
 
 // FromMicrodollars converts an int64 microdollar amount to PicoDollar
-func FromMicrodollars(microdollars int64) PicoDollar {
+func FromMicrodollars(microdollars MicroDollar) PicoDollar {
 	return PicoDollar(microdollars * 1e6)
 }
 
@@ -38,8 +42,8 @@ func (p PicoDollar) toDollarsTestOnly() float64 {
 }
 
 // ToMicroDollars converts PicoDollars to MicroDollars (1e6 units per dollar)
-func (p PicoDollar) ToMicroDollars() int64 {
-	return int64(p / 1e6)
+func (p PicoDollar) ToMicroDollars() MicroDollar {
+	return MicroDollar(p / 1e6)
 }
 
 func (p PicoDollar) String() string {

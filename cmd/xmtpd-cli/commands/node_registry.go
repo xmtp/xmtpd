@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -85,10 +87,11 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 	}
 
 	var (
-		ownerAddress  = viper.GetString("owner-address")
+		owner         = viper.GetString("owner-address")
 		signingKeyPub = viper.GetString("signing-key-pub")
 		httpAddress   = viper.GetString("http-address")
 		force         = viper.GetBool("force")
+		ownerAddress  = common.HexToAddress(owner)
 	)
 
 	if !force {
@@ -119,7 +122,7 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 
 	logger.Info(
 		"Node registered",
-		zap.String("owner-address", ownerAddress),
+		zap.String("owner-address", owner),
 		zap.Uint32("node-id", nodeID),
 	)
 }

@@ -102,7 +102,7 @@ func (s *PayerRegistryStorer) handleDeposit(
 		return re.NewRecoverableError(ErrFindOrCreatePayer, err)
 	}
 
-	amount := currency.FromMicrodollars(parsedEvent.Amount.Int64())
+	amount := currency.FromMicrodollars(currency.MicroDollar(parsedEvent.Amount.Int64()))
 	eventID := ledger.BuildEventID(log)
 
 	if err = s.ledger.Deposit(
@@ -142,7 +142,7 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 		return re.NewRecoverableError(ErrFindOrCreatePayer, err)
 	}
 
-	amount := currency.FromMicrodollars(parsedEvent.Amount.Int64())
+	amount := currency.FromMicrodollars(currency.MicroDollar(parsedEvent.Amount.Int64()))
 	eventID := ledger.BuildEventID(log)
 
 	if err = s.ledger.InitiateWithdrawal(
@@ -182,7 +182,7 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 		return re.NewRecoverableError(ErrFindOrCreatePayer, err)
 	}
 
-	amount := currency.FromMicrodollars(parsedEvent.Amount.Int64())
+	amount := currency.FromMicrodollars(currency.MicroDollar(parsedEvent.Amount.Int64()))
 	eventID := ledger.BuildEventID(log)
 
 	if err = s.ledger.SettleUsage(ctx, payerID, amount, eventID); err != nil {

@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/fees"
@@ -47,6 +47,20 @@ type CLI struct {
 	SetBootstrapperAddress config.SetBootstrapperAddressOptions
 	SetPause               config.SetPauseOptions
 	GetPause               config.GetPauseOptions
+	GetNodeRegistryAdmin   config.GetNodeRegistryAdminOptions
+	SetNodeRegistryAdmin   config.SetNodeRegistryAdminOptions
+	GetPayloadSize         config.GetPayloadSizeOptions
+	SetPayloadSize         config.SetPayloadSizeOptions
+	GetDMFeesRecipient     config.GetDistributionManagerProtocolFeesRecipientOptions
+	SetDMFeesRecipient     config.SetDistributionManagerProtocolFeesRecipientOptions
+	GetPayerMinDeposit     config.GetPayerMinimumDepositOptions
+	SetPayerMinDeposit     config.SetPayerMinimumDepositOptions
+	GetPayerWithdrawLock   config.GetPayerWithdrawLockPeriodOptions
+	SetPayerWithdrawLock   config.SetPayerWithdrawLockPeriodOptions
+	GetPRMFeeRate          config.GetPayerReportProtocolFeeRateOptions
+	SetPRMFeeRate          config.SetPayerReportProtocolFeeRateOptions
+	GetRateMigrator        config.GetRateRegistryMigratorOptions
+	SetRateMigrator        config.SetRateRegistryMigratorOptions
 }
 
 /*
@@ -78,6 +92,27 @@ func parseOptions(args []string) (*CLI, error) {
 	var setBootstrapperAddressOptions config.SetBootstrapperAddressOptions
 	var setPauseOptions config.SetPauseOptions
 	var getPauseOptions config.GetPauseOptions
+
+	var getNodeRegistryAdminOptions config.GetNodeRegistryAdminOptions
+	var setNodeRegistryAdminOptions config.SetNodeRegistryAdminOptions
+
+	var getPayloadSizeOptions config.GetPayloadSizeOptions
+	var setPayloadSizeOptions config.SetPayloadSizeOptions
+
+	var getDMFeesRecipientOptions config.GetDistributionManagerProtocolFeesRecipientOptions
+	var setDMFeesRecipientOptions config.SetDistributionManagerProtocolFeesRecipientOptions
+
+	var getPayerMinDepositOptions config.GetPayerMinimumDepositOptions
+	var setPayerMinDepositOptions config.SetPayerMinimumDepositOptions
+
+	var getPayerWithdrawLockOptions config.GetPayerWithdrawLockPeriodOptions
+	var setPayerWithdrawLockOptions config.SetPayerWithdrawLockPeriodOptions
+
+	var getPRMFeeRateOptions config.GetPayerReportProtocolFeeRateOptions
+	var setPRMFeeRateOptions config.SetPayerReportProtocolFeeRateOptions
+
+	var getRateMigratorOptions config.GetRateRegistryMigratorOptions
+	var setRateMigratorOptions config.SetRateRegistryMigratorOptions
 	parser := flags.NewParser(&options, flags.Default)
 
 	// Admin commands
@@ -145,6 +180,62 @@ func parseOptions(args []string) (*CLI, error) {
 		return nil, fmt.Errorf("could not add get-pause command: %s", err)
 	}
 
+	// --- NodeRegistry admin address
+	if _, err := parser.AddCommand("get-node-admin", "Get node registry admin address", "", &getNodeRegistryAdminOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-node-admin command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-node-admin", "Set node registry admin address", "", &setNodeRegistryAdminOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-node-admin command: %s", err)
+	}
+
+	// --- Payload size (unified for identity|group, min|max)
+	if _, err := parser.AddCommand("get-payload-size", "Get payload size bound on a broadcaster (identity/group)", "", &getPayloadSizeOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-payload-size command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-payload-size", "Set payload size bound on a broadcaster (identity/group)", "", &setPayloadSizeOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-payload-size command: %s", err)
+	}
+
+	// --- DistributionManager: protocolFeesRecipient
+	if _, err := parser.AddCommand("get-dm-protocol-fees-recipient", "Get DistributionManager protocol fees recipient", "", &getDMFeesRecipientOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-dm-protocol-fees-recipient command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-dm-protocol-fees-recipient", "Set DistributionManager protocol fees recipient", "", &setDMFeesRecipientOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-dm-protocol-fees-recipient command: %s", err)
+	}
+
+	// --- PayerRegistry: minimumDeposit (uint96 picodollars)
+	if _, err := parser.AddCommand("get-payer-min-deposit", "Get PayerRegistry minimum deposit (uint96 picodollars)", "", &getPayerMinDepositOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-payer-min-deposit command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-payer-min-deposit", "Set PayerRegistry minimum deposit (uint96 picodollars)", "", &setPayerMinDepositOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-payer-min-deposit command: %s", err)
+	}
+
+	// --- PayerRegistry: withdrawLockPeriod (uint32 seconds)
+	if _, err := parser.AddCommand("get-payer-withdraw-lock", "Get PayerRegistry withdraw lock period (seconds)", "", &getPayerWithdrawLockOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-payer-withdraw-lock command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-payer-withdraw-lock", "Set PayerRegistry withdraw lock period (seconds)", "", &setPayerWithdrawLockOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-payer-withdraw-lock command: %s", err)
+	}
+
+	// --- PayerReportManager: protocolFeeRate (uint16, bps)
+	if _, err := parser.AddCommand("get-prm-fee-rate", "Get PayerReportManager protocol fee rate (bps, uint16)", "", &getPRMFeeRateOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-prm-fee-rate command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-prm-fee-rate", "Set PayerReportManager protocol fee rate (bps, uint16)", "", &setPRMFeeRateOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-prm-fee-rate command: %s", err)
+	}
+
+	// --- RateRegistry: migrator (address)
+	if _, err := parser.AddCommand("get-rate-migrator", "Get RateRegistry migrator address", "", &getRateMigratorOptions); err != nil {
+		return nil, fmt.Errorf("could not add get-rate-migrator command: %s", err)
+	}
+	if _, err := parser.AddCommand("set-rate-migrator", "Set RateRegistry migrator address", "", &setRateMigratorOptions); err != nil {
+		return nil, fmt.Errorf("could not add set-rate-migrator command: %s", err)
+	}
+
 	if _, err := parser.ParseArgs(args); err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
 			return nil, fmt.Errorf("could not parse options: %s", err)
@@ -181,6 +272,20 @@ func parseOptions(args []string) (*CLI, error) {
 		setBootstrapperAddressOptions,
 		setPauseOptions,
 		getPauseOptions,
+		getNodeRegistryAdminOptions,
+		setNodeRegistryAdminOptions,
+		getPayloadSizeOptions,
+		setPayloadSizeOptions,
+		getDMFeesRecipientOptions,
+		setDMFeesRecipientOptions,
+		getPayerMinDepositOptions,
+		setPayerMinDepositOptions,
+		getPayerWithdrawLockOptions,
+		setPayerWithdrawLockOptions,
+		getPRMFeeRateOptions,
+		setPRMFeeRateOptions,
+		getRateMigratorOptions,
+		setRateMigratorOptions,
 	}, nil
 }
 
@@ -250,7 +355,7 @@ func registerNode(logger *zap.Logger, options *CLI) {
 
 	_, err = registryAdmin.AddNode(
 		ctx,
-		options.RegisterNode.OwnerAddress,
+		options.RegisterNode.OwnerAddress.Address,
 		signingKeyPub,
 		options.RegisterNode.HttpAddress,
 	)
@@ -548,7 +653,7 @@ func getBootstrapperAddress(logger *zap.Logger, options *CLI) {
 		zap.String("IU address", iuAddr.String()),
 	)
 
-	gmAddr, err := admin.GetIdentityUpdateBootstrapper(ctx)
+	gmAddr, err := admin.GetGroupMessageBootstrapper(ctx)
 	if err != nil {
 		logger.Fatal("could not get bootstrapper address", zap.Error(err))
 	}
@@ -580,7 +685,7 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 
 	err = admin.SetIdentityUpdateBootstrapper(
 		ctx,
-		common.HexToAddress(options.SetBootstrapperAddress.Address),
+		options.SetBootstrapperAddress.Address.Address,
 	)
 	if err != nil {
 		logger.Fatal("could not set identity update bootstrapper address", zap.Error(err))
@@ -588,7 +693,7 @@ func setBootstrapperAddress(logger *zap.Logger, options *CLI) {
 
 	err = admin.SetGroupMessageBootstrapper(
 		ctx,
-		common.HexToAddress(options.SetBootstrapperAddress.Address),
+		options.SetBootstrapperAddress.Address.Address,
 	)
 	if err != nil {
 		logger.Fatal("could not set group message bootstrapper address", zap.Error(err))
@@ -809,14 +914,14 @@ func identityUpdatesStress(logger *zap.Logger, options *CLI) {
 	logger.Info(
 		"creating identity updates",
 		zap.Int("count", options.IdentityUpdatesStress.Count),
-		zap.String("contract", options.IdentityUpdatesStress.Contract),
+		zap.String("contract", options.IdentityUpdatesStress.Contract.String()),
 	)
 
 	err := stress.StressIdentityUpdates(
 		ctx,
 		logger,
 		options.IdentityUpdatesStress.Count,
-		options.IdentityUpdatesStress.Contract,
+		options.IdentityUpdatesStress.Contract.Address,
 		options.IdentityUpdatesStress.Rpc,
 		options.IdentityUpdatesStress.PrivateKey,
 		options.IdentityUpdatesStress.Async,
@@ -834,7 +939,7 @@ func startChainWatcher(logger *zap.Logger, options *CLI) {
 		ctxwc,
 		logger,
 		options.Watcher.Wss,
-		common.HexToAddress(options.Watcher.Contract),
+		options.Watcher.Contract.Address,
 	)
 	if err != nil {
 		logger.Fatal("could not create watcher", zap.Error(err))
@@ -844,6 +949,327 @@ func startChainWatcher(logger *zap.Logger, options *CLI) {
 	if err != nil {
 		logger.Fatal("could not listen", zap.Error(err))
 	}
+}
+
+func getNodeRegistryAdmin(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetNodeRegistryAdmin.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	addr, err := scAdmin.GetNodeRegistryAdmin(ctx)
+	if err != nil {
+		logger.Fatal("could not get node registry admin", zap.Error(err))
+	}
+	logger.Info("node registry admin", zap.String("address", addr.Hex()))
+}
+
+func setNodeRegistryAdmin(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.SetNodeRegistryAdmin.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	if err := scAdmin.SetNodeRegistryAdmin(ctx, options.SetNodeRegistryAdmin.Address.Address); err != nil {
+		logger.Fatal("could not set node registry admin", zap.Error(err))
+	}
+	logger.Info(
+		"node registry admin set",
+		zap.String("address", options.SetNodeRegistryAdmin.Address.String()),
+	)
+}
+
+func getPayloadSize(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	admin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.GetPayloadSize.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup appchain admin", zap.Error(err))
+	}
+	var size uint64
+	switch options.GetPayloadSize.Target {
+	case config.TargetIdentity:
+		if options.GetPayloadSize.Bound == config.PayloadMin {
+			size, err = admin.GetIdentityUpdateMinPayloadSize(ctx)
+		} else {
+			size, err = admin.GetIdentityUpdateMaxPayloadSize(ctx)
+		}
+	case config.TargetGroup:
+		if options.GetPayloadSize.Bound == config.PayloadMin {
+			size, err = admin.GetGroupMessageMinPayloadSize(ctx)
+		} else {
+			size, err = admin.GetGroupMessageMaxPayloadSize(ctx)
+		}
+	default:
+		logger.Fatal(
+			"payload size only supports target identity|group",
+			zap.String("target", string(options.GetPayloadSize.Target)),
+		)
+	}
+	if err != nil {
+		logger.Fatal("could not read payload size", zap.Error(err))
+	}
+	logger.Info(
+		"payload size",
+		zap.String("target", string(options.GetPayloadSize.Target)),
+		zap.String("bound", string(options.GetPayloadSize.Bound)),
+		zap.Uint64("bytes", size),
+	)
+}
+
+func setPayloadSize(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	admin, err := setupAppChainAdmin(
+		ctx,
+		logger,
+		options.SetPayloadSize.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup appchain admin", zap.Error(err))
+	}
+
+	sz := options.SetPayloadSize.Size
+
+	switch options.SetPayloadSize.Target {
+	case config.TargetIdentity:
+		if options.SetPayloadSize.Bound == config.PayloadMin {
+			err = admin.SetIdentityUpdateMinPayloadSize(ctx, sz)
+		} else {
+			err = admin.SetIdentityUpdateMaxPayloadSize(ctx, sz)
+		}
+	case config.TargetGroup:
+		if options.SetPayloadSize.Bound == config.PayloadMin {
+			err = admin.SetGroupMessageMinPayloadSize(ctx, sz)
+		} else {
+			err = admin.SetGroupMessageMaxPayloadSize(ctx, sz)
+		}
+	default:
+		logger.Fatal(
+			"payload size only supports target identity|group",
+			zap.String("target", string(options.SetPayloadSize.Target)),
+		)
+	}
+	if err != nil {
+		logger.Fatal("could not set payload size", zap.Error(err))
+	}
+	logger.Info("payload size set",
+		zap.String("target", string(options.SetPayloadSize.Target)),
+		zap.String("bound", string(options.SetPayloadSize.Bound)),
+		zap.Uint64("bytes", sz),
+	)
+}
+
+func getDMProtocolFeesRecipient(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetDMFeesRecipient.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+
+	addr, err := scAdmin.GetDistributionManagerProtocolFeesRecipient(ctx)
+	if err != nil {
+		logger.Fatal("could not get distribution manager protocol fees recipient", zap.Error(err))
+	}
+	logger.Info("distribution manager protocol fees recipient", zap.String("address", addr.Hex()))
+}
+
+func setDMProtocolFeesRecipient(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.SetDMFeesRecipient.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+
+	err = scAdmin.SetDistributionManagerProtocolFeesRecipient(
+		ctx,
+		options.SetDMFeesRecipient.Address.Address,
+	)
+	if err != nil {
+		logger.Fatal("could not set distribution manager protocol fees recipient", zap.Error(err))
+	}
+	logger.Info(
+		"distribution manager protocol fees recipient set",
+		zap.String("address", options.SetDMFeesRecipient.Address.String()),
+	)
+}
+
+func getPayerMinDeposit(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetPayerMinDeposit.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	v, perr := scAdmin.GetPayerRegistryMinimumDeposit(ctx)
+	if perr != nil {
+		logger.Fatal("could not read minimum deposit", zap.Error(perr))
+	}
+	logger.Info("payer registry minimum deposit (picodollars)", zap.String("value", v.String()))
+}
+
+func setPayerMinDeposit(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.SetPayerMinDeposit.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	// currency.PicoDollar is likely a uint64/newtype; convert to big.Int for uint96
+	bi := new(big.Int).SetUint64(uint64(options.SetPayerMinDeposit.Amount))
+	if err := scAdmin.SetPayerRegistryMinimumDeposit(ctx, bi); err != nil {
+		logger.Fatal("could not set minimum deposit", zap.Error(err))
+	}
+	logger.Info(
+		"payer registry minimum deposit set (picodollars)",
+		zap.String("value", bi.String()),
+	)
+}
+
+func getPayerWithdrawLock(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetPayerWithdrawLock.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	secs, perr := scAdmin.GetPayerRegistryWithdrawLockPeriod(ctx)
+	if perr != nil {
+		logger.Fatal("could not read withdraw lock period", zap.Error(perr))
+	}
+	logger.Info("payer registry withdraw lock period", zap.Uint32("seconds", secs))
+}
+
+func setPayerWithdrawLock(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.SetPayerWithdrawLock.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	if err := scAdmin.SetPayerRegistryWithdrawLockPeriod(ctx, options.SetPayerWithdrawLock.Seconds); err != nil {
+		logger.Fatal("could not set withdraw lock period", zap.Error(err))
+	}
+	logger.Info(
+		"payer registry withdraw lock period set",
+		zap.Uint32("seconds", options.SetPayerWithdrawLock.Seconds),
+	)
+}
+
+func getPRMFeeRate(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetPRMFeeRate.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	v, perr := scAdmin.GetPayerReportManagerProtocolFeeRate(ctx)
+	if perr != nil {
+		logger.Fatal("could not read PRM protocol fee rate", zap.Error(perr))
+	}
+	logger.Info("payer report manager protocol fee rate (bps)", zap.Uint16("bps", v))
+}
+
+func setPRMFeeRate(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.SetPRMFeeRate.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	if err := scAdmin.SetPayerReportManagerProtocolFeeRate(ctx, options.SetPRMFeeRate.FeeRateBps); err != nil {
+		logger.Fatal("could not set PRM protocol fee rate", zap.Error(err))
+	}
+	logger.Info(
+		"payer report manager protocol fee rate set",
+		zap.Uint16("bps", options.SetPRMFeeRate.FeeRateBps),
+	)
+}
+
+func getRateMigrator(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetRateMigrator.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	addr, perr := scAdmin.GetRateRegistryMigrator(ctx)
+	if perr != nil {
+		logger.Fatal("could not read rate registry migrator", zap.Error(perr))
+	}
+	logger.Info("rate registry migrator", zap.String("address", addr.Hex()))
+}
+
+func setRateMigrator(logger *zap.Logger, options *CLI) {
+	ctx := context.Background()
+	scAdmin, err := setupSettlementChainAdmin(
+		ctx,
+		logger,
+		options.GetRateMigrator.AdminOptions.AdminPrivateKey,
+		options,
+	)
+	if err != nil {
+		logger.Fatal("could not setup settlement chain admin", zap.Error(err))
+	}
+	if err := scAdmin.SetRateRegistryMigrator(ctx, options.SetRateMigrator.Address.Address); err != nil {
+		logger.Fatal("could not set rate registry migrator", zap.Error(err))
+	}
+	logger.Info(
+		"rate registry migrator set",
+		zap.String("address", options.SetRateMigrator.Address.String()),
+	)
 }
 
 /*
@@ -930,6 +1356,53 @@ func main() {
 	case "get-pause":
 		getPause(logger, options)
 		return
+	case "get-node-admin":
+		getNodeRegistryAdmin(logger, options)
+		return
+	case "set-node-admin":
+		setNodeRegistryAdmin(logger, options)
+		return
+	case "get-payload-size":
+		getPayloadSize(logger, options)
+		return
+	case "set-payload-size":
+		setPayloadSize(logger, options)
+		return
+
+	case "get-dm-protocol-fees-recipient":
+		getDMProtocolFeesRecipient(logger, options)
+		return
+	case "set-dm-protocol-fees-recipient":
+		setDMProtocolFeesRecipient(logger, options)
+		return
+
+	case "get-payer-min-deposit":
+		getPayerMinDeposit(logger, options)
+		return
+	case "set-payer-min-deposit":
+		setPayerMinDeposit(logger, options)
+		return
+
+	case "get-payer-withdraw-lock":
+		getPayerWithdrawLock(logger, options)
+		return
+	case "set-payer-withdraw-lock":
+		setPayerWithdrawLock(logger, options)
+		return
+	case "get-prm-fee-rate":
+		getPRMFeeRate(logger, options)
+		return
+	case "set-prm-fee-rate":
+		setPRMFeeRate(logger, options)
+		return
+
+	case "get-rate-migrator":
+		getRateMigrator(logger, options)
+		return
+	case "set-rate-migrator":
+		setRateMigrator(logger, options)
+		return
+
 	}
 }
 

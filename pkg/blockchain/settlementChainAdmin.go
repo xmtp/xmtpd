@@ -334,13 +334,13 @@ func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(
 				return
 			}
 			s.logger.Info("payer registry minimum deposit updated",
-				zap.Uint64("minimumDeposit", ev.MinimumDeposit.Uint64()))
+				zap.String("minimumDeposit", ev.MinimumDeposit.String()))
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
 			s.logger.Info("No update needed (payer registry minimum deposit)",
-				zap.Uint64("minimumDeposit", v.Uint64()))
+				zap.String("minimumDeposit", v.String()))
 			return nil
 		}
 		return err

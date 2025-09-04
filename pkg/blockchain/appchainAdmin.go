@@ -21,12 +21,23 @@ type IAppChainAdmin interface {
 	SetIdentityUpdateBootstrapper(ctx context.Context, address common.Address) error
 	GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error)
 	SetGroupMessageBootstrapper(ctx context.Context, address common.Address) error
+
 	GetGroupMessagePauseStatus(ctx context.Context) (bool, error)
 	SetGroupMessagePauseStatus(ctx context.Context, paused bool) error
 	GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error)
 	SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error
 	GetAppChainGatewayPauseStatus(ctx context.Context) (bool, error)
 	SetAppChainGatewayPauseStatus(ctx context.Context, paused bool) error
+
+	GetGroupMessageMaxPayloadSize(ctx context.Context) (uint64, error)
+	SetGroupMessageMaxPayloadSize(ctx context.Context, size uint64) error
+	GetGroupMessageMinPayloadSize(ctx context.Context) (uint64, error)
+	SetGroupMessageMinPayloadSize(ctx context.Context, size uint64) error
+
+	GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint64, error)
+	SetIdentityUpdateMaxPayloadSize(ctx context.Context, size uint64) error
+	GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint64, error)
+	SetIdentityUpdateMinPayloadSize(ctx context.Context, size uint64) error
 }
 
 type appChainAdmin struct {
@@ -314,6 +325,206 @@ func (a appChainAdmin) SetAppChainGatewayPauseStatus(ctx context.Context, paused
 	if err != nil {
 		if err.IsNoChange() {
 			a.logger.Info("No update needed")
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (a appChainAdmin) GetGroupMessageMaxPayloadSize(ctx context.Context) (uint64, error) {
+	val, perr := a.parameterAdmin.GetParameterUint64(
+		ctx,
+		GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+	)
+	if perr != nil {
+		return 0, perr
+	}
+	return val, nil
+}
+
+func (a appChainAdmin) SetGroupMessageMaxPayloadSize(ctx context.Context, size uint64) error {
+	if err := a.parameterAdmin.SetUint64Parameter(ctx, GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY, size); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.groupMessageBroadcaster.UpdateMaxPayloadSize(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.groupMessageBroadcaster.ParseMaxPayloadSizeUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*gm.GroupMessageBroadcasterMaxPayloadSizeUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not GroupMessageBroadcasterMaxPayloadSizeUpdated",
+				)
+				return
+			}
+			a.logger.Info("group-message max payload size updated",
+				zap.Uint64("maxPayloadSize", ev.Size.Uint64()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			a.logger.Info("No update needed (group-message max payload size)",
+				zap.Uint64("maxPayloadSize", size))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (a appChainAdmin) GetGroupMessageMinPayloadSize(ctx context.Context) (uint64, error) {
+	val, perr := a.parameterAdmin.GetParameterUint64(
+		ctx,
+		GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+	)
+	if perr != nil {
+		return 0, perr
+	}
+	return val, nil
+}
+
+func (a appChainAdmin) SetGroupMessageMinPayloadSize(ctx context.Context, size uint64) error {
+	if err := a.parameterAdmin.SetUint64Parameter(ctx, GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY, size); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.groupMessageBroadcaster.UpdateMinPayloadSize(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.groupMessageBroadcaster.ParseMinPayloadSizeUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*gm.GroupMessageBroadcasterMinPayloadSizeUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not GroupMessageBroadcasterMinPayloadSizeUpdated",
+				)
+				return
+			}
+			a.logger.Info("group-message min payload size updated",
+				zap.Uint64("minPayloadSize", ev.Size.Uint64()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			a.logger.Info("No update needed (group-message min payload size)",
+				zap.Uint64("minPayloadSize", size))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (a appChainAdmin) GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint64, error) {
+	val, perr := a.parameterAdmin.GetParameterUint64(
+		ctx,
+		IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+	)
+	if perr != nil {
+		return 0, perr
+	}
+	return val, nil
+}
+
+func (a appChainAdmin) SetIdentityUpdateMaxPayloadSize(ctx context.Context, size uint64) error {
+	if err := a.parameterAdmin.SetUint64Parameter(ctx, IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY, size); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.identityUpdateBroadcaster.UpdateMaxPayloadSize(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.identityUpdateBroadcaster.ParseMaxPayloadSizeUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*iu.IdentityUpdateBroadcasterMaxPayloadSizeUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not IdentityUpdateBroadcasterMaxPayloadSizeUpdated",
+				)
+				return
+			}
+			a.logger.Info("identity-update max payload size updated",
+				zap.Uint64("maxPayloadSize", ev.Size.Uint64()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			a.logger.Info("No update needed (identity-update max payload size)",
+				zap.Uint64("maxPayloadSize", size))
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (a appChainAdmin) GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint64, error) {
+	val, perr := a.parameterAdmin.GetParameterUint64(
+		ctx,
+		IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+	)
+	if perr != nil {
+		return 0, perr
+	}
+	return val, nil
+}
+
+func (a appChainAdmin) SetIdentityUpdateMinPayloadSize(ctx context.Context, size uint64) error {
+	if err := a.parameterAdmin.SetUint64Parameter(ctx, IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY, size); err != nil {
+		return err
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		a.signer,
+		a.logger,
+		a.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return a.identityUpdateBroadcaster.UpdateMinPayloadSize(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return a.identityUpdateBroadcaster.ParseMinPayloadSizeUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*iu.IdentityUpdateBroadcasterMinPayloadSizeUpdated)
+			if !ok {
+				a.logger.Error(
+					"unexpected event type, not IdentityUpdateBroadcasterMinPayloadSizeUpdated",
+				)
+				return
+			}
+			a.logger.Info("identity-update min payload size updated",
+				zap.Uint64("minPayloadSize", ev.Size.Uint64()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			a.logger.Info("No update needed (identity-update min payload size)",
+				zap.Uint64("minPayloadSize", size))
 			return nil
 		}
 		return err

@@ -86,13 +86,12 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
 	}
 
-	var (
-		owner         = viper.GetString("owner-address")
-		signingKeyPub = viper.GetString("signing-key-pub")
-		httpAddress   = viper.GetString("http-address")
-		force         = viper.GetBool("force")
-		ownerAddress  = common.HexToAddress(owner)
-	)
+	owner, _ := cmd.Flags().GetString("owner-address")
+	signingKeyPub, _ := cmd.Flags().GetString("signing-key-pub")
+	httpAddress, _ := cmd.Flags().GetString("http-address")
+	force, _ := cmd.Flags().GetBool("force")
+
+	ownerAddress  := common.HexToAddress(owner)
 
 	if !force {
 		for _, node := range nodes {
@@ -112,7 +111,7 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 
 	parsedSigningKeyPub, err := utils.ParseEcdsaPublicKey(signingKeyPub)
 	if err != nil {
-		logger.Fatal("could not decompress public key", zap.Error(err))
+		logger.Fatal("could not decompress public key", zap.Error(err), zap.String("key", signingKeyPub))
 	}
 
 	nodeID, err := admin.AddNode(ctx, ownerAddress, parsedSigningKeyPub, httpAddress)

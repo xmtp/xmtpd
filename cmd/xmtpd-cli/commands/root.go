@@ -49,6 +49,8 @@ func configureRootCmd() error {
 		keyManagementCmd(),
 		nodeRegistryCmd(),
 		rateRegistryCmd(),
+		appChainCmd(),
+		settlementChainCmd(),
 	)
 
 	return nil
@@ -78,7 +80,7 @@ func registerGlobalFlags() error {
 	}
 
 	rootCmd.PersistentFlags().
-		StringVarP(&globalConfigFile, "config-file", "c", "./dev/environments/anvil.json", "path to the config file")
+		StringVarP(&globalConfigFile, "config-file", "c", "", "path to the config file")
 
 	if err := viper.BindPFlag("config-file", rootCmd.PersistentFlags().Lookup("config-file")); err != nil {
 		return err

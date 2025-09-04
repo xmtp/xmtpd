@@ -8,4 +8,10 @@ cd "${repo_root}"
 
 . dev/local.env
 
-dev/cmd/cli get-all-nodes
+CONFIG_FILE="./dev/environments/anvil.json"
+
+dev/cmd/cli \
+  --config-file "${CONFIG_FILE}" \
+  --log-encoding json \
+  nodes \
+  get --all

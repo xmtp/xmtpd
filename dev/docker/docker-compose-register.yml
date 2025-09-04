@@ -14,14 +14,14 @@ services:
       - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
-        "register-node",
-        "--http-address=${NODE_1_HTTP_ADDRESS}",
-        "--node-owner-address=${ANVIL_ACC_1_ADDRESS}",
-        "--node-signing-key-pub=${ANVIL_ACC_1_PUBLIC_KEY}",
-        "--admin.private-key=${PRIVATE_KEY}",
-        "--contracts.config-file-path=/cfg/anvil.json",
+        "--config-file=/cfg/anvil.json",
+        "--private-key=${PRIVATE_KEY}",
+        "nodes", "register",
+        "--owner-address=${ANVIL_ACC_1_ADDRESS}",
+        "--signing-key-pub=${ANVIL_ACC_1_PUBLIC_KEY}",
+        "--http-address=${NODE_1_HTTP_ADDRESS}"
       ]
-    restart: no
+    restart: "no"
     network_mode: host
 
   enable-node-1:
@@ -33,15 +33,16 @@ services:
       - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
-        "add-node-to-network",
-        "--admin.private-key=${PRIVATE_KEY}",
-        "--node-id=100",
-        "--contracts.config-file-path=/cfg/anvil.json",
+        "--config-file=/cfg/anvil.json",
+        "--private-key=${PRIVATE_KEY}",
+        "nodes", "canonical-network",
+        "--add",
+        "--node-id=100"
       ]
     depends_on:
       register-node-1:
         condition: service_completed_successfully
-    restart: no
+    restart: "no"
     network_mode: host
 
   register-node-2:
@@ -53,17 +54,17 @@ services:
       - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
-        "register-node",
-        "--http-address=${NODE_2_HTTP_ADDRESS}",
-        "--node-owner-address=${ANVIL_ACC_2_ADDRESS}",
-        "--node-signing-key-pub=${ANVIL_ACC_2_PUBLIC_KEY}",
-        "--admin.private-key=${PRIVATE_KEY}",
-        "--contracts.config-file-path=/cfg/anvil.json",
+        "--config-file=/cfg/anvil.json",
+        "--private-key=${PRIVATE_KEY}",
+        "nodes", "register",
+        "--owner-address=${ANVIL_ACC_2_ADDRESS}",
+        "--signing-key-pub=${ANVIL_ACC_2_PUBLIC_KEY}",
+        "--http-address=${NODE_2_HTTP_ADDRESS}"
       ]
     depends_on:
       enable-node-1:
         condition: service_completed_successfully
-    restart: no
+    restart: "no"
     network_mode: host
 
   enable-node-2:
@@ -75,13 +76,14 @@ services:
       - ../environments/anvil.json:/cfg/anvil.json
     command:
       [
-        "add-node-to-network",
-        "--admin.private-key=${PRIVATE_KEY}",
-        "--node-id=200",
-        "--contracts.config-file-path=/cfg/anvil.json",
+        "--config-file=/cfg/anvil.json",
+        "--private-key=${PRIVATE_KEY}",
+        "nodes", "canonical-network",
+        "--add",
+        "--node-id=200"
       ]
     depends_on:
       register-node-2:
         condition: service_completed_successfully
-    restart: no
+    restart: "no"
     network_mode: host

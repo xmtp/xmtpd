@@ -9,18 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
-	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/fees"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-)
-
-const (
-	RATE_REGISTRY_MESSAGE_FEE_KEY            = "xmtp.rateRegistry.messageFee"
-	RATE_REGISTRY_STORAGE_FEE_KEY            = "xmtp.rateRegistry.storageFee"
-	RATE_REGISTRY_CONGESTION_FEE_KEY         = "xmtp.rateRegistry.congestionFee"
-	RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY = "xmtp.rateRegistry.targetRatePerMinute"
 )
 
 /*
@@ -29,17 +20,15 @@ A RatesAdmin is a struct responsible for calling admin functions on the RatesReg
 *
 */
 type RatesAdmin struct {
-	client            *ethclient.Client
-	signer            TransactionSigner
-	parameterContract *paramReg.SettlementChainParameterRegistry
-	ratesContract     *rateregistry.RateRegistry
-	logger            *zap.Logger
+	logger        *zap.Logger
+	paramAdmin    *ParameterAdmin
+	ratesContract *rateregistry.RateRegistry
 }
 
 func NewRatesAdmin(
 	logger *zap.Logger,
+	paramAdmin *ParameterAdmin,
 	client *ethclient.Client,
-	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*RatesAdmin, error) {
 	rateContract, err := rateregistry.NewRateRegistry(
@@ -50,20 +39,10 @@ func NewRatesAdmin(
 		return nil, err
 	}
 
-	parameterContract, err := paramReg.NewSettlementChainParameterRegistry(
-		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
-		client,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	return &RatesAdmin{
-		signer:            signer,
-		client:            client,
-		logger:            logger.Named("RatesAdmin"),
-		parameterContract: parameterContract,
-		ratesContract:     rateContract,
+		logger:        logger.Named("RatesAdmin"),
+		paramAdmin:    paramAdmin,
+		ratesContract: rateContract,
 	}, nil
 }
 
@@ -72,68 +51,33 @@ func NewRatesAdmin(
 * AddRates adds a new rate to the rates manager.
 * The new rate must have a later start time than the last rate in the contract.
  */
-func (r *RatesAdmin) AddRates(
-	ctx context.Context,
-	rates fees.Rates,
-) error {
-	err := ExecuteTransaction(
-		ctx,
-		r.signer,
-		r.logger,
-		r.client,
-		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			keys := []string{
-				RATE_REGISTRY_MESSAGE_FEE_KEY,
-				RATE_REGISTRY_STORAGE_FEE_KEY,
-				RATE_REGISTRY_CONGESTION_FEE_KEY,
-				RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
-			}
+func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolError {
+	// validations
+	if rates.MessageFee < 0 {
+		return NewBlockchainError(errors.New("rates.messageFee must be positive"))
+	}
+	if rates.StorageFee < 0 {
+		return NewBlockchainError(errors.New("rates.storageFee must be positive"))
+	}
+	if rates.CongestionFee < 0 {
+		return NewBlockchainError(errors.New("rates.congestionFee must be positive"))
+	}
 
-			if rates.MessageFee < 0 {
-				return nil, errors.New("rates.messageFee must be positive")
-			}
-			if rates.StorageFee < 0 {
-				return nil, errors.New("rates.storageFee must be positive")
-			}
-			if rates.CongestionFee < 0 {
-				return nil, errors.New("rates.congestionFee must be positive")
-			}
-
-			values := [][32]byte{
-				utils.EncodeUint64ToBytes32(uint64(rates.MessageFee)),
-				utils.EncodeUint64ToBytes32(uint64(rates.StorageFee)),
-				utils.EncodeUint64ToBytes32(uint64(rates.CongestionFee)),
-				utils.EncodeUint64ToBytes32(rates.TargetRatePerMinute),
-			}
-
-			return r.parameterContract.Set0(opts, keys, values)
-		},
-		func(log *types.Log) (interface{}, error) {
-			return r.parameterContract.ParseParameterSet(*log)
-		},
-		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
-			if !ok {
-				r.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
-				return
-			}
-			r.logger.Info("set parameter",
-				zap.String("key", parameterSet.Key.String()),
-				zap.Uint64("parameter", utils.DecodeBytes32ToUint64(parameterSet.Value)),
-			)
-		},
-	)
-	if err != nil {
+	params := []Uint64Param{
+		{Name: RATE_REGISTRY_MESSAGE_FEE_KEY, Value: uint64(rates.MessageFee)},
+		{Name: RATE_REGISTRY_STORAGE_FEE_KEY, Value: uint64(rates.StorageFee)},
+		{Name: RATE_REGISTRY_CONGESTION_FEE_KEY, Value: uint64(rates.CongestionFee)},
+		{Name: RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY, Value: rates.TargetRatePerMinute},
+	}
+	if err := r.paramAdmin.SetManyUint64Parameters(ctx, params); err != nil {
 		return err
 	}
 
-	err = ExecuteTransaction(
+	err := ExecuteTransaction(
 		ctx,
-		r.signer,
+		r.paramAdmin.signer,
 		r.logger,
-		r.client,
+		r.paramAdmin.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return r.ratesContract.UpdateRates(opts)
 		},
@@ -141,18 +85,16 @@ func (r *RatesAdmin) AddRates(
 			return r.ratesContract.ParseRatesUpdated(*log)
 		},
 		func(event interface{}) {
-			rateUpdated, ok := event.(*rateregistry.RateRegistryRatesUpdated)
+			e, ok := event.(*rateregistry.RateRegistryRatesUpdated)
 			if !ok {
-				r.logger.Error(
-					"unexpected event type, not of type RateRegistryRatesUpdated",
-				)
+				r.logger.Error("unexpected event type, not of type RateRegistryRatesUpdated")
 				return
 			}
 			r.logger.Info("rates updated",
-				zap.Uint64("messageFee", rateUpdated.MessageFee),
-				zap.Uint64("storageFee", rateUpdated.StorageFee),
-				zap.Uint64("congestionFee", rateUpdated.CongestionFee),
-				zap.Uint64("targetRatePerMinute", rateUpdated.TargetRatePerMinute),
+				zap.Uint64("messageFee", e.MessageFee),
+				zap.Uint64("storageFee", e.StorageFee),
+				zap.Uint64("congestionFee", e.CongestionFee),
+				zap.Uint64("targetRatePerMinute", e.TargetRatePerMinute),
 			)
 		},
 	)
@@ -166,7 +108,6 @@ func (r *RatesAdmin) AddRates(
 			)
 			return nil
 		}
-
 		r.logger.Error("Protocol error", zap.String("error", err.Error()))
 		return err
 	}

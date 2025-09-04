@@ -15,15 +15,36 @@ import (
 )
 
 const (
-	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY    = "xmtp.nodeRegistry.maxCanonicalNodes"
-	IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
-	GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY   = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
-	IDENTITY_UPDATE_PAUSED_KEY               = "xmtp.identityUpdateBroadcaster.paused"
-	GROUP_MESSAGE_PAUSED_KEY                 = "xmtp.groupMessageBroadcaster.paused"
-	APP_CHAIN_GATEWAY_PAUSED_KEY             = "xmtp.appChainGateway.paused"
-	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY      = "xmtp.settlementChainGateway.paused"
-	PAYER_REGISTRY_PAUSED_KEY                = "xmtp.payerRegistry.paused"
-	DISTRIBUTION_MANAGER_PAUSED_KEY          = "xmtp.distributionManager.paused"
+	APP_CHAIN_GATEWAY_PAUSED_KEY                     = "xmtp.appChainGateway.paused"
+	DISTRIBUTION_MANAGER_PAUSED_KEY                  = "xmtp.distributionManager.paused"
+	DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY = "xmtp.distributionManager.protocolFeesRecipient"
+
+	GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY = "xmtp.groupMessageBroadcaster.maxPayloadSize"
+	GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY = "xmtp.groupMessageBroadcaster.minPayloadSize"
+	GROUP_MESSAGE_BROADCASTER_PAUSED_KEY           = "xmtp.groupMessageBroadcaster.paused"
+	GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY         = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
+
+	IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY = "xmtp.identityUpdateBroadcaster.maxPayloadSize"
+	IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY = "xmtp.identityUpdateBroadcaster.minPayloadSize"
+	IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY           = "xmtp.identityUpdateBroadcaster.paused"
+	IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY         = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
+
+	NODE_REGISTRY_ADMIN_KEY               = "xmtp.nodeRegistry.admin"
+	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY = "xmtp.nodeRegistry.maxCanonicalNodes"
+
+	PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY      = "xmtp.payerRegistry.minimumDeposit"
+	PAYER_REGISTRY_PAUSED_KEY               = "xmtp.payerRegistry.paused"
+	PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY = "xmtp.payerRegistry.withdrawLockPeriod"
+
+	PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY = "xmtp.payerReportManager.protocolFeeRate"
+
+	RATE_REGISTRY_CONGESTION_FEE_KEY         = "xmtp.rateRegistry.congestionFee"
+	RATE_REGISTRY_MESSAGE_FEE_KEY            = "xmtp.rateRegistry.messageFee"
+	RATE_REGISTRY_MIGRATOR_KEY               = "xmtp.rateRegistry.migrator"
+	RATE_REGISTRY_STORAGE_FEE_KEY            = "xmtp.rateRegistry.storageFee"
+	RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY = "xmtp.rateRegistry.targetRatePerMinute"
+
+	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY = "xmtp.settlementChainGateway.paused"
 )
 
 type ParameterAdmin struct {
@@ -102,6 +123,19 @@ func (n *ParameterAdmin) GetParameterBool(
 	return b, nil
 }
 
+func (n *ParameterAdmin) GetParameterUint64(
+	ctx context.Context,
+	paramName string,
+) (uint64, ProtocolError) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{
+		Context: ctx,
+	}, paramName)
+	if err != nil {
+		return 0, NewBlockchainError(err)
+	}
+	return utils.DecodeBytes32ToUint64(payload), nil
+}
+
 // Param helpers ---------------------------------------------------------------
 
 func packUint8(v uint8) [32]byte {
@@ -122,6 +156,10 @@ func packBool(b bool) [32]byte {
 		out[31] = 1
 	}
 	return out
+}
+
+func packUint64(v uint64) [32]byte {
+	return utils.EncodeUint64ToBytes32(v)
 }
 
 // decodeBool expects the canonical encoding produced by packBool.
@@ -174,6 +212,38 @@ func (n *ParameterAdmin) setParameterBytes32(
 			if onEvent != nil {
 				onEvent(parameterSet.Value)
 			}
+		},
+	)
+}
+
+func (n *ParameterAdmin) setParametersBytes32Many(
+	ctx context.Context,
+	keys []string,
+	values [][32]byte,
+) ProtocolError {
+	return ExecuteTransaction(
+		ctx,
+		n.signer,
+		n.logger,
+		n.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return n.parameterContract.Set0(opts, keys, values)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return n.parameterContract.ParseParameterSet(*log)
+		},
+		func(event interface{}) {
+			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
+			if !ok {
+				n.logger.Error(
+					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
+				)
+				return
+			}
+			n.logger.Info("set parameter (batch/Set0)",
+				zap.String("key", parameterSet.Key.String()),
+				zap.Uint64("value", utils.DecodeBytes32ToUint64(parameterSet.Value)),
+			)
 		},
 	)
 }
@@ -232,4 +302,37 @@ func (n *ParameterAdmin) SetBoolParameter(
 			)
 		},
 	)
+}
+
+func (n *ParameterAdmin) SetUint64Parameter(
+	ctx context.Context,
+	paramName string,
+	paramValue uint64,
+) ProtocolError {
+	return n.setParameterBytes32(ctx, paramName, packUint64(paramValue),
+		func(val [32]byte) {
+			n.logger.Info("set uint64 parameter",
+				zap.String("key", paramName),
+				zap.Uint64("value", utils.DecodeBytes32ToUint64(val)),
+			)
+		},
+	)
+}
+
+type Uint64Param struct {
+	Name  string
+	Value uint64
+}
+
+func (n *ParameterAdmin) SetManyUint64Parameters(
+	ctx context.Context,
+	items []Uint64Param,
+) ProtocolError {
+	keys := make([]string, len(items))
+	vals := make([][32]byte, len(items))
+	for i, it := range items {
+		keys[i] = it.Name
+		vals[i] = utils.EncodeUint64ToBytes32(it.Value)
+	}
+	return n.setParametersBytes32Many(ctx, keys, vals)
 }

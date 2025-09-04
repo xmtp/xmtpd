@@ -24,5 +24,5 @@ func TestString(t *testing.T) {
 func TestToMicroDollars(t *testing.T) {
 	initial, err := FromDollars(1.25)
 	require.NoError(t, err)
-	require.Equal(t, int64(1250000), initial.ToMicroDollars())
+	require.EqualValues(t, int64(1250000), initial.ToMicroDollars())
 }

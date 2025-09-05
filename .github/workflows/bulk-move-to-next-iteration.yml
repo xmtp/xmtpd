@@ -16,6 +16,6 @@ jobs:
           number: 26
           token: ${{ secrets.PROJECT_PAT }}
           iteration-field: Iteration
-          iteration: previous
+          iteration: last
           new-iteration: current
           excluded-statuses: "Done,Won't Fix"

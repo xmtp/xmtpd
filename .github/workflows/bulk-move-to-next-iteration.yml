@@ -13,7 +13,7 @@ jobs:
       - uses: blombard/move-to-next-iteration@v0.6.1
         with:
           owner: XMTP
-          number: 1
+          number: 26
           token: ${{ secrets.PROJECT_PAT }}
           iteration-field: Iteration
           iteration: previous

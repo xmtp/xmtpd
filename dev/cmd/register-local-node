@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(dirname "$(realpath "$0")")"
+repo_root="$(realpath "${script_dir}/../../")"
+cd "${repo_root}"
+
+. dev/local.env
+
+NODE_IDX="${1:-}"
+if [[ -z "${NODE_IDX}" ]]; then
+  echo "Usage: $0 <node-index>" >&2
+  exit 1
+fi
+
+# pull correct env vars dynamically
+OWNER_ADDR_VAR="ANVIL_ACC_${NODE_IDX}_ADDRESS"
+PUBKEY_VAR="ANVIL_ACC_${NODE_IDX}_PUBLIC_KEY"
+ADDR_VAR="NODE_${NODE_IDX}_HTTP_ADDRESS"
+
+OWNER_ADDR="${!OWNER_ADDR_VAR}"
+SIGNER_PUB="${!PUBKEY_VAR}"
+HTTP_ADDR="${!ADDR_VAR:-http://localhost:505${NODE_IDX}}"
+
+CFG="./dev/environments/anvil.json"
+
+echo "==> Registering Node ${NODE_IDX}"
+echo "    owner:  ${OWNER_ADDR}"
+echo "    signer: ${SIGNER_PUB}"
+echo "    http:   ${HTTP_ADDR}"
+
+# call the shared register+enable logic
+"${script_dir}/register-enable-node.sh" \
+  "${OWNER_ADDR}" "${SIGNER_PUB}" "${HTTP_ADDR}" "${CFG}"

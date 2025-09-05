@@ -28,7 +28,9 @@ func generateKeyCommand() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "generate",
 		Short: "Generate a new key pair",
-		Run:   generateKeyHandler,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return generateKeyHandler()
+		},
 		Example: `
 Usage: xmtpd-cli keys generate
 
@@ -40,7 +42,7 @@ xmtpd-cli keys generate
 	return &cmd
 }
 
-func generateKeyHandler(cmd *cobra.Command, _ []string) {
+func generateKeyHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
@@ -57,13 +59,17 @@ func generateKeyHandler(cmd *cobra.Command, _ []string) {
 		zap.String("public-key", utils.EcdsaPublicKeyToString(privKey.Public().(*ecdsa.PublicKey))),
 		zap.String("address", utils.EcdsaPublicKeyToAddress(privKey.Public().(*ecdsa.PublicKey))),
 	)
+
+	return nil
 }
 
 func getPubKeyCommand() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "get-public-key",
 		Short: "Get the public key for a private key",
-		Run:   getPubKeyHandler,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return getPubKeyHandler()
+		},
 		Example: `
 Usage: xmtpd-cli keys get-public-key --private-key <private-key>
 
@@ -75,7 +81,7 @@ xmtpd-cli keys get-public-key --private-key <private-key>
 	return &cmd
 }
 
-func getPubKeyHandler(cmd *cobra.Command, _ []string) {
+func getPubKeyHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
@@ -97,5 +103,5 @@ func getPubKeyHandler(cmd *cobra.Command, _ []string) {
 		zap.String("address", utils.EcdsaPublicKeyToAddress(privKey.Public().(*ecdsa.PublicKey))),
 	)
 
-	privKey.Public()
+	return nil
 }

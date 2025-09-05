@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 ARG VERSION=unknown
-RUN go build -ldflags="-X 'main.Version=$VERSION'" -o bin/xmtpd-cli cmd/cli/main.go
+RUN go build -ldflags="-X 'main.Version=$VERSION'" -o bin/xmtpd-cli cmd/xmtpd-cli/main.go
 
 # ACTUAL IMAGE -------------------------------------------------------
 

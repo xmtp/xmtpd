@@ -6,24 +6,21 @@ import (
 	"log"
 
 	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
-	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 func nodeRegistryCmd() *cobra.Command {
-	cmd := cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "nodes",
 		Short: "Manage Node Registry",
 	}
 
-	cmd.PersistentFlags().
-		Uint32P("node-id", "n", 0, "Node ID to use")
+	// Shared flag (read by some subcommands)
+	cmd.PersistentFlags().Uint32P("node-id", "n", 0, "Node ID to use")
 
 	cmd.AddCommand(
 		registerNodeCmd(),
@@ -33,42 +30,52 @@ func nodeRegistryCmd() *cobra.Command {
 		setHttpAddressCmd(),
 	)
 
-	return &cmd
+	return cmd
 }
 
+//------------------------------------------------------------------------------
+// register
+//------------------------------------------------------------------------------
+
 func registerNodeCmd() *cobra.Command {
-	cmd := cobra.Command{
+	var owner options.AddressFlag
+	var signingKeyPub string
+	var httpAddress string
+	var force bool
+
+	cmd := &cobra.Command{
 		Use:   "register",
 		Short: "Register a node",
-		Run:   registerNodeHandler,
 		Example: `
 Usage: xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
 
 Register a node:
 xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address>
 `,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return registerNodeHandler(signingKeyPub, httpAddress, owner.Address, force)
+		},
 	}
 
-	cmd.PersistentFlags().
-		String("owner-address", "", "owner address to use")
-
-	cmd.PersistentFlags().
-		String("signing-key-pub", "", "signing key public key to use")
-
-	cmd.PersistentFlags().
-		String("http-address", "", "HTTP address to use")
-
+	cmd.Flags().Var(&owner, "owner-address", "Owner address to use")
 	_ = cmd.MarkFlagRequired("owner-address")
+
+	cmd.Flags().StringVar(&signingKeyPub, "signing-key-pub", "", "signing key public key to use")
 	_ = cmd.MarkFlagRequired("signing-key-pub")
+
+	cmd.Flags().StringVar(&httpAddress, "http-address", "", "HTTP address to use")
 	_ = cmd.MarkFlagRequired("http-address")
 
-	cmd.PersistentFlags().
-		Bool("force", false, "force the registration")
+	cmd.Flags().BoolVar(&force, "force", false, "force the registration")
 
-	return &cmd
+	return cmd
 }
 
-func registerNodeHandler(cmd *cobra.Command, _ []string) {
+func registerNodeHandler(
+	signingKeyPub, httpAddress string,
+	owner common.Address,
+	force bool,
+) error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
@@ -78,63 +85,65 @@ func registerNodeHandler(cmd *cobra.Command, _ []string) {
 
 	caller, err := setupNodeRegistryCaller(ctx, logger)
 	if err != nil {
-		logger.Fatal("could not create registry caller", zap.Error(err))
+		return fmt.Errorf("could not create registry caller: %w", err)
 	}
 
 	nodes, err := migrator.ReadFromRegistry(caller)
 	if err != nil {
-		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
+		return fmt.Errorf("could not retrieve nodes from registry: %w", err)
 	}
-
-	owner, _ := cmd.Flags().GetString("owner-address")
-	signingKeyPub, _ := cmd.Flags().GetString("signing-key-pub")
-	httpAddress, _ := cmd.Flags().GetString("http-address")
-	force, _ := cmd.Flags().GetBool("force")
-
-	ownerAddress := common.HexToAddress(owner)
 
 	if !force {
 		for _, node := range nodes {
 			if node.SigningKeyPub == signingKeyPub {
-				logger.Fatal(
+				logger.Error(
 					"signing key public key already registered",
 					zap.String("signing-key-pub", signingKeyPub),
 				)
+				return fmt.Errorf("signing key public key already registered: %s", signingKeyPub)
 			}
 		}
 	}
 
 	admin, err := setupNodeRegistryAdmin(ctx, logger)
 	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
+		return fmt.Errorf("could not create registry admin: %w", err)
 	}
 
 	parsedSigningKeyPub, err := utils.ParseEcdsaPublicKey(signingKeyPub)
 	if err != nil {
-		logger.Fatal(
+		logger.Error(
 			"could not decompress public key",
 			zap.Error(err),
 			zap.String("key", signingKeyPub),
 		)
+		return fmt.Errorf("could not decompress public key: %w", err)
 	}
 
-	nodeID, err := admin.AddNode(ctx, ownerAddress, parsedSigningKeyPub, httpAddress)
+	nodeID, err := admin.AddNode(ctx, owner, parsedSigningKeyPub, httpAddress)
 	if err != nil {
-		logger.Fatal("could not add node", zap.Error(err))
+		return fmt.Errorf("could not add node: %w", err)
 	}
 
 	logger.Info(
 		"Node registered",
-		zap.String("owner-address", owner),
+		zap.String("owner-address", owner.Hex()),
 		zap.Uint32("node-id", nodeID),
 	)
+	return nil
 }
 
+//------------------------------------------------------------------------------
+// canonical-network
+//------------------------------------------------------------------------------
+
 func canonicalNetworkCmd() *cobra.Command {
-	cmd := cobra.Command{
+	var add bool
+	var remove bool
+
+	cmd := &cobra.Command{
 		Use:   "canonical-network",
 		Short: "Manage the canonical network",
-		Run:   canonicalNetworkHandler,
 		Example: `
 Usage: xmtpd-cli nodes canonical-network {--add | --remove} --node-id <node-id>
 
@@ -144,75 +153,69 @@ xmtpd-cli nodes canonical-network --add --node-id <node-id>
 Remove a node from the canonical network:
 xmtpd-cli nodes canonical-network --remove --node-id <node-id>
 `,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			nodeID, err := cmd.Flags().GetUint32("node-id")
+			if err != nil {
+				return fmt.Errorf("could not get node id: %w", err)
+			}
+			return canonicalNetworkHandler(add, remove, nodeID)
+		},
 	}
 
-	cmd.PersistentFlags().
-		Bool("add", false, "add a node to the canonical network")
-
-	cmd.PersistentFlags().
-		Bool("remove", false, "remove a node from the canonical network")
-
+	cmd.Flags().BoolVar(&add, "add", false, "add a node to the canonical network")
+	cmd.Flags().BoolVar(&remove, "remove", false, "remove a node from the canonical network")
 	cmd.MarkFlagsMutuallyExclusive("add", "remove")
 
-	return &cmd
+	return cmd
 }
 
-func canonicalNetworkHandler(cmd *cobra.Command, _ []string) {
+func canonicalNetworkHandler(add, remove bool, nodeID uint32) error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
 	}
 
-	nodeID, err := cmd.Flags().GetUint32("node-id")
-	if err != nil {
-		logger.Fatal("could not get node id", zap.Error(err))
-	}
-
 	if nodeID == 0 {
-		logger.Fatal("node id is required")
+		return fmt.Errorf("node id is required")
 	}
-
-	add, err := cmd.Flags().GetBool("add")
-	if err != nil {
-		logger.Fatal("could not get add flag", zap.Error(err))
-	}
-
-	remove, err := cmd.Flags().GetBool("remove")
-	if err != nil {
-		logger.Fatal("could not get remove flag", zap.Error(err))
-	}
-
 	if !add && !remove {
-		logger.Fatal("either --add or --remove must be specified")
+		return fmt.Errorf("either --add or --remove must be specified")
 	}
 
 	ctx := context.Background()
-
 	admin, err := setupNodeRegistryAdmin(ctx, logger)
 	if err != nil {
-		logger.Fatal("failed to create registry admin", zap.Error(err))
+		return fmt.Errorf("failed to create registry admin: %w", err)
 	}
 
 	if add {
-		err = admin.AddToNetwork(ctx, nodeID)
-		if err != nil {
-			logger.Fatal("failed to add node to network", zap.Error(err))
+		if err := admin.AddToNetwork(ctx, nodeID); err != nil {
+			return fmt.Errorf("failed to add node to network: %w", err)
 		}
+		logger.Info("Added node to canonical network", zap.Uint32("node-id", nodeID))
 	}
 
 	if remove {
-		err = admin.RemoveFromNetwork(ctx, nodeID)
-		if err != nil {
-			logger.Fatal("failed to remove node from network", zap.Error(err))
+		if err := admin.RemoveFromNetwork(ctx, nodeID); err != nil {
+			return fmt.Errorf("failed to remove node from network: %w", err)
 		}
+		logger.Info("Removed node from canonical network", zap.Uint32("node-id", nodeID))
 	}
+
+	return nil
 }
 
+//------------------------------------------------------------------------------
+// get
+//------------------------------------------------------------------------------
+
 func getNodeCmd() *cobra.Command {
-	cmd := cobra.Command{
+	var all bool
+	var exportPath string
+
+	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get and export nodes",
-		Run:   getNodeHandler,
 		Example: `
 Usage: xmtpd-cli nodes get {--all | --node-id <node-id>} [--export <file>]
 
@@ -222,21 +225,25 @@ xmtpd-cli nodes get --all
 Get a specific node:
 xmtpd-cli nodes get --node-id <node-id>
 
-Export all nodesto file:
+Export all nodes to file:
 xmtpd-cli nodes get --all --export <file>
 `,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			nodeID, err := cmd.Flags().GetUint32("node-id")
+			if err != nil {
+				return fmt.Errorf("could not get node id: %w", err)
+			}
+			return getNodeHandler(all, nodeID, exportPath)
+		},
 	}
 
-	cmd.PersistentFlags().
-		Bool("all", false, "get all nodes")
+	cmd.Flags().BoolVar(&all, "all", false, "get all nodes")
+	cmd.Flags().StringVar(&exportPath, "export", "", "export the result to file")
 
-	cmd.PersistentFlags().
-		String("export", "", "export the result to file")
-
-	return &cmd
+	return cmd
 }
 
-func getNodeHandler(cmd *cobra.Command, _ []string) {
+func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 	ctx := context.Background()
 
 	logger, err := cliLogger()
@@ -246,45 +253,27 @@ func getNodeHandler(cmd *cobra.Command, _ []string) {
 
 	caller, err := setupNodeRegistryCaller(ctx, logger)
 	if err != nil {
-		logger.Fatal("could not create registry caller", zap.Error(err))
+		return fmt.Errorf("could not create registry caller: %w", err)
 	}
 
 	nodes, err := migrator.ReadFromRegistry(caller)
 	if err != nil {
-		logger.Fatal("could not retrieve nodes from registry", zap.Error(err))
-	}
-
-	all, err := cmd.Flags().GetBool("all")
-	if err != nil {
-		logger.Fatal("could not get all flag", zap.Error(err))
-	}
-
-	nodeID, err := cmd.Flags().GetUint32("node-id")
-	if err != nil {
-		logger.Fatal("could not get node id", zap.Error(err))
+		return fmt.Errorf("could not retrieve nodes from registry: %w", err)
 	}
 
 	if nodeID == 0 && !all {
-		logger.Fatal("either --node-id or --all must be specified")
-	}
-
-	export, err := cmd.Flags().GetString("export")
-	if err != nil {
-		logger.Fatal("could not get export flag", zap.Error(err))
+		return fmt.Errorf("either --node-id or --all must be specified")
 	}
 
 	switch {
 	case all:
 		logger.Info("Getting all nodes", zap.Any("nodes", nodes))
-
-		if export != "" {
-			err = migrator.DumpNodesToFile(nodes, export)
-			if err != nil {
-				logger.Fatal("could not dump nodes", zap.Error(err))
+		if exportPath != "" {
+			if err := migrator.DumpNodesToFile(nodes, exportPath); err != nil {
+				return fmt.Errorf("could not dump nodes: %w", err)
 			}
 		}
-
-	case nodeID != 0:
+	default:
 		var (
 			found      bool
 			exportNode migrator.SerializableNode
@@ -295,27 +284,32 @@ func getNodeHandler(cmd *cobra.Command, _ []string) {
 				logger.Info("Got node", zap.Any("node", node))
 				found = true
 				exportNode = node
+				break
 			}
 		}
-
 		if !found {
-			logger.Fatal("node not found", zap.Uint32("node-id", nodeID))
+			return fmt.Errorf("node not found: %d", nodeID)
 		}
-
-		if export != "" {
-			err = migrator.DumpNodesToFile([]migrator.SerializableNode{exportNode}, export)
-			if err != nil {
-				logger.Fatal("could not dump nodes", zap.Error(err))
+		if exportPath != "" {
+			if err := migrator.DumpNodesToFile([]migrator.SerializableNode{exportNode}, exportPath); err != nil {
+				return fmt.Errorf("could not dump nodes: %w", err)
 			}
 		}
 	}
+
+	return nil
 }
 
+//------------------------------------------------------------------------------
+// max-canonical
+//------------------------------------------------------------------------------
+
 func maxCanonicalCmd() *cobra.Command {
-	cmd := cobra.Command{
+	var setVal uint8
+
+	cmd := &cobra.Command{
 		Use:   "max-canonical",
 		Short: "Manage the maximum canonical size",
-		Run:   maxCanonicalHandler,
 		Example: `
 Usage: xmtpd-cli nodes max-canonical [--set <size>]
 
@@ -325,15 +319,16 @@ xmtpd-cli nodes max-canonical --set <size>
 Get the current maximum canonical size:
 xmtpd-cli nodes max-canonical
 `,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return maxCanonicalHandler(setVal)
+		},
 	}
 
-	cmd.PersistentFlags().
-		Uint8("set", 0, "set the maximum canonical size")
-
-	return &cmd
+	cmd.Flags().Uint8Var(&setVal, "set", 0, "set the maximum canonical size")
+	return cmd
 }
 
-func maxCanonicalHandler(cmd *cobra.Command, _ []string) {
+func maxCanonicalHandler(setVal uint8) error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
@@ -341,95 +336,86 @@ func maxCanonicalHandler(cmd *cobra.Command, _ []string) {
 
 	ctx := context.Background()
 
-	setVal, err := cmd.Flags().GetUint8("set")
-	if err != nil {
-		logger.Fatal("could not parse --set flag", zap.Error(err))
-	}
-
 	if setVal > 0 {
 		admin, err := setupNodeRegistryAdmin(ctx, logger)
 		if err != nil {
-			logger.Fatal("failed to create registry admin", zap.Error(err))
+			return fmt.Errorf("failed to create registry admin: %w", err)
 		}
-
-		err = admin.SetMaxCanonical(ctx, uint8(setVal))
-		if err != nil {
-			logger.Fatal("failed to set max canonical size", zap.Error(err))
+		if err := admin.SetMaxCanonical(ctx, setVal); err != nil {
+			return fmt.Errorf("failed to set max canonical size: %w", err)
 		}
-
 		logger.Info("Set new max canonical size", zap.Uint8("maxCanonicalNodes", setVal))
 	}
 
 	caller, err := setupNodeRegistryCaller(ctx, logger)
 	if err != nil {
-		logger.Fatal("failed to create registry caller", zap.Error(err))
+		return fmt.Errorf("failed to create registry caller: %w", err)
 	}
 
 	val, err := caller.GetMaxCanonicalNodes(ctx)
 	if err != nil {
-		logger.Fatal("failed to get max canonical size", zap.Error(err))
+		return fmt.Errorf("failed to get max canonical size: %w", err)
 	}
 
 	logger.Info("Current max canonical size", zap.Uint8("maxCanonicalNodes", val))
+	return nil
 }
 
+//------------------------------------------------------------------------------
+// set-http-address
+//------------------------------------------------------------------------------
+
 func setHttpAddressCmd() *cobra.Command {
-	cmd := cobra.Command{
+	var httpAddress string
+
+	cmd := &cobra.Command{
 		Use:   "set-http-address",
 		Short: "Set the HTTP address of a node",
-		Run:   setHttpAddressHandler,
 		Example: `
 Usage: xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 
 Set the HTTP address of a node:
 xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 `,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			nodeID, err := cmd.Flags().GetUint32("node-id")
+			if err != nil {
+				return fmt.Errorf("could not get node id: %w", err)
+			}
+			return setHttpAddressHandler(nodeID, httpAddress)
+		},
 	}
 
-	cmd.PersistentFlags().
-		String("http-address", "", "HTTP address to use")
+	cmd.Flags().StringVar(&httpAddress, "http-address", "", "HTTP address to use")
+	_ = cmd.MarkFlagRequired("http-address")
 
-	return &cmd
+	return cmd
 }
 
-func setHttpAddressHandler(cmd *cobra.Command, _ []string) {
+func setHttpAddressHandler(nodeID uint32, httpAddress string) error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
 	}
 
-	nodeID, err := cmd.Flags().GetUint32("node-id")
-	if err != nil {
-		logger.Fatal("could not get node id", zap.Error(err))
-	}
-
-	httpAddress, err := cmd.Flags().GetString("http-address")
-	if err != nil {
-		logger.Fatal("could not get http address", zap.Error(err))
-	}
-
 	if nodeID == 0 || httpAddress == "" {
-		logger.Fatal("node id and http address are required")
+		return fmt.Errorf("node id and http address are required")
 	}
 
 	ctx := context.Background()
 
 	registryAdmin, err := setupNodeRegistryAdmin(ctx, logger)
 	if err != nil {
-		logger.Fatal("could not create registry admin", zap.Error(err))
+		return fmt.Errorf("could not create registry admin: %w", err)
 	}
 
-	err = registryAdmin.SetHttpAddress(
-		ctx,
-		nodeID,
-		httpAddress,
-	)
-	if err != nil {
-		logger.Fatal("could not set http address", zap.Error(err))
+	if err := registryAdmin.SetHttpAddress(ctx, nodeID, httpAddress); err != nil {
+		return fmt.Errorf("could not set http address: %w", err)
 	}
 
 	logger.Info("Set the HTTP address of a node",
 		zap.Uint32("node-id", nodeID),
 		zap.String("http-address", httpAddress),
 	)
+	return nil
 }

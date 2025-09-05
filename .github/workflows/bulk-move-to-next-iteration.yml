@@ -1,0 +1,21 @@
+on:
+  schedule:
+    # Runs "at 05:00, only on Sunday" (see https://crontab.guru)
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+
+jobs:
+  move-to-next-iteration:
+    name: Move to next iteration
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: blombard/move-to-next-iteration@v0.6.1
+        with:
+          owner: XMTP
+          number: 1
+          token: ${{ secrets.PROJECT_PAT }}
+          iteration-field: Iteration
+          iteration: previous
+          new-iteration: current
+          excluded-statuses: "Done,Won't Fix"

@@ -1,4 +1,7 @@
 on:
+  schedule:
+    # Runs "at 05:00, only on Sunday" (see https://crontab.guru)
+    - cron: '0 5 * * 0'
   workflow_dispatch:
 
 jobs:
@@ -13,6 +16,6 @@ jobs:
           number: 26
           token: ${{ secrets.PROJECT_PAT }}
           iteration-field: Iteration
-          iteration: current
-          new-iteration: next
+          iteration: last
+          new-iteration: current
           excluded-statuses: "Done,Won't Fix"

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/pkg/errors"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -81,9 +83,11 @@ func WriteToRegistry(
 				return err
 			}
 
+			ownerAddress := common.HexToAddress(node.OwnerAddress)
+
 			nodeId, err := chainAdmin.AddNode(
 				ctx,
-				node.OwnerAddress,
+				ownerAddress,
 				signingKey,
 				node.HttpAddress,
 			)

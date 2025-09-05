@@ -26,7 +26,9 @@ func StressIdentityUpdates(
 	ctx context.Context,
 	logger *zap.Logger,
 	n int,
-	contractAddress, rpc, privateKey string,
+	contractAddress common.Address,
+	rpc string,
+	privateKey string,
 	async bool,
 ) error {
 	var wg sync.WaitGroup
@@ -65,7 +67,7 @@ func StressIdentityUpdates(
 			nonce := nonceCounter.Add(1) - 1
 
 			cs := &CastSendCommand{
-				ContractAddress: contractAddress,
+				ContractAddress: contractAddress.String(),
 				Function:        IDENTITY_UPDATES_SIGNATURE,
 				FunctionArgs:    []string{IDENTITY_UPDATES_INBOX_ID, IDENTITY_UPDATES_PAYLOAD},
 				Rpc:             rpc,

@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/xmtp/xmtpd/pkg/currency"
 )
 
@@ -64,7 +66,7 @@ type GetBootstrapperAddressOptions struct {
 
 type SetBootstrapperAddressOptions struct {
 	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	Address      string                   `                                        long:"address" description:"New bootstrapper address"`
+	Address      AddressFlag              `                                        long:"address" description:"New bootstrapper address" required:"true"`
 }
 
 type GetPubKeyOptions struct {
@@ -84,9 +86,9 @@ type GetRatesOptions struct{}
 type RegisterNodeOptions struct {
 	AdminOptions  NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
 	HttpAddress   string                   `                                        long:"http-address"         description:"HTTP address to register for the node"                            required:"true"`
-	OwnerAddress  string                   `                                        long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
+	OwnerAddress  AddressFlag              `                                        long:"node-owner-address"   description:"Blockchain address of the intended owner of the registration NFT" required:"true"`
 	SigningKeyPub string                   `                                        long:"node-signing-key-pub" description:"Signing key of the node to register"                              required:"true"`
-	Force         bool                     `                                        long:"force"                description:"Register even if pubkey already exists"                           required:"false"`
+	Force         bool                     `                                        long:"force"                description:"Register even if pubkey already exists"`
 }
 
 type NetworkAdminOptions struct {
@@ -101,16 +103,16 @@ type SetHttpAddressOptions struct {
 }
 
 type IdentityUpdatesStressOptions struct {
-	PrivateKey string `long:"private-key" description:"Private key of the admin to administer the node" required:"true"`
-	Contract   string `long:"contract"    description:"Contract address"`
-	Rpc        string `long:"rpc"         description:"RPC URL"`
-	Count      int    `long:"count"       description:"Number of transactions to send"`
-	Async      bool   `long:"async"       description:"Send transactions asynchronously"`
+	PrivateKey string      `long:"private-key" description:"Private key of the admin to administer the node" required:"true"`
+	Contract   AddressFlag `long:"contract"    description:"Contract address"                                required:"true"`
+	Rpc        string      `long:"rpc"         description:"RPC URL"`
+	Count      int         `long:"count"       description:"Number of transactions to send"`
+	Async      bool        `long:"async"       description:"Send transactions asynchronously"`
 }
 
 type WatcherOptions struct {
-	Contract string `long:"contract" description:"Contract address" required:"true"`
-	Wss      string `long:"wss"      description:"WSS URL"          required:"true"`
+	Contract AddressFlag `long:"contract" description:"Contract address" required:"true"`
+	Wss      string      `long:"wss"      description:"WSS URL"          required:"true"`
 }
 
 type Target string
@@ -169,14 +171,121 @@ func (p *PausedFlag) Bool() bool {
 type SetPauseOptions struct {
 	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
 
-	// Which broadcaster to act on.
-	Target Target `long:"target" required:"true" description:"Which broadcaster to pause: identity or group"`
+	// Which contract to pause/unpause.
+	Target Target `long:"target" required:"true" description:"Target to pause: identity|group|app-chain-gateway|settlement-chain-gateway|payer-registry|distribution-manager"`
 
 	// The desired paused state.
-	Paused PausedFlag `long:"paused" required:"true" description:"Pause state to set (true/false)"`
+	Paused PausedFlag `long:"paused" required:"true" description:"Pause state to set (true|false)"`
 }
 
 type GetPauseOptions struct {
 	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
-	Target       Target                   `                                        long:"target" required:"true" description:"Which broadcaster to read: identity or group"`
+
+	// Which contract’s pause status to read.
+	Target Target `long:"target" required:"true" description:"Target to read: identity|group|app-chain-gateway|settlement-chain-gateway|payer-registry|distribution-manager"`
+}
+
+// For payload size keys (min / max) on the broadcasters.
+type PayloadBound string
+
+const (
+	PayloadMin PayloadBound = "min"
+	PayloadMax PayloadBound = "max"
+)
+
+func (b *PayloadBound) UnmarshalFlag(v string) error {
+	switch v {
+	case string(PayloadMin), string(PayloadMax):
+		*b = PayloadBound(v)
+		return nil
+	default:
+		return fmt.Errorf("invalid bound %q (allowed: min|max)", v)
+	}
+}
+
+type GetPayloadSizeOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Target       Target                   `                                        long:"target" required:"true" description:"Which broadcaster: identity|group"`
+	Bound        PayloadBound             `                                        long:"bound"  required:"true" description:"Which bound: min|max"`
+}
+
+type SetPayloadSizeOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Target       Target                   `                                        long:"target" required:"true" description:"Which broadcaster: identity|group"`
+	Bound        PayloadBound             `                                        long:"bound"  required:"true" description:"Which bound: min|max"`
+	Size         uint64                   `                                        long:"size"   required:"true" description:"Payload size in bytes"`
+}
+
+type GetNodeRegistryAdminOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type AddressFlag struct {
+	Address common.Address
+}
+
+func (a *AddressFlag) UnmarshalFlag(value string) error {
+	if !common.IsHexAddress(value) {
+		return fmt.Errorf("invalid Ethereum address: %q", value)
+	}
+	a.Address = common.HexToAddress(value)
+	return nil
+}
+
+func (a AddressFlag) String() string {
+	return a.Address.Hex()
+}
+
+func (a AddressFlag) Common() common.Address {
+	return a.Address
+}
+
+type SetNodeRegistryAdminOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Address      AddressFlag              `                                        long:"address" description:"New node registry admin address" required:"true"`
+}
+
+type GetDistributionManagerProtocolFeesRecipientOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type SetDistributionManagerProtocolFeesRecipientOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Address      AddressFlag              `                                        long:"address" description:"New DistributionManager protocolFeesRecipient address" required:"true"`
+}
+
+type GetPayerMinimumDepositOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type SetPayerMinimumDepositOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Amount       currency.MicroDollar     `                                        long:"amount" required:"true" description:"Minimum deposit in microdollars (1e-6 USD)"`
+}
+
+type GetPayerWithdrawLockPeriodOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type SetPayerWithdrawLockPeriodOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Seconds      uint32                   `                                        long:"seconds" required:"true" description:"Withdraw lock period in seconds"`
+}
+
+type GetPayerReportProtocolFeeRateOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type SetPayerReportProtocolFeeRateOptions struct {
+	AdminOptions NodeRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	FeeRateBps   uint16                   `                                        long:"bps" required:"true" description:"Protocol fee rate in basis points (uint16)"`
+}
+
+type GetRateRegistryMigratorOptions struct {
+	AdminOptions RateRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+}
+
+type SetRateRegistryMigratorOptions struct {
+	AdminOptions RateRegistryAdminOptions `group:"Admin Options" namespace:"admin"`
+	Address      AddressFlag              `                                        long:"address" description:"New RateRegistry migrator address" required:"true"`
 }

@@ -62,7 +62,7 @@ func addRandomNode(
 	require.Eventually(t, func() bool {
 		_, err := registry.AddNode(
 			ctx,
-			owner.String(),
+			owner,
 			&privateKey.PublicKey,
 			httpAddress,
 		)
@@ -78,19 +78,9 @@ func TestAddNode(t *testing.T) {
 	owner := testutils.RandomAddress()
 
 	require.Eventually(t, func() bool {
-		_, err := registry.AddNode(ctx, owner.String(), &privateKey.PublicKey, httpAddress)
+		_, err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
 		return err == nil
 	}, 1*time.Second, 50*time.Millisecond)
-}
-
-func TestAddNodeBadOwner(t *testing.T) {
-	privateKey := testutils.RandomPrivateKey(t)
-	httpAddress := testutils.RandomString(32)
-	owner := testutils.RandomString(10) // This is an invalid hex address
-
-	registry, _, ctx := buildRegistry(t)
-	_, err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
-	require.ErrorContains(t, err, "invalid owner address provided")
 }
 
 func TestSetMaxCanonical(t *testing.T) {

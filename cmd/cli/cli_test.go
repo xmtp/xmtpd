@@ -32,7 +32,7 @@ func TestRegisterNodeArgParse(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, options.Command, "register-node")
 	require.Equal(t, options.RegisterNode.AdminOptions.AdminPrivateKey, adminPrivateKey)
-	require.Equal(t, options.RegisterNode.OwnerAddress, ownerAddress.Hex())
+	require.Equal(t, options.RegisterNode.OwnerAddress.String(), ownerAddress.Hex())
 	require.Equal(t, options.RegisterNode.SigningKeyPub, signingKeyPub)
 
 	// Test missing options

@@ -66,7 +66,7 @@ func registerRandomNode(
 	t *testing.T,
 	registryAdmin blockchain.INodeRegistryAdmin,
 ) SerializableNode {
-	ownerAddress := testutils.RandomAddress().Hex()
+	ownerAddress := testutils.RandomAddress()
 	httpAddress := testutils.RandomString(30)
 	publicKey := testutils.RandomPrivateKey(t).PublicKey
 	require.Eventually(t, func() bool {
@@ -75,7 +75,7 @@ func registerRandomNode(
 	}, 1*time.Second, 50*time.Millisecond)
 
 	return SerializableNode{
-		OwnerAddress:  ownerAddress,
+		OwnerAddress:  ownerAddress.Hex(),
 		HttpAddress:   httpAddress,
 		SigningKeyPub: utils.EcdsaPublicKeyToString(&publicKey),
 	}

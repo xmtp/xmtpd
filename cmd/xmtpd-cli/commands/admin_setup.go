@@ -92,3 +92,104 @@ func setupSettlementChainAdmin(
 
 	return blockchain.NewSettlementChainAdmin(logger, client, signer, contracts, paramAdmin)
 }
+
+func setupNodeRegistryAdmin(
+	ctx context.Context,
+	logger *zap.Logger,
+) (blockchain.INodeRegistryAdmin, error) {
+	var (
+		privateKey = viper.GetString("private-key")
+		rpcURL     = viper.GetString("rpc-url")
+		configFile = viper.GetString("config-file")
+	)
+
+	if privateKey == "" {
+		return nil, fmt.Errorf("private key is required")
+	}
+
+	if rpcURL == "" {
+		return nil, fmt.Errorf("rpc url is required")
+	}
+
+	if configFile == "" {
+		return nil, fmt.Errorf("config file is required")
+	}
+
+	contracts, err := config.ContractOptionsFromEnv(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not load config from file: %w", err)
+	}
+
+	chainClient, err := blockchain.NewRPCClient(
+		ctx,
+		rpcURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	parameterAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
+	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
+		logger,
+		chainClient,
+		signer,
+		contracts,
+		parameterAdmin,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create registry admin: %w", err)
+	}
+
+	return registryAdmin, nil
+}
+
+func setupNodeRegistryCaller(
+	ctx context.Context,
+	logger *zap.Logger,
+) (blockchain.INodeRegistryCaller, error) {
+	var (
+		rpcURL     = viper.GetString("rpc-url")
+		configFile = viper.GetString("config-file")
+	)
+
+	if rpcURL == "" {
+		return nil, fmt.Errorf("rpc url is required")
+	}
+
+	if configFile == "" {
+		return nil, fmt.Errorf("config file is required")
+	}
+
+	contracts, err := config.ContractOptionsFromEnv(configFile)
+	if err != nil {
+		logger.Fatal("could not load config from file", zap.Error(err))
+	}
+
+	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
+	if err != nil {
+		logger.Fatal("could not create chain client", zap.Error(err))
+	}
+
+	caller, err := blockchain.NewNodeRegistryCaller(
+		logger,
+		chainClient,
+		contracts,
+	)
+	if err != nil {
+		logger.Fatal("could not create registry caller", zap.Error(err))
+	}
+
+	return caller, nil
+}

@@ -1,4 +1,3 @@
-// file: commands/settlement.go
 package commands
 
 import (

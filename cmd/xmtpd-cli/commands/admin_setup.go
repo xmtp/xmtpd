@@ -1,4 +1,3 @@
-// file: commands/admin_setup.go
 package commands
 
 import (

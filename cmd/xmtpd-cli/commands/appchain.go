@@ -1,4 +1,3 @@
-// file: commands/appchain.go
 package commands
 
 import (

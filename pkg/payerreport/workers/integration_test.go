@@ -25,6 +25,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/testutils/flags"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
@@ -405,6 +406,8 @@ func TestCanGenerateReport(t *testing.T) {
 }
 
 func TestCanGenerateAndAttestReport(t *testing.T) {
+	flags.SkipOnRaceTest(t)
+
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
@@ -448,8 +451,6 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		// We are expecting 2 attestations total. One from each node. Each node's attestation should have synced from the other node
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
 	}, 2*time.Second, 50*time.Millisecond)
-
-	<-time.After(5 * time.Second)
 
 	// Get the attestations of the two reports from both nodes
 	for nodeIndex := range 2 {

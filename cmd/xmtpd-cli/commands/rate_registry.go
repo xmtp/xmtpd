@@ -116,7 +116,9 @@ func getRatesCommand() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "get",
 		Short: "Get rates from the rate registry",
-		Run:   getRatesHandler,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return getRatesHandler()
+		},
 		Example: `
 Usage: xmtpd-cli rates get
 
@@ -128,7 +130,7 @@ xmtpd-cli rates get
 	return &cmd
 }
 
-func getRatesHandler(cmd *cobra.Command, _ []string) {
+func getRatesHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)
@@ -146,7 +148,7 @@ func getRatesHandler(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		if strings.Contains(err.Error(), "no rates found") {
 			logger.Info("no rates found")
-			return
+			return nil
 		}
 		logger.Fatal("could not start rates fetcher", zap.Error(err))
 	}
@@ -157,6 +159,8 @@ func getRatesHandler(cmd *cobra.Command, _ []string) {
 	}
 
 	logger.Info("rates fetched successfully", zap.Any("rates", rates))
+
+	return nil
 }
 
 func setupRateRegistryAdmin(

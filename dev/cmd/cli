@@ -8,4 +8,4 @@ cd "${repo_root}"
 
 export XMTPD_LOG_ENCODING=json
 
-go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/cli/main.go "$@"
+go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/xmtpd-cli/main.go "$@"

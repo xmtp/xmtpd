@@ -96,11 +96,11 @@ func registerNodeHandler(
 	if !force {
 		for _, node := range nodes {
 			if node.SigningKeyPub == signingKeyPub {
-				logger.Error(
+				logger.Warn(
 					"signing key public key already registered",
 					zap.String("signing-key-pub", signingKeyPub),
 				)
-				return fmt.Errorf("signing key public key already registered: %s", signingKeyPub)
+				return nil
 			}
 		}
 	}

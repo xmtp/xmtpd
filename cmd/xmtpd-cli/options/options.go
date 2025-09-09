@@ -1,3 +1,4 @@
+// Package options implements the options for the CLI.
 package options
 
 import (

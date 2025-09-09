@@ -12,5 +12,6 @@ const (
 	// Triggered by a WithdrawalCancelled smart contract event
 	eventTypeCanceledWithdrawal EventType = 3
 	// Triggered by our reorg handler
+	//nolint
 	eventTypeReorgReversal EventType = 4
 )

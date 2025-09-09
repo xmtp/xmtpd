@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
-	"github.com/xmtp/xmtpd/pkg/testutils"
+	nodeRegistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,10 +23,10 @@ func TestGetReaderNode(t *testing.T) {
 		{
 			name: "success with multiple nodes",
 			nodes: []registry.Node{
-				testutils.GetHealthyNode(100),
-				testutils.GetHealthyNode(101),
-				testutils.GetHealthyNode(102),
-				testutils.GetHealthyNode(103),
+				nodeRegistry.GetHealthyNode(100),
+				nodeRegistry.GetHealthyNode(101),
+				nodeRegistry.GetHealthyNode(102),
+				nodeRegistry.GetHealthyNode(103),
 			},
 			wantErr: false,
 			checkResponse: func(t *testing.T, resp *payer_api.GetReaderNodeResponse) {
@@ -52,7 +52,7 @@ func TestGetReaderNode(t *testing.T) {
 		{
 			name: "single node",
 			nodes: []registry.Node{
-				testutils.GetHealthyNode(100),
+				nodeRegistry.GetHealthyNode(100),
 			},
 			wantErr: false,
 			checkResponse: func(t *testing.T, resp *payer_api.GetReaderNodeResponse) {

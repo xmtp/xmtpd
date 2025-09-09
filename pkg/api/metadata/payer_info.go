@@ -34,7 +34,7 @@ func NewPayerInfoFetcher(db *sql.DB) *PayerInfoFetcher {
 	}
 }
 
-// Gets the total spend and message count for a payer between the two timestamps, grouped by the appropriate granularity.
+// GetPayerInfo gets the total spend and message count for a payer between the two timestamps, grouped by the appropriate granularity.
 func (f *PayerInfoFetcher) GetPayerInfo(
 	ctx context.Context,
 	payerID int32,

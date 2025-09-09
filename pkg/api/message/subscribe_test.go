@@ -19,25 +19,25 @@ import (
 )
 
 var (
-	topicA = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicA")).Bytes()
-	topicB = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicB")).Bytes()
-	topicC = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicC")).Bytes()
+	topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
+	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
+	topicC = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
 )
 var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(
 	t *testing.T,
-) (message_api.ReplicationApiClient, *sql.DB, testUtilsApi.ApiServerMocks) {
+) (message_api.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	api, dbHandle, mocks := testUtilsApi.NewTestReplicationAPIClient(t)
 
-	payerId := db.NullInt32(testutils.CreatePayer(t, dbHandle))
+	payerID := db.NullInt32(testutils.CreatePayer(t, dbHandle))
 	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
 		{
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 1, topicA),
@@ -47,7 +47,7 @@ func setupTest(
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 1, topicA),
@@ -58,7 +58,7 @@ func setupTest(
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 2, topicB),
@@ -68,7 +68,7 @@ func setupTest(
 			OriginatorNodeID:     2,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 2, topicB),
@@ -78,7 +78,7 @@ func setupTest(
 			OriginatorNodeID:     1,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 3, topicA),

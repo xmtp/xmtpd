@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testFlag   = "ENABLE_INTEGRATION_TESTS"
-	XDBG_IMAGE = "ghcr.io/xmtp/xdbg:sha-26bb960"
+	testFlag  = "ENABLE_INTEGRATION_TESTS"
+	xdbgImage = "ghcr.io/xmtp/xdbg:sha-26bb960"
 )
 
 func skipIfNotEnabled() {
@@ -310,7 +310,7 @@ type XdbgContainerBuilder struct {
 
 func NewXdbgContainerBuilder() *XdbgContainerBuilder {
 	return &XdbgContainerBuilder{
-		image:        XDBG_IMAGE,
+		image:        xdbgImage,
 		dbVolumePath: "/tmp/testcontainer-xdbg-db",
 		waitStrategy: wait.ForExit(),
 	}

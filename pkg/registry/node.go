@@ -15,7 +15,7 @@ type DialOptionFunc func(node Node) []grpc.DialOption
 type Node struct {
 	NodeID        uint32
 	SigningKey    *ecdsa.PublicKey
-	HttpAddress   string
+	HTTPAddress   string
 	IsCanonical   bool
 	IsValidConfig bool
 }
@@ -29,16 +29,16 @@ func (n *Node) Equals(other Node) bool {
 	}
 
 	return n.NodeID == other.NodeID &&
-		n.HttpAddress == other.HttpAddress &&
+		n.HTTPAddress == other.HTTPAddress &&
 		equalsSigningKey &&
 		n.IsCanonical == other.IsCanonical &&
 		n.IsValidConfig == other.IsValidConfig
 }
 
-func (node *Node) BuildClient(
+func (n *Node) BuildClient(
 	extraDialOpts ...grpc.DialOption,
 ) (*grpc.ClientConn, error) {
-	target, isTLS, err := utils.HttpAddressToGrpcTarget(node.HttpAddress)
+	target, isTLS, err := utils.HTTPAddressToGRPCTarget(n.HTTPAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
 	}

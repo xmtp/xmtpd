@@ -1,10 +1,11 @@
+// Package config implements the configuration options for the xmtpd server.
 package config
 
 import (
 	"time"
 )
 
-type ApiOptions struct {
+type APIOptions struct {
 	Port     int `short:"p" long:"port"      description:"Port to listen on"      env:"XMTPD_API_PORT"      default:"5050"`
 	HTTPPort int `          long:"http-port" description:"HTTP Port to listen on" env:"XMTPD_HTTP_API_PORT" default:"5055"`
 }
@@ -14,7 +15,7 @@ type ContractsOptions struct {
 	SettlementChain SettlementChainOptions `group:"Settlement Chain Options"  namespace:"settlement-chain"`
 
 	ConfigFilePath string `long:"config-file-path" env:"XMTPD_CONTRACTS_CONFIG_FILE_PATH" description:"Path to the JSON contracts config file"`
-	ConfigJson     string `long:"config-json"      env:"XMTPD_CONTRACTS_CONFIG_JSON"      description:"JSON contracts config"`
+	ConfigJSON     string `long:"config-json"      env:"XMTPD_CONTRACTS_CONFIG_JSON"      description:"JSON contracts config"`
 }
 
 type AppChainOptions struct {
@@ -47,7 +48,7 @@ type SettlementChainOptions struct {
 	DeploymentBlock             uint64        `long:"deployment-block"               env:"XMTPD_SETTLEMENT_CHAIN_DEPLOYMENT_BLOCK"               description:"Deployment block for the settlement chain"                    default:"0"`
 }
 
-type DbOptions struct {
+type DBOptions struct {
 	ReaderConnectionString string        `long:"reader-connection-string" env:"XMTPD_DB_READER_CONNECTION_STRING" description:"Reader connection string"`
 	WriterConnectionString string        `long:"writer-connection-string" env:"XMTPD_DB_WRITER_CONNECTION_STRING" description:"Writer connection string"`
 	ReadTimeout            time.Duration `long:"read-timeout"             env:"XMTPD_DB_READ_TIMEOUT"             description:"Timeout for reading from the database"          default:"10s"`
@@ -111,9 +112,9 @@ type SignerOptions struct {
 }
 
 type ServerOptions struct {
-	API             ApiOptions             `group:"API Options"              namespace:"api"`
+	API             APIOptions             `group:"API Options"              namespace:"api"`
 	Contracts       ContractsOptions       `group:"Contracts Options"        namespace:"contracts"`
-	DB              DbOptions              `group:"Database Options"         namespace:"db"`
+	DB              DBOptions              `group:"Database Options"         namespace:"db"`
 	Log             LogOptions             `group:"Log Options"              namespace:"log"`
 	Indexer         IndexerOptions         `group:"Indexer Options"          namespace:"indexer"`
 	Metrics         MetricsOptions         `group:"Metrics Options"          namespace:"metrics"`

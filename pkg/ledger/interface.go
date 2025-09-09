@@ -7,7 +7,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/currency"
 )
 
-// The Ledger interface handles settled balances from the blockchain
+// ILedger interface handles settled balances from the blockchain.
 type ILedger interface {
 	// Register a deposit event to a payer's balance
 	Deposit(

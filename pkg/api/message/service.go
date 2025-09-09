@@ -1,3 +1,4 @@
+// Package message implements the replication API service.
 package message
 
 import (
@@ -55,7 +56,7 @@ type Service struct {
 	migrationEnabled  bool
 }
 
-func NewReplicationApiService(
+func NewReplicationAPIService(
 	ctx context.Context,
 	log *zap.Logger,
 	registrant *registrant.Registrant,
@@ -381,20 +382,20 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
-	if topicKind == topic.TOPIC_KIND_IDENTITY_UPDATES_V1 {
+	if topicKind == topic.TopicKindIdentityUpdatesV1 {
 		return nil, status.Errorf(
 			codes.InvalidArgument,
 			"identity updates must be published via the blockchain",
 		)
 	}
 
-	if topicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1 {
+	if topicKind == topic.TopicKindGroupMessagesV1 {
 		if err = s.validateGroupMessage(&payerEnv.ClientEnvelope); err != nil {
 			return nil, err
 		}
 	}
 
-	if topicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1 {
+	if topicKind == topic.TopicKindKeyPackagesV1 {
 		if err = s.validateKeyPackage(ctx, &payerEnv.ClientEnvelope); err != nil {
 			return nil, err
 		}
@@ -482,8 +483,8 @@ func (s *Service) GetInboxIds(
 
 		for _, logEntry := range addressLogEntries {
 			if logEntry.Address == address {
-				inboxId := logEntry.InboxID
-				resp.InboxId = &inboxId
+				inboxID := logEntry.InboxID
+				resp.InboxId = &inboxID
 			}
 		}
 		out[index] = &resp
@@ -624,27 +625,27 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 
 	if aad.GetDependsOn() != nil {
 		lastSeenCursor := s.cu.GetCursor()
-		for nodeId, seqId := range aad.GetDependsOn().NodeIdToSequenceId {
-			lastSeqId, exists := lastSeenCursor.NodeIdToSequenceId[nodeId]
-			if nodeId >= 100 {
+		for nodeID, seqID := range aad.GetDependsOn().NodeIdToSequenceId {
+			lastSeqID, exists := lastSeenCursor.NodeIdToSequenceId[nodeID]
+			if nodeID >= 100 {
 				// The failure scenarios of non-commits are different from the blockchain path
 				// and as such should be prevented
 				return status.Errorf(
 					codes.InvalidArgument,
 					"node ID %d specified in DependsOn is not a valid node ID. A message can not depend on a non-commit.",
-					nodeId,
+					nodeID,
 				)
 			} else if !exists {
 				return status.Errorf(codes.InvalidArgument,
 					"node ID %d specified in DependsOn has not been seen by this node",
-					nodeId,
+					nodeID,
 				)
-			} else if seqId > lastSeqId {
+			} else if seqID > lastSeqID {
 				return status.Errorf(codes.InvalidArgument,
 					"sequence ID %d for node ID %d specified in DependsOn exceeds last seen sequence ID %d",
-					seqId,
-					nodeId,
-					lastSeqId,
+					seqID,
+					nodeID,
+					lastSeqID,
 				)
 			}
 		}

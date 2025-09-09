@@ -85,7 +85,7 @@ func TestTransformGroupMessage(t *testing.T) {
 	checkTopic(
 		t,
 		envelope,
-		topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, migratedGroupMessage.GroupID[:]),
+		topic.NewTopic(topic.TopicKindGroupMessagesV1, migratedGroupMessage.GroupID[:]),
 	)
 
 	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
@@ -152,7 +152,7 @@ func TestTransformInboxLog(t *testing.T) {
 	checkTopic(
 		t,
 		envelope,
-		topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, migratedInboxLog.InboxID[:]),
+		topic.NewTopic(topic.TopicKindIdentityUpdatesV1, migratedInboxLog.InboxID[:]),
 	)
 
 	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
@@ -230,7 +230,7 @@ func TestTransformKeyPackage(t *testing.T) {
 	checkTopic(
 		t,
 		envelope,
-		topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, migratedInstallation.InstallationID[:]),
+		topic.NewTopic(topic.TopicKindKeyPackagesV1, migratedInstallation.InstallationID[:]),
 	)
 
 	// OriginatorEnvelope check: Originator ID has to be hardcoded with GroupMessageOriginatorID.
@@ -258,7 +258,7 @@ func TestTransformKeyPackage(t *testing.T) {
 	// Payer checks: expiration.
 	require.Equal(
 		t,
-		uint32(constants.DEFAULT_STORAGE_DURATION_DAYS),
+		uint32(constants.DefaultStorageDurationDays),
 		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 
@@ -300,7 +300,7 @@ func TestTransformWelcomeMessage(t *testing.T) {
 		t,
 		envelope,
 		topic.NewTopic(
-			topic.TOPIC_KIND_WELCOME_MESSAGES_V1,
+			topic.TopicKindWelcomeMessagesV1,
 			migratedWelcomeMessage.InstallationKey[:],
 		),
 	)
@@ -335,7 +335,7 @@ func TestTransformWelcomeMessage(t *testing.T) {
 	// Payer checks: expiration.
 	require.Equal(
 		t,
-		uint32(constants.DEFAULT_STORAGE_DURATION_DAYS),
+		uint32(constants.DefaultStorageDurationDays),
 		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 

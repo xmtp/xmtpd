@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const MAX_RETRIES = 10
+const maxRetries = 10
 
 type Watcher struct {
 	logger          *zap.Logger
@@ -24,10 +24,10 @@ type Watcher struct {
 func NewWatcher(
 	ctx context.Context,
 	logger *zap.Logger,
-	wsUrl string,
+	wsURL string,
 	watchedContract common.Address,
 ) (*Watcher, error) {
-	ethClient, err := ethclient.Dial(wsUrl)
+	ethClient, err := ethclient.Dial(wsURL)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (w *Watcher) makeSubChannel(
 					sub.Unsubscribe()
 
 					success := false
-					for try := range MAX_RETRIES {
+					for try := range maxRetries {
 						sub, err = w.ethClient.SubscribeFilterLogs(ctx, query, logCh)
 						if err == nil {
 							w.logger.Info("subscription successfully recreated.")

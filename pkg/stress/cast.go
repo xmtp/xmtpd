@@ -13,7 +13,7 @@ type CastSendCommand struct {
 	ContractAddress string
 	Function        string
 	FunctionArgs    []string
-	Rpc             string
+	RPC             string
 	PrivateKey      string
 	Nonce           *uint64
 	Async           bool
@@ -31,7 +31,7 @@ func buildCastSendCommand(c *CastSendCommand) string {
 		cmd.WriteString(fmt.Sprintf(" '%s'", arg))
 	}
 
-	cmd.WriteString(fmt.Sprintf(" --rpc-url %s", c.Rpc))
+	cmd.WriteString(fmt.Sprintf(" --rpc-url %s", c.RPC))
 	cmd.WriteString(fmt.Sprintf(" --private-key %s", c.PrivateKey))
 
 	if c.Nonce != nil {

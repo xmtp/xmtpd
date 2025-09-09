@@ -13,14 +13,14 @@ import (
 
 func IPIdentityFn(ctx context.Context) (Identity, error) {
 	return Identity{
-		Kind:     IdentityKindIP,
+		Kind:     identityKindIP,
 		Identity: ClientIPFromContext(ctx),
 	}, nil
 }
 
 func NewUserIdentity(userID string) Identity {
 	return Identity{
-		Kind:     IdentityKindUserDefined,
+		Kind:     identityKindUserDefined,
 		Identity: userID,
 	}
 }

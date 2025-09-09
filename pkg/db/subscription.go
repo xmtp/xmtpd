@@ -14,14 +14,15 @@ type PollableDBQuery[ValueType any, CursorType any] func(
 	numRows int32,
 ) (results []ValueType, nextCursor CursorType, err error)
 
-// Poll whenever notified, or at an interval if not notified
+// PollingOptions specifies the polling options for a DB subscription.
+// It can poll whenever notified, or at an interval if not notified.
 type PollingOptions struct {
 	Interval time.Duration
 	Notifier <-chan bool
 	NumRows  int32
 }
 
-// A subscription that polls a DB for updates
+// DBSubscription is a subscription that polls a DB for updates
 // Assumes there is only one listener (updates block on a single unbuffered channel)
 type DBSubscription[ValueType any, CursorType any] struct {
 	ctx      context.Context

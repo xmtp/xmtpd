@@ -1,3 +1,4 @@
+// Package sync implements the sync server.
 package sync
 
 import (

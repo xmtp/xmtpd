@@ -15,12 +15,12 @@ import (
 	p "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/contracts"
 	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
 
 type payerReportManagerStorerTester struct {

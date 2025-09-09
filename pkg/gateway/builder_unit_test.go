@@ -23,7 +23,7 @@ func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	return &config.GatewayConfig{
 		Payer: testutils.GetPayerOptions(t),
-		API: config.ApiOptions{
+		API: config.APIOptions{
 			Port:     0,
 			HTTPPort: 0,
 		},
@@ -33,7 +33,7 @@ func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
 			LogLevel:    "info",
 		},
 		Redis: config.RedisOptions{
-			RedisUrl:  "redis://localhost:6379",
+			RedisURL:  "redis://localhost:6379",
 			KeyPrefix: fmt.Sprintf("xmtpd:test:%s:", t.Name()),
 		},
 		Metrics: config.MetricsOptions{
@@ -58,7 +58,7 @@ func TestBuilderMethodChaining(t *testing.T) {
 
 	// Test WithIdentityFn
 	identityFn := func(ctx context.Context) (Identity, error) {
-		return Identity{Kind: IdentityKindIP, Identity: "test"}, nil
+		return Identity{Kind: identityKindIP, Identity: "test"}, nil
 	}
 	result := builder.WithIdentityFn(identityFn)
 	assert.Equal(t, builder, result) // Should return self for chaining
@@ -146,7 +146,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 
 	t.Run("invalid redis url", func(t *testing.T) {
 		cfg := createMinimalTestConfig(t)
-		cfg.Redis.RedisUrl = "invalid://redis-url"
+		cfg.Redis.RedisURL = "invalid://redis-url"
 
 		// Mock dependencies to avoid other errors
 		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
@@ -167,7 +167,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 
 	t.Run("empty redis url", func(t *testing.T) {
 		cfg := createMinimalTestConfig(t)
-		cfg.Redis.RedisUrl = ""
+		cfg.Redis.RedisURL = ""
 
 		// Mock dependencies to avoid other errors
 		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)

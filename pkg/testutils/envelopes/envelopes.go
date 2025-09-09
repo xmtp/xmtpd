@@ -1,4 +1,5 @@
-package testutils
+// Package envelopes implements the envelopes test utils.
+package envelopes
 
 import (
 	"crypto/ecdsa"
@@ -18,22 +19,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const DefaultClientEnvelopeNodeId = uint32(100)
+const DefaultClientEnvelopeNodeID = uint32(100)
 
 const (
-	MINIMAL_COMMIT_PAYLOAD      = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000103000000"
-	MINIMAL_APPLICATION_PAYLOAD = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000101000000"
+	MinimalCommitPayload      = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000103000000"
+	MinimalApplicationPayload = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000101000000"
 )
 
 func GetRealisticGroupMessagePayload(makeCommit bool) []byte {
 	if makeCommit {
-		b, err := hex.DecodeString(MINIMAL_COMMIT_PAYLOAD)
+		b, err := hex.DecodeString(MinimalCommitPayload)
 		if err != nil {
 			panic("could not generate bytes")
 		}
 		return b
 	} else {
-		b, err := hex.DecodeString(MINIMAL_APPLICATION_PAYLOAD)
+		b, err := hex.DecodeString(MinimalApplicationPayload)
 		if err != nil {
 			panic("could not generate bytes")
 		}
@@ -65,7 +66,7 @@ func CreateClientEnvelope(options ...*ClientEnvelopeOptions) *envelopes.ClientEn
 
 	if len(options) == 0 {
 		aad = &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 				Bytes(),
 			DependsOn: &envelopes.Cursor{},
 		}
@@ -99,7 +100,7 @@ func CreateGroupMessageClientEnvelope(
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{
 		Aad: &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).
 				Bytes(),
 		},
 		Payload: &envelopes.ClientEnvelope_GroupMessage{
@@ -119,7 +120,7 @@ func CreatePayerReportClientEnvelope(
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{
 		Aad: &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORTS_V1, utils.Uint32ToBytes(originatorID)).
+			TargetTopic: topic.NewTopic(topic.TopicKindPayerReportsV1, utils.Uint32ToBytes(originatorID)).
 				Bytes(),
 		},
 		Payload: &envelopes.ClientEnvelope_PayerReport{
@@ -134,7 +135,7 @@ func CreateIdentityUpdateClientEnvelope(
 ) *envelopes.ClientEnvelope {
 	return &envelopes.ClientEnvelope{
 		Aad: &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxID[:]).
 				Bytes(),
 		},
 		Payload: &envelopes.ClientEnvelope_IdentityUpdate{
@@ -190,7 +191,7 @@ func CreatePayerEnvelope(
 	return CreatePayerEnvelopeWithExpiration(
 		t,
 		nodeID,
-		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		constants.DefaultStorageDurationDays,
 		clientEnv...)
 }
 

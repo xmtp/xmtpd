@@ -31,7 +31,7 @@ func TestUnaryInterceptor(t *testing.T) {
 			name: "valid token",
 			setupContext: func() context.Context {
 				md := metadata.New(map[string]string{
-					constants.NODE_AUTHORIZATION_HEADER_NAME: "valid_token",
+					constants.NodeAuthorizationHeaderName: "valid_token",
 				})
 				return metadata.NewIncomingContext(context.Background(), md)
 			},
@@ -64,7 +64,7 @@ func TestUnaryInterceptor(t *testing.T) {
 			name: "invalid token",
 			setupContext: func() context.Context {
 				md := metadata.New(map[string]string{
-					constants.NODE_AUTHORIZATION_HEADER_NAME: "invalid_token",
+					constants.NodeAuthorizationHeaderName: "invalid_token",
 				})
 				return metadata.NewIncomingContext(context.Background(), md)
 			},
@@ -126,7 +126,7 @@ func TestStreamInterceptor(t *testing.T) {
 			name: "valid token",
 			setupContext: func() context.Context {
 				md := metadata.New(map[string]string{
-					constants.NODE_AUTHORIZATION_HEADER_NAME: "valid_token",
+					constants.NodeAuthorizationHeaderName: "valid_token",
 				})
 				return metadata.NewIncomingContext(context.Background(), md)
 			},
@@ -149,7 +149,7 @@ func TestStreamInterceptor(t *testing.T) {
 			name: "invalid token",
 			setupContext: func() context.Context {
 				md := metadata.New(map[string]string{
-					constants.NODE_AUTHORIZATION_HEADER_NAME: "invalid_token",
+					constants.NodeAuthorizationHeaderName: "invalid_token",
 				})
 				return metadata.NewIncomingContext(context.Background(), md)
 			},

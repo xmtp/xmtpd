@@ -70,7 +70,7 @@ type FramedContentBodyIn interface {
 	ContentType() ContentType
 }
 
-// Application (stub)
+// ApplicationContent (stub)
 type ApplicationContent struct{}
 
 func (a *ApplicationContent) TLSDeserialize(r *bytes.Reader) error {
@@ -78,13 +78,13 @@ func (a *ApplicationContent) TLSDeserialize(r *bytes.Reader) error {
 }
 func (*ApplicationContent) ContentType() ContentType { return ContentTypeApplication }
 
-// Proposal (stub)
+// ProposalIn (stub)
 type ProposalIn struct{}
 
 func (p *ProposalIn) TLSDeserialize(r *bytes.Reader) error { return nil }
 func (*ProposalIn) ContentType() ContentType               { return ContentTypeProposal }
 
-// Commit (stub)
+// CommitIn (stub)
 type CommitIn struct{}
 
 func (c *CommitIn) TLSDeserialize(r *bytes.Reader) error { return nil }

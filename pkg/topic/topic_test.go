@@ -13,7 +13,7 @@ func TestValidTopic(t *testing.T) {
 	newTopic := []byte{1, 2, 3}
 	parsed, err := topic.ParseTopic(newTopic)
 	require.NoError(t, err)
-	require.Equal(t, topic.TOPIC_KIND_WELCOME_MESSAGES_V1, parsed.Kind())
+	require.Equal(t, topic.TopicKindWelcomeMessagesV1, parsed.Kind())
 	require.Equal(t, []byte{2, 3}, parsed.Identifier())
 }
 
@@ -34,7 +34,7 @@ func TestInvalidKind(t *testing.T) {
 func TestTopicString(t *testing.T) {
 	identifier := testutils.RandomBytes(32)
 
-	groupMessagesTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, identifier)
+	groupMessagesTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, identifier)
 	require.Equal(t, "group_messages_v1", groupMessagesTopic.Kind().String())
 	require.Equal(t, identifier, groupMessagesTopic.Identifier())
 	require.Equal(
@@ -43,7 +43,7 @@ func TestTopicString(t *testing.T) {
 		groupMessagesTopic.String(),
 	)
 
-	identityUpdatesTopic := topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, identifier)
+	identityUpdatesTopic := topic.NewTopic(topic.TopicKindIdentityUpdatesV1, identifier)
 	require.Equal(t, "identity_updates_v1", identityUpdatesTopic.Kind().String())
 	require.Equal(t, identifier, identityUpdatesTopic.Identifier())
 	require.Equal(

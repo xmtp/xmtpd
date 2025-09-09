@@ -93,7 +93,7 @@ func setupBlockchain(
 			t.Context(),
 			ethcrypto.PubkeyToAddress(*node.SigningKey),
 			node.SigningKey,
-			node.HttpAddress,
+			node.HTTPAddress,
 		)
 		require.NoError(t, err)
 
@@ -159,12 +159,12 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
 	require.NoError(t, err)
 
-	server1 := serverTestUtils.NewTestServer(
+	server1 := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server1Port,
 			HTTPListener:     httpServer1Port,
-			Db:               dbs[0],
+			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
@@ -174,12 +174,12 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			},
 		},
 	)
-	server2 := serverTestUtils.NewTestServer(
+	server2 := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server2Port,
 			HTTPListener:     httpServer2Port,
-			Db:               dbs[1],
+			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
 			ContractsOptions: contractsOptions,
@@ -371,7 +371,7 @@ func TestValidSignature(t *testing.T) {
 func TestCanGenerateReport(t *testing.T) {
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
-	messageTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
+	messageTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
 
 	scaffold.publishRandomMessage(t, messageTopic, 0, 0)
 	scaffold.publishRandomMessage(t, messageTopic, 1, 1)
@@ -386,7 +386,7 @@ func TestCanGenerateReport(t *testing.T) {
 	err := scaffold.reportGenerators[0].GenerateReports()
 	require.NoError(t, err)
 
-	node1ReportTopic := topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORTS_V1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
+	node1ReportTopic := topic.NewTopic(topic.TopicKindPayerReportsV1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
 		Bytes()
 
 	require.Eventually(t, func() bool {
@@ -410,7 +410,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
-	messageTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
+	messageTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
 
 	scaffold.publishRandomMessage(t, messageTopic, 0, 0)
 	scaffold.publishRandomMessage(t, messageTopic, 1, 1)
@@ -425,7 +425,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 	err := scaffold.reportGenerators[0].GenerateReports()
 	require.NoError(t, err)
 
-	node1ReportTopic := topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORTS_V1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
+	node1ReportTopic := topic.NewTopic(topic.TopicKindPayerReportsV1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
 		Bytes()
 
 	require.Eventually(t, func() bool {
@@ -442,7 +442,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	attestationTopic := topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
+	attestationTopic := topic.NewTopic(topic.TopicKindPayerReportAttestationsV1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
 		Bytes()
 
 	require.Eventually(t, func() bool {

@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var topicA = topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte("topicA")).Bytes()
+var topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
 
 func setup(t *testing.T) (*sql.DB, *zap.Logger) {
 	ctx := context.Background()

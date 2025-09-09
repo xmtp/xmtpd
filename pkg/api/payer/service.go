@@ -1,3 +1,4 @@
+// Package payer implements the Payer API service.
 package payer
 
 import (
@@ -46,25 +47,25 @@ type Service struct {
 	nodeRegistry        registry.NodeRegistry
 }
 
-func NewPayerApiService(
+func NewPayerAPIService(
 	ctx context.Context,
 	log *zap.Logger,
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
-	metadataApiClient MetadataApiClientConstructor,
+	metadataAPIClient MetadataAPIClientConstructor,
 	clientMetrics *grpcprom.ClientMetrics,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
 	}
 
-	var metadataClient MetadataApiClientConstructor
+	var metadataClient MetadataAPIClientConstructor
 	clientManager := NewClientManager(log, nodeRegistry, clientMetrics)
-	if metadataApiClient == nil {
-		metadataClient = &DefaultMetadataApiClientConstructor{clientManager: clientManager}
+	if metadataAPIClient == nil {
+		metadataClient = &DefaultMetadataAPIClientConstructor{clientManager: clientManager}
 	} else {
-		metadataClient = metadataApiClient
+		metadataClient = metadataAPIClient
 	}
 
 	return &Service{
@@ -101,11 +102,11 @@ func (s *Service) GetReaderNode(
 		return nil, status.Errorf(codes.Unavailable, "no nodes available")
 	}
 
-	primaryUrl, backupUrls := getReaderNodeRandom(nodes)
+	primaryURL, backupURLs := getReaderNodeRandom(nodes)
 
 	return &payer_api.GetReaderNodeResponse{
-		ReaderNodeUrl:  primaryUrl,
-		BackupNodeUrls: backupUrls,
+		ReaderNodeUrl:  primaryURL,
+		BackupNodeUrls: backupURLs,
 	}, nil
 }
 
@@ -116,14 +117,14 @@ func getReaderNodeRandom(nodes []registry.Node) (string, []string) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
 
-	primaryUrl := shuffled[0].HttpAddress
+	primaryURL := shuffled[0].HTTPAddress
 
-	backupUrls := make([]string, 0, len(shuffled)-1)
+	backupURLs := make([]string, 0, len(shuffled)-1)
 	for _, node := range shuffled[1:] {
-		backupUrls = append(backupUrls, node.HttpAddress)
+		backupURLs = append(backupURLs, node.HTTPAddress)
 	}
 
-	return primaryUrl, backupUrls
+	return primaryURL, backupURLs
 }
 
 func (s *Service) PublishClientEnvelopes(
@@ -138,9 +139,9 @@ func (s *Service) PublishClientEnvelopes(
 	out := make([]*envelopesProto.OriginatorEnvelope, len(req.Envelopes))
 
 	// For each originator found in the request, publish all matching envelopes to the node
-	for originatorId, payloadsWithIndex := range grouped.forNodes {
-		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorId))
-		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorId, payloadsWithIndex)
+	for originatorID, payloadsWithIndex := range grouped.forNodes {
+		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorID))
+		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorID, payloadsWithIndex)
 		if err != nil {
 			s.log.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Error(codes.Internal, "error publishing payer envelopes")
@@ -217,12 +218,12 @@ func (s *Service) groupEnvelopes(
 				newClientEnvelopeWithIndex(i, clientEnvelope),
 			)
 		} else {
-			targetNodeId, err := s.nodeSelector.GetNode(clientEnvelope.TargetTopic())
+			targetNodeID, err := s.nodeSelector.GetNode(clientEnvelope.TargetTopic())
 			if err != nil {
 				return nil, err
 			}
 
-			out.forNodes[targetNodeId] = append(out.forNodes[targetNodeId], newClientEnvelopeWithIndex(i, clientEnvelope))
+			out.forNodes[targetNodeID] = append(out.forNodes[targetNodeID], newClientEnvelopeWithIndex(i, clientEnvelope))
 		}
 	}
 
@@ -305,8 +306,8 @@ func (s *Service) publishToBlockchain(
 	var (
 		targetTopic         = clientEnvelope.TargetTopic()
 		identifier          = targetTopic.Identifier()
-		desiredOriginatorId uint32
-		desiredSequenceId   uint64
+		desiredOriginatorID uint32
+		desiredSequenceID   uint64
 		kind                = targetTopic.Kind()
 	)
 
@@ -325,8 +326,8 @@ func (s *Service) publishToBlockchain(
 	var unsignedOriginatorEnvelope *envelopesProto.UnsignedOriginatorEnvelope
 	var hash common.Hash
 	switch kind {
-	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
-		desiredOriginatorId = contracts.GROUP_MESSAGE_ORIGINATOR_ID
+	case topic.TopicKindGroupMessagesV1:
+		desiredOriginatorID = contracts.GROUP_MESSAGE_ORIGINATOR_ID
 
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
 
@@ -351,7 +352,7 @@ func (s *Service) publishToBlockchain(
 
 		hash = logMessage.Raw.TxHash
 		unsignedOriginatorEnvelope, err = buildUnsignedOriginatorEnvelopeFromChain(
-			desiredOriginatorId,
+			desiredOriginatorID,
 			logMessage.SequenceId,
 			logMessage.Message,
 		)
@@ -362,10 +363,10 @@ func (s *Service) publishToBlockchain(
 				err,
 			)
 		}
-		desiredSequenceId = logMessage.SequenceId
+		desiredSequenceID = logMessage.SequenceId
 
-	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
-		desiredOriginatorId = contracts.IDENTITY_UPDATE_ORIGINATOR_ID
+	case topic.TopicKindIdentityUpdatesV1:
+		desiredOriginatorID = contracts.IDENTITY_UPDATE_ORIGINATOR_ID
 
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
 
@@ -390,7 +391,7 @@ func (s *Service) publishToBlockchain(
 
 		hash = logMessage.Raw.TxHash
 		unsignedOriginatorEnvelope, err = buildUnsignedOriginatorEnvelopeFromChain(
-			desiredOriginatorId,
+			desiredOriginatorID,
 			logMessage.SequenceId,
 			logMessage.Update,
 		)
@@ -401,7 +402,7 @@ func (s *Service) publishToBlockchain(
 				err,
 			)
 		}
-		desiredSequenceId = logMessage.SequenceId
+		desiredSequenceID = logMessage.SequenceId
 
 	default:
 		return nil, status.Errorf(
@@ -411,8 +412,8 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	metrics.EmitPayerNodePublishDuration(desiredOriginatorId, time.Since(start).Seconds())
-	metrics.EmitPayerMessageOriginated(desiredOriginatorId, 1)
+	metrics.EmitPayerNodePublishDuration(desiredOriginatorID, time.Since(start).Seconds())
+	metrics.EmitPayerMessageOriginated(desiredOriginatorID, 1)
 
 	s.log.Debug(
 		"published message to blockchain",
@@ -428,26 +429,26 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	targetNodeId, err := s.nodeSelector.GetNode(targetTopic)
+	targetNodeID, err := s.nodeSelector.GetNode(targetTopic)
 	if err != nil {
 		return nil, err
 	}
 
 	s.log.Debug(
 		"Waiting for message to be processed by node",
-		zap.Uint32("target_node_id", targetNodeId),
+		zap.Uint32("target_node_id", targetNodeID),
 	)
 
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
 		ctx,
-		targetNodeId,
-		desiredOriginatorId,
-		desiredSequenceId,
+		targetNodeID,
+		desiredOriginatorID,
+		desiredSequenceID,
 	)
 	if err != nil {
 		s.log.Error(
 			"Chosen node for cursor check is unreachable",
-			zap.Uint32("targetNodeId", targetNodeId),
+			zap.Uint32("targetNodeId", targetNodeID),
 			zap.Error(err),
 		)
 	}
@@ -531,9 +532,9 @@ func determineRetentionPolicy(clientEnvelope *envelopes.ClientEnvelope) (uint32,
 	// TODO: mkysel determine expiration for welcomes and key packages
 
 	switch clientEnvelope.TargetTopic().Kind() {
-	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
+	case topic.TopicKindIdentityUpdatesV1:
 		panic("should not be called for identity updates")
-	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
+	case topic.TopicKindGroupMessagesV1:
 		switch payload := clientEnvelope.Payload().(type) {
 		case *envelopesProto.ClientEnvelope_GroupMessage:
 			isCommit, err := deserializer.IsGroupMessageCommit(payload)
@@ -548,14 +549,14 @@ func determineRetentionPolicy(clientEnvelope *envelopes.ClientEnvelope) (uint32,
 		}
 	}
 
-	return constants.DEFAULT_STORAGE_DURATION_DAYS, nil
+	return constants.DefaultStorageDurationDays, nil
 }
 
 func shouldSendToBlockchain(clientEnvelope *envelopes.ClientEnvelope) (bool, error) {
 	switch clientEnvelope.TargetTopic().Kind() {
-	case topic.TOPIC_KIND_IDENTITY_UPDATES_V1:
+	case topic.TopicKindIdentityUpdatesV1:
 		return true, nil
-	case topic.TOPIC_KIND_GROUP_MESSAGES_V1:
+	case topic.TopicKindGroupMessagesV1:
 		switch payload := clientEnvelope.Payload().(type) {
 		case *envelopesProto.ClientEnvelope_GroupMessage:
 			isCommit, err := deserializer.IsGroupMessageCommit(payload)

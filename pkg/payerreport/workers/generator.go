@@ -184,7 +184,7 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 			Bytes: payerSignature,
 		},
 		TargetOriginator:     w.myNodeID,
-		MessageRetentionDays: constants.DEFAULT_STORAGE_DURATION_DAYS,
+		MessageRetentionDays: constants.DefaultStorageDurationDays,
 	})
 	if err != nil {
 		return err

@@ -1,3 +1,4 @@
+// Package registry implements the node registry interface.
 package registry
 
 import (
@@ -5,19 +6,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 )
 
-/*
-*
-A dumbed down interface of abis.NodesCaller for generating mocks
-*/
+// NodeRegistryContract is a dumbed down interface of abis.NodesCaller for generating mocks.
 type NodeRegistryContract interface {
 	GetAllNodes(opts *bind.CallOpts) ([]noderegistry.INodeRegistryNodeWithId, error)
 }
 
-/*
-*
-The NodeRegistry is responsible for fetching the list of nodes from the registry contract
-and notifying listeners when the list of nodes changes.
-*/
+// NodeRegistry is responsible for fetching the list of nodes from the registry contract
+// and notifying listeners when the list of nodes changes.
 type NodeRegistry interface {
 	GetNodes() ([]Node, error)
 	GetNode(uint32) (*Node, error)

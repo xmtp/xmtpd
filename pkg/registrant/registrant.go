@@ -1,3 +1,4 @@
+// Package registrant implements the registrant for the node.
 package registrant
 
 import (

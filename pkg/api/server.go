@@ -1,3 +1,4 @@
+// Package api implements the API server.
 package api
 
 import (
@@ -25,62 +26,62 @@ import (
 
 type RegistrationFunc func(server *grpc.Server) error
 
-type ApiServerConfig struct {
+type APIServerConfig struct {
 	Ctx                  context.Context
 	Log                  *zap.Logger
 	GRPCListener         net.Listener
 	HTTPListener         net.Listener
 	EnableReflection     bool
 	RegistrationFunc     RegistrationFunc
-	HTTPRegistrationFunc HttpRegistrationFunc
+	HTTPRegistrationFunc HTTPRegistrationFunc
 	PromRegistry         *prometheus.Registry
 	UnaryInterceptors    []grpc.UnaryServerInterceptor
 	StreamInterceptors   []grpc.StreamServerInterceptor
 }
 
-type ApiServerOption func(*ApiServerConfig)
+type APIServerOption func(*APIServerConfig)
 
-func WithContext(ctx context.Context) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.Ctx = ctx }
+func WithContext(ctx context.Context) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.Ctx = ctx }
 }
 
-func WithLogger(log *zap.Logger) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.Log = log }
+func WithLogger(log *zap.Logger) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.Log = log }
 }
 
-func WithGRPCListener(listener net.Listener) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.GRPCListener = listener }
+func WithGRPCListener(listener net.Listener) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.GRPCListener = listener }
 }
 
-func WithHTTPListener(listener net.Listener) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.HTTPListener = listener }
+func WithHTTPListener(listener net.Listener) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.HTTPListener = listener }
 }
 
-func WithReflection(enabled bool) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.EnableReflection = enabled }
+func WithReflection(enabled bool) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.EnableReflection = enabled }
 }
 
-func WithRegistrationFunc(fn RegistrationFunc) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.RegistrationFunc = fn }
+func WithRegistrationFunc(fn RegistrationFunc) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.RegistrationFunc = fn }
 }
 
-func WithHTTPRegistrationFunc(fn HttpRegistrationFunc) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.HTTPRegistrationFunc = fn }
+func WithHTTPRegistrationFunc(fn HTTPRegistrationFunc) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.HTTPRegistrationFunc = fn }
 }
 
-func WithPrometheusRegistry(reg *prometheus.Registry) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.PromRegistry = reg }
+func WithPrometheusRegistry(reg *prometheus.Registry) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.PromRegistry = reg }
 }
 
-func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.UnaryInterceptors = append(cfg.UnaryInterceptors, interceptors...) }
+func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.UnaryInterceptors = append(cfg.UnaryInterceptors, interceptors...) }
 }
 
-func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) ApiServerOption {
-	return func(cfg *ApiServerConfig) { cfg.StreamInterceptors = append(cfg.StreamInterceptors, interceptors...) }
+func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.StreamInterceptors = append(cfg.StreamInterceptors, interceptors...) }
 }
 
-type ApiServer struct {
+type APIServer struct {
 	ctx          context.Context
 	grpcListener net.Listener
 	httpListener net.Listener
@@ -89,8 +90,8 @@ type ApiServer struct {
 	wg           sync.WaitGroup
 }
 
-func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
-	cfg := &ApiServerConfig{}
+func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
+	cfg := &APIServerConfig{}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -114,7 +115,7 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 		return nil, fmt.Errorf("http registration function is required")
 	}
 
-	s := &ApiServer{
+	s := &APIServer{
 		ctx: cfg.Ctx,
 		grpcListener: &proxyproto.Listener{
 			Listener:          cfg.GRPCListener,
@@ -200,20 +201,20 @@ func NewAPIServer(opts ...ApiServerOption) (*ApiServer, error) {
 	return s, nil
 }
 
-func (s *ApiServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
+func (s *APIServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpcListener.Addr().String())
 	return grpc.NewClient(dialAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
-func (s *ApiServer) Addr() net.Addr {
+func (s *APIServer) Addr() net.Addr {
 	return s.grpcListener.Addr()
 }
 
-func (s *ApiServer) HttpAddr() net.Addr {
+func (s *APIServer) HTTPAddr() net.Addr {
 	return s.httpListener.Addr()
 }
 
-func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
+func (s *APIServer) gracefulShutdown(timeout time.Duration) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// Attempt to use GracefulStop up until the timeout
 	go func() {
@@ -230,7 +231,7 @@ func (s *ApiServer) gracefulShutdown(timeout time.Duration) {
 	<-ctx.Done()
 }
 
-func (s *ApiServer) Close(timeout time.Duration) {
+func (s *APIServer) Close(timeout time.Duration) {
 	s.log.Debug("closing")
 	if s.grpcServer != nil {
 		if timeout != 0 {

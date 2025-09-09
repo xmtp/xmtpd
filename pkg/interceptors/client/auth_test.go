@@ -21,12 +21,12 @@ import (
 
 // Create a mock implementation of the ReplicationApiServer interface
 // but that embeds `UnimplementedReplicationApiServer` (which mockery won't do for us)
-type mockReplicationApiServer struct {
+type mockReplicationAPIServer struct {
 	message.Service
 	expectedToken string
 }
 
-func (s *mockReplicationApiServer) QueryEnvelopes(
+func (s *mockReplicationAPIServer) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
@@ -37,7 +37,7 @@ func (s *mockReplicationApiServer) QueryEnvelopes(
 	}
 
 	// Extract and verify the token
-	tokens := md.Get(constants.NODE_AUTHORIZATION_HEADER_NAME)
+	tokens := md.Get(constants.NodeAuthorizationHeaderName)
 	if len(tokens) == 0 {
 		return nil, status.Error(codes.Unauthenticated, "authorization token is not provided")
 	}
@@ -67,7 +67,7 @@ func TestAuthInterceptor(t *testing.T) {
 	server := grpc.NewServer()
 	message_api.RegisterReplicationApiServer(
 		server,
-		&mockReplicationApiServer{expectedToken: token.SignedString},
+		&mockReplicationAPIServer{expectedToken: token.SignedString},
 	)
 
 	// Start the gRPC server in a goroutine

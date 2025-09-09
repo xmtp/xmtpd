@@ -8,15 +8,15 @@ import (
 )
 
 const (
-	LEAF_PREFIX = "leaf|"
-	NODE_PREFIX = "node|"
-	ROOT_PREFIX = "root|"
+	leafPrefix = "leaf|"
+	nodePrefix = "node|"
+	rootPrefix = "root|"
 )
 
 var (
-	leafPrefixBytes             = []byte(LEAF_PREFIX)
-	nodePrefixBytes             = []byte(NODE_PREFIX)
-	rootPrefixBytes             = []byte(ROOT_PREFIX)
+	leafPrefixBytes             = []byte(leafPrefix)
+	nodePrefixBytes             = []byte(nodePrefix)
+	rootPrefixBytes             = []byte(rootPrefix)
 	ErrInvalidLeafCount         = errors.New("invalid leaf count")
 	ErrInvalidBufferLength      = errors.New("invalid buffer length")
 	ErrInvalidIntToBytes32Input = errors.New("invalid int to bytes32 input")

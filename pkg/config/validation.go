@@ -193,7 +193,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 }
 
 func ParseJSONConfig(options *ContractsOptions) error {
-	if options.ConfigFilePath != "" && options.ConfigJson != "" {
+	if options.ConfigFilePath != "" && options.ConfigJSON != "" {
 		return errors.New("--config-file and --config-json cannot be used together")
 	}
 
@@ -217,23 +217,23 @@ func ParseJSONConfig(options *ContractsOptions) error {
 			return err
 		}
 
-		fillConfigFromJson(options, &config)
+		fillConfigFromJSON(options, &config)
 	}
 
-	if options.ConfigJson != "" {
+	if options.ConfigJSON != "" {
 		// Unmarshal JSON into the Config struct
 		var config ChainConfig
-		if err := json.Unmarshal([]byte(options.ConfigJson), &config); err != nil {
+		if err := json.Unmarshal([]byte(options.ConfigJSON), &config); err != nil {
 			return err
 		}
 
-		fillConfigFromJson(options, &config)
+		fillConfigFromJSON(options, &config)
 	}
 
 	return nil
 }
 
-func fillConfigFromJson(options *ContractsOptions, config *ChainConfig) {
+func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 	// Explicitly specified ENV variables in options take precedence!
 	// Only fill in values from the JSON if the relevant fields in options are empty or zero.
 

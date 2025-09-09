@@ -1,3 +1,4 @@
+// Package payerreport implements the payer report generator and verifier interfaces.
 package payerreport
 
 import (

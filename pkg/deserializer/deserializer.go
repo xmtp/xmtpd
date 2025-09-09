@@ -1,3 +1,4 @@
+// Package deserializer implements the deserializer for the MLS messages.
 package deserializer
 
 import (

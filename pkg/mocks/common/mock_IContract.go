@@ -9,7 +9,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	retryable_errors "github.com/xmtp/xmtpd/pkg/errors"
+	retryerrors "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 
 	types "github.com/ethereum/go-ethereum/core/types"
 
@@ -134,19 +134,19 @@ func (_c *MockIContract_GetLatestBlock_Call) RunAndReturn(run func() (uint64, []
 }
 
 // HandleLog provides a mock function with given fields: ctx, event
-func (_m *MockIContract) HandleLog(ctx context.Context, event types.Log) retryable_errors.RetryableError {
+func (_m *MockIContract) HandleLog(ctx context.Context, event types.Log) retryerrors.RetryableError {
 	ret := _m.Called(ctx, event)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HandleLog")
 	}
 
-	var r0 retryable_errors.RetryableError
-	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryable_errors.RetryableError); ok {
+	var r0 retryerrors.RetryableError
+	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryerrors.RetryableError); ok {
 		r0 = rf(ctx, event)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(retryable_errors.RetryableError)
+			r0 = ret.Get(0).(retryerrors.RetryableError)
 		}
 	}
 
@@ -172,12 +172,12 @@ func (_c *MockIContract_HandleLog_Call) Run(run func(ctx context.Context, event 
 	return _c
 }
 
-func (_c *MockIContract_HandleLog_Call) Return(_a0 retryable_errors.RetryableError) *MockIContract_HandleLog_Call {
+func (_c *MockIContract_HandleLog_Call) Return(_a0 retryerrors.RetryableError) *MockIContract_HandleLog_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockIContract_HandleLog_Call) RunAndReturn(run func(context.Context, types.Log) retryable_errors.RetryableError) *MockIContract_HandleLog_Call {
+func (_c *MockIContract_HandleLog_Call) RunAndReturn(run func(context.Context, types.Log) retryerrors.RetryableError) *MockIContract_HandleLog_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -230,19 +230,19 @@ func (_c *MockIContract_Logger_Call) RunAndReturn(run func() *zap.Logger) *MockI
 }
 
 // StoreLog provides a mock function with given fields: ctx, event
-func (_m *MockIContract) StoreLog(ctx context.Context, event types.Log) retryable_errors.RetryableError {
+func (_m *MockIContract) StoreLog(ctx context.Context, event types.Log) retryerrors.RetryableError {
 	ret := _m.Called(ctx, event)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreLog")
 	}
 
-	var r0 retryable_errors.RetryableError
-	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryable_errors.RetryableError); ok {
+	var r0 retryerrors.RetryableError
+	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryerrors.RetryableError); ok {
 		r0 = rf(ctx, event)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(retryable_errors.RetryableError)
+			r0 = ret.Get(0).(retryerrors.RetryableError)
 		}
 	}
 
@@ -268,12 +268,12 @@ func (_c *MockIContract_StoreLog_Call) Run(run func(ctx context.Context, event t
 	return _c
 }
 
-func (_c *MockIContract_StoreLog_Call) Return(_a0 retryable_errors.RetryableError) *MockIContract_StoreLog_Call {
+func (_c *MockIContract_StoreLog_Call) Return(_a0 retryerrors.RetryableError) *MockIContract_StoreLog_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockIContract_StoreLog_Call) RunAndReturn(run func(context.Context, types.Log) retryable_errors.RetryableError) *MockIContract_StoreLog_Call {
+func (_c *MockIContract_StoreLog_Call) RunAndReturn(run func(context.Context, types.Log) retryerrors.RetryableError) *MockIContract_StoreLog_Call {
 	_c.Call.Return(run)
 	return _c
 }

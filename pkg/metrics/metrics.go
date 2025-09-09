@@ -1,3 +1,4 @@
+// Package metrics implements the Prometheusmetrics for the XMTPD service.
 package metrics
 
 import (
@@ -88,7 +89,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		payerCurrentNonce,
 		payerBanlistRetry,
 		payerMessagesOriginated,
-		syncOriginatorSequenceId,
+		syncOriginatorSequenceID,
 		syncOutgoingSyncConnections,
 		syncFailedOutgoingSyncConnections,
 		syncFailedOutgoingSyncConnectionCounter,

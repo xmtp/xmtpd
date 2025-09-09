@@ -33,7 +33,7 @@ func NewNullInt32[T ~int32 | ~uint32](i *T) sql.NullInt32 {
 	return sql.NullInt32{Int32: int32(*i), Valid: true}
 }
 
-// Generic version that accepts both int64 and uint64 types
+// NewNullInt64 is a generic version that accepts both int64 and uint64 types.
 func NewNullInt64[T ~int64 | ~uint64](i *T) sql.NullInt64 {
 	if i == nil {
 		return sql.NullInt64{Valid: false}

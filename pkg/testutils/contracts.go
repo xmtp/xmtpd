@@ -18,11 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	LOCAL_PRIVATE_KEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-)
-
-// Build an abi encoded MessageSent event struct
+// BuildMessageSentEvent builds an abi encoded MessageSent event struct.
 func BuildMessageSentEvent(
 	message []byte,
 ) ([]byte, error) {

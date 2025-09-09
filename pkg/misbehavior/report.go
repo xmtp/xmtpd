@@ -8,14 +8,14 @@ import (
 )
 
 type SafetyFailureReport struct {
-	misbehavingNodeId uint32
+	misbehavingNodeID uint32
 	misbehaviorType   proto.Misbehavior
 	submittedByNode   bool
 	envelopes         []*envelopes.OriginatorEnvelope
 }
 
 func NewSafetyFailureReport(
-	misbehavingNodeId uint32,
+	misbehavingNodeID uint32,
 	misbehaviorType proto.Misbehavior,
 	submittedByNode bool,
 	envs []*envelopes.OriginatorEnvelope,
@@ -24,7 +24,7 @@ func NewSafetyFailureReport(
 		return nil, errors.New("no envelopes provided")
 	}
 
-	if misbehavingNodeId == 0 {
+	if misbehavingNodeID == 0 {
 		return nil, errors.New("misbehaving node id is required")
 	}
 
@@ -33,7 +33,7 @@ func NewSafetyFailureReport(
 	}
 
 	return &SafetyFailureReport{
-		misbehavingNodeId: misbehavingNodeId,
+		misbehavingNodeID: misbehavingNodeID,
 		misbehaviorType:   misbehaviorType,
 		submittedByNode:   submittedByNode,
 		envelopes:         envs,

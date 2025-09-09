@@ -91,7 +91,7 @@ func TestStoreMessages(t *testing.T) {
 
 	message := testutils.RandomBytes(78)
 	groupID := testutils.RandomGroupID()
-	msgTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()
+	msgTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
 
 	clientEnvelope := envelopesTestUtils.CreateGroupMessageClientEnvelope(groupID, message)
 	clientEnvelopeBytes, err := proto.Marshal(clientEnvelope)

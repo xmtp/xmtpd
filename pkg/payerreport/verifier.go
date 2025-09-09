@@ -43,11 +43,13 @@ func NewPayerReportVerifier(log *zap.Logger, store IPayerReportStore) *PayerRepo
 }
 
 /*
-  - Validate a payer report
-  - This function checks that the new report is valid and that it is a valid
-  - transition from the previous report.
-  - The previous report is assumed to be valid, and does not get validated again.
-  - Will regenerate the payer map and verify that the merkle root is correct
+IsValidReport validates a payer report.
+
+This function checks that the new report is valid and that it is a valid
+transition from the previous report.
+
+- The previous report is assumed to be valid, and does not get validated again.
+  - Will regenerate the payer map and verify that the merkle root is correct.
     *
   - @param prevReport The previous report.
   - @param newReport The new report.

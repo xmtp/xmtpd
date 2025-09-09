@@ -1,3 +1,4 @@
+// Package workers implements the attestation worker for the payer report.
 package workers
 
 import (
@@ -60,7 +61,7 @@ func NewAttestationWorker(
 	return worker
 }
 
-// start launches the worker's main loop in a separate goroutine.
+// Start launches the worker's main loop in a separate goroutine.
 // The loop periodically checks for reports that need attestation.
 func (w *AttestationWorker) Start() {
 	tracing.GoPanicWrap(
@@ -220,7 +221,7 @@ func (w *AttestationWorker) signClientEnvelope(
 			Bytes: payerSignature,
 		},
 		TargetOriginator:     originatorID,
-		MessageRetentionDays: constants.DEFAULT_STORAGE_DURATION_DAYS,
+		MessageRetentionDays: constants.DefaultStorageDurationDays,
 	}
 
 	return envelopes.NewPayerEnvelope(&protoEnvelope)

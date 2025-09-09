@@ -1,3 +1,4 @@
+// Package client implements the client for the interceptors package.
 package client
 
 import (
@@ -32,7 +33,7 @@ func NewAuthInterceptor(
 func (i *AuthInterceptor) getToken() (*authn.Token, error) {
 	// If we have a token that is not expired (or nearing expiry) then return it
 	if i.currentToken != nil &&
-		i.currentToken.ExpiresAt.After(time.Now().Add(authn.MAX_CLOCK_SKEW)) {
+		i.currentToken.ExpiresAt.After(time.Now().Add(authn.MaxClockSkew)) {
 		return i.currentToken, nil
 	}
 	token, err := i.tokenFactory.CreateToken(i.targetNodeID)
@@ -60,7 +61,7 @@ func (i *AuthInterceptor) Unary() grpc.UnaryClientInterceptor {
 			return status.Errorf(codes.Unauthenticated, "failed to get token: %v", err)
 		}
 		// Create the metadata with the token
-		md := metadata.Pairs(constants.NODE_AUTHORIZATION_HEADER_NAME, token.SignedString)
+		md := metadata.Pairs(constants.NodeAuthorizationHeaderName, token.SignedString)
 		// Attach metadata to the outgoing context
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
@@ -83,7 +84,7 @@ func (i *AuthInterceptor) Stream() grpc.StreamClientInterceptor {
 			return nil, status.Errorf(codes.Unauthenticated, "failed to get token: %v", err)
 		}
 		// Create the metadata with the token
-		md := metadata.Pairs(constants.NODE_AUTHORIZATION_HEADER_NAME, token.SignedString)
+		md := metadata.Pairs(constants.NodeAuthorizationHeaderName, token.SignedString)
 		// Attach the metadata to the outgoing context
 		ctx = metadata.NewOutgoingContext(ctx, md)
 

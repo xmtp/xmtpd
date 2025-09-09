@@ -1,3 +1,4 @@
+// Package server implements the replication server test utils.
 package server
 
 import (
@@ -25,14 +26,14 @@ type EnabledServices struct {
 type TestServerCfg struct {
 	GRPCListener     net.Listener
 	HTTPListener     net.Listener
-	Db               *sql.DB
+	DB               *sql.DB
 	Registry         r.NodeRegistry
 	PrivateKey       *ecdsa.PrivateKey
 	ContractsOptions config.ContractsOptions
 	Services         EnabledServices
 }
 
-func NewTestServer(
+func NewTestReplicationServer(
 	t *testing.T,
 	cfg TestServerCfg,
 ) *s.ReplicationServer {
@@ -40,7 +41,7 @@ func NewTestServer(
 
 	server, err := s.NewReplicationServer(s.WithContext(t.Context()),
 		s.WithLogger(log),
-		s.WithDB(cfg.Db),
+		s.WithDB(cfg.DB),
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithGRPCListener(cfg.GRPCListener),

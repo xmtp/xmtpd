@@ -17,7 +17,7 @@ type Rates struct {
 	TargetRatePerMinute uint64              // The target rate per minute for each node
 }
 
-// The RatesFetcher is responsible for loading the rates for a given message time.
+// IRatesFetcher is responsible for loading the rates for a given message time.
 // This allows us to roll out new rates over time, and apply them to messages consistently.
 type IRatesFetcher interface {
 	GetRates(messageTime time.Time) (*Rates, error)

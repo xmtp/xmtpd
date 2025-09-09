@@ -6,7 +6,7 @@ import (
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
-	retryable_errors "github.com/xmtp/xmtpd/pkg/errors"
+	retryerrors "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 
 	types "github.com/ethereum/go-ethereum/core/types"
 )
@@ -25,19 +25,19 @@ func (_m *MockILogStorer) EXPECT() *MockILogStorer_Expecter {
 }
 
 // StoreLog provides a mock function with given fields: ctx, event
-func (_m *MockILogStorer) StoreLog(ctx context.Context, event types.Log) retryable_errors.RetryableError {
+func (_m *MockILogStorer) StoreLog(ctx context.Context, event types.Log) retryerrors.RetryableError {
 	ret := _m.Called(ctx, event)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreLog")
 	}
 
-	var r0 retryable_errors.RetryableError
-	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryable_errors.RetryableError); ok {
+	var r0 retryerrors.RetryableError
+	if rf, ok := ret.Get(0).(func(context.Context, types.Log) retryerrors.RetryableError); ok {
 		r0 = rf(ctx, event)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(retryable_errors.RetryableError)
+			r0 = ret.Get(0).(retryerrors.RetryableError)
 		}
 	}
 
@@ -63,12 +63,12 @@ func (_c *MockILogStorer_StoreLog_Call) Run(run func(ctx context.Context, event 
 	return _c
 }
 
-func (_c *MockILogStorer_StoreLog_Call) Return(_a0 retryable_errors.RetryableError) *MockILogStorer_StoreLog_Call {
+func (_c *MockILogStorer_StoreLog_Call) Return(_a0 retryerrors.RetryableError) *MockILogStorer_StoreLog_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockILogStorer_StoreLog_Call) RunAndReturn(run func(context.Context, types.Log) retryable_errors.RetryableError) *MockILogStorer_StoreLog_Call {
+func (_c *MockILogStorer_StoreLog_Call) RunAndReturn(run func(context.Context, types.Log) retryerrors.RetryableError) *MockILogStorer_StoreLog_Call {
 	_c.Call.Return(run)
 	return _c
 }

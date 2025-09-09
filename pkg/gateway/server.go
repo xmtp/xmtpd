@@ -1,3 +1,4 @@
+// Package gateway implements the gateway service.
 package gateway
 
 import (
@@ -23,7 +24,7 @@ type gatewayServiceImpl struct {
 	metrics             *metrics.Server
 	ctx                 context.Context
 	cancel              context.CancelFunc
-	apiServer           *api.ApiServer
+	apiServer           *api.APIServer
 	nodeRegistry        registry.NodeRegistry
 	blockchainPublisher blockchain.IBlockchainPublisher
 }

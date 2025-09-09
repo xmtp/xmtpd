@@ -50,7 +50,7 @@ func createPayerReportClientEnvelope(report *PayerReport) *envelopesProto.Client
 	protoReport := report.ToProto()
 	return &envelopesProto.ClientEnvelope{
 		Aad: &envelopesProto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, testutils.RandomBytes(3)).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, testutils.RandomBytes(3)).
 				Bytes(),
 		},
 		Payload: &envelopesProto.ClientEnvelope_PayerReport{
@@ -67,7 +67,7 @@ func createPayerReportAttestationClientEnvelope(
 ) *envelopesProto.ClientEnvelope {
 	return &envelopesProto.ClientEnvelope{
 		Aad: &envelopesProto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, testutils.RandomBytes(3)).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, testutils.RandomBytes(3)).
 				Bytes(),
 		},
 		Payload: &envelopesProto.ClientEnvelope_PayerReportAttestation{

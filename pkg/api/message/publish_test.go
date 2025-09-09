@@ -26,7 +26,7 @@ func TestPublishEnvelope(t *testing.T) {
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 	)
 
 	resp, err := api.PublishPayerEnvelopes(
@@ -82,7 +82,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 	)
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
 	_, err := api.PublishPayerEnvelopes(
@@ -97,7 +97,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
 	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
-	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId + 100
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeID + 100
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
 	_, err := api.PublishPayerEnvelopes(
@@ -122,7 +122,7 @@ func TestMissingTopicOnPublish(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
 				envelopeTestUtils.CreatePayerEnvelope(
 					t,
-					envelopeTestUtils.DefaultClientEnvelopeNodeId,
+					envelopeTestUtils.DefaultClientEnvelopeNodeID,
 					clientEnv,
 				),
 			},
@@ -136,7 +136,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(
 		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+			TargetTopic: topic.NewTopic(topic.TopicKindKeyPackagesV1, []byte{1, 2, 3}).Bytes(),
 			DependsOn:   &envelopes.Cursor{},
 		}},
 	)
@@ -165,7 +165,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
 				envelopeTestUtils.CreatePayerEnvelope(
 					t,
-					envelopeTestUtils.DefaultClientEnvelopeNodeId,
+					envelopeTestUtils.DefaultClientEnvelopeNodeID,
 					clientEnv,
 				),
 			},
@@ -176,11 +176,11 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 
 func TestKeyPackageValidationFail(t *testing.T) {
 	api, _, apiMocks := apiTestUtils.NewTestReplicationAPIClient(t)
-	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeID
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(
 		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3}).Bytes(),
+			TargetTopic: topic.NewTopic(topic.TopicKindKeyPackagesV1, []byte{1, 2, 3}).Bytes(),
 			DependsOn:   &envelopes.Cursor{},
 		}},
 	)
@@ -220,7 +220,7 @@ func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
 		api,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
 				1: 105,
@@ -233,16 +233,16 @@ func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
 
 func publishPayerEnvelopeWithNodeIDAndCursor(
 	t *testing.T,
-	api message_api.ReplicationApiClient, nodeId uint32, cursor *envelopes.Cursor,
+	api message_api.ReplicationApiClient, nodeID uint32, cursor *envelopes.Cursor,
 ) error {
-	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 	_, err := api.PublishPayerEnvelopes(
 		context.Background(),
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
-				nodeId,
+				nodeID,
 				envelopeTestUtils.CreateClientEnvelope(
 					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
 						TargetTopic: targetTopic,
@@ -262,7 +262,7 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
 		api,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
 				97: 1,
@@ -279,7 +279,7 @@ func TestPublishEnvelolopeDependsOnOriginator(t *testing.T) {
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
 		api,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
 				100: 1,
@@ -295,7 +295,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 	)
 
 	resp, err := api.PublishPayerEnvelopes(
@@ -343,7 +343,7 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	// Create a payer envelope with a reserved topic (PAYER_REPORTS_V1)
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
-		envelopeTestUtils.DefaultClientEnvelopeNodeId,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		clientEnv,
 	)
 
@@ -445,7 +445,7 @@ func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			payerEnvelope := envelopeTestUtils.CreatePayerEnvelopeWithExpiration(
 				t,
-				envelopeTestUtils.DefaultClientEnvelopeNodeId,
+				envelopeTestUtils.DefaultClientEnvelopeNodeID,
 				tt.expiry,
 			)
 
@@ -471,11 +471,11 @@ func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 	api, _, _ := apiTestUtils.NewTestReplicationAPIClient(t)
 
-	nid := envelopeTestUtils.DefaultClientEnvelopeNodeId
+	nid := envelopeTestUtils.DefaultClientEnvelopeNodeID
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(
 		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 				Bytes(),
 			DependsOn: &envelopes.Cursor{},
 		}, IsCommit: true},

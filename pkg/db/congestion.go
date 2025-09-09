@@ -6,7 +6,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-// Gets the congestion for the minute specified by `endMinute` and the previous 4 minutes
+// Get5MinutesOfCongestion gets the congestion for the minute specified by `endMinute` and the previous 4 minutes
 // returned in descending order with missing values filled with 0
 func Get5MinutesOfCongestion(
 	ctx context.Context,

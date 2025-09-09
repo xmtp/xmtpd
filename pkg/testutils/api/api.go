@@ -1,4 +1,5 @@
-package testutils
+// Package apiutils implements the api test utils.
+package apiutils
 
 import (
 	"context"
@@ -92,13 +93,13 @@ func NewMetadataAPIClient(
 	return client
 }
 
-type ApiServerMocks struct {
+type APIServerMocks struct {
 	MockRegistry          *mocks.MockNodeRegistry
 	MockValidationService *mlsvalidateMocks.MockMLSValidationService
 	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
 }
 
-func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
+func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 	ctx, cancel := context.WithCancel(context.Background())
 	log := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, ctx)
@@ -132,7 +133,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 	ratesFetcher := fees.NewTestRatesFetcher()
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		replicationService, err := message.NewReplicationApiService(
+		replicationService, err := message.NewReplicationAPIService(
 			ctx,
 			log,
 			registrant,
@@ -148,7 +149,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 		require.NoError(t, err)
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-		payerService, err := payer.NewPayerApiService(
+		payerService, err := payer.NewPayerAPIService(
 			ctx,
 			log,
 			mockRegistry,
@@ -160,7 +161,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 		require.NoError(t, err)
 		payer_api.RegisterPayerApiServer(grpcServer, payerService)
 
-		metadataService, err := metadata.NewMetadataApiService(
+		metadataService, err := metadata.NewMetadataAPIService(
 			ctx,
 			log,
 			metadata.NewCursorUpdater(ctx, log, db),
@@ -199,7 +200,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 		_ = httpListener.Close()
 	})
 
-	apiOpts := []api.ApiServerOption{
+	apiOpts := []api.APIServerOption{
 		api.WithContext(ctx),
 		api.WithLogger(log),
 		api.WithGRPCListener(grpcListener),
@@ -220,7 +221,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 	svr, err := api.NewAPIServer(apiOpts...)
 	require.NoError(t, err)
 
-	allMocks := ApiServerMocks{
+	allMocks := APIServerMocks{
 		MockRegistry:          mockRegistry,
 		MockValidationService: mockValidationService,
 		MockMessagePublisher:  mockMessagePublisher,
@@ -236,7 +237,7 @@ func NewTestAPIServer(t *testing.T) (*api.ApiServer, *sql.DB, ApiServerMocks) {
 
 func NewTestReplicationAPIClient(
 	t *testing.T,
-) (message_api.ReplicationApiClient, *sql.DB, ApiServerMocks) {
+) (message_api.ReplicationApiClient, *sql.DB, APIServerMocks) {
 	svc, db, allMocks := NewTestAPIServer(t)
 	client := NewReplicationAPIClient(t, svc.Addr().String())
 	return client, db, allMocks
@@ -244,7 +245,7 @@ func NewTestReplicationAPIClient(
 
 func NewTestMetadataAPIClient(
 	t *testing.T,
-) (metadata_api.MetadataApiClient, *sql.DB, ApiServerMocks) {
+) (metadata_api.MetadataApiClient, *sql.DB, APIServerMocks) {
 	svc, db, allMocks := NewTestAPIServer(t)
 	client := NewMetadataAPIClient(t, svc.Addr().String())
 	return client, db, allMocks

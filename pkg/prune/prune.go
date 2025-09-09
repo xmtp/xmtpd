@@ -1,3 +1,4 @@
+// Package prune implements the DB prune executor.
 package prune
 
 import (

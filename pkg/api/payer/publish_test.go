@@ -26,16 +26,17 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	nodeRegistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
-type FixedMetadataApiClientConstructor struct {
+type FixedMetadataAPIClientConstructor struct {
 	mockClient *metadataMocks.MockMetadataApiClient
 }
 
-func (c *FixedMetadataApiClientConstructor) NewMetadataApiClient(
-	nodeId uint32,
+func (c *FixedMetadataAPIClientConstructor) NewMetadataAPIClient(
+	nodeID uint32,
 ) (metadata_api.MetadataApiClient, error) {
 	return c.mockClient, nil
 }
@@ -80,13 +81,13 @@ func buildPayerService(
 	mockMessagePublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
 
 	metaMocks := metadataMocks.NewMockMetadataApiClient(t)
-	payerService, err := payer.NewPayerApiService(
+	payerService, err := payer.NewPayerAPIService(
 		ctx,
 		log,
 		mockRegistry,
 		privKey,
 		mockMessagePublisher,
-		&FixedMetadataApiClientConstructor{
+		&FixedMetadataAPIClientConstructor{
 			mockClient: metaMocks,
 		},
 		nil,
@@ -102,7 +103,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 	inboxID := testutils.RandomInboxIDBytes()
 	txnHash := common.Hash{1, 2, 3}
-	sequenceId := uint64(99)
+	sequenceID := uint64(99)
 
 	identityUpdate := &associations.IdentityUpdate{
 		InboxId: utils.HexEncode(inboxID[:]),
@@ -112,7 +113,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		updates: []*metadata_api.GetSyncCursorResponse{
 			{
 				LatestSync: &envelopesProto.Cursor{
-					NodeIdToSequenceId: map[uint32]uint64{1: sequenceId},
+					NodeIdToSequenceId: map[uint32]uint64{1: sequenceID},
 				},
 			},
 		},
@@ -128,7 +129,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		Once()
 
 	registryMocks.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(100),
 	}, nil)
 
 	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxID, identityUpdate)
@@ -141,7 +142,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			Raw: types.Log{
 				TxHash: txnHash,
 			},
-			SequenceId: sequenceId,
+			SequenceId: sequenceID,
 			Update:     envelopeBytes,
 		}, nil)
 
@@ -165,7 +166,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	require.Equal(
 		t,
 		parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.OriginatorSequenceID(),
-		sequenceId,
+		sequenceID,
 	)
 }
 
@@ -176,16 +177,16 @@ func TestPublishToNodes(t *testing.T) {
 	svc, _, mockRegistry, _ := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
-		HttpAddress: formatAddress(originatorServer.Addr().String()),
+		HTTPAddress: formatAddress(originatorServer.Addr().String()),
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{
-		testutils.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(100),
 	}, nil)
 
-	groupId := testutils.RandomGroupID()
+	groupID := testutils.RandomGroupID()
 	testGroupMessage := envelopesTestUtils.CreateGroupMessageClientEnvelope(
-		groupId,
+		groupID,
 		envelopesTestUtils.GetRealisticGroupMessagePayload(false),
 	)
 
@@ -204,7 +205,7 @@ func TestPublishToNodes(t *testing.T) {
 	require.NoError(t, err)
 
 	targetTopic := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TargetTopic()
-	require.Equal(t, targetTopic.Identifier(), groupId[:])
+	require.Equal(t, targetTopic.Identifier(), groupID[:])
 
 	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
 	require.EqualValues(t, 100, targetOriginator)
@@ -212,13 +213,13 @@ func TestPublishToNodes(t *testing.T) {
 	// expiry assumptions
 	require.EqualValues(
 		t,
-		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		constants.DefaultStorageDurationDays,
 		parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
 	)
 
 	expiryTime := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()
 	expectedExpiry := time.Now().
-		Add(time.Duration(constants.DEFAULT_STORAGE_DURATION_DAYS) * 24 * time.Hour).
+		Add(time.Duration(constants.DefaultStorageDurationDays) * 24 * time.Hour).
 		Unix()
 	require.InDelta(
 		t,

@@ -84,12 +84,6 @@ func TestPauseFlagsSettlement(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.name == "settlement-chain-gateway" {
-				t.Skip(
-					"No contract address known: https://github.com/xmtp/smart-contracts/issues/125",
-				)
-			}
-
 			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
 				var err error
 				require.NoError(t, tc.set(ctx, true))

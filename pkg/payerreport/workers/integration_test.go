@@ -25,6 +25,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/testutils/flags"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
@@ -405,6 +406,8 @@ func TestCanGenerateReport(t *testing.T) {
 }
 
 func TestCanGenerateAndAttestReport(t *testing.T) {
+	flags.SkipOnRaceTest(t)
+
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).Bytes()

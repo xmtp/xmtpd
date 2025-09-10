@@ -336,7 +336,9 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 		BaseFeePicodollars:       0,
 		CongestionFeePicodollars: 0,
 		ExpiryUnixtime: uint64(
-			time.Now().AddDate(0, 0, int(payerEnvelope.Proto().GetMessageRetentionDays())).Unix(),
+			time.Now().UTC().
+				Add(time.Hour * 24 * time.Duration(payerEnvelope.Proto().GetMessageRetentionDays())).
+				Unix(),
 		),
 	}
 

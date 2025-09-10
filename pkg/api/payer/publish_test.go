@@ -225,6 +225,8 @@ func TestPublishToNodes(t *testing.T) {
 		expectedExpiry,
 		expiryTime,
 		10,
-		"expiry time should be roughly now + DEFAULT_STORAGE_DURATION_DAYS",
+		"expiry time should be roughly now + DEFAULT_STORAGE_DURATION_DAYS.\nExpected: %v\nActual: %v",
+		time.Unix(expectedExpiry, 0).Local().Format(time.RFC3339),
+		time.Unix(int64(expiryTime), 0).Local().Format(time.RFC3339),
 	)
 }

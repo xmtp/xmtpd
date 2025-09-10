@@ -91,7 +91,11 @@ func (r *Registrant) SignStagedEnvelope(
 		PayerEnvelopeBytes:       stagedEnv.PayerEnvelope,
 		BaseFeePicodollars:       uint64(baseFee),
 		CongestionFeePicodollars: uint64(congestionFee),
-		ExpiryUnixtime:           uint64(time.Now().AddDate(0, 0, int(retentionDays)).Unix()),
+		ExpiryUnixtime: uint64(
+			time.Now().UTC().
+				Add(time.Hour * 24 * time.Duration(retentionDays)).
+				Unix(),
+		),
 	}
 	unsignedBytes, err := proto.Marshal(&unsignedEnv)
 	if err != nil {

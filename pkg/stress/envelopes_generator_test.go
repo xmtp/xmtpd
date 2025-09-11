@@ -41,12 +41,12 @@ func TestEnvelopesGenerator(t *testing.T) {
 	}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
-	server := serverTestUtils.NewTestServer(
+	server := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     grpcPort,
 			HTTPListener:     httpPort,
-			Db:               db,
+			DB:               db,
 			Registry:         registry,
 			PrivateKey:       privateKey,
 			ContractsOptions: contractsOptions,
@@ -60,7 +60,7 @@ func TestEnvelopesGenerator(t *testing.T) {
 
 	generator, err := NewEnvelopesGenerator(
 		fmt.Sprintf("http://%s", server.Addr().String()),
-		testutils.TEST_PRIVATE_KEY,
+		testutils.TestPrivateKey,
 		100,
 	)
 	require.NoError(t, err)

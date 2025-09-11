@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/constants"
@@ -172,10 +173,13 @@ func (e *EnvelopesGenerator) buildAndSignPayerEnvelopes(
 }
 
 func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvelope {
-	installationKey := testutils.RandomBytes(32)
-	hpk := testutils.RandomBytes(32)
-	data := testutils.RandomBytes(int(dataSize))
-	metadata := testutils.RandomBytes(8)
+	var (
+		installationKey  = testutils.RandomBytes(32)
+		hpk              = testutils.RandomBytes(32)
+		data             = testutils.RandomBytes(int(dataSize))
+		metadata         = testutils.RandomBytes(8)
+		wrapperAlgorithm = int32(rand.Intn(3))
+	)
 
 	return &envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_WelcomeMessage{
@@ -186,7 +190,7 @@ func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvel
 						Data:            data,
 						HpkePublicKey:   hpk,
 						WrapperAlgorithm: contents.WelcomeWrapperAlgorithm(
-							testutils.RandomInt32(),
+							wrapperAlgorithm,
 						),
 						WelcomeMetadata: metadata,
 					},
@@ -201,8 +205,10 @@ func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvel
 }
 
 func makeKeyPackageClientEnvelope() *envelopesProto.ClientEnvelope {
-	installationID := testutils.RandomBytes(32)
-	keyPackage := testutils.RandomBytes(1651)
+	var (
+		installationID = testutils.RandomBytes(32)
+		keyPackage     = testutils.RandomBytes(1651)
+	)
 
 	return &envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_UploadKeyPackage{
@@ -220,9 +226,11 @@ func makeKeyPackageClientEnvelope() *envelopesProto.ClientEnvelope {
 }
 
 func makeGroupMessageEnvelope(dataSize uint) *envelopesProto.ClientEnvelope {
-	groupID := testutils.RandomGroupID()
-	data := testutils.RandomBytes(int(dataSize))
-	senderHmac := testutils.RandomBytes(32)
+	var (
+		groupID    = testutils.RandomGroupID()
+		data       = testutils.RandomBytes(int(dataSize))
+		senderHmac = testutils.RandomBytes(32)
+	)
 
 	return &envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_GroupMessage{

@@ -60,8 +60,8 @@ func (e *EnvelopesGenerator) Close() error {
 // The data size can be specified.
 func (e *EnvelopesGenerator) PublishWelcomeMessageEnvelopes(
 	ctx context.Context,
-	numEnvelopes int,
-	dataSize int,
+	numEnvelopes uint,
+	dataSize uint,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
@@ -80,8 +80,8 @@ func (e *EnvelopesGenerator) PublishWelcomeMessageEnvelopes(
 // The data size is hardcoded to 1651 bytes, as expected by the protocol.
 func (e *EnvelopesGenerator) PublishKeyPackageEnvelopes(
 	ctx context.Context,
-	numEnvelopes int,
-	dataSize int,
+	numEnvelopes uint,
+	dataSize uint,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
@@ -100,8 +100,8 @@ func (e *EnvelopesGenerator) PublishKeyPackageEnvelopes(
 // The data size can be specified.
 func (e *EnvelopesGenerator) PublishGroupMessageEnvelopes(
 	ctx context.Context,
-	numEnvelopes int,
-	dataSize int,
+	numEnvelopes uint,
+	dataSize uint,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
@@ -171,10 +171,10 @@ func (e *EnvelopesGenerator) buildAndSignPayerEnvelopes(
 	return payerEnvelopes, nil
 }
 
-func makeWelcomeMessageClientEnvelope(dataSize int) *envelopesProto.ClientEnvelope {
+func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvelope {
 	installationKey := testutils.RandomBytes(32)
 	hpk := testutils.RandomBytes(32)
-	data := testutils.RandomBytes(dataSize)
+	data := testutils.RandomBytes(int(dataSize))
 	metadata := testutils.RandomBytes(8)
 
 	return &envelopesProto.ClientEnvelope{
@@ -219,9 +219,9 @@ func makeKeyPackageClientEnvelope() *envelopesProto.ClientEnvelope {
 	}
 }
 
-func makeGroupMessageEnvelope(dataSize int) *envelopesProto.ClientEnvelope {
+func makeGroupMessageEnvelope(dataSize uint) *envelopesProto.ClientEnvelope {
 	groupID := testutils.RandomGroupID()
-	data := testutils.RandomBytes(dataSize)
+	data := testutils.RandomBytes(int(dataSize))
 	senderHmac := testutils.RandomBytes(32)
 
 	return &envelopesProto.ClientEnvelope{

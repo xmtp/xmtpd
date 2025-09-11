@@ -101,7 +101,7 @@ func NewSettlementChainAdmin(
 	return &settlementChainAdmin{
 		client:                 client,
 		signer:                 signer,
-		logger:                 logger.Named("AppChainAdmin"),
+		logger:                 logger.Named("SettlementChainAdmin"),
 		parameterAdmin:         paramAdmin,
 		settlementChainGateway: acGateway,
 		payerRegistry:          payerRegistry,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -33,17 +34,17 @@ func NewEnvelopesGenerator(
 	privateKeyString string,
 	originatorID uint32,
 ) (*EnvelopesGenerator, error) {
+	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
+	}
+
 	conn, err := buildGRPCConnection(nodeHTTPAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build gRPC client: %v", err)
 	}
 
 	client := message_api.NewReplicationApiClient(conn)
-
-	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
-	}
 
 	return &EnvelopesGenerator{
 		client:       client,
@@ -64,6 +65,10 @@ func (e *EnvelopesGenerator) PublishWelcomeMessageEnvelopes(
 	numEnvelopes uint,
 	dataSize uint,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
+	if dataSize > math.MaxUint {
+		dataSize = uint(math.MaxUint)
+	}
+
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
 		clientEnvelopes[i] = makeWelcomeMessageClientEnvelope(dataSize)
@@ -82,7 +87,6 @@ func (e *EnvelopesGenerator) PublishWelcomeMessageEnvelopes(
 func (e *EnvelopesGenerator) PublishKeyPackageEnvelopes(
 	ctx context.Context,
 	numEnvelopes uint,
-	dataSize uint,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
@@ -104,6 +108,10 @@ func (e *EnvelopesGenerator) PublishGroupMessageEnvelopes(
 	numEnvelopes uint,
 	dataSize uint,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
+	if dataSize > math.MaxUint {
+		dataSize = uint(math.MaxUint)
+	}
+
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
 		clientEnvelopes[i] = makeGroupMessageEnvelope(dataSize)

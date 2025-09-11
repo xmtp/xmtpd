@@ -5,15 +5,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 func TestEnvelopesGenerator(t *testing.T) {
 	generator, err := NewEnvelopesGenerator(
 		"http://localhost:5050",
-		"0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+		testutils.TEST_PRIVATE_KEY,
 		100,
 	)
 	require.NoError(t, err)
 
-	generator.PublishWelcomeMessageEnvelopes(context.Background(), 10, 100)
+	resp, err := generator.PublishWelcomeMessageEnvelopes(context.Background(), 1, 100)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }

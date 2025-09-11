@@ -1,3 +1,4 @@
+// Package debug implements the pprof server.
 package debug
 
 import (

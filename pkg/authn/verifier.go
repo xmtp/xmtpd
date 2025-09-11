@@ -1,3 +1,4 @@
+// Package authn implements a JWT token factory and verifier.
 package authn
 
 import (
@@ -13,8 +14,8 @@ import (
 )
 
 const (
-	MAX_TOKEN_DURATION = 2 * time.Hour
-	MAX_CLOCK_SKEW     = 2 * time.Minute
+	maxTokenDuration = 2 * time.Hour
+	MaxClockSkew     = 2 * time.Minute
 )
 
 type RegistryVerifier struct {
@@ -25,10 +26,8 @@ type RegistryVerifier struct {
 
 func emptyClose() {}
 
-/*
-A RegistryVerifier connects to the NodeRegistry and verifies JWTs against the registered public keys
-based on the JWT's subject field
-*/
+// NewRegistryVerifier returns a new RegistryVerifier that connects to the NodeRegistry and verifies JWTs
+// against the registered public keys based on the JWT's subject field.
 func NewRegistryVerifier(
 	logger *zap.Logger,
 	registry registry.NodeRegistry,
@@ -67,12 +66,12 @@ func (v *RegistryVerifier) Verify(tokenString string) (uint32, CloseFunc, error)
 		return 0, emptyClose, err
 	}
 
-	nodeId, err := getSubjectNodeId(token)
+	nodeID, err := getSubjectNodeID(token)
 	if err != nil {
 		return 0, emptyClose, err
 	}
 
-	return nodeId, closer, nil
+	return nodeID, closer, nil
 }
 
 func (v *RegistryVerifier) getMatchingPublicKey(token *jwt.Token) (interface{}, error) {
@@ -80,12 +79,12 @@ func (v *RegistryVerifier) getMatchingPublicKey(token *jwt.Token) (interface{}, 
 		return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 	}
 
-	subjectNodeId, err := getSubjectNodeId(token)
+	subjectNodeID, err := getSubjectNodeID(token)
 	if err != nil {
 		return nil, err
 	}
 
-	node, err := v.registry.GetNode(subjectNodeId)
+	node, err := v.registry.GetNode(subjectNodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +101,12 @@ func (v *RegistryVerifier) validateAudience(token *jwt.Token) error {
 	}
 
 	for _, audienceString := range audience {
-		audienceNodeId, err := parseInt32(audienceString)
+		audienceNodeID, err := parseInt32(audienceString)
 		if err != nil {
 			continue
 		}
 
-		if audienceNodeId == v.myNodeID {
+		if audienceNodeID == v.myNodeID {
 			return nil
 		}
 	}
@@ -130,18 +129,18 @@ func (v *RegistryVerifier) validateClaims(token *jwt.Token) (CloseFunc, error) {
 }
 
 // Parse the subject claim of the JWT and return the node ID as a uint32
-func getSubjectNodeId(token *jwt.Token) (uint32, error) {
+func getSubjectNodeID(token *jwt.Token) (uint32, error) {
 	subject, err := token.Claims.GetSubject()
 	if err != nil {
 		return 0, err
 	}
 
-	nodeId, err := parseInt32(subject)
+	nodeID, err := parseInt32(subject)
 	if err != nil {
 		return 0, err
 	}
 
-	return nodeId, nil
+	return nodeID, nil
 }
 
 // Validate the issued at and expiration time claims of the JWT
@@ -156,7 +155,7 @@ func validateExpiry(token *jwt.Token) error {
 	}
 
 	// We allow tokens to be issued up to 2 minutes in the future to account for clock skew
-	if time.Since(issuedAt.Time) < MAX_CLOCK_SKEW*-1 {
+	if time.Since(issuedAt.Time) < MaxClockSkew*-1 {
 		return fmt.Errorf("token issued in the future")
 	}
 
@@ -166,7 +165,7 @@ func validateExpiry(token *jwt.Token) error {
 	}
 
 	// Tokens can only have a validity period of at most 2 hours
-	if exp.Sub(issuedAt.Time) > MAX_TOKEN_DURATION {
+	if exp.Sub(issuedAt.Time) > maxTokenDuration {
 		return fmt.Errorf("token expiration time is greater than the max duration")
 	}
 

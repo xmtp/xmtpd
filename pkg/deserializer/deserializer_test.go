@@ -73,12 +73,12 @@ func TestMinimalHex(t *testing.T) {
 	}{
 		{
 			name:         "Commit",
-			hexPayload:   testutils.MINIMAL_COMMIT_PAYLOAD,
+			hexPayload:   testutils.MinimalCommitPayload,
 			expectedType: deserializer.ContentTypeCommit,
 		},
 		{
 			name:         "Application",
-			hexPayload:   testutils.MINIMAL_APPLICATION_PAYLOAD,
+			hexPayload:   testutils.MinimalApplicationPayload,
 			expectedType: deserializer.ContentTypeApplication,
 		},
 	}

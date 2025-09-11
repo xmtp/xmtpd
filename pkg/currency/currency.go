@@ -1,3 +1,4 @@
+// Package currency implements the type PicoDollar and MicroDollar, and its conversions.
 package currency
 
 import (

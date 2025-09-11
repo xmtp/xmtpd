@@ -39,7 +39,7 @@ func (a *PayerReportAttestation) ToClientEnvelope() (*envelopes.ClientEnvelope, 
 	attestationProto := a.ToProto()
 
 	targetTopic := topic.NewTopic(
-		topic.TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1,
+		topic.TopicKindPayerReportAttestationsV1,
 		utils.Uint32ToBytes(a.Report.OriginatorNodeID),
 	)
 

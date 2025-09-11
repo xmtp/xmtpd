@@ -17,7 +17,7 @@ type KeyPackageValidationResult struct {
 }
 
 type GroupMessageValidationResult struct {
-	GroupId string
+	GroupID string
 }
 
 type AssociationStateResult struct {

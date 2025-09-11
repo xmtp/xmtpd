@@ -19,8 +19,8 @@ type PublishRequest *payer_api.PublishClientEnvelopesRequest
 type IdentityKind string
 
 const (
-	IdentityKindIP          IdentityKind = "ip"
-	IdentityKindUserDefined IdentityKind = "user"
+	identityKindIP          IdentityKind = "ip"
+	identityKindUserDefined IdentityKind = "user"
 )
 
 type Identity struct {

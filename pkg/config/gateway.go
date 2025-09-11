@@ -1,7 +1,7 @@
 package config
 
 type GatewayConfig struct {
-	API       ApiOptions       `group:"API Options"            namespace:"api"`
+	API       APIOptions       `group:"API Options"            namespace:"api"`
 	Contracts ContractsOptions `group:"Contracts Options"      namespace:"contracts"`
 	Log       LogOptions       `group:"Log Options"            namespace:"log"`
 	Metrics   MetricsOptions   `group:"Metrics Options"        namespace:"metrics"`

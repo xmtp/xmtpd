@@ -250,7 +250,7 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 		},
 		0,
 		0,
-		constants.DEFAULT_STORAGE_DURATION_DAYS,
+		constants.DefaultStorageDurationDays,
 	)
 
 	require.NoError(t, err)

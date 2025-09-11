@@ -43,7 +43,7 @@ func NewStore(db *sql.DB, log *zap.Logger) *Store {
 	}
 }
 
-// Store a report in the database. No validations have been performed, and no originator envelope is stored.
+// StoreReport stores a report in the database. No validations have been performed, and no originator envelope is stored.
 func (s *Store) StoreReport(ctx context.Context, report *PayerReport) error {
 	params, err := prepareStoreReportParams(report)
 	if err != nil {
@@ -57,7 +57,7 @@ func (s *Store) StoreReport(ctx context.Context, report *PayerReport) error {
 	return nil
 }
 
-// Store an attestation in the database
+// StoreAttestation stores an attestation in the database.
 func (s *Store) StoreAttestation(ctx context.Context, attestation *PayerReportAttestation) error {
 	if attestation.Report == nil {
 		return ErrReportNil
@@ -65,7 +65,7 @@ func (s *Store) StoreAttestation(ctx context.Context, attestation *PayerReportAt
 
 	reportID := attestation.Report.ID[:]
 
-	// Validate NodeID (assuming it should fit within int32 range for consistency with other node IDs)
+	// Validate NodeID (assuming it should fit within int32 range for consistency with other node IDs).
 	if attestation.NodeSignature.NodeID > math.MaxInt32 {
 		return ErrOriginatorNodeIDTooLarge
 	}
@@ -259,7 +259,7 @@ func (s *Store) CreatePayerReport(
 	return &report.ID, nil
 }
 
-// To be called by the attester of a report. Updates the attestation status of the report and
+// CreateAttestation is called by the attester of a report. Updates the attestation status of the report and
 // writes a staged originator envelope to the database that can be synced to other nodes.
 func (s *Store) CreateAttestation(
 	ctx context.Context,
@@ -317,7 +317,7 @@ func (s *Store) CreateAttestation(
 	)
 }
 
-// Store a report that has been received through a stream from another node
+// StoreSyncedReport stores a report that has been received through a stream from another node.
 func (s *Store) StoreSyncedReport(
 	ctx context.Context,
 	envelope *envelopes.OriginatorEnvelope,

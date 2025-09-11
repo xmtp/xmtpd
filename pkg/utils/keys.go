@@ -22,7 +22,7 @@ func EcdsaPrivateKeyToString(key *ecdsa.PrivateKey) string {
 	return "0x" + hex.EncodeToString(keyBytes)
 }
 
-// Take the stringified form of an ECDSA public key and return the *ecdsa.PublicKey
+// ParseEcdsaPublicKey takes the stringified form of an ECDSA public key and return the *ecdsa.PublicKey
 func ParseEcdsaPublicKey(key string) (*ecdsa.PublicKey, error) {
 	return crypto.DecompressPubkey(common.FromHex(key))
 }

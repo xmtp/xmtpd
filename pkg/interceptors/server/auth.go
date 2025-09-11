@@ -1,3 +1,4 @@
+// Package server implements the server for the interceptors package.
 package server
 
 import (
@@ -45,7 +46,7 @@ func extractToken(ctx context.Context) (string, error) {
 		return "", status.Error(codes.Unauthenticated, "missing metadata")
 	}
 
-	values := md.Get(constants.NODE_AUTHORIZATION_HEADER_NAME)
+	values := md.Get(constants.NodeAuthorizationHeaderName)
 	if len(values) == 0 {
 		return "", status.Error(codes.Unauthenticated, "missing auth token")
 	}
@@ -57,7 +58,7 @@ func extractToken(ctx context.Context) (string, error) {
 	return values[0], nil
 }
 
-func (i *AuthInterceptor) logIncomingAddressIfAvailable(ctx context.Context, nodeId uint32) {
+func (i *AuthInterceptor) logIncomingAddressIfAvailable(ctx context.Context, nodeID uint32) {
 	if i.logger.Core().Enabled(zap.DebugLevel) {
 		if p, ok := peer.FromContext(ctx); ok {
 			clientAddr := p.Addr.String()
@@ -76,7 +77,7 @@ func (i *AuthInterceptor) logIncomingAddressIfAvailable(ctx context.Context, nod
 				"Incoming connection",
 				zap.String("client_addr", clientAddr),
 				zap.String("dns_name", dnsName[0]),
-				zap.Uint32("node_id", nodeId),
+				zap.Uint32("node_id", nodeID),
 			)
 		}
 	}
@@ -95,7 +96,7 @@ func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		nodeId, cancel, err := i.verifier.Verify(token)
+		nodeID, cancel, err := i.verifier.Verify(token)
 		if err != nil {
 			return nil, status.Errorf(
 				codes.Unauthenticated,
@@ -105,7 +106,7 @@ func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 		}
 		defer cancel()
 
-		i.logIncomingAddressIfAvailable(ctx, nodeId)
+		i.logIncomingAddressIfAvailable(ctx, nodeID)
 
 		ctx = context.WithValue(ctx, constants.VerifiedNodeRequestCtxKey{}, true)
 
@@ -126,7 +127,7 @@ func (i *AuthInterceptor) Stream() grpc.StreamServerInterceptor {
 			return handler(srv, stream)
 		}
 
-		nodeId, cancel, err := i.verifier.Verify(token)
+		nodeID, cancel, err := i.verifier.Verify(token)
 		if err != nil {
 			return status.Errorf(
 				codes.Unauthenticated,
@@ -136,7 +137,7 @@ func (i *AuthInterceptor) Stream() grpc.StreamServerInterceptor {
 		}
 		defer cancel()
 
-		i.logIncomingAddressIfAvailable(stream.Context(), nodeId)
+		i.logIncomingAddressIfAvailable(stream.Context(), nodeID)
 
 		stream = &wrappedServerStream{
 			ServerStream: stream,

@@ -1,23 +1,23 @@
+// Package fees implements the congestion fee calculation.
 package fees
 
 import "math"
 
 const (
 	// At this point, always return congestion as 100%
-	MAX_CONGESTION_RATIO = 1.5
+	maxCongestionRatio = 1.5
 )
 
 /*
-*
+CalculateCongestion calculates the congestion based on the last 5 minutes of congestion and the target rate per minute.
 The algorithm for calculating congestion is as follows:
 
 1) Compute the average number of messages per minute, excluding the current minute which may be incomplete
 2) Take the greater of: the current minute's rate, the previous minute's rate, or the preceding 4 minute average
 3) Compute the ratio of the max rate to the target rate
 4) If the ratio is less than or equal to 1, return 0
-5) If the ratio is greater than MAX_CONGESTION_RATIO, return 100
+5) If the ratio is greater than maxCongestionRatio, return 100
 6) Otherwise, return the congestion as an exponential function of the ratio
-*
 */
 func CalculateCongestion(last5Minutes [5]int32, targetRatePerMinute int32) int32 {
 	// If the target rate is 0, return 0
@@ -54,7 +54,7 @@ func CalculateCongestion(last5Minutes [5]int32, targetRatePerMinute int32) int32
 	}
 
 	// 5) If ratio >= MAX_CONGESTION_RATIO => congestion = 100
-	if ratio >= MAX_CONGESTION_RATIO {
+	if ratio >= maxCongestionRatio {
 		return 100
 	}
 
@@ -64,7 +64,7 @@ func CalculateCongestion(last5Minutes [5]int32, targetRatePerMinute int32) int32
 	//    - Grows exponentially in between
 	k := 4.0 // Adjust k to tune how fast congestion rises
 	numerator := math.Exp(k*(ratio-1.0)) - 1.0
-	denominator := math.Exp(k*(MAX_CONGESTION_RATIO-1.0)) - 1.0
+	denominator := math.Exp(k*(maxCongestionRatio-1.0)) - 1.0
 	congestion := 100.0 * (numerator / denominator)
 
 	return int32(congestion)

@@ -1,3 +1,4 @@
+// Package ledger implements the ledger for payer balances.
 package ledger
 
 import (
@@ -50,7 +51,7 @@ func (l *Ledger) Deposit(
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(amount),
-		EventType:         int16(EVENT_TYPE_DEPOSIT),
+		EventType:         int16(eventTypeDeposit),
 	})
 }
 
@@ -72,14 +73,14 @@ func (l *Ledger) InitiateWithdrawal(
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(amount) * -1,
-		EventType:         int16(EVENT_TYPE_WITHDRAWAL),
+		EventType:         int16(eventTypeWithdrawal),
 	})
 }
 
 func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID EventID) error {
 	lastWithdrawal, err := l.queries.GetLastEvent(ctx, queries.GetLastEventParams{
 		PayerID:   payerID,
-		EventType: int16(EVENT_TYPE_WITHDRAWAL),
+		EventType: int16(eventTypeWithdrawal),
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -92,7 +93,7 @@ func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID Ev
 	// The smart contract should protect against this, but we are double checking.
 	lastCancel, err := l.queries.GetLastEvent(ctx, queries.GetLastEventParams{
 		PayerID:   payerID,
-		EventType: int16(EVENT_TYPE_CANCELED_WITHDRAWAL),
+		EventType: int16(eventTypeCanceledWithdrawal),
 	})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
@@ -117,7 +118,7 @@ func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID Ev
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(lastWithdrawal.AmountPicodollars) * -1,
-		EventType:         int16(EVENT_TYPE_CANCELED_WITHDRAWAL),
+		EventType:         int16(eventTypeCanceledWithdrawal),
 	})
 }
 
@@ -139,7 +140,7 @@ func (l *Ledger) SettleUsage(
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(amount) * -1,
-		EventType:         int16(EVENT_TYPE_SETTLEMENT),
+		EventType:         int16(eventTypeSettlement),
 	})
 }
 

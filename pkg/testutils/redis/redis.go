@@ -1,3 +1,4 @@
+// Package redis implements the redis test utils.
 package redis
 
 import (
@@ -10,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const REDIS_ADDRESS = "localhost:6379"
+const redisAddress = "localhost:6379"
 
 // NewRedisForTest creates a Redis client configured for testing with proper cleanup.
 // It automatically generates a unique key prefix based on the test name to avoid conflicts.
@@ -22,7 +23,7 @@ func NewRedisForTest(t *testing.T) (redis.UniversalClient, string) {
 
 	// Create Redis client with default test configuration
 	client := redis.NewClient(&redis.Options{
-		Addr: REDIS_ADDRESS,
+		Addr: redisAddress,
 		DB:   15, // Use DB 15 for tests
 	})
 

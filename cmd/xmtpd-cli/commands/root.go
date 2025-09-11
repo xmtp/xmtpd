@@ -1,3 +1,4 @@
+// Package commands implements the CLI commands based on cobra.
 package commands
 
 import (
@@ -23,7 +24,7 @@ var (
 	globalLogLevel    string
 	globalLogEncoding string
 	globalPrivateKey  string
-	globalRpcURL      string
+	globalRPCURL      string
 )
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -92,7 +93,7 @@ func registerGlobalFlags() error {
 	}
 
 	rootCmd.PersistentFlags().
-		StringVarP(&globalRpcURL, "rpc-url", "r", "", "RPC URL to use")
+		StringVarP(&globalRPCURL, "rpc-url", "r", "", "RPC URL to use")
 
 	if err := viper.BindPFlag("rpc-url", rootCmd.PersistentFlags().Lookup("rpc-url")); err != nil {
 		return err

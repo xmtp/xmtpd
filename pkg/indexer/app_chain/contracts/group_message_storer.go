@@ -10,9 +10,9 @@ import (
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -63,7 +63,7 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewNonRecoverableError(ErrParseGroupMessage, err)
 	}
 
-	topicStruct := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, msgSent.GroupId[:])
+	topicStruct := topic.NewTopic(topic.TopicKindGroupMessagesV1, msgSent.GroupId[:])
 
 	clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Message)
 	if err != nil {

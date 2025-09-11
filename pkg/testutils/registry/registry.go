@@ -1,3 +1,4 @@
+// Package registry implements the node registry test utils.
 package registry
 
 import (
@@ -13,7 +14,7 @@ func CreateNode(nodeID uint32, port int, privateKey *ecdsa.PrivateKey) r.Node {
 	return r.Node{
 		NodeID:        nodeID,
 		SigningKey:    &privateKey.PublicKey,
-		HttpAddress:   fmt.Sprintf("http://localhost:%d", port),
+		HTTPAddress:   fmt.Sprintf("http://localhost:%d", port),
 		IsCanonical:   true,
 		IsValidConfig: true,
 	}

@@ -78,7 +78,7 @@ func TestStoreGroupMessages(t *testing.T) {
 		originatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TopicMatchesPayload(),
 	)
 	targetTopic := originatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.TargetTopic()
-	require.Equal(t, topic.TOPIC_KIND_GROUP_MESSAGES_V1, targetTopic.Kind())
+	require.Equal(t, topic.TopicKindGroupMessagesV1, targetTopic.Kind())
 	require.Equal(t, groupID[:], targetTopic.Identifier())
 	require.EqualValues(t, sequenceID, firstEnvelope.OriginatorSequenceID)
 	require.EqualValues(t, GROUP_MESSAGE_ORIGINATOR_ID, originatorEnvelope.OriginatorNodeID())

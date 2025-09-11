@@ -1,3 +1,4 @@
+// Package metadata implements the metadata API service.
 package metadata
 
 import (
@@ -23,7 +24,7 @@ type Service struct {
 	payerInfoFetcher IPayerInfoFetcher
 }
 
-func NewMetadataApiService(
+func NewMetadataAPIService(
 	ctx context.Context,
 	log *zap.Logger,
 	updater CursorUpdater,

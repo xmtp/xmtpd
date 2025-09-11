@@ -210,7 +210,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	}
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		gatewayApiService, err := payer.NewPayerApiService(
+		gatewayAPIService, err := payer.NewPayerAPIService(
 			ctx,
 			b.logger,
 			b.nodeRegistry,
@@ -222,7 +222,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		if err != nil {
 			return err
 		}
-		payer_api.RegisterPayerApiServer(grpcServer, gatewayApiService)
+		payer_api.RegisterPayerApiServer(grpcServer, gatewayAPIService)
 
 		return nil
 	}
@@ -279,14 +279,14 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 
 func SetupRedisClient(
 	ctx context.Context,
-	redisUrl string,
+	redisURL string,
 	timeout time.Duration,
 ) (redis.UniversalClient, error) {
-	if redisUrl == "" {
+	if redisURL == "" {
 		return nil, fmt.Errorf("redis URL is empty")
 	}
 
-	opts, err := redis.ParseURL(redisUrl)
+	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func SetupRedisClient(
 			_ = client.Close()
 			return nil, fmt.Errorf(
 				"context canceled while connecting to Redis at %s: %w",
-				redisUrl,
+				redisURL,
 				ctx.Err(),
 			)
 		}
@@ -305,7 +305,7 @@ func SetupRedisClient(
 			break
 		} else if time.Now().After(deadline) {
 			_ = client.Close()
-			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisUrl, timeout, err)
+			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisURL, timeout, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -317,7 +317,7 @@ func setupNonceManager(
 	log *zap.Logger,
 	cfg *config.GatewayConfig,
 ) (noncemanager.NonceManager, error) {
-	redisClient, err := SetupRedisClient(ctx, cfg.Redis.RedisUrl, 10*time.Second)
+	redisClient, err := SetupRedisClient(ctx, cfg.Redis.RedisURL, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}

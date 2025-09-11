@@ -1,3 +1,4 @@
+// Package db implements the database connection and management.
 package db
 
 import (
@@ -14,7 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrations"
 )
 
-const MAX_NAMESPACE_LENGTH = 32
+const maxNamespaceLength = 32
 
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
@@ -61,10 +62,10 @@ func newPGXDB(
 }
 
 func isValidNamespace(namespace string) error {
-	if len(namespace) == 0 || len(namespace) > MAX_NAMESPACE_LENGTH {
+	if len(namespace) == 0 || len(namespace) > maxNamespaceLength {
 		return fmt.Errorf(
 			"namespace length must be between 1 and %d characters",
-			MAX_NAMESPACE_LENGTH,
+			maxNamespaceLength,
 		)
 	}
 	// PostgreSQL identifiers must start with a letter or underscore
@@ -122,7 +123,7 @@ func createNamespace(
 	return nil
 }
 
-// Creates a new database with the given namespace if it doesn't exist and returns the full DSN for the new database.
+// NewNamespacedDB creates a new database with the given namespace if it doesn't exist and returns the full DSN for the new database.
 func NewNamespacedDB(
 	ctx context.Context,
 	logger *zap.Logger,

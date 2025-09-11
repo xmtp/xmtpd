@@ -1,3 +1,4 @@
+// Package server implements the replication server.
 package server
 
 import (
@@ -114,7 +115,7 @@ type ReplicationServer struct {
 	registrant          *registrant.Registrant
 	validationService   mlsvalidate.MLSValidationService
 	indx                *indexer.Indexer
-	apiServer           *api.ApiServer
+	apiServer           *api.APIServer
 	syncServer          *sync.SyncServer
 	cursorUpdater       metadata.CursorUpdater
 	blockchainPublisher *blockchain.BlockchainPublisher
@@ -301,7 +302,7 @@ func NewReplicationServer(
 func startAPIServer(
 	s *ReplicationServer,
 	cfg *ReplicationServerConfig,
-	clientMetrics *grpcprom.ClientMetrics,
+	_ *grpcprom.ClientMetrics,
 	promReg *prometheus.Registry,
 ) error {
 	var err error
@@ -313,7 +314,7 @@ func startAPIServer(
 
 			s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.Log, cfg.DB)
 
-			replicationService, err := message.NewReplicationApiService(
+			replicationService, err := message.NewReplicationAPIService(
 				s.ctx,
 				cfg.Log,
 				s.registrant,
@@ -331,7 +332,7 @@ func startAPIServer(
 
 			cfg.Log.Info("Replication service enabled")
 
-			metadataService, err := metadata.NewMetadataApiService(
+			metadataService, err := metadata.NewMetadataAPIService(
 				s.ctx,
 				cfg.Log,
 				s.cursorUpdater,
@@ -378,7 +379,7 @@ func startAPIServer(
 		}
 	}
 
-	apiOpts := []api.ApiServerOption{
+	apiOpts := []api.APIServerOption{
 		api.WithContext(s.ctx),
 		api.WithLogger(cfg.Log),
 		api.WithGRPCListener(cfg.GRPCListener),

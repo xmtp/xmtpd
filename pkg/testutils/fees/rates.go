@@ -1,3 +1,4 @@
+// Package fees implements the fees test utils.
 package fees
 
 import (
@@ -5,7 +6,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/fees"
 )
 
-var TEST_RATES = &fees.Rates{
+var testRates = &fees.Rates{
 	MessageFee:          currency.PicoDollar(100),
 	StorageFee:          currency.PicoDollar(100),
 	CongestionFee:       currency.PicoDollar(100),
@@ -13,7 +14,7 @@ var TEST_RATES = &fees.Rates{
 }
 
 func NewTestRatesFetcher() *fees.FixedRatesFetcher {
-	return fees.NewFixedRatesFetcher(TEST_RATES)
+	return fees.NewFixedRatesFetcher(testRates)
 }
 
 func NewTestFeeCalculator() *fees.FeeCalculator {

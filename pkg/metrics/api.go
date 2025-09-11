@@ -37,13 +37,13 @@ var apiFailedGRPCRequestsCounter = prometheus.NewCounterVec(
 	[]string{"code"},
 )
 
-type ApiOpenConnection struct {
+type APIOpenConnection struct {
 	style  string
 	method string
 }
 
-func NewApiOpenConnection(style string, method string) *ApiOpenConnection {
-	oc := ApiOpenConnection{
+func NewAPIOpenConnection(style string, method string) *APIOpenConnection {
+	oc := APIOpenConnection{
 		style:  style,
 		method: method,
 	}
@@ -53,7 +53,7 @@ func NewApiOpenConnection(style string, method string) *ApiOpenConnection {
 	return &oc
 }
 
-func (oc *ApiOpenConnection) Close() {
+func (oc *APIOpenConnection) Close() {
 	apiOpenConnections.With(prometheus.Labels{"style": oc.style, "method": oc.method}).Dec()
 }
 

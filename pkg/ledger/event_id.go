@@ -14,7 +14,7 @@ func (e EventID) String() string {
 	return hex.EncodeToString(e[:])
 }
 
-// EventIDs are unique for an event in the context of a specific block
+// BuildEventID builds an EventID for an event in the context of a specific block
 // In the case of reorgs, we want to reverse the original event and then
 // if the transaction is included a new block, add that event to the ledger
 // with a new event ID.

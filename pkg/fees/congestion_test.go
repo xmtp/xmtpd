@@ -6,14 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const EXPECTED_CONGESTION_FOR_125 = int32(26)
+const expectedCongestionFor125 = int32(26)
 
 func TestCalculateAverageCongestion(t *testing.T) {
 	rates := [5]int32{125, 100, 100, 100, 100}
 	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
-	assert.Equal(t, EXPECTED_CONGESTION_FOR_125, congestion)
+	assert.Equal(t, expectedCongestionFor125, congestion)
 }
 
 func TestCurrentMinuteCongestion(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCurrentMinuteCongestion(t *testing.T) {
 	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
-	assert.Equal(t, EXPECTED_CONGESTION_FOR_125, congestion)
+	assert.Equal(t, expectedCongestionFor125, congestion)
 }
 
 func TestPreviousMinuteCongestion(t *testing.T) {
@@ -29,7 +29,7 @@ func TestPreviousMinuteCongestion(t *testing.T) {
 	targetRate := int32(100)
 
 	congestion := CalculateCongestion(rates, targetRate)
-	assert.Equal(t, EXPECTED_CONGESTION_FOR_125, congestion)
+	assert.Equal(t, expectedCongestionFor125, congestion)
 }
 
 func TestFourMinuteAverageCongestion(t *testing.T) {

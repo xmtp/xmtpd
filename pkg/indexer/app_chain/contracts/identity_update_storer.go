@@ -15,13 +15,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -90,7 +90,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return nil
 			}
 
-			messageTopic := topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, msgSent.InboxId[:])
+			messageTopic := topic.NewTopic(topic.TopicKindIdentityUpdatesV1, msgSent.InboxId[:])
 
 			s.logger.Info(
 				"Inserting identity update from contract",
@@ -229,7 +229,7 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
 			Topics: []db.Topic{
-				db.Topic(topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxId[:]).Bytes()),
+				db.Topic(topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxId[:]).Bytes()),
 			},
 			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
 			RowLimit:          256,

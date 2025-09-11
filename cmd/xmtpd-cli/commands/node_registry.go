@@ -27,7 +27,7 @@ func nodeRegistryCmd() *cobra.Command {
 		canonicalNetworkCmd(),
 		getNodeCmd(),
 		maxCanonicalCmd(),
-		setHttpAddressCmd(),
+		setHTTPAddressCmd(),
 	)
 
 	return cmd
@@ -365,7 +365,7 @@ func maxCanonicalHandler(setVal uint8) error {
 // set-http-address
 //------------------------------------------------------------------------------
 
-func setHttpAddressCmd() *cobra.Command {
+func setHTTPAddressCmd() *cobra.Command {
 	var httpAddress string
 
 	cmd := &cobra.Command{
@@ -382,7 +382,7 @@ xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 			if err != nil {
 				return fmt.Errorf("could not get node id: %w", err)
 			}
-			return setHttpAddressHandler(nodeID, httpAddress)
+			return setHTTPAddressHandler(nodeID, httpAddress)
 		},
 	}
 
@@ -392,7 +392,7 @@ xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 	return cmd
 }
 
-func setHttpAddressHandler(nodeID uint32, httpAddress string) error {
+func setHTTPAddressHandler(nodeID uint32, httpAddress string) error {
 	logger, err := cliLogger()
 	if err != nil {
 		log.Fatalf("could not build logger: %s", err)

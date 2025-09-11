@@ -67,12 +67,12 @@ func TestCreateServer(t *testing.T) {
 
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server1 := serverTestUtils.NewTestServer(
+	server1 := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server1Port,
 			HTTPListener:     httpServer1Port,
-			Db:               dbs[0],
+			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
@@ -82,12 +82,12 @@ func TestCreateServer(t *testing.T) {
 			},
 		},
 	)
-	server2 := serverTestUtils.NewTestServer(
+	server2 := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server2Port,
 			HTTPListener:     httpServer2Port,
-			Db:               dbs[1],
+			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
 			ContractsOptions: contractsOptions,
@@ -107,10 +107,10 @@ func TestCreateServer(t *testing.T) {
 
 	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
 	client2 := apiTestUtils.NewReplicationAPIClient(t, server2.Addr().String())
-	nodeId1 := server1NodeID
-	nodeId2 := server2NodeID
+	nodeID1 := server1NodeID
+	nodeID2 := server2NodeID
 
-	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 
 	p1, err := client1.PublishPayerEnvelopes(
@@ -118,7 +118,7 @@ func TestCreateServer(t *testing.T) {
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
-				nodeId1,
+				nodeID1,
 				envelopeTestUtils.CreateClientEnvelope(
 					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
 						TargetTopic: targetTopic,
@@ -134,7 +134,7 @@ func TestCreateServer(t *testing.T) {
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
-				nodeId2,
+				nodeID2,
 				envelopeTestUtils.CreateClientEnvelope(
 					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
 						TargetTopic: targetTopic,
@@ -191,7 +191,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	server1Port := networkTestUtils.OpenFreePort(t)
 	httpServer1Port := networkTestUtils.OpenFreePort(t)
 
-	nodeId1 := server1NodeID
+	nodeID1 := server1NodeID
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
@@ -205,12 +205,12 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server1 := serverTestUtils.NewTestServer(
+	server1 := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server1Port,
 			HTTPListener:     httpServer1Port,
-			Db:               dbs[0],
+			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
@@ -225,7 +225,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
 
-	targetTopic := topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3}).
+	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 
 	_, err = client1.PublishPayerEnvelopes(
@@ -233,7 +233,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
 				t,
-				nodeId1,
+				nodeID1,
 				envelopeTestUtils.CreateClientEnvelope(
 					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
 						TargetTopic: targetTopic,
@@ -279,10 +279,10 @@ func TestGRPCAndHTTPHealthEndpoints(t *testing.T) {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server := serverTestUtils.NewTestServer(t, serverTestUtils.TestServerCfg{
+	server := serverTestUtils.NewTestReplicationServer(t, serverTestUtils.TestServerCfg{
 		GRPCListener:     grpcPort,
 		HTTPListener:     httpPort,
-		Db:               dbs[0],
+		DB:               dbs[0],
 		Registry:         registry,
 		PrivateKey:       privateKey,
 		ContractsOptions: contractsOptions,

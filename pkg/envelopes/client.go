@@ -1,3 +1,5 @@
+// Package envelopes implements methods to create and manipulate different types of envelopes.
+// Types implemented are ClientEnvelope, PayerEnvelope, and OriginatorEnvelope.
 package envelopes
 
 import (
@@ -74,17 +76,17 @@ func (c *ClientEnvelope) TopicMatchesPayload() bool {
 
 	switch payload.(type) {
 	case *envelopesProto.ClientEnvelope_WelcomeMessage:
-		return targetTopicKind == topic.TOPIC_KIND_WELCOME_MESSAGES_V1
+		return targetTopicKind == topic.TopicKindWelcomeMessagesV1
 	case *envelopesProto.ClientEnvelope_GroupMessage:
-		return targetTopicKind == topic.TOPIC_KIND_GROUP_MESSAGES_V1
+		return targetTopicKind == topic.TopicKindGroupMessagesV1
 	case *envelopesProto.ClientEnvelope_IdentityUpdate:
-		return targetTopicKind == topic.TOPIC_KIND_IDENTITY_UPDATES_V1
+		return targetTopicKind == topic.TopicKindIdentityUpdatesV1
 	case *envelopesProto.ClientEnvelope_UploadKeyPackage:
-		return targetTopicKind == topic.TOPIC_KIND_KEY_PACKAGES_V1
+		return targetTopicKind == topic.TopicKindKeyPackagesV1
 	case *envelopesProto.ClientEnvelope_PayerReport:
-		return targetTopicKind == topic.TOPIC_KIND_PAYER_REPORTS_V1
+		return targetTopicKind == topic.TopicKindPayerReportsV1
 	case *envelopesProto.ClientEnvelope_PayerReportAttestation:
-		return targetTopicKind == topic.TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1
+		return targetTopicKind == topic.TopicKindPayerReportAttestationsV1
 	default:
 		return false
 	}

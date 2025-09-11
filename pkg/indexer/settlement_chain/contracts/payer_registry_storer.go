@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	"github.com/xmtp/xmtpd/pkg/currency"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/ledger"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
 

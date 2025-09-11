@@ -14,8 +14,8 @@ var payerNodePublishDuration = prometheus.NewHistogramVec(
 	[]string{"originator_id"},
 )
 
-func EmitPayerNodePublishDuration(originatorId uint32, duration float64) {
-	payerNodePublishDuration.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitPayerNodePublishDuration(originatorID uint32, duration float64) {
+	payerNodePublishDuration.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Observe(duration)
 }
 
@@ -27,8 +27,8 @@ var payerCursorBlockTime = prometheus.NewHistogramVec(
 	[]string{"originator_id"},
 )
 
-func EmitPayerBlockUntilDesiredCursorReached(originatorId uint32, duration float64) {
-	payerCursorBlockTime.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitPayerBlockUntilDesiredCursorReached(originatorID uint32, duration float64) {
+	payerCursorBlockTime.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Observe(duration)
 }
 
@@ -53,8 +53,8 @@ var payerBanlistRetry = prometheus.NewHistogramVec(
 	[]string{"originator_id"},
 )
 
-func EmitPayerBanlistRetries(originatorId uint32, retries int) {
-	payerBanlistRetry.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitPayerBanlistRetries(originatorID uint32, retries int) {
+	payerBanlistRetry.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Observe(float64(retries))
 }
 
@@ -66,8 +66,8 @@ var payerMessagesOriginated = prometheus.NewCounterVec(
 	[]string{"originator_id"},
 )
 
-func EmitPayerMessageOriginated(originatorId uint32, count int) {
-	payerMessagesOriginated.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitPayerMessageOriginated(originatorID uint32, count int) {
+	payerMessagesOriginated.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Add(float64(count))
 }
 

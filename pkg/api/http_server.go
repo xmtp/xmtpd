@@ -14,12 +14,12 @@ import (
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-type HttpRegistrationFunc func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error
+type HTTPRegistrationFunc func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error
 
-func (s *ApiServer) startHTTP(
+func (s *APIServer) startHTTP(
 	ctx context.Context,
 	log *zap.Logger,
-	registrationFunc HttpRegistrationFunc,
+	registrationFunc HTTPRegistrationFunc,
 ) error {
 	var err error
 
@@ -60,7 +60,7 @@ func (s *ApiServer) startHTTP(
 	return nil
 }
 
-func preflightHandler(w http.ResponseWriter, r *http.Request) {
+func preflightHandler(w http.ResponseWriter, _ *http.Request) {
 	headers := []string{
 		"Content-Type",
 		"Accept",

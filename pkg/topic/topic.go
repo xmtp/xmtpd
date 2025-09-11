@@ -1,3 +1,4 @@
+// Package topic implements the topic type.
 package topic
 
 import (
@@ -8,27 +9,27 @@ import (
 type TopicKind uint8
 
 const (
-	TOPIC_KIND_GROUP_MESSAGES_V1 TopicKind = iota
-	TOPIC_KIND_WELCOME_MESSAGES_V1
-	TOPIC_KIND_IDENTITY_UPDATES_V1
-	TOPIC_KIND_KEY_PACKAGES_V1
-	TOPIC_KIND_PAYER_REPORTS_V1
-	TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1
+	TopicKindGroupMessagesV1 TopicKind = iota
+	TopicKindWelcomeMessagesV1
+	TopicKindIdentityUpdatesV1
+	TopicKindKeyPackagesV1
+	TopicKindPayerReportsV1
+	TopicKindPayerReportAttestationsV1
 )
 
 func (k TopicKind) String() string {
 	switch k {
-	case TOPIC_KIND_GROUP_MESSAGES_V1:
+	case TopicKindGroupMessagesV1:
 		return "group_messages_v1"
-	case TOPIC_KIND_WELCOME_MESSAGES_V1:
+	case TopicKindWelcomeMessagesV1:
 		return "welcome_message_v1"
-	case TOPIC_KIND_IDENTITY_UPDATES_V1:
+	case TopicKindIdentityUpdatesV1:
 		return "identity_updates_v1"
-	case TOPIC_KIND_KEY_PACKAGES_V1:
+	case TopicKindKeyPackagesV1:
 		return "key_packages_v1"
-	case TOPIC_KIND_PAYER_REPORTS_V1:
+	case TopicKindPayerReportsV1:
 		return "payer_reports_v1"
-	case TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1:
+	case TopicKindPayerReportAttestationsV1:
 		return "payer_report_attestations_v1"
 	default:
 		return "unknown"
@@ -83,8 +84,8 @@ func (t Topic) Identifier() []byte {
 	return t.identifier
 }
 
-// Reserved topics can only be published to by the node itself, and not through Payers
+// IsReserved topics can only be published to by the node itself, and not through Payers.
 func (t Topic) IsReserved() bool {
-	return t.kind == TOPIC_KIND_PAYER_REPORTS_V1 ||
-		t.kind == TOPIC_KIND_PAYER_REPORT_ATTESTATIONS_V1
+	return t.kind == TopicKindPayerReportsV1 ||
+		t.kind == TopicKindPayerReportAttestationsV1
 }

@@ -7,7 +7,7 @@ import (
 )
 
 // this should be a counter, but it does not support set and we can not rely on memory state
-var syncOriginatorSequenceId = prometheus.NewGaugeVec(
+var syncOriginatorSequenceID = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Name: "xmtp_sync_originator_sequence_id",
 		Help: "Last synced sequence id of the originator",
@@ -15,8 +15,8 @@ var syncOriginatorSequenceId = prometheus.NewGaugeVec(
 	[]string{"originator_id"},
 )
 
-func EmitSyncLastSeenOriginatorSequenceId(originatorId uint32, lastSequence uint64) {
-	syncOriginatorSequenceId.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitSyncLastSeenOriginatorSequenceID(originatorID uint32, lastSequence uint64) {
+	syncOriginatorSequenceID.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Set(float64(lastSequence))
 }
 
@@ -28,8 +28,8 @@ var syncOriginatorErrorMessages = prometheus.NewCounterVec(
 	[]string{"originator_id"},
 )
 
-func EmitSyncOriginatorErrorMessages(originatorId uint32, count int) {
-	syncOriginatorErrorMessages.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitSyncOriginatorErrorMessages(originatorID uint32, count int) {
+	syncOriginatorErrorMessages.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Add(float64(count))
 }
 
@@ -41,8 +41,8 @@ var syncOriginatorMessagesReceived = prometheus.NewCounterVec(
 	[]string{"originator_id"},
 )
 
-func EmitSyncOriginatorReceivedMessagesCount(originatorId uint32, count int) {
-	syncOriginatorMessagesReceived.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorId))}).
+func EmitSyncOriginatorReceivedMessagesCount(originatorID uint32, count int) {
+	syncOriginatorMessagesReceived.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Add(float64(count))
 }
 
@@ -71,14 +71,14 @@ var syncFailedOutgoingSyncConnectionCounter = prometheus.NewCounterVec(
 type SyncConnectionsStatusCounter struct {
 	hasFailed    bool
 	hasSucceeded bool
-	originatorId uint32
+	originatorID uint32
 }
 
-func NewSyncConnectionsStatusCounter(originatorId uint32) *SyncConnectionsStatusCounter {
+func NewSyncConnectionsStatusCounter(originatorID uint32) *SyncConnectionsStatusCounter {
 	return &SyncConnectionsStatusCounter{
 		hasFailed:    false,
 		hasSucceeded: false,
-		originatorId: originatorId,
+		originatorID: originatorID,
 	}
 }
 
@@ -91,7 +91,7 @@ func (fc *SyncConnectionsStatusCounter) MarkFailure() {
 		fc.hasSucceeded = false
 		syncOutgoingSyncConnections.Dec()
 	}
-	syncFailedOutgoingSyncConnectionCounter.With(prometheus.Labels{"originator_id": strconv.Itoa(int(fc.originatorId))}).
+	syncFailedOutgoingSyncConnectionCounter.With(prometheus.Labels{"originator_id": strconv.Itoa(int(fc.originatorID))}).
 		Inc()
 }
 

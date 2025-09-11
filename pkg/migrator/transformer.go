@@ -105,7 +105,7 @@ func (t *Transformer) TransformGroupMessage(
 			},
 		},
 		Aad: &proto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupMessage.GroupID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, groupMessage.GroupID[:]).
 				Bytes(),
 		},
 	}
@@ -145,7 +145,7 @@ func (t *Transformer) TransformInboxLog(
 			IdentityUpdate: &identityUpdateProto,
 		},
 		Aad: &proto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_IDENTITY_UPDATES_V1, inboxLog.InboxID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxLog.InboxID[:]).
 				Bytes(),
 		},
 	}
@@ -178,7 +178,7 @@ func (t *Transformer) TransformKeyPackage(
 			},
 		},
 		Aad: &proto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, keyPackage.InstallationID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindKeyPackagesV1, keyPackage.InstallationID[:]).
 				Bytes(),
 		},
 	}
@@ -215,7 +215,7 @@ func (t *Transformer) TransformWelcomeMessage(
 			},
 		},
 		Aad: &proto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_WELCOME_MESSAGES_V1, welcomeMessage.InstallationKey[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindWelcomeMessagesV1, welcomeMessage.InstallationKey[:]).
 				Bytes(),
 		},
 	}
@@ -286,7 +286,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 
 	switch originatorID {
 	case KeyPackagesOriginatorID, WelcomeMessageOriginatorID:
-		retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
+		retentionDays = constants.DefaultStorageDurationDays
 
 	case GroupMessageOriginatorID:
 		payload := clientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
@@ -297,7 +297,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 		}
 
 		if !isCommit {
-			retentionDays = constants.DEFAULT_STORAGE_DURATION_DAYS
+			retentionDays = constants.DefaultStorageDurationDays
 		}
 	}
 

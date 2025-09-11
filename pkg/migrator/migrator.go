@@ -27,11 +27,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
 

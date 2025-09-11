@@ -1,3 +1,4 @@
+// Package mlsvalidate implements the MLS validation service interface.
 package mlsvalidate
 
 import (
@@ -28,7 +29,7 @@ func NewMlsValidationService(
 	cfg config.MlsValidationOptions,
 	clientMetrics *grpcprom.ClientMetrics,
 ) (*MLSValidationServiceImpl, error) {
-	target, isTLS, err := utils.HttpAddressToGrpcTarget(cfg.GrpcAddress)
+	target, isTLS, err := utils.HTTPAddressToGRPCTarget(cfg.GrpcAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
 	}
@@ -176,7 +177,7 @@ func (s *MLSValidationServiceImpl) ValidateGroupMessages(
 			return nil, fmt.Errorf("validation failed with error %s", response.ErrorMessage)
 		}
 		out[i] = GroupMessageValidationResult{
-			GroupId: response.GroupId,
+			GroupID: response.GroupId,
 		}
 	}
 

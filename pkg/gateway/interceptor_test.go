@@ -17,7 +17,7 @@ func TestGatewayInterceptor(t *testing.T) {
 
 	t.Run("Identity Injection", func(t *testing.T) {
 		expectedIdentity := Identity{
-			Kind:     IdentityKindIP,
+			Kind:     identityKindIP,
 			Identity: "192.168.1.1",
 		}
 
@@ -52,7 +52,7 @@ func TestGatewayInterceptor(t *testing.T) {
 
 	t.Run("Authorization Success", func(t *testing.T) {
 		identity := Identity{
-			Kind:     IdentityKindIP,
+			Kind:     identityKindIP,
 			Identity: "127.0.0.1",
 		}
 
@@ -96,7 +96,7 @@ func TestGatewayInterceptor(t *testing.T) {
 
 	t.Run("Authorization Denied", func(t *testing.T) {
 		identity := Identity{
-			Kind:     IdentityKindIP,
+			Kind:     identityKindIP,
 			Identity: "192.168.1.1",
 		}
 
@@ -136,7 +136,7 @@ func TestGatewayInterceptor(t *testing.T) {
 
 	t.Run("Authorization Not Called For Other Methods", func(t *testing.T) {
 		identity := Identity{
-			Kind:     IdentityKindIP,
+			Kind:     identityKindIP,
 			Identity: "192.168.1.1",
 		}
 

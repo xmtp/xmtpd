@@ -1,3 +1,4 @@
+// Package merkle implements the Merkle tree for the payer report.
 package merkle
 
 import (

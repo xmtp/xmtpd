@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
-	errorMocks "github.com/xmtp/xmtpd/pkg/errors"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/common"
+	errorMocks "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
 

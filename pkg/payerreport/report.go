@@ -96,7 +96,7 @@ type BuildPayerReportParams struct {
 	DomainSeparator     common.Hash
 }
 
-// A FullPayerReport is a superset of a PayerReport that includes the payers and node IDs
+// PayerReportWithInputs is a superset of a PayerReport that includes the payers and node IDs.
 type PayerReportWithInputs struct {
 	PayerReport
 	// The payers in the report and the number of messages they paid for
@@ -129,7 +129,7 @@ func (p *PayerReport) ToProto() *proto.PayerReport {
 
 func (p *PayerReport) ToClientEnvelope() (*envelopes.ClientEnvelope, error) {
 	payload := p.ToProto()
-	targetTopic := topic.NewTopic(topic.TOPIC_KIND_PAYER_REPORTS_V1, utils.Uint32ToBytes(p.OriginatorNodeID)).
+	targetTopic := topic.NewTopic(topic.TopicKindPayerReportsV1, utils.Uint32ToBytes(p.OriginatorNodeID)).
 		Bytes()
 
 	return envelopes.NewClientEnvelope(&proto.ClientEnvelope{
@@ -158,7 +158,7 @@ func BuildPayerReportID(
 	nodeIdsHash := utils.PackAndHashNodeIDs(activeNodeIDs)
 
 	packedBytes, err := payerReportMessageHash.Pack(
-		PAYER_REPORT_DIGEST_TYPE_HASH,
+		payerReportDigestTypeHash,
 		originatorNodeID,
 		startSequenceID,
 		endSequenceID,

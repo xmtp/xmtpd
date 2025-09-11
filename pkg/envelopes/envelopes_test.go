@@ -15,24 +15,24 @@ import (
 )
 
 func TestValidOriginatorEnvelope(t *testing.T) {
-	originatorNodeId := uint32(1)
-	originatorSequenceId := uint64(1)
+	originatorNodeID := uint32(1)
+	originatorSequenceID := uint64(1)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, originatorNodeId, clientEnv)
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, originatorNodeID, clientEnv)
 	originatorEnvelope := envelopeTestUtils.CreateOriginatorEnvelope(
 		t,
-		originatorNodeId,
-		originatorSequenceId,
+		originatorNodeID,
+		originatorSequenceID,
 		payerEnvelope,
 	)
 
 	processed, err := NewOriginatorEnvelope(originatorEnvelope)
 	require.NoError(t, err)
-	require.Equal(t, originatorNodeId, processed.UnsignedOriginatorEnvelope.OriginatorNodeID())
+	require.Equal(t, originatorNodeID, processed.UnsignedOriginatorEnvelope.OriginatorNodeID())
 	require.Equal(
 		t,
-		originatorSequenceId,
+		originatorSequenceID,
 		processed.UnsignedOriginatorEnvelope.OriginatorSequenceID(),
 	)
 
@@ -44,15 +44,15 @@ func TestValidOriginatorEnvelope(t *testing.T) {
 }
 
 func TestSerialize(t *testing.T) {
-	originatorNodeId := uint32(1)
-	originatorSequenceId := uint64(1)
+	originatorNodeID := uint32(1)
+	originatorSequenceID := uint64(1)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, originatorNodeId, clientEnv)
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(t, originatorNodeID, clientEnv)
 	originatorEnvelope := envelopeTestUtils.CreateOriginatorEnvelope(
 		t,
-		originatorNodeId,
-		originatorSequenceId,
+		originatorNodeID,
+		originatorSequenceID,
 		payerEnvelope,
 	)
 
@@ -114,14 +114,14 @@ func TestPayloadType(t *testing.T) {
 	// Group Message envelope with matching topic
 	clientEnvelope, err := NewClientEnvelope(&envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_GroupMessage{},
-		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3})),
+		Aad:     buildAad(topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3})),
 	})
 	require.NoError(t, err)
 	require.True(t, clientEnvelope.TopicMatchesPayload())
 
 	clientEnvelope, err = NewClientEnvelope(&envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_UploadKeyPackage{},
-		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3})),
+		Aad:     buildAad(topic.NewTopic(topic.TopicKindKeyPackagesV1, []byte{1, 2, 3})),
 	})
 	require.NoError(t, err)
 	require.True(t, clientEnvelope.TopicMatchesPayload())
@@ -129,7 +129,7 @@ func TestPayloadType(t *testing.T) {
 	// Mismatched topic and payload
 	clientEnvelope, err = NewClientEnvelope(&envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_GroupMessage{},
-		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, []byte{1, 2, 3})),
+		Aad:     buildAad(topic.NewTopic(topic.TopicKindKeyPackagesV1, []byte{1, 2, 3})),
 	})
 	require.NoError(t, err)
 	require.False(t, clientEnvelope.TopicMatchesPayload())
@@ -137,19 +137,19 @@ func TestPayloadType(t *testing.T) {
 	// Payer Report envelope with wrong topic
 	clientEnvelope, err = NewClientEnvelope(&envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_PayerReport{},
-		Aad:     buildAad(topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, []byte{1, 2, 3})),
+		Aad:     buildAad(topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3})),
 	})
 	require.NoError(t, err)
 	require.False(t, clientEnvelope.TopicMatchesPayload())
 }
 
 func TestRecoverSigner(t *testing.T) {
-	nodeId := envelopeTestUtils.DefaultClientEnvelopeNodeId
+	nodeID := envelopeTestUtils.DefaultClientEnvelopeNodeID
 	payerPrivateKey := testutils.RandomPrivateKey(t)
-	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t, nodeId)
+	rawPayerEnv := envelopeTestUtils.CreatePayerEnvelope(t, nodeID)
 
 	payerSignature, err := utils.SignClientEnvelope(
-		nodeId,
+		nodeID,
 		rawPayerEnv.UnsignedClientEnvelope,
 		payerPrivateKey,
 	)
@@ -167,7 +167,7 @@ func TestRecoverSigner(t *testing.T) {
 
 	// Now test with an incorrect signature
 	wrongPayerSignature, err := utils.SignClientEnvelope(
-		nodeId,
+		nodeID,
 		testutils.RandomBytes(128),
 		payerPrivateKey,
 	)

@@ -14,18 +14,18 @@ import (
 )
 
 const (
-	RATE_MESSAGE_FEE       = 100
-	RATE_STORAGE_FEE       = 50
-	RATE_CONGESTION_FEE    = 200
-	TARGET_RATE_PER_MINUTE = 4
+	rateMessageFee      = 100
+	rateStorageFee      = 50
+	rateCongestionFee   = 200
+	targetRatePerMinute = 4
 )
 
 func setupCalculator() *FeeCalculator {
 	rates := &Rates{
-		MessageFee:          RATE_MESSAGE_FEE,
-		StorageFee:          RATE_STORAGE_FEE,
-		CongestionFee:       RATE_CONGESTION_FEE,
-		TargetRatePerMinute: TARGET_RATE_PER_MINUTE,
+		MessageFee:          rateMessageFee,
+		StorageFee:          rateStorageFee,
+		CongestionFee:       rateCongestionFee,
+		TargetRatePerMinute: targetRatePerMinute,
 	}
 	ratesFetcher := NewFixedRatesFetcher(rates)
 	return NewFeeCalculator(ratesFetcher)
@@ -65,7 +65,7 @@ func TestCalculateBaseFee(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	expectedFee := RATE_MESSAGE_FEE + (RATE_STORAGE_FEE * messageSize * storageDurationDays)
+	expectedFee := rateMessageFee + (rateStorageFee * messageSize * storageDurationDays)
 	require.Equal(t, currency.PicoDollar(expectedFee), baseFee)
 }
 

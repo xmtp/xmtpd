@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 )

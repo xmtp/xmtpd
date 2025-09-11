@@ -1,3 +1,4 @@
+// Package utils implements different utilities to be used by production code.
 package utils
 
 import (

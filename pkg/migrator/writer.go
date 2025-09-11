@@ -10,9 +10,9 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	re "github.com/xmtp/xmtpd/pkg/errors"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )

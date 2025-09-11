@@ -30,19 +30,15 @@ func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, *blockchain.Pa
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.AppChain.RPCURL)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
-	require.NoError(t, err)
-
 	appAdmin, err := blockchain.NewAppChainAdmin(
 		logger,
 		client,
 		signer,
 		contractsOptions,
-		paramAdmin,
 	)
 	require.NoError(t, err)
 
-	return appAdmin, paramAdmin
+	return appAdmin, appAdmin.GetParameterAdmin()
 }
 
 func TestBootstrapperAddress(t *testing.T) {

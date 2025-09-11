@@ -34,19 +34,15 @@ func buildSettlementChainAdmin(
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.SettlementChain.RPCURL)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
-	require.NoError(t, err)
-
 	settlementChainAdmin, err := blockchain.NewSettlementChainAdmin(
 		logger,
 		client,
 		signer,
 		contractsOptions,
-		paramAdmin,
 	)
 	require.NoError(t, err)
 
-	return settlementChainAdmin, paramAdmin
+	return settlementChainAdmin, settlementChainAdmin.GetParameterAdmin()
 }
 
 func TestPauseFlagsSettlement(t *testing.T) {

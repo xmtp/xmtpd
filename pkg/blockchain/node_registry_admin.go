@@ -44,8 +44,12 @@ func NewNodeRegistryAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
 ) (*nodeRegistryAdmin, error) {
+	parameterAdmin, err := NewSettlementParameterAdmin(logger, client, signer, contractsOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	nodeContract, err := noderegistry.NewNodeRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
 		client,

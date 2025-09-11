@@ -60,8 +60,12 @@ func NewSettlementChainAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
 ) (*settlementChainAdmin, error) {
+	paramAdmin, err := NewSettlementParameterAdmin(logger, client, signer, contractsOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	acGateway, err := scg.NewSettlementChainGateway(
 		common.HexToAddress(contractsOptions.SettlementChain.GatewayAddress),
 		client,
@@ -98,7 +102,7 @@ func NewSettlementChainAdmin(
 		client:                 client,
 		signer:                 signer,
 		logger:                 logger.Named("AppChainAdmin"),
-		parameterAdmin:         parameterAdmin,
+		parameterAdmin:         paramAdmin,
 		settlementChainGateway: acGateway,
 		payerRegistry:          payerRegistry,
 		distributionManager:    distributionManager,
@@ -447,4 +451,8 @@ func (s settlementChainAdmin) SetRateRegistryMigrator(
 	addr common.Address,
 ) error {
 	return s.parameterAdmin.SetAddressParameter(ctx, RATE_REGISTRY_MIGRATOR_KEY, addr)
+}
+
+func (s settlementChainAdmin) GetParameterAdmin() *ParameterAdmin {
+	return s.parameterAdmin
 }

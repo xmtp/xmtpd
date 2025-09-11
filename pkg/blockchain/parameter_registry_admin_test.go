@@ -23,14 +23,14 @@ func buildParameterAdmin(t *testing.T) *blockchain.ParameterAdmin {
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		testutils.TestPrivateKey,
-		contractsOptions.AppChain.ChainID,
+		contractsOptions.SettlementChain.ChainID,
 	)
 	require.NoError(t, err)
 
-	client, err := blockchain.NewRPCClient(ctx, contractsOptions.AppChain.RPCURL)
+	client, err := blockchain.NewRPCClient(ctx, contractsOptions.SettlementChain.RPCURL)
 	require.NoError(t, err)
 
-	admin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	admin, err := blockchain.NewSettlementParameterAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
 	return admin

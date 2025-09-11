@@ -188,6 +188,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			ChainID:                          config.AppChainID,
 			MaxChainDisconnectTime:           300 * time.Second,
 			BackfillBlockPageSize:            500,
+			ParameterRegistryAddress: config.AppChainParameterRegistry,
 		},
 	}, nil
 }
@@ -252,6 +253,9 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 	}
 	if options.AppChain.DeploymentBlock == 0 {
 		options.AppChain.DeploymentBlock = uint64(config.AppChainDeploymentBlock)
+	}
+	if options.AppChain.ParameterRegistryAddress == "" {
+		options.AppChain.ParameterRegistryAddress = config.AppChainParameterRegistry
 	}
 
 	// SettlementChainOptions

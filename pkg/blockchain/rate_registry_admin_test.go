@@ -12,7 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildRatesAdmin(t *testing.T) (*blockchain.RatesAdmin, *blockchain.ParameterAdmin) {
+func buildRatesAdmin(t *testing.T) *blockchain.RatesAdmin {
 	ctx := context.Background()
 	logger := testutils.NewLog(t)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
@@ -30,17 +30,14 @@ func buildRatesAdmin(t *testing.T) (*blockchain.RatesAdmin, *blockchain.Paramete
 	)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	ratesAdmin, err := blockchain.NewRatesAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
-	ratesAdmin, err := blockchain.NewRatesAdmin(logger, paramAdmin, client, contractsOptions)
-	require.NoError(t, err)
-
-	return ratesAdmin, paramAdmin
+	return ratesAdmin
 }
 
 func TestAddRates(t *testing.T) {
-	ratesAdmin, _ := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
 
 	rates := fees.Rates{
 		MessageFee:          100,
@@ -54,7 +51,7 @@ func TestAddRates(t *testing.T) {
 }
 
 func TestAddNegativeRates(t *testing.T) {
-	ratesAdmin, _ := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
 
 	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee: -100,
@@ -73,7 +70,7 @@ func TestAddNegativeRates(t *testing.T) {
 }
 
 func TestAdd0Rates(t *testing.T) {
-	ratesAdmin, _ := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
 
 	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee:          0,
@@ -85,7 +82,7 @@ func TestAdd0Rates(t *testing.T) {
 }
 
 func TestAddLargeRates(t *testing.T) {
-	ratesAdmin, _ := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
 
 	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee:          math.MaxInt64,
@@ -97,7 +94,7 @@ func TestAddLargeRates(t *testing.T) {
 }
 
 func TestAddRatesAgain(t *testing.T) {
-	ratesAdmin, _ := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
 
 	rates := fees.Rates{
 		MessageFee:          5,
@@ -115,7 +112,7 @@ func TestAddRatesAgain(t *testing.T) {
 
 func TestRates_ReadDefaults(t *testing.T) {
 	t.Skip("Some defaults seem to be set - https://github.com/xmtp/smart-contracts/issues/126")
-	_, paramAdmin := buildRatesAdmin(t)
+	paramAdmin := buildRatesAdmin(t).GetParamAdmin()
 	ctx := context.Background()
 
 	// 1) Defaults should be zero (unset) for all four rate params.
@@ -138,7 +135,8 @@ func TestRates_ReadDefaults(t *testing.T) {
 }
 
 func TestRates_WriteThenRead(t *testing.T) {
-	ratesAdmin, paramAdmin := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
+	paramAdmin := ratesAdmin.GetParamAdmin()
 	ctx := context.Background()
 
 	want := fees.Rates{
@@ -168,7 +166,8 @@ func TestRates_WriteThenRead(t *testing.T) {
 }
 
 func TestRates_WriteZeroes_ReadZeroes(t *testing.T) {
-	ratesAdmin, paramAdmin := buildRatesAdmin(t)
+	ratesAdmin := buildRatesAdmin(t)
+	paramAdmin := ratesAdmin.GetParamAdmin()
 	ctx := context.Background()
 
 	zero := fees.Rates{
@@ -187,7 +186,7 @@ func TestRates_WriteZeroes_ReadZeroes(t *testing.T) {
 	require.NoError(t, err)
 	target, err := paramAdmin.GetParameterUint64(
 		ctx,
-		blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+		blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY,
 	)
 	require.NoError(t, err)
 

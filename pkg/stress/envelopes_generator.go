@@ -164,7 +164,7 @@ func (e *EnvelopesGenerator) buildAndSignPayerEnvelopes(
 				Bytes: payerSignature,
 			},
 			TargetOriginator:     e.originatorID,
-			MessageRetentionDays: constants.DEFAULT_STORAGE_DURATION_DAYS,
+			MessageRetentionDays: constants.DefaultStorageDurationDays,
 		}
 	}
 
@@ -194,7 +194,7 @@ func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvel
 			},
 		},
 		Aad: &envelopesProto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_WELCOME_MESSAGES_V1, installationKey[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindWelcomeMessagesV1, installationKey[:]).
 				Bytes(),
 		},
 	}
@@ -213,7 +213,7 @@ func makeKeyPackageClientEnvelope() *envelopesProto.ClientEnvelope {
 			},
 		},
 		Aad: &envelopesProto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_KEY_PACKAGES_V1, installationID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindKeyPackagesV1, installationID[:]).
 				Bytes(),
 		},
 	}
@@ -237,7 +237,7 @@ func makeGroupMessageEnvelope(dataSize uint) *envelopesProto.ClientEnvelope {
 			},
 		},
 		Aad: &envelopesProto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TOPIC_KIND_GROUP_MESSAGES_V1, groupID[:]).
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).
 				Bytes(),
 		},
 	}
@@ -247,7 +247,7 @@ func buildGRPCConnection(
 	nodeHTTPAddress string,
 	extraDialOpts ...grpc.DialOption,
 ) (*grpc.ClientConn, error) {
-	target, isTLS, err := utils.HttpAddressToGrpcTarget(nodeHTTPAddress)
+	target, isTLS, err := utils.HTTPAddressToGRPCTarget(nodeHTTPAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
 	}

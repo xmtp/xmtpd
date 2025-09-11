@@ -11,7 +11,10 @@ type appchainRegistryAdapter struct {
 	inner *appParamReg.AppChainParameterRegistry
 }
 
-func newAppchainRegistryAdapter(addr common.Address, backend bind.ContractBackend) (*appchainRegistryAdapter, error) {
+func newAppchainRegistryAdapter(
+	addr common.Address,
+	backend bind.ContractBackend,
+) (*appchainRegistryAdapter, error) {
 	inner, err := appParamReg.NewAppChainParameterRegistry(addr, backend)
 	if err != nil {
 		return nil, err
@@ -23,11 +26,19 @@ func (a *appchainRegistryAdapter) Get(opts *bind.CallOpts, key string) ([32]byte
 	return a.inner.Get(opts, key)
 }
 
-func (a *appchainRegistryAdapter) Set(opts *bind.TransactOpts, key string, value [32]byte) (*types.Transaction, error) {
+func (a *appchainRegistryAdapter) Set(
+	opts *bind.TransactOpts,
+	key string,
+	value [32]byte,
+) (*types.Transaction, error) {
 	return a.inner.Set(opts, key, value)
 }
 
-func (a *appchainRegistryAdapter) SetMany(opts *bind.TransactOpts, keys []string, values [][32]byte) (*types.Transaction, error) {
+func (a *appchainRegistryAdapter) SetMany(
+	opts *bind.TransactOpts,
+	keys []string,
+	values [][32]byte,
+) (*types.Transaction, error) {
 	return a.inner.Set0(opts, keys, values)
 }
 

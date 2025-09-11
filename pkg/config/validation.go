@@ -188,7 +188,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			ChainID:                          config.AppChainID,
 			MaxChainDisconnectTime:           300 * time.Second,
 			BackfillBlockPageSize:            500,
-			ParameterRegistryAddress: config.AppChainParameterRegistry,
+			ParameterRegistryAddress:         config.AppChainParameterRegistry,
 		},
 	}, nil
 }

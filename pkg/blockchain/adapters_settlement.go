@@ -13,7 +13,10 @@ type settlementRegistryAdapter struct {
 	inner *paramReg.SettlementChainParameterRegistry
 }
 
-func newSettlementRegistryAdapter(addr common.Address, backend bind.ContractBackend) (*settlementRegistryAdapter, error) {
+func newSettlementRegistryAdapter(
+	addr common.Address,
+	backend bind.ContractBackend,
+) (*settlementRegistryAdapter, error) {
 	inner, err := paramReg.NewSettlementChainParameterRegistry(addr, backend)
 	if err != nil {
 		return nil, err
@@ -25,11 +28,19 @@ func (a *settlementRegistryAdapter) Get(opts *bind.CallOpts, key string) ([32]by
 	return a.inner.Get(opts, key)
 }
 
-func (a *settlementRegistryAdapter) Set(opts *bind.TransactOpts, key string, value [32]byte) (*types.Transaction, error) {
+func (a *settlementRegistryAdapter) Set(
+	opts *bind.TransactOpts,
+	key string,
+	value [32]byte,
+) (*types.Transaction, error) {
 	return a.inner.Set(opts, key, value)
 }
 
-func (a *settlementRegistryAdapter) SetMany(opts *bind.TransactOpts, keys []string, values [][32]byte) (*types.Transaction, error) {
+func (a *settlementRegistryAdapter) SetMany(
+	opts *bind.TransactOpts,
+	keys []string,
+	values [][32]byte,
+) (*types.Transaction, error) {
 	return a.inner.Set0(opts, keys, values)
 }
 

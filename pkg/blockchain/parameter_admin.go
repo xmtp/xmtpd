@@ -2,9 +2,10 @@ package blockchain
 
 import (
 	"context"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -12,7 +13,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
-
 
 type ParameterSetEvent struct {
 	Key   string
@@ -83,7 +83,10 @@ func NewAppchainParameterAdmin(
 
 // -------------------------- Reads --------------------------
 
-func (n *ParameterAdmin) GetParameterAddress(ctx context.Context, paramName string) (common.Address, ProtocolError) {
+func (n *ParameterAdmin) GetParameterAddress(
+	ctx context.Context,
+	paramName string,
+) (common.Address, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return common.Address{}, NewBlockchainError(err)
@@ -91,7 +94,10 @@ func (n *ParameterAdmin) GetParameterAddress(ctx context.Context, paramName stri
 	return common.BytesToAddress(payload[:]), nil
 }
 
-func (n *ParameterAdmin) GetParameterUint8(ctx context.Context, paramName string) (uint8, ProtocolError) {
+func (n *ParameterAdmin) GetParameterUint8(
+	ctx context.Context,
+	paramName string,
+) (uint8, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
@@ -103,7 +109,10 @@ func (n *ParameterAdmin) GetParameterUint8(ctx context.Context, paramName string
 	return v, nil
 }
 
-func (n *ParameterAdmin) GetParameterUint16(ctx context.Context, paramName string) (uint16, ProtocolError) {
+func (n *ParameterAdmin) GetParameterUint16(
+	ctx context.Context,
+	paramName string,
+) (uint16, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
@@ -115,7 +124,10 @@ func (n *ParameterAdmin) GetParameterUint16(ctx context.Context, paramName strin
 	return v, nil
 }
 
-func (n *ParameterAdmin) GetParameterUint32(ctx context.Context, paramName string) (uint32, ProtocolError) {
+func (n *ParameterAdmin) GetParameterUint32(
+	ctx context.Context,
+	paramName string,
+) (uint32, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
@@ -127,7 +139,10 @@ func (n *ParameterAdmin) GetParameterUint32(ctx context.Context, paramName strin
 	return v, nil
 }
 
-func (n *ParameterAdmin) GetParameterUint64(ctx context.Context, paramName string) (uint64, ProtocolError) {
+func (n *ParameterAdmin) GetParameterUint64(
+	ctx context.Context,
+	paramName string,
+) (uint64, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
@@ -139,7 +154,10 @@ func (n *ParameterAdmin) GetParameterUint64(ctx context.Context, paramName strin
 	return v, nil
 }
 
-func (n *ParameterAdmin) GetParameterUint96(ctx context.Context, paramName string) (*big.Int, ProtocolError) {
+func (n *ParameterAdmin) GetParameterUint96(
+	ctx context.Context,
+	paramName string,
+) (*big.Int, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return nil, NewBlockchainError(err)
@@ -151,7 +169,10 @@ func (n *ParameterAdmin) GetParameterUint96(ctx context.Context, paramName strin
 	return u, nil
 }
 
-func (n *ParameterAdmin) GetParameterBool(ctx context.Context, paramName string) (bool, ProtocolError) {
+func (n *ParameterAdmin) GetParameterBool(
+	ctx context.Context,
+	paramName string,
+) (bool, ProtocolError) {
 	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return false, NewBlockchainError(err)
@@ -165,23 +186,43 @@ func (n *ParameterAdmin) GetParameterBool(ctx context.Context, paramName string)
 
 // -------------------------- Writes --------------------------
 
-func (n *ParameterAdmin) SetUint8Parameter(ctx context.Context, name string, v uint8) ProtocolError {
+func (n *ParameterAdmin) SetUint8Parameter(
+	ctx context.Context,
+	name string,
+	v uint8,
+) ProtocolError {
 	return n.setParameterBytes32(ctx, name, packUint8(v), n.logUint8(name))
 }
 
-func (n *ParameterAdmin) SetUint16Parameter(ctx context.Context, name string, v uint16) ProtocolError {
+func (n *ParameterAdmin) SetUint16Parameter(
+	ctx context.Context,
+	name string,
+	v uint16,
+) ProtocolError {
 	return n.setParameterBytes32(ctx, name, packUint16(v), n.logUint16(name))
 }
 
-func (n *ParameterAdmin) SetUint32Parameter(ctx context.Context, name string, v uint32) ProtocolError {
+func (n *ParameterAdmin) SetUint32Parameter(
+	ctx context.Context,
+	name string,
+	v uint32,
+) ProtocolError {
 	return n.setParameterBytes32(ctx, name, packUint32(v), n.logUint32(name))
 }
 
-func (n *ParameterAdmin) SetUint64Parameter(ctx context.Context, name string, v uint64) ProtocolError {
+func (n *ParameterAdmin) SetUint64Parameter(
+	ctx context.Context,
+	name string,
+	v uint64,
+) ProtocolError {
 	return n.setParameterBytes32(ctx, name, packUint64(v), n.logUint64(name))
 }
 
-func (n *ParameterAdmin) SetUint96Parameter(ctx context.Context, name string, v *big.Int) ProtocolError {
+func (n *ParameterAdmin) SetUint96Parameter(
+	ctx context.Context,
+	name string,
+	v *big.Int,
+) ProtocolError {
 	enc, err := packUint96Big(v)
 	if err != nil {
 		return NewBlockchainError(err)
@@ -189,7 +230,11 @@ func (n *ParameterAdmin) SetUint96Parameter(ctx context.Context, name string, v 
 	return n.setParameterBytes32(ctx, name, enc, n.logUint96(name))
 }
 
-func (n *ParameterAdmin) SetAddressParameter(ctx context.Context, name string, addr common.Address) ProtocolError {
+func (n *ParameterAdmin) SetAddressParameter(
+	ctx context.Context,
+	name string,
+	addr common.Address,
+) ProtocolError {
 	return n.setParameterBytes32(ctx, name, packAddress(addr), n.logAddress(name))
 }
 
@@ -197,7 +242,10 @@ func (n *ParameterAdmin) SetBoolParameter(ctx context.Context, name string, v bo
 	return n.setParameterBytes32(ctx, name, packBool(v), n.logBool(name))
 }
 
-func (n *ParameterAdmin) SetManyUint64Parameters(ctx context.Context, items []Uint64Param) ProtocolError {
+func (n *ParameterAdmin) SetManyUint64Parameters(
+	ctx context.Context,
+	items []Uint64Param,
+) ProtocolError {
 	keys := make([]string, len(items))
 	vals := make([][32]byte, len(items))
 	for i, it := range items {
@@ -318,7 +366,6 @@ func (n *ParameterAdmin) logBool(paramName string) func([32]byte) {
 		)
 	}
 }
-
 
 func (n *ParameterAdmin) setParameterBytes32(
 	ctx context.Context,

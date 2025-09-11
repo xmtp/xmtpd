@@ -45,7 +45,7 @@ func NewContractsOptions(t *testing.T, rpcURL, wsURL string) config.ContractsOpt
 			IdentityUpdateBroadcasterAddress: chainConfig.IdentityUpdateBroadcaster,
 			BackfillBlockPageSize:            500,
 			GatewayAddress:                   chainConfig.AppChainGateway,
-			ParameterRegistryAddress: chainConfig.AppChainParameterRegistry,
+			ParameterRegistryAddress:         chainConfig.AppChainParameterRegistry,
 		},
 		SettlementChain: config.SettlementChainOptions{
 			RPCURL:                      rpcURL,

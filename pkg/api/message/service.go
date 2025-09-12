@@ -610,7 +610,11 @@ func (s *Service) validateKeyPackage(
 	}
 
 	if !validationResult[0].IsOk {
-		return status.Errorf(codes.InvalidArgument, "key package validation failed")
+		return status.Errorf(
+			codes.InvalidArgument,
+			"key package validation failed: %s",
+			validationResult[0].ErrorMessage,
+		)
 	}
 
 	return nil

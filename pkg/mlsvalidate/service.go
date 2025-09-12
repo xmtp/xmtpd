@@ -129,6 +129,7 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 				InstallationKey: nil,
 				Credential:      nil,
 				Expiration:      0,
+				ErrorMessage:    response.ErrorMessage,
 			}
 		} else {
 			out[i] = KeyPackageValidationResult{
@@ -136,6 +137,7 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 				InstallationKey: response.InstallationPublicKey,
 				Credential:      nil,
 				Expiration:      response.Expiration,
+				ErrorMessage:    response.ErrorMessage,
 			}
 		}
 	}

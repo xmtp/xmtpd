@@ -14,6 +14,7 @@ type KeyPackageValidationResult struct {
 	InstallationKey []byte
 	Credential      *identity_proto.MlsCredential
 	Expiration      uint64
+	ErrorMessage    string
 }
 
 type GroupMessageValidationResult struct {

@@ -57,8 +57,12 @@ func NewAppChainAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
 ) (*appChainAdmin, error) {
+	paramAdmin, err := NewAppchainParameterAdmin(logger, client, signer, contractsOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	iuBroadcaster, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(contractsOptions.AppChain.IdentityUpdateBroadcasterAddress),
 		client,
@@ -87,7 +91,7 @@ func NewAppChainAdmin(
 		client:                    client,
 		signer:                    signer,
 		logger:                    logger.Named("AppChainAdmin"),
-		parameterAdmin:            parameterAdmin,
+		parameterAdmin:            paramAdmin,
 		identityUpdateBroadcaster: iuBroadcaster,
 		groupMessageBroadcaster:   gmBroadcaster,
 		appChainGateway:           acGateway,
@@ -530,4 +534,8 @@ func (a appChainAdmin) SetIdentityUpdateMinPayloadSize(ctx context.Context, size
 		return err
 	}
 	return nil
+}
+
+func (a appChainAdmin) GetParameterAdmin() *ParameterAdmin {
+	return a.parameterAdmin
 }

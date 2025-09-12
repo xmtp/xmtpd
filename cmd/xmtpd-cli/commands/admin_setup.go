@@ -43,13 +43,7 @@ func setupAppChainAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	// NewAppChainAdmin expects a ParameterAdmin inside; this remains internal to the admin.
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contracts)
-	if err != nil {
-		return nil, fmt.Errorf("could not create parameter admin: %w", err)
-	}
-
-	return blockchain.NewAppChainAdmin(logger, client, signer, contracts, paramAdmin)
+	return blockchain.NewAppChainAdmin(logger, client, signer, contracts)
 }
 
 func setupSettlementChainAdmin(
@@ -85,12 +79,7 @@ func setupSettlementChainAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contracts)
-	if err != nil {
-		return nil, fmt.Errorf("could not create parameter admin: %w", err)
-	}
-
-	return blockchain.NewSettlementChainAdmin(logger, client, signer, contracts, paramAdmin)
+	return blockchain.NewSettlementChainAdmin(logger, client, signer, contracts)
 }
 
 func setupNodeRegistryAdmin(
@@ -136,17 +125,11 @@ func setupNodeRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	parameterAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
-	if err != nil {
-		return nil, fmt.Errorf("could not create parameter admin: %w", err)
-	}
-
 	registryAdmin, err := blockchain.NewNodeRegistryAdmin(
 		logger,
 		chainClient,
 		signer,
 		contracts,
-		parameterAdmin,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry admin: %w", err)

@@ -27,10 +27,15 @@ type RatesAdmin struct {
 
 func NewRatesAdmin(
 	logger *zap.Logger,
-	paramAdmin *ParameterAdmin,
 	client *ethclient.Client,
+	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (*RatesAdmin, error) {
+	paramAdmin, err := NewSettlementParameterAdmin(logger, client, signer, contractsOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	rateContract, err := rateregistry.NewRateRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.RateRegistryAddress),
 		client,
@@ -113,4 +118,8 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 	}
 
 	return nil
+}
+
+func (r *RatesAdmin) GetParamAdmin() *ParameterAdmin {
+	return r.paramAdmin
 }

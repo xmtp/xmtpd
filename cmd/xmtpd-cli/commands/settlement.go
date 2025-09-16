@@ -6,6 +6,8 @@ import (
 	"log"
 	"math/big"
 
+	"github.com/xmtp/xmtpd/pkg/currency"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
@@ -25,6 +27,7 @@ func settlementChainCmd() *cobra.Command {
 		settleWithdrawLockCmd(),
 		settlePRMFeeRateCmd(),
 		settleRateMigratorCmd(),
+		settleUnderlyingMintCmd(),
 	)
 	return cmd
 }
@@ -582,5 +585,80 @@ func settleRateMigratorSetHandler(addr common.Address) error {
 		return err
 	}
 	logger.Info("rate registry migrator set", zap.String("address", addr.Hex()))
+	return nil
+}
+
+func settleUnderlyingMintCmd() *cobra.Command {
+	var toAddr options.AddressFlag
+	var amountHuman string
+	var raw bool
+	cmd := &cobra.Command{
+		Use:    "underlying-mint",
+		Hidden: true,
+		Short:  "Mint mock underlying fee token to an address (max 10000 tokens)",
+		Example: `
+# Mint 1000 tokens to 0xabc... using the token's own decimals
+xmtpd-cli settlement underlying-mint \
+  --to 0xRecipient \
+  --amount 1000
+
+# If you already have the raw uint256 (no scaling), use --raw
+xmtpd-cli settlement underlying-mint \
+  --to 0xRecipient \
+  --amount 1000000000 --raw
+`,
+		RunE: func(*cobra.Command, []string) error {
+			return settleUnderlyingMintHandler(toAddr.Address, amountHuman, raw)
+		},
+	}
+	cmd.Flags().Var(&toAddr, "to", "recipient address (hex)")
+	_ = cmd.MarkFlagRequired("to")
+	cmd.Flags().
+		StringVar(&amountHuman, "amount", "", "amount; decimal string in token units unless --raw")
+	_ = cmd.MarkFlagRequired("amount")
+	cmd.Flags().
+		BoolVar(&raw, "raw", false, "interpret --amount as raw uint256 (no decimals scaling)")
+
+	return cmd
+}
+
+func settleUnderlyingMintHandler(to common.Address, amountStr string, raw bool) error {
+	logger, err := cliLogger()
+	if err != nil {
+		log.Fatalf("could not build logger: %s", err)
+	}
+	ctx := context.Background()
+
+	admin, err := setupSettlementChainAdmin(ctx, logger)
+	if err != nil {
+		logger.Error("could not setup settlement chain admin", zap.Error(err))
+		return err
+	}
+
+	// Parse amount
+	var amount *big.Int
+	if raw {
+		ai, ok := new(big.Int).SetString(amountStr, 10)
+		if !ok {
+			return fmt.Errorf("invalid --amount (raw uint256) %q", amountStr)
+		}
+		amount = ai
+	} else {
+		ai, ok := new(big.Int).SetString(amountStr, 10)
+		if !ok {
+			return fmt.Errorf("invalid --amount (raw uint256) %q", amountStr)
+		}
+		scaled := new(big.Int).Mul(ai, big.NewInt(currency.MicroDollarsPerDollar))
+		amount = scaled
+	}
+
+	err = admin.MintMockUSDC(ctx, to, amount)
+	if err != nil {
+		logger.Error("mint mock underlying fee token", zap.Error(err))
+		return err
+	}
+
+	logger.Info("successfully minted mock underlying fee token", zap.String("to", to.Hex()))
+
 	return nil
 }

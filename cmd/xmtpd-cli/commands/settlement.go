@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/xmtp/xmtpd/pkg/currency"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
@@ -669,7 +671,7 @@ func settleUnderlyingMintHandler(to common.Address, amountStr string, raw bool) 
 		if !ok {
 			return fmt.Errorf("invalid --amount (decimal string) %q", amountStr)
 		}
-		scaled := new(big.Int).Mul(ai, big.NewInt(1_000_000))
+		scaled := new(big.Int).Mul(ai, big.NewInt(currency.MicroDollarsPerDollar))
 		amount = scaled
 	}
 

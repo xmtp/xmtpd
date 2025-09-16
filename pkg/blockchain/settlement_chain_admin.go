@@ -482,15 +482,20 @@ func (s settlementChainAdmin) MintMockUSDC(
 			return s.mockUnderlyingFeeToken.Mint(opts, addr, amount)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return s.mockUnderlyingFeeToken.ParseMigrated(*log)
+			return s.mockUnderlyingFeeToken.ParseTransfer(*log)
 		},
 		func(event interface{}) {
-			_, ok := event.(*mft.MockUnderlyingFeeTokenMigrated)
+			transfer, ok := event.(*mft.MockUnderlyingFeeTokenTransfer)
 			if !ok {
-				s.logger.Error("unexpected event type, not MockUnderlyingFeeTokenMigrated")
+				s.logger.Error("unexpected event type, not MockUnderlyingFeeTokenTransfer")
 				return
 			}
-			s.logger.Info("mxToken minted")
+			s.logger.Info(
+				"tokens minted",
+				zap.String("from", transfer.From.Hex()),
+				zap.String("to", transfer.To.Hex()),
+				zap.String("amount", transfer.Value.String()),
+			)
 		},
 	)
 	if err != nil {

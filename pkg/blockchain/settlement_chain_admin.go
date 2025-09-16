@@ -471,7 +471,7 @@ func (s settlementChainAdmin) MintMockUSDC(
 	if amount.Sign() == -1 {
 		return fmt.Errorf("amount must be positive")
 	}
-	if amount.Uint64() > 10000*1000*1000 {
+	if amount.Cmp(big.NewInt(10000000000)) > 0 {
 		return fmt.Errorf("amount must be less than 10000 mxUSDC")
 	}
 

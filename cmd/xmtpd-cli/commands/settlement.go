@@ -619,7 +619,6 @@ xmtpd-cli settlement underlying-mint \
 	cmd.Flags().
 		BoolVar(&raw, "raw", false, "interpret --amount as raw uint256 (no decimals scaling)")
 
-
 	return cmd
 }
 

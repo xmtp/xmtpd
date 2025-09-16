@@ -153,7 +153,8 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 
 	var data []byte
 	// Try to parse as URL. If it fails, treat as local path.
-	if u, err := url.Parse(filePath); err == nil && u.Scheme != "" {
+	if u, err := url.Parse(filePath); err == nil &&
+		(u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file") {
 		switch u.Scheme {
 		case "http", "https":
 			client := &http.Client{Timeout: 10 * time.Second}
@@ -180,10 +181,22 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 		case "file":
 			// file:// URLs may have URL-encoded paths
 			localPath := u.Path
+			if u.Host != "" {
+				localPath = "//" + u.Host + u.Path
+			}
 			if localPath == "" {
 				// Handle cases like file:///absolute/path
 				localPath = strings.TrimPrefix(filePath, "file://")
 			}
+			localPath, err = url.PathUnescape(localPath)
+			if err != nil {
+				return ContractsOptions{}, fmt.Errorf(
+					"invalid file URL path %q: %w",
+					localPath,
+					err,
+				)
+			}
+
 			f, err := os.Open(localPath)
 			if err != nil {
 				return ContractsOptions{}, fmt.Errorf("open %s: %w", localPath, err)
@@ -207,7 +220,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 		defer func() {
 			_ = f.Close()
 		}()
-		var r io.Reader = f
+		r := io.LimitReader(f, 10<<10)
 		data, err = io.ReadAll(r)
 		if err != nil {
 			return ContractsOptions{}, fmt.Errorf("read %s: %w", filePath, err)

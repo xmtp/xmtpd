@@ -2,9 +2,11 @@ package blockchain
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	dm "github.com/xmtp/xmtpd/pkg/abi/distributionmanager"
+	mft "github.com/xmtp/xmtpd/pkg/abi/mockunderlyingfeetoken"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
@@ -40,6 +42,8 @@ type ISettlementChainAdmin interface {
 
 	GetRateRegistryMigrator(ctx context.Context) (common.Address, error)
 	SetRateRegistryMigrator(ctx context.Context, addr common.Address) error
+
+	MintMockUSDC(ctx context.Context, addr common.Address, amount *big.Int) error
 }
 
 type settlementChainAdmin struct {
@@ -51,6 +55,7 @@ type settlementChainAdmin struct {
 	payerRegistry          *pr.PayerRegistry
 	distributionManager    *dm.DistributionManager
 	payerReportManager     *prm.PayerReportManager
+	mockUnderlyingFeeToken *mft.MockUnderlyingFeeToken
 }
 
 var _ ISettlementChainAdmin = (*settlementChainAdmin)(nil)
@@ -94,6 +99,13 @@ func NewSettlementChainAdmin(
 		return nil, err
 	}
 
+	mockToken, err := mft.NewMockUnderlyingFeeToken(
+		common.HexToAddress(contractsOptions.SettlementChain.MockUnderlyingFeeToken),
+		client)
+	if err != nil {
+		return nil, err
+	}
+
 	return &settlementChainAdmin{
 		client:                 client,
 		signer:                 signer,
@@ -103,6 +115,7 @@ func NewSettlementChainAdmin(
 		payerRegistry:          payerRegistry,
 		distributionManager:    distributionManager,
 		payerReportManager:     payerReportManager,
+		mockUnderlyingFeeToken: mockToken,
 	}, nil
 }
 
@@ -447,4 +460,41 @@ func (s settlementChainAdmin) SetRateRegistryMigrator(
 	addr common.Address,
 ) error {
 	return s.parameterAdmin.SetAddressParameter(ctx, RATE_REGISTRY_MIGRATOR_KEY, addr)
+}
+
+func (s settlementChainAdmin) MintMockUSDC(
+	ctx context.Context,
+	addr common.Address,
+	amount *big.Int,
+) error {
+	// sanity check
+	if amount.Sign() == -1 {
+		return fmt.Errorf("amount must be positive")
+	}
+	if amount.Uint64() > 10000*1000*1000 {
+		return fmt.Errorf("amount must be less than 10000 mxUSDC")
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.mockUnderlyingFeeToken.Mint(opts, addr, amount)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.mockUnderlyingFeeToken.ParseMigrated(*log)
+		},
+		func(event interface{}) {
+			_, ok := event.(*mft.MockUnderlyingFeeTokenMigrated)
+			if !ok {
+				s.logger.Error("unexpected event type, not MockUnderlyingFeeTokenMigrated")
+				return
+			}
+			s.logger.Info("mxToken minted")
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }

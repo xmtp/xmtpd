@@ -61,6 +61,7 @@ func NewContractsOptions(t *testing.T, rpcURL, wsURL string) config.ContractsOpt
 			BackfillBlockPageSize:       500,
 			GatewayAddress:              chainConfig.SettlementChainGateway,
 			DistributionManagerAddress:  chainConfig.DistributionManager,
+			MockUnderlyingFeeToken:      chainConfig.UnderlyingFeeToken,
 		},
 	}
 }

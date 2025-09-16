@@ -15,4 +15,5 @@ type ChainConfig struct {
 	SettlementChainGateway           string `json:"settlementChainGateway"`
 	SettlementChainID                int    `json:"settlementChainId"`
 	SettlementChainParameterRegistry string `json:"settlementChainParameterRegistry"`
+	UnderlyingFeeToken               string `json:"underlyingFeeToken"`
 }

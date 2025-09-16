@@ -3,6 +3,6 @@
 package flags
 
 func init() {
-    // raceTestEnabled is only enabled when running `go test -race`.
-    raceTestEnabled = true
+	// raceTestEnabled is only enabled when running `go test -race`.
+	raceTestEnabled = true
 }

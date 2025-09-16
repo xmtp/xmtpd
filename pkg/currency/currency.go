@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 )
 
 // PicoDollar is a type to represent currency with 12 decimal precision
@@ -49,4 +50,8 @@ func (p PicoDollar) ToMicroDollars() MicroDollar {
 
 func (p PicoDollar) String() string {
 	return fmt.Sprintf("%.12f", p.toDollarsTestOnly())
+}
+
+func (m MicroDollar) ToBigInt() *big.Int {
+	return big.NewInt(int64(m))
 }

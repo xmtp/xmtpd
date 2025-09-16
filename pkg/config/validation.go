@@ -171,8 +171,8 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 					resp.StatusCode,
 				)
 			}
-			// Guard against absurdly large config files (10MB cap).
-			limited := io.LimitReader(resp.Body, 10<<20)
+			// Guard against large config files (10KB cap).
+			limited := io.LimitReader(resp.Body, 10<<10)
 			data, err = io.ReadAll(limited)
 			if err != nil {
 				return ContractsOptions{}, fmt.Errorf("reading %s: %w", filePath, err)

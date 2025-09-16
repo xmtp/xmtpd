@@ -204,7 +204,8 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			defer func() {
 				_ = f.Close()
 			}()
-			data, err = io.ReadAll(f)
+			limited := io.LimitReader(f, 10<<10)
+			data, err = io.ReadAll(limited)
 			if err != nil {
 				return ContractsOptions{}, fmt.Errorf("read %s: %w", localPath, err)
 			}

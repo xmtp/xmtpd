@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -150,22 +151,72 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 		return ContractsOptions{}, errors.New("config file path is not set")
 	}
 
-	file, err := os.Open(filePath)
-	if err != nil {
-		return ContractsOptions{}, err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return ContractsOptions{}, err
+	var data []byte
+	// Try to parse as URL. If it fails, treat as local path.
+	if u, err := url.Parse(filePath); err == nil && u.Scheme != "" {
+		switch u.Scheme {
+		case "http", "https":
+			client := &http.Client{Timeout: 10 * time.Second}
+			resp, err := client.Get(filePath)
+			if err != nil {
+				return ContractsOptions{}, fmt.Errorf("fetching %s: %w", filePath, err)
+			}
+			defer func() {
+				_ = resp.Body.Close()
+			}()
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				return ContractsOptions{}, fmt.Errorf(
+					"fetching %s: http %d",
+					filePath,
+					resp.StatusCode,
+				)
+			}
+			// Guard against absurdly large config files (10MB cap).
+			limited := io.LimitReader(resp.Body, 10<<20)
+			data, err = io.ReadAll(limited)
+			if err != nil {
+				return ContractsOptions{}, fmt.Errorf("reading %s: %w", filePath, err)
+			}
+		case "file":
+			// file:// URLs may have URL-encoded paths
+			localPath := u.Path
+			if localPath == "" {
+				// Handle cases like file:///absolute/path
+				localPath = strings.TrimPrefix(filePath, "file://")
+			}
+			f, err := os.Open(localPath)
+			if err != nil {
+				return ContractsOptions{}, fmt.Errorf("open %s: %w", localPath, err)
+			}
+			defer func() {
+				_ = f.Close()
+			}()
+			data, err = io.ReadAll(f)
+			if err != nil {
+				return ContractsOptions{}, fmt.Errorf("read %s: %w", localPath, err)
+			}
+		default:
+			return ContractsOptions{}, fmt.Errorf("unsupported URL scheme %q", u.Scheme)
+		}
+	} else {
+		// Local filesystem path
+		f, err := os.Open(filePath)
+		if err != nil {
+			return ContractsOptions{}, fmt.Errorf("open %s: %w", filePath, err)
+		}
+		defer func() {
+			_ = f.Close()
+		}()
+		var r io.Reader = f
+		data, err = io.ReadAll(r)
+		if err != nil {
+			return ContractsOptions{}, fmt.Errorf("read %s: %w", filePath, err)
+		}
 	}
 
 	var config ChainConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		return ContractsOptions{}, err
+		return ContractsOptions{}, fmt.Errorf("unmarshal config: %w", err)
 	}
 
 	// Set default values for missing options in environment json.

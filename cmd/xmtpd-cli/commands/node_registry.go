@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
@@ -15,8 +14,9 @@ import (
 
 func nodeRegistryCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "nodes",
-		Short: "Manage Node Registry",
+		Use:          "nodes",
+		Short:        "Manage Node Registry",
+		SilenceUsage: true,
 	}
 
 	// Shared flag (read by some subcommands)
@@ -44,8 +44,9 @@ func registerNodeCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "register",
-		Short: "Register a node",
+		Use:          "register",
+		Short:        "Register a node",
+		SilenceUsage: true,
 		Example: `
 Usage: xmtpd-cli nodes register --owner-address <address> --signing-key-pub <key> --http-address <address> [--force]
 
@@ -78,7 +79,7 @@ func registerNodeHandler(
 ) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	ctx := context.Background()
@@ -142,8 +143,9 @@ func canonicalNetworkCmd() *cobra.Command {
 	var remove bool
 
 	cmd := &cobra.Command{
-		Use:   "canonical-network",
-		Short: "Manage the canonical network",
+		Use:          "canonical-network",
+		Short:        "Manage the canonical network",
+		SilenceUsage: true,
 		Example: `
 Usage: xmtpd-cli nodes canonical-network {--add | --remove} --node-id <node-id>
 
@@ -172,7 +174,7 @@ xmtpd-cli nodes canonical-network --remove --node-id <node-id>
 func canonicalNetworkHandler(add, remove bool, nodeID uint32) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	if nodeID == 0 {
@@ -214,8 +216,9 @@ func getNodeCmd() *cobra.Command {
 	var exportPath string
 
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get and export nodes",
+		Use:          "get",
+		Short:        "Get and export nodes",
+		SilenceUsage: true,
 		Example: `
 Usage: xmtpd-cli nodes get {--all | --node-id <node-id>} [--export <file>]
 
@@ -248,7 +251,7 @@ func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	caller, err := setupNodeRegistryCaller(ctx, logger)
@@ -308,8 +311,9 @@ func maxCanonicalCmd() *cobra.Command {
 	var setVal uint8
 
 	cmd := &cobra.Command{
-		Use:   "max-canonical",
-		Short: "Manage the maximum canonical size",
+		Use:          "max-canonical",
+		Short:        "Manage the maximum canonical size",
+		SilenceUsage: true,
 		Example: `
 Usage: xmtpd-cli nodes max-canonical [--set <size>]
 
@@ -331,7 +335,7 @@ xmtpd-cli nodes max-canonical
 func maxCanonicalHandler(setVal uint8) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	ctx := context.Background()
@@ -369,8 +373,9 @@ func setHTTPAddressCmd() *cobra.Command {
 	var httpAddress string
 
 	cmd := &cobra.Command{
-		Use:   "set-http-address",
-		Short: "Set the HTTP address of a node",
+		Use:          "set-http-address",
+		Short:        "Set the HTTP address of a node",
+		SilenceUsage: true,
 		Example: `
 Usage: xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 
@@ -395,7 +400,7 @@ xmtpd-cli nodes set-http-address --node-id <node-id> --http-address <address>
 func setHTTPAddressHandler(nodeID uint32, httpAddress string) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	if nodeID == 0 || httpAddress == "" {

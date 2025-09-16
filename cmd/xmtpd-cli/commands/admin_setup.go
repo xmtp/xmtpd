@@ -174,12 +174,12 @@ func setupNodeRegistryCaller(
 
 	contracts, err := config.ContractOptionsFromEnv(configFile)
 	if err != nil {
-		logger.Fatal("could not load config from file", zap.Error(err))
+		return nil, fmt.Errorf("could not load config from file: %w", err)
 	}
 
 	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
 	if err != nil {
-		logger.Fatal("could not create chain client", zap.Error(err))
+		return nil, fmt.Errorf("could not create chain client: %w", err)
 	}
 
 	caller, err := blockchain.NewNodeRegistryCaller(
@@ -188,7 +188,7 @@ func setupNodeRegistryCaller(
 		contracts,
 	)
 	if err != nil {
-		logger.Fatal("could not create registry caller", zap.Error(err))
+		return nil, fmt.Errorf("could not create registry caller: %w", err)
 	}
 
 	return caller, nil

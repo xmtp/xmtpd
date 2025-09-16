@@ -3,10 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
-
-	"github.com/xmtp/xmtpd/pkg/currency"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
@@ -16,8 +13,9 @@ import (
 
 func settlementChainCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "settlement",
-		Short: "Manage Settlement Chain (gateways, payer registry, distribution manager, rate registry)",
+		Use:          "settlement",
+		Short:        "Manage Settlement Chain (gateways, payer registry, distribution manager, rate registry)",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(
 		settlePauseCmd(),
@@ -35,8 +33,9 @@ func settlementChainCmd() *cobra.Command {
 // --- pause ---
 func settlePauseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "pause",
-		Short: "Get/Set pause statuses on settlement chain",
+		Use:          "pause",
+		Short:        "Get/Set pause statuses on settlement chain",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settlePauseGetCmd(), settlePauseSetCmd())
 	return cmd
@@ -45,8 +44,9 @@ func settlePauseCmd() *cobra.Command {
 func settlePauseGetCmd() *cobra.Command {
 	var target options.Target
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get pause status for target: settlement-chain-gateway|payer-registry|distribution-manager",
+		Use:          "get",
+		Short:        "Get pause status for target: settlement-chain-gateway|payer-registry|distribution-manager",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settlePauseGetHandler(target)
 		},
@@ -60,7 +60,7 @@ func settlePauseGetCmd() *cobra.Command {
 func settlePauseGetHandler(target options.Target) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 
@@ -104,8 +104,9 @@ func settlePauseSetCmd() *cobra.Command {
 	var target options.Target
 	var paused bool
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set pause status for target: settlement-chain-gateway|payer-registry|distribution-manager",
+		Use:          "set",
+		Short:        "Set pause status for target: settlement-chain-gateway|payer-registry|distribution-manager",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settlePauseSetHandler(target, paused)
 		},
@@ -120,7 +121,7 @@ func settlePauseSetCmd() *cobra.Command {
 func settlePauseSetHandler(target options.Target, paused bool) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 
@@ -161,8 +162,9 @@ func settlePauseSetHandler(target options.Target, paused bool) error {
 
 func settleDMFeesRecipientCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dm-protocol-fees-recipient",
-		Short: "Get/Set DistributionManager protocol fees recipient",
+		Use:          "dm-protocol-fees-recipient",
+		Short:        "Get/Set DistributionManager protocol fees recipient",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settleDMFeesRecipientGetCmd(), settleDMFeesRecipientSetCmd())
 	return cmd
@@ -170,17 +172,19 @@ func settleDMFeesRecipientCmd() *cobra.Command {
 
 func settleDMFeesRecipientGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get protocol fees recipient",
-		RunE:  func(*cobra.Command, []string) error { return settleDMFeesRecipientGetHandler() },
+		Use:          "get",
+		Short:        "Get protocol fees recipient",
+		SilenceUsage: true,
+		RunE:         func(*cobra.Command, []string) error { return settleDMFeesRecipientGetHandler() },
 	}
 }
 
 func settleDMFeesRecipientSetCmd() *cobra.Command {
 	var recipient options.AddressFlag
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set protocol fees recipient",
+		Use:          "set",
+		Short:        "Set protocol fees recipient",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settleDMFeesRecipientSetHandler(recipient.Address)
 		},
@@ -193,7 +197,7 @@ func settleDMFeesRecipientSetCmd() *cobra.Command {
 func settleDMFeesRecipientGetHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -211,7 +215,7 @@ func settleDMFeesRecipientGetHandler() error {
 func settleDMFeesRecipientSetHandler(addr common.Address) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -232,8 +236,9 @@ func settleDMFeesRecipientSetHandler(addr common.Address) error {
 
 func settleNodeAdminCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "node-admin",
-		Short: "Get/Set NodeRegistry admin address",
+		Use:          "node-admin",
+		Short:        "Get/Set NodeRegistry admin address",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settleNodeAdminGetCmd(), settleNodeAdminSetCmd())
 	return cmd
@@ -241,17 +246,19 @@ func settleNodeAdminCmd() *cobra.Command {
 
 func settleNodeAdminGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get node registry admin",
-		RunE:  func(*cobra.Command, []string) error { return settleNodeAdminGetHandler() },
+		Use:          "get",
+		Short:        "Get node registry admin",
+		SilenceUsage: true,
+		RunE:         func(*cobra.Command, []string) error { return settleNodeAdminGetHandler() },
 	}
 }
 
 func settleNodeAdminSetCmd() *cobra.Command {
 	var adminAddr options.AddressFlag
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set node registry admin",
+		Use:          "set",
+		Short:        "Set node registry admin",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settleNodeAdminSetHandler(adminAddr.Address)
 		},
@@ -264,7 +271,7 @@ func settleNodeAdminSetCmd() *cobra.Command {
 func settleNodeAdminGetHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -282,7 +289,7 @@ func settleNodeAdminGetHandler() error {
 func settleNodeAdminSetHandler(addr common.Address) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -300,8 +307,9 @@ func settleNodeAdminSetHandler(addr common.Address) error {
 
 func settleMinDepositCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "payer-min-deposit",
-		Short: "Get/Set PayerRegistry minimum deposit (uint96 microdollars)",
+		Use:          "payer-min-deposit",
+		Short:        "Get/Set PayerRegistry minimum deposit (uint96 microdollars)",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settleMinDepositGetCmd(), settleMinDepositSetCmd())
 	return cmd
@@ -309,8 +317,9 @@ func settleMinDepositCmd() *cobra.Command {
 
 func settleMinDepositGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get minimum deposit (microdollars)",
+		Use:          "get",
+		Short:        "Get minimum deposit (microdollars)",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settleMinDepositGetHandler()
 		},
@@ -320,7 +329,7 @@ func settleMinDepositGetCmd() *cobra.Command {
 func settleMinDepositGetHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -338,8 +347,9 @@ func settleMinDepositGetHandler() error {
 func settleMinDepositSetCmd() *cobra.Command {
 	var amountStr string
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set minimum deposit (microdollars, uint96)",
+		Use:          "set",
+		Short:        "Set minimum deposit (microdollars, uint96)",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			bi, ok := new(big.Int).SetString(amountStr, 10)
 			if !ok {
@@ -356,7 +366,7 @@ func settleMinDepositSetCmd() *cobra.Command {
 func settleMinDepositSetHandler(amount *big.Int) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	ctx := context.Background()
@@ -378,8 +388,9 @@ func settleMinDepositSetHandler(amount *big.Int) error {
 
 func settleWithdrawLockCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "payer-withdraw-lock",
-		Short: "Get/Set PayerRegistry withdraw lock period (seconds)",
+		Use:          "payer-withdraw-lock",
+		Short:        "Get/Set PayerRegistry withdraw lock period (seconds)",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settleWithdrawLockGetCmd(), settleWithdrawLockSetCmd())
 	return cmd
@@ -387,8 +398,9 @@ func settleWithdrawLockCmd() *cobra.Command {
 
 func settleWithdrawLockGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get withdraw lock period (seconds)",
+		Use:          "get",
+		Short:        "Get withdraw lock period (seconds)",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settleWithdrawLockGetHandler()
 		},
@@ -398,7 +410,7 @@ func settleWithdrawLockGetCmd() *cobra.Command {
 func settleWithdrawLockGetHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -416,8 +428,9 @@ func settleWithdrawLockGetHandler() error {
 func settleWithdrawLockSetCmd() *cobra.Command {
 	var secs uint32
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set withdraw lock period (seconds, uint32)",
+		Use:          "set",
+		Short:        "Set withdraw lock period (seconds, uint32)",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settleWithdrawLockSetHandler(secs)
 		},
@@ -430,7 +443,7 @@ func settleWithdrawLockSetCmd() *cobra.Command {
 func settleWithdrawLockSetHandler(secs uint32) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -448,8 +461,9 @@ func settleWithdrawLockSetHandler(secs uint32) error {
 
 func settlePRMFeeRateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "prm-fee-rate",
-		Short: "Get/Set PayerReportManager protocol fee rate (bps, uint16)",
+		Use:          "prm-fee-rate",
+		Short:        "Get/Set PayerReportManager protocol fee rate (bps, uint16)",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settlePRMFeeRateGetCmd(), settlePRMFeeRateSetCmd())
 	return cmd
@@ -457,17 +471,19 @@ func settlePRMFeeRateCmd() *cobra.Command {
 
 func settlePRMFeeRateGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get PRM protocol fee rate (bps)",
-		RunE:  func(*cobra.Command, []string) error { return settlePRMFeeRateGetHandler() },
+		Use:          "get",
+		Short:        "Get PRM protocol fee rate (bps)",
+		SilenceUsage: true,
+		RunE:         func(*cobra.Command, []string) error { return settlePRMFeeRateGetHandler() },
 	}
 }
 
 func settlePRMFeeRateSetCmd() *cobra.Command {
 	var bps uint16
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set PRM protocol fee rate (bps, uint16)",
+		Use:          "set",
+		Short:        "Set PRM protocol fee rate (bps, uint16)",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settlePRMFeeRateSetHandler(bps)
 		},
@@ -480,7 +496,7 @@ func settlePRMFeeRateSetCmd() *cobra.Command {
 func settlePRMFeeRateGetHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -500,7 +516,7 @@ func settlePRMFeeRateGetHandler() error {
 func settlePRMFeeRateSetHandler(bps uint16) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -520,8 +536,9 @@ func settlePRMFeeRateSetHandler(bps uint16) error {
 
 func settleRateMigratorCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "rate-migrator",
-		Short: "Get/Set RateRegistry migrator (address)",
+		Use:          "rate-migrator",
+		Short:        "Get/Set RateRegistry migrator (address)",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(settleRateMigratorGetCmd(), settleRateMigratorSetCmd())
 	return cmd
@@ -529,17 +546,19 @@ func settleRateMigratorCmd() *cobra.Command {
 
 func settleRateMigratorGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get RateRegistry migrator address",
-		RunE:  func(*cobra.Command, []string) error { return settleRateMigratorGetHandler() },
+		Use:          "get",
+		Short:        "Get RateRegistry migrator address",
+		SilenceUsage: true,
+		RunE:         func(*cobra.Command, []string) error { return settleRateMigratorGetHandler() },
 	}
 }
 
 func settleRateMigratorSetCmd() *cobra.Command {
 	var migratorAddr options.AddressFlag
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set RateRegistry migrator address",
+		Use:          "set",
+		Short:        "Set RateRegistry migrator address",
+		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return settleRateMigratorSetHandler(migratorAddr.Address)
 		},
@@ -552,7 +571,7 @@ func settleRateMigratorSetCmd() *cobra.Command {
 func settleRateMigratorGetHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -572,7 +591,7 @@ func settleRateMigratorGetHandler() error {
 func settleRateMigratorSetHandler(addr common.Address) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 	admin, err := setupSettlementChainAdmin(ctx, logger)
@@ -593,9 +612,10 @@ func settleUnderlyingMintCmd() *cobra.Command {
 	var amountHuman string
 	var raw bool
 	cmd := &cobra.Command{
-		Use:    "underlying-mint",
-		Hidden: true,
-		Short:  "Mint mock underlying fee token to an address (max 10000 tokens)",
+		Use:          "underlying-mint",
+		Hidden:       true,
+		Short:        "Mint mock underlying fee token to an address (max 10000 tokens)",
+		SilenceUsage: true,
 		Example: `
 # Mint 1000 tokens to 0xabc... using the token's own decimals
 xmtpd-cli settlement underlying-mint \
@@ -625,7 +645,7 @@ xmtpd-cli settlement underlying-mint \
 func settleUnderlyingMintHandler(to common.Address, amountStr string, raw bool) error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 
@@ -644,21 +664,24 @@ func settleUnderlyingMintHandler(to common.Address, amountStr string, raw bool) 
 		}
 		amount = ai
 	} else {
+		// interpret --amount as whole tokens and scale to micro (6 decimals)
 		ai, ok := new(big.Int).SetString(amountStr, 10)
 		if !ok {
-			return fmt.Errorf("invalid --amount (raw uint256) %q", amountStr)
+			return fmt.Errorf("invalid --amount (decimal string) %q", amountStr)
 		}
-		scaled := new(big.Int).Mul(ai, big.NewInt(currency.MicroDollarsPerDollar))
+		scaled := new(big.Int).Mul(ai, big.NewInt(1_000_000))
 		amount = scaled
 	}
 
-	err = admin.MintMockUSDC(ctx, to, amount)
-	if err != nil {
+	if err := admin.MintMockUSDC(ctx, to, amount); err != nil {
 		logger.Error("mint mock underlying fee token", zap.Error(err))
 		return err
 	}
 
-	logger.Info("successfully minted mock underlying fee token", zap.String("to", to.Hex()))
+	logger.Info("successfully minted mock underlying fee token",
+		zap.String("to", to.Hex()),
+		zap.String("amountRaw", amount.String()),
+	)
 
 	return nil
 }

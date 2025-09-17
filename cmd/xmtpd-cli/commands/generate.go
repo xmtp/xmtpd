@@ -86,11 +86,19 @@ func welcomeMessageHandler(
 		return err
 	}
 
+	defer func() {
+		err := generator.Close()
+		if err != nil {
+			logger.Error("error closing generator", zap.Error(err))
+		}
+	}()
+
 	var envelopes []*envelopes.OriginatorEnvelope
 
 	envelopes, err = generator.PublishWelcomeMessageEnvelopes(ctx, numEnvelopes, dataSize)
 	if err != nil {
-		logger.Fatal("write", zap.Error(err))
+		logger.Error("error publishing welcome message", zap.Error(err))
+		return err
 	}
 
 	for _, envelope := range envelopes {
@@ -172,11 +180,19 @@ func groupMessageHandler(
 		return err
 	}
 
+	defer func() {
+		err := generator.Close()
+		if err != nil {
+			logger.Error("error closing generator", zap.Error(err))
+		}
+	}()
+
 	var envelopes []*envelopes.OriginatorEnvelope
 
 	envelopes, err = generator.PublishGroupMessageEnvelopes(ctx, numEnvelopes, dataSize)
 	if err != nil {
-		logger.Fatal("write", zap.Error(err))
+		logger.Error("error publishing group message", zap.Error(err))
+		return err
 	}
 
 	for _, envelope := range envelopes {
@@ -252,11 +268,19 @@ func keyPackageHandler(
 		return err
 	}
 
+	defer func() {
+		err := generator.Close()
+		if err != nil {
+			logger.Error("error closing generator", zap.Error(err))
+		}
+	}()
+
 	var envelopes []*envelopes.OriginatorEnvelope
 
 	envelopes, err = generator.PublishKeyPackageEnvelopes(ctx, numEnvelopes)
 	if err != nil {
-		logger.Fatal("write", zap.Error(err))
+		logger.Error("error publishing key package", zap.Error(err))
+		return err
 	}
 
 	for _, envelope := range envelopes {

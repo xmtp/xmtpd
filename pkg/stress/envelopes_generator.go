@@ -274,6 +274,10 @@ func buildGRPCConnection(
 		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
 	}
 
+	if target == "" {
+		return nil, fmt.Errorf("empty gRPC target")
+	}
+
 	creds, err := utils.GetCredentialsForAddress(isTLS)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get credentials: %v", err)

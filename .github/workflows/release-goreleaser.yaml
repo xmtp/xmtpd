@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   goreleaser:
-    name: Build & Release
+    name: Build & Release CLI Components
     runs-on: ubuntu-latest
 
     env:
@@ -36,13 +36,10 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - name: GoReleaser Check
-        if: github.event_name == 'pull_request'
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
           args: check
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Snapshot builds for PRs and non-tag pushes (no publish)
       - name: GoReleaser (snapshot)

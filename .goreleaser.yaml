@@ -22,13 +22,13 @@ builds:
     goos: [linux, darwin]
     goarch: [amd64, arm64]
     ldflags:
-      - -s -w -X main.Version={{ if .IsSnapshot }}{{ .Tag }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}
+      - -s -w -X main.Version={{ if .IsSnapshot }}{{ replace .Version "/" "-" }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}
 
 archives:
   - id: zips
     ids: [xmtpd-cli]
     formats: ["zip"]
-    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE*
       - src: build/completions/xmtpd-cli.bash
@@ -41,7 +41,7 @@ archives:
   - id: tars
     ids: [ xmtpd-cli ]
     formats: [ "tar.gz" ]
-    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE*
       - src: build/completions/xmtpd-cli.bash
@@ -52,7 +52,7 @@ archives:
         dst: completions/xmtpd-cli.fish
 
 checksum:
-  name_template: "checksums_{{ .Tag }}.txt"
+  name_template: "checksums_{{ replace .Version "/" "-" }}.txt"
 
 homebrew_casks:
   - name: xmtpd-cli

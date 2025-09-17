@@ -1,0 +1,73 @@
+name: Release (GoReleaser)
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  goreleaser:
+    name: Build & Release CLI Components
+    runs-on: ubuntu-latest
+
+    env:
+      # Provide a PAT with 'contents:write' on xmtp/homebrew-tap:
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - name: GoReleaser Check
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: check
+
+      # Snapshot builds for PRs and non-tag pushes (no publish)
+      - name: GoReleaser (snapshot)
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --snapshot --clean --skip=publish
+
+      # Real release on tags (publishes GitHub Release + pushes cask to tap)
+      - name: GoReleaser (release)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          # This token creates the GitHub Release in *this* repo
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This PAT pushes to xmtp/homebrew-tap (required by Homebrew Casks)
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      - name: Upload dist artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmtpd-cli-dist
+          path: |
+            dist/**
+          if-no-files-found: ignore
+          retention-days: 7

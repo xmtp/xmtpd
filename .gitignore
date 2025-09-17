@@ -11,6 +11,7 @@ __debug_*
 # build folder
 build/
 bin/
+dist/
 
 # contracts development config
 contracts/config/anvil_localnet/

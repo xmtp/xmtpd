@@ -1,0 +1,81 @@
+version: 2
+
+project_name: xmtpd
+
+before:
+  hooks:
+    - go mod tidy
+    # Build a native helper we can run on the host to generate completions.
+    - bash -euo pipefail -c 'mkdir -p build/tools && go build -o build/tools/xmtpd-cli-gen ./cmd/xmtpd-cli'
+    # Generate completions into build/completions.
+    - bash -euo pipefail -c 'mkdir -p build/completions'
+    - bash -euo pipefail -c 'build/tools/xmtpd-cli-gen completion bash > build/completions/xmtpd-cli.bash && test -s build/completions/xmtpd-cli.bash'
+    - bash -euo pipefail -c 'build/tools/xmtpd-cli-gen completion zsh  > build/completions/_xmtpd-cli     && test -s build/completions/_xmtpd-cli'
+    - bash -euo pipefail -c 'build/tools/xmtpd-cli-gen completion fish > build/completions/xmtpd-cli.fish && test -s build/completions/xmtpd-cli.fish'
+
+builds:
+  - id: xmtpd-cli
+    main: ./cmd/xmtpd-cli/main.go
+    binary: xmtpd-cli
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - '-s -w -X main.Version={{ if .IsSnapshot }}{{ replace .Version "/" "-" }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}'
+
+archives:
+  - id: zips
+    ids: [xmtpd-cli]
+    formats: ["zip"]
+    name_template: "{{ .Binary }}_{{ replace .Version \"/\" \"-\" }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - src: build/completions/xmtpd-cli.bash
+        dst: completions/xmtpd-cli.bash
+      - src: build/completions/_xmtpd-cli
+        dst: completions/_xmtpd-cli
+      - src: build/completions/xmtpd-cli.fish
+        dst: completions/xmtpd-cli.fish
+
+  - id: tars
+    ids: [xmtpd-cli]
+    formats: ["tar.gz"]
+    name_template: "{{ .Binary }}_{{ replace .Version \"/\" \"-\" }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - src: build/completions/xmtpd-cli.bash
+        dst: completions/xmtpd-cli.bash
+      - src: build/completions/_xmtpd-cli
+        dst: completions/_xmtpd-cli
+      - src: build/completions/xmtpd-cli.fish
+        dst: completions/xmtpd-cli.fish
+
+checksum:
+  name_template: "checksums_{{ replace .Version \"/\" \"-\" }}.txt"
+
+homebrew_casks:
+  - name: xmtpd-cli
+    ids: [zips]
+    binary: xmtpd-cli
+    homepage: https://github.com/xmtp/xmtpd
+    description: "CLI to manage the XMTP Network."
+    repository:
+      owner: xmtp
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    completions:
+      bash: completions/xmtpd-cli.bash
+      zsh: completions/_xmtpd-cli
+      fish: completions/xmtpd-cli.fish
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/xmtpd-cli"]
+          end
+    skip_upload: auto
+    caveats: |
+      xmtpd-cli is not notarized. The installer removes the macOS quarantine attribute.
+      Prefer signed/notarized builds when available.

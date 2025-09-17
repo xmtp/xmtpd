@@ -65,7 +65,6 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
 		return err
 	}
-
 	if err := viper.BindEnv("log-level", "LOG_LEVEL"); err != nil {
 		return err
 	}
@@ -76,7 +75,6 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("log-encoding", rootCmd.PersistentFlags().Lookup("log-encoding")); err != nil {
 		return err
 	}
-
 	if err := viper.BindEnv("log-encoding", "LOG_ENCODING"); err != nil {
 		return err
 	}
@@ -87,7 +85,6 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("config-file", rootCmd.PersistentFlags().Lookup("config-file")); err != nil {
 		return err
 	}
-
 	if err := viper.BindEnv("config-file", "XMTPD_CONTRACTS_CONFIG_FILE_PATH"); err != nil {
 		return err
 	}
@@ -98,7 +95,6 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("rpc-url", rootCmd.PersistentFlags().Lookup("rpc-url")); err != nil {
 		return err
 	}
-
 	if err := viper.BindEnv("rpc-url", "RPC_URL"); err != nil {
 		return err
 	}
@@ -109,7 +105,6 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("private-key", rootCmd.PersistentFlags().Lookup("private-key")); err != nil {
 		return err
 	}
-
 	if err := viper.BindEnv("private-key", "PRIVATE_KEY"); err != nil {
 		return err
 	}
@@ -123,19 +118,20 @@ func cliLogger() (*zap.Logger, error) {
 		LogEncoding: viper.GetString("log-encoding"),
 	})
 	if err != nil || l == nil {
-		return nil, fmt.Errorf("could not build logger: %s", err)
+		return nil, fmt.Errorf("could not build logger: %w", err)
 	}
-
 	return l, nil
 }
 
 func init() {
 	// Add a hidden command to generate completion scripts
 	rootCmd.AddCommand(&cobra.Command{
-		Use:       "completion [bash|zsh|fish|powershell]",
-		Short:     "Generate shell completion script",
-		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
-		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		Use:          "completion [bash|zsh|fish|powershell]",
+		Short:        "Generate shell completion script",
+		ValidArgs:    []string{"bash", "zsh", "fish", "powershell"},
+		Args:         cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		Hidden:       true,
+		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			switch args[0] {
 			case "bash":

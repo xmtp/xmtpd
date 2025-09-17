@@ -2,7 +2,7 @@ package commands
 
 import (
 	"crypto/ecdsa"
-	"log"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -45,12 +45,12 @@ xmtpd-cli keys generate
 func generateKeyHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	privKey, err := utils.GenerateEcdsaPrivateKey()
 	if err != nil {
-		logger.Fatal("could not generate private key", zap.Error(err))
+		return fmt.Errorf("could not generate private key: %w", err)
 	}
 
 	logger.Info(
@@ -84,17 +84,17 @@ xmtpd-cli keys get-public-key --private-key <private-key>
 func getPubKeyHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
-		log.Fatalf("could not build logger: %s", err)
+		return fmt.Errorf("could not build logger: %w", err)
 	}
 
 	privateKey := viper.GetString("private-key")
 	if privateKey == "" {
-		logger.Fatal("private key is not set")
+		return fmt.Errorf("private key is not set")
 	}
 
 	privKey, err := utils.ParseEcdsaPrivateKey(privateKey)
 	if err != nil {
-		logger.Fatal("could not parse private key", zap.Error(err))
+		return fmt.Errorf("could not parse private key: %w", err)
 	}
 
 	logger.Info(

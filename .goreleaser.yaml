@@ -22,7 +22,7 @@ builds:
     goos: [linux, darwin]
     goarch: [amd64, arm64]
     ldflags:
-      - -s -w -X main.Version={{ if .IsSnapshot }}{{ replace .Version "/" "-" }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}
+      - '-s -w -X main.Version={{ if .IsSnapshot }}{{ replace .Version "/" "-" }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}'
 
 archives:
   - id: zips
@@ -39,8 +39,8 @@ archives:
         dst: completions/xmtpd-cli.fish
 
   - id: tars
-    ids: [ xmtpd-cli ]
-    formats: [ "tar.gz" ]
+    ids: [xmtpd-cli]
+    formats: ["tar.gz"]
     name_template: "{{ .Binary }}_{{ replace .Version \"/\" \"-\" }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE*

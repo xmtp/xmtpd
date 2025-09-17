@@ -53,6 +53,7 @@ func configureRootCmd() error {
 		rateRegistryCmd(),
 		appChainCmd(),
 		settlementChainCmd(),
+		generateCmd(),
 	)
 
 	return nil

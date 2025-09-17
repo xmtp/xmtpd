@@ -49,6 +49,7 @@ Usage: xmtpd-cli generate welcome-message --grpc-address <address> --private-key
 Example:
 xmtpd-cli generate welcome-message --grpc-address <address> --private-key <key> --originator-id <id> --num-envelopes <num> --data-size <size>
 `,
+		SilenceUsage: true,
 	}
 
 	cmd.Flags().StringVarP(&grpcAddress, "grpc-address", "a", "", "xmtpd node gRPC address")
@@ -142,6 +143,7 @@ Usage: xmtpd-cli generate group-message --grpc-address <address> --private-key <
 Example:
 xmtpd-cli generate group-message --grpc-address <address> --private-key <key> --originator-id <id> --num-envelopes <num> --data-size [256B|512B|1KB|5KB]
 `,
+		SilenceUsage: true,
 	}
 
 	cmd.Flags().StringVarP(&grpcAddress, "grpc-address", "a", "", "xmtpd node gRPC address")
@@ -234,6 +236,7 @@ Usage: xmtpd-cli generate key-package --grpc-address <address> --private-key <ke
 Example:
 xmtpd-cli generate key-package --grpc-address <address> --private-key <key> --originator-id <id> --num-envelopes <num>
 `,
+		SilenceUsage: true,
 	}
 
 	cmd.Flags().StringVarP(&grpcAddress, "grpc-address", "a", "", "xmtpd node gRPC address")

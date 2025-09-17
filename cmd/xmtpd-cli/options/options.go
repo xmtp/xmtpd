@@ -105,32 +105,3 @@ func (a AddressFlag) Type() string { return "address" }
 func (a AddressFlag) Common() common.Address {
 	return a.Address
 }
-
-/* ---------- MessageType ---------- */
-
-type MessageType string
-
-const (
-	MessageTypeWelcome      MessageType = "welcome"
-	MessageTypeKeyPackage   MessageType = "key-package"
-	MessageTypeGroupMessage MessageType = "group-message"
-)
-
-func (m MessageType) String() string {
-	if m == "" {
-		return ""
-	}
-	return string(m)
-}
-
-func (m *MessageType) Set(s string) error {
-	switch strings.TrimSpace(s) {
-	case string(MessageTypeWelcome):
-		*m = MessageType(s)
-		return nil
-	default:
-		return fmt.Errorf("invalid message type %q (allowed: welcome)", s)
-	}
-}
-
-func (m MessageType) Type() string { return "message-type" }

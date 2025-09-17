@@ -106,15 +106,11 @@ func (e *EnvelopesGenerator) PublishKeyPackageEnvelopes(
 func (e *EnvelopesGenerator) PublishGroupMessageEnvelopes(
 	ctx context.Context,
 	numEnvelopes uint,
-	dataSize uint,
+	size string,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
-	if dataSize > math.MaxUint {
-		dataSize = uint(math.MaxUint)
-	}
-
 	clientEnvelopes := make([]*envelopesProto.ClientEnvelope, numEnvelopes)
 	for i := range clientEnvelopes {
-		clientEnvelopes[i] = makeGroupMessageEnvelope(dataSize)
+		clientEnvelopes[i] = makeGroupMessageEnvelope(size)
 	}
 
 	payerEnvelopes, err := e.buildAndSignPayerEnvelopes(clientEnvelopes)
@@ -184,9 +180,9 @@ func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvel
 	var (
 		installationKey  = testutils.RandomBytes(32)
 		hpk              = testutils.RandomBytes(32)
-		data             = testutils.RandomBytes(int(dataSize))
 		metadata         = testutils.RandomBytes(8)
 		wrapperAlgorithm = int32(rand.Intn(3))
+		payload          = testutils.RandomBytes(int(dataSize))
 	)
 
 	return &envelopesProto.ClientEnvelope{
@@ -195,7 +191,7 @@ func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvel
 				Version: &mlsv1.WelcomeMessageInput_V1_{
 					V1: &mlsv1.WelcomeMessageInput_V1{
 						InstallationKey: installationKey,
-						Data:            data,
+						Data:            payload,
 						HpkePublicKey:   hpk,
 						WrapperAlgorithm: contents.WelcomeWrapperAlgorithm(
 							wrapperAlgorithm,
@@ -213,10 +209,7 @@ func makeWelcomeMessageClientEnvelope(dataSize uint) *envelopesProto.ClientEnvel
 }
 
 func makeKeyPackageClientEnvelope() *envelopesProto.ClientEnvelope {
-	var (
-		installationID = testutils.RandomBytes(32)
-		keyPackage     = testutils.RandomBytes(1651)
-	)
+	installationID := testutils.RandomBytes(32)
 
 	return &envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_UploadKeyPackage{
@@ -233,12 +226,25 @@ func makeKeyPackageClientEnvelope() *envelopesProto.ClientEnvelope {
 	}
 }
 
-func makeGroupMessageEnvelope(dataSize uint) *envelopesProto.ClientEnvelope {
+func makeGroupMessageEnvelope(size string) *envelopesProto.ClientEnvelope {
 	var (
 		groupID    = testutils.RandomGroupID()
-		data       = testutils.RandomBytes(int(dataSize))
 		senderHmac = testutils.RandomBytes(32)
+		data       []byte
 	)
+
+	switch size {
+	case "256B":
+		data = groupMessage256B
+	case "512B":
+		data = groupMessage512B
+	case "1KB":
+		data = groupMessage1KB
+	case "5KB":
+		data = groupMessage5KB
+	default:
+		data = groupMessage256B
+	}
 
 	return &envelopesProto.ClientEnvelope{
 		Payload: &envelopesProto.ClientEnvelope_GroupMessage{

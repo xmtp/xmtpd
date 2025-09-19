@@ -31,6 +31,7 @@ const (
 	ConversationType_CONVERSATION_TYPE_GROUP       ConversationType = 1
 	ConversationType_CONVERSATION_TYPE_DM          ConversationType = 2
 	ConversationType_CONVERSATION_TYPE_SYNC        ConversationType = 3
+	ConversationType_CONVERSATION_TYPE_ONESHOT     ConversationType = 4
 )
 
 // Enum value maps for ConversationType.
@@ -40,12 +41,14 @@ var (
 		1: "CONVERSATION_TYPE_GROUP",
 		2: "CONVERSATION_TYPE_DM",
 		3: "CONVERSATION_TYPE_SYNC",
+		4: "CONVERSATION_TYPE_ONESHOT",
 	}
 	ConversationType_value = map[string]int32{
 		"CONVERSATION_TYPE_UNSPECIFIED": 0,
 		"CONVERSATION_TYPE_GROUP":       1,
 		"CONVERSATION_TYPE_DM":          2,
 		"CONVERSATION_TYPE_SYNC":        3,
+		"CONVERSATION_TYPE_ONESHOT":     4,
 	}
 )
 
@@ -84,9 +87,11 @@ type GroupMetadataV1 struct {
 	CreatorAccountAddress string `protobuf:"bytes,2,opt,name=creator_account_address,json=creatorAccountAddress,proto3" json:"creator_account_address,omitempty"`
 	CreatorInboxId        string `protobuf:"bytes,3,opt,name=creator_inbox_id,json=creatorInboxId,proto3" json:"creator_inbox_id,omitempty"`
 	// Should only be present for CONVERSATION_TYPE_DM
-	DmMembers     *DmMembers `protobuf:"bytes,4,opt,name=dm_members,json=dmMembers,proto3,oneof" json:"dm_members,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DmMembers *DmMembers `protobuf:"bytes,4,opt,name=dm_members,json=dmMembers,proto3,oneof" json:"dm_members,omitempty"`
+	// Should only be present for CONVERSATION_TYPE_ONESHOT
+	OneshotMessage *OneshotMessage `protobuf:"bytes,5,opt,name=oneshot_message,json=oneshotMessage,proto3,oneof" json:"oneshot_message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GroupMetadataV1) Reset() {
@@ -143,6 +148,13 @@ func (x *GroupMetadataV1) GetCreatorInboxId() string {
 func (x *GroupMetadataV1) GetDmMembers() *DmMembers {
 	if x != nil {
 		return x.DmMembers
+	}
+	return nil
+}
+
+func (x *GroupMetadataV1) GetOneshotMessage() *OneshotMessage {
+	if x != nil {
+		return x.OneshotMessage
 	}
 	return nil
 }
@@ -249,24 +261,27 @@ var File_mls_message_contents_group_metadata_proto protoreflect.FileDescriptor
 
 const file_mls_message_contents_group_metadata_proto_rawDesc = "" +
 	"\n" +
-	")mls/message_contents/group_metadata.proto\x12\x19xmtp.mls.message_contents\"\xa6\x02\n" +
+	")mls/message_contents/group_metadata.proto\x12\x19xmtp.mls.message_contents\x1a\"mls/message_contents/oneshot.proto\"\x93\x03\n" +
 	"\x0fGroupMetadataV1\x12X\n" +
 	"\x11conversation_type\x18\x01 \x01(\x0e2+.xmtp.mls.message_contents.ConversationTypeR\x10conversationType\x126\n" +
 	"\x17creator_account_address\x18\x02 \x01(\tR\x15creatorAccountAddress\x12(\n" +
 	"\x10creator_inbox_id\x18\x03 \x01(\tR\x0ecreatorInboxId\x12H\n" +
 	"\n" +
-	"dm_members\x18\x04 \x01(\v2$.xmtp.mls.message_contents.DmMembersH\x00R\tdmMembers\x88\x01\x01B\r\n" +
-	"\v_dm_members\"\"\n" +
+	"dm_members\x18\x04 \x01(\v2$.xmtp.mls.message_contents.DmMembersH\x00R\tdmMembers\x88\x01\x01\x12W\n" +
+	"\x0foneshot_message\x18\x05 \x01(\v2).xmtp.mls.message_contents.OneshotMessageH\x01R\x0eoneshotMessage\x88\x01\x01B\r\n" +
+	"\v_dm_membersB\x12\n" +
+	"\x10_oneshot_message\"\"\n" +
 	"\x05Inbox\x12\x19\n" +
 	"\binbox_id\x18\x01 \x01(\tR\ainboxId\"\x97\x01\n" +
 	"\tDmMembers\x12D\n" +
 	"\rdm_member_one\x18\x01 \x01(\v2 .xmtp.mls.message_contents.InboxR\vdmMemberOne\x12D\n" +
-	"\rdm_member_two\x18\x02 \x01(\v2 .xmtp.mls.message_contents.InboxR\vdmMemberTwo*\x88\x01\n" +
+	"\rdm_member_two\x18\x02 \x01(\v2 .xmtp.mls.message_contents.InboxR\vdmMemberTwo*\xa7\x01\n" +
 	"\x10ConversationType\x12!\n" +
 	"\x1dCONVERSATION_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17CONVERSATION_TYPE_GROUP\x10\x01\x12\x18\n" +
 	"\x14CONVERSATION_TYPE_DM\x10\x02\x12\x1a\n" +
-	"\x16CONVERSATION_TYPE_SYNC\x10\x03B\xeb\x01\n" +
+	"\x16CONVERSATION_TYPE_SYNC\x10\x03\x12\x1d\n" +
+	"\x19CONVERSATION_TYPE_ONESHOT\x10\x04B\xeb\x01\n" +
 	"\x1dcom.xmtp.mls.message_contentsB\x12GroupMetadataProtoP\x01Z4github.com/xmtp/xmtpd/pkg/proto/mls/message_contents\xa2\x02\x03XMM\xaa\x02\x18Xmtp.Mls.MessageContents\xca\x02\x18Xmtp\\Mls\\MessageContents\xe2\x02$Xmtp\\Mls\\MessageContents\\GPBMetadata\xea\x02\x1aXmtp::Mls::MessageContentsb\x06proto3"
 
 var (
@@ -288,17 +303,19 @@ var file_mls_message_contents_group_metadata_proto_goTypes = []any{
 	(*GroupMetadataV1)(nil), // 1: xmtp.mls.message_contents.GroupMetadataV1
 	(*Inbox)(nil),           // 2: xmtp.mls.message_contents.Inbox
 	(*DmMembers)(nil),       // 3: xmtp.mls.message_contents.DmMembers
+	(*OneshotMessage)(nil),  // 4: xmtp.mls.message_contents.OneshotMessage
 }
 var file_mls_message_contents_group_metadata_proto_depIdxs = []int32{
 	0, // 0: xmtp.mls.message_contents.GroupMetadataV1.conversation_type:type_name -> xmtp.mls.message_contents.ConversationType
 	3, // 1: xmtp.mls.message_contents.GroupMetadataV1.dm_members:type_name -> xmtp.mls.message_contents.DmMembers
-	2, // 2: xmtp.mls.message_contents.DmMembers.dm_member_one:type_name -> xmtp.mls.message_contents.Inbox
-	2, // 3: xmtp.mls.message_contents.DmMembers.dm_member_two:type_name -> xmtp.mls.message_contents.Inbox
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 2: xmtp.mls.message_contents.GroupMetadataV1.oneshot_message:type_name -> xmtp.mls.message_contents.OneshotMessage
+	2, // 3: xmtp.mls.message_contents.DmMembers.dm_member_one:type_name -> xmtp.mls.message_contents.Inbox
+	2, // 4: xmtp.mls.message_contents.DmMembers.dm_member_two:type_name -> xmtp.mls.message_contents.Inbox
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_group_metadata_proto_init() }
@@ -306,6 +323,7 @@ func file_mls_message_contents_group_metadata_proto_init() {
 	if File_mls_message_contents_group_metadata_proto != nil {
 		return
 	}
+	file_mls_message_contents_oneshot_proto_init()
 	file_mls_message_contents_group_metadata_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

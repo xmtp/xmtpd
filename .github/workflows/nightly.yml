@@ -27,3 +27,5 @@ jobs:
 
             [1]: https://github.com/peter-evans/create-pull-request
           branch: nightly-proto
+          add-paths: |
+            pkg/proto/

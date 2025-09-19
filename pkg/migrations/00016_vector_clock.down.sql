@@ -1,1 +1,2 @@
 DROP INDEX IF EXISTS idx_gateway_envelopes_vector_clock;
+DROP INDEX IF EXISTS idx_gateway_envelopes_originator_node_id;

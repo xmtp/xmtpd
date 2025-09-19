@@ -15,20 +15,25 @@ import (
 	"go.uber.org/zap"
 )
 
+type cursor struct {
+	sequenceID  uint64
+	timestampNS int64
+}
+
 type originatorStream struct {
-	ctx          context.Context
-	log          *zap.Logger
-	node         *registry.Node
-	lastEnvelope *envUtils.OriginatorEnvelope
-	stream       message_api.ReplicationApi_SubscribeEnvelopesClient
-	writeQueue   chan *envUtils.OriginatorEnvelope
+	ctx        context.Context
+	log        *zap.Logger
+	node       *registry.Node
+	cursor     *cursor
+	stream     message_api.ReplicationApi_SubscribeEnvelopesClient
+	writeQueue chan *envUtils.OriginatorEnvelope
 }
 
 func newOriginatorStream(
 	ctx context.Context,
 	log *zap.Logger,
 	node *registry.Node,
-	lastEnvelope *envUtils.OriginatorEnvelope,
+	cursor *cursor,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
@@ -38,10 +43,10 @@ func newOriginatorStream(
 			zap.Uint32("originator_id", node.NodeID),
 			zap.String("http_address", node.HTTPAddress),
 		),
-		node:         node,
-		lastEnvelope: lastEnvelope,
-		stream:       stream,
-		writeQueue:   writeQueue,
+		node:       node,
+		cursor:     cursor,
+		stream:     stream,
+		writeQueue: writeQueue,
 	}
 }
 
@@ -154,9 +159,9 @@ func (s *originatorStream) validateEnvelope(
 
 	var lastSequenceID uint64 = 0
 	var lastNs int64 = 0
-	if s.lastEnvelope != nil {
-		lastSequenceID = s.lastEnvelope.OriginatorSequenceID()
-		lastNs = s.lastEnvelope.OriginatorNs()
+	if s.cursor != nil {
+		lastSequenceID = s.cursor.sequenceID
+		lastNs = s.cursor.timestampNS
 	}
 
 	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
@@ -172,7 +177,10 @@ func (s *originatorStream) validateEnvelope(
 	}
 
 	if env.OriginatorSequenceID() > lastSequenceID {
-		s.lastEnvelope = env
+		s.cursor = &cursor{
+			sequenceID:  env.OriginatorSequenceID(),
+			timestampNS: env.OriginatorNs(),
+		}
 	}
 
 	// Validate that there is a valid payer signature

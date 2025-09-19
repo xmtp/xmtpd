@@ -349,12 +349,12 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	var lastEnvelope *envUtils.OriginatorEnvelope
+	var c *cursor
 	for _, row := range result {
 		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
-			lastEnvelope, err = envUtils.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
-			if err != nil {
-				return nil, err
+			c = &cursor{
+				sequenceID:  uint64(row.OriginatorSequenceID),
+				timestampNS: row.GatewayTime.UnixNano(),
 			}
 		}
 	}
@@ -363,7 +363,7 @@ func (s *syncWorker) setupStream(
 		s.ctx,
 		s.log,
 		&node,
-		lastEnvelope,
+		c,
 		stream,
 		writeQueue,
 	), nil

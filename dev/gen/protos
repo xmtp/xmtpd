@@ -7,7 +7,7 @@ cd "${repo_root}"
 
 GEN_PROTO_BRANCH="${GEN_PROTO_BRANCH:-main}"
 
-find pkg/proto -type f \( -name "*.pb.go" -o -name "*.pb.gw.go" -o -name "*.swagger.json" \)
+find pkg/proto -type f \( -name "*.pb.go" -o -name "*.pb.gw.go" -o -name "*.swagger.json" \) -exec rm -f {} +
 if ! go tool -modfile=tools/go.mod buf generate "https://github.com/xmtp/proto.git#subdir=proto,branch=${GEN_PROTO_BRANCH}"; then
     echo "Failed to generate protobuf definitions"
     exit 1

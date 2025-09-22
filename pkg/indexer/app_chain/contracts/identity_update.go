@@ -38,7 +38,7 @@ func NewIdentityUpdateBroadcaster(
 	logger *zap.Logger,
 	validationService mlsvalidate.MLSValidationService,
 	address common.Address,
-	chainID int,
+	chainID int64,
 	startBlock uint64,
 ) (*IdentityUpdateBroadcaster, error) {
 	contract, err := identityUpdateBroadcasterContract(address, client)
@@ -103,7 +103,7 @@ func identityUpdateBroadcasterContract(
 	)
 }
 
-func IdentityUpdateBroadcasterName(chainID int) string {
+func IdentityUpdateBroadcasterName(chainID int64) string {
 	return fmt.Sprintf("%s-%v", identityUpdateName, chainID)
 }
 

@@ -35,7 +35,7 @@ func NewGroupMessageBroadcaster(
 	querier *queries.Queries,
 	logger *zap.Logger,
 	address common.Address,
-	chainID int,
+	chainID int64,
 	startBlock uint64,
 ) (*GroupMessageBroadcaster, error) {
 	contract, err := groupMessageBroadcasterContract(address, client)
@@ -98,7 +98,7 @@ func groupMessageBroadcasterContract(
 	)
 }
 
-func GroupMessageBroadcasterName(chainID int) string {
+func GroupMessageBroadcasterName(chainID int64) string {
 	return fmt.Sprintf("%s-%v", groupMessageName, chainID)
 }
 

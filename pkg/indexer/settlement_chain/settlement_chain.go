@@ -33,7 +33,7 @@ type SettlementChain struct {
 	streamer           c.ILogStreamer
 	payerRegistry      *contracts.PayerRegistry
 	payerReportManager *contracts.PayerReportManager
-	chainID            int
+	chainID            int64
 }
 
 func NewSettlementChain(
@@ -45,7 +45,7 @@ func NewSettlementChain(
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
 	chainLogger := log.Named("settlement-chain").
-		With(zap.Int("chainID", cfg.ChainID))
+		With(zap.Int64("chainID", cfg.ChainID))
 
 	rpcClient, err := blockchain.NewRPCClient(
 		ctxwc,

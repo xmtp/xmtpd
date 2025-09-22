@@ -43,7 +43,7 @@ type AppChain struct {
 	streamer                  c.ILogStreamer
 	groupMessageBroadcaster   *contracts.GroupMessageBroadcaster
 	identityUpdateBroadcaster *contracts.IdentityUpdateBroadcaster
-	chainID                   int
+	chainID                   int64
 }
 
 func NewAppChain(
@@ -56,7 +56,7 @@ func NewAppChain(
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
 	chainLogger := log.Named("app-chain").
-		With(zap.Int("chainID", cfg.ChainID))
+		With(zap.Int64("chainID", cfg.ChainID))
 
 	rpcClient, err := blockchain.NewRPCClient(
 		ctxwc,

@@ -23,7 +23,7 @@ type PrivateKeySigner struct {
 	signFunction   bind.SignerFn
 }
 
-func NewPrivateKeySigner(privateKeyString string, chainID int) (*PrivateKeySigner, error) {
+func NewPrivateKeySigner(privateKeyString string, chainID int64) (*PrivateKeySigner, error) {
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
@@ -39,7 +39,7 @@ func NewPrivateKeySigner(privateKeyString string, chainID int) (*PrivateKeySigne
 
 	auth, err := bind.NewKeyedTransactorWithChainID(
 		privateKey,
-		big.NewInt(int64(chainID)),
+		big.NewInt(chainID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %v", err)

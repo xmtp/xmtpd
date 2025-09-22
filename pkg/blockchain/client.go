@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -120,54 +119,54 @@ func ExecuteTransaction(
 		Signer:  signer.SignerFunc(),
 		NoSend:  true,
 	}
-
-	dryRunTx, err := txFunc(opts)
-	if err != nil {
-		return NewBlockchainError(fmt.Errorf("failed to simulate tx (NoSend=true): %w", err))
-	}
-
-	// Step 3: Estimate gas using ethclient.EstimateGas.
-	msg := ethereum.CallMsg{
-		From:  from,
-		To:    dryRunTx.To(),
-		Data:  dryRunTx.Data(),
-		Value: dryRunTx.Value(),
-	}
-
-	// Step 4: Fallback for GasPrice.
-	gasPrice := dryRunTx.GasPrice()
-	if gasPrice == nil {
-		gasPrice, err = client.SuggestGasPrice(ctx)
-		if err != nil {
-			return NewBlockchainError(fmt.Errorf("failed to get gas price: %w", err))
-		}
-	}
-
-	estimatedGas, err := client.EstimateGas(ctx, msg)
-	if err != nil {
-		return NewBlockchainError(fmt.Errorf("gas estimation failed: %w", err))
-	}
-
-	logger.Debug(
-		"Gas estimation",
-		zap.String("address", from.Hex()),
-		zap.Uint64("gas", estimatedGas),
-	)
-
-	// Step 5: Check for balance sufficiency.
-	required := new(big.Int).Mul(big.NewInt(int64(estimatedGas)), gasPrice)
-	if balance.Cmp(required) < 0 {
-		return NewBlockchainError(fmt.Errorf(
-			"insufficient funds: need %s, have %s",
-			required.String(),
-			balance.String(),
-		))
-	}
+	//
+	//dryRunTx, err := txFunc(opts)
+	//if err != nil {
+	//	return NewBlockchainError(fmt.Errorf("failed to simulate tx (NoSend=true): %w", err))
+	//}
+	//
+	//// Step 3: Estimate gas using ethclient.EstimateGas.
+	//msg := ethereum.CallMsg{
+	//	From:  from,
+	//	To:    dryRunTx.To(),
+	//	Data:  dryRunTx.Data(),
+	//	Value: dryRunTx.Value(),
+	//}
+	//
+	//// Step 4: Fallback for GasPrice.
+	//gasPrice := dryRunTx.GasPrice()
+	//if gasPrice == nil {
+	//	gasPrice, err = client.SuggestGasPrice(ctx)
+	//	if err != nil {
+	//		return NewBlockchainError(fmt.Errorf("failed to get gas price: %w", err))
+	//	}
+	//}
+	//
+	//estimatedGas, err := client.EstimateGas(ctx, msg)
+	//if err != nil {
+	//	return NewBlockchainError(fmt.Errorf("gas estimation failed: %w", err))
+	//}
+	//
+	//logger.Debug(
+	//	"Gas estimation",
+	//	zap.String("address", from.Hex()),
+	//	zap.Uint64("gas", estimatedGas),
+	//)
+	//
+	//// Step 5: Check for balance sufficiency.
+	//required := new(big.Int).Mul(big.NewInt(int64(estimatedGas)), gasPrice)
+	//if balance.Cmp(required) < 0 {
+	//	return NewBlockchainError(fmt.Errorf(
+	//		"insufficient funds: need %s, have %s",
+	//		required.String(),
+	//		balance.String(),
+	//	))
+	//}
 
 	// Step 6: Send the real tx.
 	opts.NoSend = false
-	opts.GasLimit = estimatedGas
-	opts.GasPrice = gasPrice
+	// opts.GasLimit = estimatedGas
+	// opts.GasPrice = gasPrice
 
 	tx, err := txFunc(opts)
 	if err != nil {

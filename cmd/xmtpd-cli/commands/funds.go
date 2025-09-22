@@ -18,10 +18,9 @@ import (
 // ---- Options ----
 
 type DepositOpts struct {
-	PrivateKey string
-	Recipient  string
-	Amount     string
-	TokenType  string
+	Recipient string
+	Amount    string
+	TokenType string
 }
 
 type WithdrawOpts struct {
@@ -69,30 +68,47 @@ func depositCmd() *cobra.Command {
 		},
 		Example: `
 Usage:
-  xmtpd-cli funds deposit --private-key <private_key> --recipient <recipient> --amount <amount> [--token-type xusd]
+  xmtpd-cli funds deposit --recipient <recipient> --amount <amount> [--token-type xusd]
 
 Example:
-  xmtpd-cli funds deposit --private-key 0xabc... --recipient 0xdef... --amount 1000000000000000000 --token-type xusd
+  xmtpd-cli funds deposit --recipient 0xdef... --amount 1000000000000000000 --token-type xusd
 `,
 	}
-
-	cmd.Flags().
-		StringVar(&opts.PrivateKey, "private-key", "", "private key to use for signing the deposit")
 	cmd.Flags().StringVar(&opts.Recipient, "recipient", "", "recipient address")
 	cmd.Flags().
 		StringVar(&opts.Amount, "amount", "", "amount to deposit (wei-scale or token base units)")
 	cmd.Flags().StringVar(&opts.TokenType, "token-type", "xusd", "token type (default: xusd)")
-
-	_ = cmd.MarkFlagRequired("private-key")
-	_ = cmd.MarkFlagRequired("recipient")
+	//_ = cmd.MarkFlagRequired("recipient")
 	_ = cmd.MarkFlagRequired("amount")
 
 	return cmd
 }
 
-func depositHandler(_ DepositOpts) error {
-	// TODO: implement deposit_to_xmtp(privateKey, recipient, amount, tokenType)
-	return fmt.Errorf("deposit not implemented yet")
+func depositHandler(opts DepositOpts) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+
+	admin, err := setupFundsAdmin(ctx, logger)
+	if err != nil {
+		logger.Error("could not setup settlement chain admin", zap.Error(err))
+		return err
+	}
+
+	amount, ok := new(big.Int).SetString(opts.Amount, 10)
+	if !ok {
+		return fmt.Errorf("invalid --amount (raw uint256) %q", opts.Amount)
+	}
+
+	err = admin.Deposit(ctx, amount)
+	if err != nil {
+		logger.Error("could not deposit funds", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 // ---- withdraw ----

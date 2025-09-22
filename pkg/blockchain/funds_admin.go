@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"strings"
 
+	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	mft "github.com/xmtp/xmtpd/pkg/abi/mockunderlyingfeetoken"
 
@@ -22,6 +24,7 @@ import (
 type IFundsAdmin interface {
 	MintMockUSDC(ctx context.Context, addr common.Address, amount *big.Int) error
 	Balances(ctx context.Context, address common.Address) error
+	Deposit(ctx context.Context, amount *big.Int) error
 }
 
 type fundsAdmin struct {
@@ -30,7 +33,10 @@ type fundsAdmin struct {
 	settlement             FundsAdminSettlementOpts
 	feeToken               *ft.FeeToken
 	underlying             *erc20.ERC20
+	settlementGateway      *scg.SettlementChainGateway
 	mockUnderlyingFeeToken *mft.MockUnderlyingFeeToken
+	spender                common.Address
+	appChainId             int64
 }
 
 var _ IFundsAdmin = &fundsAdmin{}
@@ -78,6 +84,13 @@ func NewFundsAdmin(
 		return nil, err
 	}
 
+	settlementGateway, err := scg.NewSettlementChainGateway(
+		common.HexToAddress(opts.ContractOptions.SettlementChain.GatewayAddress),
+		opts.Settlement.Client)
+	if err != nil {
+		return nil, err
+	}
+
 	return &fundsAdmin{
 		logger:                 opts.Logger.Named("FundsAdmin"),
 		app:                    opts.App,
@@ -85,6 +98,11 @@ func NewFundsAdmin(
 		feeToken:               feeToken,
 		underlying:             underlying,
 		mockUnderlyingFeeToken: mockToken,
+		spender: common.HexToAddress(
+			opts.ContractOptions.SettlementChain.GatewayAddress,
+		),
+		settlementGateway: settlementGateway,
+		appChainId:        int64(opts.ContractOptions.AppChain.ChainID),
 	}, nil
 }
 
@@ -176,6 +194,93 @@ func (f *fundsAdmin) MintMockUSDC(
 		}
 		return err
 	}
+	return nil
+}
+
+func (f *fundsAdmin) Deposit(ctx context.Context, amount *big.Int) error {
+	from := f.settlement.Signer.FromAddress()
+
+	feeTokenBalance, err := f.feeToken.BalanceOf(&bind.CallOpts{Context: ctx}, from)
+	if err != nil {
+		return err
+	}
+	f.logger.Info("Current balance", zap.String("raw", feeTokenBalance.String()))
+
+	if feeTokenBalance.Cmp(amount) < 0 {
+		return fmt.Errorf(
+			"insufficient balance: need %s tokens, have %s tokens",
+			amount.String(),
+			feeTokenBalance.String(),
+		)
+	}
+
+	allowBefore, err := f.feeToken.Allowance(&bind.CallOpts{Context: ctx}, from, f.spender)
+	if err != nil {
+		return fmt.Errorf("allowance: %w", err)
+	}
+	f.logger.Info("Current allowance", zap.String("raw", allowBefore.String()))
+
+	if allowBefore.Cmp(amount) < 0 {
+		f.logger.Info("Approving token spend…")
+
+		err := ExecuteTransaction(
+			ctx,
+			f.settlement.Signer,
+			f.logger,
+			f.settlement.Client,
+			func(opts *bind.TransactOpts) (*types.Transaction, error) {
+				return f.feeToken.Approve(opts, f.spender, amount)
+			},
+			func(log *types.Log) (interface{}, error) {
+				return f.feeToken.ParseApproval(*log)
+			},
+			func(event interface{}) {
+				approval, ok := event.(*ft.FeeTokenApproval)
+				if !ok {
+					f.logger.Error("node added event is not of type FeeTokenApproval")
+					return
+				}
+				f.logger.Info(
+					"approval confirmed",
+					zap.String("owner", approval.Owner.Hex()),
+					zap.String("spender", approval.Spender.Hex()),
+					zap.String("amount", approval.Value.String()),
+				)
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	f.logger.Info("Executing bridge transaction…")
+
+	xmtpChainId := big.NewInt(f.appChainId)
+
+	err = ExecuteTransaction(
+		ctx,
+		f.settlement.Signer,
+		f.logger,
+		f.settlement.Client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return f.settlementGateway.Deposit(opts, xmtpChainId, from, amount, nil, nil)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return f.settlementGateway.ParseDeposit(*log)
+		},
+		func(event interface{}) {
+			_, ok := event.(*scg.SettlementChainGatewayDeposit)
+			if !ok {
+				f.logger.Error("node added event is not of type SettlementChainGatewayDeposit")
+				return
+			}
+			f.logger.Info("deposited")
+		},
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

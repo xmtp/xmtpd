@@ -21,7 +21,7 @@ type ContractsOptions struct {
 type AppChainOptions struct {
 	RPCURL                           string        `long:"rpc-url"                             env:"XMTPD_APP_CHAIN_RPC_URL"                           description:"Blockchain RPC URL"`
 	WssURL                           string        `long:"wss-url"                             env:"XMTPD_APP_CHAIN_WSS_URL"                           description:"Blockchain WSS URL"`
-	ChainID                          int           `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
+	ChainID                          int64         `long:"chain-id"                            env:"XMTPD_APP_CHAIN_CHAIN_ID"                          description:"Chain ID for the application chain"                           default:"31337"`
 	MaxChainDisconnectTime           time.Duration `long:"max-chain-disconnect-time"           env:"XMTPD_APP_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"60s"`
 	BackfillBlockPageSize            uint64        `long:"backfill-block-page-size"            env:"XMTPD_APP_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"          description:"Maximal size of a backfill block page"                        default:"500"`
 	GroupMessageBroadcasterAddress   string        `long:"group-message-broadcaster-address"   env:"XMTPD_APP_CHAIN_GROUP_MESSAGE_BROADCAST_ADDRESS"   description:"Group message broadcaster contract address"`
@@ -33,7 +33,7 @@ type AppChainOptions struct {
 type SettlementChainOptions struct {
 	RPCURL                      string        `long:"rpc-url"                        env:"XMTPD_SETTLEMENT_CHAIN_RPC_URL"                        description:"Blockchain RPC URL"`
 	WssURL                      string        `long:"wss-url"                        env:"XMTPD_SETTLEMENT_CHAIN_WSS_URL"                        description:"Blockchain WSS URL"`
-	ChainID                     int           `long:"chain-id"                       env:"XMTPD_SETTLEMENT_CHAIN_CHAIN_ID"                       description:"Chain ID for the settlement chain"                            default:"31337"`
+	ChainID                     int64         `long:"chain-id"                       env:"XMTPD_SETTLEMENT_CHAIN_CHAIN_ID"                       description:"Chain ID for the settlement chain"                            default:"31337"`
 	MaxChainDisconnectTime      time.Duration `long:"max-chain-disconnect-time"      env:"XMTPD_SETTLEMENT_CHAIN_MAX_CHAIN_DISCONNECT_TIME"      description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
 	BackfillBlockPageSize       uint64        `long:"backfill-block-page-size"       env:"XMTPD_SETTLEMENT_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"       description:"Maximal size of a backfill block page"                        default:"500"`
 	NodeRegistryAddress         string        `long:"node-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS"          description:"Node Registry contract address"`

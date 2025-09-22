@@ -38,7 +38,7 @@ func NewPayerReportManager(
 	db *sql.DB,
 	logger *zap.Logger,
 	address common.Address,
-	chainID int,
+	chainID int64,
 	startBlock uint64,
 ) (*PayerReportManager, error) {
 	querier := queries.New(db)
@@ -105,7 +105,7 @@ func payerReportManagerContract(
 	)
 }
 
-func PayerReportManagerName(chainID int) string {
+func PayerReportManagerName(chainID int64) string {
 	return fmt.Sprintf("%s-%v", payerReportManagerName, chainID)
 }
 

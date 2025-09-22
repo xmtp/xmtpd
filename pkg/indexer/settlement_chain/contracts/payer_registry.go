@@ -40,7 +40,7 @@ func NewPayerRegistry(
 	querier *queries.Queries,
 	logger *zap.Logger,
 	address common.Address,
-	chainID int,
+	chainID int64,
 	startBlock uint64,
 ) (*PayerRegistry, error) {
 	contract, err := payerRegistryContract(address, client)
@@ -110,7 +110,7 @@ func payerRegistryContract(
 	)
 }
 
-func PayerRegistryName(chainID int) string {
+func PayerRegistryName(chainID int64) string {
 	return fmt.Sprintf("%s-%v", payerRegistryName, chainID)
 }
 

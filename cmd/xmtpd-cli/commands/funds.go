@@ -102,6 +102,16 @@ func depositHandler(opts DepositOpts) error {
 		return fmt.Errorf("invalid --amount (raw uint256) %q", opts.Amount)
 	}
 
+	if amount.Sign() == -1 {
+		return fmt.Errorf("invalid --amount %d; must be non-negative", amount)
+	}
+	if opts.GasLimit < 0 {
+		return fmt.Errorf("invalid --gas-limit %d; must be non-negative", opts.GasLimit)
+	}
+	if opts.GasPrice < 0 {
+		return fmt.Errorf("invalid --gas-price %d; must be non-negative", opts.GasPrice)
+	}
+
 	gasLimit := big.NewInt(opts.GasLimit)
 	gasPrice := big.NewInt(opts.GasPrice)
 

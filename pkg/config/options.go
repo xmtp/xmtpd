@@ -31,23 +31,23 @@ type AppChainOptions struct {
 }
 
 type SettlementChainOptions struct {
-	RPCURL                      string        `long:"rpc-url"                           env:"XMTPD_SETTLEMENT_CHAIN_RPC_URL"                           description:"Blockchain RPC URL"`
-	WssURL                      string        `long:"wss-url"                           env:"XMTPD_SETTLEMENT_CHAIN_WSS_URL"                           description:"Blockchain WSS URL"`
-	ChainID                     int           `long:"chain-id"                          env:"XMTPD_SETTLEMENT_CHAIN_CHAIN_ID"                          description:"Chain ID for the settlement chain"                            default:"31337"`
-	MaxChainDisconnectTime      time.Duration `long:"max-chain-disconnect-time"         env:"XMTPD_SETTLEMENT_CHAIN_MAX_CHAIN_DISCONNECT_TIME"         description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
-	BackfillBlockPageSize       uint64        `long:"backfill-block-page-size"          env:"XMTPD_SETTLEMENT_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"          description:"Maximal size of a backfill block page"                        default:"500"`
-	NodeRegistryAddress         string        `long:"node-registry-address"             env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS"             description:"Node Registry contract address"`
-	NodeRegistryRefreshInterval time.Duration `long:"node-registry-refresh-interval"    env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_REFRESH_INTERVAL"    description:"Refresh interval for the nodes registry"                      default:"60s"`
-	RateRegistryAddress         string        `long:"rate-registry-address"             env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_ADDRESS"             description:"Rate registry contract address"`
-	RateRegistryRefreshInterval time.Duration `long:"rate-registry-refresh-interval"    env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_REFRESH_INTERVAL"    description:"Refresh interval for the rate registry"                       default:"300s"`
-	ParameterRegistryAddress    string        `long:"parameter-registry-address"        env:"XMTPD_SETTLEMENT_CHAIN_PARAMETER_REGISTRY_ADDRESS"        description:"Parameter Registry contract address"`
-	PayerRegistryAddress        string        `long:"payer-registry-address"            env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REGISTRY_ADDRESS"            description:"Payer Registry contract address"`
-	PayerReportManagerAddress   string        `long:"payer-report-manager-address"      env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REPORT_MANAGER_ADDRESS"      description:"Payer Report Manager contract address"`
-	GatewayAddress              string        `long:"gateway-address"                   env:"XMTPD_SETTLEMENT_CHAIN_GATEWAY_ADDRESS"                   description:"Settlement Chain Gateway contract address"`
-	DistributionManagerAddress  string        `long:"distribution-manager-address"      env:"XMTPD_SETTLEMENT_CHAIN_DISTRIBUTION_MANAGER_ADDRESS"      description:"Distribution Manager contract address"`
-	DeploymentBlock             uint64        `long:"deployment-block"                  env:"XMTPD_SETTLEMENT_CHAIN_DEPLOYMENT_BLOCK"                  description:"Deployment block for the settlement chain"                    default:"0"`
-	MockUnderlyingFeeToken      string        `long:"mock-underlying-fee-token-address" env:"XMTPD_SETTLEMENT_CHAIN_MOCK_UNDERLYING_FEE_TOKEN_ADDRESS" description:"Mock underlying fee token address"`
-	FeeToken                    string        `long:"fee-token-address"                 env:"XMTPD_SETTLEMENT_CHAIN_FEE_TOKEN_ADDRESS"                 description:"Fee token address"`
+	RPCURL                      string        `long:"rpc-url"                        env:"XMTPD_SETTLEMENT_CHAIN_RPC_URL"                        description:"Blockchain RPC URL"`
+	WssURL                      string        `long:"wss-url"                        env:"XMTPD_SETTLEMENT_CHAIN_WSS_URL"                        description:"Blockchain WSS URL"`
+	ChainID                     int           `long:"chain-id"                       env:"XMTPD_SETTLEMENT_CHAIN_CHAIN_ID"                       description:"Chain ID for the settlement chain"                            default:"31337"`
+	MaxChainDisconnectTime      time.Duration `long:"max-chain-disconnect-time"      env:"XMTPD_SETTLEMENT_CHAIN_MAX_CHAIN_DISCONNECT_TIME"      description:"Maximum time to allow the node to operate while disconnected" default:"300s"`
+	BackfillBlockPageSize       uint64        `long:"backfill-block-page-size"       env:"XMTPD_SETTLEMENT_CHAIN_BACKFILL_BLOCK_PAGE_SIZE"       description:"Maximal size of a backfill block page"                        default:"500"`
+	NodeRegistryAddress         string        `long:"node-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_ADDRESS"          description:"Node Registry contract address"`
+	NodeRegistryRefreshInterval time.Duration `long:"node-registry-refresh-interval" env:"XMTPD_SETTLEMENT_CHAIN_NODE_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the nodes registry"                      default:"60s"`
+	RateRegistryAddress         string        `long:"rate-registry-address"          env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_ADDRESS"          description:"Rate registry contract address"`
+	RateRegistryRefreshInterval time.Duration `long:"rate-registry-refresh-interval" env:"XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_REFRESH_INTERVAL" description:"Refresh interval for the rate registry"                       default:"300s"`
+	ParameterRegistryAddress    string        `long:"parameter-registry-address"     env:"XMTPD_SETTLEMENT_CHAIN_PARAMETER_REGISTRY_ADDRESS"     description:"Parameter Registry contract address"`
+	PayerRegistryAddress        string        `long:"payer-registry-address"         env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REGISTRY_ADDRESS"         description:"Payer Registry contract address"`
+	PayerReportManagerAddress   string        `long:"payer-report-manager-address"   env:"XMTPD_SETTLEMENT_CHAIN_PAYER_REPORT_MANAGER_ADDRESS"   description:"Payer Report Manager contract address"`
+	GatewayAddress              string        `long:"gateway-address"                env:"XMTPD_SETTLEMENT_CHAIN_GATEWAY_ADDRESS"                description:"Settlement Chain Gateway contract address"`
+	DistributionManagerAddress  string        `long:"distribution-manager-address"   env:"XMTPD_SETTLEMENT_CHAIN_DISTRIBUTION_MANAGER_ADDRESS"   description:"Distribution Manager contract address"`
+	DeploymentBlock             uint64        `long:"deployment-block"               env:"XMTPD_SETTLEMENT_CHAIN_DEPLOYMENT_BLOCK"               description:"Deployment block for the settlement chain"                    default:"0"`
+	UnderlyingFeeToken          string        `long:"underlying-fee-token-address"   env:"XMTPD_SETTLEMENT_CHAIN_UNDERLYING_FEE_TOKEN_ADDRESS"   description:"Underlying fee token address"`
+	FeeToken                    string        `long:"fee-token-address"              env:"XMTPD_SETTLEMENT_CHAIN_FEE_TOKEN_ADDRESS"              description:"Fee token address"`
 }
 
 type DBOptions struct {

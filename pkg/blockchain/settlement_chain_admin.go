@@ -100,7 +100,7 @@ func NewSettlementChainAdmin(
 	}
 
 	mockToken, err := mft.NewMockUnderlyingFeeToken(
-		common.HexToAddress(contractsOptions.SettlementChain.MockUnderlyingFeeToken),
+		common.HexToAddress(contractsOptions.SettlementChain.UnderlyingFeeToken),
 		client)
 	if err != nil {
 		return nil, err

@@ -5,8 +5,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/xmtp/xmtpd/pkg/abi/erc20"
 	ft "github.com/xmtp/xmtpd/pkg/abi/feeToken"
-	mft "github.com/xmtp/xmtpd/pkg/abi/mockunderlyingfeetoken"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -23,7 +23,7 @@ type fundsAdmin struct {
 	app        FundsAdminAppOpts
 	settlement FundsAdminSettlementOpts
 	feeToken   *ft.FeeToken
-	underlying *mft.MockUnderlyingFeeToken
+	underlying *erc20.ERC20
 }
 
 var _ IFundsAdmin = &fundsAdmin{}
@@ -56,8 +56,8 @@ func NewFundsAdmin(
 		return nil, err
 	}
 
-	underlying, err := mft.NewMockUnderlyingFeeToken(
-		common.HexToAddress(opts.ContractOptions.SettlementChain.MockUnderlyingFeeToken),
+	underlying, err := erc20.NewERC20(
+		common.HexToAddress(opts.ContractOptions.SettlementChain.UnderlyingFeeToken),
 		opts.Settlement.Client,
 	)
 	if err != nil {
@@ -76,41 +76,45 @@ func NewFundsAdmin(
 func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error {
 	ethBalance, err := f.settlement.Client.BalanceAt(ctx, address, nil)
 	if err != nil {
-		return err
+		f.logger.Error("failed to get ETH balance", zap.Error(err))
+	} else {
+		f.logger.Info(
+			"ETH balance of",
+			zap.String("address", address.Hex()),
+			zap.String("balance", FromWei(ethBalance, 18)),
+		)
 	}
-	f.logger.Info(
-		"ETH balance of",
-		zap.String("address", address.Hex()),
-		zap.String("balance", FromWei(ethBalance, 18)),
-	)
 
 	feeTokenBalance, err := f.feeToken.BalanceOf(&bind.CallOpts{Context: ctx}, address)
 	if err != nil {
-		return err
+		f.logger.Error("failed to get xUSD balance", zap.Error(err))
+	} else {
+		f.logger.Info(
+			"xUSD balance of", zap.String("address", address.Hex()),
+			zap.String("balance", FromWei(feeTokenBalance, 6)),
+		)
 	}
-	f.logger.Info(
-		"xUSD balance of", zap.String("address", address.Hex()),
-		zap.String("balance", FromWei(feeTokenBalance, 6)),
-	)
 
 	underlyingTokenBalance, err := f.underlying.BalanceOf(&bind.CallOpts{Context: ctx}, address)
 	if err != nil {
-		return err
+		f.logger.Error("failed to get underlying USDC balance", zap.Error(err))
+	} else {
+		f.logger.Info(
+			"USDC balance of", zap.String("address", address.Hex()),
+			zap.String("balance", FromWei(underlyingTokenBalance, 6)),
+		)
 	}
-	f.logger.Info(
-		"mxUSD balance of", zap.String("address", address.Hex()),
-		zap.String("balance", FromWei(underlyingTokenBalance, 6)),
-	)
 
 	appGasBalance, err := f.app.Client.BalanceAt(ctx, address, nil)
 	if err != nil {
-		return err
+		f.logger.Error("failed to get XMTP balance", zap.Error(err))
+	} else {
+		f.logger.Info(
+			"XMTP balance of",
+			zap.String("address", address.Hex()),
+			zap.String("balance", FromWei(appGasBalance, 18)),
+		)
 	}
-	f.logger.Info(
-		"XMTP balance of",
-		zap.String("address", address.Hex()),
-		zap.String("balance", FromWei(appGasBalance, 18)),
-	)
 
 	return nil
 }

@@ -2,7 +2,11 @@ package blockchain
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/core/types"
+	mft "github.com/xmtp/xmtpd/pkg/abi/mockunderlyingfeetoken"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/xmtp/xmtpd/pkg/abi/erc20"
@@ -15,15 +19,17 @@ import (
 )
 
 type IFundsAdmin interface {
+	MintMockUSDC(ctx context.Context, addr common.Address, amount *big.Int) error
 	Balances(ctx context.Context, address common.Address) error
 }
 
 type fundsAdmin struct {
-	logger     *zap.Logger
-	app        FundsAdminAppOpts
-	settlement FundsAdminSettlementOpts
-	feeToken   *ft.FeeToken
-	underlying *erc20.ERC20
+	logger                 *zap.Logger
+	app                    FundsAdminAppOpts
+	settlement             FundsAdminSettlementOpts
+	feeToken               *ft.FeeToken
+	underlying             *erc20.ERC20
+	mockUnderlyingFeeToken *mft.MockUnderlyingFeeToken
 }
 
 var _ IFundsAdmin = &fundsAdmin{}
@@ -64,12 +70,20 @@ func NewFundsAdmin(
 		return nil, err
 	}
 
+	mockToken, err := mft.NewMockUnderlyingFeeToken(
+		common.HexToAddress(opts.ContractOptions.SettlementChain.UnderlyingFeeToken),
+		opts.Settlement.Client)
+	if err != nil {
+		return nil, err
+	}
+
 	return &fundsAdmin{
-		logger:     opts.Logger.Named("FundsAdmin"),
-		app:        opts.App,
-		settlement: opts.Settlement,
-		feeToken:   feeToken,
-		underlying: underlying,
+		logger:                 opts.Logger.Named("FundsAdmin"),
+		app:                    opts.App,
+		settlement:             opts.Settlement,
+		feeToken:               feeToken,
+		underlying:             underlying,
+		mockUnderlyingFeeToken: mockToken,
 	}, nil
 }
 
@@ -116,6 +130,48 @@ func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error
 		)
 	}
 
+	return nil
+}
+
+func (f *fundsAdmin) MintMockUSDC(
+	ctx context.Context,
+	addr common.Address,
+	amount *big.Int,
+) error {
+	// sanity check
+	if amount.Sign() == -1 {
+		return fmt.Errorf("amount must be positive")
+	}
+	if amount.Cmp(big.NewInt(10000000000)) > 0 {
+		return fmt.Errorf("amount must be less than 10000 mxUSDC")
+	}
+
+	err := ExecuteTransaction(
+		ctx,
+		f.settlement.Signer, f.logger, f.settlement.Client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return f.mockUnderlyingFeeToken.Mint(opts, addr, amount)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return f.mockUnderlyingFeeToken.ParseTransfer(*log)
+		},
+		func(event interface{}) {
+			transfer, ok := event.(*mft.MockUnderlyingFeeTokenTransfer)
+			if !ok {
+				f.logger.Error("unexpected event type, not MockUnderlyingFeeTokenTransfer")
+				return
+			}
+			f.logger.Info(
+				"tokens minted",
+				zap.String("from", transfer.From.Hex()),
+				zap.String("to", transfer.To.Hex()),
+				zap.String("amount", transfer.Value.String()),
+			)
+		},
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

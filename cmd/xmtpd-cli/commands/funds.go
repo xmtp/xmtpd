@@ -4,6 +4,10 @@ package commands
 import (
 	"context"
 	"fmt"
+	"math/big"
+
+	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
+	"github.com/xmtp/xmtpd/pkg/currency"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -46,6 +50,7 @@ func fundsCmd() *cobra.Command {
 		withdrawCmd(),
 		checkWithdrawalsCmd(),
 		balancesCmd(),
+		mintCmd(),
 	)
 
 	return cmd
@@ -199,4 +204,83 @@ func balancesHandler(opts BalancesOpts) error {
 	}
 
 	return admin.Balances(ctx, common.HexToAddress(opts.Address))
+}
+
+func mintCmd() *cobra.Command {
+	var toAddr options.AddressFlag
+	var amountHuman string
+	var raw bool
+	cmd := &cobra.Command{
+		Use:          "mint",
+		Hidden:       true,
+		Short:        "Mint mock underlying fee token to an address (max 10000 tokens)",
+		SilenceUsage: true,
+		Example: `
+# Mint 1000 tokens to 0xabc... using the token's own decimals
+xmtpd-cli funds mint \
+  --to 0xRecipient \
+  --amount 1000
+
+# If you already have the raw uint256 (no scaling), use --raw
+xmtpd-cli funds mint \
+  --to 0xRecipient \
+  --amount 1000000000 --raw
+`,
+		RunE: func(*cobra.Command, []string) error {
+			return mintHandler(toAddr.Address, amountHuman, raw)
+		},
+	}
+	cmd.Flags().Var(&toAddr, "to", "recipient address (hex)")
+	_ = cmd.MarkFlagRequired("to")
+	cmd.Flags().
+		StringVar(&amountHuman, "amount", "", "amount; decimal string in token units unless --raw")
+	_ = cmd.MarkFlagRequired("amount")
+	cmd.Flags().
+		BoolVar(&raw, "raw", false, "interpret --amount as raw uint256 (no decimals scaling)")
+
+	return cmd
+}
+
+func mintHandler(to common.Address, amountStr string, raw bool) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+
+	admin, err := setupFundsAdmin(ctx, logger)
+	if err != nil {
+		logger.Error("could not setup settlement chain admin", zap.Error(err))
+		return err
+	}
+
+	// Parse amount
+	var amount *big.Int
+	if raw {
+		ai, ok := new(big.Int).SetString(amountStr, 10)
+		if !ok {
+			return fmt.Errorf("invalid --amount (raw uint256) %q", amountStr)
+		}
+		amount = ai
+	} else {
+		// interpret --amount as whole tokens and scale to micro (6 decimals)
+		ai, ok := new(big.Int).SetString(amountStr, 10)
+		if !ok {
+			return fmt.Errorf("invalid --amount (decimal string) %q", amountStr)
+		}
+		scaled := new(big.Int).Mul(ai, big.NewInt(currency.MicroDollarsPerDollar))
+		amount = scaled
+	}
+
+	if err := admin.MintMockUSDC(ctx, to, amount); err != nil {
+		logger.Error("mint mock underlying fee token", zap.Error(err))
+		return err
+	}
+
+	logger.Info("successfully minted mock underlying fee token",
+		zap.String("to", to.Hex()),
+		zap.String("amountRaw", amount.String()),
+	)
+
+	return nil
 }

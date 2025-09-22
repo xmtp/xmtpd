@@ -249,6 +249,8 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			RateRegistryRefreshInterval: 300 * time.Second,
 			MaxChainDisconnectTime:      300 * time.Second,
 			BackfillBlockPageSize:       500,
+			GatewayAddress:              config.SettlementChainGateway,
+			DistributionManagerAddress:  config.DistributionManager,
 		},
 		AppChain: AppChainOptions{
 			GroupMessageBroadcasterAddress:   config.GroupMessageBroadcaster,
@@ -256,6 +258,8 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			ChainID:                          int64(config.AppChainID),
 			MaxChainDisconnectTime:           300 * time.Second,
 			BackfillBlockPageSize:            500,
+			GatewayAddress:                   config.AppChainGateway,
+			DeploymentBlock:                  uint64(config.AppChainDeploymentBlock),
 		},
 	}, nil
 }

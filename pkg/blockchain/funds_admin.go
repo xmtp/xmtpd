@@ -24,7 +24,7 @@ import (
 type IFundsAdmin interface {
 	MintMockUSDC(ctx context.Context, addr common.Address, amount *big.Int) error
 	Balances(ctx context.Context, address common.Address) error
-	Deposit(ctx context.Context, amount *big.Int) error
+	Deposit(ctx context.Context, amount *big.Int, gasLimit *big.Int, gasPrice *big.Int) error
 }
 
 type fundsAdmin struct {
@@ -102,7 +102,7 @@ func NewFundsAdmin(
 			opts.ContractOptions.SettlementChain.GatewayAddress,
 		),
 		settlementGateway: settlementGateway,
-		appChainId:        int64(opts.ContractOptions.AppChain.ChainID),
+		appChainId:        opts.ContractOptions.AppChain.ChainID,
 	}, nil
 }
 
@@ -197,7 +197,12 @@ func (f *fundsAdmin) MintMockUSDC(
 	return nil
 }
 
-func (f *fundsAdmin) Deposit(ctx context.Context, amount *big.Int) error {
+func (f *fundsAdmin) Deposit(
+	ctx context.Context,
+	amount *big.Int,
+	gasLimit *big.Int,
+	gasPrice *big.Int,
+) error {
 	from := f.settlement.Signer.FromAddress()
 
 	feeTokenBalance, err := f.feeToken.BalanceOf(&bind.CallOpts{Context: ctx}, from)
@@ -214,45 +219,6 @@ func (f *fundsAdmin) Deposit(ctx context.Context, amount *big.Int) error {
 		)
 	}
 
-	allowBefore, err := f.feeToken.Allowance(&bind.CallOpts{Context: ctx}, from, f.spender)
-	if err != nil {
-		return fmt.Errorf("allowance: %w", err)
-	}
-	f.logger.Info("Current allowance", zap.String("raw", allowBefore.String()))
-
-	if allowBefore.Cmp(amount) < 0 {
-		f.logger.Info("Approving token spend…")
-
-		err := ExecuteTransaction(
-			ctx,
-			f.settlement.Signer,
-			f.logger,
-			f.settlement.Client,
-			func(opts *bind.TransactOpts) (*types.Transaction, error) {
-				return f.feeToken.Approve(opts, f.spender, amount)
-			},
-			func(log *types.Log) (interface{}, error) {
-				return f.feeToken.ParseApproval(*log)
-			},
-			func(event interface{}) {
-				approval, ok := event.(*ft.FeeTokenApproval)
-				if !ok {
-					f.logger.Error("node added event is not of type FeeTokenApproval")
-					return
-				}
-				f.logger.Info(
-					"approval confirmed",
-					zap.String("owner", approval.Owner.Hex()),
-					zap.String("spender", approval.Spender.Hex()),
-					zap.String("amount", approval.Value.String()),
-				)
-			},
-		)
-		if err != nil {
-			return err
-		}
-	}
-
 	f.logger.Info("Executing bridge transaction…")
 
 	xmtpChainId := big.NewInt(f.appChainId)
@@ -263,18 +229,25 @@ func (f *fundsAdmin) Deposit(ctx context.Context, amount *big.Int) error {
 		f.logger,
 		f.settlement.Client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return f.settlementGateway.Deposit(opts, xmtpChainId, from, amount, nil, nil)
+			return f.settlementGateway.Deposit(
+				opts,
+				xmtpChainId,
+				from,
+				amount,
+				gasLimit,
+				gasPrice,
+			)
 		},
 		func(log *types.Log) (interface{}, error) {
 			return f.settlementGateway.ParseDeposit(*log)
 		},
 		func(event interface{}) {
-			_, ok := event.(*scg.SettlementChainGatewayDeposit)
+			deposit, ok := event.(*scg.SettlementChainGatewayDeposit)
 			if !ok {
 				f.logger.Error("node added event is not of type SettlementChainGatewayDeposit")
 				return
 			}
-			f.logger.Info("deposited")
+			f.logger.Info("deposited", zap.String("amount", deposit.Amount.String()))
 		},
 	)
 	if err != nil {

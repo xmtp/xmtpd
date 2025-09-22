@@ -18,9 +18,9 @@ import (
 // ---- Options ----
 
 type DepositOpts struct {
-	Recipient string
-	Amount    string
-	TokenType string
+	Amount   string
+	GasLimit int64
+	GasPrice int64
 }
 
 type WithdrawOpts struct {
@@ -68,18 +68,18 @@ func depositCmd() *cobra.Command {
 		},
 		Example: `
 Usage:
-  xmtpd-cli funds deposit --recipient <recipient> --amount <amount> [--token-type xusd]
+  xmtpd-cli funds deposit --amount <amount> [--gas-limit <gas-limit>] [--gas-price <gas-price>]
 
 Example:
-  xmtpd-cli funds deposit --recipient 0xdef... --amount 1000000000000000000 --token-type xusd
+  xmtpd-cli funds deposit --amount 1000000000000000000
 `,
 	}
-	cmd.Flags().StringVar(&opts.Recipient, "recipient", "", "recipient address")
 	cmd.Flags().
 		StringVar(&opts.Amount, "amount", "", "amount to deposit (wei-scale or token base units)")
-	cmd.Flags().StringVar(&opts.TokenType, "token-type", "xusd", "token type (default: xusd)")
-	//_ = cmd.MarkFlagRequired("recipient")
 	_ = cmd.MarkFlagRequired("amount")
+
+	cmd.Flags().Int64Var(&opts.GasLimit, "gas-limit", 3000000, "gas limit")
+	cmd.Flags().Int64Var(&opts.GasPrice, "gas-price", 2000000000, "gas price")
 
 	return cmd
 }
@@ -102,7 +102,10 @@ func depositHandler(opts DepositOpts) error {
 		return fmt.Errorf("invalid --amount (raw uint256) %q", opts.Amount)
 	}
 
-	err = admin.Deposit(ctx, amount)
+	gasLimit := big.NewInt(opts.GasLimit)
+	gasPrice := big.NewInt(opts.GasPrice)
+
+	err = admin.Deposit(ctx, amount, gasLimit, gasPrice)
 	if err != nil {
 		logger.Error("could not deposit funds", zap.Error(err))
 		return err

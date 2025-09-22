@@ -3,11 +3,12 @@ package blockchain
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/ethereum/go-ethereum"
 
 	"github.com/gorilla/websocket"
 	"github.com/xmtp/xmtpd/pkg/metrics"

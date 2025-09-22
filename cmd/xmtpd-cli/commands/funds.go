@@ -1,4 +1,3 @@
-// file: cmd/funds.go
 package commands
 
 import (

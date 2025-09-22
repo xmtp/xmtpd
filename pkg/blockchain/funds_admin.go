@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	mft "github.com/xmtp/xmtpd/pkg/abi/mockunderlyingfeetoken"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/xmtp/xmtpd/pkg/abi/erc20"
-	ft "github.com/xmtp/xmtpd/pkg/abi/feeToken"
+	ft "github.com/xmtp/xmtpd/pkg/abi/feetoken"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -170,6 +171,9 @@ func (f *fundsAdmin) MintMockUSDC(
 		},
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "FiatToken") {
+			return fmt.Errorf("not a XMTP mock USDC token: %s", err.Error())
+		}
 		return err
 	}
 	return nil

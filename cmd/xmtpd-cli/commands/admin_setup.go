@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/xmtp/xmtpd/pkg/fees"
+
 	"github.com/spf13/viper"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -15,12 +17,13 @@ func setupAppChainAdmin(
 	logger *zap.Logger,
 ) (blockchain.IAppChainAdmin, error) {
 	var (
-		rpcURL     = viper.GetString("rpc-url")
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
 	)
-	if rpcURL == "" {
-		return nil, fmt.Errorf("rpc-url is required")
+
+	rpcURL, err := resolveAppRPCURL()
+	if err != nil {
+		return nil, err
 	}
 	if configFile == "" {
 		return nil, fmt.Errorf("config-file is required")
@@ -57,12 +60,12 @@ func setupSettlementChainAdmin(
 	logger *zap.Logger,
 ) (blockchain.ISettlementChainAdmin, error) {
 	var (
-		rpcURL     = viper.GetString("rpc-url")
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
 	)
-	if rpcURL == "" {
-		return nil, fmt.Errorf("rpc-url is required")
+	rpcURL, err := resolveSettlementRPCURL()
+	if err != nil {
+		return nil, err
 	}
 	if configFile == "" {
 		return nil, fmt.Errorf("config-file is required")
@@ -99,16 +102,15 @@ func setupNodeRegistryAdmin(
 ) (blockchain.INodeRegistryAdmin, error) {
 	var (
 		privateKey = viper.GetString("private-key")
-		rpcURL     = viper.GetString("rpc-url")
 		configFile = viper.GetString("config-file")
 	)
 
+	rpcURL, err := resolveSettlementRPCURL()
+	if err != nil {
+		return nil, err
+	}
 	if privateKey == "" {
 		return nil, fmt.Errorf("private key is required")
-	}
-
-	if rpcURL == "" {
-		return nil, fmt.Errorf("rpc url is required")
 	}
 
 	if configFile == "" {
@@ -159,13 +161,11 @@ func setupNodeRegistryCaller(
 	ctx context.Context,
 	logger *zap.Logger,
 ) (blockchain.INodeRegistryCaller, error) {
-	var (
-		rpcURL     = viper.GetString("rpc-url")
-		configFile = viper.GetString("config-file")
-	)
+	configFile := viper.GetString("config-file")
 
-	if rpcURL == "" {
-		return nil, fmt.Errorf("rpc url is required")
+	rpcURL, err := resolveSettlementRPCURL()
+	if err != nil {
+		return nil, err
 	}
 
 	if configFile == "" {
@@ -192,4 +192,143 @@ func setupNodeRegistryCaller(
 	}
 
 	return caller, nil
+}
+
+func setupRateRegistryAdmin(
+	ctx context.Context,
+	logger *zap.Logger,
+) (*blockchain.RatesAdmin, error) {
+	var (
+		configFile = viper.GetString("config-file")
+		privateKey = viper.GetString("private-key")
+	)
+
+	rpcURL, err := resolveSettlementRPCURL()
+	if err != nil {
+		return nil, err
+	}
+	if configFile == "" {
+		return nil, fmt.Errorf("config-file is required")
+	}
+	if privateKey == "" {
+		return nil, fmt.Errorf("private-key is required")
+	}
+
+	contracts, err := config.ContractOptionsFromEnv(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not load config from file: %w", err)
+	}
+
+	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not create chain client: %w", err)
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	paramAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create parameter admin: %w", err)
+	}
+
+	registryAdmin, err := blockchain.NewRatesAdmin(
+		logger,
+		paramAdmin,
+		chainClient,
+		contracts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create registry admin: %w", err)
+	}
+
+	return registryAdmin, nil
+}
+
+func setupRatesFetcher(
+	ctx context.Context,
+	logger *zap.Logger,
+) (*fees.ContractRatesFetcher, error) {
+	configFile := viper.GetString("config-file")
+
+	rpcURL, err := resolveSettlementRPCURL()
+	if err != nil {
+		return nil, err
+	}
+	if configFile == "" {
+		return nil, fmt.Errorf("config-file is required")
+	}
+
+	contracts, err := config.ContractOptionsFromEnv(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not load config from file: %w", err)
+	}
+
+	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not create chain client: %w", err)
+	}
+
+	fetcher, err := fees.NewContractRatesFetcher(ctx, chainClient, logger, contracts)
+	if err != nil {
+		return nil, fmt.Errorf("could not create rates fetcher: %w", err)
+	}
+
+	return fetcher, nil
+}
+
+func setupFundsAdmin(
+	ctx context.Context,
+	logger *zap.Logger,
+) (blockchain.IFundsAdmin, error) {
+	var (
+		configFile = viper.GetString("config-file")
+		privateKey = viper.GetString("private-key")
+	)
+
+	settlementRpcURL, err := resolveSettlementRPCURL()
+	if err != nil {
+		return nil, err
+	}
+	if configFile == "" {
+		return nil, fmt.Errorf("config-file is required")
+	}
+	if privateKey == "" {
+		return nil, fmt.Errorf("private-key is required")
+	}
+
+	contracts, err := config.ContractOptionsFromEnv(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not load config from file: %w", err)
+	}
+
+	chainClient, err := blockchain.NewRPCClient(ctx, settlementRpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not create chain client: %w", err)
+	}
+
+	signer, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		contracts.SettlementChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
+	fundsAdmin, err := blockchain.NewFundsAdmin(
+		logger,
+		chainClient,
+		signer,
+		contracts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create registry admin: %w", err)
+	}
+
+	return fundsAdmin, nil
 }

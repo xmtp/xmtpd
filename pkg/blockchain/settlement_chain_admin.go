@@ -66,7 +66,7 @@ func NewSettlementChainAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 	parameterAdmin *ParameterAdmin,
-) (*settlementChainAdmin, error) {
+) (ISettlementChainAdmin, error) {
 	acGateway, err := scg.NewSettlementChainGateway(
 		common.HexToAddress(contractsOptions.SettlementChain.GatewayAddress),
 		client,

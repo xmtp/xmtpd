@@ -62,6 +62,7 @@ func NewContractsOptions(t *testing.T, rpcURL, wsURL string) config.ContractsOpt
 			GatewayAddress:              chainConfig.SettlementChainGateway,
 			DistributionManagerAddress:  chainConfig.DistributionManager,
 			MockUnderlyingFeeToken:      chainConfig.UnderlyingFeeToken,
+			FeeToken:                    chainConfig.FeeToken,
 		},
 	}
 }

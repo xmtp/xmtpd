@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"go.uber.org/zap"
 
 	"github.com/spf13/cobra"
@@ -183,18 +185,18 @@ Example:
 	return cmd
 }
 
-func balancesHandler(_ BalancesOpts) error {
+func balancesHandler(opts BalancesOpts) error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
 
-	_, err = setupFundsAdmin(ctx, logger)
+	admin, err := setupFundsAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup funds admin", zap.Error(err))
 		return err
 	}
-	// TODO: implement check_balances(address)
-	return fmt.Errorf("balances not implemented yet")
+
+	return admin.Balances(ctx, common.HexToAddress(opts.Address))
 }

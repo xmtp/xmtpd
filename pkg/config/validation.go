@@ -244,6 +244,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			ChainID:                     config.SettlementChainID,
 			DeploymentBlock:             uint64(config.SettlementChainDeploymentBlock),
 			MockUnderlyingFeeToken:      config.UnderlyingFeeToken,
+			FeeToken:                    config.FeeToken,
 			NodeRegistryRefreshInterval: 60 * time.Second,
 			RateRegistryRefreshInterval: 300 * time.Second,
 			MaxChainDisconnectTime:      300 * time.Second,
@@ -352,6 +353,10 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 
 	if options.SettlementChain.MockUnderlyingFeeToken == "" {
 		options.SettlementChain.MockUnderlyingFeeToken = config.UnderlyingFeeToken
+	}
+
+	if options.SettlementChain.FeeToken == "" {
+		options.SettlementChain.FeeToken = config.FeeToken
 	}
 }
 

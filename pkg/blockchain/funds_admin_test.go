@@ -32,10 +32,18 @@ func buildFundsAdmin(
 	require.NoError(t, err)
 
 	admin, err := blockchain.NewFundsAdmin(
-		logger,
-		client,
-		signer,
-		contractsOptions,
+		blockchain.FundsAdminOpts{
+			Logger:          logger,
+			ContractOptions: contractsOptions,
+			Settlement: blockchain.FundsAdminSettlementOpts{
+				Client: client,
+				Signer: signer,
+			},
+			App: blockchain.FundsAdminAppOpts{
+				Client: client,
+				Signer: signer,
+			},
+		},
 	)
 	require.NoError(t, err)
 

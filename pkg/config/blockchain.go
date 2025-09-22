@@ -5,6 +5,7 @@ type ChainConfig struct {
 	AppChainID                       int    `json:"appChainId"`
 	AppChainGateway                  string `json:"appChainGateway"`
 	DistributionManager              string `json:"distributionManager"`
+	FeeToken                         string `json:"feeToken"`
 	GroupMessageBroadcaster          string `json:"groupMessageBroadcaster"`
 	IdentityUpdateBroadcaster        string `json:"identityUpdateBroadcaster"`
 	NodeRegistry                     string `json:"nodeRegistry"`

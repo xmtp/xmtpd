@@ -47,6 +47,7 @@ type SettlementChainOptions struct {
 	DistributionManagerAddress  string        `long:"distribution-manager-address"      env:"XMTPD_SETTLEMENT_CHAIN_DISTRIBUTION_MANAGER_ADDRESS"      description:"Distribution Manager contract address"`
 	DeploymentBlock             uint64        `long:"deployment-block"                  env:"XMTPD_SETTLEMENT_CHAIN_DEPLOYMENT_BLOCK"                  description:"Deployment block for the settlement chain"                    default:"0"`
 	MockUnderlyingFeeToken      string        `long:"mock-underlying-fee-token-address" env:"XMTPD_SETTLEMENT_CHAIN_MOCK_UNDERLYING_FEE_TOKEN_ADDRESS" description:"Mock underlying fee token address"`
+	FeeToken                    string        `long:"fee-token-address"                 env:"XMTPD_SETTLEMENT_CHAIN_FEE_TOKEN_ADDRESS"                 description:"Fee token address"`
 }
 
 type DBOptions struct {

@@ -295,6 +295,10 @@ func setupFundsAdmin(
 	if err != nil {
 		return nil, err
 	}
+	appRpcURL, err := resolveAppRPCURL()
+	if err != nil {
+		return nil, err
+	}
 	if configFile == "" {
 		return nil, fmt.Errorf("config-file is required")
 	}
@@ -307,12 +311,12 @@ func setupFundsAdmin(
 		return nil, fmt.Errorf("could not load config from file: %w", err)
 	}
 
-	chainClient, err := blockchain.NewRPCClient(ctx, settlementRpcURL)
+	chainClientSettlement, err := blockchain.NewRPCClient(ctx, settlementRpcURL)
 	if err != nil {
 		return nil, fmt.Errorf("could not create chain client: %w", err)
 	}
 
-	signer, err := blockchain.NewPrivateKeySigner(
+	signerSettlement, err := blockchain.NewPrivateKeySigner(
 		privateKey,
 		contracts.SettlementChain.ChainID,
 	)
@@ -320,11 +324,32 @@ func setupFundsAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
+	chainClientApp, err := blockchain.NewRPCClient(ctx, appRpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not create chain client: %w", err)
+	}
+
+	signerApp, err := blockchain.NewPrivateKeySigner(
+		privateKey,
+		contracts.AppChain.ChainID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create signer: %w", err)
+	}
+
 	fundsAdmin, err := blockchain.NewFundsAdmin(
-		logger,
-		chainClient,
-		signer,
-		contracts,
+		blockchain.FundsAdminOpts{
+			Logger:          logger,
+			ContractOptions: contracts,
+			Settlement: blockchain.FundsAdminSettlementOpts{
+				Client: chainClientSettlement,
+				Signer: signerSettlement,
+			},
+			App: blockchain.FundsAdminAppOpts{
+				Client: chainClientApp,
+				Signer: signerApp,
+			},
+		},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry admin: %w", err)

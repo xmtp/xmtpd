@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+
 	"github.com/gorilla/websocket"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

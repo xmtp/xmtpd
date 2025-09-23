@@ -20,11 +20,13 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	globalConfigFile  string
-	globalLogLevel    string
-	globalLogEncoding string
-	globalPrivateKey  string
-	globalRPCURL      string
+	globalConfigFile    string
+	globalLogLevel      string
+	globalLogEncoding   string
+	globalPrivateKey    string
+	globalRPCURL        string
+	globalSettlementURL string
+	globalAppURL        string
 )
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -54,6 +56,7 @@ func configureRootCmd() error {
 		appChainCmd(),
 		settlementChainCmd(),
 		generateCmd(),
+		fundsCmd(),
 	)
 
 	return nil
@@ -100,6 +103,9 @@ func registerGlobalFlags() error {
 		return err
 	}
 
+	_ = rootCmd.PersistentFlags().
+		MarkDeprecated("rpc-url", "use --settlement-rpc-url or --app-rpc-url instead")
+
 	rootCmd.PersistentFlags().
 		StringVarP(&globalPrivateKey, "private-key", "p", "", "private key to use")
 
@@ -107,6 +113,24 @@ func registerGlobalFlags() error {
 		return err
 	}
 	if err := viper.BindEnv("private-key", "PRIVATE_KEY"); err != nil {
+		return err
+	}
+
+	rootCmd.PersistentFlags().
+		StringVar(&globalSettlementURL, "settlement-rpc-url", "", "Settlement chain RPC URL")
+	if err := viper.BindPFlag("settlement-rpc-url", rootCmd.PersistentFlags().Lookup("settlement-rpc-url")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("settlement-rpc-url", "SETTLEMENT_RPC_URL"); err != nil {
+		return err
+	}
+
+	rootCmd.PersistentFlags().
+		StringVar(&globalAppURL, "app-rpc-url", "", "App chain RPC URL")
+	if err := viper.BindPFlag("app-rpc-url", rootCmd.PersistentFlags().Lookup("app-rpc-url")); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("app-rpc-url", "APP_RPC_URL"); err != nil {
 		return err
 	}
 
@@ -122,6 +146,28 @@ func cliLogger() (*zap.Logger, error) {
 		return nil, fmt.Errorf("could not build logger: %w", err)
 	}
 	return l, nil
+}
+
+func resolveSettlementRPCURL() (string, error) {
+	if v := viper.GetString("settlement-rpc-url"); v != "" {
+		return v, nil
+	}
+	// fallback to legacy rpc-url
+	if v := viper.GetString("rpc-url"); v != "" {
+		return v, nil
+	}
+	return "", fmt.Errorf("missing settlement RPC URL: set --settlement-rpc-url or --rpc-url")
+}
+
+func resolveAppRPCURL() (string, error) {
+	if v := viper.GetString("app-rpc-url"); v != "" {
+		return v, nil
+	}
+	// fallback to legacy rpc-url
+	if v := viper.GetString("rpc-url"); v != "" {
+		return v, nil
+	}
+	return "", fmt.Errorf("missing app RPC URL: set --app-rpc-url or --rpc-url")
 }
 
 func init() {

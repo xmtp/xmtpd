@@ -16,7 +16,10 @@ mkdir -p "${build_dir}" "${output_dir}" "${abi_dir}"
 curl_cmd="curl -L -s -f"
 owner="xmtp"
 repository="smart-contracts"
-contracts=("AppChainGateway" "AppChainParameterRegistry" "DepositSplitter" "DistributionManager" "GroupMessageBroadcaster" "IdentityUpdateBroadcaster" "MockUnderlyingFeeToken" "NodeRegistry" "PayerRegistry" "PayerReportManager" "RateRegistry" "SettlementChainGateway" "SettlementChainParameterRegistry")
+contracts=("AppChainGateway" "AppChainParameterRegistry" "DepositSplitter" "DistributionManager" "FeeToken" "GroupMessageBroadcaster" "IdentityUpdateBroadcaster" "MockUnderlyingFeeToken" "NodeRegistry" "PayerRegistry" "PayerReportManager" "RateRegistry" "SettlementChainGateway" "SettlementChainParameterRegistry")
+
+erc20_contract="ERC20"
+erc20_abi="./dev/gen/standard/erc20.abi.json"
 
 function check_release() {
     local build_info_url="${release_url}/build-info.json"
@@ -78,6 +81,13 @@ function generate() {
     gen_go_bindings
 }
 
+function generate_erc20() {
+    contract="${erc20_contract}"
+    abi_file="${erc20_abi}"
+    echo "⧖ Generating bindings for ${contract} (local standard ABI)"
+    gen_go_bindings
+}
+
 function main() {
     if [[ $# -ne 1 ]]; then
         echo -e "Usage: $0 <version>\nExample: $0 v1.0.0"
@@ -93,6 +103,8 @@ function main() {
         echo "⧖ Generating ABIs for contract: ${contract}"
         generate "${contract}"
     done
+
+    generate_erc20
 }
 
 main "$@"

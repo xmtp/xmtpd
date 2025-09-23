@@ -58,7 +58,7 @@ func NewAppChainAdmin(
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 	parameterAdmin *ParameterAdmin,
-) (*appChainAdmin, error) {
+) (IAppChainAdmin, error) {
 	iuBroadcaster, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(contractsOptions.AppChain.IdentityUpdateBroadcasterAddress),
 		client,

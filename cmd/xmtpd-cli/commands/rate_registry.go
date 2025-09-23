@@ -7,16 +7,24 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"go.uber.org/zap"
 )
 
+// ---- Options ----
+
+type AddRatesOpts struct {
+	MessageFee    int64
+	StorageFee    int64
+	CongestionFee int64
+	TargetRate    uint64
+}
+
+// ---- Root ----
+
 func rateRegistryCmd() *cobra.Command {
-	cmd := cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "rates",
 		Short:        "Manage Rate Registry",
 		SilenceUsage: true,
@@ -25,15 +33,21 @@ func rateRegistryCmd() *cobra.Command {
 		addRatesCommand(),
 		getRatesCommand(),
 	)
-	return &cmd
+	return cmd
 }
 
+// ---- add ----
+
 func addRatesCommand() *cobra.Command {
-	cmd := cobra.Command{
+	var opts AddRatesOpts
+
+	cmd := &cobra.Command{
 		Use:          "add",
 		Short:        "Add rates to the rate registry",
 		SilenceUsage: true,
-		RunE:         addRatesHandler,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return addRatesHandler(opts)
+		},
 		Example: `
 Usage: xmtpd-cli rates add --message-fee <message-fee> --storage-fee <storage-fee> --congestion-fee <congestion-fee> --target-rate <target-rate>
 
@@ -42,24 +56,20 @@ xmtpd-cli rates add --message-fee 1000000000000000000 --storage-fee 100000000000
 `,
 	}
 
-	cmd.PersistentFlags().
-		Int64("message-fee", 0, "message fee to use")
-	cmd.PersistentFlags().
-		Int64("storage-fee", 0, "storage fee to use")
-	cmd.PersistentFlags().
-		Int64("congestion-fee", 0, "congestion fee to use")
-	cmd.PersistentFlags().
-		Uint64("target-rate", 0, "target rate to use")
+	cmd.Flags().Int64Var(&opts.MessageFee, "message-fee", 0, "message fee to use")
+	cmd.Flags().Int64Var(&opts.StorageFee, "storage-fee", 0, "storage fee to use")
+	cmd.Flags().Int64Var(&opts.CongestionFee, "congestion-fee", 0, "congestion fee to use")
+	cmd.Flags().Uint64Var(&opts.TargetRate, "target-rate", 0, "target rate to use")
 
 	_ = cmd.MarkFlagRequired("message-fee")
 	_ = cmd.MarkFlagRequired("storage-fee")
 	_ = cmd.MarkFlagRequired("congestion-fee")
 	_ = cmd.MarkFlagRequired("target-rate")
 
-	return &cmd
+	return cmd
 }
 
-func addRatesHandler(cmd *cobra.Command, _ []string) error {
+func addRatesHandler(opts AddRatesOpts) error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -68,30 +78,6 @@ func addRatesHandler(cmd *cobra.Command, _ []string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
-	messageFee, err := cmd.Flags().GetInt64("message-fee")
-	if err != nil {
-		logger.Error("could not get message fee", zap.Error(err))
-		return fmt.Errorf("could not get message fee: %w", err)
-	}
-
-	storageFee, err := cmd.Flags().GetInt64("storage-fee")
-	if err != nil {
-		logger.Error("could not get storage fee", zap.Error(err))
-		return fmt.Errorf("could not get storage fee: %w", err)
-	}
-
-	congestionFee, err := cmd.Flags().GetInt64("congestion-fee")
-	if err != nil {
-		logger.Error("could not get congestion fee", zap.Error(err))
-		return fmt.Errorf("could not get congestion fee: %w", err)
-	}
-
-	targetRate, err := cmd.Flags().GetUint64("target-rate")
-	if err != nil {
-		logger.Error("could not get target rate", zap.Error(err))
-		return fmt.Errorf("could not get target rate: %w", err)
-	}
-
 	registryAdmin, err := setupRateRegistryAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup rate registry admin", zap.Error(err))
@@ -99,10 +85,10 @@ func addRatesHandler(cmd *cobra.Command, _ []string) error {
 	}
 
 	rates := fees.Rates{
-		MessageFee:          currency.PicoDollar(messageFee),
-		StorageFee:          currency.PicoDollar(storageFee),
-		CongestionFee:       currency.PicoDollar(congestionFee),
-		TargetRatePerMinute: targetRate,
+		MessageFee:          currency.PicoDollar(opts.MessageFee),
+		StorageFee:          currency.PicoDollar(opts.StorageFee),
+		CongestionFee:       currency.PicoDollar(opts.CongestionFee),
+		TargetRatePerMinute: opts.TargetRate,
 	}
 
 	if err := registryAdmin.AddRates(ctx, rates); err != nil {
@@ -114,12 +100,14 @@ func addRatesHandler(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
+// ---- get ----
+
 func getRatesCommand() *cobra.Command {
-	cmd := cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "get",
 		Short:        "Get rates from the rate registry",
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return getRatesHandler()
 		},
 		Example: `
@@ -129,7 +117,7 @@ Example:
 xmtpd-cli rates get
 `,
 	}
-	return &cmd
+	return cmd
 }
 
 func getRatesHandler() error {
@@ -164,94 +152,4 @@ func getRatesHandler() error {
 
 	logger.Info("rates fetched successfully", zap.Any("rates", rates))
 	return nil
-}
-
-func setupRateRegistryAdmin(
-	ctx context.Context,
-	logger *zap.Logger,
-) (*blockchain.RatesAdmin, error) {
-	var (
-		rpcURL     = viper.GetString("rpc-url")
-		configFile = viper.GetString("config-file")
-		privateKey = viper.GetString("private-key")
-	)
-
-	if rpcURL == "" {
-		return nil, fmt.Errorf("rpc-url is required")
-	}
-	if configFile == "" {
-		return nil, fmt.Errorf("config-file is required")
-	}
-	if privateKey == "" {
-		return nil, fmt.Errorf("private-key is required")
-	}
-
-	contracts, err := config.ContractOptionsFromEnv(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
-	}
-
-	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
-	if err != nil {
-		return nil, fmt.Errorf("could not create chain client: %w", err)
-	}
-
-	signer, err := blockchain.NewPrivateKeySigner(
-		privateKey,
-		contracts.SettlementChain.ChainID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("could not create signer: %w", err)
-	}
-
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
-	if err != nil {
-		return nil, fmt.Errorf("could not create parameter admin: %w", err)
-	}
-
-	registryAdmin, err := blockchain.NewRatesAdmin(
-		logger,
-		paramAdmin,
-		chainClient,
-		contracts,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("could not create registry admin: %w", err)
-	}
-
-	return registryAdmin, nil
-}
-
-func setupRatesFetcher(
-	ctx context.Context,
-	logger *zap.Logger,
-) (*fees.ContractRatesFetcher, error) {
-	var (
-		rpcURL     = viper.GetString("rpc-url")
-		configFile = viper.GetString("config-file")
-	)
-
-	if rpcURL == "" {
-		return nil, fmt.Errorf("rpc-url is required")
-	}
-	if configFile == "" {
-		return nil, fmt.Errorf("config-file is required")
-	}
-
-	contracts, err := config.ContractOptionsFromEnv(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
-	}
-
-	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
-	if err != nil {
-		return nil, fmt.Errorf("could not create chain client: %w", err)
-	}
-
-	fetcher, err := fees.NewContractRatesFetcher(ctx, chainClient, logger, contracts)
-	if err != nil {
-		return nil, fmt.Errorf("could not create rates fetcher: %w", err)
-	}
-
-	return fetcher, nil
 }

@@ -241,20 +241,25 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			ParameterRegistryAddress:    config.SettlementChainParameterRegistry,
 			PayerRegistryAddress:        config.PayerRegistry,
 			PayerReportManagerAddress:   config.PayerReportManager,
-			ChainID:                     config.SettlementChainID,
+			ChainID:                     int64(config.SettlementChainID),
 			DeploymentBlock:             uint64(config.SettlementChainDeploymentBlock),
-			MockUnderlyingFeeToken:      config.UnderlyingFeeToken,
+			UnderlyingFeeToken:          config.UnderlyingFeeToken,
+			FeeToken:                    config.FeeToken,
 			NodeRegistryRefreshInterval: 60 * time.Second,
 			RateRegistryRefreshInterval: 300 * time.Second,
 			MaxChainDisconnectTime:      300 * time.Second,
 			BackfillBlockPageSize:       500,
+			GatewayAddress:              config.SettlementChainGateway,
+			DistributionManagerAddress:  config.DistributionManager,
 		},
 		AppChain: AppChainOptions{
 			GroupMessageBroadcasterAddress:   config.GroupMessageBroadcaster,
 			IdentityUpdateBroadcasterAddress: config.IdentityUpdateBroadcaster,
-			ChainID:                          config.AppChainID,
+			ChainID:                          int64(config.AppChainID),
 			MaxChainDisconnectTime:           300 * time.Second,
 			BackfillBlockPageSize:            500,
+			GatewayAddress:                   config.AppChainGateway,
+			DeploymentBlock:                  uint64(config.AppChainDeploymentBlock),
 		},
 	}, nil
 }
@@ -312,7 +317,7 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 		options.AppChain.IdentityUpdateBroadcasterAddress = config.IdentityUpdateBroadcaster
 	}
 	if options.AppChain.ChainID == 0 || options.AppChain.ChainID == 31337 {
-		options.AppChain.ChainID = config.AppChainID
+		options.AppChain.ChainID = int64(config.AppChainID)
 	}
 	if options.AppChain.GatewayAddress == "" {
 		options.AppChain.GatewayAddress = config.AppChainGateway
@@ -338,7 +343,7 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 		options.SettlementChain.PayerReportManagerAddress = config.PayerReportManager
 	}
 	if options.SettlementChain.ChainID == 0 || options.SettlementChain.ChainID == 31337 {
-		options.SettlementChain.ChainID = config.SettlementChainID
+		options.SettlementChain.ChainID = int64(config.SettlementChainID)
 	}
 	if options.SettlementChain.DeploymentBlock == 0 {
 		options.SettlementChain.DeploymentBlock = uint64(config.SettlementChainDeploymentBlock)
@@ -350,8 +355,12 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 		options.SettlementChain.DistributionManagerAddress = config.DistributionManager
 	}
 
-	if options.SettlementChain.MockUnderlyingFeeToken == "" {
-		options.SettlementChain.MockUnderlyingFeeToken = config.UnderlyingFeeToken
+	if options.SettlementChain.UnderlyingFeeToken == "" {
+		options.SettlementChain.UnderlyingFeeToken = config.UnderlyingFeeToken
+	}
+
+	if options.SettlementChain.FeeToken == "" {
+		options.SettlementChain.FeeToken = config.FeeToken
 	}
 }
 
@@ -492,7 +501,7 @@ func validateHexAddress(address string, fieldName string, set map[string]struct{
 	}
 }
 
-func validateRPCURL(rpcURL string, chainID int, fieldName string, set map[string]struct{}) {
+func validateRPCURL(rpcURL string, chainID int64, fieldName string, set map[string]struct{}) {
 	u, err := url.Parse(rpcURL)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
@@ -507,7 +516,7 @@ func validateRPCURL(rpcURL string, chainID int, fieldName string, set map[string
 	validateChainID(rpcURL, chainID, fieldName, set)
 }
 
-func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[string]struct{}) {
+func validateWebsocketURL(wsURL string, chainID int64, fieldName string, set map[string]struct{}) {
 	u, err := url.Parse(wsURL)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
@@ -522,7 +531,7 @@ func validateWebsocketURL(wsURL string, chainID int, fieldName string, set map[s
 	validateChainID(wsURL, chainID, fieldName, set)
 }
 
-func validateChainID(url string, expectedChainID int, fieldName string, set map[string]struct{}) {
+func validateChainID(url string, expectedChainID int64, fieldName string, set map[string]struct{}) {
 	ctx := context.Background()
 
 	client, err := ethclient.DialContext(ctx, url)

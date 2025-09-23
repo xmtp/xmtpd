@@ -31,7 +31,7 @@ func NewNodeRegistryCaller(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	contractsOptions config.ContractsOptions,
-) (*nodeRegistryCaller, error) {
+) (INodeRegistryCaller, error) {
 	contract, err := noderegistry.NewNodeRegistryCaller(
 		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
 		client,

@@ -24,8 +24,7 @@ func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
 	return &config.GatewayConfig{
 		Payer: testutils.GetPayerOptions(t),
 		API: config.APIOptions{
-			Port:     0,
-			HTTPPort: 0,
+			Port: 0,
 		},
 		Contracts: testutils.NewContractsOptions(t, wsURL, rpcURL),
 		Log: config.LogOptions{

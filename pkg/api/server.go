@@ -27,16 +27,14 @@ import (
 type RegistrationFunc func(server *grpc.Server) error
 
 type APIServerConfig struct {
-	Ctx                  context.Context
-	Log                  *zap.Logger
-	GRPCListener         net.Listener
-	HTTPListener         net.Listener
-	EnableReflection     bool
-	RegistrationFunc     RegistrationFunc
-	HTTPRegistrationFunc HTTPRegistrationFunc
-	PromRegistry         *prometheus.Registry
-	UnaryInterceptors    []grpc.UnaryServerInterceptor
-	StreamInterceptors   []grpc.StreamServerInterceptor
+	Ctx                context.Context
+	Log                *zap.Logger
+	GRPCListener       net.Listener
+	EnableReflection   bool
+	RegistrationFunc   RegistrationFunc
+	PromRegistry       *prometheus.Registry
+	UnaryInterceptors  []grpc.UnaryServerInterceptor
+	StreamInterceptors []grpc.StreamServerInterceptor
 }
 
 type APIServerOption func(*APIServerConfig)
@@ -53,20 +51,12 @@ func WithGRPCListener(listener net.Listener) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.GRPCListener = listener }
 }
 
-func WithHTTPListener(listener net.Listener) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.HTTPListener = listener }
-}
-
 func WithReflection(enabled bool) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.EnableReflection = enabled }
 }
 
 func WithRegistrationFunc(fn RegistrationFunc) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.RegistrationFunc = fn }
-}
-
-func WithHTTPRegistrationFunc(fn HTTPRegistrationFunc) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.HTTPRegistrationFunc = fn }
 }
 
 func WithPrometheusRegistry(reg *prometheus.Registry) APIServerOption {
@@ -84,7 +74,6 @@ func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) APISer
 type APIServer struct {
 	ctx          context.Context
 	grpcListener net.Listener
-	httpListener net.Listener
 	grpcServer   *grpc.Server
 	log          *zap.Logger
 	wg           sync.WaitGroup
@@ -104,15 +93,12 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.GRPCListener == nil || cfg.HTTPListener == nil {
-		return nil, fmt.Errorf("both GRPCListener and HTTPListener are required")
+	if cfg.GRPCListener == nil {
+		return nil, fmt.Errorf("GRPCListener is required")
 	}
 
 	if cfg.RegistrationFunc == nil {
 		return nil, fmt.Errorf("grpc registration function is required")
-	}
-	if cfg.HTTPRegistrationFunc == nil {
-		return nil, fmt.Errorf("http registration function is required")
 	}
 
 	s := &APIServer{
@@ -121,8 +107,7 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 			Listener:          cfg.GRPCListener,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		httpListener: cfg.HTTPListener,
-		log:          cfg.Log.Named("api"),
+		log: cfg.Log.Named("api"),
 	}
 
 	s.log.Info("Creating API server")
@@ -194,10 +179,6 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		}
 	})
 
-	if err := s.startHTTP(cfg.Ctx, cfg.Log, cfg.HTTPRegistrationFunc); err != nil {
-		return nil, err
-	}
-
 	return s, nil
 }
 
@@ -208,10 +189,6 @@ func (s *APIServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
 
 func (s *APIServer) Addr() net.Addr {
 	return s.grpcListener.Addr()
-}
-
-func (s *APIServer) HTTPAddr() net.Addr {
-	return s.httpListener.Addr()
 }
 
 func (s *APIServer) gracefulShutdown(timeout time.Duration) {
@@ -242,10 +219,6 @@ func (s *APIServer) Close(timeout time.Duration) {
 	}
 	if s.grpcListener != nil {
 		_ = s.grpcListener.Close()
-	}
-
-	if s.httpListener != nil {
-		_ = s.httpListener.Close()
 	}
 
 	s.wg.Wait()

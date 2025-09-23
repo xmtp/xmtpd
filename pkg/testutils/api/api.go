@@ -14,7 +14,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
@@ -174,39 +173,17 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 		return nil
 	}
 
-	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
-		var err error
-		err = metadata_api.RegisterMetadataApiHandler(ctx, gwmux, conn)
-		require.NoError(t, err)
-
-		err = message_api.RegisterReplicationApiHandler(ctx, gwmux, conn)
-		require.NoError(t, err)
-
-		err = payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
-		require.NoError(t, err)
-
-		return nil
-	}
-
 	grpcListener, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = grpcListener.Close()
 	})
 
-	httpListener, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = httpListener.Close()
-	})
-
 	apiOpts := []api.APIServerOption{
 		api.WithContext(ctx),
 		api.WithLogger(log),
 		api.WithGRPCListener(grpcListener),
-		api.WithHTTPListener(httpListener),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
-		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithReflection(true),
 		api.WithPrometheusRegistry(prometheus.NewRegistry()),
 	}

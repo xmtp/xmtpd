@@ -6,8 +6,7 @@ import (
 )
 
 type APIOptions struct {
-	Port     int `short:"p" long:"port"      description:"Port to listen on"      env:"XMTPD_API_PORT"      default:"5050"`
-	HTTPPort int `          long:"http-port" description:"HTTP Port to listen on" env:"XMTPD_HTTP_API_PORT" default:"5055"`
+	Port int `short:"p" long:"port" description:"Port to listen on" env:"XMTPD_API_PORT" default:"5050"`
 }
 
 type ContractsOptions struct {

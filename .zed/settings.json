@@ -1,0 +1,47 @@
+{
+  "lsp": {
+    "golangci-lint": {
+      "initialization_options": {
+        // For newer versions of golangci-lint (v2+)
+        "command": [
+          "golangci-lint",
+          "run",
+          "--output.json.path",
+          "stdout",
+          "--show-stats=false",
+          "--output.text.path="
+        ]
+        // if you're using v1, you might use something like:
+        // "command": ["golangci-lint", "run", "--out-format", "json", "--issues-exit-code=1"]
+      }
+    },
+    "gopls": {
+      "initialization_options": {
+        "directoryFilters": [
+          "-**/.git",
+          "-**/.zed",
+          "-**/.vscode",
+          "-**/.cursor"
+        ]
+      }
+    }
+  },
+  "languages": {
+    "Go": {
+      "language_servers": ["golangci-lint", "gopls"],
+      "format_on_save": "on",
+      "formatter": {
+        "external": {
+          "command": "golangci-lint",
+          "arguments": ["fmt", "--stdin"]
+        }
+      },
+      "code_actions_on_format": {
+        "source.organizeImports": true
+      }
+    },
+    "JSON": {
+      "language_servers": ["prettier"]
+    }
+  }
+}

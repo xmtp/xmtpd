@@ -15,10 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
-	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
+	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 
 	"github.com/Masterminds/semver/v3"
@@ -52,6 +52,7 @@ type ReplicationServerConfig struct {
 	Options       *config.ServerOptions
 	ServerVersion *semver.Version
 	GRPCListener  net.Listener
+	FeeCalculator fees.IFeeCalculator
 }
 
 func WithContext(ctx context.Context) ReplicationServerOption {
@@ -96,6 +97,12 @@ func WithGRPCListener(listener net.Listener) ReplicationServerOption {
 	}
 }
 
+func WithFeeCalculator(feeCalculator fees.IFeeCalculator) ReplicationServerOption {
+	return func(cfg *ReplicationServerConfig) {
+		cfg.FeeCalculator = feeCalculator
+	}
+}
+
 type ReplicationServer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -112,6 +119,7 @@ type ReplicationServer struct {
 	cursorUpdater       metadata.CursorUpdater
 	blockchainPublisher *blockchain.BlockchainPublisher
 	migratorServer      *migrator.Migrator
+	reportWorkers       *workers.WorkerWrapper
 }
 
 type ReplicationServerOption func(*ReplicationServerConfig)
@@ -147,6 +155,10 @@ func NewReplicationServer(
 		return nil, errors.New("database not provided")
 	}
 
+	if cfg.FeeCalculator == nil {
+		return nil, errors.New("no fee calculator found")
+	}
+
 	promReg := prometheus.NewRegistry()
 
 	clientMetrics := grpcprom.NewClientMetrics(
@@ -179,7 +191,7 @@ func NewReplicationServer(
 	}
 	s.ctx, s.cancel = context.WithCancel(cfg.Ctx)
 
-	if cfg.Options.API.Enable || cfg.Options.Sync.Enable {
+	if cfg.Options.API.Enable || cfg.Options.Sync.Enable || cfg.Options.PayerReport.Enable {
 		s.registrant, err = registrant.NewRegistrant(
 			s.ctx,
 			cfg.Log,
@@ -274,7 +286,7 @@ func NewReplicationServer(
 			sync.WithNodeRegistry(s.nodeRegistry),
 			sync.WithRegistrant(s.registrant),
 			sync.WithDB(cfg.DB),
-			sync.WithFeeCalculator(fees.NewFeeCalculator(getRatesFetcher())),
+			sync.WithFeeCalculator(cfg.FeeCalculator),
 			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Log)),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 		)
@@ -283,6 +295,57 @@ func NewReplicationServer(
 		}
 
 		cfg.Log.Info("Sync service enabled")
+	}
+
+	if cfg.Options.PayerReport.Enable {
+		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Log, *cfg.Options)
+		if err != nil {
+			cfg.Log.Error("failed to get domain separator for payer report workers", zap.Error(err))
+			return nil, err
+		}
+
+		signer, err := blockchain.NewPrivateKeySigner(
+			cfg.Options.Signer.PrivateKey,
+			cfg.Options.Contracts.SettlementChain.ChainID,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		settlementChainClient, err := blockchain.NewRPCClient(
+			cfg.Ctx,
+			cfg.Options.Contracts.SettlementChain.RPCURL,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		reportsManager, err := blockchain.NewReportsManager(
+			cfg.Log,
+			settlementChainClient,
+			signer,
+			cfg.Options.Contracts.SettlementChain,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		workerConfig, err := workers.NewWorkerConfigBuilder().
+			WithContext(s.ctx).
+			WithLogger(cfg.Log).
+			WithRegistrant(s.registrant).
+			WithRegistry(s.nodeRegistry).
+			WithReportsManager(reportsManager).
+			WithStore(payerreport.NewStore(cfg.DB, cfg.Log)).
+			WithDomainSeparator(domainSeparator).
+			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
+			Build()
+		if err != nil {
+			cfg.Log.Error("failed to build worker config", zap.Error(err))
+			return nil, err
+		}
+
+		s.reportWorkers = workers.RunWorkers(*workerConfig)
 	}
 
 	return s, nil
@@ -308,7 +371,7 @@ func startAPIServer(
 			cfg.DB,
 			s.validationService,
 			s.cursorUpdater,
-			getRatesFetcher(),
+			cfg.FeeCalculator,
 			cfg.Options.API,
 			isMigrationEnabled,
 		)
@@ -416,6 +479,10 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 		s.apiServer.Close(timeout)
 	}
 
+	if s.reportWorkers != nil {
+		s.reportWorkers.Stop()
+	}
+
 	if s.migratorServer != nil {
 		if err := s.migratorServer.Stop(); err != nil {
 			s.log.Error("failed to stop migration service", zap.Error(err))
@@ -423,16 +490,6 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 	}
 
 	s.cancel()
-}
-
-// TODO:nm Replace this with something that fetches rates from the blockchain
-// Will need a rates smart contract first
-func getRatesFetcher() fees.IRatesFetcher {
-	return fees.NewFixedRatesFetcher(&fees.Rates{
-		MessageFee:    currency.PicoDollar(100),
-		StorageFee:    currency.PicoDollar(100),
-		CongestionFee: currency.PicoDollar(100),
-	})
 }
 
 func getDomainSeparator(

@@ -63,11 +63,10 @@ func (w *SubmitterWorker) Start() {
 	})
 }
 
-func (w *SubmitterWorker) Stop() error {
+func (w *SubmitterWorker) Stop() {
 	if w.cancel != nil {
 		w.cancel()
 	}
-	return nil
 }
 
 func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {

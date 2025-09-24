@@ -114,6 +114,11 @@ type SignerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_SIGNER_PRIVATE_KEY" description:"Private key used to sign messages"`
 }
 
+type PayerReportOptions struct {
+	Enable                        bool          `long:"enable"                           env:"XMTPD_PAYER_REPORT_RUN_WORKERS"                      description:"Run workers to submit and attest to payer reports"`
+	AttestationWorkerPollInterval time.Duration `long:"attestation-worker-poll-interval" env:"XMTPD_PAYER_REPORT_ATTESTATION_WORKER_POLL_INTERVAL" description:"Interval between checks for new reports to attest to" default:"1m"`
+}
+
 type ServerOptions struct {
 	API             APIOptions             `group:"API Options"              namespace:"api"`
 	Contracts       ContractsOptions       `group:"Contracts Options"        namespace:"contracts"`
@@ -122,6 +127,7 @@ type ServerOptions struct {
 	Indexer         IndexerOptions         `group:"Indexer Options"          namespace:"indexer"`
 	Metrics         MetricsOptions         `group:"Metrics Options"          namespace:"metrics"`
 	MlsValidation   MlsValidationOptions   `group:"MLS Validation Options"   namespace:"mls-validation"`
+	PayerReport     PayerReportOptions     `group:"Payer Report Options"     namespace:"payer-report"`
 	Reflection      ReflectionOptions      `group:"Reflection Options"       namespace:"reflection"`
 	Replication     ReplicationOptions     `group:"API Options"              namespace:"replication"`
 	Signer          SignerOptions          `group:"Signer Options"           namespace:"signer"`

@@ -15,6 +15,7 @@ import (
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/fees"
 )
 
 type EnabledServices struct {
@@ -44,6 +45,7 @@ func NewTestReplicationServer(
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithGRPCListener(cfg.GRPCListener),
+		s.WithFeeCalculator(fees.NewTestFeeCalculator()),
 		s.WithServerOptions(&config.ServerOptions{
 			API: config.APIOptions{
 				Enable:                cfg.Services.API,

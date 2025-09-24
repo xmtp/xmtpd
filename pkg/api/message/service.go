@@ -63,7 +63,7 @@ func NewReplicationAPIService(
 	store *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
 	updater metadata.CursorUpdater,
-	rateFetcher fees.IRatesFetcher,
+	feeCalculator fees.IFeeCalculator,
 	options config.APIOptions,
 	migrationEnabled bool,
 ) (*Service, error) {
@@ -71,7 +71,6 @@ func NewReplicationAPIService(
 		return nil, errors.New("validation service must not be nil")
 	}
 
-	feeCalculator := fees.NewFeeCalculator(rateFetcher)
 	publishWorker, err := startPublishWorker(ctx, log, registrant, store, feeCalculator)
 	if err != nil {
 		return nil, err

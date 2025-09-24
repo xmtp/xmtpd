@@ -129,8 +129,6 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 	)
 	require.NoError(t, err)
 
-	ratesFetcher := fees.NewTestRatesFetcher()
-
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
 		replicationService, err := message.NewReplicationAPIService(
 			ctx,
@@ -139,7 +137,7 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 			db,
 			mockValidationService,
 			metadata.NewCursorUpdater(ctx, log, db),
-			ratesFetcher,
+			fees.NewTestFeeCalculator(),
 			config.APIOptions{
 				SendKeepAliveInterval: 30 * time.Second,
 			},

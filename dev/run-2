@@ -9,7 +9,7 @@ export XMTPD_PAYER_PRIVATE_KEY=$XMTPD_SIGNER_PRIVATE_KEY
 export XMTPD_DB_WRITER_CONNECTION_STRING="postgres://postgres:xmtp@localhost:8766/postgres?sslmode=disable"
 
 export XMTPD_REFLECTION_ENABLE=true
-export XMTPD_REPLICATION_ENABLE=true
+export XMTPD_API_ENABLE=true
 export XMTPD_SYNC_ENABLE=true
 export XMTPD_INDEXER_ENABLE=true
 export XMTPD_CONTRACTS_CONFIG_FILE_PATH=./dev/environments/anvil.json

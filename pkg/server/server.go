@@ -147,10 +147,6 @@ func NewReplicationServer(
 		return nil, errors.New("database not provided")
 	}
 
-	if cfg.GRPCListener == nil {
-		return nil, errors.New("GRPC listener not provided")
-	}
-
 	promReg := prometheus.NewRegistry()
 
 	clientMetrics := grpcprom.NewClientMetrics(
@@ -183,7 +179,7 @@ func NewReplicationServer(
 	}
 	s.ctx, s.cancel = context.WithCancel(cfg.Ctx)
 
-	if cfg.Options.Replication.Enable || cfg.Options.Sync.Enable {
+	if cfg.Options.API.Enable || cfg.Options.Sync.Enable {
 		s.registrant, err = registrant.NewRegistrant(
 			s.ctx,
 			cfg.Log,
@@ -197,7 +193,7 @@ func NewReplicationServer(
 		}
 	}
 
-	if cfg.Options.Indexer.Enable || cfg.Options.Replication.Enable {
+	if cfg.Options.Indexer.Enable || cfg.Options.API.Enable {
 		s.validationService, err = mlsvalidate.NewMlsValidationService(
 			cfg.Ctx,
 			cfg.Log,
@@ -249,17 +245,22 @@ func NewReplicationServer(
 		cfg.Log.Info("Migration service enabled")
 	}
 
-	err = startAPIServer(
-		s,
-		cfg,
-		clientMetrics,
-		promReg,
-	)
-	if err != nil {
-		return nil, err
-	}
+	if cfg.Options.API.Enable {
+		if cfg.GRPCListener == nil {
+			return nil, errors.New("grpc listener not provided")
+		}
+		err = startAPIServer(
+			s,
+			cfg,
+			clientMetrics,
+			promReg,
+		)
+		if err != nil {
+			return nil, err
+		}
 
-	cfg.Log.Info("API server started", zap.Int("port", cfg.Options.API.Port))
+		cfg.Log.Info("API server started", zap.Int("port", cfg.Options.API.Port))
+	}
 
 	if cfg.Options.Sync.Enable {
 		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Log, *cfg.Options)
@@ -298,42 +299,39 @@ func startAPIServer(
 	isMigrationEnabled := cfg.Options.MigrationServer.Enable || cfg.Options.MigrationClient.Enable
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		if cfg.Options.Replication.Enable {
+		s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.Log, cfg.DB)
 
-			s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.Log, cfg.DB)
-
-			replicationService, err := message.NewReplicationAPIService(
-				s.ctx,
-				cfg.Log,
-				s.registrant,
-				cfg.DB,
-				s.validationService,
-				s.cursorUpdater,
-				getRatesFetcher(),
-				cfg.Options.Replication,
-				isMigrationEnabled,
-			)
-			if err != nil {
-				return err
-			}
-			message_api.RegisterReplicationApiServer(grpcServer, replicationService)
-
-			cfg.Log.Info("Replication service enabled")
-
-			metadataService, err := metadata.NewMetadataAPIService(
-				s.ctx,
-				cfg.Log,
-				s.cursorUpdater,
-				cfg.ServerVersion,
-				metadata.NewPayerInfoFetcher(cfg.DB),
-			)
-			if err != nil {
-				return err
-			}
-			metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
-
-			cfg.Log.Info("Metadata service enabled")
+		replicationService, err := message.NewReplicationAPIService(
+			s.ctx,
+			cfg.Log,
+			s.registrant,
+			cfg.DB,
+			s.validationService,
+			s.cursorUpdater,
+			getRatesFetcher(),
+			cfg.Options.API,
+			isMigrationEnabled,
+		)
+		if err != nil {
+			return err
 		}
+		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
+
+		cfg.Log.Info("API service enabled")
+
+		metadataService, err := metadata.NewMetadataAPIService(
+			s.ctx,
+			cfg.Log,
+			s.cursorUpdater,
+			cfg.ServerVersion,
+			metadata.NewPayerInfoFetcher(cfg.DB),
+		)
+		if err != nil {
+			return err
+		}
+		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
+
+		cfg.Log.Info("Metadata service enabled")
 
 		return nil
 	}

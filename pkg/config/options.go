@@ -6,7 +6,9 @@ import (
 )
 
 type APIOptions struct {
-	Port int `short:"p" long:"port" description:"Port to listen on" env:"XMTPD_API_PORT" default:"5050"`
+	Enable                bool          `long:"enable"                   env:"XMTPD_API_ENABLE"                   description:"Enable the client API"`
+	SendKeepAliveInterval time.Duration `long:"send-keep-alive-interval" env:"XMTPD_API_SEND_KEEP_ALIVE_INTERVAL" description:"Send empty application level keepalive package interval" default:"30s"`
+	Port                  int           `long:"port"                     env:"XMTPD_API_PORT"                     description:"Port to listen on"                                       default:"5050" short:"p"`
 }
 
 type ContractsOptions struct {
@@ -81,8 +83,8 @@ type PayerOptions struct {
 }
 
 type ReplicationOptions struct {
-	Enable                bool          `long:"enable"                   env:"XMTPD_REPLICATION_ENABLE"           description:"Enable the replication API"`
-	SendKeepAliveInterval time.Duration `long:"send-keep-alive-interval" env:"XMTPD_API_SEND_KEEP_ALIVE_INTERVAL" description:"Send empty application level keepalive package interval" default:"30s"`
+	// Deprecated: use API instead
+	Enable bool `long:"enable" env:"XMTPD_REPLICATION_ENABLE" description:"Enable the replication API"`
 }
 
 type SyncOptions struct {
@@ -121,7 +123,7 @@ type ServerOptions struct {
 	Metrics         MetricsOptions         `group:"Metrics Options"          namespace:"metrics"`
 	MlsValidation   MlsValidationOptions   `group:"MLS Validation Options"   namespace:"mls-validation"`
 	Reflection      ReflectionOptions      `group:"Reflection Options"       namespace:"reflection"`
-	Replication     ReplicationOptions     `group:"Replication Options"      namespace:"replication"`
+	Replication     ReplicationOptions     `group:"API Options"              namespace:"replication"`
 	Signer          SignerOptions          `group:"Signer Options"           namespace:"signer"`
 	Sync            SyncOptions            `group:"Sync Options"             namespace:"sync"`
 	Tracing         TracingOptions         `group:"DD APM Tracing Options"   namespace:"tracing"`

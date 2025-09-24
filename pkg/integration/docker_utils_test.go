@@ -69,7 +69,7 @@ func loadEnvFromShell() (map[string]string, error) {
 }
 
 func expandVars(vars map[string]string) {
-	vars["XMTPD_REPLICATION_ENABLE"] = "true"
+	vars["XMTPD_API_ENABLE"] = "true"
 	vars["XMTPD_INDEXER_ENABLE"] = "true"
 
 	dbName := testutils.GetCallerName(3) + "_" + testutils.RandomStringLower(6)

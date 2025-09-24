@@ -35,7 +35,7 @@ func ValidateServerOptions(options *ServerOptions) error {
 		missingSet,
 	)
 
-	if options.Replication.Enable {
+	if options.API.Enable {
 		validateField(options.Signer.PrivateKey, "signer.private-key", missingSet)
 		validateField(options.MlsValidation.GrpcAddress, "mls-validation.grpc-address", missingSet)
 	}
@@ -372,7 +372,7 @@ func validateBlockchainConfig(
 	validateAppChainConfig(options, missingSet, customSet)
 	validateSettlementChainConfig(options, missingSet, customSet)
 
-	if options.Replication.Enable || options.Sync.Enable {
+	if options.API.Enable || options.Sync.Enable {
 		validateHexAddress(
 			options.Contracts.SettlementChain.RateRegistryAddress,
 			"contracts.settlement-chain.rate-registry-address",

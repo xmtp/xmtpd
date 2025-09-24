@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/xmtp/xmtpd/pkg/currency"
+
 	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
 
@@ -128,7 +130,7 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 		f.logger.Info(
 			"ETH balance of",
 			zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(ethBalance, 18)),
+			zap.String("balance", currency.FromWei(ethBalance, 18)),
 		)
 	}
 
@@ -138,7 +140,7 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 	} else {
 		f.logger.Info(
 			"xUSD balance of", zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(feeTokenBalance, 6)),
+			zap.String("balance", currency.FromWei(feeTokenBalance, 6)),
 		)
 	}
 
@@ -148,7 +150,7 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 	} else {
 		f.logger.Info(
 			"USDC balance of", zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(underlyingTokenBalance, 6)),
+			zap.String("balance", currency.FromWei(underlyingTokenBalance, 6)),
 		)
 	}
 
@@ -159,7 +161,7 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 		f.logger.Info(
 			"XMTP balance of",
 			zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(appGasBalance, 18)),
+			zap.String("balance", currency.FromWei(appGasBalance, 18)),
 		)
 	}
 
@@ -369,36 +371,4 @@ func (f *fundsAdmin) ReceiveWithdrawal(
 	}
 
 	return nil
-}
-
-// FromWei converts a wei value into a decimal string with the given decimals.
-// For ETH, use decimals = 18.
-// For an ERC20, use its `decimals()` value.
-func FromWei(wei *big.Int, decimals int) string {
-	// divisor = 10^decimals
-	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
-
-	intPart := new(big.Int).Div(wei, divisor)
-	fracPart := new(big.Int).Mod(wei, divisor)
-
-	// Left-pad fractional part with zeros
-	fracStr := fracPart.String()
-	for len(fracStr) < decimals {
-		fracStr = "0" + fracStr
-	}
-
-	// Trim trailing zeros for nicer output
-	fracStr = trimTrailingZeros(fracStr)
-
-	if fracStr == "" {
-		return intPart.String()
-	}
-	return intPart.String() + "." + fracStr
-}
-
-func trimTrailingZeros(s string) string {
-	for len(s) > 0 && s[len(s)-1] == '0' {
-		s = s[:len(s)-1]
-	}
-	return s
 }

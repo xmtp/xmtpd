@@ -178,7 +178,6 @@ func withdrawHandler(opts WithdrawOpts) error {
 }
 
 func receiveWithdrawalCmd() *cobra.Command {
-
 	cmd := &cobra.Command{
 		Use:          "receive-withdrawal",
 		Short:        "Receive a withdrawal from XMTP",
@@ -223,7 +222,6 @@ func receiveWithdrawalHandler() error {
 // ---- balances ----
 
 func balancesCmd() *cobra.Command {
-
 	cmd := &cobra.Command{
 		Use:          "balances",
 		Short:        "Check balances for an address",

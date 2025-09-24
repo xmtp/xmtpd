@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 )
 
 // PicoDollar is a type to represent currency with 12 decimal precision
@@ -38,20 +39,36 @@ func FromMicrodollars(microdollars MicroDollar) PicoDollar {
 	return PicoDollar(microdollars * 1e6)
 }
 
-// toDollarsTestOnly converts PicoDollars to a dollar amount (as a float)
-func (p PicoDollar) toDollarsTestOnly() float64 {
-	return float64(p) / PicoDollarsPerDollar
-}
-
 // ToMicroDollars converts PicoDollars to MicroDollars (1e6 units per dollar)
 func (p PicoDollar) ToMicroDollars() MicroDollar {
 	return MicroDollar(p / 1e6)
 }
 
-func (p PicoDollar) String() string {
-	return fmt.Sprintf("%.12f", p.toDollarsTestOnly())
-}
-
 func (m MicroDollar) ToBigInt() *big.Int {
 	return big.NewInt(int64(m))
+}
+
+// FromWei converts a wei value into a decimal string with the given decimals.
+// For ETH, use decimals = 18.
+// For an ERC20, use its `decimals()` value.
+func FromWei(wei *big.Int, decimals int) string {
+	if wei == nil {
+		return "0"
+	}
+	// 10^decimals
+	pow10 := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+
+	// Use big.Float with enough precision to avoid rounding issues.
+	f := new(big.Float).SetPrec(256).SetInt(wei)
+	div := new(big.Float).SetPrec(256).SetInt(pow10)
+	val := new(big.Float).Quo(f, div)
+
+	// Format with fixed decimals, then trim.
+	s := fmt.Sprintf("%.*f", decimals, val)
+	s = strings.TrimRight(s, "0")
+	s = strings.TrimRight(s, ".") // <-- fixes the "1." case
+	if s == "" {                  // happens only if input was 0
+		return "0"
+	}
+	return s
 }

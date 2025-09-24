@@ -23,7 +23,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.uber.org/zap"
@@ -53,7 +52,6 @@ type ReplicationServerConfig struct {
 	Options       *config.ServerOptions
 	ServerVersion *semver.Version
 	GRPCListener  net.Listener
-	HTTPListener  net.Listener
 }
 
 func WithContext(ctx context.Context) ReplicationServerOption {
@@ -95,12 +93,6 @@ func WithServerVersion(version *semver.Version) ReplicationServerOption {
 func WithGRPCListener(listener net.Listener) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
 		cfg.GRPCListener = listener
-	}
-}
-
-func WithHTTPListener(listener net.Listener) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
-		cfg.HTTPListener = listener
 	}
 }
 
@@ -157,10 +149,6 @@ func NewReplicationServer(
 
 	if cfg.GRPCListener == nil {
 		return nil, errors.New("GRPC listener not provided")
-	}
-
-	if cfg.HTTPListener == nil {
-		return nil, errors.New("http listener not provided")
 	}
 
 	promReg := prometheus.NewRegistry()
@@ -350,21 +338,6 @@ func startAPIServer(
 		return nil
 	}
 
-	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
-		if cfg.Options.Replication.Enable {
-			err = metadata_api.RegisterMetadataApiHandler(s.ctx, gwmux, conn)
-			if err != nil {
-				return err
-			}
-
-			err = message_api.RegisterReplicationApiHandler(s.ctx, gwmux, conn)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
 	var jwtVerifier authn.JWTVerifier
 
 	if s.nodeRegistry != nil && s.registrant != nil {
@@ -383,9 +356,7 @@ func startAPIServer(
 		api.WithContext(s.ctx),
 		api.WithLogger(cfg.Log),
 		api.WithGRPCListener(cfg.GRPCListener),
-		api.WithHTTPListener(cfg.HTTPListener),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
-		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithReflection(cfg.Options.Reflection.Enable),
 		api.WithPrometheusRegistry(promReg),
 	}

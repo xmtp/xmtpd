@@ -138,9 +138,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	server1Port := networkTestUtils.OpenFreePort(t)
 	server2Port := networkTestUtils.OpenFreePort(t)
 
-	httpServer1Port := networkTestUtils.OpenFreePort(t)
-	httpServer2Port := networkTestUtils.OpenFreePort(t)
-
 	nodes := []registry.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
@@ -163,7 +160,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server1Port,
-			HTTPListener:     httpServer1Port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -178,7 +174,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     server2Port,
-			HTTPListener:     httpServer2Port,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,

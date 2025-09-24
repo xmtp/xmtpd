@@ -149,14 +149,6 @@ func main() {
 			_ = grpcListener.Close()
 		}()
 
-		httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.API.HTTPPort))
-		if err != nil {
-			logger.Fatal("initializing http listener", zap.Error(err))
-		}
-		defer func() {
-			_ = httpListener.Close()
-		}()
-
 		s, err := server.NewReplicationServer(
 			server.WithContext(ctx),
 			server.WithLogger(logger),
@@ -164,7 +156,6 @@ func main() {
 			server.WithNodeRegistry(chainRegistry),
 			server.WithDB(dbInstance),
 			server.WithGRPCListener(grpcListener),
-			server.WithHTTPListener(httpListener),
 			server.WithServerVersion(version),
 		)
 		if err != nil {

@@ -24,7 +24,6 @@ func TestEnvelopesGenerator(t *testing.T) {
 		ctx              = t.Context()
 		db, _            = testutils.NewDB(t, ctx)
 		grpcPort         = networkTestUtils.OpenFreePort(t)
-		httpPort         = networkTestUtils.OpenFreePort(t)
 		wsURL, rpcURL    = anvil.StartAnvil(t, false)
 		contractsOptions = testutils.NewContractsOptions(t, rpcURL, wsURL)
 	)
@@ -45,7 +44,6 @@ func TestEnvelopesGenerator(t *testing.T) {
 		t,
 		serverTestUtils.TestServerCfg{
 			GRPCListener:     grpcPort,
-			HTTPListener:     httpPort,
 			DB:               db,
 			Registry:         registry,
 			PrivateKey:       privateKey,

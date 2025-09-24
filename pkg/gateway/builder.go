@@ -7,7 +7,6 @@ import (
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -227,19 +226,8 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		return nil
 	}
 
-	httpRegistrationFunc := func(gwmux *runtime.ServeMux, conn *grpc.ClientConn) error {
-		return payer_api.RegisterPayerApiHandler(ctx, gwmux, conn)
-	}
-
-	httpListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.HTTPPort))
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
 	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.Port))
 	if err != nil {
-		_ = httpListener.Close()
 		cancel()
 		return nil, err
 	}
@@ -250,10 +238,8 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	apiServer, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(b.logger),
-		api.WithHTTPListener(httpListener),
 		api.WithGRPCListener(grpcListener),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
-		api.WithHTTPRegistrationFunc(httpRegistrationFunc),
 		api.WithPrometheusRegistry(promRegistry),
 		api.WithUnaryInterceptors(gatewayInterceptor.Unary()),
 		api.WithStreamInterceptors(gatewayInterceptor.Stream()),

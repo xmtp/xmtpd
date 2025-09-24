@@ -25,7 +25,6 @@ type EnabledServices struct {
 
 type TestServerCfg struct {
 	GRPCListener     net.Listener
-	HTTPListener     net.Listener
 	DB               *sql.DB
 	Registry         r.NodeRegistry
 	PrivateKey       *ecdsa.PrivateKey
@@ -45,7 +44,6 @@ func NewTestReplicationServer(
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithGRPCListener(cfg.GRPCListener),
-		s.WithHTTPListener(cfg.HTTPListener),
 		s.WithServerOptions(&config.ServerOptions{
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{

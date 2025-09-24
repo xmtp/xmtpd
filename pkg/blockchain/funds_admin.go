@@ -285,7 +285,7 @@ func (f *fundsAdmin) Withdraw(
 	}
 	f.logger.Info("Current balance", zap.String("raw", appGasBalance.String()))
 
-	if appGasBalance.Cmp(amount) < 0 {
+	if appGasBalance.Cmp(amount) <= 0 {
 		return fmt.Errorf(
 			"insufficient balance: need %s tokens, have %s tokens",
 			amount.String(),

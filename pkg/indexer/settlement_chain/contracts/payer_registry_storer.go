@@ -117,7 +117,7 @@ func (s *PayerRegistryStorer) handleDeposit(
 	s.logger.Info(
 		"deposit successful",
 		zap.String("payer_address", parsedEvent.Payer.Hex()),
-		zap.String("amount", amount.String()),
+		zap.Int64("amount", int64(amount)),
 		zap.String("event_id", eventID.String()),
 	)
 
@@ -157,7 +157,7 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 	s.logger.Info(
 		"withdrawal requested successful",
 		zap.String("payer_address", parsedEvent.Payer.Hex()),
-		zap.String("amount", amount.String()),
+		zap.Int64("amount", int64(amount)),
 		zap.String("event_id", eventID.String()),
 	)
 
@@ -192,7 +192,7 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 	s.logger.Info(
 		"usage settled",
 		zap.String("payer_address", parsedEvent.Payer.Hex()),
-		zap.String("amount", amount.String()),
+		zap.Int64("amount", int64(amount)),
 		zap.String("event_id", eventID.String()),
 	)
 

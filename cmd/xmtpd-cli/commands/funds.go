@@ -165,7 +165,7 @@ func withdrawHandler(opts WithdrawOpts) error {
 	}
 
 	if amount.Sign() == -1 {
-		return fmt.Errorf("invalid --amount %d; must be non-negative", amount)
+		return fmt.Errorf("invalid --amount %s; must be non-negative", opts.Amount)
 	}
 
 	err = admin.Withdraw(ctx, amount)

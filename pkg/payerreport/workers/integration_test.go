@@ -165,8 +165,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				Replication: true,
-				Sync:        true,
+				API:  true,
+				Sync: true,
 			},
 		},
 	)
@@ -179,8 +179,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			PrivateKey:       privateKey2,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				Replication: true,
-				Sync:        true,
+				API:  true,
+				Sync: true,
 			},
 		},
 	)

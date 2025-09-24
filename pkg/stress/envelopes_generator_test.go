@@ -49,8 +49,8 @@ func TestEnvelopesGenerator(t *testing.T) {
 			PrivateKey:       privateKey,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				Replication: true,
-				Sync:        true,
+				API:  true,
+				Sync: true,
 			},
 		},
 	)

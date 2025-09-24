@@ -18,9 +18,9 @@ import (
 )
 
 type EnabledServices struct {
-	Indexer     bool
-	Sync        bool
-	Replication bool
+	API     bool
+	Indexer bool
+	Sync    bool
 }
 
 type TestServerCfg struct {
@@ -45,6 +45,10 @@ func NewTestReplicationServer(
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithGRPCListener(cfg.GRPCListener),
 		s.WithServerOptions(&config.ServerOptions{
+			API: config.APIOptions{
+				Enable:                cfg.Services.API,
+				SendKeepAliveInterval: 30 * time.Second,
+			},
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{
 				GrpcAddress: "http://localhost:60051",
@@ -54,10 +58,6 @@ func NewTestReplicationServer(
 			},
 			Sync: config.SyncOptions{
 				Enable: cfg.Services.Sync,
-			},
-			Replication: config.ReplicationOptions{
-				Enable:                cfg.Services.Replication,
-				SendKeepAliveInterval: 30 * time.Second,
 			},
 			Indexer: config.IndexerOptions{
 				Enable: cfg.Services.Indexer,

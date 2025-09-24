@@ -70,8 +70,8 @@ func TestCreateServer(t *testing.T) {
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				Replication: true,
-				Sync:        true,
+				API:  true,
+				Sync: true,
 			},
 		},
 	)
@@ -84,8 +84,8 @@ func TestCreateServer(t *testing.T) {
 			PrivateKey:       privateKey2,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				Replication: true,
-				Sync:        true,
+				API:  true,
+				Sync: true,
 			},
 		},
 	)
@@ -205,7 +205,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				Replication: true,
+				API: true,
 			},
 		},
 	)
@@ -274,7 +274,9 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 		Registry:         registry,
 		PrivateKey:       privateKey,
 		ContractsOptions: contractsOptions,
-		Services:         serverTestUtils.EnabledServices{}, // even if empty
+		Services: serverTestUtils.EnabledServices{
+			API: true,
+		},
 	})
 	defer server.Shutdown(0)
 

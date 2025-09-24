@@ -52,7 +52,7 @@ type Service struct {
 	validationService mlsvalidate.MLSValidationService
 	cu                metadata.CursorUpdater
 	feeCalculator     fees.IFeeCalculator
-	options           config.ReplicationOptions
+	options           config.APIOptions
 	migrationEnabled  bool
 }
 
@@ -64,7 +64,7 @@ func NewReplicationAPIService(
 	validationService mlsvalidate.MLSValidationService,
 	updater metadata.CursorUpdater,
 	rateFetcher fees.IRatesFetcher,
-	options config.ReplicationOptions,
+	options config.APIOptions,
 	migrationEnabled bool,
 ) (*Service, error) {
 	if validationService == nil {

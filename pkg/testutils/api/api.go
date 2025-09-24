@@ -140,7 +140,7 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 			mockValidationService,
 			metadata.NewCursorUpdater(ctx, log, db),
 			ratesFetcher,
-			config.ReplicationOptions{
+			config.APIOptions{
 				SendKeepAliveInterval: 30 * time.Second,
 			},
 			false,

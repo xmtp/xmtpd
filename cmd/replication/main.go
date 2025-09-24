@@ -67,6 +67,13 @@ func main() {
 		logger.Error(fmt.Sprintf("Could not parse semver version (%s): %s", Version, err))
 	}
 
+	// consolidate API options
+	//nolint:staticcheck
+	if options.Replication.Enable && !options.API.Enable {
+		logger.Warn("--replication.enable is deprecated, use --api.enable instead")
+		options.API.Enable = true
+	}
+
 	if options.Tracing.Enable {
 		logger.Info("starting tracer")
 		tracing.Start(Version, logger)
@@ -97,7 +104,7 @@ func main() {
 			}()
 		}
 
-		if options.Replication.Enable || options.Sync.Enable || options.Indexer.Enable ||
+		if options.API.Enable || options.Sync.Enable || options.Indexer.Enable ||
 			options.MigrationServer.Enable {
 			namespace := options.DB.NameOverride
 			if namespace == "" {
@@ -141,13 +148,16 @@ func main() {
 			logger.Fatal("starting smart contract registry", zap.Error(err))
 		}
 
-		grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.API.Port))
-		if err != nil {
-			logger.Fatal("initializing grpc listener", zap.Error(err))
+		var grpcListener net.Listener
+		if options.API.Enable {
+			grpcListener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.API.Port))
+			if err != nil {
+				logger.Fatal("initializing grpc listener", zap.Error(err))
+			}
+			defer func() {
+				_ = grpcListener.Close()
+			}()
 		}
-		defer func() {
-			_ = grpcListener.Close()
-		}()
 
 		s, err := server.NewReplicationServer(
 			server.WithContext(ctx),

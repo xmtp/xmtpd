@@ -24,14 +24,7 @@ type DepositOpts struct {
 }
 
 type WithdrawOpts struct {
-	PrivateKey   string
-	Recipient    string
-	Amount       string
-	WithdrawType string
-}
-
-type BalancesOpts struct {
-	Address string
+	Amount string
 }
 
 // ---- Root ----
@@ -46,7 +39,7 @@ func fundsCmd() *cobra.Command {
 	cmd.AddCommand(
 		depositCmd(),
 		withdrawCmd(),
-		checkWithdrawalsCmd(),
+		receiveWithdrawalCmd(),
 		balancesCmd(),
 		mintCmd(),
 	)
@@ -138,87 +131,119 @@ func withdrawCmd() *cobra.Command {
 		},
 		Example: `
 Usage:
-  xmtpd-cli funds withdraw --private-key <private_key> --recipient <recipient> --amount <amount> [--withdraw-type normal]
+  xmtpd-cli funds withdraw --amount <amount>
 
 Example:
-  xmtpd-cli funds withdraw --private-key 0xabc... --recipient 0xdef... --amount 1000000000000000000 --withdraw-type normal
+  xmtpd-cli funds withdraw --amount 1000000000000000000
 `,
 	}
 
 	cmd.Flags().
-		StringVar(&opts.PrivateKey, "private-key", "", "private key to use for signing the withdrawal")
-	cmd.Flags().StringVar(&opts.Recipient, "recipient", "", "recipient address")
-	cmd.Flags().
 		StringVar(&opts.Amount, "amount", "", "amount to withdraw (wei-scale or token base units)")
-	cmd.Flags().
-		StringVar(&opts.WithdrawType, "withdraw-type", "normal", "withdrawal type (e.g., normal)")
 
-	_ = cmd.MarkFlagRequired("private-key")
-	_ = cmd.MarkFlagRequired("recipient")
 	_ = cmd.MarkFlagRequired("amount")
 
 	return cmd
 }
 
-func withdrawHandler(_ WithdrawOpts) error {
-	// TODO: implement withdraw_from_xmtp(privateKey, recipient, amount, withdrawType)
-	return fmt.Errorf("withdraw not implemented yet")
+func withdrawHandler(opts WithdrawOpts) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+
+	admin, err := setupFundsAdmin(ctx, logger)
+	if err != nil {
+		logger.Error("could not setup settlement chain admin", zap.Error(err))
+		return err
+	}
+
+	amount, ok := new(big.Int).SetString(opts.Amount, 10)
+	if !ok {
+		return fmt.Errorf("invalid --amount (raw uint256) %q", opts.Amount)
+	}
+
+	if amount.Sign() == -1 {
+		return fmt.Errorf("invalid --amount %d; must be non-negative", amount)
+	}
+
+	err = admin.Withdraw(ctx, amount)
+	if err != nil {
+		logger.Error("could not withdraw funds", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
-// ---- check-withdrawals ----
+func receiveWithdrawalCmd() *cobra.Command {
 
-func checkWithdrawalsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "check-withdrawals",
-		Short:        "Check pending/processed withdrawals",
+		Use:          "receive-withdrawal",
+		Short:        "Receive a withdrawal from XMTP",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return checkWithdrawalsHandler()
+			return receiveWithdrawalHandler()
 		},
 		Example: `
 Usage:
-  xmtpd-cli funds check-withdrawals
+  xmtpd-cli funds receive-withdrawal
 
 Example:
-  xmtpd-cli funds check-withdrawals
+  xmtpd-cli funds receive-withdrawal
 `,
 	}
+
 	return cmd
 }
 
-func checkWithdrawalsHandler() error {
-	// TODO: implement check_withdrawals()
-	return fmt.Errorf("check-withdrawals not implemented yet")
+func receiveWithdrawalHandler() error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+
+	admin, err := setupFundsAdmin(ctx, logger)
+	if err != nil {
+		logger.Error("could not setup settlement chain admin", zap.Error(err))
+		return err
+	}
+
+	err = admin.ReceiveWithdrawal(ctx)
+	if err != nil {
+		logger.Error("could not receive withdrawal", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 // ---- balances ----
 
 func balancesCmd() *cobra.Command {
-	var opts BalancesOpts
 
 	cmd := &cobra.Command{
 		Use:          "balances",
 		Short:        "Check balances for an address",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return balancesHandler(opts)
+			return balancesHandler()
 		},
 		Example: `
 Usage:
-  xmtpd-cli funds balances --address <address>
+  xmtpd-cli funds balances
 
 Example:
-  xmtpd-cli funds balances --address 0xabc...
+  xmtpd-cli funds balances
 `,
 	}
-
-	cmd.Flags().StringVar(&opts.Address, "address", "", "address to query balances for")
-	_ = cmd.MarkFlagRequired("address")
 
 	return cmd
 }
 
-func balancesHandler(opts BalancesOpts) error {
+func balancesHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -231,7 +256,7 @@ func balancesHandler(opts BalancesOpts) error {
 		return err
 	}
 
-	return admin.Balances(ctx, common.HexToAddress(opts.Address))
+	return admin.Balances(ctx)
 }
 
 func mintCmd() *cobra.Command {

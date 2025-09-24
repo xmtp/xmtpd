@@ -49,11 +49,6 @@ func main() {
 		return
 	}
 
-	err = config.ValidateServerOptions(&options)
-	if err != nil {
-		fatal("Could not validate options: %s", err)
-	}
-
 	logger, _, err := utils.BuildLogger(options.Log)
 	if err != nil {
 		fatal("Could not build logger: %s", err)
@@ -72,6 +67,11 @@ func main() {
 	if options.Replication.Enable && !options.API.Enable {
 		logger.Warn("--replication.enable is deprecated, use --api.enable instead")
 		options.API.Enable = true
+	}
+
+	err = config.ValidateServerOptions(&options)
+	if err != nil {
+		fatal("Could not validate options: %s", err)
 	}
 
 	if options.Tracing.Enable {

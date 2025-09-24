@@ -71,13 +71,13 @@ func EmitPayerMessageOriginated(originatorID uint32, count int) {
 		Add(float64(count))
 }
 
-var payerGetReaderNodeAvailableNodes = prometheus.NewGauge(
+var payerGetNodesAvailableNodes = prometheus.NewGauge(
 	prometheus.GaugeOpts{
-		Name: "xmtp_payer_get_reader_node_available_nodes",
+		Name: "xmtp_payer_get_nodes_available_nodes",
 		Help: "Number of currently available nodes for reader selection",
 	},
 )
 
-func EmitPayerGetReaderNodeAvailableNodes(count int) {
-	payerGetReaderNodeAvailableNodes.Set(float64(count))
+func EmitPayerGetNodesAvailableNodes(count int) {
+	payerGetNodesAvailableNodes.Set(float64(count))
 }

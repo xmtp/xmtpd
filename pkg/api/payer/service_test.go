@@ -18,7 +18,7 @@ func TestGetReaderNode(t *testing.T) {
 		nodes         []registry.Node
 		registryError error
 		wantErr       bool
-		checkResponse func(t *testing.T, resp *payer_api.GetReaderNodeResponse)
+		checkResponse func(t *testing.T, resp *payer_api.GetNodesResponse)
 	}{
 		{
 			name: "success with multiple nodes",
@@ -29,13 +29,9 @@ func TestGetReaderNode(t *testing.T) {
 				nodeRegistry.GetHealthyNode(103),
 			},
 			wantErr: false,
-			checkResponse: func(t *testing.T, resp *payer_api.GetReaderNodeResponse) {
-				require.NotEmpty(t, resp.ReaderNodeUrl)
-				require.Len(t, resp.BackupNodeUrls, 3)
-
-				for _, backup := range resp.BackupNodeUrls {
-					require.NotEqual(t, resp.ReaderNodeUrl, backup)
-				}
+			checkResponse: func(t *testing.T, resp *payer_api.GetNodesResponse) {
+				require.NotEmpty(t, resp.Nodes)
+				require.Len(t, resp.Nodes, 4)
 			},
 		},
 		{
@@ -55,9 +51,9 @@ func TestGetReaderNode(t *testing.T) {
 				nodeRegistry.GetHealthyNode(100),
 			},
 			wantErr: false,
-			checkResponse: func(t *testing.T, resp *payer_api.GetReaderNodeResponse) {
-				require.NotEmpty(t, resp.ReaderNodeUrl)
-				require.Empty(t, resp.BackupNodeUrls)
+			checkResponse: func(t *testing.T, resp *payer_api.GetNodesResponse) {
+				require.NotEmpty(t, resp.Nodes)
+				require.Len(t, resp.Nodes, 1)
 			},
 		},
 	}
@@ -69,7 +65,7 @@ func TestGetReaderNode(t *testing.T) {
 
 			registryMocks.On("GetNodes").Return(tt.nodes, tt.registryError)
 
-			resp, err := svc.GetReaderNode(ctx, &payer_api.GetReaderNodeRequest{})
+			resp, err := svc.GetNodes(ctx, &payer_api.GetNodesRequest{})
 
 			if tt.wantErr {
 				require.Error(t, err)

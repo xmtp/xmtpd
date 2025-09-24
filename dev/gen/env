@@ -4,7 +4,9 @@ set -eu
 
 # Work always from the root directory
 script_dir=$(dirname "$(realpath "$0")")
-repo_root=$(realpath "${script_dir}/../")
+repo_root=$(realpath "${script_dir}/../..")
 cd "${repo_root}"
 
-go run pkg/metrics/docs/generator.go
+. dev/local.env
+
+env | grep '^XMTPD_' > .env

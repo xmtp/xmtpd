@@ -36,4 +36,4 @@ jobs:
       - name: metrics catalog
         uses: nickcharlton/diff-check@v1.0.0
         with:
-          command: ./dev/generate-metrics-catalog
+          command: ./dev/gen/metrics-catalog

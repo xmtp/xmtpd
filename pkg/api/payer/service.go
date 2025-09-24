@@ -4,7 +4,6 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
-	"math/rand"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
@@ -80,51 +79,30 @@ func NewPayerAPIService(
 	}, nil
 }
 
-// GetReaderNode returns a reader node and a list of backup nodes.
-// For now, the reader node is chosen randomly from the list of nodes.
-// In the future, different algorithms can be implemented and selected in the request.
-func (s *Service) GetReaderNode(
+// GetNodes returns the complete endpoint list of canonical nodes.
+func (s *Service) GetNodes(
 	ctx context.Context,
-	req *payer_api.GetReaderNodeRequest,
-) (resp *payer_api.GetReaderNodeResponse, err error) {
-	var nodes []registry.Node
-
-	defer func() {
-		metrics.EmitPayerGetReaderNodeAvailableNodes(len(nodes))
-	}()
-
-	nodes, err = s.nodeRegistry.GetNodes()
+	req *payer_api.GetNodesRequest,
+) (resp *payer_api.GetNodesResponse, err error) {
+	nodes, err := s.nodeRegistry.GetNodes()
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "failed to fetch nodes: %v", err)
 	}
+
+	metrics.EmitPayerGetNodesAvailableNodes(len(nodes))
 
 	if len(nodes) == 0 {
 		return nil, status.Errorf(codes.Unavailable, "no nodes available")
 	}
 
-	primaryURL, backupURLs := getReaderNodeRandom(nodes)
-
-	return &payer_api.GetReaderNodeResponse{
-		ReaderNodeUrl:  primaryURL,
-		BackupNodeUrls: backupURLs,
-	}, nil
-}
-
-func getReaderNodeRandom(nodes []registry.Node) (string, []string) {
-	shuffled := make([]registry.Node, len(nodes))
-	copy(shuffled, nodes)
-	rand.Shuffle(len(shuffled), func(i, j int) {
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	})
-
-	primaryURL := shuffled[0].HTTPAddress
-
-	backupURLs := make([]string, 0, len(shuffled)-1)
-	for _, node := range shuffled[1:] {
-		backupURLs = append(backupURLs, node.HTTPAddress)
+	nodeURLs := make([]string, 0, len(nodes))
+	for _, node := range nodes {
+		nodeURLs = append(nodeURLs, node.HTTPAddress)
 	}
 
-	return primaryURL, backupURLs
+	return &payer_api.GetNodesResponse{
+		Nodes: nodeURLs,
+	}, nil
 }
 
 func (s *Service) PublishClientEnvelopes(

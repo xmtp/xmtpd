@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	PayerApi_PublishClientEnvelopes_FullMethodName = "/xmtp.xmtpv4.payer_api.PayerApi/PublishClientEnvelopes"
-	PayerApi_GetReaderNode_FullMethodName          = "/xmtp.xmtpv4.payer_api.PayerApi/GetReaderNode"
+	PayerApi_GetNodes_FullMethodName               = "/xmtp.xmtpv4.payer_api.PayerApi/GetNodes"
 )
 
 // PayerApiClient is the client API for PayerApi service.
@@ -31,7 +31,7 @@ const (
 type PayerApiClient interface {
 	// Publish envelope
 	PublishClientEnvelopes(ctx context.Context, in *PublishClientEnvelopesRequest, opts ...grpc.CallOption) (*PublishClientEnvelopesResponse, error)
-	GetReaderNode(ctx context.Context, in *GetReaderNodeRequest, opts ...grpc.CallOption) (*GetReaderNodeResponse, error)
+	GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error)
 }
 
 type payerApiClient struct {
@@ -51,9 +51,9 @@ func (c *payerApiClient) PublishClientEnvelopes(ctx context.Context, in *Publish
 	return out, nil
 }
 
-func (c *payerApiClient) GetReaderNode(ctx context.Context, in *GetReaderNodeRequest, opts ...grpc.CallOption) (*GetReaderNodeResponse, error) {
-	out := new(GetReaderNodeResponse)
-	err := c.cc.Invoke(ctx, PayerApi_GetReaderNode_FullMethodName, in, out, opts...)
+func (c *payerApiClient) GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error) {
+	out := new(GetNodesResponse)
+	err := c.cc.Invoke(ctx, PayerApi_GetNodes_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (c *payerApiClient) GetReaderNode(ctx context.Context, in *GetReaderNodeReq
 type PayerApiServer interface {
 	// Publish envelope
 	PublishClientEnvelopes(context.Context, *PublishClientEnvelopesRequest) (*PublishClientEnvelopesResponse, error)
-	GetReaderNode(context.Context, *GetReaderNodeRequest) (*GetReaderNodeResponse, error)
+	GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error)
 	mustEmbedUnimplementedPayerApiServer()
 }
 
@@ -77,8 +77,8 @@ type UnimplementedPayerApiServer struct {
 func (UnimplementedPayerApiServer) PublishClientEnvelopes(context.Context, *PublishClientEnvelopesRequest) (*PublishClientEnvelopesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublishClientEnvelopes not implemented")
 }
-func (UnimplementedPayerApiServer) GetReaderNode(context.Context, *GetReaderNodeRequest) (*GetReaderNodeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetReaderNode not implemented")
+func (UnimplementedPayerApiServer) GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNodes not implemented")
 }
 func (UnimplementedPayerApiServer) mustEmbedUnimplementedPayerApiServer() {}
 
@@ -111,20 +111,20 @@ func _PayerApi_PublishClientEnvelopes_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PayerApi_GetReaderNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetReaderNodeRequest)
+func _PayerApi_GetNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNodesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PayerApiServer).GetReaderNode(ctx, in)
+		return srv.(PayerApiServer).GetNodes(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PayerApi_GetReaderNode_FullMethodName,
+		FullMethod: PayerApi_GetNodes_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PayerApiServer).GetReaderNode(ctx, req.(*GetReaderNodeRequest))
+		return srv.(PayerApiServer).GetNodes(ctx, req.(*GetNodesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -141,8 +141,8 @@ var PayerApi_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PayerApi_PublishClientEnvelopes_Handler,
 		},
 		{
-			MethodName: "GetReaderNode",
-			Handler:    _PayerApi_GetReaderNode_Handler,
+			MethodName: "GetNodes",
+			Handler:    _PayerApi_GetNodes_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

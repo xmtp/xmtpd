@@ -1,7 +1,0 @@
-#!/bin/bash
-
-set -eu
-
-. dev/local.env
-
-env | grep '^XMTPD_' > .env

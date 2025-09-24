@@ -120,7 +120,7 @@ func (s *SmartContractRegistry) GetNodes() ([]Node, error) {
 	s.nodesMutex.RLock()
 	defer s.nodesMutex.RUnlock()
 
-	nodes := make([]Node, 0)
+	nodes := make([]Node, 0, len(s.nodes))
 	for _, node := range s.nodes {
 		nodes = append(nodes, node)
 	}

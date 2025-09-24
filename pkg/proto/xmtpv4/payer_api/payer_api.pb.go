@@ -113,26 +113,26 @@ func (x *PublishClientEnvelopesResponse) GetOriginatorEnvelopes() []*envelopes.O
 	return nil
 }
 
-type GetReaderNodeRequest struct {
+type GetNodesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetReaderNodeRequest) Reset() {
-	*x = GetReaderNodeRequest{}
+func (x *GetNodesRequest) Reset() {
+	*x = GetNodesRequest{}
 	mi := &file_xmtpv4_payer_api_payer_api_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetReaderNodeRequest) String() string {
+func (x *GetNodesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetReaderNodeRequest) ProtoMessage() {}
+func (*GetNodesRequest) ProtoMessage() {}
 
-func (x *GetReaderNodeRequest) ProtoReflect() protoreflect.Message {
+func (x *GetNodesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_xmtpv4_payer_api_payer_api_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -144,33 +144,32 @@ func (x *GetReaderNodeRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetReaderNodeRequest.ProtoReflect.Descriptor instead.
-func (*GetReaderNodeRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetNodesRequest.ProtoReflect.Descriptor instead.
+func (*GetNodesRequest) Descriptor() ([]byte, []int) {
 	return file_xmtpv4_payer_api_payer_api_proto_rawDescGZIP(), []int{2}
 }
 
-type GetReaderNodeResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ReaderNodeUrl  string                 `protobuf:"bytes,1,opt,name=reader_node_url,json=readerNodeUrl,proto3" json:"reader_node_url,omitempty"`
-	BackupNodeUrls []string               `protobuf:"bytes,2,rep,name=backup_node_urls,json=backupNodeUrls,proto3" json:"backup_node_urls,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type GetNodesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nodes         []string               `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetReaderNodeResponse) Reset() {
-	*x = GetReaderNodeResponse{}
+func (x *GetNodesResponse) Reset() {
+	*x = GetNodesResponse{}
 	mi := &file_xmtpv4_payer_api_payer_api_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetReaderNodeResponse) String() string {
+func (x *GetNodesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetReaderNodeResponse) ProtoMessage() {}
+func (*GetNodesResponse) ProtoMessage() {}
 
-func (x *GetReaderNodeResponse) ProtoReflect() protoreflect.Message {
+func (x *GetNodesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_xmtpv4_payer_api_payer_api_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -182,21 +181,14 @@ func (x *GetReaderNodeResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetReaderNodeResponse.ProtoReflect.Descriptor instead.
-func (*GetReaderNodeResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetNodesResponse.ProtoReflect.Descriptor instead.
+func (*GetNodesResponse) Descriptor() ([]byte, []int) {
 	return file_xmtpv4_payer_api_payer_api_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetReaderNodeResponse) GetReaderNodeUrl() string {
+func (x *GetNodesResponse) GetNodes() []string {
 	if x != nil {
-		return x.ReaderNodeUrl
-	}
-	return ""
-}
-
-func (x *GetReaderNodeResponse) GetBackupNodeUrls() []string {
-	if x != nil {
-		return x.BackupNodeUrls
+		return x.Nodes
 	}
 	return nil
 }
@@ -209,14 +201,13 @@ const file_xmtpv4_payer_api_payer_api_proto_rawDesc = "" +
 	"\x1dPublishClientEnvelopesRequest\x12C\n" +
 	"\tenvelopes\x18\x01 \x03(\v2%.xmtp.xmtpv4.envelopes.ClientEnvelopeR\tenvelopes\"~\n" +
 	"\x1ePublishClientEnvelopesResponse\x12\\\n" +
-	"\x14originator_envelopes\x18\x01 \x03(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeR\x13originatorEnvelopes\"\x16\n" +
-	"\x14GetReaderNodeRequest\"i\n" +
-	"\x15GetReaderNodeResponse\x12&\n" +
-	"\x0freader_node_url\x18\x01 \x01(\tR\rreaderNodeUrl\x12(\n" +
-	"\x10backup_node_urls\x18\x02 \x03(\tR\x0ebackupNodeUrls2\xdc\x02\n" +
+	"\x14originator_envelopes\x18\x01 \x03(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeR\x13originatorEnvelopes\"\x11\n" +
+	"\x0fGetNodesRequest\"(\n" +
+	"\x10GetNodesResponse\x12\x14\n" +
+	"\x05nodes\x18\x01 \x03(\tR\x05nodes2\xc6\x02\n" +
 	"\bPayerApi\x12\xb8\x01\n" +
-	"\x16PublishClientEnvelopes\x124.xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest\x1a5.xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/mls/v2/payer/publish-client-envelopes\x12\x94\x01\n" +
-	"\rGetReaderNode\x12+.xmtp.xmtpv4.payer_api.GetReaderNodeRequest\x1a,.xmtp.xmtpv4.payer_api.GetReaderNodeResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/mls/v2/payer/get-reader-nodeB\xce\x01\n" +
+	"\x16PublishClientEnvelopes\x124.xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest\x1a5.xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/mls/v2/payer/publish-client-envelopes\x12\x7f\n" +
+	"\bGetNodes\x12&.xmtp.xmtpv4.payer_api.GetNodesRequest\x1a'.xmtp.xmtpv4.payer_api.GetNodesResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/mls/v2/payer/get-nodesB\xce\x01\n" +
 	"\x19com.xmtp.xmtpv4.payer_apiB\rPayerApiProtoP\x01Z0github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api\xa2\x02\x03XXP\xaa\x02\x14Xmtp.Xmtpv4.PayerApi\xca\x02\x14Xmtp\\Xmtpv4\\PayerApi\xe2\x02 Xmtp\\Xmtpv4\\PayerApi\\GPBMetadata\xea\x02\x16Xmtp::Xmtpv4::PayerApib\x06proto3"
 
 var (
@@ -235,8 +226,8 @@ var file_xmtpv4_payer_api_payer_api_proto_msgTypes = make([]protoimpl.MessageInf
 var file_xmtpv4_payer_api_payer_api_proto_goTypes = []any{
 	(*PublishClientEnvelopesRequest)(nil),  // 0: xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest
 	(*PublishClientEnvelopesResponse)(nil), // 1: xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse
-	(*GetReaderNodeRequest)(nil),           // 2: xmtp.xmtpv4.payer_api.GetReaderNodeRequest
-	(*GetReaderNodeResponse)(nil),          // 3: xmtp.xmtpv4.payer_api.GetReaderNodeResponse
+	(*GetNodesRequest)(nil),                // 2: xmtp.xmtpv4.payer_api.GetNodesRequest
+	(*GetNodesResponse)(nil),               // 3: xmtp.xmtpv4.payer_api.GetNodesResponse
 	(*envelopes.ClientEnvelope)(nil),       // 4: xmtp.xmtpv4.envelopes.ClientEnvelope
 	(*envelopes.OriginatorEnvelope)(nil),   // 5: xmtp.xmtpv4.envelopes.OriginatorEnvelope
 }
@@ -244,9 +235,9 @@ var file_xmtpv4_payer_api_payer_api_proto_depIdxs = []int32{
 	4, // 0: xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest.envelopes:type_name -> xmtp.xmtpv4.envelopes.ClientEnvelope
 	5, // 1: xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse.originator_envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
 	0, // 2: xmtp.xmtpv4.payer_api.PayerApi.PublishClientEnvelopes:input_type -> xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest
-	2, // 3: xmtp.xmtpv4.payer_api.PayerApi.GetReaderNode:input_type -> xmtp.xmtpv4.payer_api.GetReaderNodeRequest
+	2, // 3: xmtp.xmtpv4.payer_api.PayerApi.GetNodes:input_type -> xmtp.xmtpv4.payer_api.GetNodesRequest
 	1, // 4: xmtp.xmtpv4.payer_api.PayerApi.PublishClientEnvelopes:output_type -> xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse
-	3, // 5: xmtp.xmtpv4.payer_api.PayerApi.GetReaderNode:output_type -> xmtp.xmtpv4.payer_api.GetReaderNodeResponse
+	3, // 5: xmtp.xmtpv4.payer_api.PayerApi.GetNodes:output_type -> xmtp.xmtpv4.payer_api.GetNodesResponse
 	4, // [4:6] is the sub-list for method output_type
 	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

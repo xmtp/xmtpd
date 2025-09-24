@@ -89,9 +89,7 @@ func TestRedisGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	errCh := make(chan error, numClients)
 
 	for range numClients {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			nonce, err := nonceManager.GetNonce(t.Context())
 			if err != nil {
 				errCh <- err
@@ -102,7 +100,7 @@ func TestRedisGetNonce_ConsumeManyConcurrent(t *testing.T) {
 				errCh <- err
 				return
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

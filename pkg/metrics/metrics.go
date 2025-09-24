@@ -99,7 +99,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		apiFailedGRPCRequestsCounter,
 		blockchainWaitForTransaction,
 		blockchainPublishPayload,
-		payerGetReaderNodeAvailableNodes,
+		payerGetNodesAvailableNodes,
 		migratorE2ELatency,
 		migratorDestLastSequenceIDBlockchain,
 		migratorDestLastSequenceIDDatabase,

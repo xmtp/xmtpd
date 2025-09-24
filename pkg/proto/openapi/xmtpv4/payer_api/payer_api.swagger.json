@@ -16,14 +16,14 @@
     "application/json"
   ],
   "paths": {
-    "/mls/v2/payer/get-reader-node": {
+    "/mls/v2/payer/get-nodes": {
       "post": {
-        "operationId": "PayerApi_GetReaderNode",
+        "operationId": "PayerApi_GetNodes",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/payer_apiGetReaderNodeResponse"
+              "$ref": "#/definitions/payer_apiGetNodesResponse"
             }
           },
           "default": {
@@ -39,7 +39,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/payer_apiGetReaderNodeRequest"
+              "$ref": "#/definitions/payer_apiGetNodesRequest"
             }
           }
         ],
@@ -528,16 +528,13 @@
       "default": "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
       "title": "Describes the algorithm used to encrypt the Welcome Wrapper"
     },
-    "payer_apiGetReaderNodeRequest": {
+    "payer_apiGetNodesRequest": {
       "type": "object"
     },
-    "payer_apiGetReaderNodeResponse": {
+    "payer_apiGetNodesResponse": {
       "type": "object",
       "properties": {
-        "readerNodeUrl": {
-          "type": "string"
-        },
-        "backupNodeUrls": {
+        "nodes": {
           "type": "array",
           "items": {
             "type": "string"

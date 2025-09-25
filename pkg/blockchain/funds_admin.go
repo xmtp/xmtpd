@@ -6,6 +6,9 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/xmtp/xmtpd/pkg/currency"
+
+	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -23,8 +26,10 @@ import (
 
 type IFundsAdmin interface {
 	MintMockUSDC(ctx context.Context, addr common.Address, amount *big.Int) error
-	Balances(ctx context.Context, address common.Address) error
+	Balances(ctx context.Context) error
 	Deposit(ctx context.Context, amount *big.Int, gasLimit *big.Int, gasPrice *big.Int) error
+	Withdraw(ctx context.Context, amount *big.Int) error
+	ReceiveWithdrawal(ctx context.Context) error
 }
 
 type fundsAdmin struct {
@@ -34,6 +39,7 @@ type fundsAdmin struct {
 	feeToken               *ft.FeeToken
 	underlying             *erc20.ERC20
 	settlementGateway      *scg.SettlementChainGateway
+	appGateway             *acg.AppChainGateway
 	mockUnderlyingFeeToken *mft.MockUnderlyingFeeToken
 	spender                common.Address
 	appChainId             int64
@@ -91,6 +97,13 @@ func NewFundsAdmin(
 		return nil, err
 	}
 
+	appGateway, err := acg.NewAppChainGateway(
+		common.HexToAddress(opts.ContractOptions.AppChain.GatewayAddress),
+		opts.App.Client)
+	if err != nil {
+		return nil, err
+	}
+
 	return &fundsAdmin{
 		logger:                 opts.Logger.Named("FundsAdmin"),
 		app:                    opts.App,
@@ -102,11 +115,14 @@ func NewFundsAdmin(
 			opts.ContractOptions.SettlementChain.GatewayAddress,
 		),
 		settlementGateway: settlementGateway,
+		appGateway:        appGateway,
 		appChainId:        opts.ContractOptions.AppChain.ChainID,
 	}, nil
 }
 
-func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error {
+func (f *fundsAdmin) Balances(ctx context.Context) error {
+	address := f.settlement.Signer.FromAddress()
+
 	ethBalance, err := f.settlement.Client.BalanceAt(ctx, address, nil)
 	if err != nil {
 		f.logger.Error("failed to get ETH balance", zap.Error(err))
@@ -114,7 +130,7 @@ func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error
 		f.logger.Info(
 			"ETH balance of",
 			zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(ethBalance, 18)),
+			zap.String("balance", currency.FromWei(ethBalance, 18)),
 		)
 	}
 
@@ -124,7 +140,7 @@ func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error
 	} else {
 		f.logger.Info(
 			"xUSD balance of", zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(feeTokenBalance, 6)),
+			zap.String("balance", currency.FromWei(feeTokenBalance, 6)),
 		)
 	}
 
@@ -134,7 +150,7 @@ func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error
 	} else {
 		f.logger.Info(
 			"USDC balance of", zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(underlyingTokenBalance, 6)),
+			zap.String("balance", currency.FromWei(underlyingTokenBalance, 6)),
 		)
 	}
 
@@ -145,7 +161,7 @@ func (f *fundsAdmin) Balances(ctx context.Context, address common.Address) error
 		f.logger.Info(
 			"XMTP balance of",
 			zap.String("address", address.Hex()),
-			zap.String("balance", FromWei(appGasBalance, 18)),
+			zap.String("balance", currency.FromWei(appGasBalance, 18)),
 		)
 	}
 
@@ -257,34 +273,102 @@ func (f *fundsAdmin) Deposit(
 	return nil
 }
 
-// FromWei converts a wei value into a decimal string with the given decimals.
-// For ETH, use decimals = 18.
-// For an ERC20, use its `decimals()` value.
-func FromWei(wei *big.Int, decimals int) string {
-	// divisor = 10^decimals
-	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+func (f *fundsAdmin) Withdraw(
+	ctx context.Context,
+	amount *big.Int,
+) error {
+	from := f.settlement.Signer.FromAddress()
 
-	intPart := new(big.Int).Div(wei, divisor)
-	fracPart := new(big.Int).Mod(wei, divisor)
+	appGasBalance, err := f.app.Client.BalanceAt(ctx, from, nil)
+	if err != nil {
+		return err
+	}
+	f.logger.Info("Current balance", zap.String("raw", appGasBalance.String()))
 
-	// Left-pad fractional part with zeros
-	fracStr := fracPart.String()
-	for len(fracStr) < decimals {
-		fracStr = "0" + fracStr
+	if appGasBalance.Cmp(amount) <= 0 {
+		return fmt.Errorf(
+			"insufficient balance: need %s tokens, have %s tokens",
+			amount.String(),
+			appGasBalance.String(),
+		)
 	}
 
-	// Trim trailing zeros for nicer output
-	fracStr = trimTrailingZeros(fracStr)
+	f.logger.Info("Executing bridge transaction…")
 
-	if fracStr == "" {
-		return intPart.String()
+	err = ExecuteTransaction(
+		ctx,
+		f.app.Signer,
+		f.logger,
+		f.app.Client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			opts.Value = amount
+			return f.appGateway.Withdraw(
+				opts,
+				from,
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return f.appGateway.ParseWithdrawal(*log)
+		},
+		func(event interface{}) {
+			withdrawal, ok := event.(*acg.AppChainGatewayWithdrawal)
+			if !ok {
+				f.logger.Error("node added event is not of type AppChainGatewayWithdrawal")
+				return
+			}
+			f.logger.Info(
+				"withdrawn",
+				zap.String("amount", withdrawal.Amount.String()),
+				zap.String("recipient", withdrawal.Recipient.Hex()),
+			)
+		},
+	)
+	if err != nil {
+		return err
 	}
-	return intPart.String() + "." + fracStr
+
+	return nil
 }
 
-func trimTrailingZeros(s string) string {
-	for len(s) > 0 && s[len(s)-1] == '0' {
-		s = s[:len(s)-1]
+func (f *fundsAdmin) ReceiveWithdrawal(
+	ctx context.Context,
+) error {
+	from := f.settlement.Signer.FromAddress()
+
+	f.logger.Info("Executing bridge transaction…")
+
+	err := ExecuteTransaction(
+		ctx,
+		f.settlement.Signer,
+		f.logger,
+		f.settlement.Client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return f.settlementGateway.ReceiveWithdrawal(
+				opts,
+				from,
+			)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return f.settlementGateway.ParseWithdrawalReceived(*log)
+		},
+		func(event interface{}) {
+			withdrawal, ok := event.(*scg.SettlementChainGatewayWithdrawalReceived)
+			if !ok {
+				f.logger.Error(
+					"node added event is not of type SettlementChainGatewayWithdrawalReceived",
+				)
+				return
+			}
+			f.logger.Info(
+				"withdrawn",
+				zap.String("amount", withdrawal.Amount.String()),
+				zap.String("recipient", withdrawal.Recipient.Hex()),
+			)
+		},
+	)
+	if err != nil {
+		return err
 	}
-	return s
+
+	return nil
 }

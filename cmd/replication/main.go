@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/debug"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -159,12 +160,23 @@ func main() {
 			}()
 		}
 
+		feeCalculator, err := setupFeeCalculator(
+			ctx,
+			settlementChainClient,
+			logger,
+			options.Contracts,
+		)
+		if err != nil {
+			logger.Fatal("initializing fee calculator", zap.Error(err))
+		}
+
 		s, err := server.NewReplicationServer(
 			server.WithContext(ctx),
 			server.WithLogger(logger),
 			server.WithServerOptions(&options),
 			server.WithNodeRegistry(chainRegistry),
 			server.WithDB(dbInstance),
+			server.WithFeeCalculator(feeCalculator),
 			server.WithGRPCListener(grpcListener),
 			server.WithServerVersion(version),
 		)
@@ -179,6 +191,19 @@ func main() {
 
 	cancel()
 	wg.Wait()
+}
+
+func setupFeeCalculator(
+	ctx context.Context,
+	ethclient bind.ContractCaller,
+	logger *zap.Logger,
+	contractsOptions config.ContractsOptions,
+) (*fees.FeeCalculator, error) {
+	ratesFetcher, err := fees.NewContractRatesFetcher(ctx, ethclient, logger, contractsOptions)
+	if err != nil {
+		return nil, err
+	}
+	return fees.NewFeeCalculator(ratesFetcher), nil
 }
 
 func fatal(msg string, args ...any) {

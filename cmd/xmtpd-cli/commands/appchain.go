@@ -133,19 +133,19 @@ func appPauseSetHandler(target options.Target, paused bool) error {
 
 	switch target {
 	case options.TargetIdentity:
-		if err := admin.SetIdentityUpdatePauseStatus(ctx, paused); err != nil {
+		if err := admin.SetIdentityUpdatePauseStatus(ctx); err != nil {
 			logger.Error("write identity pause", zap.Error(err))
 			return err
 		}
 		logger.Info("identity broadcaster pause set", zap.Bool("paused", paused))
 	case options.TargetGroup:
-		if err := admin.SetGroupMessagePauseStatus(ctx, paused); err != nil {
+		if err := admin.SetGroupMessagePauseStatus(ctx); err != nil {
 			logger.Error("write group pause", zap.Error(err))
 			return err
 		}
 		logger.Info("group broadcaster pause set", zap.Bool("paused", paused))
 	case options.TargetAppChainGateway:
-		if err := admin.SetAppChainGatewayPauseStatus(ctx, paused); err != nil {
+		if err := admin.SetAppChainGatewayPauseStatus(ctx); err != nil {
 			logger.Error("write gateway pause", zap.Error(err))
 			return err
 		}
@@ -243,11 +243,11 @@ func appBootstrapperSetHandler(addr common.Address) error {
 		return fmt.Errorf("could not setup appchain admin: %w", err)
 	}
 
-	if err := admin.SetIdentityUpdateBootstrapper(ctx, addr); err != nil {
+	if err := admin.SetIdentityUpdateBootstrapper(ctx); err != nil {
 		logger.Error("set identity bootstrapper", zap.Error(err))
 		return err
 	}
-	if err := admin.SetGroupMessageBootstrapper(ctx, addr); err != nil {
+	if err := admin.SetGroupMessageBootstrapper(ctx); err != nil {
 		logger.Error("set group bootstrapper", zap.Error(err))
 		return err
 	}
@@ -312,7 +312,7 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 				"payload size",
 				zap.String("target", "identity"),
 				zap.String("bound", "min"),
-				zap.Uint64("bytes", v),
+				zap.Uint32("bytes", v),
 			)
 		case options.PayloadMax:
 			v, e := admin.GetIdentityUpdateMaxPayloadSize(ctx)
@@ -324,7 +324,7 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 				"payload size",
 				zap.String("target", "identity"),
 				zap.String("bound", "max"),
-				zap.Uint64("bytes", v),
+				zap.Uint32("bytes", v),
 			)
 		}
 	case options.TargetGroup:
@@ -339,7 +339,7 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 				"payload size",
 				zap.String("target", "group"),
 				zap.String("bound", "min"),
-				zap.Uint64("bytes", v),
+				zap.Uint32("bytes", v),
 			)
 		case options.PayloadMax:
 			v, e := admin.GetGroupMessageMaxPayloadSize(ctx)
@@ -351,7 +351,7 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 				"payload size",
 				zap.String("target", "group"),
 				zap.String("bound", "max"),
-				zap.Uint64("bytes", v),
+				zap.Uint32("bytes", v),
 			)
 		}
 	default:
@@ -402,24 +402,24 @@ func appPayloadSizeSetHandler(
 	switch target {
 	case options.TargetIdentity:
 		if bound == options.PayloadMin {
-			if err := admin.SetIdentityUpdateMinPayloadSize(ctx, size); err != nil {
+			if err := admin.SetIdentityUpdateMinPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
 		} else {
-			if err := admin.SetIdentityUpdateMaxPayloadSize(ctx, size); err != nil {
+			if err := admin.SetIdentityUpdateMaxPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
 		}
 	case options.TargetGroup:
 		if bound == options.PayloadMin {
-			if err := admin.SetGroupMessageMinPayloadSize(ctx, size); err != nil {
+			if err := admin.SetGroupMessageMinPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
 		} else {
-			if err := admin.SetGroupMessageMaxPayloadSize(ctx, size); err != nil {
+			if err := admin.SetGroupMessageMaxPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}

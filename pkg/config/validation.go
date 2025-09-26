@@ -260,6 +260,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			BackfillBlockPageSize:            500,
 			GatewayAddress:                   config.AppChainGateway,
 			DeploymentBlock:                  uint64(config.AppChainDeploymentBlock),
+			ParameterRegistryAddress:         config.AppChainParameterRegistry,
 		},
 	}, nil
 }
@@ -324,6 +325,9 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 	}
 	if options.AppChain.DeploymentBlock == 0 {
 		options.AppChain.DeploymentBlock = uint64(config.AppChainDeploymentBlock)
+	}
+	if options.AppChain.ParameterRegistryAddress == "" {
+		options.AppChain.ParameterRegistryAddress = config.AppChainParameterRegistry
 	}
 
 	// SettlementChainOptions

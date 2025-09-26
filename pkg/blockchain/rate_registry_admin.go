@@ -14,23 +14,27 @@ import (
 	"go.uber.org/zap"
 )
 
-/*
-*
-A RatesAdmin is a struct responsible for calling admin functions on the RatesRegistry contract
-*
-*/
+type IRatesAdmin interface {
+	AddRates(ctx context.Context, rates fees.Rates) ProtocolError
+}
+
 type RatesAdmin struct {
 	logger        *zap.Logger
-	paramAdmin    *ParameterAdmin
+	client        *ethclient.Client
+	signer        TransactionSigner
+	paramAdmin    IParameterAdmin
 	ratesContract *rateregistry.RateRegistry
 }
 
+var _ IRatesAdmin = &RatesAdmin{}
+
 func NewRatesAdmin(
 	logger *zap.Logger,
-	paramAdmin *ParameterAdmin,
 	client *ethclient.Client,
+	signer TransactionSigner,
+	paramAdmin IParameterAdmin,
 	contractsOptions config.ContractsOptions,
-) (*RatesAdmin, error) {
+) (IRatesAdmin, error) {
 	rateContract, err := rateregistry.NewRateRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.RateRegistryAddress),
 		client,
@@ -43,6 +47,8 @@ func NewRatesAdmin(
 		logger:        logger.Named("RatesAdmin"),
 		paramAdmin:    paramAdmin,
 		ratesContract: rateContract,
+		client:        client,
+		signer:        signer,
 	}, nil
 }
 
@@ -75,9 +81,9 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 
 	err := ExecuteTransaction(
 		ctx,
-		r.paramAdmin.signer,
+		r.signer,
 		r.logger,
-		r.paramAdmin.client,
+		r.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return r.ratesContract.UpdateRates(opts)
 		},

@@ -57,6 +57,7 @@ func configureRootCmd() error {
 		settlementChainCmd(),
 		generateCmd(),
 		fundsCmd(),
+		paramsCmd(),
 	)
 
 	return nil

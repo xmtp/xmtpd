@@ -3,9 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
-	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
 	"go.uber.org/zap"
@@ -33,10 +31,10 @@ func settlementChainCmd() *cobra.Command {
 func settlePauseCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "pause",
-		Short:        "Get/Set pause statuses on settlement chain",
+		Short:        "Get/Update pause statuses on settlement chain",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settlePauseGetCmd(), settlePauseSetCmd())
+	cmd.AddCommand(settlePauseGetCmd(), settlePauseUpdateCmd())
 	return cmd
 }
 
@@ -99,25 +97,23 @@ func settlePauseGetHandler(target options.Target) error {
 	return nil
 }
 
-func settlePauseSetCmd() *cobra.Command {
+func settlePauseUpdateCmd() *cobra.Command {
 	var target options.Target
-	var paused bool
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set pause status for target: settlement-chain-gateway|payer-registry|distribution-manager",
+		Use:          "update",
+		Short:        "Update pause status for target: settlement-chain-gateway|payer-registry|distribution-manager",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			return settlePauseSetHandler(target, paused)
+			return settlePauseUpdateHandler(target)
 		},
 	}
 	cmd.Flags().
 		Var(&target, "target", "settlement-chain-gateway|payer-registry|distribution-manager")
-	cmd.Flags().BoolVar(&paused, "paused", false, "pause status")
 	_ = cmd.MarkFlagRequired("target")
 	return cmd
 }
 
-func settlePauseSetHandler(target options.Target, paused bool) error {
+func settlePauseUpdateHandler(target options.Target) error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -132,23 +128,23 @@ func settlePauseSetHandler(target options.Target, paused bool) error {
 
 	switch target {
 	case options.TargetSettlementChainGateway:
-		if err := admin.SetSettlementChainGatewayPauseStatus(ctx, paused); err != nil {
+		if err := admin.UpdateSettlementChainGatewayPauseStatus(ctx); err != nil {
 			logger.Error("write", zap.Error(err))
 			return err
 		}
-		logger.Info("settlement-chain gateway pause set", zap.Bool("paused", paused))
+		logger.Info("settlement-chain gateway pause updated")
 	case options.TargetPayerRegistry:
-		if err := admin.SetPayerRegistryPauseStatus(ctx, paused); err != nil {
+		if err := admin.UpdatePayerRegistryPauseStatus(ctx); err != nil {
 			logger.Error("write", zap.Error(err))
 			return err
 		}
-		logger.Info("payer registry pause set", zap.Bool("paused", paused))
+		logger.Info("payer registry pause updated")
 	case options.TargetDistributionManager:
-		if err := admin.SetDistributionManagerPauseStatus(ctx, paused); err != nil {
+		if err := admin.UpdateDistributionManagerPauseStatus(ctx); err != nil {
 			logger.Error("write", zap.Error(err))
 			return err
 		}
-		logger.Info("distribution manager pause set", zap.Bool("paused", paused))
+		logger.Info("distribution manager pause set updated")
 	default:
 		return fmt.Errorf(
 			"target must be settlement-chain-gateway|payer-registry|distribution-manager",
@@ -162,10 +158,10 @@ func settlePauseSetHandler(target options.Target, paused bool) error {
 func settleDMFeesRecipientCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "dm-protocol-fees-recipient",
-		Short:        "Get/Set DistributionManager protocol fees recipient",
+		Short:        "Get/Update DistributionManager protocol fees recipient",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settleDMFeesRecipientGetCmd(), settleDMFeesRecipientSetCmd())
+	cmd.AddCommand(settleDMFeesRecipientGetCmd(), settleDMFeesRecipientUpdateCmd())
 	return cmd
 }
 
@@ -178,18 +174,15 @@ func settleDMFeesRecipientGetCmd() *cobra.Command {
 	}
 }
 
-func settleDMFeesRecipientSetCmd() *cobra.Command {
-	var recipient options.AddressFlag
+func settleDMFeesRecipientUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set protocol fees recipient",
+		Use:          "update",
+		Short:        "Update protocol fees recipient",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			return settleDMFeesRecipientSetHandler(recipient.Address)
+			return settleDMFeesRecipientUpdateHandler()
 		},
 	}
-	cmd.Flags().Var(&recipient, "address", "recipient address (hex)")
-	_ = cmd.MarkFlagRequired("address")
 	return cmd
 }
 
@@ -211,7 +204,7 @@ func settleDMFeesRecipientGetHandler() error {
 	return nil
 }
 
-func settleDMFeesRecipientSetHandler(addr common.Address) error {
+func settleDMFeesRecipientUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -221,13 +214,11 @@ func settleDMFeesRecipientSetHandler(addr common.Address) error {
 	if err != nil {
 		return err
 	}
-	if err := admin.SetDistributionManagerProtocolFeesRecipient(ctx, addr); err != nil {
+	if err := admin.UpdateDistributionManagerProtocolFeesRecipient(ctx); err != nil {
 		return err
 	}
 	logger.Info(
-		"distribution manager protocol fees recipient set",
-		zap.String("address", addr.Hex()),
-	)
+		"distribution manager protocol fees recipient updated")
 	return nil
 }
 
@@ -236,10 +227,10 @@ func settleDMFeesRecipientSetHandler(addr common.Address) error {
 func settleNodeAdminCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "node-admin",
-		Short:        "Get/Set NodeRegistry admin address",
+		Short:        "Get/Update NodeRegistry admin address",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settleNodeAdminGetCmd(), settleNodeAdminSetCmd())
+	cmd.AddCommand(settleNodeAdminGetCmd(), settleNodeAdminUpdateCmd())
 	return cmd
 }
 
@@ -252,18 +243,15 @@ func settleNodeAdminGetCmd() *cobra.Command {
 	}
 }
 
-func settleNodeAdminSetCmd() *cobra.Command {
-	var adminAddr options.AddressFlag
+func settleNodeAdminUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set node registry admin",
+		Use:          "update",
+		Short:        "Update node registry admin",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			return settleNodeAdminSetHandler(adminAddr.Address)
+			return settleNodeAdminUpdateHandler()
 		},
 	}
-	cmd.Flags().Var(&adminAddr, "address", "admin address (hex)")
-	_ = cmd.MarkFlagRequired("address")
 	return cmd
 }
 
@@ -285,7 +273,7 @@ func settleNodeAdminGetHandler() error {
 	return nil
 }
 
-func settleNodeAdminSetHandler(addr common.Address) error {
+func settleNodeAdminUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -295,22 +283,20 @@ func settleNodeAdminSetHandler(addr common.Address) error {
 	if err != nil {
 		return err
 	}
-	if err := admin.SetNodeRegistryAdmin(ctx, addr); err != nil {
+	if err := admin.UpdateNodeRegistryAdmin(ctx); err != nil {
 		return err
 	}
-	logger.Info("node registry admin set", zap.String("address", addr.Hex()))
+	logger.Info("node registry admin updated")
 	return nil
 }
-
-// --- PayerRegistry: minimum deposit (uint96 microdollars) ---
 
 func settleMinDepositCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "payer-min-deposit",
-		Short:        "Get/Set PayerRegistry minimum deposit (uint96 microdollars)",
+		Short:        "Get/Update PayerRegistry minimum deposit (uint96 microdollars)",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settleMinDepositGetCmd(), settleMinDepositSetCmd())
+	cmd.AddCommand(settleMinDepositGetCmd(), settleMinDepositUpdateCmd())
 	return cmd
 }
 
@@ -343,26 +329,19 @@ func settleMinDepositGetHandler() error {
 	return nil
 }
 
-func settleMinDepositSetCmd() *cobra.Command {
-	var amountStr string
+func settleMinDepositUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set minimum deposit (microdollars, uint96)",
+		Use:          "update",
+		Short:        "Update minimum deposit (microdollars, uint96)",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			bi, ok := new(big.Int).SetString(amountStr, 10)
-			if !ok {
-				return fmt.Errorf("invalid --amount, must be base-10 integer")
-			}
-			return settleMinDepositSetHandler(bi)
+			return settleMinDepositUpdateHandler()
 		},
 	}
-	cmd.Flags().StringVar(&amountStr, "amount", "", "amount in microdollars (decimal string)")
-	_ = cmd.MarkFlagRequired("amount")
 	return cmd
 }
 
-func settleMinDepositSetHandler(amount *big.Int) error {
+func settleMinDepositUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -373,12 +352,11 @@ func settleMinDepositSetHandler(amount *big.Int) error {
 	if err != nil {
 		return err
 	}
-	if err := admin.SetPayerRegistryMinimumDeposit(ctx, amount); err != nil {
+	if err := admin.UpdatePayerRegistryMinimumDeposit(ctx); err != nil {
 		return err
 	}
 	logger.Info(
 		"payer registry minimum deposit set (microdollars)",
-		zap.String("value", amount.String()),
 	)
 	return nil
 }
@@ -388,10 +366,10 @@ func settleMinDepositSetHandler(amount *big.Int) error {
 func settleWithdrawLockCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "payer-withdraw-lock",
-		Short:        "Get/Set PayerRegistry withdraw lock period (seconds)",
+		Short:        "Get/Update PayerRegistry withdraw lock period (seconds)",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settleWithdrawLockGetCmd(), settleWithdrawLockSetCmd())
+	cmd.AddCommand(settleWithdrawLockGetCmd(), settleWithdrawLockUpdateCmd())
 	return cmd
 }
 
@@ -424,22 +402,19 @@ func settleWithdrawLockGetHandler() error {
 	return nil
 }
 
-func settleWithdrawLockSetCmd() *cobra.Command {
-	var secs uint32
+func settleWithdrawLockUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set withdraw lock period (seconds, uint32)",
+		Use:          "update",
+		Short:        "Update withdraw lock period (seconds, uint32)",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			return settleWithdrawLockSetHandler(secs)
+			return settleWithdrawLockUpdateHandler()
 		},
 	}
-	cmd.Flags().Uint32Var(&secs, "seconds", 0, "seconds")
-	_ = cmd.MarkFlagRequired("seconds")
 	return cmd
 }
 
-func settleWithdrawLockSetHandler(secs uint32) error {
+func settleWithdrawLockUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -449,10 +424,10 @@ func settleWithdrawLockSetHandler(secs uint32) error {
 	if err != nil {
 		return err
 	}
-	if err := admin.SetPayerRegistryWithdrawLockPeriod(ctx, secs); err != nil {
+	if err := admin.UpdatePayerRegistryWithdrawLockPeriod(ctx); err != nil {
 		return err
 	}
-	logger.Info("payer registry withdraw lock period set", zap.Uint32("seconds", secs))
+	logger.Info("payer registry withdraw lock period updated")
 	return nil
 }
 
@@ -461,10 +436,10 @@ func settleWithdrawLockSetHandler(secs uint32) error {
 func settlePRMFeeRateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "prm-fee-rate",
-		Short:        "Get/Set PayerReportManager protocol fee rate (bps, uint16)",
+		Short:        "Get/Update PayerReportManager protocol fee rate (bps, uint16)",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settlePRMFeeRateGetCmd(), settlePRMFeeRateSetCmd())
+	cmd.AddCommand(settlePRMFeeRateGetCmd(), settlePRMFeeRateUpdateCmd())
 	return cmd
 }
 
@@ -477,18 +452,15 @@ func settlePRMFeeRateGetCmd() *cobra.Command {
 	}
 }
 
-func settlePRMFeeRateSetCmd() *cobra.Command {
-	var bps uint16
+func settlePRMFeeRateUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set PRM protocol fee rate (bps, uint16)",
+		Use:          "update",
+		Short:        "Update PRM protocol fee rate (bps, uint16)",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			return settlePRMFeeRateSetHandler(bps)
+			return settlePRMFeeRateUpdateHandler()
 		},
 	}
-	cmd.Flags().Uint16Var(&bps, "bps", 0, "basis points (0..65535)")
-	_ = cmd.MarkFlagRequired("bps")
 	return cmd
 }
 
@@ -512,7 +484,7 @@ func settlePRMFeeRateGetHandler() error {
 	return nil
 }
 
-func settlePRMFeeRateSetHandler(bps uint16) error {
+func settlePRMFeeRateUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -523,11 +495,11 @@ func settlePRMFeeRateSetHandler(bps uint16) error {
 		logger.Error("setup admin", zap.Error(err))
 		return err
 	}
-	if err := admin.SetPayerReportManagerProtocolFeeRate(ctx, bps); err != nil {
+	if err := admin.UpdatePayerReportManagerProtocolFeeRate(ctx); err != nil {
 		logger.Error("write", zap.Error(err))
 		return err
 	}
-	logger.Info("payer report manager protocol fee rate set", zap.Uint16("bps", bps))
+	logger.Info("payer report manager protocol fee rate updated")
 	return nil
 }
 
@@ -536,10 +508,10 @@ func settlePRMFeeRateSetHandler(bps uint16) error {
 func settleRateMigratorCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "rate-migrator",
-		Short:        "Get/Set RateRegistry migrator (address)",
+		Short:        "Get/Update RateRegistry migrator (address)",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(settleRateMigratorGetCmd(), settleRateMigratorSetCmd())
+	cmd.AddCommand(settleRateMigratorGetCmd(), settleRateMigratorUpdateCmd())
 	return cmd
 }
 
@@ -552,18 +524,15 @@ func settleRateMigratorGetCmd() *cobra.Command {
 	}
 }
 
-func settleRateMigratorSetCmd() *cobra.Command {
-	var migratorAddr options.AddressFlag
+func settleRateMigratorUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "set",
 		Short:        "Set RateRegistry migrator address",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
-			return settleRateMigratorSetHandler(migratorAddr.Address)
+			return settleRateMigratorUpdateHandler()
 		},
 	}
-	cmd.Flags().Var(&migratorAddr, "address", "migrator address (hex)")
-	_ = cmd.MarkFlagRequired("address")
 	return cmd
 }
 
@@ -587,7 +556,7 @@ func settleRateMigratorGetHandler() error {
 	return nil
 }
 
-func settleRateMigratorSetHandler(addr common.Address) error {
+func settleRateMigratorUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -598,10 +567,10 @@ func settleRateMigratorSetHandler(addr common.Address) error {
 		logger.Error("setup rates admin", zap.Error(err))
 		return err
 	}
-	if err := admin.SetRateRegistryMigrator(ctx, addr); err != nil {
+	if err := admin.UpdateRateRegistryMigrator(ctx); err != nil {
 		logger.Error("write", zap.Error(err))
 		return err
 	}
-	logger.Info("rate registry migrator set", zap.String("address", addr.Hex()))
+	logger.Info("rate registry migrator updated")
 	return nil
 }

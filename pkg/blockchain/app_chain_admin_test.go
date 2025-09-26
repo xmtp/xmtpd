@@ -7,13 +7,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, *blockchain.ParameterAdmin) {
+func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, blockchain.IParameterAdmin) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -30,7 +29,12 @@ func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, *blockchain.Pa
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.AppChain.RPCURL)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	paramAdmin, err := blockchain.NewAppChainParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	appAdmin, err := blockchain.NewAppChainAdmin(
@@ -50,24 +54,24 @@ func TestBootstrapperAddress(t *testing.T) {
 	ctx := context.Background()
 
 	type addrCase struct {
-		name string
-		key  string
-		set  func(ctx context.Context, a common.Address) error
-		get  func(ctx context.Context) (common.Address, error)
+		name   string
+		key    string
+		update func(ctx context.Context) error
+		get    func(ctx context.Context) (common.Address, error)
 	}
 
 	cases := []addrCase{
 		{
-			name: "identity",
-			key:  blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
-			set:  appAdmin.SetIdentityUpdateBootstrapper,
-			get:  appAdmin.GetIdentityUpdateBootstrapper,
+			name:   "identity",
+			key:    blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
+			update: appAdmin.UpdateIdentityUpdateBootstrapper,
+			get:    appAdmin.GetIdentityUpdateBootstrapper,
 		},
 		{
-			name: "group",
-			key:  blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
-			set:  appAdmin.SetGroupMessageBootstrapper,
-			get:  appAdmin.GetGroupMessageBootstrapper,
+			name:   "group",
+			key:    blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
+			update: appAdmin.UpdateGroupMessageBootstrapper,
+			get:    appAdmin.GetGroupMessageBootstrapper,
 		},
 	}
 
@@ -77,7 +81,10 @@ func TestBootstrapperAddress(t *testing.T) {
 			var err error
 			want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
 
-			require.NoError(t, tc.set(ctx, want))
+			err = paramAdmin.SetAddressParameter(ctx, tc.key, want)
+			require.NoError(t, err)
+
+			require.NoError(t, tc.update(ctx))
 
 			// storage sanity
 			stored, err := paramAdmin.GetParameterAddress(ctx, tc.key)
@@ -95,8 +102,13 @@ func TestBootstrapperAddress(t *testing.T) {
 			first := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
 			second := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
 
-			require.NoError(t, tc.set(ctx, first))
-			require.NoError(t, tc.set(ctx, second))
+			err = paramAdmin.SetAddressParameter(ctx, tc.key, first)
+			require.NoError(t, err)
+			require.NoError(t, tc.update(ctx))
+
+			err = paramAdmin.SetAddressParameter(ctx, tc.key, second)
+			require.NoError(t, err)
+			require.NoError(t, tc.update(ctx))
 
 			stored, err := paramAdmin.GetParameterAddress(ctx, tc.key)
 			require.NoError(t, err)
@@ -125,7 +137,9 @@ func TestBootstrapperAddress(t *testing.T) {
 
 		t.Run(tc.name+"/zero_address_roundtrip", func(t *testing.T) {
 			var zero common.Address
-			require.NoError(t, tc.set(ctx, zero))
+			require.NoError(t, paramAdmin.SetAddressParameter(ctx, tc.key, zero))
+			require.NoError(t, tc.update(ctx))
+
 			got, err := tc.get(ctx)
 			require.NoError(t, err)
 			require.Equal(t, zero, got)
@@ -138,30 +152,30 @@ func TestPauseFlags(t *testing.T) {
 	ctx := context.Background()
 
 	type pauseCase struct {
-		name string
-		key  string
-		set  func(ctx context.Context, paused bool) error
-		get  func(ctx context.Context) (bool, error)
+		name   string
+		key    string
+		update func(ctx context.Context) error
+		get    func(ctx context.Context) (bool, error)
 	}
 
 	cases := []pauseCase{
 		{
-			name: "group",
-			key:  blockchain.GROUP_MESSAGE_BROADCASTER_PAUSED_KEY,
-			set:  appAdmin.SetGroupMessagePauseStatus,
-			get:  appAdmin.GetGroupMessagePauseStatus,
+			name:   "group",
+			key:    blockchain.GROUP_MESSAGE_BROADCASTER_PAUSED_KEY,
+			update: appAdmin.UpdateGroupMessagePauseStatus,
+			get:    appAdmin.GetGroupMessagePauseStatus,
 		},
 		{
-			name: "identity",
-			key:  blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY,
-			set:  appAdmin.SetIdentityUpdatePauseStatus,
-			get:  appAdmin.GetIdentityUpdatePauseStatus,
+			name:   "identity",
+			key:    blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY,
+			update: appAdmin.UpdateIdentityUpdatePauseStatus,
+			get:    appAdmin.GetIdentityUpdatePauseStatus,
 		},
 		{
-			name: "app-chain-gateway",
-			key:  blockchain.APP_CHAIN_GATEWAY_PAUSED_KEY,
-			set:  appAdmin.SetAppChainGatewayPauseStatus,
-			get:  appAdmin.GetAppChainGatewayPauseStatus,
+			name:   "app-chain-gateway",
+			key:    blockchain.APP_CHAIN_GATEWAY_PAUSED_KEY,
+			update: appAdmin.UpdateAppChainGatewayPauseStatus,
+			get:    appAdmin.GetAppChainGatewayPauseStatus,
 		},
 	}
 
@@ -170,7 +184,8 @@ func TestPauseFlags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
 				var err error
-				require.NoError(t, tc.set(ctx, true))
+				require.NoError(t, paramAdmin.SetBoolParameter(ctx, tc.key, true))
+				require.NoError(t, tc.update(ctx))
 				b, err := paramAdmin.GetParameterBool(ctx, tc.key)
 				require.NoError(t, err)
 				require.True(t, b)
@@ -179,7 +194,8 @@ func TestPauseFlags(t *testing.T) {
 				require.NoError(t, err)
 				require.True(t, got)
 
-				require.NoError(t, tc.set(ctx, false))
+				require.NoError(t, paramAdmin.SetBoolParameter(ctx, tc.key, false))
+				require.NoError(t, tc.update(ctx))
 				b, err = paramAdmin.GetParameterBool(ctx, tc.key)
 				require.NoError(t, err)
 				require.False(t, b)
@@ -190,8 +206,9 @@ func TestPauseFlags(t *testing.T) {
 			})
 
 			t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
-				require.NoError(t, tc.set(ctx, true))
-				require.NoError(t, tc.set(ctx, true))
+				require.NoError(t, paramAdmin.SetBoolParameter(ctx, tc.key, true))
+				require.NoError(t, tc.update(ctx))
+				require.NoError(t, tc.update(ctx))
 
 				got, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -229,36 +246,36 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 	ctx := context.Background()
 
 	type sizeCase struct {
-		name string
-		key  string
-		set  func(ctx context.Context, size uint64) error
-		get  func(ctx context.Context) (uint64, error)
+		name   string
+		key    string
+		update func(ctx context.Context) error
+		get    func(ctx context.Context) (uint32, error)
 	}
 
 	cases := []sizeCase{
 		{
-			name: "group/max",
-			key:  blockchain.GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
-			set:  appAdmin.SetGroupMessageMaxPayloadSize,
-			get:  appAdmin.GetGroupMessageMaxPayloadSize,
+			name:   "group/max",
+			key:    blockchain.GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+			update: appAdmin.UpdateGroupMessageMaxPayloadSize,
+			get:    appAdmin.GetGroupMessageMaxPayloadSize,
 		},
 		{
-			name: "group/min",
-			key:  blockchain.GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
-			set:  appAdmin.SetGroupMessageMinPayloadSize,
-			get:  appAdmin.GetGroupMessageMinPayloadSize,
+			name:   "group/min",
+			key:    blockchain.GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+			update: appAdmin.UpdateGroupMessageMinPayloadSize,
+			get:    appAdmin.GetGroupMessageMinPayloadSize,
 		},
 		{
-			name: "identity/max",
-			key:  blockchain.IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
-			set:  appAdmin.SetIdentityUpdateMaxPayloadSize,
-			get:  appAdmin.GetIdentityUpdateMaxPayloadSize,
+			name:   "identity/max",
+			key:    blockchain.IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+			update: appAdmin.UpdateIdentityUpdateMaxPayloadSize,
+			get:    appAdmin.GetIdentityUpdateMaxPayloadSize,
 		},
 		{
-			name: "identity/min",
-			key:  blockchain.IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
-			set:  appAdmin.SetIdentityUpdateMinPayloadSize,
-			get:  appAdmin.GetIdentityUpdateMinPayloadSize,
+			name:   "identity/min",
+			key:    blockchain.IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+			update: appAdmin.UpdateIdentityUpdateMinPayloadSize,
+			get:    appAdmin.GetIdentityUpdateMinPayloadSize,
 		},
 	}
 
@@ -267,7 +284,7 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/read_default", func(t *testing.T) {
 				t.Skip(
-					"Some defaults are pre-set https://github.com/xmtp/smart-contracts/issues/126",
+					"Some defaults are pre-update https://github.com/xmtp/smart-contracts/issues/126",
 				)
 				gotDefault, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -280,7 +297,9 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 
 			t.Run(tc.name+"/write_read_back", func(t *testing.T) {
 				const v1 uint64 = 1024
-				require.NoError(t, tc.set(ctx, v1))
+
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
 				gotV1, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -293,17 +312,20 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 
 			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {
 				const v1 uint64 = 1024
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, tc.update(ctx))
 			})
 
 			t.Run(tc.name+"/write_back_to_zero", func(t *testing.T) {
 				const v1 uint64 = 1024
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
 				const v2 uint64 = 0
-				err := tc.set(ctx, v2)
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v2))
+				err := tc.update(ctx)
 
 				switch tc.name {
 				case "group/max":

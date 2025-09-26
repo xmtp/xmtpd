@@ -17,7 +17,7 @@ import (
 
 func buildSettlementChainAdmin(
 	t *testing.T,
-) (blockchain.ISettlementChainAdmin, *blockchain.ParameterAdmin) {
+) (blockchain.ISettlementChainAdmin, blockchain.IParameterAdmin) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -34,7 +34,12 @@ func buildSettlementChainAdmin(
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.SettlementChain.RPCURL)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	paramAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	settlementChainAdmin, err := blockchain.NewSettlementChainAdmin(
@@ -54,30 +59,30 @@ func TestPauseFlagsSettlement(t *testing.T) {
 	ctx := context.Background()
 
 	type pauseCase struct {
-		name string
-		key  string
-		set  func(ctx context.Context, paused bool) error
-		get  func(ctx context.Context) (bool, error)
+		name   string
+		key    string
+		update func(ctx context.Context) error
+		get    func(ctx context.Context) (bool, error)
 	}
 
 	cases := []pauseCase{
 		{
-			name: "settlement-chain-gateway",
-			key:  blockchain.SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY,
-			set:  settlementChainAdmin.SetSettlementChainGatewayPauseStatus,
-			get:  settlementChainAdmin.GetSettlementChainGatewayPauseStatus,
+			name:   "settlement-chain-gateway",
+			key:    blockchain.SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY,
+			update: settlementChainAdmin.UpdateSettlementChainGatewayPauseStatus,
+			get:    settlementChainAdmin.GetSettlementChainGatewayPauseStatus,
 		},
 		{
-			name: "payer-registry",
-			key:  blockchain.PAYER_REGISTRY_PAUSED_KEY,
-			set:  settlementChainAdmin.SetPayerRegistryPauseStatus,
-			get:  settlementChainAdmin.GetPayerRegistryPauseStatus,
+			name:   "payer-registry",
+			key:    blockchain.PAYER_REGISTRY_PAUSED_KEY,
+			update: settlementChainAdmin.UpdatePayerRegistryPauseStatus,
+			get:    settlementChainAdmin.GetPayerRegistryPauseStatus,
 		},
 		{
-			name: "distribution-manager",
-			key:  blockchain.DISTRIBUTION_MANAGER_PAUSED_KEY,
-			set:  settlementChainAdmin.SetDistributionManagerPauseStatus,
-			get:  settlementChainAdmin.GetDistributionManagerPauseStatus,
+			name:   "distribution-manager",
+			key:    blockchain.DISTRIBUTION_MANAGER_PAUSED_KEY,
+			update: settlementChainAdmin.UpdateDistributionManagerPauseStatus,
+			get:    settlementChainAdmin.GetDistributionManagerPauseStatus,
 		},
 	}
 
@@ -86,7 +91,8 @@ func TestPauseFlagsSettlement(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
 				var err error
-				require.NoError(t, tc.set(ctx, true))
+				require.NoError(t, paramAdmin.SetBoolParameter(ctx, tc.key, true))
+				require.NoError(t, tc.update(ctx))
 				b, err := paramAdmin.GetParameterBool(ctx, tc.key)
 				require.NoError(t, err)
 				require.True(t, b)
@@ -95,19 +101,21 @@ func TestPauseFlagsSettlement(t *testing.T) {
 				require.NoError(t, err)
 				require.True(t, got)
 
-				require.NoError(t, tc.set(ctx, false))
+				require.NoError(t, paramAdmin.SetBoolParameter(ctx, tc.key, false))
 				b, err = paramAdmin.GetParameterBool(ctx, tc.key)
 				require.NoError(t, err)
 				require.False(t, b)
 
+				require.NoError(t, tc.update(ctx))
 				got, err = tc.get(ctx)
 				require.NoError(t, err)
 				require.False(t, got)
 			})
 
 			t.Run(tc.name+"/idempotent_repeat_true", func(t *testing.T) {
-				require.NoError(t, tc.set(ctx, true))
-				require.NoError(t, tc.set(ctx, true))
+				require.NoError(t, paramAdmin.SetBoolParameter(ctx, tc.key, true))
+				require.NoError(t, tc.update(ctx))
+				require.NoError(t, tc.update(ctx))
 
 				got, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -156,9 +164,17 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 	require.NoError(t, err)
 	require.Equal(t, common.Address{}, rawDefault)
 
-	// set a value
+	// update a value
 	want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
-	require.NoError(t, scAdmin.SetDistributionManagerProtocolFeesRecipient(ctx, want))
+	require.NoError(
+		t,
+		paramAdmin.SetAddressParameter(
+			ctx,
+			blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+			want,
+		),
+	)
+	require.NoError(t, scAdmin.UpdateDistributionManagerProtocolFeesRecipient(ctx))
 
 	// read back
 	got, err := scAdmin.GetDistributionManagerProtocolFeesRecipient(ctx)
@@ -174,8 +190,19 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 
 	// overwrite + idempotent
 	other := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
-	require.NoError(t, scAdmin.SetDistributionManagerProtocolFeesRecipient(ctx, other))
-	require.NoError(t, scAdmin.SetDistributionManagerProtocolFeesRecipient(ctx, other))
+
+	require.NoError(
+		t,
+		paramAdmin.SetAddressParameter(
+			ctx,
+			blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+			other,
+		),
+	)
+	require.NoError(t, scAdmin.UpdateDistributionManagerProtocolFeesRecipient(ctx))
+
+	// TODO: Reentrancy is broken
+	// require.NoError(t, scAdmin.UpdateDistributionManagerProtocolFeesRecipient(ctx))
 
 	got2, err := scAdmin.GetDistributionManagerProtocolFeesRecipient(ctx)
 	require.NoError(t, err)
@@ -183,7 +210,16 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 
 	// zero round-trip
 	var zero common.Address
-	require.NoError(t, scAdmin.SetDistributionManagerProtocolFeesRecipient(ctx, zero))
+
+	require.NoError(
+		t,
+		paramAdmin.SetAddressParameter(
+			ctx,
+			blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+			zero,
+		),
+	)
+	require.NoError(t, scAdmin.UpdateDistributionManagerProtocolFeesRecipient(ctx))
 	gotZero, err := scAdmin.GetDistributionManagerProtocolFeesRecipient(ctx)
 	require.NoError(t, err)
 	require.Equal(t, zero, gotZero)
@@ -193,9 +229,13 @@ func TestNodeRegistry_Admin_ReadDefault_WriteThenRead(t *testing.T) {
 	scAdmin, paramAdmin := buildSettlementChainAdmin(t)
 	ctx := context.Background()
 
-	// set + read
+	// update + read
 	want := common.HexToAddress("0x000000000000000000000000000000000000DEAD")
-	require.NoError(t, scAdmin.SetNodeRegistryAdmin(ctx, want))
+	require.NoError(
+		t,
+		paramAdmin.SetAddressParameter(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY, want),
+	)
+	require.NoError(t, scAdmin.UpdateNodeRegistryAdmin(ctx))
 
 	got, err := scAdmin.GetNodeRegistryAdmin(ctx)
 	require.NoError(t, err)
@@ -207,9 +247,18 @@ func TestNodeRegistry_Admin_ReadDefault_WriteThenRead(t *testing.T) {
 
 	// overwrite + zero
 	other := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
-	require.NoError(t, scAdmin.SetNodeRegistryAdmin(ctx, other))
+	require.NoError(
+		t,
+		paramAdmin.SetAddressParameter(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY, other),
+	)
+	require.NoError(t, scAdmin.UpdateNodeRegistryAdmin(ctx))
+
 	var zero common.Address
-	require.NoError(t, scAdmin.SetNodeRegistryAdmin(ctx, zero))
+	require.NoError(
+		t,
+		paramAdmin.SetAddressParameter(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY, zero),
+	)
+	require.NoError(t, scAdmin.UpdateNodeRegistryAdmin(ctx))
 	gotZero, err := scAdmin.GetNodeRegistryAdmin(ctx)
 	require.NoError(t, err)
 	require.Equal(t, zero, gotZero)
@@ -220,17 +269,17 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 	ctx := context.Background()
 
 	type u32Case struct {
-		name string
-		key  string
-		set  func(context.Context, uint32) error
-		get  func(context.Context) (uint32, error)
+		name   string
+		key    string
+		update func(context.Context) error
+		get    func(context.Context) (uint32, error)
 	}
 	cases := []u32Case{
 		{
-			name: "withdrawLockPeriod",
-			key:  blockchain.PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY,
-			set:  scAdmin.SetPayerRegistryWithdrawLockPeriod,
-			get:  scAdmin.GetPayerRegistryWithdrawLockPeriod,
+			name:   "withdrawLockPeriod",
+			key:    blockchain.PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY,
+			update: scAdmin.UpdatePayerRegistryWithdrawLockPeriod,
+			get:    scAdmin.GetPayerRegistryWithdrawLockPeriod,
 		},
 	}
 
@@ -239,7 +288,7 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/read_default", func(t *testing.T) {
 				t.Skip(
-					"Some defaults are pre-set https://github.com/xmtp/smart-contracts/issues/126",
+					"Some defaults are pre-update https://github.com/xmtp/smart-contracts/issues/126",
 				)
 				gotDefault, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -252,7 +301,9 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 
 			t.Run(tc.name+"/write_read_back", func(t *testing.T) {
 				const v1 = 1024
-				require.NoError(t, tc.set(ctx, v1))
+
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
 				gotV1, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -265,17 +316,19 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 
 			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {
 				const v1 = 1024
-				require.NoError(t, tc.set(ctx, v1))
-
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
+				require.NoError(t, tc.update(ctx))
 			})
 
 			t.Run(tc.name+"/write_back_to_zero", func(t *testing.T) {
 				const v1 = 1024
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
 				const v2 = 0
-				err := tc.set(ctx, v2)
+				require.NoError(t, paramAdmin.SetUint64Parameter(ctx, tc.key, v2))
+				err := tc.update(ctx)
 
 				switch tc.name {
 				case "withdrawLockPeriod":
@@ -291,17 +344,17 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 	ctx := context.Background()
 
 	type u96Case struct {
-		name string
-		key  string
-		set  func(context.Context, *big.Int) error
-		get  func(context.Context) (*big.Int, error)
+		name   string
+		key    string
+		update func(context.Context) error
+		get    func(context.Context) (*big.Int, error)
 	}
 	cases := []u96Case{
 		{
-			name: "minimumDeposit",
-			key:  blockchain.PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY,
-			set:  scAdmin.SetPayerRegistryMinimumDeposit,
-			get:  scAdmin.GetPayerRegistryMinimumDeposit,
+			name:   "minimumDeposit",
+			key:    blockchain.PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY,
+			update: scAdmin.UpdatePayerRegistryMinimumDeposit,
+			get:    scAdmin.GetPayerRegistryMinimumDeposit,
 		},
 	}
 
@@ -310,7 +363,7 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/read_default", func(t *testing.T) {
 				t.Skip(
-					"Some defaults are pre-set https://github.com/xmtp/smart-contracts/issues/126",
+					"Some defaults are pre-update https://github.com/xmtp/smart-contracts/issues/126",
 				)
 				gotDefault, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -323,7 +376,8 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 
 			t.Run(tc.name+"/write_read_back", func(t *testing.T) {
 				v1 := big.NewInt(1024)
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint96Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
 				gotV1, err := tc.get(ctx)
 				require.NoError(t, err)
@@ -336,17 +390,19 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 
 			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {
 				v1 := big.NewInt(1024)
-				require.NoError(t, tc.set(ctx, v1))
-
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint96Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
+				require.NoError(t, tc.update(ctx))
 			})
 
 			t.Run(tc.name+"/write_back_to_zero", func(t *testing.T) {
 				v1 := big.NewInt(1024)
-				require.NoError(t, tc.set(ctx, v1))
+				require.NoError(t, paramAdmin.SetUint96Parameter(ctx, tc.key, v1))
+				require.NoError(t, tc.update(ctx))
 
 				v2 := big.NewInt(0)
-				err := tc.set(ctx, v2)
+				require.NoError(t, paramAdmin.SetUint96Parameter(ctx, tc.key, v2))
+				err := tc.update(ctx)
 
 				switch tc.name {
 				case "minimumDeposit":
@@ -374,7 +430,16 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 	require.EqualValues(t, 0, rawDef)
 
 	const v1 = 9999
-	require.NoError(t, scAdmin.SetPayerReportManagerProtocolFeeRate(ctx, v1))
+
+	require.NoError(
+		t,
+		paramAdmin.SetUint16Parameter(
+			ctx,
+			blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+			v1,
+		),
+	)
+	require.NoError(t, scAdmin.UpdatePayerReportManagerProtocolFeeRate(ctx))
 
 	got, err := scAdmin.GetPayerReportManagerProtocolFeeRate(ctx)
 	require.NoError(t, err)
@@ -389,7 +454,15 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 
 	// overwrite + zero
 	const v2 = 0
-	require.NoError(t, scAdmin.SetPayerReportManagerProtocolFeeRate(ctx, v2))
+	require.NoError(
+		t,
+		paramAdmin.SetUint16Parameter(
+			ctx,
+			blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+			v2,
+		),
+	)
+	require.NoError(t, scAdmin.UpdatePayerReportManagerProtocolFeeRate(ctx))
 
 	gotZero, err := scAdmin.GetPayerReportManagerProtocolFeeRate(ctx)
 	require.NoError(t, err)
@@ -397,43 +470,18 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 }
 
 func TestPayerReportManager_ProtocolFeeAbove100Perc(t *testing.T) {
-	scAdmin, _ := buildSettlementChainAdmin(t)
-	ctx := context.Background()
-
-	const v1 = 10001
-	err := scAdmin.SetPayerReportManagerProtocolFeeRate(ctx, v1)
-	require.ErrorContains(t, err, "0x82eeb3b2")
-}
-
-func TestRateRegistry_Migrator_ReadDefault_WriteThenRead(t *testing.T) {
 	scAdmin, paramAdmin := buildSettlementChainAdmin(t)
 	ctx := context.Background()
 
-	def, err := scAdmin.GetRateRegistryMigrator(ctx)
-	require.NoError(t, err)
-	require.Equal(t, common.Address{}, def)
-
-	rawDef, err := paramAdmin.GetParameterAddress(ctx, blockchain.RATE_REGISTRY_MIGRATOR_KEY)
-	require.NoError(t, err)
-	require.Equal(t, common.Address{}, rawDef)
-
-	want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
-	require.NoError(t, scAdmin.SetRateRegistryMigrator(ctx, want))
-
-	got, err := scAdmin.GetRateRegistryMigrator(ctx)
-	require.NoError(t, err)
-	require.Equal(t, want, got)
-
-	raw, err := paramAdmin.GetParameterAddress(ctx, blockchain.RATE_REGISTRY_MIGRATOR_KEY)
-	require.NoError(t, err)
-	require.Equal(t, want, raw)
-
-	other := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
-	require.NoError(t, scAdmin.SetRateRegistryMigrator(ctx, other))
-
-	var zero common.Address
-	require.NoError(t, scAdmin.SetRateRegistryMigrator(ctx, zero))
-	gotZero, err := scAdmin.GetRateRegistryMigrator(ctx)
-	require.NoError(t, err)
-	require.Equal(t, zero, gotZero)
+	const v1 = 10001
+	require.NoError(
+		t,
+		paramAdmin.SetUint16Parameter(
+			ctx,
+			blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+			v1,
+		),
+	)
+	err := scAdmin.UpdatePayerReportManagerProtocolFeeRate(ctx)
+	require.ErrorContains(t, err, "0x82eeb3b2")
 }

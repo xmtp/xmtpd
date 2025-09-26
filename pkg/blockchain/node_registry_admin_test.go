@@ -32,7 +32,12 @@ func buildRegistry(
 	)
 	require.NoError(t, err)
 
-	parameterAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	parameterAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	registry, err := blockchain.NewNodeRegistryAdmin(

@@ -47,7 +47,7 @@ func setupAppChainAdmin(
 	}
 
 	// NewAppChainAdmin expects a ParameterAdmin inside; this remains internal to the admin.
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contracts)
+	paramAdmin, err := blockchain.NewAppChainParameterAdmin(logger, client, signer, contracts)
 	if err != nil {
 		return nil, fmt.Errorf("could not create parameter admin: %w", err)
 	}
@@ -88,7 +88,7 @@ func setupSettlementChainAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contracts)
+	paramAdmin, err := blockchain.NewSettlementParameterAdmin(logger, client, signer, contracts)
 	if err != nil {
 		return nil, fmt.Errorf("could not create parameter admin: %w", err)
 	}
@@ -138,7 +138,12 @@ func setupNodeRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	parameterAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
+	parameterAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		chainClient,
+		signer,
+		contracts,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create parameter admin: %w", err)
 	}
@@ -197,7 +202,7 @@ func setupNodeRegistryCaller(
 func setupRateRegistryAdmin(
 	ctx context.Context,
 	logger *zap.Logger,
-) (*blockchain.RatesAdmin, error) {
+) (blockchain.IRatesAdmin, error) {
 	var (
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
@@ -232,15 +237,21 @@ func setupRateRegistryAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, chainClient, signer, contracts)
+	paramAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		chainClient,
+		signer,
+		contracts,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create parameter admin: %w", err)
 	}
 
 	registryAdmin, err := blockchain.NewRatesAdmin(
 		logger,
-		paramAdmin,
 		chainClient,
+		signer,
+		paramAdmin,
 		contracts,
 	)
 	if err != nil {

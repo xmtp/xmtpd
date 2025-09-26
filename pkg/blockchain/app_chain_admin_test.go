@@ -3,12 +3,13 @@ package blockchain_test
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
-	"testing"
 )
 
 func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, blockchain.IParameterAdmin) {

@@ -422,6 +422,8 @@ func decodeBool(val [32]byte) (bool, error) {
 
 // shared executor -------------------------------------------------------------
 
+type parameterSetEvent struct {Key [32]byte; Value [32]byte}
+
 func (n *ParameterAdmin) setParameterBytes32(
 	ctx context.Context,
 	paramName string,
@@ -441,16 +443,10 @@ func (n *ParameterAdmin) setParameterBytes32(
 			if err != nil {
 				return nil, err
 			}
-			return struct {
-				Key   [32]byte
-				Value [32]byte
-			}{Key: key, Value: v}, nil
+			return parameterSetEvent{Key: key, Value: v}, nil
 		},
 		func(event interface{}) {
-			ev, ok := event.(struct {
-				Key   [32]byte
-				Value [32]byte
-			})
+			ev, ok := event.(parameterSetEvent)
 			if !ok {
 				n.logger.Error("unexpected event type, not ParameterSet tuple")
 				return
@@ -480,16 +476,10 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 			if err != nil {
 				return nil, err
 			}
-			return struct {
-				Key   [32]byte
-				Value [32]byte
-			}{Key: key, Value: v}, nil
+			return parameterSetEvent{Key: key, Value: v}, nil
 		},
 		func(event interface{}) {
-			ev, ok := event.(struct {
-				Key   [32]byte
-				Value [32]byte
-			})
+			ev, ok := event.(parameterSetEvent)
 			if !ok {
 				n.logger.Error("unexpected event type, not ParameterSet tuple")
 				return

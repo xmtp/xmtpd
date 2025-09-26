@@ -100,25 +100,22 @@ func appPauseGetHandler(target options.Target) error {
 
 func appPauseSetCmd() *cobra.Command {
 	var target options.Target
-	var paused bool
 
 	cmd := &cobra.Command{
 		Use:          "set",
 		Short:        "Set pause status for target: identity|group|app-chain-gateway",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return appPauseSetHandler(target, paused)
+			return appPauseSetHandler(target)
 		},
 	}
 
 	cmd.Flags().Var(&target, "target", "identity|group|app-chain-gateway")
 	_ = cmd.MarkFlagRequired("target")
-	cmd.Flags().BoolVar(&paused, "paused", false, "pause status (true|false)")
-	_ = cmd.MarkFlagRequired("paused")
 	return cmd
 }
 
-func appPauseSetHandler(target options.Target, paused bool) error {
+func appPauseSetHandler(target options.Target) error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -137,19 +134,19 @@ func appPauseSetHandler(target options.Target, paused bool) error {
 			logger.Error("write identity pause", zap.Error(err))
 			return err
 		}
-		logger.Info("identity broadcaster pause set", zap.Bool("paused", paused))
+		logger.Info("identity broadcaster pause updated")
 	case options.TargetGroup:
 		if err := admin.SetGroupMessagePauseStatus(ctx); err != nil {
 			logger.Error("write group pause", zap.Error(err))
 			return err
 		}
-		logger.Info("group broadcaster pause set", zap.Bool("paused", paused))
+		logger.Info("group broadcaster pause updated")
 	case options.TargetAppChainGateway:
 		if err := admin.SetAppChainGatewayPauseStatus(ctx); err != nil {
 			logger.Error("write gateway pause", zap.Error(err))
 			return err
 		}
-		logger.Info("app-chain gateway pause set", zap.Bool("paused", paused))
+		logger.Info("app-chain gateway pause updated")
 	default:
 		return fmt.Errorf("target must be identity|group|app-chain-gateway")
 	}

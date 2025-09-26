@@ -14,7 +14,6 @@ import (
 
 type BridgeSendOpts struct {
 	Keys       []string
-	NoWait     bool
 	TimeoutSec int
 }
 
@@ -34,18 +33,17 @@ func bridgeSendCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "send",
-		Short: "Send parameters via SettlementChainGateway.sendParameters(keys)",
+		Short: "Send parameters to the AppChain",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return bridgeSendHandler(opts)
 		},
 		Example: `
 xmtpd-cli params bridge send \
-  --key xmtp.nodeRegistry.maxCanonicalNodes \
+  --key xmtp.groupMessageBroadcaster.paused \
   --key xmtp.groupMessageBroadcaster.maxPayloadSize`,
 	}
 
 	cmd.Flags().StringArrayVar(&opts.Keys, "key", nil, "parameter key to bridge (repeatable)")
-	cmd.Flags().BoolVar(&opts.NoWait, "no-wait", false, "do not wait for confirmation")
 	cmd.Flags().IntVar(&opts.TimeoutSec, "timeout", 180, "wait timeout seconds")
 	_ = cmd.MarkFlagRequired("key")
 

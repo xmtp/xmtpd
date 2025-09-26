@@ -87,18 +87,12 @@ func (a *appChainRegistryAdapter) Set(
 	return a.inner.Set(opts, key, value)
 }
 
-// If the AppChain registry exposes a different batch name, adapt it here.
-// If it does NOT support batch, return ErrBatchUnsupported.
 func (a *appChainRegistryAdapter) SetMany(
 	opts *bind.TransactOpts,
 	keys []string,
 	values [][32]byte,
 ) (*types.Transaction, error) {
-	// Example if it had SetMany:
-	// return a.inner.SetMany(opts, keys, values)
-
-	// Default: not supported
-	return nil, ErrBatchUnsupported
+	return a.inner.Set0(opts, keys, values)
 }
 
 func (a *appChainRegistryAdapter) ParseParameterSet(log types.Log) ([32]byte, [32]byte, error) {

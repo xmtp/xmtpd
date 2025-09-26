@@ -47,10 +47,7 @@ const (
 	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY = "xmtp.settlementChainGateway.paused"
 )
 
-var (
-	uint96Size          = 12
-	ErrBatchUnsupported = fmt.Errorf("batch SetMany not supported by this registry")
-)
+var uint96Size = 12
 
 // IParameterRegistry abstracts the minimal surface used by ParameterAdmin.
 // It is implemented for both SettlementChainParameterRegistry and AppChainParameterRegistry.
@@ -95,7 +92,6 @@ type ParameterAdmin struct {
 
 var _ IParameterAdmin = (*ParameterAdmin)(nil)
 
-// Generic constructor when you already have an adapter.
 func NewParameterAdminWithRegistry(
 	logger *zap.Logger,
 	client *ethclient.Client,
@@ -477,14 +473,9 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			tx, err := n.registry.SetMany(opts, keys, values)
-			if err == ErrBatchUnsupported {
-				return nil, ErrBatchUnsupported
-			}
-			return tx, err
+			return n.registry.SetMany(opts, keys, values)
 		},
 		func(log *types.Log) (interface{}, error) {
-			// Reuse single Set event; batch emits one event per key in most registries.
 			key, v, err := n.registry.ParseParameterSet(*log)
 			if err != nil {
 				return nil, err

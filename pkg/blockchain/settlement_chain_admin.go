@@ -43,6 +43,8 @@ type ISettlementChainAdmin interface {
 
 	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
 	SetRawParameter(ctx context.Context, key string, value [32]byte) error
+
+	BridgeParameters(ctx context.Context, keys []string) error
 }
 
 type settlementChainAdmin struct {
@@ -100,7 +102,7 @@ func NewSettlementChainAdmin(
 	return &settlementChainAdmin{
 		client:                 client,
 		signer:                 signer,
-		logger:                 logger.Named("AppChainAdmin"),
+		logger:                 logger.Named("SettlementChainAdmin"),
 		parameterAdmin:         parameterAdmin,
 		settlementChainGateway: acGateway,
 		payerRegistry:          payerRegistry,
@@ -462,4 +464,44 @@ func (s settlementChainAdmin) SetRawParameter(
 	value [32]byte,
 ) error {
 	return s.parameterAdmin.SetRawParameter(ctx, key, value)
+}
+
+func (s settlementChainAdmin) BridgeParameters(ctx context.Context, keys []string) error {
+	chainIds := make([]*big.Int, 1)
+	chainIds[0] = big.NewInt(351243127)
+
+	gasLimit := big.NewInt(3000000)
+	maxFeePerGas := big.NewInt(2000000000)
+	amountToSend := big.NewInt(100000)
+
+	err := ExecuteTransaction(
+		ctx,
+		s.signer,
+		s.logger,
+		s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.settlementChainGateway.SendParameters(
+				opts,
+				chainIds,
+				keys,
+				gasLimit,
+				maxFeePerGas,
+				amountToSend,
+			)
+		},
+		func(l *types.Log) (interface{}, error) {
+			return s.settlementChainGateway.ParseParametersSent(*l)
+		},
+		func(ev interface{}) {
+			e, ok := ev.(*scg.SettlementChainGatewayParametersSent)
+			if ok {
+				s.logger.Info("parameters sent",
+					zap.Uint64("nonce", e.Nonce.Uint64()),
+					zap.Int("keys", len(e.Keys)),
+				)
+			}
+		},
+	)
+
+	return err
 }

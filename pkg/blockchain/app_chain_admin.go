@@ -38,6 +38,9 @@ type IAppChainAdmin interface {
 	SetIdentityUpdateMaxPayloadSize(ctx context.Context, size uint64) error
 	GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint64, error)
 	SetIdentityUpdateMinPayloadSize(ctx context.Context, size uint64) error
+
+	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
+	SetRawParameter(ctx context.Context, key string, value [32]byte) error
 }
 
 type appChainAdmin struct {
@@ -530,4 +533,16 @@ func (a appChainAdmin) SetIdentityUpdateMinPayloadSize(ctx context.Context, size
 		return err
 	}
 	return nil
+}
+
+func (a appChainAdmin) GetRawParameter(ctx context.Context, key string) ([32]byte, error) {
+	return a.parameterAdmin.GetRawParameter(ctx, key)
+}
+
+func (a appChainAdmin) SetRawParameter(
+	ctx context.Context,
+	key string,
+	value [32]byte,
+) error {
+	return a.parameterAdmin.SetRawParameter(ctx, key, value)
 }

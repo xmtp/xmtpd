@@ -10,7 +10,9 @@ func paramsCmd() *cobra.Command {
 		Short: "Manipulate parameters in the Parameter Registries",
 	}
 	cmd.AddCommand(
+		paramsAppCmd(),
 		paramsSettlementCmd(),
+		paramsBridgeCmd(),
 	)
 	return cmd
 }

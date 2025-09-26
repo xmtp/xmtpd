@@ -30,7 +30,12 @@ func buildRatesAdmin(t *testing.T) (blockchain.IRatesAdmin, blockchain.IParamete
 	)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	paramAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	ratesAdmin, err := blockchain.NewRatesAdmin(

@@ -29,7 +29,12 @@ func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, blockchain.IPa
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.AppChain.RPCURL)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	paramAdmin, err := blockchain.NewAppChainParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	appAdmin, err := blockchain.NewAppChainAdmin(

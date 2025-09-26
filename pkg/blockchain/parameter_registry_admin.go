@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -48,7 +47,19 @@ const (
 	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY = "xmtp.settlementChainGateway.paused"
 )
 
-var uint96Size = 12
+var (
+	uint96Size          = 12
+	ErrBatchUnsupported = fmt.Errorf("batch SetMany not supported by this registry")
+)
+
+// IParameterRegistry abstracts the minimal surface used by ParameterAdmin.
+// It is implemented for both SettlementChainParameterRegistry and AppChainParameterRegistry.
+type IParameterRegistry interface {
+	Get(opts *bind.CallOpts, key string) ([32]byte, error)
+	Set(opts *bind.TransactOpts, key string, value [32]byte) (*types.Transaction, error)
+	SetMany(opts *bind.TransactOpts, keys []string, values [][32]byte) (*types.Transaction, error)
+	ParseParameterSet(log types.Log) ([32]byte, [32]byte, error)
+}
 
 type IParameterAdmin interface {
 	// Reads
@@ -76,41 +87,67 @@ type IParameterAdmin interface {
 }
 
 type ParameterAdmin struct {
-	client            *ethclient.Client
-	signer            TransactionSigner
-	logger            *zap.Logger
-	parameterContract *paramReg.SettlementChainParameterRegistry
+	client   *ethclient.Client
+	signer   TransactionSigner
+	logger   *zap.Logger
+	registry IParameterRegistry
 }
 
 var _ IParameterAdmin = (*ParameterAdmin)(nil)
 
-func NewParameterAdmin(
+// Generic constructor when you already have an adapter.
+func NewParameterAdminWithRegistry(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	signer TransactionSigner,
+	reg IParameterRegistry,
+) IParameterAdmin {
+	return &ParameterAdmin{
+		client:   client,
+		signer:   signer,
+		logger:   logger.Named("ParameterAdmin"),
+		registry: reg,
+	}
+}
+
+func NewSettlementParameterAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
 ) (IParameterAdmin, error) {
-	paramContract, err := paramReg.NewSettlementChainParameterRegistry(
-		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
+	reg, err := NewSettlementRegistryAdapter(
 		client,
+		contractsOptions.SettlementChain.ParameterRegistryAddress,
 	)
 	if err != nil {
 		return nil, err
 	}
+	return NewParameterAdminWithRegistry(logger, client, signer, reg), nil
+}
 
-	return &ParameterAdmin{
-		client:            client,
-		signer:            signer,
-		logger:            logger.Named("ParameterAdmin"),
-		parameterContract: paramContract,
-	}, nil
+// NewAppChainParameterAdmin builds a ParameterAdmin for the AppChain registry.
+func NewAppChainParameterAdmin(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	signer TransactionSigner,
+	contractsOptions config.ContractsOptions,
+) (IParameterAdmin, error) {
+	reg, err := NewAppChainRegistryAdapter(
+		client,
+		contractsOptions.AppChain.ParameterRegistryAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return NewParameterAdminWithRegistry(logger, client, signer, reg), nil
 }
 
 func (n *ParameterAdmin) GetParameterAddress(
 	ctx context.Context,
 	paramName string,
 ) (common.Address, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{
+	payload, err := n.registry.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
@@ -124,7 +161,7 @@ func (n *ParameterAdmin) GetParameterUint8(
 	ctx context.Context,
 	paramName string,
 ) (uint8, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -139,7 +176,7 @@ func (n *ParameterAdmin) GetParameterUint16(
 	ctx context.Context,
 	paramName string,
 ) (uint16, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -154,7 +191,7 @@ func (n *ParameterAdmin) GetParameterUint32(
 	ctx context.Context,
 	paramName string,
 ) (uint32, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -169,7 +206,7 @@ func (n *ParameterAdmin) GetParameterUint64(
 	ctx context.Context,
 	paramName string,
 ) (uint64, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -184,7 +221,7 @@ func (n *ParameterAdmin) GetParameterUint96(
 	ctx context.Context,
 	paramName string,
 ) (*big.Int, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return nil, NewBlockchainError(err)
 	}
@@ -199,7 +236,7 @@ func (n *ParameterAdmin) GetParameterBool(
 	ctx context.Context,
 	paramName string,
 ) (bool, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{
+	payload, err := n.registry.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
@@ -401,21 +438,29 @@ func (n *ParameterAdmin) setParameterBytes32(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.parameterContract.Set(opts, paramName, value)
+			return n.registry.Set(opts, paramName, value)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.parameterContract.ParseParameterSet(*log)
+			key, v, err := n.registry.ParseParameterSet(*log)
+			if err != nil {
+				return nil, err
+			}
+			return struct {
+				Key   [32]byte
+				Value [32]byte
+			}{Key: key, Value: v}, nil
 		},
 		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
+			ev, ok := event.(struct {
+				Key   [32]byte
+				Value [32]byte
+			})
 			if !ok {
-				n.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
+				n.logger.Error("unexpected event type, not ParameterSet tuple")
 				return
 			}
 			if onEvent != nil {
-				onEvent(parameterSet.Value)
+				onEvent(ev.Value)
 			}
 		},
 	)
@@ -432,22 +477,35 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.parameterContract.Set0(opts, keys, values)
+			tx, err := n.registry.SetMany(opts, keys, values)
+			if err == ErrBatchUnsupported {
+				return nil, ErrBatchUnsupported
+			}
+			return tx, err
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.parameterContract.ParseParameterSet(*log)
+			// Reuse single Set event; batch emits one event per key in most registries.
+			key, v, err := n.registry.ParseParameterSet(*log)
+			if err != nil {
+				return nil, err
+			}
+			return struct {
+				Key   [32]byte
+				Value [32]byte
+			}{Key: key, Value: v}, nil
 		},
 		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
+			ev, ok := event.(struct {
+				Key   [32]byte
+				Value [32]byte
+			})
 			if !ok {
-				n.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
+				n.logger.Error("unexpected event type, not ParameterSet tuple")
 				return
 			}
-			n.logger.Info("update parameter (batch/Set0)",
-				zap.String("key", parameterSet.Key.String()),
-				zap.Uint64("value", utils.DecodeBytes32ToUint64(parameterSet.Value)),
+			n.logger.Info("update parameter (batch)",
+				zap.String("key", string(ev.Key[:])),
+				zap.Uint64("value", utils.DecodeBytes32ToUint64(ev.Value)),
 			)
 		},
 	)
@@ -635,7 +693,7 @@ func (n *ParameterAdmin) GetRawParameter(
 	ctx context.Context,
 	paramName string,
 ) ([32]byte, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return [32]byte{}, NewBlockchainError(err)
 	}

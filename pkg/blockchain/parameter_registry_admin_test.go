@@ -30,7 +30,7 @@ func buildParameterAdmin(t *testing.T) blockchain.IParameterAdmin {
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.AppChain.RPCURL)
 	require.NoError(t, err)
 
-	admin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	admin, err := blockchain.NewSettlementParameterAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
 	return admin

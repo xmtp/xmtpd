@@ -34,7 +34,12 @@ func buildSettlementChainAdmin(
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.SettlementChain.RPCURL)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	paramAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	settlementChainAdmin, err := blockchain.NewSettlementChainAdmin(

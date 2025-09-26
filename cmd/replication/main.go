@@ -203,6 +203,11 @@ func setupFeeCalculator(
 	if err != nil {
 		return nil, err
 	}
+	err = ratesFetcher.Start()
+	if err != nil {
+		return nil, err
+	}
+
 	return fees.NewFeeCalculator(ratesFetcher), nil
 }
 

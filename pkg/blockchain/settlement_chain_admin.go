@@ -2,11 +2,14 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
 	dm "github.com/xmtp/xmtpd/pkg/abi/distributionmanager"
+	nr "github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
+	rr "github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,27 +22,28 @@ import (
 
 type ISettlementChainAdmin interface {
 	GetSettlementChainGatewayPauseStatus(ctx context.Context) (bool, error)
-	SetSettlementChainGatewayPauseStatus(ctx context.Context, paused bool) error
+	UpdateSettlementChainGatewayPauseStatus(ctx context.Context) error
 	GetPayerRegistryPauseStatus(ctx context.Context) (bool, error)
-	SetPayerRegistryPauseStatus(ctx context.Context, paused bool) error
+	UpdatePayerRegistryPauseStatus(ctx context.Context) error
 	GetDistributionManagerPauseStatus(ctx context.Context) (bool, error)
-	SetDistributionManagerPauseStatus(ctx context.Context, paused bool) error
+	UpdateDistributionManagerPauseStatus(ctx context.Context) error
+
+	GetNodeRegistryAdmin(ctx context.Context) (common.Address, error)
+	UpdateNodeRegistryAdmin(ctx context.Context) error
 
 	GetDistributionManagerProtocolFeesRecipient(ctx context.Context) (common.Address, error)
-	SetDistributionManagerProtocolFeesRecipient(ctx context.Context, addr common.Address) error
-	GetNodeRegistryAdmin(ctx context.Context) (common.Address, error)
-	SetNodeRegistryAdmin(ctx context.Context, addr common.Address) error
+	UpdateDistributionManagerProtocolFeesRecipient(ctx context.Context) error
 
 	GetPayerRegistryMinimumDeposit(ctx context.Context) (*big.Int, error)
-	SetPayerRegistryMinimumDeposit(ctx context.Context, v *big.Int) error
+	UpdatePayerRegistryMinimumDeposit(ctx context.Context) error
 	GetPayerRegistryWithdrawLockPeriod(ctx context.Context) (uint32, error)
-	SetPayerRegistryWithdrawLockPeriod(ctx context.Context, v uint32) error
+	UpdatePayerRegistryWithdrawLockPeriod(ctx context.Context) error
 
 	GetPayerReportManagerProtocolFeeRate(ctx context.Context) (uint16, error)
-	SetPayerReportManagerProtocolFeeRate(ctx context.Context, v uint16) error
+	UpdatePayerReportManagerProtocolFeeRate(ctx context.Context) error
 
 	GetRateRegistryMigrator(ctx context.Context) (common.Address, error)
-	SetRateRegistryMigrator(ctx context.Context, addr common.Address) error
+	UpdateRateRegistryMigrator(ctx context.Context) error
 
 	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
 	SetRawParameter(ctx context.Context, key string, value [32]byte) error
@@ -56,6 +60,8 @@ type settlementChainAdmin struct {
 	payerRegistry          *pr.PayerRegistry
 	distributionManager    *dm.DistributionManager
 	payerReportManager     *prm.PayerReportManager
+	nodeRegistry           *nr.NodeRegistry
+	rateRegistry           *rr.RateRegistry
 }
 
 var _ ISettlementChainAdmin = (*settlementChainAdmin)(nil)
@@ -99,6 +105,22 @@ func NewSettlementChainAdmin(
 		return nil, err
 	}
 
+	nodeContract, err := nr.NewNodeRegistry(
+		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	rateRegistry, err := rr.NewRateRegistry(
+		common.HexToAddress(contractsOptions.SettlementChain.RateRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &settlementChainAdmin{
 		client:                 client,
 		signer:                 signer,
@@ -108,23 +130,20 @@ func NewSettlementChainAdmin(
 		payerRegistry:          payerRegistry,
 		distributionManager:    distributionManager,
 		payerReportManager:     payerReportManager,
+		nodeRegistry:           nodeContract,
+		rateRegistry:           rateRegistry,
 	}, nil
 }
 
 func (s settlementChainAdmin) GetSettlementChainGatewayPauseStatus(
 	ctx context.Context,
 ) (bool, error) {
-	return s.parameterAdmin.GetParameterBool(ctx, SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY)
+	return s.settlementChainGateway.Paused(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetSettlementChainGatewayPauseStatus(
+func (s settlementChainAdmin) UpdateSettlementChainGatewayPauseStatus(
 	ctx context.Context,
-	paused bool,
 ) error {
-	if err := s.parameterAdmin.SetBoolParameter(ctx, SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY, paused); err != nil {
-		return err
-	}
-
 	err := ExecuteTransaction(
 		ctx,
 		s.signer,
@@ -161,14 +180,10 @@ func (s settlementChainAdmin) SetSettlementChainGatewayPauseStatus(
 }
 
 func (s settlementChainAdmin) GetPayerRegistryPauseStatus(ctx context.Context) (bool, error) {
-	return s.parameterAdmin.GetParameterBool(ctx, PAYER_REGISTRY_PAUSED_KEY)
+	return s.payerRegistry.Paused(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetPayerRegistryPauseStatus(ctx context.Context, paused bool) error {
-	if err := s.parameterAdmin.SetBoolParameter(ctx, PAYER_REGISTRY_PAUSED_KEY, paused); err != nil {
-		return err
-	}
-
+func (s settlementChainAdmin) UpdatePayerRegistryPauseStatus(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		s.signer,
@@ -205,17 +220,12 @@ func (s settlementChainAdmin) SetPayerRegistryPauseStatus(ctx context.Context, p
 }
 
 func (s settlementChainAdmin) GetDistributionManagerPauseStatus(ctx context.Context) (bool, error) {
-	return s.parameterAdmin.GetParameterBool(ctx, DISTRIBUTION_MANAGER_PAUSED_KEY)
+	return s.distributionManager.Paused(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetDistributionManagerPauseStatus(
+func (s settlementChainAdmin) UpdateDistributionManagerPauseStatus(
 	ctx context.Context,
-	paused bool,
 ) error {
-	if err := s.parameterAdmin.SetBoolParameter(ctx, DISTRIBUTION_MANAGER_PAUSED_KEY, paused); err != nil {
-		return err
-	}
-
 	err := ExecuteTransaction(
 		ctx,
 		s.signer,
@@ -254,20 +264,12 @@ func (s settlementChainAdmin) SetDistributionManagerPauseStatus(
 func (s settlementChainAdmin) GetDistributionManagerProtocolFeesRecipient(
 	ctx context.Context,
 ) (common.Address, error) {
-	return s.parameterAdmin.GetParameterAddress(
-		ctx,
-		DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
-	)
+	return s.distributionManager.ProtocolFeesRecipient(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetDistributionManagerProtocolFeesRecipient(
+func (s settlementChainAdmin) UpdateDistributionManagerProtocolFeesRecipient(
 	ctx context.Context,
-	addr common.Address,
 ) error {
-	if err := s.parameterAdmin.SetAddressParameter(ctx, DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY, addr); err != nil {
-		return err
-	}
-
 	// Apply on-chain (adjust ABI names if they differ in your bindings)
 	err := ExecuteTransaction(
 		ctx,
@@ -292,37 +294,22 @@ func (s settlementChainAdmin) SetDistributionManagerProtocolFeesRecipient(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (distribution manager protocol fees recipient)",
-				zap.String("protocolFeesRecipient", addr.Hex()))
-			return nil
+			s.logger.Info("No update needed (distribution manager protocol fees recipient)")
 		}
 		return err
 	}
 	return nil
 }
 
-func (s settlementChainAdmin) GetNodeRegistryAdmin(ctx context.Context) (common.Address, error) {
-	return s.parameterAdmin.GetParameterAddress(ctx, NODE_REGISTRY_ADMIN_KEY)
-}
-
-func (s settlementChainAdmin) SetNodeRegistryAdmin(ctx context.Context, addr common.Address) error {
-	return s.parameterAdmin.SetAddressParameter(ctx, NODE_REGISTRY_ADMIN_KEY, addr)
-}
-
 func (s settlementChainAdmin) GetPayerRegistryMinimumDeposit(
 	ctx context.Context,
 ) (*big.Int, error) {
-	return s.parameterAdmin.GetParameterUint96(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY)
+	return s.payerRegistry.MinimumDeposit(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(
+func (s settlementChainAdmin) UpdatePayerRegistryMinimumDeposit(
 	ctx context.Context,
-	v *big.Int,
 ) error {
-	if err := s.parameterAdmin.SetUint96Parameter(ctx, PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY, v); err != nil {
-		return err
-	}
-
 	err := ExecuteTransaction(
 		ctx,
 		s.signer, s.logger, s.client,
@@ -344,8 +331,7 @@ func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (payer registry minimum deposit)",
-				zap.String("minimumDeposit", v.String()))
+			s.logger.Info("No update needed (payer registry minimum deposit)")
 			return nil
 		}
 		return err
@@ -356,17 +342,12 @@ func (s settlementChainAdmin) SetPayerRegistryMinimumDeposit(
 func (s settlementChainAdmin) GetPayerRegistryWithdrawLockPeriod(
 	ctx context.Context,
 ) (uint32, error) {
-	return s.parameterAdmin.GetParameterUint32(ctx, PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY)
+	return s.payerRegistry.WithdrawLockPeriod(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetPayerRegistryWithdrawLockPeriod(
+func (s settlementChainAdmin) UpdatePayerRegistryWithdrawLockPeriod(
 	ctx context.Context,
-	v uint32,
 ) error {
-	if err := s.parameterAdmin.SetUint32Parameter(ctx, PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY, v); err != nil {
-		return err
-	}
-
 	err := ExecuteTransaction(
 		ctx,
 		s.signer, s.logger, s.client,
@@ -388,8 +369,7 @@ func (s settlementChainAdmin) SetPayerRegistryWithdrawLockPeriod(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (payer registry withdraw lock period)",
-				zap.Uint32("withdrawLockPeriod", v))
+			s.logger.Info("No update needed (payer registry withdraw lock period)")
 			return nil
 		}
 		return err
@@ -400,17 +380,12 @@ func (s settlementChainAdmin) SetPayerRegistryWithdrawLockPeriod(
 func (s settlementChainAdmin) GetPayerReportManagerProtocolFeeRate(
 	ctx context.Context,
 ) (uint16, error) {
-	return s.parameterAdmin.GetParameterUint16(ctx, PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY)
+	return s.payerReportManager.ProtocolFeeRate(&bind.CallOpts{Context: ctx})
 }
 
-func (s settlementChainAdmin) SetPayerReportManagerProtocolFeeRate(
+func (s settlementChainAdmin) UpdatePayerReportManagerProtocolFeeRate(
 	ctx context.Context,
-	v uint16,
 ) error {
-	if err := s.parameterAdmin.SetUint16Parameter(ctx, PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY, v); err != nil {
-		return err
-	}
-
 	err := ExecuteTransaction(
 		ctx,
 		s.signer, s.logger, s.client,
@@ -434,8 +409,43 @@ func (s settlementChainAdmin) SetPayerReportManagerProtocolFeeRate(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (payer report manager protocol fee)",
-				zap.Uint16("protocolFeeRate", v))
+			s.logger.Info("No update needed (payer report manager protocol fee)")
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetNodeRegistryAdmin(ctx context.Context) (common.Address, error) {
+	return s.nodeRegistry.Admin(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) UpdateNodeRegistryAdmin(ctx context.Context) error {
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.nodeRegistry.UpdateAdmin(opts)
+		},
+		func(log *types.Log) (interface{}, error) {
+			return s.nodeRegistry.ParseAdminUpdated(*log)
+		},
+		func(event interface{}) {
+			ev, ok := event.(*nr.NodeRegistryAdminUpdated)
+			if !ok {
+				s.logger.Error(
+					"unexpected event type, not NodeRegistryAdminUpdated",
+				)
+				return
+			}
+			s.logger.Info("node registry admin updated",
+				zap.String("admin", ev.Admin.Hex()))
+		},
+	)
+	if err != nil {
+		if err.IsNoChange() {
+			s.logger.Info("No update needed")
 			return nil
 		}
 		return err
@@ -444,14 +454,11 @@ func (s settlementChainAdmin) SetPayerReportManagerProtocolFeeRate(
 }
 
 func (s settlementChainAdmin) GetRateRegistryMigrator(ctx context.Context) (common.Address, error) {
-	return s.parameterAdmin.GetParameterAddress(ctx, RATE_REGISTRY_MIGRATOR_KEY)
+	return common.Address{}, errors.New("not implemented")
 }
 
-func (s settlementChainAdmin) SetRateRegistryMigrator(
-	ctx context.Context,
-	addr common.Address,
-) error {
-	return s.parameterAdmin.SetAddressParameter(ctx, RATE_REGISTRY_MIGRATOR_KEY, addr)
+func (s settlementChainAdmin) UpdateRateRegistryMigrator(ctx context.Context) error {
+	return errors.New("not implemented")
 }
 
 func (s settlementChainAdmin) GetRawParameter(ctx context.Context, key string) ([32]byte, error) {

@@ -445,7 +445,7 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 				)
 				return
 			}
-			n.logger.Info("set parameter (batch/Set0)",
+			n.logger.Info("update parameter (batch/Set0)",
 				zap.String("key", parameterSet.Key.String()),
 				zap.Uint64("value", utils.DecodeBytes32ToUint64(parameterSet.Value)),
 			)
@@ -464,13 +464,13 @@ func (n *ParameterAdmin) SetUint8Parameter(
 		func(val [32]byte) {
 			u8, err := decodeUint8(val)
 			if err != nil {
-				n.logger.Warn("set uint8 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint8 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint8 parameter",
+			n.logger.Info("update uint8 parameter",
 				zap.String("key", paramName),
 				zap.Uint8("value", u8),
 			)
@@ -487,13 +487,13 @@ func (n *ParameterAdmin) SetUint16Parameter(
 		func(val [32]byte) {
 			u16, err := decodeUint16(val)
 			if err != nil {
-				n.logger.Warn("set uint16 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint16 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint16 parameter",
+			n.logger.Info("update uint16 parameter",
 				zap.String("key", paramName),
 				zap.Uint16("value", u16),
 			)
@@ -510,13 +510,13 @@ func (n *ParameterAdmin) SetUint32Parameter(
 		func(val [32]byte) {
 			u32, err := decodeUint32(val)
 			if err != nil {
-				n.logger.Warn("set uint32 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint32 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint32 parameter",
+			n.logger.Info("update uint32 parameter",
 				zap.String("key", paramName),
 				zap.Uint32("value", u32),
 			)
@@ -533,13 +533,13 @@ func (n *ParameterAdmin) SetUint64Parameter(
 		func(val [32]byte) {
 			u64, err := decodeUint64(val)
 			if err != nil {
-				n.logger.Warn("set uint64 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint64 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint64 parameter",
+			n.logger.Info("update uint64 parameter",
 				zap.String("key", paramName),
 				zap.Uint64("value", u64),
 			)
@@ -560,13 +560,13 @@ func (n *ParameterAdmin) SetUint96Parameter(
 		func(val [32]byte) {
 			u, derr := decodeUint96Big(val)
 			if derr != nil {
-				n.logger.Warn("set uint96 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint96 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(derr),
 				)
 				return
 			}
-			n.logger.Info("set uint96 parameter",
+			n.logger.Info("update uint96 parameter",
 				zap.String("key", paramName),
 				zap.String("value", u.String()),
 			)
@@ -582,7 +582,7 @@ func (n *ParameterAdmin) SetAddressParameter(
 	return n.setParameterBytes32(ctx, paramName, packAddress(paramValue),
 		func(val [32]byte) {
 			addr := common.BytesToAddress(val[12:])
-			n.logger.Info("set address parameter",
+			n.logger.Info("update address parameter",
 				zap.String("key", paramName),
 				zap.String("address", addr.Hex()),
 			)
@@ -599,13 +599,13 @@ func (n *ParameterAdmin) SetBoolParameter(
 		func(val [32]byte) {
 			b, err := decodeBool(val)
 			if err != nil {
-				n.logger.Warn("set bool parameter (non-canonical value observed in event)",
+				n.logger.Warn("update bool parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set bool parameter",
+			n.logger.Info("update bool parameter",
 				zap.String("key", paramName),
 				zap.Bool("value", b),
 			)
@@ -649,7 +649,7 @@ func (n *ParameterAdmin) SetRawParameter(
 ) ProtocolError {
 	return n.setParameterBytes32(ctx, paramName, value, func(val [32]byte) {
 		n.logger.Info(
-			"set raw parameter",
+			"update raw parameter",
 			zap.String("key", paramName),
 			zap.String("bytes32", "0x"+common.Bytes2Hex(val[:])),
 		)

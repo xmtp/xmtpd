@@ -220,7 +220,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 ) error {
 	err := n.parameterAdmin.SetUint8Parameter(ctx, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, limit)
 	if err != nil {
-		return errors.Wrap(err, "failed to set max canonical nodes parameter")
+		return errors.Wrap(err, "failed to update max canonical nodes parameter")
 	}
 
 	err = ExecuteTransaction(

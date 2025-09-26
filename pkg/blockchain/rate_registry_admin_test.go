@@ -120,7 +120,7 @@ func TestAddRatesAgain(t *testing.T) {
 }
 
 func TestRates_ReadDefaults(t *testing.T) {
-	t.Skip("Some defaults seem to be set - https://github.com/xmtp/smart-contracts/issues/126")
+	t.Skip("Some defaults seem to be update - https://github.com/xmtp/smart-contracts/issues/126")
 	_, paramAdmin := buildRatesAdmin(t)
 	ctx := context.Background()
 

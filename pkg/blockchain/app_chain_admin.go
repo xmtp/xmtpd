@@ -18,26 +18,26 @@ import (
 
 type IAppChainAdmin interface {
 	GetIdentityUpdateBootstrapper(ctx context.Context) (common.Address, error)
-	SetIdentityUpdateBootstrapper(ctx context.Context) error
+	UpdateIdentityUpdateBootstrapper(ctx context.Context) error
 	GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error)
-	SetGroupMessageBootstrapper(ctx context.Context) error
+	UpdateGroupMessageBootstrapper(ctx context.Context) error
 
 	GetGroupMessagePauseStatus(ctx context.Context) (bool, error)
-	SetGroupMessagePauseStatus(ctx context.Context) error
+	UpdateGroupMessagePauseStatus(ctx context.Context) error
 	GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error)
-	SetIdentityUpdatePauseStatus(ctx context.Context) error
+	UpdateIdentityUpdatePauseStatus(ctx context.Context) error
 	GetAppChainGatewayPauseStatus(ctx context.Context) (bool, error)
-	SetAppChainGatewayPauseStatus(ctx context.Context) error
+	UpdateAppChainGatewayPauseStatus(ctx context.Context) error
 
 	GetGroupMessageMaxPayloadSize(ctx context.Context) (uint32, error)
-	SetGroupMessageMaxPayloadSize(ctx context.Context) error
+	UpdateGroupMessageMaxPayloadSize(ctx context.Context) error
 	GetGroupMessageMinPayloadSize(ctx context.Context) (uint32, error)
-	SetGroupMessageMinPayloadSize(ctx context.Context) error
+	UpdateGroupMessageMinPayloadSize(ctx context.Context) error
 
 	GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint32, error)
-	SetIdentityUpdateMaxPayloadSize(ctx context.Context) error
+	UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) error
 	GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint32, error)
-	SetIdentityUpdateMinPayloadSize(ctx context.Context) error
+	UpdateIdentityUpdateMinPayloadSize(ctx context.Context) error
 
 	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
 }
@@ -102,7 +102,7 @@ func (a appChainAdmin) GetIdentityUpdateBootstrapper(ctx context.Context) (commo
 	})
 }
 
-func (a appChainAdmin) SetIdentityUpdateBootstrapper(
+func (a appChainAdmin) UpdateIdentityUpdateBootstrapper(
 	ctx context.Context,
 ) error {
 	err := ExecuteTransaction(
@@ -146,7 +146,7 @@ func (a appChainAdmin) GetGroupMessageBootstrapper(ctx context.Context) (common.
 	})
 }
 
-func (a appChainAdmin) SetGroupMessageBootstrapper(
+func (a appChainAdmin) UpdateGroupMessageBootstrapper(
 	ctx context.Context,
 ) error {
 	err := ExecuteTransaction(
@@ -190,7 +190,7 @@ func (a appChainAdmin) GetGroupMessagePauseStatus(ctx context.Context) (bool, er
 	})
 }
 
-func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context) error {
+func (a appChainAdmin) UpdateGroupMessagePauseStatus(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -231,7 +231,7 @@ func (a appChainAdmin) GetIdentityUpdatePauseStatus(ctx context.Context) (bool, 
 	})
 }
 
-func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context) error {
+func (a appChainAdmin) UpdateIdentityUpdatePauseStatus(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -270,7 +270,7 @@ func (a appChainAdmin) GetAppChainGatewayPauseStatus(ctx context.Context) (bool,
 	})
 }
 
-func (a appChainAdmin) SetAppChainGatewayPauseStatus(ctx context.Context) error {
+func (a appChainAdmin) UpdateAppChainGatewayPauseStatus(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -307,7 +307,7 @@ func (a appChainAdmin) GetGroupMessageMaxPayloadSize(ctx context.Context) (uint3
 	return a.groupMessageBroadcaster.MaxPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetGroupMessageMaxPayloadSize(ctx context.Context) error {
+func (a appChainAdmin) UpdateGroupMessageMaxPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -345,7 +345,7 @@ func (a appChainAdmin) GetGroupMessageMinPayloadSize(ctx context.Context) (uint3
 	return a.groupMessageBroadcaster.MinPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetGroupMessageMinPayloadSize(ctx context.Context) error {
+func (a appChainAdmin) UpdateGroupMessageMinPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -383,7 +383,7 @@ func (a appChainAdmin) GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uin
 	return a.identityUpdateBroadcaster.MaxPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetIdentityUpdateMaxPayloadSize(ctx context.Context) error {
+func (a appChainAdmin) UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -421,7 +421,7 @@ func (a appChainAdmin) GetIdentityUpdateMinPayloadSize(ctx context.Context) (uin
 	return a.identityUpdateBroadcaster.MinPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetIdentityUpdateMinPayloadSize(ctx context.Context) error {
+func (a appChainAdmin) UpdateIdentityUpdateMinPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,

@@ -30,10 +30,10 @@ func appChainCmd() *cobra.Command {
 func appPauseCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:          "pause",
-		Short:        "Get/Set app-chain pause statuses",
+		Short:        "Get/Update app-chain pause statuses",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(appPauseGetCmd(), appPauseSetCmd())
+	cmd.AddCommand(appPauseGetCmd(), appPauseUpdateCmd())
 	return &cmd
 }
 
@@ -98,15 +98,15 @@ func appPauseGetHandler(target options.Target) error {
 	return nil
 }
 
-func appPauseSetCmd() *cobra.Command {
+func appPauseUpdateCmd() *cobra.Command {
 	var target options.Target
 
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set pause status for target: identity|group|app-chain-gateway",
+		Use:          "update",
+		Short:        "Update pause status for target: identity|group|app-chain-gateway",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return appPauseSetHandler(target)
+			return appPauseUpdateHandler(target)
 		},
 	}
 
@@ -115,7 +115,7 @@ func appPauseSetCmd() *cobra.Command {
 	return cmd
 }
 
-func appPauseSetHandler(target options.Target) error {
+func appPauseUpdateHandler(target options.Target) error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -130,19 +130,19 @@ func appPauseSetHandler(target options.Target) error {
 
 	switch target {
 	case options.TargetIdentity:
-		if err := admin.SetIdentityUpdatePauseStatus(ctx); err != nil {
+		if err := admin.UpdateIdentityUpdatePauseStatus(ctx); err != nil {
 			logger.Error("write identity pause", zap.Error(err))
 			return err
 		}
 		logger.Info("identity broadcaster pause updated")
 	case options.TargetGroup:
-		if err := admin.SetGroupMessagePauseStatus(ctx); err != nil {
+		if err := admin.UpdateGroupMessagePauseStatus(ctx); err != nil {
 			logger.Error("write group pause", zap.Error(err))
 			return err
 		}
 		logger.Info("group broadcaster pause updated")
 	case options.TargetAppChainGateway:
-		if err := admin.SetAppChainGatewayPauseStatus(ctx); err != nil {
+		if err := admin.UpdateAppChainGatewayPauseStatus(ctx); err != nil {
 			logger.Error("write gateway pause", zap.Error(err))
 			return err
 		}
@@ -159,10 +159,10 @@ func appPauseSetHandler(target options.Target) error {
 func appBootstrapperCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:          "bootstrapper",
-		Short:        "Get/Set payload bootstrapper (identity & group)",
+		Short:        "Get/Update payload bootstrapper (identity & group)",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(appBootstrapperGetCmd(), appBootstrapperSetCmd())
+	cmd.AddCommand(appBootstrapperGetCmd(), appBootstrapperUpdateCmd())
 	return &cmd
 }
 
@@ -210,15 +210,15 @@ func appBootstrapperGetHandler() error {
 	return nil
 }
 
-func appBootstrapperSetCmd() *cobra.Command {
+func appBootstrapperUpdateCmd() *cobra.Command {
 	var addr options.AddressFlag
 
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set bootstrapper address for BOTH identity & group",
+		Use:          "update",
+		Short:        "Update bootstrapper address for BOTH identity & group",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return appBootstrapperSetHandler(addr.Address)
+			return appBootstrapperUpdateHandler(addr.Address)
 		},
 	}
 
@@ -227,7 +227,7 @@ func appBootstrapperSetCmd() *cobra.Command {
 	return cmd
 }
 
-func appBootstrapperSetHandler(addr common.Address) error {
+func appBootstrapperUpdateHandler(addr common.Address) error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -240,15 +240,15 @@ func appBootstrapperSetHandler(addr common.Address) error {
 		return fmt.Errorf("could not setup appchain admin: %w", err)
 	}
 
-	if err := admin.SetIdentityUpdateBootstrapper(ctx); err != nil {
-		logger.Error("set identity bootstrapper", zap.Error(err))
+	if err := admin.UpdateIdentityUpdateBootstrapper(ctx); err != nil {
+		logger.Error("update identity bootstrapper", zap.Error(err))
 		return err
 	}
-	if err := admin.SetGroupMessageBootstrapper(ctx); err != nil {
-		logger.Error("set group bootstrapper", zap.Error(err))
+	if err := admin.UpdateGroupMessageBootstrapper(ctx); err != nil {
+		logger.Error("update group bootstrapper", zap.Error(err))
 		return err
 	}
-	logger.Info("bootstrapper set", zap.String("address", addr.String()))
+	logger.Info("bootstrapper updated", zap.String("address", addr.String()))
 	return nil
 }
 
@@ -257,10 +257,10 @@ func appBootstrapperSetHandler(addr common.Address) error {
 func appPayloadSizeCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:          "payload-size",
-		Short:        "Get/Set payload size bounds for broadcasters",
+		Short:        "Get/Update payload size bounds for broadcasters",
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(appPayloadSizeGetCmd(), appPayloadSizeSetCmd())
+	cmd.AddCommand(appPayloadSizeGetCmd(), appPayloadSizeUpdateCmd())
 	return &cmd
 }
 
@@ -357,32 +357,28 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 	return nil
 }
 
-func appPayloadSizeSetCmd() *cobra.Command {
+func appPayloadSizeUpdateCmd() *cobra.Command {
 	var target options.Target
 	var bound options.PayloadBound
-	var size uint64
 
 	cmd := &cobra.Command{
-		Use:          "set",
-		Short:        "Set payload size for --target identity|group and --bound min|max",
+		Use:          "update",
+		Short:        "Update payload size for --target identity|group and --bound min|max",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return appPayloadSizeSetHandler(target, bound, size)
+			return appPayloadSizeUpdateHandler(target, bound)
 		},
 	}
 	cmd.Flags().Var(&target, "target", "identity|group")
 	_ = cmd.MarkFlagRequired("target")
 	cmd.Flags().Var(&bound, "bound", "min|max")
 	_ = cmd.MarkFlagRequired("bound")
-	cmd.Flags().Uint64Var(&size, "size", 0, "size in bytes")
-	_ = cmd.MarkFlagRequired("size")
 	return cmd
 }
 
-func appPayloadSizeSetHandler(
+func appPayloadSizeUpdateHandler(
 	target options.Target,
 	bound options.PayloadBound,
-	size uint64,
 ) error {
 	logger, err := cliLogger()
 	if err != nil {
@@ -399,24 +395,24 @@ func appPayloadSizeSetHandler(
 	switch target {
 	case options.TargetIdentity:
 		if bound == options.PayloadMin {
-			if err := admin.SetIdentityUpdateMinPayloadSize(ctx); err != nil {
+			if err := admin.UpdateIdentityUpdateMinPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
 		} else {
-			if err := admin.SetIdentityUpdateMaxPayloadSize(ctx); err != nil {
+			if err := admin.UpdateIdentityUpdateMaxPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
 		}
 	case options.TargetGroup:
 		if bound == options.PayloadMin {
-			if err := admin.SetGroupMessageMinPayloadSize(ctx); err != nil {
+			if err := admin.UpdateGroupMessageMinPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
 		} else {
-			if err := admin.SetGroupMessageMaxPayloadSize(ctx); err != nil {
+			if err := admin.UpdateGroupMessageMaxPayloadSize(ctx); err != nil {
 				logger.Error("write", zap.Error(err))
 				return err
 			}
@@ -425,10 +421,9 @@ func appPayloadSizeSetHandler(
 		return fmt.Errorf("target must be identity|group")
 	}
 
-	logger.Info("payload size set",
+	logger.Info("payload size updated",
 		zap.String("target", string(target)),
 		zap.String("bound", string(bound)),
-		zap.Uint64("bytes", size),
 	)
 	return nil
 }

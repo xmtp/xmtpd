@@ -59,6 +59,14 @@ func bridgeSendHandler(opts BridgeSendOpts) error {
 		return fmt.Errorf("at least one --key is required")
 	}
 
+	if opts.TimeoutSec <= 0 {
+		return fmt.Errorf("timeout must be a positive integer")
+	}
+
+	if opts.TimeoutSec > 3600 {
+		return fmt.Errorf("timeout must not exceed %d seconds", 3600)
+	}
+
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		time.Duration(opts.TimeoutSec)*time.Second,

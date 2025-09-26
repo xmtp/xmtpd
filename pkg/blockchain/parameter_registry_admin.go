@@ -422,7 +422,10 @@ func decodeBool(val [32]byte) (bool, error) {
 
 // shared executor -------------------------------------------------------------
 
-type parameterSetEvent struct {Key [32]byte; Value [32]byte}
+type parameterSetEvent struct {
+	Key   [32]byte
+	Value [32]byte
+}
 
 func (n *ParameterAdmin) setParameterBytes32(
 	ctx context.Context,

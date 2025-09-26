@@ -70,8 +70,9 @@ func TestCreateServer(t *testing.T) {
 			PrivateKey:       privateKey1,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				API:  true,
-				Sync: true,
+				API:     true,
+				Reports: true,
+				Sync:    true,
 			},
 		},
 	)
@@ -84,8 +85,9 @@ func TestCreateServer(t *testing.T) {
 			PrivateKey:       privateKey2,
 			ContractsOptions: contractsOptions,
 			Services: serverTestUtils.EnabledServices{
-				API:  true,
-				Sync: true,
+				API:     true,
+				Reports: true,
+				Sync:    true,
 			},
 		},
 	)

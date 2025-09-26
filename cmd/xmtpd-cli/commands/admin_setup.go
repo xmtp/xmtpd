@@ -197,7 +197,7 @@ func setupNodeRegistryCaller(
 func setupRateRegistryAdmin(
 	ctx context.Context,
 	logger *zap.Logger,
-) (*blockchain.RatesAdmin, error) {
+) (blockchain.IRatesAdmin, error) {
 	var (
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
@@ -239,8 +239,9 @@ func setupRateRegistryAdmin(
 
 	registryAdmin, err := blockchain.NewRatesAdmin(
 		logger,
-		paramAdmin,
 		chainClient,
+		signer,
+		paramAdmin,
 		contracts,
 	)
 	if err != nil {

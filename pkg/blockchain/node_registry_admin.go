@@ -34,7 +34,7 @@ type nodeRegistryAdmin struct {
 	signer         TransactionSigner
 	logger         *zap.Logger
 	nodeContract   *noderegistry.NodeRegistry
-	parameterAdmin *ParameterAdmin
+	parameterAdmin IParameterAdmin
 }
 
 var _ INodeRegistryAdmin = &nodeRegistryAdmin{}
@@ -44,7 +44,7 @@ func NewNodeRegistryAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
+	parameterAdmin IParameterAdmin,
 ) (*nodeRegistryAdmin, error) {
 	nodeContract, err := noderegistry.NewNodeRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.NodeRegistryAddress),

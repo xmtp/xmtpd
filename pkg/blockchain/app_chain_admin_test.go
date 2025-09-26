@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, *blockchain.ParameterAdmin) {
+func buildAppChainAdmin(t *testing.T) (blockchain.IAppChainAdmin, blockchain.IParameterAdmin) {
 	t.Helper()
 
 	ctx := context.Background()

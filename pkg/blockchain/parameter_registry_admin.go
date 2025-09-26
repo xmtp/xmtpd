@@ -50,6 +50,31 @@ const (
 
 var uint96Size = 12
 
+type IParameterAdmin interface {
+	// Reads
+	GetRawParameter(ctx context.Context, paramName string) ([32]byte, ProtocolError)
+	GetParameterAddress(ctx context.Context, paramName string) (common.Address, ProtocolError)
+	GetParameterUint8(ctx context.Context, paramName string) (uint8, ProtocolError)
+	GetParameterUint16(ctx context.Context, paramName string) (uint16, ProtocolError)
+	GetParameterUint32(ctx context.Context, paramName string) (uint32, ProtocolError)
+	GetParameterUint64(ctx context.Context, paramName string) (uint64, ProtocolError)
+	GetParameterUint96(ctx context.Context, paramName string) (*big.Int, ProtocolError)
+	GetParameterBool(ctx context.Context, paramName string) (bool, ProtocolError)
+
+	// Writes
+	SetRawParameter(ctx context.Context, paramName string, value [32]byte) ProtocolError
+	SetUint8Parameter(ctx context.Context, paramName string, v uint8) ProtocolError
+	SetUint16Parameter(ctx context.Context, paramName string, v uint16) ProtocolError
+	SetUint32Parameter(ctx context.Context, paramName string, v uint32) ProtocolError
+	SetUint64Parameter(ctx context.Context, paramName string, v uint64) ProtocolError
+	SetUint96Parameter(ctx context.Context, paramName string, v *big.Int) ProtocolError
+	SetAddressParameter(ctx context.Context, paramName string, v common.Address) ProtocolError
+	SetBoolParameter(ctx context.Context, paramName string, v bool) ProtocolError
+
+	// Batch helpers
+	SetManyUint64Parameters(ctx context.Context, items []Uint64Param) ProtocolError
+}
+
 type ParameterAdmin struct {
 	client            *ethclient.Client
 	signer            TransactionSigner
@@ -57,12 +82,14 @@ type ParameterAdmin struct {
 	parameterContract *paramReg.SettlementChainParameterRegistry
 }
 
+var _ IParameterAdmin = (*ParameterAdmin)(nil)
+
 func NewParameterAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-) (*ParameterAdmin, error) {
+) (IParameterAdmin, error) {
 	paramContract, err := paramReg.NewSettlementChainParameterRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
 		client,
@@ -602,4 +629,29 @@ func (n *ParameterAdmin) SetManyUint64Parameters(
 		vals[i] = packUint64(it.Value)
 	}
 	return n.setParametersBytes32Many(ctx, keys, vals)
+}
+
+func (n *ParameterAdmin) GetRawParameter(
+	ctx context.Context,
+	paramName string,
+) ([32]byte, ProtocolError) {
+	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	if err != nil {
+		return [32]byte{}, NewBlockchainError(err)
+	}
+	return payload, nil
+}
+
+func (n *ParameterAdmin) SetRawParameter(
+	ctx context.Context,
+	paramName string,
+	value [32]byte,
+) ProtocolError {
+	return n.setParameterBytes32(ctx, paramName, value, func(val [32]byte) {
+		n.logger.Info(
+			"set raw parameter",
+			zap.String("key", paramName),
+			zap.String("bytes32", "0x"+common.Bytes2Hex(val[:])),
+		)
+	})
 }

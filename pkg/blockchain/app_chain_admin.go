@@ -44,7 +44,7 @@ type appChainAdmin struct {
 	client                    *ethclient.Client
 	signer                    TransactionSigner
 	logger                    *zap.Logger
-	parameterAdmin            *ParameterAdmin
+	parameterAdmin            IParameterAdmin
 	identityUpdateBroadcaster *iu.IdentityUpdateBroadcaster
 	groupMessageBroadcaster   *gm.GroupMessageBroadcaster
 	appChainGateway           *acg.AppChainGateway
@@ -57,7 +57,7 @@ func NewAppChainAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
+	parameterAdmin IParameterAdmin,
 ) (IAppChainAdmin, error) {
 	iuBroadcaster, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(contractsOptions.AppChain.IdentityUpdateBroadcasterAddress),

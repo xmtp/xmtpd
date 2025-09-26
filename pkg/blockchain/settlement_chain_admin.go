@@ -40,13 +40,16 @@ type ISettlementChainAdmin interface {
 
 	GetRateRegistryMigrator(ctx context.Context) (common.Address, error)
 	SetRateRegistryMigrator(ctx context.Context, addr common.Address) error
+
+	GetRawParameter(ctx context.Context, key string) ([]byte, error)
+	SetRawParameter(ctx context.Context, key string, value [32]byte) error
 }
 
 type settlementChainAdmin struct {
 	client                 *ethclient.Client
 	signer                 TransactionSigner
 	logger                 *zap.Logger
-	parameterAdmin         *ParameterAdmin
+	parameterAdmin         IParameterAdmin
 	settlementChainGateway *scg.SettlementChainGateway
 	payerRegistry          *pr.PayerRegistry
 	distributionManager    *dm.DistributionManager
@@ -60,7 +63,7 @@ func NewSettlementChainAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
+	parameterAdmin IParameterAdmin,
 ) (ISettlementChainAdmin, error) {
 	acGateway, err := scg.NewSettlementChainGateway(
 		common.HexToAddress(contractsOptions.SettlementChain.GatewayAddress),
@@ -447,4 +450,16 @@ func (s settlementChainAdmin) SetRateRegistryMigrator(
 	addr common.Address,
 ) error {
 	return s.parameterAdmin.SetAddressParameter(ctx, RATE_REGISTRY_MIGRATOR_KEY, addr)
+}
+
+func (s settlementChainAdmin) GetRawParameter(ctx context.Context, key string) ([]byte, error) {
+	return nil, nil
+}
+
+func (s settlementChainAdmin) SetRawParameter(
+	ctx context.Context,
+	key string,
+	value [32]byte,
+) error {
+	return nil
 }

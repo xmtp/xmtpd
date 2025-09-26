@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildParameterAdmin(t *testing.T) *blockchain.ParameterAdmin {
+func buildParameterAdmin(t *testing.T) blockchain.IParameterAdmin {
 	t.Helper()
 
 	ctx := context.Background()

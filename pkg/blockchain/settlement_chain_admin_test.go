@@ -17,7 +17,7 @@ import (
 
 func buildSettlementChainAdmin(
 	t *testing.T,
-) (blockchain.ISettlementChainAdmin, *blockchain.ParameterAdmin) {
+) (blockchain.ISettlementChainAdmin, blockchain.IParameterAdmin) {
 	t.Helper()
 
 	ctx := context.Background()

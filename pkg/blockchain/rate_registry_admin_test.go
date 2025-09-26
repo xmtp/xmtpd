@@ -12,7 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildRatesAdmin(t *testing.T) (*blockchain.RatesAdmin, *blockchain.ParameterAdmin) {
+func buildRatesAdmin(t *testing.T) (blockchain.IRatesAdmin, blockchain.IParameterAdmin) {
 	ctx := context.Background()
 	logger := testutils.NewLog(t)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
@@ -33,7 +33,13 @@ func buildRatesAdmin(t *testing.T) (*blockchain.RatesAdmin, *blockchain.Paramete
 	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
-	ratesAdmin, err := blockchain.NewRatesAdmin(logger, paramAdmin, client, contractsOptions)
+	ratesAdmin, err := blockchain.NewRatesAdmin(
+		logger,
+		client,
+		signer,
+		paramAdmin,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	return ratesAdmin, paramAdmin

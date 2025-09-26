@@ -160,8 +160,6 @@ func settlementGetHandler(opts SettlementGetOpts) error {
 	)
 	defer cancel()
 
-	// Create a read-capable ParameterAdmin. If your impl requires a signer even for reads,
-	// reuse setupSettlementParameterAdmin; otherwise you can build a read-only variant.
 	paramAdmin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup parameter admin", zap.Error(err))
@@ -173,7 +171,7 @@ func settlementGetHandler(opts SettlementGetOpts) error {
 		if k == "" {
 			continue
 		}
-		// Adjust to your actual method name for raw bytes32 retrieval.
+
 		val, gerr := paramAdmin.GetRawParameter(ctx, k)
 		if gerr != nil {
 			logger.Error("get parameter failed", zap.String("key", k), zap.Error(gerr))

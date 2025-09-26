@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"github.com/pkg/errors"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -218,7 +219,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 ) error {
 	err := n.parameterAdmin.SetUint8Parameter(ctx, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, limit)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to set max canonical nodes parameter")
 	}
 
 	err = ExecuteTransaction(

@@ -41,7 +41,7 @@ type ISettlementChainAdmin interface {
 	GetRateRegistryMigrator(ctx context.Context) (common.Address, error)
 	SetRateRegistryMigrator(ctx context.Context, addr common.Address) error
 
-	GetRawParameter(ctx context.Context, key string) ([]byte, error)
+	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
 	SetRawParameter(ctx context.Context, key string, value [32]byte) error
 }
 
@@ -452,8 +452,8 @@ func (s settlementChainAdmin) SetRateRegistryMigrator(
 	return s.parameterAdmin.SetAddressParameter(ctx, RATE_REGISTRY_MIGRATOR_KEY, addr)
 }
 
-func (s settlementChainAdmin) GetRawParameter(ctx context.Context, key string) ([]byte, error) {
-	return nil, nil
+func (s settlementChainAdmin) GetRawParameter(ctx context.Context, key string) ([32]byte, error) {
+	return s.parameterAdmin.GetRawParameter(ctx, key)
 }
 
 func (s settlementChainAdmin) SetRawParameter(
@@ -461,5 +461,5 @@ func (s settlementChainAdmin) SetRawParameter(
 	key string,
 	value [32]byte,
 ) error {
-	return nil
+	return s.parameterAdmin.SetRawParameter(ctx, key, value)
 }

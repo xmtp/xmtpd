@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/spf13/cobra"
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
 	"go.uber.org/zap"
@@ -211,23 +209,18 @@ func appBootstrapperGetHandler() error {
 }
 
 func appBootstrapperUpdateCmd() *cobra.Command {
-	var addr options.AddressFlag
-
 	cmd := &cobra.Command{
 		Use:          "update",
 		Short:        "Update bootstrapper address for BOTH identity & group",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return appBootstrapperUpdateHandler(addr.Address)
+			return appBootstrapperUpdateHandler()
 		},
 	}
-
-	cmd.Flags().Var(&addr, "address", "bootstrapper address (checksummed hex)")
-	_ = cmd.MarkFlagRequired("address")
 	return cmd
 }
 
-func appBootstrapperUpdateHandler(addr common.Address) error {
+func appBootstrapperUpdateHandler() error {
 	logger, err := cliLogger()
 	if err != nil {
 		return fmt.Errorf("could not build logger: %w", err)
@@ -248,7 +241,7 @@ func appBootstrapperUpdateHandler(addr common.Address) error {
 		logger.Error("update group bootstrapper", zap.Error(err))
 		return err
 	}
-	logger.Info("bootstrapper updated", zap.String("address", addr.String()))
+	logger.Info("bootstrapper updated")
 	return nil
 }
 

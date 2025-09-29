@@ -21,6 +21,7 @@ import (
 type EnabledServices struct {
 	API     bool
 	Indexer bool
+	Reports bool
 	Sync    bool
 }
 
@@ -54,6 +55,10 @@ func NewTestReplicationServer(
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{
 				GrpcAddress: "http://localhost:60051",
+			},
+			PayerReport: config.PayerReportOptions{
+				Enable:                        cfg.Services.Reports,
+				AttestationWorkerPollInterval: 10 * time.Second,
 			},
 			Signer: config.SignerOptions{
 				PrivateKey: hex.EncodeToString(crypto.FromECDSA(cfg.PrivateKey)),

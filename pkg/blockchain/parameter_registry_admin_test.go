@@ -13,7 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildParameterAdmin(t *testing.T) *blockchain.ParameterAdmin {
+func buildParameterAdmin(t *testing.T) blockchain.IParameterAdmin {
 	t.Helper()
 
 	ctx := context.Background()
@@ -30,7 +30,7 @@ func buildParameterAdmin(t *testing.T) *blockchain.ParameterAdmin {
 	client, err := blockchain.NewRPCClient(ctx, contractsOptions.AppChain.RPCURL)
 	require.NoError(t, err)
 
-	admin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	admin, err := blockchain.NewSettlementParameterAdmin(logger, client, signer, contractsOptions)
 	require.NoError(t, err)
 
 	return admin

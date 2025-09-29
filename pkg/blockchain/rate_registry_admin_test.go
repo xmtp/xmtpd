@@ -12,7 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildRatesAdmin(t *testing.T) (*blockchain.RatesAdmin, *blockchain.ParameterAdmin) {
+func buildRatesAdmin(t *testing.T) (blockchain.IRatesAdmin, blockchain.IParameterAdmin) {
 	ctx := context.Background()
 	logger := testutils.NewLog(t)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
@@ -30,10 +30,21 @@ func buildRatesAdmin(t *testing.T) (*blockchain.RatesAdmin, *blockchain.Paramete
 	)
 	require.NoError(t, err)
 
-	paramAdmin, err := blockchain.NewParameterAdmin(logger, client, signer, contractsOptions)
+	paramAdmin, err := blockchain.NewSettlementParameterAdmin(
+		logger,
+		client,
+		signer,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
-	ratesAdmin, err := blockchain.NewRatesAdmin(logger, paramAdmin, client, contractsOptions)
+	ratesAdmin, err := blockchain.NewRatesAdmin(
+		logger,
+		client,
+		signer,
+		paramAdmin,
+		contractsOptions,
+	)
 	require.NoError(t, err)
 
 	return ratesAdmin, paramAdmin
@@ -114,7 +125,7 @@ func TestAddRatesAgain(t *testing.T) {
 }
 
 func TestRates_ReadDefaults(t *testing.T) {
-	t.Skip("Some defaults seem to be set - https://github.com/xmtp/smart-contracts/issues/126")
+	t.Skip("Some defaults seem to be update - https://github.com/xmtp/smart-contracts/issues/126")
 	_, paramAdmin := buildRatesAdmin(t)
 	ctx := context.Background()
 

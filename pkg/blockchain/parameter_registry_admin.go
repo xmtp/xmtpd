@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	paramReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -50,40 +49,101 @@ const (
 
 var uint96Size = 12
 
-type ParameterAdmin struct {
-	client            *ethclient.Client
-	signer            TransactionSigner
-	logger            *zap.Logger
-	parameterContract *paramReg.SettlementChainParameterRegistry
+// IParameterRegistry abstracts the minimal surface used by ParameterAdmin.
+// It is implemented for both SettlementChainParameterRegistry and AppChainParameterRegistry.
+type IParameterRegistry interface {
+	Get(opts *bind.CallOpts, key string) ([32]byte, error)
+	Set(opts *bind.TransactOpts, key string, value [32]byte) (*types.Transaction, error)
+	SetMany(opts *bind.TransactOpts, keys []string, values [][32]byte) (*types.Transaction, error)
+	ParseParameterSet(log types.Log) ([32]byte, [32]byte, error)
 }
 
-func NewParameterAdmin(
+type IParameterAdmin interface {
+	// Reads
+	GetRawParameter(ctx context.Context, paramName string) ([32]byte, ProtocolError)
+	GetParameterAddress(ctx context.Context, paramName string) (common.Address, ProtocolError)
+	GetParameterUint8(ctx context.Context, paramName string) (uint8, ProtocolError)
+	GetParameterUint16(ctx context.Context, paramName string) (uint16, ProtocolError)
+	GetParameterUint32(ctx context.Context, paramName string) (uint32, ProtocolError)
+	GetParameterUint64(ctx context.Context, paramName string) (uint64, ProtocolError)
+	GetParameterUint96(ctx context.Context, paramName string) (*big.Int, ProtocolError)
+	GetParameterBool(ctx context.Context, paramName string) (bool, ProtocolError)
+
+	// Writes
+	SetRawParameter(ctx context.Context, paramName string, value [32]byte) ProtocolError
+	SetUint8Parameter(ctx context.Context, paramName string, v uint8) ProtocolError
+	SetUint16Parameter(ctx context.Context, paramName string, v uint16) ProtocolError
+	SetUint32Parameter(ctx context.Context, paramName string, v uint32) ProtocolError
+	SetUint64Parameter(ctx context.Context, paramName string, v uint64) ProtocolError
+	SetUint96Parameter(ctx context.Context, paramName string, v *big.Int) ProtocolError
+	SetAddressParameter(ctx context.Context, paramName string, v common.Address) ProtocolError
+	SetBoolParameter(ctx context.Context, paramName string, v bool) ProtocolError
+
+	// Batch helpers
+	SetManyUint64Parameters(ctx context.Context, items []Uint64Param) ProtocolError
+}
+
+type ParameterAdmin struct {
+	client   *ethclient.Client
+	signer   TransactionSigner
+	logger   *zap.Logger
+	registry IParameterRegistry
+}
+
+var _ IParameterAdmin = (*ParameterAdmin)(nil)
+
+func NewParameterAdminWithRegistry(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	signer TransactionSigner,
+	reg IParameterRegistry,
+) IParameterAdmin {
+	return &ParameterAdmin{
+		client:   client,
+		signer:   signer,
+		logger:   logger.Named("ParameterAdmin"),
+		registry: reg,
+	}
+}
+
+func NewSettlementParameterAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-) (*ParameterAdmin, error) {
-	paramContract, err := paramReg.NewSettlementChainParameterRegistry(
-		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
+) (IParameterAdmin, error) {
+	reg, err := NewSettlementRegistryAdapter(
 		client,
+		contractsOptions.SettlementChain.ParameterRegistryAddress,
 	)
 	if err != nil {
 		return nil, err
 	}
+	return NewParameterAdminWithRegistry(logger, client, signer, reg), nil
+}
 
-	return &ParameterAdmin{
-		client:            client,
-		signer:            signer,
-		logger:            logger.Named("ParameterAdmin"),
-		parameterContract: paramContract,
-	}, nil
+// NewAppChainParameterAdmin builds a ParameterAdmin for the AppChain registry.
+func NewAppChainParameterAdmin(
+	logger *zap.Logger,
+	client *ethclient.Client,
+	signer TransactionSigner,
+	contractsOptions config.ContractsOptions,
+) (IParameterAdmin, error) {
+	reg, err := NewAppChainRegistryAdapter(
+		client,
+		contractsOptions.AppChain.ParameterRegistryAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return NewParameterAdminWithRegistry(logger, client, signer, reg), nil
 }
 
 func (n *ParameterAdmin) GetParameterAddress(
 	ctx context.Context,
 	paramName string,
 ) (common.Address, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{
+	payload, err := n.registry.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
@@ -97,7 +157,7 @@ func (n *ParameterAdmin) GetParameterUint8(
 	ctx context.Context,
 	paramName string,
 ) (uint8, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -112,7 +172,7 @@ func (n *ParameterAdmin) GetParameterUint16(
 	ctx context.Context,
 	paramName string,
 ) (uint16, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -127,7 +187,7 @@ func (n *ParameterAdmin) GetParameterUint32(
 	ctx context.Context,
 	paramName string,
 ) (uint32, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -142,7 +202,7 @@ func (n *ParameterAdmin) GetParameterUint64(
 	ctx context.Context,
 	paramName string,
 ) (uint64, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return 0, NewBlockchainError(err)
 	}
@@ -157,7 +217,7 @@ func (n *ParameterAdmin) GetParameterUint96(
 	ctx context.Context,
 	paramName string,
 ) (*big.Int, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{Context: ctx}, paramName)
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
 	if err != nil {
 		return nil, NewBlockchainError(err)
 	}
@@ -172,7 +232,7 @@ func (n *ParameterAdmin) GetParameterBool(
 	ctx context.Context,
 	paramName string,
 ) (bool, ProtocolError) {
-	payload, err := n.parameterContract.Get(&bind.CallOpts{
+	payload, err := n.registry.Get(&bind.CallOpts{
 		Context: ctx,
 	}, paramName)
 	if err != nil {
@@ -362,6 +422,11 @@ func decodeBool(val [32]byte) (bool, error) {
 
 // shared executor -------------------------------------------------------------
 
+type parameterSetEvent struct {
+	Key   [32]byte
+	Value [32]byte
+}
+
 func (n *ParameterAdmin) setParameterBytes32(
 	ctx context.Context,
 	paramName string,
@@ -374,21 +439,23 @@ func (n *ParameterAdmin) setParameterBytes32(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.parameterContract.Set(opts, paramName, value)
+			return n.registry.Set(opts, paramName, value)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.parameterContract.ParseParameterSet(*log)
+			key, v, err := n.registry.ParseParameterSet(*log)
+			if err != nil {
+				return nil, err
+			}
+			return parameterSetEvent{Key: key, Value: v}, nil
 		},
 		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
+			ev, ok := event.(parameterSetEvent)
 			if !ok {
-				n.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
+				n.logger.Error("unexpected event type, not ParameterSet tuple")
 				return
 			}
 			if onEvent != nil {
-				onEvent(parameterSet.Value)
+				onEvent(ev.Value)
 			}
 		},
 	)
@@ -405,22 +472,24 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 		n.logger,
 		n.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return n.parameterContract.Set0(opts, keys, values)
+			return n.registry.SetMany(opts, keys, values)
 		},
 		func(log *types.Log) (interface{}, error) {
-			return n.parameterContract.ParseParameterSet(*log)
+			key, v, err := n.registry.ParseParameterSet(*log)
+			if err != nil {
+				return nil, err
+			}
+			return parameterSetEvent{Key: key, Value: v}, nil
 		},
 		func(event interface{}) {
-			parameterSet, ok := event.(*paramReg.SettlementChainParameterRegistryParameterSet)
+			ev, ok := event.(parameterSetEvent)
 			if !ok {
-				n.logger.Error(
-					"unexpected event type, not of type SettlementChainParameterRegistryParameterSet",
-				)
+				n.logger.Error("unexpected event type, not ParameterSet tuple")
 				return
 			}
-			n.logger.Info("set parameter (batch/Set0)",
-				zap.String("key", parameterSet.Key.String()),
-				zap.Uint64("value", utils.DecodeBytes32ToUint64(parameterSet.Value)),
+			n.logger.Info("update parameter (batch)",
+				zap.String("key", string(ev.Key[:])),
+				zap.Uint64("value", utils.DecodeBytes32ToUint64(ev.Value)),
 			)
 		},
 	)
@@ -437,13 +506,13 @@ func (n *ParameterAdmin) SetUint8Parameter(
 		func(val [32]byte) {
 			u8, err := decodeUint8(val)
 			if err != nil {
-				n.logger.Warn("set uint8 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint8 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint8 parameter",
+			n.logger.Info("update uint8 parameter",
 				zap.String("key", paramName),
 				zap.Uint8("value", u8),
 			)
@@ -460,13 +529,13 @@ func (n *ParameterAdmin) SetUint16Parameter(
 		func(val [32]byte) {
 			u16, err := decodeUint16(val)
 			if err != nil {
-				n.logger.Warn("set uint16 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint16 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint16 parameter",
+			n.logger.Info("update uint16 parameter",
 				zap.String("key", paramName),
 				zap.Uint16("value", u16),
 			)
@@ -483,13 +552,13 @@ func (n *ParameterAdmin) SetUint32Parameter(
 		func(val [32]byte) {
 			u32, err := decodeUint32(val)
 			if err != nil {
-				n.logger.Warn("set uint32 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint32 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint32 parameter",
+			n.logger.Info("update uint32 parameter",
 				zap.String("key", paramName),
 				zap.Uint32("value", u32),
 			)
@@ -506,13 +575,13 @@ func (n *ParameterAdmin) SetUint64Parameter(
 		func(val [32]byte) {
 			u64, err := decodeUint64(val)
 			if err != nil {
-				n.logger.Warn("set uint64 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint64 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set uint64 parameter",
+			n.logger.Info("update uint64 parameter",
 				zap.String("key", paramName),
 				zap.Uint64("value", u64),
 			)
@@ -533,13 +602,13 @@ func (n *ParameterAdmin) SetUint96Parameter(
 		func(val [32]byte) {
 			u, derr := decodeUint96Big(val)
 			if derr != nil {
-				n.logger.Warn("set uint96 parameter (non-canonical value observed in event)",
+				n.logger.Warn("update uint96 parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(derr),
 				)
 				return
 			}
-			n.logger.Info("set uint96 parameter",
+			n.logger.Info("update uint96 parameter",
 				zap.String("key", paramName),
 				zap.String("value", u.String()),
 			)
@@ -555,7 +624,7 @@ func (n *ParameterAdmin) SetAddressParameter(
 	return n.setParameterBytes32(ctx, paramName, packAddress(paramValue),
 		func(val [32]byte) {
 			addr := common.BytesToAddress(val[12:])
-			n.logger.Info("set address parameter",
+			n.logger.Info("update address parameter",
 				zap.String("key", paramName),
 				zap.String("address", addr.Hex()),
 			)
@@ -572,13 +641,13 @@ func (n *ParameterAdmin) SetBoolParameter(
 		func(val [32]byte) {
 			b, err := decodeBool(val)
 			if err != nil {
-				n.logger.Warn("set bool parameter (non-canonical value observed in event)",
+				n.logger.Warn("update bool parameter (non-canonical value observed in event)",
 					zap.String("key", paramName),
 					zap.Error(err),
 				)
 				return
 			}
-			n.logger.Info("set bool parameter",
+			n.logger.Info("update bool parameter",
 				zap.String("key", paramName),
 				zap.Bool("value", b),
 			)
@@ -602,4 +671,29 @@ func (n *ParameterAdmin) SetManyUint64Parameters(
 		vals[i] = packUint64(it.Value)
 	}
 	return n.setParametersBytes32Many(ctx, keys, vals)
+}
+
+func (n *ParameterAdmin) GetRawParameter(
+	ctx context.Context,
+	paramName string,
+) ([32]byte, ProtocolError) {
+	payload, err := n.registry.Get(&bind.CallOpts{Context: ctx}, paramName)
+	if err != nil {
+		return [32]byte{}, NewBlockchainError(err)
+	}
+	return payload, nil
+}
+
+func (n *ParameterAdmin) SetRawParameter(
+	ctx context.Context,
+	paramName string,
+	value [32]byte,
+) ProtocolError {
+	return n.setParameterBytes32(ctx, paramName, value, func(val [32]byte) {
+		n.logger.Info(
+			"update raw parameter",
+			zap.String("key", paramName),
+			zap.String("bytes32", "0x"+common.Bytes2Hex(val[:])),
+		)
+	})
 }

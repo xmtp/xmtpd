@@ -18,33 +18,35 @@ import (
 
 type IAppChainAdmin interface {
 	GetIdentityUpdateBootstrapper(ctx context.Context) (common.Address, error)
-	SetIdentityUpdateBootstrapper(ctx context.Context, address common.Address) error
+	UpdateIdentityUpdateBootstrapper(ctx context.Context) error
 	GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error)
-	SetGroupMessageBootstrapper(ctx context.Context, address common.Address) error
+	UpdateGroupMessageBootstrapper(ctx context.Context) error
 
 	GetGroupMessagePauseStatus(ctx context.Context) (bool, error)
-	SetGroupMessagePauseStatus(ctx context.Context, paused bool) error
+	UpdateGroupMessagePauseStatus(ctx context.Context) error
 	GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error)
-	SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error
+	UpdateIdentityUpdatePauseStatus(ctx context.Context) error
 	GetAppChainGatewayPauseStatus(ctx context.Context) (bool, error)
-	SetAppChainGatewayPauseStatus(ctx context.Context, paused bool) error
+	UpdateAppChainGatewayPauseStatus(ctx context.Context) error
 
-	GetGroupMessageMaxPayloadSize(ctx context.Context) (uint64, error)
-	SetGroupMessageMaxPayloadSize(ctx context.Context, size uint64) error
-	GetGroupMessageMinPayloadSize(ctx context.Context) (uint64, error)
-	SetGroupMessageMinPayloadSize(ctx context.Context, size uint64) error
+	GetGroupMessageMaxPayloadSize(ctx context.Context) (uint32, error)
+	UpdateGroupMessageMaxPayloadSize(ctx context.Context) error
+	GetGroupMessageMinPayloadSize(ctx context.Context) (uint32, error)
+	UpdateGroupMessageMinPayloadSize(ctx context.Context) error
 
-	GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint64, error)
-	SetIdentityUpdateMaxPayloadSize(ctx context.Context, size uint64) error
-	GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint64, error)
-	SetIdentityUpdateMinPayloadSize(ctx context.Context, size uint64) error
+	GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint32, error)
+	UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) error
+	GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint32, error)
+	UpdateIdentityUpdateMinPayloadSize(ctx context.Context) error
+
+	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
 }
 
 type appChainAdmin struct {
 	client                    *ethclient.Client
 	signer                    TransactionSigner
 	logger                    *zap.Logger
-	parameterAdmin            *ParameterAdmin
+	parameterAdmin            IParameterAdmin
 	identityUpdateBroadcaster *iu.IdentityUpdateBroadcaster
 	groupMessageBroadcaster   *gm.GroupMessageBroadcaster
 	appChainGateway           *acg.AppChainGateway
@@ -57,7 +59,7 @@ func NewAppChainAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	contractsOptions config.ContractsOptions,
-	parameterAdmin *ParameterAdmin,
+	parameterAdmin IParameterAdmin,
 ) (IAppChainAdmin, error) {
 	iuBroadcaster, err := iu.NewIdentityUpdateBroadcaster(
 		common.HexToAddress(contractsOptions.AppChain.IdentityUpdateBroadcasterAddress),
@@ -95,23 +97,15 @@ func NewAppChainAdmin(
 }
 
 func (a appChainAdmin) GetIdentityUpdateBootstrapper(ctx context.Context) (common.Address, error) {
-	return a.parameterAdmin.GetParameterAddress(ctx, IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY)
+	return a.identityUpdateBroadcaster.PayloadBootstrapper(&bind.CallOpts{
+		Context: ctx,
+	})
 }
 
-func (a appChainAdmin) SetIdentityUpdateBootstrapper(
+func (a appChainAdmin) UpdateIdentityUpdateBootstrapper(
 	ctx context.Context,
-	address common.Address,
 ) error {
-	err := a.parameterAdmin.SetAddressParameter(
-		ctx,
-		IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
-		address,
-	)
-	if err != nil {
-		return err
-	}
-
-	err = ExecuteTransaction(
+	err := ExecuteTransaction(
 		ctx,
 		a.signer,
 		a.logger,
@@ -137,9 +131,7 @@ func (a appChainAdmin) SetIdentityUpdateBootstrapper(
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "0xa88ee577") {
-			a.logger.Info("No update needed",
-				zap.String("payload_bootstrapper", address.Hex()),
-			)
+			a.logger.Info("No update needed")
 			return nil
 		}
 		return err
@@ -149,23 +141,15 @@ func (a appChainAdmin) SetIdentityUpdateBootstrapper(
 }
 
 func (a appChainAdmin) GetGroupMessageBootstrapper(ctx context.Context) (common.Address, error) {
-	return a.parameterAdmin.GetParameterAddress(ctx, GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY)
+	return a.groupMessageBroadcaster.PayloadBootstrapper(&bind.CallOpts{
+		Context: ctx,
+	})
 }
 
-func (a appChainAdmin) SetGroupMessageBootstrapper(
+func (a appChainAdmin) UpdateGroupMessageBootstrapper(
 	ctx context.Context,
-	address common.Address,
 ) error {
-	err := a.parameterAdmin.SetAddressParameter(
-		ctx,
-		GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
-		address,
-	)
-	if err != nil {
-		return err
-	}
-
-	err = ExecuteTransaction(
+	err := ExecuteTransaction(
 		ctx,
 		a.signer,
 		a.logger,
@@ -191,9 +175,7 @@ func (a appChainAdmin) SetGroupMessageBootstrapper(
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "0xa88ee577") {
-			a.logger.Info("No update needed",
-				zap.String("payload_bootstrapper", address.Hex()),
-			)
+			a.logger.Info("No update needed")
 			return nil
 		}
 		return err
@@ -203,20 +185,13 @@ func (a appChainAdmin) SetGroupMessageBootstrapper(
 }
 
 func (a appChainAdmin) GetGroupMessagePauseStatus(ctx context.Context) (bool, error) {
-	return a.parameterAdmin.GetParameterBool(ctx, GROUP_MESSAGE_BROADCASTER_PAUSED_KEY)
+	return a.groupMessageBroadcaster.Paused(&bind.CallOpts{
+		Context: ctx,
+	})
 }
 
-func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context, paused bool) error {
-	err := a.parameterAdmin.SetBoolParameter(
-		ctx,
-		GROUP_MESSAGE_BROADCASTER_PAUSED_KEY,
-		paused,
-	)
-	if err != nil {
-		return err
-	}
-
-	err = ExecuteTransaction(
+func (a appChainAdmin) UpdateGroupMessagePauseStatus(ctx context.Context) error {
+	err := ExecuteTransaction(
 		ctx,
 		a.signer,
 		a.logger,
@@ -251,14 +226,12 @@ func (a appChainAdmin) SetGroupMessagePauseStatus(ctx context.Context, paused bo
 }
 
 func (a appChainAdmin) GetIdentityUpdatePauseStatus(ctx context.Context) (bool, error) {
-	return a.parameterAdmin.GetParameterBool(ctx, IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY)
+	return a.identityUpdateBroadcaster.Paused(&bind.CallOpts{
+		Context: ctx,
+	})
 }
 
-func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused bool) error {
-	if err := a.parameterAdmin.SetBoolParameter(ctx, IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, paused); err != nil {
-		return err
-	}
-
+func (a appChainAdmin) UpdateIdentityUpdatePauseStatus(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -292,14 +265,12 @@ func (a appChainAdmin) SetIdentityUpdatePauseStatus(ctx context.Context, paused 
 }
 
 func (a appChainAdmin) GetAppChainGatewayPauseStatus(ctx context.Context) (bool, error) {
-	return a.parameterAdmin.GetParameterBool(ctx, APP_CHAIN_GATEWAY_PAUSED_KEY)
+	return a.appChainGateway.Paused(&bind.CallOpts{
+		Context: ctx,
+	})
 }
 
-func (a appChainAdmin) SetAppChainGatewayPauseStatus(ctx context.Context, paused bool) error {
-	if err := a.parameterAdmin.SetBoolParameter(ctx, APP_CHAIN_GATEWAY_PAUSED_KEY, paused); err != nil {
-		return err
-	}
-
+func (a appChainAdmin) UpdateAppChainGatewayPauseStatus(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -332,22 +303,11 @@ func (a appChainAdmin) SetAppChainGatewayPauseStatus(ctx context.Context, paused
 	return nil
 }
 
-func (a appChainAdmin) GetGroupMessageMaxPayloadSize(ctx context.Context) (uint64, error) {
-	val, perr := a.parameterAdmin.GetParameterUint64(
-		ctx,
-		GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
-	)
-	if perr != nil {
-		return 0, perr
-	}
-	return val, nil
+func (a appChainAdmin) GetGroupMessageMaxPayloadSize(ctx context.Context) (uint32, error) {
+	return a.groupMessageBroadcaster.MaxPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetGroupMessageMaxPayloadSize(ctx context.Context, size uint64) error {
-	if err := a.parameterAdmin.SetUint64Parameter(ctx, GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY, size); err != nil {
-		return err
-	}
-
+func (a appChainAdmin) UpdateGroupMessageMaxPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -373,8 +333,7 @@ func (a appChainAdmin) SetGroupMessageMaxPayloadSize(ctx context.Context, size u
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (group-message max payload size)",
-				zap.Uint64("maxPayloadSize", size))
+			a.logger.Info("No update needed (group-message max payload size)")
 			return nil
 		}
 		return err
@@ -382,22 +341,11 @@ func (a appChainAdmin) SetGroupMessageMaxPayloadSize(ctx context.Context, size u
 	return nil
 }
 
-func (a appChainAdmin) GetGroupMessageMinPayloadSize(ctx context.Context) (uint64, error) {
-	val, perr := a.parameterAdmin.GetParameterUint64(
-		ctx,
-		GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
-	)
-	if perr != nil {
-		return 0, perr
-	}
-	return val, nil
+func (a appChainAdmin) GetGroupMessageMinPayloadSize(ctx context.Context) (uint32, error) {
+	return a.groupMessageBroadcaster.MinPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetGroupMessageMinPayloadSize(ctx context.Context, size uint64) error {
-	if err := a.parameterAdmin.SetUint64Parameter(ctx, GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY, size); err != nil {
-		return err
-	}
-
+func (a appChainAdmin) UpdateGroupMessageMinPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -423,8 +371,7 @@ func (a appChainAdmin) SetGroupMessageMinPayloadSize(ctx context.Context, size u
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (group-message min payload size)",
-				zap.Uint64("minPayloadSize", size))
+			a.logger.Info("No update needed (group-message min payload size)")
 			return nil
 		}
 		return err
@@ -432,22 +379,11 @@ func (a appChainAdmin) SetGroupMessageMinPayloadSize(ctx context.Context, size u
 	return nil
 }
 
-func (a appChainAdmin) GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint64, error) {
-	val, perr := a.parameterAdmin.GetParameterUint64(
-		ctx,
-		IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
-	)
-	if perr != nil {
-		return 0, perr
-	}
-	return val, nil
+func (a appChainAdmin) GetIdentityUpdateMaxPayloadSize(ctx context.Context) (uint32, error) {
+	return a.identityUpdateBroadcaster.MaxPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetIdentityUpdateMaxPayloadSize(ctx context.Context, size uint64) error {
-	if err := a.parameterAdmin.SetUint64Parameter(ctx, IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY, size); err != nil {
-		return err
-	}
-
+func (a appChainAdmin) UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -473,8 +409,7 @@ func (a appChainAdmin) SetIdentityUpdateMaxPayloadSize(ctx context.Context, size
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (identity-update max payload size)",
-				zap.Uint64("maxPayloadSize", size))
+			a.logger.Info("No update needed (identity-update max payload size)")
 			return nil
 		}
 		return err
@@ -482,22 +417,11 @@ func (a appChainAdmin) SetIdentityUpdateMaxPayloadSize(ctx context.Context, size
 	return nil
 }
 
-func (a appChainAdmin) GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint64, error) {
-	val, perr := a.parameterAdmin.GetParameterUint64(
-		ctx,
-		IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
-	)
-	if perr != nil {
-		return 0, perr
-	}
-	return val, nil
+func (a appChainAdmin) GetIdentityUpdateMinPayloadSize(ctx context.Context) (uint32, error) {
+	return a.identityUpdateBroadcaster.MinPayloadSize(&bind.CallOpts{Context: ctx})
 }
 
-func (a appChainAdmin) SetIdentityUpdateMinPayloadSize(ctx context.Context, size uint64) error {
-	if err := a.parameterAdmin.SetUint64Parameter(ctx, IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY, size); err != nil {
-		return err
-	}
-
+func (a appChainAdmin) UpdateIdentityUpdateMinPayloadSize(ctx context.Context) error {
 	err := ExecuteTransaction(
 		ctx,
 		a.signer,
@@ -523,11 +447,14 @@ func (a appChainAdmin) SetIdentityUpdateMinPayloadSize(ctx context.Context, size
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (identity-update min payload size)",
-				zap.Uint64("minPayloadSize", size))
+			a.logger.Info("No update needed (identity-update min payload size)")
 			return nil
 		}
 		return err
 	}
 	return nil
+}
+
+func (a appChainAdmin) GetRawParameter(ctx context.Context, key string) ([32]byte, error) {
+	return a.parameterAdmin.GetRawParameter(ctx, key)
 }

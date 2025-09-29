@@ -32,6 +32,7 @@ const (
 )
 
 var (
+	ErrAdvisoryLockSequence   = "advisory lock failed"
 	ErrParseIdentityUpdate    = "error parsing identity update"
 	ErrGetLatestSequenceId    = "get latest sequence id failed"
 	ErrValidateIdentityUpdate = "validate identity update failed"
@@ -71,11 +72,47 @@ func (s *IdentityUpdateStorer) StoreLog(
 	if err != nil {
 		return re.NewNonRecoverableError(ErrParseIdentityUpdate, err)
 	}
+
+	// NOTE ON CONCURRENCY CONTROL:
+	//
+	// We intentionally run this transaction at READ COMMITTED and take a
+	// transaction-scoped advisory lock (pg_advisory_xact_lock) keyed on
+	// (originator_node_id, sequence_id).
+	//
+	// Why this works:
+	//   • The advisory lock guarantees that only one HA worker can process the
+	//     same event concurrently. This eliminates races on the same (node, seq).
+	//   • READ COMMITTED means each statement sees the latest committed state,
+	//     so GetLatestSequenceId reflects any inserts that committed after we
+	//     waited on the advisory lock. At REPEATABLE READ we would be stuck
+	//     with the snapshot taken before the lock, which could cause duplicate
+	//     processing or serialization errors.
+	//   • Our INSERT/UPDATE statements on address_log are monotonic (only-if-newer
+	//     guards), so stale writes become no-ops even if two different events
+	//     touch the same (address,inbox_id).
+	//
+	// In short: the advisory lock prevents two workers from processing the same
+	// event in parallel, and READ COMMITTED ensures that once we hold the lock
+	// we see the latest database state. This combination avoids the
+	// “could not serialize access due to concurrent update” errors that show
+	// up under REPEATABLE READ with UPSERTs.
+
 	err = db.RunInTx(
 		ctx,
 		s.db,
-		&sql.TxOptions{Isolation: sql.LevelRepeatableRead},
+		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
+			err := querier.AdvisoryLockSequence(
+				ctx,
+				queries.AdvisoryLockSequenceParams{
+					NodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
+					SequenceID: msgSent.SequenceId,
+				},
+			)
+			if err != nil {
+				return re.NewNonRecoverableError(ErrAdvisoryLockSequence, err)
+			}
+
 			latestSequenceId, err := querier.GetLatestSequenceId(ctx, IDENTITY_UPDATE_ORIGINATOR_ID)
 			if err != nil {
 				return re.NewNonRecoverableError(ErrGetLatestSequenceId, err)

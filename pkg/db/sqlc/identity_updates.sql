@@ -36,3 +36,8 @@ SET
 WHERE
 	address = @address
 	AND inbox_id = decode(@inbox_id, 'hex');
+
+-- name: AdvisoryLockSequence :exec
+SELECT pg_advisory_xact_lock(
+               (@node_id::bigint << 32) | (@sequence_id & 4294967295)
+       );

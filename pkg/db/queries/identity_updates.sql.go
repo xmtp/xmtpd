@@ -12,6 +12,22 @@ import (
 	"github.com/lib/pq"
 )
 
+const advisoryLockSequence = `-- name: AdvisoryLockSequence :exec
+SELECT pg_advisory_xact_lock(
+               ($1::bigint << 32) | ($2 & 4294967295)
+       )
+`
+
+type AdvisoryLockSequenceParams struct {
+	NodeID     int64
+	SequenceID interface{}
+}
+
+func (q *Queries) AdvisoryLockSequence(ctx context.Context, arg AdvisoryLockSequenceParams) error {
+	_, err := q.db.ExecContext(ctx, advisoryLockSequence, arg.NodeID, arg.SequenceID)
+	return err
+}
+
 const getAddressLogs = `-- name: GetAddressLogs :many
 SELECT
 	a.address,

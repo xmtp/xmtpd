@@ -23,6 +23,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 var (
@@ -115,6 +116,11 @@ func (b *GatewayServiceBuilder) WithClientMetrics(
 	clientMetrics *grpcprom.ClientMetrics,
 ) IGatewayServiceBuilder {
 	b.clientMetrics = clientMetrics
+	return b
+}
+
+func (b *GatewayServiceBuilder) WithReflection(enabled bool) IGatewayServiceBuilder {
+	b.config.Reflection.Enable = enabled
 	return b
 }
 
@@ -222,6 +228,11 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			return err
 		}
 		payer_api.RegisterPayerApiServer(grpcServer, gatewayAPIService)
+
+		if b.config.Reflection.Enable {
+			reflection.Register(grpcServer)
+			b.logger.Info("enabled gRPC Server Reflection")
+		}
 
 		return nil
 	}

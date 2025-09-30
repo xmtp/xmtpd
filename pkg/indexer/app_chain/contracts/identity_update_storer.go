@@ -102,9 +102,9 @@ func (s *IdentityUpdateStorer) StoreLog(
 		s.db,
 		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
-			err := querier.AdvisoryLockSequence(
+			err := querier.AdvisoryLockIdentityUpdateInsert(
 				ctx,
-				queries.AdvisoryLockSequenceParams{
+				queries.AdvisoryLockIdentityUpdateInsertParams{
 					NodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
 					SequenceID: msgSent.SequenceId,
 				},

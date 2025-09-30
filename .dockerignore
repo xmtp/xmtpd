@@ -17,5 +17,8 @@
 !tools/
 !tools/**
 
+
 # Ignore all test files
+pkg/integration/
+pkg/integration/**
 **/*_test.go

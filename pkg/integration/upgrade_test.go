@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/xmtp/xmtpd/pkg/integration/builders"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,13 +22,13 @@ func TestUpgradeToLatest(t *testing.T) {
 
 		t.Run(version, func(t *testing.T) {
 			t.Logf("Starting old container")
-			_, err := NewXmtpdContainerBuilder(t).
+			_, err := builders.NewXmtpdContainerBuilder(t).
 				WithImage(image).
 				Build(t)
 			require.NoError(t, err)
 
 			t.Logf("Starting new container")
-			_, err = NewXmtpdContainerBuilder(t).
+			_, err = builders.NewXmtpdContainerBuilder(t).
 				WithImage("ghcr.io/xmtp/xmtpd:dev").
 				Build(t)
 			require.NoError(t, err, "Failed to start dev container")
@@ -35,13 +37,13 @@ func TestUpgradeToLatest(t *testing.T) {
 }
 
 func TestLatestVersion(t *testing.T) {
-	_, err := NewXmtpdContainerBuilder(t).
+	_, err := builders.NewXmtpdContainerBuilder(t).
 		WithImage("ghcr.io/xmtp/xmtpd:dev").
 		Build(t)
 
 	require.NoError(t, err)
 
-	_, err = NewXmtpdGatewayContainerBuilder(t).
+	_, err = builders.NewXmtpdGatewayContainerBuilder(t).
 		WithImage("ghcr.io/xmtp/xmtpd-gateway:dev").
 		Build(t)
 

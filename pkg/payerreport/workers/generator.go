@@ -127,7 +127,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		existingReportEndSequenceID = lastSubmittedReport.EndSequenceID
 	}
 
-	// Fetch all reports for the originator that are pending or
+	// Fetch all reports for the originator that are pending and approved
 	existingReports, err := w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().

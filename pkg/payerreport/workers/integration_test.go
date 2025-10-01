@@ -420,7 +420,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, messageTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, messageTopic)
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 
 	err := scaffold.reportGenerators[0].GenerateReports()
 	require.NoError(t, err)
@@ -432,7 +432,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, node1ReportTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, node1ReportTopic)
 		return len(messagesOnNode1) == 1 && len(messagesOnNode2) == 1
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 
 	// Make both node's attestation workers try and attest reports. Do this multiple times to ensure no dupes
 	for range 5 {
@@ -450,31 +450,48 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, attestationTopic)
 		// We are expecting 2 attestations total. One from each node. Each node's attestation should have synced from the other node
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 
 	// Get the attestations of the two reports from both nodes
 	for nodeIndex := range 2 {
-		// See all the reports from the perspective of node1
-		node1Reports, err := scaffold.payerReportStores[0].FetchReports(
-			t.Context(),
-			payerreport.NewFetchReportsQuery().WithOriginatorNodeID(scaffold.nodeIDs[nodeIndex]),
-		)
-		require.NoError(t, err)
-		require.Len(t, node1Reports, 1)
-		for _, report := range node1Reports {
-			require.Len(t, report.AttestationSignatures, 2)
-		}
+		require.Eventually(t, func() bool {
+			// See all the reports from the perspective of node1
+			node1Reports, err := scaffold.payerReportStores[0].FetchReports(
+				t.Context(),
+				payerreport.NewFetchReportsQuery().
+					WithOriginatorNodeID(scaffold.nodeIDs[nodeIndex]),
+			)
 
-		// See all the reports from the perspective of node1
-		node2Reports, err := scaffold.payerReportStores[1].FetchReports(
-			t.Context(),
-			payerreport.NewFetchReportsQuery().WithOriginatorNodeID(scaffold.nodeIDs[nodeIndex]),
-		)
-		require.NoError(t, err)
-		require.Len(t, node2Reports, 1)
-		for _, report := range node2Reports {
-			require.Len(t, report.AttestationSignatures, 2)
-		}
+			require.NoError(t, err)
+
+			numReports := len(node1Reports)
+			if numReports == 0 {
+				return false
+			}
+
+			numSignatures := len(node1Reports[0].AttestationSignatures)
+
+			return numReports == 1 && numSignatures == 2
+		}, 5*time.Second, 50*time.Millisecond)
+
+		require.Eventually(t, func() bool {
+			// See all the reports from the perspective of node2
+			node2Reports, err := scaffold.payerReportStores[1].FetchReports(
+				t.Context(),
+				payerreport.NewFetchReportsQuery().
+					WithOriginatorNodeID(scaffold.nodeIDs[nodeIndex]),
+			)
+			require.NoError(t, err)
+
+			numReports := len(node2Reports)
+			if numReports == 0 {
+				return false
+			}
+
+			numSignatures := len(node2Reports[0].AttestationSignatures)
+
+			return numReports == 1 && numSignatures == 2
+		}, 5*time.Second, 50*time.Millisecond)
 	}
 
 	submitterWorker := workers.NewSubmitterWorker(

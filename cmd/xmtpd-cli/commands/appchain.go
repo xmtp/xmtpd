@@ -61,7 +61,7 @@ func appPauseGetHandler(target options.Target) error {
 
 	ctx := context.Background()
 
-	admin, err := setupAppChainAdmin(ctx, logger)
+	_, admin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup appchain admin", zap.Error(err))
 		return fmt.Errorf("could not setup appchain admin: %w", err)
@@ -120,7 +120,7 @@ func appPauseUpdateHandler(target options.Target) error {
 	}
 
 	ctx := context.Background()
-	admin, err := setupAppChainAdmin(ctx, logger)
+	_, admin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return fmt.Errorf("could not setup appchain admin: %w", err)
@@ -181,7 +181,7 @@ func appBootstrapperGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupAppChainAdmin(ctx, logger)
+	_, admin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return fmt.Errorf("could not setup appchain admin: %w", err)
@@ -227,7 +227,7 @@ func appBootstrapperUpdateHandler() error {
 	}
 	ctx := context.Background()
 
-	admin, err := setupAppChainAdmin(ctx, logger)
+	_, admin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return fmt.Errorf("could not setup appchain admin: %w", err)
@@ -283,7 +283,7 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 	}
 	ctx := context.Background()
 
-	admin, err := setupAppChainAdmin(ctx, logger)
+	_, admin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return fmt.Errorf("could not setup appchain admin: %w", err)
@@ -379,7 +379,7 @@ func appPayloadSizeUpdateHandler(
 	}
 
 	ctx := context.Background()
-	admin, err := setupAppChainAdmin(ctx, logger)
+	_, admin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return fmt.Errorf("could not setup appchain admin: %w", err)

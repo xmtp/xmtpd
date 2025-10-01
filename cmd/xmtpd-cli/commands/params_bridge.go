@@ -21,8 +21,9 @@ type BridgeSendOpts struct {
 
 func paramsBridgeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bridge",
-		Short: "Bridge parameters Settlement → App",
+		Use:          "bridge",
+		Short:        "Bridge parameters Settlement → App",
+		SilenceUsage: true,
 	}
 	cmd.AddCommand(bridgeSendCmd())
 	return cmd
@@ -32,8 +33,9 @@ func bridgeSendCmd() *cobra.Command {
 	var opts BridgeSendOpts
 
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send parameters to the AppChain",
+		Use:          "send",
+		Short:        "Send parameters to the AppChain",
+		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return bridgeSendHandler(opts)
 		},
@@ -73,13 +75,13 @@ func bridgeSendHandler(opts BridgeSendOpts) error {
 	)
 	defer cancel()
 
-	paramAdmin, err := setupSettlementChainAdmin(ctx, logger)
+	_, settlementChainAdmin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup parameter admin", zap.Error(err))
 		return err
 	}
 	for _, k := range opts.Keys {
-		raw, perr := paramAdmin.GetRawParameter(ctx, k)
+		raw, perr := settlementChainAdmin.GetRawParameter(ctx, k)
 		if perr != nil {
 			logger.Error("fetch for preview failed", zap.String("key", k), zap.Error(perr))
 			return perr
@@ -90,7 +92,7 @@ func bridgeSendHandler(opts BridgeSendOpts) error {
 		)
 	}
 
-	err = paramAdmin.BridgeParameters(ctx, opts.Keys)
+	err = settlementChainAdmin.BridgeParameters(ctx, opts.Keys)
 	if err != nil {
 		logger.Error("bridge failed", zap.Error(err))
 		return err

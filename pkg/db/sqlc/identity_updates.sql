@@ -36,3 +36,9 @@ SET
 WHERE
 	address = @address
 	AND inbox_id = decode(@inbox_id, 'hex');
+
+-- name: AdvisoryLockIdentityUpdateInsert :exec
+SELECT pg_advisory_xact_lock(
+-- only take the lowest 32 bits (mod 2^32-1)
+    (@node_id::bigint << 32) | (@sequence_id & 4294967295)
+);

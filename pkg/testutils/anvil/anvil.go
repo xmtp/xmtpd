@@ -18,6 +18,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 )
 
+const (
+	AnvilImage = "ghcr.io/xmtp/contracts:sha-3b16f01"
+)
+
 func streamContainerLogs(t *testing.T, ctx context.Context, container testcontainers.Container) {
 	rc, err := container.Logs(ctx)
 	if err != nil {
@@ -72,7 +76,7 @@ func StartAnvil(t *testing.T, showLogs bool) (wsURL string, rpcURL string) {
 	ctx := t.Context()
 
 	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/xmtp/contracts:sha-3b16f01",
+		Image:        AnvilImage,
 		ExposedPorts: []string{"8545/tcp"},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.AutoRemove = true

@@ -244,7 +244,7 @@ func settlementGetHandler(opts SettlementGetOpts) error {
 	}
 
 	if len(opts.Keys) == 0 {
-		return errors.New("at least one --k is required")
+		return errors.New("at least one --key is required")
 	}
 
 	ctx, cancel := context.WithTimeout(

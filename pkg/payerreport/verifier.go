@@ -60,11 +60,8 @@ func (p *PayerReportVerifier) IsValidReport(
 	newReport *PayerReport,
 ) (bool, error) {
 	var err error
-	newReportID := newReport.ID
 
-	log := p.log.With(
-		zap.String("new_report_id", newReportID.String()),
-	)
+	log := AddReportLogFields(p.log, newReport)
 
 	if err = validateReportTransition(prevReport, newReport); err != nil {
 		log.Warn("invalid report transition", zap.Error(err))
@@ -85,6 +82,9 @@ func (p *PayerReportVerifier) IsValidReport(
 		if isValidMerkleRoot, err = p.verifyMerkleRoot(ctx, newReport); err != nil {
 			return false, err
 		}
+	}
+	if !isValidMerkleRoot {
+		log.Warn("invalid merkle root")
 	}
 
 	return isValidMerkleRoot, nil

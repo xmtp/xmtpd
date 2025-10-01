@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -127,7 +128,7 @@ func settlementSetHandler(opts SettlementSetOpts) error {
 
 		switch item.pt {
 		case ParamBool:
-			v, err := parseBoolString(rawVal)
+			v, err := strconv.ParseBool(rawVal)
 			if err != nil {
 				return fmt.Errorf("parse bool for %s: %w", key, err)
 			}

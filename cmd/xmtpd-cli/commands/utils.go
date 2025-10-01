@@ -38,18 +38,6 @@ func parseBytes32(hexStr string) ([32]byte, error) {
 	return out, nil
 }
 
-func parseBoolString(s string) (bool, error) {
-	ss := strings.ToLower(strings.TrimSpace(s))
-	switch ss {
-	case "true", "1", "yes", "y":
-		return true, nil
-	case "false", "0", "no", "n":
-		return false, nil
-	default:
-		return false, fmt.Errorf("invalid bool %q (use true/false or 1/0)", s)
-	}
-}
-
 func parseAddressString(s string) (common.Address, error) {
 	if !common.IsHexAddress(s) {
 		return common.Address{}, fmt.Errorf("invalid address %q", s)

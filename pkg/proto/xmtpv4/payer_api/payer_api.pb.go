@@ -151,7 +151,7 @@ func (*GetNodesRequest) Descriptor() ([]byte, []int) {
 
 type GetNodesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Nodes         []string               `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Nodes         map[uint32]string      `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,7 +186,7 @@ func (*GetNodesResponse) Descriptor() ([]byte, []int) {
 	return file_xmtpv4_payer_api_payer_api_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetNodesResponse) GetNodes() []string {
+func (x *GetNodesResponse) GetNodes() map[uint32]string {
 	if x != nil {
 		return x.Nodes
 	}
@@ -202,9 +202,13 @@ const file_xmtpv4_payer_api_payer_api_proto_rawDesc = "" +
 	"\tenvelopes\x18\x01 \x03(\v2%.xmtp.xmtpv4.envelopes.ClientEnvelopeR\tenvelopes\"~\n" +
 	"\x1ePublishClientEnvelopesResponse\x12\\\n" +
 	"\x14originator_envelopes\x18\x01 \x03(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeR\x13originatorEnvelopes\"\x11\n" +
-	"\x0fGetNodesRequest\"(\n" +
-	"\x10GetNodesResponse\x12\x14\n" +
-	"\x05nodes\x18\x01 \x03(\tR\x05nodes2\xc6\x02\n" +
+	"\x0fGetNodesRequest\"\x96\x01\n" +
+	"\x10GetNodesResponse\x12H\n" +
+	"\x05nodes\x18\x01 \x03(\v22.xmtp.xmtpv4.payer_api.GetNodesResponse.NodesEntryR\x05nodes\x1a8\n" +
+	"\n" +
+	"NodesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xc6\x02\n" +
 	"\bPayerApi\x12\xb8\x01\n" +
 	"\x16PublishClientEnvelopes\x124.xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest\x1a5.xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/mls/v2/payer/publish-client-envelopes\x12\x7f\n" +
 	"\bGetNodes\x12&.xmtp.xmtpv4.payer_api.GetNodesRequest\x1a'.xmtp.xmtpv4.payer_api.GetNodesResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/mls/v2/payer/get-nodesB\xce\x01\n" +
@@ -222,27 +226,29 @@ func file_xmtpv4_payer_api_payer_api_proto_rawDescGZIP() []byte {
 	return file_xmtpv4_payer_api_payer_api_proto_rawDescData
 }
 
-var file_xmtpv4_payer_api_payer_api_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_xmtpv4_payer_api_payer_api_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_xmtpv4_payer_api_payer_api_proto_goTypes = []any{
 	(*PublishClientEnvelopesRequest)(nil),  // 0: xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest
 	(*PublishClientEnvelopesResponse)(nil), // 1: xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse
 	(*GetNodesRequest)(nil),                // 2: xmtp.xmtpv4.payer_api.GetNodesRequest
 	(*GetNodesResponse)(nil),               // 3: xmtp.xmtpv4.payer_api.GetNodesResponse
-	(*envelopes.ClientEnvelope)(nil),       // 4: xmtp.xmtpv4.envelopes.ClientEnvelope
-	(*envelopes.OriginatorEnvelope)(nil),   // 5: xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	nil,                                    // 4: xmtp.xmtpv4.payer_api.GetNodesResponse.NodesEntry
+	(*envelopes.ClientEnvelope)(nil),       // 5: xmtp.xmtpv4.envelopes.ClientEnvelope
+	(*envelopes.OriginatorEnvelope)(nil),   // 6: xmtp.xmtpv4.envelopes.OriginatorEnvelope
 }
 var file_xmtpv4_payer_api_payer_api_proto_depIdxs = []int32{
-	4, // 0: xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest.envelopes:type_name -> xmtp.xmtpv4.envelopes.ClientEnvelope
-	5, // 1: xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse.originator_envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	0, // 2: xmtp.xmtpv4.payer_api.PayerApi.PublishClientEnvelopes:input_type -> xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest
-	2, // 3: xmtp.xmtpv4.payer_api.PayerApi.GetNodes:input_type -> xmtp.xmtpv4.payer_api.GetNodesRequest
-	1, // 4: xmtp.xmtpv4.payer_api.PayerApi.PublishClientEnvelopes:output_type -> xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse
-	3, // 5: xmtp.xmtpv4.payer_api.PayerApi.GetNodes:output_type -> xmtp.xmtpv4.payer_api.GetNodesResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5, // 0: xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest.envelopes:type_name -> xmtp.xmtpv4.envelopes.ClientEnvelope
+	6, // 1: xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse.originator_envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	4, // 2: xmtp.xmtpv4.payer_api.GetNodesResponse.nodes:type_name -> xmtp.xmtpv4.payer_api.GetNodesResponse.NodesEntry
+	0, // 3: xmtp.xmtpv4.payer_api.PayerApi.PublishClientEnvelopes:input_type -> xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest
+	2, // 4: xmtp.xmtpv4.payer_api.PayerApi.GetNodes:input_type -> xmtp.xmtpv4.payer_api.GetNodesRequest
+	1, // 5: xmtp.xmtpv4.payer_api.PayerApi.PublishClientEnvelopes:output_type -> xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse
+	3, // 6: xmtp.xmtpv4.payer_api.PayerApi.GetNodes:output_type -> xmtp.xmtpv4.payer_api.GetNodesResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_xmtpv4_payer_api_payer_api_proto_init() }
@@ -256,7 +262,7 @@ func file_xmtpv4_payer_api_payer_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_xmtpv4_payer_api_payer_api_proto_rawDesc), len(file_xmtpv4_payer_api_payer_api_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

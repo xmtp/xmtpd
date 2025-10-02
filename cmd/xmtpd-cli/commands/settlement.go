@@ -61,7 +61,7 @@ func settlePauseGetHandler(target options.Target) error {
 	}
 	ctx := context.Background()
 
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup settlement chain admin", zap.Error(err))
 		return err
@@ -120,7 +120,7 @@ func settlePauseUpdateHandler(target options.Target) error {
 	}
 	ctx := context.Background()
 
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("could not setup settlement chain admin", zap.Error(err))
 		return err
@@ -192,7 +192,7 @@ func settleDMFeesRecipientGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func settleDMFeesRecipientUpdateHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -261,7 +261,7 @@ func settleNodeAdminGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func settleNodeAdminUpdateHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -317,7 +317,7 @@ func settleMinDepositGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func settleMinDepositUpdateHandler() error {
 	}
 
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -390,7 +390,7 @@ func settleWithdrawLockGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -420,7 +420,7 @@ func settleWithdrawLockUpdateHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -470,7 +470,7 @@ func settlePRMFeeRateGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return err
@@ -490,7 +490,7 @@ func settlePRMFeeRateUpdateHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup admin", zap.Error(err))
 		return err
@@ -542,7 +542,7 @@ func settleRateMigratorGetHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup rates admin", zap.Error(err))
 		return err
@@ -562,7 +562,7 @@ func settleRateMigratorUpdateHandler() error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 	ctx := context.Background()
-	admin, err := setupSettlementChainAdmin(ctx, logger)
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
 	if err != nil {
 		logger.Error("setup rates admin", zap.Error(err))
 		return err

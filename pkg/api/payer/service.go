@@ -95,13 +95,13 @@ func (s *Service) GetNodes(
 		return nil, status.Errorf(codes.Unavailable, "no nodes available")
 	}
 
-	nodeURLs := make([]string, 0, len(nodes))
+	nodeMap := make(map[uint32]string, len(nodes))
 	for _, node := range nodes {
-		nodeURLs = append(nodeURLs, node.HTTPAddress)
+		nodeMap[node.NodeID] = node.HTTPAddress
 	}
 
 	return &payer_api.GetNodesResponse{
-		Nodes: nodeURLs,
+		Nodes: nodeMap,
 	}, nil
 }
 

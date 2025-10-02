@@ -87,9 +87,11 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	}
 
 	for _, report := range reports {
-		w.log.Info("submitting report", zap.String("reportID", report.ID.String()))
+		reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
+
+		reportLogger.Info("submitting report")
 		if err = w.submitReport(report); err != nil {
-			w.log.Error(
+			reportLogger.Error(
 				"failed to submit report",
 				zap.String("report_id", report.ID.String()),
 				zap.Error(err),

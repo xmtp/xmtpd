@@ -6,6 +6,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 )
 
 func getMinuteFromSequenceID(
@@ -32,4 +33,13 @@ func getMinuteFromSequenceID(
 
 func getMinuteFromEnvelope(envelope *envelopes.OriginatorEnvelope) (int32, error) {
 	return utils.MinutesSinceEpoch(envelope.OriginatorTime()), nil
+}
+
+func AddReportLogFields(logger *zap.Logger, report *PayerReport) *zap.Logger {
+	return logger.With(
+		zap.String("report_id", report.ID.String()),
+		zap.Uint64("start_sequence_id", report.StartSequenceID),
+		zap.Uint64("end_sequence_id", report.EndSequenceID),
+		zap.Uint32("originator_node_id", report.OriginatorNodeID),
+	)
 }

@@ -1,8 +1,10 @@
-package payerreport
+package payerreport_test
 
 import (
 	"crypto/rand"
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -22,15 +24,15 @@ func randomBytes32() [32]byte {
 func TestBuildPayerReport(t *testing.T) {
 	inputs := []struct {
 		name        string
-		params      BuildPayerReportParams
+		params      payerreport.BuildPayerReportParams
 		expectErr   bool
 		errContains string
 	}{
 		{
 			name: "full report",
-			params: BuildPayerReportParams{
+			params: payerreport.BuildPayerReportParams{
 				OriginatorNodeID:    1,
-				StartSequenceID:     1,
+				StartSequenceID:     0,
 				EndSequenceID:       10,
 				EndMinuteSinceEpoch: 10,
 				Payers: map[common.Address]currency.PicoDollar{
@@ -43,9 +45,9 @@ func TestBuildPayerReport(t *testing.T) {
 		},
 		{
 			name: "empty payers",
-			params: BuildPayerReportParams{
+			params: payerreport.BuildPayerReportParams{
 				OriginatorNodeID: 1,
-				StartSequenceID:  1,
+				StartSequenceID:  0,
 				EndSequenceID:    10,
 				DomainSeparator:  testutils.RandomDomainSeparator(),
 			},
@@ -53,9 +55,9 @@ func TestBuildPayerReport(t *testing.T) {
 		},
 		{
 			name: "empty domain separator",
-			params: BuildPayerReportParams{
+			params: payerreport.BuildPayerReportParams{
 				OriginatorNodeID: 1,
-				StartSequenceID:  1,
+				StartSequenceID:  0,
 				EndSequenceID:    10,
 			},
 			expectErr:   true,
@@ -65,7 +67,7 @@ func TestBuildPayerReport(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(input.name, func(t *testing.T) {
-			_, err := BuildPayerReport(input.params)
+			_, err := payerreport.BuildPayerReport(input.params)
 			if input.expectErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), input.errContains)
@@ -102,7 +104,7 @@ func TestGetDigest(t *testing.T) {
 		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
 	)
 
-	builtID, err := BuildPayerReportID(
+	builtID, err := payerreport.BuildPayerReportID(
 		originatorNodeID,
 		startSequenceID,
 		endSequenceID,
@@ -112,7 +114,7 @@ func TestGetDigest(t *testing.T) {
 		domainSeparator,
 	)
 	require.NoError(t, err)
-	require.Equal(t, *builtID, ReportID(expectedDigest))
+	require.Equal(t, *builtID, payerreport.ReportID(expectedDigest))
 }
 
 func TestNodeOrderPacksToSameHash(t *testing.T) {

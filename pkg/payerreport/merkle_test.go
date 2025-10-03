@@ -1,7 +1,9 @@
-package payerreport
+package payerreport_test
 
 import (
 	"testing"
+
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -10,12 +12,12 @@ import (
 func TestBuildMerkle(t *testing.T) {
 	cases := []struct {
 		name      string
-		payerMap  payerMap
+		payerMap  payerreport.PayerMap
 		expectErr bool
 	}{
 		{
 			name: "success",
-			payerMap: payerMap{
+			payerMap: payerreport.PayerMap{
 				common.HexToAddress("0x1"): 100,
 				common.HexToAddress("0x2"): 200,
 			},
@@ -23,14 +25,14 @@ func TestBuildMerkle(t *testing.T) {
 		},
 		{
 			name: "negative fee",
-			payerMap: payerMap{
+			payerMap: payerreport.PayerMap{
 				common.HexToAddress("0x1"): -100,
 			},
 			expectErr: true,
 		},
 		{
 			name: "zero fee",
-			payerMap: payerMap{
+			payerMap: payerreport.PayerMap{
 				common.HexToAddress("0x1"): 0,
 			},
 			expectErr: false,
@@ -39,7 +41,7 @@ func TestBuildMerkle(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := generateMerkleTree(c.payerMap)
+			_, err := payerreport.GenerateMerkleTreeTestBinding(c.payerMap)
 			if c.expectErr {
 				require.Error(t, err)
 			} else {

@@ -155,7 +155,7 @@ func BuildPayerReportID(
 		return nil, errors.New("domain separator is required")
 	}
 
-	nodeIdsHash := utils.PackAndHashNodeIDs(activeNodeIDs)
+	nodeIdsHash := utils.PackSortAndHashNodeIDs(activeNodeIDs)
 
 	packedBytes, err := payerReportMessageHash.Pack(
 		payerReportDigestTypeHash,

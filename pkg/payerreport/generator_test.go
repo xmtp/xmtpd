@@ -98,7 +98,7 @@ func TestFirstReport(t *testing.T) {
 
 	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
 		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
+		LastReportEndSequenceID: uint64(MinimumSequenceID),
 	})
 	require.NoError(t, err)
 
@@ -121,7 +121,7 @@ func TestReportWithMultiplePayers(t *testing.T) {
 
 	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
 		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
+		LastReportEndSequenceID: uint64(MinimumSequenceID),
 	})
 	require.NoError(t, err)
 
@@ -138,13 +138,13 @@ func TestReportWithNoMessages(t *testing.T) {
 
 	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
 		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
+		LastReportEndSequenceID: uint64(MinimumSequenceID),
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint64(0), report.StartSequenceID)
-	require.Equal(t, uint64(0), report.EndSequenceID)
+	require.Equal(t, uint64(MinimumSequenceID), report.StartSequenceID)
+	require.Equal(t, uint64(MinimumSequenceID), report.EndSequenceID)
 	require.Equal(t, 0, len(report.Payers))
 }
 
@@ -179,12 +179,12 @@ func TestSecondReport(t *testing.T) {
 
 	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
 		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
+		LastReportEndSequenceID: uint64(MinimumSequenceID),
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint64(0), report.StartSequenceID)
+	require.Equal(t, uint64(MinimumSequenceID), report.StartSequenceID)
 	require.Equal(t, uint64(2), report.EndSequenceID)
 	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
 
@@ -216,12 +216,12 @@ func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
 
 	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
 		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
+		LastReportEndSequenceID: uint64(MinimumSequenceID),
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint64(0), report.StartSequenceID)
-	require.Equal(t, uint64(0), report.EndSequenceID)
+	require.Equal(t, uint64(MinimumSequenceID), report.StartSequenceID)
+	require.Equal(t, uint64(MinimumSequenceID), report.EndSequenceID)
 	require.Equal(t, 0, len(report.Payers))
 }

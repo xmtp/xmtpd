@@ -122,7 +122,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		return nil
 	}
 
-	existingReportEndSequenceID := uint64(0)
+	existingReportEndSequenceID := uint64(payerreport.MinimumSequenceID)
 	if lastSubmittedReport != nil {
 		existingReportEndSequenceID = lastSubmittedReport.EndSequenceID
 	}

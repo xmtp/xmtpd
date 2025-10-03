@@ -2,6 +2,7 @@ package payerreport
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -37,6 +38,10 @@ func (p *PayerReportGenerator) GenerateReport(
 	ctx context.Context,
 	params PayerReportGenerationParams,
 ) (*PayerReportWithInputs, error) {
+	if params.LastReportEndSequenceID < uint64(MinimumSequenceID) {
+		return nil, ErrInvalidSequenceID
+	}
+
 	originatorID := int32(params.OriginatorID)
 	startMinute, err := p.getStartMinute(
 		ctx,
@@ -59,9 +64,9 @@ func (p *PayerReportGenerator) GenerateReport(
 		return nil, err
 	}
 
-	// If the end sequence ID is 0, we don't have enough envelopes to generate a report.
+	// If the end sequence ID is less than 1, we don't have enough envelopes to generate a report.
 	// Returns an empty report rather than an error here
-	if endSequenceID == 0 {
+	if endSequenceID < MinimumSequenceID {
 		payers := make(map[common.Address]currency.PicoDollar)
 		return BuildPayerReport(BuildPayerReportParams{
 			OriginatorNodeID:    uint32(originatorID),
@@ -110,8 +115,12 @@ func (p *PayerReportGenerator) getStartMinute(
 	sequenceID int64,
 	originatorID int32,
 ) (int32, error) {
-	// If the sequence ID is 0, we're starting from the first envelope
-	if sequenceID == 0 {
+	if sequenceID < MinimumSequenceID {
+		fmt.Println("DEBUG: invalid sequence ID", sequenceID)
+		return 0, ErrInvalidSequenceID
+	}
+
+	if sequenceID == MinimumSequenceID {
 		return 0, nil
 	}
 

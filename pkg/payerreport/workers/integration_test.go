@@ -335,7 +335,7 @@ func TestValidSignature(t *testing.T) {
 
 	payerReport, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID:    100,
-		StartSequenceID:     0,
+		StartSequenceID:     uint64(payerreport.MinimumSequenceID),
 		EndSequenceID:       1,
 		EndMinuteSinceEpoch: 10,
 		Payers:              map[common.Address]currency.PicoDollar{},
@@ -513,7 +513,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 	require.Len(t, fetchedReports, 1)
 	fetchedReportID := fetchedReports[0].ID
 
-	report, err := scaffold.reportsManager.GetReport(t.Context(), scaffold.nodeIDs[0], 0)
+	report, err := scaffold.reportsManager.GetReport(t.Context(), scaffold.nodeIDs[0], 1)
 	require.NoError(t, err)
 	require.Equal(
 		t,

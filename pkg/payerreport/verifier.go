@@ -99,9 +99,9 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	if err != nil {
 		return false, err
 	}
-	// If the start sequence ID is 0, it is the first report and we should start from minute 0 since there are no preceding reports
+	// If the start sequence ID is 1, it is the first report and we should start from minute 0 since there are no preceding reports
 	var startMinute int32
-	if startEnvelope.OriginatorSequenceID() == 0 {
+	if startEnvelope.OriginatorSequenceID() == uint64(MinimumSequenceID) {
 		startMinute = 0
 	} else {
 		startMinute, err = getMinuteFromEnvelope(startEnvelope)
@@ -249,7 +249,7 @@ func (p *PayerReportVerifier) getStartAndEndMessages(
 func validateReportTransition(prevReport *PayerReport, newReport *PayerReport) error {
 	// Special validations for the first report
 	if prevReport == nil {
-		if newReport.StartSequenceID != 0 {
+		if newReport.StartSequenceID != uint64(MinimumSequenceID) {
 			return ErrInvalidReportStart
 		}
 
@@ -273,6 +273,10 @@ func validateReportTransition(prevReport *PayerReport, newReport *PayerReport) e
 // Validates that the report is well-formed and doesn't have any logical
 // errors or invalid fields that can be detected without further processing.
 func validateReportStructure(report *PayerReport) error {
+	if report.StartSequenceID < uint64(MinimumSequenceID) {
+		return ErrInvalidSequenceID
+	}
+
 	// The Originator Node ID is required
 	if report.OriginatorNodeID == 0 {
 		return ErrInvalidOriginatorID

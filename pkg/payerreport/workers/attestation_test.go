@@ -62,7 +62,7 @@ func TestFindReport(t *testing.T) {
 
 	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID: 1,
-		StartSequenceID:  1,
+		StartSequenceID:  uint64(payerreport.MinimumSequenceID),
 		EndSequenceID:    10,
 		DomainSeparator:  domainSeparator,
 		NodeIDs:          []uint32{1},
@@ -93,7 +93,7 @@ func TestAttestFirstReport(t *testing.T) {
 
 	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID: 1,
-		StartSequenceID:  0,
+		StartSequenceID:  uint64(payerreport.MinimumSequenceID),
 		EndSequenceID:    10,
 		NodeIDs:          []uint32{1},
 		DomainSeparator:  domainSeparator,

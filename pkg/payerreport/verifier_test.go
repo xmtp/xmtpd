@@ -3,6 +3,7 @@ package payerreport
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -42,6 +43,7 @@ func newEnvelopeCreateParams(
 }
 
 func insertEnvelope(t *testing.T, db *sql.DB, params envelopeCreateParams) {
+	fmt.Println("DEBUG: inserting envelope", params.sequenceID)
 	payerID := testutils.CreatePayer(t, db, params.payerAddress.Hex())
 
 	envelope := envelopeTestUtils.CreateOriginatorEnvelopeWithTimestamp(
@@ -87,32 +89,40 @@ func TestValidFirstReport(t *testing.T) {
 		{
 			name: "one message per payer in the report",
 			messagesToInsert: []envelopeCreateParams{
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(1), 1),
+				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 1),
+				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(1), 2),
 				// This message is in the last minute of the report. Will be ignored by the generator
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(2), 2),
+				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(2), 3),
 			},
 		},
 		{
 			name: "two messages per payer",
 			messagesToInsert: []envelopeCreateParams{
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(1), 1),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(2), 2),
+				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 1),
+				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(1), 2),
 				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(2), 3),
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(3), 4),
+				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(2), 4),
+				// This message is in the last minute of the report. Will be ignored by the generator
+				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(3), 5),
 			},
 		},
 		{
 			name: "messages exist but not enough for a report",
 			messagesToInsert: []envelopeCreateParams{
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
 				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 1),
+				// This message is in the last minute of the report. Will be ignored by the generator
+				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 2),
 			},
 		},
 		{
 			name:             "no messages",
 			messagesToInsert: []envelopeCreateParams{},
+		},
+		{
+			name: "invalid start sequence ID message",
+			messagesToInsert: []envelopeCreateParams{
+				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
+			},
 		},
 	}
 
@@ -129,7 +139,7 @@ func TestValidFirstReport(t *testing.T) {
 
 			report, err := generator.GenerateReport(t.Context(), PayerReportGenerationParams{
 				OriginatorID:            uint32(originatorID),
-				LastReportEndSequenceID: 0,
+				LastReportEndSequenceID: uint64(MinimumSequenceID),
 			})
 			generator.log.Info("report", zap.Any("report", report))
 			require.NoError(t, err)
@@ -164,7 +174,7 @@ func TestValidateReportTransition(t *testing.T) {
 			prevReport: nil,
 			newReport: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -172,11 +182,11 @@ func TestValidateReportTransition(t *testing.T) {
 			expectedValid: true,
 		},
 		{
-			name:       "invalid first report - non-zero start",
+			name:       "invalid first report - zero start",
 			prevReport: nil,
 			newReport: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  1, // Should be 0 for first report
+				StartSequenceID:  0, // Should be 1 for first report
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -188,7 +198,7 @@ func TestValidateReportTransition(t *testing.T) {
 			name: "valid subsequent report",
 			prevReport: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -206,7 +216,7 @@ func TestValidateReportTransition(t *testing.T) {
 			name: "invalid subsequent report - mismatched originator",
 			prevReport: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -225,7 +235,7 @@ func TestValidateReportTransition(t *testing.T) {
 			name: "invalid subsequent report - gap in sequence",
 			prevReport: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -266,7 +276,7 @@ func TestValidateReportStructure(t *testing.T) {
 			name: "valid report structure",
 			report: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -277,7 +287,7 @@ func TestValidateReportStructure(t *testing.T) {
 			name: "invalid originator ID",
 			report: &PayerReport{
 				OriginatorNodeID: 0, // Invalid originator ID
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
@@ -289,7 +299,7 @@ func TestValidateReportStructure(t *testing.T) {
 			name: "no active nodes",
 			report: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{}, // Empty node list
@@ -301,7 +311,7 @@ func TestValidateReportStructure(t *testing.T) {
 			name: "invalid merkle root length",
 			report: &PayerReport{
 				OriginatorNodeID: 1,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    10,
 				PayersMerkleRoot: [32]byte{}, // Zero merkle root
 				ActiveNodeIDs:    []uint32{1},
@@ -357,7 +367,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 	// Insert test envelopes
 	insertEnvelope(t, db, envelopeCreateParams{
 		originatorID: originatorID,
-		sequenceID:   0,
+		sequenceID:   1,
 		payerAddress: payerAddress,
 		timestamp:    minute1,
 		cost:         currency.PicoDollar(100),
@@ -365,7 +375,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 
 	insertEnvelope(t, db, envelopeCreateParams{
 		originatorID: originatorID,
-		sequenceID:   1,
+		sequenceID:   2,
 		payerAddress: payerAddress,
 		timestamp:    minute2,
 		cost:         currency.PicoDollar(100),
@@ -396,8 +406,8 @@ func TestValidateMerkleRoot(t *testing.T) {
 			name: "empty report",
 			report: &PayerReport{
 				OriginatorNodeID: originatorID,
-				StartSequenceID:  0,
-				EndSequenceID:    0,
+				StartSequenceID:  1,
+				EndSequenceID:    1,
 				PayersMerkleRoot: common.BytesToHash(validMerkleTree0.Root()),
 				ActiveNodeIDs:    []uint32{1},
 			},
@@ -407,7 +417,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 			name: "valid merkle root",
 			report: &PayerReport{
 				OriginatorNodeID: originatorID,
-				StartSequenceID:  0,
+				StartSequenceID:  1,
 				EndSequenceID:    1,
 				PayersMerkleRoot: common.BytesToHash(validMerkleTree200.Root()),
 				ActiveNodeIDs:    []uint32{1},
@@ -418,8 +428,8 @@ func TestValidateMerkleRoot(t *testing.T) {
 			name: "invalid merkle root - wrong amount",
 			report: &PayerReport{
 				OriginatorNodeID: originatorID,
-				StartSequenceID:  0,
-				EndSequenceID:    1,
+				StartSequenceID:  1,
+				EndSequenceID:    2,
 				PayersMerkleRoot: common.BytesToHash(invalidAmountTree.Root()),
 				ActiveNodeIDs:    []uint32{1},
 			},
@@ -430,8 +440,8 @@ func TestValidateMerkleRoot(t *testing.T) {
 			name: "invalid merkle root - wrong payer",
 			report: &PayerReport{
 				OriginatorNodeID: originatorID,
-				StartSequenceID:  0,
-				EndSequenceID:    1,
+				StartSequenceID:  1,
+				EndSequenceID:    2,
 				PayersMerkleRoot: common.BytesToHash(invalidPayerTree.Root()),
 				ActiveNodeIDs:    []uint32{1},
 			},
@@ -477,7 +487,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 	// Insert test envelopes
 	insertEnvelope(t, db, envelopeCreateParams{
 		originatorID: originatorID,
-		sequenceID:   0,
+		sequenceID:   1,
 		payerAddress: payerAddress,
 		timestamp:    minute1,
 		cost:         currency.PicoDollar(100),
@@ -485,7 +495,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 
 	insertEnvelope(t, db, envelopeCreateParams{
 		originatorID: originatorID,
-		sequenceID:   1,
+		sequenceID:   2,
 		payerAddress: payerAddress,
 		timestamp:    minute2,
 		cost:         currency.PicoDollar(100),
@@ -493,7 +503,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 
 	insertEnvelope(t, db, envelopeCreateParams{
 		originatorID: originatorID,
-		sequenceID:   2,
+		sequenceID:   3,
 		payerAddress: payerAddress,
 		timestamp:    minute3,
 		cost:         currency.PicoDollar(100),
@@ -501,7 +511,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 
 	insertEnvelope(t, db, envelopeCreateParams{
 		originatorID: originatorID,
-		sequenceID:   3,
+		sequenceID:   4,
 		payerAddress: payerAddress,
 		timestamp:    minute3,
 		cost:         currency.PicoDollar(100),
@@ -522,8 +532,8 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 			name: "valid minute boundaries",
 			report: &PayerReport{
 				OriginatorNodeID: originatorID,
-				StartSequenceID:  0,
-				EndSequenceID:    1, // Last message of minute2
+				StartSequenceID:  1,
+				EndSequenceID:    2, // Last message of minute2
 				PayersMerkleRoot: common.BytesToHash(validMerkleTree.Root()),
 				ActiveNodeIDs:    []uint32{1},
 			},
@@ -533,8 +543,8 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 			name: "invalid minute boundary - not last message",
 			report: &PayerReport{
 				OriginatorNodeID: originatorID,
-				StartSequenceID:  0,
-				EndSequenceID:    2, // Not the last message of minute3
+				StartSequenceID:  1,
+				EndSequenceID:    3, // Not the last message of minute3
 				PayersMerkleRoot: common.BytesToHash(validMerkleTree.Root()),
 				ActiveNodeIDs:    []uint32{1},
 			},

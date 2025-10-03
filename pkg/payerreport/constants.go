@@ -11,3 +11,5 @@ import "github.com/ethereum/go-ethereum/common"
 var payerReportDigestTypeHash = common.HexToHash(
 	"3737a2cced99bb28fc5aede45aa81d3ce0aa9137c5f417641835d0d71d303346",
 )
+
+const MinimumSequenceID int64 = 1

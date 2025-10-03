@@ -127,7 +127,7 @@ func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStat
 	log := payerreport.AddReportLogFields(w.log, &report.PayerReport)
 	var prevReport *payerreport.PayerReport
 	var err error
-	if report.StartSequenceID > 0 {
+	if report.StartSequenceID > uint64(payerreport.MinimumSequenceID) {
 		var prevReportWithStatus *payerreport.PayerReportWithStatus
 		if prevReportWithStatus, err = w.getPreviousReport(report); err != nil {
 			return err

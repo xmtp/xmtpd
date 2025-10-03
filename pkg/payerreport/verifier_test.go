@@ -1,10 +1,12 @@
-package payerreport
+package payerreport_test
 
 import (
 	"context"
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -27,11 +29,13 @@ type envelopeCreateParams struct {
 }
 
 func newEnvelopeCreateParams(
+	t *testing.T,
 	originatorID uint32,
 	payerAddress common.Address,
 	timestamp time.Time,
 	sequenceID uint64,
 ) envelopeCreateParams {
+	require.NotEqualValues(t, 0, sequenceID)
 	return envelopeCreateParams{
 		originatorID: originatorID,
 		payerAddress: payerAddress,
@@ -87,27 +91,27 @@ func TestValidFirstReport(t *testing.T) {
 		{
 			name: "one message per payer in the report",
 			messagesToInsert: []envelopeCreateParams{
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(1), 1),
+				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(1), 1),
+				newEnvelopeCreateParams(t, originatorID, payerAddress2, getMinute(1), 2),
 				// This message is in the last minute of the report. Will be ignored by the generator
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(2), 2),
+				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(2), 3),
 			},
 		},
 		{
 			name: "two messages per payer",
 			messagesToInsert: []envelopeCreateParams{
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(1), 1),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(2), 2),
-				newEnvelopeCreateParams(originatorID, payerAddress2, getMinute(2), 3),
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(3), 4),
+				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(1), 1),
+				newEnvelopeCreateParams(t, originatorID, payerAddress2, getMinute(1), 2),
+				newEnvelopeCreateParams(t, originatorID, payerAddress2, getMinute(2), 3),
+				newEnvelopeCreateParams(t, originatorID, payerAddress2, getMinute(2), 4),
+				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(3), 5),
 			},
 		},
 		{
 			name: "messages exist but not enough for a report",
 			messagesToInsert: []envelopeCreateParams{
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 0),
-				newEnvelopeCreateParams(originatorID, payerAddress1, getMinute(1), 1),
+				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(1), 1),
+				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(1), 2),
 			},
 		},
 		{
@@ -120,18 +124,21 @@ func TestValidFirstReport(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			db, generator := setupGenerator(t)
 			logger := testutils.NewLog(t).With(zap.String("test_case", testCase.name))
-			store := NewStore(db, logger)
-			verifier := NewPayerReportVerifier(logger, store)
+			store := payerreport.NewStore(db, logger)
+			verifier := payerreport.NewPayerReportVerifier(logger, store)
 
 			for _, message := range testCase.messagesToInsert {
 				insertEnvelope(t, db, message)
 			}
 
-			report, err := generator.GenerateReport(t.Context(), PayerReportGenerationParams{
-				OriginatorID:            uint32(originatorID),
-				LastReportEndSequenceID: 0,
-			})
-			generator.log.Info("report", zap.Any("report", report))
+			report, err := generator.GenerateReport(
+				t.Context(),
+				payerreport.PayerReportGenerationParams{
+					OriginatorID:            uint32(originatorID),
+					LastReportEndSequenceID: 0,
+				},
+			)
+			logger.Info("report", zap.Any("report", report))
 			require.NoError(t, err)
 
 			isValid, err := verifier.IsValidReport(t.Context(), nil, &report.PayerReport)
@@ -141,11 +148,11 @@ func TestValidFirstReport(t *testing.T) {
 	}
 }
 
-func setupVerifier(t *testing.T) (*sql.DB, *PayerReportVerifier) {
+func setupVerifier(t *testing.T) (*sql.DB, *payerreport.PayerReportVerifier) {
 	db, _ := testutils.NewDB(t, context.Background())
 	logger := testutils.NewLog(t)
-	store := NewStore(db, logger)
-	verifier := NewPayerReportVerifier(logger, store)
+	store := payerreport.NewStore(db, logger)
+	verifier := payerreport.NewPayerReportVerifier(logger, store)
 
 	return db, verifier
 }
@@ -154,15 +161,15 @@ func TestValidateReportTransition(t *testing.T) {
 	// Test cases for report transition validation
 	testCases := []struct {
 		name          string
-		prevReport    *PayerReport
-		newReport     *PayerReport
+		prevReport    *payerreport.PayerReport
+		newReport     *payerreport.PayerReport
 		expectedValid bool
 		expectedError error
 	}{
 		{
 			name:       "valid first report",
 			prevReport: nil,
-			newReport: &PayerReport{
+			newReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
@@ -174,7 +181,7 @@ func TestValidateReportTransition(t *testing.T) {
 		{
 			name:       "invalid first report - non-zero start",
 			prevReport: nil,
-			newReport: &PayerReport{
+			newReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  1, // Should be 0 for first report
 				EndSequenceID:    10,
@@ -182,18 +189,18 @@ func TestValidateReportTransition(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrInvalidReportStart,
+			expectedError: payerreport.ErrInvalidReportStart,
 		},
 		{
 			name: "valid subsequent report",
-			prevReport: &PayerReport{
+			prevReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
 			},
-			newReport: &PayerReport{
+			newReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  10, // Matches prev report's end
 				EndSequenceID:    20,
@@ -204,14 +211,14 @@ func TestValidateReportTransition(t *testing.T) {
 		},
 		{
 			name: "invalid subsequent report - mismatched originator",
-			prevReport: &PayerReport{
+			prevReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
 			},
-			newReport: &PayerReport{
+			newReport: &payerreport.PayerReport{
 				OriginatorNodeID: 2, // Different originator
 				StartSequenceID:  10,
 				EndSequenceID:    20,
@@ -219,18 +226,18 @@ func TestValidateReportTransition(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrMismatchOriginator,
+			expectedError: payerreport.ErrMismatchOriginator,
 		},
 		{
 			name: "invalid subsequent report - gap in sequence",
-			prevReport: &PayerReport{
+			prevReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
 				PayersMerkleRoot: randomBytes32(),
 				ActiveNodeIDs:    []uint32{1},
 			},
-			newReport: &PayerReport{
+			newReport: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  11, // Gap from prev report's end
 				EndSequenceID:    20,
@@ -238,13 +245,13 @@ func TestValidateReportTransition(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrInvalidReportStart,
+			expectedError: payerreport.ErrInvalidReportStart,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateReportTransition(tc.prevReport, tc.newReport)
+			err := payerreport.ValidateReportTransitionTestBinding(tc.prevReport, tc.newReport)
 			if tc.expectedError != nil {
 				require.Error(t, err)
 				require.Equal(t, tc.expectedError, err)
@@ -258,13 +265,13 @@ func TestValidateReportTransition(t *testing.T) {
 func TestValidateReportStructure(t *testing.T) {
 	testCases := []struct {
 		name          string
-		report        *PayerReport
+		report        *payerreport.PayerReport
 		expectedValid bool
 		expectedError error
 	}{
 		{
 			name: "valid report structure",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
@@ -275,7 +282,7 @@ func TestValidateReportStructure(t *testing.T) {
 		},
 		{
 			name: "invalid originator ID",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: 0, // Invalid originator ID
 				StartSequenceID:  0,
 				EndSequenceID:    10,
@@ -283,11 +290,11 @@ func TestValidateReportStructure(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrInvalidOriginatorID,
+			expectedError: payerreport.ErrInvalidOriginatorID,
 		},
 		{
 			name: "no active nodes",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
@@ -295,11 +302,11 @@ func TestValidateReportStructure(t *testing.T) {
 				ActiveNodeIDs:    []uint32{}, // Empty node list
 			},
 			expectedValid: false,
-			expectedError: ErrNoNodes,
+			expectedError: payerreport.ErrNoNodes,
 		},
 		{
 			name: "invalid merkle root length",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
@@ -310,7 +317,7 @@ func TestValidateReportStructure(t *testing.T) {
 		},
 		{
 			name: "invalid sequence ID order",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: 1,
 				StartSequenceID:  20, // Start > End
 				EndSequenceID:    10,
@@ -318,13 +325,13 @@ func TestValidateReportStructure(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrInvalidReportStart,
+			expectedError: payerreport.ErrInvalidReportStart,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateReportStructure(tc.report)
+			err := payerreport.ValidateReportStructureTestBinding(tc.report)
 			if tc.expectedError != nil {
 				require.Error(t, err)
 				require.Equal(t, tc.expectedError, err)
@@ -371,30 +378,30 @@ func TestValidateMerkleRoot(t *testing.T) {
 		cost:         currency.PicoDollar(100),
 	})
 
-	validMerkleTree200, err := generateMerkleTree(payerMap{
+	validMerkleTree200, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
 		payerAddress: currency.PicoDollar(200),
 	})
 	require.NoError(t, err)
-	validMerkleTree0, err := generateMerkleTree(payerMap{})
+	validMerkleTree0, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{})
 	require.NoError(t, err)
-	invalidAmountTree, err := generateMerkleTree(payerMap{
+	invalidAmountTree, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
 		payerAddress: currency.PicoDollar(400),
 	})
 	require.NoError(t, err)
-	invalidPayerTree, err := generateMerkleTree(payerMap{
+	invalidPayerTree, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
 		testutils.RandomAddress(): currency.PicoDollar(100),
 	})
 	require.NoError(t, err)
 
 	testCases := []struct {
 		name          string
-		report        *PayerReport
+		report        *payerreport.PayerReport
 		expectedValid bool
 		expectedError error
 	}{
 		{
 			name: "empty report",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    0,
@@ -405,7 +412,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 		},
 		{
 			name: "valid merkle root",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1,
@@ -416,7 +423,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 		},
 		{
 			name: "invalid merkle root - wrong amount",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1,
@@ -424,11 +431,11 @@ func TestValidateMerkleRoot(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrMerkleRootMismatch,
+			expectedError: payerreport.ErrMerkleRootMismatch,
 		},
 		{
 			name: "invalid merkle root - wrong payer",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1,
@@ -436,7 +443,7 @@ func TestValidateMerkleRoot(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrMerkleRootMismatch,
+			expectedError: payerreport.ErrMerkleRootMismatch,
 		},
 	}
 
@@ -507,20 +514,20 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 		cost:         currency.PicoDollar(100),
 	})
 
-	validMerkleTree, err := generateMerkleTree(payerMap{
+	validMerkleTree, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
 		payerAddress: currency.PicoDollar(200),
 	})
 	require.NoError(t, err)
 
 	testCases := []struct {
 		name          string
-		report        *PayerReport
+		report        *payerreport.PayerReport
 		expectedValid bool
 		expectedError error
 	}{
 		{
 			name: "valid minute boundaries",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    1, // Last message of minute2
@@ -531,7 +538,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 		},
 		{
 			name: "invalid minute boundary - not last message",
-			report: &PayerReport{
+			report: &payerreport.PayerReport{
 				OriginatorNodeID: originatorID,
 				StartSequenceID:  0,
 				EndSequenceID:    2, // Not the last message of minute3
@@ -539,7 +546,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: ErrMessageNotAtMinuteEnd,
+			expectedError: payerreport.ErrMessageNotAtMinuteEnd,
 		},
 	}
 

@@ -1,10 +1,12 @@
-package payerreport
+package payerreport_test
 
 import (
 	"context"
 	"math"
 	"testing"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -16,20 +18,20 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-func createTestStore(t *testing.T) *Store {
+func createTestStore(t *testing.T) *payerreport.Store {
 	log := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, context.Background())
 
-	return NewStore(db, log)
+	return payerreport.NewStore(db, log)
 }
 
 func insertRandomReport(
 	t *testing.T,
-	store *Store,
-) *PayerReportWithStatus {
+	store *payerreport.Store,
+) *payerreport.PayerReportWithStatus {
 	startID := testutils.RandomInt64()
-	reportID := ReportID(randomBytes32())
-	err := store.StoreReport(t.Context(), &PayerReport{
+	reportID := payerreport.ReportID(randomBytes32())
+	err := store.StoreReport(t.Context(), &payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: uint32(testutils.RandomInt32()),
 		StartSequenceID:  uint64(startID),
@@ -46,7 +48,9 @@ func insertRandomReport(
 }
 
 // Helper to create a ClientEnvelope containing a PayerReport payload
-func createPayerReportClientEnvelope(report *PayerReport) *envelopesProto.ClientEnvelope {
+func createPayerReportClientEnvelope(
+	report *payerreport.PayerReport,
+) *envelopesProto.ClientEnvelope {
 	protoReport := report.ToProto()
 	return &envelopesProto.ClientEnvelope{
 		Aad: &envelopesProto.AuthenticatedData{
@@ -61,7 +65,7 @@ func createPayerReportClientEnvelope(report *PayerReport) *envelopesProto.Client
 
 // Helper to create a ClientEnvelope containing a PayerReportAttestation payload
 func createPayerReportAttestationClientEnvelope(
-	reportID ReportID,
+	reportID payerreport.ReportID,
 	nodeID uint32,
 	sig []byte,
 ) *envelopesProto.ClientEnvelope {
@@ -85,13 +89,13 @@ func createPayerReportAttestationClientEnvelope(
 func TestStoreAndRetrieve(t *testing.T) {
 	cases := []struct {
 		name      string
-		report    PayerReport
+		report    payerreport.PayerReport
 		expectErr bool
 	}{
 		{
 			name: "valid report",
-			report: PayerReport{
-				ID:                  ReportID(randomBytes32()),
+			report: payerreport.PayerReport{
+				ID:                  payerreport.ReportID(randomBytes32()),
 				OriginatorNodeID:    1,
 				StartSequenceID:     0,
 				EndSequenceID:       2,
@@ -103,8 +107,8 @@ func TestStoreAndRetrieve(t *testing.T) {
 		},
 		{
 			name: "invalid node ID",
-			report: PayerReport{
-				ID:                  ReportID(randomBytes32()),
+			report: payerreport.PayerReport{
+				ID:                  payerreport.ReportID(randomBytes32()),
 				OriginatorNodeID:    uint32(math.MaxInt32) + 10,
 				StartSequenceID:     0,
 				EndSequenceID:       2,
@@ -116,8 +120,8 @@ func TestStoreAndRetrieve(t *testing.T) {
 		},
 		{
 			name: "missing node IDs",
-			report: PayerReport{
-				ID:                  ReportID(randomBytes32()),
+			report: payerreport.PayerReport{
+				ID:                  payerreport.ReportID(randomBytes32()),
 				OriginatorNodeID:    1,
 				StartSequenceID:     0,
 				EndSequenceID:       2,
@@ -145,7 +149,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 
 func TestIdempotentStore(t *testing.T) {
 	store := createTestStore(t)
-	report, err := BuildPayerReport(BuildPayerReportParams{
+	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
 		EndSequenceID:    2,
@@ -163,7 +167,7 @@ func TestIdempotentStore(t *testing.T) {
 
 	storedReports, err := store.FetchReports(
 		context.Background(),
-		NewFetchReportsQuery().WithOriginatorNodeID(report.OriginatorNodeID),
+		payerreport.NewFetchReportsQuery().WithOriginatorNodeID(report.OriginatorNodeID),
 	)
 	require.NoError(t, err)
 	require.Len(t, storedReports, 1)
@@ -176,9 +180,9 @@ func TestFetchReport(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 	report2 := insertRandomReport(t, store)
 	// Set the second report's status to Approved
-	attestation := &PayerReportAttestation{
+	attestation := &payerreport.PayerReportAttestation{
 		Report: &report2.PayerReport,
-		NodeSignature: NodeSignature{
+		NodeSignature: payerreport.NodeSignature{
 			NodeID:    2,
 			Signature: []byte("sig"),
 		},
@@ -192,57 +196,60 @@ func TestFetchReport(t *testing.T) {
 
 	cases := []struct {
 		name        string
-		expectedIDs []ReportID
-		query       *FetchReportsQuery
+		expectedIDs []payerreport.ReportID
+		query       *payerreport.FetchReportsQuery
 	}{{
 		name:        "Get all with created after",
-		expectedIDs: []ReportID{report1.ID, report2.ID, report3.ID},
+		expectedIDs: []payerreport.ReportID{report1.ID, report2.ID, report3.ID},
 
-		query: NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt.Add(-5 * time.Second)),
+		query: payerreport.NewFetchReportsQuery().
+			WithCreatedAfter(report1.CreatedAt.Add(-5 * time.Second)),
 	}, {
 		name:        "Get newest 2",
-		expectedIDs: []ReportID{report2.ID, report3.ID},
-		query:       NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt),
+		expectedIDs: []payerreport.ReportID{report2.ID, report3.ID},
+		query:       payerreport.NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt),
 	}, {
 		name:        "Only approved",
-		expectedIDs: []ReportID{report2.ID},
-		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
-			WithAttestationStatus(AttestationApproved),
+		expectedIDs: []payerreport.ReportID{report2.ID},
+		query: payerreport.NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
+			WithAttestationStatus(payerreport.AttestationApproved),
 	}, {
 		name:        "Multiple statuses",
-		expectedIDs: []ReportID{report2.ID},
-		query: NewFetchReportsQuery().
-			WithAttestationStatus(AttestationApproved, AttestationRejected),
+		expectedIDs: []payerreport.ReportID{report2.ID},
+		query: payerreport.NewFetchReportsQuery().
+			WithAttestationStatus(payerreport.AttestationApproved, payerreport.AttestationRejected),
 	}, {
 		name:        "No results",
-		expectedIDs: []ReportID{},
-		query: NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
-			WithAttestationStatus(AttestationRejected),
+		expectedIDs: []payerreport.ReportID{},
+		query: payerreport.NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
+			WithAttestationStatus(payerreport.AttestationRejected),
 	}, {
 		name:        "No Params",
-		expectedIDs: []ReportID{report1.ID, report2.ID, report3.ID},
-		query:       NewFetchReportsQuery(),
+		expectedIDs: []payerreport.ReportID{report1.ID, report2.ID, report3.ID},
+		query:       payerreport.NewFetchReportsQuery(),
 	}, {
 		name:        "With start sequence ID",
-		expectedIDs: []ReportID{report1.ID},
-		query:       NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID),
+		expectedIDs: []payerreport.ReportID{report1.ID},
+		query: payerreport.NewFetchReportsQuery().
+			WithStartSequenceID(report1.StartSequenceID),
 	}, {
 		name:        "With end sequence ID",
-		expectedIDs: []ReportID{report1.ID},
-		query:       NewFetchReportsQuery().WithEndSequenceID(report1.EndSequenceID),
+		expectedIDs: []payerreport.ReportID{report1.ID},
+		query:       payerreport.NewFetchReportsQuery().WithEndSequenceID(report1.EndSequenceID),
 	}, {
 		name:        "With start and end sequence ID",
-		expectedIDs: []ReportID{report1.ID},
-		query: NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID).
+		expectedIDs: []payerreport.ReportID{report1.ID},
+		query: payerreport.NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID).
 			WithEndSequenceID(report1.EndSequenceID),
 	}, {
 		name:        "With originator node ID",
-		expectedIDs: []ReportID{report1.ID},
-		query:       NewFetchReportsQuery().WithOriginatorNodeID(report1.OriginatorNodeID),
+		expectedIDs: []payerreport.ReportID{report1.ID},
+		query: payerreport.NewFetchReportsQuery().
+			WithOriginatorNodeID(report1.OriginatorNodeID),
 	}, {
 		name:        "With min attestations",
-		expectedIDs: []ReportID{report2.ID},
-		query:       NewFetchReportsQuery().WithMinAttestations(1),
+		expectedIDs: []payerreport.ReportID{report2.ID},
+		query:       payerreport.NewFetchReportsQuery().WithMinAttestations(1),
 	}}
 
 	for _, c := range cases {
@@ -251,7 +258,7 @@ func TestFetchReport(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, results, len(c.expectedIDs))
 
-			returnedIDs := make([]ReportID, len(results))
+			returnedIDs := make([]payerreport.ReportID, len(results))
 			for idx, result := range results {
 				returnedIDs[idx] = result.ID
 			}
@@ -264,9 +271,9 @@ func TestFetchReport(t *testing.T) {
 func TestStoreAttestation(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
-	reportID := ReportID(randomBytes32())
+	reportID := payerreport.ReportID(randomBytes32())
 
-	report := PayerReport{
+	report := payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
@@ -279,9 +286,9 @@ func TestStoreAttestation(t *testing.T) {
 	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
-	attestation := &PayerReportAttestation{
+	attestation := &payerreport.PayerReportAttestation{
 		Report: &report,
-		NodeSignature: NodeSignature{
+		NodeSignature: payerreport.NodeSignature{
 			NodeID:    2,
 			Signature: []byte("sig"),
 		},
@@ -303,9 +310,9 @@ func TestStoreAttestation(t *testing.T) {
 func TestStoreAttestationInvalidNodeID(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
-	reportID := ReportID(randomBytes32())
+	reportID := payerreport.ReportID(randomBytes32())
 
-	report := PayerReport{
+	report := payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
@@ -317,28 +324,31 @@ func TestStoreAttestationInvalidNodeID(t *testing.T) {
 	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
-	attestation := &PayerReportAttestation{
+	attestation := &payerreport.PayerReportAttestation{
 		Report: &report,
-		NodeSignature: NodeSignature{
+		NodeSignature: payerreport.NodeSignature{
 			NodeID:    uint32(math.MaxInt32) + 1,
 			Signature: []byte("sig"),
 		},
 	}
 
 	err = store.StoreAttestation(ctx, attestation)
-	require.ErrorIs(t, err, ErrOriginatorNodeIDTooLarge)
+	require.ErrorIs(t, err, payerreport.ErrOriginatorNodeIDTooLarge)
 }
 
 func TestSetReportAttestationStatus(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
 
-	desiredStatuses := []AttestationStatus{AttestationApproved, AttestationRejected}
+	desiredStatuses := []payerreport.AttestationStatus{
+		payerreport.AttestationApproved,
+		payerreport.AttestationRejected,
+	}
 
 	for _, newStatus := range desiredStatuses {
-		reportID := ReportID(randomBytes32())
+		reportID := payerreport.ReportID(randomBytes32())
 
-		report := PayerReport{
+		report := payerreport.PayerReport{
 			ID:               reportID,
 			OriginatorNodeID: 1,
 			StartSequenceID:  0,
@@ -350,7 +360,7 @@ func TestSetReportAttestationStatus(t *testing.T) {
 		err := store.StoreReport(ctx, &report)
 		require.NoError(t, err)
 
-		if newStatus == AttestationApproved {
+		if newStatus == payerreport.AttestationApproved {
 			require.NoError(t, store.SetReportAttestationApproved(ctx, reportID))
 		} else {
 			require.NoError(t, store.SetReportAttestationRejected(ctx, reportID))
@@ -366,8 +376,8 @@ func TestInvalidStateTransition(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
 
-	reportID := ReportID(randomBytes32())
-	report := PayerReport{
+	reportID := payerreport.ReportID(randomBytes32())
+	report := payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: 1,
 		StartSequenceID:  0,
@@ -386,14 +396,18 @@ func TestInvalidStateTransition(t *testing.T) {
 
 	fetched, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
-	require.Equal(t, AttestationStatus(AttestationApproved), fetched.AttestationStatus)
+	require.Equal(
+		t,
+		payerreport.AttestationStatus(payerreport.AttestationApproved),
+		fetched.AttestationStatus,
+	)
 }
 
 func TestCreatePayerReport(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
 
-	report, err := BuildPayerReport(BuildPayerReportParams{
+	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID: 3,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
@@ -426,9 +440,9 @@ func TestCreatePayerReport(t *testing.T) {
 func TestCreateAttestation(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
-	reportID := ReportID(randomBytes32())
+	reportID := payerreport.ReportID(randomBytes32())
 
-	report := PayerReport{
+	report := payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: 4,
 		StartSequenceID:  0,
@@ -440,9 +454,9 @@ func TestCreateAttestation(t *testing.T) {
 	err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
-	attestation := &PayerReportAttestation{
+	attestation := &payerreport.PayerReportAttestation{
 		Report: &report,
-		NodeSignature: NodeSignature{
+		NodeSignature: payerreport.NodeSignature{
 			NodeID:    5,
 			Signature: []byte("sig"),
 		},
@@ -456,7 +470,11 @@ func TestCreateAttestation(t *testing.T) {
 
 	fetchedReport, err := store.FetchReport(ctx, reportID)
 	require.NoError(t, err)
-	require.Equal(t, AttestationStatus(AttestationApproved), fetchedReport.AttestationStatus)
+	require.Equal(
+		t,
+		payerreport.AttestationStatus(payerreport.AttestationApproved),
+		fetchedReport.AttestationStatus,
+	)
 	require.Len(t, fetchedReport.AttestationSignatures, 1)
 	require.Equal(
 		t,
@@ -474,7 +492,7 @@ func TestStoreSyncedReport(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
 
-	report, err := BuildPayerReport(BuildPayerReportParams{
+	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
 		OriginatorNodeID:    7,
 		StartSequenceID:     0,
 		EndSequenceID:       10,
@@ -511,10 +529,10 @@ func TestStoreSyncedReport(t *testing.T) {
 func TestStoreSyncedAttestation(t *testing.T) {
 	store := createTestStore(t)
 	ctx := context.Background()
-	reportID := ReportID(randomBytes32())
+	reportID := payerreport.ReportID(randomBytes32())
 
 	// First create and store the base report so that the attestation references a real report ID
-	baseReport := PayerReport{
+	baseReport := payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: 8,
 		StartSequenceID:  0,
@@ -593,8 +611,8 @@ func TestSetReportSettled(t *testing.T) {
 		originatorID := uint32(99)
 
 		// Create the first report for this originator
-		report := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -628,15 +646,19 @@ func TestSetReportSettled(t *testing.T) {
 		// Verify report status changed to settled
 		fetchedReport, err := store.FetchReport(ctx, report.ID)
 		require.NoError(t, err)
-		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+		require.Equal(
+			t,
+			payerreport.SubmissionStatus(payerreport.SubmissionSettled),
+			fetchedReport.SubmissionStatus,
+		)
 	})
 
 	t.Run("clears unsettled usage only for range since last settled report", func(t *testing.T) {
 		originatorID := uint32(100)
 
 		// Create first report and settle it
-		firstReport := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		firstReport := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -652,8 +674,8 @@ func TestSetReportSettled(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create second report
-		secondReport := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		secondReport := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     10,
 			EndSequenceID:       20,
@@ -687,15 +709,19 @@ func TestSetReportSettled(t *testing.T) {
 		// Verify report status changed to settled
 		fetchedReport, err := store.FetchReport(ctx, secondReport.ID)
 		require.NoError(t, err)
-		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+		require.Equal(
+			t,
+			payerreport.SubmissionStatus(payerreport.SubmissionSettled),
+			fetchedReport.SubmissionStatus,
+		)
 	})
 
 	t.Run("handles multiple reports with submitted and settled states", func(t *testing.T) {
 		originatorID := uint32(101)
 
 		// Create and settle first report
-		report1 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report1 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -711,8 +737,8 @@ func TestSetReportSettled(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create and submit (but not settle) second report
-		report2 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report2 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     10,
 			EndSequenceID:       20,
@@ -726,8 +752,8 @@ func TestSetReportSettled(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create third report
-		report3 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report3 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     20,
 			EndSequenceID:       30,
@@ -765,8 +791,8 @@ func TestSetReportSettled(t *testing.T) {
 		originatorID := uint32(102)
 
 		// Create and submit (but not settle) first report
-		report1 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report1 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -780,8 +806,8 @@ func TestSetReportSettled(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create second report
-		report2 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report2 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    originatorID,
 			StartSequenceID:     10,
 			EndSequenceID:       20,
@@ -815,8 +841,8 @@ func TestSetReportSettled(t *testing.T) {
 
 	t.Run("does not affect other originators", func(t *testing.T) {
 		// Create two reports for different originators
-		report1 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report1 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    200,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -824,8 +850,8 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
-		report2 := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report2 := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    201,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -859,15 +885,15 @@ func TestSetReportSettled(t *testing.T) {
 	})
 
 	t.Run("fails for non-existent report", func(t *testing.T) {
-		nonExistentID := ReportID(randomBytes32())
+		nonExistentID := payerreport.ReportID(randomBytes32())
 		err := store.SetReportSettled(ctx, nonExistentID)
 		require.Error(t, err)
 	})
 
 	t.Run("transitions from pending to settled", func(t *testing.T) {
 		// Create a report in pending state
-		report := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    300,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -881,7 +907,11 @@ func TestSetReportSettled(t *testing.T) {
 		// Verify initial status is pending
 		fetchedReport, err := store.FetchReport(ctx, report.ID)
 		require.NoError(t, err)
-		require.Equal(t, SubmissionStatus(SubmissionPending), fetchedReport.SubmissionStatus)
+		require.Equal(
+			t,
+			payerreport.SubmissionStatus(payerreport.SubmissionPending),
+			fetchedReport.SubmissionStatus,
+		)
 
 		// Should be able to transition from pending to settled
 		err = store.SetReportSettled(ctx, report.ID)
@@ -890,13 +920,17 @@ func TestSetReportSettled(t *testing.T) {
 		// Verify status changed
 		fetchedReport, err = store.FetchReport(ctx, report.ID)
 		require.NoError(t, err)
-		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+		require.Equal(
+			t,
+			payerreport.SubmissionStatus(payerreport.SubmissionSettled),
+			fetchedReport.SubmissionStatus,
+		)
 	})
 
 	t.Run("transitions from submitted to settled", func(t *testing.T) {
 		// Create a report and set it to submitted
-		report := &PayerReport{
-			ID:                  ReportID(randomBytes32()),
+		report := &payerreport.PayerReport{
+			ID:                  payerreport.ReportID(randomBytes32()),
 			OriginatorNodeID:    400,
 			StartSequenceID:     0,
 			EndSequenceID:       10,
@@ -912,7 +946,11 @@ func TestSetReportSettled(t *testing.T) {
 		// Verify status is submitted
 		fetchedReport, err := store.FetchReport(ctx, report.ID)
 		require.NoError(t, err)
-		require.Equal(t, SubmissionStatus(SubmissionSubmitted), fetchedReport.SubmissionStatus)
+		require.Equal(
+			t,
+			payerreport.SubmissionStatus(payerreport.SubmissionSubmitted),
+			fetchedReport.SubmissionStatus,
+		)
 
 		// Should be able to transition from submitted to settled
 		err = store.SetReportSettled(ctx, report.ID)
@@ -921,6 +959,10 @@ func TestSetReportSettled(t *testing.T) {
 		// Verify status changed
 		fetchedReport, err = store.FetchReport(ctx, report.ID)
 		require.NoError(t, err)
-		require.Equal(t, SubmissionStatus(SubmissionSettled), fetchedReport.SubmissionStatus)
+		require.Equal(
+			t,
+			payerreport.SubmissionStatus(payerreport.SubmissionSettled),
+			fetchedReport.SubmissionStatus,
+		)
 	})
 }

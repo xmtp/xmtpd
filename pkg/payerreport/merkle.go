@@ -22,7 +22,7 @@ var payerLeaf = abi.Arguments{
 	},
 }
 
-func generateMerkleTree(payers payerMap) (*merkle.MerkleTree, error) {
+func generateMerkleTree(payers PayerMap) (*merkle.MerkleTree, error) {
 	leaves := make([]merkle.Leaf, 0, len(payers))
 	var (
 		leaf []byte

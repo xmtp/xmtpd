@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type payerMap map[common.Address]currency.PicoDollar
+type PayerMap map[common.Address]currency.PicoDollar
 
 type PayerReportGenerator struct {
 	log             *zap.Logger
@@ -141,7 +141,7 @@ func (p *PayerReportGenerator) getEndMinute(
 	return result.MinutesSinceEpoch, result.MaxSequenceID, nil
 }
 
-func buildPayersMap(rows []queries.BuildPayerReportRow) payerMap {
+func buildPayersMap(rows []queries.BuildPayerReportRow) PayerMap {
 	payersMap := make(map[common.Address]currency.PicoDollar)
 	for _, row := range rows {
 		payersMap[common.HexToAddress(row.PayerAddress)] = currency.PicoDollar(

@@ -1,10 +1,12 @@
-package payerreport
+package payerreport_test
 
 import (
 	"context"
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -21,14 +23,14 @@ import (
 
 var domainSeparator = common.BytesToHash(testutils.RandomBytes(32))
 
-func setupGenerator(t *testing.T) (*sql.DB, *PayerReportGenerator) {
+func setupGenerator(t *testing.T) (*sql.DB, *payerreport.PayerReportGenerator) {
 	db, _ := testutils.NewDB(t, context.Background())
 
 	registry := registryTestUtils.CreateMockRegistry(t, []registry.Node{
 		registryTestUtils.CreateNode(100, 100, testutils.RandomPrivateKey(t)),
 		registryTestUtils.CreateNode(200, 101, testutils.RandomPrivateKey(t)),
 	})
-	generator := NewPayerReportGenerator(
+	generator := payerreport.NewPayerReportGenerator(
 		testutils.NewLog(t),
 		queries.New(db),
 		registry,
@@ -96,10 +98,13 @@ func TestFirstReport(t *testing.T) {
 	// One envelope in the second minute since the epoch
 	addEnvelope(t, db, originatorID, 3, payerAddress, getMinute(2))
 
-	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
-	})
+	report, err := generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: 0,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
@@ -119,10 +124,13 @@ func TestReportWithMultiplePayers(t *testing.T) {
 	addEnvelope(t, db, originatorID, 2, payerAddress2, getMinute(1))
 	addEnvelope(t, db, originatorID, 3, payerAddress1, getMinute(2))
 
-	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
-	})
+	report, err := generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: 0,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
@@ -136,10 +144,13 @@ func TestReportWithNoMessages(t *testing.T) {
 
 	originatorID := testutils.RandomInt32()
 
-	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
-	})
+	report, err := generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: 0,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
@@ -156,10 +167,13 @@ func TestSecondReportWithNoMessages(t *testing.T) {
 
 	addEnvelope(t, db, originatorID, 1, payerAddress1, getMinute(1))
 
-	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 1,
-	})
+	report, err := generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: 1,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
@@ -177,10 +191,13 @@ func TestSecondReport(t *testing.T) {
 	addEnvelope(t, db, originatorID, 2, payerAddress, getMinute(1))
 	addEnvelope(t, db, originatorID, 3, payerAddress, getMinute(2))
 
-	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
-	})
+	report, err := generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: 0,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
@@ -191,10 +208,13 @@ func TestSecondReport(t *testing.T) {
 	addEnvelope(t, db, originatorID, 4, payerAddress, getMinute(3))
 	addEnvelope(t, db, originatorID, 4, payerAddress, getMinute(4))
 
-	report, err = generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: report.EndSequenceID,
-	})
+	report, err = generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: report.EndSequenceID,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
@@ -214,10 +234,13 @@ func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
 	addEnvelope(t, db, otherOriginatorID, 2, payerAddress, getMinute(2))
 	addEnvelope(t, db, otherOriginatorID, 3, payerAddress, getMinute(3))
 
-	report, err := generator.GenerateReport(context.Background(), PayerReportGenerationParams{
-		OriginatorID:            uint32(originatorID),
-		LastReportEndSequenceID: 0,
-	})
+	report, err := generator.GenerateReport(
+		context.Background(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            uint32(originatorID),
+			LastReportEndSequenceID: 0,
+		},
+	)
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)

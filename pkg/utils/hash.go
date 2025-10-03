@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/binary"
+	"slices"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -57,7 +58,13 @@ func encodePackedUint32Slice(input []uint32) []byte {
 	return result
 }
 
-func PackAndHashNodeIDs(nodeIDs []uint32) common.Hash {
+func PackSortAndHashNodeIDs(nodeIDs []uint32) common.Hash {
+	if !slices.IsSorted(nodeIDs) {
+		sortedNodeIDs := slices.Clone(nodeIDs)
+		slices.Sort(sortedNodeIDs)
+		nodeIDs = sortedNodeIDs
+	}
+
 	packed := encodePackedUint32Slice(nodeIDs)
 
 	return common.BytesToHash(ethcrypto.Keccak256(packed))

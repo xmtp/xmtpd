@@ -91,7 +91,7 @@ func TestGetDigest(t *testing.T) {
 		"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
 	)
 	nodeIDs := []uint32{100, 200, 300, 400, 500}
-	nodeIDsHash := utils.PackAndHashNodeIDs(nodeIDs)
+	nodeIDsHash := utils.PackSortAndHashNodeIDs(nodeIDs)
 	require.Equal(t, nodeIDsHash, common.BytesToHash(expectedNodeIDsHash))
 
 	originatorNodeID := uint32(1)

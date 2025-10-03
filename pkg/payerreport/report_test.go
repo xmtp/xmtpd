@@ -114,3 +114,11 @@ func TestGetDigest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, *builtID, ReportID(expectedDigest))
 }
+
+func TestNodeOrderPacksToSameHash(t *testing.T) {
+	nodeIDs := []uint32{100, 200, 300, 400, 500}
+	nodeIDsHash := utils.PackSortAndHashNodeIDs(nodeIDs)
+
+	require.Equal(t, nodeIDsHash, utils.PackSortAndHashNodeIDs([]uint32{500, 100, 200, 300, 400}))
+	require.Equal(t, nodeIDsHash, utils.PackSortAndHashNodeIDs([]uint32{300, 200, 500, 100, 400}))
+}

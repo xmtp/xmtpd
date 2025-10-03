@@ -101,7 +101,7 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	}
 	// If the start sequence ID is 0, it is the first report and we should start from minute 0 since there are no preceding reports
 	var startMinute int32
-	if startEnvelope.OriginatorSequenceID() == 0 {
+	if startEnvelope == nil {
 		startMinute = 0
 	} else {
 		startMinute, err = getMinuteFromEnvelope(startEnvelope)
@@ -211,17 +211,26 @@ func (p *PayerReportVerifier) getStartAndEndMessages(
 		return nil, nil, ErrInvalidOriginatorID
 	}
 
-	startMessage, err := querier.GetGatewayEnvelopeByID(ctx, queries.GetGatewayEnvelopeByIDParams{
-		OriginatorSequenceID: startSequenceID,
-		OriginatorNodeID:     originatorNodeID,
-	})
-	if err != nil {
-		return nil, nil, ErrMessageAtStartSequenceIDNotFound
-	}
+	var startEnvelope *envelopes.OriginatorEnvelope
 
-	startEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(startMessage.OriginatorEnvelope)
-	if err != nil {
-		return nil, nil, err
+	if startSequenceID != 0 {
+		startMessage, err := querier.GetGatewayEnvelopeByID(
+			ctx,
+			queries.GetGatewayEnvelopeByIDParams{
+				OriginatorSequenceID: startSequenceID,
+				OriginatorNodeID:     originatorNodeID,
+			},
+		)
+		if err != nil {
+			return nil, nil, ErrMessageAtStartSequenceIDNotFound
+		}
+
+		startEnvelope, err = envelopes.NewOriginatorEnvelopeFromBytes(
+			startMessage.OriginatorEnvelope,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	endSequenceID, err := utils.Uint64ToInt64(report.EndSequenceID)

@@ -136,7 +136,7 @@ func (e BlockchainError) Error() string {
 	case ErrCodeNotFound.Error(), ErrCodeNotInDic.Error(), ErrCompileRegex.Error():
 		return e.err.Error()
 	default:
-		return fmt.Sprintf("%s, original error: %s", e.msg, e.err.Error())
+		return e.msg
 	}
 }
 

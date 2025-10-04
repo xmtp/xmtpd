@@ -2,23 +2,28 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
 	"net/http"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-
 	"github.com/gorilla/websocket"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrTxFailed        = fmt.Errorf("transaction failed")
+	ErrTxFailedNoError = fmt.Errorf("transaction failed but no error found")
 )
 
 type WebsocketClientOption func(*websocketClientConfig)
@@ -79,11 +84,11 @@ func NewRPCClient(ctx context.Context, rpcURL string) (*ethclient.Client, error)
 }
 
 // ExecuteTransaction is a helper function that:
-// - estimates the gas required for the transaction
-// - checks if the sender has enough balance to cover the gas cost
-// - executes a transaction
-// - waits for it to be mined
-// - processes the event logs
+// - checks if the sender has enough balance.
+// - executes a transaction.
+// - waits for it to be mined.
+// - if the transaction fails, it tries to get the error code from the transaction receipt.
+// - processes the event logs.
 func ExecuteTransaction(
 	ctx context.Context,
 	signer TransactionSigner,
@@ -99,7 +104,6 @@ func ExecuteTransaction(
 
 	from := signer.FromAddress()
 
-	// Step 1: Check balance before sending.
 	balance, err := client.BalanceAt(ctx, from, nil)
 	if err != nil {
 		return NewBlockchainError(fmt.Errorf("failed to check balance: %w", err))
@@ -114,82 +118,48 @@ func ExecuteTransaction(
 		zap.String("balance", balance.String()),
 	)
 
-	// Step 2: Prepare dry-run tx for gas estimation.
 	opts := &bind.TransactOpts{
-		Context: ctx,
-		From:    from,
-		Signer:  signer.SignerFunc(),
-		NoSend:  true,
+		Context:  ctx,
+		From:     from,
+		Signer:   signer.SignerFunc(),
+		GasLimit: 300_000,
 	}
 
-	dryRunTx, err := txFunc(opts)
-	if err != nil {
-		logger.Error("failed to simulate tx", zap.Error(err))
-		return NewBlockchainError(fmt.Errorf("failed to simulate tx (NoSend=true): %w", err))
-	}
-
-	// Step 3: Estimate gas using ethclient.EstimateGas.
-	msg := ethereum.CallMsg{
-		From:  from,
-		To:    dryRunTx.To(),
-		Data:  dryRunTx.Data(),
-		Value: dryRunTx.Value(),
-	}
-
-	// Step 4: Fallback for GasPrice.
-	gasPrice := dryRunTx.GasPrice()
-	if gasPrice == nil {
-		gasPrice, err = client.SuggestGasPrice(ctx)
-		if err != nil {
-			return NewBlockchainError(fmt.Errorf("failed to get gas price: %w", err))
-		}
-	}
-
-	estimatedGas, err := client.EstimateGas(ctx, msg)
-	if err != nil {
-		return NewBlockchainError(fmt.Errorf("gas estimation failed: %w", err))
-	}
-
-	logger.Debug(
-		"Gas estimation",
-		zap.String("address", from.Hex()),
-		zap.Uint64("gas", estimatedGas),
-	)
-
-	// Step 5: Check for balance sufficiency.
-	required := new(big.Int).Mul(big.NewInt(int64(estimatedGas)), gasPrice)
-	if balance.Cmp(required) < 0 {
-		return NewBlockchainError(fmt.Errorf(
-			"insufficient funds: need %s, have %s",
-			required.String(),
-			balance.String(),
-		))
-	}
-
-	// Step 6: Send the real tx.
-	opts.NoSend = false
-	opts.GasLimit = estimatedGas
-	opts.GasPrice = gasPrice
-
+	// transactions that are not simulated will always return a tx.Hash().
+	// The error will be returned if the transaction fails to be mined.
 	tx, err := txFunc(opts)
 	if err != nil {
 		return NewBlockchainError(err)
 	}
 
-	// Step 7: Wait for receipt.
 	receipt, err := WaitForTransaction(
 		ctx,
 		logger,
 		client,
-		10*time.Second,
+		60*time.Second,
 		250*time.Millisecond,
 		tx.Hash(),
 	)
 	if err != nil {
-		return NewBlockchainError(err)
+		switch {
+		case errors.Is(err, ErrTxFailed):
+			code, err := tryGetTxError(
+				ctx,
+				client,
+				tx.Hash(),
+				60*time.Second,
+				250*time.Millisecond,
+			)
+			if err != nil {
+				return NewBlockchainError(err)
+			}
+			return NewBlockchainError(errors.New(code))
+
+		default:
+			return NewBlockchainError(err)
+		}
 	}
 
-	// Step 8: Parse and handle logs.
 	for _, log := range receipt.Logs {
 		event, err := eventParser(log)
 		if err != nil {
@@ -210,12 +180,9 @@ func WaitForTransaction(
 	pollSleep time.Duration,
 	hash common.Hash,
 ) (*types.Receipt, error) {
-	// Enforce the timeout with a context so that slow requests get aborted if the function has
-	// run out of time
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 	defer cancel()
 
-	// Ticker to track polling interval
 	ticker := time.NewTicker(pollSleep)
 	defer ticker.Stop()
 
@@ -226,20 +193,75 @@ func WaitForTransaction(
 
 	for {
 		receipt, err := client.TransactionReceipt(ctx, hash)
-		if err != nil {
-			if err.Error() != "not found" {
-				logger.Error("waiting for transaction", zap.String("hash", hash.String()))
-			}
-		} else if receipt != nil {
+
+		switch {
+		case err == nil && receipt != nil:
 			if receipt.Status == types.ReceiptStatusSuccessful {
 				return receipt, nil
 			}
-			return nil, fmt.Errorf("transaction failed")
+
+			if receipt.Status == types.ReceiptStatusFailed {
+				return receipt, ErrTxFailed
+			}
+
+		case err != nil:
+			if errors.Is(err, ethereum.NotFound) {
+				logger.Debug("waiting for transaction", zap.String("hash", hash.String()))
+			} else {
+				return nil, ErrTxFailed
+			}
 		}
 
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("timed out")
+		case <-ticker.C:
+			continue
+		}
+	}
+}
+
+func tryGetTxError(
+	ctx context.Context,
+	client *ethclient.Client,
+	hash common.Hash,
+	timeout time.Duration,
+	pollSleep time.Duration,
+) (string, error) {
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
+	defer cancel()
+
+	ticker := time.NewTicker(pollSleep)
+	defer ticker.Stop()
+
+	now := time.Now()
+	defer func() {
+		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
+	}()
+
+	type replayTransactionResult struct {
+		Output string `json:"output"`
+	}
+
+	for {
+		var result replayTransactionResult
+
+		err := client.Client().
+			CallContext(ctx, &result, "trace_replayTransaction", hash, []string{"trace"})
+
+		switch {
+		case err == nil && result.Output != "":
+			return result.Output, nil
+
+		case err != nil:
+			if err.Error() != "transaction not found" {
+				return "", err
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("timed out")
 		case <-ticker.C:
 			continue
 		}

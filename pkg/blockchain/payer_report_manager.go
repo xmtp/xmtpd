@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"math/big"
+	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -39,7 +40,7 @@ func NewReportsManager(
 	}
 
 	return &ReportsManager{
-		log:                   log,
+		log:                   log.Named("payerreportmanager"),
 		client:                client,
 		signer:                signer,
 		reportManagerContract: reportManagerContract,
@@ -57,24 +58,7 @@ func (r *ReportsManager) SubmitPayerReport(
 		r.log,
 		r.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			signatures := make(
-				[]reportManager.IPayerReportManagerPayerReportSignature,
-				len(report.AttestationSignatures),
-			)
-
-			for i, signature := range report.AttestationSignatures {
-				// The smart contract expects the signature to use the legacy EIP-155 recovery ID
-				sig := make([]byte, len(signature.Signature))
-				copy(sig, signature.Signature)
-				if len(sig) > 64 && sig[64] < 27 {
-					sig[64] += 27
-				}
-
-				signatures[i] = reportManager.IPayerReportManagerPayerReportSignature{
-					NodeId:    signature.NodeID,
-					Signature: sig,
-				}
-			}
+			signatures := prepareSignatures(report.AttestationSignatures)
 
 			r.log.Info(
 				"submitting report",
@@ -198,4 +182,33 @@ func transformOnChainReport(
 		PayersMerkleRoot:    report.PayersMerkleRoot,
 		ActiveNodeIDs:       report.NodeIds,
 	}, nil
+}
+
+func prepareSignatures(
+	signatures []payerreport.NodeSignature,
+) []reportManager.IPayerReportManagerPayerReportSignature {
+	// Copy and sort signatures by NodeID without mutating the input
+	sortedSigs := make([]payerreport.NodeSignature, len(signatures))
+	copy(sortedSigs, signatures)
+	sort.Slice(sortedSigs, func(i, j int) bool {
+		return sortedSigs[i].NodeID < sortedSigs[j].NodeID
+	})
+
+	out := make([]reportManager.IPayerReportManagerPayerReportSignature, len(sortedSigs))
+	for i, sig := range sortedSigs {
+		// Convert signature to use legacy EIP-155 recovery ID if needed
+		sigBytes := sig.Signature
+		if len(sigBytes) > 64 && sigBytes[64] < 27 {
+			sigBytes = make([]byte, len(sig.Signature))
+			copy(sigBytes, sig.Signature)
+			sigBytes[64] += 27
+		}
+
+		out[i] = reportManager.IPayerReportManagerPayerReportSignature{
+			NodeId:    sig.NodeID,
+			Signature: sigBytes,
+		}
+	}
+
+	return out
 }

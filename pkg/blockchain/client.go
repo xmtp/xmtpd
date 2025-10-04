@@ -124,6 +124,7 @@ func ExecuteTransaction(
 
 	dryRunTx, err := txFunc(opts)
 	if err != nil {
+		logger.Error("failed to simulate tx", zap.Error(err))
 		return NewBlockchainError(fmt.Errorf("failed to simulate tx (NoSend=true): %w", err))
 	}
 

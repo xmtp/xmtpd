@@ -239,15 +239,22 @@ func tryGetTxError(
 		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
 	}()
 
-	type replayTransactionResult struct {
+	type traceTransactionResult struct {
 		Output string `json:"output"`
 	}
 
+	// https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
+	type traceConfig struct {
+		Tracer string `json:"tracer"`
+	}
+
+	tracerCfg := traceConfig{Tracer: "callTracer"}
+
 	for {
-		var result replayTransactionResult
+		var result traceTransactionResult
 
 		err := client.Client().
-			CallContext(ctx, &result, "trace_replayTransaction", hash, []string{"trace"})
+			CallContext(ctx, &result, "debug_traceTransaction", hash, tracerCfg)
 
 		switch {
 		case err == nil && result.Output != "":

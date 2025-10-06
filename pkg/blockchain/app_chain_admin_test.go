@@ -329,11 +329,11 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 
 				switch tc.name {
 				case "group/max":
-					require.ErrorContains(t, err, "0x1d8e7a4a") // invalid max
+					require.ErrorContains(t, err, "InvalidMaxPayloadSize()")
 				case "group/min":
 					require.NoError(t, err)
 				case "identity/max":
-					require.ErrorContains(t, err, "0x1d8e7a4a")
+					require.ErrorContains(t, err, "InvalidMaxPayloadSize()")
 				case "identity/min":
 					require.NoError(t, err)
 				}

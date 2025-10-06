@@ -406,7 +406,7 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 
 				switch tc.name {
 				case "minimumDeposit":
-					require.ErrorContains(t, err, "0x5bc1c4a0") // invalid min
+					require.ErrorContains(t, err, "ZeroMinimumDeposit()")
 				}
 			})
 		})
@@ -483,5 +483,5 @@ func TestPayerReportManager_ProtocolFeeAbove100Perc(t *testing.T) {
 		),
 	)
 	err := scAdmin.UpdatePayerReportManagerProtocolFeeRate(ctx)
-	require.ErrorContains(t, err, "0x82eeb3b2")
+	require.ErrorContains(t, err, "InvalidProtocolFeeRate()")
 }

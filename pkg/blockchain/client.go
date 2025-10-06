@@ -22,8 +22,10 @@ import (
 )
 
 var (
-	ErrTxFailed        = fmt.Errorf("transaction failed")
-	ErrTxFailedNoError = fmt.Errorf("transaction failed but no error found")
+	ErrTxFailed              = fmt.Errorf("transaction failed")
+	ErrTxFailedNoError       = fmt.Errorf("transaction failed but no error found")
+	ErrTxNotFound            = fmt.Errorf("transaction not found")
+	ErrTxGenesisNotTraceable = fmt.Errorf("genesis is not traceable")
 )
 
 type WebsocketClientOption func(*websocketClientConfig)
@@ -122,7 +124,7 @@ func ExecuteTransaction(
 		Context:  ctx,
 		From:     from,
 		Signer:   signer.SignerFunc(),
-		GasLimit: 300_000,
+		GasLimit: 5_000_000,
 	}
 
 	// transactions that are not simulated will always return a tx.Hash().
@@ -136,18 +138,18 @@ func ExecuteTransaction(
 		ctx,
 		logger,
 		client,
-		60*time.Second,
+		20*time.Second,
 		250*time.Millisecond,
 		tx.Hash(),
 	)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrTxFailed):
-			code, err := tryGetTxError(
+			code, err := traceTransactionOutput(
 				ctx,
 				client,
 				tx.Hash(),
-				60*time.Second,
+				10*time.Second,
 				250*time.Millisecond,
 			)
 			if err != nil {
@@ -221,7 +223,19 @@ func WaitForTransaction(
 	}
 }
 
-func tryGetTxError(
+type traceTransactionResult struct {
+	Output string `json:"output"`
+}
+type traceTransactionConfig struct {
+	Tracer string `json:"tracer"`
+}
+
+// traceTransactionOutput traces the given transaction and returns the output field.
+// Output is the field where the revert reason is stored.
+// go-ethereum defines a trace transaction config type and a TraceTransaction method on the gethClient.
+// However, we define our own light weight types to not instantiate a gethClient just to trace a transaction.
+// https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
+func traceTransactionOutput(
 	ctx context.Context,
 	client *ethclient.Client,
 	hash common.Hash,
@@ -234,34 +248,23 @@ func tryGetTxError(
 	ticker := time.NewTicker(pollSleep)
 	defer ticker.Stop()
 
-	now := time.Now()
-	defer func() {
-		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
-	}()
-
-	type traceTransactionResult struct {
-		Output string `json:"output"`
+	traceCfg := traceTransactionConfig{
+		Tracer: "callTracer",
 	}
-
-	// https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
-	type traceConfig struct {
-		Tracer string `json:"tracer"`
-	}
-
-	tracerCfg := traceConfig{Tracer: "callTracer"}
 
 	for {
-		var result traceTransactionResult
+		var traceOut traceTransactionResult
 
 		err := client.Client().
-			CallContext(ctx, &result, "debug_traceTransaction", hash, tracerCfg)
+			CallContext(ctx, &traceOut, "debug_traceTransaction", hash.Hex(), &traceCfg)
 
 		switch {
-		case err == nil && result.Output != "":
-			return result.Output, nil
+		case err == nil && traceOut.Output != "":
+			return traceOut.Output, nil
 
 		case err != nil:
-			if err.Error() != "transaction not found" {
+			if err.Error() != ErrTxNotFound.Error() &&
+				err.Error() != ErrTxGenesisNotTraceable.Error() {
 				return "", err
 			}
 		}

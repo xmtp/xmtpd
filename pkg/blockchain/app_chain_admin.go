@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"strings"
 
 	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
 
@@ -130,7 +129,7 @@ func (a appChainAdmin) UpdateIdentityUpdateBootstrapper(
 		},
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "0xa88ee577") {
+		if err.IsNoChange() {
 			a.logger.Info("No update needed")
 			return nil
 		}
@@ -174,7 +173,7 @@ func (a appChainAdmin) UpdateGroupMessageBootstrapper(
 		},
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "0xa88ee577") {
+		if err.IsNoChange() {
 			a.logger.Info("No update needed")
 			return nil
 		}

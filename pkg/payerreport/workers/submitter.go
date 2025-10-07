@@ -70,17 +70,22 @@ func (w *SubmitterWorker) Stop() {
 }
 
 func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
-	allNodes, err := w.registry.GetNodes()
+	haLock, err := w.payerReportStore.GetAdvisoryLocker(w.ctx)
+	if err != nil {
+		return err
+	}
+	err = haLock.LockSubmitterWorker()
 	if err != nil {
 		return err
 	}
 
-	submissionThreshold := int32((len(allNodes) / 2) + 1)
+	defer func() {
+		_ = haLock.Release()
+	}()
 
 	reports, err := w.payerReportStore.FetchReports(
 		ctx,
-		payerreport.NewFetchReportsQuery().WithSubmissionStatus(payerreport.SubmissionPending).
-			WithMinAttestations(submissionThreshold),
+		payerreport.NewFetchReportsQuery().WithSubmissionStatus(payerreport.SubmissionPending),
 	)
 	if err != nil {
 		return err
@@ -89,12 +94,30 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	for _, report := range reports {
 		reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
 
+		requiredAttestations := (len(report.ActiveNodeIDs) / 2) + 1
+		if len(report.AttestationSignatures) < requiredAttestations {
+			continue
+		}
+
 		reportLogger.Info("submitting report")
-		if err = w.submitReport(report); err != nil {
+		err = w.submitReport(report)
+		if err != nil {
 			reportLogger.Error(
 				"failed to submit report",
 				zap.String("report_id", report.ID.String()),
 				zap.Error(err),
+			)
+			continue
+		}
+
+		// NOTE: there is a possible race when the indexer hears about the event before we get a confirmation from the chain
+		// Since we are not holding a lock, the report might already end up being submitted by the time we get here
+		// SetReportSubmitted should be able to handle that
+		err = w.payerReportStore.SetReportSubmitted(ctx, report.ID)
+		if err != nil {
+			reportLogger.Warn(
+				"failed to set report submitted",
+				zap.String("report_id", report.ID.String()),
 			)
 		}
 	}

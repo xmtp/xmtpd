@@ -130,6 +130,9 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		existingReportEndSequenceID = lastSubmittedReport.EndSequenceID
 	}
 
+	// NOTE: a report can not be unsubmitted, but it can transition to submitted via the submitter
+	// once it transitions, this will re-generate a new report
+
 	// Fetch all reports for the originator that are pending and approved
 	existingReports, err := w.store.FetchReports(
 		w.ctx,

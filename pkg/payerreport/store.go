@@ -44,17 +44,18 @@ func NewStore(db *sql.DB, log *zap.Logger) *Store {
 }
 
 // StoreReport stores a report in the database. No validations have been performed, and no originator envelope is stored.
-func (s *Store) StoreReport(ctx context.Context, report *PayerReport) error {
+func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (int64, error) {
 	params, err := prepareStoreReportParams(report)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if _, err = s.queries.InsertOrIgnorePayerReport(ctx, *params); err != nil {
-		return err
+	numRows, err := s.queries.InsertOrIgnorePayerReport(ctx, *params)
+	if err != nil {
+		return 0, err
 	}
 
-	return nil
+	return numRows, nil
 }
 
 // StoreAttestation stores an attestation in the database.

@@ -36,7 +36,7 @@ type IPayerReportVerifier interface {
 }
 
 type IPayerReportStore interface {
-	StoreReport(ctx context.Context, report *PayerReport) error
+	StoreReport(ctx context.Context, report *PayerReport) (int64, error)
 	CreatePayerReport(
 		ctx context.Context,
 		report *PayerReport,

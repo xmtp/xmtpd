@@ -102,14 +102,14 @@ func (w *AttestationWorker) AttestReports() error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = haLock.Release()
+	}()
+
 	err = haLock.LockAttestationWorker()
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = haLock.Release()
-	}()
 
 	uncheckedReports, err := w.findReportsNeedingAttestation()
 	if err != nil {

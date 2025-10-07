@@ -96,6 +96,5 @@ func TestSetMaxCanonical(t *testing.T) {
 
 	// do it again to make sure the command does not fail with NoChange
 	err = registry.SetMaxCanonical(ctx, 16)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "NoChange()")
+	require.NoError(t, err)
 }

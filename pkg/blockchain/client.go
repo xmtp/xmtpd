@@ -143,8 +143,7 @@ func ExecuteTransaction(
 		tx.Hash(),
 	)
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrTxFailed):
+		if errors.Is(err, ErrTxFailed) {
 			code, err := traceTransactionOutput(
 				ctx,
 				client,
@@ -156,10 +155,9 @@ func ExecuteTransaction(
 				return NewBlockchainError(err)
 			}
 			return NewBlockchainError(errors.New(code))
-
-		default:
-			return NewBlockchainError(err)
 		}
+
+		return NewBlockchainError(err)
 	}
 
 	for _, log := range receipt.Logs {
@@ -195,22 +193,20 @@ func WaitForTransaction(
 
 	for {
 		receipt, err := client.TransactionReceipt(ctx, hash)
-
-		switch {
-		case err == nil && receipt != nil:
-			if receipt.Status == types.ReceiptStatusSuccessful {
-				return receipt, nil
-			}
-
-			if receipt.Status == types.ReceiptStatusFailed {
-				return receipt, ErrTxFailed
-			}
-
-		case err != nil:
+		if err != nil {
 			if errors.Is(err, ethereum.NotFound) {
 				logger.Debug("waiting for transaction", zap.String("hash", hash.String()))
 			} else {
 				return nil, ErrTxFailed
+			}
+		}
+
+		if receipt != nil {
+			if receipt.Status == types.ReceiptStatusSuccessful {
+				return receipt, nil
+			}
+			if receipt.Status == types.ReceiptStatusFailed {
+				return receipt, ErrTxFailed
 			}
 		}
 
@@ -257,16 +253,13 @@ func traceTransactionOutput(
 
 		err := client.Client().
 			CallContext(ctx, &traceOut, "debug_traceTransaction", hash.Hex(), &traceCfg)
-
-		switch {
-		case err == nil && traceOut.Output != "":
-			return traceOut.Output, nil
-
-		case err != nil:
+		if err != nil {
 			if err.Error() != ErrTxNotFound.Error() &&
 				err.Error() != ErrTxGenesisNotTraceable.Error() {
 				return "", err
 			}
+		} else if traceOut.Output != "" {
+			return traceOut.Output, nil
 		}
 
 		select {

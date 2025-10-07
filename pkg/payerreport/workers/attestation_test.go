@@ -49,8 +49,9 @@ func storeReport(
 	store *payerreport.Store,
 	report *payerreport.PayerReport,
 ) *payerreport.PayerReportWithStatus {
-	err := store.StoreReport(t.Context(), report)
+	numRows, err := store.StoreReport(t.Context(), report)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 	reportWithStatus, err := store.FetchReport(t.Context(), report.ID)
 	require.NoError(t, err)
 

@@ -31,7 +31,7 @@ func insertRandomReport(
 ) *payerreport.PayerReportWithStatus {
 	startID := testutils.RandomInt64()
 	reportID := payerreport.ReportID(randomBytes32())
-	err := store.StoreReport(t.Context(), &payerreport.PayerReport{
+	numRows, err := store.StoreReport(t.Context(), &payerreport.PayerReport{
 		ID:               reportID,
 		OriginatorNodeID: uint32(testutils.RandomInt32()),
 		StartSequenceID:  uint64(startID),
@@ -40,6 +40,7 @@ func insertRandomReport(
 		ActiveNodeIDs:    []uint32{uint32(testutils.RandomInt32())},
 	})
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 	require.NotNil(t, reportID)
 
 	returnedVal, err := store.FetchReport(t.Context(), reportID)
@@ -134,11 +135,12 @@ func TestStoreAndRetrieve(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			store := createTestStore(t)
-			err := store.StoreReport(context.Background(), &c.report)
+			numRows, err := store.StoreReport(context.Background(), &c.report)
 			if c.expectErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, int64(1), numRows)
 				storedReport, err := store.FetchReport(context.Background(), c.report.ID)
 				require.NoError(t, err)
 				require.Equal(t, c.report, storedReport.PayerReport)
@@ -159,11 +161,13 @@ func TestIdempotentStore(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, report.ID, 32)
 
-	err = store.StoreReport(context.Background(), &report.PayerReport)
+	numRows1, err := store.StoreReport(context.Background(), &report.PayerReport)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows1)
 
-	err = store.StoreReport(context.Background(), &report.PayerReport)
+	numRows2, err := store.StoreReport(context.Background(), &report.PayerReport)
 	require.NoError(t, err)
+	require.Equal(t, int64(0), numRows2)
 
 	storedReports, err := store.FetchReports(
 		context.Background(),
@@ -283,8 +287,9 @@ func TestStoreAttestation(t *testing.T) {
 	}
 
 	// First, store the report so that the attestation can reference it
-	err := store.StoreReport(ctx, &report)
+	numRows, err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 
 	attestation := &payerreport.PayerReportAttestation{
 		Report: &report,
@@ -321,8 +326,9 @@ func TestStoreAttestationInvalidNodeID(t *testing.T) {
 		ActiveNodeIDs:    []uint32{1},
 	}
 
-	err := store.StoreReport(ctx, &report)
+	numRows, err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 
 	attestation := &payerreport.PayerReportAttestation{
 		Report: &report,
@@ -357,8 +363,9 @@ func TestSetReportAttestationStatus(t *testing.T) {
 			ActiveNodeIDs:    []uint32{1},
 		}
 
-		err := store.StoreReport(ctx, &report)
+		numRows, err := store.StoreReport(ctx, &report)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 
 		if newStatus == payerreport.AttestationApproved {
 			require.NoError(t, store.SetReportAttestationApproved(ctx, reportID))
@@ -386,8 +393,9 @@ func TestInvalidStateTransition(t *testing.T) {
 		ActiveNodeIDs:    []uint32{1},
 	}
 
-	err := store.StoreReport(ctx, &report)
+	numRows, err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 
 	err = store.SetReportAttestationApproved(ctx, reportID)
 	require.NoError(t, err)
@@ -451,8 +459,9 @@ func TestCreateAttestation(t *testing.T) {
 		ActiveNodeIDs:    []uint32{4},
 	}
 
-	err := store.StoreReport(ctx, &report)
+	numRows, err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 
 	attestation := &payerreport.PayerReportAttestation{
 		Report: &report,
@@ -540,8 +549,9 @@ func TestStoreSyncedAttestation(t *testing.T) {
 		PayersMerkleRoot: randomBytes32(),
 		ActiveNodeIDs:    []uint32{8},
 	}
-	err := store.StoreReport(ctx, &baseReport)
+	numRows, err := store.StoreReport(ctx, &baseReport)
 	require.NoError(t, err)
+	require.Equal(t, int64(1), numRows)
 
 	// Build attestation envelope
 	sigBytes := []byte("sig")
@@ -620,8 +630,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2, 3},
 		}
-		err := store.StoreReport(ctx, report)
+		numRows, err := store.StoreReport(ctx, report)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 
 		// Create unsettled usage at various times
 		createUnsettledUsage(originatorID, 100, 2) // Very old usage
@@ -666,8 +677,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2, 3},
 		}
-		err := store.StoreReport(ctx, firstReport)
+		numRows, err := store.StoreReport(ctx, firstReport)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 		err = store.SetReportSubmitted(ctx, firstReport.ID)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, firstReport.ID)
@@ -683,7 +695,8 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2, 3},
 		}
-		err = store.StoreReport(ctx, secondReport)
+		numRows, err = store.StoreReport(ctx, secondReport)
+		require.Equal(t, int64(1), numRows)
 		require.NoError(t, err)
 
 		// Create unsettled usage across different time ranges
@@ -729,8 +742,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
-		err := store.StoreReport(ctx, report1)
+		numRows, err := store.StoreReport(ctx, report1)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 		err = store.SetReportSubmitted(ctx, report1.ID)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, report1.ID)
@@ -746,8 +760,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
-		err = store.StoreReport(ctx, report2)
+		numRows, err = store.StoreReport(ctx, report2)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 		err = store.SetReportSubmitted(ctx, report2.ID)
 		require.NoError(t, err)
 
@@ -761,8 +776,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
-		err = store.StoreReport(ctx, report3)
+		numRows, err = store.StoreReport(ctx, report3)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 
 		// Create unsettled usage across all time ranges
 		createUnsettledUsage(originatorID, 150, 2) // Before first report
@@ -800,8 +816,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
-		err := store.StoreReport(ctx, report1)
+		numRows, err := store.StoreReport(ctx, report1)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 		err = store.SetReportSubmitted(ctx, report1.ID)
 		require.NoError(t, err)
 
@@ -815,8 +832,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
-		err = store.StoreReport(ctx, report2)
+		numRows, err = store.StoreReport(ctx, report2)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 
 		// Create unsettled usage
 		createUnsettledUsage(originatorID, 200, 2) // Before first report
@@ -860,10 +878,13 @@ func TestSetReportSettled(t *testing.T) {
 			ActiveNodeIDs:       []uint32{1, 2},
 		}
 
-		err := store.StoreReport(ctx, report1)
+		numRows, err := store.StoreReport(ctx, report1)
 		require.NoError(t, err)
-		err = store.StoreReport(ctx, report2)
+		require.Equal(t, int64(1), numRows)
+
+		numRows, err = store.StoreReport(ctx, report2)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 
 		// Create unsettled usage for both originators
 		createUnsettledUsage(report1.OriginatorNodeID, 350, 3)
@@ -901,8 +922,9 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1},
 		}
-		err := store.StoreReport(ctx, report)
+		numRows, err := store.StoreReport(ctx, report)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
 
 		// Verify initial status is pending
 		fetchedReport, err := store.FetchReport(ctx, report.ID)
@@ -938,8 +960,10 @@ func TestSetReportSettled(t *testing.T) {
 			PayersMerkleRoot:    randomBytes32(),
 			ActiveNodeIDs:       []uint32{1},
 		}
-		err := store.StoreReport(ctx, report)
+		numRows, err := store.StoreReport(ctx, report)
 		require.NoError(t, err)
+		require.Equal(t, int64(1), numRows)
+
 		err = store.SetReportSubmitted(ctx, report.ID)
 		require.NoError(t, err)
 

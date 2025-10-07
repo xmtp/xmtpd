@@ -74,14 +74,14 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = haLock.Release()
+	}()
+
 	err = haLock.LockSubmitterWorker()
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = haLock.Release()
-	}()
 
 	reports, err := w.payerReportStore.FetchReports(
 		ctx,

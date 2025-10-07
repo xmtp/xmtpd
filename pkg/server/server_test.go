@@ -3,6 +3,7 @@ package server_test
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -140,6 +140,8 @@ func TestCreateServer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// NOTE: there might be a collection of PayerReports here on top of the actual envelopes
+
 	require.Eventually(t, func() bool {
 		q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -149,13 +151,13 @@ func TestCreateServer(t *testing.T) {
 			Limit: 10,
 		})
 		require.NoError(t, err)
-		if len(q1.Envelopes) != 1 {
-			return false
+
+		for _, e := range q1.Envelopes {
+			if reflect.DeepEqual(e, p2.OriginatorEnvelopes[0]) {
+				return true
+			}
 		}
-		if !assert.Equal(t, q1.Envelopes[0], p2.OriginatorEnvelopes[0]) {
-			return false
-		}
-		return true
+		return false
 	}, 3000*time.Millisecond, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
@@ -167,13 +169,13 @@ func TestCreateServer(t *testing.T) {
 			Limit: 10,
 		})
 		require.NoError(t, err)
-		if len(q2.Envelopes) != 1 {
-			return false
+
+		for _, e := range q2.Envelopes {
+			if reflect.DeepEqual(e, p1.OriginatorEnvelopes[0]) {
+				return true
+			}
 		}
-		if !assert.Equal(t, q2.Envelopes[0], p1.OriginatorEnvelopes[0]) {
-			return false
-		}
-		return true
+		return false
 	}, 3000*time.Millisecond, 200*time.Millisecond)
 }
 
@@ -248,7 +250,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		Limit: 10,
 	})
 	require.NoError(t, err)
-	require.Len(t, q1.Envelopes, 1)
+	require.GreaterOrEqual(t, len(q1.Envelopes), 1)
 }
 
 func TestGRPCHealthEndpoint(t *testing.T) {

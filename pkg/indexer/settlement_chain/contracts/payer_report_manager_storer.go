@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,6 +20,7 @@ import (
 )
 
 const (
+	ErrReportAlreadyExists              = "report already present in database"
 	ErrParsePayerReportManagerLog       = "error parsing payer report manager log"
 	ErrPayerReportManagerUnhandledEvent = "unknown payer report manager event"
 	ErrBuildPayerReportID               = "error building payer report id"
@@ -86,18 +88,30 @@ func (s *PayerReportManagerStorer) StoreLog(
 			return re.NewNonRecoverableError(ErrParsePayerReportManagerLog, err)
 		}
 
-		if err := s.setReportSubmitted(ctx, parsedEvent); err != nil {
-			return err
+		err := s.setReportSubmitted(ctx, parsedEvent)
+		if err == nil {
+			s.logger.Info(
+				"Successfully stored payer report submitted event",
+				zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
+				zap.Uint64("startSequenceID", parsedEvent.StartSequenceId),
+				zap.Uint64("endSequenceID", parsedEvent.EndSequenceId),
+				zap.String("payersMerkleRoot", hex.EncodeToString(parsedEvent.PayersMerkleRoot[:])),
+				zap.Uint32s("activeNodeIDs", parsedEvent.NodeIds),
+			)
+		} else {
+			if strings.Contains(err.Error(), ErrReportAlreadyExists) {
+				s.logger.Debug("skipping store report, report already exists",
+					zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
+					zap.Uint64("startSequenceID", parsedEvent.StartSequenceId),
+					zap.Uint64("endSequenceID", parsedEvent.EndSequenceId),
+					zap.String("payersMerkleRoot", hex.EncodeToString(parsedEvent.PayersMerkleRoot[:])),
+					zap.Uint32s("activeNodeIDs", parsedEvent.NodeIds),
+				)
+			} else {
+				return err
+			}
 		}
 
-		s.logger.Info(
-			"Successfully stored payer report submitted event",
-			zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
-			zap.Uint64("startSequenceID", parsedEvent.StartSequenceId),
-			zap.Uint64("endSequenceID", parsedEvent.EndSequenceId),
-			zap.String("payersMerkleRoot", hex.EncodeToString(parsedEvent.PayersMerkleRoot[:])),
-			zap.Uint32s("activeNodeIDs", parsedEvent.NodeIds),
-		)
 	case payerReportManagerPayerReportSubsetSettledEvent:
 		s.logger.Info("PayerReportSubsetSettled", zap.Any("log", log))
 		var parsedEvent *p.PayerReportManagerPayerReportSubsetSettled
@@ -127,6 +141,7 @@ func (s *PayerReportManagerStorer) StoreLog(
 				zap.String("feesSettled", parsedEvent.FeesSettled.String()),
 			)
 		}
+
 	default:
 		s.logger.Info("Unknown event", zap.String("event", event.Name))
 		return re.NewNonRecoverableError(
@@ -211,13 +226,19 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 		ActiveNodeIDs:       event.NodeIds,
 	}
 
-	if err = s.store.StoreReport(ctx, report); err != nil {
+	numRows, err := s.store.StoreReport(ctx, report)
+	if err != nil {
 		return re.NewRecoverableError(ErrStoreReport, err)
 	}
+
 	// Will only set the status to Submitted if it was previously Pending.
 	// If it is already settled, this is a no-op
 	if err = s.store.SetReportSubmitted(ctx, *reportID); err != nil {
 		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
+	}
+
+	if numRows == 0 {
+		return re.NewNonRecoverableError(ErrReportAlreadyExists, nil)
 	}
 
 	return nil

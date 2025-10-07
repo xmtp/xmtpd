@@ -491,21 +491,31 @@ func (_c *MockIPayerReportStore_SetReportSubmitted_Call) RunAndReturn(run func(c
 }
 
 // StoreReport provides a mock function with given fields: ctx, report
-func (_m *MockIPayerReportStore) StoreReport(ctx context.Context, report *payerreport.PayerReport) error {
+func (_m *MockIPayerReportStore) StoreReport(ctx context.Context, report *payerreport.PayerReport) (int64, error) {
 	ret := _m.Called(ctx, report)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreReport")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport) error); ok {
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport) (int64, error)); ok {
+		return rf(ctx, report)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport) int64); ok {
 		r0 = rf(ctx, report)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int64)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *payerreport.PayerReport) error); ok {
+		r1 = rf(ctx, report)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockIPayerReportStore_StoreReport_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StoreReport'
@@ -527,12 +537,12 @@ func (_c *MockIPayerReportStore_StoreReport_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockIPayerReportStore_StoreReport_Call) Return(_a0 error) *MockIPayerReportStore_StoreReport_Call {
-	_c.Call.Return(_a0)
+func (_c *MockIPayerReportStore_StoreReport_Call) Return(_a0 int64, _a1 error) *MockIPayerReportStore_StoreReport_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIPayerReportStore_StoreReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport) error) *MockIPayerReportStore_StoreReport_Call {
+func (_c *MockIPayerReportStore_StoreReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport) (int64, error)) *MockIPayerReportStore_StoreReport_Call {
 	_c.Call.Return(run)
 	return _c
 }

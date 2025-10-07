@@ -1,3 +1,7 @@
+// Package db provides DB access and advisory-lock helpers for coordinating HA workers.
+// It includes two styles:
+//   - AdvisoryLocker: inherits the caller's transaction/connection.
+//   - TransactionScopedAdvisoryLocker: creates and owns its own transaction.
 package db
 
 import (
@@ -15,6 +19,8 @@ const (
 	LockKindAttestationWorker    LockKind = 0x01
 )
 
+// AdvisoryLocker builds advisory-lock keys and acquires locks using the caller’s
+// connection/transaction via the provided *queries.Queries
 type AdvisoryLocker struct{}
 
 func NewAdvisoryLocker() *AdvisoryLocker {
@@ -44,6 +50,8 @@ type ITransactionScopedAdvisoryLocker interface {
 	LockIdentityUpdateInsert(nodeId uint32) error
 }
 
+// TransactionScopedAdvisoryLocker creates and owns a transaction; methods acquire
+// advisory locks within that tx. Release() rolls back the tx
 type TransactionScopedAdvisoryLocker struct {
 	tx     *sql.Tx
 	ctx    context.Context

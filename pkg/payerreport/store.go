@@ -35,12 +35,20 @@ type Store struct {
 	log     *zap.Logger
 }
 
+var _ IPayerReportStore = (*Store)(nil)
+
 func NewStore(db *sql.DB, log *zap.Logger) *Store {
 	return &Store{
 		queries: queries.New(db),
 		db:      db,
 		log:     log.Named("payerreportstore"),
 	}
+}
+
+func (s *Store) GetAdvisoryLocker(
+	ctx context.Context,
+) (db.ITransactionScopedAdvisoryLocker, error) {
+	return db.NewTransactionScopedAdvisoryLocker(ctx, s.db, &sql.TxOptions{})
 }
 
 // StoreReport stores a report in the database. No validations have been performed, and no originator envelope is stored.
@@ -285,18 +293,32 @@ func (s *Store) CreateAttestation(
 		s.db,
 		&sql.TxOptions{},
 		func(ctx context.Context, tx *queries.Queries) error {
-			if err = tx.InsertOrIgnorePayerReportAttestation(
+			report, err := tx.FetchPayerReportLocked(ctx, reportID)
+			if err != nil {
+				return err
+			}
+
+			if AttestationStatus(report.AttestationStatus) != AttestationPending {
+				s.log.Debug(
+					"Report already approved or rejected",
+					zap.String("reportID", fmt.Sprintf("%x", reportID)),
+					zap.Int16("status", report.AttestationStatus),
+				)
+				return nil
+			}
+
+			err = tx.InsertOrIgnorePayerReportAttestation(
 				ctx,
 				queries.InsertOrIgnorePayerReportAttestationParams{
 					PayerReportID: reportID,
 					NodeID:        int64(attestation.NodeSignature.NodeID),
 					Signature:     attestation.NodeSignature.Signature,
-				},
-			); err != nil {
+				})
+			if err != nil {
 				return err
 			}
 
-			err := tx.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
+			err = tx.SetReportAttestationStatus(ctx, queries.SetReportAttestationStatusParams{
 				ReportID:   reportID,
 				NewStatus:  int16(toStatus),
 				PrevStatus: allowedPrevStatuses,
@@ -305,10 +327,14 @@ func (s *Store) CreateAttestation(
 				return err
 			}
 
-			if _, err = tx.InsertStagedOriginatorEnvelope(ctx, queries.InsertStagedOriginatorEnvelopeParams{
-				Topic:         targetTopic,
-				PayerEnvelope: envelopeBytes,
-			}); err != nil {
+			_, err = tx.InsertStagedOriginatorEnvelope(
+				ctx,
+				queries.InsertStagedOriginatorEnvelopeParams{
+					Topic:         targetTopic,
+					PayerEnvelope: envelopeBytes,
+				},
+			)
+			if err != nil {
 				return err
 			}
 

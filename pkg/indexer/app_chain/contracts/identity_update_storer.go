@@ -77,11 +77,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 	//
 	// We intentionally run this transaction at READ COMMITTED and take a
 	// transaction-scoped advisory lock (pg_advisory_xact_lock) keyed on
-	// (originator_node_id, sequence_id).
+	// (originator_node_id).
 	//
 	// Why this works:
 	//   • The advisory lock guarantees that only one HA worker can process the
-	//     same event concurrently. This eliminates races on the same (node, seq).
+	//     same event concurrently.
 	//   • READ COMMITTED means each statement sees the latest committed state,
 	//     so GetLatestSequenceId reflects any inserts that committed after we
 	//     waited on the advisory lock. At REPEATABLE READ we would be stuck
@@ -102,13 +102,8 @@ func (s *IdentityUpdateStorer) StoreLog(
 		s.db,
 		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
-			err := querier.AdvisoryLockIdentityUpdateInsert(
-				ctx,
-				queries.AdvisoryLockIdentityUpdateInsertParams{
-					NodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
-					SequenceID: msgSent.SequenceId,
-				},
-			)
+			err := db.NewAdvisoryLocker().
+				LockIdentityUpdateInsert(ctx, querier, uint32(IDENTITY_UPDATE_ORIGINATOR_ID))
 			if err != nil {
 				return re.NewNonRecoverableError(ErrAdvisoryLockSequence, err)
 			}

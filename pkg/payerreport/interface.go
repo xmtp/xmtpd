@@ -4,6 +4,8 @@ package payerreport
 import (
 	"context"
 
+	"github.com/xmtp/xmtpd/pkg/db"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -65,4 +67,7 @@ type IPayerReportStore interface {
 	SetReportAttestationApproved(ctx context.Context, id ReportID) error
 	SetReportAttestationRejected(ctx context.Context, id ReportID) error
 	Queries() *queries.Queries
+	GetAdvisoryLocker(
+		ctx context.Context,
+	) (db.ITransactionScopedAdvisoryLocker, error)
 }

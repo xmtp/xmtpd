@@ -173,6 +173,31 @@ func (q *Queries) FetchPayerReport(ctx context.Context, id []byte) (PayerReport,
 	return i, err
 }
 
+const fetchPayerReportLocked = `-- name: FetchPayerReportLocked :one
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at
+FROM payer_reports
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) FetchPayerReportLocked(ctx context.Context, id []byte) (PayerReport, error) {
+	row := q.db.QueryRowContext(ctx, fetchPayerReportLocked, id)
+	var i PayerReport
+	err := row.Scan(
+		&i.ID,
+		&i.OriginatorNodeID,
+		&i.StartSequenceID,
+		&i.EndSequenceID,
+		&i.EndMinuteSinceEpoch,
+		&i.PayersMerkleRoot,
+		pq.Array(&i.ActiveNodeIds),
+		&i.SubmissionStatus,
+		&i.AttestationStatus,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const fetchPayerReports = `-- name: FetchPayerReports :many
 WITH rpt AS (
 	SELECT pr.id, pr.originator_node_id, pr.start_sequence_id, pr.end_sequence_id, pr.end_minute_since_epoch, pr.payers_merkle_root, pr.active_node_ids, pr.submission_status, pr.attestation_status, pr.created_at,

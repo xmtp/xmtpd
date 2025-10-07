@@ -98,6 +98,19 @@ func (w *AttestationWorker) Stop() {
 // and attempts to attest each one.
 // Returns an error if there was a problem fetching the reports.
 func (w *AttestationWorker) AttestReports() error {
+	haLock, err := w.store.GetAdvisoryLocker(w.ctx)
+	if err != nil {
+		return err
+	}
+	err = haLock.LockAttestationWorker()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = haLock.Release()
+	}()
+
 	uncheckedReports, err := w.findReportsNeedingAttestation()
 	if err != nil {
 		return err

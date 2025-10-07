@@ -231,14 +231,14 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 		return re.NewRecoverableError(ErrStoreReport, err)
 	}
 
-	if numRows == 0 {
-		return re.NewNonRecoverableError(ErrReportAlreadyExists, nil)
-	}
-
 	// Will only set the status to Submitted if it was previously Pending.
 	// If it is already settled, this is a no-op
 	if err = s.store.SetReportSubmitted(ctx, *reportID); err != nil {
 		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
+	}
+
+	if numRows == 0 {
+		return re.NewNonRecoverableError(ErrReportAlreadyExists, nil)
 	}
 
 	return nil

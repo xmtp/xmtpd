@@ -1006,7 +1006,7 @@ func TestCreateAttestationConcurrency(t *testing.T) {
 		ActiveNodeIDs:    []uint32{4},
 	}
 
-	err := store.StoreReport(ctx, &report)
+	_, err := store.StoreReport(ctx, &report)
 	require.NoError(t, err)
 
 	const numWorkers = 10

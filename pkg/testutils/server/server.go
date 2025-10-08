@@ -59,6 +59,8 @@ func NewTestReplicationServer(
 			PayerReport: config.PayerReportOptions{
 				Enable:                        cfg.Services.Reports,
 				AttestationWorkerPollInterval: 10 * time.Second,
+				GenerateReportSelfPeriod:      10 * time.Second,
+				GenerateReportOthersPeriod:    10 * time.Second,
 			},
 			Signer: config.SignerOptions{
 				PrivateKey: hex.EncodeToString(crypto.FromECDSA(cfg.PrivateKey)),

@@ -339,6 +339,8 @@ func NewReplicationServer(
 			WithStore(payerreport.NewStore(cfg.DB, cfg.Log)).
 			WithDomainSeparator(domainSeparator).
 			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
+			WithGenerationSelfPeriod(cfg.Options.PayerReport.GenerateReportSelfPeriod).
+			WithGenerationOthersPeriod(cfg.Options.PayerReport.GenerateReportOthersPeriod).
 			Build()
 		if err != nil {
 			cfg.Log.Error("failed to build worker config", zap.Error(err))

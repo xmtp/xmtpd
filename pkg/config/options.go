@@ -117,7 +117,9 @@ type SignerOptions struct {
 
 type PayerReportOptions struct {
 	Enable                        bool          `long:"enable"                           env:"XMTPD_PAYER_REPORT_RUN_WORKERS"                      description:"Run workers to submit and attest to payer reports"`
-	AttestationWorkerPollInterval time.Duration `long:"attestation-worker-poll-interval" env:"XMTPD_PAYER_REPORT_ATTESTATION_WORKER_POLL_INTERVAL" description:"Interval between checks for new reports to attest to" default:"1m"`
+	AttestationWorkerPollInterval time.Duration `long:"attestation-worker-poll-interval" env:"XMTPD_PAYER_REPORT_ATTESTATION_WORKER_POLL_INTERVAL" description:"Interval between checks for new reports to attest to"                            default:"1m"`
+	GenerateReportSelfPeriod      time.Duration `long:"generate-report-self-period"      env:"XMTPD_PAYER_REPORT_GENERATE_REPORT_SELF_PERIOD"      description:"Period of time we should use to generate payer reports about self"               default:"6h"`
+	GenerateReportOthersPeriod    time.Duration `long:"generate-report-others-period"    env:"XMTPD_PAYER_REPORT_GENERATE_REPORT_OTHERS_PERIOD"    description:"Period of time we should use to generate backup payer reports about other nodes" default:"12h"`
 }
 
 type ServerOptions struct {

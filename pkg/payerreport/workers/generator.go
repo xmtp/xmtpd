@@ -20,16 +20,17 @@ import (
 const generatorWorkerID = 1
 
 type GeneratorWorker struct {
-	ctx               context.Context
-	cancel            context.CancelFunc
-	wg                sync.WaitGroup
-	log               *zap.Logger
-	store             payerreport.IPayerReportStore
-	generator         payerreport.IPayerReportGenerator
-	registry          registry.NodeRegistry
-	registrant        registrant.IRegistrant
-	myNodeID          uint32
-	minReportInterval time.Duration
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	wg                   sync.WaitGroup
+	log                  *zap.Logger
+	store                payerreport.IPayerReportStore
+	generator            payerreport.IPayerReportGenerator
+	registry             registry.NodeRegistry
+	registrant           registrant.IRegistrant
+	myNodeID             uint32
+	generateSelfPeriod   time.Duration
+	generateOthersPeriod time.Duration
 }
 
 func NewGeneratorWorker(
@@ -38,8 +39,9 @@ func NewGeneratorWorker(
 	store payerreport.IPayerReportStore,
 	registry registry.NodeRegistry,
 	registrant registrant.IRegistrant,
-	minReportInterval time.Duration,
 	domainSeparator common.Hash,
+	generateSelfPeriod time.Duration,
+	generateOthersPeriod time.Duration,
 ) *GeneratorWorker {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -54,10 +56,11 @@ func NewGeneratorWorker(
 			registry,
 			domainSeparator,
 		),
-		registry:          registry,
-		registrant:        registrant,
-		myNodeID:          registrant.NodeID(),
-		minReportInterval: minReportInterval,
+		registry:             registry,
+		registrant:           registrant,
+		myNodeID:             registrant.NodeID(),
+		generateSelfPeriod:   generateSelfPeriod,
+		generateOthersPeriod: generateOthersPeriod,
 	}
 	return worker
 }
@@ -229,6 +232,9 @@ func (w *GeneratorWorker) isOlderThanReportInterval(
 	// Convert the report's end minute since epoch to a time.Time
 	reportEndTime := time.Unix(int64(report.EndMinuteSinceEpoch)*60, 0).UTC()
 
-	// Check if the report is older than the minimum report interval
-	return time.Now().UTC().Sub(reportEndTime) > w.minReportInterval
+	if report.OriginatorNodeID == w.registrant.NodeID() {
+		return time.Now().UTC().Sub(reportEndTime) > w.generateSelfPeriod
+	} else {
+		return time.Now().UTC().Sub(reportEndTime) > w.generateOthersPeriod
+	}
 }

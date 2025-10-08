@@ -13,10 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	DEFAULT_REPORT_INTERVAL = 6 * time.Hour
-)
-
 type stoppable interface {
 	Stop()
 }
@@ -32,6 +28,8 @@ type workerConfig struct {
 	store                   payerreport.IPayerReportStore
 	domainSeparator         common.Hash
 	attestationPollInterval time.Duration
+	generateSelfPeriod      time.Duration
+	generateOthersPeriod    time.Duration
 }
 
 // WorkerConfigBuilder provides a builder pattern for creating WorkerConfig instances.
@@ -45,6 +43,8 @@ type WorkerConfigBuilder struct {
 	store                   payerreport.IPayerReportStore
 	domainSeparator         common.Hash
 	attestationPollInterval time.Duration
+	generateSelfPeriod      time.Duration
+	generateOthersPeriod    time.Duration
 }
 
 // NewWorkerConfigBuilder creates a new WorkerConfigBuilder instance.
@@ -100,6 +100,20 @@ func (b *WorkerConfigBuilder) WithAttestationPollInterval(
 	return b
 }
 
+func (b *WorkerConfigBuilder) WithGenerationSelfPeriod(
+	period time.Duration,
+) *WorkerConfigBuilder {
+	b.generateSelfPeriod = period
+	return b
+}
+
+func (b *WorkerConfigBuilder) WithGenerationOthersPeriod(
+	period time.Duration,
+) *WorkerConfigBuilder {
+	b.generateOthersPeriod = period
+	return b
+}
+
 // Build creates a WorkerConfig instance after validating that all required fields are set.
 // Returns an error if any required field is nil or invalid.
 func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
@@ -124,6 +138,12 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 	if b.attestationPollInterval <= 0 {
 		return nil, fmt.Errorf("attestation poll interval must be greater than 0")
 	}
+	if b.generateSelfPeriod <= 0 {
+		return nil, fmt.Errorf("generate self period must be greater than 0")
+	}
+	if b.generateOthersPeriod <= 0 {
+		return nil, fmt.Errorf("generate others period must be greater than 0")
+	}
 
 	return &workerConfig{
 		ctx:                     b.ctx,
@@ -134,6 +154,8 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 		store:                   b.store,
 		domainSeparator:         b.domainSeparator,
 		attestationPollInterval: b.attestationPollInterval,
+		generateSelfPeriod:      b.generateSelfPeriod,
+		generateOthersPeriod:    b.generateOthersPeriod,
 	}, nil
 }
 
@@ -166,8 +188,9 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 		cfg.store,
 		cfg.registry,
 		cfg.registrant,
-		DEFAULT_REPORT_INTERVAL,
 		cfg.domainSeparator,
+		cfg.generateSelfPeriod,
+		cfg.generateOthersPeriod,
 	)
 
 	submitterWorker := NewSubmitterWorker(

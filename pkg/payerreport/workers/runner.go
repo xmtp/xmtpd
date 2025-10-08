@@ -13,10 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	DEFAULT_REPORT_INTERVAL = 6 * time.Hour
-)
-
 type stoppable interface {
 	Stop()
 }

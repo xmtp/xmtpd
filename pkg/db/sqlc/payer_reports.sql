@@ -173,6 +173,13 @@ SELECT *
 FROM payer_reports
 WHERE id = @id;
 
+-- name: FetchPayerReportLocked :one
+SELECT *
+FROM payer_reports
+WHERE id = @id
+FOR UPDATE;
+
+
 -- name: SetReportAttestationStatus :exec
 UPDATE payer_reports
 SET attestation_status = @new_status

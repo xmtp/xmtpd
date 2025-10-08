@@ -12,23 +12,6 @@ import (
 	"github.com/lib/pq"
 )
 
-const advisoryLockIdentityUpdateInsert = `-- name: AdvisoryLockIdentityUpdateInsert :exec
-SELECT pg_advisory_xact_lock(
-    ($1::bigint << 32) | ($2 & 4294967295)
-)
-`
-
-type AdvisoryLockIdentityUpdateInsertParams struct {
-	NodeID     int64
-	SequenceID interface{}
-}
-
-// only take the lowest 32 bits (mod 2^32-1)
-func (q *Queries) AdvisoryLockIdentityUpdateInsert(ctx context.Context, arg AdvisoryLockIdentityUpdateInsertParams) error {
-	_, err := q.db.ExecContext(ctx, advisoryLockIdentityUpdateInsert, arg.NodeID, arg.SequenceID)
-	return err
-}
-
 const getAddressLogs = `-- name: GetAddressLogs :many
 SELECT
 	a.address,

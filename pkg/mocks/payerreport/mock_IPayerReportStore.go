@@ -7,6 +7,8 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
+	db "github.com/xmtp/xmtpd/pkg/db"
+
 	envelopes "github.com/xmtp/xmtpd/pkg/envelopes"
 
 	mock "github.com/stretchr/testify/mock"
@@ -251,6 +253,64 @@ func (_c *MockIPayerReportStore_FetchReports_Call) Return(_a0 []*payerreport.Pay
 }
 
 func (_c *MockIPayerReportStore_FetchReports_Call) RunAndReturn(run func(context.Context, *payerreport.FetchReportsQuery) ([]*payerreport.PayerReportWithStatus, error)) *MockIPayerReportStore_FetchReports_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAdvisoryLocker provides a mock function with given fields: ctx
+func (_m *MockIPayerReportStore) GetAdvisoryLocker(ctx context.Context) (db.ITransactionScopedAdvisoryLocker, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAdvisoryLocker")
+	}
+
+	var r0 db.ITransactionScopedAdvisoryLocker
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (db.ITransactionScopedAdvisoryLocker, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) db.ITransactionScopedAdvisoryLocker); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(db.ITransactionScopedAdvisoryLocker)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIPayerReportStore_GetAdvisoryLocker_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAdvisoryLocker'
+type MockIPayerReportStore_GetAdvisoryLocker_Call struct {
+	*mock.Call
+}
+
+// GetAdvisoryLocker is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockIPayerReportStore_Expecter) GetAdvisoryLocker(ctx interface{}) *MockIPayerReportStore_GetAdvisoryLocker_Call {
+	return &MockIPayerReportStore_GetAdvisoryLocker_Call{Call: _e.mock.On("GetAdvisoryLocker", ctx)}
+}
+
+func (_c *MockIPayerReportStore_GetAdvisoryLocker_Call) Run(run func(ctx context.Context)) *MockIPayerReportStore_GetAdvisoryLocker_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_GetAdvisoryLocker_Call) Return(_a0 db.ITransactionScopedAdvisoryLocker, _a1 error) *MockIPayerReportStore_GetAdvisoryLocker_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_GetAdvisoryLocker_Call) RunAndReturn(run func(context.Context) (db.ITransactionScopedAdvisoryLocker, error)) *MockIPayerReportStore_GetAdvisoryLocker_Call {
 	_c.Call.Return(run)
 	return _c
 }

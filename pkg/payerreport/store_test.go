@@ -3,6 +3,7 @@ package payerreport_test
 import (
 	"context"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -989,4 +990,66 @@ func TestSetReportSettled(t *testing.T) {
 			fetchedReport.SubmissionStatus,
 		)
 	})
+}
+
+func TestCreateAttestationConcurrency(t *testing.T) {
+	store := createTestStore(t)
+	ctx := context.Background()
+	reportID := payerreport.ReportID(randomBytes32())
+
+	report := payerreport.PayerReport{
+		ID:               reportID,
+		OriginatorNodeID: 4,
+		StartSequenceID:  0,
+		EndSequenceID:    10,
+		PayersMerkleRoot: randomBytes32(),
+		ActiveNodeIDs:    []uint32{4},
+	}
+
+	err := store.StoreReport(ctx, &report)
+	require.NoError(t, err)
+
+	const numWorkers = 10
+	var wg sync.WaitGroup
+	errCh := make(chan error, numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			attestation := &payerreport.PayerReportAttestation{
+				Report: &report,
+				NodeSignature: payerreport.NodeSignature{
+					NodeID:    5,
+					Signature: []byte("sig"),
+				},
+			}
+
+			payerProto := envTestUtils.CreatePayerEnvelope(t, report.OriginatorNodeID)
+			payerEnv, err := envsWrapper.NewPayerEnvelope(payerProto)
+			require.NoError(t, err)
+
+			errCh <- store.CreateAttestation(ctx, attestation, payerEnv)
+		}()
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err = range errCh {
+		require.NoError(t, err)
+	}
+
+	fetchedReport, err := store.FetchReport(ctx, reportID)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		payerreport.AttestationStatus(payerreport.AttestationApproved),
+		fetchedReport.AttestationStatus,
+	)
+
+	staged, err := store.Queries().
+		SelectStagedOriginatorEnvelopes(ctx, queries.SelectStagedOriginatorEnvelopesParams{LastSeenID: 0, NumRows: 10})
+	require.NoError(t, err)
+	require.Len(t, staged, 1)
 }

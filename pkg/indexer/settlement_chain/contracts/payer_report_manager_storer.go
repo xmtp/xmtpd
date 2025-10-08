@@ -225,7 +225,8 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 		PayersMerkleRoot:    event.PayersMerkleRoot,
 		ActiveNodeIDs:       event.NodeIds,
 	}
-
+	// NOTE: this is the first time we might be hearing about this
+	// depends on the race between indexer and sync
 	numRows, err := s.store.StoreReport(ctx, report)
 	if err != nil {
 		return re.NewRecoverableError(ErrStoreReport, err)

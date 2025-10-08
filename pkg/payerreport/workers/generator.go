@@ -130,6 +130,12 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		existingReportEndSequenceID = lastSubmittedReport.EndSequenceID
 	}
 
+	// TODO(mkysel) there is a timing hazard here
+	// A concurrent submitter might transition a report from pending to submitted.
+	// getLastSubmittedReport checks the latest submitted report, FetchReports looks for a pending/unsubmitted one
+	// A concurrent submitter can transition from pending to submitted between these two calls
+	// This will result in us missing the new report and generating a duplicate
+
 	// Fetch all reports for the originator that are pending and approved
 	existingReports, err := w.store.FetchReports(
 		w.ctx,

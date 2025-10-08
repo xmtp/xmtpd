@@ -91,6 +91,8 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		return err
 	}
 
+	var latestErr error
+
 	for _, report := range reports {
 		reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
 
@@ -107,6 +109,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				zap.String("report_id", report.ID.String()),
 				zap.Error(err),
 			)
+			latestErr = err
 			continue
 		}
 
@@ -122,7 +125,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		}
 	}
 
-	return nil
+	return latestErr
 }
 
 func (w *SubmitterWorker) submitReport(report *payerreport.PayerReportWithStatus) error {

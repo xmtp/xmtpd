@@ -55,7 +55,7 @@ var (
 	)
 	ErrInvalidProof            = fmt.Errorf("InvalidProof()")
 	ErrInvalidProtocolFeeRate  = fmt.Errorf("InvalidProtocolFeeRate()")
-	ErrInvalidSequenceIds      = fmt.Errorf("InvalidSequenceIds()")
+	ErrInvalidSequenceIDs      = fmt.Errorf("InvalidSequenceIds()")
 	ErrInvalidSigningPublicKey = fmt.Errorf("InvalidSigningPublicKey()")
 	ErrInvalidStartSequenceID  = fmt.Errorf(
 		"InvalidStartSequenceId(uint64,uint64)",
@@ -162,7 +162,7 @@ var (
 		"0x93b7abe6": ErrInvalidPayloadSize,
 		"0x09bde339": ErrInvalidProof,
 		"0x82eeb3b2": ErrInvalidProtocolFeeRate,
-		"0xa7ee0517": ErrInvalidSequenceIds,
+		"0xa7ee0517": ErrInvalidSequenceIDs,
 		"0xbf51f547": ErrInvalidSigningPublicKey,
 		"0x84e23433": ErrInvalidStartSequenceID,
 		"0x3ba01911": ErrInvalidURI,
@@ -232,7 +232,9 @@ var (
 
 type ProtocolError interface {
 	error
+	Unwrap() error
 	IsNoChange() bool
+	IsErrInvalidSequenceIDs() bool
 }
 
 type BlockchainError struct {
@@ -271,11 +273,21 @@ func (e *BlockchainError) Unwrap() error {
 	if e.protocolErr != nil {
 		return e.protocolErr
 	}
+
 	return e.originalErr
 }
 
 func (e BlockchainError) IsNoChange() bool {
-	return errors.Is(e.protocolErr, ErrNoChange)
+	return e.protocolErr != nil && errors.Is(e.protocolErr, ErrNoChange)
+}
+
+// IsErrInvalidSequenceIDs returns true if the error is an invalid sequence ID error.
+// That can happen because the report:
+// - Was submitted with a wrong start sequence ID.
+// - The end sequence ID is smaller than the start sequence ID.
+func (e BlockchainError) IsErrInvalidSequenceIDs() bool {
+	return e.protocolErr != nil && (errors.Is(e.protocolErr, ErrInvalidSequenceIDs) ||
+		errors.Is(e.protocolErr, ErrInvalidStartSequenceID))
 }
 
 // tryExtractProtocolError tries to extract the protocol error from the error message.

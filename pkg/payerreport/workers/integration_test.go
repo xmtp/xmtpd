@@ -523,3 +523,65 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		fetchedReportID,
 	)
 }
+
+func TestCanRejectReport(t *testing.T) {
+	scaffold := setupMultiNodeTest(t)
+	reportsManager := scaffold.reportsManager
+
+	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
+	require.NoError(t, err)
+
+	payerReport1, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
+		OriginatorNodeID:    100,
+		StartSequenceID:     0,
+		EndSequenceID:       1,
+		EndMinuteSinceEpoch: 10,
+		Payers:              map[common.Address]currency.PicoDollar{},
+		NodeIDs:             []uint32{100, 200},
+		DomainSeparator:     domainSeparator,
+	})
+	require.NoError(t, err)
+
+	payerReport2, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
+		OriginatorNodeID:    100,
+		StartSequenceID:     0,
+		EndSequenceID:       10,
+		EndMinuteSinceEpoch: 10,
+		Payers:              map[common.Address]currency.PicoDollar{},
+		NodeIDs:             []uint32{100, 200},
+		DomainSeparator:     domainSeparator,
+	})
+	require.NoError(t, err)
+
+	signatures := make([]payerreport.NodeSignature, len(scaffold.registrants))
+
+	for idx, registrant := range scaffold.registrants {
+		signature, err := registrant.SignPayerReportAttestation(payerReport1.ID)
+		require.NoError(t, err)
+		signatures[idx] = *signature
+	}
+
+	reportWithStatus1 := payerreport.PayerReportWithStatus{
+		PayerReport:           payerReport1.PayerReport,
+		AttestationSignatures: signatures,
+	}
+
+	// Ensure the report ID matches the one we built
+	reportID, err := reportsManager.GetReportID(t.Context(), &reportWithStatus1)
+	require.NoError(t, err)
+	require.Equal(t, reportID, payerReport1.ID)
+
+	// Submit the report to the blockchain
+	err = reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus1)
+	require.NoError(t, err)
+
+	reportWithStatus2 := payerreport.PayerReportWithStatus{
+		PayerReport:           payerReport2.PayerReport,
+		AttestationSignatures: signatures,
+	}
+
+	chainErr := reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus2)
+	require.Error(t, chainErr)
+	require.True(t, chainErr.IsErrInvalidSequenceIDs())
+	require.ErrorIs(t, chainErr.Unwrap(), blockchain.ErrInvalidStartSequenceID)
+}

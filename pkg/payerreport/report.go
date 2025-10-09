@@ -54,6 +54,7 @@ const (
 	SubmissionPending   SubmissionStatus = iota
 	SubmissionSubmitted                  = 1
 	SubmissionSettled                    = 2
+	SubmissionRejected                   = 3
 )
 
 type AttestationStatus int16

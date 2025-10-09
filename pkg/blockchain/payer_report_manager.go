@@ -51,7 +51,7 @@ func NewReportsManager(
 func (r *ReportsManager) SubmitPayerReport(
 	ctx context.Context,
 	report *payerreport.PayerReportWithStatus,
-) error {
+) ProtocolError {
 	err := ExecuteTransaction(
 		ctx,
 		r.signer,

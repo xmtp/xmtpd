@@ -64,6 +64,7 @@ type IPayerReportStore interface {
 	) error
 	SetReportSubmitted(ctx context.Context, id ReportID) error
 	SetReportSettled(ctx context.Context, id ReportID) error
+	SetReportSubmissionRejected(ctx context.Context, id ReportID) error
 	SetReportAttestationApproved(ctx context.Context, id ReportID) error
 	SetReportAttestationRejected(ctx context.Context, id ReportID) error
 	Queries() *queries.Queries

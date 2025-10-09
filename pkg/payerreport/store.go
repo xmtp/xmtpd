@@ -197,6 +197,16 @@ func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 	)
 }
 
+func (s *Store) SetReportSubmissionRejected(ctx context.Context, id ReportID) error {
+	return setReportSubmissionStatus(
+		ctx,
+		s.queries,
+		id,
+		[]SubmissionStatus{SubmissionPending},
+		SubmissionRejected,
+	)
+}
+
 func (s *Store) SetReportAttestationApproved(ctx context.Context, id ReportID) error {
 	return setReportAttestationStatus(
 		ctx,

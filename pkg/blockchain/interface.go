@@ -66,7 +66,7 @@ type IBlockchainPublisher interface {
 }
 
 type PayerReportsManager interface {
-	SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) error
+	SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) ProtocolError
 	GetReport(
 		ctx context.Context,
 		originatorNodeID uint32,

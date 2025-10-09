@@ -102,14 +102,31 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		}
 
 		reportLogger.Info("submitting report")
-		err = w.submitReport(report)
-		if err != nil {
+		submitErr := w.submitReport(report)
+		if submitErr != nil {
+			if submitErr.IsErrInvalidSequenceIDs() {
+				reportLogger.Info("report has invalid sequence IDs, submission rejected")
+
+				err = w.payerReportStore.SetReportSubmissionRejected(ctx, report.ID)
+				if err != nil {
+					reportLogger.Error(
+						"failed to set report submission rejected",
+						zap.String("report_id", report.ID.String()),
+						zap.Error(err),
+					)
+					latestErr = err
+				}
+
+				continue
+			}
+
 			reportLogger.Error(
 				"failed to submit report",
 				zap.String("report_id", report.ID.String()),
-				zap.Error(err),
+				zap.Error(submitErr),
 			)
-			latestErr = err
+
+			latestErr = submitErr
 			continue
 		}
 
@@ -128,6 +145,8 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	return latestErr
 }
 
-func (w *SubmitterWorker) submitReport(report *payerreport.PayerReportWithStatus) error {
+func (w *SubmitterWorker) submitReport(
+	report *payerreport.PayerReportWithStatus,
+) blockchain.ProtocolError {
 	return w.reportsAdmin.SubmitPayerReport(w.ctx, report)
 }

@@ -503,6 +503,53 @@ func (_c *MockIPayerReportStore_SetReportSettled_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// SetReportSubmissionRejected provides a mock function with given fields: ctx, id
+func (_m *MockIPayerReportStore) SetReportSubmissionRejected(ctx context.Context, id payerreport.ReportID) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetReportSubmissionRejected")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockIPayerReportStore_SetReportSubmissionRejected_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetReportSubmissionRejected'
+type MockIPayerReportStore_SetReportSubmissionRejected_Call struct {
+	*mock.Call
+}
+
+// SetReportSubmissionRejected is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id payerreport.ReportID
+func (_e *MockIPayerReportStore_Expecter) SetReportSubmissionRejected(ctx interface{}, id interface{}) *MockIPayerReportStore_SetReportSubmissionRejected_Call {
+	return &MockIPayerReportStore_SetReportSubmissionRejected_Call{Call: _e.mock.On("SetReportSubmissionRejected", ctx, id)}
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmissionRejected_Call) Run(run func(ctx context.Context, id payerreport.ReportID)) *MockIPayerReportStore_SetReportSubmissionRejected_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(payerreport.ReportID))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmissionRejected_Call) Return(_a0 error) *MockIPayerReportStore_SetReportSubmissionRejected_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_SetReportSubmissionRejected_Call) RunAndReturn(run func(context.Context, payerreport.ReportID) error) *MockIPayerReportStore_SetReportSubmissionRejected_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetReportSubmitted provides a mock function with given fields: ctx, id
 func (_m *MockIPayerReportStore) SetReportSubmitted(ctx context.Context, id payerreport.ReportID) error {
 	ret := _m.Called(ctx, id)

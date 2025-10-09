@@ -104,6 +104,22 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		reportLogger.Info("submitting report")
 		submitErr := w.submitReport(report)
 		if submitErr != nil {
+			if submitErr.IsErrInvalidSequenceIDs() {
+				reportLogger.Info("report has invalid sequence IDs, submission rejected")
+
+				err = w.payerReportStore.SetReportSubmissionRejected(ctx, report.ID)
+				if err != nil {
+					reportLogger.Error(
+						"failed to set report submission rejected",
+						zap.String("report_id", report.ID.String()),
+						zap.Error(err),
+					)
+					latestErr = err
+				}
+
+				continue
+			}
+
 			reportLogger.Error(
 				"failed to submit report",
 				zap.String("report_id", report.ID.String()),
@@ -111,13 +127,6 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 			)
 
 			latestErr = submitErr
-
-			if submitErr.IsErrInvalidSequenceIDs() {
-				reportLogger.Info("report has invalid sequence IDs, submission rejected")
-				w.payerReportStore.SetReportSubmissionRejected(ctx, report.ID)
-				continue
-			}
-
 			continue
 		}
 

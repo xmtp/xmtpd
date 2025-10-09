@@ -26,6 +26,7 @@ const (
 	ErrBuildPayerReportID               = "error building payer report id"
 	ErrStoreReport                      = "error storing report"
 	ErrSetReportSubmissionStatus        = "error setting report submission status"
+	ErrSetReportAttestationStatus       = "error setting report attestation status"
 	ErrLoadReportByIndex                = "error loading report by index"
 
 	payerReportManagerPayerReportSubmittedEvent     = "PayerReportSubmitted"
@@ -233,9 +234,15 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 	}
 
 	// Will only set the status to Submitted if it was previously Pending.
-	// If it is already settled, this is a no-op
+	// If it is already settled, this is a no-op.
 	if err = s.store.SetReportSubmitted(ctx, *reportID); err != nil {
 		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
+	}
+
+	// Sets attestation status to Approved, if it was previously Pending.
+	// If it is already approved or rejected, this is a no-op.
+	if err = s.store.SetReportAttestationApproved(ctx, *reportID); err != nil {
+		return re.NewRecoverableError(ErrSetReportAttestationStatus, err)
 	}
 
 	if numRows == 0 {

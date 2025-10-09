@@ -106,14 +106,27 @@ func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
 	err := tester.storer.StoreLog(t.Context(), log)
 	require.NoError(t, err)
 
-	err = tester.storer.StoreLog(t.Context(), log)
-	require.NoError(t, err)
-
 	res, queryErr := tester.queries.FetchPayerReports(t.Context(), queries.FetchPayerReportsParams{
 		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
 	})
 	require.Nil(t, queryErr)
 	require.Len(t, res, 1)
+	require.Equal(t, int16(1), res[0].SubmissionStatus)
+	require.Equal(t, int16(1), res[0].AttestationStatus)
+
+	expectedID := res[0].ID
+
+	err = tester.storer.StoreLog(t.Context(), log)
+	require.NoError(t, err)
+
+	res, queryErr = tester.queries.FetchPayerReports(t.Context(), queries.FetchPayerReportsParams{
+		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
+	})
+	require.Nil(t, queryErr)
+	require.Len(t, res, 1)
+	require.Equal(t, int16(1), res[0].SubmissionStatus)
+	require.Equal(t, int16(1), res[0].AttestationStatus)
+	require.Equal(t, expectedID, res[0].ID)
 }
 
 func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {

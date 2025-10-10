@@ -186,7 +186,7 @@ func (p *PayerReportVerifier) isAtMinuteEnd(
 
 	isAtMinuteEnd := lastSequenceID == expectedSequenceID
 	if !isAtMinuteEnd {
-		p.log.Info(
+		p.log.Error(
 			"sequence id is not the last message in the minute",
 			zap.Int64("last_sequence_id", lastSequenceID),
 			zap.Int32("minute", minute),

@@ -17,16 +17,17 @@ import (
 )
 
 var (
-	ErrNoActiveNodeIDs             = errors.New("no active node IDs")
-	ErrInvalidReportID             = errors.New("invalid report ID")
-	ErrOriginatorNodeIDTooLarge    = errors.New("originator node ID is > max int32")
-	ErrStartSequenceIDTooLarge     = errors.New("start sequence ID is > max int64")
-	ErrEndSequenceIDTooLarge       = errors.New("end sequence ID is > max int64")
-	ErrEndMinuteSinceEpochTooLarge = errors.New("end minute since epoch is > max int32")
-	ErrNodesCountTooLarge          = errors.New("nodes count is > max int32")
 	ErrActiveNodeIDTooLarge        = errors.New("active node ID is > max int32")
-	ErrReportNotFound              = errors.New("report not found")
+	ErrEndMinuteSinceEpochTooLarge = errors.New("end minute since epoch is > max int32")
+	ErrEndSequenceIDTooLarge       = errors.New("end sequence ID is > max int64")
+	ErrInvalidReportID             = errors.New("invalid report ID")
+	ErrNoActiveNodeIDs             = errors.New("no active node IDs")
+	ErrNodesCountTooLarge          = errors.New("nodes count is > max int32")
+	ErrNoReportsFetched            = errors.New("no reports fetched")
+	ErrOriginatorNodeIDTooLarge    = errors.New("originator node ID is > max int32")
 	ErrReportNil                   = errors.New("report is nil")
+	ErrReportNotFound              = errors.New("report not found")
+	ErrStartSequenceIDTooLarge     = errors.New("start sequence ID is > max int64")
 )
 
 type Store struct {
@@ -112,6 +113,10 @@ func (s *Store) FetchReports(
 		return nil, err
 	}
 	s.log.Info("Fetched reports", zap.Any("rows", rows))
+
+	if len(rows) == 0 {
+		return nil, ErrNoReportsFetched
+	}
 
 	return convertPayerReports(rows)
 }

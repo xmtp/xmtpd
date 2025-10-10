@@ -43,6 +43,7 @@ packages:
     interfaces:
       ChainClient:
       IBlockchainPublisher:
+      PayerReportsManager:
   github.com/xmtp/xmtpd/pkg/blockchain/noncemanager:
     interfaces:
       NonceManager:

@@ -18,16 +18,12 @@ var (
 	ErrInvalidReportStart = errors.New(
 		"report does not start where the previous report ended",
 	)
-	ErrInvalidSequenceID       = errors.New("invalid sequence id")
-	ErrInvalidOriginatorID     = errors.New("originator id is 0")
-	ErrNoNodes                 = errors.New("no nodes in report")
-	ErrInvalidPayersMerkleRoot = errors.New("payers merkle root is invalid")
-	ErrMessageNotAtMinuteEnd   = errors.New(
-		"sequence id is not the last message in the minute",
-	)
+	ErrInvalidSequenceID                = errors.New("invalid sequence id")
+	ErrInvalidOriginatorID              = errors.New("originator id is 0")
+	ErrNoNodes                          = errors.New("no nodes in report")
+	ErrInvalidPayersMerkleRoot          = errors.New("payers merkle root is invalid")
 	ErrMessageAtStartSequenceIDNotFound = errors.New("message at start sequence id not found")
 	ErrMessageAtEndSequenceIDNotFound   = errors.New("message at end sequence id not found")
-	ErrMerkleRootMismatch               = errors.New("payers merkle root mismatch")
 )
 
 type PayerReportVerifier struct {
@@ -73,18 +69,15 @@ func (p *PayerReportVerifier) IsValidReport(
 		return false, nil
 	}
 
-	var isValidMerkleRoot bool
 	// If the start and end sequence IDs are the same, the report is empty and the merkle root must always be the hash of an empty set
 	if newReport.StartSequenceID == newReport.EndSequenceID {
 		// TODO:nm validate that the merkle root is the hash of an empty set
-		isValidMerkleRoot = true
-	} else {
-		if isValidMerkleRoot, err = p.verifyMerkleRoot(ctx, newReport); err != nil {
-			return false, err
-		}
+		return true, nil
 	}
-	if !isValidMerkleRoot {
-		log.Warn("invalid merkle root")
+
+	isValidMerkleRoot, err := p.verifyMerkleRoot(ctx, newReport)
+	if err != nil {
+		return isValidMerkleRoot, err
 	}
 
 	return isValidMerkleRoot, nil
@@ -99,30 +92,26 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	if err != nil {
 		return false, err
 	}
+
 	// If the start sequence ID is 0, it is the first report and we should start from minute 0 since there are no preceding reports
 	var startMinute int32
 	if startEnvelope == nil {
 		startMinute = 0
 	} else {
-		startMinute, err = getMinuteFromEnvelope(startEnvelope)
-		if err != nil {
-			return false, err
-		}
+		startMinute = getMinuteFromEnvelope(startEnvelope)
 	}
 
-	endMinute, err := getMinuteFromEnvelope(endEnvelope)
-	if err != nil {
-		return false, err
-	}
+	endMinute := getMinuteFromEnvelope(endEnvelope)
 
-	// Validate the report ends after it starts
+	// Invalid report: the start minute is after the end minute.
 	if startMinute > endMinute {
-		return false, ErrInvalidReportStart
+		return false, nil
 	}
 
 	originatorID, err := utils.Uint32ToInt32(report.OriginatorNodeID)
 	if err != nil {
-		return false, ErrInvalidOriginatorID
+		// System error: the originator node ID is too large.
+		return false, err
 	}
 
 	isAtMinuteEnd, err := p.isAtMinuteEnd(
@@ -132,11 +121,13 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 		int64(report.EndSequenceID),
 	)
 	if err != nil {
+		// System error: failed querying the database.
 		return false, err
 	}
 
+	// Invalid report: the end sequence ID is not the last message in the minute.
 	if !isAtMinuteEnd {
-		return false, ErrMessageNotAtMinuteEnd
+		return false, nil
 	}
 
 	// TODO:nm validate that the start sequence ID is the last message in the start minute and create a misbehavior report if it's not
@@ -147,20 +138,25 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 		EndMinutesSinceEpoch:   endMinute,
 	})
 	if err != nil {
+		// System error: failed querying the database.
 		return false, err
 	}
 
 	payerMap := buildPayersMap(reportData)
 	merkleTree, err := generateMerkleTree(payerMap)
 	if err != nil {
+		// System error: failed generating the merkle tree.
 		return false, err
 	}
 
 	merkleRoot := common.BytesToHash(merkleTree.Root())
+
+	// Invalid report: the merkle root mismatch.
 	if report.PayersMerkleRoot != merkleRoot {
-		return false, ErrMerkleRootMismatch
+		return false, nil
 	}
 
+	// Valid report: all checks passed.
 	return true, nil
 }
 
@@ -186,7 +182,7 @@ func (p *PayerReportVerifier) isAtMinuteEnd(
 
 	isAtMinuteEnd := lastSequenceID == expectedSequenceID
 	if !isAtMinuteEnd {
-		p.log.Error(
+		p.log.Debug(
 			"sequence id is not the last message in the minute",
 			zap.Int64("last_sequence_id", lastSequenceID),
 			zap.Int32("minute", minute),

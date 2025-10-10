@@ -111,7 +111,8 @@ func (s *Store) FetchReports(
 	if err != nil {
 		return nil, err
 	}
-	s.log.Info("Fetched reports", zap.Any("rows", rows))
+
+	s.log.Debug("fetched reports", zap.Any("rows", rows))
 
 	return convertPayerReports(rows)
 }

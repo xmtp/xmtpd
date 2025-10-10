@@ -84,6 +84,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	}
 
 	// SubmitterWorker fetches all reports that are pending submission and approved attestation.
+	w.log.Debug("fetching reports to submit")
 	reports, err := w.payerReportStore.FetchReports(
 		ctx,
 		payerreport.NewFetchReportsQuery().

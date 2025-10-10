@@ -137,6 +137,11 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	// This will result in us missing the new report and generating a duplicate
 
 	// Fetch all reports for the originator that are pending and approved
+	w.log.Debug(
+		"maybe generating report, fetching existing reports",
+		zap.Uint32("node_id", nodeID),
+		zap.Uint64("existing_end_sequence_id", existingReportEndSequenceID),
+	)
 	existingReports, err := w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().
@@ -212,6 +217,9 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 func (w *GeneratorWorker) getLastSubmittedReport(
 	nodeID uint32,
 ) (*payerreport.PayerReportWithStatus, error) {
+	w.log.Debug("fetching last submitted report",
+		zap.Uint32("node_id", nodeID),
+	)
 	reports, err := w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().

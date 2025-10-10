@@ -129,6 +129,7 @@ func (w *AttestationWorker) AttestReports() error {
 // findReportsNeedingAttestation fetches all reports that are pending attestation and pending submission.
 // The only possible state where a report is needing attestation is when it's pending submission and attestation.
 func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.PayerReportWithStatus, error) {
+	w.log.Debug("fetching reports needing attestation")
 	return w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().
@@ -174,6 +175,10 @@ func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStat
 func (w *AttestationWorker) getPreviousReport(
 	currentReport *payerreport.PayerReportWithStatus,
 ) (*payerreport.PayerReportWithStatus, error) {
+	w.log.Debug("fetching previous report",
+		zap.Uint32("originator_node_id", currentReport.OriginatorNodeID),
+		zap.Uint64("start_sequence_id", currentReport.StartSequenceID),
+	)
 	prevReports, err := w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().

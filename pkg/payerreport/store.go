@@ -114,11 +114,16 @@ func (s *Store) FetchReports(
 	}
 	s.log.Info("Fetched reports", zap.Any("rows", rows))
 
-	if len(rows) == 0 {
+	reports, err := convertPayerReports(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(reports) == 0 {
 		return nil, ErrNoReportsFetched
 	}
 
-	return convertPayerReports(rows)
+	return reports, nil
 }
 
 func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID) error {
@@ -493,7 +498,8 @@ func (s *Store) Queries() *queries.Queries {
 }
 
 func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWithStatus, error) {
-	results := make(map[string]*PayerReportWithStatus)
+	results := make(map[string]*PayerReportWithStatus, len(rows))
+
 	var err error
 	for _, row := range rows {
 		key := fmt.Sprintf("%x", row.ID)
@@ -530,6 +536,7 @@ func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWit
 	for _, result := range results {
 		out = append(out, result)
 	}
+
 	return out, nil
 }
 

@@ -69,7 +69,7 @@ func testSubmitterWorker(
 //	(1,X) - Already submitted
 //	(2,X) - Already settled
 //	(3,X) - Submission rejected
-func TestSubmitReports(t *testing.T) {
+func TestSubmitterStatesAndTransitions(t *testing.T) {
 	type reportState int
 	const (
 		stateSubmissionPendingAttestationPending reportState = iota
@@ -320,7 +320,7 @@ func TestSubmitReports(t *testing.T) {
 
 				reportsManager.EXPECT().
 					SubmitPayerReport(mock.Anything, mock.Anything).
-					Return(blockchain.NewBlockchainError(fmt.Errorf("execution reverted: 0xa7ee0517")))
+					Return(blockchain.NewBlockchainError(fmt.Errorf("execution reverted: 0x84e23433")))
 			}
 
 			err = worker.SubmitReports(t.Context())

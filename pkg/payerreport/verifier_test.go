@@ -431,7 +431,6 @@ func TestValidateMerkleRoot(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: payerreport.ErrMerkleRootMismatch,
 		},
 		{
 			name: "invalid merkle root - wrong payer",
@@ -443,7 +442,6 @@ func TestValidateMerkleRoot(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: payerreport.ErrMerkleRootMismatch,
 		},
 	}
 
@@ -546,7 +544,6 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 				ActiveNodeIDs:    []uint32{1},
 			},
 			expectedValid: false,
-			expectedError: payerreport.ErrMessageNotAtMinuteEnd,
 		},
 	}
 

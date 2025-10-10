@@ -18,16 +18,12 @@ var (
 	ErrInvalidReportStart = errors.New(
 		"report does not start where the previous report ended",
 	)
-	ErrInvalidSequenceID       = errors.New("invalid sequence id")
-	ErrInvalidOriginatorID     = errors.New("originator id is 0")
-	ErrNoNodes                 = errors.New("no nodes in report")
-	ErrInvalidPayersMerkleRoot = errors.New("payers merkle root is invalid")
-	ErrMessageNotAtMinuteEnd   = errors.New(
-		"sequence id is not the last message in the minute",
-	)
+	ErrInvalidSequenceID                = errors.New("invalid sequence id")
+	ErrInvalidOriginatorID              = errors.New("originator id is 0")
+	ErrNoNodes                          = errors.New("no nodes in report")
+	ErrInvalidPayersMerkleRoot          = errors.New("payers merkle root is invalid")
 	ErrMessageAtStartSequenceIDNotFound = errors.New("message at start sequence id not found")
 	ErrMessageAtEndSequenceIDNotFound   = errors.New("message at end sequence id not found")
-	ErrMerkleRootMismatch               = errors.New("payers merkle root mismatch")
 )
 
 type PayerReportVerifier struct {

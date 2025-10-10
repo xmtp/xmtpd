@@ -424,8 +424,11 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
 	}, 5*time.Second, 50*time.Millisecond)
 
-	err := scaffold.reportGenerators[0].GenerateReports()
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		err := scaffold.reportGenerators[0].GenerateReports()
+		require.NoError(t, err)
+		return true
+	}, 5*time.Second, 50*time.Millisecond)
 
 	node1ReportTopic := topic.NewTopic(topic.TopicKindPayerReportsV1, utils.Uint32ToBytes(scaffold.nodeIDs[0])).
 		Bytes()
@@ -438,7 +441,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 
 	// Make both node's attestation workers try and attest reports. Do this multiple times to ensure no dupes
 	for range 5 {
-		err = scaffold.attestationWorkers[0].AttestReports()
+		err := scaffold.attestationWorkers[0].AttestReports()
 		require.NoError(t, err)
 		err = scaffold.attestationWorkers[1].AttestReports()
 		require.NoError(t, err)
@@ -504,7 +507,7 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		scaffold.reportsManager,
 		scaffold.nodeIDs[0],
 	)
-	err = submitterWorker.SubmitReports(t.Context())
+	err := submitterWorker.SubmitReports(t.Context())
 	require.NoError(t, err)
 
 	fetchedReports, err := scaffold.payerReportStores[0].FetchReports(

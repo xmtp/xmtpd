@@ -17,16 +17,16 @@ import (
 )
 
 var (
-	ErrNoActiveNodeIDs             = errors.New("no active node IDs")
-	ErrInvalidReportID             = errors.New("invalid report ID")
-	ErrOriginatorNodeIDTooLarge    = errors.New("originator node ID is > max int32")
-	ErrStartSequenceIDTooLarge     = errors.New("start sequence ID is > max int64")
-	ErrEndSequenceIDTooLarge       = errors.New("end sequence ID is > max int64")
-	ErrEndMinuteSinceEpochTooLarge = errors.New("end minute since epoch is > max int32")
-	ErrNodesCountTooLarge          = errors.New("nodes count is > max int32")
 	ErrActiveNodeIDTooLarge        = errors.New("active node ID is > max int32")
-	ErrReportNotFound              = errors.New("report not found")
+	ErrEndMinuteSinceEpochTooLarge = errors.New("end minute since epoch is > max int32")
+	ErrEndSequenceIDTooLarge       = errors.New("end sequence ID is > max int64")
+	ErrInvalidReportID             = errors.New("invalid report ID")
+	ErrNoActiveNodeIDs             = errors.New("no active node IDs")
+	ErrNodesCountTooLarge          = errors.New("nodes count is > max int32")
+	ErrOriginatorNodeIDTooLarge    = errors.New("originator node ID is > max int32")
 	ErrReportNil                   = errors.New("report is nil")
+	ErrReportNotFound              = errors.New("report not found")
+	ErrStartSequenceIDTooLarge     = errors.New("start sequence ID is > max int64")
 )
 
 type Store struct {
@@ -488,7 +488,8 @@ func (s *Store) Queries() *queries.Queries {
 }
 
 func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWithStatus, error) {
-	results := make(map[string]*PayerReportWithStatus)
+	results := make(map[string]*PayerReportWithStatus, len(rows))
+
 	var err error
 	for _, row := range rows {
 		key := fmt.Sprintf("%x", row.ID)
@@ -525,6 +526,7 @@ func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWit
 	for _, result := range results {
 		out = append(out, result)
 	}
+
 	return out, nil
 }
 

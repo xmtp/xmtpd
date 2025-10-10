@@ -28,11 +28,11 @@ func getMinuteFromSequenceID(
 		return 0, err
 	}
 
-	return getMinuteFromEnvelope(parsedEnvelope)
+	return getMinuteFromEnvelope(parsedEnvelope), nil
 }
 
-func getMinuteFromEnvelope(envelope *envelopes.OriginatorEnvelope) (int32, error) {
-	return utils.MinutesSinceEpoch(envelope.OriginatorTime()), nil
+func getMinuteFromEnvelope(envelope *envelopes.OriginatorEnvelope) int32 {
+	return utils.MinutesSinceEpoch(envelope.OriginatorTime())
 }
 
 func AddReportLogFields(logger *zap.Logger, report *PayerReport) *zap.Logger {

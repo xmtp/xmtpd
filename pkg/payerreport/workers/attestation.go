@@ -126,10 +126,14 @@ func (w *AttestationWorker) AttestReports() error {
 	return nil
 }
 
+// findReportsNeedingAttestation fetches all reports that are pending attestation and pending submission.
+// The only possible state where a report is needing attestation is when it's pending submission and attestation.
 func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.PayerReportWithStatus, error) {
 	return w.store.FetchReports(
 		w.ctx,
-		payerreport.NewFetchReportsQuery().WithAttestationStatus(payerreport.AttestationPending),
+		payerreport.NewFetchReportsQuery().
+			WithAttestationStatus(payerreport.AttestationPending).
+			WithSubmissionStatus(payerreport.SubmissionPending),
 	)
 }
 

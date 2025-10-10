@@ -89,6 +89,120 @@ func TestFindReport(t *testing.T) {
 	require.Len(t, reports, 0)
 }
 
+// TestDontAttestReportsInNonPendingStates covers the following states:
+// (0,1), (0,2)        - Already attested (approved/rejected)
+// (1,0), (1,1), (1,2) - Already submitted
+// (2,0), (2,1), (2,2) - Already settled
+// (3,1)               - Submission rejected
+func TestDontAttestReportsInNonPendingStates(t *testing.T) {
+	type reportState int
+	const (
+		stateAttestationApproved reportState = iota
+		stateAttestationRejected
+		stateSubmissionSubmitted
+		stateSubmissionRejected
+		stateSubmissionSettled
+	)
+
+	prepareReport := func(
+		t *testing.T,
+		state reportState,
+		store payerreport.IPayerReportStore,
+		r *payerreport.PayerReportWithStatus,
+	) {
+		t.Helper()
+
+		switch state {
+		case stateAttestationApproved:
+			require.NoError(t, store.SetReportAttestationApproved(t.Context(), r.ID))
+
+		case stateAttestationRejected:
+			require.NoError(t, store.SetReportAttestationRejected(t.Context(), r.ID))
+
+		case stateSubmissionSubmitted:
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+
+		case stateSubmissionRejected:
+			require.NoError(t, store.SetReportSubmissionRejected(t.Context(), r.ID))
+
+		case stateSubmissionSettled:
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSettled(t.Context(), r.ID))
+
+		default:
+			t.Fatalf("unknown target state: %v", state)
+		}
+	}
+
+	testCases := []struct {
+		name                      string
+		state                     reportState
+		expectedAttestationStatus payerreport.AttestationStatus
+		expectedSubmissionStatus  payerreport.SubmissionStatus
+	}{
+		{
+			"don't attest already attested report",
+			stateAttestationApproved,
+			payerreport.AttestationApproved,
+			payerreport.SubmissionPending,
+		},
+		{
+			"don't attest already attested report",
+			stateAttestationRejected,
+			payerreport.AttestationRejected,
+			payerreport.SubmissionPending,
+		},
+		{
+			"don't attest already submitted report",
+			stateSubmissionSubmitted,
+			payerreport.AttestationPending,
+			payerreport.SubmissionSubmitted,
+		},
+		{
+			"don't attest rejected report",
+			stateSubmissionRejected,
+			payerreport.AttestationPending,
+			payerreport.SubmissionRejected,
+		},
+		{
+			"don't attest already settled report",
+			stateSubmissionSettled,
+			payerreport.AttestationPending,
+			payerreport.SubmissionSettled,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			worker, store, _, _ := testAttestationWorker(t, time.Second)
+
+			report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
+				OriginatorNodeID: 1,
+				StartSequenceID:  0,
+				EndSequenceID:    10,
+				DomainSeparator:  domainSeparator,
+				NodeIDs:          []uint32{1},
+			})
+			require.NoError(t, err)
+
+			stored := storeReport(t, store, &report.PayerReport)
+
+			prepareReport(t, tc.state, store, stored)
+
+			reports, err := worker.findReportsNeedingAttestation()
+			require.NoError(t, err)
+
+			// Every single case should not find any reports needing attestation.
+			require.Len(t, reports, 0)
+
+			got, err := store.FetchReport(t.Context(), stored.ID)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedAttestationStatus, got.AttestationStatus)
+			require.Equal(t, tc.expectedSubmissionStatus, got.SubmissionStatus)
+		})
+	}
+}
+
 func TestAttestFirstReport(t *testing.T) {
 	worker, store, _, mockVerifier := testAttestationWorker(t, time.Second)
 

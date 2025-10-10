@@ -168,7 +168,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 		expectedAttestationStatus payerreport.AttestationStatus
 		expectedSubmissionStatus  payerreport.SubmissionStatus
 		wantSubmitRejected        bool
-		wantSubmitError           error
 	}{
 		//	(0,0) - Not attested
 		{
@@ -177,7 +176,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationPending,
 			payerreport.SubmissionPending,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(0,1) → (1,1) - SubmitterWorker succeeds
 		{
@@ -186,16 +184,16 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationApproved,
 			payerreport.SubmissionPending,
 			false,
-			nil,
 		},
-		//	(0,1) → (3,1) - SubmitterWorker hits race condition
+		//	(0,1) → (3,1) - SubmitterWorker hits race condition:
+		// - Some other node submitted a valid report that goes before the one submitted.
+		// - The contract throws InvalidSequenceIDs or InvalidStartSequenceID.
 		{
 			"submit a pending, approved report, reject on chain",
 			stateSubmissionPendingAttestationApprovedRaceCondition,
 			payerreport.AttestationApproved,
 			payerreport.SubmissionRejected,
 			true,
-			nil,
 		},
 		//	(0,2) - Rejected
 		{
@@ -204,7 +202,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationRejected,
 			payerreport.SubmissionPending,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(1,0) - Already submitted, attestation pending
 		{
@@ -213,7 +210,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationPending,
 			payerreport.SubmissionSubmitted,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(1,1) - Already submitted, attestation approved
 		{
@@ -222,7 +218,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationApproved,
 			payerreport.SubmissionSubmitted,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(1,2) - Already submitted, attestation rejected
 		{
@@ -231,7 +226,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationRejected,
 			payerreport.SubmissionSubmitted,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(2,0) - Already settled, attestation pending
 		{
@@ -240,7 +234,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationPending,
 			payerreport.SubmissionSettled,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(2,1) - Already settled, attestation approved
 		{
@@ -249,7 +242,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationApproved,
 			payerreport.SubmissionSettled,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(2,2) - Already settled, attestation rejected
 		{
@@ -258,7 +250,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationRejected,
 			payerreport.SubmissionSettled,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(3,0) - Submission rejected, attestation pending
 		{
@@ -267,7 +258,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationPending,
 			payerreport.SubmissionRejected,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(3,1) - Submission rejected, attestation approved
 		{
@@ -276,7 +266,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationApproved,
 			payerreport.SubmissionRejected,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 		//	(3,2) - Submission rejected, attestation rejected
 		{
@@ -285,7 +274,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			payerreport.AttestationRejected,
 			payerreport.SubmissionRejected,
 			false,
-			payerreport.ErrNoReportsFetched,
 		},
 	}
 
@@ -324,11 +312,6 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			}
 
 			err = worker.SubmitReports(t.Context())
-			if tc.wantSubmitError != nil {
-				require.ErrorIs(t, err, tc.wantSubmitError)
-				return
-			}
-
 			require.NoError(t, err)
 
 			got, err := store.FetchReport(t.Context(), stored.ID)

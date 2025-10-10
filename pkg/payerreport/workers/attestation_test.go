@@ -85,8 +85,7 @@ func TestFindReport(t *testing.T) {
 	)
 
 	reports, err = worker.findReportsNeedingAttestation()
-	require.Error(t, err)
-	require.ErrorIs(t, err, payerreport.ErrNoReportsFetched)
+	require.NoError(t, err)
 	require.Len(t, reports, 0)
 }
 

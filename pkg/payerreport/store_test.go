@@ -203,79 +203,63 @@ func TestFetchReport(t *testing.T) {
 		name        string
 		expectedIDs []payerreport.ReportID
 		query       *payerreport.FetchReportsQuery
-		expectedErr error
 	}{{
 		name:        "Get all with created after",
 		expectedIDs: []payerreport.ReportID{report1.ID, report2.ID, report3.ID},
 
 		query: payerreport.NewFetchReportsQuery().
 			WithCreatedAfter(report1.CreatedAt.Add(-5 * time.Second)),
-		expectedErr: nil,
 	}, {
 		name:        "Get newest 2",
 		expectedIDs: []payerreport.ReportID{report2.ID, report3.ID},
 		query:       payerreport.NewFetchReportsQuery().WithCreatedAfter(report1.CreatedAt),
-		expectedErr: nil,
 	}, {
 		name:        "Only approved",
 		expectedIDs: []payerreport.ReportID{report2.ID},
 		query: payerreport.NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
 			WithAttestationStatus(payerreport.AttestationApproved),
-		expectedErr: nil,
 	}, {
 		name:        "Multiple statuses",
 		expectedIDs: []payerreport.ReportID{report2.ID},
 		query: payerreport.NewFetchReportsQuery().
 			WithAttestationStatus(payerreport.AttestationApproved, payerreport.AttestationRejected),
-		expectedErr: nil,
 	}, {
 		name:        "No results",
 		expectedIDs: []payerreport.ReportID{},
 		query: payerreport.NewFetchReportsQuery().WithCreatedAfter(time.Unix(1, 0)).
 			WithAttestationStatus(payerreport.AttestationRejected),
-		expectedErr: payerreport.ErrNoReportsFetched,
 	}, {
 		name:        "No Params",
 		expectedIDs: []payerreport.ReportID{report1.ID, report2.ID, report3.ID},
 		query:       payerreport.NewFetchReportsQuery(),
-		expectedErr: nil,
 	}, {
 		name:        "With start sequence ID",
 		expectedIDs: []payerreport.ReportID{report1.ID},
 		query: payerreport.NewFetchReportsQuery().
 			WithStartSequenceID(report1.StartSequenceID),
-		expectedErr: nil,
 	}, {
 		name:        "With end sequence ID",
 		expectedIDs: []payerreport.ReportID{report1.ID},
 		query:       payerreport.NewFetchReportsQuery().WithEndSequenceID(report1.EndSequenceID),
-		expectedErr: nil,
 	}, {
 		name:        "With start and end sequence ID",
 		expectedIDs: []payerreport.ReportID{report1.ID},
 		query: payerreport.NewFetchReportsQuery().WithStartSequenceID(report1.StartSequenceID).
 			WithEndSequenceID(report1.EndSequenceID),
-		expectedErr: nil,
 	}, {
 		name:        "With originator node ID",
 		expectedIDs: []payerreport.ReportID{report1.ID},
 		query: payerreport.NewFetchReportsQuery().
 			WithOriginatorNodeID(report1.OriginatorNodeID),
-		expectedErr: nil,
 	}, {
 		name:        "With min attestations",
 		expectedIDs: []payerreport.ReportID{report2.ID},
 		query:       payerreport.NewFetchReportsQuery().WithMinAttestations(1),
-		expectedErr: nil,
 	}}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			results, err := store.FetchReports(t.Context(), c.query)
-			if c.expectedErr != nil {
-				require.ErrorIs(t, err, c.expectedErr)
-				return
-			}
 			require.NoError(t, err)
 			require.Len(t, results, len(c.expectedIDs))
 

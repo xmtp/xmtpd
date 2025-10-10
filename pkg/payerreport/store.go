@@ -23,7 +23,6 @@ var (
 	ErrInvalidReportID             = errors.New("invalid report ID")
 	ErrNoActiveNodeIDs             = errors.New("no active node IDs")
 	ErrNodesCountTooLarge          = errors.New("nodes count is > max int32")
-	ErrNoReportsFetched            = errors.New("no reports fetched")
 	ErrOriginatorNodeIDTooLarge    = errors.New("originator node ID is > max int32")
 	ErrReportNil                   = errors.New("report is nil")
 	ErrReportNotFound              = errors.New("report not found")
@@ -114,16 +113,7 @@ func (s *Store) FetchReports(
 	}
 	s.log.Info("Fetched reports", zap.Any("rows", rows))
 
-	reports, err := convertPayerReports(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(reports) == 0 {
-		return nil, ErrNoReportsFetched
-	}
-
-	return reports, nil
+	return convertPayerReports(rows)
 }
 
 func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID) error {

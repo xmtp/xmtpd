@@ -39,6 +39,59 @@ func NewPayerReportVerifier(log *zap.Logger, store IPayerReportStore) *PayerRepo
 }
 
 /*
+GetPayerMap regenerates the payer map for a given report.
+
+This function queries the database to build the payer map based on the
+report's sequence ID range and returns the map of payer addresses to their
+total spend in picoDollars.
+
+  - @param ctx The context.
+  - @param report The payer report to build the map for.
+  - @return The payer map or an error.
+*/
+func (p *PayerReportVerifier) GetPayerMap(
+	ctx context.Context,
+	report *PayerReport,
+) (PayerMap, error) {
+	if err := validateReportStructure(report); err != nil {
+		return nil, err
+	}
+
+	// If the start and end sequence IDs are the same, the report is empty
+	if report.StartSequenceID == report.EndSequenceID {
+		return make(PayerMap), nil
+	}
+
+	startEnvelope, endEnvelope, err := p.getStartAndEndMessages(ctx, report)
+	if err != nil {
+		return nil, err
+	}
+
+	startMinute, endMinute, err := getStartAndEndMinutes(startEnvelope, endEnvelope)
+	if err != nil {
+		return nil, err
+	}
+
+	originatorID, err := utils.Uint32ToInt32(report.OriginatorNodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	querier := p.store.Queries()
+	reportData, err := querier.BuildPayerReport(ctx, queries.BuildPayerReportParams{
+		OriginatorID:           originatorID,
+		StartMinutesSinceEpoch: startMinute,
+		EndMinutesSinceEpoch:   endMinute,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	payerMap := buildPayersMap(reportData)
+	return payerMap, nil
+}
+
+/*
 IsValidReport validates a payer report.
 
 This function checks that the new report is valid and that it is a valid
@@ -93,15 +146,10 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 		return false, err
 	}
 
-	// If the start sequence ID is 0, it is the first report and we should start from minute 0 since there are no preceding reports
-	var startMinute int32
-	if startEnvelope == nil {
-		startMinute = 0
-	} else {
-		startMinute = getMinuteFromEnvelope(startEnvelope)
+	startMinute, endMinute, err := getStartAndEndMinutes(startEnvelope, endEnvelope)
+	if err != nil {
+		return false, err
 	}
-
-	endMinute := getMinuteFromEnvelope(endEnvelope)
 
 	// Invalid report: the start minute is after the end minute.
 	if startMinute > endMinute {
@@ -143,7 +191,7 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	}
 
 	payerMap := buildPayersMap(reportData)
-	merkleTree, err := generateMerkleTree(payerMap)
+	merkleTree, err := GenerateMerkleTree(payerMap)
 	if err != nil {
 		// System error: failed generating the merkle tree.
 		return false, err
@@ -249,6 +297,27 @@ func (p *PayerReportVerifier) getStartAndEndMessages(
 	}
 
 	return startEnvelope, endEnvelope, nil
+}
+
+func getStartAndEndMinutes(
+	startEnvelope *envelopes.OriginatorEnvelope,
+	endEnvelope *envelopes.OriginatorEnvelope,
+) (int32, int32, error) {
+	// If the start sequence ID is 0, it is the first report and we should start from minute 0 since there are no preceding reports
+	var startMinute int32
+	if startEnvelope == nil {
+		startMinute = 0
+	} else {
+		startMinute = getMinuteFromEnvelope(startEnvelope)
+	}
+
+	if endEnvelope == nil {
+		return 0, 0, errors.New("end envelope is nil")
+	}
+
+	endMinute := getMinuteFromEnvelope(endEnvelope)
+
+	return startMinute, endMinute, nil
 }
 
 // Static validations on the report transition

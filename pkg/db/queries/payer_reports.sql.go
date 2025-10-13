@@ -243,6 +243,7 @@ SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_si
 FROM rpt
 WHERE $1::INT IS NULL
 	OR attestations_count >= $1::INT
+ORDER BY created_at ASC
 `
 
 type FetchPayerReportsParams struct {

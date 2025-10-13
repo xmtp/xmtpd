@@ -179,7 +179,7 @@ func BuildPayerReportID(
 }
 
 func BuildPayerReport(params BuildPayerReportParams) (*PayerReportWithInputs, error) {
-	tree, err := generateMerkleTree(params.Payers)
+	tree, err := GenerateMerkleTree(params.Payers)
 	if err != nil {
 		return nil, err
 	}

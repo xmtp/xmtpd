@@ -22,6 +22,65 @@ func (_m *MockIPayerReportVerifier) EXPECT() *MockIPayerReportVerifier_Expecter 
 	return &MockIPayerReportVerifier_Expecter{mock: &_m.Mock}
 }
 
+// GetPayerMap provides a mock function with given fields: ctx, report
+func (_m *MockIPayerReportVerifier) GetPayerMap(ctx context.Context, report *payerreport.PayerReport) (payerreport.PayerMap, error) {
+	ret := _m.Called(ctx, report)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPayerMap")
+	}
+
+	var r0 payerreport.PayerMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport) (payerreport.PayerMap, error)); ok {
+		return rf(ctx, report)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport) payerreport.PayerMap); ok {
+		r0 = rf(ctx, report)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(payerreport.PayerMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *payerreport.PayerReport) error); ok {
+		r1 = rf(ctx, report)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIPayerReportVerifier_GetPayerMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPayerMap'
+type MockIPayerReportVerifier_GetPayerMap_Call struct {
+	*mock.Call
+}
+
+// GetPayerMap is a helper method to define mock.On call
+//   - ctx context.Context
+//   - report *payerreport.PayerReport
+func (_e *MockIPayerReportVerifier_Expecter) GetPayerMap(ctx interface{}, report interface{}) *MockIPayerReportVerifier_GetPayerMap_Call {
+	return &MockIPayerReportVerifier_GetPayerMap_Call{Call: _e.mock.On("GetPayerMap", ctx, report)}
+}
+
+func (_c *MockIPayerReportVerifier_GetPayerMap_Call) Run(run func(ctx context.Context, report *payerreport.PayerReport)) *MockIPayerReportVerifier_GetPayerMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*payerreport.PayerReport))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportVerifier_GetPayerMap_Call) Return(_a0 payerreport.PayerMap, _a1 error) *MockIPayerReportVerifier_GetPayerMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIPayerReportVerifier_GetPayerMap_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport) (payerreport.PayerMap, error)) *MockIPayerReportVerifier_GetPayerMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsValidReport provides a mock function with given fields: ctx, prevReport, newReport
 func (_m *MockIPayerReportVerifier) IsValidReport(ctx context.Context, prevReport *payerreport.PayerReport, newReport *payerreport.PayerReport) (bool, error) {
 	ret := _m.Called(ctx, prevReport, newReport)

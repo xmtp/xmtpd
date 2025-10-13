@@ -14,7 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	reportManager "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/merkle"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +27,11 @@ type ReportsManager struct {
 	reportManagerContract *reportManager.PayerReportManager
 	domainSeparator       *common.Hash
 	domainSeparatorLock   sync.Mutex
+}
+
+type SettlementSummary struct {
+	Offset    uint32
+	IsSettled bool
 }
 
 func NewReportsManager(
@@ -178,6 +185,67 @@ func (r *ReportsManager) GetDomainSeparator(ctx context.Context) (common.Hash, e
 	return *r.domainSeparator, nil
 }
 
+func (r *ReportsManager) SettlementSummary(
+	ctx context.Context,
+	originatorNodeID uint32,
+	index uint64,
+) (*SettlementSummary, error) {
+	report, err := r.reportManagerContract.GetPayerReport(&bind.CallOpts{
+		Context: ctx,
+	}, originatorNodeID, new(big.Int).SetUint64(index))
+	if err != nil {
+		return nil, err
+	}
+
+	return &SettlementSummary{
+		Offset:    report.Offset,
+		IsSettled: report.IsSettled,
+	}, nil
+}
+
+func (r *ReportsManager) SettleReport(
+	ctx context.Context,
+	originatorNodeID uint32,
+	index uint64,
+	proof *merkle.MultiProof,
+) error {
+	leaves, proofElements, err := prepareProof(proof)
+	if err != nil {
+		return err
+	}
+
+	return ExecuteTransaction(
+		ctx,
+		r.signer,
+		r.log,
+		r.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return r.reportManagerContract.Settle(
+				opts,
+				originatorNodeID,
+				big.NewInt(int64(index)),
+				leaves,
+				proofElements,
+			)
+		},
+		func(log *types.Log) (any, error) {
+			return r.reportManagerContract.ParsePayerReportSubsetSettled(*log)
+		},
+		func(event any) {
+			if parsedEvent, ok := event.(*reportManager.PayerReportManagerPayerReportSubsetSettled); ok {
+				r.log.Info(
+					"settled report",
+					zap.Uint32("originatorNodeID", originatorNodeID),
+					zap.Uint64("index", index),
+					zap.Uint32("remaining", parsedEvent.Remaining),
+				)
+			} else {
+				r.log.Warn("unknown event type", zap.Any("event", event))
+			}
+		},
+	)
+}
+
 func transformOnChainReport(
 	report *reportManager.IPayerReportManagerPayerReport,
 	nodeID uint32,
@@ -242,4 +310,25 @@ func prepareSignatures(
 	}
 
 	return out
+}
+
+func prepareProof(proof *merkle.MultiProof) ([][]byte, [][32]byte, error) {
+	// Coerce the types from merkle.Leaf to []byte
+	rawLeaves := proof.GetLeaves()
+	leaves := make([][]byte, len(rawLeaves))
+	for idx, leaf := range rawLeaves {
+		leaves[idx] = leaf
+	}
+
+	rawProofElements := proof.GetProofElements()
+	proofElements := make([][32]byte, len(rawProofElements))
+	for idx, element := range rawProofElements {
+		elem32, err := utils.SliceToArray32(element)
+		if err != nil {
+			return nil, nil, err
+		}
+		proofElements[idx] = elem32
+	}
+
+	return leaves, proofElements, nil
 }

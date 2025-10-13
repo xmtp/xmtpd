@@ -76,7 +76,7 @@ func (q *Queries) ClearUnsettledUsage(ctx context.Context, arg ClearUnsettledUsa
 }
 
 const fetchAttestations = `-- name: FetchAttestations :many
-SELECT payer_report_id, node_id, signature, payer_report_attestations.created_at, id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, payer_reports.created_at
+SELECT payer_report_id, node_id, signature, payer_report_attestations.created_at, id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, payer_reports.created_at, submitted_report_index
 FROM payer_report_attestations
 	LEFT JOIN payer_reports ON payer_reports.id = payer_report_attestations.payer_report_id
 WHERE (
@@ -95,20 +95,21 @@ type FetchAttestationsParams struct {
 }
 
 type FetchAttestationsRow struct {
-	PayerReportID       []byte
-	NodeID              int64
-	Signature           []byte
-	CreatedAt           sql.NullTime
-	ID                  []byte
-	OriginatorNodeID    sql.NullInt32
-	StartSequenceID     sql.NullInt64
-	EndSequenceID       sql.NullInt64
-	EndMinuteSinceEpoch sql.NullInt32
-	PayersMerkleRoot    []byte
-	ActiveNodeIds       []int32
-	SubmissionStatus    sql.NullInt16
-	AttestationStatus   sql.NullInt16
-	CreatedAt_2         sql.NullTime
+	PayerReportID        []byte
+	NodeID               int64
+	Signature            []byte
+	CreatedAt            sql.NullTime
+	ID                   []byte
+	OriginatorNodeID     sql.NullInt32
+	StartSequenceID      sql.NullInt64
+	EndSequenceID        sql.NullInt64
+	EndMinuteSinceEpoch  sql.NullInt32
+	PayersMerkleRoot     []byte
+	ActiveNodeIds        []int32
+	SubmissionStatus     sql.NullInt16
+	AttestationStatus    sql.NullInt16
+	CreatedAt_2          sql.NullTime
+	SubmittedReportIndex sql.NullInt32
 }
 
 func (q *Queries) FetchAttestations(ctx context.Context, arg FetchAttestationsParams) ([]FetchAttestationsRow, error) {
@@ -135,6 +136,7 @@ func (q *Queries) FetchAttestations(ctx context.Context, arg FetchAttestationsPa
 			&i.SubmissionStatus,
 			&i.AttestationStatus,
 			&i.CreatedAt_2,
+			&i.SubmittedReportIndex,
 		); err != nil {
 			return nil, err
 		}
@@ -150,7 +152,7 @@ func (q *Queries) FetchAttestations(ctx context.Context, arg FetchAttestationsPa
 }
 
 const fetchPayerReport = `-- name: FetchPayerReport :one
-SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at, submitted_report_index
 FROM payer_reports
 WHERE id = $1
 `
@@ -169,12 +171,13 @@ func (q *Queries) FetchPayerReport(ctx context.Context, id []byte) (PayerReport,
 		&i.SubmissionStatus,
 		&i.AttestationStatus,
 		&i.CreatedAt,
+		&i.SubmittedReportIndex,
 	)
 	return i, err
 }
 
 const fetchPayerReportLocked = `-- name: FetchPayerReportLocked :one
-SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at, submitted_report_index
 FROM payer_reports
 WHERE id = $1
 FOR UPDATE
@@ -194,13 +197,14 @@ func (q *Queries) FetchPayerReportLocked(ctx context.Context, id []byte) (PayerR
 		&i.SubmissionStatus,
 		&i.AttestationStatus,
 		&i.CreatedAt,
+		&i.SubmittedReportIndex,
 	)
 	return i, err
 }
 
 const fetchPayerReports = `-- name: FetchPayerReports :many
 WITH rpt AS (
-	SELECT pr.id, pr.originator_node_id, pr.start_sequence_id, pr.end_sequence_id, pr.end_minute_since_epoch, pr.payers_merkle_root, pr.active_node_ids, pr.submission_status, pr.attestation_status, pr.created_at,
+	SELECT pr.id, pr.originator_node_id, pr.start_sequence_id, pr.end_sequence_id, pr.end_minute_since_epoch, pr.payers_merkle_root, pr.active_node_ids, pr.submission_status, pr.attestation_status, pr.created_at, pr.submitted_report_index,
 		pra.node_id,
 		pra.signature,
 		COUNT(pra.node_id) OVER (PARTITION BY pr.id) AS attestations_count
@@ -235,7 +239,7 @@ WITH rpt AS (
 			OR $8::BYTEA = pr.id
 		)
 )
-SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at, node_id, signature, attestations_count
+SELECT id, originator_node_id, start_sequence_id, end_sequence_id, end_minute_since_epoch, payers_merkle_root, active_node_ids, submission_status, attestation_status, created_at, submitted_report_index, node_id, signature, attestations_count
 FROM rpt
 WHERE $1::INT IS NULL
 	OR attestations_count >= $1::INT
@@ -253,19 +257,20 @@ type FetchPayerReportsParams struct {
 }
 
 type FetchPayerReportsRow struct {
-	ID                  []byte
-	OriginatorNodeID    int32
-	StartSequenceID     int64
-	EndSequenceID       int64
-	EndMinuteSinceEpoch int32
-	PayersMerkleRoot    []byte
-	ActiveNodeIds       []int32
-	SubmissionStatus    int16
-	AttestationStatus   int16
-	CreatedAt           sql.NullTime
-	NodeID              sql.NullInt64
-	Signature           []byte
-	AttestationsCount   int64
+	ID                   []byte
+	OriginatorNodeID     int32
+	StartSequenceID      int64
+	EndSequenceID        int64
+	EndMinuteSinceEpoch  int32
+	PayersMerkleRoot     []byte
+	ActiveNodeIds        []int32
+	SubmissionStatus     int16
+	AttestationStatus    int16
+	CreatedAt            sql.NullTime
+	SubmittedReportIndex sql.NullInt32
+	NodeID               sql.NullInt64
+	Signature            []byte
+	AttestationsCount    int64
 }
 
 func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsParams) ([]FetchPayerReportsRow, error) {
@@ -297,6 +302,7 @@ func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsPa
 			&i.SubmissionStatus,
 			&i.AttestationStatus,
 			&i.CreatedAt,
+			&i.SubmittedReportIndex,
 			&i.NodeID,
 			&i.Signature,
 			&i.AttestationsCount,
@@ -648,5 +654,30 @@ type SetReportSubmissionStatusParams struct {
 
 func (q *Queries) SetReportSubmissionStatus(ctx context.Context, arg SetReportSubmissionStatusParams) error {
 	_, err := q.db.ExecContext(ctx, setReportSubmissionStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
+	return err
+}
+
+const setReportSubmitted = `-- name: SetReportSubmitted :exec
+UPDATE payer_reports
+SET submission_status = $1,
+	submitted_report_index = $2::INTEGER
+WHERE id = $3
+	AND submission_status = ANY($4::SMALLINT [])
+`
+
+type SetReportSubmittedParams struct {
+	NewStatus            int16
+	SubmittedReportIndex int32
+	ReportID             []byte
+	PrevStatus           []int16
+}
+
+func (q *Queries) SetReportSubmitted(ctx context.Context, arg SetReportSubmittedParams) error {
+	_, err := q.db.ExecContext(ctx, setReportSubmitted,
+		arg.NewStatus,
+		arg.SubmittedReportIndex,
+		arg.ReportID,
+		pq.Array(arg.PrevStatus),
+	)
 	return err
 }

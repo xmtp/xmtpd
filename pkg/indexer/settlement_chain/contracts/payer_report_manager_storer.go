@@ -234,7 +234,12 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 
 	// Will only set the status to Submitted if it was previously Pending.
 	// If it is already settled, this is a no-op
-	if err = s.store.SetReportSubmitted(ctx, *reportID); err != nil {
+	// Validate that the PayerReportIndex fits in an int32
+	reportIndex, err := payerreport.ValidateReportIndex(event.PayerReportIndex)
+	if err != nil {
+		return re.NewNonRecoverableError(ErrSetReportSubmissionStatus, err)
+	}
+	if err = s.store.SetReportSubmitted(ctx, *reportID, reportIndex); err != nil {
 		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
 	}
 

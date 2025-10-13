@@ -366,7 +366,7 @@ func TestValidSignature(t *testing.T) {
 	require.Equal(t, reportID, payerReport.ID)
 
 	// Submit the report to the blockchain
-	err = reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus)
+	_, err = reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus)
 	require.NoError(t, err)
 }
 
@@ -575,7 +575,7 @@ func TestCanRejectReport(t *testing.T) {
 	require.Equal(t, reportID, payerReport1.ID)
 
 	// Submit the report to the blockchain
-	err = reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus1)
+	_, err = reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus1)
 	require.NoError(t, err)
 
 	reportWithStatus2 := payerreport.PayerReportWithStatus{
@@ -583,7 +583,7 @@ func TestCanRejectReport(t *testing.T) {
 		AttestationSignatures: signatures,
 	}
 
-	chainErr := reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus2)
+	_, chainErr := reportsManager.SubmitPayerReport(t.Context(), &reportWithStatus2)
 	require.Error(t, chainErr)
 	require.True(t, chainErr.IsErrInvalidSequenceIDs())
 	require.ErrorIs(t, chainErr.Unwrap(), blockchain.ErrInvalidStartSequenceID)

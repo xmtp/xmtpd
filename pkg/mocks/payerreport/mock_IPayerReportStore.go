@@ -550,17 +550,17 @@ func (_c *MockIPayerReportStore_SetReportSubmissionRejected_Call) RunAndReturn(r
 	return _c
 }
 
-// SetReportSubmitted provides a mock function with given fields: ctx, id
-func (_m *MockIPayerReportStore) SetReportSubmitted(ctx context.Context, id payerreport.ReportID) error {
-	ret := _m.Called(ctx, id)
+// SetReportSubmitted provides a mock function with given fields: ctx, id, reportIndex
+func (_m *MockIPayerReportStore) SetReportSubmitted(ctx context.Context, id payerreport.ReportID, reportIndex int32) error {
+	ret := _m.Called(ctx, id, reportIndex)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetReportSubmitted")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID) error); ok {
-		r0 = rf(ctx, id)
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID, int32) error); ok {
+		r0 = rf(ctx, id, reportIndex)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -576,13 +576,14 @@ type MockIPayerReportStore_SetReportSubmitted_Call struct {
 // SetReportSubmitted is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id payerreport.ReportID
-func (_e *MockIPayerReportStore_Expecter) SetReportSubmitted(ctx interface{}, id interface{}) *MockIPayerReportStore_SetReportSubmitted_Call {
-	return &MockIPayerReportStore_SetReportSubmitted_Call{Call: _e.mock.On("SetReportSubmitted", ctx, id)}
+//   - reportIndex int32
+func (_e *MockIPayerReportStore_Expecter) SetReportSubmitted(ctx interface{}, id interface{}, reportIndex interface{}) *MockIPayerReportStore_SetReportSubmitted_Call {
+	return &MockIPayerReportStore_SetReportSubmitted_Call{Call: _e.mock.On("SetReportSubmitted", ctx, id, reportIndex)}
 }
 
-func (_c *MockIPayerReportStore_SetReportSubmitted_Call) Run(run func(ctx context.Context, id payerreport.ReportID)) *MockIPayerReportStore_SetReportSubmitted_Call {
+func (_c *MockIPayerReportStore_SetReportSubmitted_Call) Run(run func(ctx context.Context, id payerreport.ReportID, reportIndex int32)) *MockIPayerReportStore_SetReportSubmitted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(payerreport.ReportID))
+		run(args[0].(context.Context), args[1].(payerreport.ReportID), args[2].(int32))
 	})
 	return _c
 }
@@ -592,7 +593,7 @@ func (_c *MockIPayerReportStore_SetReportSubmitted_Call) Return(_a0 error) *Mock
 	return _c
 }
 
-func (_c *MockIPayerReportStore_SetReportSubmitted_Call) RunAndReturn(run func(context.Context, payerreport.ReportID) error) *MockIPayerReportStore_SetReportSubmitted_Call {
+func (_c *MockIPayerReportStore_SetReportSubmitted_Call) RunAndReturn(run func(context.Context, payerreport.ReportID, int32) error) *MockIPayerReportStore_SetReportSubmitted_Call {
 	_c.Call.Return(run)
 	return _c
 }

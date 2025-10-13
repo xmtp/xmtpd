@@ -85,6 +85,8 @@ type PayerReport struct {
 	PayersMerkleRoot common.Hash
 	// The active node IDs in the report
 	ActiveNodeIDs []uint32
+	// The index of the report on the blockchain (null if not yet submitted or submission status is not tracked)
+	SubmittedReportIndex *uint32
 }
 
 type BuildPayerReportParams struct {

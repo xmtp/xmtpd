@@ -646,7 +646,7 @@ func TestSetReportSettled(t *testing.T) {
 		require.Equal(t, 11, countUnsettledUsage(originatorID))
 
 		// Set to submitted then settled
-		err = store.SetReportSubmitted(ctx, report.ID)
+		err = store.SetReportSubmitted(ctx, report.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, report.ID)
 		require.NoError(t, err)
@@ -681,7 +681,7 @@ func TestSetReportSettled(t *testing.T) {
 		numRows, err := store.StoreReport(ctx, firstReport)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), numRows)
-		err = store.SetReportSubmitted(ctx, firstReport.ID)
+		err = store.SetReportSubmitted(ctx, firstReport.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, firstReport.ID)
 		require.NoError(t, err)
@@ -711,7 +711,7 @@ func TestSetReportSettled(t *testing.T) {
 		require.Equal(t, 11, countUnsettledUsage(originatorID))
 
 		// Set second report to submitted then settled
-		err = store.SetReportSubmitted(ctx, secondReport.ID)
+		err = store.SetReportSubmitted(ctx, secondReport.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, secondReport.ID)
 		require.NoError(t, err)
@@ -746,7 +746,7 @@ func TestSetReportSettled(t *testing.T) {
 		numRows, err := store.StoreReport(ctx, report1)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), numRows)
-		err = store.SetReportSubmitted(ctx, report1.ID)
+		err = store.SetReportSubmitted(ctx, report1.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, report1.ID)
 		require.NoError(t, err)
@@ -764,7 +764,7 @@ func TestSetReportSettled(t *testing.T) {
 		numRows, err = store.StoreReport(ctx, report2)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), numRows)
-		err = store.SetReportSubmitted(ctx, report2.ID)
+		err = store.SetReportSubmitted(ctx, report2.ID, 0)
 		require.NoError(t, err)
 
 		// Create third report
@@ -794,7 +794,7 @@ func TestSetReportSettled(t *testing.T) {
 		require.Equal(t, 14, countUnsettledUsage(originatorID))
 
 		// Settle the third report
-		err = store.SetReportSubmitted(ctx, report3.ID)
+		err = store.SetReportSubmitted(ctx, report3.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, report3.ID)
 		require.NoError(t, err)
@@ -820,7 +820,7 @@ func TestSetReportSettled(t *testing.T) {
 		numRows, err := store.StoreReport(ctx, report1)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), numRows)
-		err = store.SetReportSubmitted(ctx, report1.ID)
+		err = store.SetReportSubmitted(ctx, report1.ID, 0)
 		require.NoError(t, err)
 
 		// Create second report
@@ -848,7 +848,7 @@ func TestSetReportSettled(t *testing.T) {
 		require.Equal(t, 11, countUnsettledUsage(originatorID))
 
 		// Settle the second report
-		err = store.SetReportSubmitted(ctx, report2.ID)
+		err = store.SetReportSubmitted(ctx, report2.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, report2.ID)
 		require.NoError(t, err)
@@ -896,7 +896,7 @@ func TestSetReportSettled(t *testing.T) {
 		require.Equal(t, 4, countUnsettledUsage(report2.OriginatorNodeID))
 
 		// Set first report to submitted then settled
-		err = store.SetReportSubmitted(ctx, report1.ID)
+		err = store.SetReportSubmitted(ctx, report1.ID, 0)
 		require.NoError(t, err)
 		err = store.SetReportSettled(ctx, report1.ID)
 		require.NoError(t, err)
@@ -965,7 +965,7 @@ func TestSetReportSettled(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int64(1), numRows)
 
-		err = store.SetReportSubmitted(ctx, report.ID)
+		err = store.SetReportSubmitted(ctx, report.ID, 0)
 		require.NoError(t, err)
 
 		// Verify status is submitted

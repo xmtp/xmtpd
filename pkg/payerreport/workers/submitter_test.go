@@ -114,32 +114,32 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 
 		//	(1,0) - Already submitted, attestation pending
 		case stateSubmissionSubmittedAttestationPending:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 
 		//	(1,1) - Already submitted, attestation approved
 		case stateSubmissionSubmittedAttestationApproved:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 			require.NoError(t, store.SetReportAttestationApproved(t.Context(), r.ID))
 
 		//	(1,2) - Already submitted, attestation rejected
 		case stateSubmissionSubmittedAttestationRejected:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 			require.NoError(t, store.SetReportAttestationRejected(t.Context(), r.ID))
 
 		//	(2,0) - Already settled
 		case stateSubmissionSettledAttestationPending:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 			require.NoError(t, store.SetReportSettled(t.Context(), r.ID))
 
 		//	(2,1) - Already settled, attestation approved
 		case stateSubmissionSettledAttestationApproved:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 			require.NoError(t, store.SetReportSettled(t.Context(), r.ID))
 			require.NoError(t, store.SetReportAttestationApproved(t.Context(), r.ID))
 
 		//	(2,2) - Already settled, attestation rejected
 		case stateSubmissionSettledAttestationRejected:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 			require.NoError(t, store.SetReportSettled(t.Context(), r.ID))
 			require.NoError(t, store.SetReportAttestationRejected(t.Context(), r.ID))
 
@@ -344,7 +344,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 
 				reportsManager.EXPECT().
 					SubmitPayerReport(mock.Anything, mock.Anything).
-					Return(blockchain.NewBlockchainError(chainError))
+					Return(int32(0), blockchain.NewBlockchainError(chainError))
 			}
 
 			err = worker.SubmitReports(t.Context())

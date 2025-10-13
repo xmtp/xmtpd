@@ -65,6 +65,7 @@ func TestStorePayerReportManagerPayerReportSubmitted(t *testing.T) {
 	tester := buildPayerReportManagerStorerTester(t)
 
 	originatorNodeID := uint32(1)
+	payerReportIndex := uint64(42)
 
 	log := tester.newPayerReportSubmittedLog(t, &payerreport.PayerReport{
 		OriginatorNodeID:    originatorNodeID,
@@ -73,7 +74,7 @@ func TestStorePayerReportManagerPayerReportSubmitted(t *testing.T) {
 		EndMinuteSinceEpoch: 200,
 		PayersMerkleRoot:    testutils.RandomInboxIDBytes(),
 		ActiveNodeIDs:       []uint32{1, 2, 3},
-	}, 0)
+	}, payerReportIndex)
 
 	err := tester.storer.StoreLog(t.Context(), log)
 	require.NoError(t, err)
@@ -88,12 +89,15 @@ func TestStorePayerReportManagerPayerReportSubmitted(t *testing.T) {
 	require.Equal(t, int64(0), res[0].StartSequenceID)
 	require.Equal(t, int64(100), res[0].EndSequenceID)
 	require.Equal(t, []int32{1, 2, 3}, res[0].ActiveNodeIds)
+	require.True(t, res[0].SubmittedReportIndex.Valid, "SubmittedReportIndex should be set")
+	require.Equal(t, int32(payerReportIndex), res[0].SubmittedReportIndex.Int32)
 }
 
 func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
 	tester := buildPayerReportManagerStorerTester(t)
 
 	originatorNodeID := uint32(1)
+	payerReportIndex := uint64(123)
 
 	log := tester.newPayerReportSubmittedLog(t, &payerreport.PayerReport{
 		OriginatorNodeID: originatorNodeID,
@@ -101,7 +105,7 @@ func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
 		EndSequenceID:    100,
 		PayersMerkleRoot: testutils.RandomInboxIDBytes(),
 		ActiveNodeIDs:    []uint32{1, 2, 3},
-	}, 0)
+	}, payerReportIndex)
 
 	err := tester.storer.StoreLog(t.Context(), log)
 	require.NoError(t, err)
@@ -114,6 +118,8 @@ func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
 	})
 	require.Nil(t, queryErr)
 	require.Len(t, res, 1)
+	require.True(t, res[0].SubmittedReportIndex.Valid, "SubmittedReportIndex should be set")
+	require.Equal(t, int32(payerReportIndex), res[0].SubmittedReportIndex.Int32)
 }
 
 func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {

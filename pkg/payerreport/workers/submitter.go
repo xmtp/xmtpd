@@ -15,14 +15,15 @@ import (
 const submitterWorkerID = 2
 
 type SubmitterWorker struct {
-	log              *zap.Logger
-	ctx              context.Context
-	cancel           context.CancelFunc
-	wg               *sync.WaitGroup
-	payerReportStore payerreport.IPayerReportStore
-	registry         registry.NodeRegistry
-	reportsAdmin     blockchain.PayerReportsManager
-	myNodeID         uint32
+	log                *zap.Logger
+	ctx                context.Context
+	cancel             context.CancelFunc
+	wg                 *sync.WaitGroup
+	payerReportStore   payerreport.IPayerReportStore
+	registry           registry.NodeRegistry
+	reportsAdmin       blockchain.PayerReportsManager
+	myNodeID           uint32
+	submissionNotifyCh chan<- struct{}
 }
 
 func NewSubmitterWorker(
@@ -32,17 +33,19 @@ func NewSubmitterWorker(
 	registry registry.NodeRegistry,
 	reportsManager blockchain.PayerReportsManager,
 	myNodeID uint32,
+	submissionNotifyCh chan<- struct{},
 ) *SubmitterWorker {
 	ctx, cancel := context.WithCancel(ctx)
 	return &SubmitterWorker{
-		log:              log.Named("reportsubmitter"),
-		ctx:              ctx,
-		cancel:           cancel,
-		wg:               &sync.WaitGroup{},
-		payerReportStore: payerReportStore,
-		registry:         registry,
-		myNodeID:         myNodeID,
-		reportsAdmin:     reportsManager,
+		log:                log.Named("reportsubmitter"),
+		ctx:                ctx,
+		cancel:             cancel,
+		wg:                 &sync.WaitGroup{},
+		payerReportStore:   payerReportStore,
+		registry:           registry,
+		myNodeID:           myNodeID,
+		reportsAdmin:       reportsManager,
+		submissionNotifyCh: submissionNotifyCh,
 	}
 }
 
@@ -178,6 +181,14 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				"failed to set report submitted",
 				zap.String("report_id", report.ID.String()),
 			)
+		}
+
+		// Notify the settlement worker in a non-blocking way
+		select {
+		case w.submissionNotifyCh <- struct{}{}:
+			reportLogger.Debug("notified settlement worker of submission")
+		default:
+			// Channel is full, skip notification - settlement worker will run on its schedule
 		}
 	}
 

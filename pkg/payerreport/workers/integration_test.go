@@ -49,6 +49,7 @@ type multiNodeTestScaffold struct {
 	dbs                []*sql.DB
 	reportGenerators   []*workers.GeneratorWorker
 	attestationWorkers []*workers.AttestationWorker
+	submitterWorkers   []*workers.SubmitterWorker
 	settlementWorkers  []*workers.SettlementWorker
 	payerReportStores  []payerreport.IPayerReportStore
 	log                *zap.Logger
@@ -255,6 +256,29 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		domainSeparator,
 	)
 
+	// Create buffered channels for submission notifications to avoid blocking the submitter
+	submissionNotifyCh1 := make(chan struct{}, 10)
+	submissionNotifyCh2 := make(chan struct{}, 10)
+
+	submitterWorker1 := workers.NewSubmitterWorker(
+		t.Context(),
+		log,
+		payerReportStore1,
+		registry,
+		reportsManager,
+		server1NodeID,
+		submissionNotifyCh1,
+	)
+	submitterWorker2 := workers.NewSubmitterWorker(
+		t.Context(),
+		log,
+		payerReportStore2,
+		registry,
+		reportsManager,
+		server2NodeID,
+		submissionNotifyCh2,
+	)
+
 	verifier1 := payerreport.NewPayerReportVerifier(log, payerReportStore1)
 	verifier2 := payerreport.NewPayerReportVerifier(log, payerReportStore2)
 	settlementWorker1 := workers.NewSettlementWorker(
@@ -264,6 +288,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		verifier1,
 		reportsManager,
 		server1NodeID,
+		submissionNotifyCh1,
 	)
 	settlementWorker2 := workers.NewSettlementWorker(
 		t.Context(),
@@ -272,6 +297,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		verifier2,
 		reportsManager,
 		server2NodeID,
+		submissionNotifyCh2,
 	)
 
 	t.Cleanup(func() {
@@ -296,6 +322,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		attestationWorkers: []*workers.AttestationWorker{
 			attestationWorker1,
 			attestationWorker2,
+		},
+		submitterWorkers: []*workers.SubmitterWorker{
+			submitterWorker1,
+			submitterWorker2,
 		},
 		settlementWorkers: []*workers.SettlementWorker{
 			settlementWorker1,
@@ -523,15 +553,7 @@ func TestFullReportLifecycle(t *testing.T) {
 		}, 5*time.Second, 50*time.Millisecond)
 	}
 
-	submitterWorker := workers.NewSubmitterWorker(
-		t.Context(),
-		scaffold.log,
-		scaffold.payerReportStores[0],
-		scaffold.registry,
-		scaffold.reportsManager,
-		scaffold.nodeIDs[0],
-	)
-	err := submitterWorker.SubmitReports(t.Context())
+	err := scaffold.submitterWorkers[0].SubmitReports(t.Context())
 	require.NoError(t, err)
 
 	fetchedReports, err := scaffold.payerReportStores[0].FetchReports(

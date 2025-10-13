@@ -43,6 +43,7 @@ func testSubmitterWorker(
 
 	mockRegistrant.EXPECT().NodeID().Return(uint32(1)).Maybe()
 
+	submissionNotifyCh := make(chan struct{}, 10)
 	worker := NewSubmitterWorker(
 		ctx,
 		log,
@@ -50,6 +51,7 @@ func testSubmitterWorker(
 		registry,
 		reportsManager,
 		myNodeID,
+		submissionNotifyCh,
 	)
 
 	return worker, store, reportsManager

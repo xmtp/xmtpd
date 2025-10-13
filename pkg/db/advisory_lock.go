@@ -18,6 +18,7 @@ const (
 	LockKindIdentityUpdateInsert LockKind = 0x00
 	LockKindAttestationWorker    LockKind = 0x01
 	LockKindSubmitterWorker      LockKind = 0x02
+	LockKindSettlementWorker     LockKind = 0x03
 	LockKindGeneratorWorker      LockKind = 0x04
 )
 
@@ -62,11 +63,20 @@ func (a *AdvisoryLocker) LockSubmitterWorker(
 	return queries.AdvisoryLockWithKey(ctx, key)
 }
 
+func (a *AdvisoryLocker) LockSettlementWorker(
+	ctx context.Context,
+	queries *queries.Queries,
+) error {
+	key := int64(LockKindSettlementWorker)
+	return queries.AdvisoryLockWithKey(ctx, key)
+}
+
 type ITransactionScopedAdvisoryLocker interface {
 	Release() error
 	LockGeneratorWorker() error
 	LockAttestationWorker() error
 	LockSubmitterWorker() error
+	LockSettlementWorker() error
 	LockIdentityUpdateInsert(nodeId uint32) error
 }
 
@@ -106,6 +116,10 @@ func (a *TransactionScopedAdvisoryLocker) LockAttestationWorker() error {
 
 func (a *TransactionScopedAdvisoryLocker) LockSubmitterWorker() error {
 	return a.locker.LockSubmitterWorker(a.ctx, queries.New(a.tx))
+}
+
+func (a *TransactionScopedAdvisoryLocker) LockSettlementWorker() error {
+	return a.locker.LockSettlementWorker(a.ctx, queries.New(a.tx))
 }
 
 func (a *TransactionScopedAdvisoryLocker) LockIdentityUpdateInsert(nodeId uint32) error {

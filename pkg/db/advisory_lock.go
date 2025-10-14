@@ -18,7 +18,7 @@ const (
 	LockKindIdentityUpdateInsert LockKind = 0x00
 	LockKindAttestationWorker    LockKind = 0x01
 	LockKindSubmitterWorker      LockKind = 0x02
-	LockKindGeneratorWorker		LockKind = 0x04
+	LockKindGeneratorWorker      LockKind = 0x04
 )
 
 // AdvisoryLocker builds advisory-lock keys and acquires locks using the caller’s
@@ -79,7 +79,6 @@ type TransactionScopedAdvisoryLocker struct {
 }
 
 var _ ITransactionScopedAdvisoryLocker = (*TransactionScopedAdvisoryLocker)(nil)
-
 
 func NewTransactionScopedAdvisoryLocker(
 	ctx context.Context,

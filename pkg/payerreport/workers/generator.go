@@ -107,7 +107,6 @@ func (w *GeneratorWorker) GenerateReports() error {
 		return err
 	}
 
-
 	w.log.Info("getting nodes from registry", zap.Any("registry", w.registry))
 	allNodes, err := w.registry.GetNodes()
 	if err != nil {

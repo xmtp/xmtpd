@@ -18,6 +18,7 @@ const (
 	LockKindIdentityUpdateInsert LockKind = 0x00
 	LockKindAttestationWorker    LockKind = 0x01
 	LockKindSubmitterWorker      LockKind = 0x02
+	LockKindGeneratorWorker      LockKind = 0x04
 )
 
 // AdvisoryLocker builds advisory-lock keys and acquires locks using the caller’s
@@ -34,6 +35,14 @@ func (a *AdvisoryLocker) LockIdentityUpdateInsert(
 	nodeId uint32,
 ) error {
 	key := int64((uint64(nodeId) << 8) | uint64(LockKindIdentityUpdateInsert))
+	return queries.AdvisoryLockWithKey(ctx, key)
+}
+
+func (a *AdvisoryLocker) LockGeneratorWorker(
+	ctx context.Context,
+	queries *queries.Queries,
+) error {
+	key := int64(LockKindGeneratorWorker)
 	return queries.AdvisoryLockWithKey(ctx, key)
 }
 
@@ -55,6 +64,7 @@ func (a *AdvisoryLocker) LockSubmitterWorker(
 
 type ITransactionScopedAdvisoryLocker interface {
 	Release() error
+	LockGeneratorWorker() error
 	LockAttestationWorker() error
 	LockSubmitterWorker() error
 	LockIdentityUpdateInsert(nodeId uint32) error
@@ -84,6 +94,10 @@ func NewTransactionScopedAdvisoryLocker(
 
 func (a *TransactionScopedAdvisoryLocker) Release() error {
 	return a.tx.Rollback()
+}
+
+func (a *TransactionScopedAdvisoryLocker) LockGeneratorWorker() error {
+	return a.locker.LockGeneratorWorker(a.ctx, queries.New(a.tx))
 }
 
 func (a *TransactionScopedAdvisoryLocker) LockAttestationWorker() error {

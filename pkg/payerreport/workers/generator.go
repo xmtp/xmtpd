@@ -94,6 +94,19 @@ func (w *GeneratorWorker) Stop() {
 }
 
 func (w *GeneratorWorker) GenerateReports() error {
+	haLock, err := w.store.GetAdvisoryLocker(w.ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = haLock.Release()
+	}()
+
+	err = haLock.LockGeneratorWorker()
+	if err != nil {
+		return err
+	}
+
 	w.log.Info("getting nodes from registry", zap.Any("registry", w.registry))
 	allNodes, err := w.registry.GetNodes()
 	if err != nil {

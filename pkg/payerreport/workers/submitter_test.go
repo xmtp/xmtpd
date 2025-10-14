@@ -167,7 +167,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 		state                     reportState
 		expectedAttestationStatus payerreport.AttestationStatus
 		expectedSubmissionStatus  payerreport.SubmissionStatus
-		wantSubmitRejected        bool
+		rejectedOnChainWithError  error
 	}{
 		//	(0,0) - Not attested
 		{
@@ -175,7 +175,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionPendingAttestationPending,
 			payerreport.AttestationPending,
 			payerreport.SubmissionPending,
-			false,
+			nil,
 		},
 		//	(0,1) → (1,1) - SubmitterWorker succeeds
 		{
@@ -183,17 +183,37 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionPendingAttestationApprovedSuccess,
 			payerreport.AttestationApproved,
 			payerreport.SubmissionPending,
-			false,
+			nil,
 		},
 		//	(0,1) → (3,1) - SubmitterWorker hits race condition:
 		// - Some other node submitted a valid report that goes before the one submitted.
-		// - The contract throws InvalidSequenceIDs or InvalidStartSequenceID.
+		// - The contract throws InvalidStartSequenceID.
 		{
-			"submit a pending, approved report, reject on chain",
+			"submit a pending, approved report, reject on chain with ErrInvalidStartSequenceID",
 			stateSubmissionPendingAttestationApprovedRaceCondition,
 			payerreport.AttestationApproved,
 			payerreport.SubmissionRejected,
-			true,
+			blockchain.ErrInvalidStartSequenceID,
+		},
+		//	(0,1) → (3,1) - SubmitterWorker hits race condition:
+		// - Some other node submitted a valid report that goes before the one submitted.
+		// - The contract throws InvalidSequenceIDs.
+		{
+			"submit a pending, approved report, reject on chain with InvalidSequenceIDs",
+			stateSubmissionPendingAttestationApprovedRaceCondition,
+			payerreport.AttestationApproved,
+			payerreport.SubmissionRejected,
+			blockchain.ErrInvalidSequenceIDs,
+		},
+		//	(0,1) → (1,1) - SubmitterWorker hits race condition:
+		// - Some other node submitted a valid report that goes before the one submitted.
+		// - The contract throws PayerReportAlreadySubmitted.
+		{
+			"submit a pending, approved report, reject on chain with PayerReportAlreadySubmitted",
+			stateSubmissionPendingAttestationApprovedRaceCondition,
+			payerreport.AttestationApproved,
+			payerreport.SubmissionSubmitted,
+			blockchain.ErrPayerReportAlreadySubmitted,
 		},
 		//	(0,2) - Rejected
 		{
@@ -201,7 +221,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionPendingAttestationRejected,
 			payerreport.AttestationRejected,
 			payerreport.SubmissionPending,
-			false,
+			nil,
 		},
 		//	(1,0) - Already submitted, attestation pending
 		{
@@ -209,7 +229,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionSubmittedAttestationPending,
 			payerreport.AttestationPending,
 			payerreport.SubmissionSubmitted,
-			false,
+			nil,
 		},
 		//	(1,1) - Already submitted, attestation approved
 		{
@@ -217,7 +237,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionSubmittedAttestationApproved,
 			payerreport.AttestationApproved,
 			payerreport.SubmissionSubmitted,
-			false,
+			nil,
 		},
 		//	(1,2) - Already submitted, attestation rejected
 		{
@@ -225,7 +245,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionSubmittedAttestationRejected,
 			payerreport.AttestationRejected,
 			payerreport.SubmissionSubmitted,
-			false,
+			nil,
 		},
 		//	(2,0) - Already settled, attestation pending
 		{
@@ -233,7 +253,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionSettledAttestationPending,
 			payerreport.AttestationPending,
 			payerreport.SubmissionSettled,
-			false,
+			nil,
 		},
 		//	(2,1) - Already settled, attestation approved
 		{
@@ -241,7 +261,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionSettledAttestationApproved,
 			payerreport.AttestationApproved,
 			payerreport.SubmissionSettled,
-			false,
+			nil,
 		},
 		//	(2,2) - Already settled, attestation rejected
 		{
@@ -249,7 +269,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionSettledAttestationRejected,
 			payerreport.AttestationRejected,
 			payerreport.SubmissionSettled,
-			false,
+			nil,
 		},
 		//	(3,0) - Submission rejected, attestation pending
 		{
@@ -257,7 +277,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionRejectedAttestationPending,
 			payerreport.AttestationPending,
 			payerreport.SubmissionRejected,
-			false,
+			nil,
 		},
 		//	(3,1) - Submission rejected, attestation approved
 		{
@@ -265,7 +285,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionRejectedAttestationApproved,
 			payerreport.AttestationApproved,
 			payerreport.SubmissionRejected,
-			false,
+			nil,
 		},
 		//	(3,2) - Submission rejected, attestation rejected
 		{
@@ -273,7 +293,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 			stateSubmissionRejectedAttestationRejected,
 			payerreport.AttestationRejected,
 			payerreport.SubmissionRejected,
-			false,
+			nil,
 		},
 	}
 
@@ -294,7 +314,7 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 
 			prepareReport(t, tc.state, store, stored)
 
-			if tc.wantSubmitRejected {
+			if tc.rejectedOnChainWithError != nil {
 				require.NoError(
 					t,
 					store.StoreAttestation(t.Context(), &payerreport.PayerReportAttestation{
@@ -306,9 +326,25 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 					}),
 				)
 
+				var chainError error
+
+				switch tc.rejectedOnChainWithError {
+				case blockchain.ErrInvalidStartSequenceID:
+					chainError = fmt.Errorf("execution reverted: 0x84e23433")
+
+				case blockchain.ErrInvalidSequenceIDs:
+					chainError = fmt.Errorf("execution reverted: 0xa7ee0517")
+
+				case blockchain.ErrPayerReportAlreadySubmitted:
+					chainError = fmt.Errorf("execution reverted: 0x93105c68")
+
+				default:
+					t.Fatalf("unknown rejected on chain error: %v", tc.rejectedOnChainWithError)
+				}
+
 				reportsManager.EXPECT().
 					SubmitPayerReport(mock.Anything, mock.Anything).
-					Return(blockchain.NewBlockchainError(fmt.Errorf("execution reverted: 0x84e23433")))
+					Return(blockchain.NewBlockchainError(chainError))
 			}
 
 			err = worker.SubmitReports(t.Context())

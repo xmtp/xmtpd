@@ -108,6 +108,22 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		reportLogger.Info("submitting report")
 		submitErr := w.submitReport(report)
 		if submitErr != nil {
+			if submitErr.IsErrPayerReportAlreadySubmitted() {
+				reportLogger.Info("report already submitted, skipping")
+
+				err = w.payerReportStore.SetReportSubmitted(ctx, report.ID)
+				if err != nil {
+					reportLogger.Error(
+						"failed to set report submitted",
+						zap.String("report_id", report.ID.String()),
+						zap.Error(err),
+					)
+					latestErr = err
+				}
+
+				continue
+			}
+
 			if submitErr.IsErrInvalidSequenceIDs() {
 				reportLogger.Info("report has invalid sequence IDs, submission rejected")
 

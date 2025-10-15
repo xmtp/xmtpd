@@ -69,6 +69,15 @@ func (w *SubmitterWorker) Stop() {
 	}
 }
 
+// SubmitReports is the main loop of the submitter worker.
+// The submitter worker fetches all reports that are pending submission and approved attestation.
+// Note:
+// All reports are fetched independently of the originator node ID. This means the submitter:
+//   - will try to submit reports for other nodes if they are pending submission and approved attestation.
+//   - works on a loop that gets activated every `findNextRunTime(originatorNodeID, submitterWorkerID)` minutes.
+//     this distribution guarantees that no two nodes will submit reports for the same originator node at the same time.
+//     the blockchain guarantees deduplication of report submissions.
+//   - even with `findNextRunTime` the system has to guarantee that no duplicates are submitted.
 func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	haLock, err := w.payerReportStore.GetAdvisoryLocker(w.ctx)
 	if err != nil {
@@ -83,7 +92,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		return err
 	}
 
-	// SubmitterWorker fetches all reports that are pending submission and approved attestation.
+	// Fetch all reports that are pending submission and approved attestation.
 	w.log.Debug("fetching reports to submit")
 	reports, err := w.payerReportStore.FetchReports(
 		ctx,
@@ -101,13 +110,40 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
 
 		requiredAttestations := (len(report.ActiveNodeIDs) / 2) + 1
+
+		// Only handle reports that have the required number of approved attestations.
 		if len(report.AttestationSignatures) < requiredAttestations {
 			continue
 		}
 
 		reportLogger.Info("submitting report")
+
+		// Submit the report to the blockchain.
 		submitErr := w.submitReport(report)
 		if submitErr != nil {
+			// If the on-chain protocol throws a PayerReportAlreadySubmitted error,
+			// it means the same report was already submitted by another node.
+			// We set the report submission status to submitted and continue.
+			if submitErr.IsErrPayerReportAlreadySubmitted() {
+				reportLogger.Info("report already submitted, skipping")
+
+				err = w.payerReportStore.SetReportSubmitted(ctx, report.ID)
+				if err != nil {
+					reportLogger.Error(
+						"failed to set report submitted",
+						zap.String("report_id", report.ID.String()),
+						zap.Error(err),
+					)
+					latestErr = err
+				}
+
+				continue
+			}
+
+			// If the on-chain protocol throws an InvalidSequenceIDs or InvalidStartSequenceID error,
+			// it means the report has invalid sequence IDs or start sequence ID.
+			// Most likely another node submitted a valid report with the same start sequence ID before the node.
+			// We set the report submission status to rejected and continue.
 			if submitErr.IsErrInvalidSequenceIDs() {
 				reportLogger.Info("report has invalid sequence IDs, submission rejected")
 

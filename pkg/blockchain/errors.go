@@ -10,6 +10,9 @@ var (
 	ErrAlreadyClaimed = fmt.Errorf(
 		"AlreadyClaimed(uint32,uint256)",
 	)
+	ErrPayerReportAlreadySubmitted = fmt.Errorf(
+		"PayerReportAlreadySubmitted(uint32,uint64,uint64)",
+	)
 	ErrArrayLengthMismatch  = fmt.Errorf("ArrayLengthMismatch()")
 	ErrDeployFailed         = fmt.Errorf("DeployFailed()")
 	ErrEmptyAdmins          = fmt.Errorf("EmptyAdmins()")
@@ -131,6 +134,7 @@ var (
 
 	protocolErrorsDictionary = map[string]error{
 		"0x3c355a89": ErrAlreadyClaimed,
+		"0x93105c68": ErrPayerReportAlreadySubmitted,
 		"0xa24a13a6": ErrArrayLengthMismatch,
 		"0xb4f54111": ErrDeployFailed,
 		"0xfcc36c5f": ErrEmptyAdmins,
@@ -235,6 +239,7 @@ type ProtocolError interface {
 	Unwrap() error
 	IsNoChange() bool
 	IsErrInvalidSequenceIDs() bool
+	IsErrPayerReportAlreadySubmitted() bool
 }
 
 type BlockchainError struct {
@@ -288,6 +293,11 @@ func (e BlockchainError) IsNoChange() bool {
 func (e BlockchainError) IsErrInvalidSequenceIDs() bool {
 	return e.protocolErr != nil && (errors.Is(e.protocolErr, ErrInvalidSequenceIDs) ||
 		errors.Is(e.protocolErr, ErrInvalidStartSequenceID))
+}
+
+// IsErrPayerReportAlreadySubmitted returns true if the error is a payer report already submitted error.
+func (e BlockchainError) IsErrPayerReportAlreadySubmitted() bool {
+	return e.protocolErr != nil && errors.Is(e.protocolErr, ErrPayerReportAlreadySubmitted)
 }
 
 // tryExtractProtocolError tries to extract the protocol error from the error message.

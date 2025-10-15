@@ -19,7 +19,7 @@ const (
 	xdbgImage             = "ghcr.io/xmtp/xdbg:sha-ac533c4"
 	cliImage              = "ghcr.io/xmtp/xmtpd-cli:sha-06cb109"
 	adminPrivateKey       = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	anvilJsonRelativePath = "../../../dev/environments/anvil.json"
+	anvilJsonRelativePath = "../../../pkg/config/environments/anvil.json"
 )
 
 func loadEnvFromShell() (map[string]string, error) {

@@ -2,6 +2,8 @@ package payerreport
 
 import (
 	"context"
+	"math"
+	"math/big"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -42,4 +44,13 @@ func AddReportLogFields(logger *zap.Logger, report *PayerReport) *zap.Logger {
 		zap.Uint64("end_sequence_id", report.EndSequenceID),
 		zap.Uint32("originator_node_id", report.OriginatorNodeID),
 	)
+}
+
+// ValidateReportIndex checks if a big.Int PayerReportIndex fits within int32 bounds.
+// Returns the validated int32 value or ErrReportIndexTooLarge if the value is too large.
+func ValidateReportIndex(index *big.Int) (int32, error) {
+	if !index.IsInt64() || index.Int64() > math.MaxInt32 {
+		return 0, ErrReportIndexTooLarge
+	}
+	return int32(index.Int64()), nil
 }

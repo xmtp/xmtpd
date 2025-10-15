@@ -62,7 +62,7 @@ type IPayerReportStore interface {
 		envelope *envelopes.OriginatorEnvelope,
 		payerID int32,
 	) error
-	SetReportSubmitted(ctx context.Context, id ReportID) error
+	SetReportSubmitted(ctx context.Context, id ReportID, reportIndex int32) error
 	SetReportSettled(ctx context.Context, id ReportID) error
 	SetReportSubmissionRejected(ctx context.Context, id ReportID) error
 	SetReportAttestationApproved(ctx context.Context, id ReportID) error

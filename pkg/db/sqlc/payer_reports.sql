@@ -192,6 +192,13 @@ SET submission_status = @new_status
 WHERE id = @report_id
 	AND submission_status = ANY(sqlc.arg(prev_status)::SMALLINT []);
 
+-- name: SetReportSubmitted :exec
+UPDATE payer_reports
+SET submission_status = @new_status,
+	submitted_report_index = sqlc.arg(submitted_report_index)::INTEGER
+WHERE id = @report_id
+	AND submission_status = ANY(sqlc.arg(prev_status)::SMALLINT []);
+
 -- name: FetchAttestations :many
 SELECT *
 FROM payer_report_attestations

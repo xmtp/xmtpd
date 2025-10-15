@@ -27,6 +27,7 @@ var (
 	ErrReportNil                   = errors.New("report is nil")
 	ErrReportNotFound              = errors.New("report not found")
 	ErrStartSequenceIDTooLarge     = errors.New("start sequence ID is > max int64")
+	ErrReportIndexTooLarge         = errors.New("report index is > max int32")
 )
 
 type Store struct {
@@ -117,14 +118,15 @@ func (s *Store) FetchReports(
 	return convertPayerReports(rows)
 }
 
-func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID) error {
-	return setReportSubmissionStatus(
-		ctx,
-		s.queries,
-		id,
-		[]SubmissionStatus{SubmissionPending},
-		SubmissionSubmitted,
-	)
+func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID, reportIndex int32) error {
+	allowedPrevStatuses := []int16{int16(SubmissionPending)}
+
+	return s.queries.SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
+		ReportID:             id[:],
+		NewStatus:            int16(SubmissionSubmitted),
+		PrevStatus:           allowedPrevStatuses,
+		SubmittedReportIndex: reportIndex,
+	})
 }
 
 func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
@@ -497,16 +499,17 @@ func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWit
 		_, hasExisting := results[key]
 		if !hasExisting {
 			results[key], err = convertPayerReport(&queries.PayerReport{
-				ID:                  row.ID,
-				OriginatorNodeID:    row.OriginatorNodeID,
-				StartSequenceID:     row.StartSequenceID,
-				EndSequenceID:       row.EndSequenceID,
-				EndMinuteSinceEpoch: row.EndMinuteSinceEpoch,
-				PayersMerkleRoot:    row.PayersMerkleRoot,
-				ActiveNodeIds:       row.ActiveNodeIds,
-				CreatedAt:           row.CreatedAt,
-				SubmissionStatus:    row.SubmissionStatus,
-				AttestationStatus:   row.AttestationStatus,
+				ID:                   row.ID,
+				OriginatorNodeID:     row.OriginatorNodeID,
+				StartSequenceID:      row.StartSequenceID,
+				EndSequenceID:        row.EndSequenceID,
+				EndMinuteSinceEpoch:  row.EndMinuteSinceEpoch,
+				PayersMerkleRoot:     row.PayersMerkleRoot,
+				ActiveNodeIds:        row.ActiveNodeIds,
+				CreatedAt:            row.CreatedAt,
+				SubmissionStatus:     row.SubmissionStatus,
+				AttestationStatus:    row.AttestationStatus,
+				SubmittedReportIndex: row.SubmittedReportIndex,
 			})
 			if err != nil {
 				return nil, err
@@ -584,18 +587,25 @@ func convertPayerReport(report *queries.PayerReport) (*PayerReportWithStatus, er
 		return nil, err
 	}
 
+	var submittedReportIndex *uint32
+	if report.SubmittedReportIndex.Valid {
+		index := uint32(report.SubmittedReportIndex.Int32)
+		submittedReportIndex = &index
+	}
+
 	return &PayerReportWithStatus{
 		SubmissionStatus:  SubmissionStatus(report.SubmissionStatus),
 		AttestationStatus: AttestationStatus(report.AttestationStatus),
 		CreatedAt:         report.CreatedAt.Time,
 		PayerReport: PayerReport{
-			ID:                  ReportID(id),
-			OriginatorNodeID:    uint32(report.OriginatorNodeID),
-			StartSequenceID:     uint64(report.StartSequenceID),
-			EndSequenceID:       uint64(report.EndSequenceID),
-			EndMinuteSinceEpoch: uint32(report.EndMinuteSinceEpoch),
-			PayersMerkleRoot:    payersMerkleRoot,
-			ActiveNodeIDs:       utils.Int32SliceToUint32Slice(report.ActiveNodeIds),
+			SubmittedReportIndex: submittedReportIndex,
+			ID:                   ReportID(id),
+			OriginatorNodeID:     uint32(report.OriginatorNodeID),
+			StartSequenceID:      uint64(report.StartSequenceID),
+			EndSequenceID:        uint64(report.EndSequenceID),
+			EndMinuteSinceEpoch:  uint32(report.EndMinuteSinceEpoch),
+			PayersMerkleRoot:     payersMerkleRoot,
+			ActiveNodeIDs:        utils.Int32SliceToUint32Slice(report.ActiveNodeIds),
 		},
 	}, nil
 }

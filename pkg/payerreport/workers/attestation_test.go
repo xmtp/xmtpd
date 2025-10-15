@@ -120,13 +120,13 @@ func TestDontAttestReportsInNonPendingStates(t *testing.T) {
 			require.NoError(t, store.SetReportAttestationRejected(t.Context(), r.ID))
 
 		case stateSubmissionSubmitted:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 
 		case stateSubmissionRejected:
 			require.NoError(t, store.SetReportSubmissionRejected(t.Context(), r.ID))
 
 		case stateSubmissionSettled:
-			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID))
+			require.NoError(t, store.SetReportSubmitted(t.Context(), r.ID, 0))
 			require.NoError(t, store.SetReportSettled(t.Context(), r.ID))
 
 		default:

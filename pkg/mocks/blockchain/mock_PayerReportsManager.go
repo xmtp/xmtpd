@@ -204,23 +204,33 @@ func (_c *MockPayerReportsManager_GetReportID_Call) RunAndReturn(run func(contex
 }
 
 // SubmitPayerReport provides a mock function with given fields: ctx, report
-func (_m *MockPayerReportsManager) SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) blockchain.ProtocolError {
+func (_m *MockPayerReportsManager) SubmitPayerReport(ctx context.Context, report *payerreport.PayerReportWithStatus) (int32, blockchain.ProtocolError) {
 	ret := _m.Called(ctx, report)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SubmitPayerReport")
 	}
 
-	var r0 blockchain.ProtocolError
-	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReportWithStatus) blockchain.ProtocolError); ok {
+	var r0 int32
+	var r1 blockchain.ProtocolError
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReportWithStatus) (int32, blockchain.ProtocolError)); ok {
+		return rf(ctx, report)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReportWithStatus) int32); ok {
 		r0 = rf(ctx, report)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(blockchain.ProtocolError)
+		r0 = ret.Get(0).(int32)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *payerreport.PayerReportWithStatus) blockchain.ProtocolError); ok {
+		r1 = rf(ctx, report)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(blockchain.ProtocolError)
 		}
 	}
 
-	return r0
+	return r0, r1
 }
 
 // MockPayerReportsManager_SubmitPayerReport_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubmitPayerReport'
@@ -242,12 +252,12 @@ func (_c *MockPayerReportsManager_SubmitPayerReport_Call) Run(run func(ctx conte
 	return _c
 }
 
-func (_c *MockPayerReportsManager_SubmitPayerReport_Call) Return(_a0 blockchain.ProtocolError) *MockPayerReportsManager_SubmitPayerReport_Call {
-	_c.Call.Return(_a0)
+func (_c *MockPayerReportsManager_SubmitPayerReport_Call) Return(_a0 int32, _a1 blockchain.ProtocolError) *MockPayerReportsManager_SubmitPayerReport_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockPayerReportsManager_SubmitPayerReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReportWithStatus) blockchain.ProtocolError) *MockPayerReportsManager_SubmitPayerReport_Call {
+func (_c *MockPayerReportsManager_SubmitPayerReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReportWithStatus) (int32, blockchain.ProtocolError)) *MockPayerReportsManager_SubmitPayerReport_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2,6 +2,8 @@ package blockchain
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -51,7 +53,10 @@ func NewReportsManager(
 func (r *ReportsManager) SubmitPayerReport(
 	ctx context.Context,
 	report *payerreport.PayerReportWithStatus,
-) ProtocolError {
+) (int32, ProtocolError) {
+	var reportIndex int32
+	var eventErr ProtocolError
+	var foundEvent bool
 	err := ExecuteTransaction(
 		ctx,
 		r.signer,
@@ -82,6 +87,18 @@ func (r *ReportsManager) SubmitPayerReport(
 		},
 		func(event any) {
 			if parsedEvent, ok := event.(*reportManager.PayerReportManagerPayerReportSubmitted); ok {
+				foundEvent = true
+				var err error
+				reportIndex, err = payerreport.ValidateReportIndex(parsedEvent.PayerReportIndex)
+				if err != nil {
+					eventErr = NewBlockchainError(err)
+					r.log.Error(
+						"payer report index validation failed",
+						zap.Error(err),
+					)
+					return
+				}
+
 				r.log.Info(
 					"payer report submitted",
 					zap.Any("event", parsedEvent),
@@ -92,9 +109,15 @@ func (r *ReportsManager) SubmitPayerReport(
 		},
 	)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	if eventErr != nil {
+		return 0, eventErr
+	}
+	if !foundEvent {
+		return 0, NewBlockchainError(fmt.Errorf("no PayerReportSubmitted event found"))
+	}
+	return reportIndex, nil
 }
 
 func (r *ReportsManager) GetReport(
@@ -114,7 +137,7 @@ func (r *ReportsManager) GetReport(
 		return nil, err
 	}
 
-	return transformOnChainReport(&report, originatorNodeID, domainSeparator)
+	return transformOnChainReport(&report, originatorNodeID, domainSeparator, index)
 }
 
 func (r *ReportsManager) GetReportID(
@@ -159,6 +182,7 @@ func transformOnChainReport(
 	report *reportManager.IPayerReportManagerPayerReport,
 	nodeID uint32,
 	domainSeparator common.Hash,
+	index uint64,
 ) (*payerreport.PayerReport, error) {
 	id, err := payerreport.BuildPayerReportID(
 		nodeID,
@@ -173,14 +197,21 @@ func transformOnChainReport(
 		return nil, err
 	}
 
+	if index > uint64(math.MaxUint32) {
+		return nil, fmt.Errorf("report index %d exceeds max uint32", index)
+	}
+
+	index32 := uint32(index)
+
 	return &payerreport.PayerReport{
-		ID:                  *id,
-		OriginatorNodeID:    nodeID,
-		StartSequenceID:     report.StartSequenceId,
-		EndSequenceID:       report.EndSequenceId,
-		EndMinuteSinceEpoch: report.EndMinuteSinceEpoch,
-		PayersMerkleRoot:    report.PayersMerkleRoot,
-		ActiveNodeIDs:       report.NodeIds,
+		ID:                   *id,
+		OriginatorNodeID:     nodeID,
+		StartSequenceID:      report.StartSequenceId,
+		EndSequenceID:        report.EndSequenceId,
+		EndMinuteSinceEpoch:  report.EndMinuteSinceEpoch,
+		PayersMerkleRoot:     report.PayersMerkleRoot,
+		ActiveNodeIDs:        report.NodeIds,
+		SubmittedReportIndex: &index32,
 	}, nil
 }
 

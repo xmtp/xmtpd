@@ -117,9 +117,8 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		}
 
 		reportLogger.Info("submitting report")
-
-		// Submit the report to the blockchain.
-		submitErr := w.submitReport(report)
+		// Submit the report to the blockchain
+		reportIndex, submitErr := w.submitReport(report)
 		if submitErr != nil {
 			// If the on-chain protocol throws a PayerReportAlreadySubmitted error,
 			// it means the same report was already submitted by another node.
@@ -127,7 +126,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 			if submitErr.IsErrPayerReportAlreadySubmitted() {
 				reportLogger.Info("report already submitted, skipping")
 
-				err = w.payerReportStore.SetReportSubmitted(ctx, report.ID)
+				err = w.payerReportStore.SetReportSubmitted(ctx, report.ID, reportIndex)
 				if err != nil {
 					reportLogger.Error(
 						"failed to set report submitted",
@@ -173,7 +172,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		// NOTE: there is a possible race when the indexer hears about the event before we get a confirmation from the chain
 		// Since we are not holding a lock, the report might already end up being submitted by the time we get here
 		// SetReportSubmitted should be able to handle that
-		err = w.payerReportStore.SetReportSubmitted(ctx, report.ID)
+		err = w.payerReportStore.SetReportSubmitted(ctx, report.ID, reportIndex)
 		if err != nil {
 			reportLogger.Warn(
 				"failed to set report submitted",
@@ -187,6 +186,6 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 
 func (w *SubmitterWorker) submitReport(
 	report *payerreport.PayerReportWithStatus,
-) blockchain.ProtocolError {
+) (int32, blockchain.ProtocolError) {
 	return w.reportsAdmin.SubmitPayerReport(w.ctx, report)
 }

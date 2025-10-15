@@ -8,7 +8,7 @@ cd "${repo_root}"
 
 . dev/local.env
 
-CONFIG_FILE="./dev/environments/anvil.json"
+CONFIG_FILE="config://anvil"
 
 dev/cmd/cli \
   --config-file "${CONFIG_FILE}" \

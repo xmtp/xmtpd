@@ -2,37 +2,26 @@ package testutils
 
 import (
 	"encoding/json"
-	"io"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/config/environments"
 )
 
 // This is the private key that anvil has funded by default
 // This is safe to commit
 const (
 	TestPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	thisFileDepth  = "../.."
-	pathToJSONFile = "dev/environments/anvil.json"
 )
 
 func NewContractsOptions(t *testing.T, rpcURL, wsURL string) config.ContractsOptions {
-	file, err := os.Open(GetScriptPath(thisFileDepth, pathToJSONFile))
+	anvilJson, err := environments.GetEnvironmentConfig(environments.Anvil)
 	require.NoError(t, err)
-
-	defer func() {
-		_ = file.Close()
-	}()
-
-	data, err := io.ReadAll(file)
-	require.NoError(t, err)
-
 	var chainConfig config.ChainConfig
-	err = json.Unmarshal(data, &chainConfig)
+	err = json.Unmarshal(anvilJson, &chainConfig)
 	require.NoError(t, err)
 
 	return config.ContractsOptions{

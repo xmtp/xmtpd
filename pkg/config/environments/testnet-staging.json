@@ -1,0 +1,23 @@
+{
+  "appChainDeploymentBlock": 6124,
+  "appChainFactory": "0x9492Ea65F5f20B01Ed5eBe1b49f77208123585a1",
+  "appChainGateway": "0xB64D5bF62F30512Bd130C0D7c80DB7ac1e6801a3",
+  "appChainId": 351243127,
+  "appChainParameterRegistry": "0xB2EA84901BC8c2b18Da7a51db1e1Ca2aAeDf844D",
+  "deployer": "0xD940Dd30F750162c12086C6dc68507F7e8C480B4",
+  "depositSplitter": "0x81d5f3eC2368fA5fc9a31b0fE81193FBF1c6cFD2",
+  "distributionManager": "0x229117F9C045b15A04d82863C93F41Fef72807AC",
+  "feeToken": "0x63C6667798fdA65E2E29228C43fbfDa0Cd4634A8",
+  "groupMessageBroadcaster": "0xdEB68688Fcc514b69078f2cCf0a6D2746548b368",
+  "identityUpdateBroadcaster": "0xe946A8e2DE66827e1834BA3c24D7f94c98249152",
+  "nodeRegistry": "0xFac49258e9F06f321d992EFe1ea289308002a1E4",
+  "payerRegistry": "0x208E94fbC9833B58765fedC30CFF8539C6356e88",
+  "payerReportManager": "0x8644DB92F11fDeCBCBfB5F2Bb84a000f28F7B59c",
+  "rateRegistry": "0xA112D3E611a6a2F06F435FdE3B3912469cc6EE3f",
+  "settlementChainDeploymentBlock": 29155490,
+  "settlementChainFactory": "0x9492Ea65F5f20B01Ed5eBe1b49f77208123585a1",
+  "settlementChainGateway": "0xB64D5bF62F30512Bd130C0D7c80DB7ac1e6801a3",
+  "settlementChainId": 84532,
+  "settlementChainParameterRegistry": "0xB2EA84901BC8c2b18Da7a51db1e1Ca2aAeDf844D",
+  "underlyingFeeToken": "0x2d7e0534183dAD09008C97f230d9F4f6425eE859"
+}

@@ -22,7 +22,7 @@ OWNER_ADDR="${!OWNER_ADDR_VAR}"
 SIGNER_PUB="${!PUBKEY_VAR}"
 HTTP_ADDR="${!ADDR_VAR:-http://localhost:505${NODE_IDX}}"
 
-CFG="./dev/environments/anvil.json"
+CFG="config://anvil"
 
 echo "==> Registering Node ${NODE_IDX}"
 echo "    owner:  ${OWNER_ADDR}"

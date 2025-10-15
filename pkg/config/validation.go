@@ -14,6 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/xmtp/xmtpd/pkg/config/environments"
 )
 
 func ValidateServerOptions(options *ServerOptions) error {
@@ -154,8 +155,15 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 	var data []byte
 	// Try to parse as URL. If it fails, treat as local path.
 	if u, err := url.Parse(filePath); err == nil &&
-		(u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file") {
+		(u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file" || u.Scheme == "config") {
 		switch u.Scheme {
+		case "config":
+			data, err = environments.GetEnvironmentConfig(
+				environments.SmartContractEnvironment(u.Host),
+			)
+			if err != nil {
+				return ContractsOptions{}, fmt.Errorf("unknown config environment %s", u.Host)
+			}
 		case "http", "https":
 			client := &http.Client{Timeout: 10 * time.Second}
 			resp, err := client.Get(filePath)
@@ -266,8 +274,32 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 }
 
 func ParseJSONConfig(options *ContractsOptions) error {
+	if options.Environment != "" && (options.ConfigFilePath != "" || options.ConfigJSON != "") {
+		return errors.New(
+			"--contracts.environment cannot be used with --contracts.config-file or --contracts.config-json",
+		)
+	}
+
 	if options.ConfigFilePath != "" && options.ConfigJSON != "" {
 		return errors.New("--config-file and --config-json cannot be used together")
+	}
+
+	if options.Environment != "" {
+		fmt.Printf("Environment is %s\n", options.Environment)
+		data, err := environments.GetEnvironmentConfig(
+			options.Environment,
+		)
+		if err != nil {
+			return err
+		}
+
+		var config ChainConfig
+		if err := json.Unmarshal(data, &config); err != nil {
+			return err
+		}
+		fmt.Printf("Chain config %v\n", config)
+
+		fillConfigFromJSON(options, &config)
 	}
 
 	if options.ConfigFilePath != "" {

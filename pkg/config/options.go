@@ -3,6 +3,8 @@ package config
 
 import (
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/config/environments"
 )
 
 type APIOptions struct {
@@ -15,8 +17,9 @@ type ContractsOptions struct {
 	AppChain        AppChainOptions        `group:"Application Chain Options" namespace:"app-chain"`
 	SettlementChain SettlementChainOptions `group:"Settlement Chain Options"  namespace:"settlement-chain"`
 
-	ConfigFilePath string `long:"config-file-path" env:"XMTPD_CONTRACTS_CONFIG_FILE_PATH" description:"Path to the JSON contracts config file"`
-	ConfigJSON     string `long:"config-json"      env:"XMTPD_CONTRACTS_CONFIG_JSON"      description:"JSON contracts config"`
+	ConfigFilePath string                                `long:"config-file-path" env:"XMTPD_CONTRACTS_CONFIG_FILE_PATH" description:"Path to the JSON contracts config file"`
+	ConfigJSON     string                                `long:"config-json"      env:"XMTPD_CONTRACTS_CONFIG_JSON"      description:"JSON contracts config"`
+	Environment    environments.SmartContractEnvironment `long:"environment"      env:"XMTPD_CONTRACTS_ENVIRONMENT"      description:"Deployed environment to load contracts config for"`
 }
 
 type AppChainOptions struct {

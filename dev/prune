@@ -4,6 +4,6 @@ set -eu
 
 . dev/local.env
 
-export XMTPD_CONTRACTS_CONFIG_FILE_PATH=./dev/environments/anvil.json
+export XMTPD_CONTRACTS_ENVIRONMENT=anvil
 
 go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/prune/main.go "$@"

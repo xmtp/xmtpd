@@ -378,17 +378,17 @@ func TestValidateMerkleRoot(t *testing.T) {
 		cost:         currency.PicoDollar(100),
 	})
 
-	validMerkleTree200, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
+	validMerkleTree200, err := payerreport.GenerateMerkleTree(payerreport.PayerMap{
 		payerAddress: currency.PicoDollar(200),
 	})
 	require.NoError(t, err)
-	validMerkleTree0, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{})
+	validMerkleTree0, err := payerreport.GenerateMerkleTree(payerreport.PayerMap{})
 	require.NoError(t, err)
-	invalidAmountTree, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
+	invalidAmountTree, err := payerreport.GenerateMerkleTree(payerreport.PayerMap{
 		payerAddress: currency.PicoDollar(400),
 	})
 	require.NoError(t, err)
-	invalidPayerTree, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
+	invalidPayerTree, err := payerreport.GenerateMerkleTree(payerreport.PayerMap{
 		testutils.RandomAddress(): currency.PicoDollar(100),
 	})
 	require.NoError(t, err)
@@ -512,7 +512,7 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 		cost:         currency.PicoDollar(100),
 	})
 
-	validMerkleTree, err := payerreport.GenerateMerkleTreeTestBinding(payerreport.PayerMap{
+	validMerkleTree, err := payerreport.GenerateMerkleTree(payerreport.PayerMap{
 		payerAddress: currency.PicoDollar(200),
 	})
 	require.NoError(t, err)

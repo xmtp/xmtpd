@@ -202,11 +202,21 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 		cfg.registrant.NodeID(),
 	)
 
+	settlementWorker := NewSettlementWorker(
+		cfg.ctx,
+		cfg.log,
+		cfg.store,
+		payerreport.NewPayerReportVerifier(cfg.log, cfg.store),
+		cfg.reportsManager,
+		cfg.registrant.NodeID(),
+	)
+
 	attestationWorker.Start()
 	generatorWorker.Start()
 	submitterWorker.Start()
+	settlementWorker.Start()
 
 	return &WorkerWrapper{
-		workers: []stoppable{attestationWorker, generatorWorker, submitterWorker},
+		workers: []stoppable{attestationWorker, generatorWorker, submitterWorker, settlementWorker},
 	}
 }

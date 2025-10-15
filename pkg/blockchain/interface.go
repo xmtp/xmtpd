@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/merkle"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 )
 
@@ -80,4 +81,15 @@ type PayerReportsManager interface {
 		ctx context.Context,
 		payerReport *payerreport.PayerReportWithStatus,
 	) (payerreport.ReportID, error)
+	SettleReport(
+		ctx context.Context,
+		originatorNodeID uint32,
+		index uint64,
+		proof *merkle.MultiProof,
+	) error
+	SettlementSummary(
+		ctx context.Context,
+		originatorNodeID uint32,
+		index uint64,
+	) (*SettlementSummary, error)
 }

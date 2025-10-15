@@ -34,3 +34,10 @@ func Uint32FromBytes(b []byte) (uint32, error) {
 	}
 	return binary.LittleEndian.Uint32(b), nil
 }
+
+func MinInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

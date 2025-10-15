@@ -8,6 +8,8 @@ import (
 
 	context "context"
 
+	merkle "github.com/xmtp/xmtpd/pkg/merkle"
+
 	mock "github.com/stretchr/testify/mock"
 
 	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
@@ -199,6 +201,115 @@ func (_c *MockPayerReportsManager_GetReportID_Call) Return(_a0 payerreport.Repor
 }
 
 func (_c *MockPayerReportsManager_GetReportID_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReportWithStatus) (payerreport.ReportID, error)) *MockPayerReportsManager_GetReportID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SettleReport provides a mock function with given fields: ctx, originatorNodeID, index, proof
+func (_m *MockPayerReportsManager) SettleReport(ctx context.Context, originatorNodeID uint32, index uint64, proof *merkle.MultiProof) error {
+	ret := _m.Called(ctx, originatorNodeID, index, proof)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SettleReport")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, uint64, *merkle.MultiProof) error); ok {
+		r0 = rf(ctx, originatorNodeID, index, proof)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockPayerReportsManager_SettleReport_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SettleReport'
+type MockPayerReportsManager_SettleReport_Call struct {
+	*mock.Call
+}
+
+// SettleReport is a helper method to define mock.On call
+//   - ctx context.Context
+//   - originatorNodeID uint32
+//   - index uint64
+//   - proof *merkle.MultiProof
+func (_e *MockPayerReportsManager_Expecter) SettleReport(ctx interface{}, originatorNodeID interface{}, index interface{}, proof interface{}) *MockPayerReportsManager_SettleReport_Call {
+	return &MockPayerReportsManager_SettleReport_Call{Call: _e.mock.On("SettleReport", ctx, originatorNodeID, index, proof)}
+}
+
+func (_c *MockPayerReportsManager_SettleReport_Call) Run(run func(ctx context.Context, originatorNodeID uint32, index uint64, proof *merkle.MultiProof)) *MockPayerReportsManager_SettleReport_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint32), args[2].(uint64), args[3].(*merkle.MultiProof))
+	})
+	return _c
+}
+
+func (_c *MockPayerReportsManager_SettleReport_Call) Return(_a0 error) *MockPayerReportsManager_SettleReport_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockPayerReportsManager_SettleReport_Call) RunAndReturn(run func(context.Context, uint32, uint64, *merkle.MultiProof) error) *MockPayerReportsManager_SettleReport_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SettlementSummary provides a mock function with given fields: ctx, originatorNodeID, index
+func (_m *MockPayerReportsManager) SettlementSummary(ctx context.Context, originatorNodeID uint32, index uint64) (*blockchain.SettlementSummary, error) {
+	ret := _m.Called(ctx, originatorNodeID, index)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SettlementSummary")
+	}
+
+	var r0 *blockchain.SettlementSummary
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, uint64) (*blockchain.SettlementSummary, error)); ok {
+		return rf(ctx, originatorNodeID, index)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, uint64) *blockchain.SettlementSummary); ok {
+		r0 = rf(ctx, originatorNodeID, index)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*blockchain.SettlementSummary)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint32, uint64) error); ok {
+		r1 = rf(ctx, originatorNodeID, index)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPayerReportsManager_SettlementSummary_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SettlementSummary'
+type MockPayerReportsManager_SettlementSummary_Call struct {
+	*mock.Call
+}
+
+// SettlementSummary is a helper method to define mock.On call
+//   - ctx context.Context
+//   - originatorNodeID uint32
+//   - index uint64
+func (_e *MockPayerReportsManager_Expecter) SettlementSummary(ctx interface{}, originatorNodeID interface{}, index interface{}) *MockPayerReportsManager_SettlementSummary_Call {
+	return &MockPayerReportsManager_SettlementSummary_Call{Call: _e.mock.On("SettlementSummary", ctx, originatorNodeID, index)}
+}
+
+func (_c *MockPayerReportsManager_SettlementSummary_Call) Run(run func(ctx context.Context, originatorNodeID uint32, index uint64)) *MockPayerReportsManager_SettlementSummary_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint32), args[2].(uint64))
+	})
+	return _c
+}
+
+func (_c *MockPayerReportsManager_SettlementSummary_Call) Return(_a0 *blockchain.SettlementSummary, _a1 error) *MockPayerReportsManager_SettlementSummary_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPayerReportsManager_SettlementSummary_Call) RunAndReturn(run func(context.Context, uint32, uint64) (*blockchain.SettlementSummary, error)) *MockPayerReportsManager_SettlementSummary_Call {
 	_c.Call.Return(run)
 	return _c
 }

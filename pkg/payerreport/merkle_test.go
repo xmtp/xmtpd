@@ -41,7 +41,7 @@ func TestBuildMerkle(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := payerreport.GenerateMerkleTreeTestBinding(c.payerMap)
+			_, err := payerreport.GenerateMerkleTree(c.payerMap)
 			if c.expectErr {
 				require.Error(t, err)
 			} else {

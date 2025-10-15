@@ -35,6 +35,10 @@ type IPayerReportVerifier interface {
 		prevReport *PayerReport,
 		newReport *PayerReport,
 	) (bool, error)
+	GetPayerMap(
+		ctx context.Context,
+		report *PayerReport,
+	) (PayerMap, error)
 }
 
 type IPayerReportStore interface {

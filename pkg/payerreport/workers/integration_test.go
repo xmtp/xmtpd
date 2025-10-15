@@ -49,6 +49,7 @@ type multiNodeTestScaffold struct {
 	dbs                []*sql.DB
 	reportGenerators   []*workers.GeneratorWorker
 	attestationWorkers []*workers.AttestationWorker
+	settlementWorkers  []*workers.SettlementWorker
 	payerReportStores  []payerreport.IPayerReportStore
 	log                *zap.Logger
 	registrants        []*registrant.Registrant
@@ -254,6 +255,25 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		domainSeparator,
 	)
 
+	verifier1 := payerreport.NewPayerReportVerifier(log, payerReportStore1)
+	verifier2 := payerreport.NewPayerReportVerifier(log, payerReportStore2)
+	settlementWorker1 := workers.NewSettlementWorker(
+		t.Context(),
+		log,
+		payerReportStore1,
+		verifier1,
+		reportsManager,
+		server1NodeID,
+	)
+	settlementWorker2 := workers.NewSettlementWorker(
+		t.Context(),
+		log,
+		payerReportStore2,
+		verifier2,
+		reportsManager,
+		server2NodeID,
+	)
+
 	t.Cleanup(func() {
 		log.Info("Shutting down servers")
 		server1.Shutdown(0)
@@ -276,6 +296,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		attestationWorkers: []*workers.AttestationWorker{
 			attestationWorker1,
 			attestationWorker2,
+		},
+		settlementWorkers: []*workers.SettlementWorker{
+			settlementWorker1,
+			settlementWorker2,
 		},
 		payerReportStores: []payerreport.IPayerReportStore{payerReportStore1, payerReportStore2},
 		log:               log,
@@ -407,7 +431,7 @@ func TestCanGenerateReport(t *testing.T) {
 	require.Len(t, messagesOnNode1, 1)
 }
 
-func TestCanGenerateAndAttestReport(t *testing.T) {
+func TestFullReportLifecycle(t *testing.T) {
 	flags.SkipOnRaceTest(t)
 
 	scaffold := setupMultiNodeTest(t)
@@ -525,6 +549,35 @@ func TestCanGenerateAndAttestReport(t *testing.T) {
 		report.ID,
 		fetchedReportID,
 	)
+
+	// Verify report is submitted but not yet settled
+	require.Equal(
+		t,
+		payerreport.SubmissionStatus(payerreport.SubmissionSubmitted),
+		fetchedReports[0].SubmissionStatus,
+	)
+
+	// Now settle the report
+	err = scaffold.settlementWorkers[0].SettleReports(t.Context())
+	require.NoError(t, err)
+
+	// Verify report is now settled
+	settledReports, err := scaffold.payerReportStores[0].FetchReports(
+		t.Context(),
+		payerreport.NewFetchReportsQuery().
+			WithOriginatorNodeID(scaffold.nodeIDs[0]).
+			WithSubmissionStatus(payerreport.SubmissionSettled),
+	)
+	require.NoError(t, err)
+	require.Len(t, settledReports, 1)
+	// Verify the report is settled on-chain
+	settlementSummary, err := scaffold.reportsManager.SettlementSummary(
+		t.Context(),
+		scaffold.nodeIDs[0],
+		0,
+	)
+	require.NoError(t, err)
+	require.True(t, settlementSummary.IsSettled)
 }
 
 func TestCanRejectReport(t *testing.T) {

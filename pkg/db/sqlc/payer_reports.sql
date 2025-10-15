@@ -166,7 +166,8 @@ WITH rpt AS (
 SELECT *
 FROM rpt
 WHERE sqlc.narg(min_attestations)::INT IS NULL
-	OR attestations_count >= sqlc.narg(min_attestations)::INT;
+	OR attestations_count >= sqlc.narg(min_attestations)::INT
+ORDER BY created_at ASC;
 
 -- name: FetchPayerReport :one
 SELECT *

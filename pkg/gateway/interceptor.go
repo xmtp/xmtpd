@@ -2,12 +2,15 @@ package gateway
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -70,12 +73,28 @@ func (i *GatewayInterceptor) Unary() grpc.UnaryServerInterceptor {
 			for _, authorizer := range i.authorizers {
 				authorized, err := authorizer(ctx, identity, summary)
 				if err != nil {
-					i.logger.Error("authorization error",
+					var rlError GatewayServiceError
+					if errors.As(err, &rlError) {
+						if setMetadataErr := setMetadata(ctx, rlError); setMetadataErr != nil {
+							i.logger.Error(
+								"failed to set metadata",
+								zap.Error(setMetadataErr),
+								zap.String("original_error", err.Error()),
+							)
+							return nil, err
+						}
+
+						i.logger.Info("request rejected", zap.Error(err))
+
+						return nil, status.Error(rlError.Code(), rlError.ClientMessage())
+					}
+					i.logger.Warn("authorization error",
 						zap.Error(err),
 						zap.String("identity", identity.Identity),
 						zap.String("identity_kind", string(identity.Kind)))
 					return nil, status.Errorf(codes.Internal, "authorization error: %v", err)
 				}
+
 				if !authorized {
 					i.logger.Warn("unauthorized publish request",
 						zap.String("identity", identity.Identity),
@@ -89,6 +108,7 @@ func (i *GatewayInterceptor) Unary() grpc.UnaryServerInterceptor {
 	}
 }
 
+// We create a stream interceptor even if we don't actually expose any streaming APIs
 func (i *GatewayInterceptor) Stream() grpc.StreamServerInterceptor {
 	return func(
 		srv interface{},
@@ -109,6 +129,20 @@ func (i *GatewayInterceptor) Stream() grpc.StreamServerInterceptor {
 
 		return handler(srv, stream)
 	}
+}
+
+func setMetadata(ctx context.Context, rlError GatewayServiceError) error {
+	if rlError == nil {
+		return errors.New("rate limit error is nil")
+	}
+
+	retryAfter := rlError.RetryAfter()
+	if retryAfter != nil {
+		retryAfterValue := fmt.Sprintf("%f", retryAfter.Seconds())
+		return grpc.SendHeader(ctx, metadata.Pairs("Retry-After", retryAfterValue))
+	}
+
+	return nil
 }
 
 func GetIdentityFromContext(ctx context.Context) (Identity, bool) {

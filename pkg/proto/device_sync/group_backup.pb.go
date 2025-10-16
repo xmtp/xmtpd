@@ -35,7 +35,8 @@ const (
 	// from a backup. This is a non-functional archive state
 	// that can be reactivated when the user is re-added to
 	// the group.
-	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_RESTORED GroupMembershipStateSave = 4
+	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_RESTORED       GroupMembershipStateSave = 4
+	GroupMembershipStateSave_GROUP_MEMBERSHIP_STATE_SAVE_PENDING_REMOVE GroupMembershipStateSave = 5
 )
 
 // Enum value maps for GroupMembershipStateSave.
@@ -46,13 +47,15 @@ var (
 		2: "GROUP_MEMBERSHIP_STATE_SAVE_REJECTED",
 		3: "GROUP_MEMBERSHIP_STATE_SAVE_PENDING",
 		4: "GROUP_MEMBERSHIP_STATE_SAVE_RESTORED",
+		5: "GROUP_MEMBERSHIP_STATE_SAVE_PENDING_REMOVE",
 	}
 	GroupMembershipStateSave_value = map[string]int32{
-		"GROUP_MEMBERSHIP_STATE_SAVE_UNSPECIFIED": 0,
-		"GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED":     1,
-		"GROUP_MEMBERSHIP_STATE_SAVE_REJECTED":    2,
-		"GROUP_MEMBERSHIP_STATE_SAVE_PENDING":     3,
-		"GROUP_MEMBERSHIP_STATE_SAVE_RESTORED":    4,
+		"GROUP_MEMBERSHIP_STATE_SAVE_UNSPECIFIED":    0,
+		"GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED":        1,
+		"GROUP_MEMBERSHIP_STATE_SAVE_REJECTED":       2,
+		"GROUP_MEMBERSHIP_STATE_SAVE_PENDING":        3,
+		"GROUP_MEMBERSHIP_STATE_SAVE_RESTORED":       4,
+		"GROUP_MEMBERSHIP_STATE_SAVE_PENDING_REMOVE": 5,
 	}
 )
 
@@ -440,13 +443,14 @@ const file_device_sync_group_backup_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"A\n" +
 	"\x15ImmutableMetadataSave\x12(\n" +
-	"\x10creator_inbox_id\x18\x01 \x01(\tR\x0ecreatorInboxId*\xed\x01\n" +
+	"\x10creator_inbox_id\x18\x01 \x01(\tR\x0ecreatorInboxId*\x9d\x02\n" +
 	"\x18GroupMembershipStateSave\x12+\n" +
 	"'GROUP_MEMBERSHIP_STATE_SAVE_UNSPECIFIED\x10\x00\x12'\n" +
 	"#GROUP_MEMBERSHIP_STATE_SAVE_ALLOWED\x10\x01\x12(\n" +
 	"$GROUP_MEMBERSHIP_STATE_SAVE_REJECTED\x10\x02\x12'\n" +
 	"#GROUP_MEMBERSHIP_STATE_SAVE_PENDING\x10\x03\x12(\n" +
-	"$GROUP_MEMBERSHIP_STATE_SAVE_RESTORED\x10\x04*\xa0\x01\n" +
+	"$GROUP_MEMBERSHIP_STATE_SAVE_RESTORED\x10\x04\x12.\n" +
+	"*GROUP_MEMBERSHIP_STATE_SAVE_PENDING_REMOVE\x10\x05*\xa0\x01\n" +
 	"\x14ConversationTypeSave\x12&\n" +
 	"\"CONVERSATION_TYPE_SAVE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cCONVERSATION_TYPE_SAVE_GROUP\x10\x01\x12\x1d\n" +

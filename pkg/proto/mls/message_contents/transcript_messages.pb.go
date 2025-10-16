@@ -168,8 +168,10 @@ type GroupUpdated struct {
 	RemovedInboxes []*GroupUpdated_Inbox `protobuf:"bytes,3,rep,name=removed_inboxes,json=removedInboxes,proto3" json:"removed_inboxes,omitempty"`
 	// The metadata changes in the commit
 	MetadataFieldChanges []*GroupUpdated_MetadataFieldChange `protobuf:"bytes,4,rep,name=metadata_field_changes,json=metadataFieldChanges,proto3" json:"metadata_field_changes,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// / The inboxes that were removed from the group in response to pending-remove/self-remove requests
+	LeftInboxes   []*GroupUpdated_Inbox `protobuf:"bytes,5,rep,name=left_inboxes,json=leftInboxes,proto3" json:"left_inboxes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GroupUpdated) Reset() {
@@ -226,6 +228,13 @@ func (x *GroupUpdated) GetRemovedInboxes() []*GroupUpdated_Inbox {
 func (x *GroupUpdated) GetMetadataFieldChanges() []*GroupUpdated_MetadataFieldChange {
 	if x != nil {
 		return x.MetadataFieldChanges
+	}
+	return nil
+}
+
+func (x *GroupUpdated) GetLeftInboxes() []*GroupUpdated_Inbox {
+	if x != nil {
+		return x.LeftInboxes
 	}
 	return nil
 }
@@ -352,12 +361,13 @@ const file_mls_message_contents_transcript_messages_proto_rawDesc = "" +
 	"\rmembers_added\x18\x01 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\fmembersAdded\x12T\n" +
 	"\x0fmembers_removed\x18\x02 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x0emembersRemoved\x12\\\n" +
 	"\x13installations_added\x18\x03 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x12installationsAdded\x12`\n" +
-	"\x15installations_removed\x18\x04 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x14installationsRemoved\"\x9b\x04\n" +
+	"\x15installations_removed\x18\x04 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x14installationsRemoved\"\xed\x04\n" +
 	"\fGroupUpdated\x121\n" +
 	"\x15initiated_by_inbox_id\x18\x01 \x01(\tR\x12initiatedByInboxId\x12R\n" +
 	"\radded_inboxes\x18\x02 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\faddedInboxes\x12V\n" +
 	"\x0fremoved_inboxes\x18\x03 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\x0eremovedInboxes\x12q\n" +
-	"\x16metadata_field_changes\x18\x04 \x03(\v2;.xmtp.mls.message_contents.GroupUpdated.MetadataFieldChangeR\x14metadataFieldChanges\x1a\"\n" +
+	"\x16metadata_field_changes\x18\x04 \x03(\v2;.xmtp.mls.message_contents.GroupUpdated.MetadataFieldChangeR\x14metadataFieldChanges\x12P\n" +
+	"\fleft_inboxes\x18\x05 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\vleftInboxes\x1a\"\n" +
 	"\x05Inbox\x12\x19\n" +
 	"\binbox_id\x18\x01 \x01(\tR\ainboxId\x1a\x94\x01\n" +
 	"\x13MetadataFieldChange\x12\x1d\n" +
@@ -399,11 +409,12 @@ var file_mls_message_contents_transcript_messages_proto_depIdxs = []int32{
 	3, // 4: xmtp.mls.message_contents.GroupUpdated.added_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
 	3, // 5: xmtp.mls.message_contents.GroupUpdated.removed_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
 	4, // 6: xmtp.mls.message_contents.GroupUpdated.metadata_field_changes:type_name -> xmtp.mls.message_contents.GroupUpdated.MetadataFieldChange
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	3, // 7: xmtp.mls.message_contents.GroupUpdated.left_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_transcript_messages_proto_init() }

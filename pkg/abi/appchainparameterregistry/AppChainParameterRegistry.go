@@ -31,7 +31,7 @@ var (
 
 // AppChainParameterRegistryMetaData contains all meta data concerning the AppChainParameterRegistry contract.
 var AppChainParameterRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"adminParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"string[]\",\"internalType\":\"string[]\"}],\"outputs\":[{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"admins_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isAdmin\",\"inputs\":[{\"name\":\"account_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAdmin_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"string[]\",\"internalType\":\"string[]\"},{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ParameterSet\",\"inputs\":[{\"name\":\"key\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"value\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyAdmins\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoKeyComponents\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoKeys\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"StringsInsufficientHexLength\",\"inputs\":[{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ZeroAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"adminParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"get\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"string[]\",\"internalType\":\"string[]\"}],\"outputs\":[{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"implementation\",\"inputs\":[],\"outputs\":[{\"name\":\"implementation_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"admins_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isAdmin\",\"inputs\":[{\"name\":\"account_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAdmin_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"migrate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"migratorParameterKey\",\"inputs\":[],\"outputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"key_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"value_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"set\",\"inputs\":[{\"name\":\"keys_\",\"type\":\"string[]\",\"internalType\":\"string[]\"},{\"name\":\"values_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Migrated\",\"inputs\":[{\"name\":\"migrator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ParameterSet\",\"inputs\":[{\"name\":\"keyHash\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"key\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"},{\"name\":\"value\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Upgraded\",\"inputs\":[{\"name\":\"implementation\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ArrayLengthMismatch\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyAdmins\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EmptyCode\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MigrationFailed\",\"inputs\":[{\"name\":\"migrator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"revertData_\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"type\":\"error\",\"name\":\"NoKeyComponents\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoKeys\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ParameterOutOfTypeBounds\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"StringsInsufficientHexLength\",\"inputs\":[{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ZeroAdmin\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroMigrator\",\"inputs\":[]}]",
 }
 
 // AppChainParameterRegistryABI is the input ABI used to generate the binding from.
@@ -797,47 +797,40 @@ func (it *AppChainParameterRegistryParameterSetIterator) Close() error {
 
 // AppChainParameterRegistryParameterSet represents a ParameterSet event raised by the AppChainParameterRegistry contract.
 type AppChainParameterRegistryParameterSet struct {
-	Key   common.Hash
-	Value [32]byte
-	Raw   types.Log // Blockchain specific contextual infos
+	KeyHash common.Hash
+	Key     string
+	Value   [32]byte
+	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterParameterSet is a free log retrieval operation binding the contract event 0xc063108e912e305db70af8c44a1bf9903bc2cd6a73412249a9dbd2f654024583.
+// FilterParameterSet is a free log retrieval operation binding the contract event 0xe5fb4bb3c30225c1b5468d38191df0224e5e7d3d7e1486e66aed36e313b5069b.
 //
-// Solidity: event ParameterSet(string indexed key, bytes32 indexed value)
-func (_AppChainParameterRegistry *AppChainParameterRegistryFilterer) FilterParameterSet(opts *bind.FilterOpts, key []string, value [][32]byte) (*AppChainParameterRegistryParameterSetIterator, error) {
+// Solidity: event ParameterSet(string indexed keyHash, string key, bytes32 value)
+func (_AppChainParameterRegistry *AppChainParameterRegistryFilterer) FilterParameterSet(opts *bind.FilterOpts, keyHash []string) (*AppChainParameterRegistryParameterSetIterator, error) {
 
-	var keyRule []interface{}
-	for _, keyItem := range key {
-		keyRule = append(keyRule, keyItem)
-	}
-	var valueRule []interface{}
-	for _, valueItem := range value {
-		valueRule = append(valueRule, valueItem)
+	var keyHashRule []interface{}
+	for _, keyHashItem := range keyHash {
+		keyHashRule = append(keyHashRule, keyHashItem)
 	}
 
-	logs, sub, err := _AppChainParameterRegistry.contract.FilterLogs(opts, "ParameterSet", keyRule, valueRule)
+	logs, sub, err := _AppChainParameterRegistry.contract.FilterLogs(opts, "ParameterSet", keyHashRule)
 	if err != nil {
 		return nil, err
 	}
 	return &AppChainParameterRegistryParameterSetIterator{contract: _AppChainParameterRegistry.contract, event: "ParameterSet", logs: logs, sub: sub}, nil
 }
 
-// WatchParameterSet is a free log subscription operation binding the contract event 0xc063108e912e305db70af8c44a1bf9903bc2cd6a73412249a9dbd2f654024583.
+// WatchParameterSet is a free log subscription operation binding the contract event 0xe5fb4bb3c30225c1b5468d38191df0224e5e7d3d7e1486e66aed36e313b5069b.
 //
-// Solidity: event ParameterSet(string indexed key, bytes32 indexed value)
-func (_AppChainParameterRegistry *AppChainParameterRegistryFilterer) WatchParameterSet(opts *bind.WatchOpts, sink chan<- *AppChainParameterRegistryParameterSet, key []string, value [][32]byte) (event.Subscription, error) {
+// Solidity: event ParameterSet(string indexed keyHash, string key, bytes32 value)
+func (_AppChainParameterRegistry *AppChainParameterRegistryFilterer) WatchParameterSet(opts *bind.WatchOpts, sink chan<- *AppChainParameterRegistryParameterSet, keyHash []string) (event.Subscription, error) {
 
-	var keyRule []interface{}
-	for _, keyItem := range key {
-		keyRule = append(keyRule, keyItem)
-	}
-	var valueRule []interface{}
-	for _, valueItem := range value {
-		valueRule = append(valueRule, valueItem)
+	var keyHashRule []interface{}
+	for _, keyHashItem := range keyHash {
+		keyHashRule = append(keyHashRule, keyHashItem)
 	}
 
-	logs, sub, err := _AppChainParameterRegistry.contract.WatchLogs(opts, "ParameterSet", keyRule, valueRule)
+	logs, sub, err := _AppChainParameterRegistry.contract.WatchLogs(opts, "ParameterSet", keyHashRule)
 	if err != nil {
 		return nil, err
 	}
@@ -869,9 +862,9 @@ func (_AppChainParameterRegistry *AppChainParameterRegistryFilterer) WatchParame
 	}), nil
 }
 
-// ParseParameterSet is a log parse operation binding the contract event 0xc063108e912e305db70af8c44a1bf9903bc2cd6a73412249a9dbd2f654024583.
+// ParseParameterSet is a log parse operation binding the contract event 0xe5fb4bb3c30225c1b5468d38191df0224e5e7d3d7e1486e66aed36e313b5069b.
 //
-// Solidity: event ParameterSet(string indexed key, bytes32 indexed value)
+// Solidity: event ParameterSet(string indexed keyHash, string key, bytes32 value)
 func (_AppChainParameterRegistry *AppChainParameterRegistryFilterer) ParseParameterSet(log types.Log) (*AppChainParameterRegistryParameterSet, error) {
 	event := new(AppChainParameterRegistryParameterSet)
 	if err := _AppChainParameterRegistry.contract.UnpackLog(event, "ParameterSet", log); err != nil {

@@ -172,7 +172,10 @@ func BuildPayerRegistryWithdrawalRequestedLog(
 	payer common.Address,
 	amount *big.Int,
 	withdrawableTimestamp uint32,
+	nonce uint32,
 ) types.Log {
+	require.Less(t, nonce, uint32(1<<24), "nonce must fit in 24 bits")
+
 	prabi, err := pr.PayerRegistryMetaData.GetAbi()
 	require.NoError(t, err)
 
@@ -189,7 +192,7 @@ func BuildPayerRegistryWithdrawalRequestedLog(
 
 	topic1 := common.BytesToHash(payer.Bytes()) // indexed address payer
 
-	data, err := nonIndexed.Pack(amount, withdrawableTimestamp)
+	data, err := nonIndexed.Pack(amount, withdrawableTimestamp, big.NewInt(int64(nonce)))
 	require.NoError(t, err)
 
 	return types.Log{
@@ -228,7 +231,7 @@ func BuildPayerRegistryDepositLog(
 	return types.Log{
 		Topics: []common.Hash{
 			topic0, // event signature
-			topic1, // payer
+			topic1,
 		},
 		Data: data,
 	}
@@ -238,6 +241,7 @@ func BuildPayerRegistryUsageSettledLog(
 	t *testing.T,
 	payer common.Address,
 	amount *big.Int,
+	payerReportId common.Hash,
 ) types.Log {
 	prabi, err := pr.PayerRegistryMetaData.GetAbi()
 	require.NoError(t, err)
@@ -253,7 +257,8 @@ func BuildPayerRegistryUsageSettledLog(
 		}
 	}
 
-	topic1 := common.BytesToHash(payer.Bytes()) // indexed address payer
+	topic1 := payerReportId
+	topic2 := common.BytesToHash(payer.Bytes()) // indexed address payer
 
 	data, err := nonIndexed.Pack(amount)
 	require.NoError(t, err)
@@ -261,7 +266,8 @@ func BuildPayerRegistryUsageSettledLog(
 	return types.Log{
 		Topics: []common.Hash{
 			topic0, // event signature
-			topic1, // payer
+			topic1, // payer report ID
+			topic2, // payer
 		},
 		Data: data,
 	}

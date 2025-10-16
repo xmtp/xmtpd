@@ -52,10 +52,10 @@ func (a *settlementRegistryAdapter) SetMany(
 	return a.inner.Set0(opts, keys, values)
 }
 
-func (a *settlementRegistryAdapter) ParseParameterSet(log types.Log) ([32]byte, [32]byte, error) {
+func (a *settlementRegistryAdapter) ParseParameterSet(log types.Log) (string, [32]byte, error) {
 	ev, err := a.inner.ParseParameterSet(log)
 	if err != nil {
-		return [32]byte{}, [32]byte{}, err
+		return "", [32]byte{}, err
 	}
 	return ev.Key, ev.Value, nil
 }
@@ -95,10 +95,10 @@ func (a *appChainRegistryAdapter) SetMany(
 	return a.inner.Set0(opts, keys, values)
 }
 
-func (a *appChainRegistryAdapter) ParseParameterSet(log types.Log) ([32]byte, [32]byte, error) {
+func (a *appChainRegistryAdapter) ParseParameterSet(log types.Log) (string, [32]byte, error) {
 	ev, err := a.inner.ParseParameterSet(log)
 	if err != nil {
-		return [32]byte{}, [32]byte{}, err
+		return "", [32]byte{}, err
 	}
 	return ev.Key, ev.Value, nil
 }

@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	AnvilImage = "ghcr.io/xmtp/contracts:sha-3b16f01"
+	AnvilImage = "ghcr.io/xmtp/contracts:v0.6.0"
 )
 
 func streamContainerLogs(t *testing.T, ctx context.Context, container testcontainers.Container) {

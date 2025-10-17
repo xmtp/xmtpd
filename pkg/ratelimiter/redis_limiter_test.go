@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	redistestutils "github.com/xmtp/xmtpd/pkg/testutils/redis"
-	"go.uber.org/zap"
 )
 
 func TestRedisLimiter_BasicLimits(t *testing.T) {
@@ -63,8 +62,7 @@ func TestRedisLimiter_BasicLimits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, keyPrefix := redistestutils.NewRedisForTest(t)
-			logger := zap.NewNop()
-			limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix, tt.limits)
+			limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, tt.limits)
 			require.NoError(t, err)
 
 			for i, cost := range tt.requests {
@@ -123,8 +121,7 @@ func TestRedisLimiter_Atomicity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, keyPrefix := redistestutils.NewRedisForTest(t)
-			logger := zap.NewNop()
-			limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix, tt.limits)
+			limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, tt.limits)
 			require.NoError(t, err)
 
 			res, err := limiter.Allow(context.Background(), "test-subject", tt.cost)
@@ -227,8 +224,7 @@ func TestRedisLimiter_RemainingAccuracy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, keyPrefix := redistestutils.NewRedisForTest(t)
-			logger := zap.NewNop()
-			limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix, tt.limits)
+			limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, tt.limits)
 			require.NoError(t, err)
 
 			for i, cost := range tt.requests {
@@ -310,8 +306,7 @@ func TestRedisLimiter_TTL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, keyPrefix := redistestutils.NewRedisForTest(t)
-			logger := zap.NewNop()
-			limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix, tt.limits)
+			limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, tt.limits)
 			require.NoError(t, err)
 
 			// Make a request to trigger key creation
@@ -357,13 +352,12 @@ func TestRedisLimiter_TTL(t *testing.T) {
 
 func TestRedisLimiter_IndependentKeyExpiration(t *testing.T) {
 	client, keyPrefix := redistestutils.NewRedisForTest(t)
-	logger := zap.NewNop()
 
 	// Create limiter with two limits: short (1 second) and long (10 seconds)
 	// After consuming 5 tokens:
 	// - Limit 1: 5/10 tokens remaining, needs 500ms to refill
 	// - Limit 2: 15/20 tokens remaining, needs 2500ms to refill
-	limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix,
+	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix,
 		[]ratelimiter.Limit{
 			{Capacity: 10, RefillEvery: 1 * time.Second},
 			{Capacity: 20, RefillEvery: 10 * time.Second},
@@ -441,8 +435,7 @@ func TestRedisLimiter_IndependentKeyExpiration(t *testing.T) {
 
 func TestRedisLimiter_Refill(t *testing.T) {
 	client, keyPrefix := redistestutils.NewRedisForTest(t)
-	logger := zap.NewNop()
-	limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix,
+	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix,
 		[]ratelimiter.Limit{{Capacity: 10, RefillEvery: 100 * time.Millisecond}})
 	require.NoError(t, err)
 
@@ -540,8 +533,7 @@ func TestRedisLimiter_RetryAfter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, keyPrefix := redistestutils.NewRedisForTest(t)
-			logger := zap.NewNop()
-			limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix, tt.limits)
+			limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, tt.limits)
 			require.NoError(t, err)
 
 			// For "partial tokens remaining" test, first consume some tokens
@@ -610,8 +602,7 @@ func TestRedisLimiter_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, keyPrefix := redistestutils.NewRedisForTest(t)
-			logger := zap.NewNop()
-			_, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix, tt.limits)
+			_, err := ratelimiter.NewRedisLimiter(client, keyPrefix, tt.limits)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -620,8 +611,7 @@ func TestRedisLimiter_Errors(t *testing.T) {
 
 func TestRedisLimiter_SubjectIsolation(t *testing.T) {
 	client, keyPrefix := redistestutils.NewRedisForTest(t)
-	logger := zap.NewNop()
-	limiter, err := ratelimiter.NewRedisLimiter(logger, client, keyPrefix,
+	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix,
 		[]ratelimiter.Limit{{Capacity: 10, RefillEvery: time.Minute}})
 	require.NoError(t, err)
 

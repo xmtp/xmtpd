@@ -30,6 +30,8 @@ const (
 	WelcomeWrapperAlgorithm_WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED             WelcomeWrapperAlgorithm = 0
 	WelcomeWrapperAlgorithm_WELCOME_WRAPPER_ALGORITHM_CURVE25519              WelcomeWrapperAlgorithm = 1
 	WelcomeWrapperAlgorithm_WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6 WelcomeWrapperAlgorithm = 2
+	// Only used for WelcomePointee's
+	WelcomeWrapperAlgorithm_WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY WelcomeWrapperAlgorithm = 3
 )
 
 // Enum value maps for WelcomeWrapperAlgorithm.
@@ -38,11 +40,13 @@ var (
 		0: "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
 		1: "WELCOME_WRAPPER_ALGORITHM_CURVE25519",
 		2: "WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6",
+		3: "WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY",
 	}
 	WelcomeWrapperAlgorithm_value = map[string]int32{
 		"WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED":             0,
 		"WELCOME_WRAPPER_ALGORITHM_CURVE25519":              1,
 		"WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6": 2,
+		"WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY":           3,
 	}
 )
 
@@ -133,11 +137,12 @@ const file_mls_message_contents_wrapper_encryption_proto_rawDesc = "" +
 	"-mls/message_contents/wrapper_encryption.proto\x12\x19xmtp.mls.message_contents\"\x85\x01\n" +
 	"\x18WelcomeWrapperEncryption\x12\x17\n" +
 	"\apub_key\x18\x01 \x01(\fR\x06pubKey\x12P\n" +
-	"\talgorithm\x18\x02 \x01(\x0e22.xmtp.mls.message_contents.WelcomeWrapperAlgorithmR\talgorithm*\xa5\x01\n" +
+	"\talgorithm\x18\x02 \x01(\x0e22.xmtp.mls.message_contents.WelcomeWrapperAlgorithmR\talgorithm*\xd2\x01\n" +
 	"\x17WelcomeWrapperAlgorithm\x12)\n" +
 	"%WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED\x10\x00\x12(\n" +
 	"$WELCOME_WRAPPER_ALGORITHM_CURVE25519\x10\x01\x125\n" +
-	"1WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6\x10\x02B\xef\x01\n" +
+	"1WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6\x10\x02\x12+\n" +
+	"'WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY\x10\x03B\xef\x01\n" +
 	"\x1dcom.xmtp.mls.message_contentsB\x16WrapperEncryptionProtoP\x01Z4github.com/xmtp/xmtpd/pkg/proto/mls/message_contents\xa2\x02\x03XMM\xaa\x02\x18Xmtp.Mls.MessageContents\xca\x02\x18Xmtp\\Mls\\MessageContents\xe2\x02$Xmtp\\Mls\\MessageContents\\GPBMetadata\xea\x02\x1aXmtp::Mls::MessageContentsb\x06proto3"
 
 var (

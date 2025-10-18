@@ -1391,12 +1391,13 @@ func (x *UpdatePermissionData_V1) GetMetadataFieldName() string {
 
 // An installation
 type PostCommitAction_Installation struct {
-	state                   protoimpl.MessageState                   `protogen:"open.v1"`
-	InstallationKey         []byte                                   `protobuf:"bytes,1,opt,name=installation_key,json=installationKey,proto3" json:"installation_key,omitempty"`
-	HpkePublicKey           []byte                                   `protobuf:"bytes,2,opt,name=hpke_public_key,json=hpkePublicKey,proto3" json:"hpke_public_key,omitempty"`
-	WelcomeWrapperAlgorithm message_contents.WelcomeWrapperAlgorithm `protobuf:"varint,3,opt,name=welcome_wrapper_algorithm,json=welcomeWrapperAlgorithm,proto3,enum=xmtp.mls.message_contents.WelcomeWrapperAlgorithm" json:"welcome_wrapper_algorithm,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                             protoimpl.MessageState                                       `protogen:"open.v1"`
+	InstallationKey                   []byte                                                       `protobuf:"bytes,1,opt,name=installation_key,json=installationKey,proto3" json:"installation_key,omitempty"`
+	HpkePublicKey                     []byte                                                       `protobuf:"bytes,2,opt,name=hpke_public_key,json=hpkePublicKey,proto3" json:"hpke_public_key,omitempty"`
+	WelcomeWrapperAlgorithm           message_contents.WelcomeWrapperAlgorithm                     `protobuf:"varint,3,opt,name=welcome_wrapper_algorithm,json=welcomeWrapperAlgorithm,proto3,enum=xmtp.mls.message_contents.WelcomeWrapperAlgorithm" json:"welcome_wrapper_algorithm,omitempty"`
+	WelcomePointeeEncryptionAeadTypes *message_contents.WelcomePointeeEncryptionAeadTypesExtension `protobuf:"bytes,4,opt,name=welcome_pointee_encryption_aead_types,json=welcomePointeeEncryptionAeadTypes,proto3" json:"welcome_pointee_encryption_aead_types,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *PostCommitAction_Installation) Reset() {
@@ -1448,6 +1449,13 @@ func (x *PostCommitAction_Installation) GetWelcomeWrapperAlgorithm() message_con
 		return x.WelcomeWrapperAlgorithm
 	}
 	return message_contents.WelcomeWrapperAlgorithm(0)
+}
+
+func (x *PostCommitAction_Installation) GetWelcomePointeeEncryptionAeadTypes() *message_contents.WelcomePointeeEncryptionAeadTypesExtension {
+	if x != nil {
+		return x.WelcomePointeeEncryptionAeadTypes
+	}
+	return nil
 }
 
 // SendWelcome message
@@ -1507,7 +1515,7 @@ var File_mls_database_intents_proto protoreflect.FileDescriptor
 
 const file_mls_database_intents_proto_rawDesc = "" +
 	"\n" +
-	"\x1amls/database/intents.proto\x12\x11xmtp.mls.database\x1a-mls/message_contents/wrapper_encryption.proto\"\x80\x01\n" +
+	"\x1amls/database/intents.proto\x12\x11xmtp.mls.database\x1a*mls/message_contents/welcome_pointer.proto\x1a-mls/message_contents/wrapper_encryption.proto\"\x80\x01\n" +
 	"\x0fSendMessageData\x127\n" +
 	"\x02v1\x18\x01 \x01(\v2%.xmtp.mls.database.SendMessageData.V1H\x00R\x02v1\x1a)\n" +
 	"\x02V1\x12#\n" +
@@ -1567,13 +1575,14 @@ const file_mls_database_intents_proto_rawDesc = "" +
 	"\x18permission_policy_option\x18\x02 \x01(\x0e2).xmtp.mls.database.PermissionPolicyOptionR\x16permissionPolicyOption\x123\n" +
 	"\x13metadata_field_name\x18\x03 \x01(\tH\x00R\x11metadataFieldName\x88\x01\x01B\x16\n" +
 	"\x14_metadata_field_nameB\t\n" +
-	"\aversion\"\xd9\x03\n" +
+	"\aversion\"\xf3\x04\n" +
 	"\x10PostCommitAction\x12W\n" +
-	"\rsend_welcomes\x18\x01 \x01(\v20.xmtp.mls.database.PostCommitAction.SendWelcomesH\x00R\fsendWelcomes\x1a\xd1\x01\n" +
+	"\rsend_welcomes\x18\x01 \x01(\v20.xmtp.mls.database.PostCommitAction.SendWelcomesH\x00R\fsendWelcomes\x1a\xeb\x02\n" +
 	"\fInstallation\x12)\n" +
 	"\x10installation_key\x18\x01 \x01(\fR\x0finstallationKey\x12&\n" +
 	"\x0fhpke_public_key\x18\x02 \x01(\fR\rhpkePublicKey\x12n\n" +
-	"\x19welcome_wrapper_algorithm\x18\x03 \x01(\x0e22.xmtp.mls.message_contents.WelcomeWrapperAlgorithmR\x17welcomeWrapperAlgorithm\x1a\x8f\x01\n" +
+	"\x19welcome_wrapper_algorithm\x18\x03 \x01(\x0e22.xmtp.mls.message_contents.WelcomeWrapperAlgorithmR\x17welcomeWrapperAlgorithm\x12\x97\x01\n" +
+	"%welcome_pointee_encryption_aead_types\x18\x04 \x01(\v2E.xmtp.mls.message_contents.WelcomePointeeEncryptionAeadTypesExtensionR!welcomePointeeEncryptionAeadTypes\x1a\x8f\x01\n" +
 	"\fSendWelcomes\x12V\n" +
 	"\rinstallations\x18\x01 \x03(\v20.xmtp.mls.database.PostCommitAction.InstallationR\rinstallations\x12'\n" +
 	"\x0fwelcome_message\x18\x02 \x01(\fR\x0ewelcomeMessageB\x06\n" +
@@ -1641,6 +1650,7 @@ var file_mls_database_intents_proto_goTypes = []any{
 	(*PostCommitAction_Installation)(nil),         // 24: xmtp.mls.database.PostCommitAction.Installation
 	(*PostCommitAction_SendWelcomes)(nil),         // 25: xmtp.mls.database.PostCommitAction.SendWelcomes
 	(message_contents.WelcomeWrapperAlgorithm)(0), // 26: xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	(*message_contents.WelcomePointeeEncryptionAeadTypesExtension)(nil), // 27: xmtp.mls.message_contents.WelcomePointeeEncryptionAeadTypesExtension
 }
 var file_mls_database_intents_proto_depIdxs = []int32{
 	15, // 0: xmtp.mls.database.SendMessageData.v1:type_name -> xmtp.mls.database.SendMessageData.V1
@@ -1661,12 +1671,13 @@ var file_mls_database_intents_proto_depIdxs = []int32{
 	1,  // 15: xmtp.mls.database.UpdatePermissionData.V1.permission_update_type:type_name -> xmtp.mls.database.PermissionUpdateType
 	2,  // 16: xmtp.mls.database.UpdatePermissionData.V1.permission_policy_option:type_name -> xmtp.mls.database.PermissionPolicyOption
 	26, // 17: xmtp.mls.database.PostCommitAction.Installation.welcome_wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
-	24, // 18: xmtp.mls.database.PostCommitAction.SendWelcomes.installations:type_name -> xmtp.mls.database.PostCommitAction.Installation
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	27, // 18: xmtp.mls.database.PostCommitAction.Installation.welcome_pointee_encryption_aead_types:type_name -> xmtp.mls.message_contents.WelcomePointeeEncryptionAeadTypesExtension
+	24, // 19: xmtp.mls.database.PostCommitAction.SendWelcomes.installations:type_name -> xmtp.mls.database.PostCommitAction.Installation
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_mls_database_intents_proto_init() }

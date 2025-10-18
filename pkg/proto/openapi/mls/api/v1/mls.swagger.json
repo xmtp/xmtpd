@@ -594,14 +594,25 @@
         }
       }
     },
+    "message_contentsWelcomePointerWrapperAlgorithm": {
+      "type": "string",
+      "enum": [
+        "WELCOME_POINTER_WRAPPER_ALGORITHM_UNSPECIFIED",
+        "WELCOME_POINTER_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6"
+      ],
+      "default": "WELCOME_POINTER_WRAPPER_ALGORITHM_UNSPECIFIED",
+      "title": "MUST match the WelcomeWrapperAlgorithm enum values without 25519 so that the i32 transformations are compatible"
+    },
     "message_contentsWelcomeWrapperAlgorithm": {
       "type": "string",
       "enum": [
         "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
         "WELCOME_WRAPPER_ALGORITHM_CURVE25519",
-        "WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6"
+        "WELCOME_WRAPPER_ALGORITHM_XWING_MLKEM_768_DRAFT_6",
+        "WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY"
       ],
       "default": "WELCOME_WRAPPER_ALGORITHM_UNSPECIFIED",
+      "description": "- WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY: Only used for WelcomePointee's",
       "title": "Describes the algorithm used to encrypt the Welcome Wrapper"
     },
     "mlsapiv1PagingInfo": {
@@ -1041,6 +1052,9 @@
       "properties": {
         "v1": {
           "$ref": "#/definitions/v1WelcomeMessageV1"
+        },
+        "welcomePointer": {
+          "$ref": "#/definitions/v1WelcomeMessageWelcomePointer"
         }
       },
       "title": "Full representation of a welcome message"
@@ -1050,6 +1064,9 @@
       "properties": {
         "v1": {
           "$ref": "#/definitions/v1WelcomeMessageInputV1"
+        },
+        "welcomePointer": {
+          "$ref": "#/definitions/v1WelcomeMessageInputWelcomePointer"
         }
       },
       "title": "Input type for a welcome message"
@@ -1059,25 +1076,55 @@
       "properties": {
         "installationKey": {
           "type": "string",
-          "format": "byte"
+          "format": "byte",
+          "title": "The topic of the welcome message (generally the installation id)"
         },
         "data": {
           "type": "string",
-          "format": "byte"
+          "format": "byte",
+          "title": "An encrypted mls `Welcome` struct"
         },
         "hpkePublicKey": {
           "type": "string",
-          "format": "byte"
+          "format": "byte",
+          "title": "The public key of the welcome message"
         },
         "wrapperAlgorithm": {
-          "$ref": "#/definitions/message_contentsWelcomeWrapperAlgorithm"
+          "$ref": "#/definitions/message_contentsWelcomeWrapperAlgorithm",
+          "title": "The algorithm used to encrypt the welcome message"
         },
         "welcomeMetadata": {
           "type": "string",
-          "format": "byte"
+          "format": "byte",
+          "title": "The metadata of the welcome message"
         }
       },
-      "title": "Version 1 of the WelcomeMessageInput format"
+      "title": "Version 1 of the WelcomeMessageInput format, if used as the pointee of a WelcomePointer then\nthe hpke_public_key will be unset, and the wrapper_algorithm will be WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY"
+    },
+    "v1WelcomeMessageInputWelcomePointer": {
+      "type": "object",
+      "properties": {
+        "installationKey": {
+          "type": "string",
+          "format": "byte",
+          "title": "The topic of the welcome message (generally the installation id)"
+        },
+        "welcomePointer": {
+          "type": "string",
+          "format": "byte",
+          "title": "A WelcomePointer encrypted using the wrapper_algorithm"
+        },
+        "hpkePublicKey": {
+          "type": "string",
+          "format": "byte",
+          "title": "The public key used to encrypt the welcome pointer"
+        },
+        "wrapperAlgorithm": {
+          "$ref": "#/definitions/message_contentsWelcomePointerWrapperAlgorithm",
+          "title": "The algorithm used to encrypt the welcome pointer"
+        }
+      },
+      "title": "Version 2 of the WelcomeMessageInput format which uses a WelcomePointer\nto point to the welcome message for several installations at once"
     },
     "v1WelcomeMessageV1": {
       "type": "object",
@@ -1111,6 +1158,38 @@
         }
       },
       "title": "Version 1 of the WelcomeMessage format"
+    },
+    "v1WelcomeMessageWelcomePointer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "createdNs": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "installationKey": {
+          "type": "string",
+          "format": "byte",
+          "title": "The topic of the welcome message (generally the installation id)"
+        },
+        "welcomePointer": {
+          "type": "string",
+          "format": "byte",
+          "title": "A WelcomePointer encrypted using the algorithm specified by wrapper_algorithm"
+        },
+        "hpkePublicKey": {
+          "type": "string",
+          "format": "byte",
+          "title": "The public key used to encrypt the welcome pointer"
+        },
+        "wrapperAlgorithm": {
+          "$ref": "#/definitions/message_contentsWelcomePointerWrapperAlgorithm",
+          "title": "The algorithm used to encrypt the welcome pointer"
+        }
+      }
     },
     "xmtpmessage_contentsSignature": {
       "type": "object",

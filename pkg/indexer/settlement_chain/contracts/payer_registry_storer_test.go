@@ -135,7 +135,7 @@ func TestPayerRegistryStorer(t *testing.T) {
 		{
 			name: "usage_settled",
 			actionLogs: []types.Log{
-				tester.newUsageSettledLog(t, ADDRESS_1, 10),
+				tester.newUsageSettledLog(t, ADDRESS_1, 10, common.HexToHash("0x1")),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
 				balance := tester.getBalance(t, ADDRESS_1)
@@ -166,7 +166,7 @@ func TestPayerRegistryStorer(t *testing.T) {
 		{
 			name: "withdrawal_requested",
 			actionLogs: []types.Log{
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 10, 100),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 10, 100, 0),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
 				balance := tester.getBalance(t, ADDRESS_1)
@@ -179,7 +179,7 @@ func TestPayerRegistryStorer(t *testing.T) {
 			name: "withdrawal_cancelled_success",
 			initialLogs: []types.Log{
 				tester.newDepositLog(t, ADDRESS_1, 50),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 100),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 100, 0),
 			},
 			actionLogs: []types.Log{
 				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
@@ -201,8 +201,8 @@ func TestPayerRegistryStorer(t *testing.T) {
 			name: "multiple_withdrawal_operations",
 			initialLogs: []types.Log{
 				tester.newDepositLog(t, ADDRESS_1, 100),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 200),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100, 0),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 200, 0),
 			},
 			actionLogs: []types.Log{
 				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
@@ -223,8 +223,8 @@ func TestStoreLogIdempotency(t *testing.T) {
 
 	// Create base logs with identical block/tx/index for true duplicates
 	depositLog := tester.newDepositLog(t, ADDRESS_1, 50)
-	withdrawalLog := tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100)
-	usageLog := tester.newUsageSettledLog(t, ADDRESS_1, 25)
+	withdrawalLog := tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100, 0)
+	usageLog := tester.newUsageSettledLog(t, ADDRESS_1, 25, common.HexToHash("0x1"))
 	cancellationLog := tester.newWithdrawalCancelledLog(t, ADDRESS_1)
 
 	testCases := []testCase{
@@ -274,7 +274,7 @@ func TestStoreLogIdempotency(t *testing.T) {
 			name: "duplicate_withdrawal_cancelled_logs",
 			initialLogs: []types.Log{
 				tester.newDepositLog(t, ADDRESS_1, 100),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 40, 100),
+				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 40, 100, 0),
 			},
 			actionLogs: []types.Log{
 				cancellationLog,
@@ -341,11 +341,13 @@ func (st *payerRegistryStorerTester) newUsageSettledLog(
 	t *testing.T,
 	payerAddress common.Address,
 	amount int64,
+	payerReportId common.Hash,
 ) types.Log {
 	baseLog := testutils.BuildPayerRegistryUsageSettledLog(
 		t,
 		payerAddress,
-		big.NewInt(int64(amount)),
+		big.NewInt(amount),
+		payerReportId,
 	)
 	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
 
@@ -357,7 +359,7 @@ func (st *payerRegistryStorerTester) newDepositLog(
 	payerAddress common.Address,
 	amount int64,
 ) types.Log {
-	baseLog := testutils.BuildPayerRegistryDepositLog(t, payerAddress, big.NewInt(int64(amount)))
+	baseLog := testutils.BuildPayerRegistryDepositLog(t, payerAddress, big.NewInt(amount))
 	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
 
 	return baseLog
@@ -368,12 +370,14 @@ func (st *payerRegistryStorerTester) newWithdrawalRequestedLog(
 	payerAddress common.Address,
 	amount int64,
 	withdrawableTimestamp uint32,
+	nonce uint32,
 ) types.Log {
 	baseLog := testutils.BuildPayerRegistryWithdrawalRequestedLog(
 		t,
 		payerAddress,
 		big.NewInt(int64(amount)),
 		withdrawableTimestamp,
+		nonce,
 	)
 	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
 

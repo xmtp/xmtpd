@@ -4,13 +4,15 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
+
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 // Temporary function until we have a real merkle root
@@ -78,49 +80,54 @@ func TestBuildPayerReport(t *testing.T) {
 	}
 }
 
-func TestGetDigest(t *testing.T) {
-	expectedNodeIDsHash := common.Hex2Bytes(
-		"ea13edf2a1dffdeb6f76acdbc46a352bd5b9071e7a3a5e6a63a498a9caa547fa",
-	)
-	expectedDigest := common.Hex2Bytes(
-		"79f316f2836745161f3020e431db382ce57aab339df1429de068a62bf940295b",
-	)
-	require.Equal(t, len(expectedNodeIDsHash), 32)
-	require.Equal(t, len(expectedDigest), 32)
+func TestReportPacksToSame(t *testing.T) {
+	reportsManager := constructReportsManager(t)
 
-	// Get the expected values
-	payersMerkleRoot := common.HexToHash(
-		"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-	)
-	nodeIDs := []uint32{100, 200, 300, 400, 500}
-	nodeIDsHash := utils.PackSortAndHashNodeIDs(nodeIDs)
-	require.Equal(t, nodeIDsHash, common.BytesToHash(expectedNodeIDsHash))
-
-	originatorNodeID := uint32(1)
-	startSequenceID := uint64(2)
-	endSequenceID := uint64(3)
-	endMinuteSinceEpoch := uint32(4)
-	domainSeparator := common.HexToHash(
-		"dbc3c9c77bfb8c8656e87b666d2b06300835634ecfb091e1925d30614ceb1e43",
-	)
-
-	builtID, err := payerreport.BuildPayerReportID(
-		originatorNodeID,
-		startSequenceID,
-		endSequenceID,
-		endMinuteSinceEpoch,
-		payersMerkleRoot,
-		nodeIDs,
-		domainSeparator,
-	)
+	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
 	require.NoError(t, err)
-	require.Equal(t, *builtID, payerreport.ReportID(expectedDigest))
+
+	payerReport, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
+		OriginatorNodeID:    100,
+		StartSequenceID:     0,
+		EndSequenceID:       1,
+		EndMinuteSinceEpoch: 10,
+		Payers:              map[common.Address]currency.PicoDollar{},
+		NodeIDs:             []uint32{100, 200},
+		DomainSeparator:     domainSeparator,
+	})
+
+	require.NoError(t, err)
+
+	reportWithStatus := payerreport.PayerReportWithStatus{
+		PayerReport: payerReport.PayerReport,
+	}
+
+	// Ensure the report ID matches the one we built
+	reportID, err := reportsManager.GetReportID(t.Context(), &reportWithStatus)
+	require.NoError(t, err)
+	require.Equal(t, reportID, payerReport.ID)
 }
 
-func TestNodeOrderPacksToSameHash(t *testing.T) {
-	nodeIDs := []uint32{100, 200, 300, 400, 500}
-	nodeIDsHash := utils.PackSortAndHashNodeIDs(nodeIDs)
+func constructReportsManager(t *testing.T) *blockchain.ReportsManager {
+	log := testutils.NewLog(t)
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	require.Equal(t, nodeIDsHash, utils.PackSortAndHashNodeIDs([]uint32{500, 100, 200, 300, 400}))
-	require.Equal(t, nodeIDsHash, utils.PackSortAndHashNodeIDs([]uint32{300, 200, 500, 100, 400}))
+	signer, err := blockchain.NewPrivateKeySigner(
+		testutils.GetPayerOptions(t).PrivateKey,
+		contractsOptions.SettlementChain.ChainID,
+	)
+	require.NoError(t, err)
+
+	client, err := blockchain.NewRPCClient(
+		t.Context(),
+		rpcURL,
+	)
+	require.NoError(t, err)
+
+	reportsManager, err := blockchain.NewReportsManager(
+		log, client, signer, contractsOptions.SettlementChain,
+	)
+	require.NoError(t, err)
+	return reportsManager
 }

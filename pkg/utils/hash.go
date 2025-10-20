@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"slices"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
@@ -42,30 +44,26 @@ func HashPayerReportInput(packedBytes []byte, domainSeparator common.Hash) commo
 	))
 }
 
-// Takes a slice of uint32 and returns them packed as 32 BYTE elements that are left padded
-func encodePackedUint32Slice(input []uint32) []byte {
-	// Convert each uint32 to a 32-byte element, left-padded with zeros
-	result := make([]byte, len(input)*32)
-
-	for i, val := range input {
-		// Create a 32-byte element with the uint32 value left-padded
-		offset := i * 32
-		// The uint32 value will be placed at the end of the 32-byte element
-		binary.BigEndian.PutUint32(result[offset+28:offset+32], val)
-		// The rest of the bytes are already initialized to zero
-	}
-
-	return result
-}
-
-func PackSortAndHashNodeIDs(nodeIDs []uint32) common.Hash {
+func PackSortAndHashNodeIDs(nodeIDs []uint32) (common.Hash, error) {
 	if !slices.IsSorted(nodeIDs) {
 		sortedNodeIDs := slices.Clone(nodeIDs)
 		slices.Sort(sortedNodeIDs)
 		nodeIDs = sortedNodeIDs
 	}
 
-	packed := encodePackedUint32Slice(nodeIDs)
+	t, err := abi.NewType("uint32[]", "", nil)
+	if err != nil {
+		return common.Hash{}, err
+	}
 
-	return common.BytesToHash(ethcrypto.Keccak256(packed))
+	args := abi.Arguments{
+		{Type: t},
+	}
+
+	encoded, err := args.Pack(nodeIDs)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return ethcrypto.Keccak256Hash(encoded), nil
 }

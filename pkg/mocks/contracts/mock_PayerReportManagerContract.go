@@ -85,9 +85,9 @@ func (_c *MockPayerReportManagerContract_DOMAINSEPARATOR_Call) RunAndReturn(run 
 	return _c
 }
 
-// GetPayerReport provides a mock function with given fields: opts, originatorNodeId, payerReportIndex
-func (_m *MockPayerReportManagerContract) GetPayerReport(opts *bind.CallOpts, originatorNodeId uint32, payerReportIndex *big.Int) (payerreportmanager.IPayerReportManagerPayerReport, error) {
-	ret := _m.Called(opts, originatorNodeId, payerReportIndex)
+// GetPayerReport provides a mock function with given fields: opts, originatorNodeID, payerReportIndex
+func (_m *MockPayerReportManagerContract) GetPayerReport(opts *bind.CallOpts, originatorNodeID uint32, payerReportIndex *big.Int) (payerreportmanager.IPayerReportManagerPayerReport, error) {
+	ret := _m.Called(opts, originatorNodeID, payerReportIndex)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPayerReport")
@@ -96,16 +96,16 @@ func (_m *MockPayerReportManagerContract) GetPayerReport(opts *bind.CallOpts, or
 	var r0 payerreportmanager.IPayerReportManagerPayerReport
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.CallOpts, uint32, *big.Int) (payerreportmanager.IPayerReportManagerPayerReport, error)); ok {
-		return rf(opts, originatorNodeId, payerReportIndex)
+		return rf(opts, originatorNodeID, payerReportIndex)
 	}
 	if rf, ok := ret.Get(0).(func(*bind.CallOpts, uint32, *big.Int) payerreportmanager.IPayerReportManagerPayerReport); ok {
-		r0 = rf(opts, originatorNodeId, payerReportIndex)
+		r0 = rf(opts, originatorNodeID, payerReportIndex)
 	} else {
 		r0 = ret.Get(0).(payerreportmanager.IPayerReportManagerPayerReport)
 	}
 
 	if rf, ok := ret.Get(1).(func(*bind.CallOpts, uint32, *big.Int) error); ok {
-		r1 = rf(opts, originatorNodeId, payerReportIndex)
+		r1 = rf(opts, originatorNodeID, payerReportIndex)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -120,13 +120,13 @@ type MockPayerReportManagerContract_GetPayerReport_Call struct {
 
 // GetPayerReport is a helper method to define mock.On call
 //   - opts *bind.CallOpts
-//   - originatorNodeId uint32
+//   - originatorNodeID uint32
 //   - payerReportIndex *big.Int
-func (_e *MockPayerReportManagerContract_Expecter) GetPayerReport(opts interface{}, originatorNodeId interface{}, payerReportIndex interface{}) *MockPayerReportManagerContract_GetPayerReport_Call {
-	return &MockPayerReportManagerContract_GetPayerReport_Call{Call: _e.mock.On("GetPayerReport", opts, originatorNodeId, payerReportIndex)}
+func (_e *MockPayerReportManagerContract_Expecter) GetPayerReport(opts interface{}, originatorNodeID interface{}, payerReportIndex interface{}) *MockPayerReportManagerContract_GetPayerReport_Call {
+	return &MockPayerReportManagerContract_GetPayerReport_Call{Call: _e.mock.On("GetPayerReport", opts, originatorNodeID, payerReportIndex)}
 }
 
-func (_c *MockPayerReportManagerContract_GetPayerReport_Call) Run(run func(opts *bind.CallOpts, originatorNodeId uint32, payerReportIndex *big.Int)) *MockPayerReportManagerContract_GetPayerReport_Call {
+func (_c *MockPayerReportManagerContract_GetPayerReport_Call) Run(run func(opts *bind.CallOpts, originatorNodeID uint32, payerReportIndex *big.Int)) *MockPayerReportManagerContract_GetPayerReport_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(*bind.CallOpts), args[1].(uint32), args[2].(*big.Int))
 	})

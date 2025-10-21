@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -85,9 +86,12 @@ func NewRedisBackedNonceManager(
 	if keyPrefix == "" {
 		keyPrefix = "xmtpd:nonces:"
 	}
+
+	redisBackedNonceManagerLogger := logger.Named(utils.RedisNonceManagerLoggerName)
+
 	return &RedisBackedNonceManager{
 		client:    client,
-		logger:    logger.Named("RedisBackedNonceManager"),
+		logger:    redisBackedNonceManagerLogger,
 		limiter:   noncemanager.NewOpenConnectionsLimiter(noncemanager.BestGuessConcurrency),
 		keyPrefix: keyPrefix,
 	}, nil
@@ -155,9 +159,9 @@ func (r *RedisBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) 
 	}
 
 	r.logger.Debug(
-		"Replenished nonces...",
-		zap.Uint64("starting_nonce", nonce.Uint64()),
-		zap.Int32("num_nonces", BatchSize),
+		"replenished nonces",
+		utils.StartingNonceField(nonce.Uint64()),
+		utils.NumNoncesField(BatchSize),
 	)
 
 	return nil
@@ -215,7 +219,7 @@ func (r *RedisBackedNonceManager) cleanupAndReserveNonce(ctx context.Context) (i
 
 	// Log cleanup count if any stale reservations were cleaned up
 	if cleanupCount, ok := resultArray[1].(int64); ok && cleanupCount > 0 {
-		r.logger.Info("Cleaned up stale nonce reservations", zap.Int64("count", cleanupCount))
+		r.logger.Info("cleaned up stale nonce reservations", utils.CountField(cleanupCount))
 	}
 
 	return nonce, nil
@@ -263,15 +267,15 @@ func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
 	})
 
 	if _, err := pipe.Exec(context.Background()); err != nil {
-		r.logger.Error("Failed to return cancelled nonce to Redis",
-			zap.Int64("nonce", nonce), zap.Error(err))
+		r.logger.Error("failed to return cancelled nonce to Redis",
+			utils.NonceField(uint64(nonce)), zap.Error(err))
 	}
 }
 
 // consumeNonce removes a nonce from the reserved pool
 func (r *RedisBackedNonceManager) consumeNonce(nonce int64) {
 	if err := r.client.ZRem(context.Background(), r.reservedKey(), nonce).Err(); err != nil {
-		r.logger.Error("Failed to remove consumed nonce from reserved set",
-			zap.Int64("nonce", nonce), zap.Error(err))
+		r.logger.Error("failed to remove consumed nonce from reserved set",
+			utils.NonceField(uint64(nonce)), zap.Error(err))
 	}
 }

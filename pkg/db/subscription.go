@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +27,7 @@ type PollingOptions struct {
 // Assumes there is only one listener (updates block on a single unbuffered channel)
 type DBSubscription[ValueType any, CursorType any] struct {
 	ctx      context.Context
-	log      *zap.Logger
+	logger   *zap.Logger
 	lastSeen CursorType
 	options  PollingOptions
 	query    PollableDBQuery[ValueType, CursorType]
@@ -35,14 +36,15 @@ type DBSubscription[ValueType any, CursorType any] struct {
 
 func NewDBSubscription[ValueType any, CursorType any](
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	query PollableDBQuery[ValueType, CursorType],
 	lastSeen CursorType,
 	options PollingOptions,
 ) *DBSubscription[ValueType, CursorType] {
+	logger = logger.Named(utils.DatabaseSubscriptionLoggerName)
 	return &DBSubscription[ValueType, CursorType]{
 		ctx:      ctx,
-		log:      log,
+		logger:   logger,
 		lastSeen: lastSeen,
 		options:  options,
 		query:    query,
@@ -54,7 +56,7 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 	if s.updates != nil {
 		return nil, fmt.Errorf("already started")
 	}
-	if s.options.NumRows <= 0 || s.log == nil {
+	if s.options.NumRows <= 0 || s.logger == nil {
 		return nil, fmt.Errorf("required params not provided")
 	}
 	updates := make(chan []ValueType)
@@ -68,7 +70,7 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 			timer.Reset(s.options.Interval)
 			select {
 			case <-s.ctx.Done():
-				s.log.Debug("Context done; stopping subscription")
+				s.logger.Debug("context done; stopping")
 				close(s.updates)
 				return
 			case <-s.options.Notifier:
@@ -90,10 +92,10 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 			break
 		} else if err != nil {
 			// Log is extremely noisy during test teardown
-			s.log.Error(
-				fmt.Sprintf("Error querying for DB subscription: %v", err),
-				zap.Any("lastSeen", s.lastSeen),
-				zap.Int32("numRows", s.options.NumRows),
+			s.logger.Error(
+				"error querying for database subscription",
+				zap.Error(err),
+				utils.NumRowsField(s.options.NumRows),
 			)
 			// Did not update lastSeen; will retry on next poll
 			break

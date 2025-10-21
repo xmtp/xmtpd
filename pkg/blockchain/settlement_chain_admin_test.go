@@ -68,19 +68,19 @@ func TestPauseFlagsSettlement(t *testing.T) {
 	cases := []pauseCase{
 		{
 			name:   "settlement-chain-gateway",
-			key:    blockchain.SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY,
+			key:    blockchain.SettlementChainGatewayPausedKey,
 			update: settlementChainAdmin.UpdateSettlementChainGatewayPauseStatus,
 			get:    settlementChainAdmin.GetSettlementChainGatewayPauseStatus,
 		},
 		{
 			name:   "payer-registry",
-			key:    blockchain.PAYER_REGISTRY_PAUSED_KEY,
+			key:    blockchain.PayerRegistryPausedKey,
 			update: settlementChainAdmin.UpdatePayerRegistryPauseStatus,
 			get:    settlementChainAdmin.GetPayerRegistryPauseStatus,
 		},
 		{
 			name:   "distribution-manager",
-			key:    blockchain.DISTRIBUTION_MANAGER_PAUSED_KEY,
+			key:    blockchain.DistributionManagerPausedKey,
 			update: settlementChainAdmin.UpdateDistributionManagerPauseStatus,
 			get:    settlementChainAdmin.GetDistributionManagerPauseStatus,
 		},
@@ -159,7 +159,7 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 
 	rawDefault, err := paramAdmin.GetParameterAddress(
 		ctx,
-		blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+		blockchain.DistributionManagerProtocolFeesRecipientKey,
 	)
 	require.NoError(t, err)
 	require.Equal(t, common.Address{}, rawDefault)
@@ -170,7 +170,7 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 		t,
 		paramAdmin.SetAddressParameter(
 			ctx,
-			blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+			blockchain.DistributionManagerProtocolFeesRecipientKey,
 			want,
 		),
 	)
@@ -183,7 +183,7 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 
 	raw, err := paramAdmin.GetParameterAddress(
 		ctx,
-		blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+		blockchain.DistributionManagerProtocolFeesRecipientKey,
 	)
 	require.NoError(t, err)
 	require.Equal(t, want, raw)
@@ -195,7 +195,7 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 		t,
 		paramAdmin.SetAddressParameter(
 			ctx,
-			blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+			blockchain.DistributionManagerProtocolFeesRecipientKey,
 			other,
 		),
 	)
@@ -215,7 +215,7 @@ func TestDistributionManager_ProtocolFeesRecipient_ReadDefault_WriteThenRead(t *
 		t,
 		paramAdmin.SetAddressParameter(
 			ctx,
-			blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY,
+			blockchain.DistributionManagerProtocolFeesRecipientKey,
 			zero,
 		),
 	)
@@ -233,7 +233,7 @@ func TestNodeRegistry_Admin_ReadDefault_WriteThenRead(t *testing.T) {
 	want := common.HexToAddress("0x000000000000000000000000000000000000DEAD")
 	require.NoError(
 		t,
-		paramAdmin.SetAddressParameter(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY, want),
+		paramAdmin.SetAddressParameter(ctx, blockchain.NodeRegistryAdminKey, want),
 	)
 	require.NoError(t, scAdmin.UpdateNodeRegistryAdmin(ctx))
 
@@ -241,7 +241,7 @@ func TestNodeRegistry_Admin_ReadDefault_WriteThenRead(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 
-	raw, err := paramAdmin.GetParameterAddress(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY)
+	raw, err := paramAdmin.GetParameterAddress(ctx, blockchain.NodeRegistryAdminKey)
 	require.NoError(t, err)
 	require.Equal(t, want, raw)
 
@@ -249,14 +249,14 @@ func TestNodeRegistry_Admin_ReadDefault_WriteThenRead(t *testing.T) {
 	other := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
 	require.NoError(
 		t,
-		paramAdmin.SetAddressParameter(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY, other),
+		paramAdmin.SetAddressParameter(ctx, blockchain.NodeRegistryAdminKey, other),
 	)
 	require.NoError(t, scAdmin.UpdateNodeRegistryAdmin(ctx))
 
 	var zero common.Address
 	require.NoError(
 		t,
-		paramAdmin.SetAddressParameter(ctx, blockchain.NODE_REGISTRY_ADMIN_KEY, zero),
+		paramAdmin.SetAddressParameter(ctx, blockchain.NodeRegistryAdminKey, zero),
 	)
 	require.NoError(t, scAdmin.UpdateNodeRegistryAdmin(ctx))
 	gotZero, err := scAdmin.GetNodeRegistryAdmin(ctx)
@@ -277,7 +277,7 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 	cases := []u32Case{
 		{
 			name:   "withdrawLockPeriod",
-			key:    blockchain.PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY,
+			key:    blockchain.PayerRegistryWithdrawLockPeriodKey,
 			update: scAdmin.UpdatePayerRegistryWithdrawLockPeriod,
 			get:    scAdmin.GetPayerRegistryWithdrawLockPeriod,
 		},
@@ -352,7 +352,7 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 	cases := []u96Case{
 		{
 			name:   "minimumDeposit",
-			key:    blockchain.PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY,
+			key:    blockchain.PayerRegistryMinimumDepositKey,
 			update: scAdmin.UpdatePayerRegistryMinimumDeposit,
 			get:    scAdmin.GetPayerRegistryMinimumDeposit,
 		},
@@ -424,7 +424,7 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 
 	rawDef, err := paramAdmin.GetParameterUint64(
 		ctx,
-		blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+		blockchain.PayerReportManagerProtocolFeeRateKey,
 	)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, rawDef)
@@ -435,7 +435,7 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 		t,
 		paramAdmin.SetUint16Parameter(
 			ctx,
-			blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+			blockchain.PayerReportManagerProtocolFeeRateKey,
 			v1,
 		),
 	)
@@ -447,7 +447,7 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 
 	raw, err := paramAdmin.GetParameterUint64(
 		ctx,
-		blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+		blockchain.PayerReportManagerProtocolFeeRateKey,
 	)
 	require.NoError(t, err)
 	require.EqualValues(t, v1, raw)
@@ -458,7 +458,7 @@ func TestPayerReportManager_ProtocolFeeRate_ReadDefault_WriteThenRead(t *testing
 		t,
 		paramAdmin.SetUint16Parameter(
 			ctx,
-			blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+			blockchain.PayerReportManagerProtocolFeeRateKey,
 			v2,
 		),
 	)
@@ -478,7 +478,7 @@ func TestPayerReportManager_ProtocolFeeAbove100Perc(t *testing.T) {
 		t,
 		paramAdmin.SetUint16Parameter(
 			ctx,
-			blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY,
+			blockchain.PayerReportManagerProtocolFeeRateKey,
 			v1,
 		),
 	)

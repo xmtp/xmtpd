@@ -15,6 +15,7 @@ import (
 	"github.com/pires/go-proxyproto"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -28,7 +29,7 @@ type RegistrationFunc func(server *grpc.Server) error
 
 type APIServerConfig struct {
 	Ctx                context.Context
-	Log                *zap.Logger
+	Logger             *zap.Logger
 	GRPCListener       net.Listener
 	EnableReflection   bool
 	RegistrationFunc   RegistrationFunc
@@ -43,8 +44,8 @@ func WithContext(ctx context.Context) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.Ctx = ctx }
 }
 
-func WithLogger(log *zap.Logger) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.Log = log }
+func WithLogger(logger *zap.Logger) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.Logger = logger }
 }
 
 func WithGRPCListener(listener net.Listener) APIServerOption {
@@ -75,7 +76,7 @@ type APIServer struct {
 	ctx          context.Context
 	grpcListener net.Listener
 	grpcServer   *grpc.Server
-	log          *zap.Logger
+	logger       *zap.Logger
 	wg           sync.WaitGroup
 }
 
@@ -89,7 +90,7 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		return nil, fmt.Errorf("context is required")
 	}
 
-	if cfg.Log == nil {
+	if cfg.Logger == nil {
 		return nil, fmt.Errorf("logger is required")
 	}
 
@@ -107,15 +108,16 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 			Listener:          cfg.GRPCListener,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		log: cfg.Log.Named("api"),
+		logger: cfg.Logger.Named(utils.APILoggerName),
 	}
 
-	s.log.Info("Creating API server")
+	s.logger.Info("creating api server")
 
-	loggingInterceptor, err := server.NewLoggingInterceptor(cfg.Log)
+	loggingInterceptor, err := server.NewLoggingInterceptor(s.logger)
 	if err != nil {
 		return nil, err
 	}
+
 	openConnectionsInterceptor, err := server.NewOpenConnectionsInterceptor()
 	if err != nil {
 		return nil, err
@@ -166,16 +168,16 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 
 	if cfg.EnableReflection {
 		reflection.Register(s.grpcServer)
-		s.log.Info("enabling gRPC Server Reflection")
+		s.logger.Info("enabling gRPC Server Reflection")
 	}
 
 	healthgrpc.RegisterHealthServer(s.grpcServer, health.NewServer())
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
-		s.log.Info("serving grpc", zap.String("address", s.grpcListener.Addr().String()))
+		s.logger.Info("serving grpc", utils.AddressField(s.grpcListener.Addr().String()))
 		if err := s.grpcServer.Serve(s.grpcListener); err != nil &&
 			!isErrUseOfClosedConnection(err) {
-			s.log.Error("serving grpc", zap.Error(err))
+			s.logger.Error("serving grpc", zap.Error(err))
 		}
 	})
 
@@ -201,7 +203,7 @@ func (s *APIServer) gracefulShutdown(timeout time.Duration) {
 	go func() {
 		defer cancel()
 		<-time.NewTimer(timeout).C
-		s.log.Debug("Graceful shutdown timed out. Stopping...")
+		s.logger.Debug("graceful shutdown timed out, stopping")
 		s.grpcServer.Stop()
 	}()
 
@@ -209,7 +211,7 @@ func (s *APIServer) gracefulShutdown(timeout time.Duration) {
 }
 
 func (s *APIServer) Close(timeout time.Duration) {
-	s.log.Debug("closing")
+	s.logger.Debug("closing")
 	if s.grpcServer != nil {
 		if timeout != 0 {
 			s.gracefulShutdown(timeout)
@@ -222,7 +224,7 @@ func (s *APIServer) Close(timeout time.Duration) {
 	}
 
 	s.wg.Wait()
-	s.log.Debug("closed")
+	s.logger.Debug("closed")
 }
 
 func isErrUseOfClosedConnection(err error) bool {

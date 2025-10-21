@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ type GeneratorWorker struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	wg                   sync.WaitGroup
-	log                  *zap.Logger
+	logger               *zap.Logger
 	store                payerreport.IPayerReportStore
 	generator            payerreport.IPayerReportGenerator
 	registry             registry.NodeRegistry
@@ -35,7 +36,7 @@ type GeneratorWorker struct {
 
 func NewGeneratorWorker(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	store payerreport.IPayerReportStore,
 	registry registry.NodeRegistry,
 	registrant registrant.IRegistrant,
@@ -48,10 +49,10 @@ func NewGeneratorWorker(
 	worker := &GeneratorWorker{
 		ctx:    ctx,
 		cancel: cancel,
-		log:    log.Named("generatorworker"),
+		logger: logger.Named(utils.PayerReportGeneratorWorkerLoggerName),
 		store:  store,
 		generator: payerreport.NewPayerReportGenerator(
-			log,
+			logger,
 			store.Queries(),
 			registry,
 			domainSeparator,
@@ -69,9 +70,9 @@ func (w *GeneratorWorker) Start() {
 	tracing.GoPanicWrap(
 		w.ctx,
 		&w.wg,
-		"generator-worker",
+		"payer-report-generator-worker",
 		func(ctx context.Context) {
-			w.log.Info("Starting generator worker")
+			w.logger.Info("starting")
 
 			for {
 				nextRun := findNextRunTime(w.myNodeID, generatorWorkerID)
@@ -79,7 +80,7 @@ func (w *GeneratorWorker) Start() {
 				select {
 				case <-time.After(wait):
 					if err := w.GenerateReports(); err != nil {
-						w.log.Error("generating reports", zap.Error(err))
+						w.logger.Error("generating reports", zap.Error(err))
 					}
 				case <-ctx.Done():
 					return
@@ -107,7 +108,7 @@ func (w *GeneratorWorker) GenerateReports() error {
 		return err
 	}
 
-	w.log.Info("getting nodes from registry", zap.Any("registry", w.registry))
+	w.logger.Info("getting nodes from registry")
 	allNodes, err := w.registry.GetNodes()
 	if err != nil {
 		return err
@@ -115,9 +116,9 @@ func (w *GeneratorWorker) GenerateReports() error {
 
 	for _, node := range allNodes {
 		if err = w.maybeGenerateReport(node.NodeID); err != nil {
-			w.log.Warn(
+			w.logger.Warn(
 				"error generating report for node",
-				zap.Uint32("node_id", node.NodeID),
+				utils.OriginatorIDField(node.NodeID),
 				zap.Error(err),
 			)
 		}
@@ -134,7 +135,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 
 	// Only continue if the last submitted report doesn't exist (there have been no reports) or if it is older than the minimum report interval
 	if lastSubmittedReport != nil && !w.isOlderThanReportInterval(lastSubmittedReport) {
-		w.log.Debug("skipping report generation for node", zap.Uint32("node_id", nodeID))
+		w.logger.Debug("skipping report generation for node", utils.OriginatorIDField(nodeID))
 		return nil
 	}
 
@@ -150,10 +151,10 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	// This will result in us missing the new report and generating a duplicate
 
 	// Fetch all reports for the originator that are pending and approved
-	w.log.Debug(
+	w.logger.Debug(
 		"maybe generating report, fetching existing reports",
-		zap.Uint32("node_id", nodeID),
-		zap.Uint64("existing_end_sequence_id", existingReportEndSequenceID),
+		utils.OriginatorIDField(nodeID),
+		utils.LastSequenceIDField(int64(existingReportEndSequenceID)),
 	)
 	existingReports, err := w.store.FetchReports(
 		w.ctx,
@@ -170,10 +171,10 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	}
 
 	if len(existingReports) > 0 {
-		w.log.Debug(
+		w.logger.Debug(
 			"skipping report generation for node because there are existing reports pending",
-			zap.Uint32("node_id", nodeID),
-			zap.Int("num_existing_reports", len(existingReports)),
+			utils.OriginatorIDField(nodeID),
+			utils.CountField(int64(len(existingReports))),
 		)
 		return nil
 	}
@@ -222,7 +223,7 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 		return err
 	}
 
-	w.log.Info("generated report", zap.String("report_id", reportID.String()))
+	w.logger.Info("generated report", utils.PayerReportIDField(reportID.String()))
 
 	return nil
 }
@@ -230,8 +231,8 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 func (w *GeneratorWorker) getLastSubmittedReport(
 	nodeID uint32,
 ) (*payerreport.PayerReportWithStatus, error) {
-	w.log.Debug("fetching last submitted report",
-		zap.Uint32("node_id", nodeID),
+	w.logger.Debug("fetching last submitted report",
+		utils.OriginatorIDField(nodeID),
 	)
 	reports, err := w.store.FetchReports(
 		w.ctx,

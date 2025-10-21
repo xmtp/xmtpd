@@ -14,7 +14,7 @@ func TestConversion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, currency.PicoDollar(1250000000000), initial)
 
-	converted := initial.ToDollarsTestOnly()
+	converted := initial.ToDollars()
 	require.Equal(t, 1.25, converted)
 }
 

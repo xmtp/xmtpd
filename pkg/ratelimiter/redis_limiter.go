@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
 )
 
 //go:embed script.lua
@@ -18,12 +17,10 @@ type RedisLimiter struct {
 	client    redis.UniversalClient
 	script    *redis.Script
 	keyPrefix string
-	log       *zap.Logger
 	limits    []Limit
 }
 
 func NewRedisLimiter(
-	log *zap.Logger,
 	client redis.UniversalClient,
 	keyPrefix string,
 	limits []Limit,
@@ -36,7 +33,6 @@ func NewRedisLimiter(
 		client:    client,
 		script:    redis.NewScript(luaScript),
 		keyPrefix: keyPrefix,
-		log:       log,
 		limits:    limits,
 	}, nil
 }

@@ -21,8 +21,8 @@ type XmtpdContainerBuilder struct {
 	files         []testcontainers.ContainerFile
 	exposedPorts  []string
 	networkName   string
-	wsUrl         string
-	rpcUrl        string
+	wsURL         string
+	rpcURL        string
 	networkAlias  string
 }
 
@@ -33,7 +33,7 @@ func NewXmtpdContainerBuilder(t *testing.T) *XmtpdContainerBuilder {
 	return &XmtpdContainerBuilder{
 		envVars: envVars,
 		files: []testcontainers.ContainerFile{{
-			HostFilePath:      testutils.GetScriptPath(anvilJsonRelativePath),
+			HostFilePath:      testutils.GetScriptPath(anvilJSONRelativePath),
 			ContainerFilePath: "/cfg/anvil.json",
 			FileMode:          0o644,
 		}},
@@ -75,13 +75,13 @@ func (b *XmtpdContainerBuilder) WithNetworkAlias(alias string) *XmtpdContainerBu
 	return b
 }
 
-func (b *XmtpdContainerBuilder) WithWsUrl(url string) *XmtpdContainerBuilder {
-	b.wsUrl = url
+func (b *XmtpdContainerBuilder) WithWsURL(url string) *XmtpdContainerBuilder {
+	b.wsURL = url
 	return b
 }
 
-func (b *XmtpdContainerBuilder) WithRPCUrl(url string) *XmtpdContainerBuilder {
-	b.rpcUrl = url
+func (b *XmtpdContainerBuilder) WithRPCURL(url string) *XmtpdContainerBuilder {
+	b.rpcURL = url
 	return b
 }
 
@@ -89,14 +89,14 @@ func (b *XmtpdContainerBuilder) Build(t *testing.T) (testcontainers.Container, e
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	if b.wsUrl != "" {
-		b.envVars["XMTPD_SETTLEMENT_CHAIN_WSS_URL"] = b.wsUrl
-		b.envVars["XMTPD_APP_CHAIN_WSS_URL"] = b.wsUrl
+	if b.wsURL != "" {
+		b.envVars["XMTPD_SETTLEMENT_CHAIN_WSS_URL"] = b.wsURL
+		b.envVars["XMTPD_APP_CHAIN_WSS_URL"] = b.wsURL
 	}
 
-	if b.rpcUrl != "" {
-		b.envVars["XMTPD_SETTLEMENT_CHAIN_RPC_URL"] = b.rpcUrl
-		b.envVars["XMTPD_APP_CHAIN_RPC_URL"] = b.rpcUrl
+	if b.rpcURL != "" {
+		b.envVars["XMTPD_SETTLEMENT_CHAIN_RPC_URL"] = b.rpcURL
+		b.envVars["XMTPD_APP_CHAIN_RPC_URL"] = b.rpcURL
 	}
 
 	aliases := make(map[string][]string)

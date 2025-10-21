@@ -23,7 +23,7 @@ import (
 type ReportsManager struct {
 	client                *ethclient.Client
 	signer                TransactionSigner
-	log                   *zap.Logger
+	logger                *zap.Logger
 	reportManagerContract *reportManager.PayerReportManager
 	domainSeparator       *common.Hash
 	domainSeparatorLock   sync.Mutex
@@ -35,7 +35,7 @@ type SettlementSummary struct {
 }
 
 func NewReportsManager(
-	log *zap.Logger,
+	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
 	options config.SettlementChainOptions,
@@ -49,7 +49,7 @@ func NewReportsManager(
 	}
 
 	return &ReportsManager{
-		log:                   log.Named("payerreportmanager"),
+		logger:                logger.Named(utils.PayerReportManagerAdminLoggerName),
 		client:                client,
 		signer:                signer,
 		reportManagerContract: reportManagerContract,
@@ -67,14 +67,14 @@ func (r *ReportsManager) SubmitPayerReport(
 	err := ExecuteTransaction(
 		ctx,
 		r.signer,
-		r.log,
+		r.logger,
 		r.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			signatures := prepareSignatures(report.AttestationSignatures)
 
-			r.log.Info(
+			r.logger.Info(
 				"submitting report",
-				zap.Any("report", report),
+				utils.PayerReportIDField(report.ID.String()),
 				zap.Any("signatures", signatures),
 			)
 
@@ -99,19 +99,19 @@ func (r *ReportsManager) SubmitPayerReport(
 				reportIndex, err = payerreport.ValidateReportIndex(parsedEvent.PayerReportIndex)
 				if err != nil {
 					eventErr = NewBlockchainError(err)
-					r.log.Error(
+					r.logger.Error(
 						"payer report index validation failed",
 						zap.Error(err),
 					)
 					return
 				}
 
-				r.log.Info(
+				r.logger.Info(
 					"payer report submitted",
-					zap.Any("event", parsedEvent),
+					utils.PayerReportIDField(report.ID.String()),
 				)
 			} else {
-				r.log.Warn("unknown event type", zap.Any("event", event))
+				r.logger.Warn("unknown event type", zap.Any("event", event))
 			}
 		},
 	)
@@ -217,7 +217,7 @@ func (r *ReportsManager) SettleReport(
 	return ExecuteTransaction(
 		ctx,
 		r.signer,
-		r.log,
+		r.logger,
 		r.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return r.reportManagerContract.Settle(
@@ -233,14 +233,14 @@ func (r *ReportsManager) SettleReport(
 		},
 		func(event any) {
 			if parsedEvent, ok := event.(*reportManager.PayerReportManagerPayerReportSubsetSettled); ok {
-				r.log.Info(
+				r.logger.Info(
 					"settled report",
-					zap.Uint32("originatorNodeID", originatorNodeID),
+					utils.OriginatorIDField(originatorNodeID),
 					zap.Uint64("index", index),
 					zap.Uint32("remaining", parsedEvent.Remaining),
 				)
 			} else {
-				r.log.Warn("unknown event type", zap.Any("event", event))
+				r.logger.Warn("unknown event type", zap.Any("event", event))
 			}
 		},
 	)

@@ -31,20 +31,20 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 
 	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
-		m.log.Error("recover payer address failed", zap.Error(err))
+		m.logger.Error("recover payer address failed", zap.Error(err))
 		return re.NewNonRecoverableError("recover payer address failed", err)
 	}
 
 	querier := queries.New(m.writer)
 	payerID, err := querier.FindOrCreatePayer(m.ctx, payerAddress.Hex())
 	if err != nil {
-		m.log.Error("find or create payer failed", zap.Error(err))
+		m.logger.Error("find or create payer failed", zap.Error(err))
 		return re.NewRecoverableError("find or create payer failed", err)
 	}
 
 	originatorEnvelopeBytes, err := proto.Marshal(env.Proto())
 	if err != nil {
-		m.log.Error("marshall originator envelope failed", zap.Error(err))
+		m.logger.Error("marshall originator envelope failed", zap.Error(err))
 		return re.NewNonRecoverableError("marshall originator envelope failed", err)
 	}
 
@@ -66,7 +66,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 				},
 			})
 			if err != nil {
-				m.log.Error("insert originator envelope failed", zap.Error(err))
+				m.logger.Error("insert originator envelope failed", zap.Error(err))
 				return re.NewRecoverableError("insert originator envelope failed", err)
 			}
 
@@ -79,7 +79,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 				SequenceID: int64(env.OriginatorSequenceID()),
 			})
 			if err != nil {
-				m.log.Error("increment unsettled usage failed", zap.Error(err))
+				m.logger.Error("increment unsettled usage failed", zap.Error(err))
 				return re.NewRecoverableError("increment unsettled usage failed", err)
 			}
 
@@ -88,7 +88,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 				SourceTable:    tableName,
 			})
 			if err != nil {
-				m.log.Error("update migration progress failed", zap.Error(err))
+				m.logger.Error("update migration progress failed", zap.Error(err))
 				return re.NewRecoverableError("update migration progress failed", err)
 			}
 
@@ -100,7 +100,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 			return retryableError
 		}
 
-		return re.NewRecoverableError("db error", err)
+		return re.NewRecoverableError("database error", err)
 	}
 
 	return nil
@@ -121,7 +121,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 
 	clientEnvelopeBytes, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
 	if err != nil {
-		m.log.Error("failed to get payer envelope bytes", zap.Error(err))
+		m.logger.Error("failed to get payer envelope bytes", zap.Error(err))
 		return fmt.Errorf("failed to get payer envelope bytes: %w", err)
 	}
 
@@ -160,14 +160,14 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			SourceTable:    tableName,
 		})
 		if err != nil {
-			m.log.Error("update migration progress failed", zap.Error(err))
+			m.logger.Error("update migration progress failed", zap.Error(err))
 			return fmt.Errorf("update migration progress failed: %w", err)
 		}
 
-		m.log.Debug(
+		m.logger.Debug(
 			"published group message",
-			zap.String("group_id", utils.HexEncode(groupID[:])),
-			zap.Uint64("sequence_id", sequenceID),
+			utils.GroupIDField(utils.HexEncode(groupID[:])),
+			utils.SequenceIDField(int64(sequenceID)),
 		)
 
 	case InboxLogOriginatorID:
@@ -176,10 +176,10 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			return fmt.Errorf("error converting identifier to inbox ID: %w", err)
 		}
 
-		m.log.Debug(
+		m.logger.Debug(
 			"publishing identity update",
-			zap.String("inbox_id", utils.HexEncode(inboxID[:])),
-			zap.Uint64("sequence_id", sequenceID),
+			utils.InboxIDField(utils.HexEncode(inboxID[:])),
+			utils.SequenceIDField(int64(sequenceID)),
 		)
 
 		log, err := m.blockchainPublisher.BootstrapIdentityUpdates(
@@ -208,14 +208,14 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			SourceTable:    tableName,
 		})
 		if err != nil {
-			m.log.Error("update migration progress failed", zap.Error(err))
+			m.logger.Error("update migration progress failed", zap.Error(err))
 			return fmt.Errorf("update migration progress failed: %w", err)
 		}
 
-		m.log.Debug(
+		m.logger.Debug(
 			"published identity update",
-			zap.String("inbox_id", utils.HexEncode(inboxID[:])),
-			zap.Uint64("sequence_id", sequenceID),
+			utils.InboxIDField(utils.HexEncode(inboxID[:])),
+			utils.SequenceIDField(int64(sequenceID)),
 		)
 	}
 

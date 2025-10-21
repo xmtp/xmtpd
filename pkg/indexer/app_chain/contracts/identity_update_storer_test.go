@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
@@ -86,7 +87,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	envelopes, queryErr := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
-			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
+			OriginatorNodeIds: []int32{constants.IdentityUpdateOriginatorID},
 			RowLimit:          10,
 		},
 	)
@@ -98,16 +99,16 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(firstEnvelope.OriginatorEnvelope, &deserializedEnvelope))
 	require.Greater(t, len(deserializedEnvelope.UnsignedOriginatorEnvelope), 0)
 
-	getInboxIdResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
+	getInboxIDResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
-	require.Equal(t, getInboxIdResult[0].InboxID, utils.HexEncode(inboxID[:]))
+	require.Equal(t, getInboxIDResult[0].InboxID, utils.HexEncode(inboxID[:]))
 
 	envelope := envelopesTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 		t,
 		deserializedEnvelope.UnsignedOriginatorEnvelope,
 	)
 
-	require.EqualValues(t, IDENTITY_UPDATE_ORIGINATOR_ID, envelope.OriginatorNodeId)
+	require.EqualValues(t, constants.IdentityUpdateOriginatorID, envelope.OriginatorNodeId)
 }
 
 func TestStoreSequential(t *testing.T) {

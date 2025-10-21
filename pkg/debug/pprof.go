@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const pprofEndpoint = "/debug/pprof/"
+
 type Server struct {
 	server *http.Server
 	port   int
@@ -24,7 +26,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 
 	// Register pprof endpoints - they are automatically registered to the default ServeMux.
-	mux.Handle("/debug/pprof/", http.DefaultServeMux)
+	mux.Handle(pprofEndpoint, http.DefaultServeMux)
 
 	s.server = &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.port),

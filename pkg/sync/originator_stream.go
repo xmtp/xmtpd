@@ -12,6 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +23,7 @@ type cursor struct {
 
 type originatorStream struct {
 	ctx        context.Context
-	log        *zap.Logger
+	logger     *zap.Logger
 	node       *registry.Node
 	cursor     *cursor
 	stream     message_api.ReplicationApi_SubscribeEnvelopesClient
@@ -31,7 +32,7 @@ type originatorStream struct {
 
 func newOriginatorStream(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	node *registry.Node,
 	cursor *cursor,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
@@ -39,9 +40,9 @@ func newOriginatorStream(
 ) *originatorStream {
 	return &originatorStream{
 		ctx: ctx,
-		log: log.With(
-			zap.Uint32("originator_id", node.NodeID),
-			zap.String("http_address", node.HTTPAddress),
+		logger: logger.With(
+			utils.OriginatorIDField(node.NodeID),
+			utils.NodeHTTPAddressField(node.HTTPAddress),
 		),
 		node:       node,
 		cursor:     cursor,
@@ -70,28 +71,29 @@ func (s *originatorStream) listen() error {
 	for {
 		select {
 		case <-s.ctx.Done():
-			s.log.Info("Context canceled, stopping stream listener")
+			s.logger.Info("context canceled, stopping stream listener")
 			return backoff.Permanent(s.ctx.Err())
 
 		case envs, ok := <-recvChan:
 			if !ok {
-				s.log.Error("recvChan is closed")
+				s.logger.Error("recvChan is closed")
 				return backoff.Permanent(errors.New("recvChan is closed"))
 			}
 
 			if envs == nil || len(envs.Envelopes) == 0 {
 				continue
 			}
-			s.log.Debug(
-				"Received envelopes",
-				zap.Any("numEnvelopes", len(envs.Envelopes)),
+
+			s.logger.Debug(
+				"received envelopes",
+				utils.NumEnvelopesField(len(envs.Envelopes)),
 			)
 
 			for _, env := range envs.Envelopes {
 				// Any message that fails validation here will be dropped permanently
 				parsedEnv, err := s.validateEnvelope(env)
 				if err != nil {
-					s.log.Error("discarding envelope after validation failed", zap.Error(err))
+					s.logger.Error("discarding envelope after validation failed", zap.Error(err))
 					continue
 				}
 				s.writeQueue <- parsedEnv
@@ -99,17 +101,17 @@ func (s *originatorStream) listen() error {
 
 		case err, ok := <-errChan:
 			if !ok {
-				s.log.Error("errChan is closed")
+				s.logger.Error("errChan is closed")
 				return backoff.Permanent(errors.New("errChan is closed"))
 			}
 
 			if err == io.EOF {
-				s.log.Info("Stream closed with EOF")
+				s.logger.Info("stream closed with EOF")
 				// reset backoff to 1 second
 				return backoff.RetryAfter(1)
 			}
-			s.log.Error(
-				"Stream closed with error",
+			s.logger.Error(
+				"stream closed with error",
 				zap.Error(err),
 			)
 
@@ -140,15 +142,15 @@ func (s *originatorStream) validateEnvelope(
 	var env *envUtils.OriginatorEnvelope
 	env, err = envUtils.NewOriginatorEnvelope(envProto)
 	if err != nil {
-		s.log.Error("Failed to unmarshal originator envelope", zap.Error(err))
+		s.logger.Error("failed to unmarshal originator envelope", zap.Error(err))
 		return nil, err
 	}
 
 	// TODO:(nm) Handle fetching envelopes from other nodes
 	if env.OriginatorNodeID() != s.node.NodeID {
-		s.log.Error("Received envelope from wrong node",
-			zap.Any("nodeID", env.OriginatorNodeID()),
-			zap.Any("expectedNodeId", s.node.NodeID),
+		s.logger.Error("received envelope from wrong node",
+			utils.OriginatorIDField(env.OriginatorNodeID()),
+			zap.Uint32("expected_originator_id", s.node.NodeID),
 		)
 		err = errors.New("originator ID does not match envelope")
 		return nil, err
@@ -166,13 +168,13 @@ func (s *originatorStream) validateEnvelope(
 
 	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
 		// TODO(rich) Submit misbehavior report and continue
-		s.log.Error(
-			"Received out-of-order envelope",
-			zap.Uint64("expectedSequenceID", lastSequenceID+1),
-			zap.Uint64("actualSequenceID", env.OriginatorSequenceID()),
-			zap.Int64("lastTimestampNs", lastNs),
-			zap.Int64("actualTimestampNs", env.OriginatorNs()),
-			zap.Uint32("originatorId", env.OriginatorNodeID()),
+		s.logger.Error(
+			"received out-of-order envelope",
+			utils.OriginatorIDField(env.OriginatorNodeID()),
+			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
+			zap.Uint64("expected_sequence_id", lastSequenceID+1),
+			zap.Int64("last_timestamp_ns", lastNs),
+			zap.Int64("actual_timestamp_ns", env.OriginatorNs()),
 		)
 	}
 
@@ -186,7 +188,7 @@ func (s *originatorStream) validateEnvelope(
 	// Validate that there is a valid payer signature
 	_, err = env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
-		s.log.Error("Failed to recover payer address", zap.Error(err))
+		s.logger.Error("failed to recover payer address", zap.Error(err))
 		return nil, err
 	}
 

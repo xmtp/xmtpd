@@ -31,8 +31,8 @@ func TestXDBGRealMLSPayloads(t *testing.T) {
 		WithImage("ghcr.io/xmtp/xmtpd:dev").
 		WithNetwork(network).
 		WithNetworkAlias(xmtpdAlias).
-		WithWsUrl(wsHost).
-		WithRPCUrl(rpcHost).
+		WithWsURL(wsHost).
+		WithRPCURL(rpcHost).
 		Build(t)
 	require.NoError(t, err)
 
@@ -40,8 +40,8 @@ func TestXDBGRealMLSPayloads(t *testing.T) {
 		WithImage("ghcr.io/xmtp/xmtpd-gateway:dev").
 		WithNetwork(network).
 		WithNetworkAlias(gatewayAlias).
-		WithWsUrl(wsHost).
-		WithRPCUrl(rpcHost).
+		WithWsURL(wsHost).
+		WithRPCURL(rpcHost).
 		Build(t)
 	require.NoError(t, err)
 

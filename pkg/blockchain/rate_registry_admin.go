@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -43,8 +44,12 @@ func NewRatesAdmin(
 		return nil, err
 	}
 
+	rateRegistryAdminLogger := logger.Named(utils.RateRegistryAdminLoggerName).With(
+		utils.SettlementChainChainIDField(contractsOptions.SettlementChain.ChainID),
+	)
+
 	return &RatesAdmin{
-		logger:        logger.Named("RatesAdmin"),
+		logger:        rateRegistryAdminLogger,
 		paramAdmin:    paramAdmin,
 		ratesContract: rateContract,
 		client:        client,
@@ -52,28 +57,31 @@ func NewRatesAdmin(
 	}, nil
 }
 
-/**
-*
-* AddRates adds a new rate to the rates manager.
-* The new rate must have a later start time than the last rate in the contract.
- */
+// AddRates adds a new rate to the rates manager.
+// The new rate must have a later start time than the last rate in the contract.
 func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolError {
 	// validations
 	if rates.MessageFee < 0 {
-		return NewBlockchainError(errors.New("rates.messageFee must be positive"))
+		return NewBlockchainError(
+			fmt.Errorf("%s must be positive", RateRegistryMessageFeeKey),
+		)
 	}
 	if rates.StorageFee < 0 {
-		return NewBlockchainError(errors.New("rates.storageFee must be positive"))
+		return NewBlockchainError(
+			fmt.Errorf("%s must be positive", RateRegistryStorageFeeKey),
+		)
 	}
 	if rates.CongestionFee < 0 {
-		return NewBlockchainError(errors.New("rates.congestionFee must be positive"))
+		return NewBlockchainError(
+			fmt.Errorf("%s must be positive", RateRegistryCongestionFeeKey),
+		)
 	}
 
 	params := []Uint64Param{
-		{Name: RATE_REGISTRY_MESSAGE_FEE_KEY, Value: uint64(rates.MessageFee)},
-		{Name: RATE_REGISTRY_STORAGE_FEE_KEY, Value: uint64(rates.StorageFee)},
-		{Name: RATE_REGISTRY_CONGESTION_FEE_KEY, Value: uint64(rates.CongestionFee)},
-		{Name: RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY, Value: rates.TargetRatePerMinute},
+		{Name: RateRegistryMessageFeeKey, Value: uint64(rates.MessageFee)},
+		{Name: RateRegistryStorageFeeKey, Value: uint64(rates.StorageFee)},
+		{Name: RateRegistryCongestionFeeKey, Value: uint64(rates.CongestionFee)},
+		{Name: RateRegistryTargetRatePerMinuteKey, Value: rates.TargetRatePerMinute},
 	}
 	if err := r.paramAdmin.SetManyUint64Parameters(ctx, params); err != nil {
 		return err
@@ -97,24 +105,24 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 				return
 			}
 			r.logger.Info("rates updated",
-				zap.Uint64("messageFee", e.MessageFee),
-				zap.Uint64("storageFee", e.StorageFee),
-				zap.Uint64("congestionFee", e.CongestionFee),
-				zap.Uint64("targetRatePerMinute", e.TargetRatePerMinute),
+				zap.Uint64(RateRegistryMessageFeeKey, e.MessageFee),
+				zap.Uint64(RateRegistryStorageFeeKey, e.StorageFee),
+				zap.Uint64(RateRegistryCongestionFeeKey, e.CongestionFee),
+				zap.Uint64(RateRegistryTargetRatePerMinuteKey, e.TargetRatePerMinute),
 			)
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			r.logger.Info("No update needed",
-				zap.Uint64("messageFee", uint64(rates.MessageFee)),
-				zap.Uint64("storageFee", uint64(rates.StorageFee)),
-				zap.Uint64("congestionFee", uint64(rates.CongestionFee)),
-				zap.Uint64("targetRatePerMinute", rates.TargetRatePerMinute),
+			r.logger.Info("no update needed",
+				zap.Uint64(RateRegistryMessageFeeKey, uint64(rates.MessageFee)),
+				zap.Uint64(RateRegistryStorageFeeKey, uint64(rates.StorageFee)),
+				zap.Uint64(RateRegistryCongestionFeeKey, uint64(rates.CongestionFee)),
+				zap.Uint64(RateRegistryTargetRatePerMinuteKey, rates.TargetRatePerMinute),
 			)
 			return nil
 		}
-		r.logger.Error("Protocol error", zap.String("error", err.Error()))
+		r.logger.Error("protocol error", zap.String("error", err.Error()))
 		return err
 	}
 

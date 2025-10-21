@@ -25,22 +25,22 @@ type MLSValidationServiceImpl struct {
 
 func NewMlsValidationService(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	cfg config.MlsValidationOptions,
 	clientMetrics *grpcprom.ClientMetrics,
 ) (*MLSValidationServiceImpl, error) {
 	target, isTLS, err := utils.HTTPAddressToGRPCTarget(cfg.GrpcAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
+		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %w", err)
 	}
 
 	creds, err := utils.GetCredentialsForAddress(isTLS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %v", err)
+		return nil, fmt.Errorf("failed to get credentials: %w", err)
 	}
 
-	log.Info(
-		"Connecting to mls validation service",
+	logger.Info(
+		"connecting to mls validation service",
 		zap.String("url", cfg.GrpcAddress),
 		zap.String("target", target),
 	)

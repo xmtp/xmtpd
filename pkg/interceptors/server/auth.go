@@ -9,6 +9,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -68,16 +69,16 @@ func (i *AuthInterceptor) logIncomingAddressIfAvailable(ctx context.Context, nod
 			if err == nil {
 				dnsName, err = net.LookupAddr(host)
 				if err != nil || len(dnsName) == 0 {
-					dnsName = []string{"Unknown"}
+					dnsName = []string{unknownDNSName}
 				}
 			} else {
-				dnsName = []string{"Unknown"}
+				dnsName = []string{unknownDNSName}
 			}
 			i.logger.Debug(
-				"Incoming connection",
+				"incoming connection",
 				zap.String("client_addr", clientAddr),
 				zap.String("dns_name", dnsName[0]),
-				zap.Uint32("node_id", nodeID),
+				utils.OriginatorIDField(nodeID),
 			)
 		}
 	}

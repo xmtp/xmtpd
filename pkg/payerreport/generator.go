@@ -14,20 +14,20 @@ import (
 type PayerMap map[common.Address]currency.PicoDollar
 
 type PayerReportGenerator struct {
-	log             *zap.Logger
+	logger          *zap.Logger
 	queries         *queries.Queries
 	registry        registry.NodeRegistry
 	domainSeparator common.Hash
 }
 
 func NewPayerReportGenerator(
-	log *zap.Logger,
+	logger *zap.Logger,
 	queries *queries.Queries,
 	registry registry.NodeRegistry,
 	domainSeparator common.Hash,
 ) *PayerReportGenerator {
 	return &PayerReportGenerator{
-		log:             log.Named("reportgenerator"),
+		logger:          logger,
 		queries:         queries,
 		registry:        registry,
 		domainSeparator: domainSeparator,

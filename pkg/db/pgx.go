@@ -15,7 +15,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrations"
 )
 
-const maxNamespaceLength = 32
+const (
+	maxNamespaceLength = 32
+
+	connectSuccessMessage = "successfully connected to database"
+	parseDSNErrorMessage  = "failed to parse DSN"
+)
 
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
@@ -97,7 +102,7 @@ func createNamespace(
 	// Create a temporary connection to the postgres DB
 	adminConn, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
-		return fmt.Errorf("failed to connect to postgres: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer adminConn.Close()
 
@@ -135,14 +140,14 @@ func NewNamespacedDB(
 	// Parse the DSN to get the config
 	config, err := parseConfig(dsn, statementTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse DSN: %w", err)
+		return nil, fmt.Errorf("%s: %w", parseDSNErrorMessage, err)
 	}
 
 	if err = createNamespace(ctx, config, namespace, waitForDB); err != nil {
 		return nil, err
 	}
 
-	logger.Info("Successfully connected to DB", zap.String("namespace", namespace))
+	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
 
 	config.ConnConfig.Database = namespace
 
@@ -172,7 +177,7 @@ func ConnectToDB(
 ) (*sql.DB, error) {
 	config, err := parseConfig(dsn, statementTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse DSN: %w", err)
+		return nil, fmt.Errorf("%s: %w", parseDSNErrorMessage, err)
 	}
 
 	if namespace != "" {
@@ -184,7 +189,7 @@ func ConnectToDB(
 		return nil, err
 	}
 
-	logger.Info("Successfully connected to DB", zap.String("database", config.ConnConfig.Database))
+	logger.Info(connectSuccessMessage, zap.String("database", config.ConnConfig.Database))
 
 	return db, nil
 }

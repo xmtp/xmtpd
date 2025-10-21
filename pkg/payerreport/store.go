@@ -33,16 +33,16 @@ var (
 type Store struct {
 	queries *queries.Queries
 	db      *sql.DB
-	log     *zap.Logger
+	logger  *zap.Logger
 }
 
 var _ IPayerReportStore = (*Store)(nil)
 
-func NewStore(db *sql.DB, log *zap.Logger) *Store {
+func NewStore(db *sql.DB, logger *zap.Logger) *Store {
 	return &Store{
 		queries: queries.New(db),
 		db:      db,
-		log:     log.Named("payerreportstore"),
+		logger:  logger.Named(utils.PayerReportMainLoggerName),
 	}
 }
 
@@ -113,7 +113,9 @@ func (s *Store) FetchReports(
 		return nil, err
 	}
 
-	s.log.Debug("fetched reports", zap.Any("rows", rows))
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("fetched reports", zap.Any("rows", rows))
+	}
 
 	return convertPayerReports(rows)
 }
@@ -177,10 +179,13 @@ func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 				return err
 			}
 
-			s.log.Info(
-				"Cleared unsettled usage",
-				zap.Any("prevReportEndMinuteSinceEpoch", prevReportEndMinuteSinceEpoch),
-				zap.Any("existingReport.EndMinuteSinceEpoch", existingReport.EndMinuteSinceEpoch),
+			s.logger.Info(
+				"cleared unsettled usage",
+				zap.Int32("prev_report_end_minute_since_epoch", prevReportEndMinuteSinceEpoch),
+				zap.Int32(
+					"existing_report_end_minute_since_epoch",
+					existingReport.EndMinuteSinceEpoch,
+				),
 			)
 
 			// Set the report to settled
@@ -191,7 +196,10 @@ func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 				[]SubmissionStatus{SubmissionSubmitted, SubmissionPending},
 				SubmissionSettled,
 			); err != nil {
-				s.log.Error("Failed to set report submission status", zap.Error(err))
+				s.logger.Error(
+					"failed to set report submission status",
+					zap.Error(err),
+				)
 				return err
 			}
 
@@ -313,10 +321,10 @@ func (s *Store) CreateAttestation(
 			}
 
 			if AttestationStatus(report.AttestationStatus) != AttestationPending {
-				s.log.Debug(
-					"Report already approved or rejected",
-					zap.String("reportID", fmt.Sprintf("%x", reportID)),
-					zap.Int16("status", report.AttestationStatus),
+				s.logger.Debug(
+					"report already approved or rejected",
+					utils.PayerReportIDField(fmt.Sprintf("%x", reportID)),
+					zap.Int16("attestation_status", report.AttestationStatus),
 				)
 				return nil
 			}

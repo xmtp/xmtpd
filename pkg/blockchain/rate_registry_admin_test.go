@@ -130,15 +130,15 @@ func TestRates_ReadDefaults(t *testing.T) {
 	ctx := context.Background()
 
 	// 1) Defaults should be zero (unset) for all four rate params.
-	msg, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY)
+	msg, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryMessageFeeKey)
 	require.NoError(t, err)
-	store, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_STORAGE_FEE_KEY)
+	store, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryStorageFeeKey)
 	require.NoError(t, err)
-	cong, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY)
+	cong, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryCongestionFeeKey)
 	require.NoError(t, err)
 	target, err := paramAdmin.GetParameterUint64(
 		ctx,
-		blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+		blockchain.RateRegistryTargetRatePerMinuteKey,
 	)
 	require.NoError(t, err)
 
@@ -160,15 +160,15 @@ func TestRates_WriteThenRead(t *testing.T) {
 	}
 	require.NoError(t, ratesAdmin.AddRates(ctx, want))
 
-	msg2, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY)
+	msg2, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryMessageFeeKey)
 	require.NoError(t, err)
-	store2, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_STORAGE_FEE_KEY)
+	store2, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryStorageFeeKey)
 	require.NoError(t, err)
-	cong2, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY)
+	cong2, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryCongestionFeeKey)
 	require.NoError(t, err)
 	target2, err := paramAdmin.GetParameterUint64(
 		ctx,
-		blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+		blockchain.RateRegistryTargetRatePerMinuteKey,
 	)
 	require.NoError(t, err)
 
@@ -190,15 +190,15 @@ func TestRates_WriteZeroes_ReadZeroes(t *testing.T) {
 	}
 	require.NoError(t, ratesAdmin.AddRates(ctx, zero))
 
-	msg, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY)
+	msg, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryMessageFeeKey)
 	require.NoError(t, err)
-	store, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_STORAGE_FEE_KEY)
+	store, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryStorageFeeKey)
 	require.NoError(t, err)
-	cong, err := paramAdmin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY)
+	cong, err := paramAdmin.GetParameterUint64(ctx, blockchain.RateRegistryCongestionFeeKey)
 	require.NoError(t, err)
 	target, err := paramAdmin.GetParameterUint64(
 		ctx,
-		blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+		blockchain.RateRegistryTargetRatePerMinuteKey,
 	)
 	require.NoError(t, err)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -21,7 +22,7 @@ type Ledger struct {
 func NewLedger(logger *zap.Logger, querier *queries.Queries) *Ledger {
 	return &Ledger{
 		queries: querier,
-		logger:  logger.Named("ledger"),
+		logger:  logger.Named(utils.LedgerLoggerName),
 	}
 }
 
@@ -106,7 +107,7 @@ func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID Ev
 		}
 		l.logger.Warn(
 			"multiple cancelation events for a single withdrawal",
-			zap.String("event_id", eventID.String()),
+			utils.EventIDField(eventID.String()),
 			zap.String("last_cancel_event_id", EventID(lastCancel.EventID).String()),
 			zap.String("last_withdrawal_event_id", EventID(lastWithdrawal.EventID).String()),
 		)

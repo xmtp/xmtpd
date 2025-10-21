@@ -64,8 +64,8 @@ func NewPayerRegistry(
 		return nil, err
 	}
 
-	logger = logger.Named("payer-registry").
-		With(zap.String("contractAddress", address.Hex()))
+	logger = logger.Named(utils.PayerReportContractLoggerName).
+		With(utils.ContractAddressField(address.Hex()))
 
 	payerRegistryStorer, err := NewPayerRegistryStorer(
 		logger,

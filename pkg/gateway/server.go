@@ -17,7 +17,7 @@ import (
 )
 
 type gatewayServiceImpl struct {
-	log                 *zap.Logger
+	logger              *zap.Logger
 	identityFn          IdentityFn
 	authorizers         []AuthorizePublishFn
 	config              *config.GatewayConfig
@@ -59,6 +59,6 @@ func (s *gatewayServiceImpl) WaitForShutdown() {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	sig := <-termChannel
-	s.log.Info("Received OS signal, shutting down", zap.String("signal", sig.String()))
+	s.logger.Info("received OS signal, shutting down", zap.String("signal", sig.String()))
 	_ = s.Shutdown(timeout)
 }

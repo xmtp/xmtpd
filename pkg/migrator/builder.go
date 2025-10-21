@@ -12,12 +12,12 @@ import (
 
 func setupBlockchainPublisher(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	db *sql.DB,
 	payerPrivateKey string,
 	cfg *config.ContractsOptions,
 ) (*blockchain.BlockchainPublisher, error) {
-	nonceManager := sqlmgr.NewSQLBackedNonceManager(db, log)
+	nonceManager := sqlmgr.NewSQLBackedNonceManager(db, logger)
 
 	signer, err := blockchain.NewPrivateKeySigner(
 		payerPrivateKey,
@@ -37,7 +37,7 @@ func setupBlockchainPublisher(
 
 	return blockchain.NewBlockchainPublisher(
 		ctx,
-		log,
+		logger,
 		appChainClient,
 		signer,
 		*cfg,

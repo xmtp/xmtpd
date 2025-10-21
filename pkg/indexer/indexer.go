@@ -1,3 +1,6 @@
+// Package indexer implements the Indexer.
+// It's responsible for coordinating the AppChain and SettlementChain indexers.
+// It can be extended to index other chains in the future.
 package indexer
 
 import (
@@ -8,15 +11,16 @@ import (
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/indexer/app_chain"
-	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain"
+	appchain "github.com/xmtp/xmtpd/pkg/indexer/app_chain"
+	settlementchain "github.com/xmtp/xmtpd/pkg/indexer/settlement_chain"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 type IndexerConfig struct {
 	ctx               context.Context
-	log               *zap.Logger
+	logger            *zap.Logger
 	dB                *sql.DB
 	contractsConfig   *config.ContractsOptions
 	validationService mlsvalidate.MLSValidationService
@@ -30,9 +34,9 @@ func WithContext(ctx context.Context) IndexerOption {
 	}
 }
 
-func WithLogger(log *zap.Logger) IndexerOption {
+func WithLogger(logger *zap.Logger) IndexerOption {
 	return func(cfg *IndexerConfig) {
-		cfg.log = log
+		cfg.logger = logger
 	}
 }
 
@@ -56,11 +60,11 @@ func WithValidationService(vs mlsvalidate.MLSValidationService) IndexerOption {
 
 type Indexer struct {
 	ctx             context.Context
-	log             *zap.Logger
+	logger          *zap.Logger
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
-	appChain        *app_chain.AppChain
-	settlementChain *settlement_chain.SettlementChain
+	appChain        *appchain.AppChain
+	settlementChain *settlementchain.SettlementChain
 }
 
 func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
@@ -73,7 +77,7 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 	if cfg.ctx == nil {
 		return nil, errors.New("indexer: context is required")
 	}
-	if cfg.log == nil {
+	if cfg.logger == nil {
 		return nil, errors.New("indexer: logger is required")
 	}
 
@@ -89,9 +93,9 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 	}
 
 	ctx, cancel := context.WithCancel(cfg.ctx)
-	indexerLogger := cfg.log.Named("indexer")
+	indexerLogger := cfg.logger.Named(utils.IndexerLoggerName)
 
-	appChain, err := app_chain.NewAppChain(
+	appChain, err := appchain.NewAppChain(
 		ctx,
 		indexerLogger,
 		cfg.contractsConfig.AppChain,
@@ -103,7 +107,7 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 		return nil, err
 	}
 
-	settlementChain, err := settlement_chain.NewSettlementChain(
+	settlementChain, err := settlementchain.NewSettlementChain(
 		ctx,
 		indexerLogger,
 		cfg.contractsConfig.SettlementChain,
@@ -117,14 +121,14 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 	return &Indexer{
 		ctx:             ctx,
 		cancel:          cancel,
-		log:             indexerLogger,
+		logger:          indexerLogger,
 		appChain:        appChain,
 		settlementChain: settlementChain,
 	}, nil
 }
 
 func (i *Indexer) Close() {
-	i.log.Debug("Closing")
+	i.logger.Debug("stopping")
 
 	if i.appChain != nil {
 		i.appChain.Stop()
@@ -137,7 +141,7 @@ func (i *Indexer) Close() {
 	i.cancel()
 	i.wg.Wait()
 
-	i.log.Debug("Closed")
+	i.logger.Debug("stopped")
 }
 
 func (i *Indexer) StartIndexer() error {

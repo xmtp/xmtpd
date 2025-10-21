@@ -54,9 +54,9 @@ func main() {
 	if err != nil {
 		fatal("Could not build logger: %s", err)
 	}
-	logger = logger.Named("replication")
 
-	logger.Info(fmt.Sprintf("Version: %s", Version))
+	logger = logger.Named(utils.BaseLoggerName)
+	logger.Info(fmt.Sprintf("version: %s", Version))
 
 	version, err := semver.NewVersion(Version)
 	if err != nil {

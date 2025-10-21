@@ -15,6 +15,7 @@ import (
 	p "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
@@ -30,6 +31,11 @@ const (
 
 	payerReportManagerPayerReportSubmittedEvent     = "PayerReportSubmitted"
 	payerReportManagerPayerReportSubsetSettledEvent = "PayerReportSubsetSettled"
+
+	activeNodeIDsField    = "active_node_ids"
+	feesSettledField      = "fees_settled"
+	payersMerkleRootField = "payers_merkle_root"
+	payerReportIndexField = "payer_report_index"
 )
 
 type PayerReportManagerStorer struct {
@@ -62,7 +68,7 @@ func NewPayerReportManagerStorer(
 	return &PayerReportManagerStorer{
 		abi:             abi,
 		store:           store,
-		logger:          logger.Named("storer"),
+		logger:          logger.Named(utils.StorerLoggerName),
 		contract:        contract,
 		domainSeparator: common.Hash(domainSeparator),
 	}, nil
@@ -83,6 +89,10 @@ func (s *PayerReportManagerStorer) StoreLog(
 
 	switch event.Name {
 	case payerReportManagerPayerReportSubmittedEvent:
+		if !s.logger.Core().Enabled(zap.DebugLevel) {
+			s.logger.Debug("PayerReportSubmitted", zap.Any("log", log))
+		}
+
 		var parsedEvent *p.PayerReportManagerPayerReportSubmitted
 		if parsedEvent, err = s.contract.ParsePayerReportSubmitted(log); err != nil {
 			return re.NewNonRecoverableError(ErrParsePayerReportManagerLog, err)
@@ -91,21 +101,27 @@ func (s *PayerReportManagerStorer) StoreLog(
 		err := s.setReportSubmitted(ctx, parsedEvent)
 		if err == nil {
 			s.logger.Info(
-				"Successfully stored payer report submitted event",
-				zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
-				zap.Uint64("startSequenceID", parsedEvent.StartSequenceId),
-				zap.Uint64("endSequenceID", parsedEvent.EndSequenceId),
-				zap.String("payersMerkleRoot", hex.EncodeToString(parsedEvent.PayersMerkleRoot[:])),
-				zap.Uint32s("activeNodeIDs", parsedEvent.NodeIds),
+				"successfully stored payer report submitted event",
+				utils.OriginatorIDField(parsedEvent.OriginatorNodeId),
+				utils.StartSequenceIDField(int64(parsedEvent.StartSequenceId)),
+				utils.LastSequenceIDField(int64(parsedEvent.EndSequenceId)),
+				zap.String(
+					payersMerkleRootField,
+					hex.EncodeToString(parsedEvent.PayersMerkleRoot[:]),
+				),
+				zap.Uint32s(activeNodeIDsField, parsedEvent.NodeIds),
 			)
 		} else {
 			if strings.Contains(err.Error(), ErrReportAlreadyExists) {
 				s.logger.Debug("skipping store report, report already exists",
-					zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
-					zap.Uint64("startSequenceID", parsedEvent.StartSequenceId),
-					zap.Uint64("endSequenceID", parsedEvent.EndSequenceId),
-					zap.String("payersMerkleRoot", hex.EncodeToString(parsedEvent.PayersMerkleRoot[:])),
-					zap.Uint32s("activeNodeIDs", parsedEvent.NodeIds),
+					utils.OriginatorIDField(parsedEvent.OriginatorNodeId),
+					utils.StartSequenceIDField(int64(parsedEvent.StartSequenceId)),
+					utils.LastSequenceIDField(int64(parsedEvent.EndSequenceId)),
+					zap.String(
+						payersMerkleRootField,
+						hex.EncodeToString(parsedEvent.PayersMerkleRoot[:]),
+					),
+					zap.Uint32s(activeNodeIDsField, parsedEvent.NodeIds),
 				)
 			} else {
 				return err
@@ -113,7 +129,10 @@ func (s *PayerReportManagerStorer) StoreLog(
 		}
 
 	case payerReportManagerPayerReportSubsetSettledEvent:
-		s.logger.Info("PayerReportSubsetSettled", zap.Any("log", log))
+		if !s.logger.Core().Enabled(zap.DebugLevel) {
+			s.logger.Debug("PayerReportSubsetSettled", zap.Any("log", log))
+		}
+
 		var parsedEvent *p.PayerReportManagerPayerReportSubsetSettled
 		if parsedEvent, err = s.contract.ParsePayerReportSubsetSettled(log); err != nil {
 			return re.NewNonRecoverableError(ErrParsePayerReportManagerLog, err)
@@ -125,25 +144,25 @@ func (s *PayerReportManagerStorer) StoreLog(
 				return err
 			}
 			s.logger.Info(
-				"Payer report fully settled",
-				zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
-				zap.String("payerReportIndex", parsedEvent.PayerReportIndex.String()),
-				zap.Uint32("count", parsedEvent.Count),
-				zap.String("feesSettled", parsedEvent.FeesSettled.String()),
+				"payer report fully settled",
+				utils.OriginatorIDField(parsedEvent.OriginatorNodeId),
+				zap.String(payerReportIndexField, parsedEvent.PayerReportIndex.String()),
+				utils.CountField(int64(parsedEvent.Count)),
+				zap.String(feesSettledField, parsedEvent.FeesSettled.String()),
 			)
 		} else {
 			s.logger.Info(
-				"Payer report partially settled",
-				zap.Uint32("originatorNodeID", parsedEvent.OriginatorNodeId),
-				zap.String("payerReportIndex", parsedEvent.PayerReportIndex.String()),
-				zap.Uint32("count", parsedEvent.Count),
+				"payer report partially settled",
+				utils.OriginatorIDField(parsedEvent.OriginatorNodeId),
+				zap.String(payerReportIndexField, parsedEvent.PayerReportIndex.String()),
+				utils.CountField(int64(parsedEvent.Count)),
 				zap.Uint32("remaining", parsedEvent.Remaining),
-				zap.String("feesSettled", parsedEvent.FeesSettled.String()),
+				zap.String(feesSettledField, parsedEvent.FeesSettled.String()),
 			)
 		}
 
 	default:
-		s.logger.Info("Unknown event", zap.String("event", event.Name))
+		s.logger.Info("unknown event", utils.EventField(event.Name))
 		return re.NewNonRecoverableError(
 			ErrPayerReportManagerUnhandledEvent,
 			errors.New(event.Name),

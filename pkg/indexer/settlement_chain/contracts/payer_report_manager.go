@@ -63,8 +63,8 @@ func NewPayerReportManager(
 		return nil, err
 	}
 
-	logger = logger.Named("payer-report-manager").
-		With(zap.String("contractAddress", address.Hex()))
+	logger = logger.Named(utils.PayerReportManagerContractLoggerName).
+		With(utils.ContractAddressField(address.Hex()))
 
 	payerReportManagerStorer, err := NewPayerReportManagerStorer(db, logger, contract)
 	if err != nil {

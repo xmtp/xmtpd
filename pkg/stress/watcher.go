@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -42,7 +43,7 @@ func NewWatcher(
 	}
 
 	return &Watcher{
-		logger:          logger.Named("chain-watcher"),
+		logger:          logger.Named(utils.StressChainWatcherLoggerName),
 		ethClient:       ethClient,
 		fromBlock:       block.Number(),
 		watchedContract: watchedContract,

@@ -25,6 +25,7 @@ func NewClaimValidator(logger *zap.Logger, serverVersion *semver.Version) (*Clai
 
 	// https://github.com/Masterminds/semver?tab=readme-ov-file#caret-range-comparisons-major
 	constraintStr := fmt.Sprintf("^%d.%d", serverVersion.Major(), serverVersion.Minor())
+
 	logger.Debug(
 		"Using semver constraint for sync compatibility",
 		zap.String("constraint", constraintStr),

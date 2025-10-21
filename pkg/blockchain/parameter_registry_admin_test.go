@@ -41,7 +41,7 @@ func TestSetUint8ParameterAndReadBack(t *testing.T) {
 	ctx := context.Background()
 
 	// Use the uint8-style key the code exposes.
-	const key = blockchain.NODE_REGISTRY_MAX_CANONICAL_NODES_KEY
+	const key = blockchain.NodeRegistryMaxCanonicalNodesKey
 	const want uint8 = 7
 
 	err := admin.SetUint8Parameter(ctx, key, want)
@@ -58,7 +58,7 @@ func TestSetUint8ParameterCanOverwrite(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.NODE_REGISTRY_MAX_CANONICAL_NODES_KEY
+	const key = blockchain.NodeRegistryMaxCanonicalNodesKey
 
 	err := admin.SetUint8Parameter(ctx, key, 1)
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestSetUint16ParameterAndReadBack(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY // uint16 param
+	const key = blockchain.PayerReportManagerProtocolFeeRateKey // uint16 param
 	const want uint16 = 12345
 
 	err := admin.SetUint16Parameter(ctx, key, want)
@@ -90,7 +90,7 @@ func TestSetUint16Parameter_ZeroAndMax(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY
+	const key = blockchain.PayerReportManagerProtocolFeeRateKey
 
 	// zero
 	require.NoError(t, admin.SetUint16Parameter(ctx, key, 0))
@@ -109,7 +109,7 @@ func TestSetUint16ParameterCanOverwrite(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY
+	const key = blockchain.PayerReportManagerProtocolFeeRateKey
 
 	require.NoError(t, admin.SetUint16Parameter(ctx, key, 1))
 	require.NoError(t, admin.SetUint16Parameter(ctx, key, 65535))
@@ -125,7 +125,7 @@ func TestSetUint32ParameterAndReadBack(t *testing.T) {
 
 	// Use any key; the registry stores bytes32 agnostically.
 	// We'll use a rate key in a fresh chain instance for isolation.
-	const key = blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY
+	const key = blockchain.RateRegistryCongestionFeeKey
 	const want uint32 = 3_000_000_001
 
 	err := admin.SetUint32Parameter(ctx, key, want)
@@ -140,7 +140,7 @@ func TestSetUint32Parameter_ZeroAndMax(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.RATE_REGISTRY_STORAGE_FEE_KEY // fresh chain per test
+	const key = blockchain.RateRegistryStorageFeeKey // fresh chain per test
 
 	// zero
 	require.NoError(t, admin.SetUint32Parameter(ctx, key, 0))
@@ -159,7 +159,7 @@ func TestSetUint32ParameterCanOverwrite(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY
+	const key = blockchain.RateRegistryMessageFeeKey
 
 	require.NoError(t, admin.SetUint32Parameter(ctx, key, 42))
 	require.NoError(t, admin.SetUint32Parameter(ctx, key, 99_999_999))
@@ -173,7 +173,7 @@ func TestSetAddressParameterAndReadBack(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY
+	const key = blockchain.IdentityUpdatePayloadBootstrapperKey
 
 	// Any address is fine for storage; use a memorable sentinel.
 	wantAddr := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
@@ -190,7 +190,7 @@ func TestSetAddressParameterCanOverwrite(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY
+	const key = blockchain.IdentityUpdatePayloadBootstrapperKey
 
 	first := common.HexToAddress("0x000000000000000000000000000000000000CAFE")
 	second := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
@@ -210,7 +210,7 @@ func TestGetBoolParameter_Unset_ReturnsFalse(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY)
+	got, err := admin.GetParameterBool(ctx, blockchain.IdentityUpdateBroadcasterPausedKey)
 	require.NoError(t, err)
 	require.False(t, got)
 }
@@ -219,10 +219,10 @@ func TestSetBoolParameter_True_RoundTrip(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, true)
+	err := admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, true)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY)
+	got, err := admin.GetParameterBool(ctx, blockchain.IdentityUpdateBroadcasterPausedKey)
 	require.NoError(t, err)
 	require.True(t, got)
 }
@@ -231,10 +231,10 @@ func TestSetBoolParameter_False_RoundTrip(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, false)
+	err := admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, false)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY)
+	got, err := admin.GetParameterBool(ctx, blockchain.IdentityUpdateBroadcasterPausedKey)
 	require.NoError(t, err)
 	require.False(t, got)
 }
@@ -243,10 +243,10 @@ func TestSetBoolParameter_True_NoOp(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, true)
+	err := admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, true)
 	require.NoError(t, err)
 
-	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, true)
+	err = admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, true)
 	require.NoError(t, err)
 }
 
@@ -254,10 +254,10 @@ func TestSetBoolParameter_False_NoOp(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, false)
+	err := admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, false)
 	require.NoError(t, err)
 
-	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, false)
+	err = admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, false)
 	require.NoError(t, err)
 }
 
@@ -265,13 +265,13 @@ func TestSetBoolParameter_Unset(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	err := admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, true)
+	err := admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, true)
 	require.NoError(t, err)
 
-	err = admin.SetBoolParameter(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY, false)
+	err = admin.SetBoolParameter(ctx, blockchain.IdentityUpdateBroadcasterPausedKey, false)
 	require.NoError(t, err)
 
-	got, err := admin.GetParameterBool(ctx, blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY)
+	got, err := admin.GetParameterBool(ctx, blockchain.IdentityUpdateBroadcasterPausedKey)
 	require.NoError(t, err)
 	require.False(t, got)
 }
@@ -281,30 +281,30 @@ func TestParameterAdmin_SetManyUint64Parameters_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	items := []blockchain.Uint64Param{
-		{Name: blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY, Value: 123},
-		{Name: blockchain.RATE_REGISTRY_STORAGE_FEE_KEY, Value: 456},
-		{Name: blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY, Value: 789},
-		{Name: blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY, Value: 42},
+		{Name: blockchain.RateRegistryMessageFeeKey, Value: 123},
+		{Name: blockchain.RateRegistryStorageFeeKey, Value: 456},
+		{Name: blockchain.RateRegistryCongestionFeeKey, Value: 789},
+		{Name: blockchain.RateRegistryTargetRatePerMinuteKey, Value: 42},
 	}
 
 	err := admin.SetManyUint64Parameters(ctx, items)
 	require.NoError(t, err)
 
-	gotMsg, err := admin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY)
+	gotMsg, err := admin.GetParameterUint64(ctx, blockchain.RateRegistryMessageFeeKey)
 	require.NoError(t, err)
 	require.EqualValues(t, 123, gotMsg)
 
-	gotStore, err := admin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_STORAGE_FEE_KEY)
+	gotStore, err := admin.GetParameterUint64(ctx, blockchain.RateRegistryStorageFeeKey)
 	require.NoError(t, err)
 	require.EqualValues(t, 456, gotStore)
 
-	gotCong, err := admin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY)
+	gotCong, err := admin.GetParameterUint64(ctx, blockchain.RateRegistryCongestionFeeKey)
 	require.NoError(t, err)
 	require.EqualValues(t, 789, gotCong)
 
 	gotTarget, err := admin.GetParameterUint64(
 		ctx,
-		blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+		blockchain.RateRegistryTargetRatePerMinuteKey,
 	)
 	require.NoError(t, err)
 	require.EqualValues(t, 42, gotTarget)
@@ -315,36 +315,36 @@ func TestParameterAdmin_SetManyUint64Parameters_Overwrite(t *testing.T) {
 	ctx := context.Background()
 
 	first := []blockchain.Uint64Param{
-		{Name: blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY, Value: 1},
-		{Name: blockchain.RATE_REGISTRY_STORAGE_FEE_KEY, Value: 2},
-		{Name: blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY, Value: 3},
-		{Name: blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY, Value: 4},
+		{Name: blockchain.RateRegistryMessageFeeKey, Value: 1},
+		{Name: blockchain.RateRegistryStorageFeeKey, Value: 2},
+		{Name: blockchain.RateRegistryCongestionFeeKey, Value: 3},
+		{Name: blockchain.RateRegistryTargetRatePerMinuteKey, Value: 4},
 	}
 	require.NoError(t, admin.SetManyUint64Parameters(ctx, first))
 
 	second := []blockchain.Uint64Param{
-		{Name: blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY, Value: 11},
-		{Name: blockchain.RATE_REGISTRY_STORAGE_FEE_KEY, Value: 22},
-		{Name: blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY, Value: 33},
-		{Name: blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY, Value: 44},
+		{Name: blockchain.RateRegistryMessageFeeKey, Value: 11},
+		{Name: blockchain.RateRegistryStorageFeeKey, Value: 22},
+		{Name: blockchain.RateRegistryCongestionFeeKey, Value: 33},
+		{Name: blockchain.RateRegistryTargetRatePerMinuteKey, Value: 44},
 	}
 	require.NoError(t, admin.SetManyUint64Parameters(ctx, second))
 
-	gotMsg, err := admin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY)
+	gotMsg, err := admin.GetParameterUint64(ctx, blockchain.RateRegistryMessageFeeKey)
 	require.NoError(t, err)
 	require.EqualValues(t, 11, gotMsg)
 
-	gotStore, err := admin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_STORAGE_FEE_KEY)
+	gotStore, err := admin.GetParameterUint64(ctx, blockchain.RateRegistryStorageFeeKey)
 	require.NoError(t, err)
 	require.EqualValues(t, 22, gotStore)
 
-	gotCong, err := admin.GetParameterUint64(ctx, blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY)
+	gotCong, err := admin.GetParameterUint64(ctx, blockchain.RateRegistryCongestionFeeKey)
 	require.NoError(t, err)
 	require.EqualValues(t, 33, gotCong)
 
 	gotTarget, err := admin.GetParameterUint64(
 		ctx,
-		blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY,
+		blockchain.RateRegistryTargetRatePerMinuteKey,
 	)
 	require.NoError(t, err)
 	require.EqualValues(t, 44, gotTarget)
@@ -354,7 +354,7 @@ func TestSetUint64ParameterAndReadBack(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY
+	const key = blockchain.RateRegistryMessageFeeKey
 	const want uint64 = 123456789
 
 	err := admin.SetUint64Parameter(ctx, key, want)
@@ -369,7 +369,7 @@ func TestSetUint64ParameterCanOverwrite(t *testing.T) {
 	admin := buildParameterAdmin(t)
 	ctx := context.Background()
 
-	const key = blockchain.RATE_REGISTRY_STORAGE_FEE_KEY
+	const key = blockchain.RateRegistryStorageFeeKey
 
 	err := admin.SetUint64Parameter(ctx, key, 42)
 	require.NoError(t, err)

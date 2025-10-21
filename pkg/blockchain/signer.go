@@ -11,13 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-/*
-*
-PrivateKeySigner is a naive and not secure implementation of the TransactionSigner interface.
-
-It is meant to be used in tests only
-*
-*/
+// PrivateKeySigner is a naive and not secure implementation of the TransactionSigner interface.
+// It is meant to be used in tests only
 type PrivateKeySigner struct {
 	accountAddress common.Address
 	signFunction   bind.SignerFn

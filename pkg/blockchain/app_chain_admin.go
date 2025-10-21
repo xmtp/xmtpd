@@ -4,6 +4,7 @@ import (
 	"context"
 
 	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -84,10 +85,14 @@ func NewAppChainAdmin(
 		return nil, err
 	}
 
+	appChainAdminLogger := logger.Named(utils.AppChainAdminLoggerName).With(
+		utils.AppChainChainIDField(contractsOptions.AppChain.ChainID),
+	)
+
 	return &appChainAdmin{
 		client:                    client,
 		signer:                    signer,
-		logger:                    logger.Named("AppChainAdmin"),
+		logger:                    appChainAdminLogger,
 		parameterAdmin:            parameterAdmin,
 		identityUpdateBroadcaster: iuBroadcaster,
 		groupMessageBroadcaster:   gmBroadcaster,
@@ -130,7 +135,7 @@ func (a appChainAdmin) UpdateIdentityUpdateBootstrapper(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed")
+			a.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -174,7 +179,7 @@ func (a appChainAdmin) UpdateGroupMessageBootstrapper(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed")
+			a.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -215,7 +220,7 @@ func (a appChainAdmin) UpdateGroupMessagePauseStatus(ctx context.Context) error 
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed")
+			a.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -255,7 +260,7 @@ func (a appChainAdmin) UpdateIdentityUpdatePauseStatus(ctx context.Context) erro
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed")
+			a.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -294,7 +299,7 @@ func (a appChainAdmin) UpdateAppChainGatewayPauseStatus(ctx context.Context) err
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed")
+			a.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -332,7 +337,7 @@ func (a appChainAdmin) UpdateGroupMessageMaxPayloadSize(ctx context.Context) err
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (group-message max payload size)")
+			a.logger.Info("no update needed (group-message max payload size)")
 			return nil
 		}
 		return err
@@ -370,7 +375,7 @@ func (a appChainAdmin) UpdateGroupMessageMinPayloadSize(ctx context.Context) err
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (group-message min payload size)")
+			a.logger.Info("no update needed (group-message min payload size)")
 			return nil
 		}
 		return err
@@ -408,7 +413,7 @@ func (a appChainAdmin) UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) e
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (identity-update max payload size)")
+			a.logger.Info("no update needed (identity-update max payload size)")
 			return nil
 		}
 		return err
@@ -446,7 +451,7 @@ func (a appChainAdmin) UpdateIdentityUpdateMinPayloadSize(ctx context.Context) e
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			a.logger.Info("No update needed (identity-update min payload size)")
+			a.logger.Info("no update needed (identity-update min payload size)")
 			return nil
 		}
 		return err

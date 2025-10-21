@@ -2,7 +2,7 @@ package utils
 
 // Unimplemented panics with a message indicating that the function is not implemented.
 func Unimplemented(message string, unusedVariables ...interface{}) {
-	panic("Unimplemented: " + message)
+	panic("unimplemented: " + message)
 }
 
 // Unused is a no-op function that takes any number of arguments and does nothing with them.

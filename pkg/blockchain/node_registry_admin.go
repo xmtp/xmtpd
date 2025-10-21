@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -24,9 +25,9 @@ type INodeRegistryAdmin interface {
 		signingKeyPub *ecdsa.PublicKey,
 		httpAddress string,
 	) (uint32, error)
-	AddToNetwork(ctx context.Context, nodeId uint32) error
-	RemoveFromNetwork(ctx context.Context, nodeId uint32) error
-	SetHttpAddress(ctx context.Context, nodeId uint32, httpAddress string) error
+	AddToNetwork(ctx context.Context, nodeID uint32) error
+	RemoveFromNetwork(ctx context.Context, nodeID uint32) error
+	SetHTTPAddress(ctx context.Context, nodeID uint32, httpAddress string) error
 	SetMaxCanonical(ctx context.Context, limit uint8) error
 }
 
@@ -55,10 +56,14 @@ func NewNodeRegistryAdmin(
 		return nil, err
 	}
 
+	nodeRegistryAdminLogger := logger.Named(utils.NodeRegistryAdminLoggerName).With(
+		utils.SettlementChainChainIDField(contractsOptions.SettlementChain.ChainID),
+	)
+
 	return &nodeRegistryAdmin{
 		client:         client,
 		signer:         signer,
-		logger:         logger.Named("NodeRegistryAdmin"),
+		logger:         nodeRegistryAdminLogger,
 		nodeContract:   nodeContract,
 		parameterAdmin: parameterAdmin,
 	}, nil
@@ -72,7 +77,7 @@ func (n *nodeRegistryAdmin) AddNode(
 ) (uint32, error) {
 	signingKey := crypto.FromECDSAPub(signingKeyPub)
 
-	nodeId := uint32(0)
+	nodeID := uint32(0)
 	err := ExecuteTransaction(
 		ctx,
 		n.signer,
@@ -96,24 +101,24 @@ func (n *nodeRegistryAdmin) AddNode(
 				return
 			}
 			n.logger.Info("node added to registry",
-				zap.Uint32("node_id", nodeAdded.NodeId),
-				zap.String("owner", nodeAdded.Owner.Hex()),
-				zap.String("http_address", nodeAdded.HttpAddress),
-				zap.String("signing_key_pub", hex.EncodeToString(nodeAdded.SigningPublicKey)),
+				utils.OriginatorIDField(nodeAdded.NodeId),
+				utils.NodeOwnerField(nodeAdded.Owner.Hex()),
+				utils.NodeHTTPAddressField(nodeAdded.HttpAddress),
+				utils.NodeSigningPublicKeyField(hex.EncodeToString(nodeAdded.SigningPublicKey)),
 			)
-			nodeId = nodeAdded.NodeId
+			nodeID = nodeAdded.NodeId
 		},
 	)
 	if err != nil {
 		return 0, err
 	}
 
-	return nodeId, nil
+	return nodeID, nil
 }
 
 func (n *nodeRegistryAdmin) AddToNetwork(
 	ctx context.Context,
-	nodeId uint32,
+	nodeID uint32,
 ) error {
 	return ExecuteTransaction(
 		ctx,
@@ -123,7 +128,7 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.nodeContract.AddToNetwork(
 				opts,
-				nodeId,
+				nodeID,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
@@ -138,7 +143,7 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 				return
 			}
 			n.logger.Info("node added to canonical network",
-				zap.Uint32("node_id", nodeAdded.NodeId),
+				utils.OriginatorIDField(nodeAdded.NodeId),
 			)
 		},
 	)
@@ -146,7 +151,7 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 
 func (n *nodeRegistryAdmin) RemoveFromNetwork(
 	ctx context.Context,
-	nodeId uint32,
+	nodeID uint32,
 ) error {
 	return ExecuteTransaction(
 		ctx,
@@ -156,7 +161,7 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.nodeContract.RemoveFromNetwork(
 				opts,
-				nodeId,
+				nodeID,
 			)
 		},
 		func(log *types.Log) (interface{}, error) {
@@ -171,15 +176,15 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 				return
 			}
 			n.logger.Info("node removed from canonical network",
-				zap.Uint32("node_id", nodeRemoved.NodeId),
+				utils.OriginatorIDField(nodeRemoved.NodeId),
 			)
 		},
 	)
 }
 
-func (n *nodeRegistryAdmin) SetHttpAddress(
+func (n *nodeRegistryAdmin) SetHTTPAddress(
 	ctx context.Context,
-	nodeId uint32,
+	nodeID uint32,
 	httpAddress string,
 ) error {
 	return ExecuteTransaction(
@@ -190,7 +195,7 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.nodeContract.SetHttpAddress(
 				opts,
-				nodeId,
+				nodeID,
 				httpAddress,
 			)
 		},
@@ -206,8 +211,8 @@ func (n *nodeRegistryAdmin) SetHttpAddress(
 				return
 			}
 			n.logger.Info("http address updated",
-				zap.Uint32("node_id", httpAddressUpdated.NodeId),
-				zap.String("http_address", httpAddressUpdated.HttpAddress),
+				utils.OriginatorIDField(httpAddressUpdated.NodeId),
+				utils.NodeHTTPAddressField(httpAddressUpdated.HttpAddress),
 			)
 		},
 	)
@@ -217,7 +222,7 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 	ctx context.Context,
 	limit uint8,
 ) error {
-	err := n.parameterAdmin.SetUint8Parameter(ctx, NODE_REGISTRY_MAX_CANONICAL_NODES_KEY, limit)
+	err := n.parameterAdmin.SetUint8Parameter(ctx, NodeRegistryMaxCanonicalNodesKey, limit)
 	if err != nil {
 		return errors.Wrap(err, "failed to update max canonical nodes parameter")
 	}
@@ -244,14 +249,14 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 				return
 			}
 			n.logger.Info("updated max canonical nodes",
-				zap.Uint8("limit", maxCanonicalUpdated.MaxCanonicalNodes),
+				utils.LimitField(maxCanonicalUpdated.MaxCanonicalNodes),
 			)
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			n.logger.Info("No update needed",
-				zap.Uint8("limit", limit),
+			n.logger.Info("no update needed",
+				utils.LimitField(limit),
 			)
 			return nil
 		}

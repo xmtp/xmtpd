@@ -39,10 +39,10 @@ func getMinuteFromEnvelope(envelope *envelopes.OriginatorEnvelope) int32 {
 
 func AddReportLogFields(logger *zap.Logger, report *PayerReport) *zap.Logger {
 	return logger.With(
-		zap.String("report_id", report.ID.String()),
-		zap.Uint64("start_sequence_id", report.StartSequenceID),
-		zap.Uint64("end_sequence_id", report.EndSequenceID),
-		zap.Uint32("originator_node_id", report.OriginatorNodeID),
+		utils.PayerReportIDField(report.ID.String()),
+		utils.StartSequenceIDField(int64(report.StartSequenceID)),
+		utils.LastSequenceIDField(int64(report.EndSequenceID)),
+		utils.OriginatorIDField(report.OriginatorNodeID),
 	)
 }
 

@@ -27,14 +27,14 @@ var (
 )
 
 type PayerReportVerifier struct {
-	log   *zap.Logger
-	store IPayerReportStore
+	logger *zap.Logger
+	store  IPayerReportStore
 }
 
-func NewPayerReportVerifier(log *zap.Logger, store IPayerReportStore) *PayerReportVerifier {
+func NewPayerReportVerifier(logger *zap.Logger, store IPayerReportStore) *PayerReportVerifier {
 	return &PayerReportVerifier{
-		log:   log,
-		store: store,
+		logger: logger,
+		store:  store,
 	}
 }
 
@@ -110,7 +110,7 @@ func (p *PayerReportVerifier) IsValidReport(
 ) (bool, error) {
 	var err error
 
-	log := AddReportLogFields(p.log, newReport)
+	log := AddReportLogFields(p.logger, newReport)
 
 	if err = validateReportTransition(prevReport, newReport); err != nil {
 		log.Warn("invalid report transition", zap.Error(err))
@@ -230,9 +230,9 @@ func (p *PayerReportVerifier) isAtMinuteEnd(
 
 	isAtMinuteEnd := lastSequenceID == expectedSequenceID
 	if !isAtMinuteEnd {
-		p.log.Debug(
+		p.logger.Debug(
 			"sequence id is not the last message in the minute",
-			zap.Int64("last_sequence_id", lastSequenceID),
+			utils.LastSequenceIDField(lastSequenceID),
 			zap.Int32("minute", minute),
 			zap.Int64("expected_sequence_id", expectedSequenceID),
 		)

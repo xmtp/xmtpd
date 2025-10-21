@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/currency"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/ledger"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
@@ -52,7 +53,7 @@ func NewPayerRegistryStorer(
 	return &PayerRegistryStorer{
 		abi:      abi,
 		ledger:   payerLedger,
-		logger:   logger.Named("registrystorer"),
+		logger:   logger.Named(utils.StorerLoggerName),
 		contract: contract,
 	}, nil
 }
@@ -80,7 +81,7 @@ func (s *PayerRegistryStorer) StoreLog(
 	case payerRegistryUsageSettledEvent:
 		return s.handleUsageSettled(ctx, log)
 	default:
-		s.logger.Info("Unknown event", zap.String("event", event.Name))
+		s.logger.Info("unknown event", utils.EventField(event.Name))
 		return re.NewNonRecoverableError(ErrPayerRegistryUnhandledEvent, errors.New(event.Name))
 	}
 }
@@ -89,7 +90,10 @@ func (s *PayerRegistryStorer) handleDeposit(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	s.logger.Info("Deposit", zap.Any("log", log))
+	if !s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("Deposit", zap.Any("log", log))
+	}
+
 	var err error
 	var parsedEvent *pr.PayerRegistryDeposit
 	parsedEvent, err = s.contract.ParseDeposit(log)
@@ -114,11 +118,11 @@ func (s *PayerRegistryStorer) handleDeposit(
 		return wrapLedgerError(err, ErrLedgerDeposit)
 	}
 
-	s.logger.Info(
+	s.logger.Debug(
 		"deposit successful",
-		zap.String("payer_address", parsedEvent.Payer.Hex()),
-		zap.Int64("amount", int64(amount)),
-		zap.String("event_id", eventID.String()),
+		utils.PayerAddressField(parsedEvent.Payer.Hex()),
+		utils.AmountField(amount.String()),
+		utils.EventIDField(eventID.String()),
 	)
 
 	return nil
@@ -128,7 +132,9 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	s.logger.Info("WithdrawalRequested", zap.Any("log", log))
+	if !s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("WithdrawalRequested", zap.Any("log", log))
+	}
 
 	var err error
 	var parsedEvent *pr.PayerRegistryWithdrawalRequested
@@ -154,11 +160,11 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 		return wrapLedgerError(err, ErrLedgerInitiateWithdrawal)
 	}
 
-	s.logger.Info(
+	s.logger.Debug(
 		"withdrawal requested successful",
-		zap.String("payer_address", parsedEvent.Payer.Hex()),
-		zap.Int64("amount", int64(amount)),
-		zap.String("event_id", eventID.String()),
+		utils.PayerAddressField(parsedEvent.Payer.Hex()),
+		utils.AmountField(amount.String()),
+		utils.EventIDField(eventID.String()),
 	)
 
 	return nil
@@ -168,7 +174,9 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	s.logger.Info("UsageSettled", zap.Any("log", log))
+	if !s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("UsageSettled", zap.Any("log", log))
+	}
 
 	var err error
 	var parsedEvent *pr.PayerRegistryUsageSettled
@@ -189,11 +197,11 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 		return wrapLedgerError(err, ErrLedgerSettleUsage)
 	}
 
-	s.logger.Info(
+	s.logger.Debug(
 		"usage settled",
-		zap.String("payer_address", parsedEvent.Payer.Hex()),
-		zap.Int64("amount", int64(amount)),
-		zap.String("event_id", eventID.String()),
+		utils.PayerAddressField(parsedEvent.Payer.Hex()),
+		utils.AmountField(amount.String()),
+		utils.EventIDField(eventID.String()),
 	)
 
 	return nil
@@ -203,7 +211,9 @@ func (s *PayerRegistryStorer) handleWithdrawalCanceled(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	s.logger.Info("WithdrawalCancelled", zap.Any("log", log))
+	if !s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("WithdrawalCancelled", zap.Any("log", log))
+	}
 
 	var err error
 	var parsedEvent *pr.PayerRegistryWithdrawalCancelled

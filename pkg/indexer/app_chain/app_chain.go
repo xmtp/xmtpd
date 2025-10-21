@@ -1,4 +1,6 @@
-package app_chain
+// Package appchain implements the AppChain Indexer.
+// It's responsible for indexing the GroupMessageBroadcaster and IdentityUpdateBroadcaster contracts.
+package appchain
 
 import (
 	"context"
@@ -18,6 +20,7 @@ import (
 	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -39,7 +42,7 @@ type AppChain struct {
 	wg                        sync.WaitGroup
 	rpcClient                 *ethclient.Client
 	wsClient                  *ethclient.Client
-	log                       *zap.Logger
+	logger                    *zap.Logger
 	streamer                  c.ILogStreamer
 	groupMessageBroadcaster   *contracts.GroupMessageBroadcaster
 	identityUpdateBroadcaster *contracts.IdentityUpdateBroadcaster
@@ -48,15 +51,15 @@ type AppChain struct {
 
 func NewAppChain(
 	ctxwc context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	cfg config.AppChainOptions,
 	db *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
 ) (*AppChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
-	chainLogger := log.Named("app-chain").
-		With(zap.Int64("chainID", cfg.ChainID))
+	chainLogger := logger.Named(utils.AppChainIndexerLoggerName).
+		With(utils.ChainIDField(cfg.ChainID))
 
 	rpcClient, err := blockchain.NewRPCClient(
 		ctxwc,
@@ -157,7 +160,7 @@ func NewAppChain(
 		cancel:                    cancel,
 		rpcClient:                 rpcClient,
 		wsClient:                  wsClient,
-		log:                       chainLogger,
+		logger:                    chainLogger,
 		streamer:                  streamer,
 		chainID:                   cfg.ChainID,
 		groupMessageBroadcaster:   groupMessageBroadcaster,
@@ -199,7 +202,7 @@ func (a *AppChain) Start() error {
 }
 
 func (a *AppChain) Stop() {
-	a.log.Debug("Stopping app chain")
+	a.logger.Debug("stopping")
 
 	if a.streamer != nil {
 		a.streamer.Stop()
@@ -216,7 +219,7 @@ func (a *AppChain) Stop() {
 	a.cancel()
 	a.wg.Wait()
 
-	a.log.Debug("App chain stopped")
+	a.logger.Debug("stopped")
 }
 
 func (a *AppChain) GroupMessageBroadcasterEventChannel() <-chan types.Log {

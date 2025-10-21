@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -65,8 +66,12 @@ func NewContractRatesFetcher(
 		return nil, err
 	}
 
+	contractRatesFetcherLogger := logger.Named(utils.ContractRatesFetcherLoggerName).With(
+		utils.SettlementChainChainIDField(options.SettlementChain.ChainID),
+	)
+
 	return &ContractRatesFetcher{
-		logger:          logger.Named("contractRatesFetcher"),
+		logger:          contractRatesFetcherLogger,
 		contract:        contract,
 		ctx:             ctx,
 		refreshInterval: options.SettlementChain.RateRegistryRefreshInterval,
@@ -80,7 +85,7 @@ func NewContractRatesFetcher(
 func (c *ContractRatesFetcher) Start() error {
 	// If we can't load the data at least once, fail to start the service
 	if err := c.refreshData(); err != nil {
-		c.logger.Error("Failed to refresh data", zap.Error(err))
+		c.logger.Error("failed to refresh data", zap.Error(err))
 		return err
 	}
 
@@ -156,7 +161,7 @@ func (c *ContractRatesFetcher) GetRates(timestamp time.Time) (*Rates, error) {
 	if time.Since(c.lastRefresh) > maxRefreshInterval {
 		c.logger.Warn(
 			"last rates refresh was too long ago for accurate rates",
-			zap.Duration("duration", time.Since(c.lastRefresh)),
+			utils.DurationMsField(time.Since(c.lastRefresh)),
 		)
 		return nil, errors.New("last rates refresh was too long ago")
 	}
@@ -214,7 +219,7 @@ func (c *ContractRatesFetcher) refreshLoop() {
 			return
 		case <-ticker.C:
 			if err := c.refreshData(); err != nil {
-				c.logger.Error("Failed to refresh data", zap.Error(err))
+				c.logger.Error("failed to refresh data", zap.Error(err))
 			}
 		}
 	}

@@ -9,13 +9,14 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 const submitterWorkerID = 2
 
 type SubmitterWorker struct {
-	log                *zap.Logger
+	logger             *zap.Logger
 	ctx                context.Context
 	cancel             context.CancelFunc
 	wg                 *sync.WaitGroup
@@ -28,7 +29,7 @@ type SubmitterWorker struct {
 
 func NewSubmitterWorker(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	payerReportStore payerreport.IPayerReportStore,
 	registry registry.NodeRegistry,
 	reportsManager blockchain.PayerReportsManager,
@@ -37,7 +38,7 @@ func NewSubmitterWorker(
 ) *SubmitterWorker {
 	ctx, cancel := context.WithCancel(ctx)
 	return &SubmitterWorker{
-		log:                log.Named("reportsubmitter"),
+		logger:             logger.Named(utils.PayerReportSubmitterWorkerLoggerName),
 		ctx:                ctx,
 		cancel:             cancel,
 		wg:                 &sync.WaitGroup{},
@@ -50,7 +51,7 @@ func NewSubmitterWorker(
 }
 
 func (w *SubmitterWorker) Start() {
-	tracing.GoPanicWrap(w.ctx, w.wg, "payerreport-submitter", func(ctx context.Context) {
+	tracing.GoPanicWrap(w.ctx, w.wg, "payer-report-submitter-worker", func(ctx context.Context) {
 		for {
 			nextRun := findNextRunTime(w.myNodeID, submitterWorkerID)
 			wait := time.Until(nextRun)
@@ -59,7 +60,7 @@ func (w *SubmitterWorker) Start() {
 				return
 			case <-time.After(wait):
 				if err := w.SubmitReports(ctx); err != nil {
-					w.log.Error("error submitting reports", zap.Error(err))
+					w.logger.Error("error submitting reports", zap.Error(err))
 				}
 			}
 		}
@@ -96,7 +97,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	}
 
 	// Fetch all reports that are pending submission and approved attestation.
-	w.log.Debug("fetching reports to submit")
+	w.logger.Debug("fetching reports to submit")
 	reports, err := w.payerReportStore.FetchReports(
 		ctx,
 		payerreport.NewFetchReportsQuery().
@@ -110,7 +111,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 	var latestErr error
 
 	for _, report := range reports {
-		reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
+		reportLogger := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
 
 		requiredAttestations := (len(report.ActiveNodeIDs) / 2) + 1
 
@@ -133,7 +134,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				if err != nil {
 					reportLogger.Error(
 						"failed to set report submitted",
-						zap.String("report_id", report.ID.String()),
+						utils.PayerReportIDField(report.ID.String()),
 						zap.Error(err),
 					)
 					latestErr = err
@@ -153,7 +154,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				if err != nil {
 					reportLogger.Error(
 						"failed to set report submission rejected",
-						zap.String("report_id", report.ID.String()),
+						utils.PayerReportIDField(report.ID.String()),
 						zap.Error(err),
 					)
 					latestErr = err
@@ -164,7 +165,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 
 			reportLogger.Error(
 				"failed to submit report",
-				zap.String("report_id", report.ID.String()),
+				utils.PayerReportIDField(report.ID.String()),
 				zap.Error(submitErr),
 			)
 
@@ -179,7 +180,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		if err != nil {
 			reportLogger.Warn(
 				"failed to set report submitted",
-				zap.String("report_id", report.ID.String()),
+				utils.PayerReportIDField(report.ID.String()),
 			)
 		}
 

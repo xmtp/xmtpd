@@ -52,7 +52,7 @@ type multiNodeTestScaffold struct {
 	submitterWorkers   []*workers.SubmitterWorker
 	settlementWorkers  []*workers.SettlementWorker
 	payerReportStores  []payerreport.IPayerReportStore
-	log                *zap.Logger
+	logger             *zap.Logger
 	registrants        []*registrant.Registrant
 	registry           registry.NodeRegistry
 	reportsManager     blockchain.PayerReportsManager
@@ -332,7 +332,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			settlementWorker2,
 		},
 		payerReportStores: []payerreport.IPayerReportStore{payerReportStore1, payerReportStore2},
-		log:               log,
+		logger:            log,
 		registry:          registry,
 		reportsManager:    reportsManager,
 	}

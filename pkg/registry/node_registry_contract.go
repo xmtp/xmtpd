@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -70,7 +71,7 @@ func NewSmartContractRegistry(
 		ctx:                  ctx,
 		contract:             contract,
 		refreshInterval:      options.SettlementChain.NodeRegistryRefreshInterval,
-		logger:               logger.Named("smartContractRegistry"),
+		logger:               logger.Named(utils.NodeRegistryWatchdogLoggerName),
 		newNodesNotifier:     newNotifier[[]Node](),
 		nodes:                make(map[uint32]Node),
 		changedNodeNotifiers: make(map[uint32]*SingleNotificationNotifier[Node]),
@@ -91,7 +92,7 @@ func (s *SmartContractRegistry) Start() error {
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,
-		"smart-contract-registry",
+		"node-registry-watchdog",
 		func(ctx context.Context) { s.refreshLoop() },
 	)
 
@@ -146,7 +147,7 @@ func (s *SmartContractRegistry) refreshLoop() {
 			return
 		case <-ticker.C:
 			if err := s.refreshData(); err != nil {
-				s.logger.Error("Failed to refresh data", zap.Error(err))
+				s.logger.Error("failed to refresh data", zap.Error(err))
 			}
 		}
 	}
@@ -155,7 +156,7 @@ func (s *SmartContractRegistry) refreshLoop() {
 func (s *SmartContractRegistry) refreshData() error {
 	fromContract, err := s.loadUnfilteredFromContract()
 	if err != nil {
-		return fmt.Errorf("could not load nodes from contract: %v", err)
+		return fmt.Errorf("could not load nodes from contract: %w", err)
 	}
 
 	newNodes := []Node{}
@@ -202,7 +203,7 @@ func (s *SmartContractRegistry) processChangedNode(node Node) {
 	defer s.changedNodeNotifiersMutex.RUnlock()
 
 	s.nodes[node.NodeID] = node
-	s.logger.Info("processing changed node", zap.Any("node", node))
+	s.logger.Info("processing changed node", utils.OriginatorIDField(node.NodeID))
 	if registry, ok := s.changedNodeNotifiers[node.NodeID]; ok {
 		registry.trigger(node)
 	}

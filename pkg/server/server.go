@@ -47,7 +47,7 @@ import (
 type ReplicationServerConfig struct {
 	Ctx           context.Context
 	DB            *sql.DB
-	Log           *zap.Logger
+	Logger        *zap.Logger
 	NodeRegistry  registry.NodeRegistry
 	Options       *config.ServerOptions
 	ServerVersion *semver.Version
@@ -67,9 +67,9 @@ func WithDB(db *sql.DB) ReplicationServerOption {
 	}
 }
 
-func WithLogger(log *zap.Logger) ReplicationServerOption {
+func WithLogger(logger *zap.Logger) ReplicationServerOption {
 	return func(cfg *ReplicationServerConfig) {
-		cfg.Log = log
+		cfg.Logger = logger
 	}
 }
 
@@ -107,7 +107,7 @@ type ReplicationServer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	log                 *zap.Logger
+	logger              *zap.Logger
 	options             *config.ServerOptions
 	metrics             *metrics.Server
 	nodeRegistry        registry.NodeRegistry
@@ -143,7 +143,7 @@ func NewReplicationServer(
 		return nil, errors.New("context not provided")
 	}
 
-	if cfg.Log == nil {
+	if cfg.Logger == nil {
 		return nil, errors.New("logger not provided")
 	}
 
@@ -174,18 +174,18 @@ func NewReplicationServer(
 		mtcs, err = metrics.NewMetricsServer(cfg.Ctx,
 			cfg.Options.Metrics.Address,
 			cfg.Options.Metrics.Port,
-			cfg.Log,
+			cfg.Logger,
 			promReg,
 		)
 		if err != nil {
-			cfg.Log.Error("initializing metrics server", zap.Error(err))
+			cfg.Logger.Error("initializing metrics server", zap.Error(err))
 			return nil, err
 		}
 	}
 
 	s := &ReplicationServer{
 		options:      cfg.Options,
-		log:          cfg.Log,
+		logger:       cfg.Logger,
 		nodeRegistry: cfg.NodeRegistry,
 		metrics:      mtcs,
 	}
@@ -194,7 +194,7 @@ func NewReplicationServer(
 	if cfg.Options.API.Enable || cfg.Options.Sync.Enable || cfg.Options.PayerReport.Enable {
 		s.registrant, err = registrant.NewRegistrant(
 			s.ctx,
-			cfg.Log,
+			cfg.Logger,
 			queries.New(cfg.DB),
 			cfg.NodeRegistry,
 			cfg.Options.Signer.PrivateKey,
@@ -208,7 +208,7 @@ func NewReplicationServer(
 	if cfg.Options.Indexer.Enable || cfg.Options.API.Enable {
 		s.validationService, err = mlsvalidate.NewMlsValidationService(
 			cfg.Ctx,
-			cfg.Log,
+			cfg.Logger,
 			cfg.Options.MlsValidation,
 			clientMetrics,
 		)
@@ -220,7 +220,7 @@ func NewReplicationServer(
 	if cfg.Options.Indexer.Enable {
 		s.indx, err = indexer.NewIndexer(
 			indexer.WithDB(cfg.DB),
-			indexer.WithLogger(cfg.Log),
+			indexer.WithLogger(cfg.Logger),
 			indexer.WithContext(cfg.Ctx),
 			indexer.WithValidationService(s.validationService),
 			indexer.WithContractsOptions(&cfg.Options.Contracts),
@@ -234,13 +234,13 @@ func NewReplicationServer(
 			return nil, fmt.Errorf("failed to start indexer: %w", err)
 		}
 
-		cfg.Log.Info("Indexer service enabled")
+		cfg.Logger.Info("indexer service started")
 	}
 
 	if cfg.Options.MigrationServer.Enable {
 		s.migratorServer, err = migrator.NewMigrationService(
 			migrator.WithContext(cfg.Ctx),
-			migrator.WithLogger(cfg.Log),
+			migrator.WithLogger(cfg.Logger),
 			migrator.WithDestinationDB(cfg.DB),
 			migrator.WithMigratorConfig(&cfg.Options.MigrationServer),
 			migrator.WithContractsOptions(&cfg.Options.Contracts),
@@ -254,7 +254,7 @@ func NewReplicationServer(
 			return nil, err
 		}
 
-		cfg.Log.Info("Migration service enabled")
+		cfg.Logger.Info("migrator service started")
 	}
 
 	if cfg.Options.API.Enable {
@@ -271,36 +271,39 @@ func NewReplicationServer(
 			return nil, err
 		}
 
-		cfg.Log.Info("API server started", zap.Int("port", cfg.Options.API.Port))
+		cfg.Logger.Info("api service started", zap.Int("port", cfg.Options.API.Port))
 	}
 
 	if cfg.Options.Sync.Enable {
-		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Log, *cfg.Options)
+		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Logger, *cfg.Options)
 		if err != nil {
 			log.Error("failed to get domain separator", zap.Error(err))
 			return nil, err
 		}
 		s.syncServer, err = sync.NewSyncServer(
 			sync.WithContext(s.ctx),
-			sync.WithLogger(cfg.Log),
+			sync.WithLogger(cfg.Logger),
 			sync.WithNodeRegistry(s.nodeRegistry),
 			sync.WithRegistrant(s.registrant),
 			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(cfg.FeeCalculator),
-			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Log)),
+			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Logger)),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		cfg.Log.Info("Sync service enabled")
+		cfg.Logger.Info("sync service started")
 	}
 
 	if cfg.Options.PayerReport.Enable {
-		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Log, *cfg.Options)
+		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Logger, *cfg.Options)
 		if err != nil {
-			cfg.Log.Error("failed to get domain separator for payer report workers", zap.Error(err))
+			cfg.Logger.Error(
+				"failed to get domain separator for payer report workers",
+				zap.Error(err),
+			)
 			return nil, err
 		}
 
@@ -321,7 +324,7 @@ func NewReplicationServer(
 		}
 
 		reportsManager, err := blockchain.NewReportsManager(
-			cfg.Log,
+			cfg.Logger,
 			settlementChainClient,
 			signer,
 			cfg.Options.Contracts.SettlementChain,
@@ -332,18 +335,18 @@ func NewReplicationServer(
 
 		workerConfig, err := workers.NewWorkerConfigBuilder().
 			WithContext(s.ctx).
-			WithLogger(cfg.Log).
+			WithLogger(cfg.Logger).
 			WithRegistrant(s.registrant).
 			WithRegistry(s.nodeRegistry).
 			WithReportsManager(reportsManager).
-			WithStore(payerreport.NewStore(cfg.DB, cfg.Log)).
+			WithStore(payerreport.NewStore(cfg.DB, cfg.Logger)).
 			WithDomainSeparator(domainSeparator).
 			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
 			WithGenerationSelfPeriod(cfg.Options.PayerReport.GenerateReportSelfPeriod).
 			WithGenerationOthersPeriod(cfg.Options.PayerReport.GenerateReportOthersPeriod).
 			Build()
 		if err != nil {
-			cfg.Log.Error("failed to build worker config", zap.Error(err))
+			cfg.Logger.Error("failed to build worker config", zap.Error(err))
 			return nil, err
 		}
 
@@ -364,11 +367,11 @@ func startAPIServer(
 	isMigrationEnabled := cfg.Options.MigrationServer.Enable || cfg.Options.MigrationClient.Enable
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
-		s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.Log, cfg.DB)
+		s.cursorUpdater = metadata.NewCursorUpdater(s.ctx, cfg.Logger, cfg.DB)
 
 		replicationService, err := message.NewReplicationAPIService(
 			s.ctx,
-			cfg.Log,
+			cfg.Logger,
 			s.registrant,
 			cfg.DB,
 			s.validationService,
@@ -382,11 +385,11 @@ func startAPIServer(
 		}
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
 
-		cfg.Log.Info("API service enabled")
+		cfg.Logger.Info("replication api registered")
 
 		metadataService, err := metadata.NewMetadataAPIService(
 			s.ctx,
-			cfg.Log,
+			cfg.Logger,
 			s.cursorUpdater,
 			cfg.ServerVersion,
 			metadata.NewPayerInfoFetcher(cfg.DB),
@@ -396,7 +399,7 @@ func startAPIServer(
 		}
 		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
 
-		cfg.Log.Info("Metadata service enabled")
+		cfg.Logger.Info("metadata api registered")
 
 		return nil
 	}
@@ -405,7 +408,7 @@ func startAPIServer(
 
 	if s.nodeRegistry != nil && s.registrant != nil {
 		jwtVerifier, err = authn.NewRegistryVerifier(
-			cfg.Log,
+			cfg.Logger,
 			s.nodeRegistry,
 			s.registrant.NodeID(),
 			cfg.ServerVersion,
@@ -417,7 +420,7 @@ func startAPIServer(
 
 	apiOpts := []api.APIServerOption{
 		api.WithContext(s.ctx),
-		api.WithLogger(cfg.Log),
+		api.WithLogger(cfg.Logger),
 		api.WithGRPCListener(cfg.GRPCListener),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithReflection(cfg.Options.Reflection.Enable),
@@ -426,7 +429,7 @@ func startAPIServer(
 
 	// Add auth interceptors if JWT verifier is available
 	if jwtVerifier != nil {
-		authInterceptor := server.NewAuthInterceptor(jwtVerifier, cfg.Log)
+		authInterceptor := server.NewAuthInterceptor(jwtVerifier, cfg.Logger)
 		apiOpts = append(apiOpts,
 			api.WithUnaryInterceptors(authInterceptor.Unary()),
 			api.WithStreamInterceptors(authInterceptor.Stream()),
@@ -449,7 +452,7 @@ func (s *ReplicationServer) WaitForShutdown(timeout time.Duration) {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	sig := <-termChannel
-	s.log.Info("Received OS signal, shutting down", zap.String("signal", sig.String()))
+	s.logger.Info("received OS signal, shutting down", zap.String("signal", sig.String()))
 	s.Shutdown(timeout)
 }
 
@@ -487,7 +490,7 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 
 	if s.migratorServer != nil {
 		if err := s.migratorServer.Stop(); err != nil {
-			s.log.Error("failed to stop migration service", zap.Error(err))
+			s.logger.Error("failed to stop migrator", zap.Error(err))
 		}
 	}
 
@@ -496,7 +499,7 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 
 func getDomainSeparator(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	options config.ServerOptions,
 ) (common.Hash, error) {
 	signer, err := blockchain.NewPrivateKeySigner(
@@ -516,7 +519,7 @@ func getDomainSeparator(
 	}
 
 	reportsManager, err := blockchain.NewReportsManager(
-		log,
+		logger,
 		settlementChainClient,
 		signer,
 		options.Contracts.SettlementChain,

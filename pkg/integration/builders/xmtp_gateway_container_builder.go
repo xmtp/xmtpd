@@ -22,8 +22,8 @@ type XmtpdGatewayContainerBuilder struct {
 	exposedPorts  []string
 	networkName   string
 	networkAlias  string
-	wsUrl         string
-	rpcUrl        string
+	wsURL         string
+	rpcURL        string
 }
 
 func NewXmtpdGatewayContainerBuilder(t *testing.T) *XmtpdGatewayContainerBuilder {
@@ -33,7 +33,7 @@ func NewXmtpdGatewayContainerBuilder(t *testing.T) *XmtpdGatewayContainerBuilder
 	return &XmtpdGatewayContainerBuilder{
 		envVars: envVars,
 		files: []testcontainers.ContainerFile{{
-			HostFilePath:      testutils.GetScriptPath(anvilJsonRelativePath),
+			HostFilePath:      testutils.GetScriptPath(anvilJSONRelativePath),
 			ContainerFilePath: "/cfg/anvil.json",
 			FileMode:          0o644,
 		}},
@@ -85,13 +85,13 @@ func (b *XmtpdGatewayContainerBuilder) WithNetworkAlias(
 	return b
 }
 
-func (b *XmtpdGatewayContainerBuilder) WithWsUrl(url string) *XmtpdGatewayContainerBuilder {
-	b.wsUrl = url
+func (b *XmtpdGatewayContainerBuilder) WithWsURL(url string) *XmtpdGatewayContainerBuilder {
+	b.wsURL = url
 	return b
 }
 
-func (b *XmtpdGatewayContainerBuilder) WithRPCUrl(url string) *XmtpdGatewayContainerBuilder {
-	b.rpcUrl = url
+func (b *XmtpdGatewayContainerBuilder) WithRPCURL(url string) *XmtpdGatewayContainerBuilder {
+	b.rpcURL = url
 	return b
 }
 
@@ -99,14 +99,14 @@ func (b *XmtpdGatewayContainerBuilder) Build(t *testing.T) (testcontainers.Conta
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	if b.wsUrl != "" {
-		b.envVars["XMTPD_SETTLEMENT_CHAIN_WSS_URL"] = b.wsUrl
-		b.envVars["XMTPD_APP_CHAIN_WSS_URL"] = b.wsUrl
+	if b.wsURL != "" {
+		b.envVars["XMTPD_SETTLEMENT_CHAIN_WSS_URL"] = b.wsURL
+		b.envVars["XMTPD_APP_CHAIN_WSS_URL"] = b.wsURL
 	}
 
-	if b.rpcUrl != "" {
-		b.envVars["XMTPD_SETTLEMENT_CHAIN_RPC_URL"] = b.rpcUrl
-		b.envVars["XMTPD_APP_CHAIN_RPC_URL"] = b.rpcUrl
+	if b.rpcURL != "" {
+		b.envVars["XMTPD_SETTLEMENT_CHAIN_RPC_URL"] = b.rpcURL
+		b.envVars["XMTPD_APP_CHAIN_RPC_URL"] = b.rpcURL
 	}
 
 	aliases := make(map[string][]string)

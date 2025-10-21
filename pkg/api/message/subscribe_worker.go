@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -138,8 +139,8 @@ func (lm *listenersMap[K]) rangeKeys(fn func(key K, listeners *listenerSet) bool
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
 // and may be dropped if full
 type subscribeWorker struct {
-	ctx context.Context
-	log *zap.Logger
+	ctx    context.Context
+	logger *zap.Logger
 
 	dbSubscription <-chan []queries.GatewayEnvelope
 	// Assumption: listeners cannot be in multiple slices
@@ -150,11 +151,12 @@ type subscribeWorker struct {
 
 func startSubscribeWorker(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	store *sql.DB,
 ) (*subscribeWorker, error) {
-	log = log.Named("subscribeWorker")
-	log.Info("Starting subscribe worker")
+	logger = logger.Named(utils.SubscribeWorkerLoggerName)
+	logger.Info("starting")
+
 	q := queries.New(store)
 	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
 		envs, err := q.
@@ -179,7 +181,7 @@ func startSubscribeWorker(
 
 	subscription := db.NewDBSubscription(
 		ctx,
-		log,
+		logger,
 		pollableQuery,
 		db.ToVectorClock(vc),
 		db.PollingOptions{
@@ -187,13 +189,15 @@ func startSubscribeWorker(
 			NumRows:  subscribeWorkerPollRows,
 		},
 	)
+
 	dbChan, err := subscription.Start()
 	if err != nil {
 		return nil, err
 	}
+
 	worker := &subscribeWorker{
 		ctx:                 ctx,
-		log:                 log,
+		logger:              logger,
 		dbSubscription:      dbChan,
 		globalListeners:     listenerSet{},
 		originatorListeners: listenersMap[uint32]{},
@@ -212,16 +216,16 @@ func (s *subscribeWorker) start() {
 			return
 		case batch, ok := <-s.dbSubscription:
 			if !ok {
-				s.log.Error("dbSubscription is closed")
+				s.logger.Error("database subscription is closed")
 				return
 			}
 
-			s.log.Debug("Received new batch", zap.Int("numEnvelopes", len(batch)))
+			s.logger.Debug("received new batch", utils.NumEnvelopesField(len(batch)))
 			envs := make([]*envelopes.OriginatorEnvelope, 0, len(batch))
 			for _, row := range batch {
 				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
 				if err != nil {
-					s.log.Error("Failed to unmarshal envelope", zap.Error(err))
+					s.logger.Error("failed to unmarshal envelope", zap.Error(err))
 					continue
 				}
 				envs = append(envs, env)
@@ -277,13 +281,24 @@ func (s *subscribeWorker) dispatchToListeners(
 		// Assumption: listener channel is never closed by a different goroutine
 		select {
 		case <-l.ctx.Done():
-			s.log.Debug("Stream closed, removing listener", zap.Any("listener", l.ch))
+			if s.logger.Core().Enabled(zap.DebugLevel) {
+				s.logger.Debug("stream closed, removing listener", utils.BodyField(l.ch))
+			}
+
 			s.closeListener(l)
+
 		default:
 			select {
 			case l.ch <- envs:
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					s.logger.Debug("sent envelopes to listener", utils.NumEnvelopesField(len(envs)))
+				}
+
 			default:
-				s.log.Info("Channel full, removing listener", zap.Any("listener", l.ch))
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					s.logger.Debug("channel full, removing listener", utils.BodyField(l.ch))
+				}
+
 				s.closeListener(l)
 			}
 		}
@@ -312,7 +327,7 @@ func (s *subscribeWorker) listen(
 	query *message_api.EnvelopesQuery,
 ) <-chan []*envelopes.OriginatorEnvelope {
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
-	l := newListener(ctx, s.log, query, ch)
+	l := newListener(ctx, s.logger, query, ch)
 
 	if l.isGlobal {
 		s.globalListeners.Store(l, struct{}{})

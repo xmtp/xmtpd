@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
@@ -42,7 +43,7 @@ type fundsAdmin struct {
 	appGateway             *acg.AppChainGateway
 	mockUnderlyingFeeToken *mft.MockUnderlyingFeeToken
 	spender                common.Address
-	appChainId             int64
+	appChainID             int64
 }
 
 var _ IFundsAdmin = &fundsAdmin{}
@@ -104,8 +105,13 @@ func NewFundsAdmin(
 		return nil, err
 	}
 
+	fundAdminLogger := opts.Logger.Named(utils.FundsAdminLoggerName).With(
+		utils.SettlementChainChainIDField(opts.ContractOptions.SettlementChain.ChainID),
+		utils.AppChainChainIDField(opts.ContractOptions.AppChain.ChainID),
+	)
+
 	return &fundsAdmin{
-		logger:                 opts.Logger.Named("FundsAdmin"),
+		logger:                 fundAdminLogger,
 		app:                    opts.App,
 		settlement:             opts.Settlement,
 		feeToken:               feeToken,
@@ -116,7 +122,7 @@ func NewFundsAdmin(
 		),
 		settlementGateway: settlementGateway,
 		appGateway:        appGateway,
-		appChainId:        opts.ContractOptions.AppChain.ChainID,
+		appChainID:        opts.ContractOptions.AppChain.ChainID,
 	}, nil
 }
 
@@ -128,9 +134,9 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 		f.logger.Error("failed to get ETH balance", zap.Error(err))
 	} else {
 		f.logger.Info(
-			"ETH balance of",
-			zap.String("address", address.Hex()),
-			zap.String("balance", currency.FromWei(ethBalance, 18)),
+			"ETH balance",
+			utils.AddressField(address.Hex()),
+			utils.BalanceField(currency.FromWei(ethBalance, 18)),
 		)
 	}
 
@@ -139,8 +145,9 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 		f.logger.Error("failed to get xUSD balance", zap.Error(err))
 	} else {
 		f.logger.Info(
-			"xUSD balance of", zap.String("address", address.Hex()),
-			zap.String("balance", currency.FromWei(feeTokenBalance, 6)),
+			"xUSD balance",
+			utils.AddressField(address.Hex()),
+			utils.BalanceField(currency.FromWei(feeTokenBalance, 6)),
 		)
 	}
 
@@ -149,8 +156,9 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 		f.logger.Error("failed to get underlying USDC balance", zap.Error(err))
 	} else {
 		f.logger.Info(
-			"USDC balance of", zap.String("address", address.Hex()),
-			zap.String("balance", currency.FromWei(underlyingTokenBalance, 6)),
+			"USDC balance",
+			utils.AddressField(address.Hex()),
+			utils.BalanceField(currency.FromWei(underlyingTokenBalance, 6)),
 		)
 	}
 
@@ -159,9 +167,9 @@ func (f *fundsAdmin) Balances(ctx context.Context) error {
 		f.logger.Error("failed to get XMTP balance", zap.Error(err))
 	} else {
 		f.logger.Info(
-			"XMTP balance of",
-			zap.String("address", address.Hex()),
-			zap.String("balance", currency.FromWei(appGasBalance, 18)),
+			"XMTP balance",
+			utils.AddressField(address.Hex()),
+			utils.BalanceField(currency.FromWei(appGasBalance, 18)),
 		)
 	}
 
@@ -198,9 +206,9 @@ func (f *fundsAdmin) MintMockUSDC(
 			}
 			f.logger.Info(
 				"tokens minted",
-				zap.String("from", transfer.From.Hex()),
-				zap.String("to", transfer.To.Hex()),
-				zap.String("amount", transfer.Value.String()),
+				utils.FromAddressField(transfer.From.Hex()),
+				utils.ToAddressField(transfer.To.Hex()),
+				utils.AmountField(transfer.Value.String()),
 			)
 		},
 	)
@@ -225,7 +233,11 @@ func (f *fundsAdmin) Deposit(
 	if err != nil {
 		return err
 	}
-	f.logger.Info("Current balance", zap.String("raw", feeTokenBalance.String()))
+	f.logger.Info(
+		"current balance",
+		utils.AddressField(from.Hex()),
+		utils.BalanceField(feeTokenBalance.String()),
+	)
 
 	if feeTokenBalance.Cmp(amount) < 0 {
 		return fmt.Errorf(
@@ -235,9 +247,9 @@ func (f *fundsAdmin) Deposit(
 		)
 	}
 
-	f.logger.Info("Executing bridge transaction…")
+	f.logger.Info("executing bridge transaction")
 
-	xmtpChainId := big.NewInt(f.appChainId)
+	xmtpChainID := big.NewInt(f.appChainID)
 
 	err = ExecuteTransaction(
 		ctx,
@@ -247,7 +259,7 @@ func (f *fundsAdmin) Deposit(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return f.settlementGateway.Deposit(
 				opts,
-				xmtpChainId,
+				xmtpChainID,
 				from,
 				amount,
 				gasLimit,
@@ -263,7 +275,7 @@ func (f *fundsAdmin) Deposit(
 				f.logger.Error("node added event is not of type SettlementChainGatewayDeposit")
 				return
 			}
-			f.logger.Info("deposited", zap.String("amount", deposit.Amount.String()))
+			f.logger.Info("deposited", utils.AmountField(deposit.Amount.String()))
 		},
 	)
 	if err != nil {
@@ -283,7 +295,11 @@ func (f *fundsAdmin) Withdraw(
 	if err != nil {
 		return err
 	}
-	f.logger.Info("Current balance", zap.String("raw", appGasBalance.String()))
+	f.logger.Info(
+		"current balance",
+		utils.AddressField(from.Hex()),
+		utils.BalanceField(appGasBalance.String()),
+	)
 
 	if appGasBalance.Cmp(amount) <= 0 {
 		return fmt.Errorf(
@@ -293,7 +309,7 @@ func (f *fundsAdmin) Withdraw(
 		)
 	}
 
-	f.logger.Info("Executing bridge transaction…")
+	f.logger.Info("executing bridge transaction")
 
 	err = ExecuteTransaction(
 		ctx,
@@ -318,8 +334,8 @@ func (f *fundsAdmin) Withdraw(
 			}
 			f.logger.Info(
 				"withdrawn",
-				zap.String("amount", withdrawal.Amount.String()),
-				zap.String("recipient", withdrawal.Recipient.Hex()),
+				utils.AmountField(withdrawal.Amount.String()),
+				utils.RecipientField(withdrawal.Recipient.Hex()),
 			)
 		},
 	)
@@ -335,7 +351,7 @@ func (f *fundsAdmin) ReceiveWithdrawal(
 ) error {
 	from := f.settlement.Signer.FromAddress()
 
-	f.logger.Info("Executing bridge transaction…")
+	f.logger.Info("executing bridge transaction")
 
 	err := ExecuteTransaction(
 		ctx,
@@ -361,8 +377,8 @@ func (f *fundsAdmin) ReceiveWithdrawal(
 			}
 			f.logger.Info(
 				"withdrawn",
-				zap.String("amount", withdrawal.Amount.String()),
-				zap.String("recipient", withdrawal.Recipient.Hex()),
+				utils.AmountField(withdrawal.Amount.String()),
+				utils.RecipientField(withdrawal.Recipient.Hex()),
 			)
 		},
 	)

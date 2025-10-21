@@ -414,7 +414,7 @@ func setHTTPAddressHandler(nodeID uint32, httpAddress string) error {
 		return fmt.Errorf("could not create registry admin: %w", err)
 	}
 
-	if err := registryAdmin.SetHttpAddress(ctx, nodeID, httpAddress); err != nil {
+	if err := registryAdmin.SetHTTPAddress(ctx, nodeID, httpAddress); err != nil {
 		return fmt.Errorf("could not set http address: %w", err)
 	}
 

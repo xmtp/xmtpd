@@ -18,6 +18,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -117,7 +118,7 @@ func NewRPCLogStreamer(
 ) (*RPCLogStreamer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	streamLogger := logger.Named("rpc-log-streamer")
+	streamLogger := logger.Named(utils.RPCLogStreamerLoggerName)
 
 	streamer := &RPCLogStreamer{
 		ctx:                   ctx,
@@ -171,7 +172,7 @@ func (r *RPCLogStreamer) Stop() {
 
 func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 	var (
-		logger                  = r.logger.With(zap.String("contractAddress", cfg.Address.Hex()))
+		logger                  = r.logger.With(utils.ContractAddressField(cfg.Address.Hex()))
 		backfillFromBlockNumber = cfg.FromBlockNumber
 		backfillFromBlockHash   = cfg.FromBlockHash
 		innerSubCh              = make(chan types.Log, cfg.ExpectedLogsPerBlock*10)
@@ -190,7 +191,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 		for {
 			select {
 			case <-r.ctx.Done():
-				logger.Error("Context cancelled, stopping watcher")
+				logger.Error("context cancelled, stopping watcher")
 				return
 
 			case err := <-sub.Err():
@@ -201,7 +202,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				logger.Error("subscription error, rebuilding", zap.Error(err))
 				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
-					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("maxDisconnectTime", cfg.MaxDisconnectTime.String()))
+					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("max_disconnect_time", cfg.MaxDisconnectTime.String()))
 				}
 
 			default:
@@ -222,11 +223,11 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 							cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
 						}
 
-						logger.Info("Backfill complete, switching to subscription.")
+						logger.Debug("backfill complete, switching to subscription")
 						break backfillLoop
 
 					case ErrReorg:
-						logger.Warn("Reorg detected, rolled back to block", zap.Uint64("fromBlock", *response.NextBlockNumber))
+						logger.Warn("reorg detected, rolled back to block", utils.BlockNumberField(*response.NextBlockNumber))
 
 					default:
 						if isBlockPageSizeError(err) {
@@ -236,15 +237,15 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 								continue
 							}
 
-							logger.Info("Adjusting backfill block page size", zap.Uint64("newBlockPageSize", blockPageSize))
+							logger.Info("adjusting backfill block page size", zap.Uint64("new_block_page_size", blockPageSize))
 							r.backfillBlockPageSize = blockPageSize
 
 							continue
 						}
 
 						logger.Error(
-							"Error getting next page",
-							zap.Uint64("fromBlock", backfillFromBlockNumber),
+							"error getting next page",
+							utils.BlockNumberField(backfillFromBlockNumber),
 							zap.Error(err),
 						)
 
@@ -264,10 +265,10 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				}
 
 				logger.Debug(
-					"Got logs",
-					zap.Int("numLogs", len(response.Logs)),
-					zap.Uint64("fromBlock", backfillFromBlockNumber),
-					zap.Time("time", time.Now()),
+					"got logs",
+					utils.NumEnvelopesField(len(response.Logs)),
+					utils.BlockNumberField(backfillFromBlockNumber),
+					utils.TimeField(time.Now()),
 				)
 
 				for _, log := range response.Logs {
@@ -283,7 +284,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 		for {
 			select {
 			case <-r.ctx.Done():
-				logger.Error("Context cancelled, stopping watcher")
+				logger.Error("context cancelled, stopping watcher")
 				return
 
 			case err := <-sub.Err():
@@ -294,7 +295,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				logger.Error("subscription error, rebuilding", zap.Error(err))
 				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
-					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("maxDisconnectTime", cfg.MaxDisconnectTime.String()))
+					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("max_disconnect_time", cfg.MaxDisconnectTime.String()))
 				}
 
 				// Backfill everything that was missed.
@@ -310,8 +311,8 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				backfillFromBlockHash = log.BlockHash.Bytes()
 
 				logger.Debug(
-					"Received log from subscription channel",
-					zap.Uint64("blockNumber", log.BlockNumber),
+					"received log from subscription channel",
+					utils.BlockNumberField(log.BlockNumber),
 				)
 
 				metrics.EmitIndexerCurrentBlock(cfg.Address.Hex(), log.BlockNumber)
@@ -339,9 +340,9 @@ func (r *RPCLogStreamer) GetNextPage(
 	fromBlockHash []byte,
 ) (GetNextPageResponse, error) {
 	r.logger.Debug(
-		"Getting next page",
-		zap.Uint64("fromBlockNumber", fromBlockNumber),
-		zap.String("fromBlockHash", hex.EncodeToString(fromBlockHash)),
+		"getting next page",
+		utils.BlockNumberField(fromBlockNumber),
+		utils.HashField(hex.EncodeToString(fromBlockHash)),
 	)
 
 	contractAddress := cfg.Address.Hex()
@@ -495,7 +496,7 @@ func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 		return nil, err
 	}
 
-	r.logger.Info("Subscription rebuilt")
+	r.logger.Info("subscription rebuilt")
 
 	return sub, nil
 }

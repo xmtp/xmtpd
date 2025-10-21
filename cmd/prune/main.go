@@ -47,7 +47,7 @@ func main() {
 	if err != nil {
 		fatal("Could not build logger: %s", err)
 	}
-	logger = logger.Named("prune")
+	logger = logger.Named(utils.PrunerLoggerName)
 
 	logger.Info(fmt.Sprintf("Version: %s", Version))
 

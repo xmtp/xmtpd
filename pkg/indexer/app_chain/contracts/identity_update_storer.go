@@ -26,8 +26,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const memberField = "member"
-
 var (
 	ErrAdvisoryLockSequence   = "advisory lock failed"
 	ErrParseIdentityUpdate    = "error parsing identity update"

@@ -330,7 +330,7 @@ func mintHandler(to common.Address, amountStr string, raw bool) error {
 
 	logger.Info("successfully minted mock underlying fee token",
 		zap.String("to", to.Hex()),
-		zap.String("amount_raw", amount.String()),
+		zap.String("amount", amount.String()),
 	)
 
 	return nil

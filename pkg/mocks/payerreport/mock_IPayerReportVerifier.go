@@ -81,23 +81,23 @@ func (_c *MockIPayerReportVerifier_GetPayerMap_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// IsValidReport provides a mock function with given fields: ctx, prevReport, newReport
-func (_m *MockIPayerReportVerifier) IsValidReport(ctx context.Context, prevReport *payerreport.PayerReport, newReport *payerreport.PayerReport) (bool, error) {
+// VerifyReport provides a mock function with given fields: ctx, prevReport, newReport
+func (_m *MockIPayerReportVerifier) VerifyReport(ctx context.Context, prevReport *payerreport.PayerReport, newReport *payerreport.PayerReport) (payerreport.VerifyReportResult, error) {
 	ret := _m.Called(ctx, prevReport, newReport)
 
 	if len(ret) == 0 {
-		panic("no return value specified for IsValidReport")
+		panic("no return value specified for VerifyReport")
 	}
 
-	var r0 bool
+	var r0 payerreport.VerifyReportResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) (bool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) (payerreport.VerifyReportResult, error)); ok {
 		return rf(ctx, prevReport, newReport)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) payerreport.VerifyReportResult); ok {
 		r0 = rf(ctx, prevReport, newReport)
 	} else {
-		r0 = ret.Get(0).(bool)
+		r0 = ret.Get(0).(payerreport.VerifyReportResult)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) error); ok {
@@ -109,32 +109,32 @@ func (_m *MockIPayerReportVerifier) IsValidReport(ctx context.Context, prevRepor
 	return r0, r1
 }
 
-// MockIPayerReportVerifier_IsValidReport_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsValidReport'
-type MockIPayerReportVerifier_IsValidReport_Call struct {
+// MockIPayerReportVerifier_VerifyReport_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyReport'
+type MockIPayerReportVerifier_VerifyReport_Call struct {
 	*mock.Call
 }
 
-// IsValidReport is a helper method to define mock.On call
+// VerifyReport is a helper method to define mock.On call
 //   - ctx context.Context
 //   - prevReport *payerreport.PayerReport
 //   - newReport *payerreport.PayerReport
-func (_e *MockIPayerReportVerifier_Expecter) IsValidReport(ctx interface{}, prevReport interface{}, newReport interface{}) *MockIPayerReportVerifier_IsValidReport_Call {
-	return &MockIPayerReportVerifier_IsValidReport_Call{Call: _e.mock.On("IsValidReport", ctx, prevReport, newReport)}
+func (_e *MockIPayerReportVerifier_Expecter) VerifyReport(ctx interface{}, prevReport interface{}, newReport interface{}) *MockIPayerReportVerifier_VerifyReport_Call {
+	return &MockIPayerReportVerifier_VerifyReport_Call{Call: _e.mock.On("VerifyReport", ctx, prevReport, newReport)}
 }
 
-func (_c *MockIPayerReportVerifier_IsValidReport_Call) Run(run func(ctx context.Context, prevReport *payerreport.PayerReport, newReport *payerreport.PayerReport)) *MockIPayerReportVerifier_IsValidReport_Call {
+func (_c *MockIPayerReportVerifier_VerifyReport_Call) Run(run func(ctx context.Context, prevReport *payerreport.PayerReport, newReport *payerreport.PayerReport)) *MockIPayerReportVerifier_VerifyReport_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*payerreport.PayerReport), args[2].(*payerreport.PayerReport))
 	})
 	return _c
 }
 
-func (_c *MockIPayerReportVerifier_IsValidReport_Call) Return(_a0 bool, _a1 error) *MockIPayerReportVerifier_IsValidReport_Call {
+func (_c *MockIPayerReportVerifier_VerifyReport_Call) Return(_a0 payerreport.VerifyReportResult, _a1 error) *MockIPayerReportVerifier_VerifyReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockIPayerReportVerifier_IsValidReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) (bool, error)) *MockIPayerReportVerifier_IsValidReport_Call {
+func (_c *MockIPayerReportVerifier_VerifyReport_Call) RunAndReturn(run func(context.Context, *payerreport.PayerReport, *payerreport.PayerReport) (payerreport.VerifyReportResult, error)) *MockIPayerReportVerifier_VerifyReport_Call {
 	_c.Call.Return(run)
 	return _c
 }

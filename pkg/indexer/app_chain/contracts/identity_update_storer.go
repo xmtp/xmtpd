@@ -26,11 +26,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-<<<<<<< HEAD
-=======
-const memberField = "member"
-
->>>>>>> adbc3311 (Standardize logging)
 var (
 	ErrAdvisoryLockSequence   = "advisory lock failed"
 	ErrParseIdentityUpdate    = "error parsing identity update"
@@ -152,14 +147,10 @@ func (s *IdentityUpdateStorer) StoreLog(
 			inboxID := utils.HexEncode(msgSent.InboxId[:])
 
 			for _, newMember := range associationState.StateDiff.NewMembers {
-<<<<<<< HEAD
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("new member", utils.BodyField(newMember))
 				}
 
-=======
-				s.logger.Debug("new member", zap.Any(memberField, newMember))
->>>>>>> adbc3311 (Standardize logging)
 				if address, ok := newMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					numRows, err := querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
 						Address: address.EthereumAddress,
@@ -184,14 +175,10 @@ func (s *IdentityUpdateStorer) StoreLog(
 			}
 
 			for _, removedMember := range associationState.StateDiff.RemovedMembers {
-<<<<<<< HEAD
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("removed member", utils.BodyField(removedMember))
 				}
 
-=======
-				log.Debug("removed member", zap.Any(memberField, removedMember))
->>>>>>> adbc3311 (Standardize logging)
 				if address, ok := removedMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					rows, err := querier.RevokeAddressFromLog(
 						ctx,

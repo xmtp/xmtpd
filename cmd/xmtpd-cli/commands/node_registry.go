@@ -127,7 +127,7 @@ func registerNodeHandler(
 	}
 
 	logger.Info(
-		"Node registered",
+		"node registered",
 		zap.String("owner-address", owner.Hex()),
 		zap.Uint32("node-id", nodeID),
 	)
@@ -194,14 +194,14 @@ func canonicalNetworkHandler(add, remove bool, nodeID uint32) error {
 		if err := admin.AddToNetwork(ctx, nodeID); err != nil {
 			return fmt.Errorf("failed to add node to network: %w", err)
 		}
-		logger.Info("Added node to canonical network", zap.Uint32("node-id", nodeID))
+		logger.Info("added node to canonical network", zap.Uint32("node-id", nodeID))
 	}
 
 	if remove {
 		if err := admin.RemoveFromNetwork(ctx, nodeID); err != nil {
 			return fmt.Errorf("failed to remove node from network: %w", err)
 		}
-		logger.Info("Removed node from canonical network", zap.Uint32("node-id", nodeID))
+		logger.Info("removed node from canonical network", zap.Uint32("node-id", nodeID))
 	}
 
 	return nil
@@ -270,7 +270,7 @@ func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 
 	switch {
 	case all:
-		logger.Info("Getting all nodes", zap.Any("nodes", nodes))
+		logger.Info("getting all nodes", zap.Any("nodes", nodes))
 		if exportPath != "" {
 			if err := migrator.DumpNodesToFile(nodes, exportPath); err != nil {
 				return fmt.Errorf("could not dump nodes: %w", err)
@@ -284,7 +284,7 @@ func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 
 		for _, node := range nodes {
 			if node.NodeID == nodeID {
-				logger.Info("Got node", zap.Any("node", node))
+				logger.Info("got node", zap.Any("node", node))
 				found = true
 				exportNode = node
 				break
@@ -348,7 +348,7 @@ func maxCanonicalHandler(setVal uint8) error {
 		if err := admin.SetMaxCanonical(ctx, setVal); err != nil {
 			return fmt.Errorf("failed to set max canonical size: %w", err)
 		}
-		logger.Info("Set new max canonical size", zap.Uint8("maxCanonicalNodes", setVal))
+		logger.Info("set new max canonical size", zap.Uint8("maxCanonicalNodes", setVal))
 	}
 
 	caller, err := setupNodeRegistryCaller(ctx, logger)
@@ -361,7 +361,7 @@ func maxCanonicalHandler(setVal uint8) error {
 		return fmt.Errorf("failed to get max canonical size: %w", err)
 	}
 
-	logger.Info("Current max canonical size", zap.Uint8("maxCanonicalNodes", val))
+	logger.Info("current max canonical size", zap.Uint8("maxCanonicalNodes", val))
 	return nil
 }
 
@@ -418,7 +418,7 @@ func setHTTPAddressHandler(nodeID uint32, httpAddress string) error {
 		return fmt.Errorf("could not set http address: %w", err)
 	}
 
-	logger.Info("Set the HTTP address of a node",
+	logger.Info("set the HTTP address of a node",
 		zap.Uint32("node-id", nodeID),
 		zap.String("http-address", httpAddress),
 	)

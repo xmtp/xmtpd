@@ -33,7 +33,7 @@ type Registrant struct {
 
 func NewRegistrant(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	db *queries.Queries,
 	nodeRegistry registry.NodeRegistry,
 	privateKeyString string,
@@ -41,7 +41,7 @@ func NewRegistrant(
 ) (*Registrant, error) {
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse signer.private-key: %v", err)
+		return nil, fmt.Errorf("unable to parse signer.private-key: %w", err)
 	}
 
 	record, err := getRegistryRecord(nodeRegistry, privateKey)
@@ -55,10 +55,10 @@ func NewRegistrant(
 
 	tokenFactory := authn.NewTokenFactory(privateKey, record.NodeID, serverVersion)
 
-	log.Info(
-		"Registrant identified",
-		zap.Uint32("nodeId", record.NodeID),
-		zap.String("publicKey", utils.EcdsaPublicKeyToString(record.SigningKey)),
+	logger.Info(
+		"registrant identified",
+		utils.OriginatorIDField(record.NodeID),
+		utils.PublicKeyField(utils.EcdsaPublicKeyToString(record.SigningKey)),
 	)
 	return &Registrant{
 		record:       record,
@@ -144,7 +144,7 @@ func getRegistryRecord(
 ) (*registry.Node, error) {
 	records, err := nodeRegistry.GetNodes()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get nodes from registry: %v", err)
+		return nil, fmt.Errorf("unable to get nodes from registry: %w", err)
 	}
 	i := slices.IndexFunc(records, func(e registry.Node) bool {
 		if e.NodeID == 0 {
@@ -171,13 +171,13 @@ func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *reg
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to insert node info into database: %v", err)
+		return fmt.Errorf("unable to insert node info into database: %w", err)
 	}
 
 	if numRows == 0 {
 		nodeInfo, err := db.SelectNodeInfo(ctx)
 		if err != nil {
-			return fmt.Errorf("unable to retrieve node info from database: %v", err)
+			return fmt.Errorf("unable to retrieve node info from database: %w", err)
 		}
 		if nodeInfo.NodeID != int32(record.NodeID) {
 			return fmt.Errorf("registry node ID does not match ID in database")

@@ -94,39 +94,39 @@ const (
 // Known keys → types (fill with what we know today; easy to extend)
 var paramTypeByKey = map[string]ParamType{
 	// Paused flags (bool)
-	blockchain.APP_CHAIN_GATEWAY_PAUSED_KEY:           ParamBool,
-	blockchain.SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY:    ParamBool,
-	blockchain.DISTRIBUTION_MANAGER_PAUSED_KEY:        ParamBool,
-	blockchain.GROUP_MESSAGE_BROADCASTER_PAUSED_KEY:   ParamBool,
-	blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY: ParamBool,
-	blockchain.PAYER_REGISTRY_PAUSED_KEY:              ParamBool,
+	blockchain.AppChainGatewayPausedKey:           ParamBool,
+	blockchain.SettlementChainGatewayPausedKey:    ParamBool,
+	blockchain.DistributionManagerPausedKey:       ParamBool,
+	blockchain.GroupMessageBroadcasterPausedKey:   ParamBool,
+	blockchain.IdentityUpdateBroadcasterPausedKey: ParamBool,
+	blockchain.PayerRegistryPausedKey:             ParamBool,
 
 	// Addresses
-	blockchain.DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY: ParamAddress,
-	blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY:           ParamAddress,
-	blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY:         ParamAddress,
-	blockchain.NODE_REGISTRY_ADMIN_KEY:                          ParamAddress,
-	blockchain.RATE_REGISTRY_MIGRATOR_KEY:                       ParamAddress,
+	blockchain.DistributionManagerProtocolFeesRecipientKey: ParamAddress,
+	blockchain.GroupMessagePayloadBootstrapperKey:          ParamAddress,
+	blockchain.IdentityUpdatePayloadBootstrapperKey:        ParamAddress,
+	blockchain.NodeRegistryAdminKey:                        ParamAddress,
+	blockchain.RateRegistryMigratorKey:                     ParamAddress,
 
 	// Sizes / counts
-	blockchain.NODE_REGISTRY_MAX_CANONICAL_NODES_KEY:            ParamUint8,
-	blockchain.GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY:   ParamUint32,
-	blockchain.GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY:   ParamUint32,
-	blockchain.IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY: ParamUint32,
-	blockchain.IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY: ParamUint32,
+	blockchain.NodeRegistryMaxCanonicalNodesKey:           ParamUint8,
+	blockchain.GroupMessageBroadcasterMaxPayloadSizeKey:   ParamUint32,
+	blockchain.GroupMessageBroadcasterMinPayloadSizeKey:   ParamUint32,
+	blockchain.IdentityUpdateBroadcasterMaxPayloadSizeKey: ParamUint32,
+	blockchain.IdentityUpdateBroadcasterMinPayloadSizeKey: ParamUint32,
 
 	// Monetary / big ints
-	blockchain.PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY: ParamUint96,
+	blockchain.PayerRegistryMinimumDepositKey: ParamUint96,
 
 	// Durations
-	blockchain.PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY: ParamUint32,
+	blockchain.PayerRegistryWithdrawLockPeriodKey: ParamUint32,
 
 	// Fees / rates
-	blockchain.PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY: ParamUint16,
-	blockchain.RATE_REGISTRY_CONGESTION_FEE_KEY:           ParamUint64,
-	blockchain.RATE_REGISTRY_MESSAGE_FEE_KEY:              ParamUint64,
-	blockchain.RATE_REGISTRY_STORAGE_FEE_KEY:              ParamUint64,
-	blockchain.RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY:   ParamUint64,
+	blockchain.PayerReportManagerProtocolFeeRateKey: ParamUint16,
+	blockchain.RateRegistryCongestionFeeKey:         ParamUint64,
+	blockchain.RateRegistryMessageFeeKey:            ParamUint64,
+	blockchain.RateRegistryStorageFeeKey:            ParamUint64,
+	blockchain.RateRegistryTargetRatePerMinuteKey:   ParamUint64,
 }
 
 func paramType(key string) ParamType {

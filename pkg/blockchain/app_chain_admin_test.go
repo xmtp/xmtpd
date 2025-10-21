@@ -63,13 +63,13 @@ func TestBootstrapperAddress(t *testing.T) {
 	cases := []addrCase{
 		{
 			name:   "identity",
-			key:    blockchain.IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY,
+			key:    blockchain.IdentityUpdatePayloadBootstrapperKey,
 			update: appAdmin.UpdateIdentityUpdateBootstrapper,
 			get:    appAdmin.GetIdentityUpdateBootstrapper,
 		},
 		{
 			name:   "group",
-			key:    blockchain.GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY,
+			key:    blockchain.GroupMessagePayloadBootstrapperKey,
 			update: appAdmin.UpdateGroupMessageBootstrapper,
 			get:    appAdmin.GetGroupMessageBootstrapper,
 		},
@@ -161,19 +161,19 @@ func TestPauseFlags(t *testing.T) {
 	cases := []pauseCase{
 		{
 			name:   "group",
-			key:    blockchain.GROUP_MESSAGE_BROADCASTER_PAUSED_KEY,
+			key:    blockchain.GroupMessageBroadcasterPausedKey,
 			update: appAdmin.UpdateGroupMessagePauseStatus,
 			get:    appAdmin.GetGroupMessagePauseStatus,
 		},
 		{
 			name:   "identity",
-			key:    blockchain.IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY,
+			key:    blockchain.IdentityUpdateBroadcasterPausedKey,
 			update: appAdmin.UpdateIdentityUpdatePauseStatus,
 			get:    appAdmin.GetIdentityUpdatePauseStatus,
 		},
 		{
 			name:   "app-chain-gateway",
-			key:    blockchain.APP_CHAIN_GATEWAY_PAUSED_KEY,
+			key:    blockchain.AppChainGatewayPausedKey,
 			update: appAdmin.UpdateAppChainGatewayPauseStatus,
 			get:    appAdmin.GetAppChainGatewayPauseStatus,
 		},
@@ -255,25 +255,25 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 	cases := []sizeCase{
 		{
 			name:   "group/max",
-			key:    blockchain.GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+			key:    blockchain.GroupMessageBroadcasterMaxPayloadSizeKey,
 			update: appAdmin.UpdateGroupMessageMaxPayloadSize,
 			get:    appAdmin.GetGroupMessageMaxPayloadSize,
 		},
 		{
 			name:   "group/min",
-			key:    blockchain.GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+			key:    blockchain.GroupMessageBroadcasterMinPayloadSizeKey,
 			update: appAdmin.UpdateGroupMessageMinPayloadSize,
 			get:    appAdmin.GetGroupMessageMinPayloadSize,
 		},
 		{
 			name:   "identity/max",
-			key:    blockchain.IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY,
+			key:    blockchain.IdentityUpdateBroadcasterMaxPayloadSizeKey,
 			update: appAdmin.UpdateIdentityUpdateMaxPayloadSize,
 			get:    appAdmin.GetIdentityUpdateMaxPayloadSize,
 		},
 		{
 			name:   "identity/min",
-			key:    blockchain.IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY,
+			key:    blockchain.IdentityUpdateBroadcasterMinPayloadSizeKey,
 			update: appAdmin.UpdateIdentityUpdateMinPayloadSize,
 			get:    appAdmin.GetIdentityUpdateMinPayloadSize,
 		},

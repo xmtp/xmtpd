@@ -1,3 +1,8 @@
+// Package contracts implements the GroupMessageBroadcaster and IdentityUpdateBroadcaster contracts.
+//
+// The GroupMessageBroadcaster contract is responsible for broadcasting group messages to the network.
+// The IdentityUpdateBroadcaster contract is responsible for broadcasting identity updates to the network.
+// The Solidity implementations are in https://github.com/xmtp/smart-contracts/tree/main/src/app-chain.
 package contracts
 
 import (
@@ -59,8 +64,8 @@ func NewGroupMessageBroadcaster(
 		return nil, err
 	}
 
-	logger = logger.Named("group-message-broadcaster").
-		With(zap.String("contractAddress", address.Hex()))
+	logger = logger.Named(utils.GroupMessageBroadcasterLoggerName).
+		With(utils.ContractAddressField(address.Hex()))
 
 	groupMessageStorer := NewGroupMessageStorer(querier, logger, contract)
 

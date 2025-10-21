@@ -40,12 +40,12 @@ func (n *Node) BuildClient(
 ) (*grpc.ClientConn, error) {
 	target, isTLS, err := utils.HTTPAddressToGRPCTarget(n.HTTPAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
+		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %w", err)
 	}
 
 	creds, err := utils.GetCredentialsForAddress(isTLS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %v", err)
+		return nil, fmt.Errorf("failed to get credentials: %w", err)
 	}
 
 	dialOpts := append([]grpc.DialOption{
@@ -63,7 +63,7 @@ func (n *Node) BuildClient(
 		dialOpts...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create channel at %s: %v", target, err)
+		return nil, fmt.Errorf("failed to create channel at %s: %w", target, err)
 	}
 
 	return conn, nil

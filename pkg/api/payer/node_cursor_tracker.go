@@ -7,7 +7,6 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -31,14 +30,14 @@ func (c *DefaultMetadataAPIClientConstructor) NewMetadataAPIClient(
 
 type NodeCursorTracker struct {
 	ctx               context.Context
-	log               *zap.Logger
 	metadataAPIClient MetadataAPIClientConstructor
 }
 
-func NewNodeCursorTracker(ctx context.Context,
-	log *zap.Logger, metadataAPIClient MetadataAPIClientConstructor,
+func NewNodeCursorTracker(
+	ctx context.Context,
+	metadataAPIClient MetadataAPIClientConstructor,
 ) *NodeCursorTracker {
-	return &NodeCursorTracker{ctx: ctx, log: log, metadataAPIClient: metadataAPIClient}
+	return &NodeCursorTracker{ctx: ctx, metadataAPIClient: metadataAPIClient}
 }
 
 func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(

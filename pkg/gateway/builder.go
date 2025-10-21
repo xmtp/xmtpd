@@ -145,7 +145,7 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build logger")
 		}
-		b.logger = logger
+		b.logger = logger.Named(utils.GatewayLoggerName)
 	}
 
 	if b.nonceManager == nil {
@@ -264,7 +264,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		apiServer:           apiServer,
 		ctx:                 ctx,
 		cancel:              cancel,
-		log:                 b.logger,
+		logger:              b.logger,
 		identityFn:          b.identityFn,
 		authorizers:         b.authorizers,
 		metrics:             b.metricsServer,
@@ -311,7 +311,7 @@ func SetupRedisClient(
 
 func setupNonceManager(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	cfg *config.GatewayConfig,
 ) (noncemanager.NonceManager, error) {
 	redisClient, err := SetupRedisClient(ctx, cfg.Redis.RedisURL, 10*time.Second)
@@ -319,12 +319,12 @@ func setupNonceManager(
 		return nil, err
 	}
 
-	return redisnoncemanager.NewRedisBackedNonceManager(redisClient, log, cfg.Redis.KeyPrefix)
+	return redisnoncemanager.NewRedisBackedNonceManager(redisClient, logger, cfg.Redis.KeyPrefix)
 }
 
 func setupNodeRegistry(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	cfg *config.GatewayConfig,
 ) (registry.NodeRegistry, error) {
 	settlementChainClient, err := blockchain.NewRPCClient(
@@ -338,7 +338,7 @@ func setupNodeRegistry(
 	chainRegistry, err := registry.NewSmartContractRegistry(
 		ctx,
 		settlementChainClient,
-		log,
+		logger,
 		cfg.Contracts,
 	)
 	if err != nil {
@@ -354,7 +354,7 @@ func setupNodeRegistry(
 
 func setupBlockchainPublisher(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	cfg *config.GatewayConfig,
 	nonceManager noncemanager.NonceManager,
 ) (*blockchain.BlockchainPublisher, error) {
@@ -376,7 +376,7 @@ func setupBlockchainPublisher(
 
 	return blockchain.NewBlockchainPublisher(
 		ctx,
-		log,
+		logger,
 		appChainClient,
 		signer,
 		cfg.Contracts,
@@ -387,7 +387,7 @@ func setupBlockchainPublisher(
 // If metrics are enabled, sets them up
 func setupMetrics(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	metricsOptions *config.MetricsOptions,
 	promRegistry *prometheus.Registry,
 	clientMetrics *grpcprom.ClientMetrics,
@@ -416,11 +416,11 @@ func setupMetrics(
 	mtcs, err := metrics.NewMetricsServer(ctx,
 		metricsOptions.Address,
 		metricsOptions.Port,
-		log,
+		logger,
 		promReg,
 	)
 	if err != nil {
-		log.Error("initializing metrics server", zap.Error(err))
+		logger.Error("initializing metrics server", zap.Error(err))
 		return nil, nil, nil, err
 	}
 

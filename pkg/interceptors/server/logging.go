@@ -7,12 +7,20 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc/codes"
 
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	unknownDNSName = "unknown"
+
+	codeField    = "code"
+	messageField = "message"
 )
 
 // LoggingInterceptor logs errors for unary and stream RPCs.
@@ -46,11 +54,11 @@ func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
 		if err != nil {
 			st, _ := status.FromError(err)
 			i.logger.Error(
-				"Client Unary RPC Error",
-				zap.String("method", info.FullMethod),
-				zap.Duration("duration", duration),
-				zap.Any("code", st.Code()),
-				zap.String("message", st.Message()),
+				"client unary RPC error",
+				utils.MethodField(info.FullMethod),
+				utils.DurationMsField(duration),
+				zap.String(codeField, st.Code().String()),
+				zap.String(messageField, st.Message()),
 			)
 		}
 
@@ -73,11 +81,11 @@ func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
 		if err != nil {
 			st, _ := status.FromError(err)
 			i.logger.Error(
-				"Stream Client RPC Error",
-				zap.String("method", info.FullMethod),
-				zap.Duration("duration", duration),
-				zap.Any("code", st.Code()),
-				zap.String("message", st.Message()),
+				"stream client RPC error",
+				utils.MethodField(info.FullMethod),
+				utils.DurationMsField(duration),
+				zap.String(codeField, st.Code().String()),
+				zap.String(messageField, st.Message()),
 			)
 		}
 

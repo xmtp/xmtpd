@@ -24,7 +24,7 @@ func NewCLIContainerBuilder(t *testing.T) *CLIContainerBuilder {
 	return &CLIContainerBuilder{
 		image: cliImage,
 		files: []testcontainers.ContainerFile{{
-			HostFilePath:      testutils.GetScriptPath(anvilJsonRelativePath),
+			HostFilePath:      testutils.GetScriptPath(anvilJSONRelativePath),
 			ContainerFilePath: "/cfg/anvil.json",
 			FileMode:          0o644,
 		}},

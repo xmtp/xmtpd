@@ -318,17 +318,20 @@ func setupFundsAdmin(
 		privateKey = viper.GetString("private-key")
 	)
 
-	settlementRpcURL, err := resolveSettlementRPCURL()
+	settlementRPCURL, err := resolveSettlementRPCURL()
 	if err != nil {
 		return nil, err
 	}
-	appRpcURL, err := resolveAppRPCURL()
+
+	appRPCURL, err := resolveAppRPCURL()
 	if err != nil {
 		return nil, err
 	}
+
 	if configFile == "" {
 		return nil, fmt.Errorf("config-file is required")
 	}
+
 	if privateKey == "" {
 		return nil, fmt.Errorf("private-key is required")
 	}
@@ -338,7 +341,7 @@ func setupFundsAdmin(
 		return nil, fmt.Errorf("could not load config from file: %w", err)
 	}
 
-	chainClientSettlement, err := blockchain.NewRPCClient(ctx, settlementRpcURL)
+	chainClientSettlement, err := blockchain.NewRPCClient(ctx, settlementRPCURL)
 	if err != nil {
 		return nil, fmt.Errorf("could not create chain client: %w", err)
 	}
@@ -351,7 +354,7 @@ func setupFundsAdmin(
 		return nil, fmt.Errorf("could not create signer: %w", err)
 	}
 
-	chainClientApp, err := blockchain.NewRPCClient(ctx, appRpcURL)
+	chainClientApp, err := blockchain.NewRPCClient(ctx, appRPCURL)
 	if err != nil {
 		return nil, fmt.Errorf("could not create chain client: %w", err)
 	}

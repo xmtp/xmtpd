@@ -28,14 +28,14 @@ func RegisterNode(t *testing.T, network string, rpcHost string, xmtpdAlias strin
 	require.NoError(t, err)
 }
 
-func EnableNode(t *testing.T, network string, rpcHost string, nodeId uint32) {
+func EnableNode(t *testing.T, network string, rpcHost string, nodeID uint32) {
 	enableNode := []string{
 		"--config-file=/cfg/anvil.json",
 		fmt.Sprintf("--private-key=%s", adminPrivateKey),
 		fmt.Sprintf("--settlement-rpc-url=%s", rpcHost),
 		"nodes", "canonical-network",
 		"--add",
-		fmt.Sprintf("--node-id=%d", nodeId),
+		fmt.Sprintf("--node-id=%d", nodeID),
 	}
 	err := NewCLIContainerBuilder(t).WithCmd(enableNode).WithNetwork(network).Build(t)
 	require.NoError(t, err)

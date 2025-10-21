@@ -21,10 +21,7 @@ import (
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
 
-var (
-	ADDRESS_1 = common.HexToAddress("0x1")
-	ADDRESS_2 = common.HexToAddress("0x2")
-)
+var addr1 = common.HexToAddress("0x1")
 
 type payerRegistryStorerTester struct {
 	ctx    context.Context
@@ -135,41 +132,41 @@ func TestPayerRegistryStorer(t *testing.T) {
 		{
 			name: "usage_settled",
 			actionLogs: []types.Log{
-				tester.newUsageSettledLog(t, ADDRESS_1, 10),
+				tester.newUsageSettledLog(t, addr1, 10),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(10)*-1, balance)
 			},
 		},
 		{
 			name: "deposit_single",
 			actionLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 20),
+				tester.newDepositLog(t, addr1, 20),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(20), balance)
 			},
 		},
 		{
 			name: "deposit_multiple",
 			actionLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 10),
-				tester.newDepositLog(t, ADDRESS_1, 20),
+				tester.newDepositLog(t, addr1, 10),
+				tester.newDepositLog(t, addr1, 20),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(30), balance)
 			},
 		},
 		{
 			name: "withdrawal_requested",
 			actionLogs: []types.Log{
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 10, 100),
+				tester.newWithdrawalRequestedLog(t, addr1, 10, 100),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(10)*-1, balance)
 			},
 		},
@@ -178,14 +175,14 @@ func TestPayerRegistryStorer(t *testing.T) {
 		{
 			name: "withdrawal_cancelled_success",
 			initialLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 50),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 100),
+				tester.newDepositLog(t, addr1, 50),
+				tester.newWithdrawalRequestedLog(t, addr1, 20, 100),
 			},
 			actionLogs: []types.Log{
-				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
+				tester.newWithdrawalCancelledLog(t, addr1),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				// 50 (deposit) - 20 (withdrawal) + 20 (cancellation) = 50
 				require.Equal(t, currency.FromMicrodollars(50), balance)
 			},
@@ -193,22 +190,22 @@ func TestPayerRegistryStorer(t *testing.T) {
 		{
 			name: "withdrawal_cancelled_without_prior_withdrawal",
 			actionLogs: []types.Log{
-				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
+				tester.newWithdrawalCancelledLog(t, addr1),
 			},
 			expectedError: re.NewRecoverableError("error", errors.New("no withdrawal to cancel")),
 		},
 		{
 			name: "multiple_withdrawal_operations",
 			initialLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 100),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 20, 200),
+				tester.newDepositLog(t, addr1, 100),
+				tester.newWithdrawalRequestedLog(t, addr1, 30, 100),
+				tester.newWithdrawalRequestedLog(t, addr1, 20, 200),
 			},
 			actionLogs: []types.Log{
-				tester.newWithdrawalCancelledLog(t, ADDRESS_1),
+				tester.newWithdrawalCancelledLog(t, addr1),
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				// 100 (deposit) - 30 (first withdrawal) - 20 (second withdrawal) + 20 (cancellation) = 70
 				require.Equal(t, currency.FromMicrodollars(70), balance)
 			},
@@ -222,10 +219,10 @@ func TestStoreLogIdempotency(t *testing.T) {
 	tester := buildPayerRegistryStorerTester(t)
 
 	// Create base logs with identical block/tx/index for true duplicates
-	depositLog := tester.newDepositLog(t, ADDRESS_1, 50)
-	withdrawalLog := tester.newWithdrawalRequestedLog(t, ADDRESS_1, 30, 100)
-	usageLog := tester.newUsageSettledLog(t, ADDRESS_1, 25)
-	cancellationLog := tester.newWithdrawalCancelledLog(t, ADDRESS_1)
+	depositLog := tester.newDepositLog(t, addr1, 50)
+	withdrawalLog := tester.newWithdrawalRequestedLog(t, addr1, 30, 100)
+	usageLog := tester.newUsageSettledLog(t, addr1, 25)
+	cancellationLog := tester.newWithdrawalCancelledLog(t, addr1)
 
 	testCases := []testCase{
 		{
@@ -236,14 +233,14 @@ func TestStoreLogIdempotency(t *testing.T) {
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
 				// Balance should only reflect one deposit
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(50), balance)
 			},
 		},
 		{
 			name: "duplicate_withdrawal_requested_logs",
 			initialLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 100),
+				tester.newDepositLog(t, addr1, 100),
 			},
 			actionLogs: []types.Log{
 				withdrawalLog,
@@ -251,14 +248,14 @@ func TestStoreLogIdempotency(t *testing.T) {
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
 				// Balance should only reflect one withdrawal
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(70), balance) // 100 - 30
 			},
 		},
 		{
 			name: "duplicate_usage_settled_logs",
 			initialLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 100),
+				tester.newDepositLog(t, addr1, 100),
 			},
 			actionLogs: []types.Log{
 				usageLog,
@@ -266,15 +263,15 @@ func TestStoreLogIdempotency(t *testing.T) {
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
 				// Balance should only reflect one settlement
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(75), balance) // 100 - 25
 			},
 		},
 		{
 			name: "duplicate_withdrawal_cancelled_logs",
 			initialLogs: []types.Log{
-				tester.newDepositLog(t, ADDRESS_1, 100),
-				tester.newWithdrawalRequestedLog(t, ADDRESS_1, 40, 100),
+				tester.newDepositLog(t, addr1, 100),
+				tester.newWithdrawalRequestedLog(t, addr1, 40, 100),
 			},
 			actionLogs: []types.Log{
 				cancellationLog,
@@ -282,7 +279,7 @@ func TestStoreLogIdempotency(t *testing.T) {
 			},
 			validate: func(t *testing.T, tester *payerRegistryStorerTester) {
 				// Balance should be fully restored (only one cancellation applied)
-				balance := tester.getBalance(t, ADDRESS_1)
+				balance := tester.getBalance(t, addr1)
 				require.Equal(t, currency.FromMicrodollars(100), balance) // 100 - 40 + 40
 			},
 		},

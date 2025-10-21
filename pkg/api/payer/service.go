@@ -6,8 +6,6 @@ import (
 	"crypto/ecdsa"
 	"time"
 
-	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
-
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -33,11 +31,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	getNodesMethod               = "GetNodes"
+	publishClientEnvelopesMethod = "PublishClientEnvelopes"
+)
+
 type Service struct {
 	payer_api.UnimplementedPayerApiServer
 
 	ctx                 context.Context
-	log                 *zap.Logger
+	logger              *zap.Logger
 	clientManager       *ClientManager
 	blockchainPublisher blockchain.IBlockchainPublisher
 	payerPrivateKey     *ecdsa.PrivateKey
@@ -48,7 +51,7 @@ type Service struct {
 
 func NewPayerAPIService(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
@@ -60,7 +63,7 @@ func NewPayerAPIService(
 	}
 
 	var metadataClient MetadataAPIClientConstructor
-	clientManager := NewClientManager(log, nodeRegistry, clientMetrics)
+	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
 	if metadataAPIClient == nil {
 		metadataClient = &DefaultMetadataAPIClientConstructor{clientManager: clientManager}
 	} else {
@@ -69,11 +72,11 @@ func NewPayerAPIService(
 
 	return &Service{
 		ctx:                 ctx,
-		log:                 log,
+		logger:              logger,
 		clientManager:       clientManager,
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
-		nodeCursorTracker:   NewNodeCursorTracker(ctx, log, metadataClient),
+		nodeCursorTracker:   NewNodeCursorTracker(ctx, metadataClient),
 		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: nodeRegistry},
 		nodeRegistry:        nodeRegistry,
 	}, nil
@@ -84,6 +87,10 @@ func (s *Service) GetNodes(
 	ctx context.Context,
 	req *payer_api.GetNodesRequest,
 ) (resp *payer_api.GetNodesResponse, err error) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("received request", utils.MethodField(getNodesMethod))
+	}
+
 	nodes, err := s.nodeRegistry.GetNodes()
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "failed to fetch nodes: %v", err)
@@ -109,6 +116,10 @@ func (s *Service) PublishClientEnvelopes(
 	ctx context.Context,
 	req *payer_api.PublishClientEnvelopesRequest,
 ) (*payer_api.PublishClientEnvelopesResponse, error) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug("received request", utils.MethodField(publishClientEnvelopesMethod))
+	}
+
 	grouped, err := s.groupEnvelopes(req.Envelopes)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "error grouping envelopes: %v", err)
@@ -118,10 +129,16 @@ func (s *Service) PublishClientEnvelopes(
 
 	// For each originator found in the request, publish all matching envelopes to the node
 	for originatorID, payloadsWithIndex := range grouped.forNodes {
-		s.log.Info("publishing to originator", zap.Uint32("originator_id", originatorID))
+		s.logger.Debug(
+			"publishing to originator",
+			utils.OriginatorIDField(originatorID),
+			utils.MethodField(publishClientEnvelopesMethod),
+			utils.NumEnvelopesField(len(payloadsWithIndex)),
+		)
+
 		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorID, payloadsWithIndex)
 		if err != nil {
-			s.log.Error("error publishing payer envelopes", zap.Error(err))
+			s.logger.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Error(codes.Internal, "error publishing payer envelopes")
 		}
 
@@ -132,15 +149,18 @@ func (s *Service) PublishClientEnvelopes(
 	}
 
 	for _, payload := range grouped.forBlockchain {
-		s.log.Info(
+		s.logger.Debug(
 			"publishing to blockchain",
-			zap.String("topic", payload.payload.TargetTopic().String()),
+			utils.MethodField(publishClientEnvelopesMethod),
+			utils.TopicField(payload.payload.TargetTopic().String()),
 		)
+
 		var originatorEnvelope *envelopesProto.OriginatorEnvelope
 		if originatorEnvelope, err = s.publishToBlockchain(ctx, payload.payload); err != nil {
-			s.log.Error("error publishing payer envelopes", zap.Error(err))
+			s.logger.Error("error publishing payer envelopes", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
 		}
+
 		out[payload.originalIndex] = originatorEnvelope
 	}
 
@@ -229,13 +249,14 @@ func (s *Service) publishToNodeWithRetry(
 			return result, nil
 		}
 
-		s.log.Error(
-			"error publishing to node. Retrying with the next one",
-			zap.Uint32("failed_node", nodeID),
+		s.logger.Error(
+			"error publishing to node, will retry with the next one",
+			utils.OriginatorIDField(nodeID),
 			zap.Error(err),
 		)
 
 		// Add failed node to banlist and retry
+		s.logger.Warn("adding failed node to banlist", utils.OriginatorIDField(nodeID))
 		banlist = append(banlist, nodeID)
 
 		nodeID, err = s.nodeSelector.GetNode(topic, banlist)
@@ -254,7 +275,7 @@ func (s *Service) publishToNodes(
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	conn, err := s.clientManager.GetClient(originatorID)
 	if err != nil {
-		s.log.Error("error getting client", zap.Error(err))
+		s.logger.Error("error getting client", zap.Error(err))
 		return nil, status.Error(codes.Internal, "error getting client")
 	}
 	client := message_api.NewReplicationApiClient(conn)
@@ -305,7 +326,7 @@ func (s *Service) publishToBlockchain(
 	var hash common.Hash
 	switch kind {
 	case topic.TopicKindGroupMessagesV1:
-		desiredOriginatorID = contracts.GROUP_MESSAGE_ORIGINATOR_ID
+		desiredOriginatorID = constants.GroupMessageOriginatorID
 
 		var logMessage *gm.GroupMessageBroadcasterMessageSent
 
@@ -344,7 +365,7 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceID = logMessage.SequenceId
 
 	case topic.TopicKindIdentityUpdatesV1:
-		desiredOriginatorID = contracts.IDENTITY_UPDATE_ORIGINATOR_ID
+		desiredOriginatorID = constants.IdentityUpdateOriginatorID
 
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
 
@@ -385,7 +406,7 @@ func (s *Service) publishToBlockchain(
 	default:
 		return nil, status.Errorf(
 			codes.InvalidArgument,
-			"Unknown blockchain message for topic %s",
+			"unknown blockchain message for topic %s",
 			targetTopic.String(),
 		)
 	}
@@ -393,9 +414,9 @@ func (s *Service) publishToBlockchain(
 	metrics.EmitPayerNodePublishDuration(desiredOriginatorID, time.Since(start).Seconds())
 	metrics.EmitPayerMessageOriginated(desiredOriginatorID, 1)
 
-	s.log.Debug(
+	s.logger.Debug(
 		"published message to blockchain",
-		zap.Float64("seconds", time.Since(start).Seconds()),
+		utils.DurationMsField(time.Since(start)),
 	)
 
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
@@ -412,9 +433,9 @@ func (s *Service) publishToBlockchain(
 		return nil, err
 	}
 
-	s.log.Debug(
-		"Waiting for message to be processed by node",
-		zap.Uint32("target_node_id", targetNodeID),
+	s.logger.Debug(
+		"waiting for message to be processed by node",
+		utils.OriginatorIDField(targetNodeID),
 	)
 
 	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
@@ -424,9 +445,9 @@ func (s *Service) publishToBlockchain(
 		desiredSequenceID,
 	)
 	if err != nil {
-		s.log.Error(
-			"Chosen node for cursor check is unreachable",
-			zap.Uint32("targetNodeId", targetNodeID),
+		s.logger.Error(
+			"chosen node for cursor check is unreachable",
+			utils.OriginatorIDField(targetNodeID),
 			zap.Error(err),
 		)
 	}

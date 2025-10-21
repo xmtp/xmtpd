@@ -8,18 +8,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
-)
-
-const (
-	// We may not want to hardcode this to 0 and have an originator ID for each smart contract?
-	GROUP_MESSAGE_ORIGINATOR_ID = 0
 )
 
 var (
@@ -48,12 +45,12 @@ func NewGroupMessageStorer(
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
 		queries:  queries,
-		logger:   logger.Named("storer"),
+		logger:   logger.Named(utils.StorerLoggerName),
 		contract: contract,
 	}
 }
 
-// Validate and store a group message log event
+// StoreLog validates and stores a group message log event
 func (s *GroupMessageStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
@@ -71,19 +68,12 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
 	}
 
-	targetTopic := clientEnvelope.TargetTopic()
-
 	if !clientEnvelope.TopicMatchesPayload() {
-		s.logger.Error(
-			ErrTopicDoesNotMatch,
-			zap.Any("targetTopic", targetTopic.String()),
-			zap.Any("contractTopic", topicStruct.String()),
-		)
 		return re.NewNonRecoverableError(ErrTopicDoesNotMatch, errors.New(ErrTopicDoesNotMatch))
 	}
 
 	originatorEnvelope, err := buildOriginatorEnvelope(
-		GROUP_MESSAGE_ORIGINATOR_ID,
+		constants.GroupMessageOriginatorID,
 		msgSent.SequenceId,
 		msgSent.Message,
 	)
@@ -107,10 +97,13 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 	}
 
-	s.logger.Info("Inserting message from contract", zap.String("topic", topicStruct.String()))
+	s.logger.Debug(
+		"inserting message from contract",
+		utils.TopicField(topicStruct.String()),
+	)
 
 	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-		OriginatorNodeID:     GROUP_MESSAGE_ORIGINATOR_ID,
+		OriginatorNodeID:     constants.GroupMessageOriginatorID,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                topicStruct.Bytes(),
 		OriginatorEnvelope:   originatorEnvelopeBytes,

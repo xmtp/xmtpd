@@ -3,7 +3,6 @@ package blockchain
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -71,7 +70,7 @@ func NewBlockchainPublisher(
 		return nil, err
 	}
 
-	logger.Info(fmt.Sprintf("Starting server with blockchain nonce: %d", nonce))
+	logger.Info("starting server with blockchain nonce", utils.NonceField(nonce))
 
 	err = nonceManager.FastForwardNonce(ctx, *new(big.Int).SetUint64(nonce))
 	if err != nil {
@@ -80,12 +79,12 @@ func NewBlockchainPublisher(
 
 	replenishCtx, cancel := context.WithCancel(ctx)
 
-	streamerLogger := logger.Named("GroupBlockchainPublisher").
-		With(zap.String("contractAddress", contractOptions.AppChain.GroupMessageBroadcasterAddress))
+	publisherLogger := logger.Named(utils.BlockchainPublisherLoggerName).
+		With(utils.ContractAddressField(contractOptions.AppChain.GroupMessageBroadcasterAddress))
 
 	publisher := BlockchainPublisher{
 		signer:                 signer,
-		logger:                 streamerLogger,
+		logger:                 publisherLogger,
 		messagesContract:       messagesContract,
 		identityUpdateContract: identityUpdateContract,
 		client:                 client,
@@ -392,8 +391,8 @@ func withNonce[T any](ctx context.Context,
 				) ||
 				strings.Contains(err.Error(), "replacement transaction underpriced") {
 				logger.Debug(
-					"Nonce already used, consuming and moving on...",
-					zap.Uint64("nonce", nonce.Uint64()),
+					"nonce already used, consume and move on",
+					utils.NonceField(nonce.Uint64()),
 					zap.Error(err),
 				)
 
@@ -412,8 +411,8 @@ func withNonce[T any](ctx context.Context,
 				// we have been hammering the blockchain too hard
 				// back off for a little bit
 				logger.Debug(
-					"Nonce too high, backing off...",
-					zap.Uint64("nonce", nonce.Uint64()),
+					"nonce too high, back off for a little bit",
+					utils.NonceField(nonce.Uint64()),
 					zap.Error(err),
 				)
 				utils.RandomSleep(ctx, 500*time.Millisecond)
@@ -447,7 +446,7 @@ func withNonce[T any](ctx context.Context,
 }
 
 func (m *BlockchainPublisher) Close() {
-	m.logger.Info("closing blockchain publisher")
+	m.logger.Info("closing")
 	m.replenishCancel()
 	m.wg.Wait()
 }

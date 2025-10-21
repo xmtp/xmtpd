@@ -64,8 +64,8 @@ func NewIdentityUpdateBroadcaster(
 		return nil, err
 	}
 
-	logger = logger.Named("identity-update-broadcaster").
-		With(zap.String("contractAddress", address.Hex()))
+	logger = logger.Named(utils.IdentityUpdateBroadcasterLoggerName).
+		With(utils.ContractAddressField(address.Hex()))
 
 	identityUpdateStorer := NewIdentityUpdateStorer(db, logger, contract, validationService)
 

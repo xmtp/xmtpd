@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/deserializer"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/xmtp/xmtpd/pkg/config"
 
@@ -38,13 +39,19 @@ const (
 	maxTopicLength       int           = 128
 	maxVectorClockLength int           = 100
 	pagingInterval       time.Duration = 100 * time.Millisecond
+
+	subscribeEnvelopesMethod    = "SubscribeEnvelopes"
+	queryEnvelopesMethod        = "QueryEnvelopes"
+	publishPayerEnvelopesMethod = "PublishPayerEnvelopes"
+	getInboxIdsMethod           = "GetInboxIds"
+	getNewestEnvelopeMethod     = "GetNewestEnvelope"
 )
 
 type Service struct {
 	message_api.UnimplementedReplicationApiServer
 
 	ctx               context.Context
-	log               *zap.Logger
+	logger            *zap.Logger
 	registrant        *registrant.Registrant
 	store             *sql.DB
 	publishWorker     *publishWorker
@@ -58,7 +65,7 @@ type Service struct {
 
 func NewReplicationAPIService(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	registrant *registrant.Registrant,
 	store *sql.DB,
 	validationService mlsvalidate.MLSValidationService,
@@ -71,18 +78,19 @@ func NewReplicationAPIService(
 		return nil, errors.New("validation service must not be nil")
 	}
 
-	publishWorker, err := startPublishWorker(ctx, log, registrant, store, feeCalculator)
+	publishWorker, err := startPublishWorker(ctx, logger, registrant, store, feeCalculator)
 	if err != nil {
 		return nil, err
 	}
-	subscribeWorker, err := startSubscribeWorker(ctx, log, store)
+
+	subscribeWorker, err := startSubscribeWorker(ctx, logger, store)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Service{
 		ctx:               ctx,
-		log:               log,
+		logger:            logger,
 		registrant:        registrant,
 		store:             store,
 		publishWorker:     publishWorker,
@@ -96,15 +104,20 @@ func NewReplicationAPIService(
 }
 
 func (s *Service) Close() {
-	s.log.Debug("closed")
+	s.logger.Debug("closed")
 }
 
 func (s *Service) SubscribeEnvelopes(
 	req *message_api.SubscribeEnvelopesRequest,
 	stream message_api.ReplicationApi_SubscribeEnvelopesServer,
 ) error {
-	log := s.log.With(zap.String("method", "subscribe"))
-	log.Debug("SubscribeEnvelopes", zap.Any("request", req))
+	logger := s.logger.With(utils.MethodField(subscribeEnvelopesMethod))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request",
+			utils.BodyField(req),
+		)
+	}
 
 	// Send a header (any header) to fix an issue with Tonic based GRPC clients.
 	// See: https://github.com/xmtp/libxmtp/pull/58
@@ -119,7 +132,7 @@ func (s *Service) SubscribeEnvelopes(
 	}
 
 	ch := s.subscribeWorker.listen(stream.Context(), query)
-	err = s.catchUpFromCursor(stream, query, log)
+	err = s.catchUpFromCursor(stream, query, logger)
 	if err != nil {
 		return err
 	}
@@ -146,14 +159,14 @@ func (s *Service) SubscribeEnvelopes(
 				}
 			} else {
 				// TODO(rich) Reset whole subscribe flow from new cursor
-				log.Debug("channel closed by worker")
+				logger.Debug("channel closed by worker")
 				return nil
 			}
 		case <-stream.Context().Done():
-			log.Debug("stream closed")
+			logger.Debug("stream closed")
 			return nil
 		case <-s.ctx.Done():
-			log.Debug("service closed")
+			logger.Debug("service closed")
 			return nil
 		}
 	}
@@ -166,9 +179,8 @@ func (s *Service) catchUpFromCursor(
 	query *message_api.EnvelopesQuery,
 	logger *zap.Logger,
 ) error {
-	log := logger.With(zap.String("stage", "catchUpFromCursor"))
 	if query.GetLastSeen() == nil {
-		log.Debug("Skipping catch up")
+		logger.Debug("skipping catch up")
 		// Requester only wants new envelopes
 		return nil
 	}
@@ -180,23 +192,31 @@ func (s *Service) catchUpFromCursor(
 		query.LastSeen.NodeIdToSequenceId = cursor
 	}
 
-	log.Debug("Catching up from cursor", zap.Any("cursor", cursor))
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("catching up from cursor", utils.BodyField(cursor))
+	}
+
 	for {
 		rows, err := s.fetchEnvelopes(stream.Context(), query, maxRequestedRows)
-		log.Debug("Fetched envelopes", zap.Any("rows", rows))
 		if err != nil {
 			return err
 		}
+
+		if s.logger.Core().Enabled(zap.DebugLevel) {
+			logger.Debug("fetched envelopes", utils.BodyField(rows))
+		}
+
 		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
 		for _, r := range rows {
 			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
 			if err != nil {
 				// We expect to have already validated the envelope when it was inserted
-				logger.Error("could not unmarshal originator envelope", zap.Error(err))
+				s.logger.Error("could not unmarshal originator envelope", zap.Error(err))
 				continue
 			}
 			envs = append(envs, env)
 		}
+
 		err = s.sendEnvelopes(stream, query, envs)
 		if err != nil {
 			return status.Errorf(codes.Internal, "error sending envelopes: %v", err)
@@ -247,7 +267,12 @@ func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *message_api.QueryEnvelopesRequest,
 ) (*message_api.QueryEnvelopesResponse, error) {
-	log := s.log.With(zap.String("method", "query"))
+	logger := s.logger.With(utils.MethodField(queryEnvelopesMethod))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request", utils.BodyField(req))
+	}
+
 	if err := s.validateQuery(req.GetQuery()); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid query: %v", err)
 	}
@@ -256,6 +281,7 @@ func (s *Service) QueryEnvelopes(
 	if limit == 0 {
 		limit = maxRequestedRows
 	}
+
 	rows, err := s.fetchEnvelopes(ctx, req.GetQuery(), limit)
 	if err != nil {
 		return nil, err
@@ -267,7 +293,7 @@ func (s *Service) QueryEnvelopes(
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
-			log.Error("could not unmarshal originator envelope", zap.Error(err))
+			logger.Error("could not unmarshal originator envelope", zap.Error(err))
 			continue
 		}
 		envs = append(envs, originatorEnv)
@@ -349,6 +375,12 @@ func (s *Service) PublishPayerEnvelopes(
 	ctx context.Context,
 	req *message_api.PublishPayerEnvelopesRequest,
 ) (*message_api.PublishPayerEnvelopesResponse, error) {
+	logger := s.logger.With(utils.MethodField(publishPayerEnvelopesMethod))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request", utils.BodyField(req))
+	}
+
 	if s.migrationEnabled {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -428,7 +460,7 @@ func (s *Service) PublishPayerEnvelopes(
 		return nil, status.Errorf(codes.Internal, "could not sign envelope: %v", err)
 	}
 
-	s.waitForGatewayPublish(ctx, stagedEnv)
+	s.waitForGatewayPublish(ctx, stagedEnv, logger)
 
 	return &message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnv},
@@ -462,7 +494,12 @@ func (s *Service) GetInboxIds(
 	ctx context.Context,
 	req *message_api.GetInboxIdsRequest,
 ) (*message_api.GetInboxIdsResponse, error) {
-	logger := s.log.With(zap.String("method", "GetInboxIds"))
+	logger := s.logger.With(utils.MethodField(getInboxIdsMethod))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request", utils.BodyField(req))
+	}
+
 	queries := queries.New(s.store)
 	addresses := []string{}
 	for _, request := range req.Requests {
@@ -489,7 +526,7 @@ func (s *Service) GetInboxIds(
 		out[index] = &resp
 	}
 
-	logger.Info("got inbox ids", zap.Int("numResponses", len(out)))
+	logger.Debug("got inbox ids", utils.NumResponsesField(len(out)))
 
 	return &message_api.GetInboxIdsResponse{
 		Responses: out,
@@ -500,7 +537,12 @@ func (s *Service) GetNewestEnvelope(
 	ctx context.Context,
 	req *message_api.GetNewestEnvelopeRequest,
 ) (*message_api.GetNewestEnvelopeResponse, error) {
-	logger := s.log.With(zap.String("method", "GetNewestEnvelope"))
+	logger := s.logger.With(utils.MethodField(getNewestEnvelopeMethod))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request", utils.BodyField(req))
+	}
+
 	queries := queries.New(s.store)
 	topics := req.GetTopics()
 	originalSort := make(map[string]int)
@@ -514,10 +556,10 @@ func (s *Service) GetNewestEnvelope(
 		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 	}
 
-	logger.Info(
+	logger.Debug(
 		"received newest envelopes for topics",
-		zap.Int("numEnvelopes", len(rows)),
-		zap.Int("numTopics", len(topics)),
+		utils.NumEnvelopesField(len(rows)),
+		utils.NumTopicsField(len(topics)),
 	)
 
 	results := make([]*message_api.GetNewestEnvelopeResponse_Response, len(topics))
@@ -622,6 +664,10 @@ func (s *Service) validateKeyPackage(
 func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error {
 	aad := clientEnv.Aad()
 
+	if aad == nil {
+		return status.Errorf(codes.InvalidArgument, "aad is missing")
+	}
+
 	if !clientEnv.TopicMatchesPayload() {
 		return status.Errorf(codes.InvalidArgument, "topic does not match payload")
 	}
@@ -662,7 +708,15 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 func (s *Service) waitForGatewayPublish(
 	ctx context.Context,
 	stagedEnv queries.StagedOriginatorEnvelope,
+	logger *zap.Logger,
 ) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger = logger.With(
+			utils.SequenceIDField(stagedEnv.ID),
+			utils.EnvelopeIDField(stagedEnv.ID),
+		)
+	}
+
 	startTime := time.Now()
 	timeout := time.After(30 * time.Second)
 
@@ -672,23 +726,33 @@ func (s *Service) waitForGatewayPublish(
 	for {
 		select {
 		case <-timeout:
-			s.log.Warn("Timeout waiting for publisher",
-				zap.Int64("envelope_id", stagedEnv.ID),
-				zap.Int64("last_processed", s.publishWorker.lastProcessed.Load()))
+			if s.logger.Core().Enabled(zap.DebugLevel) {
+				logger.Debug(
+					"Timeout waiting for publisher",
+					utils.LastProcessedField(s.publishWorker.lastProcessed.Load()),
+				)
+			}
 			return
+
 		case <-ctx.Done():
-			s.log.Warn("Context cancelled while waiting for publisher",
-				zap.Int64("envelope_id", stagedEnv.ID),
-				zap.Int64("last_processed", s.publishWorker.lastProcessed.Load()))
+			if s.logger.Core().Enabled(zap.DebugLevel) {
+				logger.Debug(
+					"Context cancelled while waiting for publisher",
+					utils.LastProcessedField(s.publishWorker.lastProcessed.Load()),
+				)
+			}
 			return
+
 		case <-ticker.C:
 			// Check if the last processed ID has reached or exceeded the current ID
 			if s.publishWorker.lastProcessed.Load() >= stagedEnv.ID {
-				s.log.Debug(
-					"Finished waiting for publisher",
-					zap.Int64("envelope_id", stagedEnv.ID),
-					zap.Int64("wait_time", time.Since(startTime).Milliseconds()),
-				)
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					logger.Debug(
+						"Finished waiting for publisher",
+						utils.DurationMsField(time.Since(startTime)),
+					)
+				}
+
 				return
 			}
 		}

@@ -81,7 +81,7 @@ func registerRandomNode(
 
 	return SerializableNode{
 		OwnerAddress:  ownerAddress.Hex(),
-		HttpAddress:   httpAddress,
+		HTTPAddress:   httpAddress,
 		SigningKeyPub: utils.EcdsaPublicKeyToString(&publicKey),
 	}
 }
@@ -97,12 +97,12 @@ func TestRegistryRead(t *testing.T) {
 	require.Equal(t, 2, len(nodes))
 
 	require.Equal(t, node1.OwnerAddress, nodes[0].OwnerAddress)
-	require.Equal(t, node1.HttpAddress, nodes[0].HttpAddress)
+	require.Equal(t, node1.HTTPAddress, nodes[0].HTTPAddress)
 	require.Equal(t, node1.SigningKeyPub, nodes[0].SigningKeyPub)
 	require.Equal(t, node1.InCanonicalNetwork, nodes[0].InCanonicalNetwork)
 
 	require.Equal(t, node2.OwnerAddress, nodes[1].OwnerAddress)
-	require.Equal(t, node2.HttpAddress, nodes[1].HttpAddress)
+	require.Equal(t, node2.HTTPAddress, nodes[1].HTTPAddress)
 	require.Equal(t, node2.SigningKeyPub, nodes[1].SigningKeyPub)
 	require.Equal(t, node2.InCanonicalNetwork, nodes[1].InCanonicalNetwork)
 }
@@ -151,10 +151,10 @@ func TestRegistryWrite(t *testing.T) {
 
 	// Old parameters should be the same.
 	require.Equal(t, node1.OwnerAddress, restoredNodes[0].OwnerAddress)
-	require.Equal(t, node1.HttpAddress, restoredNodes[0].HttpAddress)
+	require.Equal(t, node1.HTTPAddress, restoredNodes[0].HTTPAddress)
 	require.Equal(t, node1.SigningKeyPub, restoredNodes[0].SigningKeyPub)
 	require.Equal(t, node2.OwnerAddress, restoredNodes[1].OwnerAddress)
-	require.Equal(t, node2.HttpAddress, restoredNodes[1].HttpAddress)
+	require.Equal(t, node2.HTTPAddress, restoredNodes[1].HTTPAddress)
 	require.Equal(t, node2.SigningKeyPub, restoredNodes[1].SigningKeyPub)
 
 	// New parameters should be the default values.
@@ -189,10 +189,10 @@ func TestRegistryWrite_AddsNewNodesAndKeepsDefaults(t *testing.T) {
 	require.Equal(t, 2, len(restored))
 
 	require.Equal(t, node1.OwnerAddress, restored[0].OwnerAddress)
-	require.Equal(t, node1.HttpAddress, restored[0].HttpAddress)
+	require.Equal(t, node1.HTTPAddress, restored[0].HTTPAddress)
 	require.Equal(t, node1.SigningKeyPub, restored[0].SigningKeyPub)
 	require.Equal(t, node2.OwnerAddress, restored[1].OwnerAddress)
-	require.Equal(t, node2.HttpAddress, restored[1].HttpAddress)
+	require.Equal(t, node2.HTTPAddress, restored[1].HTTPAddress)
 	require.Equal(t, node2.SigningKeyPub, restored[1].SigningKeyPub)
 
 	require.False(t, restored[0].InCanonicalNetwork)
@@ -228,7 +228,7 @@ func TestRegistryWrite_AddsToNetworkForExistingNodes(t *testing.T) {
 
 	for i := range after {
 		require.Equal(t, existing[i].OwnerAddress, after[i].OwnerAddress)
-		require.Equal(t, existing[i].HttpAddress, after[i].HttpAddress)
+		require.Equal(t, existing[i].HTTPAddress, after[i].HTTPAddress)
 		require.Equal(t, existing[i].SigningKeyPub, after[i].SigningKeyPub)
 	}
 }
@@ -259,13 +259,13 @@ func TestRegistryWrite_MixedExistingAndNew(t *testing.T) {
 		{
 			NodeID:             oldDst[0].NodeID,
 			OwnerAddress:       oldDst[0].OwnerAddress,
-			HttpAddress:        oldDst[0].HttpAddress,
+			HTTPAddress:        oldDst[0].HTTPAddress,
 			SigningKeyPub:      oldDst[0].SigningKeyPub,
 			InCanonicalNetwork: true,
 		},
 		{
 			OwnerAddress:       tmpNodes[0].OwnerAddress,
-			HttpAddress:        tmpNodes[0].HttpAddress,
+			HTTPAddress:        tmpNodes[0].HTTPAddress,
 			SigningKeyPub:      tmpNodes[0].SigningKeyPub,
 			InCanonicalNetwork: true,
 		},
@@ -287,11 +287,11 @@ func TestRegistryWrite_MixedExistingAndNew(t *testing.T) {
 	require.True(t, ok1)
 	require.True(t, gotExisting.InCanonicalNetwork)
 	require.Equal(t, existingNode.OwnerAddress, gotExisting.OwnerAddress)
-	require.Equal(t, existingNode.HttpAddress, gotExisting.HttpAddress)
+	require.Equal(t, existingNode.HTTPAddress, gotExisting.HTTPAddress)
 
 	gotNew, ok2 := byPub[newNode.SigningKeyPub]
 	require.True(t, ok2)
 	require.True(t, gotNew.InCanonicalNetwork)
 	require.Equal(t, tmpNodes[0].OwnerAddress, gotNew.OwnerAddress)
-	require.Equal(t, tmpNodes[0].HttpAddress, gotNew.HttpAddress)
+	require.Equal(t, tmpNodes[0].HTTPAddress, gotNew.HTTPAddress)
 }

@@ -15,6 +15,7 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ import (
 type AttestationWorker struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
-	log             *zap.Logger
+	logger          *zap.Logger
 	registrant      registrant.IRegistrant
 	store           payerreport.IPayerReportStore
 	verifier        payerreport.IPayerReportVerifier
@@ -38,7 +39,7 @@ type AttestationWorker struct {
 // and a poll interval that determines how often to check for reports.
 func NewAttestationWorker(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	registrant registrant.IRegistrant,
 	store payerreport.IPayerReportStore,
 	pollInterval time.Duration,
@@ -48,10 +49,10 @@ func NewAttestationWorker(
 
 	worker := &AttestationWorker{
 		ctx:             ctx,
-		log:             log.Named("attestationworker"),
+		logger:          logger.Named(utils.PayerReportAttestationWorkerLoggerName),
 		registrant:      registrant,
 		store:           store,
-		verifier:        payerreport.NewPayerReportVerifier(log, store),
+		verifier:        payerreport.NewPayerReportVerifier(logger, store),
 		wg:              sync.WaitGroup{},
 		cancel:          cancel,
 		pollInterval:    pollInterval,
@@ -67,9 +68,9 @@ func (w *AttestationWorker) Start() {
 	tracing.GoPanicWrap(
 		w.ctx,
 		&w.wg,
-		"attestation-worker",
+		"payer-report-attestation-worker",
 		func(ctx context.Context) {
-			w.log.Info("Starting attestation worker")
+			w.logger.Info("starting")
 			var err error
 			ticker := time.NewTicker(w.pollInterval)
 			defer ticker.Stop()
@@ -80,7 +81,7 @@ func (w *AttestationWorker) Start() {
 					return
 				case <-ticker.C:
 					if err = w.AttestReports(); err != nil {
-						w.log.Error("attesting reports", zap.Error(err))
+						w.logger.Error("attesting reports", zap.Error(err))
 					}
 
 				}
@@ -118,7 +119,7 @@ func (w *AttestationWorker) AttestReports() error {
 
 	for _, report := range uncheckedReports {
 		if err := w.attestReport(report); err != nil {
-			payerreport.AddReportLogFields(w.log, &report.PayerReport).
+			payerreport.AddReportLogFields(w.logger, &report.PayerReport).
 				Error("attesting report", zap.Error(err))
 		}
 	}
@@ -129,7 +130,7 @@ func (w *AttestationWorker) AttestReports() error {
 // findReportsNeedingAttestation fetches all reports that are pending attestation and pending submission.
 // The only possible state where a report is needing attestation is when it's pending submission and attestation.
 func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.PayerReportWithStatus, error) {
-	w.log.Debug("fetching reports needing attestation")
+	w.logger.Debug("fetching reports needing attestation")
 	return w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().
@@ -142,7 +143,7 @@ func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.Paye
 // and, if valid, signs it with the node's private key.
 // Returns an error if the report is invalid or if there was a problem during attestation.
 func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStatus) error {
-	log := payerreport.AddReportLogFields(w.log, &report.PayerReport)
+	log := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
 	var prevReport *payerreport.PayerReport
 	var err error
 	if report.StartSequenceID > 0 {
@@ -160,11 +161,11 @@ func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStat
 	}
 
 	if isValid {
-		log.Info("report is valid. submitting attestation")
+		log.Info("report is valid, submitting attestation")
 		return w.submitAttestation(report)
 	}
 
-	log.Warn("report is invalid. not attesting")
+	log.Warn("report is invalid, not attesting")
 	return w.rejectAttestation(report)
 }
 
@@ -175,9 +176,9 @@ func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStat
 func (w *AttestationWorker) getPreviousReport(
 	currentReport *payerreport.PayerReportWithStatus,
 ) (*payerreport.PayerReportWithStatus, error) {
-	w.log.Debug("fetching previous report",
-		zap.Uint32("originator_node_id", currentReport.OriginatorNodeID),
-		zap.Uint64("start_sequence_id", currentReport.StartSequenceID),
+	w.logger.Debug("fetching previous report",
+		utils.OriginatorIDField(currentReport.OriginatorNodeID),
+		utils.StartSequenceIDField(int64(currentReport.StartSequenceID)),
 	)
 	prevReports, err := w.store.FetchReports(
 		w.ctx,
@@ -207,6 +208,7 @@ func (w *AttestationWorker) submitAttestation(
 	if err != nil {
 		return err
 	}
+
 	attestation := payerreport.NewPayerReportAttestation(
 		&report.PayerReport,
 		*nodeSignature,

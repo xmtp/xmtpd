@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -21,7 +22,7 @@ type MigrationConfig struct {
 
 type SyncServerConfig struct {
 	Ctx                        context.Context
-	Log                        *zap.Logger
+	Logger                     *zap.Logger
 	NodeRegistry               registry.NodeRegistry
 	Registrant                 *registrant.Registrant
 	DB                         *sql.DB
@@ -37,8 +38,8 @@ func WithContext(ctx context.Context) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.Ctx = ctx }
 }
 
-func WithLogger(log *zap.Logger) SyncServerOption {
-	return func(cfg *SyncServerConfig) { cfg.Log = log }
+func WithLogger(logger *zap.Logger) SyncServerOption {
+	return func(cfg *SyncServerConfig) { cfg.Logger = logger }
 }
 
 func WithNodeRegistry(reg registry.NodeRegistry) SyncServerOption {
@@ -71,7 +72,7 @@ func WithMigration(migration MigrationConfig) SyncServerOption {
 
 type SyncServer struct {
 	ctx        context.Context
-	log        *zap.Logger
+	logger     *zap.Logger
 	registrant *registrant.Registrant
 	store      *sql.DB
 	worker     *syncWorker
@@ -88,7 +89,7 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 		return nil, errors.New("syncserver: context is required")
 	}
 
-	if cfg.Log == nil {
+	if cfg.Logger == nil {
 		return nil, errors.New("syncserver: logger is required")
 	}
 
@@ -112,7 +113,7 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 
 	return &SyncServer{
 		ctx:        cfg.Ctx,
-		log:        cfg.Log.Named("sync"),
+		logger:     cfg.Logger.Named(utils.SyncLoggerName),
 		registrant: cfg.Registrant,
 		store:      cfg.DB,
 		worker:     worker,
@@ -120,7 +121,7 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 }
 
 func (s *SyncServer) Close() {
-	s.log.Debug("Closing")
+	s.logger.Debug("stopping")
 	s.worker.close()
-	s.log.Debug("Closed")
+	s.logger.Debug("stopped")
 }

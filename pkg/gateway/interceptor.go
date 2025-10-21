@@ -11,6 +11,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	identityField     = "identity"
+	identityKindField = "identity_kind"
+)
+
 type identityCtxKey struct{}
 
 type gatewayWrappedServerStream struct {
@@ -72,14 +77,14 @@ func (i *GatewayInterceptor) Unary() grpc.UnaryServerInterceptor {
 				if err != nil {
 					i.logger.Error("authorization error",
 						zap.Error(err),
-						zap.String("identity", identity.Identity),
-						zap.String("identity_kind", string(identity.Kind)))
+						zap.String(identityField, identity.Identity),
+						zap.String(identityKindField, string(identity.Kind)))
 					return nil, status.Errorf(codes.Internal, "authorization error: %v", err)
 				}
 				if !authorized {
 					i.logger.Warn("unauthorized publish request",
-						zap.String("identity", identity.Identity),
-						zap.String("identity_kind", string(identity.Kind)))
+						zap.String(identityField, identity.Identity),
+						zap.String(identityKindField, string(identity.Kind)))
 					return nil, status.Error(codes.PermissionDenied, "unauthorized")
 				}
 			}

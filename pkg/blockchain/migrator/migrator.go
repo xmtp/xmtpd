@@ -18,7 +18,7 @@ type SerializableNode struct {
 	NodeID             uint32 `json:"node_id"`
 	OwnerAddress       string `json:"owner_address"`
 	SigningKeyPub      string `json:"signing_key_pub"`
-	HttpAddress        string `json:"http_address"`
+	HTTPAddress        string `json:"http_address"`
 	InCanonicalNetwork bool   `json:"in_canonical_network"`
 }
 
@@ -44,7 +44,7 @@ func ReadFromRegistry(chainCaller blockchain.INodeRegistryCaller) ([]Serializabl
 			NodeID:             node.NodeId,
 			OwnerAddress:       owner.Hex(),
 			SigningKeyPub:      utils.EcdsaPublicKeyToString(pubKey),
-			HttpAddress:        node.Node.HttpAddress,
+			HTTPAddress:        node.Node.HttpAddress,
 			InCanonicalNetwork: node.Node.IsCanonical,
 		}
 	}
@@ -68,11 +68,11 @@ func WriteToRegistry(
 	chainAdmin blockchain.INodeRegistryAdmin,
 ) error {
 	for _, node := range newNodes {
-		alreadyRegisteredNodeId := findNodeWithPubKey(oldNodes, node.SigningKeyPub)
+		alreadyRegisteredNodeID := findNodeWithPubKey(oldNodes, node.SigningKeyPub)
 
-		if alreadyRegisteredNodeId != nil {
+		if alreadyRegisteredNodeID != nil {
 			if node.InCanonicalNetwork {
-				err := chainAdmin.AddToNetwork(ctx, *alreadyRegisteredNodeId)
+				err := chainAdmin.AddToNetwork(ctx, *alreadyRegisteredNodeID)
 				if err != nil {
 					return err
 				}
@@ -85,18 +85,18 @@ func WriteToRegistry(
 
 			ownerAddress := common.HexToAddress(node.OwnerAddress)
 
-			nodeId, err := chainAdmin.AddNode(
+			nodeID, err := chainAdmin.AddNode(
 				ctx,
 				ownerAddress,
 				signingKey,
-				node.HttpAddress,
+				node.HTTPAddress,
 			)
 			if err != nil {
 				return err
 			}
 
 			if node.InCanonicalNetwork {
-				err = chainAdmin.AddToNetwork(ctx, nodeId)
+				err = chainAdmin.AddToNetwork(ctx, nodeID)
 				if err != nil {
 					return err
 				}

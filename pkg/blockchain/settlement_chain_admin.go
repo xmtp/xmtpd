@@ -11,6 +11,7 @@ import (
 	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	rr "github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -121,10 +122,14 @@ func NewSettlementChainAdmin(
 		return nil, err
 	}
 
+	settlementChainAdminLogger := logger.Named(utils.SettlementChainAdminLoggerName).With(
+		utils.SettlementChainChainIDField(contractsOptions.SettlementChain.ChainID),
+	)
+
 	return &settlementChainAdmin{
 		client:                 client,
 		signer:                 signer,
-		logger:                 logger.Named("SettlementChainAdmin"),
+		logger:                 settlementChainAdminLogger,
 		parameterAdmin:         parameterAdmin,
 		settlementChainGateway: acGateway,
 		payerRegistry:          payerRegistry,
@@ -171,7 +176,7 @@ func (s settlementChainAdmin) UpdateSettlementChainGatewayPauseStatus(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed")
+			s.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -211,7 +216,7 @@ func (s settlementChainAdmin) UpdatePayerRegistryPauseStatus(ctx context.Context
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed")
+			s.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -253,7 +258,7 @@ func (s settlementChainAdmin) UpdateDistributionManagerPauseStatus(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed")
+			s.logger.Info("no update needed")
 			return nil
 		}
 		return err
@@ -294,7 +299,7 @@ func (s settlementChainAdmin) UpdateDistributionManagerProtocolFeesRecipient(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (distribution manager protocol fees recipient)")
+			s.logger.Info("no update needed (distribution manager protocol fees recipient)")
 		}
 		return err
 	}
@@ -331,7 +336,7 @@ func (s settlementChainAdmin) UpdatePayerRegistryMinimumDeposit(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (payer registry minimum deposit)")
+			s.logger.Info("no update needed (payer registry minimum deposit)")
 			return nil
 		}
 		return err
@@ -369,7 +374,7 @@ func (s settlementChainAdmin) UpdatePayerRegistryWithdrawLockPeriod(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (payer registry withdraw lock period)")
+			s.logger.Info("no update needed (payer registry withdraw lock period)")
 			return nil
 		}
 		return err
@@ -409,7 +414,7 @@ func (s settlementChainAdmin) UpdatePayerReportManagerProtocolFeeRate(
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed (payer report manager protocol fee)")
+			s.logger.Info("no update needed (payer report manager protocol fee)")
 			return nil
 		}
 		return err
@@ -445,7 +450,7 @@ func (s settlementChainAdmin) UpdateNodeRegistryAdmin(ctx context.Context) error
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("No update needed")
+			s.logger.Info("no update needed")
 			return nil
 		}
 		return err

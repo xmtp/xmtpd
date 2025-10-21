@@ -33,9 +33,9 @@ func NewAdvisoryLocker() *AdvisoryLocker {
 func (a *AdvisoryLocker) LockIdentityUpdateInsert(
 	ctx context.Context,
 	queries *queries.Queries,
-	nodeId uint32,
+	nodeID uint32,
 ) error {
-	key := int64((uint64(nodeId) << 8) | uint64(LockKindIdentityUpdateInsert))
+	key := int64((uint64(nodeID) << 8) | uint64(LockKindIdentityUpdateInsert))
 	return queries.AdvisoryLockWithKey(ctx, key)
 }
 
@@ -77,7 +77,7 @@ type ITransactionScopedAdvisoryLocker interface {
 	LockAttestationWorker() error
 	LockSubmitterWorker() error
 	LockSettlementWorker() error
-	LockIdentityUpdateInsert(nodeId uint32) error
+	LockIdentityUpdateInsert(nodeID uint32) error
 }
 
 // TransactionScopedAdvisoryLocker creates and owns a transaction; methods acquire
@@ -122,6 +122,6 @@ func (a *TransactionScopedAdvisoryLocker) LockSettlementWorker() error {
 	return a.locker.LockSettlementWorker(a.ctx, queries.New(a.tx))
 }
 
-func (a *TransactionScopedAdvisoryLocker) LockIdentityUpdateInsert(nodeId uint32) error {
-	return a.locker.LockIdentityUpdateInsert(a.ctx, queries.New(a.tx), nodeId)
+func (a *TransactionScopedAdvisoryLocker) LockIdentityUpdateInsert(nodeID uint32) error {
+	return a.locker.LockIdentityUpdateInsert(a.ctx, queries.New(a.tx), nodeID)
 }

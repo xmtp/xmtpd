@@ -10,8 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/pingcap/log"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -26,15 +26,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	// We may not want to hardcode this to 1 and have an originator ID for each smart contract?
-	IDENTITY_UPDATE_ORIGINATOR_ID = 1
-)
-
 var (
 	ErrAdvisoryLockSequence   = "advisory lock failed"
 	ErrParseIdentityUpdate    = "error parsing identity update"
-	ErrGetLatestSequenceId    = "get latest sequence id failed"
+	ErrGetLatestSequenceID    = "get latest sequence id failed"
 	ErrValidateIdentityUpdate = "validate identity update failed"
 	ErrInsertAddressLog       = "insert address log failed"
 	ErrRevokeAddressFromLog   = "revoke address from log failed"
@@ -57,13 +52,13 @@ func NewIdentityUpdateStorer(
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{
 		db:                db,
-		logger:            logger.Named("storer"),
+		logger:            logger.Named(utils.StorerLoggerName),
 		contract:          contract,
 		validationService: validationService,
 	}
 }
 
-// Validate and store an identity update log event
+// StoreLog validates and stores an identity update log event
 func (s *IdentityUpdateStorer) StoreLog(
 	ctx context.Context,
 	event types.Log,
@@ -103,30 +98,33 @@ func (s *IdentityUpdateStorer) StoreLog(
 		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
 			err := db.NewAdvisoryLocker().
-				LockIdentityUpdateInsert(ctx, querier, uint32(IDENTITY_UPDATE_ORIGINATOR_ID))
+				LockIdentityUpdateInsert(ctx, querier, uint32(constants.IdentityUpdateOriginatorID))
 			if err != nil {
 				return re.NewNonRecoverableError(ErrAdvisoryLockSequence, err)
 			}
 
-			latestSequenceId, err := querier.GetLatestSequenceId(ctx, IDENTITY_UPDATE_ORIGINATOR_ID)
+			latestSequenceID, err := querier.GetLatestSequenceId(
+				ctx,
+				constants.IdentityUpdateOriginatorID,
+			)
 			if err != nil {
-				return re.NewNonRecoverableError(ErrGetLatestSequenceId, err)
+				return re.NewNonRecoverableError(ErrGetLatestSequenceID, err)
 			}
 
-			if uint64(latestSequenceId) >= msgSent.SequenceId {
+			if uint64(latestSequenceID) >= msgSent.SequenceId {
 				s.logger.Debug(
-					"Identity update already inserted. Skipping... ",
-					zap.Uint64("latest_sequence_id", uint64(latestSequenceId)),
-					zap.Uint64("msg_sequence_id", msgSent.SequenceId),
+					"identity update already inserted, skipping",
+					utils.LastSequenceIDField(latestSequenceID),
+					utils.SequenceIDField(int64(msgSent.SequenceId)),
 				)
 				return nil
 			}
 
 			messageTopic := topic.NewTopic(topic.TopicKindIdentityUpdatesV1, msgSent.InboxId[:])
 
-			s.logger.Info(
-				"Inserting identity update from contract",
-				zap.String("topic", messageTopic.String()),
+			s.logger.Debug(
+				"inserting identity update from contract",
+				utils.TopicField(messageTopic.String()),
 			)
 
 			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
@@ -146,14 +144,17 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewNonRecoverableError(ErrValidateIdentityUpdate, err)
 			}
 
-			inboxId := utils.HexEncode(msgSent.InboxId[:])
+			inboxID := utils.HexEncode(msgSent.InboxId[:])
 
 			for _, newMember := range associationState.StateDiff.NewMembers {
-				s.logger.Info("New member", zap.Any("member", newMember))
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					s.logger.Debug("new member", utils.BodyField(newMember))
+				}
+
 				if address, ok := newMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					numRows, err := querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
 						Address: address.EthereumAddress,
-						InboxID: inboxId,
+						InboxID: inboxID,
 						AssociationSequenceID: sql.NullInt64{
 							Valid: true,
 							Int64: int64(msgSent.SequenceId),
@@ -164,23 +165,26 @@ func (s *IdentityUpdateStorer) StoreLog(
 					}
 					if numRows == 0 {
 						s.logger.Warn(
-							"Could not insert address log",
-							zap.String("address", address.EthereumAddress),
-							zap.String("inbox_id", inboxId),
-							zap.Int("sequence_id", int(msgSent.SequenceId)),
+							"could not insert address log entry",
+							utils.AddressField(address.EthereumAddress),
+							utils.InboxIDField(inboxID),
+							utils.SequenceIDField(int64(msgSent.SequenceId)),
 						)
 					}
 				}
 			}
 
-			for _, removed_member := range associationState.StateDiff.RemovedMembers {
-				log.Info("Removed member", zap.Any("member", removed_member))
-				if address, ok := removed_member.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
+			for _, removedMember := range associationState.StateDiff.RemovedMembers {
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					s.logger.Debug("removed member", utils.BodyField(removedMember))
+				}
+
+				if address, ok := removedMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					rows, err := querier.RevokeAddressFromLog(
 						ctx,
 						queries.RevokeAddressFromLogParams{
 							Address: address.EthereumAddress,
-							InboxID: inboxId,
+							InboxID: inboxID,
 							RevocationSequenceID: sql.NullInt64{
 								Valid: true,
 								Int64: int64(msgSent.SequenceId),
@@ -192,16 +196,16 @@ func (s *IdentityUpdateStorer) StoreLog(
 					}
 					if rows == 0 {
 						s.logger.Warn(
-							"Could not find address log entry to revoke",
-							zap.String("address", address.EthereumAddress),
-							zap.String("inbox_id", inboxId),
+							"could not find address log entry to revoke",
+							utils.AddressField(address.EthereumAddress),
+							utils.InboxIDField(inboxID),
 						)
 					}
 				}
 			}
 
 			originatorEnvelope, err := buildOriginatorEnvelope(
-				IDENTITY_UPDATE_ORIGINATOR_ID,
+				constants.IdentityUpdateOriginatorID,
 				msgSent.SequenceId,
 				msgSent.Update,
 			)
@@ -226,7 +230,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			}
 
 			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     IDENTITY_UPDATE_ORIGINATOR_ID,
+				OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
 				Topic:                messageTopic.Bytes(),
 				OriginatorEnvelope:   originatorEnvelopeBytes,
@@ -254,16 +258,16 @@ func (s *IdentityUpdateStorer) StoreLog(
 func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	ctx context.Context,
 	querier *queries.Queries,
-	inboxId [32]byte,
+	inboxID [32]byte,
 	clientEnvelope *envelopes.ClientEnvelope,
 ) (*mlsvalidate.AssociationStateResult, error) {
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopes(
 		ctx,
 		queries.SelectGatewayEnvelopesParams{
 			Topics: []db.Topic{
-				db.Topic(topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxId[:]).Bytes()),
+				db.Topic(topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxID[:]).Bytes()),
 			},
-			OriginatorNodeIds: []int32{IDENTITY_UPDATE_ORIGINATOR_ID},
+			OriginatorNodeIds: []int32{constants.IdentityUpdateOriginatorID},
 			RowLimit:          256,
 		},
 	)
@@ -284,8 +288,8 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 }
 
 func buildOriginatorEnvelope(
-	originatorId uint32,
-	sequenceId uint64,
+	originatorID uint32,
+	sequenceID uint64,
 	clientEnvelopeBytes []byte,
 ) (*envelopesProto.UnsignedOriginatorEnvelope, error) {
 	payerEnvelope := &envelopesProto.PayerEnvelope{
@@ -297,8 +301,8 @@ func buildOriginatorEnvelope(
 	}
 
 	return &envelopesProto.UnsignedOriginatorEnvelope{
-		OriginatorNodeId:     originatorId,
-		OriginatorSequenceId: sequenceId,
+		OriginatorNodeId:     originatorID,
+		OriginatorSequenceId: sequenceID,
 		OriginatorNs:         time.Now().UnixNano(),
 		PayerEnvelopeBytes:   payerEnvelopeBytes,
 	}, nil

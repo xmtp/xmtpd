@@ -254,6 +254,6 @@ func constructTracker(
 	}
 	var interf payer.MetadataAPIClientConstructor = metadataConstructor
 
-	tracker := payer.NewNodeCursorTracker(ctx, testutils.NewLog(t), interf)
+	tracker := payer.NewNodeCursorTracker(ctx, interf)
 	return tracker
 }

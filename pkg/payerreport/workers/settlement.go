@@ -15,11 +15,11 @@ import (
 
 const (
 	settlementWorkerID = 3
-	MAX_PROOF_ELEMENTS = 100
+	maxProofElements   = 100
 )
 
 type SettlementWorker struct {
-	log                *zap.Logger
+	logger             *zap.Logger
 	ctx                context.Context
 	cancel             context.CancelFunc
 	wg                 *sync.WaitGroup
@@ -32,7 +32,7 @@ type SettlementWorker struct {
 
 func NewSettlementWorker(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	payerReportStore payerreport.IPayerReportStore,
 	verifier payerreport.IPayerReportVerifier,
 	reportManager blockchain.PayerReportsManager,
@@ -41,7 +41,7 @@ func NewSettlementWorker(
 ) *SettlementWorker {
 	ctx, cancel := context.WithCancel(ctx)
 	return &SettlementWorker{
-		log:                log.Named("reportsettlement"),
+		logger:             logger.Named(utils.PayerReportSettlementWorkerLoggerName),
 		ctx:                ctx,
 		cancel:             cancel,
 		wg:                 &sync.WaitGroup{},
@@ -54,7 +54,7 @@ func NewSettlementWorker(
 }
 
 func (w *SettlementWorker) Start() {
-	tracing.GoPanicWrap(w.ctx, w.wg, "payerreport-settlement", func(ctx context.Context) {
+	tracing.GoPanicWrap(w.ctx, w.wg, "payer-report-settlement-worker", func(ctx context.Context) {
 		for {
 			nextRun := findNextRunTime(w.myNodeID, settlementWorkerID)
 			wait := time.Until(nextRun)
@@ -63,12 +63,12 @@ func (w *SettlementWorker) Start() {
 				return
 			case <-time.After(wait):
 				if err := w.SettleReports(ctx); err != nil {
-					w.log.Error("error settling reports", zap.Error(err))
+					w.logger.Error("error settling reports", zap.Error(err))
 				}
 			case <-w.submissionNotifyCh:
-				w.log.Debug("received submission notification, settling reports")
+				w.logger.Debug("received submission notification, settling reports")
 				if err := w.SettleReports(ctx); err != nil {
-					w.log.Error("error settling reports after submission", zap.Error(err))
+					w.logger.Error("error settling reports after submission", zap.Error(err))
 				}
 			}
 		}
@@ -96,7 +96,7 @@ func (w *SettlementWorker) SettleReports(ctx context.Context) error {
 	}
 
 	// SettlementWorker fetches all reports that have been submitted but not yet settled.
-	w.log.Debug("fetching reports to settle")
+	w.logger.Debug("fetching reports to settle")
 	reports, err := w.payerReportStore.FetchReports(
 		ctx,
 		payerreport.NewFetchReportsQuery().
@@ -109,14 +109,14 @@ func (w *SettlementWorker) SettleReports(ctx context.Context) error {
 	var latestErr error
 
 	for _, report := range reports {
-		reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
+		reportLogger := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
 
 		reportLogger.Info("settling report")
 		settleErr := w.settleReport(ctx, report)
 		if settleErr != nil {
 			reportLogger.Error(
 				"failed to settle report",
-				zap.String("report_id", report.ID.String()),
+				utils.PayerReportIDField(report.ID.String()),
 				zap.Error(settleErr),
 			)
 
@@ -130,7 +130,7 @@ func (w *SettlementWorker) SettleReports(ctx context.Context) error {
 		if err != nil {
 			reportLogger.Warn(
 				"failed to set report settled",
-				zap.String("report_id", report.ID.String()),
+				utils.PayerReportIDField(report.ID.String()),
 			)
 		}
 	}
@@ -142,7 +142,7 @@ func (w *SettlementWorker) settleReport(
 	ctx context.Context,
 	report *payerreport.PayerReportWithStatus,
 ) error {
-	reportLogger := payerreport.AddReportLogFields(w.log, &report.PayerReport)
+	reportLogger := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
 
 	if report.SubmittedReportIndex == nil {
 		return errors.New("report index is nil")
@@ -185,12 +185,12 @@ func (w *SettlementWorker) settleReport(
 
 	if remaining == 0 && !summary.IsSettled {
 		reportLogger.Warn(
-			"something is fishy. No items left to settle but report is not settled",
+			"something is fishy, no items left to settle but report is not settled",
 		)
 	}
 
 	for remaining > 0 {
-		numElements := utils.MinInt(remaining, MAX_PROOF_ELEMENTS)
+		numElements := utils.MinInt(remaining, maxProofElements)
 		proof, err := merkleTree.GenerateMultiProofSequential(offset, numElements)
 		if err != nil {
 			return err

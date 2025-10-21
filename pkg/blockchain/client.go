@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -115,9 +116,9 @@ func ExecuteTransaction(
 	}
 
 	logger.Debug(
-		"Sender balance",
-		zap.String("address", from.Hex()),
-		zap.String("balance", balance.String()),
+		"sender balance",
+		utils.AddressField(from.Hex()),
+		utils.BalanceField(balance.String()),
 	)
 
 	opts := &bind.TransactOpts{
@@ -195,7 +196,7 @@ func WaitForTransaction(
 		receipt, err := client.TransactionReceipt(ctx, hash)
 		if err != nil {
 			if errors.Is(err, ethereum.NotFound) {
-				logger.Debug("waiting for transaction", zap.String("hash", hash.String()))
+				logger.Debug("waiting for transaction", utils.HashField(hash.String()))
 			} else {
 				return nil, ErrTxFailed
 			}

@@ -21,7 +21,7 @@ func main() {
 	_, err := flags.Parse(&options)
 	if err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
-			fatal("Could not parse options: %s", err)
+			fatal("could not parse options: %s", err)
 		}
 		return
 	}
@@ -29,27 +29,27 @@ func main() {
 	if Version == "" {
 		Version = os.Getenv("VERSION")
 		if Version == "" {
-			fatal("Could not determine version")
+			fatal("could not determine version")
 		}
 	}
 
 	err = config.ParseJSONConfig(&options.Contracts)
 	if err != nil {
-		fatal("Could not parse JSON contracts config: %s", err)
+		fatal("could not parse JSON contracts config: %s", err)
 	}
 
 	err = config.ValidatePruneOptions(options)
 	if err != nil {
-		fatal("Could not validate options: %s", err)
+		fatal("could not validate options: %s", err)
 	}
 
 	logger, _, err := utils.BuildLogger(options.Log)
 	if err != nil {
-		fatal("Could not build logger: %s", err)
+		fatal("could not build logger: %s", err)
 	}
-	logger = logger.Named("prune")
+	logger = logger.Named(utils.PrunerLoggerName)
 
-	logger.Info(fmt.Sprintf("Version: %s", Version))
+	logger.Info(fmt.Sprintf("version: %s", Version))
 
 	ctx := context.Background()
 
@@ -68,14 +68,14 @@ func main() {
 		options.DB.ReadTimeout,
 	)
 	if err != nil {
-		fatal("Could not connect to DB: %s", err)
+		fatal("could not connect to DB: %s", err)
 	}
 
 	pruneExecutor := prune.NewPruneExecutor(ctx, logger, dbInstance, &options.PruneConfig)
 
 	err = pruneExecutor.Run()
 	if err != nil {
-		fatal("Could not execute prune: %s", err)
+		fatal("could not execute prune: %s", err)
 	}
 }
 

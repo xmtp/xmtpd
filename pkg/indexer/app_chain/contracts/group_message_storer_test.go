@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -81,7 +82,11 @@ func TestStoreGroupMessages(t *testing.T) {
 	require.Equal(t, topic.TopicKindGroupMessagesV1, targetTopic.Kind())
 	require.Equal(t, groupID[:], targetTopic.Identifier())
 	require.EqualValues(t, sequenceID, firstEnvelope.OriginatorSequenceID)
-	require.EqualValues(t, GROUP_MESSAGE_ORIGINATOR_ID, originatorEnvelope.OriginatorNodeID())
+	require.EqualValues(
+		t,
+		constants.GroupMessageOriginatorID,
+		originatorEnvelope.OriginatorNodeID(),
+	)
 }
 
 func TestStoreGroupMessageDuplicate(t *testing.T) {

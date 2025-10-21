@@ -11,6 +11,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +27,7 @@ type SQLBackedNonceManager struct {
 func NewSQLBackedNonceManager(db *sql.DB, logger *zap.Logger) *SQLBackedNonceManager {
 	return &SQLBackedNonceManager{
 		db:      db,
-		logger:  logger.Named("SQLBackedNonceManager"),
+		logger:  logger.Named(utils.SQLNonceManagerLoggerName),
 		limiter: noncemanager.NewOpenConnectionsLimiter(noncemanager.BestGuessConcurrency),
 	}
 }
@@ -115,9 +116,9 @@ func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) er
 	cnt, err := s.fillNonces(ctx, nonce)
 	if cnt > 0 {
 		s.logger.Debug(
-			"Replenished nonces...",
-			zap.Uint64("starting_nonce", nonce.Uint64()),
-			zap.Int32("num_nonces", cnt),
+			"replenished nonces",
+			utils.StartingNonceField(nonce.Uint64()),
+			utils.NumNoncesField(cnt),
 		)
 	}
 	return err
@@ -126,6 +127,7 @@ func (s *SQLBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) er
 // FastForwardNonce sets the nonce sequence to start from the given value and removes
 // all nonces below it. This is typically used when recovering from blockchain state issues.
 func (s *SQLBackedNonceManager) FastForwardNonce(ctx context.Context, nonce big.Int) error {
+	s.logger.Info("fast forwarding nonce", utils.NonceField(nonce.Uint64()))
 	_, err := s.fillNonces(ctx, nonce)
 	if err != nil {
 		return err

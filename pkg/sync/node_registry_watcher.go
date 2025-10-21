@@ -31,9 +31,9 @@ import (
 // If no cancel function is registered when a change occurs, the update is silently ignored.
 type NodeRegistryWatcher struct {
 	ctx          context.Context
-	log          *zap.Logger
+	logger       *zap.Logger
 	wg           sync.WaitGroup
-	nodeid       uint32
+	nodeID       uint32
 	cancelFn     func()
 	fnLock       sync.Mutex
 	nodeRegistry registry.NodeRegistry
@@ -41,13 +41,16 @@ type NodeRegistryWatcher struct {
 
 // NewNodeRegistryWatcher creates a new watcher tied to the provided node ID.
 // It does not begin watching until Watch() is explicitly called.
-func NewNodeRegistryWatcher(ctx context.Context,
-	log *zap.Logger, nodeID uint32, nodeRegistry registry.NodeRegistry,
+func NewNodeRegistryWatcher(
+	ctx context.Context,
+	logger *zap.Logger,
+	nodeID uint32,
+	nodeRegistry registry.NodeRegistry,
 ) *NodeRegistryWatcher {
 	return &NodeRegistryWatcher{
 		ctx:          ctx,
-		log:          log,
-		nodeid:       nodeID,
+		logger:       logger,
+		nodeID:       nodeID,
 		nodeRegistry: nodeRegistry,
 		cancelFn:     nil,
 	}
@@ -83,12 +86,12 @@ func (w *NodeRegistryWatcher) triggerCancel() {
 // ⚠️ Note: If no cancel function is registered when a change is detected,
 // the update is **ignored**.
 func (w *NodeRegistryWatcher) Watch() {
-	registryChan := w.nodeRegistry.OnChangedNode(w.nodeid)
+	registryChan := w.nodeRegistry.OnChangedNode(w.nodeID)
 
 	tracing.GoPanicWrap(
 		w.ctx,
 		&w.wg,
-		fmt.Sprintf("node-subscribe-%d-notifier", w.nodeid),
+		fmt.Sprintf("node-subscribe-%d-notifier", w.nodeID),
 		func(ctx context.Context) {
 			for {
 				select {
@@ -98,13 +101,13 @@ func (w *NodeRegistryWatcher) Watch() {
 					return
 				case _, ok := <-registryChan:
 					// this indicates that the registry has changed, and we need to rebuild the connection
-					w.log.Info(
-						"Node has been updated in the registry, terminating and rebuilding...",
+					w.logger.Info(
+						"node has been updated in the registry, terminating and rebuilding",
 					)
 					w.triggerCancel()
 
 					if !ok {
-						w.log.Info("Node registry channel closed")
+						w.logger.Info("node registry channel closed")
 						return
 					}
 				}

@@ -15,36 +15,36 @@ import (
 )
 
 const (
-	APP_CHAIN_GATEWAY_PAUSED_KEY                     = "xmtp.appChainGateway.paused"
-	DISTRIBUTION_MANAGER_PAUSED_KEY                  = "xmtp.distributionManager.paused"
-	DISTRIBUTION_MANAGER_PROTOCOL_FEES_RECIPIENT_KEY = "xmtp.distributionManager.protocolFeesRecipient"
+	AppChainGatewayPausedKey                    = "xmtp.appChainGateway.paused"
+	DistributionManagerPausedKey                = "xmtp.distributionManager.paused"
+	DistributionManagerProtocolFeesRecipientKey = "xmtp.distributionManager.protocolFeesRecipient"
 
-	GROUP_MESSAGE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY = "xmtp.groupMessageBroadcaster.maxPayloadSize"
-	GROUP_MESSAGE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY = "xmtp.groupMessageBroadcaster.minPayloadSize"
-	GROUP_MESSAGE_BROADCASTER_PAUSED_KEY           = "xmtp.groupMessageBroadcaster.paused"
-	GROUP_MESSAGE_PAYLOAD_BOOTSTRAPPER_KEY         = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
+	GroupMessageBroadcasterMaxPayloadSizeKey = "xmtp.groupMessageBroadcaster.maxPayloadSize"
+	GroupMessageBroadcasterMinPayloadSizeKey = "xmtp.groupMessageBroadcaster.minPayloadSize"
+	GroupMessageBroadcasterPausedKey         = "xmtp.groupMessageBroadcaster.paused"
+	GroupMessagePayloadBootstrapperKey       = "xmtp.groupMessageBroadcaster.payloadBootstrapper"
 
-	IDENTITY_UPDATE_BROADCASTER_MAX_PAYLOAD_SIZE_KEY = "xmtp.identityUpdateBroadcaster.maxPayloadSize"
-	IDENTITY_UPDATE_BROADCASTER_MIN_PAYLOAD_SIZE_KEY = "xmtp.identityUpdateBroadcaster.minPayloadSize"
-	IDENTITY_UPDATE_BROADCASTER_PAUSED_KEY           = "xmtp.identityUpdateBroadcaster.paused"
-	IDENTITY_UPDATE_PAYLOAD_BOOTSTRAPPER_KEY         = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
+	IdentityUpdateBroadcasterMaxPayloadSizeKey = "xmtp.identityUpdateBroadcaster.maxPayloadSize"
+	IdentityUpdateBroadcasterMinPayloadSizeKey = "xmtp.identityUpdateBroadcaster.minPayloadSize"
+	IdentityUpdateBroadcasterPausedKey         = "xmtp.identityUpdateBroadcaster.paused"
+	IdentityUpdatePayloadBootstrapperKey       = "xmtp.identityUpdateBroadcaster.payloadBootstrapper"
 
-	NODE_REGISTRY_ADMIN_KEY               = "xmtp.nodeRegistry.admin"
-	NODE_REGISTRY_MAX_CANONICAL_NODES_KEY = "xmtp.nodeRegistry.maxCanonicalNodes"
+	NodeRegistryAdminKey             = "xmtp.nodeRegistry.admin"
+	NodeRegistryMaxCanonicalNodesKey = "xmtp.nodeRegistry.maxCanonicalNodes"
 
-	PAYER_REGISTRY_MINIMUM_DEPOSIT_KEY      = "xmtp.payerRegistry.minimumDeposit"
-	PAYER_REGISTRY_PAUSED_KEY               = "xmtp.payerRegistry.paused"
-	PAYER_REGISTRY_WITHDRAW_LOCK_PERIOD_KEY = "xmtp.payerRegistry.withdrawLockPeriod"
+	PayerRegistryMinimumDepositKey     = "xmtp.payerRegistry.minimumDeposit"
+	PayerRegistryPausedKey             = "xmtp.payerRegistry.paused"
+	PayerRegistryWithdrawLockPeriodKey = "xmtp.payerRegistry.withdrawLockPeriod"
 
-	PAYER_REPORT_MANAGER_PROTOCOL_FEE_RATE_KEY = "xmtp.payerReportManager.protocolFeeRate"
+	PayerReportManagerProtocolFeeRateKey = "xmtp.payerReportManager.protocolFeeRate"
 
-	RATE_REGISTRY_CONGESTION_FEE_KEY         = "xmtp.rateRegistry.congestionFee"
-	RATE_REGISTRY_MESSAGE_FEE_KEY            = "xmtp.rateRegistry.messageFee"
-	RATE_REGISTRY_MIGRATOR_KEY               = "xmtp.rateRegistry.migrator"
-	RATE_REGISTRY_STORAGE_FEE_KEY            = "xmtp.rateRegistry.storageFee"
-	RATE_REGISTRY_TARGET_RATE_PER_MINUTE_KEY = "xmtp.rateRegistry.targetRatePerMinute"
+	RateRegistryCongestionFeeKey       = "xmtp.rateRegistry.congestionFee"
+	RateRegistryMessageFeeKey          = "xmtp.rateRegistry.messageFee"
+	RateRegistryMigratorKey            = "xmtp.rateRegistry.migrator"
+	RateRegistryStorageFeeKey          = "xmtp.rateRegistry.storageFee"
+	RateRegistryTargetRatePerMinuteKey = "xmtp.rateRegistry.targetRatePerMinute"
 
-	SETTLEMENT_CHAIN_GATEWAY_PAUSED_KEY = "xmtp.settlementChainGateway.paused"
+	SettlementChainGatewayPausedKey = "xmtp.settlementChainGateway.paused"
 )
 
 var uint96Size = 12
@@ -97,11 +97,16 @@ func NewParameterAdminWithRegistry(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	reg IParameterRegistry,
+	chainID int64,
 ) IParameterAdmin {
+	parameterAdminLogger := logger.Named(utils.ParameterAdminLoggerName).With(
+		utils.ChainIDField(chainID),
+	)
+
 	return &ParameterAdmin{
 		client:   client,
 		signer:   signer,
-		logger:   logger.Named("ParameterAdmin"),
+		logger:   parameterAdminLogger,
 		registry: reg,
 	}
 }
@@ -119,7 +124,14 @@ func NewSettlementParameterAdmin(
 	if err != nil {
 		return nil, err
 	}
-	return NewParameterAdminWithRegistry(logger, client, signer, reg), nil
+
+	return NewParameterAdminWithRegistry(
+		logger,
+		client,
+		signer,
+		reg,
+		contractsOptions.SettlementChain.ChainID,
+	), nil
 }
 
 // NewAppChainParameterAdmin builds a ParameterAdmin for the AppChain registry.
@@ -136,7 +148,14 @@ func NewAppChainParameterAdmin(
 	if err != nil {
 		return nil, err
 	}
-	return NewParameterAdminWithRegistry(logger, client, signer, reg), nil
+
+	return NewParameterAdminWithRegistry(
+		logger,
+		client,
+		signer,
+		reg,
+		contractsOptions.AppChain.ChainID,
+	), nil
 }
 
 func (n *ParameterAdmin) GetParameterAddress(

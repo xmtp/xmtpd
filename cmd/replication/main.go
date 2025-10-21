@@ -33,7 +33,7 @@ func main() {
 	_, err := flags.Parse(&options)
 	if err != nil {
 		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
-			fatal("Could not parse options: %s", err)
+			fatal("could not parse options: %s", err)
 		}
 		return
 	}
@@ -41,26 +41,26 @@ func main() {
 	if Version == "" {
 		Version = os.Getenv("VERSION")
 		if Version == "" {
-			fatal("Could not determine version")
+			fatal("could not determine version")
 		}
 	}
 
 	if options.Version {
-		fmt.Printf("Version: %s\n", Version)
+		fmt.Printf("version: %s\n", Version)
 		return
 	}
 
 	logger, _, err := utils.BuildLogger(options.Log)
 	if err != nil {
-		fatal("Could not build logger: %s", err)
+		fatal("could not build logger: %s", err)
 	}
-	logger = logger.Named("replication")
 
-	logger.Info(fmt.Sprintf("Version: %s", Version))
+	logger = logger.Named(utils.BaseLoggerName)
+	logger.Info(fmt.Sprintf("version: %s", Version))
 
 	version, err := semver.NewVersion(Version)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Could not parse semver version (%s): %s", Version, err))
+		logger.Error(fmt.Sprintf("could not parse semver version (%s): %s", Version, err))
 	}
 
 	// consolidate API options
@@ -72,7 +72,7 @@ func main() {
 
 	err = config.ValidateServerOptions(&options)
 	if err != nil {
-		fatal("Could not validate options: %s", err)
+		fatal("could not validate options: %s", err)
 	}
 
 	if options.Tracing.Enable {

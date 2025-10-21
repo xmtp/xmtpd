@@ -23,13 +23,14 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type syncWorker struct {
 	ctx                        context.Context
-	log                        *zap.Logger
+	logger                     *zap.Logger
 	nodeRegistry               registry.NodeRegistry
 	registrant                 *registrant.Registrant
 	store                      *sql.DB
@@ -50,7 +51,7 @@ func startSyncWorker(
 
 	s := &syncWorker{
 		ctx:                        ctx,
-		log:                        cfg.Log.Named("syncWorker"),
+		logger:                     cfg.Logger.Named(utils.SyncWorkerName),
 		nodeRegistry:               cfg.NodeRegistry,
 		registrant:                 cfg.Registrant,
 		store:                      cfg.DB,
@@ -85,10 +86,10 @@ func (s *syncWorker) start() error {
 }
 
 func (s *syncWorker) close() {
-	s.log.Debug("Closing sync worker")
+	s.logger.Debug("stopping")
 	s.cancel()
 	s.wg.Wait()
-	s.log.Debug("Closed sync worker")
+	s.logger.Debug("stopped")
 }
 
 func (s *syncWorker) subscribeToRegistry() {
@@ -107,7 +108,11 @@ func (s *syncWorker) subscribeToRegistry() {
 						// data channel closed
 						return
 					}
-					s.log.Info("New nodes received:", zap.Any("nodes", newNodes))
+
+					if s.logger.Core().Enabled(zap.DebugLevel) {
+						s.logger.Debug("new nodes received", utils.BodyField(newNodes))
+					}
+
 					for _, node := range newNodes {
 						s.subscribeToNode(node.NodeID)
 					}
@@ -141,7 +146,7 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 			newEnvelopeSink(
 				ctx,
 				s.store,
-				s.log,
+				s.logger,
 				s.feeCalculator,
 				s.payerReportStore,
 				s.payerReportDomainSeparator,
@@ -149,7 +154,7 @@ func (s *syncWorker) subscribeToNode(nodeid uint32) {
 			).Start()
 		})
 
-	changeListener := NewNodeRegistryWatcher(s.ctx, s.log, nodeid, s.nodeRegistry)
+	changeListener := NewNodeRegistryWatcher(s.ctx, s.logger, nodeid, s.nodeRegistry)
 	changeListener.Watch()
 
 	tracing.GoPanicWrap(
@@ -188,9 +193,9 @@ func (s *syncWorker) subscribeToNodeRegistration(
 	node, err := s.nodeRegistry.GetNode(registration.nodeid)
 	if err != nil {
 		// this should never happen
-		s.log.Error(
-			"Unexpected state: Failed to get node from registry",
-			zap.Uint32("nodeid", registration.nodeid),
+		s.logger.Error(
+			"unexpected state: failed to get node from registry",
+			utils.OriginatorIDField(registration.nodeid),
 			zap.Error(err),
 		)
 		connectionsStatusCounter.MarkFailure()
@@ -223,9 +228,9 @@ func (s *syncWorker) subscribeToNodeRegistration(
 		var err error
 		defer func() {
 			if err != nil && s.ctx.Err() == nil {
-				s.log.Error(
-					"Error connecting to node. Retrying...",
-					zap.String("address", node.HTTPAddress),
+				s.logger.Error(
+					"error connecting to node, retrying",
+					utils.NodeHTTPAddressField(node.HTTPAddress),
 					zap.Error(err),
 				)
 				connectionsStatusCounter.MarkFailure()
@@ -264,7 +269,7 @@ func (s *syncWorker) handleUnhealthyNode(registration NodeRegistration) {
 	// keep the goroutine idle
 	// this will exit the goroutine during shutdown or if the config changed
 	<-registration.ctx.Done()
-	s.log.Debug("Node configuration has changed. Closing stream and connection")
+	s.logger.Debug("node configuration has changed, closing stream and connection")
 }
 
 type NodeRegistration struct {
@@ -274,7 +279,10 @@ type NodeRegistration struct {
 }
 
 func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error) {
-	s.log.Info(fmt.Sprintf("Attempting to connect to %s...", node.HTTPAddress))
+	s.logger.Info("attempting to connect to node",
+		utils.OriginatorIDField(node.NodeID),
+		utils.NodeHTTPAddressField(node.HTTPAddress),
+	)
 
 	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
 	dialOpts := []grpc.DialOption{
@@ -283,15 +291,20 @@ func (s *syncWorker) connectToNode(node registry.Node) (*grpc.ClientConn, error)
 	}
 	conn, err := node.BuildClient(dialOpts...)
 	if err != nil {
-		s.log.Error(
-			"Failed to connect to peer",
-			zap.String("peer", node.HTTPAddress),
+		s.logger.Error(
+			"failed to connect to node",
+			utils.OriginatorIDField(node.NodeID),
+			utils.NodeHTTPAddressField(node.HTTPAddress),
 			zap.Error(err),
 		)
-		return nil, fmt.Errorf("failed to connect to peer at %s: %v", node.HTTPAddress, err)
+		return nil, fmt.Errorf("failed to connect to node at %s: %w", node.HTTPAddress, err)
 	}
 
-	s.log.Debug(fmt.Sprintf("Successfully opened a connection to peer at %s", node.HTTPAddress))
+	s.logger.Debug("successfully opened a connection to node",
+		utils.OriginatorIDField(node.NodeID),
+		utils.NodeHTTPAddressField(node.HTTPAddress),
+	)
+
 	return conn, nil
 }
 
@@ -305,16 +318,21 @@ func (s *syncWorker) setupStream(
 	if err != nil {
 		return nil, err
 	}
-	vc := db.ToVectorClock(result)
-	s.log.Info(
-		"Vector clock for sync subscription",
-		zap.Any("nodeID", node.NodeID),
-		zap.Any("vc", vc),
-	)
-	client := message_api.NewReplicationApiClient(conn)
-	nodeID := node.NodeID
 
-	originatorNodeIDs := []uint32{nodeID}
+	var (
+		vc                = db.ToVectorClock(result)
+		client            = message_api.NewReplicationApiClient(conn)
+		nodeID            = node.NodeID
+		originatorNodeIDs = []uint32{nodeID}
+	)
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug(
+			"vector clock for sync subscription",
+			utils.OriginatorIDField(node.NodeID),
+			utils.BodyField(vc),
+		)
+	}
 
 	if s.migration.Enable && nodeID == s.migration.FromNodeID {
 		originatorNodeIDs = []uint32{
@@ -337,13 +355,14 @@ func (s *syncWorker) setupStream(
 		},
 	)
 	if err != nil {
-		s.log.Error(
-			"Failed to batch subscribe to peer",
-			zap.String("peer", node.HTTPAddress),
+		s.logger.Error(
+			"failed to batch subscribe to node",
+			utils.OriginatorIDField(node.NodeID),
+			utils.NodeHTTPAddressField(node.HTTPAddress),
 			zap.Error(err),
 		)
 		return nil, fmt.Errorf(
-			"failed to batch subscribe to peer at %s: %v",
+			"failed to batch subscribe to peer at %s: %w",
 			node.HTTPAddress,
 			err,
 		)
@@ -361,7 +380,7 @@ func (s *syncWorker) setupStream(
 
 	return newOriginatorStream(
 		s.ctx,
-		s.log,
+		s.logger,
 		&node,
 		c,
 		stream,

@@ -1,3 +1,5 @@
+// Package contracts implements the payer registry and payer registry manager contracts.
+// The Solidity implementations are in https://github.com/xmtp/smart-contracts/tree/main/src/settlement-chain.
 package contracts
 
 import (
@@ -64,8 +66,8 @@ func NewPayerRegistry(
 		return nil, err
 	}
 
-	logger = logger.Named("payer-registry").
-		With(zap.String("contractAddress", address.Hex()))
+	logger = logger.Named(utils.PayerReportContractLoggerName).
+		With(utils.ContractAddressField(address.Hex()))
 
 	payerRegistryStorer, err := NewPayerRegistryStorer(
 		logger,

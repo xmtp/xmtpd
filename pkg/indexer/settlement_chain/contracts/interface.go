@@ -19,7 +19,7 @@ type PayerReportManagerContract interface {
 	// Contract calls
 	GetPayerReport(
 		opts *bind.CallOpts,
-		originatorNodeId uint32,
+		originatorNodeID uint32,
 		payerReportIndex *big.Int,
 	) (p.IPayerReportManagerPayerReport, error)
 	DOMAINSEPARATOR(opts *bind.CallOpts) ([32]byte, error)

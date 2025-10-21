@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
@@ -51,8 +52,8 @@ func IndexLogs(
 					contract.Logger().
 						Error("reorg handling failed",
 							zap.Error(err),
-							zap.Uint64("blockNumber", event.BlockNumber),
-							zap.String("blockHash", event.BlockHash.Hex()),
+							utils.BlockNumberField(event.BlockNumber),
+							utils.HashField(event.BlockHash.Hex()),
 						)
 				}
 			}
@@ -73,7 +74,7 @@ func IndexLogs(
 				continue
 			}
 
-			contract.Logger().Info("Stored log", zap.Uint64("blockNumber", event.BlockNumber))
+			contract.Logger().Debug("stored log", utils.BlockNumberField(event.BlockNumber))
 			if trackerErr := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
 				contract.Logger().Error("error updating block tracker", zap.Error(trackerErr))
 			}
@@ -99,7 +100,7 @@ func retry(
 		default:
 			if err := fn(); err != nil {
 				logger.Error("error storing log",
-					zap.Uint64("blockNumber", blockNumber),
+					utils.BlockNumberField(blockNumber),
 					zap.Error(err),
 				)
 

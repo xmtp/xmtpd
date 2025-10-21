@@ -44,6 +44,15 @@ func (p PicoDollar) ToMicroDollars() MicroDollar {
 	return MicroDollar(p / 1e6)
 }
 
+// ToDollars converts PicoDollars to a dollar amount (as a float)
+func (p PicoDollar) ToDollars() float64 {
+	return float64(p) / PicoDollarsPerDollar
+}
+
+func (p PicoDollar) String() string {
+	return fmt.Sprintf("%.12f", p.ToDollars())
+}
+
 func (m MicroDollar) ToBigInt() *big.Int {
 	return big.NewInt(int64(m))
 }

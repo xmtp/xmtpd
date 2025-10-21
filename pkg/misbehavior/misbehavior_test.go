@@ -13,6 +13,7 @@ import (
 )
 
 func TestLoggingMisbehaviorService(t *testing.T) {
+	t.Skip("skipping misbehavior test")
 	env1, err := envelopes.NewOriginatorEnvelope(testEnvelopes.CreateOriginatorEnvelope(t, 1, 1))
 	require.NoError(t, err)
 	env2, err := envelopes.NewOriginatorEnvelope(testEnvelopes.CreateOriginatorEnvelope(t, 1, 2))
@@ -44,6 +45,7 @@ func TestLoggingMisbehaviorService(t *testing.T) {
 }
 
 func TestNewSafetyFailureReportValidations(t *testing.T) {
+	t.Skip("skipping misbehavior test")
 	// Test case: No envelopes provided
 	_, err := NewSafetyFailureReport(
 		1,

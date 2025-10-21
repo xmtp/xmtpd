@@ -21,7 +21,7 @@ type stoppable interface {
 // Use NewWorkerConfigBuilder() to create instances of this struct.
 type workerConfig struct {
 	ctx                     context.Context
-	log                     *zap.Logger
+	logger                  *zap.Logger
 	registrant              registrant.IRegistrant
 	registry                registry.NodeRegistry
 	reportsManager          blockchain.PayerReportsManager
@@ -36,7 +36,7 @@ type workerConfig struct {
 // All fields are required and the Build() method will validate that none are nil.
 type WorkerConfigBuilder struct {
 	ctx                     context.Context
-	log                     *zap.Logger
+	logger                  *zap.Logger
 	registrant              registrant.IRegistrant
 	registry                registry.NodeRegistry
 	reportsManager          blockchain.PayerReportsManager
@@ -57,8 +57,8 @@ func (b *WorkerConfigBuilder) WithContext(ctx context.Context) *WorkerConfigBuil
 	return b
 }
 
-func (b *WorkerConfigBuilder) WithLogger(log *zap.Logger) *WorkerConfigBuilder {
-	b.log = log
+func (b *WorkerConfigBuilder) WithLogger(logger *zap.Logger) *WorkerConfigBuilder {
+	b.logger = logger
 	return b
 }
 
@@ -120,7 +120,7 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 	if b.ctx == nil {
 		return nil, fmt.Errorf("context cannot be nil")
 	}
-	if b.log == nil {
+	if b.logger == nil {
 		return nil, fmt.Errorf("logger cannot be nil")
 	}
 	if b.registrant == nil {
@@ -147,7 +147,7 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 
 	return &workerConfig{
 		ctx:                     b.ctx,
-		log:                     b.log,
+		logger:                  b.logger,
 		registrant:              b.registrant,
 		registry:                b.registry,
 		reportsManager:          b.reportsManager,
@@ -177,7 +177,7 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 
 	attestationWorker := NewAttestationWorker(
 		cfg.ctx,
-		cfg.log,
+		cfg.logger,
 		cfg.registrant,
 		cfg.store,
 		cfg.attestationPollInterval,
@@ -186,7 +186,7 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 
 	generatorWorker := NewGeneratorWorker(
 		cfg.ctx,
-		cfg.log,
+		cfg.logger,
 		cfg.store,
 		cfg.registry,
 		cfg.registrant,
@@ -197,7 +197,7 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 
 	submitterWorker := NewSubmitterWorker(
 		cfg.ctx,
-		cfg.log,
+		cfg.logger,
 		cfg.store,
 		cfg.registry,
 		cfg.reportsManager,
@@ -207,9 +207,9 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 
 	settlementWorker := NewSettlementWorker(
 		cfg.ctx,
-		cfg.log,
+		cfg.logger,
 		cfg.store,
-		payerreport.NewPayerReportVerifier(cfg.log, cfg.store),
+		payerreport.NewPayerReportVerifier(cfg.logger, cfg.store),
 		cfg.reportsManager,
 		cfg.registrant.NodeID(),
 		submissionNotifyCh,

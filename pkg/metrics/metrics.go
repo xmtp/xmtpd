@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/pires/go-proxyproto"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,23 +19,23 @@ import (
 )
 
 type Server struct {
-	ctx  context.Context
-	log  *zap.Logger
-	http net.Listener
-	wg   sync.WaitGroup
+	ctx    context.Context
+	logger *zap.Logger
+	http   net.Listener
+	wg     sync.WaitGroup
 }
 
 func NewMetricsServer(
 	ctx context.Context,
 	address string,
 	port int,
-	log *zap.Logger,
+	logger *zap.Logger,
 	reg *prometheus.Registry,
 ) (*Server, error) {
 	s := &Server{
-		ctx: ctx,
-		log: log.Named("metrics"),
-		wg:  sync.WaitGroup{},
+		ctx:    ctx,
+		logger: logger.Named(utils.MetricsLoggerName),
+		wg:     sync.WaitGroup{},
 	}
 
 	addr := fmt.Sprintf("%s:%d", address, port)
@@ -53,13 +54,13 @@ func NewMetricsServer(
 	}
 
 	tracing.GoPanicWrap(s.ctx, &s.wg, "metrics-server", func(ctx context.Context) {
-		s.log.Info("serving metrics http", zap.String("address", s.http.Addr().String()))
+		s.logger.Info("serving metrics http", zap.String("address", s.http.Addr().String()))
 		if err := srv.Serve(s.http); err != nil {
 			switch {
 			case errors.Is(err, http.ErrServerClosed), errors.Is(err, net.ErrClosed):
-				s.log.Info("metrics server closing", zap.Error(err))
+				s.logger.Info("metrics server closing", zap.Error(err))
 			default:
-				s.log.Error("error serving http", zap.Error(err))
+				s.logger.Error("error serving http", zap.Error(err))
 			}
 		}
 	})
@@ -68,10 +69,10 @@ func NewMetricsServer(
 }
 
 func (s *Server) Close() {
-	s.log.Debug("Closing")
+	s.logger.Debug("stopping")
 	_ = s.http.Close()
 	s.wg.Wait()
-	s.log.Debug("Closed")
+	s.logger.Debug("stopped")
 }
 
 func registerCollectors(reg prometheus.Registerer) {

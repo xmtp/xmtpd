@@ -21,7 +21,6 @@ type CursorUpdater interface {
 
 type DBBasedCursorUpdater struct {
 	ctx           context.Context
-	log           *zap.Logger
 	store         *sql.DB
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
@@ -31,12 +30,11 @@ type DBBasedCursorUpdater struct {
 	subscribers   map[string][]chan struct{}
 }
 
-func NewCursorUpdater(ctx context.Context, log *zap.Logger, store *sql.DB) CursorUpdater {
+func NewCursorUpdater(ctx context.Context, logger *zap.Logger, store *sql.DB) CursorUpdater {
 	subscribers := make(map[string][]chan struct{})
 	ctx, cancel := context.WithCancel(ctx)
 	cu := DBBasedCursorUpdater{
 		ctx:         ctx,
-		log:         log.Named("cursor-updater"),
 		store:       store,
 		cancel:      cancel,
 		wg:          sync.WaitGroup{},

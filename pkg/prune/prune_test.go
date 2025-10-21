@@ -253,7 +253,7 @@ func TestExecutor_PruneCountWorks(t *testing.T) {
 	err := exec.Run()
 	assert.NoError(t, err)
 
-	if !logger.Contains("Count of envelopes eligible for pruning") {
+	if !logger.Contains("count of envelopes eligible for pruning") {
 		t.Errorf("expected log message not found, got: %s", logger.Logs())
 	}
 }

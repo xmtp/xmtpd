@@ -70,7 +70,7 @@ func (t *Transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnve
 
 	default:
 		return nil, fmt.Errorf(
-			"Transform not implemented for table: %s",
+			"transform not implemented for table '%s'",
 			record.TableName(),
 		)
 	}

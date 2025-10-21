@@ -38,11 +38,25 @@ import (
 const (
 	sleepTimeOnNoRows = 10 * time.Second
 	sleepTimeOnError  = 1 * time.Second
+
+	// Migration destinations.
+	destinationDatabase   = "database"
+	destinationBlockchain = "blockchain"
+
+	// Logging fields.
+	idField             = "id"
+	tableField          = "table"
+	lastMigratedIDField = "last_migrated_id"
+
+	// Logging messages.
+	noMoreRecordsToMigrateMessage = "no more records to migrate for now"
+	channelClosedMessage          = "channel closed, stopping"
+	contextCancelledMessage       = "context cancelled, stopping"
 )
 
 type DBMigratorConfig struct {
 	ctx       context.Context
-	log       *zap.Logger
+	logger    *zap.Logger
 	db        *sql.DB
 	options   *config.MigrationServerOptions
 	contracts *config.ContractsOptions
@@ -56,9 +70,9 @@ func WithContext(ctx context.Context) DBMigratorOption {
 	}
 }
 
-func WithLogger(log *zap.Logger) DBMigratorOption {
+func WithLogger(logger *zap.Logger) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
-		cfg.log = log
+		cfg.logger = logger
 	}
 }
 
@@ -86,7 +100,7 @@ type Migrator struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 	mu     sync.RWMutex
-	log    *zap.Logger
+	logger *zap.Logger
 
 	// Data management.
 	writer              *sql.DB
@@ -112,7 +126,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, errors.New("context is required")
 	}
 
-	if cfg.log == nil {
+	if cfg.logger == nil {
 		return nil, errors.New("logger is required")
 	}
 
@@ -150,7 +164,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, fmt.Errorf("unable to parse node signing key: %v", err)
 	}
 
-	logger := cfg.log.Named("migrator")
+	logger := cfg.logger.Named(utils.MigratorLoggerName)
 
 	reader, err := db.ConnectToDB(
 		cfg.ctx,
@@ -191,7 +205,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		cancel:              cancel,
 		wg:                  sync.WaitGroup{},
 		mu:                  sync.RWMutex{},
-		log:                 logger,
+		logger:              logger,
 		writer:              cfg.db,
 		reader:              reader,
 		readers:             readers,
@@ -217,7 +231,7 @@ func (m *Migrator) Start() error {
 		m.migrationWorker(tableName)
 	}
 
-	m.log.Info("Migration service started")
+	m.logger.Info("migration service started")
 
 	return nil
 }
@@ -235,14 +249,14 @@ func (m *Migrator) Stop() error {
 	m.running = false
 
 	if err := m.reader.Close(); err != nil {
-		m.log.Error("failed to close connection to source database", zap.Error(err))
+		m.logger.Error("failed to close connection to source database", zap.Error(err))
 	}
 
 	if err := m.writer.Close(); err != nil {
-		m.log.Error("failed to close connection to destination database", zap.Error(err))
+		m.logger.Error("failed to close connection to destination database", zap.Error(err))
 	}
 
-	m.log.Info("Migration service stopped")
+	m.logger.Info("migration service stopped")
 
 	return nil
 }
@@ -284,7 +298,9 @@ func (m *Migrator) migrationWorker(tableName string) {
 		func(ctx context.Context) {
 			defer close(recvChan)
 
-			logger := m.log.Named("reader").With(zap.String("table", tableName))
+			logger := m.logger.Named(utils.MigratorReaderLoggerName).
+				With(zap.String(tableField, tableName))
+
 			logger.Info("started")
 
 			ticker := time.NewTicker(m.pollInterval)
@@ -292,7 +308,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 			reader, ok := m.readers[tableName]
 			if !ok {
-				m.log.Error("unknown table", zap.String("table", tableName))
+				m.logger.Error("unknown table", zap.String(tableField, tableName))
 				return
 			}
 
@@ -304,14 +320,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 				case <-ticker.C:
 					startE2ELatency := time.Now()
-
-					inflightPreFetch := maxInflight - len(sem)
-					logger.Debug("pipeline window (pre-fetch)",
-						zap.Int("inflight", inflightPreFetch),
-						zap.Int("available_tokens", len(sem)),
-						zap.Int("recvQ", len(recvChan)),
-						zap.Int("wrtrQ", len(wrtrChan)),
-					)
 
 					lastMigratedID, err := metrics.MeasureReaderLatency(
 						"migration_tracker",
@@ -330,7 +338,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 					logger.Debug(
 						"getting next batch of records",
-						zap.Int64("last_migrated_id", lastMigratedID),
+						zap.Int64(lastMigratedIDField, lastMigratedID),
 					)
 
 					records, err := metrics.MeasureReaderLatency(
@@ -342,7 +350,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 					if err != nil {
 						switch err {
 						case sql.ErrNoRows:
-							logger.Info("no more records to migrate for now")
+							logger.Info(noMoreRecordsToMigrateMessage)
 
 							metrics.EmitMigratorReaderNumRowsFound(tableName, 0)
 
@@ -373,7 +381,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 					metrics.EmitMigratorReaderNumRowsFound(tableName, int64(len(records)))
 
 					if len(records) == 0 {
-						logger.Info("no more records to migrate for now")
+						logger.Info(noMoreRecordsToMigrateMessage)
 
 						select {
 						case <-ctx.Done():
@@ -397,14 +405,14 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 						select {
 						case <-ctx.Done():
-							logger.Info("context cancelled, stopping")
+							logger.Info(contextCancelledMessage)
 							return
 						case <-sem:
 						}
 
 						select {
 						case <-ctx.Done():
-							logger.Info("context cancelled, stopping")
+							logger.Info(contextCancelledMessage)
 							return
 
 						case recvChan <- record:
@@ -416,18 +424,10 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 							logger.Debug(
 								"sent record to transformer",
-								zap.Int64("id", id),
+								zap.Int64(idField, id),
 							)
 						}
 					}
-
-					inflightPostEnqueue := maxInflight - len(sem)
-					logger.Debug("pipeline window (post-enqueue)",
-						zap.Int("inflight", inflightPostEnqueue),
-						zap.Int("available_tokens", len(sem)),
-						zap.Int("recvQ", len(recvChan)),
-						zap.Int("wrtrQ", len(wrtrChan)),
-					)
 				}
 			}
 		})
@@ -437,7 +437,9 @@ func (m *Migrator) migrationWorker(tableName string) {
 		&m.wg,
 		fmt.Sprintf("transformer-%s", tableName),
 		func(ctx context.Context) {
-			logger := m.log.Named("transformer").With(zap.String("table", tableName))
+			logger := m.logger.Named(utils.MigratorTransformerLoggerName).
+				With(zap.String(tableField, tableName))
+
 			logger.Info("started")
 
 			defer close(wrtrChan)
@@ -445,12 +447,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info("context cancelled, stopping")
+					logger.Info(contextCancelledMessage)
 					return
 
 				case record, open := <-recvChan:
 					if !open {
-						logger.Info("channel closed, stopping")
+						logger.Info(channelClosedMessage)
 						return
 					}
 
@@ -459,7 +461,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 						logger.Error(
 							"failed to transform",
 							zap.Error(err),
-							zap.Int64("id", record.GetID()),
+							zap.Int64(idField, record.GetID()),
 						)
 
 						metrics.EmitMigratorTransformerError(tableName)
@@ -470,14 +472,14 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 					select {
 					case <-ctx.Done():
-						logger.Info("context cancelled, stopping")
+						logger.Info(contextCancelledMessage)
 						return
 
 					case wrtrChan <- envelope:
 						logger.Debug(
 							"envelope sent to writer",
-							zap.Uint32("originator_id", envelope.OriginatorNodeID()),
-							zap.Uint64("originator_sequence_id", envelope.OriginatorSequenceID()),
+							utils.OriginatorIDField(envelope.OriginatorNodeID()),
+							utils.SequenceIDField(int64(envelope.OriginatorSequenceID())),
 						)
 					}
 				}
@@ -489,18 +491,20 @@ func (m *Migrator) migrationWorker(tableName string) {
 		&m.wg,
 		fmt.Sprintf("writer-%s", tableName),
 		func(ctx context.Context) {
-			logger := m.log.Named("writer").With(zap.String("table", tableName))
+			logger := m.logger.Named(utils.MigratorWriterLoggerName).
+				With(zap.String(tableField, tableName))
+
 			logger.Info("started")
 
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info("context cancelled, stopping")
+					logger.Info(contextCancelledMessage)
 					return
 
 				case envelope, open := <-wrtrChan:
 					if !open {
-						logger.Info("channel closed, stopping")
+						logger.Info(channelClosedMessage)
 						return
 					}
 
@@ -527,13 +531,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 
 								switch destination {
-								case "database":
+								case destinationDatabase:
 									metrics.EmitMigratorDestLastSequenceIDDatabase(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)
 
-								case "blockchain":
+								case destinationBlockchain:
 									metrics.EmitMigratorDestLastSequenceIDBlockchain(
 										tableName,
 										int64(env.OriginatorSequenceID()),
@@ -552,7 +556,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 						switch env.OriginatorNodeID() {
 						case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
-							destination = "database"
+							destination = destinationDatabase
 
 							err = metrics.MeasureWriterLatency(
 								tableName,
@@ -575,7 +579,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 							}
 
 						case GroupMessageOriginatorID:
-							destination = "database"
+							destination = destinationDatabase
 
 							payload, ok := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
 							if !ok {
@@ -586,10 +590,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 								logger.Error(
 									"unexpected payload type",
-									zap.Uint64(
-										"originator_sequence_id",
-										env.OriginatorSequenceID(),
-									),
+									utils.SequenceIDField(int64(env.OriginatorSequenceID())),
 								)
 
 								return
@@ -612,7 +613,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 							switch isCommit {
 							case true:
-								destination = "blockchain"
+								destination = destinationBlockchain
 
 								err = metrics.MeasureWriterLatency(
 									tableName,
@@ -654,7 +655,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 							}
 
 						case InboxLogOriginatorID:
-							destination = "blockchain"
+							destination = destinationBlockchain
 
 							err = metrics.MeasureWriterLatency(
 								tableName,
@@ -671,14 +672,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 							}
 						}
 					}(envelope)
-
-					inflightPostWrite := maxInflight - len(sem)
-					logger.Debug("pipeline window (post-write)",
-						zap.Int("inflight", inflightPostWrite),
-						zap.Int("available_tokens", len(sem)),
-						zap.Int("recvQ", len(recvChan)),
-						zap.Int("wrtrQ", len(wrtrChan)),
-					)
 				}
 			}
 		})

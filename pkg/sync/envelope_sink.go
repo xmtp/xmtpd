@@ -20,7 +20,7 @@ import (
 type EnvelopeSink struct {
 	ctx                        context.Context
 	db                         *sql.DB
-	log                        *zap.Logger
+	logger                     *zap.Logger
 	queries                    *queries.Queries
 	feeCalculator              fees.IFeeCalculator
 	payerReportStore           payerreport.IPayerReportStore
@@ -31,7 +31,7 @@ type EnvelopeSink struct {
 func newEnvelopeSink(
 	ctx context.Context,
 	db *sql.DB,
-	log *zap.Logger,
+	logger *zap.Logger,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
 	payerReportDomainSeparator common.Hash,
@@ -40,7 +40,7 @@ func newEnvelopeSink(
 	return &EnvelopeSink{
 		ctx:                        ctx,
 		db:                         db,
-		log:                        log,
+		logger:                     logger,
 		queries:                    queries.New(db),
 		feeCalculator:              feeCalculator,
 		payerReportStore:           payerReportStore,
@@ -56,7 +56,7 @@ func (s *EnvelopeSink) Start() {
 			return
 		case env, ok := <-s.writeQueue:
 			if !ok {
-				s.log.Debug("writeQueue is closed")
+				s.logger.Debug("writeQueue is closed")
 				return
 			}
 
@@ -72,7 +72,7 @@ func (s *EnvelopeSink) Start() {
 				default:
 					err := s.storeEnvelope(env)
 					if err != nil {
-						s.log.Error("error storing envelope", zap.Error(err))
+						s.logger.Error("error storing envelope", zap.Error(err))
 						time.Sleep(1 * time.Second)
 						continue
 					}
@@ -85,9 +85,9 @@ func (s *EnvelopeSink) Start() {
 
 func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	if env.TargetTopic().IsReserved() {
-		s.log.Info(
-			"Found envelope with reserved topic",
-			zap.String("topic", env.TargetTopic().String()),
+		s.logger.Info(
+			"found envelope with reserved topic",
+			utils.TopicField(env.TargetTopic().String()),
 		)
 		return s.storeReservedEnvelope(env)
 	}
@@ -95,17 +95,17 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	// Calculate the fees independently to verify the originator's calculation
 	ourFeeCalculation, err := s.calculateFees(env)
 	if err != nil {
-		s.log.Error("Failed to calculate fees", zap.Error(err))
+		s.logger.Error("failed to calculate fees", zap.Error(err))
 		return err
 	}
 	originatorsFeeCalculation := env.UnsignedOriginatorEnvelope.BaseFee() +
 		env.UnsignedOriginatorEnvelope.CongestionFee()
 
 	if ourFeeCalculation != originatorsFeeCalculation {
-		s.log.Warn(
-			"Fee calculation mismatch",
-			zap.Any("ourFee", ourFeeCalculation),
-			zap.Any("originatorsFee", originatorsFeeCalculation),
+		s.logger.Warn(
+			"fee calculation mismatch",
+			zap.String("our_fee", ourFeeCalculation.String()),
+			zap.String("originator_fee", originatorsFeeCalculation.String()),
 		)
 	}
 
@@ -114,14 +114,14 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	// I don't think this will ever happen
 	originatorBytes, err := env.Bytes()
 	if err != nil {
-		s.log.Error("Failed to marshal originator envelope", zap.Error(err))
+		s.logger.Error("failed to marshal originator envelope", zap.Error(err))
 		return err
 	}
 
 	// The payer address has already been validated, so any errors here should be transient
 	payerID, err := s.getPayerID(env)
 	if err != nil {
-		s.log.Error("Failed to get payer ID", zap.Error(err))
+		s.logger.Error("failed to get payer ID", zap.Error(err))
 		return err
 	}
 
@@ -154,11 +154,15 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	)
 
 	if err != nil {
-		s.log.Error("Failed to insert gateway envelope", zap.Error(err))
+		s.logger.Error("failed to insert gateway envelope", zap.Error(err))
 		return err
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
-		s.log.Debug("Envelope already inserted", zap.Uint32("originatorID", env.OriginatorNodeID()), zap.Uint64("sequenceID", env.OriginatorSequenceID()))
+		s.logger.Debug("envelope already inserted",
+			utils.OriginatorIDField(env.OriginatorNodeID()),
+			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
+		)
+
 		return nil
 	}
 
@@ -168,7 +172,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 func (s *EnvelopeSink) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) error {
 	payerID, err := s.getPayerID(env)
 	if err != nil {
-		s.log.Error("Failed to get payer ID", zap.Error(err))
+		s.logger.Error("failed to get payer ID", zap.Error(err))
 		return err
 	}
 
@@ -181,7 +185,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) e
 			s.payerReportDomainSeparator,
 		)
 		if err != nil {
-			s.log.Error("Failed to store synced report", zap.Error(err))
+			s.logger.Error("failed to store synced report", zap.Error(err))
 			// Return nil here to avoid infinite retries
 		}
 		return nil
@@ -192,14 +196,14 @@ func (s *EnvelopeSink) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) e
 			payerID,
 		)
 		if err != nil {
-			s.log.Error("Failed to store synced attestation", zap.Error(err))
+			s.logger.Error("failed to store synced attestation", zap.Error(err))
 			// Return nil here to avoid infinite retries
 		}
 		return nil
 	default:
-		s.log.Info(
-			"Received unknown reserved topic",
-			zap.String("topic", env.TargetTopic().String()),
+		s.logger.Info(
+			"received unknown reserved topic",
+			utils.TopicField(env.TargetTopic().String()),
 		)
 		return nil
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 
@@ -15,24 +16,24 @@ import (
 
 type Executor struct {
 	ctx      context.Context
-	log      *zap.Logger
+	logger   *zap.Logger
 	writerDB *sql.DB
 	config   *config.PruneConfig
 }
 
 func NewPruneExecutor(
 	ctx context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	writerDB *sql.DB,
 	config *config.PruneConfig,
 ) *Executor {
 	if config.BatchSize <= 0 {
-		log.Panic("Batch size must be greater than 0")
+		logger.Panic("batch size must be greater than zero")
 	}
 
 	return &Executor{
 		ctx:      ctx,
-		log:      log,
+		logger:   logger,
 		writerDB: writerDB,
 		config:   config,
 	}
@@ -47,16 +48,16 @@ func (e *Executor) Run() error {
 		if err != nil {
 			return err
 		}
-		e.log.Info("Count of envelopes eligible for pruning", zap.Int64("count", cnt))
+		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(cnt))
 
 		if cnt == 0 {
-			e.log.Info("No envelopes found for pruning")
+			e.logger.Info("no envelopes found for pruning")
 			return nil
 		}
 	}
 
 	if e.config.DryRun {
-		e.log.Info("Dry run mode enabled. Nothing to do")
+		e.logger.Info("dry run mode enabled, nothing to do")
 		return nil
 	}
 
@@ -73,7 +74,7 @@ func (e *Executor) Run() error {
 
 		totalDeletionCount = totalDeletionCount + deletedThisCycle
 
-		e.log.Info("Pruned expired envelopes batch", zap.Int("count", deletedThisCycle))
+		e.logger.Info("pruned expired envelopes batch", utils.CountField(int64(deletedThisCycle)))
 
 		cyclesCompleted++
 
@@ -82,19 +83,22 @@ func (e *Executor) Run() error {
 		}
 
 		if cyclesCompleted >= e.config.MaxCycles {
-			e.log.Warn("Reached maximum pruning cycles", zap.Int("maxCycles", e.config.MaxCycles))
+			e.logger.Warn(
+				"reached maximum pruning cycles",
+				zap.Int("max_cycles", e.config.MaxCycles),
+			)
 			break
 		}
 	}
 
 	if totalDeletionCount == 0 {
-		e.log.Info("No expired envelopes found")
+		e.logger.Info("no expired envelopes found")
 	}
 
-	e.log.Info(
-		"Done",
-		zap.Int("pruned count", totalDeletionCount),
-		zap.Duration("elapsed", time.Since(start)),
+	e.logger.Info(
+		"done",
+		utils.CountField(int64(totalDeletionCount)),
+		utils.DurationMsField(time.Since(start)),
 	)
 
 	return nil

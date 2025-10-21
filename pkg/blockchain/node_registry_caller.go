@@ -9,13 +9,14 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 type INodeRegistryCaller interface {
 	GetAllNodes(ctx context.Context) ([]noderegistry.INodeRegistryNodeWithId, error)
-	GetNode(ctx context.Context, nodeId uint32) (noderegistry.INodeRegistryNode, error)
-	OwnerOf(ctx context.Context, nodeId uint32) (common.Address, error)
+	GetNode(ctx context.Context, nodeID uint32) (noderegistry.INodeRegistryNode, error)
+	OwnerOf(ctx context.Context, nodeID uint32) (common.Address, error)
 	GetMaxCanonicalNodes(
 		ctx context.Context,
 	) (uint8, error)
@@ -40,9 +41,13 @@ func NewNodeRegistryCaller(
 		return nil, err
 	}
 
+	nodeRegistryCallerLogger := logger.Named(utils.NodeRegistryCallerLoggerName).With(
+		utils.SettlementChainChainIDField(contractsOptions.SettlementChain.ChainID),
+	)
+
 	return &nodeRegistryCaller{
 		client:   client,
-		logger:   logger.Named("NodeRegistryCaller"),
+		logger:   nodeRegistryCallerLogger,
 		contract: contract,
 	}, nil
 }
@@ -57,20 +62,20 @@ func (n *nodeRegistryCaller) GetAllNodes(
 
 func (n *nodeRegistryCaller) GetNode(
 	ctx context.Context,
-	nodeId uint32,
+	nodeID uint32,
 ) (noderegistry.INodeRegistryNode, error) {
 	return n.contract.GetNode(&bind.CallOpts{
 		Context: ctx,
-	}, nodeId)
+	}, nodeID)
 }
 
 func (n *nodeRegistryCaller) OwnerOf(
 	ctx context.Context,
-	nodeId uint32,
+	nodeID uint32,
 ) (common.Address, error) {
 	return n.contract.OwnerOf(&bind.CallOpts{
 		Context: ctx,
-	}, big.NewInt(int64(nodeId)))
+	}, big.NewInt(int64(nodeID)))
 }
 
 func (n *nodeRegistryCaller) GetMaxCanonicalNodes(

@@ -1,4 +1,6 @@
-package settlement_chain
+// Package settlementchain implements the SettlementChain Indexer.
+// It's responsible for indexing the PayerRegistry and PayerReportManager contracts.
+package settlementchain
 
 import (
 	"context"
@@ -15,6 +17,7 @@ import (
 	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -29,7 +32,7 @@ type SettlementChain struct {
 	wg                 sync.WaitGroup
 	rpcClient          *ethclient.Client
 	wsClient           *ethclient.Client
-	log                *zap.Logger
+	logger             *zap.Logger
 	streamer           c.ILogStreamer
 	payerRegistry      *contracts.PayerRegistry
 	payerReportManager *contracts.PayerReportManager
@@ -38,14 +41,14 @@ type SettlementChain struct {
 
 func NewSettlementChain(
 	ctxwc context.Context,
-	log *zap.Logger,
+	logger *zap.Logger,
 	cfg config.SettlementChainOptions,
 	db *sql.DB,
 ) (*SettlementChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
-	chainLogger := log.Named("settlement-chain").
-		With(zap.Int64("chainID", cfg.ChainID))
+	chainLogger := logger.Named(utils.SettlementChainIndexerLoggerName).
+		With(utils.SettlementChainChainIDField(cfg.ChainID))
 
 	rpcClient, err := blockchain.NewRPCClient(
 		ctxwc,
@@ -142,7 +145,7 @@ func NewSettlementChain(
 		cancel:             cancel,
 		rpcClient:          rpcClient,
 		wsClient:           wsClient,
-		log:                chainLogger,
+		logger:             chainLogger,
 		streamer:           streamer,
 		chainID:            cfg.ChainID,
 		payerRegistry:      payerRegistry,
@@ -184,7 +187,7 @@ func (s *SettlementChain) Start() error {
 }
 
 func (s *SettlementChain) Stop() {
-	s.log.Debug("Stopping settlement chain")
+	s.logger.Debug("stopping")
 
 	if s.streamer != nil {
 		s.streamer.Stop()
@@ -201,7 +204,7 @@ func (s *SettlementChain) Stop() {
 	s.cancel()
 	s.wg.Wait()
 
-	s.log.Debug("Settlement chain stopped")
+	s.logger.Debug("stopped")
 }
 
 func (s *SettlementChain) PayerRegistryEventChannel() <-chan types.Log {

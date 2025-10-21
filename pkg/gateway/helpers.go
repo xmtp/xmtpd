@@ -42,7 +42,7 @@ func LoadConfigFromEnv() (*config.GatewayConfig, error) {
 func MustLoadConfig() *config.GatewayConfig {
 	cfg, err := LoadConfigFromEnv()
 	if err != nil {
-		log.Fatalf("Failed to load config from environment: %v", err)
+		log.Fatalf("failed to load config from environment: %v", err)
 	}
 	return cfg
 }

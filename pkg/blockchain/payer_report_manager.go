@@ -72,11 +72,13 @@ func (r *ReportsManager) SubmitPayerReport(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			signatures := prepareSignatures(report.AttestationSignatures)
 
-			r.logger.Info(
-				"submitting report",
-				utils.PayerReportIDField(report.ID.String()),
-				zap.Any("signatures", signatures),
-			)
+			if r.logger.Core().Enabled(zap.DebugLevel) {
+				r.logger.Debug(
+					"submitting report",
+					utils.PayerReportIDField(report.ID.String()),
+					utils.BodyField(signatures),
+				)
+			}
 
 			return r.reportManagerContract.Submit(
 				opts,
@@ -111,7 +113,7 @@ func (r *ReportsManager) SubmitPayerReport(
 					utils.PayerReportIDField(report.ID.String()),
 				)
 			} else {
-				r.logger.Warn("unknown event type", zap.Any("event", event))
+				r.logger.Warn("unknown event type")
 			}
 		},
 	)
@@ -240,7 +242,7 @@ func (r *ReportsManager) SettleReport(
 					zap.Uint32("remaining", parsedEvent.Remaining),
 				)
 			} else {
-				r.logger.Warn("unknown event type", zap.Any("event", event))
+				r.logger.Warn("unknown event type")
 			}
 		},
 	)

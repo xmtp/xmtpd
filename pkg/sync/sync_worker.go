@@ -108,7 +108,11 @@ func (s *syncWorker) subscribeToRegistry() {
 						// data channel closed
 						return
 					}
-					s.logger.Info("new nodes received", zap.Any("nodes", newNodes))
+
+					if s.logger.Core().Enabled(zap.DebugLevel) {
+						s.logger.Debug("new nodes received", utils.BodyField(newNodes))
+					}
+
 					for _, node := range newNodes {
 						s.subscribeToNode(node.NodeID)
 					}
@@ -322,11 +326,13 @@ func (s *syncWorker) setupStream(
 		originatorNodeIDs = []uint32{nodeID}
 	)
 
-	s.logger.Info(
-		"vector clock for sync subscription",
-		utils.OriginatorIDField(node.NodeID),
-		zap.Any("vector_clock", vc),
-	)
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug(
+			"vector clock for sync subscription",
+			utils.OriginatorIDField(node.NodeID),
+			utils.BodyField(vc),
+		)
+	}
 
 	if s.migration.Enable && nodeID == s.migration.FromNodeID {
 		originatorNodeIDs = []uint32{

@@ -29,7 +29,6 @@ func (m *LoggingMisbehaviorService) SafetyFailure(report *SafetyFailureReport) e
 		zap.String("misbehavior_type", report.misbehaviorType.String()),
 		zap.Uint32("misbehaving_node_id", report.misbehavingNodeID),
 		zap.Bool("submitted_by_node", report.submittedByNode),
-		zap.Any("envelopes", report.envelopes),
 	)
 
 	return nil

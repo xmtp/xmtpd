@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/pingcap/log"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -150,7 +149,10 @@ func (s *IdentityUpdateStorer) StoreLog(
 			inboxID := utils.HexEncode(msgSent.InboxId[:])
 
 			for _, newMember := range associationState.StateDiff.NewMembers {
-				s.logger.Debug("new member", zap.Any(memberField, newMember))
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					s.logger.Debug("new member", utils.BodyField(newMember))
+				}
+
 				if address, ok := newMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					numRows, err := querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
 						Address: address.EthereumAddress,
@@ -175,7 +177,10 @@ func (s *IdentityUpdateStorer) StoreLog(
 			}
 
 			for _, removedMember := range associationState.StateDiff.RemovedMembers {
-				log.Debug("removed member", zap.Any(memberField, removedMember))
+				if s.logger.Core().Enabled(zap.DebugLevel) {
+					s.logger.Debug("removed member", utils.BodyField(removedMember))
+				}
+
 				if address, ok := removedMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
 					rows, err := querier.RevokeAddressFromLog(
 						ctx,

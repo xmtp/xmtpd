@@ -57,7 +57,7 @@ func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
 				"client unary RPC error",
 				utils.MethodField(info.FullMethod),
 				utils.DurationMsField(duration),
-				zap.Any(codeField, st.Code()),
+				zap.String(codeField, st.Code().String()),
 				zap.String(messageField, st.Message()),
 			)
 		}
@@ -84,7 +84,7 @@ func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
 				"stream client RPC error",
 				utils.MethodField(info.FullMethod),
 				utils.DurationMsField(duration),
-				zap.Any(codeField, st.Code()),
+				zap.String(codeField, st.Code().String()),
 				zap.String(messageField, st.Message()),
 			)
 		}

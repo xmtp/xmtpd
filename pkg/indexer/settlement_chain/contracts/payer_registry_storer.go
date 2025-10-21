@@ -90,7 +90,7 @@ func (s *PayerRegistryStorer) handleDeposit(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	if !s.logger.Core().Enabled(zap.DebugLevel) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("Deposit", zap.Any("log", log))
 	}
 
@@ -132,7 +132,7 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	if !s.logger.Core().Enabled(zap.DebugLevel) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("WithdrawalRequested", zap.Any("log", log))
 	}
 
@@ -174,7 +174,7 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	if !s.logger.Core().Enabled(zap.DebugLevel) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("UsageSettled", zap.Any("log", log))
 	}
 
@@ -211,7 +211,7 @@ func (s *PayerRegistryStorer) handleWithdrawalCanceled(
 	ctx context.Context,
 	log types.Log,
 ) re.RetryableError {
-	if !s.logger.Core().Enabled(zap.DebugLevel) {
+	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("WithdrawalCancelled", zap.Any("log", log))
 	}
 

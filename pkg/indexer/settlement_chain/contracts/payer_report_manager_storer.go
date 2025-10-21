@@ -89,7 +89,7 @@ func (s *PayerReportManagerStorer) StoreLog(
 
 	switch event.Name {
 	case payerReportManagerPayerReportSubmittedEvent:
-		if !s.logger.Core().Enabled(zap.DebugLevel) {
+		if s.logger.Core().Enabled(zap.DebugLevel) {
 			s.logger.Debug("PayerReportSubmitted", zap.Any("log", log))
 		}
 
@@ -129,7 +129,7 @@ func (s *PayerReportManagerStorer) StoreLog(
 		}
 
 	case payerReportManagerPayerReportSubsetSettledEvent:
-		if !s.logger.Core().Enabled(zap.DebugLevel) {
+		if s.logger.Core().Enabled(zap.DebugLevel) {
 			s.logger.Debug("PayerReportSubsetSettled", zap.Any("log", log))
 		}
 

@@ -20,6 +20,8 @@ import (
 const (
 	maxRefreshInterval = 60 * time.Minute
 	maxRatesPage       = 100
+
+	fromIndexField = "from_index"
 )
 
 // RatesContract is a dumbed down version of the RatesManager contract interface.
@@ -125,8 +127,8 @@ func (c *ContractRatesFetcher) refreshData() error {
 		}
 
 		c.logger.Info("getting page",
-			zap.Int64("fromIndex", c.currentIndex.Int64()),
-			zap.Int64("count", toFetch.Int64()),
+			zap.Int64(fromIndexField, c.currentIndex.Int64()),
+			utils.CountField(toFetch.Int64()),
 		)
 
 		// Step 3: Get rates
@@ -134,7 +136,7 @@ func (c *ContractRatesFetcher) refreshData() error {
 		if err != nil {
 			c.logger.Error("error calling contract",
 				zap.Error(err),
-				zap.Int64("fromIndex", c.currentIndex.Int64()),
+				zap.Int64(fromIndexField, c.currentIndex.Int64()),
 			)
 			return err
 		}
@@ -152,7 +154,7 @@ func (c *ContractRatesFetcher) refreshData() error {
 
 	c.rates = newRates
 	c.lastRefresh = time.Now()
-	c.logger.Debug("refreshed rates", zap.Int("numRates", len(newRates)))
+	c.logger.Debug("refreshed rates", utils.CountField(int64(len(newRates))))
 
 	return err
 }

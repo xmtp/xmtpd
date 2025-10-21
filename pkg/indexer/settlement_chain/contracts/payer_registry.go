@@ -1,3 +1,5 @@
+// Package contracts implements the payer registry and payer registry manager contracts.
+// The Solidity implementations are in https://github.com/xmtp/smart-contracts/tree/main/src/settlement-chain.
 package contracts
 
 import (

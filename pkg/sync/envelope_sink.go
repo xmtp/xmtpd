@@ -104,8 +104,8 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	if ourFeeCalculation != originatorsFeeCalculation {
 		s.logger.Warn(
 			"fee calculation mismatch",
-			zap.Any("our_fee", ourFeeCalculation),
-			zap.Any("originator_fee", originatorsFeeCalculation),
+			zap.String("our_fee", ourFeeCalculation.String()),
+			zap.String("originator_fee", originatorsFeeCalculation.String()),
 		)
 	}
 

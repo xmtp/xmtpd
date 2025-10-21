@@ -182,10 +182,13 @@ func (s *SmartContractRegistry) refreshData() error {
 }
 
 func (s *SmartContractRegistry) processNewNodes(nodes []Node) {
-	s.logger.Debug(
-		"processing new nodes",
-		zap.Int("count", len(nodes)),
-		zap.Any("nodes", nodes))
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug(
+			"processing new nodes",
+			utils.CountField(int64(len(nodes))),
+			utils.BodyField(nodes),
+		)
+	}
 
 	s.newNodesNotifier.trigger(nodes)
 

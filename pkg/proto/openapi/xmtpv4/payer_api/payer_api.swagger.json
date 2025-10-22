@@ -697,7 +697,7 @@
           "title": "The metadata of the welcome message"
         }
       },
-      "title": "Version 1 of the WelcomeMessageInput format, if used as the pointee of a WelcomePointer then\nthe hpke_public_key will be unset, and the wrapper_algorithm will be WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY"
+      "title": "Version 1 of the WelcomeMessageInput format, if used as the pointee of a\nWelcomePointer then the hpke_public_key will be unset, and the\nwrapper_algorithm will be WELCOME_WRAPPER_ALGORITHM_SYMMETRIC_KEY"
     },
     "v1WelcomeMessageInputWelcomePointer": {
       "type": "object",

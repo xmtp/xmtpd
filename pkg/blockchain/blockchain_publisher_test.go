@@ -164,7 +164,6 @@ func TestPublishIdentityUpdate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			logMessage, err := publisher.PublishIdentityUpdate(
@@ -292,7 +291,6 @@ func TestPublishGroupMessage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			logMessage, err := publisher.PublishGroupMessage(tt.ctx, tt.groupID, tt.message)

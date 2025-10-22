@@ -36,8 +36,9 @@ type ValidationApiClient interface {
 	ValidateGroupMessages(ctx context.Context, in *ValidateGroupMessagesRequest, opts ...grpc.CallOption) (*ValidateGroupMessagesResponse, error)
 	// Gets the final association state for a batch of identity updates
 	GetAssociationState(ctx context.Context, in *GetAssociationStateRequest, opts ...grpc.CallOption) (*GetAssociationStateResponse, error)
-	// Validates InboxID key packages and returns credential information for them, without checking
-	// whether an InboxId <> InstallationPublicKey pair is really valid.
+	// Validates InboxID key packages and returns credential information for them,
+	// without checking whether an InboxId <> InstallationPublicKey pair is really
+	// valid.
 	ValidateInboxIdKeyPackages(ctx context.Context, in *ValidateKeyPackagesRequest, opts ...grpc.CallOption) (*ValidateInboxIdKeyPackagesResponse, error)
 	// Verifies smart contracts
 	// This request is proxied from the node, so we'll reuse those messages.
@@ -96,8 +97,9 @@ type ValidationApiServer interface {
 	ValidateGroupMessages(context.Context, *ValidateGroupMessagesRequest) (*ValidateGroupMessagesResponse, error)
 	// Gets the final association state for a batch of identity updates
 	GetAssociationState(context.Context, *GetAssociationStateRequest) (*GetAssociationStateResponse, error)
-	// Validates InboxID key packages and returns credential information for them, without checking
-	// whether an InboxId <> InstallationPublicKey pair is really valid.
+	// Validates InboxID key packages and returns credential information for them,
+	// without checking whether an InboxId <> InstallationPublicKey pair is really
+	// valid.
 	ValidateInboxIdKeyPackages(context.Context, *ValidateKeyPackagesRequest) (*ValidateInboxIdKeyPackagesResponse, error)
 	// Verifies smart contracts
 	// This request is proxied from the node, so we'll reuse those messages.

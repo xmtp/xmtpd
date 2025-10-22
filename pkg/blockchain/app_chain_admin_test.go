@@ -76,7 +76,6 @@ func TestBootstrapperAddress(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name+"/roundtrip", func(t *testing.T) {
 			var err error
 			want := common.HexToAddress("0x000000000000000000000000000000000000BEEF")
@@ -180,7 +179,6 @@ func TestPauseFlags(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
 				var err error
@@ -280,7 +278,6 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/read_default", func(t *testing.T) {
 				t.Skip(

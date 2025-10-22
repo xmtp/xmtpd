@@ -87,7 +87,6 @@ func TestPauseFlagsSettlement(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/toggle_true_false", func(t *testing.T) {
 				var err error
@@ -284,7 +283,6 @@ func TestPayerRegistry_Uint32Params_ReadDefault_WriteThenRead(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/read_default", func(t *testing.T) {
 				t.Skip(
@@ -359,7 +357,6 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run(tc.name+"/read_default", func(t *testing.T) {
 				t.Skip(

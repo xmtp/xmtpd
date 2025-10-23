@@ -189,6 +189,12 @@ func WaitForTransaction(
 
 	now := time.Now()
 	defer func() {
+		logger.Debug(
+			"blockchain wait for transaction",
+			zap.Float64("duration", time.Since(now).Seconds()),
+			zap.String("hash", hash.String()),
+		)
+
 		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
 	}()
 

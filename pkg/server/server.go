@@ -20,6 +20,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/Masterminds/semver/v3"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -333,13 +334,15 @@ func NewReplicationServer(
 			return nil, err
 		}
 
+		payerReportBaseLogger := cfg.Logger.Named(utils.PayerReportMainLoggerName)
+
 		workerConfig, err := workers.NewWorkerConfigBuilder().
 			WithContext(s.ctx).
-			WithLogger(cfg.Logger).
+			WithLogger(payerReportBaseLogger).
 			WithRegistrant(s.registrant).
 			WithRegistry(s.nodeRegistry).
 			WithReportsManager(reportsManager).
-			WithStore(payerreport.NewStore(cfg.DB, cfg.Logger)).
+			WithStore(payerreport.NewStore(cfg.DB, payerReportBaseLogger)).
 			WithDomainSeparator(domainSeparator).
 			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
 			WithGenerationSelfPeriod(cfg.Options.PayerReport.GenerateReportSelfPeriod).

@@ -301,7 +301,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	)
 
 	t.Cleanup(func() {
-		log.Info("Shutting down servers")
+		log.Info("shutting down servers")
 		server1.Shutdown(0)
 		server2.Shutdown(0)
 	})

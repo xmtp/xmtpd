@@ -167,17 +167,23 @@ func startSubscribeWorker(
 				*db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{}, lastSeen),
 			)
 		if err != nil {
-			return nil, lastSeen, err
+			logger.Error("failed to get envelopes", zap.Error(err))
+			return nil, db.VectorClock{}, err
 		}
 		for _, env := range envs {
-			// TODO(rich) Handle out-of-order envelopes
-			lastSeen[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
+			nodeID := uint32(env.OriginatorNodeID)
+			seqID := uint64(env.OriginatorSequenceID)
+
+			if current, ok := lastSeen[nodeID]; !ok || seqID > current {
+				lastSeen[nodeID] = seqID
+			}
 		}
 		return envs, lastSeen, nil
 	}
 
 	vc, err := q.SelectVectorClock(ctx)
 	if err != nil {
+		logger.Error("failed to get vector clock", zap.Error(err))
 		return nil, err
 	}
 
@@ -194,6 +200,7 @@ func startSubscribeWorker(
 
 	dbChan, err := subscription.Start()
 	if err != nil {
+		logger.Error("failed to start subscription", zap.Error(err))
 		return nil, err
 	}
 
@@ -207,6 +214,7 @@ func startSubscribeWorker(
 	}
 
 	go worker.start()
+	logger.Debug("started")
 
 	return worker, nil
 }

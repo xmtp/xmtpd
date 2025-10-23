@@ -83,6 +83,8 @@ func startPublishWorker(
 	}
 	go worker.start()
 
+	logger.Debug("started")
+
 	return worker, nil
 }
 

@@ -32,7 +32,7 @@ func SetVectorClock(
 	return q
 }
 
-func ToVectorClock(rows []queries.SelectVectorClockRow) VectorClock {
+func ToVectorClock(rows []queries.GatewayEnvelopesLatest) VectorClock {
 	vc := make(VectorClock)
 	for _, row := range rows {
 		vc[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)

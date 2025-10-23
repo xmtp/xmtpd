@@ -44,17 +44,12 @@ DELETE FROM staged_originator_envelopes
 WHERE id = @id;
 
 -- name: SelectVectorClock :many
-SELECT nodes.originator_node_id,
-       latest.originator_sequence_id,
-       latest.gateway_time
-FROM (SELECT DISTINCT originator_node_id FROM gateway_envelopes) nodes
-CROSS JOIN LATERAL (
-    SELECT originator_sequence_id, gateway_time
-    FROM gateway_envelopes
-    WHERE originator_node_id = nodes.originator_node_id
-    ORDER BY originator_sequence_id DESC
-    LIMIT 1
-) latest;
+SELECT
+    originator_node_id,
+    originator_sequence_id,
+    gateway_time
+FROM gateway_envelopes_latest
+ORDER BY originator_node_id;
 
 -- name: GetLatestSequenceId :one
 SELECT COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id

@@ -141,9 +141,10 @@ func TestValidFirstReport(t *testing.T) {
 			logger.Info("report", zap.Any("report", report))
 			require.NoError(t, err)
 
-			isValid, err := verifier.IsValidReport(t.Context(), nil, &report.PayerReport)
+			verifyResult, err := verifier.VerifyReport(t.Context(), nil, &report.PayerReport)
 			require.NoError(t, err)
-			require.True(t, isValid)
+			require.True(t, verifyResult.IsValid)
+			require.Equal(t, "valid report", verifyResult.Reason)
 		})
 	}
 }
@@ -447,14 +448,14 @@ func TestValidateMerkleRoot(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			isValid, err := verifier.IsValidReport(context.Background(), nil, tc.report)
+			verifyResult, err := verifier.VerifyReport(context.Background(), nil, tc.report)
 			if tc.expectedError != nil {
 				require.Error(t, err)
 				require.Equal(t, tc.expectedError, err)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tc.expectedValid, isValid)
+			require.Equal(t, tc.expectedValid, verifyResult.IsValid)
 		})
 	}
 }
@@ -549,14 +550,14 @@ func TestValidateMinuteBoundaries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			isValid, err := verifier.IsValidReport(context.Background(), nil, tc.report)
+			verifyResult, err := verifier.VerifyReport(context.Background(), nil, tc.report)
 			if tc.expectedError != nil {
 				require.Error(t, err)
 				require.Equal(t, tc.expectedError, err)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tc.expectedValid, isValid)
+			require.Equal(t, tc.expectedValid, verifyResult.IsValid)
 		})
 	}
 }

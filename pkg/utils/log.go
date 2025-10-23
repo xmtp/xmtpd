@@ -273,6 +273,10 @@ func PublicKeyField(publicKey string) zap.Field {
 	return zap.String("public_key", publicKey)
 }
 
+func ReasonField(reason string) zap.Field {
+	return zap.String("reason", reason)
+}
+
 func RecipientField(recipient string) zap.Field {
 	return zap.String("recipient", recipient)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -330,7 +331,7 @@ func mintHandler(to common.Address, amountStr string, raw bool) error {
 
 	logger.Info("successfully minted mock underlying fee token",
 		zap.String("to", to.Hex()),
-		zap.String("amount", amount.String()),
+		utils.AmountField(amount.String()),
 	)
 
 	return nil

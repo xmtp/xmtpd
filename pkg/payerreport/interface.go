@@ -29,12 +29,17 @@ type IPayerReportGenerator interface {
 	) (*PayerReportWithInputs, error)
 }
 
+type VerifyReportResult struct {
+	IsValid bool
+	Reason  string
+}
+
 type IPayerReportVerifier interface {
-	IsValidReport(
+	VerifyReport(
 		ctx context.Context,
 		prevReport *PayerReport,
 		newReport *PayerReport,
-	) (bool, error)
+	) (VerifyReportResult, error)
 	GetPayerMap(
 		ctx context.Context,
 		report *PayerReport,

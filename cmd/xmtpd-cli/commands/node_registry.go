@@ -348,7 +348,7 @@ func maxCanonicalHandler(setVal uint8) error {
 		if err := admin.SetMaxCanonical(ctx, setVal); err != nil {
 			return fmt.Errorf("failed to set max canonical size: %w", err)
 		}
-		logger.Info("set new max canonical size", zap.Uint8("maxCanonicalNodes", setVal))
+		logger.Info("set new max canonical size", zap.Uint8("max_canonical_nodes", setVal))
 	}
 
 	caller, err := setupNodeRegistryCaller(ctx, logger)
@@ -361,7 +361,7 @@ func maxCanonicalHandler(setVal uint8) error {
 		return fmt.Errorf("failed to get max canonical size: %w", err)
 	}
 
-	logger.Info("current max canonical size", zap.Uint8("maxCanonicalNodes", val))
+	logger.Info("current max canonical size", zap.Uint8("max_canonical_nodes", val))
 	return nil
 }
 

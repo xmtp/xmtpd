@@ -60,7 +60,11 @@ func main() {
 
 	version, err := semver.NewVersion(Version)
 	if err != nil {
-		logger.Error(fmt.Sprintf("could not parse semver version (%s): %s", Version, err))
+		logger.Error(
+			"could not parse semver version",
+			zap.String("version", Version),
+			zap.Error(err),
+		)
 	}
 
 	// consolidate API options

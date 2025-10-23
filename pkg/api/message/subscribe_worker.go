@@ -54,10 +54,10 @@ func newListener(
 	for _, t := range topics {
 		validatedTopic, err := topic.ParseTopic(t)
 		if err != nil {
-			logger.Warn("Skipping invalid topic", zap.Binary("topicBytes", t))
+			logger.Warn("skipping invalid topic", zap.Binary("topic_bytes", t))
 			continue
 		}
-		logger.Debug("Adding topic listener", zap.String("topic", validatedTopic.String()))
+		logger.Debug("adding topic listener", zap.String("topic", validatedTopic.String()))
 		l.topics[validatedTopic.String()] = struct{}{}
 	}
 

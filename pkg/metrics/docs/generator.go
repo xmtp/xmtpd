@@ -60,7 +60,7 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("Error walking through files: %v", err)
+		log.Fatalf("error walking through files: %v", err)
 	}
 
 	dumpToMarkdown(metrics)
@@ -89,7 +89,7 @@ func dumpToMarkdown(metrics []Metric) {
 	}
 
 	if err := os.WriteFile(MARKDOWN_OUTPUT, []byte(sb.String()), 0o644); err != nil {
-		log.Fatalf("Error writing Markdown file: %v", err)
+		log.Fatalf("error writing Markdown file: %v", err)
 	}
 
 	fmt.Printf("✅ %s generated with %d metrics\n", MARKDOWN_OUTPUT, len(metrics))

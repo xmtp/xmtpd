@@ -110,15 +110,15 @@ func (p *PayerReportVerifier) IsValidReport(
 ) (bool, error) {
 	var err error
 
-	log := AddReportLogFields(p.logger, newReport)
+	logger := AddReportLogFields(p.logger, newReport)
 
 	if err = validateReportTransition(prevReport, newReport); err != nil {
-		log.Warn("invalid report transition", zap.Error(err))
+		logger.Warn("invalid report transition", zap.Error(err))
 		return false, nil
 	}
 
 	if err = validateReportStructure(newReport); err != nil {
-		log.Warn("invalid report content", zap.Error(err))
+		logger.Warn("invalid report content", zap.Error(err))
 		return false, nil
 	}
 

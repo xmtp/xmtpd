@@ -42,6 +42,11 @@ type IAppChainAdmin interface {
 	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
 }
 
+const (
+	maxPayloadSizeField = "max_payload_size"
+	minPayloadSizeField = "min_payload_size"
+)
+
 type appChainAdmin struct {
 	client                    *ethclient.Client
 	signer                    TransactionSigner
@@ -332,7 +337,7 @@ func (a appChainAdmin) UpdateGroupMessageMaxPayloadSize(ctx context.Context) err
 				return
 			}
 			a.logger.Info("group-message max payload size updated",
-				zap.Uint64("maxPayloadSize", ev.Size.Uint64()))
+				zap.Uint64(maxPayloadSizeField, ev.Size.Uint64()))
 		},
 	)
 	if err != nil {
@@ -370,7 +375,7 @@ func (a appChainAdmin) UpdateGroupMessageMinPayloadSize(ctx context.Context) err
 				return
 			}
 			a.logger.Info("group-message min payload size updated",
-				zap.Uint64("minPayloadSize", ev.Size.Uint64()))
+				zap.Uint64(minPayloadSizeField, ev.Size.Uint64()))
 		},
 	)
 	if err != nil {
@@ -408,7 +413,7 @@ func (a appChainAdmin) UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) e
 				return
 			}
 			a.logger.Info("identity-update max payload size updated",
-				zap.Uint64("maxPayloadSize", ev.Size.Uint64()))
+				zap.Uint64(maxPayloadSizeField, ev.Size.Uint64()))
 		},
 	)
 	if err != nil {
@@ -446,7 +451,7 @@ func (a appChainAdmin) UpdateIdentityUpdateMinPayloadSize(ctx context.Context) e
 				return
 			}
 			a.logger.Info("identity-update min payload size updated",
-				zap.Uint64("minPayloadSize", ev.Size.Uint64()))
+				zap.Uint64(minPayloadSizeField, ev.Size.Uint64()))
 		},
 	)
 	if err != nil {

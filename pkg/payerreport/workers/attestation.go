@@ -143,7 +143,7 @@ func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.Paye
 // and, if valid, signs it with the node's private key.
 // Returns an error if the report is invalid or if there was a problem during attestation.
 func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStatus) error {
-	log := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
+	logger := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
 	var prevReport *payerreport.PayerReport
 	var err error
 	if report.StartSequenceID > 0 {
@@ -161,11 +161,11 @@ func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStat
 	}
 
 	if isValid {
-		log.Info("report is valid, submitting attestation")
+		logger.Info("report is valid, submitting attestation")
 		return w.submitAttestation(report)
 	}
 
-	log.Warn("report is invalid, not attesting")
+	logger.Warn("report is invalid, not attesting")
 	return w.rejectAttestation(report)
 }
 

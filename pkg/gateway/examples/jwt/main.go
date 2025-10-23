@@ -81,7 +81,7 @@ func main() {
 		WithIdentityFn(jwtIdentityFn(publicKey)).
 		Build()
 	if err != nil {
-		log.Fatalf("Failed to build gateway service: %v", err)
+		log.Fatalf("failed to build gateway service: %v", err)
 	}
 
 	gatewayService.WaitForShutdown()

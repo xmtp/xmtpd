@@ -117,7 +117,7 @@ func StressIdentityUpdates(
 	tps := float64(n) / elapsedSec
 
 	avgDuration := totalDuration / time.Duration(n)
-	logger.Info("Stress Test Summary",
+	logger.Info("stress test summary",
 		zap.Int("total_transactions", n),
 		zap.Int("successful_transactions", successCount),
 		zap.Float64("success_rate", float64(successCount)/float64(n)),

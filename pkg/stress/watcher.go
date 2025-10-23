@@ -94,7 +94,7 @@ func (w *Watcher) makeSubChannel(
 	if err != nil {
 		w.logger.Error(
 			"unexpected error while creating subscription",
-			zap.String("err", err.Error()),
+			zap.String("error", err.Error()),
 		)
 		return nil, nil, err
 	}
@@ -110,7 +110,7 @@ func (w *Watcher) makeSubChannel(
 			select {
 			case err := <-sub.Err():
 				if err != nil {
-					w.logger.Error("subscription error", zap.String("err", err.Error()))
+					w.logger.Error("subscription error", zap.String("error", err.Error()))
 					sub.Unsubscribe()
 
 					success := false
@@ -160,9 +160,9 @@ func (w *Watcher) processLogs(
 			case log := <-newLog:
 				w.logger.Info(
 					"received log",
-					zap.Uint64("block", log.BlockNumber),
-					zap.String("address", log.Address.Hex()),
-					zap.String("txHash", log.TxHash.Hex()),
+					utils.BlockNumberField(log.BlockNumber),
+					utils.AddressField(log.Address.Hex()),
+					utils.HashField(log.TxHash.Hex()),
 				)
 
 			case <-ctx.Done():

@@ -24,18 +24,18 @@ func IndexLogs(
 	for {
 		select {
 		case <-ctx.Done():
-			contract.Logger().Debug("IndexLogs context cancelled, exiting log handler")
+			contract.Logger().Debug("indexLogs context cancelled, exiting log handler")
 			return
 
 		case event, open := <-eventChannel:
 			if !open {
-				contract.Logger().Debug("IndexLogs event channel closed, exiting log handler")
+				contract.Logger().Debug("indexLogs event channel closed, exiting log handler")
 				return
 			}
 
 			if IsUpdateProgressEvent(event) {
 				contract.Logger().
-					Debug("UpdateProgress event received", zap.Uint64("blockNumber", event.BlockNumber))
+					Debug("received event UpdateProgress", utils.BlockNumberField(event.BlockNumber))
 
 				if err := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); err != nil {
 					contract.Logger().Error("error updating block tracker", zap.Error(err))

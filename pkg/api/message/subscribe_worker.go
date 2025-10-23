@@ -18,7 +18,9 @@ import (
 const (
 	subscriptionBufferSize  = 1024
 	SubscribeWorkerPollTime = 100 * time.Millisecond
-	subscribeWorkerPollRows = 10000
+	// based on measurements in testnet using PG, we can poll at most 1000 elements in a large DB
+	// this gives us sufficient throughput if being run continually
+	subscribeWorkerPollRows = 1000
 )
 
 type listener struct {

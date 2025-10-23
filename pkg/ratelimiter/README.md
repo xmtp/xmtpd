@@ -44,9 +44,7 @@ limits := []ratelimiter.Limit{
 }
 
 // Create the rate limiter
-logger := zap.NewNop()
 limiter, err := ratelimiter.NewRedisLimiter(
-    logger,
     client,
     "myapp:ratelimit",  // Redis key prefix
     limits,

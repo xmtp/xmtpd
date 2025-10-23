@@ -6,12 +6,13 @@ CREATE TABLE gateway_envelopes_latest (
 
 CREATE OR REPLACE FUNCTION update_latest_envelope() RETURNS trigger AS $$
 BEGIN
-    INSERT INTO gateway_envelopes_latest
+    INSERT INTO gateway_envelopes_latest as g
     VALUES (NEW.originator_node_id, NEW.originator_sequence_id, NEW.gateway_time)
     ON CONFLICT (originator_node_id)
         DO UPDATE
         SET originator_sequence_id = EXCLUDED.originator_sequence_id,
-            gateway_time = EXCLUDED.gateway_time;
+            gateway_time = EXCLUDED.gateway_time
+        WHERE EXCLUDED.originator_sequence_id > g.originator_sequence_id;
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;

@@ -192,10 +192,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		},
 	)
 
-	require.NotEqual(t, server1.Addr(), server2.Addr())
+	require.NotEqual(t, server1.HTTPAddress, server2.HTTPAddress)
 
-	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
-	client2 := apiTestUtils.NewReplicationAPIClient(t, server2.Addr().String())
+	client1 := apiTestUtils.NewTestReplicationAPIClient(t, server1.Addr().String())
+	client2 := apiTestUtils.NewTestReplicationAPIClient(t, server2.Addr().String())
 
 	registrant1, err := registrant.NewRegistrant(
 		t.Context(),

@@ -3,11 +3,10 @@
 package mlsvalidate
 
 import (
-	context "context"
-
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
+	apiv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 
-	mls_validationv1 "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
+	context "context"
 
 	mlsvalidate "github.com/xmtp/xmtpd/pkg/mlsvalidate"
 
@@ -150,7 +149,7 @@ func (_c *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call) RunAnd
 }
 
 // ValidateGroupMessages provides a mock function with given fields: ctx, groupMessages
-func (_m *MockMLSValidationService) ValidateGroupMessages(ctx context.Context, groupMessages []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage) ([]mlsvalidate.GroupMessageValidationResult, error) {
+func (_m *MockMLSValidationService) ValidateGroupMessages(ctx context.Context, groupMessages []*apiv1.GroupMessageInput) ([]mlsvalidate.GroupMessageValidationResult, error) {
 	ret := _m.Called(ctx, groupMessages)
 
 	if len(ret) == 0 {
@@ -159,10 +158,10 @@ func (_m *MockMLSValidationService) ValidateGroupMessages(ctx context.Context, g
 
 	var r0 []mlsvalidate.GroupMessageValidationResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage) ([]mlsvalidate.GroupMessageValidationResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []*apiv1.GroupMessageInput) ([]mlsvalidate.GroupMessageValidationResult, error)); ok {
 		return rf(ctx, groupMessages)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage) []mlsvalidate.GroupMessageValidationResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []*apiv1.GroupMessageInput) []mlsvalidate.GroupMessageValidationResult); ok {
 		r0 = rf(ctx, groupMessages)
 	} else {
 		if ret.Get(0) != nil {
@@ -170,7 +169,7 @@ func (_m *MockMLSValidationService) ValidateGroupMessages(ctx context.Context, g
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, []*apiv1.GroupMessageInput) error); ok {
 		r1 = rf(ctx, groupMessages)
 	} else {
 		r1 = ret.Error(1)
@@ -186,14 +185,14 @@ type MockMLSValidationService_ValidateGroupMessages_Call struct {
 
 // ValidateGroupMessages is a helper method to define mock.On call
 //   - ctx context.Context
-//   - groupMessages []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage
+//   - groupMessages []*apiv1.GroupMessageInput
 func (_e *MockMLSValidationService_Expecter) ValidateGroupMessages(ctx interface{}, groupMessages interface{}) *MockMLSValidationService_ValidateGroupMessages_Call {
 	return &MockMLSValidationService_ValidateGroupMessages_Call{Call: _e.mock.On("ValidateGroupMessages", ctx, groupMessages)}
 }
 
-func (_c *MockMLSValidationService_ValidateGroupMessages_Call) Run(run func(ctx context.Context, groupMessages []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage)) *MockMLSValidationService_ValidateGroupMessages_Call {
+func (_c *MockMLSValidationService_ValidateGroupMessages_Call) Run(run func(ctx context.Context, groupMessages []*apiv1.GroupMessageInput)) *MockMLSValidationService_ValidateGroupMessages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage))
+		run(args[0].(context.Context), args[1].([]*apiv1.GroupMessageInput))
 	})
 	return _c
 }
@@ -203,7 +202,7 @@ func (_c *MockMLSValidationService_ValidateGroupMessages_Call) Return(_a0 []mlsv
 	return _c
 }
 
-func (_c *MockMLSValidationService_ValidateGroupMessages_Call) RunAndReturn(run func(context.Context, []*mls_validationv1.ValidateGroupMessagesRequest_GroupMessage) ([]mlsvalidate.GroupMessageValidationResult, error)) *MockMLSValidationService_ValidateGroupMessages_Call {
+func (_c *MockMLSValidationService_ValidateGroupMessages_Call) RunAndReturn(run func(context.Context, []*apiv1.GroupMessageInput) ([]mlsvalidate.GroupMessageValidationResult, error)) *MockMLSValidationService_ValidateGroupMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }

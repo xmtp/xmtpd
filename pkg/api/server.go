@@ -170,6 +170,7 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	_ = unary
 	_ = stream
 
+	// Fix! : Reactivate the gRPC server implementation.
 	// svc.grpcServer = grpc.NewServer(
 	// 	grpc.ChainUnaryInterceptor(unary...),
 	// 	grpc.ChainStreamInterceptor(stream...),

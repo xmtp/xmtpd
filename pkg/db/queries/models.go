@@ -34,6 +34,12 @@ type GatewayEnvelope struct {
 	Expiry               sql.NullInt64
 }
 
+type GatewayEnvelopesLatest struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	GatewayTime          time.Time
+}
+
 type LatestBlock struct {
 	ContractAddress string
 	BlockNumber     int64

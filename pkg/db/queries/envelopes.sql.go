@@ -8,7 +8,6 @@ package queries
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/lib/pq"
 )
@@ -286,34 +285,23 @@ func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg Selec
 }
 
 const selectVectorClock = `-- name: SelectVectorClock :many
-SELECT nodes.originator_node_id,
-       latest.originator_sequence_id,
-       latest.gateway_time
-FROM (SELECT DISTINCT originator_node_id FROM gateway_envelopes) nodes
-CROSS JOIN LATERAL (
-    SELECT originator_sequence_id, gateway_time
-    FROM gateway_envelopes
-    WHERE originator_node_id = nodes.originator_node_id
-    ORDER BY originator_sequence_id DESC
-    LIMIT 1
-) latest
+SELECT
+    originator_node_id,
+    originator_sequence_id,
+    gateway_time
+FROM gateway_envelopes_latest
+ORDER BY originator_node_id
 `
 
-type SelectVectorClockRow struct {
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
-	GatewayTime          time.Time
-}
-
-func (q *Queries) SelectVectorClock(ctx context.Context) ([]SelectVectorClockRow, error) {
+func (q *Queries) SelectVectorClock(ctx context.Context) ([]GatewayEnvelopesLatest, error) {
 	rows, err := q.db.QueryContext(ctx, selectVectorClock)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SelectVectorClockRow
+	var items []GatewayEnvelopesLatest
 	for rows.Next() {
-		var i SelectVectorClockRow
+		var i GatewayEnvelopesLatest
 		if err := rows.Scan(&i.OriginatorNodeID, &i.OriginatorSequenceID, &i.GatewayTime); err != nil {
 			return nil, err
 		}

@@ -25,45 +25,12 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 	return result.RowsAffected()
 }
 
-const getLatestCursor = `-- name: GetLatestCursor :many
-SELECT originator_node_id,
-	MAX(originator_sequence_id)::BIGINT AS max_sequence_id
-FROM gateway_envelopes
-GROUP BY originator_node_id
-`
-
-type GetLatestCursorRow struct {
-	OriginatorNodeID int32
-	MaxSequenceID    int64
-}
-
-func (q *Queries) GetLatestCursor(ctx context.Context) ([]GetLatestCursorRow, error) {
-	rows, err := q.db.QueryContext(ctx, getLatestCursor)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetLatestCursorRow
-	for rows.Next() {
-		var i GetLatestCursorRow
-		if err := rows.Scan(&i.OriginatorNodeID, &i.MaxSequenceID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getLatestSequenceId = `-- name: GetLatestSequenceId :one
-SELECT COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
-FROM gateway_envelopes
-WHERE originator_node_id = $1
+SELECT COALESCE((
+                    SELECT originator_sequence_id
+                    FROM gateway_envelopes_latest
+                    WHERE originator_node_id = $1
+                ), 0)::BIGINT AS originator_sequence_id
 `
 
 func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int32) (int64, error) {

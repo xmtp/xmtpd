@@ -52,15 +52,11 @@ FROM gateway_envelopes_latest
 ORDER BY originator_node_id;
 
 -- name: GetLatestSequenceId :one
-SELECT COALESCE(max(originator_sequence_id), 0)::BIGINT AS originator_sequence_id
-FROM gateway_envelopes
-WHERE originator_node_id = @originator_node_id;
-
--- name: GetLatestCursor :many
-SELECT originator_node_id,
-	MAX(originator_sequence_id)::BIGINT AS max_sequence_id
-FROM gateway_envelopes
-GROUP BY originator_node_id;
+SELECT COALESCE((
+    SELECT originator_sequence_id
+    FROM gateway_envelopes_latest
+    WHERE originator_node_id = @originator_node_id
+), 0)::BIGINT AS originator_sequence_id;
 
 -- name: SelectNewestFromTopics :many
 SELECT e.*

@@ -90,14 +90,14 @@ func equalCursors(a, b map[uint32]uint64) bool {
 }
 
 func (cu *DBBasedCursorUpdater) read() (bool, error) {
-	rows, err := queries.New(cu.store).GetLatestCursor(cu.ctx)
+	rows, err := queries.New(cu.store).SelectVectorClock(cu.ctx)
 	if err != nil {
 		return false, err
 	}
 
 	nodeIDToSequenceID := make(map[uint32]uint64)
 	for _, row := range rows {
-		nodeIDToSequenceID[uint32(row.OriginatorNodeID)] = uint64(row.MaxSequenceID)
+		nodeIDToSequenceID[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
 	}
 
 	cu.cursorMu.Lock()

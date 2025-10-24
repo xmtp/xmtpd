@@ -40,7 +40,7 @@ var (
 )
 
 type multiNodeTestScaffold struct {
-	servers            []*server.ReplicationServer
+	servers            []*server.BaseServer
 	nodeIDs            []uint32
 	nodePrivateKeys    []*ecdsa.PrivateKey
 	payerPrivateKeys   []*ecdsa.PrivateKey
@@ -307,7 +307,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	})
 
 	return multiNodeTestScaffold{
-		servers:          []*server.ReplicationServer{server1, server2},
+		servers:          []*server.BaseServer{server1, server2},
 		nodeIDs:          []uint32{server1NodeID, server2NodeID},
 		nodePrivateKeys:  []*ecdsa.PrivateKey{privateKey1, privateKey2},
 		payerPrivateKeys: []*ecdsa.PrivateKey{payerPrivateKey1, payerPrivateKey2},

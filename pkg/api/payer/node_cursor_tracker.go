@@ -5,14 +5,16 @@ import (
 	"errors"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type MetadataAPIClientConstructor interface {
-	NewMetadataAPIClient(nodeID uint32) (metadata_api.MetadataApiClient, error)
+	NewMetadataAPIClient(nodeID uint32) (metadata_apiconnect.MetadataApiClient, error)
 }
 type DefaultMetadataAPIClientConstructor struct {
 	clientManager *ClientManager
@@ -20,12 +22,8 @@ type DefaultMetadataAPIClientConstructor struct {
 
 func (c *DefaultMetadataAPIClientConstructor) NewMetadataAPIClient(
 	nodeID uint32,
-) (metadata_api.MetadataApiClient, error) {
-	conn, err := c.clientManager.GetClient(nodeID)
-	if err != nil {
-		return nil, err
-	}
-	return metadata_api.NewMetadataApiClient(conn), nil
+) (metadata_apiconnect.MetadataApiClient, error) {
+	return c.clientManager.GetMetadataClient(nodeID)
 }
 
 type NodeCursorTracker struct {
@@ -57,7 +55,10 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	if err != nil {
 		return err
 	}
-	stream, err := client.SubscribeSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
+	stream, err := client.SubscribeSyncCursor(
+		ctx,
+		connect.NewRequest(&metadata_api.GetSyncCursorRequest{}),
+	)
 	if err != nil {
 		return err
 	}
@@ -70,13 +71,12 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	go func() {
 		defer close(respCh)
 		defer close(errCh)
-		for {
-			resp, err := stream.Recv()
-			if err != nil {
-				errCh <- err
-				return
-			}
+		for stream.Receive() {
+			resp := stream.Msg()
 			respCh <- resp
+		}
+		if err := stream.Err(); err != nil {
+			errCh <- err
 		}
 	}()
 

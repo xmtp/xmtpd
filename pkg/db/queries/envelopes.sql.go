@@ -27,10 +27,10 @@ func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) 
 
 const getLatestSequenceId = `-- name: GetLatestSequenceId :one
 SELECT COALESCE((
-                    SELECT originator_sequence_id
-                    FROM gateway_envelopes_latest
-                    WHERE originator_node_id = $1
-                ), 0)::BIGINT AS originator_sequence_id
+    SELECT originator_sequence_id
+    FROM gateway_envelopes_latest
+    WHERE originator_node_id = $1
+), 0)::BIGINT AS originator_sequence_id
 `
 
 func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int32) (int64, error) {

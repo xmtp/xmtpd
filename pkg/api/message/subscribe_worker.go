@@ -164,10 +164,14 @@ func startSubscribeWorker(
 		envs, err := q.
 			SelectGatewayEnvelopes(
 				ctx,
-				*db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{}, lastSeen),
+				*db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{RowLimit: numRows}, lastSeen),
 			)
 		if err != nil {
-			logger.Error("failed to get envelopes", zap.Error(err))
+			logger.Error(
+				"failed to get envelopes",
+				zap.Error(err),
+				zap.Any("last_seen", lastSeen),
+			)
 			return nil, db.VectorClock{}, err
 		}
 		for _, env := range envs {

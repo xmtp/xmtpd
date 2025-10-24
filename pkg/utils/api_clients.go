@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	maxMessageSize  = 10 * 1024 * 1024
+	maxMessageSize  = 25 * 1024 * 1024
 	readIdleTimeout = 10 * time.Second
 	pingTimeout     = 30 * time.Second
 	clientTimeout   = 10 * time.Second
@@ -101,27 +101,27 @@ func NewConnectGRPCWebReplicationAPIClient(
 	return message_apiconnect.NewReplicationApiClient(httpClient, target, opts...), nil
 }
 
-// NewGRPCReplicationAPIClient builds a native grpc-go client for the Replication API.
+// NewGRPCReplicationAPIClientAndConn builds a native grpc-go client for the Replication API.
 //   - Uses the standard grpc-go library (not connect-go).
 //   - Requires a schemeful base URL (http:// or https://).
 //   - For Connect-based gRPC clients, use NewConnectGRPCReplicationAPIClient instead.
 //
 // Developer Note: Upstream caller is responsible for closing the returned connection.
-func NewGRPCReplicationAPIClient(
+func NewGRPCReplicationAPIClientAndConn(
 	httpAddress string,
+	extraDialOpts ...grpc.DialOption,
 ) (client message_api.ReplicationApiClient, conn *grpc.ClientConn, err error) {
 	target, isTLS, err := HTTPAddressToGRPCTarget(httpAddress)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid HTTP address: %w", err)
 	}
 
-	var opts []grpc.DialOption
-	opts = append(opts,
+	dialOptions := append([]grpc.DialOption{
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallSendMsgSize(maxMessageSize),
 			grpc.MaxCallRecvMsgSize(maxMessageSize),
 		),
-	)
+	}, extraDialOpts...)
 
 	if isTLS {
 		tlsConfig, err := buildTLSConfig()
@@ -129,10 +129,13 @@ func NewGRPCReplicationAPIClient(
 			return nil, nil, fmt.Errorf("failed to build TLS config: %w", err)
 		}
 
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+		dialOptions = append(
+			dialOptions,
+			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+		)
 	} else {
 		// h2c: plaintext HTTP/2
-		opts = append(opts,
+		dialOptions = append(dialOptions,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 				var d net.Dialer
@@ -141,7 +144,7 @@ func NewGRPCReplicationAPIClient(
 		)
 	}
 
-	conn, err = grpc.NewClient(target, opts...)
+	conn, err = grpc.NewClient(target, dialOptions...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create grpc client: %w", err)
 	}

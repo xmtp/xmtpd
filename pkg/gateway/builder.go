@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
+	"net/http"
 	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -19,12 +19,10 @@ import (
 	redisnoncemanager "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/redis"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 var (
@@ -153,13 +151,13 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		b.identityFn = IPIdentityFn
 	}
 
-	// Use injected context or default to background context
+	// Use injected context or default to background context.
 	ctx := b.ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Create logger if not provided
+	// Create logger if not provided.
 	if b.logger == nil {
 		logger, _, err := utils.BuildLogger(b.config.Log)
 		if err != nil {
@@ -179,7 +177,7 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		b.nonceManager = nonceManager
 	}
 
-	// Create blockchain publisher if not provided
+	// Create blockchain publisher if not provided.
 	if b.blockchainPublisher == nil {
 		blockchainPublisher, err := setupBlockchainPublisher(
 			ctx,
@@ -193,7 +191,7 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		b.blockchainPublisher = blockchainPublisher
 	}
 
-	// Create node registry if not provided
+	// Create node registry if not provided.
 	if b.nodeRegistry == nil {
 		nodeRegistry, err := setupNodeRegistry(ctx, b.logger, b.config)
 		if err != nil {
@@ -202,9 +200,12 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 		b.nodeRegistry = nodeRegistry
 	}
 
-	// Create metrics server if not provided and metrics are enabled
-	promRegistry := b.promRegistry
-	clientMetrics := b.clientMetrics
+	// Create metrics server if not provided and metrics are enabled.
+	var (
+		promRegistry  = b.promRegistry
+		clientMetrics = b.clientMetrics
+	)
+
 	if b.config.Metrics.Enable && b.metricsServer == nil {
 		metricsServer, promReg, clientMet, err := setupMetrics(
 			ctx,
@@ -237,33 +238,34 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		return nil, errors.Wrap(err, "failed to parse gateway private key")
 	}
 
-	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
+	registrationFunc := func(mux *http.ServeMux) error {
 		gatewayAPIService, err := payer.NewPayerAPIService(
 			ctx,
 			b.logger,
 			b.nodeRegistry,
 			gatewayPrivateKey,
 			b.blockchainPublisher,
-			clientMetrics,
 			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
+			payer.NewMetadataAPIClientConstructor(b.nodeRegistry),
+			clientMetrics,
 		)
 		if err != nil {
 			return err
 		}
-		payer_api.RegisterPayerApiServer(grpcServer, gatewayAPIService)
 
-		if b.config.Reflection.Enable {
-			reflection.Register(grpcServer)
-			b.logger.Info("enabled gRPC Server Reflection")
+		if gatewayAPIService == nil {
+			return fmt.Errorf("gateway api service is nil")
 		}
 
-		return nil
-	}
+		gatewayPath, gatewayHandler := payer_apiconnect.NewPayerApiHandler(
+			gatewayAPIService,
+		)
 
-	grpcListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", b.config.API.Port))
-	if err != nil {
-		cancel()
-		return nil, err
+		mux.Handle(gatewayPath, gatewayHandler)
+
+		b.logger.Info("gateway api registered")
+
+		return nil
 	}
 
 	// Create gateway interceptor
@@ -272,8 +274,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	apiServer, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(b.logger),
-		api.WithGRPCListener(grpcListener),
-		api.WithRegistrationFunc(serviceRegistrationFunc),
+		api.WithRegistrationFunc(registrationFunc),
 		api.WithPrometheusRegistry(promRegistry),
 		api.WithUnaryInterceptors(gatewayInterceptor.Unary()),
 		api.WithStreamInterceptors(gatewayInterceptor.Stream()),
@@ -411,7 +412,7 @@ func setupBlockchainPublisher(
 	)
 }
 
-// If metrics are enabled, sets them up
+// setupMetrics creates the metrics server and registers the client metrics.
 func setupMetrics(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -419,7 +420,7 @@ func setupMetrics(
 	promRegistry *prometheus.Registry,
 	clientMetrics *grpcprom.ClientMetrics,
 ) (*metrics.Server, *prometheus.Registry, *grpcprom.ClientMetrics, error) {
-	// Use provided registry or create new one
+	// Use provided registry or create new one.
 	promReg := promRegistry
 	if promReg == nil {
 		promReg = prometheus.NewRegistry()
@@ -427,7 +428,7 @@ func setupMetrics(
 		promReg.MustRegister(collectors.NewGoCollector())
 	}
 
-	// Use provided client metrics or create new ones
+	// Use provided client metrics or create new ones.
 	clientMet := clientMetrics
 	if clientMet == nil {
 		clientMet = grpcprom.NewClientMetrics(

@@ -8,24 +8,24 @@ import (
 	"sync"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/cenkalti/backoff/v5"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 type syncWorker struct {
@@ -213,20 +213,21 @@ func (s *syncWorker) subscribeToNodeRegistration(
 	expBackoff.InitialInterval = 1 * time.Second
 
 	operation := func() (string, error) {
-		// TODO: Fix!
-		// // Ensure cleanup of resources, defer works here since we are using a named function
-		// var conn *grpc.ClientConn
-		// var stream *originatorStream
-		// defer func() {
-		// 	if stream != nil {
-		// 		_ = stream.stream.CloseSend()
-		// 	}
-		// 	if conn != nil {
-		// 		_ = conn.Close()
-		// 	}
-		// }()
+		var (
+			conn   *grpc.ClientConn
+			stream *originatorStream
+			err    error
+		)
 
-		var err error
+		defer func() {
+			if stream != nil {
+				_ = stream.stream.CloseSend()
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}()
+
 		defer func() {
 			if err != nil && s.ctx.Err() == nil {
 				s.logger.Error(
@@ -242,12 +243,12 @@ func (s *syncWorker) subscribeToNodeRegistration(
 			return "", backoff.Permanent(registration.ctx.Err())
 		}
 
-		client, err := s.connectToNode(*node)
+		conn, err = s.connectToNode(*node)
 		if err != nil {
 			return "", err
 		}
 
-		stream, err := s.setupStream(registration.ctx, *node, client, writeQueue)
+		stream, err = s.setupStream(registration.ctx, *node, conn, writeQueue)
 		if err != nil {
 			return "", err
 		}
@@ -281,23 +282,20 @@ type NodeRegistration struct {
 
 func (s *syncWorker) connectToNode(
 	node registry.Node,
-) (message_apiconnect.ReplicationApiClient, error) {
+) (*grpc.ClientConn, error) {
 	s.logger.Info("attempting to connect to node",
 		utils.OriginatorIDField(node.NodeID),
 		utils.NodeHTTPAddressField(node.HTTPAddress),
 	)
 
-	// TODO: Fix auth interceptor.
-	// interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
+	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
 
-	// TODO: Fix! We need to use the interceptor here. We should not be using grpc.DialOption.
-	// dialOpts := []connect.ClientOption{
-	// 	grpc.WithUnaryInterceptor(interceptor.Unary()),
-	// 	grpc.WithStreamInterceptor(interceptor.Stream()),
-	// }
+	dialOpts := []grpc.DialOption{
+		grpc.WithUnaryInterceptor(interceptor.Unary()),
+		grpc.WithStreamInterceptor(interceptor.Stream()),
+	}
 
-	// Needs interceptors here.
-	client, err := node.BuildReplicationAPIClient()
+	conn, err := node.BuildClient(dialOpts...)
 	if err != nil {
 		s.logger.Error(
 			"failed to connect to node",
@@ -313,13 +311,13 @@ func (s *syncWorker) connectToNode(
 		utils.NodeHTTPAddressField(node.HTTPAddress),
 	)
 
-	return client, nil
+	return conn, nil
 }
 
 func (s *syncWorker) setupStream(
 	ctx context.Context,
 	node registry.Node,
-	client message_apiconnect.ReplicationApiClient,
+	conn *grpc.ClientConn,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (*originatorStream, error) {
 	result, err := queries.New(s.store).SelectVectorClock(ctx)
@@ -328,6 +326,7 @@ func (s *syncWorker) setupStream(
 	}
 
 	var (
+		client            = message_api.NewReplicationApiClient(conn)
 		vc                = db.ToVectorClock(result)
 		nodeID            = node.NodeID
 		originatorNodeIDs = []uint32{nodeID}
@@ -352,14 +351,14 @@ func (s *syncWorker) setupStream(
 
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
-		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
+		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: originatorNodeIDs,
 				LastSeen: &envelopes.Cursor{
 					NodeIdToSequenceId: vc,
 				},
 			},
-		}),
+		},
 	)
 	if err != nil {
 		s.logger.Error(

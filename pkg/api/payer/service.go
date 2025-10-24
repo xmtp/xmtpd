@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -60,12 +61,12 @@ func NewPayerAPIService(
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
-	clientMetrics *utils.ConnectClientMetrics,
 	maxPayerMessageSize uint64,
 	metadataAPIClient MetadataAPIClientConstructor,
+	clientMetrics *grpcprom.ClientMetrics,
 ) (*Service, error) {
 	if clientMetrics == nil {
-		clientMetrics = utils.NewConnectClientMetrics()
+		clientMetrics = grpcprom.NewClientMetrics()
 	}
 
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
@@ -314,7 +315,7 @@ func (s *Service) publishToNodes(
 	originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
-	client, err := s.clientManager.GetReplicationClient(originatorID)
+	conn, err := s.clientManager.GetReplicationClient(originatorID)
 	if err != nil {
 		s.logger.Error("error getting client", zap.Error(err))
 		return nil, connect.NewError(
@@ -322,6 +323,8 @@ func (s *Service) publishToNodes(
 			fmt.Errorf("error getting client: %w", err),
 		)
 	}
+
+	client := message_api.NewReplicationApiClient(conn)
 
 	payerEnvelopes, err := s.signAllClientEnvelopes(originatorID, indexedEnvelopes)
 	if err != nil {
@@ -335,9 +338,9 @@ func (s *Service) publishToNodes(
 
 	response, err := client.PublishPayerEnvelopes(
 		ctx,
-		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+		&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: payerEnvelopes,
-		}),
+		},
 	)
 	if err != nil {
 		return nil, connect.NewError(
@@ -349,7 +352,7 @@ func (s *Service) publishToNodes(
 	metrics.EmitPayerNodePublishDuration(originatorID, time.Since(start).Seconds())
 	metrics.EmitPayerMessageOriginated(originatorID, len(payerEnvelopes))
 
-	return response.Msg.OriginatorEnvelopes, nil
+	return response.GetOriginatorEnvelopes(), nil
 }
 
 func (s *Service) publishToBlockchain(

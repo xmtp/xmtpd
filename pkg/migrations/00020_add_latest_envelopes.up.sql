@@ -1,3 +1,6 @@
+-- Run without timeout, needed as the insert can take a few seconds
+SET statement_timeout = 0;
+
 CREATE TABLE gateway_envelopes_latest (
     originator_node_id int PRIMARY KEY,
     originator_sequence_id bigint NOT NULL,

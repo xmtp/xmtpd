@@ -173,6 +173,7 @@ func NewBaseServer(
 	// Setup Prometheus registry.
 	promReg := prometheus.NewRegistry()
 
+	// Fix! : Check if something more is needed.
 	clientMetrics := grpcprom.NewClientMetrics(
 		grpcprom.WithClientHandlingTimeHistogram(),
 	)
@@ -509,6 +510,10 @@ func startAPIServer(
 	svc.api.Start()
 
 	return nil
+}
+
+func (s *BaseServer) Addr() string {
+	return s.api.Addr()
 }
 
 func (s *BaseServer) WaitForShutdown(timeout time.Duration) {

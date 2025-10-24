@@ -154,7 +154,7 @@ func TestPublishToNodes(t *testing.T) {
 	svc, _, mockRegistry, _ := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
-		HTTPAddress: formatAddress(originatorServer.Addr().String()),
+		HTTPAddress: formatAddress(originatorServer.Addr()),
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{

@@ -32,7 +32,7 @@ func NewClientManager(
 	}
 }
 
-func (c *ClientManager) GetReplicationClient(nodeID uint32) (*grpc.ClientConn, error) {
+func (c *ClientManager) GetClientConnection(nodeID uint32) (*grpc.ClientConn, error) {
 	c.connectionsMutex.RLock()
 	existing, ok := c.connections[nodeID]
 	c.connectionsMutex.RUnlock()

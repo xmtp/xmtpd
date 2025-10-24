@@ -315,7 +315,7 @@ func (s *Service) publishToNodes(
 	originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
-	conn, err := s.clientManager.GetReplicationClient(originatorID)
+	conn, err := s.clientManager.GetClientConnection(originatorID)
 	if err != nil {
 		s.logger.Error("error getting client", zap.Error(err))
 		return nil, connect.NewError(

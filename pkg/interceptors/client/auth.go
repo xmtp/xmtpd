@@ -20,6 +20,9 @@ type AuthInterceptor struct {
 	currentToken *authn.Token
 }
 
+// NewAuthInterceptor creates a new AuthInterceptor.
+// It's compliant with the grpc.UnaryClientInterceptor and grpc.StreamClientInterceptor interfaces.
+// Do not use in connect-go clients.
 func NewAuthInterceptor(
 	tokenFactory authn.TokenFactory,
 	targetNodeID uint32,

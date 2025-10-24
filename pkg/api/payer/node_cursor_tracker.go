@@ -5,16 +5,14 @@ import (
 	"errors"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
-	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type MetadataAPIClientConstructor interface {
-	NewMetadataAPIClient(nodeID uint32) (metadata_apiconnect.MetadataApiClient, error)
+	NewMetadataAPIClient(nodeID uint32) (metadata_api.MetadataApiClient, error)
 }
 type DefaultMetadataAPIClientConstructor struct {
 	clientManager *ClientManager
@@ -22,8 +20,12 @@ type DefaultMetadataAPIClientConstructor struct {
 
 func (c *DefaultMetadataAPIClientConstructor) NewMetadataAPIClient(
 	nodeID uint32,
-) (metadata_apiconnect.MetadataApiClient, error) {
-	return c.clientManager.GetMetadataClient(nodeID)
+) (metadata_api.MetadataApiClient, error) {
+	conn, err := c.clientManager.GetClientConnection(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	return metadata_api.NewMetadataApiClient(conn), nil
 }
 
 type NodeCursorTracker struct {
@@ -44,7 +46,7 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	desiredOriginatorID uint32,
 	desiredSequenceID uint64,
 ) error {
-	// TODO(mkysel) ideally we wouldn't create and tear down the stream for every request
+	// TODO: Fix! : Ideally we wouldn't create and tear down the stream for every request
 
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
@@ -57,7 +59,7 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	}
 	stream, err := client.SubscribeSyncCursor(
 		ctx,
-		connect.NewRequest(&metadata_api.GetSyncCursorRequest{}),
+		&metadata_api.GetSyncCursorRequest{},
 	)
 	if err != nil {
 		return err
@@ -71,12 +73,14 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	go func() {
 		defer close(respCh)
 		defer close(errCh)
-		for stream.Receive() {
-			resp := stream.Msg()
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				errCh <- err
+				return
+			}
+
 			respCh <- resp
-		}
-		if err := stream.Err(); err != nil {
-			errCh <- err
 		}
 	}()
 

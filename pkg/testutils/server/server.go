@@ -45,7 +45,6 @@ func NewTestReplicationServer(
 		s.WithDB(cfg.DB),
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
-		s.WithGRPCListener(cfg.GRPCListener),
 		s.WithFeeCalculator(fees.NewTestFeeCalculator()),
 		s.WithServerOptions(&config.ServerOptions{
 			API: config.APIOptions{

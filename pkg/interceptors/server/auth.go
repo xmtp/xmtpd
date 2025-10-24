@@ -1,6 +1,8 @@
 // Package server implements the server for the interceptors package.
 package server
 
+// Fix! : Adapt server interceptors to use connect-go.
+
 import (
 	"context"
 	"net"

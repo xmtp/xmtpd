@@ -152,6 +152,51 @@ func NewGRPCReplicationAPIClientAndConn(
 	return message_api.NewReplicationApiClient(conn), conn, nil
 }
 
+func NewGRPCConn(
+	httpAddress string,
+	extraDialOpts ...grpc.DialOption,
+) (*grpc.ClientConn, error) {
+	target, isTLS, err := HTTPAddressToGRPCTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid HTTP address: %w", err)
+	}
+
+	dialOptions := append([]grpc.DialOption{
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(maxMessageSize),
+			grpc.MaxCallRecvMsgSize(maxMessageSize),
+		),
+	}, extraDialOpts...)
+
+	if isTLS {
+		tlsConfig, err := buildTLSConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build TLS config: %w", err)
+		}
+
+		dialOptions = append(
+			dialOptions,
+			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+		)
+	} else {
+		// h2c: plaintext HTTP/2
+		dialOptions = append(dialOptions,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, "tcp", addr)
+			}),
+		)
+	}
+
+	conn, err := grpc.NewClient(target, dialOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create grpc connection: %w", err)
+	}
+
+	return conn, nil
+}
+
 func BuildHTTP2Client(ctx context.Context, isTLS bool) (*http.Client, error) {
 	dialer := &net.Dialer{
 		Timeout: clientTimeout,

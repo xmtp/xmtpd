@@ -6,7 +6,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	identity_proto "github.com/xmtp/xmtpd/pkg/proto/identity"
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
-	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
+	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 )
 
 type KeyPackageValidationResult struct {
@@ -33,7 +33,7 @@ type MLSValidationService interface {
 	) ([]KeyPackageValidationResult, error)
 	ValidateGroupMessages(
 		ctx context.Context,
-		groupMessages []*svc.ValidateGroupMessagesRequest_GroupMessage,
+		groupMessages []*mlsv1.GroupMessageInput,
 	) ([]GroupMessageValidationResult, error)
 	GetAssociationState(
 		ctx context.Context,

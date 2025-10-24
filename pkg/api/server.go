@@ -15,8 +15,6 @@ import (
 	"connectrpc.com/grpchealth"
 	"connectrpc.com/grpcreflect"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/xmtp/xmtpd/pkg/api/message"
-	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
@@ -29,9 +27,8 @@ import (
 type APIServerConfig struct {
 	Ctx                context.Context
 	Logger             *zap.Logger
-	ReplicationService *message.Service
-	MetadataService    *metadata.Service
 	PromRegistry       *prometheus.Registry
+	RegistrationFunc   RegistrationFunc
 	UnaryInterceptors  []grpc.UnaryServerInterceptor
 	StreamInterceptors []grpc.StreamServerInterceptor
 	Port               int
@@ -40,16 +37,14 @@ type APIServerConfig struct {
 
 type APIServerOption func(*APIServerConfig)
 
+type RegistrationFunc func(mux *http.ServeMux) error
+
 func WithContext(ctx context.Context) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.Ctx = ctx }
 }
 
 func WithLogger(logger *zap.Logger) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.Logger = logger }
-}
-
-func WithMetadataAPIService(service *metadata.Service) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.MetadataService = service }
 }
 
 func WithPort(port int) APIServerOption {
@@ -64,8 +59,8 @@ func WithReflection(enabled bool) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.EnableReflection = enabled }
 }
 
-func WithReplicationAPIService(service *message.Service) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.ReplicationService = service }
+func WithRegistrationFunc(registrationFunc RegistrationFunc) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.RegistrationFunc = registrationFunc }
 }
 
 func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) APIServerOption {
@@ -97,16 +92,12 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.MetadataService == nil {
-		return nil, fmt.Errorf("metadata service is required")
-	}
-
 	if cfg.Port == 0 {
 		return nil, fmt.Errorf("port is required")
 	}
 
-	if cfg.ReplicationService == nil {
-		return nil, fmt.Errorf("replication service is required")
+	if cfg.RegistrationFunc == nil {
+		return nil, fmt.Errorf("registration function is required")
 	}
 
 	svc := &APIServer{
@@ -152,6 +143,8 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	unary = append(unary, cfg.UnaryInterceptors...)
 	stream = append(stream, cfg.StreamInterceptors...)
 
+	// TODO: Fix!
+	// Extend server interceptors properly.
 	if cfg.PromRegistry != nil {
 		srvMetrics := grpcprom.NewServerMetrics(
 			grpcprom.WithServerHandlingTimeHistogram(
@@ -188,13 +181,11 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	// 	}),
 	// )
 
-	err = svc.registerHandlers(
-		mux,
-		cfg.ReplicationService,
-		cfg.MetadataService,
-		cfg.EnableReflection,
-	)
-	if err != nil {
+	if err := svc.registerBaseAPIServerHandlers(mux, cfg.EnableReflection); err != nil {
+		return nil, err
+	}
+
+	if err := cfg.RegistrationFunc(mux); err != nil {
 		return nil, err
 	}
 
@@ -234,10 +225,8 @@ func (svc *APIServer) Close() {
 	svc.logger.Info("api server stopped")
 }
 
-func (svc *APIServer) registerHandlers(
+func (svc *APIServer) registerBaseAPIServerHandlers(
 	mux *http.ServeMux,
-	replicationService *message.Service,
-	metadataService *metadata.Service,
 	enableReflection bool,
 ) error {
 	svc.registerHealthHandler(mux)
@@ -245,14 +234,6 @@ func (svc *APIServer) registerHandlers(
 	if enableReflection {
 		svc.registerReflectionHandlerV1(mux)
 		svc.registerReflectionHandlerV1Alpha(mux)
-	}
-
-	if err := svc.registerReplicationAPIHandler(mux, replicationService); err != nil {
-		return err
-	}
-
-	if err := svc.registerMetadataAPIHandler(mux, metadataService); err != nil {
-		return err
 	}
 
 	return nil
@@ -271,32 +252,12 @@ func (svc *APIServer) registerHealthHandler(mux *http.ServeMux) {
 	svc.logger.Info("health handler registered")
 }
 
+// TODO: Fix!
+// Implement dynamic reflector.
 func reflector() *grpcreflect.Reflector {
 	return grpcreflect.NewStaticReflector(
 		grpchealth.HealthV1ServiceName,
-		message_apiconnect.ReplicationApiName,
-		metadata_apiconnect.MetadataApiName,
 	)
-}
-
-func (svc *APIServer) registerMetadataAPIHandler(
-	mux *http.ServeMux,
-	metadataService *metadata.Service,
-) error {
-	if metadataService == nil {
-		svc.logger.Error("metadata service is nil")
-		return fmt.Errorf("metadata service is nil")
-	}
-
-	metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
-		metadataService,
-	)
-
-	mux.Handle(metadataPath, metadataHandler)
-
-	svc.logger.Info("metadata api registered")
-
-	return nil
 }
 
 func (svc *APIServer) registerReflectionHandlerV1(mux *http.ServeMux) {
@@ -317,24 +278,4 @@ func (svc *APIServer) registerReflectionHandlerV1Alpha(mux *http.ServeMux) {
 	mux.Handle(path, handler)
 
 	svc.logger.Info("reflection handler v1 alpha registered")
-}
-
-func (svc *APIServer) registerReplicationAPIHandler(
-	mux *http.ServeMux,
-	replicationService *message.Service,
-) error {
-	if replicationService == nil {
-		svc.logger.Error("replication service is nil")
-		return fmt.Errorf("replication service is nil")
-	}
-
-	replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
-		replicationService,
-	)
-
-	mux.Handle(replicationPath, replicationHandler)
-
-	svc.logger.Info("replication api registered")
-
-	return nil
 }

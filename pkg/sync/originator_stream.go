@@ -6,7 +6,6 @@ import (
 	"io"
 	"strings"
 
-	"connectrpc.com/connect"
 	"github.com/cenkalti/backoff/v5"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -27,7 +26,7 @@ type originatorStream struct {
 	logger     *zap.Logger
 	node       *registry.Node
 	cursor     *cursor
-	stream     *connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse]
+	stream     message_api.ReplicationApi_SubscribeEnvelopesClient
 	writeQueue chan *envUtils.OriginatorEnvelope
 }
 
@@ -36,7 +35,7 @@ func newOriginatorStream(
 	logger *zap.Logger,
 	node *registry.Node,
 	cursor *cursor,
-	stream *connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse],
+	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
 	return &originatorStream{
@@ -53,18 +52,21 @@ func newOriginatorStream(
 }
 
 func (s *originatorStream) listen() error {
-	recvChan := make(chan *message_api.SubscribeEnvelopesResponse)
-	errChan := make(chan error, 1)
+	var (
+		recvChan = make(chan *message_api.SubscribeEnvelopesResponse)
+		errChan  = make(chan error, 1)
+	)
 
 	// Reader routine, responsible for reading from a blocking GRPC channel
+	// TODO: Use tracing.GoWrap and waitgroup.
 	go func() {
 		for {
-			if s.stream.Receive() {
-				recvChan <- s.stream.Msg()
-			} else {
-				errChan <- s.stream.Err()
+			envs, err := s.stream.Recv()
+			if err != nil {
+				errChan <- err
 				return
 			}
+			recvChan <- envs
 		}
 	}()
 

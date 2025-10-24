@@ -1,13 +1,8 @@
 package registry
 
 import (
-	"context"
 	"crypto/ecdsa"
-	"fmt"
 
-	"connectrpc.com/connect"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
 )
@@ -37,34 +32,9 @@ func (n *Node) Equals(other Node) bool {
 		n.IsValidConfig == other.IsValidConfig
 }
 
-func (n *Node) BuildReplicationAPIClient(
-	extraDialOpts ...connect.ClientOption,
-) (message_apiconnect.ReplicationApiClient, error) {
-	ctx := context.Background()
-
-	return utils.NewConnectGRPCReplicationAPIClient(ctx, n.HTTPAddress, extraDialOpts...)
-}
-
-func (n *Node) BuildMetadataAPIClient(
-	extraDialOpts ...connect.ClientOption,
-) (metadata_apiconnect.MetadataApiClient, error) {
-	ctx := context.Background()
-
-	target, isTLS, err := utils.HTTPAddressToGRPCTarget(n.HTTPAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %w", err)
-	}
-
-	httpClient, err := utils.BuildHTTP2Client(ctx, isTLS)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build HTTP client: %w", err)
-	}
-
-	dialOpts := utils.BuildConnectProtocolDialOptions(extraDialOpts...)
-
-	return metadata_apiconnect.NewMetadataApiClient(
-		httpClient,
-		target,
-		dialOpts...,
-	), nil
+func (n *Node) BuildClient(
+	extraDialOpts ...grpc.DialOption,
+) (*grpc.ClientConn, error) {
+	_, conn, err := utils.NewGRPCReplicationAPIClientAndConn(n.HTTPAddress)
+	return conn, err
 }

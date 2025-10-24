@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +20,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/sync"
 
 	"github.com/Masterminds/semver/v3"
@@ -384,34 +387,6 @@ func startAPIServer(
 	isMigrationEnabled := cfg.Options.MigrationServer.Enable ||
 		cfg.Options.MigrationClient.Enable
 
-	// Register replication API.
-	replicationService, err := message.NewReplicationAPIService(
-		svc.ctx,
-		cfg.Logger,
-		svc.registrant,
-		cfg.DB,
-		svc.mlsValidation,
-		svc.cursorUpdater,
-		cfg.FeeCalculator,
-		cfg.Options.API,
-		isMigrationEnabled,
-	)
-	if err != nil {
-		return err
-	}
-
-	// Register metadata API.
-	metadataService, err := metadata.NewMetadataAPIService(
-		svc.ctx,
-		cfg.Logger,
-		svc.cursorUpdater,
-		cfg.ServerVersion,
-		metadata.NewPayerInfoFetcher(cfg.DB),
-	)
-	if err != nil {
-		return err
-	}
-
 	// Add auth interceptors if JWT verifier is available.
 	var (
 		jwtVerifier authn.JWTVerifier
@@ -438,14 +413,71 @@ func startAPIServer(
 		)
 	}
 
+	registrationFunc := func(mux *http.ServeMux) error {
+		// Register replication API.
+		replicationService, err := message.NewReplicationAPIService(
+			svc.ctx,
+			cfg.Logger,
+			svc.registrant,
+			cfg.DB,
+			svc.mlsValidation,
+			svc.cursorUpdater,
+			cfg.FeeCalculator,
+			cfg.Options.API,
+			isMigrationEnabled,
+		)
+		if err != nil {
+			return err
+		}
+
+		if replicationService == nil {
+			svc.logger.Error("replication service is nil")
+			return fmt.Errorf("replication service is nil")
+		}
+
+		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
+			replicationService,
+		)
+
+		mux.Handle(replicationPath, replicationHandler)
+
+		svc.logger.Info("replication api registered")
+
+		// Register metadata API.
+		metadataService, err := metadata.NewMetadataAPIService(
+			svc.ctx,
+			cfg.Logger,
+			svc.cursorUpdater,
+			cfg.ServerVersion,
+			metadata.NewPayerInfoFetcher(cfg.DB),
+		)
+		if err != nil {
+			return err
+		}
+
+		if metadataService == nil {
+			svc.logger.Error("metadata service is nil")
+			return fmt.Errorf("metadata service is nil")
+		}
+
+		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
+			metadataService,
+		)
+
+		mux.Handle(metadataPath, metadataHandler)
+
+		svc.logger.Info("metadata api registered")
+
+		return nil
+	}
+
 	apiOpts = append(apiOpts, []api.APIServerOption{
 		api.WithContext(svc.ctx),
 		api.WithLogger(cfg.Logger),
 		api.WithPort(cfg.Options.API.Port),
 		api.WithPrometheusRegistry(promReg),
 		api.WithReflection(cfg.Options.Reflection.Enable),
-		api.WithReplicationAPIService(replicationService),
-		api.WithMetadataAPIService(metadataService),
+		api.WithRegistrationFunc(registrationFunc),
 	}...)
 
 	svc.api, err = api.NewAPIServer(apiOpts...)

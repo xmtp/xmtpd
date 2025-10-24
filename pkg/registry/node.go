@@ -1,13 +1,15 @@
 package registry
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"time"
 
+	"connectrpc.com/connect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 )
 
 type DialOptionFunc func(node Node) []grpc.DialOption
@@ -35,36 +37,34 @@ func (n *Node) Equals(other Node) bool {
 		n.IsValidConfig == other.IsValidConfig
 }
 
-func (n *Node) BuildClient(
-	extraDialOpts ...grpc.DialOption,
-) (*grpc.ClientConn, error) {
+func (n *Node) BuildReplicationAPIClient(
+	extraDialOpts ...connect.ClientOption,
+) (message_apiconnect.ReplicationApiClient, error) {
+	ctx := context.Background()
+
+	return utils.NewConnectGRPCReplicationAPIClient(ctx, n.HTTPAddress, extraDialOpts...)
+}
+
+func (n *Node) BuildMetadataAPIClient(
+	extraDialOpts ...connect.ClientOption,
+) (metadata_apiconnect.MetadataApiClient, error) {
+	ctx := context.Background()
+
 	target, isTLS, err := utils.HTTPAddressToGRPCTarget(n.HTTPAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %w", err)
 	}
 
-	creds, err := utils.GetCredentialsForAddress(isTLS)
+	httpClient, err := utils.BuildHTTP2Client(ctx, isTLS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %w", err)
+		return nil, fmt.Errorf("failed to build HTTP client: %w", err)
 	}
 
-	dialOpts := append([]grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithDefaultCallOptions(),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                30 * time.Second,
-			Timeout:             10 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	}, extraDialOpts...)
+	dialOpts := utils.BuildConnectProtocolDialOptions(extraDialOpts...)
 
-	conn, err := grpc.NewClient(
+	return metadata_apiconnect.NewMetadataApiClient(
+		httpClient,
 		target,
 		dialOpts...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create channel at %s: %w", target, err)
-	}
-
-	return conn, nil
+	), nil
 }

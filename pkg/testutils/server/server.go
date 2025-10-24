@@ -37,10 +37,10 @@ type TestServerCfg struct {
 func NewTestReplicationServer(
 	t *testing.T,
 	cfg TestServerCfg,
-) *s.ReplicationServer {
+) *s.BaseServer {
 	log := testutils.NewLog(t)
 
-	server, err := s.NewReplicationServer(s.WithContext(t.Context()),
+	server, err := s.NewBaseServer(s.WithContext(t.Context()),
 		s.WithLogger(log),
 		s.WithDB(cfg.DB),
 		s.WithNodeRegistry(cfg.Registry),

@@ -1,28 +1,41 @@
 # buf.gen.yaml
-version: v1
+version: v2
 managed:
   enabled: true
-  go_package_prefix:
-    # <module_name>   : name in go.mod
-    # <relative_path> : where generated code should be output
-    default: github.com/xmtp/xmtpd/pkg/proto
-    # Remove `except` field if googleapis is not used
-    except:
-      - buf.build/googleapis/googleapis
-      - buf.build/grpc-ecosystem/grpc-gateway
+
+  override:
+    - file_option: go_package_prefix
+      value: github.com/xmtp/xmtpd/pkg/proto
+
+  disable:
+    - file_option: go_package
+      module: buf.build/googleapis/googleapis
+
+    - file_option: go_package
+      module: buf.build/grpc-ecosystem/grpc-gateway
+
 plugins:
-  - plugin: buf.build/grpc-ecosystem/gateway:v2.19.0
+  # Generates the Go types and functions for the protobuf messages, enums, descriptors, etc.
+  - local: protoc-gen-go
     out: pkg/proto
     opt:
       - paths=source_relative
-  - plugin: buf.build/grpc/go:v1.3.0
+
+  # Generate Connect-Go services (supports gRPC + HTTP/1.1) and client code.
+  # Servers are HTTP handlers which should be used within a http.ServeMux.
+  # They speak:
+  # - Connect over HTTP/1.1 and HTTP/2
+  # - gRPC over HTTP/2 (h2/h2c)
+  # - gRPC-Web over HTTP/1.1 and HTTP/2.
+  - local: protoc-gen-connect-go
     out: pkg/proto
     opt:
       - paths=source_relative
-  # dependencies
-  - plugin: buf.build/protocolbuffers/go
+
+  # Generate gRPC service code, such as client stubs and server interfaces.
+  # Used for grpc.Server and grpc.Client connections.
+  - local: protoc-gen-go-grpc
     out: pkg/proto
     opt:
       - paths=source_relative
-  - plugin: buf.build/grpc-ecosystem/openapiv2:v2.19.0
-    out: pkg/proto/openapi
+      - require_unimplemented_servers=false

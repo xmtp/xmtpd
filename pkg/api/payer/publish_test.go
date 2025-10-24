@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,6 +22,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -37,12 +39,12 @@ type FixedMetadataAPIClientConstructor struct {
 
 func (c *FixedMetadataAPIClientConstructor) NewMetadataAPIClient(
 	nodeID uint32,
-) (metadata_api.MetadataApiClient, error) {
+) (metadata_apiconnect.MetadataApiClient, error) {
 	return c.mockClient, nil
 }
 
 type MockSubscribeSyncCursorClient struct {
-	metadata_api.MetadataApi_SubscribeSyncCursorClient
+	metadata_apiconnect.MetadataApiClient
 	ctx     context.Context
 	updates []*metadata_api.GetSyncCursorResponse
 	err     error
@@ -148,15 +150,15 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 	publishResponse, err := svc.PublishClientEnvelopes(
 		ctx,
-		&payer_api.PublishClientEnvelopesRequest{
+		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
 			Envelopes: []*envelopesProto.ClientEnvelope{envelope},
-		},
+		}),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
 
-	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 
@@ -192,15 +194,15 @@ func TestPublishToNodes(t *testing.T) {
 
 	publishResponse, err := svc.PublishClientEnvelopes(
 		ctx,
-		&payer_api.PublishClientEnvelopesRequest{
+		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
 			Envelopes: []*envelopesProto.ClientEnvelope{testGroupMessage},
-		},
+		}),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
 
-	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 

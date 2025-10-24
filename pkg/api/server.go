@@ -4,38 +4,38 @@ package api
 import (
 	"context"
 	"fmt"
-	"net"
-	"strings"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
+	"connectrpc.com/grpchealth"
+	"connectrpc.com/grpcreflect"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/pires/go-proxyproto"
+	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health"
-	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/reflection"
 )
-
-type RegistrationFunc func(server *grpc.Server) error
 
 type APIServerConfig struct {
 	Ctx                context.Context
 	Logger             *zap.Logger
-	GRPCListener       net.Listener
-	EnableReflection   bool
-	RegistrationFunc   RegistrationFunc
+	ReplicationService *message.Service
+	MetadataService    *metadata.Service
 	PromRegistry       *prometheus.Registry
 	UnaryInterceptors  []grpc.UnaryServerInterceptor
 	StreamInterceptors []grpc.StreamServerInterceptor
+	Port               int
+	EnableReflection   bool
 }
 
 type APIServerOption func(*APIServerConfig)
@@ -48,36 +48,39 @@ func WithLogger(logger *zap.Logger) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.Logger = logger }
 }
 
-func WithGRPCListener(listener net.Listener) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.GRPCListener = listener }
+func WithMetadataAPIService(service *metadata.Service) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.MetadataService = service }
 }
 
-func WithReflection(enabled bool) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.EnableReflection = enabled }
-}
-
-func WithRegistrationFunc(fn RegistrationFunc) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.RegistrationFunc = fn }
+func WithPort(port int) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.Port = port }
 }
 
 func WithPrometheusRegistry(reg *prometheus.Registry) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.PromRegistry = reg }
 }
 
-func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.UnaryInterceptors = append(cfg.UnaryInterceptors, interceptors...) }
+func WithReflection(enabled bool) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.EnableReflection = enabled }
+}
+
+func WithReplicationAPIService(service *message.Service) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.ReplicationService = service }
 }
 
 func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.StreamInterceptors = append(cfg.StreamInterceptors, interceptors...) }
 }
 
+func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.UnaryInterceptors = append(cfg.UnaryInterceptors, interceptors...) }
+}
+
 type APIServer struct {
-	ctx          context.Context
-	grpcListener net.Listener
-	grpcServer   *grpc.Server
-	logger       *zap.Logger
-	wg           sync.WaitGroup
+	ctx        context.Context
+	wg         sync.WaitGroup
+	httpServer *http.Server
+	logger     *zap.Logger
 }
 
 func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
@@ -94,26 +97,38 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.GRPCListener == nil {
-		return nil, fmt.Errorf("GRPCListener is required")
+	if cfg.MetadataService == nil {
+		return nil, fmt.Errorf("metadata service is required")
 	}
 
-	if cfg.RegistrationFunc == nil {
-		return nil, fmt.Errorf("grpc registration function is required")
+	if cfg.Port == 0 {
+		return nil, fmt.Errorf("port is required")
 	}
 
-	s := &APIServer{
-		ctx: cfg.Ctx,
-		grpcListener: &proxyproto.Listener{
-			Listener:          cfg.GRPCListener,
-			ReadHeaderTimeout: 10 * time.Second,
-		},
+	if cfg.ReplicationService == nil {
+		return nil, fmt.Errorf("replication service is required")
+	}
+
+	svc := &APIServer{
+		ctx:    cfg.Ctx,
 		logger: cfg.Logger.Named(utils.APILoggerName),
 	}
 
-	s.logger.Info("creating api server")
+	// Create a new HTTP mux to serve the API handlers.
+	mux := http.NewServeMux()
 
-	loggingInterceptor, err := server.NewLoggingInterceptor(s.logger)
+	// Wrap the handler with h2c to support HTTP/2 Cleartext for gRPC reflection.
+	// This is required for gRPC reflection to work with HTTP/2, and tools such as grpcurl.
+	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+
+	svc.httpServer = &http.Server{
+		Addr:    fmt.Sprintf("0.0.0.0:%d", cfg.Port),
+		Handler: h2cHandler,
+	}
+
+	svc.logger.Info("creating api server")
+
+	loggingInterceptor, err := server.NewLoggingInterceptor(svc.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +142,7 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		openConnectionsInterceptor.Unary(),
 		loggingInterceptor.Unary(),
 	}
+
 	stream := []grpc.StreamServerInterceptor{
 		openConnectionsInterceptor.Stream(),
 		loggingInterceptor.Stream(),
@@ -145,88 +161,180 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 			),
 		)
 		cfg.PromRegistry.MustRegister(srvMetrics)
-		unary = append([]grpc.UnaryServerInterceptor{srvMetrics.UnaryServerInterceptor()}, unary...)
+		// Prepend metrics interceptors to the chain
+		unary = append(
+			[]grpc.UnaryServerInterceptor{srvMetrics.UnaryServerInterceptor()},
+			unary...,
+		)
 		stream = append(
 			[]grpc.StreamServerInterceptor{srvMetrics.StreamServerInterceptor()},
-			stream...)
+			stream...,
+		)
 	}
 
-	s.grpcServer = grpc.NewServer(
-		grpc.ChainUnaryInterceptor(unary...),
-		grpc.ChainStreamInterceptor(stream...),
-		grpc.Creds(insecure.NewCredentials()),
-		grpc.KeepaliveParams(keepalive.ServerParameters{Time: 5 * time.Minute}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-			MinTime:             15 * time.Second,
-		}),
-	)
+	// Note: The interceptor chains (unary, stream) are currently not used as the gRPC server
+	// implementation is commented out. These may be reactivated in the future or removed.
+	_ = unary
+	_ = stream
 
-	if err := cfg.RegistrationFunc(s.grpcServer); err != nil {
+	// svc.grpcServer = grpc.NewServer(
+	// 	grpc.ChainUnaryInterceptor(unary...),
+	// 	grpc.ChainStreamInterceptor(stream...),
+	// 	grpc.Creds(insecure.NewCredentials()),
+	// 	grpc.KeepaliveParams(keepalive.ServerParameters{Time: 5 * time.Minute}),
+	// 	grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+	// 		PermitWithoutStream: true,
+	// 		MinTime:             15 * time.Second,
+	// 	}),
+	// )
+
+	err = svc.registerHandlers(
+		mux,
+		cfg.ReplicationService,
+		cfg.MetadataService,
+		cfg.EnableReflection,
+	)
+	if err != nil {
 		return nil, err
 	}
 
-	if cfg.EnableReflection {
-		reflection.Register(s.grpcServer)
-		s.logger.Info("enabling gRPC Server Reflection")
-	}
+	return svc, nil
+}
 
-	healthgrpc.RegisterHealthServer(s.grpcServer, health.NewServer())
+func (svc *APIServer) Start() {
+	svc.logger.Info("starting api server", zap.String("address", svc.httpServer.Addr))
 
-	tracing.GoPanicWrap(s.ctx, &s.wg, "grpc", func(ctx context.Context) {
-		s.logger.Info("serving grpc", utils.AddressField(s.grpcListener.Addr().String()))
-		if err := s.grpcServer.Serve(s.grpcListener); err != nil &&
-			!isErrUseOfClosedConnection(err) {
-			s.logger.Error("serving grpc", zap.Error(err))
+	tracing.GoPanicWrap(svc.ctx, &svc.wg, "api-server", func(ctx context.Context) {
+		if err := svc.httpServer.ListenAndServe(); err != nil &&
+			err != http.ErrServerClosed {
+			svc.logger.Fatal("error serving api server", zap.Error(err))
 		}
 	})
-
-	return s, nil
 }
 
-func (s *APIServer) DialGRPC(ctx context.Context) (*grpc.ClientConn, error) {
-	dialAddr := fmt.Sprintf("passthrough://localhost/%s", s.grpcListener.Addr().String())
-	return grpc.NewClient(dialAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func (svc *APIServer) Addr() string {
+	return svc.httpServer.Addr
 }
 
-func (s *APIServer) Addr() net.Addr {
-	return s.grpcListener.Addr()
-}
+func (svc *APIServer) Close() {
+	svc.logger.Info("stopping api server")
 
-func (s *APIServer) gracefulShutdown(timeout time.Duration) {
-	ctx, cancel := context.WithCancel(context.Background())
-	// Attempt to use GracefulStop up until the timeout
-	go func() {
-		defer cancel()
-		s.grpcServer.GracefulStop()
-	}()
-	go func() {
-		defer cancel()
-		<-time.NewTimer(timeout).C
-		s.logger.Debug("graceful shutdown timed out, stopping")
-		s.grpcServer.Stop()
-	}()
+	// Create a context with timeout for graceful shutdown.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	<-ctx.Done()
-}
-
-func (s *APIServer) Close(timeout time.Duration) {
-	s.logger.Debug("closing")
-	if s.grpcServer != nil {
-		if timeout != 0 {
-			s.gracefulShutdown(timeout)
-		} else {
-			s.grpcServer.Stop()
-		}
-	}
-	if s.grpcListener != nil {
-		_ = s.grpcListener.Close()
+	// Gracefully shutdown the HTTP server.
+	if err := svc.httpServer.Shutdown(shutdownCtx); err != nil {
+		svc.logger.Error("error shutting down api server", zap.Error(err))
 	}
 
-	s.wg.Wait()
-	s.logger.Debug("closed")
+	// Wait for the goroutine to finish.
+	svc.wg.Wait()
+
+	svc.logger.Info("api server stopped")
 }
 
-func isErrUseOfClosedConnection(err error) bool {
-	return strings.Contains(err.Error(), "use of closed network connection")
+func (svc *APIServer) registerHandlers(
+	mux *http.ServeMux,
+	replicationService *message.Service,
+	metadataService *metadata.Service,
+	enableReflection bool,
+) error {
+	svc.registerHealthHandler(mux)
+
+	if enableReflection {
+		svc.registerReflectionHandlerV1(mux)
+		svc.registerReflectionHandlerV1Alpha(mux)
+	}
+
+	if err := svc.registerReplicationAPIHandler(mux, replicationService); err != nil {
+		return err
+	}
+
+	if err := svc.registerMetadataAPIHandler(mux, metadataService); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (svc *APIServer) registerHealthHandler(mux *http.ServeMux) {
+	healthChecker := grpchealth.NewStaticChecker(
+		message_apiconnect.ReplicationApiName,
+		metadata_apiconnect.MetadataApiName,
+	)
+
+	path, handler := grpchealth.NewHandler(healthChecker)
+
+	mux.Handle(path, handler)
+
+	svc.logger.Info("health handler registered")
+}
+
+func reflector() *grpcreflect.Reflector {
+	return grpcreflect.NewStaticReflector(
+		grpchealth.HealthV1ServiceName,
+		message_apiconnect.ReplicationApiName,
+		metadata_apiconnect.MetadataApiName,
+	)
+}
+
+func (svc *APIServer) registerMetadataAPIHandler(
+	mux *http.ServeMux,
+	metadataService *metadata.Service,
+) error {
+	if metadataService == nil {
+		svc.logger.Error("metadata service is nil")
+		return fmt.Errorf("metadata service is nil")
+	}
+
+	metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
+		metadataService,
+	)
+
+	mux.Handle(metadataPath, metadataHandler)
+
+	svc.logger.Info("metadata api registered")
+
+	return nil
+}
+
+func (svc *APIServer) registerReflectionHandlerV1(mux *http.ServeMux) {
+	reflector := reflector()
+
+	path, handler := grpcreflect.NewHandlerV1(reflector)
+
+	mux.Handle(path, handler)
+
+	svc.logger.Info("reflection handler v1 registered")
+}
+
+func (svc *APIServer) registerReflectionHandlerV1Alpha(mux *http.ServeMux) {
+	reflector := reflector()
+
+	path, handler := grpcreflect.NewHandlerV1Alpha(reflector)
+
+	mux.Handle(path, handler)
+
+	svc.logger.Info("reflection handler v1 alpha registered")
+}
+
+func (svc *APIServer) registerReplicationAPIHandler(
+	mux *http.ServeMux,
+	replicationService *message.Service,
+) error {
+	if replicationService == nil {
+		svc.logger.Error("replication service is nil")
+		return fmt.Errorf("replication service is nil")
+	}
+
+	replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
+		replicationService,
+	)
+
+	mux.Handle(replicationPath, replicationHandler)
+
+	svc.logger.Info("replication api registered")
+
+	return nil
 }

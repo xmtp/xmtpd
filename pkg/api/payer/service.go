@@ -4,12 +4,12 @@ package payer
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/deserializer"
-
-	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -22,6 +22,7 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -34,10 +35,12 @@ import (
 const (
 	getNodesMethod               = "GetNodes"
 	publishClientEnvelopesMethod = "PublishClientEnvelopes"
+
+	requestMissingMessageError = "missing request message"
 )
 
 type Service struct {
-	payer_api.UnimplementedPayerApiServer
+	payer_apiconnect.UnimplementedPayerApiHandler
 
 	ctx                 context.Context
 	logger              *zap.Logger
@@ -49,17 +52,20 @@ type Service struct {
 	maxPayerMessageSize uint64
 }
 
+var _ payer_apiconnect.PayerApiHandler = (*Service)(nil)
+
 func NewPayerAPIService(
 	ctx context.Context,
 	logger *zap.Logger,
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
-	clientMetrics *grpcprom.ClientMetrics,
+	clientMetrics *utils.ConnectClientMetrics,
 	maxPayerMessageSize uint64,
+	metadataAPIClient MetadataAPIClientConstructor,
 ) (*Service, error) {
 	if clientMetrics == nil {
-		clientMetrics = grpcprom.NewClientMetrics()
+		clientMetrics = utils.NewConnectClientMetrics()
 	}
 
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
@@ -79,44 +85,61 @@ func NewPayerAPIService(
 // GetNodes returns the complete endpoint list of canonical nodes.
 func (s *Service) GetNodes(
 	ctx context.Context,
-	req *payer_api.GetNodesRequest,
-) (resp *payer_api.GetNodesResponse, err error) {
+	_ *connect.Request[payer_api.GetNodesRequest],
+) (*connect.Response[payer_api.GetNodesResponse], error) {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("received request", utils.MethodField(getNodesMethod))
 	}
 
 	nodes, err := s.nodeRegistry.GetNodes()
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "failed to fetch nodes: %v", err)
+		return nil, connect.NewError(
+			connect.CodeUnavailable,
+			fmt.Errorf("failed to fetch nodes: %w", err),
+		)
 	}
 
 	metrics.EmitPayerGetNodesAvailableNodes(len(nodes))
 
 	if len(nodes) == 0 {
-		return nil, status.Errorf(codes.Unavailable, "no nodes available")
+		return nil, connect.NewError(
+			connect.CodeUnavailable,
+			errors.New("no nodes available"),
+		)
 	}
 
-	nodeMap := make(map[uint32]string, len(nodes))
+	response := connect.NewResponse(&payer_api.GetNodesResponse{
+		Nodes: make(map[uint32]string, len(nodes)),
+	})
+
 	for _, node := range nodes {
-		nodeMap[node.NodeID] = node.HTTPAddress
+		response.Msg.Nodes[node.NodeID] = node.HTTPAddress
 	}
 
-	return &payer_api.GetNodesResponse{
-		Nodes: nodeMap,
-	}, nil
+	return response, nil
 }
 
 func (s *Service) PublishClientEnvelopes(
 	ctx context.Context,
-	req *payer_api.PublishClientEnvelopesRequest,
-) (*payer_api.PublishClientEnvelopesResponse, error) {
+	req *connect.Request[payer_api.PublishClientEnvelopesRequest],
+) (*connect.Response[payer_api.PublishClientEnvelopesResponse], error) {
+	if req.Msg == nil {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf(requestMissingMessageError),
+		)
+	}
+
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("received request", utils.MethodField(publishClientEnvelopesMethod))
 	}
 
-	grouped, err := s.groupEnvelopes(req.Envelopes)
+	grouped, err := s.groupEnvelopes(req.Msg.GetEnvelopes())
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "error grouping envelopes: %v", err)
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("error grouping envelopes: %w", err),
+		)
 	}
 
 	if s.maxPayerMessageSize != 0 {
@@ -135,7 +158,12 @@ func (s *Service) PublishClientEnvelopes(
 		}
 	}
 
-	out := make([]*envelopesProto.OriginatorEnvelope, len(req.Envelopes))
+	response := connect.NewResponse(&payer_api.PublishClientEnvelopesResponse{
+		OriginatorEnvelopes: make(
+			[]*envelopesProto.OriginatorEnvelope,
+			len(req.Msg.GetEnvelopes()),
+		),
+	})
 
 	// For each originator found in the request, publish all matching envelopes to the node
 	for originatorID, payloadsWithIndex := range grouped.forNodes {
@@ -149,12 +177,15 @@ func (s *Service) PublishClientEnvelopes(
 		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorID, payloadsWithIndex)
 		if err != nil {
 			s.logger.Error("error publishing payer envelopes", zap.Error(err))
-			return nil, status.Error(codes.Internal, "error publishing payer envelopes")
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error publishing payer envelopes: %w", err),
+			)
 		}
 
 		// The originator envelopes come back from the API in the same order as the request
 		for idx, originatorEnvelope := range originatorEnvelopes {
-			out[payloadsWithIndex[idx].originalIndex] = originatorEnvelope
+			response.Msg.OriginatorEnvelopes[payloadsWithIndex[idx].originalIndex] = originatorEnvelope
 		}
 	}
 
@@ -168,22 +199,23 @@ func (s *Service) PublishClientEnvelopes(
 		var originatorEnvelope *envelopesProto.OriginatorEnvelope
 		if originatorEnvelope, err = s.publishToBlockchain(ctx, payload.payload); err != nil {
 			s.logger.Error("error publishing payer envelopes", zap.Error(err))
-			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error publishing group message: %w", err),
+			)
 		}
 
-		out[payload.originalIndex] = originatorEnvelope
+		response.Msg.OriginatorEnvelopes[payload.originalIndex] = originatorEnvelope
 	}
 
-	return &payer_api.PublishClientEnvelopesResponse{
-		OriginatorEnvelopes: out,
-	}, nil
+	return response, nil
 }
 
-// A struct that groups client envelopes by their intended destination
+// A struct that groups client envelopes by their intended destination.
 type groupedEnvelopes struct {
-	// Mapping of originator ID to a list of client envelopes targeting that originator
+	// Mapping of originator ID to a list of client envelopes targeting that originator.
 	forNodes map[uint32][]clientEnvelopeWithIndex
-	// Messages meant to be sent to the blockchain
+	// Messages meant to be sent to the blockchain.
 	forBlockchain []clientEnvelopeWithIndex
 }
 
@@ -195,28 +227,24 @@ func (s *Service) groupEnvelopes(
 	for i, rawClientEnvelope := range rawEnvelopes {
 		clientEnvelope, err := envelopes.NewClientEnvelope(rawClientEnvelope)
 		if err != nil {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"Invalid client envelope at index %d: %v",
-				i,
-				err,
+			return nil, connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("invalid client envelope at index %d: %w", i, err),
 			)
 		}
 
 		if !clientEnvelope.TopicMatchesPayload() {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"Client envelope at index %d does not match topic",
-				i,
+			return nil, connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("client envelope at index %d does not match topic", i),
 			)
 		}
 
 		toBlockchain, err := shouldSendToBlockchain(clientEnvelope)
 		if err != nil {
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"Client envelope at index %d can not be parsed: %v",
-				i, err,
+			return nil, connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("client envelope at index %d can not be parsed: %w", i, err),
 			)
 		}
 
@@ -228,7 +256,10 @@ func (s *Service) groupEnvelopes(
 		} else {
 			targetNodeID, err := s.nodeSelector.GetNode(clientEnvelope.TargetTopic())
 			if err != nil {
-				return nil, err
+				return nil, connect.NewError(
+					connect.CodeInvalidArgument,
+					fmt.Errorf("error getting node for topic: %w", err),
+				)
 			}
 
 			out.forNodes[targetNodeID] = append(out.forNodes[targetNodeID], newClientEnvelopeWithIndex(i, clientEnvelope))
@@ -283,29 +314,42 @@ func (s *Service) publishToNodes(
 	originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
-	conn, err := s.clientManager.GetClient(originatorID)
+	client, err := s.clientManager.GetReplicationClient(originatorID)
 	if err != nil {
 		s.logger.Error("error getting client", zap.Error(err))
-		return nil, status.Error(codes.Internal, "error getting client")
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("error getting client: %w", err),
+		)
 	}
-	client := message_api.NewReplicationApiClient(conn)
 
 	payerEnvelopes, err := s.signAllClientEnvelopes(originatorID, indexedEnvelopes)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error signing payer envelopes: %v", err)
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("error signing payer envelopes: %w", err),
+		)
 	}
 
 	start := time.Now()
-	resp, err := client.PublishPayerEnvelopes(ctx, &message_api.PublishPayerEnvelopesRequest{
-		PayerEnvelopes: payerEnvelopes,
-	})
+
+	response, err := client.PublishPayerEnvelopes(
+		ctx,
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: payerEnvelopes,
+		}),
+	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error publishing payer envelopes: %v", err)
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("error publishing payer envelopes: %w", err),
+		)
 	}
 
 	metrics.EmitPayerNodePublishDuration(originatorID, time.Since(start).Seconds())
 	metrics.EmitPayerMessageOriginated(originatorID, len(payerEnvelopes))
-	return resp.OriginatorEnvelopes, nil
+
+	return response.Msg.OriginatorEnvelopes, nil
 }
 
 func (s *Service) publishToBlockchain(
@@ -322,10 +366,9 @@ func (s *Service) publishToBlockchain(
 	// Serialize the clientEnvelope for publishing
 	payload, err := clientEnvelope.Bytes()
 	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"error getting client envelope bytes: %v",
-			err,
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("error getting client envelope bytes: %w", err),
 		)
 	}
 
@@ -342,20 +385,25 @@ func (s *Service) publishToBlockchain(
 		// Get the group ID as [16]byte
 		groupID, err := utils.ParseGroupID(identifier)
 		if err != nil {
-			return nil, status.Errorf(
-				codes.Internal,
-				"error converting identifier to group ID: %v",
-				err,
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error converting identifier to group ID: %w", err),
 			)
 		}
 
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("group_message", func() (*gm.GroupMessageBroadcasterMessageSent, error) {
 			return s.blockchainPublisher.PublishGroupMessage(ctx, groupID, payload)
 		}); err != nil {
-			return nil, status.Errorf(codes.Internal, "error publishing group message: %v", err)
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error publishing group message: %w", err),
+			)
 		}
 		if logMessage == nil {
-			return nil, status.Errorf(codes.Internal, "received nil logMessage")
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				errors.New("received nil logMessage"),
+			)
 		}
 
 		hash = logMessage.Raw.TxHash
@@ -365,10 +413,9 @@ func (s *Service) publishToBlockchain(
 			logMessage.Message,
 		)
 		if err != nil {
-			return nil, status.Errorf(
-				codes.Internal,
-				"error building unsigned originator envelope: %v",
-				err,
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error building unsigned originator envelope: %w", err),
 			)
 		}
 
@@ -380,20 +427,25 @@ func (s *Service) publishToBlockchain(
 		// Get the inbox ID as [32]byte
 		inboxID, err := utils.ParseInboxID(identifier)
 		if err != nil {
-			return nil, status.Errorf(
-				codes.Internal,
-				"error converting identifier to inbox ID: %v",
-				err,
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error converting identifier to inbox ID: %w", err),
 			)
 		}
 
 		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("identity_update", func() (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			return s.blockchainPublisher.PublishIdentityUpdate(ctx, inboxID, payload)
 		}); err != nil {
-			return nil, status.Errorf(codes.Internal, "error publishing identity update: %v", err)
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error publishing identity update: %w", err),
+			)
 		}
 		if logMessage == nil {
-			return nil, status.Errorf(codes.Internal, "received nil logMessage")
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				errors.New("received nil logMessage"),
+			)
 		}
 
 		hash = logMessage.Raw.TxHash
@@ -403,18 +455,16 @@ func (s *Service) publishToBlockchain(
 			logMessage.Update,
 		)
 		if err != nil {
-			return nil, status.Errorf(
-				codes.Internal,
-				"error building unsigned originator envelope: %v",
-				err,
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error building unsigned originator envelope: %w", err),
 			)
 		}
 
 	default:
-		return nil, status.Errorf(
-			codes.InvalidArgument,
-			"unknown blockchain message for topic %s",
-			targetTopic.String(),
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("unknown blockchain message for topic %s", targetTopic.String()),
 		)
 	}
 
@@ -428,10 +478,9 @@ func (s *Service) publishToBlockchain(
 
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"error marshalling unsigned originator envelope: %v",
-			err,
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("error marshalling unsigned originator envelope: %w", err),
 		)
 	}
 

@@ -26,70 +26,65 @@ import (
 	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/fees"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewReplicationAPIClient(
+func NewTestReplicationAPIClient(
 	t *testing.T,
 	addr string,
-) message_api.ReplicationApiClient {
+) message_apiconnect.ReplicationApiClient {
 	// https://github.com/grpc/grpc/blob/master/doc/naming.md
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
-	conn, err := grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
-	require.NoError(t, err)
-	client := message_api.NewReplicationApiClient(conn)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
-	return client
+
+	httpClient, err := utils.BuildHTTP2Client(t.Context(), false)
+	if err != nil {
+		t.Fatalf("failed to build HTTP client: %v", err)
+	}
+
+	dialOpts := utils.BuildGRPCDialOptions()
+
+	return message_apiconnect.NewReplicationApiClient(httpClient, dialAddr, dialOpts...)
 }
 
-func NewPayerAPIClient(
+func NewTestPayerAPIClient(
 	t *testing.T,
 	addr string,
-) payer_api.PayerApiClient {
+) payer_apiconnect.PayerApiClient {
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
-	conn, err := grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
-	require.NoError(t, err)
-	client := payer_api.NewPayerApiClient(conn)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
-	return client
+
+	httpClient, err := utils.BuildHTTP2Client(t.Context(), false)
+	if err != nil {
+		t.Fatalf("failed to build HTTP client: %v", err)
+	}
+
+	dialOpts := utils.BuildGRPCDialOptions()
+
+	return payer_apiconnect.NewPayerApiClient(httpClient, dialAddr, dialOpts...)
 }
 
-func NewMetadataAPIClient(
+func NewTestMetadataAPIClient(
 	t *testing.T,
 	addr string,
-) metadata_api.MetadataApiClient {
+) metadata_apiconnect.MetadataApiClient {
 	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
-	conn, err := grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
-	require.NoError(t, err)
-	client := metadata_api.NewMetadataApiClient(conn)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
-	return client
+
+	httpClient, err := utils.BuildHTTP2Client(t.Context(), false)
+	if err != nil {
+		t.Fatalf("failed to build HTTP client: %v", err)
+	}
+	dialOpts := utils.BuildGRPCDialOptions()
+
+	return metadata_apiconnect.NewMetadataApiClient(httpClient, dialAddr, dialOpts...)
 }
 
 type APIServerMocks struct {
@@ -98,17 +93,28 @@ type APIServerMocks struct {
 	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
 }
 
-func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
-	ctx, cancel := context.WithCancel(context.Background())
-	log := testutils.NewLog(t)
-	db, _ := testutils.NewDB(t, ctx)
+func NewTestAPIServer(
+	t *testing.T,
+) (mockAPIServer *api.APIServer, mockDB *sql.DB, mockAPIServerMocks APIServerMocks) {
+	var (
+		ctx, cancel           = context.WithCancel(context.Background())
+		log                   = testutils.NewLog(t)
+		db, _                 = testutils.NewDB(t, ctx)
+		mockRegistry          = mocks.NewMockNodeRegistry(t)
+		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
+		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
+	)
+
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
+
 	privKeyStr := "0x" + utils.HexEncode(crypto.FromECDSA(privKey))
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+
+	// Mock registry behavior.
 	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 100, SigningKey: &privKey.PublicKey},
 	}, nil)
+
 	registrant, err := registrant.NewRegistrant(
 		ctx,
 		log,
@@ -118,8 +124,6 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 		nil,
 	)
 	require.NoError(t, err)
-	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)
-	mockValidationService := mlsvalidateMocks.NewMockMLSValidationService(t)
 
 	jwtVerifier, err := authn.NewRegistryVerifier(
 		log,
@@ -209,20 +213,4 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 	})
 
 	return svr, db, allMocks
-}
-
-func NewTestReplicationAPIClient(
-	t *testing.T,
-) (message_api.ReplicationApiClient, *sql.DB, APIServerMocks) {
-	svc, db, allMocks := NewTestAPIServer(t)
-	client := NewReplicationAPIClient(t, svc.Addr().String())
-	return client, db, allMocks
-}
-
-func NewTestMetadataAPIClient(
-	t *testing.T,
-) (metadata_api.MetadataApiClient, *sql.DB, APIServerMocks) {
-	svc, db, allMocks := NewTestAPIServer(t)
-	client := NewMetadataAPIClient(t, svc.Addr().String())
-	return client, db, allMocks
 }

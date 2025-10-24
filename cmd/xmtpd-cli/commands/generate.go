@@ -82,7 +82,13 @@ func welcomeMessageHandler(
 
 	ctx := context.Background()
 
-	generator, err := stress.NewEnvelopesGenerator(nodeHTTPAddress, privateKeyString, originatorID)
+	// TODO: Make protocol configurable.
+	generator, err := stress.NewEnvelopesGenerator(
+		nodeHTTPAddress,
+		privateKeyString,
+		originatorID,
+		stress.ProtocolConnectGRPCWeb,
+	)
 	if err != nil {
 		return err
 	}
@@ -177,7 +183,13 @@ func groupMessageHandler(
 
 	ctx := context.Background()
 
-	generator, err := stress.NewEnvelopesGenerator(nodeHTTPAddress, privateKeyString, originatorID)
+	// TODO: Make protocol configurable.
+	generator, err := stress.NewEnvelopesGenerator(
+		nodeHTTPAddress,
+		privateKeyString,
+		originatorID,
+		stress.ProtocolConnectGRPC,
+	)
 	if err != nil {
 		return err
 	}
@@ -266,7 +278,13 @@ func keyPackageHandler(
 
 	ctx := context.Background()
 
-	generator, err := stress.NewEnvelopesGenerator(nodeHTTPAddress, privateKeyString, originatorID)
+	// TODO: Make protocol configurable.
+	generator, err := stress.NewEnvelopesGenerator(
+		nodeHTTPAddress,
+		privateKeyString,
+		originatorID,
+		stress.ProtocolConnectGRPC,
+	)
 	if err != nil {
 		return err
 	}

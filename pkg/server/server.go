@@ -1,4 +1,5 @@
-// Package server implements the replication server.
+// Package server implements the base server that manages all the other services.
+// Conceptually it's the server that represents the entire xmtpd node.
 package server
 
 import (
@@ -6,28 +7,29 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pingcap/log"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	"github.com/xmtp/xmtpd/pkg/sync"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
 
 	"github.com/Masterminds/semver/v3"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/api/message"
@@ -39,98 +41,104 @@ import (
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
-	"github.com/xmtp/xmtpd/pkg/sync"
 )
 
-type ReplicationServerConfig struct {
+type BaseServerConfig struct {
 	Ctx           context.Context
 	DB            *sql.DB
 	Logger        *zap.Logger
 	NodeRegistry  registry.NodeRegistry
 	Options       *config.ServerOptions
 	ServerVersion *semver.Version
-	GRPCListener  net.Listener
 	FeeCalculator fees.IFeeCalculator
 }
 
-func WithContext(ctx context.Context) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithContext(ctx context.Context) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.Ctx = ctx
 	}
 }
 
-func WithDB(db *sql.DB) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithDB(db *sql.DB) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.DB = db
 	}
 }
 
-func WithLogger(logger *zap.Logger) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithLogger(logger *zap.Logger) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.Logger = logger
 	}
 }
 
-func WithNodeRegistry(reg registry.NodeRegistry) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithNodeRegistry(reg registry.NodeRegistry) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.NodeRegistry = reg
 	}
 }
 
-func WithServerOptions(opts *config.ServerOptions) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithServerOptions(opts *config.ServerOptions) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.Options = opts
 	}
 }
 
-func WithServerVersion(version *semver.Version) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithServerVersion(version *semver.Version) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.ServerVersion = version
 	}
 }
 
-func WithGRPCListener(listener net.Listener) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
-		cfg.GRPCListener = listener
-	}
-}
-
-func WithFeeCalculator(feeCalculator fees.IFeeCalculator) ReplicationServerOption {
-	return func(cfg *ReplicationServerConfig) {
+func WithFeeCalculator(feeCalculator fees.IFeeCalculator) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
 		cfg.FeeCalculator = feeCalculator
 	}
 }
 
-type ReplicationServer struct {
+type BaseServer struct {
+	// Control mechanisms.
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	logger              *zap.Logger
-	options             *config.ServerOptions
-	metrics             *metrics.Server
-	nodeRegistry        registry.NodeRegistry
-	registrant          *registrant.Registrant
-	validationService   mlsvalidate.MLSValidationService
-	indx                *indexer.Indexer
-	apiServer           *api.APIServer
-	syncServer          *sync.SyncServer
+	// Configuration.
+	logger  *zap.Logger
+	options *config.ServerOptions
+
+	// Services
+	api           *api.APIServer
+	sync          *sync.SyncServer
+	indexer       *indexer.Indexer
+	mlsValidation mlsvalidate.MLSValidationService
+	migrator      *migrator.Migrator
+	metrics       *metrics.Server
+
+	// Node identity.
+	registrant   *registrant.Registrant
+	nodeRegistry registry.NodeRegistry
+
+	// Dependencies.
 	cursorUpdater       metadata.CursorUpdater
 	blockchainPublisher *blockchain.BlockchainPublisher
-	migratorServer      *migrator.Migrator
 	reportWorkers       *workers.WorkerWrapper
 }
 
-type ReplicationServerOption func(*ReplicationServerConfig)
+type BaseServerOption func(*BaseServerConfig)
 
-func NewReplicationServer(
-	opts ...ReplicationServerOption,
-) (*ReplicationServer, error) {
+// NewBaseServer creates a new base server.
+// The Base server is the root service that manages the other services:
+// - API server: Replication and metadata APIs.
+// - Sync service: internal sync and communication between nodes.
+// - Indexer service: indexes the blockchain and provides the data to the APIs.
+// - Migration service: migrates an old V3 database to the D14N network.
+// - Payer report service: generates and sends payer reports to the nodes.
+func NewBaseServer(
+	opts ...BaseServerOption,
+) (*BaseServer, error) {
 	var err error
 
-	cfg := &ReplicationServerConfig{}
+	cfg := &BaseServerConfig{}
 
 	for _, opt := range opts {
 		opt(cfg)
@@ -160,19 +168,22 @@ func NewReplicationServer(
 		return nil, errors.New("no fee calculator found")
 	}
 
+	// TODO: Check if this is valid with connect-go.
+	// Setup Prometheus registry.
 	promReg := prometheus.NewRegistry()
 
 	clientMetrics := grpcprom.NewClientMetrics(
 		grpcprom.WithClientHandlingTimeHistogram(),
 	)
 
-	var mtcs *metrics.Server
+	// Setup metrics server.
+	var metricsServer *metrics.Server
 	if cfg.Options.Metrics.Enable {
 		promReg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 		promReg.MustRegister(collectors.NewGoCollector())
 		promReg.MustRegister(clientMetrics)
 
-		mtcs, err = metrics.NewMetricsServer(cfg.Ctx,
+		metricsServer, err = metrics.NewMetricsServer(cfg.Ctx,
 			cfg.Options.Metrics.Address,
 			cfg.Options.Metrics.Port,
 			cfg.Logger,
@@ -184,17 +195,21 @@ func NewReplicationServer(
 		}
 	}
 
-	s := &ReplicationServer{
+	// Initialize services.
+	svc := &BaseServer{
 		options:      cfg.Options,
 		logger:       cfg.Logger,
 		nodeRegistry: cfg.NodeRegistry,
-		metrics:      mtcs,
+		metrics:      metricsServer,
 	}
-	s.ctx, s.cancel = context.WithCancel(cfg.Ctx)
 
+	svc.ctx, svc.cancel = context.WithCancel(cfg.Ctx)
+
+	// Initialize registrant if needed, which is required for the API, sync and payer report services.
+	// When the node runs as an indexer, it doesn't require an identity.
 	if cfg.Options.API.Enable || cfg.Options.Sync.Enable || cfg.Options.PayerReport.Enable {
-		s.registrant, err = registrant.NewRegistrant(
-			s.ctx,
+		svc.registrant, err = registrant.NewRegistrant(
+			svc.ctx,
 			cfg.Logger,
 			queries.New(cfg.DB),
 			cfg.NodeRegistry,
@@ -207,8 +222,10 @@ func NewReplicationServer(
 		}
 	}
 
+	// Initialize MLS validation service if needed, which is required for the API and indexer services.
+	// Sync and payer report services don't perform any MLS validation.
 	if cfg.Options.Indexer.Enable || cfg.Options.API.Enable {
-		s.validationService, err = mlsvalidate.NewMlsValidationService(
+		svc.mlsValidation, err = mlsvalidate.NewMLSValidationService(
 			cfg.Ctx,
 			cfg.Logger,
 			cfg.Options.MlsValidation,
@@ -220,19 +237,20 @@ func NewReplicationServer(
 		}
 	}
 
+	// Maybe initialize indexer.
 	if cfg.Options.Indexer.Enable {
-		s.indx, err = indexer.NewIndexer(
+		svc.indexer, err = indexer.NewIndexer(
 			indexer.WithDB(cfg.DB),
 			indexer.WithLogger(cfg.Logger),
 			indexer.WithContext(cfg.Ctx),
-			indexer.WithValidationService(s.validationService),
+			indexer.WithValidationService(svc.mlsValidation),
 			indexer.WithContractsOptions(&cfg.Options.Contracts),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize indexer: %w", err)
 		}
 
-		err = s.indx.StartIndexer()
+		err = svc.indexer.StartIndexer()
 		if err != nil {
 			return nil, fmt.Errorf("failed to start indexer: %w", err)
 		}
@@ -240,8 +258,9 @@ func NewReplicationServer(
 		cfg.Logger.Info("indexer service started")
 	}
 
+	// Maybe initialize migration service.
 	if cfg.Options.MigrationServer.Enable {
-		s.migratorServer, err = migrator.NewMigrationService(
+		svc.migrator, err = migrator.NewMigrationService(
 			migrator.WithContext(cfg.Ctx),
 			migrator.WithLogger(cfg.Logger),
 			migrator.WithDestinationDB(cfg.DB),
@@ -253,7 +272,7 @@ func NewReplicationServer(
 			return nil, err
 		}
 
-		err = s.migratorServer.Start()
+		err = svc.migrator.Start()
 		if err != nil {
 			cfg.Logger.Error("failed to start migrator", zap.Error(err))
 			return nil, err
@@ -262,12 +281,13 @@ func NewReplicationServer(
 		cfg.Logger.Info("migrator service started")
 	}
 
+	// Maybe initialize API server.
+	// The API serves the replication and metadata APIs.
 	if cfg.Options.API.Enable {
-		if cfg.GRPCListener == nil {
-			return nil, errors.New("grpc listener not provided")
-		}
+		svc.cursorUpdater = metadata.NewCursorUpdater(svc.ctx, cfg.Logger, cfg.DB)
+
 		err = startAPIServer(
-			s,
+			svc,
 			cfg,
 			clientMetrics,
 			promReg,
@@ -276,21 +296,21 @@ func NewReplicationServer(
 			cfg.Logger.Error("failed to start api server", zap.Error(err))
 			return nil, err
 		}
-
-		cfg.Logger.Info("api service started", zap.Int("port", cfg.Options.API.Port))
 	}
 
+	// Maybe initialize sync service.
+	// The sync service is responsible for syncing nodes between each other.
 	if cfg.Options.Sync.Enable {
 		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Logger, *cfg.Options)
 		if err != nil {
 			log.Error("failed to get domain separator", zap.Error(err))
 			return nil, err
 		}
-		s.syncServer, err = sync.NewSyncServer(
-			sync.WithContext(s.ctx),
+		svc.sync, err = sync.NewSyncServer(
+			sync.WithContext(svc.ctx),
 			sync.WithLogger(cfg.Logger),
-			sync.WithNodeRegistry(s.nodeRegistry),
-			sync.WithRegistrant(s.registrant),
+			sync.WithNodeRegistry(svc.nodeRegistry),
+			sync.WithRegistrant(svc.registrant),
 			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(cfg.FeeCalculator),
 			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Logger)),
@@ -304,6 +324,8 @@ func NewReplicationServer(
 		cfg.Logger.Info("sync service started")
 	}
 
+	// Maybe initialize payer report service.
+	// The payer report service is responsible for generating, attesting and submitting payer reports to the settlement chain.
 	if cfg.Options.PayerReport.Enable {
 		domainSeparator, err := getDomainSeparator(cfg.Ctx, cfg.Logger, *cfg.Options)
 		if err != nil {
@@ -352,10 +374,10 @@ func NewReplicationServer(
 		payerReportBaseLogger := cfg.Logger.Named(utils.PayerReportMainLoggerName)
 
 		workerConfig, err := workers.NewWorkerConfigBuilder().
-			WithContext(s.ctx).
 			WithLogger(payerReportBaseLogger).
-			WithRegistrant(s.registrant).
-			WithRegistry(s.nodeRegistry).
+			WithContext(svc.ctx).
+			WithRegistrant(svc.registrant).
+			WithRegistry(svc.nodeRegistry).
 			WithReportsManager(reportsManager).
 			WithStore(payerreport.NewStore(cfg.DB, payerReportBaseLogger)).
 			WithDomainSeparator(domainSeparator).
@@ -368,20 +390,18 @@ func NewReplicationServer(
 			return nil, err
 		}
 
-		s.reportWorkers = workers.RunWorkers(*workerConfig)
+		svc.reportWorkers = workers.RunWorkers(*workerConfig)
 	}
 
-	return s, nil
+	return svc, nil
 }
 
 func startAPIServer(
-	s *ReplicationServer,
-	cfg *ReplicationServerConfig,
+	svc *BaseServer,
+	cfg *BaseServerConfig,
 	_ *grpcprom.ClientMetrics,
 	promReg *prometheus.Registry,
-) error {
-	var err error
-
+) (err error) {
 	isMigrationEnabled := cfg.Options.MigrationServer.Enable || cfg.Options.MigrationClient.Enable
 
 	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
@@ -425,13 +445,29 @@ func startAPIServer(
 		return nil
 	}
 
-	var jwtVerifier authn.JWTVerifier
+	// Register metadata API.
+	metadataService, err := metadata.NewMetadataAPIService(
+		svc.ctx,
+		cfg.Logger,
+		svc.cursorUpdater,
+		cfg.ServerVersion,
+		metadata.NewPayerInfoFetcher(cfg.DB),
+	)
+	if err != nil {
+		return err
+	}
 
-	if s.nodeRegistry != nil && s.registrant != nil {
+	// Add auth interceptors if JWT verifier is available.
+	var (
+		jwtVerifier authn.JWTVerifier
+		apiOpts     = make([]api.APIServerOption, 0)
+	)
+
+	if svc.nodeRegistry != nil && svc.registrant != nil {
 		jwtVerifier, err = authn.NewRegistryVerifier(
 			cfg.Logger,
-			s.nodeRegistry,
-			s.registrant.NodeID(),
+			svc.nodeRegistry,
+			svc.registrant.NodeID(),
 			cfg.ServerVersion,
 		)
 		if err != nil {
@@ -440,16 +476,6 @@ func startAPIServer(
 		}
 	}
 
-	apiOpts := []api.APIServerOption{
-		api.WithContext(s.ctx),
-		api.WithLogger(cfg.Logger),
-		api.WithGRPCListener(cfg.GRPCListener),
-		api.WithRegistrationFunc(serviceRegistrationFunc),
-		api.WithReflection(cfg.Options.Reflection.Enable),
-		api.WithPrometheusRegistry(promReg),
-	}
-
-	// Add auth interceptors if JWT verifier is available
 	if jwtVerifier != nil {
 		authInterceptor := server.NewAuthInterceptor(jwtVerifier, cfg.Logger)
 		apiOpts = append(apiOpts,
@@ -458,20 +484,28 @@ func startAPIServer(
 		)
 	}
 
-	s.apiServer, err = api.NewAPIServer(apiOpts...)
+	apiOpts = append(apiOpts, []api.APIServerOption{
+		api.WithContext(svc.ctx),
+		api.WithLogger(cfg.Logger),
+		api.WithPort(cfg.Options.API.Port),
+		api.WithPrometheusRegistry(promReg),
+		api.WithReflection(cfg.Options.Reflection.Enable),
+		api.WithReplicationAPIService(replicationService),
+		api.WithMetadataAPIService(metadataService),
+	}...)
+
+	svc.api, err = api.NewAPIServer(apiOpts...)
 	if err != nil {
 		cfg.Logger.Error("failed to initialize api server", zap.Error(err))
 		return err
 	}
 
+	svc.api.Start()
+
 	return nil
 }
 
-func (s *ReplicationServer) Addr() net.Addr {
-	return s.apiServer.Addr()
-}
-
-func (s *ReplicationServer) WaitForShutdown(timeout time.Duration) {
+func (s *BaseServer) WaitForShutdown(timeout time.Duration) {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	sig := <-termChannel
@@ -479,13 +513,17 @@ func (s *ReplicationServer) WaitForShutdown(timeout time.Duration) {
 	s.Shutdown(timeout)
 }
 
-func (s *ReplicationServer) Shutdown(timeout time.Duration) {
+func (s *BaseServer) Shutdown(timeout time.Duration) {
+	if s.api != nil {
+		s.api.Close()
+	}
+
 	if s.metrics != nil {
 		s.metrics.Close()
 	}
 
-	if s.syncServer != nil {
-		s.syncServer.Close()
+	if s.sync != nil {
+		s.sync.Close()
 	}
 
 	if s.nodeRegistry != nil {
@@ -500,20 +538,17 @@ func (s *ReplicationServer) Shutdown(timeout time.Duration) {
 		s.blockchainPublisher.Close()
 	}
 
-	if s.indx != nil {
-		s.indx.Close()
-	}
-	if s.apiServer != nil {
-		s.apiServer.Close(timeout)
+	if s.indexer != nil {
+		s.indexer.Close()
 	}
 
 	if s.reportWorkers != nil {
 		s.reportWorkers.Stop()
 	}
 
-	if s.migratorServer != nil {
-		if err := s.migratorServer.Stop(); err != nil {
-			s.logger.Error("failed to stop migrator", zap.Error(err))
+	if s.migrator != nil {
+		if err := s.migrator.Stop(); err != nil {
+			s.logger.Error("failed to stop migator", zap.Error(err))
 		}
 	}
 

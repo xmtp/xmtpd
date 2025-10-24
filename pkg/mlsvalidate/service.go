@@ -5,25 +5,27 @@ import (
 	"context"
 	"fmt"
 
+	"connectrpc.com/connect"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
-	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	svc "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
+	"github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1/mls_validationv1connect"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 type MLSValidationServiceImpl struct {
-	grpcClient svc.ValidationApiClient
+	grpcClient mls_validationv1connect.ValidationApiClient
 }
 
-func NewMlsValidationService(
+var _ MLSValidationService = (*MLSValidationServiceImpl)(nil)
+
+func NewMLSValidationService(
 	ctx context.Context,
 	logger *zap.Logger,
 	cfg config.MlsValidationOptions,
@@ -34,33 +36,28 @@ func NewMlsValidationService(
 		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %w", err)
 	}
 
-	creds, err := utils.GetCredentialsForAddress(isTLS)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %w", err)
-	}
-
 	logger.Info(
 		"connecting to mls validation service",
 		zap.String("url", cfg.GrpcAddress),
 		zap.String("target", target),
 	)
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(creds),
-		grpc.WithUnaryInterceptor(clientMetrics.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(clientMetrics.StreamClientInterceptor()),
-	)
+
+	httpClient, err := utils.BuildHTTP2Client(ctx, isTLS)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build HTTP client: %w", err)
 	}
 
-	go func() {
-		<-ctx.Done()
-		_ = conn.Close()
-	}()
+	validationClient := mls_validationv1connect.NewValidationApiClient(
+		httpClient,
+		target,
+		utils.BuildGRPCDialOptions()...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create validation client: %w", err)
+	}
 
 	return &MLSValidationServiceImpl{
-		grpcClient: svc.NewValidationApiClient(conn),
+		grpcClient: validationClient,
 	}, nil
 }
 
@@ -69,17 +66,19 @@ func (s *MLSValidationServiceImpl) GetAssociationState(
 	oldUpdates []*associations.IdentityUpdate,
 	newUpdates []*associations.IdentityUpdate,
 ) (*AssociationStateResult, error) {
-	req := &svc.GetAssociationStateRequest{
+	request := &svc.GetAssociationStateRequest{
 		OldUpdates: oldUpdates,
 		NewUpdates: newUpdates,
 	}
-	response, err := s.grpcClient.GetAssociationState(ctx, req)
+
+	response, err := s.grpcClient.GetAssociationState(ctx, connect.NewRequest(request))
 	if err != nil {
 		return nil, err
 	}
+
 	return &AssociationStateResult{
-		AssociationState: response.GetAssociationState(),
-		StateDiff:        response.GetStateDiff(),
+		AssociationState: response.Msg.GetAssociationState(),
+		StateDiff:        response.Msg.GetStateDiff(),
 	}, nil
 }
 
@@ -114,15 +113,15 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 	ctx context.Context,
 	keyPackages [][]byte,
 ) ([]KeyPackageValidationResult, error) {
-	req := makeValidateKeyPackageRequest(keyPackages)
+	request := makeValidateKeyPackageRequest(keyPackages)
 
-	response, err := s.grpcClient.ValidateInboxIdKeyPackages(ctx, req)
+	response, err := s.grpcClient.ValidateInboxIdKeyPackages(ctx, connect.NewRequest(request))
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]KeyPackageValidationResult, len(response.Responses))
-	for i, response := range response.Responses {
+	out := make([]KeyPackageValidationResult, len(response.Msg.Responses))
+	for i, response := range response.Msg.Responses {
 		if !response.IsOk {
 			out[i] = KeyPackageValidationResult{
 				IsOk:            false,
@@ -151,12 +150,14 @@ func makeValidateKeyPackageRequest(
 		[]*svc.ValidateKeyPackagesRequest_KeyPackage,
 		len(keyPackageBytes),
 	)
+
 	for i, keyPackage := range keyPackageBytes {
 		keyPackageRequests[i] = &svc.ValidateKeyPackagesRequest_KeyPackage{
 			KeyPackageBytesTlsSerialized: keyPackage,
 			IsInboxIdCredential:          true,
 		}
 	}
+
 	return &svc.ValidateKeyPackagesRequest{
 		KeyPackages: keyPackageRequests,
 	}
@@ -164,17 +165,20 @@ func makeValidateKeyPackageRequest(
 
 func (s *MLSValidationServiceImpl) ValidateGroupMessages(
 	ctx context.Context,
-	groupMessages []*mlsv1.GroupMessageInput,
+	groupMessages []*svc.ValidateGroupMessagesRequest_GroupMessage,
 ) ([]GroupMessageValidationResult, error) {
-	req := makeValidateGroupMessagesRequest(groupMessages)
+	request := makeValidateGroupMessagesRequest(groupMessages)
 
-	response, err := s.grpcClient.ValidateGroupMessages(ctx, req)
+	response, err := s.grpcClient.ValidateGroupMessages(
+		ctx,
+		connect.NewRequest(request),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]GroupMessageValidationResult, len(response.Responses))
-	for i, response := range response.Responses {
+	out := make([]GroupMessageValidationResult, len(response.Msg.Responses))
+	for i, response := range response.Msg.Responses {
 		if !response.IsOk {
 			return nil, fmt.Errorf("validation failed with error %s", response.ErrorMessage)
 		}
@@ -187,7 +191,7 @@ func (s *MLSValidationServiceImpl) ValidateGroupMessages(
 }
 
 func makeValidateGroupMessagesRequest(
-	groupMessages []*mlsv1.GroupMessageInput,
+	groupMessages []*svc.ValidateGroupMessagesRequest_GroupMessage,
 ) *svc.ValidateGroupMessagesRequest {
 	groupMessageRequests := make(
 		[]*svc.ValidateGroupMessagesRequest_GroupMessage,
@@ -195,7 +199,7 @@ func makeValidateGroupMessagesRequest(
 	)
 	for i, groupMessage := range groupMessages {
 		groupMessageRequests[i] = &svc.ValidateGroupMessagesRequest_GroupMessage{
-			GroupMessageBytesTlsSerialized: groupMessage.GetV1().Data,
+			GroupMessageBytesTlsSerialized: groupMessage.GetGroupMessageBytesTlsSerialized(),
 		}
 	}
 	return &svc.ValidateGroupMessagesRequest{

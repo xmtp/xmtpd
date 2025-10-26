@@ -218,8 +218,11 @@ func TestAttestFirstReport(t *testing.T) {
 	require.NoError(t, err)
 
 	mockVerifier.EXPECT().
-		IsValidReport(mock.Anything, (*payerreport.PayerReport)(nil), &report.PayerReport).
-		Return(true, nil)
+		VerifyReport(mock.Anything, (*payerreport.PayerReport)(nil), &report.PayerReport).
+		Return(payerreport.VerifyReportResult{
+			IsValid: true,
+			Reason:  "valid report",
+		}, nil)
 
 	err = worker.attestReport(storedReport)
 	require.NoError(t, err)

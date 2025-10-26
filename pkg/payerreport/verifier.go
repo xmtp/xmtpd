@@ -3,12 +3,20 @@ package payerreport
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
+)
+
+const (
+	validReportReason             = "valid report"
+	systemErrorReason             = "system error"
+	invalidReportTransitionReason = "invalid report transition"
+	invalidReportContentReason    = "invalid report content"
 )
 
 var (
@@ -92,7 +100,7 @@ func (p *PayerReportVerifier) GetPayerMap(
 }
 
 /*
-IsValidReport validates a payer report.
+VerifyReport verifies a payer report.
 
 This function checks that the new report is valid and that it is a valid
 transition from the previous report.
@@ -103,63 +111,89 @@ transition from the previous report.
   - @param prevReport The previous report.
   - @param newReport The new report.
 */
-func (p *PayerReportVerifier) IsValidReport(
+func (p *PayerReportVerifier) VerifyReport(
 	ctx context.Context,
 	prevReport *PayerReport,
 	newReport *PayerReport,
-) (bool, error) {
-	var err error
-
-	logger := AddReportLogFields(p.logger, newReport)
-
-	if err = validateReportTransition(prevReport, newReport); err != nil {
-		logger.Warn("invalid report transition", zap.Error(err))
-		return false, nil
+) (VerifyReportResult, error) {
+	err := validateReportTransition(prevReport, newReport)
+	if err != nil {
+		return VerifyReportResult{
+			IsValid: false,
+			Reason:  fmt.Sprintf("%s: %s", invalidReportTransitionReason, err.Error()),
+		}, nil
 	}
 
-	if err = validateReportStructure(newReport); err != nil {
-		logger.Warn("invalid report content", zap.Error(err))
-		return false, nil
+	err = validateReportStructure(newReport)
+	if err != nil {
+		return VerifyReportResult{
+			IsValid: false,
+			Reason:  fmt.Sprintf("%s: %s", invalidReportContentReason, err.Error()),
+		}, nil
 	}
 
 	// If the start and end sequence IDs are the same, the report is empty and the merkle root must always be the hash of an empty set
 	if newReport.StartSequenceID == newReport.EndSequenceID {
 		// TODO:nm validate that the merkle root is the hash of an empty set
-		return true, nil
+		return VerifyReportResult{
+			IsValid: true,
+			Reason:  validReportReason,
+		}, nil
 	}
 
 	isValidMerkleRoot, err := p.verifyMerkleRoot(ctx, newReport)
 	if err != nil {
-		return isValidMerkleRoot, err
+		return VerifyReportResult{
+			IsValid: false,
+			Reason:  systemErrorReason,
+		}, err
 	}
 
-	return isValidMerkleRoot, nil
+	if !isValidMerkleRoot.IsValid {
+		return VerifyReportResult{
+			IsValid: false,
+			Reason:  isValidMerkleRoot.Reason,
+		}, nil
+	}
+
+	return VerifyReportResult{
+		IsValid: true,
+		Reason:  validReportReason,
+	}, nil
+}
+
+type VerifyMerkleRootResult struct {
+	IsValid bool
+	Reason  string
 }
 
 // Re-generates the payer map and verifies that the merkle root in the report matches the newly generated one
 func (p *PayerReportVerifier) verifyMerkleRoot(
 	ctx context.Context,
 	report *PayerReport,
-) (bool, error) {
+) (VerifyMerkleRootResult, error) {
 	startEnvelope, endEnvelope, err := p.getStartAndEndMessages(ctx, report)
 	if err != nil {
-		return false, err
+		return VerifyMerkleRootResult{}, err
 	}
 
 	startMinute, endMinute, err := getStartAndEndMinutes(startEnvelope, endEnvelope)
 	if err != nil {
-		return false, err
+		return VerifyMerkleRootResult{}, err
 	}
 
 	// Invalid report: the start minute is after the end minute.
 	if startMinute > endMinute {
-		return false, nil
+		return VerifyMerkleRootResult{
+			IsValid: false,
+			Reason:  "start minute is after end minute",
+		}, nil
 	}
 
 	originatorID, err := utils.Uint32ToInt32(report.OriginatorNodeID)
 	if err != nil {
 		// System error: the originator node ID is too large.
-		return false, err
+		return VerifyMerkleRootResult{}, err
 	}
 
 	isAtMinuteEnd, err := p.isAtMinuteEnd(
@@ -170,12 +204,15 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	)
 	if err != nil {
 		// System error: failed querying the database.
-		return false, err
+		return VerifyMerkleRootResult{}, err
 	}
 
 	// Invalid report: the end sequence ID is not the last message in the minute.
 	if !isAtMinuteEnd {
-		return false, nil
+		return VerifyMerkleRootResult{
+			IsValid: false,
+			Reason:  "end sequence ID is not the last message in the minute",
+		}, nil
 	}
 
 	// TODO:nm validate that the start sequence ID is the last message in the start minute and create a misbehavior report if it's not
@@ -187,25 +224,31 @@ func (p *PayerReportVerifier) verifyMerkleRoot(
 	})
 	if err != nil {
 		// System error: failed querying the database.
-		return false, err
+		return VerifyMerkleRootResult{}, err
 	}
 
 	payerMap := buildPayersMap(reportData)
 	merkleTree, err := GenerateMerkleTree(payerMap)
 	if err != nil {
 		// System error: failed generating the merkle tree.
-		return false, err
+		return VerifyMerkleRootResult{}, err
 	}
 
 	merkleRoot := common.BytesToHash(merkleTree.Root())
 
 	// Invalid report: the merkle root mismatch.
 	if report.PayersMerkleRoot != merkleRoot {
-		return false, nil
+		return VerifyMerkleRootResult{
+			IsValid: false,
+			Reason:  "merkle root mismatch",
+		}, nil
 	}
 
 	// Valid report: all checks passed.
-	return true, nil
+	return VerifyMerkleRootResult{
+		IsValid: true,
+		Reason:  "valid merkle root",
+	}, nil
 }
 
 // Check if a given sequence ID is the last message in a minute

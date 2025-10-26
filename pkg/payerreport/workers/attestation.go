@@ -144,8 +144,12 @@ func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.Paye
 // Returns an error if the report is invalid or if there was a problem during attestation.
 func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStatus) error {
 	logger := payerreport.AddReportLogFields(w.logger, &report.PayerReport)
-	var prevReport *payerreport.PayerReport
-	var err error
+
+	var (
+		prevReport *payerreport.PayerReport
+		err        error
+	)
+
 	if report.StartSequenceID > 0 {
 		var prevReportWithStatus *payerreport.PayerReportWithStatus
 		if prevReportWithStatus, err = w.getPreviousReport(report); err != nil {
@@ -155,17 +159,20 @@ func (w *AttestationWorker) attestReport(report *payerreport.PayerReportWithStat
 		prevReport = &prevReportWithStatus.PayerReport
 	}
 
-	isValid, err := w.verifier.IsValidReport(w.ctx, prevReport, &report.PayerReport)
+	verifyResult, err := w.verifier.VerifyReport(w.ctx, prevReport, &report.PayerReport)
 	if err != nil {
 		return err
 	}
 
-	if isValid {
-		logger.Info("report is valid, submitting attestation")
+	if verifyResult.IsValid {
+		logger.Info(
+			"report is valid, submitting attestation",
+			utils.ReasonField(verifyResult.Reason),
+		)
 		return w.submitAttestation(report)
 	}
 
-	logger.Warn("report is invalid, not attesting")
+	logger.Warn("report is invalid, not attesting", utils.ReasonField(verifyResult.Reason))
 	return w.rejectAttestation(report)
 }
 

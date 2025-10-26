@@ -21,16 +21,19 @@ import (
 )
 
 var (
-	topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
-	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
+	topicA  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
+	topicB  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
+	allRows []queries.InsertGatewayEnvelopeParams
 )
-var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(
 	t *testing.T,
 ) (metadata_apiconnect.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
-	api, db, mocks := testUtilsApi.NewTestMetadataAPIClient(t)
-	payerID := dbUtils.NullInt32(testutils.CreatePayer(t, db))
+	var (
+		api, db, mocks = testUtilsApi.NewTestAPIServer(t)
+		client         = testUtilsApi.NewTestMetadataAPIClient(t, api.Addr())
+		payerID        = dbUtils.NullInt32(testutils.CreatePayer(t, db))
+	)
 
 	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
@@ -87,7 +90,7 @@ func setupTest(
 		},
 	}
 
-	return api, db, mocks
+	return client, db, mocks
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {

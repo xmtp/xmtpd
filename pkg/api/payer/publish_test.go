@@ -22,7 +22,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -39,12 +38,12 @@ type FixedMetadataAPIClientConstructor struct {
 
 func (c *FixedMetadataAPIClientConstructor) NewMetadataAPIClient(
 	nodeID uint32,
-) (metadata_apiconnect.MetadataApiClient, error) {
+) (metadata_api.MetadataApiClient, error) {
 	return c.mockClient, nil
 }
 
 type MockSubscribeSyncCursorClient struct {
-	metadata_apiconnect.MetadataApiClient
+	metadata_api.MetadataApiClient
 	ctx     context.Context
 	updates []*metadata_api.GetSyncCursorResponse
 	err     error

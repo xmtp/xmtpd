@@ -31,11 +31,11 @@ func TestClientManager(t *testing.T) {
 	mockRegistry := registry2.CreateMockRegistry(t, []registry.Node{
 		{
 			NodeID:      100,
-			HTTPAddress: formatAddress(server1.Addr().String()),
+			HTTPAddress: formatAddress(server1.Addr()),
 		},
 		{
 			NodeID:      200,
-			HTTPAddress: formatAddress(server2.Addr().String()),
+			HTTPAddress: formatAddress(server2.Addr()),
 		},
 	})
 
@@ -43,7 +43,7 @@ func TestClientManager(t *testing.T) {
 
 	cm := payer.NewClientManager(testutils.NewLog(t), mockRegistry, prometheus.NewClientMetrics())
 
-	client1, err := cm.GetReplicationClient(100)
+	client1, err := cm.GetClientConnection(100)
 	require.NoError(t, err)
 	require.NotNil(t, client1)
 
@@ -55,10 +55,10 @@ func TestClientManager(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, healthResponse.Status)
 
-	client2, err := cm.GetReplicationClient(200)
+	client2, err := cm.GetClientConnection(200)
 	require.NoError(t, err)
 	require.NotNil(t, client2)
 
-	_, err = cm.GetReplicationClient(300)
+	_, err = cm.GetClientConnection(300)
 	require.Error(t, err)
 }

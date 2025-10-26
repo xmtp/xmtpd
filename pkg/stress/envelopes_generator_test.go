@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -19,6 +20,8 @@ import (
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
 )
 
+// Fix! : Add tests for the other protocols.
+// Fix! : Add a native gRPC client.
 func TestEnvelopesGenerator(t *testing.T) {
 	var (
 		ctx              = t.Context()
@@ -57,9 +60,10 @@ func TestEnvelopesGenerator(t *testing.T) {
 	defer server.Shutdown(0)
 
 	generator, err := NewEnvelopesGenerator(
-		fmt.Sprintf("http://%s", server.Addr().String()),
+		fmt.Sprintf("http://%s", server.Addr()),
 		testutils.TestPrivateKey,
 		100,
+		ProtocolConnect,
 	)
 	require.NoError(t, err)
 
@@ -67,15 +71,19 @@ func TestEnvelopesGenerator(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
 
-	client := apiTestUtils.NewReplicationAPIClient(t, server.Addr().String())
-	queryResponse, err := client.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-		Query: &message_api.EnvelopesQuery{
-			OriginatorNodeIds: []uint32{100},
-			LastSeen:          &envelopes.Cursor{},
-		},
-		Limit: 10,
-	})
+	client := apiTestUtils.NewTestReplicationAPIClient(t, server.Addr())
+	queryResponse, err := client.QueryEnvelopes(
+		ctx,
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{100},
+				LastSeen:          &envelopes.Cursor{},
+			},
+			Limit: 10,
+		}),
+	)
 	require.NoError(t, err)
-	require.Len(t, queryResponse.Envelopes, 1)
-	require.Equal(t, queryResponse.Envelopes[0], publishResponse[0])
+	require.NotNil(t, queryResponse)
+	require.Len(t, queryResponse.Msg.Envelopes, 1)
+	require.Equal(t, queryResponse.Msg.Envelopes[0], publishResponse[0])
 }

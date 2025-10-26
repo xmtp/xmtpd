@@ -116,10 +116,6 @@ func (p *PayerReportVerifier) VerifyReport(
 	prevReport *PayerReport,
 	newReport *PayerReport,
 ) (VerifyReportResult, error) {
-	var err error
-
-	logger := AddReportLogFields(p.logger, newReport)
-
 	err := validateReportTransition(prevReport, newReport)
 	if err != nil {
 		return VerifyReportResult{

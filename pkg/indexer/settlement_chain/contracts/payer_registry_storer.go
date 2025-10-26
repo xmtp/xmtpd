@@ -91,7 +91,7 @@ func (s *PayerRegistryStorer) handleDeposit(
 	log types.Log,
 ) re.RetryableError {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("Deposit", zap.Any("log", log))
+		s.logger.Debug("received event Deposit", zap.Any("log", log))
 	}
 
 	var err error
@@ -133,7 +133,7 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 	log types.Log,
 ) re.RetryableError {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("WithdrawalRequested", zap.Any("log", log))
+		s.logger.Debug("received event WithdrawalRequested", zap.Any("log", log))
 	}
 
 	var err error
@@ -175,7 +175,7 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 	log types.Log,
 ) re.RetryableError {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("UsageSettled", zap.Any("log", log))
+		s.logger.Debug("received event UsageSettled", zap.Any("log", log))
 	}
 
 	var err error
@@ -212,7 +212,7 @@ func (s *PayerRegistryStorer) handleWithdrawalCanceled(
 	log types.Log,
 ) re.RetryableError {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("WithdrawalCancelled", zap.Any("log", log))
+		s.logger.Debug("received event WithdrawalCancelled", zap.Any("log", log))
 	}
 
 	var err error

@@ -20,7 +20,7 @@ func main() {
 		}).
 		Build() // This will gather all the config from environment variables and flags
 	if err != nil {
-		log.Fatalf("Failed to build gateway service: %v", err)
+		log.Fatalf("failed to build gateway service: %v", err)
 	}
 
 	gatewayService.WaitForShutdown()

@@ -20,6 +20,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/Masterminds/semver/v3"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -201,6 +202,7 @@ func NewReplicationServer(
 			cfg.ServerVersion,
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize registrant", zap.Error(err))
 			return nil, err
 		}
 	}
@@ -213,6 +215,7 @@ func NewReplicationServer(
 			clientMetrics,
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize mls validation service", zap.Error(err))
 			return nil, err
 		}
 	}
@@ -246,11 +249,13 @@ func NewReplicationServer(
 			migrator.WithContractsOptions(&cfg.Options.Contracts),
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize migrator", zap.Error(err))
 			return nil, err
 		}
 
 		err = s.migratorServer.Start()
 		if err != nil {
+			cfg.Logger.Error("failed to start migrator", zap.Error(err))
 			return nil, err
 		}
 
@@ -268,6 +273,7 @@ func NewReplicationServer(
 			promReg,
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to start api server", zap.Error(err))
 			return nil, err
 		}
 
@@ -291,6 +297,7 @@ func NewReplicationServer(
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize sync server", zap.Error(err))
 			return nil, err
 		}
 
@@ -312,6 +319,7 @@ func NewReplicationServer(
 			cfg.Options.Contracts.SettlementChain.ChainID,
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize signer for payer report workers", zap.Error(err))
 			return nil, err
 		}
 
@@ -320,6 +328,10 @@ func NewReplicationServer(
 			cfg.Options.Contracts.SettlementChain.RPCURL,
 		)
 		if err != nil {
+			cfg.Logger.Error(
+				"failed to initialize settlement chain client for payer report workers",
+				zap.Error(err),
+			)
 			return nil, err
 		}
 
@@ -330,16 +342,22 @@ func NewReplicationServer(
 			cfg.Options.Contracts.SettlementChain,
 		)
 		if err != nil {
+			cfg.Logger.Error(
+				"failed to initialize reports manager for payer report workers",
+				zap.Error(err),
+			)
 			return nil, err
 		}
 
+		payerReportBaseLogger := cfg.Logger.Named(utils.PayerReportMainLoggerName)
+
 		workerConfig, err := workers.NewWorkerConfigBuilder().
 			WithContext(s.ctx).
-			WithLogger(cfg.Logger).
+			WithLogger(payerReportBaseLogger).
 			WithRegistrant(s.registrant).
 			WithRegistry(s.nodeRegistry).
 			WithReportsManager(reportsManager).
-			WithStore(payerreport.NewStore(cfg.DB, cfg.Logger)).
+			WithStore(payerreport.NewStore(cfg.DB, payerReportBaseLogger)).
 			WithDomainSeparator(domainSeparator).
 			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
 			WithGenerationSelfPeriod(cfg.Options.PayerReport.GenerateReportSelfPeriod).
@@ -381,6 +399,7 @@ func startAPIServer(
 			isMigrationEnabled,
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize replication api service", zap.Error(err))
 			return err
 		}
 		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
@@ -395,6 +414,7 @@ func startAPIServer(
 			metadata.NewPayerInfoFetcher(cfg.DB),
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize metadata api service", zap.Error(err))
 			return err
 		}
 		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
@@ -414,6 +434,7 @@ func startAPIServer(
 			cfg.ServerVersion,
 		)
 		if err != nil {
+			cfg.Logger.Error("failed to initialize jwt verifier", zap.Error(err))
 			return err
 		}
 	}
@@ -438,6 +459,7 @@ func startAPIServer(
 
 	s.apiServer, err = api.NewAPIServer(apiOpts...)
 	if err != nil {
+		cfg.Logger.Error("failed to initialize api server", zap.Error(err))
 		return err
 	}
 

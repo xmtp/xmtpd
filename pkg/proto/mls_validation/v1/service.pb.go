@@ -350,8 +350,8 @@ func (x *GetAssociationStateRequest) GetNewUpdates() []*associations.IdentityUpd
 	return nil
 }
 
-// Response to GetAssociationStateRequest, containing the final association state
-// for an InboxID
+// Response to GetAssociationStateRequest, containing the final association
+// state for an InboxID
 type GetAssociationStateResponse struct {
 	state            protoimpl.MessageState             `protogen:"open.v1"`
 	AssociationState *associations.AssociationState     `protobuf:"bytes,1,opt,name=association_state,json=associationState,proto3" json:"association_state,omitempty"`

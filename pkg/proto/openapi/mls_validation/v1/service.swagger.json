@@ -450,7 +450,7 @@
           "$ref": "#/definitions/associationsAssociationStateDiff"
         }
       },
-      "title": "Response to GetAssociationStateRequest, containing the final association state\nfor an InboxID"
+      "title": "Response to GetAssociationStateRequest, containing the final association\nstate for an InboxID"
     },
     "v1ValidateGroupMessagesRequestGroupMessage": {
       "type": "object",

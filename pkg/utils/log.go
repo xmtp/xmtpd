@@ -80,6 +80,7 @@ const (
 	// Payer report subsystem.
 	LedgerLoggerName                       = "ledger"
 	PayerReportMainLoggerName              = "payer-report"
+	PayerReportStoreLoggerName             = "store"
 	PayerReportAttestationWorkerLoggerName = "attestation-worker"
 	PayerReportGeneratorWorkerLoggerName   = "generator-worker"
 	PayerReportSettlementWorkerLoggerName  = "settlement-worker"

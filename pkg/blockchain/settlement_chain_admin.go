@@ -52,6 +52,16 @@ type ISettlementChainAdmin interface {
 	BridgeParameters(ctx context.Context, keys []string) error
 }
 
+const (
+	noUpdateNeededMessage = "no update needed"
+
+	pausedField               = "paused"
+	protocolFeeRateField      = "protocol_fee_rate"
+	minimumDepositField       = "minimum_deposit"
+	withdrawLockPeriodField   = "withdraw_lock_period"
+	protocolFeeRecipientField = "protocol_fee_recipient"
+)
+
 type settlementChainAdmin struct {
 	client                 *ethclient.Client
 	signer                 TransactionSigner
@@ -170,13 +180,13 @@ func (s settlementChainAdmin) UpdateSettlementChainGatewayPauseStatus(
 			}
 			s.logger.Info(
 				"settlement-chain gateway pause status updated",
-				zap.Bool("paused", ev.Paused),
+				zap.Bool(pausedField, ev.Paused),
 			)
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err
@@ -210,13 +220,13 @@ func (s settlementChainAdmin) UpdatePayerRegistryPauseStatus(ctx context.Context
 			}
 			s.logger.Info(
 				"payer registry pause status updated",
-				zap.Bool("paused", ev.Paused),
+				zap.Bool(pausedField, ev.Paused),
 			)
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err
@@ -252,13 +262,13 @@ func (s settlementChainAdmin) UpdateDistributionManagerPauseStatus(
 			}
 			s.logger.Info(
 				"distribution manager pause status updated",
-				zap.Bool("paused", ev.Paused),
+				zap.Bool(pausedField, ev.Paused),
 			)
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err
@@ -294,7 +304,7 @@ func (s settlementChainAdmin) UpdateDistributionManagerProtocolFeesRecipient(
 				return
 			}
 			s.logger.Info("distribution manager protocol fees recipient updated",
-				zap.String("protocolFeesRecipient", ev.ProtocolFeesRecipient.Hex()))
+				zap.String(protocolFeeRecipientField, ev.ProtocolFeesRecipient.Hex()))
 		},
 	)
 	if err != nil {
@@ -331,12 +341,12 @@ func (s settlementChainAdmin) UpdatePayerRegistryMinimumDeposit(
 				return
 			}
 			s.logger.Info("payer registry minimum deposit updated",
-				zap.String("minimumDeposit", ev.MinimumDeposit.String()))
+				zap.String(minimumDepositField, ev.MinimumDeposit.String()))
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed (payer registry minimum deposit)")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err
@@ -369,12 +379,12 @@ func (s settlementChainAdmin) UpdatePayerRegistryWithdrawLockPeriod(
 				return
 			}
 			s.logger.Info("payer registry withdraw lock period updated",
-				zap.Uint32("withdrawLockPeriod", ev.WithdrawLockPeriod))
+				zap.Uint32(withdrawLockPeriodField, ev.WithdrawLockPeriod))
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed (payer registry withdraw lock period)")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err
@@ -409,12 +419,12 @@ func (s settlementChainAdmin) UpdatePayerReportManagerProtocolFeeRate(
 				return
 			}
 			s.logger.Info("payer report manager protocol fee updated",
-				zap.Uint16("protocolFeeRate", ev.ProtocolFeeRate))
+				zap.Uint16(protocolFeeRateField, ev.ProtocolFeeRate))
 		},
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed (payer report manager protocol fee)")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err
@@ -450,7 +460,7 @@ func (s settlementChainAdmin) UpdateNodeRegistryAdmin(ctx context.Context) error
 	)
 	if err != nil {
 		if err.IsNoChange() {
-			s.logger.Info("no update needed")
+			s.logger.Info(noUpdateNeededMessage)
 			return nil
 		}
 		return err

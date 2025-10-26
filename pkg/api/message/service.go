@@ -80,11 +80,13 @@ func NewReplicationAPIService(
 
 	publishWorker, err := startPublishWorker(ctx, logger, registrant, store, feeCalculator)
 	if err != nil {
+		logger.Error("could not start publish worker", zap.Error(err))
 		return nil, err
 	}
 
 	subscribeWorker, err := startSubscribeWorker(ctx, logger, store)
 	if err != nil {
+		logger.Error("could not start subscribe worker", zap.Error(err))
 		return nil, err
 	}
 

@@ -42,7 +42,7 @@ func NewStore(db *sql.DB, logger *zap.Logger) *Store {
 	return &Store{
 		queries: queries.New(db),
 		db:      db,
-		logger:  logger.Named(utils.PayerReportMainLoggerName),
+		logger:  logger.Named(utils.PayerReportStoreLoggerName),
 	}
 }
 

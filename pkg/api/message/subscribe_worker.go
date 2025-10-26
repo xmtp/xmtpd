@@ -18,7 +18,9 @@ import (
 const (
 	subscriptionBufferSize  = 1024
 	SubscribeWorkerPollTime = 100 * time.Millisecond
-	subscribeWorkerPollRows = 10000
+	// based on measurements in testnet using PG, we can poll at most 1000 elements in a large DB
+	// this gives us sufficient throughput if being run continually
+	subscribeWorkerPollRows = 1000
 )
 
 type listener struct {
@@ -54,10 +56,10 @@ func newListener(
 	for _, t := range topics {
 		validatedTopic, err := topic.ParseTopic(t)
 		if err != nil {
-			logger.Warn("Skipping invalid topic", zap.Binary("topicBytes", t))
+			logger.Warn("skipping invalid topic", zap.Binary("topic_bytes", t))
 			continue
 		}
-		logger.Debug("Adding topic listener", zap.String("topic", validatedTopic.String()))
+		logger.Debug("adding topic listener", zap.String("topic", validatedTopic.String()))
 		l.topics[validatedTopic.String()] = struct{}{}
 	}
 
@@ -162,20 +164,30 @@ func startSubscribeWorker(
 		envs, err := q.
 			SelectGatewayEnvelopes(
 				ctx,
-				*db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{}, lastSeen),
+				*db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{RowLimit: numRows}, lastSeen),
 			)
 		if err != nil {
-			return nil, lastSeen, err
+			logger.Error(
+				"failed to get envelopes",
+				zap.Error(err),
+				zap.Any("last_seen", lastSeen),
+			)
+			return nil, db.VectorClock{}, err
 		}
 		for _, env := range envs {
-			// TODO(rich) Handle out-of-order envelopes
-			lastSeen[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
+			nodeID := uint32(env.OriginatorNodeID)
+			seqID := uint64(env.OriginatorSequenceID)
+
+			if current, ok := lastSeen[nodeID]; !ok || seqID > current {
+				lastSeen[nodeID] = seqID
+			}
 		}
 		return envs, lastSeen, nil
 	}
 
 	vc, err := q.SelectVectorClock(ctx)
 	if err != nil {
+		logger.Error("failed to get vector clock", zap.Error(err))
 		return nil, err
 	}
 
@@ -192,6 +204,7 @@ func startSubscribeWorker(
 
 	dbChan, err := subscription.Start()
 	if err != nil {
+		logger.Error("failed to start subscription", zap.Error(err))
 		return nil, err
 	}
 
@@ -205,6 +218,7 @@ func startSubscribeWorker(
 	}
 
 	go worker.start()
+	logger.Debug("started")
 
 	return worker, nil
 }

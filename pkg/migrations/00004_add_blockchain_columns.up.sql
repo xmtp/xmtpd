@@ -8,6 +8,8 @@ CREATE TABLE blockchain_messages(
 	FOREIGN KEY (originator_node_id, originator_sequence_id) REFERENCES gateway_envelopes(originator_node_id, originator_sequence_id)
 );
 
+-- TODO(mkysel) - figure out this foreign key
+
 CREATE INDEX idx_blockchain_messages_block_canonical ON blockchain_messages(block_number, is_canonical);
 
 ALTER TABLE latest_block ADD COLUMN block_hash BYTEA;

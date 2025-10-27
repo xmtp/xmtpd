@@ -43,7 +43,7 @@ func (ts *testSetup) insertMessages(t *testing.T, messages []testMessage) {
 	for i, msg := range messages {
 		minutesSinceEpoch := utils.MinutesSinceEpoch(msg.timestamp)
 
-		insertParams := queries.InsertGatewayEnvelopeParams{
+		insertParams := queries.InsertGatewayEnvelopeV2Params{
 			OriginatorNodeID: msg.originatorID,
 			OriginatorSequenceID: int64(
 				minutesSinceEpoch,
@@ -72,7 +72,7 @@ func (ts *testSetup) insertMessages(t *testing.T, messages []testMessage) {
 			insertParams,
 			incrementParams,
 		)
-		require.NoError(t, err)
+		require.NoError(t, err, msg)
 		require.Equal(t, int64(1), numInserted)
 	}
 }
@@ -174,10 +174,10 @@ func TestPayerInfo_MultipleOriginators(t *testing.T) {
 
 	// Insert messages from multiple originators in the same period
 	messages := []testMessage{
-		{setup.baseTime, 100, 1},
-		{setup.baseTime.Add(10 * time.Minute), 200, 2},
-		{setup.baseTime.Add(20 * time.Minute), 300, 3},
-		{setup.baseTime.Add(30 * time.Minute), 400, 1}, // Same originator as first
+		{setup.baseTime, 100, 100},
+		{setup.baseTime.Add(10 * time.Minute), 200, 200},
+		{setup.baseTime.Add(20 * time.Minute), 300, 300},
+		{setup.baseTime.Add(30 * time.Minute), 400, 100}, // Same originator as first
 	}
 	setup.insertMessages(t, messages)
 

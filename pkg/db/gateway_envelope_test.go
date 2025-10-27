@@ -18,8 +18,8 @@ func buildParams(
 	originatorID int32,
 	sequenceID int64,
 	spendPicodollars int64,
-) (queries.InsertGatewayEnvelopeParams, queries.IncrementUnsettledUsageParams) {
-	insertParams := queries.InsertGatewayEnvelopeParams{
+) (queries.InsertGatewayEnvelopeV2Params, queries.IncrementUnsettledUsageParams) {
+	insertParams := queries.InsertGatewayEnvelopeV2Params{
 		OriginatorNodeID:     originatorID,
 		OriginatorSequenceID: sequenceID,
 		Topic:                testutils.RandomBytes(32),
@@ -44,7 +44,7 @@ func TestInsertAndIncrement(t *testing.T) {
 	querier := queries.New(db)
 	// Create a payer
 	payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	sequenceID := int64(10)
 
 	insertParams, incrementParams := buildParams(payerID, originatorID, sequenceID, 100)
@@ -79,7 +79,7 @@ func TestPayerMustExist(t *testing.T) {
 	db, _ := testutils.NewDB(t, ctx)
 
 	payerID := testutils.RandomInt32()
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	sequenceID := int64(10)
 
 	insertParams, incrementParams := buildParams(payerID, originatorID, sequenceID, 100)
@@ -100,7 +100,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 	querier := queries.New(db)
 	// Create a payer
 	payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	sequenceID := int64(10)
 	numberOfInserts := 20
 
@@ -154,7 +154,7 @@ func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 	querier := queries.New(db)
 
 	payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	sequenceID := int64(10)
 
 	insertParams, incrementParams := buildParams(payerID, originatorID, sequenceID, 100)

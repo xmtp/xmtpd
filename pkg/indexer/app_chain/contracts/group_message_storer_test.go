@@ -61,9 +61,11 @@ func TestStoreGroupMessages(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gatewayEnvelopes, err := storer.queries.SelectGatewayEnvelopes(
+	gatewayEnvelopes, err := storer.queries.SelectGatewayEnvelopesV2ByOriginators(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{OriginatorNodeIds: []int32{0}},
+		queries.SelectGatewayEnvelopesV2ByOriginatorsParams{
+			OriginatorNodeIds: []int32{constants.GroupMessageOriginatorID},
+		},
 	)
 	require.NoError(t, err)
 
@@ -113,9 +115,9 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	envelopes, queryErr := storer.queries.SelectGatewayEnvelopes(
+	envelopes, queryErr := storer.queries.SelectGatewayEnvelopesV2ByOriginators(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{OriginatorNodeIds: []int32{0}},
+		queries.SelectGatewayEnvelopesV2ByOriginatorsParams{OriginatorNodeIds: []int32{0}},
 	)
 	require.NoError(t, queryErr)
 

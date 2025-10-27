@@ -28,34 +28,26 @@ func setupTestData(t *testing.T, db *sql.DB, expired int, valid int) {
 
 	// Insert expired envelopes
 	for i := 0; i < expired; i++ {
-		_, err := q.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-			OriginatorNodeID:     1,
+		_, err := q.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: int64(i),
 			Topic:                []byte("topic"),
 			OriginatorEnvelope:   []byte("payload"),
-			PayerID:              sql.NullInt32{Valid: false},
 			GatewayTime:          time.Now(),
-			Expiry: sql.NullInt64{
-				Int64: time.Now().Add(-1 * time.Hour).Unix(),
-				Valid: true,
-			},
+			Expiry:               time.Now().Add(-1 * time.Hour).Unix(),
 		})
 		assert.NoError(t, err)
 	}
 
 	// Insert non-expired envelopes
 	for i := 0; i < valid; i++ {
-		_, err := q.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-			OriginatorNodeID:     1,
+		_, err := q.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: int64(i + expired),
 			Topic:                []byte("topic"),
 			OriginatorEnvelope:   []byte("payload"),
-			PayerID:              sql.NullInt32{Valid: false},
 			GatewayTime:          time.Now(),
-			Expiry: sql.NullInt64{
-				Int64: time.Now().Add(1 * time.Hour).Unix(),
-				Valid: true,
-			},
+			Expiry:               time.Now().Add(1 * time.Hour).Unix(),
 		})
 		assert.NoError(t, err)
 	}
@@ -98,7 +90,7 @@ func TestExecutor_PrunesExpired(t *testing.T) {
 
 	// Ensure non-expired remain
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes`)
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta_v2`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(t, DEFAULT_VALID_CNT, total, "Only non-expired envelopes should remain")
@@ -118,15 +110,11 @@ func TestExecutor_DryRun_NoPrune(t *testing.T) {
 	err := exec.Run()
 	assert.NoError(t, err)
 
-	q := queries.New(db)
-	cnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
-	assert.EqualValues(t, DEFAULT_EXPIRED_CNT, cnt, "DryRun should not prune any envelopes")
-
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes`)
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta_v2`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
+
 	assert.EqualValues(
 		t,
 		DEFAULT_VALID_CNT+DEFAULT_EXPIRED_CNT,
@@ -140,7 +128,7 @@ func openAndHoldLock(t *testing.T, ctx context.Context, db *sql.DB) *sql.Tx {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	_, err = tx.ExecContext(ctx, `
-		SELECT * FROM gateway_envelopes 
+		SELECT * FROM gateway_envelopes_meta_v2
 		WHERE originator_sequence_id = 1 
 		FOR UPDATE
 	`)
@@ -186,7 +174,7 @@ func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 func getRemainingSequenceIds(t *testing.T, ctx context.Context, db *sql.DB) []int64 {
 	var remainingIDs []int64
 	rows, err := db.QueryContext(ctx, `
-		SELECT originator_sequence_id FROM gateway_envelopes
+		SELECT originator_sequence_id FROM gateway_envelopes_meta_v2
 	`)
 	require.NoError(t, err)
 	defer func() {

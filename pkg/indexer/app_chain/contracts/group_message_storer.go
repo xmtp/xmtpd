@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"math"
 
@@ -102,12 +101,12 @@ func (s *GroupMessageStorer) StoreLog(
 		utils.TopicField(topicStruct.String()),
 	)
 
-	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
+	if _, err = s.queries.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
 		OriginatorNodeID:     constants.GroupMessageOriginatorID,
 		OriginatorSequenceID: int64(msgSent.SequenceId),
 		Topic:                topicStruct.Bytes(),
 		OriginatorEnvelope:   originatorEnvelopeBytes,
-		Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
+		Expiry:               math.MaxInt64,
 	}); err != nil {
 		s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
 		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)

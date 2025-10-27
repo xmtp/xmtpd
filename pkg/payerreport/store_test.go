@@ -503,11 +503,11 @@ func TestStoreSyncedReport(t *testing.T) {
 	ctx := context.Background()
 
 	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
-		OriginatorNodeID:    7,
+		OriginatorNodeID:    100,
 		StartSequenceID:     0,
 		EndSequenceID:       10,
 		EndMinuteSinceEpoch: uint32(time.Now().Unix() / 60),
-		NodeIDs:             []uint32{7},
+		NodeIDs:             []uint32{100},
 		DomainSeparator:     domainSeparator,
 	})
 	require.NoError(t, err)
@@ -544,11 +544,11 @@ func TestStoreSyncedAttestation(t *testing.T) {
 	// First create and store the base report so that the attestation references a real report ID
 	baseReport := payerreport.PayerReport{
 		ID:               reportID,
-		OriginatorNodeID: 8,
+		OriginatorNodeID: 100,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
 		PayersMerkleRoot: randomBytes32(),
-		ActiveNodeIDs:    []uint32{8},
+		ActiveNodeIDs:    []uint32{100},
 	}
 	numRows, err := store.StoreReport(ctx, &baseReport)
 	require.NoError(t, err)

@@ -76,7 +76,7 @@ GROUP BY payers.address;
 
 -- name: GetGatewayEnvelopeByID :one
 SELECT *
-FROM gateway_envelopes
+FROM gateway_envelopes_v2_view
 WHERE originator_sequence_id = @originator_sequence_id -- Include the node ID to take advantage of the primary key index
 	AND originator_node_id = @originator_node_id;
 

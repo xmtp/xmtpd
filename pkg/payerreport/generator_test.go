@@ -63,7 +63,7 @@ func addEnvelope(
 	_, err = dbHelpers.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		context.Background(),
 		db,
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV2Params{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: sequenceID,
 			OriginatorEnvelope:   envelopeBytes,
@@ -89,7 +89,7 @@ func TestFirstReport(t *testing.T) {
 	db, generator := setupGenerator(t)
 
 	payerAddress := testutils.RandomAddress()
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 
 	// Two envelopes in the first minute since the epoch
 	addEnvelope(t, db, originatorID, 1, payerAddress, getMinute(1))
@@ -118,7 +118,7 @@ func TestReportWithMultiplePayers(t *testing.T) {
 
 	payerAddress1 := testutils.RandomAddress()
 	payerAddress2 := testutils.RandomAddress()
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 
 	addEnvelope(t, db, originatorID, 1, payerAddress1, getMinute(1))
 	addEnvelope(t, db, originatorID, 2, payerAddress2, getMinute(1))
@@ -142,7 +142,7 @@ func TestReportWithMultiplePayers(t *testing.T) {
 func TestReportWithNoMessages(t *testing.T) {
 	_, generator := setupGenerator(t)
 
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 
 	report, err := generator.GenerateReport(
 		context.Background(),
@@ -162,7 +162,7 @@ func TestReportWithNoMessages(t *testing.T) {
 func TestSecondReportWithNoMessages(t *testing.T) {
 	db, generator := setupGenerator(t)
 
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	payerAddress1 := testutils.RandomAddress()
 
 	addEnvelope(t, db, originatorID, 1, payerAddress1, getMinute(1))
@@ -184,7 +184,7 @@ func TestSecondReportWithNoMessages(t *testing.T) {
 func TestSecondReport(t *testing.T) {
 	db, generator := setupGenerator(t)
 
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	payerAddress := testutils.RandomAddress()
 
 	addEnvelope(t, db, originatorID, 1, payerAddress, getMinute(1))
@@ -206,7 +206,7 @@ func TestSecondReport(t *testing.T) {
 	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
 
 	addEnvelope(t, db, originatorID, 4, payerAddress, getMinute(3))
-	addEnvelope(t, db, originatorID, 4, payerAddress, getMinute(4))
+	addEnvelope(t, db, originatorID, 5, payerAddress, getMinute(4))
 
 	report, err = generator.GenerateReport(
 		context.Background(),
@@ -218,16 +218,16 @@ func TestSecondReport(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint64(3), report.EndSequenceID)
-	require.Equal(t, currency.PicoDollar(100), report.Payers[payerAddress])
+	require.Equal(t, uint64(4), report.EndSequenceID)
+	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
 }
 
 // Make sure that we don't pick up sequence IDs from other originators in the report
 func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
 	db, generator := setupGenerator(t)
 
-	originatorID := testutils.RandomInt32()
-	otherOriginatorID := testutils.RandomInt32()
+	originatorID := int32(100)
+	otherOriginatorID := int32(200)
 	payerAddress := testutils.RandomAddress()
 
 	addEnvelope(t, db, otherOriginatorID, 1, payerAddress, getMinute(1))

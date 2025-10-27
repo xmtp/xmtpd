@@ -22,7 +22,7 @@ var (
 	topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
 	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
 )
-var allRows []queries.InsertGatewayEnvelopeParams
+var allRows []queries.InsertGatewayEnvelopeV2Params
 
 func setupTest(
 	t *testing.T,
@@ -30,10 +30,10 @@ func setupTest(
 	api, db, mocks := testUtilsApi.NewTestMetadataAPIClient(t)
 	payerID := dbUtils.NullInt32(testutils.CreatePayer(t, db))
 
-	allRows = []queries.InsertGatewayEnvelopeParams{
+	allRows = []queries.InsertGatewayEnvelopeV2Params{
 		// Initial rows
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			PayerID:              payerID,
@@ -43,7 +43,7 @@ func setupTest(
 			),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			PayerID:              payerID,
@@ -54,7 +54,7 @@ func setupTest(
 		},
 		// Later rows
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
 			PayerID:              payerID,
@@ -64,7 +64,7 @@ func setupTest(
 			),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
 			PayerID:              payerID,
@@ -74,7 +74,7 @@ func setupTest(
 			),
 		},
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
 			PayerID:              payerID,
@@ -89,14 +89,14 @@ func setupTest(
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
 		allRows[0], allRows[1],
 	})
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
 }
@@ -113,8 +113,8 @@ func TestGetCursorBasic(t *testing.T) {
 	require.NotNil(t, cursor)
 
 	expectedCursor := map[uint32]uint64{
-		1: 1,
-		2: 1,
+		100: 1,
+		200: 1,
 	}
 
 	require.Equal(t, expectedCursor, cursor.LatestSync.NodeIdToSequenceId)
@@ -122,8 +122,8 @@ func TestGetCursorBasic(t *testing.T) {
 	insertAdditionalRows(t, db)
 	require.Eventually(t, func() bool {
 		expectedCursor := map[uint32]uint64{
-			1: 3,
-			2: 2,
+			100: 3,
+			200: 2,
 		}
 
 		cursor, err := client.GetSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
@@ -155,8 +155,8 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 	require.NotNil(t, firstUpdate)
 
 	expectedCursor := map[uint32]uint64{
-		1: 1,
-		2: 1,
+		100: 1,
+		200: 1,
 	}
 
 	require.Equal(t, expectedCursor, firstUpdate.LatestSync.NodeIdToSequenceId)
@@ -165,8 +165,8 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		expectedCursor := map[uint32]uint64{
-			1: 3,
-			2: 2,
+			100: 3,
+			200: 2,
 		}
 
 		update, err := stream.Recv()

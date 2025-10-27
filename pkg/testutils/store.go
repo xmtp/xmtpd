@@ -84,14 +84,14 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 func InsertGatewayEnvelopes(
 	t *testing.T,
 	db *sql.DB,
-	rows []queries.InsertGatewayEnvelopeParams,
+	rows []queries.InsertGatewayEnvelopeV2Params,
 	notifyChan ...chan bool,
 ) {
 	q := queries.New(db)
 	for _, row := range rows {
-		inserted, err := q.InsertGatewayEnvelope(context.Background(), row)
-		require.Equal(t, int64(1), inserted)
+		inserted, err := q.InsertGatewayEnvelopeV2(context.Background(), row)
 		require.NoError(t, err)
+		require.EqualValues(t, int64(1), inserted.InsertedMetaRows)
 
 		if len(notifyChan) > 0 {
 			select {

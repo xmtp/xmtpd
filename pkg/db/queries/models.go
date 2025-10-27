@@ -34,10 +34,33 @@ type GatewayEnvelope struct {
 	Expiry               sql.NullInt64
 }
 
+type GatewayEnvelopeBlobsV2 struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	OriginatorEnvelope   []byte
+}
+
 type GatewayEnvelopesLatest struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	GatewayTime          time.Time
+}
+
+type GatewayEnvelopesMetaV2 struct {
+	GatewayTime          time.Time
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	Topic                []byte
+	PayerID              sql.NullInt32
+	Expiry               int64
+}
+
+type GatewayEnvelopesV2View struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	GatewayTime          time.Time
+	Topic                []byte
+	OriginatorEnvelope   []byte
 }
 
 type LatestBlock struct {

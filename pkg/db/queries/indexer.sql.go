@@ -9,58 +9,6 @@ import (
 	"context"
 )
 
-const getBlocksInRange = `-- name: GetBlocksInRange :many
-SELECT DISTINCT ON (block_number)
-	block_number,
-	block_hash
-FROM
-	blockchain_messages
-WHERE
-	block_number BETWEEN $1 AND $2
-	AND block_hash IS NOT NULL
-	AND is_canonical = TRUE
-ORDER BY
-	block_number ASC,
-	block_hash
-`
-
-type GetBlocksInRangeParams struct {
-	StartBlock uint64
-	EndBlock   uint64
-}
-
-type GetBlocksInRangeRow struct {
-	BlockNumber uint64
-	BlockHash   []byte
-}
-
-// Returns blocks in ascending order (oldest to newest)
-// StartBlock should be the lower bound (older block)
-// EndBlock should be the upper bound (newer block)
-// Example: GetBlocksInRange(1000, 2000), returns 1000, 1001, 1002, ..., 2000
-func (q *Queries) GetBlocksInRange(ctx context.Context, arg GetBlocksInRangeParams) ([]GetBlocksInRangeRow, error) {
-	rows, err := q.db.QueryContext(ctx, getBlocksInRange, arg.StartBlock, arg.EndBlock)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetBlocksInRangeRow
-	for rows.Next() {
-		var i GetBlocksInRangeRow
-		if err := rows.Scan(&i.BlockNumber, &i.BlockHash); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getLatestBlock = `-- name: GetLatestBlock :one
 SELECT
 	block_number,
@@ -83,32 +31,6 @@ func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (G
 	return i, err
 }
 
-const insertBlockchainMessage = `-- name: InsertBlockchainMessage :exec
-INSERT INTO blockchain_messages(block_number, block_hash, originator_node_id, originator_sequence_id, is_canonical)
-	VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT
-	DO NOTHING
-`
-
-type InsertBlockchainMessageParams struct {
-	BlockNumber          uint64
-	BlockHash            []byte
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
-	IsCanonical          bool
-}
-
-func (q *Queries) InsertBlockchainMessage(ctx context.Context, arg InsertBlockchainMessageParams) error {
-	_, err := q.db.ExecContext(ctx, insertBlockchainMessage,
-		arg.BlockNumber,
-		arg.BlockHash,
-		arg.OriginatorNodeID,
-		arg.OriginatorSequenceID,
-		arg.IsCanonical,
-	)
-	return err
-}
-
 const setLatestBlock = `-- name: SetLatestBlock :exec
 INSERT INTO latest_block(contract_address, block_number, block_hash)
 	VALUES ($1, $2, $3)
@@ -128,32 +50,5 @@ type SetLatestBlockParams struct {
 
 func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) error {
 	_, err := q.db.ExecContext(ctx, setLatestBlock, arg.ContractAddress, arg.BlockNumber, arg.BlockHash)
-	return err
-}
-
-const updateBlocksCanonicalityInRange = `-- name: UpdateBlocksCanonicalityInRange :exec
-UPDATE
-	blockchain_messages AS bm
-SET
-	is_canonical = FALSE
-FROM (
-	SELECT
-		block_number
-	FROM
-		blockchain_messages
-	WHERE
-		bm.block_number BETWEEN $1 AND $2
-	FOR UPDATE) AS locked_rows
-WHERE
-	bm.block_number = locked_rows.block_number
-`
-
-type UpdateBlocksCanonicalityInRangeParams struct {
-	StartBlockNumber uint64
-	EndBlockNumber   uint64
-}
-
-func (q *Queries) UpdateBlocksCanonicalityInRange(ctx context.Context, arg UpdateBlocksCanonicalityInRangeParams) error {
-	_, err := q.db.ExecContext(ctx, updateBlocksCanonicalityInRange, arg.StartBlockNumber, arg.EndBlockNumber)
 	return err
 }

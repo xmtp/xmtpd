@@ -158,7 +158,11 @@ func BuildPayerReportID(
 		return nil, errors.New("domain separator is required")
 	}
 
-	nodeIdsHash := utils.PackSortAndHashNodeIDs(activeNodeIDs)
+	nodeIdsHash, err := utils.PackSortAndHashNodeIDs(activeNodeIDs)
+	if err != nil {
+		log.Printf("error packing node IDs: %v\n", err)
+		return nil, err
+	}
 
 	packedBytes, err := payerReportMessageHash.Pack(
 		payerReportDigestTypeHash,

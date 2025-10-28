@@ -55,7 +55,7 @@ type IParameterRegistry interface {
 	Get(opts *bind.CallOpts, key string) ([32]byte, error)
 	Set(opts *bind.TransactOpts, key string, value [32]byte) (*types.Transaction, error)
 	SetMany(opts *bind.TransactOpts, keys []string, values [][32]byte) (*types.Transaction, error)
-	ParseParameterSet(log types.Log) ([32]byte, [32]byte, error)
+	ParseParameterSet(log types.Log) (string, [32]byte, error)
 }
 
 type IParameterAdmin interface {
@@ -442,7 +442,7 @@ func decodeBool(val [32]byte) (bool, error) {
 // shared executor -------------------------------------------------------------
 
 type parameterSetEvent struct {
-	Key   [32]byte
+	Key   string
 	Value [32]byte
 }
 
@@ -507,7 +507,7 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 				return
 			}
 			n.logger.Info("update parameter (batch)",
-				zap.String("key", string(ev.Key[:])),
+				zap.String("key", ev.Key),
 				zap.Uint64("value", utils.DecodeBytes32ToUint64(ev.Value)),
 			)
 		},

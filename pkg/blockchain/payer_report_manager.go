@@ -167,7 +167,7 @@ func (r *ReportsManager) GetReportID(
 	if err != nil {
 		return payerreport.ReportID{}, err
 	}
-	return payerreport.ReportID(digest), nil
+	return digest, nil
 }
 
 func (r *ReportsManager) GetDomainSeparator(ctx context.Context) (common.Hash, error) {

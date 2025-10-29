@@ -8,6 +8,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -45,6 +46,14 @@ func MustLoadConfig() *config.GatewayConfig {
 		log.Fatalf("failed to load config from environment: %v", err)
 	}
 	return cfg
+}
+
+func MustCreateLogger(cfg *config.GatewayConfig) *zap.Logger {
+	logger, _, err := utils.BuildLogger(cfg.Log)
+	if err != nil {
+		log.Fatalf("Failed to setup logger: %v", err)
+	}
+	return logger
 }
 
 func ClientIPFromContext(ctx context.Context) string {

@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/xmtp/xmtpd/pkg/api"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -27,6 +28,7 @@ type gatewayServiceImpl struct {
 	apiServer           *api.APIServer
 	nodeRegistry        registry.NodeRegistry
 	blockchainPublisher blockchain.IBlockchainPublisher
+	redisClient         redis.UniversalClient
 }
 
 // Shutdown gracefully stops the API server and cleans up resources.
@@ -45,6 +47,10 @@ func (s *gatewayServiceImpl) Shutdown(timeout time.Duration) error {
 
 	if s.cancel != nil {
 		s.cancel()
+	}
+
+	if s.redisClient != nil {
+		_ = s.redisClient.Close()
 	}
 
 	if s.apiServer != nil {

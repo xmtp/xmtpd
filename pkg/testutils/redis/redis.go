@@ -31,7 +31,7 @@ func NewRedisForTest(t *testing.T) (redis.UniversalClient, string) {
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
 		_ = client.Close()
-		t.Errorf("Redis not available: %v", err)
+		t.Fatalf("Redis not available: %v", err)
 		return nil, ""
 	}
 

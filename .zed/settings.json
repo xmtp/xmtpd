@@ -30,15 +30,17 @@
     "Go": {
       "language_servers": ["golangci-lint", "gopls"],
       "format_on_save": "on",
-      "formatter": {
-        "external": {
-          "command": "golangci-lint",
-          "arguments": ["fmt", "--stdin"]
+      "formatter": [
+        {
+          "external": {
+            "command": "golangci-lint",
+            "arguments": ["fmt", "--stdin"]
+          }
+        },
+        {
+          "code_action": "source.organizeImports"
         }
-      },
-      "code_actions_on_format": {
-        "source.organizeImports": true
-      }
+      ]
     },
     "JSON": {
       "language_servers": ["prettier"]

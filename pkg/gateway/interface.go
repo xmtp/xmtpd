@@ -5,6 +5,7 @@ import (
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redis/go-redis/v9"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -52,6 +53,7 @@ type IGatewayServiceBuilder interface {
 	WithPromRegistry(promRegistry *prometheus.Registry) IGatewayServiceBuilder
 	WithClientMetrics(clientMetrics *grpcprom.ClientMetrics) IGatewayServiceBuilder
 	WithNonceManager(nonceManager noncemanager.NonceManager) IGatewayServiceBuilder
+	WithRedisClient(redisClient redis.UniversalClient) IGatewayServiceBuilder
 	Build() (GatewayService, error)
 }
 

@@ -1,0 +1,1 @@
+DROP table blockchain_messages;

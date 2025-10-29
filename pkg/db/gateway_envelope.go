@@ -13,7 +13,7 @@ import (
 func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 	ctx context.Context,
 	db *sql.DB,
-	insertParams queries.InsertGatewayEnvelopeParams,
+	insertParams queries.InsertGatewayEnvelopeV2Params,
 	incrementParams queries.IncrementUnsettledUsageParams,
 ) (int64, error) {
 	return RunInTxWithResult(
@@ -21,13 +21,13 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		db,
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) (int64, error) {
-			numInserted, err := txQueries.InsertGatewayEnvelope(ctx, insertParams)
+			numInserted, err := txQueries.InsertGatewayEnvelopeV2(ctx, insertParams)
 			if err != nil {
 				return 0, err
 			}
 			// If the numInserted is 0 it means the envelope already exists
 			// and we don't need to increment the unsettled usage
-			if numInserted == 0 {
+			if numInserted.InsertedMetaRows == 0 {
 				return 0, nil
 			}
 
@@ -70,7 +70,7 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 				return 0, congestionErr
 			}
 
-			return numInserted, nil
+			return numInserted.InsertedMetaRows, nil
 		},
 	)
 }

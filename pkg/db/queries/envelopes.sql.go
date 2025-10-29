@@ -7,9 +7,6 @@ package queries
 
 import (
 	"context"
-	"database/sql"
-
-	"github.com/lib/pq"
 )
 
 const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
@@ -40,53 +37,6 @@ func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int3
 	return originator_sequence_id, err
 }
 
-const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(
-		originator_node_id,
-		originator_sequence_id,
-		topic,
-		originator_envelope,
-		payer_id,
-		gateway_time,
-        expiry
-	)
-VALUES (
-		$1,
-		$2,
-		$3,
-		$4,
-		$5,
-		COALESCE($6, NOW()),
-        $7
-	) ON CONFLICT DO NOTHING
-`
-
-type InsertGatewayEnvelopeParams struct {
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
-	Topic                []byte
-	OriginatorEnvelope   []byte
-	PayerID              sql.NullInt32
-	GatewayTime          interface{}
-	Expiry               sql.NullInt64
-}
-
-func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertGatewayEnvelope,
-		arg.OriginatorNodeID,
-		arg.OriginatorSequenceID,
-		arg.Topic,
-		arg.OriginatorEnvelope,
-		arg.PayerID,
-		arg.GatewayTime,
-		arg.Expiry,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const insertStagedOriginatorEnvelope = `-- name: InsertStagedOriginatorEnvelope :one
 SELECT id, originator_time, topic, payer_envelope
 FROM insert_staged_originator_envelope($1, $2)
@@ -107,107 +57,6 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 		&i.PayerEnvelope,
 	)
 	return i, err
-}
-
-const selectGatewayEnvelopes = `-- name: SelectGatewayEnvelopes :many
-SELECT gateway_time, originator_node_id, originator_sequence_id, topic, originator_envelope, payer_id, expiry
-FROM select_gateway_envelopes(
-		$1::INT [],
-		$2::BIGINT [],
-		$3::BYTEA [],
-		$4::INT [],
-		$5::INT
-	)
-`
-
-type SelectGatewayEnvelopesParams struct {
-	CursorNodeIds     []int32
-	CursorSequenceIds []int64
-	Topics            [][]byte
-	OriginatorNodeIds []int32
-	RowLimit          int32
-}
-
-func (q *Queries) SelectGatewayEnvelopes(ctx context.Context, arg SelectGatewayEnvelopesParams) ([]GatewayEnvelope, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopes,
-		pq.Array(arg.CursorNodeIds),
-		pq.Array(arg.CursorSequenceIds),
-		pq.Array(arg.Topics),
-		pq.Array(arg.OriginatorNodeIds),
-		arg.RowLimit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GatewayEnvelope
-	for rows.Next() {
-		var i GatewayEnvelope
-		if err := rows.Scan(
-			&i.GatewayTime,
-			&i.OriginatorNodeID,
-			&i.OriginatorSequenceID,
-			&i.Topic,
-			&i.OriginatorEnvelope,
-			&i.PayerID,
-			&i.Expiry,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const selectNewestFromTopics = `-- name: SelectNewestFromTopics :many
-SELECT e.gateway_time, e.originator_node_id, e.originator_sequence_id, e.topic, e.originator_envelope, e.payer_id, e.expiry
-FROM gateway_envelopes e
-	INNER JOIN (
-		SELECT topic,
-			MAX(gateway_time) AS max_time
-		FROM gateway_envelopes
-		WHERE topic = ANY($1::BYTEA [])
-		GROUP BY topic
-	) t ON e.topic = t.topic
-	AND e.gateway_time = t.max_time
-ORDER BY e.topic
-`
-
-func (q *Queries) SelectNewestFromTopics(ctx context.Context, topics [][]byte) ([]GatewayEnvelope, error) {
-	rows, err := q.db.QueryContext(ctx, selectNewestFromTopics, pq.Array(topics))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GatewayEnvelope
-	for rows.Next() {
-		var i GatewayEnvelope
-		if err := rows.Scan(
-			&i.GatewayTime,
-			&i.OriginatorNodeID,
-			&i.OriginatorSequenceID,
-			&i.Topic,
-			&i.OriginatorEnvelope,
-			&i.PayerID,
-			&i.Expiry,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const selectStagedOriginatorEnvelopes = `-- name: SelectStagedOriginatorEnvelopes :many

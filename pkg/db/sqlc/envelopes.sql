@@ -1,33 +1,3 @@
--- name: InsertGatewayEnvelope :execrows
-INSERT INTO gateway_envelopes(
-		originator_node_id,
-		originator_sequence_id,
-		topic,
-		originator_envelope,
-		payer_id,
-		gateway_time,
-        expiry
-	)
-VALUES (
-		@originator_node_id,
-		@originator_sequence_id,
-		@topic,
-		@originator_envelope,
-		@payer_id,
-		COALESCE(@gateway_time, NOW()),
-        @expiry
-	) ON CONFLICT DO NOTHING;
-
--- name: SelectGatewayEnvelopes :many
-SELECT *
-FROM select_gateway_envelopes(
-		@cursor_node_ids::INT [],
-		@cursor_sequence_ids::BIGINT [],
-		@topics::BYTEA [],
-		@originator_node_ids::INT [],
-		@row_limit::INT
-	);
-
 -- name: InsertStagedOriginatorEnvelope :one
 SELECT *
 FROM insert_staged_originator_envelope(@topic, @payer_envelope);
@@ -57,16 +27,3 @@ SELECT COALESCE((
     FROM gateway_envelopes_latest
     WHERE originator_node_id = @originator_node_id
 ), 0)::BIGINT AS originator_sequence_id;
-
--- name: SelectNewestFromTopics :many
-SELECT e.*
-FROM gateway_envelopes e
-	INNER JOIN (
-		SELECT topic,
-			MAX(gateway_time) AS max_time
-		FROM gateway_envelopes
-		WHERE topic = ANY(@topics::BYTEA [])
-		GROUP BY topic
-	) t ON e.topic = t.topic
-	AND e.gateway_time = t.max_time
-ORDER BY e.topic;

@@ -23,7 +23,7 @@ var (
 	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
 	topicC = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
 )
-var allRows []queries.InsertGatewayEnvelopeParams
+var allRows []queries.InsertGatewayEnvelopeV2Params
 
 func setupTest(
 	t *testing.T,
@@ -31,57 +31,57 @@ func setupTest(
 	api, dbHandle, mocks := testUtilsApi.NewTestReplicationAPIClient(t)
 
 	payerID := db.NullInt32(testutils.CreatePayer(t, dbHandle))
-	allRows = []queries.InsertGatewayEnvelopeParams{
+	allRows = []queries.InsertGatewayEnvelopeV2Params{
 		// Initial rows
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 1, topicA),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 1, topicA),
 			),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 1, topicA),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 200, 1, topicA),
 			),
 		},
 		// Later rows
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
 			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 2, topicB),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 2, topicB),
 			),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
 			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 2, topicB),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 200, 2, topicB),
 			),
 		},
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
 			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 3, topicA),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 3, topicA),
 			),
 		},
 	}
@@ -90,14 +90,14 @@ func setupTest(
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
 		allRows[0], allRows[1],
 	})
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
 }
@@ -116,8 +116,8 @@ func validateUpdates(
 				t,
 				env.UnsignedOriginatorEnvelope,
 			)
-			require.Equal(t, uint32(expected.OriginatorNodeID), actual.OriginatorNodeId)
-			require.Equal(t, uint64(expected.OriginatorSequenceID), actual.OriginatorSequenceId)
+			require.EqualValues(t, expected.OriginatorNodeID, actual.OriginatorNodeId)
+			require.EqualValues(t, expected.OriginatorSequenceID, actual.OriginatorSequenceId)
 			require.Equal(t, expected.OriginatorEnvelope, testutils.Marshal(t, env))
 			i++
 		}
@@ -172,7 +172,7 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{1, 3},
+				OriginatorNodeIds: []uint32{100, 300},
 				LastSeen:          nil,
 			},
 		},
@@ -211,7 +211,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{2},
+				OriginatorNodeIds: []uint32{200},
 				LastSeen:          nil,
 			},
 		},
@@ -234,7 +234,7 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:   []db.Topic{topicA, topicC},
-				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{1: 1}},
+				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{100: 1}},
 			},
 		},
 	)

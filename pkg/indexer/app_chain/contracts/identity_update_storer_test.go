@@ -84,9 +84,9 @@ func TestStoreIdentityUpdate(t *testing.T) {
 
 	querier := queries.New(storer.db)
 
-	envelopes, queryErr := querier.SelectGatewayEnvelopes(
+	envelopes, queryErr := querier.SelectGatewayEnvelopesV2ByOriginators(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{
+		queries.SelectGatewayEnvelopesV2ByOriginatorsParams{
 			OriginatorNodeIds: []int32{constants.IdentityUpdateOriginatorID},
 			RowLimit:          10,
 		},
@@ -119,7 +119,7 @@ func TestStoreSequential(t *testing.T) {
 	numCalls := 0
 	validationService.EXPECT().
 		GetAssociationStateFromEnvelopes(mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(func(ctx context.Context, prevEnvs []queries.GatewayEnvelope, newUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
+		RunAndReturn(func(ctx context.Context, prevEnvs []queries.GatewayEnvelopesV2View, newUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
 			numCalls++
 			if numCalls > 1 {
 				require.Len(t, prevEnvs, 1)

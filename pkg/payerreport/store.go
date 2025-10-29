@@ -418,17 +418,17 @@ func (s *Store) StoreSyncedReport(
 		s.db,
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
-			_, err := txQueries.InsertGatewayEnvelope(
+			_, err := txQueries.InsertGatewayEnvelopeV2(
 				ctx,
-				queries.InsertGatewayEnvelopeParams{
+				queries.InsertGatewayEnvelopeV2Params{
 					OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
 					OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
 					Topic:                envelope.TargetTopic().Bytes(),
 					OriginatorEnvelope:   originatorEnvelopeBytes,
 					PayerID:              db.NullInt32(payerID),
-					Expiry: db.NullInt64(int64(
+					Expiry: int64(
 						envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-					)),
+					),
 				},
 			)
 			if err != nil {
@@ -465,16 +465,16 @@ func (s *Store) StoreSyncedAttestation(
 		s.db,
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
-			_, err := txQueries.InsertGatewayEnvelope(
+			_, err := txQueries.InsertGatewayEnvelopeV2(
 				ctx,
-				queries.InsertGatewayEnvelopeParams{
+				queries.InsertGatewayEnvelopeV2Params{
 					OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
 					OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
 					Topic:                envelope.TargetTopic().Bytes(),
 					OriginatorEnvelope:   originatorEnvelopeBytes,
 					PayerID:              db.NullInt32(payerID),
-					Expiry: db.NullInt64(
-						int64(envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()),
+					Expiry: int64(
+						envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
 					),
 				},
 			)

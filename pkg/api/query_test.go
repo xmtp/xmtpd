@@ -22,57 +22,57 @@ var (
 	topicC = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
 )
 
-func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeParams {
+func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeV2Params {
 	payerId := db.NullInt32(testutils.CreatePayer(t, dbHandle))
-	dbRows := []queries.InsertGatewayEnvelopeParams{
+	dbRows := []queries.InsertGatewayEnvelopeV2Params{
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 1, topicA),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 1, topicA),
 			),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 1, topicA),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 200, 1, topicA),
 			),
 		},
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
 			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 2, topicB),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 2, topicB),
 			),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
 			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 2, 2, topicB),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 200, 2, topicB),
 			),
 		},
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
 			PayerID:              payerId,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
-				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 1, 3, topicA),
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 3, topicA),
 			),
 		},
 	}
@@ -118,7 +118,7 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{2},
+				OriginatorNodeIds: []uint32{200},
 				LastSeen:          nil,
 			},
 			Limit: 0,
@@ -154,7 +154,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{1: 2}},
+				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{100: 2}},
 			},
 			Limit: 0,
 		},
@@ -173,7 +173,7 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicA},
 				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
+					NodeIdToSequenceId: map[uint32]uint64{100: 2, 200: 1},
 				},
 			},
 			Limit: 0,
@@ -193,7 +193,7 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicA, topicB},
 				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: map[uint32]uint64{1: 2, 2: 1},
+					NodeIdToSequenceId: map[uint32]uint64{100: 2, 200: 1},
 				},
 			},
 			Limit: 0,
@@ -211,9 +211,9 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 		context.Background(),
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{1, 2},
+				OriginatorNodeIds: []uint32{100, 200},
 				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: map[uint32]uint64{1: 1, 2: 1},
+					NodeIdToSequenceId: map[uint32]uint64{100: 1, 200: 1},
 				},
 			},
 			Limit: 0,
@@ -249,7 +249,7 @@ func TestInvalidQuery(t *testing.T) {
 		&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:            []db.Topic{topicA},
-				OriginatorNodeIds: []uint32{1},
+				OriginatorNodeIds: []uint32{100},
 			},
 			Limit: 0,
 		},
@@ -259,7 +259,7 @@ func TestInvalidQuery(t *testing.T) {
 
 func checkRowsMatchProtos(
 	t *testing.T,
-	allRows []queries.InsertGatewayEnvelopeParams,
+	allRows []queries.InsertGatewayEnvelopeV2Params,
 	matchingIndices []int,
 	protos []*envelopes.OriginatorEnvelope,
 ) {

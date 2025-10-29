@@ -192,15 +192,15 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		p.ctx,
 		p.store,
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV2Params{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: stagedEnv.ID,
 			Topic:                stagedEnv.Topic,
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerID),
 			GatewayTime:          stagedEnv.OriginatorTime,
-			Expiry: db.NullInt64(
-				int64(validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()),
+			Expiry: int64(
+				validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
 			),
 		},
 		queries.IncrementUnsettledUsageParams{

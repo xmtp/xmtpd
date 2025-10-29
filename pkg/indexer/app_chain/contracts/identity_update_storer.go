@@ -229,12 +229,12 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 			}
 
-			if _, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
+			if _, err = querier.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
 				OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
 				OriginatorSequenceID: int64(msgSent.SequenceId),
 				Topic:                messageTopic.Bytes(),
 				OriginatorEnvelope:   originatorEnvelopeBytes,
-				Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
+				Expiry:               math.MaxInt64,
 			}); err != nil {
 				s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
 				return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
@@ -261,14 +261,13 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	inboxID [32]byte,
 	clientEnvelope *envelopes.ClientEnvelope,
 ) (*mlsvalidate.AssociationStateResult, error) {
-	gatewayEnvelopes, err := querier.SelectGatewayEnvelopes(
+	gatewayEnvelopes, err := querier.SelectGatewayEnvelopesV2ByTopics(
 		ctx,
-		queries.SelectGatewayEnvelopesParams{
+		queries.SelectGatewayEnvelopesV2ByTopicsParams{
 			Topics: []db.Topic{
-				db.Topic(topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxID[:]).Bytes()),
+				topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxID[:]).Bytes(),
 			},
-			OriginatorNodeIds: []int32{constants.IdentityUpdateOriginatorID},
-			RowLimit:          256,
+			RowLimit: 256,
 		},
 	)
 	if err != nil {

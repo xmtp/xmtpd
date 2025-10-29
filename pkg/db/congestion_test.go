@@ -36,7 +36,7 @@ func incrementCongestion(
 func TestGet5MinutesOfCongestion(t *testing.T) {
 	ctx, querier := setupTest(t)
 
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	endMinute := testutils.RandomInt32()
 
 	incrementCongestion(t, ctx, querier, originatorID, endMinute-1)
@@ -56,7 +56,7 @@ func TestGet5MinutesOfCongestion(t *testing.T) {
 func TestMultipleIncrements(t *testing.T) {
 	ctx, querier := setupTest(t)
 
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	endMinute := testutils.RandomInt32()
 
 	incrementCongestion(t, ctx, querier, originatorID, endMinute)
@@ -76,7 +76,7 @@ func TestMultipleIncrements(t *testing.T) {
 func TestNoCongestion(t *testing.T) {
 	ctx, querier := setupTest(t)
 
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	endMinute := testutils.RandomInt32()
 
 	congestion, err := db.Get5MinutesOfCongestion(ctx, querier, originatorID, endMinute)

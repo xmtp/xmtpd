@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -42,7 +43,7 @@ func (c *FixedMetadataAPIClientConstructor) NewMetadataAPIClient(
 }
 
 type MockSubscribeSyncCursorClient struct {
-	metadata_api.MetadataApi_SubscribeSyncCursorClient
+	metadata_api.MetadataApiClient
 	ctx     context.Context
 	updates []*metadata_api.GetSyncCursorResponse
 	err     error
@@ -148,15 +149,15 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 	publishResponse, err := svc.PublishClientEnvelopes(
 		ctx,
-		&payer_api.PublishClientEnvelopesRequest{
+		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
 			Envelopes: []*envelopesProto.ClientEnvelope{envelope},
-		},
+		}),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
 
-	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 
@@ -177,7 +178,7 @@ func TestPublishToNodes(t *testing.T) {
 	svc, _, mockRegistry, _ := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
-		HTTPAddress: formatAddress(originatorServer.Addr().String()),
+		HTTPAddress: formatAddress(originatorServer.Addr()),
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{
@@ -192,15 +193,15 @@ func TestPublishToNodes(t *testing.T) {
 
 	publishResponse, err := svc.PublishClientEnvelopes(
 		ctx,
-		&payer_api.PublishClientEnvelopesRequest{
+		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
 			Envelopes: []*envelopesProto.ClientEnvelope{testGroupMessage},
-		},
+		}),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
 
-	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 

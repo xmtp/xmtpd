@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -61,18 +62,22 @@ func parseResults(
 }
 
 func TestGetNewestEnvelope(t *testing.T) {
-	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
-	querier := queries.New(db)
-
-	installationID1 := testutils.RandomGroupID()
-	installationID2 := testutils.RandomGroupID()
-	installationID3 := testutils.RandomGroupID()
-	installationID4 := testutils.RandomGroupID()
+	var (
+		client          = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+		db, _           = testutils.NewDB(t, t.Context())
+		querier         = queries.New(db)
+		installationID1 = testutils.RandomGroupID()
+		installationID2 = testutils.RandomGroupID()
+		installationID3 = testutils.RandomGroupID()
+		installationID4 = testutils.RandomGroupID()
+	)
 
 	// Installation ID 1 has three key packages
 	topic1, _ := writeKeyPackage(t, querier, installationID1[:])
+
 	// This one is totally ignored
 	_, _ = writeKeyPackage(t, querier, installationID1[:])
+
 	// This one is the newest
 	_, seq1 := writeKeyPackage(t, querier, installationID1[:])
 	topic2, seq2 := writeKeyPackage(t, querier, installationID2[:])
@@ -126,15 +131,16 @@ func TestGetNewestEnvelope(t *testing.T) {
 			for i, topic := range c.requestedTopics {
 				requestedTopicsBytes[i] = topic.Bytes()
 			}
-			resp, err := api.GetNewestEnvelope(
+			resp, err := client.GetNewestEnvelope(
 				context.Background(),
-				&message_api.GetNewestEnvelopeRequest{
+				connect.NewRequest(&message_api.GetNewestEnvelopeRequest{
 					Topics: requestedTopicsBytes,
-				},
+				}),
 			)
 			require.NoError(t, err)
-			require.Equal(t, c.expectedNumReturned, len(resp.Results))
-			parsedResults := parseResults(t, resp.Results)
+			require.Equal(t, c.expectedNumReturned, len(resp.Msg.Results))
+
+			parsedResults := parseResults(t, resp.Msg.Results)
 			for i, topic := range c.expectedTopics {
 				if topic == nil {
 					require.Nil(t, parsedResults[i])

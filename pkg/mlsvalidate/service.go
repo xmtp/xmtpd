@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"google.golang.org/grpc"
 
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -16,42 +17,31 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 type MLSValidationServiceImpl struct {
 	grpcClient svc.ValidationApiClient
 }
 
-func NewMlsValidationService(
+var _ MLSValidationService = (*MLSValidationServiceImpl)(nil)
+
+func NewMLSValidationService(
 	ctx context.Context,
 	logger *zap.Logger,
 	cfg config.MlsValidationOptions,
 	clientMetrics *grpcprom.ClientMetrics,
 ) (*MLSValidationServiceImpl, error) {
-	target, isTLS, err := utils.HTTPAddressToGRPCTarget(cfg.GrpcAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %w", err)
-	}
-
-	creds, err := utils.GetCredentialsForAddress(isTLS)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %w", err)
-	}
-
 	logger.Info(
 		"connecting to mls validation service",
 		zap.String("url", cfg.GrpcAddress),
-		zap.String("target", target),
 	)
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(creds),
+
+	conn, err := utils.NewGRPCConn(cfg.GrpcAddress,
 		grpc.WithUnaryInterceptor(clientMetrics.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(clientMetrics.StreamClientInterceptor()),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create grpc connection: %w", err)
 	}
 
 	go func() {
@@ -69,14 +59,16 @@ func (s *MLSValidationServiceImpl) GetAssociationState(
 	oldUpdates []*associations.IdentityUpdate,
 	newUpdates []*associations.IdentityUpdate,
 ) (*AssociationStateResult, error) {
-	req := &svc.GetAssociationStateRequest{
+	request := &svc.GetAssociationStateRequest{
 		OldUpdates: oldUpdates,
 		NewUpdates: newUpdates,
 	}
-	response, err := s.grpcClient.GetAssociationState(ctx, req)
+
+	response, err := s.grpcClient.GetAssociationState(ctx, request)
 	if err != nil {
 		return nil, err
 	}
+
 	return &AssociationStateResult{
 		AssociationState: response.GetAssociationState(),
 		StateDiff:        response.GetStateDiff(),
@@ -114,9 +106,9 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 	ctx context.Context,
 	keyPackages [][]byte,
 ) ([]KeyPackageValidationResult, error) {
-	req := makeValidateKeyPackageRequest(keyPackages)
+	request := makeValidateKeyPackageRequest(keyPackages)
 
-	response, err := s.grpcClient.ValidateInboxIdKeyPackages(ctx, req)
+	response, err := s.grpcClient.ValidateInboxIdKeyPackages(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +143,14 @@ func makeValidateKeyPackageRequest(
 		[]*svc.ValidateKeyPackagesRequest_KeyPackage,
 		len(keyPackageBytes),
 	)
+
 	for i, keyPackage := range keyPackageBytes {
 		keyPackageRequests[i] = &svc.ValidateKeyPackagesRequest_KeyPackage{
 			KeyPackageBytesTlsSerialized: keyPackage,
 			IsInboxIdCredential:          true,
 		}
 	}
+
 	return &svc.ValidateKeyPackagesRequest{
 		KeyPackages: keyPackageRequests,
 	}
@@ -166,9 +160,12 @@ func (s *MLSValidationServiceImpl) ValidateGroupMessages(
 	ctx context.Context,
 	groupMessages []*mlsv1.GroupMessageInput,
 ) ([]GroupMessageValidationResult, error) {
-	req := makeValidateGroupMessagesRequest(groupMessages)
+	request := makeValidateGroupMessagesRequest(groupMessages)
 
-	response, err := s.grpcClient.ValidateGroupMessages(ctx, req)
+	response, err := s.grpcClient.ValidateGroupMessages(
+		ctx,
+		request,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -193,11 +190,13 @@ func makeValidateGroupMessagesRequest(
 		[]*svc.ValidateGroupMessagesRequest_GroupMessage,
 		len(groupMessages),
 	)
+
 	for i, groupMessage := range groupMessages {
 		groupMessageRequests[i] = &svc.ValidateGroupMessagesRequest_GroupMessage{
 			GroupMessageBytesTlsSerialized: groupMessage.GetV1().Data,
 		}
 	}
+
 	return &svc.ValidateGroupMessagesRequest{
 		GroupMessages: groupMessageRequests,
 	}

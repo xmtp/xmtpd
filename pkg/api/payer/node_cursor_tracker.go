@@ -21,7 +21,7 @@ type DefaultMetadataAPIClientConstructor struct {
 func (c *DefaultMetadataAPIClientConstructor) NewMetadataAPIClient(
 	nodeID uint32,
 ) (metadata_api.MetadataApiClient, error) {
-	conn, err := c.clientManager.GetClient(nodeID)
+	conn, err := c.clientManager.GetClientConnection(nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	desiredOriginatorID uint32,
 	desiredSequenceID uint64,
 ) error {
-	// TODO(mkysel) ideally we wouldn't create and tear down the stream for every request
+	// TODO: Fix! : Ideally we wouldn't create and tear down the stream for every request
 
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
@@ -57,7 +57,10 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 	if err != nil {
 		return err
 	}
-	stream, err := client.SubscribeSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
+	stream, err := client.SubscribeSyncCursor(
+		ctx,
+		&metadata_api.GetSyncCursorRequest{},
+	)
 	if err != nil {
 		return err
 	}
@@ -76,6 +79,7 @@ func (ct *NodeCursorTracker) BlockUntilDesiredCursorReached(
 				errCh <- err
 				return
 			}
+
 			respCh <- resp
 		}
 	}()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -65,7 +66,10 @@ func TestGetReaderNode(t *testing.T) {
 
 			registryMocks.On("GetNodes").Return(tt.nodes, tt.registryError)
 
-			resp, err := svc.GetNodes(ctx, &payer_api.GetNodesRequest{})
+			resp, err := svc.GetNodes(ctx, connect.NewRequest(&payer_api.GetNodesRequest{}))
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotNil(t, resp.Msg)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -74,7 +78,7 @@ func TestGetReaderNode(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, resp)
 				if tt.checkResponse != nil {
-					tt.checkResponse(t, resp)
+					tt.checkResponse(t, resp.Msg)
 				}
 			}
 		})

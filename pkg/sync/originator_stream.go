@@ -52,10 +52,13 @@ func newOriginatorStream(
 }
 
 func (s *originatorStream) listen() error {
-	recvChan := make(chan *message_api.SubscribeEnvelopesResponse)
-	errChan := make(chan error, 1)
+	var (
+		recvChan = make(chan *message_api.SubscribeEnvelopesResponse)
+		errChan  = make(chan error, 1)
+	)
 
 	// Reader routine, responsible for reading from a blocking GRPC channel
+	// TODO: Use tracing.GoWrap and waitgroup.
 	go func() {
 		for {
 			envs, err := s.stream.Recv()

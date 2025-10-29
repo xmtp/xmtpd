@@ -87,9 +87,6 @@ func buildPayerService(
 		mockRegistry,
 		privKey,
 		mockMessagePublisher,
-		&FixedMetadataAPIClientConstructor{
-			mockClient: metaMocks,
-		},
 		nil,
 	)
 	require.NoError(t, err)
@@ -99,7 +96,7 @@ func buildPayerService(
 
 func TestPublishIdentityUpdate(t *testing.T) {
 	ctx := context.Background()
-	svc, mockMessagePublisher, registryMocks, metaMocks := buildPayerService(t)
+	svc, mockMessagePublisher, _, _ := buildPayerService(t)
 
 	inboxID := testutils.RandomInboxIDBytes()
 	txnHash := common.Hash{1, 2, 3}
@@ -108,29 +105,6 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	identityUpdate := &associations.IdentityUpdate{
 		InboxId: utils.HexEncode(inboxID[:]),
 	}
-
-	mockStream := &MockSubscribeSyncCursorClient{
-		updates: []*metadata_api.GetSyncCursorResponse{
-			{
-				LatestSync: &envelopesProto.Cursor{
-					NodeIdToSequenceId: map[uint32]uint64{1: sequenceID},
-				},
-			},
-		},
-	}
-
-	metaMocks.On("SubscribeSyncCursor", mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			// Capture the context from the caller
-			capturedCtx := args.Get(0).(context.Context)
-			mockStream.ctx = capturedCtx // Store the captured context in the mock
-		}).
-		Return(mockStream, nil).
-		Once()
-
-	registryMocks.On("GetNodes").Return([]registry.Node{
-		nodeRegistry.GetHealthyNode(100),
-	}, nil)
 
 	envelope := envelopesTestUtils.CreateIdentityUpdateClientEnvelope(inboxID, identityUpdate)
 	envelopeBytes, err := proto.Marshal(envelope)

@@ -39,3 +39,6 @@ plugins:
     opt:
       - paths=source_relative
       - require_unimplemented_servers=false
+
+  - remote: buf.build/grpc-ecosystem/openapiv2:v2.19.0
+    out: pkg/proto/openapi

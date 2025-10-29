@@ -1,0 +1,367 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "xmtpv4/message_api/misbehavior_api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "MisbehaviorApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/mls/v2/query-misbehavior-reports": {
+      "post": {
+        "operationId": "MisbehaviorApi_QueryMisbehaviorReports",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/message_apiQueryMisbehaviorReportsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiQueryMisbehaviorReportsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MisbehaviorApi"
+        ]
+      }
+    },
+    "/mls/v2/submit-misbehavior-report": {
+      "post": {
+        "operationId": "MisbehaviorApi_SubmitMisbehaviorReport",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/message_apiSubmitMisbehaviorReportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiSubmitMisbehaviorReportRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MisbehaviorApi"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "associationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
+    },
+    "envelopesBlockchainProof": {
+      "type": "object",
+      "properties": {
+        "transactionHash": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "An alternative to a signature for blockchain payloads"
+    },
+    "envelopesOriginatorEnvelope": {
+      "type": "object",
+      "properties": {
+        "unsignedOriginatorEnvelope": {
+          "type": "string",
+          "format": "byte",
+          "title": "Protobuf serialized"
+        },
+        "originatorSignature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        },
+        "blockchainProof": {
+          "$ref": "#/definitions/envelopesBlockchainProof"
+        }
+      },
+      "title": "Signed originator envelope"
+    },
+    "envelopesPayerEnvelope": {
+      "type": "object",
+      "properties": {
+        "unsignedClientEnvelope": {
+          "type": "string",
+          "format": "byte",
+          "title": "Protobuf serialized"
+        },
+        "payerSignature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        },
+        "targetOriginator": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "messageRetentionDays": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "Wraps client envelope with payer signature"
+    },
+    "message_apiEnvelopesQuery": {
+      "type": "object",
+      "properties": {
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "Client queries"
+        },
+        "originatorNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": "Node queries"
+        },
+        "lastSeen": {
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
+        }
+      },
+      "title": "Query for envelopes, shared by query and subscribe endpoints\nEither topics or originator_node_ids may be set, but not both"
+    },
+    "message_apiLivenessFailure": {
+      "type": "object",
+      "properties": {
+        "responseTimeNs": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "subscribe": {
+          "$ref": "#/definitions/message_apiSubscribeEnvelopesRequest"
+        },
+        "query": {
+          "$ref": "#/definitions/message_apiQueryEnvelopesRequest"
+        },
+        "publish": {
+          "$ref": "#/definitions/message_apiPublishPayerEnvelopesRequest"
+        }
+      }
+    },
+    "message_apiMisbehavior": {
+      "type": "string",
+      "enum": [
+        "MISBEHAVIOR_UNSPECIFIED",
+        "MISBEHAVIOR_UNRESPONSIVE_NODE",
+        "MISBEHAVIOR_SLOW_NODE",
+        "MISBEHAVIOR_FAILED_REQUEST",
+        "MISBEHAVIOR_OUT_OF_ORDER",
+        "MISBEHAVIOR_DUPLICATE_SEQUENCE_ID",
+        "MISBEHAVIOR_CAUSAL_ORDERING",
+        "MISBEHAVIOR_INVALID_PAYLOAD",
+        "MISBEHAVIOR_BLOCKCHAIN_INCONSISTENCY"
+      ],
+      "default": "MISBEHAVIOR_UNSPECIFIED"
+    },
+    "message_apiMisbehaviorReport": {
+      "type": "object",
+      "properties": {
+        "serverTimeNs": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Server time when the report was stored. Used only for querying reports.\nThis field is not signed."
+        },
+        "unsignedMisbehaviorReport": {
+          "type": "string",
+          "format": "byte"
+        },
+        "signature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature",
+          "title": "Signed by the node hosting the report"
+        }
+      }
+    },
+    "message_apiPublishPayerEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "payerEnvelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesPayerEnvelope"
+          }
+        }
+      }
+    },
+    "message_apiQueryEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/definitions/message_apiEnvelopesQuery"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "Query envelopes request"
+    },
+    "message_apiQueryMisbehaviorReportsRequest": {
+      "type": "object",
+      "properties": {
+        "afterNs": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "message_apiQueryMisbehaviorReportsResponse": {
+      "type": "object",
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/message_apiMisbehaviorReport"
+          }
+        }
+      }
+    },
+    "message_apiSafetyFailure": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesOriginatorEnvelope"
+          }
+        }
+      }
+    },
+    "message_apiSubmitMisbehaviorReportRequest": {
+      "type": "object",
+      "properties": {
+        "report": {
+          "$ref": "#/definitions/message_apiUnsignedMisbehaviorReport"
+        }
+      }
+    },
+    "message_apiSubmitMisbehaviorReportResponse": {
+      "type": "object"
+    },
+    "message_apiSubscribeEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/definitions/message_apiEnvelopesQuery"
+        }
+      },
+      "title": "Batch subscribe to envelopes"
+    },
+    "message_apiUnsignedMisbehaviorReport": {
+      "type": "object",
+      "properties": {
+        "reporterTimeNs": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "misbehavingNodeId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "$ref": "#/definitions/message_apiMisbehavior"
+        },
+        "liveness": {
+          "$ref": "#/definitions/message_apiLivenessFailure"
+        },
+        "safety": {
+          "$ref": "#/definitions/message_apiSafetyFailure"
+        },
+        "submittedByNode": {
+          "type": "boolean",
+          "title": "Nodes must verify this field is false for client-submitted reports"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
+    }
+  }
+}

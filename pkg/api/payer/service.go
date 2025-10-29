@@ -46,6 +46,7 @@ type Service struct {
 	payerPrivateKey     *ecdsa.PrivateKey
 	nodeSelector        NodeSelectorAlgorithm
 	nodeRegistry        registry.NodeRegistry
+	maxPayerMessageSize uint64
 }
 
 func NewPayerAPIService(
@@ -55,6 +56,7 @@ func NewPayerAPIService(
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	clientMetrics *grpcprom.ClientMetrics,
+	maxPayerMessageSize uint64,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
@@ -70,6 +72,7 @@ func NewPayerAPIService(
 		blockchainPublisher: blockchainPublisher,
 		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: nodeRegistry},
 		nodeRegistry:        nodeRegistry,
+		maxPayerMessageSize: maxPayerMessageSize,
 	}, nil
 }
 
@@ -114,6 +117,22 @@ func (s *Service) PublishClientEnvelopes(
 	grouped, err := s.groupEnvelopes(req.Envelopes)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "error grouping envelopes: %v", err)
+	}
+
+	if s.maxPayerMessageSize != 0 {
+		for _, env := range grouped.forBlockchain {
+			bytes, err := env.payload.Bytes()
+			if err != nil {
+				return nil, err
+			}
+			if len(bytes) > int(s.maxPayerMessageSize) {
+				return nil, status.Errorf(
+					codes.InvalidArgument,
+					"message at index %d too large",
+					env.originalIndex,
+				)
+			}
+		}
 	}
 
 	out := make([]*envelopesProto.OriginatorEnvelope, len(req.Envelopes))

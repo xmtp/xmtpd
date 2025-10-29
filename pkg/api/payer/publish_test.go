@@ -88,6 +88,7 @@ func buildPayerService(
 		privKey,
 		mockMessagePublisher,
 		nil,
+		0,
 	)
 	require.NoError(t, err)
 

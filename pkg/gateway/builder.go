@@ -245,6 +245,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			gatewayPrivateKey,
 			b.blockchainPublisher,
 			clientMetrics,
+			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
 		)
 		if err != nil {
 			return err

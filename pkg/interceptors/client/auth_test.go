@@ -57,7 +57,7 @@ func TestAuthInterceptor(t *testing.T) {
 		myNodeID     = uint32(100)
 		targetNodeID = uint32(200)
 		tokenFactory = authn.NewTokenFactory(privateKey, myNodeID, nil)
-		interceptor  = NewAuthInterceptor(tokenFactory, targetNodeID)
+		interceptor  = NewClientAuthInterceptor(tokenFactory, targetNodeID)
 	)
 
 	token, err := interceptor.getToken()

@@ -12,32 +12,27 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
 	"connectrpc.com/grpcreflect"
-	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/xmtp/xmtpd/pkg/interceptors/server"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
+	interceptors "github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 type APIServerConfig struct {
-	Ctx                context.Context
-	Logger             *zap.Logger
-	PromRegistry       *prometheus.Registry
-	RegistrationFunc   RegistrationFunc
-	UnaryInterceptors  []grpc.UnaryServerInterceptor
-	StreamInterceptors []grpc.StreamServerInterceptor
-	Port               int
-	EnableReflection   bool
+	Ctx              context.Context
+	Logger           *zap.Logger
+	PromRegistry     *prometheus.Registry
+	RegistrationFunc RegistrationFunc
+	Port             int
+	EnableReflection bool
 }
 
 type APIServerOption func(*APIServerConfig)
 
-type RegistrationFunc func(mux *http.ServeMux) error
+type RegistrationFunc func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error)
 
 func WithContext(ctx context.Context) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.Ctx = ctx }
@@ -63,19 +58,11 @@ func WithRegistrationFunc(registrationFunc RegistrationFunc) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.RegistrationFunc = registrationFunc }
 }
 
-func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.StreamInterceptors = append(cfg.StreamInterceptors, interceptors...) }
-}
-
-func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.UnaryInterceptors = append(cfg.UnaryInterceptors, interceptors...) }
-}
-
 type APIServer struct {
 	ctx        context.Context
 	wg         sync.WaitGroup
-	httpServer *http.Server
 	logger     *zap.Logger
+	httpServer *http.Server
 }
 
 func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
@@ -110,84 +97,45 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 
 	// Wrap the handler with h2c to support HTTP/2 Cleartext for gRPC reflection.
 	// This is required for gRPC reflection to work with HTTP/2, and tools such as grpcurl.
-	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+	h2cHandler := h2c.NewHandler(mux, &http2.Server{
+		IdleTimeout: 5 * time.Minute,
+	})
 
+	// TODO: Fix! (maybe) - Do we need more timeouts?
 	svc.httpServer = &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", cfg.Port),
-		Handler: h2cHandler,
+		Addr:        fmt.Sprintf("0.0.0.0:%d", cfg.Port),
+		Handler:     h2cHandler,
+		IdleTimeout: 5 * time.Minute,
 	}
 
 	svc.logger.Info("creating api server")
 
-	loggingInterceptor, err := server.NewLoggingInterceptor(svc.logger)
+	// Create server side interceptors.
+	openConnInterceptor, err := interceptors.NewOpenConnectionsInterceptor()
 	if err != nil {
 		return nil, err
 	}
 
-	openConnectionsInterceptor, err := server.NewOpenConnectionsInterceptor()
+	loggingInterceptor, err := interceptors.NewLoggingInterceptor(svc.logger)
 	if err != nil {
 		return nil, err
 	}
 
-	unary := []grpc.UnaryServerInterceptor{
-		openConnectionsInterceptor.Unary(),
-		loggingInterceptor.Unary(),
-	}
+	// TODO: Fix! Implement client metrics that are compatible with connect-go.
+	// The prometheus metric servers use grpcprom client metrics.
 
-	stream := []grpc.StreamServerInterceptor{
-		openConnectionsInterceptor.Stream(),
-		loggingInterceptor.Stream(),
-	}
-
-	// Add any additional interceptors from config
-	unary = append(unary, cfg.UnaryInterceptors...)
-	stream = append(stream, cfg.StreamInterceptors...)
-
-	// TODO: Fix!
-	// Extend server interceptors properly.
-	if cfg.PromRegistry != nil {
-		srvMetrics := grpcprom.NewServerMetrics(
-			grpcprom.WithServerHandlingTimeHistogram(
-				grpcprom.WithHistogramBuckets(
-					[]float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
-				),
-			),
-		)
-		cfg.PromRegistry.MustRegister(srvMetrics)
-		// Prepend metrics interceptors to the chain
-		unary = append(
-			[]grpc.UnaryServerInterceptor{srvMetrics.UnaryServerInterceptor()},
-			unary...,
-		)
-		stream = append(
-			[]grpc.StreamServerInterceptor{srvMetrics.StreamServerInterceptor()},
-			stream...,
-		)
-	}
-
-	// Note: The interceptor chains (unary, stream) are currently not used as the gRPC server
-	// implementation is commented out. These may be reactivated in the future or removed.
-	_ = unary
-	_ = stream
-
-	// Fix! : Reactivate the gRPC server implementation.
-	// svc.grpcServer = grpc.NewServer(
-	// 	grpc.ChainUnaryInterceptor(unary...),
-	// 	grpc.ChainStreamInterceptor(stream...),
-	// 	grpc.Creds(insecure.NewCredentials()),
-	// 	grpc.KeepaliveParams(keepalive.ServerParameters{Time: 5 * time.Minute}),
-	// 	grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-	// 		PermitWithoutStream: true,
-	// 		MinTime:             15 * time.Second,
-	// 	}),
-	// )
-
-	if err := svc.registerBaseAPIServerHandlers(mux, cfg.EnableReflection); err != nil {
+	// Register services.
+	servicePaths, err := cfg.RegistrationFunc(mux, openConnInterceptor, loggingInterceptor)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := cfg.RegistrationFunc(mux); err != nil {
-		return nil, err
+	// Register health handler.
+	svc.registerHealthHandler(mux, servicePaths)
+
+	// Register reflection handlers.
+	if cfg.EnableReflection {
+		svc.registerReflectionHandlers(mux, servicePaths)
 	}
 
 	return svc, nil
@@ -223,27 +171,15 @@ func (svc *APIServer) Close() {
 	// Wait for the goroutine to finish.
 	svc.wg.Wait()
 
-	svc.logger.Info("api server stopped")
+	svc.logger.Info("")
 }
 
-func (svc *APIServer) registerBaseAPIServerHandlers(
+func (svc *APIServer) registerHealthHandler(
 	mux *http.ServeMux,
-	enableReflection bool,
-) error {
-	svc.registerHealthHandler(mux)
-
-	if enableReflection {
-		svc.registerReflectionHandlerV1(mux)
-		svc.registerReflectionHandlerV1Alpha(mux)
-	}
-
-	return nil
-}
-
-func (svc *APIServer) registerHealthHandler(mux *http.ServeMux) {
+	servicePaths []string,
+) {
 	healthChecker := grpchealth.NewStaticChecker(
-		message_apiconnect.ReplicationApiName,
-		metadata_apiconnect.MetadataApiName,
+		append(servicePaths, grpchealth.HealthV1ServiceName)...,
 	)
 
 	path, handler := grpchealth.NewHandler(healthChecker)
@@ -253,30 +189,20 @@ func (svc *APIServer) registerHealthHandler(mux *http.ServeMux) {
 	svc.logger.Info("health handler registered")
 }
 
-// TODO: Fix!
-// Implement dynamic reflector.
-func reflector() *grpcreflect.Reflector {
-	return grpcreflect.NewStaticReflector(
-		grpchealth.HealthV1ServiceName,
+func (svc *APIServer) registerReflectionHandlers(mux *http.ServeMux, servicePaths []string) {
+	reflector := grpcreflect.NewStaticReflector(
+		append(servicePaths, grpchealth.HealthV1ServiceName)...,
 	)
-}
 
-func (svc *APIServer) registerReflectionHandlerV1(mux *http.ServeMux) {
-	reflector := reflector()
+	pathV1, handlerV1 := grpcreflect.NewHandlerV1(reflector)
 
-	path, handler := grpcreflect.NewHandlerV1(reflector)
-
-	mux.Handle(path, handler)
+	mux.Handle(pathV1, handlerV1)
 
 	svc.logger.Info("reflection handler v1 registered")
-}
 
-func (svc *APIServer) registerReflectionHandlerV1Alpha(mux *http.ServeMux) {
-	reflector := reflector()
+	pathV1Alpha, handlerV1Alpha := grpcreflect.NewHandlerV1Alpha(reflector)
 
-	path, handler := grpcreflect.NewHandlerV1Alpha(reflector)
-
-	mux.Handle(path, handler)
+	mux.Handle(pathV1Alpha, handlerV1Alpha)
 
 	svc.logger.Info("reflection handler v1 alpha registered")
 }

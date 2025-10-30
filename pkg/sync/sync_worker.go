@@ -280,6 +280,9 @@ type NodeRegistration struct {
 	nodeID uint32
 }
 
+// connectToNode connects to a node and returns a gRPC client connection.
+// Note that this is a gRPC native connection, not a Connect-based connection.
+// The server side uses Connect-based connections, which supports gRPC as well.
 func (s *syncWorker) connectToNode(
 	node registry.Node,
 ) (*grpc.ClientConn, error) {
@@ -288,7 +291,10 @@ func (s *syncWorker) connectToNode(
 		utils.NodeHTTPAddressField(node.HTTPAddress),
 	)
 
-	interceptor := clientInterceptors.NewAuthInterceptor(s.registrant.TokenFactory(), node.NodeID)
+	interceptor := clientInterceptors.NewClientAuthInterceptor(
+		s.registrant.TokenFactory(),
+		node.NodeID,
+	)
 
 	dialOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(interceptor.Unary()),

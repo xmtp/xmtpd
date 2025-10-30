@@ -18,7 +18,7 @@ import (
 func TestUnaryInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
-	interceptor := NewAuthInterceptor(mockVerifier, logger)
+	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
 
 	tests := []struct {
 		name             string
@@ -113,7 +113,7 @@ func TestUnaryInterceptor(t *testing.T) {
 func TestStreamInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
-	interceptor := NewAuthInterceptor(mockVerifier, logger)
+	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
 
 	tests := []struct {
 		name             string

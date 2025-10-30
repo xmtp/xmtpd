@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	"go.uber.org/zap"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
 
@@ -28,6 +29,9 @@ type LoggingInterceptor struct {
 	logger *zap.Logger
 }
 
+// Connect-go interceptor interface implementation.
+var _ connect.Interceptor = (*LoggingInterceptor)(nil)
+
 // NewLoggingInterceptor creates a new instance of LoggingInterceptor.
 func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 	if logger == nil {
@@ -39,16 +43,15 @@ func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 	}, nil
 }
 
-// Unary intercepts unary RPC calls to log errors.
+/* gRPC interceptors */
+
 func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
-	return func(
-		ctx context.Context,
-		req interface{},
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		start := time.Now()
-		resp, err := handler(ctx, req) // Call the actual RPC handler
+
+		// Call the actual RPC handler.
+		resp, err := handler(ctx, req)
+
 		duration := time.Since(start)
 
 		if err != nil {
@@ -66,16 +69,13 @@ func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
 	}
 }
 
-// Stream intercepts stream RPC calls to log errors.
 func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
-	return func(
-		srv interface{},
-		ss grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
-	) error {
+	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		start := time.Now()
-		err := handler(srv, ss) // Call the actual stream handler
+
+		// Call the actual stream handler.
+		err := handler(srv, stream)
+
 		duration := time.Since(start)
 
 		if err != nil {
@@ -83,6 +83,68 @@ func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
 			i.logger.Error(
 				"stream client RPC error",
 				utils.MethodField(info.FullMethod),
+				utils.DurationMsField(duration),
+				zap.String(codeField, st.Code().String()),
+				zap.String(messageField, st.Message()),
+			)
+		}
+
+		return sanitizeError(err)
+	}
+}
+
+/* Connect-go interceptors */
+
+func (i *LoggingInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		start := time.Now()
+
+		// Call the actual RPC handler.
+		resp, err := next(ctx, req)
+
+		duration := time.Since(start)
+
+		if err != nil {
+			st, _ := status.FromError(err)
+			i.logger.Error(
+				"client unary RPC error",
+				utils.MethodField(req.Spec().Procedure),
+				utils.DurationMsField(duration),
+				zap.String(codeField, st.Code().String()),
+				zap.String(messageField, st.Message()),
+			)
+		}
+
+		return resp, sanitizeError(err)
+	}
+}
+
+// WrapStreamingClient is a no-op. Interface requirement.
+func (i *LoggingInterceptor) WrapStreamingClient(
+	next connect.StreamingClientFunc,
+) connect.StreamingClientFunc {
+	return next
+}
+
+func (i *LoggingInterceptor) WrapStreamingHandler(
+	next connect.StreamingHandlerFunc,
+) connect.StreamingHandlerFunc {
+	return func(
+		ctx context.Context,
+		conn connect.StreamingHandlerConn,
+	) error {
+		start := time.Now()
+
+		// Call the actual stream handler.
+		err := next(ctx, conn)
+
+		duration := time.Since(start)
+
+		if err != nil {
+			st, _ := status.FromError(err)
+			i.logger.Error(
+				"stream client RPC error",
+				utils.MethodField(conn.Spec().Procedure),
 				utils.DurationMsField(duration),
 				zap.String(codeField, st.Code().String()),
 				zap.String(messageField, st.Message()),

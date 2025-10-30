@@ -144,7 +144,7 @@ func (i *Indexer) Close() {
 	i.logger.Debug("stopped")
 }
 
-func (i *Indexer) StartIndexer() error {
+func (i *Indexer) Start() error {
 	err := i.appChain.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start app chain: %w", err)

@@ -427,7 +427,6 @@ func (s *Service) publishToBlockchain(
 
 		var logMessage *iu.IdentityUpdateBroadcasterIdentityUpdateCreated
 
-		// Get the inbox ID as [32]byte
 		inboxID, err := utils.ParseInboxID(identifier)
 		if err != nil {
 			return nil, connect.NewError(

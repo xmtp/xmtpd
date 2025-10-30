@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
@@ -169,11 +170,11 @@ func NewBaseServer(
 		return nil, errors.New("no fee calculator found")
 	}
 
-	// TODO: Check if this is valid with connect-go.
 	// Setup Prometheus registry.
 	promReg := prometheus.NewRegistry()
 
-	// Fix! : Check if something more is needed.
+	// Client metrics are registered into the metrics server,
+	// and also passed to the MLS validation service.
 	clientMetrics := grpcprom.NewClientMetrics(
 		grpcprom.WithClientHandlingTimeHistogram(),
 	)
@@ -252,7 +253,7 @@ func NewBaseServer(
 			return nil, fmt.Errorf("failed to initialize indexer: %w", err)
 		}
 
-		err = svc.indexer.StartIndexer()
+		err = svc.indexer.Start()
 		if err != nil {
 			return nil, fmt.Errorf("failed to start indexer: %w", err)
 		}
@@ -291,7 +292,6 @@ func NewBaseServer(
 		err = startAPIServer(
 			svc,
 			cfg,
-			clientMetrics,
 			promReg,
 		)
 		if err != nil {
@@ -401,15 +401,15 @@ func NewBaseServer(
 func startAPIServer(
 	svc *BaseServer,
 	cfg *BaseServerConfig,
-	_ *grpcprom.ClientMetrics,
 	promReg *prometheus.Registry,
 ) (err error) {
 	isMigrationEnabled := cfg.Options.MigrationServer.Enable || cfg.Options.MigrationClient.Enable
 
 	// Add auth interceptors if JWT verifier is available.
 	var (
-		jwtVerifier authn.JWTVerifier
-		apiOpts     = make([]api.APIServerOption, 0)
+		jwtVerifier     authn.JWTVerifier
+		authInterceptor *server.ServerAuthInterceptor
+		apiOpts         = make([]api.APIServerOption, 0)
 	)
 
 	if svc.nodeRegistry != nil && svc.registrant != nil {
@@ -426,14 +426,17 @@ func startAPIServer(
 	}
 
 	if jwtVerifier != nil {
-		authInterceptor := server.NewAuthInterceptor(jwtVerifier, cfg.Logger)
-		apiOpts = append(apiOpts,
-			api.WithUnaryInterceptors(authInterceptor.Unary()),
-			api.WithStreamInterceptors(authInterceptor.Stream()),
-		)
+		authInterceptor = server.NewServerAuthInterceptor(jwtVerifier, cfg.Logger)
 	}
 
-	registrationFunc := func(mux *http.ServeMux) error {
+	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
+		if jwtVerifier != nil && authInterceptor != nil {
+			interceptors = append(
+				interceptors,
+				authInterceptor,
+			)
+		}
+
 		// Register replication API.
 		replicationService, err := message.NewReplicationAPIService(
 			svc.ctx,
@@ -448,16 +451,17 @@ func startAPIServer(
 			10*time.Millisecond,
 		)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if replicationService == nil {
 			svc.logger.Error("replication service is nil")
-			return fmt.Errorf("replication service is nil")
+			return nil, fmt.Errorf("replication service is nil")
 		}
 
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
 			replicationService,
+			connect.WithInterceptors(interceptors...),
 		)
 
 		mux.Handle(replicationPath, replicationHandler)
@@ -473,23 +477,27 @@ func startAPIServer(
 			metadata.NewPayerInfoFetcher(cfg.DB),
 		)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if metadataService == nil {
 			svc.logger.Error("metadata service is nil")
-			return fmt.Errorf("metadata service is nil")
+			return nil, fmt.Errorf("metadata service is nil")
 		}
 
 		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
 			metadataService,
+			connect.WithInterceptors(interceptors...),
 		)
 
 		mux.Handle(metadataPath, metadataHandler)
 
 		svc.logger.Info("metadata api registered")
 
-		return nil
+		return []string{
+			metadata_apiconnect.MetadataApiName,
+			message_apiconnect.ReplicationApiName,
+		}, nil
 	}
 
 	apiOpts = append(apiOpts, []api.APIServerOption{

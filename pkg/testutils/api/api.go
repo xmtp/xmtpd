@@ -194,7 +194,7 @@ func NewTestAPIServer(
 	}
 
 	// Add auth interceptors
-	authInterceptor := server.NewAuthInterceptor(jwtVerifier, log)
+	authInterceptor := server.NewServerAuthInterceptor(jwtVerifier, log)
 	apiOpts = append(apiOpts,
 		api.WithUnaryInterceptors(authInterceptor.Unary()),
 		api.WithStreamInterceptors(authInterceptor.Stream()),

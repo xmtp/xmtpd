@@ -20,7 +20,7 @@ import (
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
 )
 
-// Fix! : Add tests for the other protocols.
+// Fix! : Add tests for the other protocols. Any client type should connect to all the APIs.
 // Fix! : Add a native gRPC client.
 func TestEnvelopesGenerator(t *testing.T) {
 	var (

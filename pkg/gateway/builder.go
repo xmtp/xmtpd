@@ -244,7 +244,6 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			b.nodeRegistry,
 			gatewayPrivateKey,
 			b.blockchainPublisher,
-			nil,
 			clientMetrics,
 		)
 		if err != nil {

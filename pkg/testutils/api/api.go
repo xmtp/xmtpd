@@ -153,7 +153,6 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 			privKey,
 			mockMessagePublisher,
 			nil,
-			nil,
 		)
 		require.NoError(t, err)
 		payer_api.RegisterPayerApiServer(grpcServer, payerService)

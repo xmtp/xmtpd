@@ -1014,9 +1014,7 @@ func TestCreateAttestationConcurrency(t *testing.T) {
 	errCh := make(chan error, numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			attestation := &payerreport.PayerReportAttestation{
 				Report: &report,
 				NodeSignature: payerreport.NodeSignature{
@@ -1030,7 +1028,7 @@ func TestCreateAttestationConcurrency(t *testing.T) {
 			require.NoError(t, err)
 
 			errCh <- store.CreateAttestation(ctx, attestation, payerEnv)
-		}()
+		})
 	}
 
 	wg.Wait()

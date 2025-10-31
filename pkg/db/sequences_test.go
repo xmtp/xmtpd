@@ -99,16 +99,14 @@ func TestConcurrentReads(t *testing.T) {
 	results := make(chan int64, numClients)
 
 	for i := 0; i < numClients; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			seqID, err := getNextPayerSequence(t, ctx, db)
 			if err != nil {
 				t.Errorf("Error acquiring sequence: %v", err)
 			} else {
 				results <- seqID
 			}
-		}()
+		})
 	}
 
 	// Wait for all goroutines to complete
@@ -387,15 +385,13 @@ func TestAbandonConcurrently(t *testing.T) {
 	numDeletions := int64(0)
 
 	for i := 1; i <= numClients; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			numrows, err := querier.DeleteObsoleteNonces(ctx, int64(10*i))
 			if err != nil {
 				t.Errorf("Error deleting nonces: %v", err)
 			}
 			atomic.AddInt64(&numDeletions, numrows)
-		}()
+		})
 	}
 
 	// Wait for all goroutines to complete
@@ -433,15 +429,13 @@ func TestAbandonConcurrentlyWithOpenTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 1; i <= numClients; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			numrows, err := querier.DeleteObsoleteNonces(ctx, int64(10*i))
 			if err != nil {
 				t.Errorf("Error deleting nonces: %v", err)
 			}
 			atomic.AddInt64(&numDeletions, numrows)
-		}()
+		})
 	}
 
 	wg.Wait()

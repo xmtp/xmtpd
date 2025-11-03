@@ -15,11 +15,11 @@ import (
 // This function runs inside a managed transaction created by RunInTxWithResult().
 //
 // Steps:
-//   1. Calls InsertGatewayEnvelopeWithChecksTransactional() to insert the envelope,
-//      automatically creating any missing partitions if needed.
-//   2. If a new envelope is inserted, increments unsettled usage and congestion
-//      counters for the originator within the same transaction.
-//   3. If the envelope already exists (duplicate insert), metrics are not updated.
+//  1. Calls InsertGatewayEnvelopeWithChecksTransactional() to insert the envelope,
+//     automatically creating any missing partitions if needed.
+//  2. If a new envelope is inserted, increments unsettled usage and congestion
+//     counters for the originator within the same transaction.
+//  3. If the envelope already exists (duplicate insert), metrics are not updated.
 //
 // The function ensures atomicity between envelope insertion and usage updates.
 // Safe for high-throughput ingest paths where message persistence and usage tracking
@@ -35,7 +35,11 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		db,
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) (int64, error) {
-			numInserted, err := InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries, insertParams)
+			numInserted, err := InsertGatewayEnvelopeWithChecksTransactional(
+				ctx,
+				txQueries,
+				insertParams,
+			)
 			if err != nil {
 				return 0, err
 			}
@@ -93,11 +97,11 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 // inside the current SQL transaction, with automatic partition creation and retry.
 //
 // Behavior:
-//   • Creates a SAVEPOINT before the insert so that a failure does not abort the entire tx.
-//   • On “no partition of relation …” errors, it rolls back to the savepoint,
+//   - Creates a SAVEPOINT before the insert so that a failure does not abort the entire tx.
+//   - On “no partition of relation …” errors, it rolls back to the savepoint,
 //     creates the missing partition(s) using the same connection (within the tx),
 //     and retries the insert once.
-//   • On success, the savepoint is released.
+//   - On success, the savepoint is released.
 //
 // This variant must be called within an active transaction. It avoids full tx rollbacks
 // and ensures inserts can proceed even when new partitions are required.
@@ -146,8 +150,8 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 // automatically creating missing partitions and retrying once.
 //
 // Behavior:
-//   • Performs an insert into the v2 tables.
-//   • On “no partition of relation …” errors, creates the necessary partitions
+//   - Performs an insert into the v2 tables.
+//   - On “no partition of relation …” errors, creates the necessary partitions
 //     in the same connection, and retries the insert once.
 //
 // This function does not use SAVEPOINTs and does not depend on an explicit transaction.
@@ -158,7 +162,6 @@ func InsertGatewayEnvelopeWithChecksStandalone(
 	q *queries.Queries,
 	row queries.InsertGatewayEnvelopeV2Params,
 ) (queries.InsertGatewayEnvelopeV2Row, error) {
-
 	inserted, err := q.InsertGatewayEnvelopeV2(ctx, row)
 
 	if err == nil {

@@ -229,7 +229,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 			}
 
-			_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
+			_, err = db.InsertGatewayEnvelopeWithChecksTransactional(
 				ctx,
 				querier,
 				queries.InsertGatewayEnvelopeV2Params{

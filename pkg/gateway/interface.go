@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"net/http"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,7 +37,7 @@ type PublishRequestSummary struct {
 	TotalCostEstimate    currency.PicoDollar
 }
 
-type IdentityFn func(ctx context.Context) (Identity, error)
+type IdentityFn func(headers http.Header, peer string) (Identity, error)
 
 type AuthorizePublishFn func(ctx context.Context, identity Identity, req PublishRequestSummary) (bool, error)
 

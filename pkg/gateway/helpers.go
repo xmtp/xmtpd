@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -12,10 +13,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func IPIdentityFn(ctx context.Context) (Identity, error) {
+func IPIdentityFn(headers http.Header, peer string) (Identity, error) {
 	return Identity{
 		Kind:     identityKindIP,
-		Identity: ClientIPFromContext(ctx),
+		Identity: ClientIPFromHeaderOrPeer(headers, peer),
 	}, nil
 }
 
@@ -60,6 +61,10 @@ func ClientIPFromContext(ctx context.Context) string {
 	return utils.ClientIPFromContext(ctx)
 }
 
+func ClientIPFromHeaderOrPeer(headers http.Header, peer string) string {
+	return utils.ClientIPFromHeaderOrPeer(headers, peer)
+}
+
 func AuthorizationHeaderFromContext(ctx context.Context) string {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -70,4 +75,9 @@ func AuthorizationHeaderFromContext(ctx context.Context) string {
 		return ""
 	}
 	return auth[0]
+}
+
+func IdentityFromContext(ctx context.Context) (Identity, bool) {
+	identity, ok := ctx.Value(identityCtxKey{}).(Identity)
+	return identity, ok
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"connectrpc.com/connect"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -238,7 +239,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		return nil, errors.Wrap(err, "failed to parse gateway private key")
 	}
 
-	registrationFunc := func(mux *http.ServeMux) error {
+	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
 		gatewayAPIService, err := payer.NewPayerAPIService(
 			ctx,
 			b.logger,
@@ -250,34 +251,38 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			clientMetrics,
 		)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if gatewayAPIService == nil {
-			return fmt.Errorf("gateway api service is nil")
+			return nil, fmt.Errorf("gateway api service is nil")
 		}
+
+		// Append the gateway interceptor to the list of default serverinterceptors.
+		interceptors = append(
+			interceptors,
+			NewGatewayInterceptor(b.logger, b.identityFn, b.authorizers),
+		)
 
 		gatewayPath, gatewayHandler := payer_apiconnect.NewPayerApiHandler(
 			gatewayAPIService,
+			connect.WithInterceptors(interceptors...),
 		)
 
 		mux.Handle(gatewayPath, gatewayHandler)
 
 		b.logger.Info("gateway api registered")
 
-		return nil
+		return []string{payer_apiconnect.PayerApiName}, nil
 	}
-
-	// Create gateway interceptor
-	gatewayInterceptor := NewGatewayInterceptor(b.logger, b.identityFn, b.authorizers)
 
 	apiServer, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(b.logger),
-		api.WithRegistrationFunc(registrationFunc),
+		api.WithPort(b.config.API.Port),
 		api.WithPrometheusRegistry(promRegistry),
-		api.WithUnaryInterceptors(gatewayInterceptor.Unary()),
-		api.WithStreamInterceptors(gatewayInterceptor.Stream()),
+		api.WithReflection(b.config.Reflection.Enable),
+		api.WithRegistrationFunc(registrationFunc),
 	)
 	if err != nil {
 		cancel()

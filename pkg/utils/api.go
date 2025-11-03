@@ -4,6 +4,7 @@ package utils
 import (
 	"context"
 	"net"
+	"net/http"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
@@ -29,5 +30,26 @@ func ClientIPFromContext(ctx context.Context) string {
 	}
 	// There are potentially multiple comma separated IPs bundled in that first value
 	ips := strings.Split(vals[0], ",")
+	return strings.TrimSpace(ips[0])
+}
+
+func ClientIPFromHeaderOrPeer(headers http.Header, peer string) string {
+	xForwardedFor := headers.Get("x-forwarded-for")
+
+	// Try peer string if x-forwarded-for is not set.
+	if len(xForwardedFor) == 0 {
+		if peer != "" {
+			host, _, err := net.SplitHostPort(peer)
+			if err != nil {
+				return ""
+			}
+			return host
+		}
+
+		return ""
+	}
+
+	ips := strings.Split(xForwardedFor, ",")
+
 	return strings.TrimSpace(ips[0])
 }

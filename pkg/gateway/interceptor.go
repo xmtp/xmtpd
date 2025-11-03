@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -21,15 +21,7 @@ const (
 
 type identityCtxKey struct{}
 
-type gatewayWrappedServerStream struct {
-	grpc.ServerStream
-	ctx context.Context
-}
-
-func (w *gatewayWrappedServerStream) Context() context.Context {
-	return w.ctx
-}
-
+// GatewayInterceptor is the server-side interceptor for the gateway API.
 type GatewayInterceptor struct {
 	identityFn  IdentityFn
 	authorizers []AuthorizePublishFn
@@ -48,25 +40,25 @@ func NewGatewayInterceptor(
 	}
 }
 
-func (i *GatewayInterceptor) Unary() grpc.UnaryServerInterceptor {
-	return func(
-		ctx context.Context,
-		req interface{},
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler,
-	) (interface{}, error) {
-		identity, err := i.identityFn(ctx)
+func (i *GatewayInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		identity, err := i.identityFn(req.Header(), req.Peer().Addr)
 		if err != nil {
-			i.logger.Error("failed to get identity", zap.Error(err))
-			return nil, status.Errorf(codes.Internal, "failed to get identity: %v", err)
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("failed to get identity: %v", err),
+			)
 		}
 
 		ctx = context.WithValue(ctx, identityCtxKey{}, identity)
 
-		if strings.HasSuffix(info.FullMethod, "PublishClientEnvelopes") {
-			publishReq, ok := req.(*payer_api.PublishClientEnvelopesRequest)
+		if strings.HasSuffix(req.Spec().Procedure, "PublishClientEnvelopes") {
+			publishReq, ok := req.Any().(*payer_api.PublishClientEnvelopesRequest)
 			if !ok {
-				return nil, status.Error(codes.Internal, "invalid request type")
+				return nil, connect.NewError(
+					connect.CodeInternal,
+					fmt.Errorf("invalid request type"),
+				)
 			}
 
 			// Create a summary of the request
@@ -97,42 +89,53 @@ func (i *GatewayInterceptor) Unary() grpc.UnaryServerInterceptor {
 						zap.Error(err),
 						zap.String(identityField, identity.Identity),
 						zap.String(identityKindField, string(identity.Kind)))
-					return nil, status.Errorf(codes.Internal, "authorization error: %v", err)
+					return nil, connect.NewError(
+						connect.CodeInternal,
+						fmt.Errorf("authorization error: %v", err),
+					)
 				}
 
 				if !authorized {
 					i.logger.Warn("unauthorized publish request",
 						zap.String(identityField, identity.Identity),
 						zap.String(identityKindField, string(identity.Kind)))
-					return nil, status.Error(codes.PermissionDenied, "unauthorized")
+					return nil, connect.NewError(
+						connect.CodePermissionDenied,
+						fmt.Errorf("unauthorized"),
+					)
 				}
 			}
 		}
 
-		return handler(ctx, req)
+		return next(ctx, req)
 	}
 }
 
-// We create a stream interceptor even if we don't actually expose any streaming APIs
-func (i *GatewayInterceptor) Stream() grpc.StreamServerInterceptor {
-	return func(
-		srv interface{},
-		stream grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
-	) error {
-		identity, err := i.identityFn(stream.Context())
+// WrapStreamingClient is a no-op. Interface requirement.
+func (i *GatewayInterceptor) WrapStreamingClient(
+	next connect.StreamingClientFunc,
+) connect.StreamingClientFunc {
+	return next
+}
+
+func (i *GatewayInterceptor) WrapStreamingHandler(
+	next connect.StreamingHandlerFunc,
+) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		identity, err := i.identityFn(conn.RequestHeader(), conn.Peer().Addr)
 		if err != nil {
 			i.logger.Error("failed to get identity", zap.Error(err))
-			return status.Errorf(codes.Internal, "failed to get identity: %v", err)
+			return connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("failed to get identity: %v", err),
+			)
 		}
 
-		stream = &gatewayWrappedServerStream{
-			ServerStream: stream,
-			ctx:          context.WithValue(stream.Context(), identityCtxKey{}, identity),
-		}
+		// TODO: Check if the identity is authorized to publish to the gateway.
 
-		return handler(srv, stream)
+		ctx = context.WithValue(ctx, identityCtxKey{}, identity)
+
+		return next(ctx, conn)
 	}
 }
 

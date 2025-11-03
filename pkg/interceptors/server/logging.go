@@ -9,8 +9,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 
 	"go.uber.org/zap"
 
@@ -42,58 +40,6 @@ func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 		logger: logger,
 	}, nil
 }
-
-/* gRPC interceptors */
-
-func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		start := time.Now()
-
-		// Call the actual RPC handler.
-		resp, err := handler(ctx, req)
-
-		duration := time.Since(start)
-
-		if err != nil {
-			st, _ := status.FromError(err)
-			i.logger.Error(
-				"client unary RPC error",
-				utils.MethodField(info.FullMethod),
-				utils.DurationMsField(duration),
-				zap.String(codeField, st.Code().String()),
-				zap.String(messageField, st.Message()),
-			)
-		}
-
-		return resp, sanitizeError(err)
-	}
-}
-
-func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
-	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		start := time.Now()
-
-		// Call the actual stream handler.
-		err := handler(srv, stream)
-
-		duration := time.Since(start)
-
-		if err != nil {
-			st, _ := status.FromError(err)
-			i.logger.Error(
-				"stream client RPC error",
-				utils.MethodField(info.FullMethod),
-				utils.DurationMsField(duration),
-				zap.String(codeField, st.Code().String()),
-				zap.String(messageField, st.Message()),
-			)
-		}
-
-		return sanitizeError(err)
-	}
-}
-
-/* Connect-go interceptors */
 
 func (i *LoggingInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
@@ -170,34 +116,40 @@ func sanitizeError(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	var (
-		finalCode codes.Code
+		finalCode connect.Code
 		finalMsg  string
 	)
+
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		finalCode = codes.DeadlineExceeded
+		finalCode = connect.CodeDeadlineExceeded
 		finalMsg = "request timed out"
+
 	case errors.Is(err, context.Canceled):
-		finalCode = codes.Canceled
+		finalCode = connect.CodeCanceled
 		finalMsg = "request was canceled"
+
 	default:
 		if st, ok := status.FromError(err); ok {
-			finalCode = st.Code()
+			finalCode = connect.Code(st.Code())
 			switch finalCode {
-			case codes.InvalidArgument, codes.Unimplemented, codes.NotFound:
+			case connect.CodeInvalidArgument, connect.CodeUnimplemented, connect.CodeNotFound:
 				finalMsg = st.Message()
-			case codes.Internal:
+			case connect.CodeInternal:
 				finalMsg = "internal server error"
 			default:
 				finalMsg = "request has failed"
 			}
 		} else {
-			finalCode = codes.Internal
+			finalCode = connect.CodeInternal
 			finalMsg = "internal server error"
 		}
 	}
+
 	// Emit metric for every non-nil error path
-	metrics.EmitNewFailedGRPCRequest(finalCode)
-	return status.Error(finalCode, finalMsg)
+	metrics.EmitNewFailedGRPCRequest(connect.Code(finalCode))
+
+	return connect.NewError(finalCode, errors.New(finalMsg))
 }

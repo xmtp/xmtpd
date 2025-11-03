@@ -45,7 +45,7 @@ func TestGatewayInterceptor(t *testing.T) {
 		require.NoError(t, err)
 
 		// Check that identity was injected into context
-		identity, ok := GetIdentityFromContext(capturedCtx)
+		identity, ok := IdentityFromContext(capturedCtx)
 		assert.True(t, ok)
 		assert.Equal(t, expectedIdentity, identity)
 	})

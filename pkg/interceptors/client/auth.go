@@ -1,5 +1,6 @@
 // Package client implements the authentication interceptors for the client.
-// The auth interceptors are used mostly for gRPC clients, but we also have support for connect-go clients.
+// The auth interceptors are used mostly for gRPC clients.
+// We also have support for connect-go clients for future proofing.
 package client
 
 import (
@@ -29,8 +30,6 @@ type ClientAuthInterceptor struct {
 var _ connect.Interceptor = (*ClientAuthInterceptor)(nil)
 
 // NewClientAuthInterceptor creates a new AuthInterceptor.
-// It's compliant with the grpc.UnaryClientInterceptor and grpc.StreamClientInterceptor interfaces.
-// It's also compliant with the connect.UnaryFunc interface.
 func NewClientAuthInterceptor(
 	tokenFactory authn.TokenFactory,
 	targetNodeID uint32,

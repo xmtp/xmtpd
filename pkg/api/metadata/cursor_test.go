@@ -30,7 +30,7 @@ func setupTest(
 	t *testing.T,
 ) (metadata_apiconnect.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	var (
-		api, db, mocks = testUtilsApi.NewTestAPIServer(t)
+		api, db, mocks = testUtilsApi.NewTestFullServer(t)
 		client         = testUtilsApi.NewTestMetadataAPIClient(t, api.Addr())
 		payerID        = dbUtils.NullInt32(testutils.CreatePayer(t, db))
 	)

@@ -26,7 +26,7 @@ import (
 
 func TestPublishEnvelope(t *testing.T) {
 	var (
-		client = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+		client = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 		db, _  = testutils.NewDB(t, t.Context())
 	)
 
@@ -86,7 +86,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -105,7 +105,7 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 
 	nodeID := envelopeTestUtils.DefaultClientEnvelopeNodeID + 100
 
@@ -123,7 +123,7 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 
 func TestMissingTopicOnPublish(t *testing.T) {
 	var (
-		client    = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+		client    = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 		clientEnv = envelopeTestUtils.CreateClientEnvelope()
 	)
 
@@ -146,8 +146,8 @@ func TestMissingTopicOnPublish(t *testing.T) {
 
 func TestKeyPackageValidationSuccess(t *testing.T) {
 	var (
-		client         = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
-		_, _, apiMocks = apiTestUtils.NewTestAPIServer(t)
+		client         = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+		_, _, apiMocks = apiTestUtils.NewTestFullServer(t)
 	)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(
@@ -195,8 +195,8 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 
 func TestKeyPackageValidationFail(t *testing.T) {
 	var (
-		client         = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
-		_, _, apiMocks = apiTestUtils.NewTestAPIServer(t)
+		client         = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+		_, _, apiMocks = apiTestUtils.NewTestFullServer(t)
 		nodeID         = envelopeTestUtils.DefaultClientEnvelopeNodeID
 	)
 
@@ -238,7 +238,7 @@ func TestKeyPackageValidationFail(t *testing.T) {
 }
 
 func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
@@ -283,7 +283,7 @@ func publishPayerEnvelopeWithNodeIDAndCursor(
 }
 
 func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
@@ -300,7 +300,7 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 }
 
 func TestPublishEnvelolopeDependsOnOriginator(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
@@ -317,7 +317,7 @@ func TestPublishEnvelolopeDependsOnOriginator(t *testing.T) {
 }
 
 func TestPublishEnvelopeFees(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 	db, _ := testutils.NewDB(t, t.Context())
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
@@ -366,7 +366,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 
 func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	var (
-		client  = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+		client  = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 		db, _   = testutils.NewDB(t, t.Context())
 		querier = queries.New(db)
 	)
@@ -424,7 +424,7 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 }
 
 func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
-	client := apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 
 	tests := []struct {
 		name        string
@@ -506,7 +506,7 @@ func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 
 func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 	var (
-		client = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+		client = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 		nodeID = envelopeTestUtils.DefaultClientEnvelopeNodeID
 	)
 

@@ -147,7 +147,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishToNodes(t *testing.T) {
-	originatorServer, _, _ := apiTestUtils.NewTestAPIServer(t)
+	originatorServer, _, _ := apiTestUtils.NewTestFullServer(t)
 
 	ctx := context.Background()
 	svc, _, mockRegistry, _ := buildPayerService(t)

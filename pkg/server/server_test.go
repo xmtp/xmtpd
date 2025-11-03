@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -32,10 +33,14 @@ const (
 )
 
 func TestCreateServer(t *testing.T) {
-	ctx := t.Context()
-	dbs := testutils.NewDBs(t, ctx, 2)
+	var (
+		ctx = t.Context()
+		dbs = testutils.NewDBs(t, ctx, 2)
+	)
+
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
+
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
@@ -76,6 +81,7 @@ func TestCreateServer(t *testing.T) {
 			},
 		},
 	)
+
 	server2 := serverTestUtils.NewTestReplicationServer(
 		t,
 		serverTestUtils.TestServerCfg{
@@ -91,7 +97,6 @@ func TestCreateServer(t *testing.T) {
 			},
 		},
 	)
-
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 
 	defer func() {
@@ -99,43 +104,52 @@ func TestCreateServer(t *testing.T) {
 		server2.Shutdown(0)
 	}()
 
-	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
-	client2 := apiTestUtils.NewReplicationAPIClient(t, server2.Addr().String())
+	client1 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server1.Addr())
+	client2 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server2.Addr())
 	nodeID1 := server1NodeID
 	nodeID2 := server2NodeID
 
 	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 
+	payerEnvelope1 := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		nodeID1,
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+				TargetTopic: targetTopic,
+				DependsOn:   &envelopes.Cursor{},
+			}},
+		),
+	)
+
 	p1, err := client1.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
-				nodeID1,
-				envelopeTestUtils.CreateClientEnvelope(
-					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-						TargetTopic: targetTopic,
-						DependsOn:   &envelopes.Cursor{},
-					}},
-				),
-			)},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope1},
+			},
 		},
 	)
 	require.NoError(t, err)
+
+	payerEnvelope2 := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		nodeID2,
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+				TargetTopic: targetTopic,
+				DependsOn:   &envelopes.Cursor{},
+			}},
+		),
+	)
+
 	p2, err := client2.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
-				nodeID2,
-				envelopeTestUtils.CreateClientEnvelope(
-					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-						TargetTopic: targetTopic,
-						DependsOn:   &envelopes.Cursor{},
-					}},
-				),
-			)},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope2},
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -143,17 +157,19 @@ func TestCreateServer(t *testing.T) {
 	// NOTE: there might be a collection of PayerReports here on top of the actual envelopes
 
 	require.Eventually(t, func() bool {
-		q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{server2NodeID},
-				LastSeen:          &envelopes.Cursor{},
+		q1, err := client1.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
+			Msg: &message_api.QueryEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					OriginatorNodeIds: []uint32{server2NodeID},
+					LastSeen:          &envelopes.Cursor{},
+				},
+				Limit: 10,
 			},
-			Limit: 10,
 		})
 		require.NoError(t, err)
 
-		for _, e := range q1.Envelopes {
-			if reflect.DeepEqual(e, p2.OriginatorEnvelopes[0]) {
+		for _, e := range q1.Msg.Envelopes {
+			if reflect.DeepEqual(e, p2.Msg.OriginatorEnvelopes[0]) {
 				return true
 			}
 		}
@@ -161,17 +177,19 @@ func TestCreateServer(t *testing.T) {
 	}, 3000*time.Millisecond, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
-		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{server1NodeID},
-				LastSeen:          &envelopes.Cursor{},
+		q2, err := client2.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
+			Msg: &message_api.QueryEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					OriginatorNodeIds: []uint32{server1NodeID},
+					LastSeen:          &envelopes.Cursor{},
+				},
+				Limit: 10,
 			},
-			Limit: 10,
 		})
 		require.NoError(t, err)
 
-		for _, e := range q2.Envelopes {
-			if reflect.DeepEqual(e, p1.OriginatorEnvelopes[0]) {
+		for _, e := range q2.Msg.Envelopes {
+			if reflect.DeepEqual(e, p1.Msg.OriginatorEnvelopes[0]) {
 				return true
 			}
 		}
@@ -217,24 +235,28 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		server1.Shutdown(0)
 	}()
 
-	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
+	client1 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server1.Addr())
 
 	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 
+	payerEnvelope1 := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		nodeID1,
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+				TargetTopic: targetTopic,
+				DependsOn:   &envelopes.Cursor{},
+			}},
+		),
+	)
+
 	_, err = client1.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
-				nodeID1,
-				envelopeTestUtils.CreateClientEnvelope(
-					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-						TargetTopic: targetTopic,
-						DependsOn:   &envelopes.Cursor{},
-					}},
-				),
-			)},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope1},
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -242,15 +264,17 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	// query the same server immediately after writing
 	// the server should return the write on the first attempt
 
-	q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-		Query: &message_api.EnvelopesQuery{
-			OriginatorNodeIds: []uint32{server1NodeID},
-			LastSeen:          &envelopes.Cursor{},
+	q1, err := client1.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
+		Msg: &message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{server1NodeID},
+				LastSeen:          &envelopes.Cursor{},
+			},
+			Limit: 10,
 		},
-		Limit: 10,
 	})
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(q1.Envelopes), 1)
+	require.GreaterOrEqual(t, len(q1.Msg.Envelopes), 1)
 }
 
 func TestGRPCHealthEndpoint(t *testing.T) {

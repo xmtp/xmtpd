@@ -44,7 +44,7 @@ func startIndexing(
 	)
 	require.NoError(t, err)
 
-	err = indx.StartIndexer()
+	err = indx.Start()
 	require.NoError(t, err)
 
 	return db, queries.New(db), cfg, ctx

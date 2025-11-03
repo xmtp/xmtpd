@@ -3,52 +3,49 @@ package client
 import (
 	"context"
 	"net"
+	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
 // Create a mock implementation of the ReplicationApiServer interface
-// but that embeds `UnimplementedReplicationApiServer` (which mockery won't do for us)
+// but that embeds `message_apiconnect.ReplicationApiHandler` (which mockery won't do for us)
 type mockReplicationAPIServer struct {
-	message.Service
+	message_apiconnect.ReplicationApiHandler
 	expectedToken string
 }
 
 func (s *mockReplicationAPIServer) QueryEnvelopes(
 	ctx context.Context,
-	req *message_api.QueryEnvelopesRequest,
-) (*message_api.QueryEnvelopesResponse, error) {
-	// Get metadata from the context
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "metadata is not provided")
-	}
-
+	req *connect.Request[message_api.QueryEnvelopesRequest],
+) (*connect.Response[message_api.QueryEnvelopesResponse], error) {
 	// Extract and verify the token
-	tokens := md.Get(constants.NodeAuthorizationHeaderName)
-	if len(tokens) == 0 {
+	token := req.Header().Get(constants.NodeAuthorizationHeaderName)
+	if token == "" {
 		return nil, status.Error(codes.Unauthenticated, "authorization token is not provided")
 	}
-	token := tokens[0]
+
 	if token != s.expectedToken {
 		return nil, status.Error(codes.Unauthenticated, "invalid authorization token")
 	}
 
 	// You can add more assertions here to verify the token's content
-	// For example, you might want to decode the token and check its claims
-	return &message_api.QueryEnvelopesResponse{}, nil
+	// For example, you might want to decode the token and check its claims.
+	return &connect.Response[message_api.QueryEnvelopesResponse]{
+		Msg: &message_api.QueryEnvelopesResponse{},
+	}, nil
 }
 
 func TestAuthInterceptor(t *testing.T) {
@@ -66,24 +63,12 @@ func TestAuthInterceptor(t *testing.T) {
 	// Use a bufconn listener to simulate a gRPC connection without actually dialing
 	listener := bufconn.Listen(1024 * 1024)
 
-	// Register the mock service on the server
-	server := grpc.NewServer()
-	message_api.RegisterReplicationApiServer(
-		server,
+	_, handler := message_apiconnect.NewReplicationApiHandler(
 		&mockReplicationAPIServer{expectedToken: token.SignedString},
 	)
 
-	// Start the gRPC server in a goroutine
-	go func() {
-		if err := server.Serve(listener); err != nil {
-			t.Fail()
-		}
-	}()
-
-	t.Cleanup(func() {
-		server.Stop()
-		_ = listener.Close()
-	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
 
 	// Connect to the fake server and set the right interceptors
 	conn, err := grpc.NewClient(

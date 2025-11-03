@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -56,7 +57,7 @@ func TestBuilderMethodChaining(t *testing.T) {
 	builder := NewGatewayServiceBuilder(cfg)
 
 	// Test WithIdentityFn
-	identityFn := func(ctx context.Context) (Identity, error) {
+	identityFn := func(headers http.Header, peer string) (Identity, error) {
 		return Identity{Kind: identityKindIP, Identity: "test"}, nil
 	}
 	result := builder.WithIdentityFn(identityFn)

@@ -3,17 +3,43 @@ package server
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/mocks/authn"
 	"go.uber.org/zap/zaptest"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
+
+type mockConnectRequestAuthInterceptor struct {
+	connect.AnyRequest
+	header http.Header
+	peer   connect.Peer
+}
+
+func (m *mockConnectRequestAuthInterceptor) Header() http.Header {
+	return m.header
+}
+
+func (m *mockConnectRequestAuthInterceptor) Peer() connect.Peer {
+	return m.peer
+}
+
+type mockStreamingConnAuthInterceptor struct {
+	connect.StreamingHandlerConn
+	header http.Header
+	peer   connect.Peer
+}
+
+func (m *mockStreamingConnAuthInterceptor) RequestHeader() http.Header {
+	return m.header
+}
+
+func (m *mockStreamingConnAuthInterceptor) Peer() connect.Peer {
+	return m.peer
+}
 
 func TestUnaryInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
@@ -22,61 +48,55 @@ func TestUnaryInterceptor(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		setupContext     func() context.Context
+		setupRequest     func() connect.AnyRequest
 		setupVerifier    func()
-		wantError        error
+		wantError        bool
 		wantVerifiedNode bool
 	}{
 		{
 			name: "valid token",
-			setupContext: func() context.Context {
-				md := metadata.New(map[string]string{
-					constants.NodeAuthorizationHeaderName: "valid_token",
-				})
-				return metadata.NewIncomingContext(context.Background(), md)
+			setupRequest: func() connect.AnyRequest {
+				header := http.Header{}
+				header.Set(constants.NodeAuthorizationHeaderName, "valid_token")
+				return &mockConnectRequestAuthInterceptor{
+					header: header,
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
 			},
 			setupVerifier: func() {
 				mockVerifier.EXPECT().Verify("valid_token").Return(uint32(0), func() {}, nil)
 			},
-			wantError:        nil,
+			wantError:        false,
 			wantVerifiedNode: true,
 		},
 		{
-			name: "missing metadata",
-			setupContext: func() context.Context {
-				return context.Background()
-			},
-			setupVerifier:    func() {},
-			wantError:        nil,
-			wantVerifiedNode: false,
-		},
-		{
 			name: "missing token",
-			setupContext: func() context.Context {
-				md := metadata.New(map[string]string{})
-				return metadata.NewIncomingContext(context.Background(), md)
+			setupRequest: func() connect.AnyRequest {
+				return &mockConnectRequestAuthInterceptor{
+					header: http.Header{},
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
 			},
 			setupVerifier:    func() {},
-			wantError:        nil,
+			wantError:        false,
 			wantVerifiedNode: false,
 		},
 		{
 			name: "invalid token",
-			setupContext: func() context.Context {
-				md := metadata.New(map[string]string{
-					constants.NodeAuthorizationHeaderName: "invalid_token",
-				})
-				return metadata.NewIncomingContext(context.Background(), md)
+			setupRequest: func() connect.AnyRequest {
+				header := http.Header{}
+				header.Set(constants.NodeAuthorizationHeaderName, "invalid_token")
+				return &mockConnectRequestAuthInterceptor{
+					header: header,
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
 			},
 			setupVerifier: func() {
 				mockVerifier.EXPECT().
 					Verify("invalid_token").
 					Return(uint32(0), func() {}, errors.New("invalid signature"))
 			},
-			wantError: status.Error(
-				codes.Unauthenticated,
-				"invalid auth token: invalid signature",
-			),
+			wantError:        true,
 			wantVerifiedNode: false,
 		},
 	}
@@ -85,18 +105,18 @@ func TestUnaryInterceptor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupVerifier()
 
-			ctx := tt.setupContext()
+			req := tt.setupRequest()
 			var handlerCtx context.Context
-			handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			next := func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
 				handlerCtx = ctx
-				return "ok", nil
+				return nil, nil
 			}
 
-			_, err := interceptor.Unary()(ctx, nil, &grpc.UnaryServerInfo{}, handler)
+			wrappedUnary := interceptor.WrapUnary(next)
+			_, err := wrappedUnary(context.Background(), req)
 
-			if tt.wantError != nil {
+			if tt.wantError {
 				require.Error(t, err)
-				require.Equal(t, tt.wantError.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
 				isVerified, hasContextValue := handlerCtx.Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
@@ -117,51 +137,55 @@ func TestStreamInterceptor(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		setupContext     func() context.Context
+		setupConn        func() connect.StreamingHandlerConn
 		setupVerifier    func()
-		wantError        error
+		wantError        bool
 		wantVerifiedNode bool
 	}{
 		{
 			name: "valid token",
-			setupContext: func() context.Context {
-				md := metadata.New(map[string]string{
-					constants.NodeAuthorizationHeaderName: "valid_token",
-				})
-				return metadata.NewIncomingContext(context.Background(), md)
+			setupConn: func() connect.StreamingHandlerConn {
+				header := http.Header{}
+				header.Set(constants.NodeAuthorizationHeaderName, "valid_token")
+				return &mockStreamingConnAuthInterceptor{
+					header: header,
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
 			},
 			setupVerifier: func() {
 				mockVerifier.EXPECT().Verify("valid_token").Return(uint32(0), func() {}, nil)
 			},
-			wantError:        nil,
+			wantError:        false,
 			wantVerifiedNode: true,
 		},
 		{
-			name: "missing metadata",
-			setupContext: func() context.Context {
-				return context.Background()
+			name: "missing token",
+			setupConn: func() connect.StreamingHandlerConn {
+				return &mockStreamingConnAuthInterceptor{
+					header: http.Header{},
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
 			},
 			setupVerifier:    func() {},
-			wantError:        nil,
+			wantError:        false,
 			wantVerifiedNode: false,
 		},
 		{
 			name: "invalid token",
-			setupContext: func() context.Context {
-				md := metadata.New(map[string]string{
-					constants.NodeAuthorizationHeaderName: "invalid_token",
-				})
-				return metadata.NewIncomingContext(context.Background(), md)
+			setupConn: func() connect.StreamingHandlerConn {
+				header := http.Header{}
+				header.Set(constants.NodeAuthorizationHeaderName, "invalid_token")
+				return &mockStreamingConnAuthInterceptor{
+					header: header,
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
 			},
 			setupVerifier: func() {
 				mockVerifier.EXPECT().
 					Verify("invalid_token").
 					Return(uint32(0), func() {}, errors.New("invalid signature"))
 			},
-			wantError: status.Error(
-				codes.Unauthenticated,
-				"invalid auth token: invalid signature",
-			),
+			wantError:        true,
 			wantVerifiedNode: false,
 		},
 	}
@@ -170,22 +194,21 @@ func TestStreamInterceptor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupVerifier()
 
-			ctx := tt.setupContext()
-			var handlerStream grpc.ServerStream
-			stream := &mockServerStreamWithCtx{ctx: ctx}
-			handler := func(srv interface{}, stream grpc.ServerStream) error {
-				handlerStream = stream
+			conn := tt.setupConn()
+			var handlerCtx context.Context
+			next := func(ctx context.Context, c connect.StreamingHandlerConn) error {
+				handlerCtx = ctx
 				return nil
 			}
 
-			err := interceptor.Stream()(nil, stream, &grpc.StreamServerInfo{}, handler)
+			wrappedStream := interceptor.WrapStreamingHandler(next)
+			err := wrappedStream(context.Background(), conn)
 
-			if tt.wantError != nil {
+			if tt.wantError {
 				require.Error(t, err)
-				require.Equal(t, tt.wantError.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
-				isVerified, hasContextValue := handlerStream.Context().Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
+				isVerified, hasContextValue := handlerCtx.Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
 				if tt.wantVerifiedNode {
 					require.True(t, isVerified)
 				} else {
@@ -194,13 +217,4 @@ func TestStreamInterceptor(t *testing.T) {
 			}
 		})
 	}
-}
-
-type mockServerStreamWithCtx struct {
-	grpc.ServerStream
-	ctx context.Context
-}
-
-func (s *mockServerStreamWithCtx) Context() context.Context {
-	return s.ctx
 }

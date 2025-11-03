@@ -71,7 +71,7 @@ func TestEnvelopesGenerator(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
 
-	client := apiTestUtils.NewTestReplicationAPIClient(t, server.Addr())
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server.Addr())
 	queryResponse, err := client.QueryEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{

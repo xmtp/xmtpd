@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
 	protoEnvelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
@@ -45,7 +47,7 @@ type multiNodeTestScaffold struct {
 	nodePrivateKeys    []*ecdsa.PrivateKey
 	payerPrivateKeys   []*ecdsa.PrivateKey
 	payerAddresses     []string
-	clients            []message_api.ReplicationApiClient
+	clients            []message_apiconnect.ReplicationApiClient
 	dbs                []*sql.DB
 	reportGenerators   []*workers.GeneratorWorker
 	attestationWorkers []*workers.AttestationWorker
@@ -192,10 +194,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		},
 	)
 
-	require.NotEqual(t, server1.HTTPAddress, server2.HTTPAddress)
+	require.NotEqual(t, server1.Addr(), server2.Addr())
 
-	client1 := apiTestUtils.NewTestReplicationAPIClient(t, server1.Addr().String())
-	client2 := apiTestUtils.NewTestReplicationAPIClient(t, server2.Addr().String())
+	client1 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server1.Addr())
+	client2 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server2.Addr())
 
 	registrant1, err := registrant.NewRegistrant(
 		t.Context(),
@@ -315,7 +317,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			utils.EcdsaPublicKeyToAddress(&payerPrivateKey1.PublicKey),
 			utils.EcdsaPublicKeyToAddress(&payerPrivateKey2.PublicKey),
 		},
-		clients:          []message_api.ReplicationApiClient{client1, client2},
+		clients:          []message_apiconnect.ReplicationApiClient{client1, client2},
 		dbs:              dbs,
 		reportGenerators: []*workers.GeneratorWorker{reportGenerator1, reportGenerator2},
 		registrants:      []*registrant.Registrant{registrant1, registrant2},
@@ -358,8 +360,10 @@ func (s *multiNodeTestScaffold) publishRandomMessage(
 
 	_, err := s.clients[nodeIndex].PublishPayerEnvelopes(
 		t.Context(),
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*protoEnvelopes.PayerEnvelope{payerEnv},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*protoEnvelopes.PayerEnvelope{payerEnv},
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -372,14 +376,19 @@ func (s *multiNodeTestScaffold) getMessagesFromTopic(
 ) []*protoEnvelopes.OriginatorEnvelope {
 	client := s.clients[nodeIndex]
 
-	response, err := client.QueryEnvelopes(t.Context(), &message_api.QueryEnvelopesRequest{
-		Query: &message_api.EnvelopesQuery{
-			Topics: [][]byte{topic},
+	response, err := client.QueryEnvelopes(
+		t.Context(),
+		&connect.Request[message_api.QueryEnvelopesRequest]{
+			Msg: &message_api.QueryEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					Topics: [][]byte{topic},
+				},
+			},
 		},
-	})
+	)
 	require.NoError(t, err)
 
-	return response.Envelopes
+	return response.Msg.Envelopes
 }
 
 func TestValidSignature(t *testing.T) {

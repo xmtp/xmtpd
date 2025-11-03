@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -81,95 +82,112 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 }
 
 func TestQueryAllEnvelopes(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{0, 1, 2, 3, 4}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{0, 1, 2, 3, 4}, resp.Msg.Envelopes)
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
 			Limit: 2,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{0, 1}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{0, 1}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{200},
 				LastSeen:          nil,
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{1, 3}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{1, 3}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:   []db.Topic{topicA},
 				LastSeen: nil,
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{0, 1, 4}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{0, 1, 4}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{100: 2}},
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{1, 3, 4}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{1, 3, 4}, resp.Msg.Envelopes)
 }
 
 func TestQueryTopicFromLastSeen(t *testing.T) {
-	api, store, _ := apiTestUtils.NewTestReplicationAPIClient(t)
-	dbRows := setupQueryTest(t, store)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
+	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicA},
 				LastSeen: &envelopes.Cursor{
@@ -177,19 +195,22 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 				},
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{4}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{4}, resp.Msg.Envelopes)
 }
 
 func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicA, topicB},
 				LastSeen: &envelopes.Cursor{
@@ -197,19 +218,22 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 				},
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{3, 4}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{3, 4}, resp.Msg.Envelopes)
 }
 
 func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: []uint32{100, 200},
 				LastSeen: &envelopes.Cursor{
@@ -217,42 +241,46 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 				},
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{2, 3, 4}, resp.GetEnvelopes())
+
+	checkRowsMatchProtos(t, dbRows, []int{2, 3, 4}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
+	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
 	dbRows := setupQueryTest(t, dbHandle)
 
-	resp, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	resp, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics: []db.Topic{topicC},
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.NoError(t, err)
-	checkRowsMatchProtos(t, dbRows, []int{}, resp.GetEnvelopes())
+	checkRowsMatchProtos(t, dbRows, []int{}, resp.Msg.Envelopes)
 }
 
 func TestInvalidQuery(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestReplicationAPIClient(t)
-	setupQueryTest(t, dbHandle)
+	api, _, _ := apiTestUtils.NewTestFullServer(t)
 
-	_, err := api.QueryEnvelopes(
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
+
+	_, err := client.QueryEnvelopes(
 		context.Background(),
-		&message_api.QueryEnvelopesRequest{
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				Topics:            []db.Topic{topicA},
 				OriginatorNodeIds: []uint32{100},
 			},
 			Limit: 0,
-		},
+		}),
 	)
 	require.Error(t, err)
 }

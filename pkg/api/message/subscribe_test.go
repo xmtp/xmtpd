@@ -31,9 +31,9 @@ func setupTest(
 	t *testing.T,
 ) (message_apiconnect.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	var (
-		client      = testUtilsApi.NewTestReplicationAPIClient(t, "localhost:0")
+		client      = testUtilsApi.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 		dbHandle, _ = testutils.NewDB(t, t.Context())
-		_, _, mocks = testUtilsApi.NewTestAPIServer(t)
+		_, _, mocks = testUtilsApi.NewTestFullServer(t)
 		payerID     = db.NullInt32(testutils.CreatePayer(t, dbHandle))
 	)
 

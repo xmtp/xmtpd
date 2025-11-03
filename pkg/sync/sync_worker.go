@@ -301,7 +301,7 @@ func (s *syncWorker) connectToNode(
 		grpc.WithStreamInterceptor(interceptor.Stream()),
 	}
 
-	conn, err := node.BuildClient(dialOpts...)
+	conn, err := node.BuildConn(dialOpts...)
 	if err != nil {
 		s.logger.Error(
 			"failed to connect to node",

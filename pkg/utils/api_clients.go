@@ -11,13 +11,18 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+// File api_clients.go implements the API clients for the different APIs.
+// The replication API client is provided with all the different protocols supported by the replication API.
+// For metadata and gateway APIs, only the base client is provided, and the consumer has to specify the api options.
 
 const (
 	maxMessageSize  = 25 * 1024 * 1024
@@ -25,6 +30,8 @@ const (
 	pingTimeout     = 30 * time.Second
 	clientTimeout   = 10 * time.Second
 )
+
+/* Connect-based clients */
 
 // NewConnectReplicationAPIClient builds a Connect (default protocol) Replication API client.
 //   - Uses connect-go default (Connect protocol) over HTTP/1.1 or HTTP/2.
@@ -101,57 +108,60 @@ func NewConnectGRPCWebReplicationAPIClient(
 	return message_apiconnect.NewReplicationApiClient(httpClient, target, opts...), nil
 }
 
-// NewGRPCReplicationAPIClientAndConn builds a native grpc-go client for the Replication API.
+// NewConnectGatewayAPIClient builds a Connect-based Gateway API client.
+// The consumer is responsible of passing any extra dial options, to make the
+// connection gRPC or gRPC-Web.
+func NewConnectGatewayAPIClient(
+	ctx context.Context,
+	httpAddress string,
+	extraDialOpts ...connect.ClientOption,
+) (payer_apiconnect.PayerApiClient, error) {
+	target, isTLS, err := HTTPAddressToConnectProtocolTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid http address: %w", err)
+	}
+
+	httpClient, err := BuildHTTP2Client(ctx, isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build http client: %w", err)
+	}
+
+	opts := BuildConnectProtocolDialOptions(extraDialOpts...)
+
+	return payer_apiconnect.NewPayerApiClient(httpClient, target, opts...), nil
+}
+
+// NewConnectMetadataAPIClient builds a Connect-based Metadata API client.
+// The consumer is responsible of passing any extra dial options, to make the
+// connection gRPC or gRPC-Web.
+func NewConnectMetadataAPIClient(
+	ctx context.Context,
+	httpAddress string,
+	extraDialOpts ...connect.ClientOption,
+) (metadata_apiconnect.MetadataApiClient, error) {
+	target, isTLS, err := HTTPAddressToConnectProtocolTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid http address: %w", err)
+	}
+
+	httpClient, err := BuildHTTP2Client(ctx, isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build http client: %w", err)
+	}
+
+	opts := BuildConnectProtocolDialOptions(extraDialOpts...)
+
+	return metadata_apiconnect.NewMetadataApiClient(httpClient, target, opts...), nil
+}
+
+/* Native gRPC clients */
+
+// NewGRPCConn builds a native grpc-go client for the given HTTP address.
 //   - Uses the standard grpc-go library (not connect-go).
 //   - Requires a schemeful base URL (http:// or https://).
 //   - For Connect-based gRPC clients, use NewConnectGRPCReplicationAPIClient instead.
 //
 // Developer Note: Upstream caller is responsible for closing the returned connection.
-func NewGRPCReplicationAPIClientAndConn(
-	httpAddress string,
-	extraDialOpts ...grpc.DialOption,
-) (client message_api.ReplicationApiClient, conn *grpc.ClientConn, err error) {
-	target, isTLS, err := HTTPAddressToGRPCTarget(httpAddress)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid HTTP address: %w", err)
-	}
-
-	dialOptions := append([]grpc.DialOption{
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallSendMsgSize(maxMessageSize),
-			grpc.MaxCallRecvMsgSize(maxMessageSize),
-		),
-	}, extraDialOpts...)
-
-	if isTLS {
-		tlsConfig, err := buildTLSConfig()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to build TLS config: %w", err)
-		}
-
-		dialOptions = append(
-			dialOptions,
-			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-		)
-	} else {
-		// h2c: plaintext HTTP/2
-		dialOptions = append(dialOptions,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, "tcp", addr)
-			}),
-		)
-	}
-
-	conn, err = grpc.NewClient(target, dialOptions...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create grpc client: %w", err)
-	}
-
-	return message_api.NewReplicationApiClient(conn), conn, nil
-}
-
 func NewGRPCConn(
 	httpAddress string,
 	extraDialOpts ...grpc.DialOption,
@@ -197,6 +207,7 @@ func NewGRPCConn(
 	return conn, nil
 }
 
+// BuildHTTP2Client creates an HTTP/2 client for Connect-based RPC or other HTTP/2 services.
 func BuildHTTP2Client(ctx context.Context, isTLS bool) (*http.Client, error) {
 	dialer := &net.Dialer{
 		Timeout: clientTimeout,
@@ -232,6 +243,8 @@ func BuildHTTP2Client(ctx context.Context, isTLS bool) (*http.Client, error) {
 	}
 	return &http.Client{Transport: transport, Timeout: clientTimeout}, nil
 }
+
+/* Utils */
 
 // BuildConnectProtocolDialOptions builds the default dial options for a Connect-Go, gRPC or gRPC-Web connection.
 // Internal node <-> node communication can rely on this protocol.

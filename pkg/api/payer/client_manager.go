@@ -72,7 +72,7 @@ func (c *ClientManager) newClientConnection(
 		return nil, err
 	}
 
-	conn, err := node.BuildClient(
+	conn, err := node.BuildConn(
 		grpc.WithUnaryInterceptor(c.clientMetrics.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(c.clientMetrics.StreamClientInterceptor()),
 	)

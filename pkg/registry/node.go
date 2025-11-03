@@ -32,9 +32,9 @@ func (n *Node) Equals(other Node) bool {
 		n.IsValidConfig == other.IsValidConfig
 }
 
-func (n *Node) BuildClient(
+func (n *Node) BuildConn(
 	extraDialOpts ...grpc.DialOption,
 ) (*grpc.ClientConn, error) {
-	_, conn, err := utils.NewGRPCReplicationAPIClientAndConn(n.HTTPAddress)
+	conn, err := utils.NewGRPCConn(n.HTTPAddress)
 	return conn, err
 }

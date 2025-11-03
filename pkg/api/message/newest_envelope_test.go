@@ -64,7 +64,7 @@ func parseResults(
 
 func TestGetNewestEnvelope(t *testing.T) {
 	var (
-		client          = apiTestUtils.NewTestReplicationAPIClient(t, "localhost:0")
+		client          = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
 		db, _           = testutils.NewDB(t, t.Context())
 		installationID1 = testutils.RandomGroupID()
 		installationID2 = testutils.RandomGroupID()

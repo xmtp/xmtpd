@@ -29,6 +29,8 @@ import (
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	nodeRegistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -50,8 +52,32 @@ type MockSubscribeSyncCursorClient struct {
 	index   int
 }
 
+var _ grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse] = (*MockSubscribeSyncCursorClient)(
+	nil,
+)
+
+func (m *MockSubscribeSyncCursorClient) Context() context.Context {
+	return m.ctx
+}
+
+func (m *MockSubscribeSyncCursorClient) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
 func (m *MockSubscribeSyncCursorClient) CloseSend() error {
-	return nil // No-op for the mock
+	return nil
+}
+
+func (m *MockSubscribeSyncCursorClient) Trailer() metadata.MD {
+	return nil
+}
+
+func (m *MockSubscribeSyncCursorClient) RecvMsg(req any) error {
+	return nil
+}
+
+func (m *MockSubscribeSyncCursorClient) SendMsg(req any) error {
+	return nil
 }
 
 // Recv simulates receiving cursor updates over time.
@@ -147,13 +173,13 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishToNodes(t *testing.T) {
-	originatorServer, _, _ := apiTestUtils.NewTestFullServer(t)
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	ctx := context.Background()
 	svc, _, mockRegistry, _ := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
-		HTTPAddress: formatAddress(originatorServer.Addr()),
+		HTTPAddress: formatAddress(suite.APIServer.Addr()),
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{

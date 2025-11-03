@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/hex"
-	"net"
 	"testing"
 	"time"
 
@@ -26,7 +25,7 @@ type EnabledServices struct {
 }
 
 type TestServerCfg struct {
-	GRPCListener     net.Listener
+	Port             int
 	DB               *sql.DB
 	Registry         r.NodeRegistry
 	PrivateKey       *ecdsa.PrivateKey
@@ -34,7 +33,7 @@ type TestServerCfg struct {
 	Services         EnabledServices
 }
 
-func NewTestReplicationServer(
+func NewTestBaseServer(
 	t *testing.T,
 	cfg TestServerCfg,
 ) *s.BaseServer {
@@ -50,6 +49,7 @@ func NewTestReplicationServer(
 			API: config.APIOptions{
 				Enable:                cfg.Services.API,
 				SendKeepAliveInterval: 30 * time.Second,
+				Port:                  cfg.Port,
 			},
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{

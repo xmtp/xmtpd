@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func OpenFreePort(t *testing.T) net.Listener {
+func OpenFreePort(t *testing.T) int {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = ln.Close()
 	})
-	return ln
+	return ln.Addr().(*net.TCPAddr).Port
 }

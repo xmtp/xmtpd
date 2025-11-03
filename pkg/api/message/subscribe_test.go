@@ -21,20 +21,18 @@ import (
 )
 
 var (
-	topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
-	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
-	topicC = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
+	topicA  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
+	topicB  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
+	topicC  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
+	allRows = make([]queries.InsertGatewayEnvelopeParams, 0)
 )
-var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(
 	t *testing.T,
 ) (message_apiconnect.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	var (
-		client      = testUtilsApi.NewTestGRPCReplicationAPIClient(t, "localhost:0")
-		dbHandle, _ = testutils.NewDB(t, t.Context())
-		_, _, mocks = testUtilsApi.NewTestFullServer(t)
-		payerID     = db.NullInt32(testutils.CreatePayer(t, dbHandle))
+		suite   = testUtilsApi.NewTestAPIServer(t)
+		payerID = db.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 
 	allRows = []queries.InsertGatewayEnvelopeParams{
@@ -92,7 +90,7 @@ func setupTest(
 		},
 	}
 
-	return client, dbHandle, mocks
+	return suite.ClientReplication, suite.DB, suite.APIServerMocks
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
@@ -115,7 +113,17 @@ func validateUpdates(
 ) {
 	receivedCount := 0
 
-	for stream.Receive() && receivedCount < len(expectedIndices) {
+	for {
+		// Check if we've received all expected messages.
+		if receivedCount >= len(expectedIndices) {
+			break
+		}
+
+		// Now receive the next message. Break if the stream ended or there was an error.
+		if !stream.Receive() {
+			break
+		}
+
 		envs := stream.Msg()
 
 		for _, env := range envs.Envelopes {
@@ -136,7 +144,6 @@ func validateUpdates(
 		}
 	}
 
-	// Check for stream errors
 	require.NoError(t, stream.Err())
 }
 
@@ -296,12 +303,24 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// Consume the keepalive message.
 	shouldReceive := stream.Receive()
+	require.True(t, shouldReceive)
+
+	// Validate the keepalive message.
+	msg := stream.Msg()
+	require.NotNil(t, msg)
+
+	// There shouldn't be any more messages.
+	shouldReceive = stream.Receive()
 	require.False(t, shouldReceive)
 
-	msg := stream.Msg()
-	require.Nil(t, msg)
+	// Connect returns an empty (non-nil) message when the stream is closed.
+	msg = stream.Msg()
+	require.NotNil(t, msg)
 
+	// The stream should return an invalid argument error when the request is invalid.
 	err = stream.Err()
 	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

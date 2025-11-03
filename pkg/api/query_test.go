@@ -24,13 +24,13 @@ var (
 )
 
 func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeParams {
-	payerId := db.NullInt32(testutils.CreatePayer(t, dbHandle))
+	payerID := db.NullInt32(testutils.CreatePayer(t, dbHandle))
 	dbRows := []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 1, topicA),
@@ -40,7 +40,7 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 200, 1, topicA),
@@ -50,7 +50,7 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 2, topicB),
@@ -60,7 +60,7 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 			OriginatorNodeID:     200,
 			OriginatorSequenceID: 2,
 			Topic:                topicB,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 200, 2, topicB),
@@ -70,7 +70,7 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
-			PayerID:              payerId,
+			PayerID:              payerID,
 			OriginatorEnvelope: testutils.Marshal(
 				t,
 				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 3, topicA),
@@ -82,12 +82,10 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 }
 
 func TestQueryAllEnvelopes(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
@@ -100,12 +98,10 @@ func TestQueryAllEnvelopes(t *testing.T) {
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
@@ -118,12 +114,10 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -139,12 +133,10 @@ func TestQueryEnvelopesByOriginator(t *testing.T) {
 }
 
 func TestQueryEnvelopesByTopic(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -160,12 +152,10 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -180,12 +170,10 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 }
 
 func TestQueryTopicFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -203,12 +191,10 @@ func TestQueryTopicFromLastSeen(t *testing.T) {
 }
 
 func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -226,12 +212,10 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 }
 
 func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -249,12 +233,10 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
-	api, dbHandle, _ := apiTestUtils.NewTestFullServer(t)
-	dbRows := setupQueryTest(t, dbHandle)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	dbRows := setupQueryTest(t, suite.DB)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	resp, err := client.QueryEnvelopes(
+	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -268,11 +250,9 @@ func TestQueryEnvelopesWithEmptyResult(t *testing.T) {
 }
 
 func TestInvalidQuery(t *testing.T) {
-	api, _, _ := apiTestUtils.NewTestFullServer(t)
+	suite := apiTestUtils.NewTestAPIServer(t)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, api.Addr())
-
-	_, err := client.QueryEnvelopes(
+	_, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{

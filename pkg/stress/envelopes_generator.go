@@ -48,6 +48,7 @@ func NewEnvelopesGenerator(
 
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
 	}
 
@@ -61,6 +62,7 @@ func NewEnvelopesGenerator(
 			utils.BuildConnectProtocolDialOptions()...,
 		)
 		if err != nil {
+			cancel()
 			return nil, fmt.Errorf("failed to build replication API client: %w", err)
 		}
 
@@ -70,6 +72,7 @@ func NewEnvelopesGenerator(
 			nodeHTTPAddress,
 			utils.BuildGRPCDialOptions()...)
 		if err != nil {
+			cancel()
 			return nil, fmt.Errorf("failed to build replication API client: %w", err)
 		}
 
@@ -79,10 +82,12 @@ func NewEnvelopesGenerator(
 			nodeHTTPAddress,
 			utils.BuildGRPCWebDialOptions()...)
 		if err != nil {
+			cancel()
 			return nil, fmt.Errorf("failed to build replication API client: %w", err)
 		}
 
 	default:
+		cancel()
 		return nil, fmt.Errorf("invalid protocol: %d", protocol)
 	}
 

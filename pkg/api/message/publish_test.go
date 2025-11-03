@@ -17,7 +17,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
-	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -25,17 +24,14 @@ import (
 )
 
 func TestPublishEnvelope(t *testing.T) {
-	var (
-		client = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
-		db, _  = testutils.NewDB(t, t.Context())
-	)
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
 		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 	)
 
-	resp, err := client.PublishPayerEnvelopes(
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
@@ -71,7 +67,7 @@ func TestPublishEnvelope(t *testing.T) {
 
 	// Check that the envelope was published to the database after a delay
 	require.Eventually(t, func() bool {
-		envs, err := queries.New(db).
+		envs, err := queries.New(suite.DB).
 			SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 		require.NoError(t, err)
 
@@ -86,7 +82,7 @@ func TestPublishEnvelope(t *testing.T) {
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	envelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
@@ -95,22 +91,22 @@ func TestUnmarshalErrorOnPublish(t *testing.T) {
 
 	envelope.UnsignedClientEnvelope = []byte("invalidbytes")
 
-	_, err := client.PublishPayerEnvelopes(
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{envelope},
 		}),
 	)
-	require.ErrorContains(t, err, "invalid wire-format data")
+	require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 }
 
 func TestMismatchingOriginatorOnPublish(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	nodeID := envelopeTestUtils.DefaultClientEnvelopeNodeID + 100
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope()
-	_, err := client.PublishPayerEnvelopes(
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
@@ -123,13 +119,13 @@ func TestMismatchingOriginatorOnPublish(t *testing.T) {
 
 func TestMissingTopicOnPublish(t *testing.T) {
 	var (
-		client    = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+		suite     = apiTestUtils.NewTestAPIServer(t)
 		clientEnv = envelopeTestUtils.CreateClientEnvelope()
 	)
 
 	clientEnv.Aad.TargetTopic = nil
 
-	_, err := client.PublishPayerEnvelopes(
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
@@ -145,10 +141,7 @@ func TestMissingTopicOnPublish(t *testing.T) {
 }
 
 func TestKeyPackageValidationSuccess(t *testing.T) {
-	var (
-		client         = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
-		_, _, apiMocks = apiTestUtils.NewTestFullServer(t)
-	)
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(
 		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
@@ -165,7 +158,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 		},
 	}
 
-	apiMocks.MockValidationService.EXPECT().
+	suite.APIServerMocks.MockValidationService.EXPECT().
 		ValidateKeyPackages(mock.Anything, mock.Anything).
 		Return(
 			[]mlsvalidate.KeyPackageValidationResult{
@@ -176,7 +169,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 			nil,
 		)
 
-	resp, err := client.PublishPayerEnvelopes(
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
@@ -194,11 +187,8 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 }
 
 func TestKeyPackageValidationFail(t *testing.T) {
-	var (
-		client         = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
-		_, _, apiMocks = apiTestUtils.NewTestFullServer(t)
-		nodeID         = envelopeTestUtils.DefaultClientEnvelopeNodeID
-	)
+	suite := apiTestUtils.NewTestAPIServer(t)
+	nodeID := envelopeTestUtils.DefaultClientEnvelopeNodeID
 
 	clientEnv := envelopeTestUtils.CreateClientEnvelope(
 		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
@@ -215,7 +205,7 @@ func TestKeyPackageValidationFail(t *testing.T) {
 		},
 	}
 
-	apiMocks.MockValidationService.EXPECT().
+	suite.APIServerMocks.MockValidationService.EXPECT().
 		ValidateKeyPackages(mock.Anything, mock.Anything).
 		Return(
 			[]mlsvalidate.KeyPackageValidationResult{
@@ -226,7 +216,7 @@ func TestKeyPackageValidationFail(t *testing.T) {
 			nil,
 		)
 
-	_, err := client.PublishPayerEnvelopes(
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{
@@ -238,11 +228,11 @@ func TestKeyPackageValidationFail(t *testing.T) {
 }
 
 func TestPublishEnvelopeBlockchainCursorAhead(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
-		client,
+		suite.ClientReplication,
 		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
@@ -283,11 +273,11 @@ func publishPayerEnvelopeWithNodeIDAndCursor(
 }
 
 func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
-		client,
+		suite.ClientReplication,
 		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
@@ -300,11 +290,11 @@ func TestPublishEnvelopeOriginatorUnknown(t *testing.T) {
 }
 
 func TestPublishEnvelolopeDependsOnOriginator(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	err := publishPayerEnvelopeWithNodeIDAndCursor(
 		t,
-		client,
+		suite.ClientReplication,
 		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 		&envelopes.Cursor{
 			NodeIdToSequenceId: map[uint32]uint64{
@@ -313,19 +303,18 @@ func TestPublishEnvelolopeDependsOnOriginator(t *testing.T) {
 		},
 	)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "A message can not depend on a non-commit")
+	require.Contains(t, err.Error(), "a message can not depend on a non-commit")
 }
 
 func TestPublishEnvelopeFees(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
-	db, _ := testutils.NewDB(t, t.Context())
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
 		t,
 		envelopeTestUtils.DefaultClientEnvelopeNodeID,
 	)
 
-	resp, err := client.PublishPayerEnvelopes(
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
@@ -345,7 +334,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 	// TODO:nm: Set this to the actual congestion fee
 	require.Equal(t, returnedEnv.UnsignedOriginatorEnvelope.CongestionFee(), currency.PicoDollar(0))
 
-	envs, err := queries.New(db).
+	envs, err := queries.New(suite.DB).
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
 	require.Equal(t, len(envs), 1)
@@ -366,9 +355,8 @@ func TestPublishEnvelopeFees(t *testing.T) {
 
 func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	var (
-		client  = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
-		db, _   = testutils.NewDB(t, t.Context())
-		querier = queries.New(db)
+		suite   = apiTestUtils.NewTestAPIServer(t)
+		querier = queries.New(suite.DB)
 	)
 
 	clientEnv := envelopeTestUtils.CreatePayerReportClientEnvelope(100)
@@ -381,7 +369,7 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	)
 
 	// Attempt to publish the envelope through the API
-	_, err := client.PublishPayerEnvelopes(
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
@@ -424,7 +412,7 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 }
 
 func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	tests := []struct {
 		name        string
@@ -485,7 +473,7 @@ func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 				tt.expiry,
 			)
 
-			_, err := client.PublishPayerEnvelopes(
+			_, err := suite.ClientReplication.PublishPayerEnvelopes(
 				context.Background(),
 				connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 					PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
@@ -506,7 +494,7 @@ func TestPublishEnvelopeWithVarExpirations(t *testing.T) {
 
 func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 	var (
-		client = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+		suite  = apiTestUtils.NewTestAPIServer(t)
 		nodeID = envelopeTestUtils.DefaultClientEnvelopeNodeID
 	)
 
@@ -517,7 +505,7 @@ func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 			DependsOn: &envelopes.Cursor{},
 		}, IsCommit: true},
 	)
-	_, err := client.PublishPayerEnvelopes(
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: []*envelopes.PayerEnvelope{

@@ -30,9 +30,8 @@ func setupTest(
 	t *testing.T,
 ) (metadata_apiconnect.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	var (
-		api, db, mocks = testUtilsApi.NewTestFullServer(t)
-		client         = testUtilsApi.NewTestMetadataAPIClient(t, api.Addr())
-		payerID        = dbUtils.NullInt32(testutils.CreatePayer(t, db))
+		suite   = testUtilsApi.NewTestAPIServer(t)
+		payerID = dbUtils.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 
 	allRows = []queries.InsertGatewayEnvelopeParams{
@@ -90,7 +89,7 @@ func setupTest(
 		},
 	}
 
-	return client, db, mocks
+	return suite.ClientMetadata, suite.DB, suite.APIServerMocks
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
@@ -165,6 +164,10 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, stream)
 
+	// Advance to the first update, otherwise stream.Msg() will be nil.
+	shouldReceive := stream.Receive()
+	require.True(t, shouldReceive)
+
 	firstUpdate := stream.Msg()
 	require.NotNil(t, firstUpdate)
 
@@ -178,17 +181,17 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 	insertAdditionalRows(t, db)
 
 	require.Eventually(t, func() bool {
-		expectedCursor := map[uint32]uint64{
+		expectedCursor = map[uint32]uint64{
 			100: 3,
 			200: 2,
 		}
-
-		update := stream.Msg()
-		if update == nil {
-			t.Log("Received nil update from stream")
-			return false
-		}
-
-		return assert.ObjectsAreEqual(expectedCursor, update.LatestSync.NodeIdToSequenceId)
 	}, 500*time.Millisecond, 50*time.Millisecond)
+
+	shouldReceive = stream.Receive()
+	require.True(t, shouldReceive)
+
+	secondUpdate := stream.Msg()
+	require.NotNil(t, secondUpdate)
+
+	assert.ObjectsAreEqual(expectedCursor, secondUpdate.LatestSync.NodeIdToSequenceId)
 }

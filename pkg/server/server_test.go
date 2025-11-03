@@ -2,7 +2,6 @@ package server_test
 
 import (
 	"fmt"
-	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -50,12 +49,12 @@ func TestCreateServer(t *testing.T) {
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port.Addr().(*net.TCPAddr).Port,
+			server1Port,
 			privateKey1,
 		),
 		registryTestUtils.CreateNode(
 			server2NodeID,
-			server2Port.Addr().(*net.TCPAddr).Port,
+			server2Port,
 			privateKey2,
 		),
 	}
@@ -66,10 +65,10 @@ func TestCreateServer(t *testing.T) {
 
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server1 := serverTestUtils.NewTestReplicationServer(
+	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server1Port,
+			Port:             server1Port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -82,10 +81,10 @@ func TestCreateServer(t *testing.T) {
 		},
 	)
 
-	server2 := serverTestUtils.NewTestReplicationServer(
+	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server2Port,
+			Port:             server2Port,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -209,7 +208,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port.Addr().(*net.TCPAddr).Port,
+			server1Port,
 			privateKey1,
 		),
 	}
@@ -218,10 +217,10 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server1 := serverTestUtils.NewTestReplicationServer(
+	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server1Port,
+			Port:             server1Port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -283,12 +282,12 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	grpcPort := networkTestUtils.OpenFreePort(t)
+	port := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			grpcPort.Addr().(*net.TCPAddr).Port,
+			port,
 			privateKey,
 		),
 	}
@@ -296,8 +295,8 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server := serverTestUtils.NewTestReplicationServer(t, serverTestUtils.TestServerCfg{
-		GRPCListener:     grpcPort,
+	server := serverTestUtils.NewTestBaseServer(t, serverTestUtils.TestServerCfg{
+		Port:             port,
 		DB:               dbs[0],
 		Registry:         registry,
 		PrivateKey:       privateKey,
@@ -313,7 +312,7 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			conn, err := grpc.NewClient(
-				fmt.Sprintf("dns:///localhost:%d", grpcPort.Addr().(*net.TCPAddr).Port),
+				fmt.Sprintf("dns:///localhost:%d", port),
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			if err != nil {

@@ -4,6 +4,8 @@ package apiutils
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"net"
 	"net/http"
 	"testing"
 	"time"
@@ -32,6 +34,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/fees"
+	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -43,9 +46,12 @@ func NewTestGRPCReplicationAPIClient(
 	t *testing.T,
 	addr string,
 ) message_apiconnect.ReplicationApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
 	client, err := utils.NewConnectGRPCReplicationAPIClient(
 		t.Context(),
-		addr,
+		fmt.Sprintf("http://localhost:%s", port),
 	)
 	if err != nil {
 		t.Fatalf("failed to create replication API client: %v", err)
@@ -58,9 +64,12 @@ func NewTestGRPCGatewayAPIClient(
 	t *testing.T,
 	addr string,
 ) payer_apiconnect.PayerApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
 	client, err := utils.NewConnectGatewayAPIClient(
 		t.Context(),
-		addr,
+		fmt.Sprintf("http://localhost:%s", port),
 	)
 	if err != nil {
 		t.Fatalf("failed to create gateway API client: %v", err)
@@ -73,9 +82,12 @@ func NewTestMetadataAPIClient(
 	t *testing.T,
 	addr string,
 ) metadata_apiconnect.MetadataApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
 	client, err := utils.NewConnectMetadataAPIClient(
 		t.Context(),
-		addr,
+		fmt.Sprintf("http://localhost:%s", port),
 	)
 	if err != nil {
 		t.Fatalf("failed to create metadata API client: %v", err)
@@ -90,13 +102,22 @@ type APIServerMocks struct {
 	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
 }
 
-// NewTestFullServer creates a full API server with all services.
+type APIServerTestSuite struct {
+	APIServer         *api.APIServer
+	ClientReplication message_apiconnect.ReplicationApiClient
+	ClientPayer       payer_apiconnect.PayerApiClient
+	ClientMetadata    metadata_apiconnect.MetadataApiClient
+	DB                *sql.DB
+	APIServerMocks    APIServerMocks
+}
+
+// NewTestAPIServer creates a full API server with all services.
 // It creates a mock database, mock registry, mock validation service, mock message publisher,
 // and mock API server.
 // It returns the mock API server, mock database, and mock API server mocks.
-func NewTestFullServer(
+func NewTestAPIServer(
 	t *testing.T,
-) (mockAPIServer *api.APIServer, mockDB *sql.DB, mockAPIServerMocks APIServerMocks) {
+) *APIServerTestSuite {
 	var (
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
@@ -201,9 +222,12 @@ func NewTestFullServer(
 		}, nil
 	}
 
+	port := networkTestUtils.OpenFreePort(t)
+
 	apiOpts := []api.APIServerOption{
 		api.WithContext(ctx),
 		api.WithLogger(log),
+		api.WithPort(port),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithReflection(true),
 		api.WithPrometheusRegistry(prometheus.NewRegistry()),
@@ -211,6 +235,8 @@ func NewTestFullServer(
 
 	svr, err := api.NewAPIServer(apiOpts...)
 	require.NoError(t, err)
+
+	svr.Start()
 
 	allMocks := APIServerMocks{
 		MockRegistry:          mockRegistry,
@@ -223,5 +249,16 @@ func NewTestFullServer(
 		svr.Close()
 	})
 
-	return svr, db, allMocks
+	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
+	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
+	clientMetadata := NewTestMetadataAPIClient(t, svr.Addr())
+
+	return &APIServerTestSuite{
+		APIServer:         svr,
+		APIServerMocks:    allMocks,
+		ClientReplication: clientReplication,
+		ClientPayer:       clientPayer,
+		ClientMetadata:    clientMetadata,
+		DB:                db,
+	}
 }

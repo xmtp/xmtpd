@@ -3,6 +3,7 @@ package message_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -64,7 +65,7 @@ func parseResults(
 
 func TestGetNewestEnvelope(t *testing.T) {
 	var (
-		client          = apiTestUtils.NewTestGRPCReplicationAPIClient(t, "localhost:0")
+		suite           = apiTestUtils.NewTestAPIServer(t)
 		db, _           = testutils.NewDB(t, t.Context())
 		installationID1 = testutils.RandomGroupID()
 		installationID2 = testutils.RandomGroupID()
@@ -131,12 +132,14 @@ func TestGetNewestEnvelope(t *testing.T) {
 			for i, topic := range c.requestedTopics {
 				requestedTopicsBytes[i] = topic.Bytes()
 			}
-			resp, err := client.GetNewestEnvelope(
+			resp, err := suite.ClientReplication.GetNewestEnvelope(
 				context.Background(),
 				connect.NewRequest(&message_api.GetNewestEnvelopeRequest{
 					Topics: requestedTopicsBytes,
 				}),
 			)
+			fmt.Printf("### DEBUG: resp %+v\n", resp)
+			fmt.Printf("### DEBUG: err %+v\n", err)
 			require.NoError(t, err)
 			require.Equal(t, c.expectedNumReturned, len(resp.Msg.Results))
 

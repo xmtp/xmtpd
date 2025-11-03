@@ -11,8 +11,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"go.uber.org/zap"
-
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -51,13 +49,13 @@ func (i *LoggingInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 		duration := time.Since(start)
 
 		if err != nil {
-			st, _ := status.FromError(err)
+			code := connect.CodeOf(err)
 			i.logger.Error(
 				"client unary RPC error",
 				utils.MethodField(req.Spec().Procedure),
 				utils.DurationMsField(duration),
-				zap.String(codeField, st.Code().String()),
-				zap.String(messageField, st.Message()),
+				zap.String(codeField, code.String()),
+				zap.String(messageField, err.Error()),
 			)
 		}
 
@@ -87,13 +85,13 @@ func (i *LoggingInterceptor) WrapStreamingHandler(
 		duration := time.Since(start)
 
 		if err != nil {
-			st, _ := status.FromError(err)
+			code := connect.CodeOf(err)
 			i.logger.Error(
 				"stream client RPC error",
 				utils.MethodField(conn.Spec().Procedure),
 				utils.DurationMsField(duration),
-				zap.String(codeField, st.Code().String()),
-				zap.String(messageField, st.Message()),
+				zap.String(codeField, code.String()),
+				zap.String(messageField, err.Error()),
 			)
 		}
 
@@ -132,19 +130,23 @@ func sanitizeError(err error) error {
 		finalMsg = "request was canceled"
 
 	default:
-		if st, ok := status.FromError(err); ok {
-			finalCode = connect.Code(st.Code())
+		connectErr, ok := err.(*connect.Error)
+		if ok {
+			finalCode = connectErr.Code()
+
 			switch finalCode {
 			case connect.CodeInvalidArgument, connect.CodeUnimplemented, connect.CodeNotFound:
-				finalMsg = st.Message()
+				finalMsg = connectErr.Message()
+
 			case connect.CodeInternal:
 				finalMsg = "internal server error"
+
 			default:
 				finalMsg = "request has failed"
 			}
 		} else {
-			finalCode = connect.CodeInternal
-			finalMsg = "internal server error"
+			finalCode = connect.CodeUnknown
+			finalMsg = "unknown error"
 		}
 	}
 

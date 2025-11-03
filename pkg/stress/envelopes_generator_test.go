@@ -3,7 +3,6 @@ package stress
 import (
 	"context"
 	"fmt"
-	"net"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -20,13 +19,11 @@ import (
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
 )
 
-// Fix! : Add tests for the other protocols. Any client type should connect to all the APIs.
-// Fix! : Add a native gRPC client.
 func TestEnvelopesGenerator(t *testing.T) {
 	var (
 		ctx              = t.Context()
 		db, _            = testutils.NewDB(t, ctx)
-		grpcPort         = networkTestUtils.OpenFreePort(t)
+		port             = networkTestUtils.OpenFreePort(t)
 		wsURL, rpcURL    = anvil.StartAnvil(t, false)
 		contractsOptions = testutils.NewContractsOptions(t, rpcURL, wsURL)
 	)
@@ -37,16 +34,16 @@ func TestEnvelopesGenerator(t *testing.T) {
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			100,
-			grpcPort.Addr().(*net.TCPAddr).Port,
+			port,
 			privateKey,
 		),
 	}
 	registry := registryTestUtils.CreateMockRegistry(t, nodes)
 
-	server := serverTestUtils.NewTestReplicationServer(
+	server := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     grpcPort,
+			Port:             port,
 			DB:               db,
 			Registry:         registry,
 			PrivateKey:       privateKey,
@@ -60,7 +57,7 @@ func TestEnvelopesGenerator(t *testing.T) {
 	defer server.Shutdown(0)
 
 	generator, err := NewEnvelopesGenerator(
-		fmt.Sprintf("http://%s", server.Addr()),
+		fmt.Sprintf("http://localhost:%d", port),
 		testutils.TestPrivateKey,
 		100,
 		ProtocolConnect,

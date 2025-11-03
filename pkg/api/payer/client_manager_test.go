@@ -25,17 +25,17 @@ func formatAddress(addr string) string {
 }
 
 func TestClientManager(t *testing.T) {
-	server1, _, _ := apiTestUtils.NewTestFullServer(t)
-	server2, _, _ := apiTestUtils.NewTestFullServer(t)
+	suite1 := apiTestUtils.NewTestAPIServer(t)
+	suite2 := apiTestUtils.NewTestAPIServer(t)
 
 	mockRegistry := registry2.CreateMockRegistry(t, []registry.Node{
 		{
 			NodeID:      100,
-			HTTPAddress: formatAddress(server1.Addr()),
+			HTTPAddress: formatAddress(suite1.APIServer.Addr()),
 		},
 		{
 			NodeID:      200,
-			HTTPAddress: formatAddress(server2.Addr()),
+			HTTPAddress: formatAddress(suite2.APIServer.Addr()),
 		},
 	})
 

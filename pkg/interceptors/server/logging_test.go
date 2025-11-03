@@ -67,10 +67,10 @@ func TestUnaryLoggingInterceptor(t *testing.T) {
 		"expected log to contain correct method",
 	)
 	require.Contains(t, logEntry.ContextMap(), "message")
-	require.Equal(
+	require.Contains(
 		t,
-		"mock internal error",
 		logEntry.ContextMap()["message"],
+		"mock internal error",
 		"expected log to contain correct error message",
 	)
 }
@@ -104,10 +104,10 @@ func TestStreamLoggingInterceptor(t *testing.T) {
 		"expected log to contain correct method",
 	)
 	require.Contains(t, logEntry.ContextMap(), "message")
-	require.Equal(
+	require.Contains(
 		t,
-		"mock stream error",
 		logEntry.ContextMap()["message"],
+		"mock stream error",
 		"expected log to contain correct error message",
 	)
 }

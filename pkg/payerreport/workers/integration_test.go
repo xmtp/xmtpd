@@ -3,7 +3,6 @@ package workers_test
 import (
 	"crypto/ecdsa"
 	"database/sql"
-	"net"
 	"testing"
 	"time"
 
@@ -150,12 +149,12 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	nodes := []registry.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port.Addr().(*net.TCPAddr).Port,
+			server1Port,
 			privateKey1,
 		),
 		registryTestUtils.CreateNode(
 			server2NodeID,
-			server2Port.Addr().(*net.TCPAddr).Port,
+			server2Port,
 			privateKey2,
 		),
 	}
@@ -165,10 +164,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
 	require.NoError(t, err)
 
-	server1 := serverTestUtils.NewTestReplicationServer(
+	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server1Port,
+			Port:             server1Port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -179,10 +178,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			},
 		},
 	)
-	server2 := serverTestUtils.NewTestReplicationServer(
+	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server2Port,
+			Port:             server2Port,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,

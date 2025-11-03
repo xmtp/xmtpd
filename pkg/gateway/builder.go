@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -43,6 +44,7 @@ type GatewayServiceBuilder struct {
 	promRegistry        *prometheus.Registry
 	clientMetrics       *grpcprom.ClientMetrics
 	nonceManager        noncemanager.NonceManager
+	redisClient         redis.UniversalClient
 }
 
 func NewGatewayServiceBuilder(config *config.GatewayConfig) IGatewayServiceBuilder {
@@ -124,6 +126,24 @@ func (b *GatewayServiceBuilder) WithReflection(enabled bool) IGatewayServiceBuil
 	return b
 }
 
+func (b *GatewayServiceBuilder) WithRedisClient(
+	redisClient redis.UniversalClient,
+) IGatewayServiceBuilder {
+	b.redisClient = redisClient
+	return b
+}
+
+func (b *GatewayServiceBuilder) ensureRedis(ctx context.Context) error {
+	if b.redisClient == nil {
+		var err error
+		if b.redisClient, err = SetupRedisClient(ctx, b.config.Redis); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 	if b.config == nil {
 		return nil, ErrMissingConfig
@@ -149,7 +169,10 @@ func (b *GatewayServiceBuilder) Build() (GatewayService, error) {
 	}
 
 	if b.nonceManager == nil {
-		nonceManager, err := setupNonceManager(ctx, b.logger, b.config)
+		if err := b.ensureRedis(ctx); err != nil {
+			return nil, errors.Wrap(err, "failed to setup redis")
+		}
+		nonceManager, err := setupNonceManager(b.logger, b.config, b.redisClient)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to setup nonce manager")
 		}
@@ -221,8 +244,8 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			b.nodeRegistry,
 			gatewayPrivateKey,
 			b.blockchainPublisher,
-			nil,
 			clientMetrics,
+			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
 		)
 		if err != nil {
 			return err
@@ -276,9 +299,9 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 
 func SetupRedisClient(
 	ctx context.Context,
-	redisURL string,
-	timeout time.Duration,
+	cfg config.RedisOptions,
 ) (redis.UniversalClient, error) {
+	redisURL := cfg.RedisURL
 	if redisURL == "" {
 		return nil, fmt.Errorf("redis URL is empty")
 	}
@@ -288,7 +311,7 @@ func SetupRedisClient(
 		return nil, err
 	}
 	client := redis.NewClient(opts)
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(cfg.ConnectTimeout)
 	for {
 		if ctx.Err() != nil {
 			_ = client.Close()
@@ -302,24 +325,28 @@ func SetupRedisClient(
 			break
 		} else if time.Now().After(deadline) {
 			_ = client.Close()
-			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisURL, timeout, err)
+			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisURL, cfg.ConnectTimeout, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 	return client, nil
 }
 
-func setupNonceManager(
-	ctx context.Context,
-	logger *zap.Logger,
-	cfg *config.GatewayConfig,
-) (noncemanager.NonceManager, error) {
-	redisClient, err := SetupRedisClient(ctx, cfg.Redis.RedisURL, 10*time.Second)
+func MustSetupRedisClient(ctx context.Context, cfg config.RedisOptions) redis.UniversalClient {
+	client, err := SetupRedisClient(ctx, cfg)
 	if err != nil {
-		return nil, err
+		log.Fatalf("failed to setup redis client: %v", err)
 	}
 
-	return redisnoncemanager.NewRedisBackedNonceManager(redisClient, logger, cfg.Redis.KeyPrefix)
+	return client
+}
+
+func setupNonceManager(
+	log *zap.Logger,
+	cfg *config.GatewayConfig,
+	redisClient redis.UniversalClient,
+) (noncemanager.NonceManager, error) {
+	return redisnoncemanager.NewRedisBackedNonceManager(redisClient, log, cfg.Redis.KeyPrefix)
 }
 
 func setupNodeRegistry(

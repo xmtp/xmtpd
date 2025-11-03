@@ -45,8 +45,8 @@ type Service struct {
 	blockchainPublisher blockchain.IBlockchainPublisher
 	payerPrivateKey     *ecdsa.PrivateKey
 	nodeSelector        NodeSelectorAlgorithm
-	nodeCursorTracker   *NodeCursorTracker
 	nodeRegistry        registry.NodeRegistry
+	maxPayerMessageSize uint64
 }
 
 func NewPayerAPIService(
@@ -55,20 +55,14 @@ func NewPayerAPIService(
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
-	metadataAPIClient MetadataAPIClientConstructor,
 	clientMetrics *grpcprom.ClientMetrics,
+	maxPayerMessageSize uint64,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
 	}
 
-	var metadataClient MetadataAPIClientConstructor
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
-	if metadataAPIClient == nil {
-		metadataClient = &DefaultMetadataAPIClientConstructor{clientManager: clientManager}
-	} else {
-		metadataClient = metadataAPIClient
-	}
 
 	return &Service{
 		ctx:                 ctx,
@@ -76,9 +70,9 @@ func NewPayerAPIService(
 		clientManager:       clientManager,
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
-		nodeCursorTracker:   NewNodeCursorTracker(ctx, metadataClient),
 		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: nodeRegistry},
 		nodeRegistry:        nodeRegistry,
+		maxPayerMessageSize: maxPayerMessageSize,
 	}, nil
 }
 
@@ -123,6 +117,22 @@ func (s *Service) PublishClientEnvelopes(
 	grouped, err := s.groupEnvelopes(req.Envelopes)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "error grouping envelopes: %v", err)
+	}
+
+	if s.maxPayerMessageSize != 0 {
+		for _, env := range grouped.forBlockchain {
+			bytes, err := env.payload.Bytes()
+			if err != nil {
+				return nil, err
+			}
+			if len(bytes) > int(s.maxPayerMessageSize) {
+				return nil, status.Errorf(
+					codes.InvalidArgument,
+					"message at index %d too large",
+					env.originalIndex,
+				)
+			}
+		}
 	}
 
 	out := make([]*envelopesProto.OriginatorEnvelope, len(req.Envelopes))
@@ -306,7 +316,6 @@ func (s *Service) publishToBlockchain(
 		targetTopic         = clientEnvelope.TargetTopic()
 		identifier          = targetTopic.Identifier()
 		desiredOriginatorID uint32
-		desiredSequenceID   uint64
 		kind                = targetTopic.Kind()
 	)
 
@@ -362,7 +371,6 @@ func (s *Service) publishToBlockchain(
 				err,
 			)
 		}
-		desiredSequenceID = logMessage.SequenceId
 
 	case topic.TopicKindIdentityUpdatesV1:
 		desiredOriginatorID = constants.IdentityUpdateOriginatorID
@@ -401,7 +409,6 @@ func (s *Service) publishToBlockchain(
 				err,
 			)
 		}
-		desiredSequenceID = logMessage.SequenceId
 
 	default:
 		return nil, status.Errorf(
@@ -425,30 +432,6 @@ func (s *Service) publishToBlockchain(
 			codes.Internal,
 			"error marshalling unsigned originator envelope: %v",
 			err,
-		)
-	}
-
-	targetNodeID, err := s.nodeSelector.GetNode(targetTopic)
-	if err != nil {
-		return nil, err
-	}
-
-	s.logger.Debug(
-		"waiting for message to be processed by node",
-		utils.OriginatorIDField(targetNodeID),
-	)
-
-	err = s.nodeCursorTracker.BlockUntilDesiredCursorReached(
-		ctx,
-		targetNodeID,
-		desiredOriginatorID,
-		desiredSequenceID,
-	)
-	if err != nil {
-		s.logger.Error(
-			"chosen node for cursor check is unreachable",
-			utils.OriginatorIDField(targetNodeID),
-			zap.Error(err),
 		)
 	}
 

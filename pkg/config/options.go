@@ -33,6 +33,7 @@ type AppChainOptions struct {
 	GatewayAddress                   string        `long:"gateway-address"                     env:"XMTPD_APP_CHAIN_GATEWAY_ADDRESS"                   description:"App Chain Gateway contract address"`
 	ParameterRegistryAddress         string        `long:"parameter-registry-address"          env:"XMTPD_APP_CHAIN_PARAMETER_REGISTRY_ADDRESS"        description:"Parameter Registry contract address"`
 	DeploymentBlock                  uint64        `long:"deployment-block"                    env:"XMTPD_APP_CHAIN_DEPLOYMENT_BLOCK"                  description:"Deployment block for the application chain"                   default:"0"`
+	MaxBlockchainPayloadSize         uint64        `long:"max-blockchain-payload-size"         env:"XMTPD_APP_CHAIN_MAX_BLOCKCHAIN_PAYLOAD_SIZE"       description:"Max payload size for the App Chain in bytes"                  default:"200000"`
 }
 
 type SettlementChainOptions struct {

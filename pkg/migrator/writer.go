@@ -52,17 +52,21 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 		m.writer,
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
-			_, err = querier.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
-				OriginatorNodeID:     int32(env.OriginatorNodeID()),
-				OriginatorSequenceID: int64(env.OriginatorSequenceID()),
-				Topic:                env.TargetTopic().Bytes(),
-				OriginatorEnvelope:   originatorEnvelopeBytes,
-				PayerID:              db.NullInt32(payerID),
-				GatewayTime:          env.OriginatorTime(),
-				Expiry: int64(
-					env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-				),
-			})
+			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(
+				ctx,
+				querier,
+				queries.InsertGatewayEnvelopeV2Params{
+					OriginatorNodeID:     int32(env.OriginatorNodeID()),
+					OriginatorSequenceID: int64(env.OriginatorSequenceID()),
+					Topic:                env.TargetTopic().Bytes(),
+					OriginatorEnvelope:   originatorEnvelopeBytes,
+					PayerID:              db.NullInt32(payerID),
+					GatewayTime:          env.OriginatorTime(),
+					Expiry: int64(
+						env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+					),
+				},
+			)
 			if err != nil {
 				m.logger.Error("insert originator envelope failed", zap.Error(err))
 				return re.NewRecoverableError("insert originator envelope failed", err)

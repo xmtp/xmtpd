@@ -397,6 +397,7 @@ func startAPIServer(
 			cfg.FeeCalculator,
 			cfg.Options.API,
 			isMigrationEnabled,
+			time.Second,
 		)
 		if err != nil {
 			cfg.Logger.Error("failed to initialize replication api service", zap.Error(err))

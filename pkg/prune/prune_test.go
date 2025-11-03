@@ -23,33 +23,28 @@ const (
 )
 
 func setupTestData(t *testing.T, db *sql.DB, expired int, valid int) {
-	q := queries.New(db)
-	ctx := context.Background()
-
 	// Insert expired envelopes
 	for i := 0; i < expired; i++ {
-		_, err := q.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV2Params{{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: int64(i),
 			Topic:                []byte("topic"),
 			OriginatorEnvelope:   []byte("payload"),
 			GatewayTime:          time.Now(),
 			Expiry:               time.Now().Add(-1 * time.Hour).Unix(),
-		})
-		assert.NoError(t, err)
+		}})
 	}
 
 	// Insert non-expired envelopes
 	for i := 0; i < valid; i++ {
-		_, err := q.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV2Params{{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: int64(i + expired),
 			Topic:                []byte("topic"),
 			OriginatorEnvelope:   []byte("payload"),
 			GatewayTime:          time.Now(),
 			Expiry:               time.Now().Add(1 * time.Hour).Unix(),
-		})
-		assert.NoError(t, err)
+		}})
 	}
 }
 

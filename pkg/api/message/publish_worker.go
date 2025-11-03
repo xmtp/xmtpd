@@ -18,15 +18,16 @@ import (
 )
 
 type publishWorker struct {
-	ctx           context.Context
-	logger        *zap.Logger
-	listener      <-chan []queries.StagedOriginatorEnvelope
-	notifier      chan<- bool
-	registrant    *registrant.Registrant
-	store         *sql.DB
-	subscription  db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
-	lastProcessed atomic.Int64
-	feeCalculator fees.IFeeCalculator
+	ctx                context.Context
+	logger             *zap.Logger
+	listener           <-chan []queries.StagedOriginatorEnvelope
+	notifier           chan<- bool
+	registrant         *registrant.Registrant
+	store              *sql.DB
+	subscription       db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
+	lastProcessed      atomic.Int64
+	feeCalculator      fees.IFeeCalculator
+	sleepOnFailureTime time.Duration
 }
 
 func startPublishWorker(
@@ -35,6 +36,7 @@ func startPublishWorker(
 	reg *registrant.Registrant,
 	store *sql.DB,
 	feeCalculator fees.IFeeCalculator,
+	sleepOnFailureTime time.Duration,
 ) (*publishWorker, error) {
 	logger = logger.Named(utils.PublishWorkerName)
 	logger.Info("starting")
@@ -111,7 +113,7 @@ func (p *publishWorker) start() {
 				for !p.publishStagedEnvelope(stagedEnv) {
 					// Infinite retry on failure to publish; we cannot
 					// continue to the next envelope until this one is processed
-					time.Sleep(time.Second)
+					time.Sleep(p.sleepOnFailureTime)
 				}
 				p.lastProcessed.Store(stagedEnv.ID)
 			}

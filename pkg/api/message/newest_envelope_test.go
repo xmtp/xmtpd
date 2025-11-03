@@ -2,6 +2,7 @@ package message_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ import (
 
 func writeKeyPackage(
 	t *testing.T,
-	querier *queries.Queries,
+	db *sql.DB,
 	installationKey []byte,
 ) (topic.Topic, uint64) {
 	topicObj := topic.NewTopic(topic.TopicKindKeyPackagesV1, installationKey)
@@ -32,13 +33,12 @@ func writeKeyPackage(
 	)
 	envBytes, err := proto.Marshal(env)
 	require.NoError(t, err)
-
-	_, err = querier.InsertGatewayEnvelopeV2(t.Context(), queries.InsertGatewayEnvelopeV2Params{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV2Params{{
 		OriginatorNodeID:     int32(nodeID),
 		OriginatorSequenceID: int64(sequenceID),
 		OriginatorEnvelope:   envBytes,
 		Topic:                topicBytes,
-	})
+	}})
 
 	require.NoError(t, err)
 
@@ -63,22 +63,20 @@ func parseResults(
 
 func TestGetNewestEnvelope(t *testing.T) {
 	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
-	querier := queries.New(db)
-
 	installationID1 := testutils.RandomGroupID()
 	installationID2 := testutils.RandomGroupID()
 	installationID3 := testutils.RandomGroupID()
 	installationID4 := testutils.RandomGroupID()
 
 	// Installation ID 1 has three key packages
-	topic1, discared := writeKeyPackage(t, querier, installationID1[:])
+	topic1, discared := writeKeyPackage(t, db, installationID1[:])
 	t.Log(topic1, discared)
 	// This one is totally ignored
-	_, _ = writeKeyPackage(t, querier, installationID1[:])
+	_, _ = writeKeyPackage(t, db, installationID1[:])
 	// This one is the newest
-	_, seq1 := writeKeyPackage(t, querier, installationID1[:])
-	topic2, seq2 := writeKeyPackage(t, querier, installationID2[:])
-	topic3, seq3 := writeKeyPackage(t, querier, installationID3[:])
+	_, seq1 := writeKeyPackage(t, db, installationID1[:])
+	topic2, seq2 := writeKeyPackage(t, db, installationID2[:])
+	topic3, seq3 := writeKeyPackage(t, db, installationID3[:])
 
 	t.Log(topic1, seq1)
 	t.Log(topic2, seq2)

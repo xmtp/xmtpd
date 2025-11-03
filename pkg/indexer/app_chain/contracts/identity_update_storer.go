@@ -229,13 +229,18 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 			}
 
-			if _, err = querier.InsertGatewayEnvelopeV2(ctx, queries.InsertGatewayEnvelopeV2Params{
-				OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
-				OriginatorSequenceID: int64(msgSent.SequenceId),
-				Topic:                messageTopic.Bytes(),
-				OriginatorEnvelope:   originatorEnvelopeBytes,
-				Expiry:               math.MaxInt64,
-			}); err != nil {
+			_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
+				ctx,
+				querier,
+				queries.InsertGatewayEnvelopeV2Params{
+					OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
+					OriginatorSequenceID: int64(msgSent.SequenceId),
+					Topic:                messageTopic.Bytes(),
+					OriginatorEnvelope:   originatorEnvelopeBytes,
+					Expiry:               math.MaxInt64,
+				},
+			)
+			if err != nil {
 				s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
 				return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 			}

@@ -73,12 +73,20 @@ func NewReplicationAPIService(
 	feeCalculator fees.IFeeCalculator,
 	options config.APIOptions,
 	migrationEnabled bool,
+	sleepOnFailureTime time.Duration,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
 	}
 
-	publishWorker, err := startPublishWorker(ctx, logger, registrant, store, feeCalculator)
+	publishWorker, err := startPublishWorker(
+		ctx,
+		logger,
+		registrant,
+		store,
+		feeCalculator,
+		sleepOnFailureTime,
+	)
 	if err != nil {
 		logger.Error("could not start publish worker", zap.Error(err))
 		return nil, err

@@ -142,7 +142,6 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 		return queries.InsertGatewayEnvelopeV2Row{}, err
 	}
 
-	// retry insert
 	return q.InsertGatewayEnvelopeV2(ctx, row)
 }
 

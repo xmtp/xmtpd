@@ -45,6 +45,7 @@ import (
 func NewTestGRPCReplicationAPIClient(
 	t *testing.T,
 	addr string,
+	extraDialOpts ...connect.ClientOption,
 ) message_apiconnect.ReplicationApiClient {
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
@@ -52,6 +53,7 @@ func NewTestGRPCReplicationAPIClient(
 	client, err := utils.NewConnectGRPCReplicationAPIClient(
 		t.Context(),
 		fmt.Sprintf("http://localhost:%s", port),
+		extraDialOpts...,
 	)
 	if err != nil {
 		t.Fatalf("failed to create replication API client: %v", err)
@@ -63,6 +65,7 @@ func NewTestGRPCReplicationAPIClient(
 func NewTestGRPCGatewayAPIClient(
 	t *testing.T,
 	addr string,
+	extraDialOpts ...connect.ClientOption,
 ) payer_apiconnect.PayerApiClient {
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
@@ -70,6 +73,7 @@ func NewTestGRPCGatewayAPIClient(
 	client, err := utils.NewConnectGatewayAPIClient(
 		t.Context(),
 		fmt.Sprintf("http://localhost:%s", port),
+		extraDialOpts...,
 	)
 	if err != nil {
 		t.Fatalf("failed to create gateway API client: %v", err)
@@ -81,6 +85,7 @@ func NewTestGRPCGatewayAPIClient(
 func NewTestMetadataAPIClient(
 	t *testing.T,
 	addr string,
+	extraDialOpts ...connect.ClientOption,
 ) metadata_apiconnect.MetadataApiClient {
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
@@ -88,6 +93,7 @@ func NewTestMetadataAPIClient(
 	client, err := utils.NewConnectMetadataAPIClient(
 		t.Context(),
 		fmt.Sprintf("http://localhost:%s", port),
+		extraDialOpts...,
 	)
 	if err != nil {
 		t.Fatalf("failed to create metadata API client: %v", err)

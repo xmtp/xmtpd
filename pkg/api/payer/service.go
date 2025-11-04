@@ -61,9 +61,8 @@ func NewPayerAPIService(
 	nodeRegistry registry.NodeRegistry,
 	payerPrivateKey *ecdsa.PrivateKey,
 	blockchainPublisher blockchain.IBlockchainPublisher,
-	maxPayerMessageSize uint64,
-	metadataAPIClient MetadataAPIClientConstructor,
 	clientMetrics *grpcprom.ClientMetrics,
+	maxPayerMessageSize uint64,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()

@@ -103,7 +103,7 @@ func SpanResource(span Span, resource string) {
 	span.SetTag(ext.ResourceName, resource)
 }
 
-func SpanTag(span Span, key string, value interface{}) {
+func SpanTag(span Span, key string, value any) {
 	span.SetTag(key, value)
 }
 

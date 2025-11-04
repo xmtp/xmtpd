@@ -25,11 +25,11 @@ type EnabledServices struct {
 }
 
 type TestServerCfg struct {
-	Port             int
-	DB               *sql.DB
-	Registry         r.NodeRegistry
-	PrivateKey       *ecdsa.PrivateKey
 	ContractsOptions config.ContractsOptions
+	DB               *sql.DB
+	Port             int
+	PrivateKey       *ecdsa.PrivateKey
+	Registry         r.NodeRegistry
 	Services         EnabledServices
 }
 
@@ -39,7 +39,8 @@ func NewTestBaseServer(
 ) *s.BaseServer {
 	log := testutils.NewLog(t)
 
-	server, err := s.NewBaseServer(s.WithContext(t.Context()),
+	server, err := s.NewBaseServer(
+		s.WithContext(t.Context()),
 		s.WithLogger(log),
 		s.WithDB(cfg.DB),
 		s.WithNodeRegistry(cfg.Registry),
@@ -47,9 +48,9 @@ func NewTestBaseServer(
 		s.WithFeeCalculator(fees.NewTestFeeCalculator()),
 		s.WithServerOptions(&config.ServerOptions{
 			API: config.APIOptions{
+				Port:                  cfg.Port,
 				Enable:                cfg.Services.API,
 				SendKeepAliveInterval: 30 * time.Second,
-				Port:                  cfg.Port,
 			},
 			Contracts: cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -239,6 +240,12 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		return nil, errors.Wrap(err, "failed to parse gateway private key")
 	}
 
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", b.config.API.Port))
+	if err != nil {
+		cancel()
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to listen on port %d", b.config.API.Port))
+	}
+
 	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
 		gatewayAPIService, err := payer.NewPayerAPIService(
 			ctx,
@@ -278,7 +285,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	apiServer, err := api.NewAPIServer(
 		api.WithContext(ctx),
 		api.WithLogger(b.logger),
-		api.WithPort(b.config.API.Port),
+		api.WithListener(listener),
 		api.WithPrometheusRegistry(promRegistry),
 		api.WithReflection(b.config.Reflection.Enable),
 		api.WithRegistrationFunc(registrationFunc),

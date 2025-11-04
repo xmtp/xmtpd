@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -429,6 +430,11 @@ func startAPIServer(
 		authInterceptor = server.NewServerAuthInterceptor(jwtVerifier, cfg.Logger)
 	}
 
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Options.API.Port))
+	if err != nil {
+		return fmt.Errorf("failed to listen on port %d: %w", cfg.Options.API.Port, err)
+	}
+
 	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
 		if jwtVerifier != nil && authInterceptor != nil {
 			interceptors = append(
@@ -503,7 +509,7 @@ func startAPIServer(
 	apiOpts = append(apiOpts, []api.APIServerOption{
 		api.WithContext(svc.ctx),
 		api.WithLogger(cfg.Logger),
-		api.WithPort(cfg.Options.API.Port),
+		api.WithListener(listener),
 		api.WithPrometheusRegistry(promReg),
 		api.WithReflection(cfg.Options.Reflection.Enable),
 		api.WithRegistrationFunc(registrationFunc),

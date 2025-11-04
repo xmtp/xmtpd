@@ -228,12 +228,12 @@ func NewTestAPIServer(
 		}, nil
 	}
 
-	port := networkTestUtils.OpenFreePort(t)
+	ln := networkTestUtils.OpenListener(t)
 
 	apiOpts := []api.APIServerOption{
 		api.WithContext(ctx),
 		api.WithLogger(log),
-		api.WithPort(port),
+		api.WithListener(ln),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithReflection(true),
 		api.WithPrometheusRegistry(prometheus.NewRegistry()),
@@ -254,6 +254,8 @@ func NewTestAPIServer(
 		cancel()
 		svr.Close()
 	})
+
+	fmt.Printf("DEBUG: API server address: %s\n", svr.Addr())
 
 	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
 	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())

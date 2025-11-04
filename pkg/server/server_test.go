@@ -43,18 +43,18 @@ func TestCreateServer(t *testing.T) {
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	server1Port := networkTestUtils.OpenFreePort(t)
-	server2Port := networkTestUtils.OpenFreePort(t)
+	port1 := networkTestUtils.OpenFreePort(t)
+	port2 := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port,
+			port1,
 			privateKey1,
 		),
 		registryTestUtils.CreateNode(
 			server2NodeID,
-			server2Port,
+			port2,
 			privateKey2,
 		),
 	}
@@ -68,7 +68,7 @@ func TestCreateServer(t *testing.T) {
 	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server1Port,
+			Port:             port1,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -84,7 +84,7 @@ func TestCreateServer(t *testing.T) {
 	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server2Port,
+			Port:             port2,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -197,18 +197,20 @@ func TestCreateServer(t *testing.T) {
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {
-	ctx := t.Context()
-	dbs := testutils.NewDBs(t, ctx, 1)
+	var (
+		ctx     = t.Context()
+		dbs     = testutils.NewDBs(t, ctx, 1)
+		port    = networkTestUtils.OpenFreePort(t)
+		nodeID1 = server1NodeID
+	)
+
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	server1Port := networkTestUtils.OpenFreePort(t)
-
-	nodeID1 := server1NodeID
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port,
+			port,
 			privateKey1,
 		),
 	}
@@ -220,7 +222,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server1Port,
+			Port:             port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -277,12 +279,14 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 }
 
 func TestGRPCHealthEndpoint(t *testing.T) {
-	ctx := t.Context()
-	dbs := testutils.NewDBs(t, ctx, 1)
+	var (
+		ctx  = t.Context()
+		dbs  = testutils.NewDBs(t, ctx, 1)
+		port = networkTestUtils.OpenFreePort(t)
+	)
+
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-
-	port := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(

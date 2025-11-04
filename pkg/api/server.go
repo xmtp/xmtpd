@@ -4,6 +4,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -26,7 +27,7 @@ type APIServerConfig struct {
 	Logger           *zap.Logger
 	PromRegistry     *prometheus.Registry
 	RegistrationFunc RegistrationFunc
-	Port             int
+	Listener         net.Listener
 	EnableReflection bool
 }
 
@@ -38,12 +39,12 @@ func WithContext(ctx context.Context) APIServerOption {
 	return func(cfg *APIServerConfig) { cfg.Ctx = ctx }
 }
 
-func WithLogger(logger *zap.Logger) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.Logger = logger }
+func WithListener(listener net.Listener) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.Listener = listener }
 }
 
-func WithPort(port int) APIServerOption {
-	return func(cfg *APIServerConfig) { cfg.Port = port }
+func WithLogger(logger *zap.Logger) APIServerOption {
+	return func(cfg *APIServerConfig) { cfg.Logger = logger }
 }
 
 func WithPrometheusRegistry(reg *prometheus.Registry) APIServerOption {
@@ -63,6 +64,7 @@ type APIServer struct {
 	wg         sync.WaitGroup
 	logger     *zap.Logger
 	httpServer *http.Server
+	listener   net.Listener
 }
 
 func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
@@ -79,8 +81,8 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	if cfg.Port == 0 {
-		return nil, fmt.Errorf("port is required")
+	if cfg.Listener == nil {
+		return nil, fmt.Errorf("listener is required")
 	}
 
 	if cfg.RegistrationFunc == nil {
@@ -88,8 +90,9 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	}
 
 	svc := &APIServer{
-		ctx:    cfg.Ctx,
-		logger: cfg.Logger.Named(utils.APILoggerName),
+		ctx:      cfg.Ctx,
+		logger:   cfg.Logger.Named(utils.APILoggerName),
+		listener: cfg.Listener,
 	}
 
 	// Create a new HTTP mux to serve the API handlers.
@@ -103,7 +106,6 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 
 	// TODO: Fix! (maybe) - Do we need more timeouts?
 	svc.httpServer = &http.Server{
-		Addr:        fmt.Sprintf("0.0.0.0:%d", cfg.Port),
 		Handler:     h2cHandler,
 		IdleTimeout: 5 * time.Minute,
 	}
@@ -120,9 +122,6 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Fix! Implement client metrics that are compatible with connect-go.
-	// The prometheus metric servers use grpcprom client metrics.
 
 	// Register services.
 	servicePaths, err := cfg.RegistrationFunc(mux, openConnInterceptor, loggingInterceptor)
@@ -145,7 +144,7 @@ func (svc *APIServer) Start() {
 	svc.logger.Info("starting api server", zap.String("address", svc.httpServer.Addr))
 
 	tracing.GoPanicWrap(svc.ctx, &svc.wg, "api-server", func(ctx context.Context) {
-		if err := svc.httpServer.ListenAndServe(); err != nil &&
+		if err := svc.httpServer.Serve(svc.listener); err != nil &&
 			err != http.ErrServerClosed {
 			svc.logger.Fatal("error serving api server", zap.Error(err))
 		}
@@ -153,7 +152,7 @@ func (svc *APIServer) Start() {
 }
 
 func (svc *APIServer) Addr() string {
-	return svc.httpServer.Addr
+	return svc.listener.Addr().String()
 }
 
 func (svc *APIServer) Close() {
@@ -168,10 +167,14 @@ func (svc *APIServer) Close() {
 		svc.logger.Error("error shutting down api server", zap.Error(err))
 	}
 
+	// if err := svc.listener.Close(); err != nil {
+	// 	svc.logger.Error("error closing listener", zap.Error(err))
+	// }
+
 	// Wait for the goroutine to finish.
 	svc.wg.Wait()
 
-	svc.logger.Info("")
+	svc.logger.Info("api server stopped")
 }
 
 func (svc *APIServer) registerHealthHandler(

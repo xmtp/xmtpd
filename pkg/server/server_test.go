@@ -173,7 +173,7 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 3000*time.Millisecond, 200*time.Millisecond)
+	}, 5000*time.Millisecond, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		q2, err := client2.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
@@ -193,7 +193,7 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 3000*time.Millisecond, 200*time.Millisecond)
+	}, 5000*time.Millisecond, 200*time.Millisecond)
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {

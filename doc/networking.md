@@ -18,33 +18,103 @@ This document describes the communication protocols and APIs implemented in the 
 
 ## Architecture Overview
 
-The xmtpd server implements a multi-layered communication architecture:
+### TLDR
+
+The xmtpd system uses a **dual-protocol architecture**:
+
+- **External/Client-Facing APIs**: Implemented with **Connect-RPC handlers** that automatically support three protocols:
+
+  - Connect (HTTP/1.1 or HTTP/2 with standard HTTP semantics)
+  - gRPC (HTTP/2 with gRPC protocol)
+  - gRPC-Web (browser-compatible gRPC)
+
+- **Internal Node-to-Node Communication**: Uses **native gRPC clients** for:
+
+  - Sync worker (node-to-node envelope replication)
+  - MLS validation service
+  - Gateway client manager (gateway-to-node communication)
+
+This approach provides **maximum flexibility for clients** (they can use any protocol) while maintaining **high-performance gRPC** for internal communication where protocol flexibility isn't needed.
+
+### System Diagram
 
 ```ascii
-┌─────────────────────────────────────────────────────┐
-│              XMTP Client Applications               │
-└─────────────────────────────────────────────────────┘
-                         │
-                         │ HTTP/1.1, HTTP/2, gRPC
-                         │
-┌─────────────────────────────────────────────────────┐        ┌─────────────────────────────────────────┐
-│         XMTPD Node - API Server (Port: 5050)        │        │ Sync Service (Background)               │
-│  ┌───────────────────────────────────────────────┐  │        │ Subscribes to other XMTP nodes and      │
-│  │  Replication API  │  Metadata API             │  │ ─────> | replicates envelopes across the network │
-│  │  Health Check     │  Reflection (optional)    │  │        └─────────────────────────────────────────┘
-│  └───────────────────────────────────────────────┘  │                         │
-└─────────────────────────────────────────────────────┘                  gRPC/Connect-RPC
-                         │                                                      │
-                         │                                                      │
-                         ▼                                                      ▼
-┌─────────────────────────────────────────────────────┐              ┌──────────────────────┐
-│                  Local Database                     │              │   Other XMTP Nodes   │
-└─────────────────────────────────────────────────────┘              └──────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                      XMTP Client Applications                        │
+│              (Connect, gRPC, or gRPC-Web protocols)                  │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+                    HTTP/1.1, HTTP/2, or gRPC
+                                  │
+        ┌─────────────────────────┴───────────────────────────┐
+        │                                                     │
+        ▼                                                     ▼
+┌──────────────────────────┐                   ┌──────────────────────────┐
+│   Gateway (Payer API)    │                   │   XMTPD Node (Port: 5050)│
+│      Port: 5051          │                   │                          │
+│ ┌──────────────────────┐ │                   │  ┌────────────────────┐  │
+│ │ • PublishEnvelopes   │ │  gRPC (internal)  │  │ • Replication API  │  │
+│ │ • GetNodes           │ │◄─────────────────►│  │ • Metadata API     │  │
+│ └──────────────────────┘ │                   │  │ • Health Check     │  │
+│  (Connect-RPC handlers)  │                   │  │ • Reflection       │  │
+└──────────────────────────┘                   │  └────────────────────┘  │
+                                               │   (Connect-RPC handlers) │
+                                               └──────────────────────────┘
+                                                            │
+                                                            │        gRPC (native)
+                  ┌─────────────────────────────────────────┼──────────────┐
+                  │                                         │              │
+                  ▼                                         ▼              ▼
+       ┌────────────────────┐                    ┌──────────────┐  ┌─────────────┐
+       │  Sync Service      │                    │              │  │             │
+       │   (Background)     │                    ┤  Database    │  │ MLS Service │
+       │                    │                    │              │  │  (gRPC)     │
+       │ • Subscribes to    │                    └──────────────┘  └─────────────┘
+       │   other nodes      │
+       │ • Replicates       │
+       │   envelopes        │
+       └────────────────────┘
+                │
+                │ gRPC (native)
+                ▼
+       ┌──────────────────┐
+       │  Other XMTP Nodes│
+       └──────────────────┘
 ```
+
+### Connect-RPC vs gRPC: What's the Difference?
+
+**Connect-RPC** (used for client-facing APIs):
+
+- Built on standard HTTP semantics (works with HTTP/1.1 and HTTP/2)
+- Single handler implementation supports 3 protocols automatically
+- Uses standard HTTP headers (easier to debug with curl, browser dev tools)
+- Better browser support (Connect protocol and gRPC-Web)
+- Works seamlessly with HTTP proxies, load balancers (ALB, NGINX)
+- Compatible with existing gRPC clients (accepts gRPC protocol)
+- Simpler middleware/interceptor model
+
+**Native gRPC** (used for internal communication):
+
+- Requires HTTP/2
+- High-performance binary protocol
+- Used where we control both client and server
+- Existing ecosystem of tools (grpcurl, Buf CLI)
+- More mature for service-to-service communication
+
+### Why This Architecture?
+
+1. **Client Flexibility**: External clients can use whatever protocol works best for them (mobile SDKs can use Connect, existing gRPC clients work unchanged, browsers can use Connect-Web or gRPC-Web)
+
+2. **Simplified Deployment**: Connect-RPC works with standard HTTP infrastructure (no special h2c requirements in production with proper load balancers)
+
+3. **Internal Performance**: Native gRPC for internal communication provides battle-tested performance and reliability
+
+4. **Single Codebase**: Connect-RPC handlers are generated from the same .proto files as gRPC, maintaining type safety and consistency
 
 ## Protocol Stack
 
-The xmtpd server uses the following protocols:
+The xmtpd and gateway servers expose APIs using the connect-go implementation:
 
 - **Connect-RPC**: A modern, protocol-agnostic RPC framework built on Protobuf and on top of Go standard lib HTTP
 - **HTTP/2 Cleartext (h2c)**: Enables HTTP/2 over unencrypted connections for development/testing
@@ -345,7 +415,7 @@ message GetPayerInfoResponse {
 
 ### Health Check API
 
-Standard gRPC health checking protocol.
+gRPC Health Check API, implemented using [Connect-RPC grpchealth](connectrpc.com/grpchealth).
 
 **Service Name**: `grpc.health.v1.Health`
 
@@ -365,7 +435,7 @@ curl -X POST http://localhost:5050/grpc.health.v1.Health/Check \
 
 ### Reflection API
 
-gRPC Server Reflection API for service discovery.
+gRPC Server Reflection API for service discovery, implemented using [Connect-RPC grpcreflect](connectrpc.com/grpcreflect).
 
 **Service Names**:
 

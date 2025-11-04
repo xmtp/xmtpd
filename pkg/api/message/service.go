@@ -158,12 +158,12 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
+	envelopesCh := s.subscribeWorker.listen(ctx, query)
+
 	err = s.catchUpFromCursor(ctx, stream, query, logger)
 	if err != nil {
 		return err
 	}
-
-	envelopesCh := s.subscribeWorker.listen(ctx, query)
 
 	// GRPC keep-alives are not sufficient in some load balanced environments.
 	// We need to send an actual payload: https://github.com/xmtp/xmtpd/issues/669
@@ -337,8 +337,8 @@ func (s *Service) QueryEnvelopes(
 		)
 	}
 
-	limit := int32(req.Msg.GetLimit())
-	if limit == 0 {
+	var limit int32
+	if req.Msg.GetLimit() > uint32(maxRequestedRows) || req.Msg.GetLimit() == 0 {
 		limit = maxRequestedRows
 	}
 

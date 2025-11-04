@@ -222,7 +222,7 @@ func BuildHTTP2Client(ctx context.Context, isTLS bool) (*http.Client, error) {
 		return &http.Client{
 			Transport: &http2.Transport{
 				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-					return dialer.DialContext(ctx, network, addr)
+					return tls.DialWithDialer(dialer, network, addr, tlsConfig)
 				},
 				TLSClientConfig: tlsConfig,
 				ReadIdleTimeout: readIdleTimeout,
@@ -290,11 +290,16 @@ func HTTPAddressToGRPCTarget(httpAddress string) (target string, isTLS bool, err
 		return "", false, fmt.Errorf("unknown connection schema %s", parsedURL.Scheme)
 	}
 
-	if parsedURL.Port() != "" {
-		return fmt.Sprintf("%s:%s", parsedURL.Hostname(), parsedURL.Port()), isTLS, nil
+	host := parsedURL.Hostname()
+	if host == "" {
+		return "", false, fmt.Errorf("missing host in address %q", httpAddress)
 	}
 
-	return parsedURL.Hostname(), isTLS, nil
+	if parsedURL.Port() != "" {
+		return fmt.Sprintf("%s:%s", host, parsedURL.Port()), isTLS, nil
+	}
+
+	return host, isTLS, nil
 }
 
 // HTTPAddressToConnectProtocolTarget maps from a URL to a Connect-Go target.
@@ -326,13 +331,13 @@ func HTTPAddressToConnectProtocolTarget(httpAddress string) (target string, isTL
 	if parsedURL.Port() != "" {
 		return fmt.Sprintf(
 			"%s://%s:%s",
-			parsedURL.Scheme,
-			parsedURL.Hostname(),
+			scheme,
+			host,
 			parsedURL.Port(),
 		), isTLS, nil
 	}
 
-	return fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Hostname()), isTLS, nil
+	return fmt.Sprintf("%s://%s", scheme, host), isTLS, nil
 }
 
 // getBaseDialOptions builds the default dial options for a Connect-Go, gRPC or gRPC-Web connection.

@@ -35,6 +35,5 @@ func (n *Node) Equals(other Node) bool {
 func (n *Node) BuildConn(
 	extraDialOpts ...grpc.DialOption,
 ) (*grpc.ClientConn, error) {
-	conn, err := utils.NewGRPCConn(n.HTTPAddress)
-	return conn, err
+	return utils.NewGRPCConn(n.HTTPAddress, extraDialOpts...)
 }

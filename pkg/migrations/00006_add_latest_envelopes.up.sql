@@ -21,21 +21,5 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER gateway_latest_upd
-    AFTER INSERT ON gateway_envelopes
+    AFTER INSERT ON gateway_envelopes_meta
     FOR EACH ROW EXECUTE FUNCTION update_latest_envelope();
-
--- best attempt at populating the latest table without a full table scan
-INSERT INTO gateway_envelopes_latest AS l (
-    originator_node_id, originator_sequence_id, gateway_time
-)
-SELECT DISTINCT ON (ge.originator_node_id)
-    ge.originator_node_id,
-    ge.originator_sequence_id,
-    ge.gateway_time
-FROM gateway_envelopes ge
-WHERE ge.gateway_time >= now() - interval '1 day'
-ORDER BY ge.originator_node_id, ge.originator_sequence_id DESC
-ON CONFLICT (originator_node_id) DO UPDATE
-    SET originator_sequence_id = EXCLUDED.originator_sequence_id,
-        gateway_time           = EXCLUDED.gateway_time
-WHERE l.originator_sequence_id < EXCLUDED.originator_sequence_id;

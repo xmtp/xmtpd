@@ -1,2 +1,0 @@
-ALTER TABLE unsettled_usage
-ADD COLUMN message_count INTEGER NOT NULL DEFAULT 0;

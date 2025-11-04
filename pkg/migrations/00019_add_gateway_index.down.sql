@@ -1,1 +1,0 @@
-DROP INDEX IF EXISTS idx_gw_by_originator_cover;

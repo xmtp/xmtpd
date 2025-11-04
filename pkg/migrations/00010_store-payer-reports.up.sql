@@ -11,7 +11,8 @@ CREATE TABLE payer_reports (
     submission_status SMALLINT NOT NULL DEFAULT 0,
     -- 0 = pending, 1 = approved, 2 = rejected
     attestation_status SMALLINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    submitted_report_index INTEGER NULL
 );
 
 CREATE INDEX payer_reports_submission_status_created_idx ON payer_reports (submission_status, created_at);

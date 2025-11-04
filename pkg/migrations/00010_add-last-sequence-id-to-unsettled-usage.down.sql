@@ -1,1 +1,0 @@
-ALTER TABLE unsettled_usage DROP COLUMN last_sequence_id;

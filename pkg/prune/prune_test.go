@@ -85,7 +85,7 @@ func TestExecutor_PrunesExpired(t *testing.T) {
 
 	// Ensure non-expired remain
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta_v2`)
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(t, DEFAULT_VALID_CNT, total, "Only non-expired envelopes should remain")
@@ -106,7 +106,7 @@ func TestExecutor_DryRun_NoPrune(t *testing.T) {
 	assert.NoError(t, err)
 
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta_v2`)
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 
@@ -123,7 +123,7 @@ func openAndHoldLock(t *testing.T, ctx context.Context, db *sql.DB) *sql.Tx {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	_, err = tx.ExecContext(ctx, `
-		SELECT * FROM gateway_envelopes_meta_v2
+		SELECT * FROM gateway_envelopes_meta
 		WHERE originator_sequence_id = 1 
 		FOR UPDATE
 	`)
@@ -169,7 +169,7 @@ func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 func getRemainingSequenceIds(t *testing.T, ctx context.Context, db *sql.DB) []int64 {
 	var remainingIDs []int64
 	rows, err := db.QueryContext(ctx, `
-		SELECT originator_sequence_id FROM gateway_envelopes_meta_v2
+		SELECT originator_sequence_id FROM gateway_envelopes_meta
 	`)
 	require.NoError(t, err)
 	defer func() {

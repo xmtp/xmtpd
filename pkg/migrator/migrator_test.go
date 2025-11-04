@@ -237,7 +237,7 @@ func getGatewayEnvelopesAmount(
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(*)::BIGINT
-FROM gateway_envelopes_meta_v2
+FROM gateway_envelopes_meta
 WHERE originator_node_id = $1`
 	)
 
@@ -256,7 +256,7 @@ func getGatewayEnvelopesUniqueAmount(
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(DISTINCT originator_sequence_id)::BIGINT
-FROM gateway_envelopes_meta_v2
+FROM gateway_envelopes_meta
 WHERE originator_node_id = $1`
 	)
 

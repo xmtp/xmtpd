@@ -104,7 +104,7 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		IdleTimeout: 5 * time.Minute,
 	})
 
-	// TODO: Fix! (maybe) - Do we need more timeouts?
+	// TODO: Do we need more timeouts?
 	svc.httpServer = &http.Server{
 		Handler:     h2cHandler,
 		IdleTimeout: 5 * time.Minute,

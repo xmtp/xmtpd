@@ -3,7 +3,6 @@ package message_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -132,14 +131,13 @@ func TestGetNewestEnvelope(t *testing.T) {
 			for i, topic := range c.requestedTopics {
 				requestedTopicsBytes[i] = topic.Bytes()
 			}
+
 			resp, err := suite.ClientReplication.GetNewestEnvelope(
 				context.Background(),
 				connect.NewRequest(&message_api.GetNewestEnvelopeRequest{
 					Topics: requestedTopicsBytes,
 				}),
 			)
-			fmt.Printf("### DEBUG: resp %+v\n", resp)
-			fmt.Printf("### DEBUG: err %+v\n", err)
 			require.NoError(t, err)
 			require.Equal(t, c.expectedNumReturned, len(resp.Msg.Results))
 

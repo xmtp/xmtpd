@@ -340,6 +340,8 @@ func (s *Service) QueryEnvelopes(
 	var limit int32
 	if req.Msg.GetLimit() > uint32(maxRequestedRows) || req.Msg.GetLimit() == 0 {
 		limit = maxRequestedRows
+	} else {
+		limit = int32(req.Msg.GetLimit())
 	}
 
 	rows, err := s.fetchEnvelopes(ctx, req.Msg.GetQuery(), limit)

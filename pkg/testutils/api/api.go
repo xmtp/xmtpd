@@ -38,7 +38,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-// Fix! : Implement a testutils client packages with all types of clients.
+// TODO: Create Connect-based clients for all APIs.
+// TODO: Create gRPC-Web clients for all APIs.
 
 /* gRPC clients */
 
@@ -254,8 +255,6 @@ func NewTestAPIServer(
 		cancel()
 		svr.Close(10 * time.Second)
 	})
-
-	fmt.Printf("DEBUG: API server address: %s\n", svr.Addr())
 
 	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
 	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())

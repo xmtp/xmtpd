@@ -74,14 +74,15 @@ func startPublishWorker(
 	}
 
 	worker := &publishWorker{
-		ctx:           ctx,
-		logger:        logger,
-		notifier:      notifier,
-		subscription:  *subscription,
-		listener:      listener,
-		registrant:    reg,
-		store:         store,
-		feeCalculator: feeCalculator,
+		ctx:                ctx,
+		logger:             logger,
+		notifier:           notifier,
+		subscription:       *subscription,
+		listener:           listener,
+		registrant:         reg,
+		store:              store,
+		feeCalculator:      feeCalculator,
+		sleepOnFailureTime: sleepOnFailureTime,
 	}
 	go worker.start()
 

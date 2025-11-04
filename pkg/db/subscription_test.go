@@ -27,7 +27,7 @@ func setup(t *testing.T) (*sql.DB, *zap.Logger) {
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
@@ -45,10 +45,10 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 
 func envelopesQuery(
 	store *sql.DB,
-) db.PollableDBQuery[queries.GatewayEnvelopesV2View, db.VectorClock] {
-	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesV2View, db.VectorClock, error) {
+) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
+	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		envs, err := queries.New(store).
-			SelectGatewayEnvelopesV2ByOriginators(ctx, *db.SetVectorClockByOriginators(&queries.SelectGatewayEnvelopesV2ByOriginatorsParams{
+			SelectGatewayEnvelopesByOriginators(ctx, *db.SetVectorClockByOriginators(&queries.SelectGatewayEnvelopesByOriginatorsParams{
 				OriginatorNodeIds: []int32{100},
 				RowLimit:          numRows,
 			}, lastSeen))
@@ -63,7 +63,7 @@ func envelopesQuery(
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
@@ -87,7 +87,7 @@ func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) 
 
 func validateUpdates(
 	t *testing.T,
-	updates <-chan []queries.GatewayEnvelopesV2View,
+	updates <-chan []queries.GatewayEnvelopesView,
 	ctxCancel func(),
 ) {
 	envs := <-updates
@@ -111,10 +111,10 @@ func validateUpdates(
 // to simulate a transient database error
 func flakyEnvelopesQuery(
 	store *sql.DB,
-) db.PollableDBQuery[queries.GatewayEnvelopesV2View, db.VectorClock] {
+) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
 	numQueries := 0
 	query := envelopesQuery(store)
-	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesV2View, db.VectorClock, error) {
+	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		numQueries++
 		if numQueries%2 == 1 {
 			return nil, lastSeen, fmt.Errorf("flaky query")

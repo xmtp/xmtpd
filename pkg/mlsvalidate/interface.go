@@ -42,7 +42,7 @@ type MLSValidationService interface {
 	) (*AssociationStateResult, error)
 	GetAssociationStateFromEnvelopes(
 		ctx context.Context,
-		oldUpdates []queries.GatewayEnvelopesV2View,
+		oldUpdates []queries.GatewayEnvelopesView,
 		newIdentityUpdate *associations.IdentityUpdate,
 	) (*AssociationStateResult, error)
 }

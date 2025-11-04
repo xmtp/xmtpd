@@ -22,7 +22,7 @@ var (
 	topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
 	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
 )
-var allRows []queries.InsertGatewayEnvelopeV2Params
+var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(
 	t *testing.T,
@@ -30,7 +30,7 @@ func setupTest(
 	api, db, mocks := testUtilsApi.NewTestMetadataAPIClient(t)
 	payerID := dbUtils.NullInt32(testutils.CreatePayer(t, db))
 
-	allRows = []queries.InsertGatewayEnvelopeV2Params{
+	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
 		{
 			OriginatorNodeID:     100,
@@ -89,14 +89,14 @@ func setupTest(
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV2Params{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
 }

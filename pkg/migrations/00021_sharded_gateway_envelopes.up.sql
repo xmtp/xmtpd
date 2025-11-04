@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS gateway_envelopes_meta_v2
+CREATE TABLE IF NOT EXISTS gateway_envelopes_meta
 (
     gateway_time           timestamp NOT NULL DEFAULT now(),
     originator_node_id     int       NOT NULL,
@@ -11,27 +11,27 @@ CREATE TABLE IF NOT EXISTS gateway_envelopes_meta_v2
 ) PARTITION BY LIST (originator_node_id);
 
 -- BLOBS (cold path)
-CREATE TABLE IF NOT EXISTS gateway_envelope_blobs_v2
+CREATE TABLE IF NOT EXISTS gateway_envelope_blobs
 (
     originator_node_id     int    NOT NULL,
     originator_sequence_id bigint NOT NULL,
     originator_envelope    bytea  NOT NULL,
     PRIMARY KEY (originator_node_id, originator_sequence_id),
-    FOREIGN KEY (originator_node_id, originator_sequence_id) REFERENCES gateway_envelopes_meta_v2(originator_node_id, originator_sequence_id) ON DELETE CASCADE
+    FOREIGN KEY (originator_node_id, originator_sequence_id) REFERENCES gateway_envelopes_meta(originator_node_id, originator_sequence_id) ON DELETE CASCADE
 ) PARTITION BY LIST (originator_node_id);
 
-CREATE TRIGGER gateway_v2_latest_upd
-    AFTER INSERT ON gateway_envelopes_meta_v2
+CREATE TRIGGER gateway_latest_upd
+    AFTER INSERT ON gateway_envelopes_meta
     FOR EACH ROW EXECUTE FUNCTION update_latest_envelope();
 
-CREATE OR REPLACE VIEW gateway_envelopes_v2_view AS
+CREATE OR REPLACE VIEW gateway_envelopes_view AS
 SELECT
     m.originator_node_id,
     m.originator_sequence_id,
     m.gateway_time,
     m.topic,
     b.originator_envelope
-FROM gateway_envelopes_meta_v2 m
-         JOIN gateway_envelope_blobs_v2 b
+FROM gateway_envelopes_meta m
+         JOIN gateway_envelope_blobs b
               ON b.originator_node_id     = m.originator_node_id
                   AND b.originator_sequence_id = m.originator_sequence_id;

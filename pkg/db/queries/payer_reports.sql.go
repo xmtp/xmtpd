@@ -338,7 +338,7 @@ func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32,
 
 const getGatewayEnvelopeByID = `-- name: GetGatewayEnvelopeByID :one
 SELECT originator_node_id, originator_sequence_id, gateway_time, topic, originator_envelope
-FROM gateway_envelopes_v2_view
+FROM gateway_envelopes_view
 WHERE originator_sequence_id = $1 -- Include the node ID to take advantage of the primary key index
 	AND originator_node_id = $2
 `
@@ -348,9 +348,9 @@ type GetGatewayEnvelopeByIDParams struct {
 	OriginatorNodeID     int32
 }
 
-func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnvelopeByIDParams) (GatewayEnvelopesV2View, error) {
+func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnvelopeByIDParams) (GatewayEnvelopesView, error) {
 	row := q.db.QueryRowContext(ctx, getGatewayEnvelopeByID, arg.OriginatorSequenceID, arg.OriginatorNodeID)
-	var i GatewayEnvelopesV2View
+	var i GatewayEnvelopesView
 	err := row.Scan(
 		&i.OriginatorNodeID,
 		&i.OriginatorSequenceID,

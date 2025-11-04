@@ -63,7 +63,7 @@ func addEnvelope(
 	_, err = dbHelpers.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		context.Background(),
 		db,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: sequenceID,
 			OriginatorEnvelope:   envelopeBytes,

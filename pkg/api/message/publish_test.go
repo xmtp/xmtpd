@@ -64,7 +64,7 @@ func TestPublishEnvelope(t *testing.T) {
 	// Check that the envelope was published to the database after a delay
 	require.Eventually(t, func() bool {
 		envs, err := queries.New(db).
-			SelectGatewayEnvelopesV2Unfiltered(context.Background(), queries.SelectGatewayEnvelopesV2UnfilteredParams{})
+			SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 		require.NoError(t, err)
 
 		if len(envs) != 1 {
@@ -316,7 +316,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 	require.Equal(t, returnedEnv.UnsignedOriginatorEnvelope.CongestionFee(), currency.PicoDollar(0))
 
 	envs, err := queries.New(db).
-		SelectGatewayEnvelopesV2Unfiltered(context.Background(), queries.SelectGatewayEnvelopesV2UnfilteredParams{})
+		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
 	require.Equal(t, len(envs), 1)
 
@@ -373,9 +373,9 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		envs, err := querier.
-			SelectGatewayEnvelopesV2Unfiltered(
+			SelectGatewayEnvelopesUnfiltered(
 				context.Background(),
-				queries.SelectGatewayEnvelopesV2UnfilteredParams{},
+				queries.SelectGatewayEnvelopesUnfilteredParams{},
 			)
 		require.NoError(t, err)
 		if len(envs) != 1 {

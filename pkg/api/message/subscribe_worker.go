@@ -144,7 +144,7 @@ type subscribeWorker struct {
 	ctx    context.Context
 	logger *zap.Logger
 
-	dbSubscription <-chan []queries.GatewayEnvelopesV2View
+	dbSubscription <-chan []queries.GatewayEnvelopesView
 	// Assumption: listeners cannot be in multiple slices
 	globalListeners     listenerSet
 	originatorListeners listenersMap[uint32]
@@ -160,11 +160,11 @@ func startSubscribeWorker(
 	logger.Info("starting")
 
 	q := queries.New(store)
-	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesV2View, db.VectorClock, error) {
+	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		envs, err := q.
-			SelectGatewayEnvelopesV2Unfiltered(
+			SelectGatewayEnvelopesUnfiltered(
 				ctx,
-				*db.SetVectorClockUnfiltered(&queries.SelectGatewayEnvelopesV2UnfilteredParams{RowLimit: numRows}, lastSeen),
+				*db.SetVectorClockUnfiltered(&queries.SelectGatewayEnvelopesUnfilteredParams{RowLimit: numRows}, lastSeen),
 			)
 		if err != nil {
 			logger.Error(

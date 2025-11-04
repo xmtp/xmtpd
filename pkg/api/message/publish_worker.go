@@ -194,7 +194,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		p.ctx,
 		p.store,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: stagedEnv.ID,
 			Topic:                stagedEnv.Topic,

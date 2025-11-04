@@ -86,7 +86,7 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 func InsertGatewayEnvelopes(
 	t *testing.T,
 	dbInstance *sql.DB,
-	rows []queries.InsertGatewayEnvelopeV2Params,
+	rows []queries.InsertGatewayEnvelopeParams,
 	notifyChan ...chan bool,
 ) {
 	ctx := t.Context()

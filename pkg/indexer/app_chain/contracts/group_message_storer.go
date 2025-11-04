@@ -106,7 +106,7 @@ func (s *GroupMessageStorer) StoreLog(
 	_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		s.queries,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     constants.GroupMessageOriginatorID,
 			OriginatorSequenceID: int64(msgSent.SequenceId),
 			Topic:                topicStruct.Bytes(),

@@ -19,8 +19,8 @@ func buildParams(
 	originatorID int32,
 	sequenceID int64,
 	spendPicodollars int64,
-) (queries.InsertGatewayEnvelopeV2Params, queries.IncrementUnsettledUsageParams) {
-	insertParams := queries.InsertGatewayEnvelopeV2Params{
+) (queries.InsertGatewayEnvelopeParams, queries.IncrementUnsettledUsageParams) {
+	insertParams := queries.InsertGatewayEnvelopeParams{
 		OriginatorNodeID:     originatorID,
 		OriginatorSequenceID: sequenceID,
 		Topic:                testutils.RandomBytes(32),
@@ -202,7 +202,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone(t *testing.T) {
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 			ctx,
 			querier,
-			queries.InsertGatewayEnvelopeV2Params{
+			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(i),
 				OriginatorSequenceID: 1,
 				Topic:                testutils.RandomBytes(32),
@@ -228,7 +228,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_FailsInTransaction(t *testing
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 			ctx,
 			querier,
-			queries.InsertGatewayEnvelopeV2Params{
+			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(i),
 				OriginatorSequenceID: 1,
 				Topic:                testutils.RandomBytes(32),
@@ -253,7 +253,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_AutoCreateAndRetry(t *testing
 	_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),
@@ -266,7 +266,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_AutoCreateAndRetry(t *testing
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID + 123, // still within [0..1_000_000) default band
 			Topic:                testutils.RandomBytes(32),
@@ -297,7 +297,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_PreexistingPartitions(t *test
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),
@@ -324,7 +324,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqLeft,
 			Topic:                testutils.RandomBytes(32),
@@ -336,7 +336,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqRight,
 			Topic:                testutils.RandomBytes(32),
@@ -348,7 +348,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqLeft + 123, // still within first band
 			Topic:                testutils.RandomBytes(32),
@@ -360,7 +360,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqRight + 456, // still within second band
 			Topic:                testutils.RandomBytes(32),
@@ -380,7 +380,7 @@ func TestInsertGatewayEnvelopeWithChecksTransactional_FailsWithoutTx(t *testing.
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 			ctx,
 			querier,
-			queries.InsertGatewayEnvelopeV2Params{
+			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(i),
 				OriginatorSequenceID: 1,
 				Topic:                testutils.RandomBytes(32),
@@ -406,7 +406,7 @@ func TestInsertGatewayEnvelopeWithCheckTransactional(t *testing.T) {
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 			ctx,
 			querier,
-			queries.InsertGatewayEnvelopeV2Params{
+			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(i),
 				OriginatorSequenceID: 1,
 				Topic:                testutils.RandomBytes(32),
@@ -435,7 +435,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_AutoCreateAndRetry(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),
@@ -448,7 +448,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_AutoCreateAndRetry(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID + 123, // still within [0..1_000_000) default band
 			Topic:                testutils.RandomBytes(32),
@@ -484,7 +484,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_PreexistingPartitions(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),
@@ -516,7 +516,7 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqLeft,
 			Topic:                testutils.RandomBytes(32),
@@ -528,7 +528,7 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqRight,
 			Topic:                testutils.RandomBytes(32),
@@ -540,7 +540,7 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqLeft + 123, // still within first band
 			Topic:                testutils.RandomBytes(32),
@@ -552,7 +552,7 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqRight + 456, // still within second band
 			Topic:                testutils.RandomBytes(32),
@@ -577,7 +577,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_RollbackDDL(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),
@@ -598,7 +598,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_RollbackDDL(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q2,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),
@@ -623,7 +623,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_Commit(t *testing.T) {
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
 		q,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
 			Topic:                testutils.RandomBytes(32),

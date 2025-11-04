@@ -61,7 +61,7 @@ func insertEnvelope(t *testing.T, db *sql.DB, params envelopeCreateParams) {
 	_, err = dbHelpers.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		context.Background(),
 		db,
-		queries.InsertGatewayEnvelopeV2Params{
+		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     int32(params.originatorID),
 			OriginatorSequenceID: int64(params.sequenceID),
 			OriginatorEnvelope:   envelopeBytes,

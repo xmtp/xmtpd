@@ -20,9 +20,9 @@ func NullInt64(v int64) sql.NullInt64 {
 }
 
 func SetVectorClockByTopics(
-	q *queries.SelectGatewayEnvelopesV2ByTopicsParams,
+	q *queries.SelectGatewayEnvelopesByTopicsParams,
 	vc VectorClock,
-) *queries.SelectGatewayEnvelopesV2ByTopicsParams {
+) *queries.SelectGatewayEnvelopesByTopicsParams {
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {
@@ -33,9 +33,9 @@ func SetVectorClockByTopics(
 }
 
 func SetVectorClockByOriginators(
-	q *queries.SelectGatewayEnvelopesV2ByOriginatorsParams,
+	q *queries.SelectGatewayEnvelopesByOriginatorsParams,
 	vc VectorClock,
-) *queries.SelectGatewayEnvelopesV2ByOriginatorsParams {
+) *queries.SelectGatewayEnvelopesByOriginatorsParams {
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {
@@ -46,9 +46,9 @@ func SetVectorClockByOriginators(
 }
 
 func SetVectorClockUnfiltered(
-	q *queries.SelectGatewayEnvelopesV2UnfilteredParams,
+	q *queries.SelectGatewayEnvelopesUnfilteredParams,
 	vc VectorClock,
-) *queries.SelectGatewayEnvelopesV2UnfilteredParams {
+) *queries.SelectGatewayEnvelopesUnfilteredParams {
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {

@@ -26,7 +26,7 @@ type GatewayEnvelope struct {
 	Expiry               sql.NullInt64
 }
 
-type GatewayEnvelopeBlobsV2 struct {
+type GatewayEnvelopeBlob struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	OriginatorEnvelope   []byte
@@ -38,7 +38,7 @@ type GatewayEnvelopesLatest struct {
 	GatewayTime          time.Time
 }
 
-type GatewayEnvelopesMetaV2 struct {
+type GatewayEnvelopesMetum struct {
 	GatewayTime          time.Time
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
@@ -47,7 +47,7 @@ type GatewayEnvelopesMetaV2 struct {
 	Expiry               int64
 }
 
-type GatewayEnvelopesV2View struct {
+type GatewayEnvelopesView struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	GatewayTime          time.Time

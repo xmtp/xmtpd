@@ -358,9 +358,9 @@ func (s *Service) fetchEnvelopes(
 	ctx context.Context,
 	query *message_api.EnvelopesQuery,
 	rowLimit int32,
-) ([]queries.GatewayEnvelopesV2View, error) {
+) ([]queries.GatewayEnvelopesView, error) {
 	if len(query.GetTopics()) != 0 {
-		params := queries.SelectGatewayEnvelopesV2ByTopicsParams{
+		params := queries.SelectGatewayEnvelopesByTopicsParams{
 			Topics:            query.GetTopics(),
 			RowLimit:          rowLimit,
 			CursorNodeIds:     nil,
@@ -369,7 +369,7 @@ func (s *Service) fetchEnvelopes(
 
 		db.SetVectorClockByTopics(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-		rows, err := queries.New(s.store).SelectGatewayEnvelopesV2ByTopics(ctx, params)
+		rows, err := queries.New(s.store).SelectGatewayEnvelopesByTopics(ctx, params)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 		}
@@ -377,7 +377,7 @@ func (s *Service) fetchEnvelopes(
 		return rows, nil
 	}
 	if len(query.GetOriginatorNodeIds()) != 0 {
-		params := queries.SelectGatewayEnvelopesV2ByOriginatorsParams{
+		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
 			RowLimit:          rowLimit,
 			CursorNodeIds:     nil,
@@ -389,7 +389,7 @@ func (s *Service) fetchEnvelopes(
 
 		db.SetVectorClockByOriginators(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-		rows, err := queries.New(s.store).SelectGatewayEnvelopesV2ByOriginators(ctx, params)
+		rows, err := queries.New(s.store).SelectGatewayEnvelopesByOriginators(ctx, params)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 		}
@@ -397,14 +397,14 @@ func (s *Service) fetchEnvelopes(
 		return rows, nil
 	}
 
-	params := queries.SelectGatewayEnvelopesV2UnfilteredParams{
+	params := queries.SelectGatewayEnvelopesUnfilteredParams{
 		RowLimit:          rowLimit,
 		CursorNodeIds:     nil,
 		CursorSequenceIds: nil,
 	}
 	db.SetVectorClockUnfiltered(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-	rows, err := queries.New(s.store).SelectGatewayEnvelopesV2Unfiltered(ctx, params)
+	rows, err := queries.New(s.store).SelectGatewayEnvelopesUnfiltered(ctx, params)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 	}
@@ -592,7 +592,7 @@ func (s *Service) GetNewestEnvelope(
 		originalSort[string(topic)] = idx
 	}
 
-	rows, err := queries.SelectNewestFromTopicsV2(ctx, topics)
+	rows, err := queries.SelectNewestFromTopics(ctx, topics)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 	}

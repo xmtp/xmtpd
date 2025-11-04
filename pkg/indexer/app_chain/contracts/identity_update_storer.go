@@ -232,7 +232,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			_, err = db.InsertGatewayEnvelopeWithChecksTransactional(
 				ctx,
 				querier,
-				queries.InsertGatewayEnvelopeV2Params{
+				queries.InsertGatewayEnvelopeParams{
 					OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
 					OriginatorSequenceID: int64(msgSent.SequenceId),
 					Topic:                messageTopic.Bytes(),
@@ -266,9 +266,9 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	inboxID [32]byte,
 	clientEnvelope *envelopes.ClientEnvelope,
 ) (*mlsvalidate.AssociationStateResult, error) {
-	gatewayEnvelopes, err := querier.SelectGatewayEnvelopesV2ByTopics(
+	gatewayEnvelopes, err := querier.SelectGatewayEnvelopesByTopics(
 		ctx,
-		queries.SelectGatewayEnvelopesV2ByTopicsParams{
+		queries.SelectGatewayEnvelopesByTopicsParams{
 			Topics: []db.Topic{
 				topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxID[:]).Bytes(),
 			},

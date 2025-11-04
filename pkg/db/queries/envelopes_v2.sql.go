@@ -13,9 +13,9 @@ import (
 	"github.com/lib/pq"
 )
 
-const insertGatewayEnvelopeV2 = `-- name: InsertGatewayEnvelopeV2 :one
+const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :one
 WITH m AS (
-    INSERT INTO gateway_envelopes_meta_v2 (
+    INSERT INTO gateway_envelopes_meta (
                                            originator_node_id,
                                            originator_sequence_id,
                                            topic,
@@ -32,7 +32,7 @@ WITH m AS (
         ON CONFLICT DO NOTHING
         RETURNING 1),
      b AS (
-         INSERT INTO gateway_envelope_blobs_v2 (
+         INSERT INTO gateway_envelope_blobs (
                                                 originator_node_id,
                                                 originator_sequence_id,
                                                 originator_envelope
@@ -47,7 +47,7 @@ SELECT (SELECT COUNT(*) FROM m)                            AS inserted_meta_rows
        (SELECT COUNT(*) FROM m) + (SELECT COUNT(*) FROM b) AS total_inserted_rows
 `
 
-type InsertGatewayEnvelopeV2Params struct {
+type InsertGatewayEnvelopeParams struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	Topic                []byte
@@ -57,14 +57,14 @@ type InsertGatewayEnvelopeV2Params struct {
 	OriginatorEnvelope   []byte
 }
 
-type InsertGatewayEnvelopeV2Row struct {
+type InsertGatewayEnvelopeRow struct {
 	InsertedMetaRows  int64
 	InsertedBlobRows  int64
 	TotalInsertedRows int32
 }
 
-func (q *Queries) InsertGatewayEnvelopeV2(ctx context.Context, arg InsertGatewayEnvelopeV2Params) (InsertGatewayEnvelopeV2Row, error) {
-	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeV2,
+func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (InsertGatewayEnvelopeRow, error) {
+	row := q.db.QueryRowContext(ctx, insertGatewayEnvelope,
 		arg.OriginatorNodeID,
 		arg.OriginatorSequenceID,
 		arg.Topic,
@@ -73,12 +73,12 @@ func (q *Queries) InsertGatewayEnvelopeV2(ctx context.Context, arg InsertGateway
 		arg.Expiry,
 		arg.OriginatorEnvelope,
 	)
-	var i InsertGatewayEnvelopeV2Row
+	var i InsertGatewayEnvelopeRow
 	err := row.Scan(&i.InsertedMetaRows, &i.InsertedBlobRows, &i.TotalInsertedRows)
 	return i, err
 }
 
-const selectGatewayEnvelopesV2ByOriginators = `-- name: SelectGatewayEnvelopesV2ByOriginators :many
+const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
 WITH cursors AS (
     SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
     FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
@@ -90,7 +90,7 @@ SELECT v.originator_node_id,
        v.gateway_time,
        v.topic,
        v.originator_envelope
-FROM gateway_envelopes_v2_view v
+FROM gateway_envelopes_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
 WHERE v.originator_node_id = ANY($1::INT[])
@@ -99,15 +99,15 @@ ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
 LIMIT NULLIF($2::INT, 0)
 `
 
-type SelectGatewayEnvelopesV2ByOriginatorsParams struct {
+type SelectGatewayEnvelopesByOriginatorsParams struct {
 	OriginatorNodeIds []int32
 	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
 }
 
-func (q *Queries) SelectGatewayEnvelopesV2ByOriginators(ctx context.Context, arg SelectGatewayEnvelopesV2ByOriginatorsParams) ([]GatewayEnvelopesV2View, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesV2ByOriginators,
+func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]GatewayEnvelopesView, error) {
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators,
 		pq.Array(arg.OriginatorNodeIds),
 		arg.RowLimit,
 		pq.Array(arg.CursorNodeIds),
@@ -117,9 +117,9 @@ func (q *Queries) SelectGatewayEnvelopesV2ByOriginators(ctx context.Context, arg
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GatewayEnvelopesV2View
+	var items []GatewayEnvelopesView
 	for rows.Next() {
-		var i GatewayEnvelopesV2View
+		var i GatewayEnvelopesView
 		if err := rows.Scan(
 			&i.OriginatorNodeID,
 			&i.OriginatorSequenceID,
@@ -140,7 +140,7 @@ func (q *Queries) SelectGatewayEnvelopesV2ByOriginators(ctx context.Context, arg
 	return items, nil
 }
 
-const selectGatewayEnvelopesV2ByTopics = `-- name: SelectGatewayEnvelopesV2ByTopics :many
+const selectGatewayEnvelopesByTopics = `-- name: SelectGatewayEnvelopesByTopics :many
 WITH cursors AS (
     SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
     FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
@@ -152,7 +152,7 @@ SELECT v.originator_node_id,
        v.gateway_time,
        v.topic,
        v.originator_envelope
-FROM gateway_envelopes_v2_view v
+FROM gateway_envelopes_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
 WHERE v.topic = ANY($1::BYTEA[])
@@ -161,15 +161,15 @@ ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
 LIMIT NULLIF($2::INT, 0)
 `
 
-type SelectGatewayEnvelopesV2ByTopicsParams struct {
+type SelectGatewayEnvelopesByTopicsParams struct {
 	Topics            [][]byte
 	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
 }
 
-func (q *Queries) SelectGatewayEnvelopesV2ByTopics(ctx context.Context, arg SelectGatewayEnvelopesV2ByTopicsParams) ([]GatewayEnvelopesV2View, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesV2ByTopics,
+func (q *Queries) SelectGatewayEnvelopesByTopics(ctx context.Context, arg SelectGatewayEnvelopesByTopicsParams) ([]GatewayEnvelopesView, error) {
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByTopics,
 		pq.Array(arg.Topics),
 		arg.RowLimit,
 		pq.Array(arg.CursorNodeIds),
@@ -179,9 +179,9 @@ func (q *Queries) SelectGatewayEnvelopesV2ByTopics(ctx context.Context, arg Sele
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GatewayEnvelopesV2View
+	var items []GatewayEnvelopesView
 	for rows.Next() {
-		var i GatewayEnvelopesV2View
+		var i GatewayEnvelopesView
 		if err := rows.Scan(
 			&i.OriginatorNodeID,
 			&i.OriginatorSequenceID,
@@ -202,7 +202,7 @@ func (q *Queries) SelectGatewayEnvelopesV2ByTopics(ctx context.Context, arg Sele
 	return items, nil
 }
 
-const selectGatewayEnvelopesV2Unfiltered = `-- name: SelectGatewayEnvelopesV2Unfiltered :many
+const selectGatewayEnvelopesUnfiltered = `-- name: SelectGatewayEnvelopesUnfiltered :many
 WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
                  FROM unnest($2::INT[]) WITH ORDINALITY AS x(node_id, ord)
                           JOIN unnest($3::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
@@ -212,7 +212,7 @@ SELECT v.originator_node_id,
        v.gateway_time,
        v.topic,
        v.originator_envelope
-FROM gateway_envelopes_v2_view v
+FROM gateway_envelopes_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
 WHERE v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
@@ -222,21 +222,21 @@ ORDER BY v.gateway_time,
 LIMIT NULLIF($1::INT, 0)
 `
 
-type SelectGatewayEnvelopesV2UnfilteredParams struct {
+type SelectGatewayEnvelopesUnfilteredParams struct {
 	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
 }
 
-func (q *Queries) SelectGatewayEnvelopesV2Unfiltered(ctx context.Context, arg SelectGatewayEnvelopesV2UnfilteredParams) ([]GatewayEnvelopesV2View, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesV2Unfiltered, arg.RowLimit, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds))
+func (q *Queries) SelectGatewayEnvelopesUnfiltered(ctx context.Context, arg SelectGatewayEnvelopesUnfilteredParams) ([]GatewayEnvelopesView, error) {
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesUnfiltered, arg.RowLimit, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GatewayEnvelopesV2View
+	var items []GatewayEnvelopesView
 	for rows.Next() {
-		var i GatewayEnvelopesV2View
+		var i GatewayEnvelopesView
 		if err := rows.Scan(
 			&i.OriginatorNodeID,
 			&i.OriginatorSequenceID,
@@ -257,12 +257,12 @@ func (q *Queries) SelectGatewayEnvelopesV2Unfiltered(ctx context.Context, arg Se
 	return items, nil
 }
 
-const selectNewestFromTopicsV2 = `-- name: SelectNewestFromTopicsV2 :many
+const selectNewestFromTopics = `-- name: SelectNewestFromTopics :many
 WITH latest AS (SELECT DISTINCT ON (m.topic) m.originator_node_id,
                                              m.originator_sequence_id,
                                              m.gateway_time,
                                              m.topic
-                FROM gateway_envelopes_meta_v2 m
+                FROM gateway_envelopes_meta m
                 WHERE m.topic = ANY ($1::BYTEA[])
                 ORDER BY m.topic, m.gateway_time DESC)
 SELECT l.originator_node_id,
@@ -271,13 +271,13 @@ SELECT l.originator_node_id,
        l.topic,
        b.originator_envelope
 FROM latest l
-         JOIN gateway_envelope_blobs_v2 b
+         JOIN gateway_envelope_blobs b
               ON b.originator_node_id = l.originator_node_id
                   AND b.originator_sequence_id = l.originator_sequence_id
 ORDER BY l.topic
 `
 
-type SelectNewestFromTopicsV2Row struct {
+type SelectNewestFromTopicsRow struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	GatewayTime          time.Time
@@ -285,15 +285,15 @@ type SelectNewestFromTopicsV2Row struct {
 	OriginatorEnvelope   []byte
 }
 
-func (q *Queries) SelectNewestFromTopicsV2(ctx context.Context, topics [][]byte) ([]SelectNewestFromTopicsV2Row, error) {
-	rows, err := q.db.QueryContext(ctx, selectNewestFromTopicsV2, pq.Array(topics))
+func (q *Queries) SelectNewestFromTopics(ctx context.Context, topics [][]byte) ([]SelectNewestFromTopicsRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectNewestFromTopics, pq.Array(topics))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SelectNewestFromTopicsV2Row
+	var items []SelectNewestFromTopicsRow
 	for rows.Next() {
-		var i SelectNewestFromTopicsV2Row
+		var i SelectNewestFromTopicsRow
 		if err := rows.Scan(
 			&i.OriginatorNodeID,
 			&i.OriginatorSequenceID,

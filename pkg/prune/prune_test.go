@@ -25,7 +25,7 @@ const (
 func setupTestData(t *testing.T, db *sql.DB, expired int, valid int) {
 	// Insert expired envelopes
 	for i := 0; i < expired; i++ {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV2Params{{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: int64(i),
 			Topic:                []byte("topic"),
@@ -37,7 +37,7 @@ func setupTestData(t *testing.T, db *sql.DB, expired int, valid int) {
 
 	// Insert non-expired envelopes
 	for i := 0; i < valid; i++ {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV2Params{{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: int64(i + expired),
 			Topic:                []byte("topic"),

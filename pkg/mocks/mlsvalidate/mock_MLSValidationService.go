@@ -89,7 +89,7 @@ func (_c *MockMLSValidationService_GetAssociationState_Call) RunAndReturn(run fu
 }
 
 // GetAssociationStateFromEnvelopes provides a mock function with given fields: ctx, oldUpdates, newIdentityUpdate
-func (_m *MockMLSValidationService) GetAssociationStateFromEnvelopes(ctx context.Context, oldUpdates []queries.GatewayEnvelopesV2View, newIdentityUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
+func (_m *MockMLSValidationService) GetAssociationStateFromEnvelopes(ctx context.Context, oldUpdates []queries.GatewayEnvelopesView, newIdentityUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
 	ret := _m.Called(ctx, oldUpdates, newIdentityUpdate)
 
 	if len(ret) == 0 {
@@ -98,10 +98,10 @@ func (_m *MockMLSValidationService) GetAssociationStateFromEnvelopes(ctx context
 
 	var r0 *mlsvalidate.AssociationStateResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []queries.GatewayEnvelopesV2View, *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []queries.GatewayEnvelopesView, *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error)); ok {
 		return rf(ctx, oldUpdates, newIdentityUpdate)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []queries.GatewayEnvelopesV2View, *associations.IdentityUpdate) *mlsvalidate.AssociationStateResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []queries.GatewayEnvelopesView, *associations.IdentityUpdate) *mlsvalidate.AssociationStateResult); ok {
 		r0 = rf(ctx, oldUpdates, newIdentityUpdate)
 	} else {
 		if ret.Get(0) != nil {
@@ -109,7 +109,7 @@ func (_m *MockMLSValidationService) GetAssociationStateFromEnvelopes(ctx context
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []queries.GatewayEnvelopesV2View, *associations.IdentityUpdate) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, []queries.GatewayEnvelopesView, *associations.IdentityUpdate) error); ok {
 		r1 = rf(ctx, oldUpdates, newIdentityUpdate)
 	} else {
 		r1 = ret.Error(1)
@@ -125,15 +125,15 @@ type MockMLSValidationService_GetAssociationStateFromEnvelopes_Call struct {
 
 // GetAssociationStateFromEnvelopes is a helper method to define mock.On call
 //   - ctx context.Context
-//   - oldUpdates []queries.GatewayEnvelopesV2View
+//   - oldUpdates []queries.GatewayEnvelopesView
 //   - newIdentityUpdate *associations.IdentityUpdate
 func (_e *MockMLSValidationService_Expecter) GetAssociationStateFromEnvelopes(ctx interface{}, oldUpdates interface{}, newIdentityUpdate interface{}) *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call {
 	return &MockMLSValidationService_GetAssociationStateFromEnvelopes_Call{Call: _e.mock.On("GetAssociationStateFromEnvelopes", ctx, oldUpdates, newIdentityUpdate)}
 }
 
-func (_c *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call) Run(run func(ctx context.Context, oldUpdates []queries.GatewayEnvelopesV2View, newIdentityUpdate *associations.IdentityUpdate)) *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call {
+func (_c *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call) Run(run func(ctx context.Context, oldUpdates []queries.GatewayEnvelopesView, newIdentityUpdate *associations.IdentityUpdate)) *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]queries.GatewayEnvelopesV2View), args[2].(*associations.IdentityUpdate))
+		run(args[0].(context.Context), args[1].([]queries.GatewayEnvelopesView), args[2].(*associations.IdentityUpdate))
 	})
 	return _c
 }
@@ -143,7 +143,7 @@ func (_c *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call) Return
 	return _c
 }
 
-func (_c *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call) RunAndReturn(run func(context.Context, []queries.GatewayEnvelopesV2View, *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error)) *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call {
+func (_c *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call) RunAndReturn(run func(context.Context, []queries.GatewayEnvelopesView, *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error)) *MockMLSValidationService_GetAssociationStateFromEnvelopes_Call {
 	_c.Call.Return(run)
 	return _c
 }

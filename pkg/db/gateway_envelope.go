@@ -27,7 +27,7 @@ import (
 func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 	ctx context.Context,
 	db *sql.DB,
-	insertParams queries.InsertGatewayEnvelopeV2Params,
+	insertParams queries.InsertGatewayEnvelopeParams,
 	incrementParams queries.IncrementUnsettledUsageParams,
 ) (int64, error) {
 	return RunInTxWithResult(
@@ -109,14 +109,14 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 func InsertGatewayEnvelopeWithChecksTransactional(
 	ctx context.Context,
 	q *queries.Queries,
-	row queries.InsertGatewayEnvelopeV2Params,
-) (queries.InsertGatewayEnvelopeV2Row, error) {
+	row queries.InsertGatewayEnvelopeParams,
+) (queries.InsertGatewayEnvelopeRow, error) {
 	err := q.InsertSavePoint(ctx)
 	if err != nil {
-		return queries.InsertGatewayEnvelopeV2Row{}, err
+		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
-	inserted, err := q.InsertGatewayEnvelopeV2(ctx, row)
+	inserted, err := q.InsertGatewayEnvelope(ctx, row)
 
 	if err == nil {
 		_ = q.InsertSavePointRelease(ctx)
@@ -125,12 +125,12 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 
 	if !strings.Contains(err.Error(), "no partition of relation") {
 		// leave tx in aborted state; caller will handle rollback
-		return queries.InsertGatewayEnvelopeV2Row{}, err
+		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
 	err = q.InsertSavePointRollback(ctx)
 	if err != nil {
-		return queries.InsertGatewayEnvelopeV2Row{}, err
+		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
 	err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
@@ -139,10 +139,10 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 		BandWidth:            1_000_000,
 	})
 	if err != nil {
-		return queries.InsertGatewayEnvelopeV2Row{}, err
+		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
-	return q.InsertGatewayEnvelopeV2(ctx, row)
+	return q.InsertGatewayEnvelope(ctx, row)
 }
 
 // InsertGatewayEnvelopeWithChecksStandalone inserts a gateway envelope in a non-transactional context,
@@ -159,16 +159,16 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 func InsertGatewayEnvelopeWithChecksStandalone(
 	ctx context.Context,
 	q *queries.Queries,
-	row queries.InsertGatewayEnvelopeV2Params,
-) (queries.InsertGatewayEnvelopeV2Row, error) {
-	inserted, err := q.InsertGatewayEnvelopeV2(ctx, row)
+	row queries.InsertGatewayEnvelopeParams,
+) (queries.InsertGatewayEnvelopeRow, error) {
+	inserted, err := q.InsertGatewayEnvelope(ctx, row)
 
 	if err == nil {
 		return inserted, nil
 	}
 
 	if !strings.Contains(err.Error(), "no partition of relation") {
-		return queries.InsertGatewayEnvelopeV2Row{}, err
+		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
 	err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
@@ -177,9 +177,9 @@ func InsertGatewayEnvelopeWithChecksStandalone(
 		BandWidth:            1_000_000,
 	})
 	if err != nil {
-		return queries.InsertGatewayEnvelopeV2Row{}, err
+		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
 	// retry insert
-	return q.InsertGatewayEnvelopeV2(ctx, row)
+	return q.InsertGatewayEnvelope(ctx, row)
 }

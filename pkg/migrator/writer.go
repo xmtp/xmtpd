@@ -55,7 +55,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(
 				ctx,
 				querier,
-				queries.InsertGatewayEnvelopeV2Params{
+				queries.InsertGatewayEnvelopeParams{
 					OriginatorNodeID:     int32(env.OriginatorNodeID()),
 					OriginatorSequenceID: int64(env.OriginatorSequenceID()),
 					Topic:                env.TargetTopic().Bytes(),

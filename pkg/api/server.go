@@ -167,10 +167,6 @@ func (svc *APIServer) Close(timeout time.Duration) {
 		svc.logger.Error("error shutting down api server", zap.Error(err))
 	}
 
-	// if err := svc.listener.Close(); err != nil {
-	// 	svc.logger.Error("error closing listener", zap.Error(err))
-	// }
-
 	// Wait for the goroutine to finish.
 	svc.wg.Wait()
 

@@ -220,7 +220,9 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_FailsInTransaction(t *testing
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	querier := queries.New(db).WithTx(tx)
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		_ = tx.Rollback()
+	}(tx)
 
 	for i := 1; i < 10; i++ {
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
@@ -396,7 +398,9 @@ func TestInsertGatewayEnvelopeWithCheckTransactional(t *testing.T) {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	querier := queries.New(db).WithTx(tx)
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		_ = tx.Rollback()
+	}(tx)
 
 	for i := 1; i < 10; i++ {
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
@@ -460,7 +464,9 @@ func TestInsertGatewayEnvelopeWithChecksTx_PreexistingPartitions(t *testing.T) {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		_ = tx.Rollback()
+	}(tx)
 
 	const nodeID int32 = 7
 	const seqID int64 = 10
@@ -494,7 +500,9 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		_ = tx.Rollback()
+	}(tx)
 
 	const nodeID int32 = 99
 	const bw int64 = 1_000_000
@@ -576,12 +584,14 @@ func TestInsertGatewayEnvelopeWithChecksTx_RollbackDDL(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tx.Rollback()
+	_ = tx.Rollback()
 
 	tx2, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q2 := queries.New(db).WithTx(tx2)
-	defer tx2.Rollback()
+	defer func(tx2 *sql.Tx) {
+		_ = tx2.Rollback()
+	}(tx2)
 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,
@@ -620,6 +630,6 @@ func TestInsertGatewayEnvelopeWithChecksTx_Commit(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tx.Commit()
+	_ = tx.Commit()
 	t.Logf("tx committed")
 }

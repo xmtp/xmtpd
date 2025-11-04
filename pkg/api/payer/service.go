@@ -94,19 +94,12 @@ func (s *Service) GetNodes(
 	nodes, err := s.nodeRegistry.GetNodes()
 	if err != nil {
 		return nil, connect.NewError(
-			connect.CodeUnavailable,
+			connect.CodeInternal,
 			fmt.Errorf("failed to fetch nodes: %w", err),
 		)
 	}
 
 	metrics.EmitPayerGetNodesAvailableNodes(len(nodes))
-
-	if len(nodes) == 0 {
-		return nil, connect.NewError(
-			connect.CodeUnavailable,
-			errors.New("no nodes available"),
-		)
-	}
 
 	response := connect.NewResponse(&payer_api.GetNodesResponse{
 		Nodes: make(map[uint32]string, len(nodes)),

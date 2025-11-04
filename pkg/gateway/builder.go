@@ -295,6 +295,8 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		return nil, errors.Wrap(err, "failed to initialize api server")
 	}
 
+	apiServer.Start()
+
 	return &gatewayServiceImpl{
 		apiServer:           apiServer,
 		ctx:                 ctx,

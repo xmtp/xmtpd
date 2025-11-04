@@ -141,14 +141,14 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 }
 
 func (svc *APIServer) Start() {
-	svc.logger.Info("starting api server", zap.String("address", svc.httpServer.Addr))
-
 	tracing.GoPanicWrap(svc.ctx, &svc.wg, "api-server", func(ctx context.Context) {
 		if err := svc.httpServer.Serve(svc.listener); err != nil &&
 			err != http.ErrServerClosed {
 			svc.logger.Fatal("error serving api server", zap.Error(err))
 		}
 	})
+
+	svc.logger.Info("started api server", zap.String("address", svc.Addr()))
 }
 
 func (svc *APIServer) Addr() string {

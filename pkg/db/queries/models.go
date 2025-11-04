@@ -16,14 +16,12 @@ type AddressLog struct {
 	RevocationSequenceID  sql.NullInt64
 }
 
-type GatewayEnvelope struct {
-	GatewayTime          time.Time
+type BlockchainMessage struct {
+	BlockNumber          uint64
+	BlockHash            []byte
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
-	Topic                []byte
-	OriginatorEnvelope   []byte
-	PayerID              sql.NullInt32
-	Expiry               sql.NullInt64
+	IsCanonical          bool
 }
 
 type GatewayEnvelopeBlob struct {

@@ -128,7 +128,7 @@ func (s *Service) SubscribeEnvelopes(
 	if req.Msg == nil {
 		return connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf(requestMissingMessageError),
+			errors.New(requestMissingMessageError),
 		)
 	}
 
@@ -320,7 +320,7 @@ func (s *Service) QueryEnvelopes(
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf(requestMissingMessageError),
+			errors.New(requestMissingMessageError),
 		)
 	}
 
@@ -473,7 +473,7 @@ func (s *Service) PublishPayerEnvelopes(
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf(requestMissingMessageError),
+			errors.New(requestMissingMessageError),
 		)
 	}
 
@@ -622,7 +622,7 @@ func (s *Service) GetInboxIds(
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf(requestMissingMessageError),
+			errors.New(requestMissingMessageError),
 		)
 	}
 
@@ -675,7 +675,7 @@ func (s *Service) GetNewestEnvelope(
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf(requestMissingMessageError),
+			errors.New(requestMissingMessageError),
 		)
 	}
 

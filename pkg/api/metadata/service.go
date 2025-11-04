@@ -158,7 +158,7 @@ func (s *Service) GetPayerInfo(
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf(requestMissingMessageError),
+			errors.New(requestMissingMessageError),
 		)
 	}
 

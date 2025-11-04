@@ -113,12 +113,7 @@ func validateUpdates(
 ) {
 	receivedCount := 0
 
-	for {
-		// Check if we've received all expected messages.
-		if receivedCount >= len(expectedIndices) {
-			break
-		}
-
+	for receivedCount >= len(expectedIndices) {
 		// Now receive the next message. Break if the stream ended or there was an error.
 		if !stream.Receive() {
 			break

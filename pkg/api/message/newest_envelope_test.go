@@ -69,18 +69,13 @@ func TestGetNewestEnvelope(t *testing.T) {
 	installationID4 := testutils.RandomGroupID()
 
 	// Installation ID 1 has three key packages
-	topic1, discared := writeKeyPackage(t, db, installationID1[:])
-	t.Log(topic1, discared)
+	topic1, _ := writeKeyPackage(t, db, installationID1[:])
 	// This one is totally ignored
 	_, _ = writeKeyPackage(t, db, installationID1[:])
 	// This one is the newest
 	_, seq1 := writeKeyPackage(t, db, installationID1[:])
 	topic2, seq2 := writeKeyPackage(t, db, installationID2[:])
 	topic3, seq3 := writeKeyPackage(t, db, installationID3[:])
-
-	t.Log(topic1, seq1)
-	t.Log(topic2, seq2)
-	t.Log(topic3, seq3)
 
 	// A topic that doesn't have anything in the DB
 	topic4 := *topic.NewTopic(topic.TopicKindKeyPackagesV1, installationID4[:])
@@ -150,7 +145,6 @@ func TestGetNewestEnvelope(t *testing.T) {
 				if seq == 0 {
 					require.Nil(t, parsedResults[i])
 				} else {
-					t.Log(seq, parsedResults[i].OriginatorSequenceID())
 					require.EqualValues(t, seq, parsedResults[i].OriginatorSequenceID())
 				}
 			}

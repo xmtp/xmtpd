@@ -9,9 +9,11 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/utils"
+
 	"go.uber.org/zap"
-	"google.golang.org/grpc/metadata"
 )
+
+/* Identity functions */
 
 func IPIdentityFn(headers http.Header, peer string) (Identity, error) {
 	return Identity{
@@ -26,6 +28,29 @@ func NewUserIdentity(userID string) Identity {
 		Identity: userID,
 	}
 }
+
+func AuthorizationTokenFromContext(ctx context.Context) string {
+	return utils.AuthorizationHeaderFromContext(ctx)
+}
+
+func AuthorizationTokenFromHeader(headers http.Header) string {
+	return utils.AuthorizationTokenFromHeader(headers)
+}
+
+func ClientIPFromContext(ctx context.Context) string {
+	return utils.ClientIPFromContext(ctx)
+}
+
+func ClientIPFromHeaderOrPeer(headers http.Header, peer string) string {
+	return utils.ClientIPFromHeaderOrPeer(headers, peer)
+}
+
+func IdentityFromContext(ctx context.Context) (Identity, bool) {
+	identity, ok := ctx.Value(identityCtxKey{}).(Identity)
+	return identity, ok
+}
+
+/* Config helpers */
 
 func LoadConfigFromEnv() (*config.GatewayConfig, error) {
 	var cfg config.GatewayConfig
@@ -55,29 +80,4 @@ func MustCreateLogger(cfg *config.GatewayConfig) *zap.Logger {
 		log.Fatalf("Failed to setup logger: %v", err)
 	}
 	return logger
-}
-
-func ClientIPFromContext(ctx context.Context) string {
-	return utils.ClientIPFromContext(ctx)
-}
-
-func ClientIPFromHeaderOrPeer(headers http.Header, peer string) string {
-	return utils.ClientIPFromHeaderOrPeer(headers, peer)
-}
-
-func AuthorizationHeaderFromContext(ctx context.Context) string {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return ""
-	}
-	auth := md.Get("authorization")
-	if len(auth) == 0 {
-		return ""
-	}
-	return auth[0]
-}
-
-func IdentityFromContext(ctx context.Context) (Identity, bool) {
-	identity, ok := ctx.Value(identityCtxKey{}).(Identity)
-	return identity, ok
 }

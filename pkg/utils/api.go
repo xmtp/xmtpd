@@ -11,6 +11,29 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+func AuthorizationHeaderFromContext(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 {
+		return ""
+	}
+
+	return auth[0]
+}
+
+func AuthorizationTokenFromHeader(headers http.Header) string {
+	token := headers.Get("authorization")
+	if len(token) == 0 {
+		return ""
+	}
+
+	return token
+}
+
 func ClientIPFromContext(ctx context.Context) string {
 	md, _ := metadata.FromIncomingContext(ctx)
 	vals := md.Get("x-forwarded-for")

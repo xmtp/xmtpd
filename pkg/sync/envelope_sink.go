@@ -128,10 +128,6 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	originatorID := int32(env.OriginatorNodeID())
 	originatorTime := utils.NsToDate(env.OriginatorNs())
 	expiry := env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()
-	var expiryToSave sql.NullInt64
-	if expiry > 0 {
-		expiryToSave = db.NullInt64(int64(expiry))
-	}
 
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		s.ctx,
@@ -142,7 +138,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 			Topic:                env.TargetTopic().Bytes(),
 			OriginatorEnvelope:   originatorBytes,
 			PayerID:              db.NullInt32(payerID),
-			Expiry:               expiryToSave,
+			Expiry:               int64(expiry),
 		},
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerID,

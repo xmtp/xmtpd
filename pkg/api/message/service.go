@@ -73,12 +73,20 @@ func NewReplicationAPIService(
 	feeCalculator fees.IFeeCalculator,
 	options config.APIOptions,
 	migrationEnabled bool,
+	sleepOnFailureTime time.Duration,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
 	}
 
-	publishWorker, err := startPublishWorker(ctx, logger, registrant, store, feeCalculator)
+	publishWorker, err := startPublishWorker(
+		ctx,
+		logger,
+		registrant,
+		store,
+		feeCalculator,
+		sleepOnFailureTime,
+	)
 	if err != nil {
 		logger.Error("could not start publish worker", zap.Error(err))
 		return nil, err
@@ -350,22 +358,53 @@ func (s *Service) fetchEnvelopes(
 	ctx context.Context,
 	query *message_api.EnvelopesQuery,
 	rowLimit int32,
-) ([]queries.GatewayEnvelope, error) {
-	params := queries.SelectGatewayEnvelopesParams{
-		Topics:            query.GetTopics(),
-		OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
+) ([]queries.GatewayEnvelopesView, error) {
+	if len(query.GetTopics()) != 0 {
+		params := queries.SelectGatewayEnvelopesByTopicsParams{
+			Topics:            query.GetTopics(),
+			RowLimit:          rowLimit,
+			CursorNodeIds:     nil,
+			CursorSequenceIds: nil,
+		}
+
+		db.SetVectorClockByTopics(&params, query.GetLastSeen().GetNodeIdToSequenceId())
+
+		rows, err := queries.New(s.store).SelectGatewayEnvelopesByTopics(ctx, params)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+		}
+
+		return rows, nil
+	}
+	if len(query.GetOriginatorNodeIds()) != 0 {
+		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
+			OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
+			RowLimit:          rowLimit,
+			CursorNodeIds:     nil,
+			CursorSequenceIds: nil,
+		}
+		for _, o := range query.GetOriginatorNodeIds() {
+			params.OriginatorNodeIds = append(params.OriginatorNodeIds, int32(o))
+		}
+
+		db.SetVectorClockByOriginators(&params, query.GetLastSeen().GetNodeIdToSequenceId())
+
+		rows, err := queries.New(s.store).SelectGatewayEnvelopesByOriginators(ctx, params)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+		}
+
+		return rows, nil
+	}
+
+	params := queries.SelectGatewayEnvelopesUnfilteredParams{
 		RowLimit:          rowLimit,
 		CursorNodeIds:     nil,
 		CursorSequenceIds: nil,
 	}
+	db.SetVectorClockUnfiltered(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-	for _, o := range query.GetOriginatorNodeIds() {
-		params.OriginatorNodeIds = append(params.OriginatorNodeIds, int32(o))
-	}
-
-	db.SetVectorClock(&params, query.GetLastSeen().GetNodeIdToSequenceId())
-
-	rows, err := queries.New(s.store).SelectGatewayEnvelopes(ctx, params)
+	rows, err := queries.New(s.store).SelectGatewayEnvelopesUnfiltered(ctx, params)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 	}

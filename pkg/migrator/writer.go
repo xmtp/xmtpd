@@ -2,7 +2,6 @@ package migrator
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -53,18 +52,21 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 		m.writer,
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
-			_, err = querier.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     int32(env.OriginatorNodeID()),
-				OriginatorSequenceID: int64(env.OriginatorSequenceID()),
-				Topic:                env.TargetTopic().Bytes(),
-				OriginatorEnvelope:   originatorEnvelopeBytes,
-				PayerID:              db.NullInt32(payerID),
-				GatewayTime:          env.OriginatorTime(),
-				Expiry: sql.NullInt64{
-					Int64: int64(env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()),
-					Valid: true,
+			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(
+				ctx,
+				querier,
+				queries.InsertGatewayEnvelopeParams{
+					OriginatorNodeID:     int32(env.OriginatorNodeID()),
+					OriginatorSequenceID: int64(env.OriginatorSequenceID()),
+					Topic:                env.TargetTopic().Bytes(),
+					OriginatorEnvelope:   originatorEnvelopeBytes,
+					PayerID:              db.NullInt32(payerID),
+					GatewayTime:          env.OriginatorTime(),
+					Expiry: int64(
+						env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+					),
 				},
-			})
+			)
 			if err != nil {
 				m.logger.Error("insert originator envelope failed", zap.Error(err))
 				return re.NewRecoverableError("insert originator envelope failed", err)

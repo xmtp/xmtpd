@@ -103,9 +103,9 @@ func TestStoreMessages(t *testing.T) {
 
 	// Poll the DB until the stored message shows up
 	require.Eventually(t, func() bool {
-		results, err := querier.SelectGatewayEnvelopes(
+		results, err := querier.SelectGatewayEnvelopesByTopics(
 			context.Background(),
-			queries.SelectGatewayEnvelopesParams{
+			queries.SelectGatewayEnvelopesByTopicsParams{
 				Topics: [][]byte{msgTopic},
 			},
 		)

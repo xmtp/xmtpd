@@ -2,9 +2,10 @@ package contracts
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"math"
+
+	"github.com/xmtp/xmtpd/pkg/db"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
@@ -102,13 +103,18 @@ func (s *GroupMessageStorer) StoreLog(
 		utils.TopicField(topicStruct.String()),
 	)
 
-	if _, err = s.queries.InsertGatewayEnvelope(ctx, queries.InsertGatewayEnvelopeParams{
-		OriginatorNodeID:     constants.GroupMessageOriginatorID,
-		OriginatorSequenceID: int64(msgSent.SequenceId),
-		Topic:                topicStruct.Bytes(),
-		OriginatorEnvelope:   originatorEnvelopeBytes,
-		Expiry:               sql.NullInt64{Int64: math.MaxInt64, Valid: true},
-	}); err != nil {
+	_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
+		ctx,
+		s.queries,
+		queries.InsertGatewayEnvelopeParams{
+			OriginatorNodeID:     constants.GroupMessageOriginatorID,
+			OriginatorSequenceID: int64(msgSent.SequenceId),
+			Topic:                topicStruct.Bytes(),
+			OriginatorEnvelope:   originatorEnvelopeBytes,
+			Expiry:               math.MaxInt64,
+		},
+	)
+	if err != nil {
 		s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
 		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 	}

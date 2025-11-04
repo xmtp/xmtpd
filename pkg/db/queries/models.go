@@ -16,14 +16,6 @@ type AddressLog struct {
 	RevocationSequenceID  sql.NullInt64
 }
 
-type BlockchainMessage struct {
-	BlockNumber          uint64
-	BlockHash            []byte
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
-	IsCanonical          bool
-}
-
 type GatewayEnvelope struct {
 	GatewayTime          time.Time
 	OriginatorNodeID     int32
@@ -34,10 +26,33 @@ type GatewayEnvelope struct {
 	Expiry               sql.NullInt64
 }
 
+type GatewayEnvelopeBlob struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	OriginatorEnvelope   []byte
+}
+
 type GatewayEnvelopesLatest struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	GatewayTime          time.Time
+}
+
+type GatewayEnvelopesMetum struct {
+	GatewayTime          time.Time
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	Topic                []byte
+	PayerID              sql.NullInt32
+	Expiry               int64
+}
+
+type GatewayEnvelopesView struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	GatewayTime          time.Time
+	Topic                []byte
+	OriginatorEnvelope   []byte
 }
 
 type LatestBlock struct {

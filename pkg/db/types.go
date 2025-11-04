@@ -19,10 +19,36 @@ func NullInt64(v int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: v, Valid: true}
 }
 
-func SetVectorClock(
-	q *queries.SelectGatewayEnvelopesParams,
+func SetVectorClockByTopics(
+	q *queries.SelectGatewayEnvelopesByTopicsParams,
 	vc VectorClock,
-) *queries.SelectGatewayEnvelopesParams {
+) *queries.SelectGatewayEnvelopesByTopicsParams {
+	q.CursorNodeIds = make([]int32, 0, len(vc))
+	q.CursorSequenceIds = make([]int64, 0, len(vc))
+	for nodeID, sequenceID := range vc {
+		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
+		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
+	}
+	return q
+}
+
+func SetVectorClockByOriginators(
+	q *queries.SelectGatewayEnvelopesByOriginatorsParams,
+	vc VectorClock,
+) *queries.SelectGatewayEnvelopesByOriginatorsParams {
+	q.CursorNodeIds = make([]int32, 0, len(vc))
+	q.CursorSequenceIds = make([]int64, 0, len(vc))
+	for nodeID, sequenceID := range vc {
+		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
+		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
+	}
+	return q
+}
+
+func SetVectorClockUnfiltered(
+	q *queries.SelectGatewayEnvelopesUnfilteredParams,
+	vc VectorClock,
+) *queries.SelectGatewayEnvelopesUnfilteredParams {
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {

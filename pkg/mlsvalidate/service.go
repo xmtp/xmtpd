@@ -85,7 +85,7 @@ func (s *MLSValidationServiceImpl) GetAssociationState(
 
 func (s *MLSValidationServiceImpl) GetAssociationStateFromEnvelopes(
 	ctx context.Context,
-	oldUpdateEnvelopes []queries.GatewayEnvelope,
+	oldUpdateEnvelopes []queries.GatewayEnvelopesView,
 	newUpdate *associations.IdentityUpdate,
 ) (*AssociationStateResult, error) {
 	oldUpdates := make([]*associations.IdentityUpdate, len(oldUpdateEnvelopes))

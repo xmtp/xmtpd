@@ -16,7 +16,7 @@ func TestIncrementUnsettledUsage(t *testing.T) {
 
 	querier := queries.New(db)
 	payerID := testutils.RandomInt32()
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 	minutesSinceEpoch := utils.MinutesSinceEpochNow()
 
 	require.NoError(t, querier.IncrementUnsettledUsage(ctx, queries.IncrementUnsettledUsageParams{
@@ -58,7 +58,7 @@ func TestGetUnsettledUsage(t *testing.T) {
 
 	querier := queries.New(db)
 	payerID := testutils.RandomInt32()
-	originatorID := testutils.RandomInt32()
+	originatorID := int32(100)
 
 	addUsage := func(minutesSinceEpoch int32, spendPicodollars int64) {
 		require.NoError(

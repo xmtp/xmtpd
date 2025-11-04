@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xmtp/xmtpd/pkg/db"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
@@ -34,11 +36,11 @@ func GetCallerName(depth int) string {
 func openDB(t testing.TB, dsn string) (*sql.DB, string) {
 	config, err := pgx.ParseConfig(dsn)
 	require.NoError(t, err)
-	db := stdlib.OpenDB(*config)
+	dbInstance := stdlib.OpenDB(*config)
 	t.Cleanup(func() {
-		require.NoError(t, db.Close())
+		require.NoError(t, dbInstance.Close())
 	})
-	return db, dsn
+	return dbInstance, dsn
 }
 
 func newCtlDB(t testing.TB) (*sql.DB, string) {
@@ -56,17 +58,17 @@ func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, s
 		require.NoError(t, err)
 	})
 
-	db, dsn := openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
-	require.NoError(t, migrations.Migrate(ctx, db))
+	dbInstance, dsn := openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
+	require.NoError(t, migrations.Migrate(ctx, dbInstance))
 
-	return db, dsn
+	return dbInstance, dsn
 }
 
 func NewDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
 	ctlDB, _ := newCtlDB(t)
-	db, dsn := newInstanceDB(t, ctx, ctlDB)
+	dbInstance, dsn := newInstanceDB(t, ctx, ctlDB)
 
-	return db, dsn
+	return dbInstance, dsn
 }
 
 func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
@@ -74,8 +76,8 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 	dbs := []*sql.DB{}
 
 	for i := 0; i < count; i++ {
-		db, _ := newInstanceDB(t, ctx, ctlDB)
-		dbs = append(dbs, db)
+		dbInstance, _ := newInstanceDB(t, ctx, ctlDB)
+		dbs = append(dbs, dbInstance)
 	}
 
 	return dbs
@@ -83,15 +85,16 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 
 func InsertGatewayEnvelopes(
 	t *testing.T,
-	db *sql.DB,
+	dbInstance *sql.DB,
 	rows []queries.InsertGatewayEnvelopeParams,
 	notifyChan ...chan bool,
 ) {
-	q := queries.New(db)
+	ctx := t.Context()
+	q := queries.New(dbInstance)
 	for _, row := range rows {
-		inserted, err := q.InsertGatewayEnvelope(context.Background(), row)
-		require.Equal(t, int64(1), inserted)
+		inserted, err := db.InsertGatewayEnvelopeWithChecksStandalone(ctx, q, row)
 		require.NoError(t, err)
+		require.EqualValues(t, int64(1), inserted.InsertedMetaRows)
 
 		if len(notifyChan) > 0 {
 			select {

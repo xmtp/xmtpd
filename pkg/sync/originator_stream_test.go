@@ -87,10 +87,10 @@ func getAllMessagesForOriginator(
 	t *testing.T,
 	storer *EnvelopeSink,
 	nodeID uint32,
-) []queries.GatewayEnvelope {
-	envs, err := storer.queries.SelectGatewayEnvelopes(
+) []queries.GatewayEnvelopesView {
+	envs, err := storer.queries.SelectGatewayEnvelopesByOriginators(
 		t.Context(),
-		queries.SelectGatewayEnvelopesParams{
+		queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: []int32{int32(nodeID)},
 		},
 	)

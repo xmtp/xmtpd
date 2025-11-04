@@ -29,13 +29,13 @@ func setup(t *testing.T) (*sql.DB, *zap.Logger) {
 func insertInitialRows(t *testing.T, store *sql.DB) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope1"),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope2"),
@@ -43,11 +43,13 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 	})
 }
 
-func envelopesQuery(store *sql.DB) db.PollableDBQuery[queries.GatewayEnvelope, db.VectorClock] {
-	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
+func envelopesQuery(
+	store *sql.DB,
+) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
+	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		envs, err := queries.New(store).
-			SelectGatewayEnvelopes(ctx, *db.SetVectorClock(&queries.SelectGatewayEnvelopesParams{
-				OriginatorNodeIds: []int32{1},
+			SelectGatewayEnvelopesByOriginators(ctx, *db.SetVectorClockByOriginators(&queries.SelectGatewayEnvelopesByOriginatorsParams{
+				OriginatorNodeIds: []int32{100},
 				RowLimit:          numRows,
 			}, lastSeen))
 		if err != nil {
@@ -63,19 +65,19 @@ func envelopesQuery(store *sql.DB) db.PollableDBQuery[queries.GatewayEnvelope, d
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
 			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope3"),
 		},
 		{
-			OriginatorNodeID:     2,
+			OriginatorNodeID:     200,
 			OriginatorSequenceID: 2,
 			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope4"),
 		},
 		{
-			OriginatorNodeID:     1,
+			OriginatorNodeID:     100,
 			OriginatorSequenceID: 3,
 			Topic:                topicA,
 			OriginatorEnvelope:   []byte("envelope5"),
@@ -83,16 +85,20 @@ func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) 
 	}, notifyChan...)
 }
 
-func validateUpdates(t *testing.T, updates <-chan []queries.GatewayEnvelope, ctxCancel func()) {
+func validateUpdates(
+	t *testing.T,
+	updates <-chan []queries.GatewayEnvelopesView,
+	ctxCancel func(),
+) {
 	envs := <-updates
 	require.Equal(t, 1, len(envs))
-	require.Equal(t, int32(1), envs[0].OriginatorNodeID)
+	require.Equal(t, int32(100), envs[0].OriginatorNodeID)
 	require.Equal(t, int64(2), envs[0].OriginatorSequenceID)
 	require.Equal(t, []byte("envelope3"), envs[0].OriginatorEnvelope)
 
 	envs = <-updates
 	require.Equal(t, 1, len(envs))
-	require.Equal(t, int32(1), envs[0].OriginatorNodeID)
+	require.Equal(t, int32(100), envs[0].OriginatorNodeID)
 	require.Equal(t, int64(3), envs[0].OriginatorSequenceID)
 	require.Equal(t, []byte("envelope5"), envs[0].OriginatorEnvelope)
 
@@ -105,10 +111,10 @@ func validateUpdates(t *testing.T, updates <-chan []queries.GatewayEnvelope, ctx
 // to simulate a transient database error
 func flakyEnvelopesQuery(
 	store *sql.DB,
-) db.PollableDBQuery[queries.GatewayEnvelope, db.VectorClock] {
+) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
 	numQueries := 0
 	query := envelopesQuery(store)
-	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelope, db.VectorClock, error) {
+	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		numQueries++
 		if numQueries%2 == 1 {
 			return nil, lastSeen, fmt.Errorf("flaky query")
@@ -129,7 +135,7 @@ func TestIntervalSubscription(t *testing.T) {
 		ctx,
 		log,
 		envelopesQuery(store),
-		db.VectorClock{1: 1},
+		db.VectorClock{100: 1},
 		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,
@@ -143,18 +149,20 @@ func TestIntervalSubscription(t *testing.T) {
 }
 
 func TestNotifiedSubscription(t *testing.T) {
+	deadline, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	store, log := setup(t)
 
 	insertInitialRows(t, store)
 
 	// Create a subscription that polls every 100ms
-	ctx, ctxCancel := context.WithCancel(context.Background())
+	ctx, ctxCancel := context.WithCancel(deadline)
 	notifyChan := make(chan bool)
 	subscription := db.NewDBSubscription(
 		ctx,
 		log,
 		envelopesQuery(store),
-		db.VectorClock{1: 1},
+		db.VectorClock{100: 1},
 		db.PollingOptions{
 			Notifier: notifyChan,
 			Interval: 30 * time.Second,
@@ -179,7 +187,7 @@ func TestTemporaryDBError(t *testing.T) {
 		ctx,
 		log,
 		flakyEnvelopesQuery(store),
-		db.VectorClock{1: 1},
+		db.VectorClock{100: 1},
 		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,

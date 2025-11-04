@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/xmtp/xmtpd/pkg/api"
@@ -31,7 +32,7 @@ type gatewayServiceImpl struct {
 }
 
 // Shutdown gracefully stops the API server and cleans up resources.
-func (s *gatewayServiceImpl) Shutdown() error {
+func (s *gatewayServiceImpl) Shutdown(timeout time.Duration) error {
 	s.logger.Info("shutting down gateway service")
 
 	if s.metrics != nil {
@@ -55,7 +56,7 @@ func (s *gatewayServiceImpl) Shutdown() error {
 	}
 
 	if s.apiServer != nil {
-		s.apiServer.Close()
+		s.apiServer.Close(timeout)
 	}
 
 	s.logger.Info("gateway service stopped")
@@ -63,10 +64,10 @@ func (s *gatewayServiceImpl) Shutdown() error {
 	return nil
 }
 
-func (s *gatewayServiceImpl) WaitForShutdown() {
+func (s *gatewayServiceImpl) WaitForShutdown(timeout time.Duration) {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	sig := <-termChannel
 	s.logger.Info("received OS signal, shutting down", zap.String("signal", sig.String()))
-	_ = s.Shutdown()
+	_ = s.Shutdown(timeout)
 }

@@ -34,5 +34,5 @@ func main() {
 		log.Fatalf("Failed to build gateway service: %v", err)
 	}
 
-	gatewayService.WaitForShutdown()
+	gatewayService.WaitForShutdown(30 * time.Second)
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xmtp/xmtpd/pkg/gateway"
@@ -85,5 +86,5 @@ func main() {
 		log.Fatalf("failed to build gateway service: %v", err)
 	}
 
-	gatewayService.WaitForShutdown()
+	gatewayService.WaitForShutdown(30 * time.Second)
 }

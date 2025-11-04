@@ -252,7 +252,7 @@ func NewTestAPIServer(
 
 	t.Cleanup(func() {
 		cancel()
-		svr.Close()
+		svr.Close(10 * time.Second)
 	})
 
 	fmt.Printf("DEBUG: API server address: %s\n", svr.Addr())

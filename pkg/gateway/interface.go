@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"net/http"
+	"time"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
@@ -59,5 +60,5 @@ type IGatewayServiceBuilder interface {
 }
 
 type GatewayService interface {
-	WaitForShutdown()
+	WaitForShutdown(timeout time.Duration)
 }

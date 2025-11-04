@@ -22,7 +22,7 @@ func AuthorizationHeaderFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	return auth[0]
+	return strings.TrimPrefix(auth[0], "Bearer ")
 }
 
 func AuthorizationTokenFromHeader(headers http.Header) string {
@@ -31,7 +31,7 @@ func AuthorizationTokenFromHeader(headers http.Header) string {
 		return ""
 	}
 
-	return token
+	return strings.TrimPrefix(token, "Bearer ")
 }
 
 func ClientIPFromContext(ctx context.Context) string {

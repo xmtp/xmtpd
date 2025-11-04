@@ -155,11 +155,11 @@ func (svc *APIServer) Addr() string {
 	return svc.listener.Addr().String()
 }
 
-func (svc *APIServer) Close() {
+func (svc *APIServer) Close(timeout time.Duration) {
 	svc.logger.Info("stopping api server")
 
 	// Create a context with timeout for graceful shutdown.
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	// Gracefully shutdown the HTTP server.

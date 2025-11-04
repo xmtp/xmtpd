@@ -540,7 +540,7 @@ func (s *BaseServer) WaitForShutdown(timeout time.Duration) {
 
 func (s *BaseServer) Shutdown(timeout time.Duration) {
 	if s.api != nil {
-		s.api.Close()
+		s.api.Close(timeout)
 	}
 
 	if s.metrics != nil {

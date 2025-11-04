@@ -29,7 +29,7 @@ WITH to_delete AS (
     FROM gateway_envelopes_meta_v2
     WHERE expiry IS NOT NULL
       AND expiry < EXTRACT(EPOCH FROM now())::bigint
-    ORDER BY expiry
+    ORDER BY expiry, originator_node_id, originator_sequence_id
     LIMIT $1
         FOR UPDATE SKIP LOCKED
 )

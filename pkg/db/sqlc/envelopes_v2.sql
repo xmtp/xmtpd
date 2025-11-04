@@ -52,10 +52,12 @@ FROM latest l
 ORDER BY l.topic;
 
 -- name: SelectGatewayEnvelopesV2ByOriginators :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord))
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+             JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                  USING (ord)
+)
 SELECT v.originator_node_id,
        v.originator_sequence_id,
        v.gateway_time,
@@ -64,21 +66,18 @@ SELECT v.originator_node_id,
 FROM gateway_envelopes_v2_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
-WHERE (
-    COALESCE(array_length(@originator_node_ids::INT[], 1), 0) = 0
-        OR v.originator_node_id = ANY (@originator_node_ids::INT[])
-    )
+WHERE v.originator_node_id = ANY(@originator_node_ids::INT[])
   AND v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time,
-         v.originator_node_id,
-         v.originator_sequence_id
+ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
 
 -- name: SelectGatewayEnvelopesV2ByTopics :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord))
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+             JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                  USING (ord)
+)
 SELECT v.originator_node_id,
        v.originator_sequence_id,
        v.gateway_time,
@@ -87,16 +86,10 @@ SELECT v.originator_node_id,
 FROM gateway_envelopes_v2_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
-WHERE (
-    COALESCE(array_length(@topics::BYTEA[], 1), 0) = 0
-        OR v.topic = ANY (@topics::BYTEA[])
-    )
+WHERE v.topic = ANY(@topics::BYTEA[])
   AND v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time,
-         v.originator_node_id,
-         v.originator_sequence_id
+ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
-
 
 -- name: SelectGatewayEnvelopesV2Unfiltered :many
 WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
@@ -116,5 +109,3 @@ ORDER BY v.gateway_time,
          v.originator_node_id,
          v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
-
--- TODO(mkysel) --- this will not return SeqID 0. Check whether it is a valid number

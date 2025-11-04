@@ -1,1 +1,1 @@
-DROP table blockchain_messages;
+DROP TABLE IF EXISTS blockchain_messages;

@@ -10,16 +10,6 @@ CREATE TABLE IF NOT EXISTS gateway_envelopes_meta_v2
     PRIMARY KEY (originator_node_id, originator_sequence_id)
 ) PARTITION BY LIST (originator_node_id);
 
-CREATE INDEX IF NOT EXISTS idx_gem_v2_originator_seq_time
-    ON gateway_envelopes_meta_v2 (originator_node_id, originator_sequence_id, gateway_time);
-
-CREATE INDEX idx_gem_v2_expiry_idx
-    ON gateway_envelopes_meta_v2 (expiry)
-    INCLUDE (originator_node_id, originator_sequence_id)
-    WHERE expiry IS NOT NULL;
-
-CREATE INDEX idx_gem_v2_topic ON gateway_envelopes_meta_v2(topic);
-
 -- BLOBS (cold path)
 CREATE TABLE IF NOT EXISTS gateway_envelope_blobs_v2
 (

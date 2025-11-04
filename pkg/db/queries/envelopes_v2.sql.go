@@ -79,10 +79,12 @@ func (q *Queries) InsertGatewayEnvelopeV2(ctx context.Context, arg InsertGateway
 }
 
 const selectGatewayEnvelopesV2ByOriginators = `-- name: SelectGatewayEnvelopesV2ByOriginators :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest($4::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord))
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
+             JOIN unnest($4::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                  USING (ord)
+)
 SELECT v.originator_node_id,
        v.originator_sequence_id,
        v.gateway_time,
@@ -91,14 +93,9 @@ SELECT v.originator_node_id,
 FROM gateway_envelopes_v2_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
-WHERE (
-    COALESCE(array_length($1::INT[], 1), 0) = 0
-        OR v.originator_node_id = ANY ($1::INT[])
-    )
+WHERE v.originator_node_id = ANY($1::INT[])
   AND v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time,
-         v.originator_node_id,
-         v.originator_sequence_id
+ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
 LIMIT NULLIF($2::INT, 0)
 `
 
@@ -144,10 +141,12 @@ func (q *Queries) SelectGatewayEnvelopesV2ByOriginators(ctx context.Context, arg
 }
 
 const selectGatewayEnvelopesV2ByTopics = `-- name: SelectGatewayEnvelopesV2ByTopics :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest($4::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord))
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
+             JOIN unnest($4::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                  USING (ord)
+)
 SELECT v.originator_node_id,
        v.originator_sequence_id,
        v.gateway_time,
@@ -156,14 +155,9 @@ SELECT v.originator_node_id,
 FROM gateway_envelopes_v2_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
-WHERE (
-    COALESCE(array_length($1::BYTEA[], 1), 0) = 0
-        OR v.topic = ANY ($1::BYTEA[])
-    )
+WHERE v.topic = ANY($1::BYTEA[])
   AND v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time,
-         v.originator_node_id,
-         v.originator_sequence_id
+ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
 LIMIT NULLIF($2::INT, 0)
 `
 

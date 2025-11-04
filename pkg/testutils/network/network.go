@@ -21,15 +21,14 @@ func OpenListener(t *testing.T) net.Listener {
 
 // OpenFreePort opens a free port on the local machine.
 // It should be used only in tests, where an http server
-// needs a port, but unlike gRPC, cannot reuse a listener.
+// needs a port, but unlike grP
 func OpenFreePort(t *testing.T) int {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 
-	port := ln.Addr().(*net.TCPAddr).Port
+	defer func() {
+		_ = l.Close()
+	}()
 
-	err = ln.Close()
-	require.NoError(t, err)
-
-	return port
+	return l.Addr().(*net.TCPAddr).Port
 }

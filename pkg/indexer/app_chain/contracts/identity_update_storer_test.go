@@ -119,7 +119,7 @@ func TestStoreSequential(t *testing.T) {
 	numCalls := 0
 	validationService.EXPECT().
 		GetAssociationStateFromEnvelopes(mock.Anything, mock.Anything, mock.Anything).
-		RunAndReturn(func(ctx context.Context, prevEnvs []queries.GatewayEnvelopesView, newUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
+		RunAndReturn(func(ctx context.Context, prevEnvs []queries.SelectGatewayEnvelopesByTopicsRow, newUpdate *associations.IdentityUpdate) (*mlsvalidate.AssociationStateResult, error) {
 			numCalls++
 			if numCalls > 1 {
 				require.Len(t, prevEnvs, 1)

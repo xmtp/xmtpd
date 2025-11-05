@@ -16,14 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	getSyncCursorMethod       = "GetSyncCursor"
-	subscribeSyncCursorMethod = "SubscribeSyncCursor"
-	getVersionMethod          = "GetVersion"
-	getPayerInfoMethod        = "GetPayerInfo"
-
-	requestMissingMessageError = "missing request message"
-)
+const requestMissingMessageError = "missing request message"
 
 type Service struct {
 	metadata_apiconnect.UnimplementedMetadataApiHandler
@@ -55,10 +48,10 @@ func NewMetadataAPIService(
 
 func (s *Service) GetSyncCursor(
 	_ context.Context,
-	_ *connect.Request[metadata_api.GetSyncCursorRequest],
+	req *connect.Request[metadata_api.GetSyncCursorRequest],
 ) (*connect.Response[metadata_api.GetSyncCursorResponse], error) {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(getSyncCursorMethod))
+		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}
 
 	response := connect.NewResponse(&metadata_api.GetSyncCursorResponse{
@@ -74,7 +67,7 @@ func (s *Service) SubscribeSyncCursor(
 	stream *connect.ServerStream[metadata_api.GetSyncCursorResponse],
 ) error {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(subscribeSyncCursorMethod))
+		s.logger.Debug("received request", utils.MethodField(stream.Conn().Spec().Procedure))
 	}
 
 	// Send the initial cursor. The subscriber will only send a new message if there was a change.
@@ -130,10 +123,10 @@ func (s *Service) SubscribeSyncCursor(
 
 func (s *Service) GetVersion(
 	_ context.Context,
-	_ *connect.Request[metadata_api.GetVersionRequest],
+	req *connect.Request[metadata_api.GetVersionRequest],
 ) (*connect.Response[metadata_api.GetVersionResponse], error) {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(getVersionMethod))
+		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}
 
 	if s.version == nil {
@@ -165,7 +158,7 @@ func (s *Service) GetPayerInfo(
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug(
 			"received request",
-			utils.MethodField(getPayerInfoMethod),
+			utils.MethodField(req.Spec().Procedure),
 			utils.BodyField(req),
 		)
 	}
@@ -206,7 +199,7 @@ func (s *Service) GetPayerInfo(
 				)
 			}
 			s.logger.Error("failed to find payer",
-				utils.MethodField(getPayerInfoMethod),
+				utils.MethodField(req.Spec().Procedure),
 				utils.PayerAddressField(address),
 				zap.Error(err),
 			)
@@ -224,7 +217,7 @@ func (s *Service) GetPayerInfo(
 		)
 		if err != nil {
 			s.logger.Error("failed to get payer info",
-				utils.MethodField(getPayerInfoMethod),
+				utils.MethodField(req.Spec().Procedure),
 				utils.PayerAddressField(address),
 				utils.PayerIDField(payerID),
 				zap.Error(err),

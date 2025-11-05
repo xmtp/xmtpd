@@ -33,12 +33,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	getNodesMethod               = "GetNodes"
-	publishClientEnvelopesMethod = "PublishClientEnvelopes"
-
-	requestMissingMessageError = "missing request message"
-)
+const requestMissingMessageError = "missing request message"
 
 type Service struct {
 	payer_apiconnect.UnimplementedPayerApiHandler
@@ -85,10 +80,10 @@ func NewPayerAPIService(
 // GetNodes returns the complete endpoint list of canonical nodes.
 func (s *Service) GetNodes(
 	ctx context.Context,
-	_ *connect.Request[payer_api.GetNodesRequest],
+	req *connect.Request[payer_api.GetNodesRequest],
 ) (*connect.Response[payer_api.GetNodesResponse], error) {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(getNodesMethod))
+		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}
 
 	nodes, err := s.nodeRegistry.GetNodes()
@@ -124,7 +119,7 @@ func (s *Service) PublishClientEnvelopes(
 	}
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(publishClientEnvelopesMethod))
+		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}
 
 	grouped, err := s.groupEnvelopes(req.Msg.GetEnvelopes())
@@ -163,7 +158,7 @@ func (s *Service) PublishClientEnvelopes(
 		s.logger.Debug(
 			"publishing to originator",
 			utils.OriginatorIDField(originatorID),
-			utils.MethodField(publishClientEnvelopesMethod),
+			utils.MethodField(req.Spec().Procedure),
 			utils.NumEnvelopesField(len(payloadsWithIndex)),
 		)
 
@@ -185,7 +180,7 @@ func (s *Service) PublishClientEnvelopes(
 	for _, payload := range grouped.forBlockchain {
 		s.logger.Debug(
 			"publishing to blockchain",
-			utils.MethodField(publishClientEnvelopesMethod),
+			utils.MethodField(req.Spec().Procedure),
 			utils.TopicField(payload.payload.TargetTopic().String()),
 		)
 

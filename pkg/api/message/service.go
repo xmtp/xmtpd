@@ -39,12 +39,6 @@ const (
 	maxVectorClockLength int           = 100
 	pagingInterval       time.Duration = 100 * time.Millisecond
 
-	subscribeEnvelopesMethod    = "SubscribeEnvelopes"
-	queryEnvelopesMethod        = "QueryEnvelopes"
-	publishPayerEnvelopesMethod = "PublishPayerEnvelopes"
-	getInboxIdsMethod           = "GetInboxIds"
-	getNewestEnvelopeMethod     = "GetNewestEnvelope"
-
 	requestMissingMessageError = "missing request message"
 )
 
@@ -132,7 +126,7 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
-	logger := s.logger.With(utils.MethodField(subscribeEnvelopesMethod))
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request",
@@ -324,7 +318,7 @@ func (s *Service) QueryEnvelopes(
 		)
 	}
 
-	logger := s.logger.With(utils.MethodField(queryEnvelopesMethod))
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
@@ -479,7 +473,7 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
-	logger := s.logger.With(utils.MethodField(publishPayerEnvelopesMethod))
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
@@ -628,7 +622,7 @@ func (s *Service) GetInboxIds(
 		)
 	}
 
-	logger := s.logger.With(utils.MethodField(getInboxIdsMethod))
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
@@ -681,7 +675,7 @@ func (s *Service) GetNewestEnvelope(
 		)
 	}
 
-	logger := s.logger.With(utils.MethodField(getNewestEnvelopeMethod))
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))

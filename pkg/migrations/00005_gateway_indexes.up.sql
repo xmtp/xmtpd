@@ -18,3 +18,7 @@ CREATE INDEX gem_expiry_idx
     ON gateway_envelopes_meta (expiry)
     INCLUDE (originator_node_id, originator_sequence_id)
     WHERE expiry IS NOT NULL;
+
+-- Index efficient for distinct originator_node_id
+CREATE INDEX gem_originator_node_id
+    ON gateway_envelopes_meta(originator_node_id);

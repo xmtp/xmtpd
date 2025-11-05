@@ -121,7 +121,7 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 }
 
 func (s *SyncServer) Close() {
-	s.logger.Debug("stopping")
+	s.logger.Debug("closing")
 	s.worker.close()
-	s.logger.Debug("stopped")
+	s.logger.Debug("closed")
 }

@@ -112,6 +112,9 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 
 	svc.logger.Info("creating api server")
 
+	// Create protocol validation interceptor.
+	protocolValidationInterceptor := interceptors.NewProtocolValidationInterceptor()
+
 	// Create server side interceptors.
 	openConnInterceptor, err := interceptors.NewOpenConnectionsInterceptor()
 	if err != nil {
@@ -124,7 +127,12 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	}
 
 	// Register services.
-	servicePaths, err := cfg.RegistrationFunc(mux, openConnInterceptor, loggingInterceptor)
+	servicePaths, err := cfg.RegistrationFunc(
+		mux,
+		protocolValidationInterceptor,
+		openConnInterceptor,
+		loggingInterceptor,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +164,7 @@ func (svc *APIServer) Addr() string {
 }
 
 func (svc *APIServer) Close(timeout time.Duration) {
-	svc.logger.Info("stopping api server")
+	svc.logger.Info("closing")
 
 	// Create a context with timeout for graceful shutdown.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -170,7 +178,7 @@ func (svc *APIServer) Close(timeout time.Duration) {
 	// Wait for the goroutine to finish.
 	svc.wg.Wait()
 
-	svc.logger.Info("api server stopped")
+	svc.logger.Info("closed")
 }
 
 func (svc *APIServer) registerHealthHandler(

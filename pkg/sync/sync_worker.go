@@ -86,10 +86,10 @@ func (s *syncWorker) start() error {
 }
 
 func (s *syncWorker) close() {
-	s.logger.Debug("stopping")
+	s.logger.Debug("closing")
 	s.cancel()
 	s.wg.Wait()
-	s.logger.Debug("stopped")
+	s.logger.Debug("closed")
 }
 
 func (s *syncWorker) subscribeToRegistry() {

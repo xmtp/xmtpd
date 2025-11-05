@@ -446,8 +446,8 @@ func withNonce[T any](ctx context.Context,
 }
 
 func (m *BlockchainPublisher) Close() {
-	m.logger.Info("stopping")
+	m.logger.Info("closing")
 	m.replenishCancel()
 	m.wg.Wait()
-	m.logger.Info("stopped")
+	m.logger.Info("closed")
 }

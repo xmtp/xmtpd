@@ -6,69 +6,35 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	r "github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
-	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
-	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
-	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
 )
 
 func TestEnvelopesGenerator(t *testing.T) {
 	var (
-		ctx              = t.Context()
-		db, _            = testutils.NewDB(t, ctx)
-		port             = networkTestUtils.OpenFreePort(t)
-		wsURL, rpcURL    = anvil.StartAnvil(t, false)
-		contractsOptions = testutils.NewContractsOptions(t, rpcURL, wsURL)
+		suite = apiTestUtils.NewTestAPIServer(t)
+		ctx   = t.Context()
 	)
 
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-
-	nodes := []r.Node{
-		registryTestUtils.CreateNode(
-			100,
-			port,
-			privateKey,
-		),
-	}
-	registry := registryTestUtils.CreateMockRegistry(t, nodes)
-
-	server := serverTestUtils.NewTestBaseServer(
-		t,
-		serverTestUtils.TestServerCfg{
-			Port:             port,
-			DB:               db,
-			Registry:         registry,
-			PrivateKey:       privateKey,
-			ContractsOptions: contractsOptions,
-			Services: serverTestUtils.EnabledServices{
-				API:  true,
-				Sync: true,
-			},
-		},
-	)
-	defer server.Shutdown(0)
-
+	// Create the envelopes generator.
 	generator, err := NewEnvelopesGenerator(
-		fmt.Sprintf("http://localhost:%d", port),
+		fmt.Sprintf("http://%s", suite.APIServer.Addr()),
 		testutils.TestPrivateKey,
 		100,
-		ProtocolConnect,
+		ProtocolConnectGRPC,
 	)
 	require.NoError(t, err)
 
+	// Publish the welcome message envelopes.
 	publishResponse, err := generator.PublishWelcomeMessageEnvelopes(context.Background(), 1, 100)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
 
-	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server.Addr())
+	// Query the envelopes.
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(t, suite.APIServer.Addr())
 	queryResponse, err := client.QueryEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{

@@ -418,7 +418,10 @@ func (s *Service) fetchEnvelopes(
 
 		rows, err := queries.New(s.store).SelectGatewayEnvelopesByTopics(ctx, params)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not select envelopes: %w", err),
+			)
 		}
 
 		return rows, nil
@@ -438,7 +441,10 @@ func (s *Service) fetchEnvelopes(
 
 		rows, err := queries.New(s.store).SelectGatewayEnvelopesByOriginators(ctx, params)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not select envelopes: %w", err),
+			)
 		}
 
 		return rows, nil

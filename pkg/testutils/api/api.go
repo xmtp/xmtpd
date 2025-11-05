@@ -83,7 +83,7 @@ func NewTestGRPCGatewayAPIClient(
 	return client
 }
 
-func NewTestMetadataAPIClient(
+func NewTestGRPCMetadataAPIClient(
 	t *testing.T,
 	addr string,
 	extraDialOpts ...connect.ClientOption,
@@ -91,10 +91,14 @@ func NewTestMetadataAPIClient(
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
 
+	options := append([]connect.ClientOption{
+		connect.WithGRPC(),
+	}, extraDialOpts...)
+
 	client, err := utils.NewConnectMetadataAPIClient(
 		t.Context(),
 		fmt.Sprintf("http://localhost:%s", port),
-		extraDialOpts...,
+		options...,
 	)
 	if err != nil {
 		t.Fatalf("failed to create metadata API client: %v", err)
@@ -258,7 +262,7 @@ func NewTestAPIServer(
 
 	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
 	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
-	clientMetadata := NewTestMetadataAPIClient(t, svr.Addr())
+	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
 	return &APIServerTestSuite{
 		APIServer:         svr,

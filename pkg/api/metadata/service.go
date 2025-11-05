@@ -50,6 +50,7 @@ func (s *Service) GetSyncCursor(
 	_ context.Context,
 	req *connect.Request[metadata_api.GetSyncCursorRequest],
 ) (*connect.Response[metadata_api.GetSyncCursorResponse], error) {
+	s.logger.Info("received request", utils.MethodField(req.Spec().Procedure))
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}

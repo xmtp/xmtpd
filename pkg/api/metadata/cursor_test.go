@@ -185,6 +185,8 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 			100: 3,
 			200: 2,
 		}
+
+		return assert.ObjectsAreEqual(expectedCursor, stream.Msg().LatestSync.NodeIdToSequenceId)
 	}, 500*time.Millisecond, 50*time.Millisecond)
 
 	shouldReceive = stream.Receive()

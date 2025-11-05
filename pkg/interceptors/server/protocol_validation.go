@@ -15,7 +15,7 @@ type ProtocolValidationInterceptor struct{}
 var _ connect.Interceptor = (*ProtocolValidationInterceptor)(nil)
 
 var errUnsupportedProtocol = errors.New(
-	"connect protocol not supported, use gRPC or gRPC-Web",
+	"Connect-RPC protocol not supported, use gRPC or gRPC-Web",
 )
 
 func NewProtocolValidationInterceptor() *ProtocolValidationInterceptor {

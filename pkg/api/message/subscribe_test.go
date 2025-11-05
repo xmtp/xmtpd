@@ -286,6 +286,7 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 	client, _, _ := setupTest(t)
 
+	// Note that streams don't return an error on establishing the connection.
 	stream, err := client.SubscribeEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
@@ -298,24 +299,24 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Consume the keepalive message.
-	shouldReceive := stream.Receive()
-	require.True(t, shouldReceive)
+	// Consume keepalive messages until stream closes.
+	receivedMessages := 0
+	for stream.Receive() {
+		msg := stream.Msg()
+		require.NotNil(t, msg, "keepalive message should not be nil")
+		receivedMessages++
+	}
 
-	// Validate the keepalive message.
-	msg := stream.Msg()
-	require.NotNil(t, msg)
+	// Verify we received exactly one keepalive message.
+	require.Equal(t, receivedMessages, 1, "should receive exactly one keepalive message")
 
-	// There shouldn't be any more messages.
-	shouldReceive = stream.Receive()
-	require.False(t, shouldReceive)
-
-	// Connect returns an empty (non-nil) message when the stream is closed.
-	msg = stream.Msg()
-	require.NotNil(t, msg)
-
-	// The stream should return an invalid argument error when the request is invalid.
+	// Verify the stream closed with InvalidArgument error.
 	err = stream.Err()
 	require.Error(t, err)
-	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Equal(
+		t,
+		connect.CodeInvalidArgument,
+		connect.CodeOf(err),
+		"stream should close with InvalidArgument error",
+	)
 }

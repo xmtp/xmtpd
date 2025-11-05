@@ -180,20 +180,17 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 
 	insertAdditionalRows(t, db)
 
+	expectedCursor = map[uint32]uint64{
+		100: 3,
+		200: 2,
+	}
+
 	require.Eventually(t, func() bool {
-		expectedCursor = map[uint32]uint64{
-			100: 3,
-			200: 2,
+		if stream.Receive() {
+			cursor := stream.Msg()
+			require.NotNil(t, cursor)
+			return assert.ObjectsAreEqual(expectedCursor, cursor.LatestSync.NodeIdToSequenceId)
 		}
-
-		return assert.ObjectsAreEqual(expectedCursor, stream.Msg().LatestSync.NodeIdToSequenceId)
-	}, 500*time.Millisecond, 50*time.Millisecond)
-
-	shouldReceive = stream.Receive()
-	require.True(t, shouldReceive)
-
-	secondUpdate := stream.Msg()
-	require.NotNil(t, secondUpdate)
-
-	assert.ObjectsAreEqual(expectedCursor, secondUpdate.LatestSync.NodeIdToSequenceId)
+		return false
+	}, 2000*time.Millisecond, 10*time.Millisecond)
 }

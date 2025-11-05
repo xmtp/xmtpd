@@ -374,7 +374,7 @@ func (s *Service) fetchEnvelopes(
 			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 		}
 
-		return transformRows(rows), nil
+		return db.TransformRowsByTopic(rows), nil
 	}
 	if len(query.GetOriginatorNodeIds()) != 0 {
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
@@ -394,7 +394,7 @@ func (s *Service) fetchEnvelopes(
 			return nil, status.Errorf(codes.Internal, "could not select envelopes: %v", err)
 		}
 
-		return rows, nil
+		return db.TransformRowsByOriginator(rows), nil
 	}
 
 	params := queries.SelectGatewayEnvelopesUnfilteredParams{
@@ -798,14 +798,4 @@ func (s *Service) waitForGatewayPublish(
 			}
 		}
 	}
-}
-
-func transformRows(
-	rows []queries.SelectGatewayEnvelopesByTopicsRow,
-) []queries.GatewayEnvelopesView {
-	result := make([]queries.GatewayEnvelopesView, len(rows))
-	for i, row := range rows {
-		result[i] = queries.GatewayEnvelopesView(row)
-	}
-	return result
 }

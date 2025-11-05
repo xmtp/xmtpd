@@ -1,12 +1,12 @@
 -- name: InsertGatewayEnvelope :one
 WITH m AS (
     INSERT INTO gateway_envelopes_meta (
-                                           originator_node_id,
-                                           originator_sequence_id,
-                                           topic,
-                                           payer_id,
-                                           gateway_time,
-                                           expiry
+                                        originator_node_id,
+                                        originator_sequence_id,
+                                        topic,
+                                        payer_id,
+                                        gateway_time,
+                                        expiry
         )
         VALUES (@originator_node_id,
                 @originator_sequence_id,
@@ -18,9 +18,9 @@ WITH m AS (
         RETURNING 1),
      b AS (
          INSERT INTO gateway_envelope_blobs (
-                                                originator_node_id,
-                                                originator_sequence_id,
-                                                originator_envelope
+                                             originator_node_id,
+                                             originator_sequence_id,
+                                             originator_envelope
              )
              VALUES (@originator_node_id,
                      @originator_sequence_id,
@@ -52,75 +52,74 @@ FROM latest l
 ORDER BY l.topic;
 
 -- name: SelectGatewayEnvelopesByOriginators :many
-WITH cursors AS (
-    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-    FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
-             JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                  USING (ord)
-)
-SELECT v.originator_node_id,
-       v.originator_sequence_id,
-       v.gateway_time,
-       v.topic,
-       v.originator_envelope
-FROM gateway_envelopes_view v
-         LEFT JOIN cursors c
-                   ON v.originator_node_id = c.cursor_node_id
-WHERE v.originator_node_id = ANY(@originator_node_ids::INT[])
-  AND v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time, v.originator_node_id, v.originator_sequence_id
-LIMIT NULLIF(@row_limit::INT, 0);
+WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+                 FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+                          JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                               USING (ord)),
+     filtered AS (SELECT m.originator_node_id,
+                         m.originator_sequence_id,
+                         m.gateway_time,
+                         m.topic
+                  FROM gateway_envelopes_meta AS m
+                           LEFT JOIN cursors AS c
+                                     ON m.originator_node_id = c.cursor_node_id
+                  WHERE m.originator_node_id = ANY (@originator_node_ids::INT[])
+                    AND m.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
+                  ORDER BY m.gateway_time, m.originator_node_id, m.originator_sequence_id
+                  LIMIT NULLIF(@row_limit::INT, 0))
+SELECT f.originator_node_id,
+       f.originator_sequence_id,
+       f.gateway_time,
+       f.topic,
+       b.originator_envelope
+FROM filtered AS f
+         JOIN gateway_envelope_blobs AS b
+              ON b.originator_node_id = f.originator_node_id
+                  AND b.originator_sequence_id = f.originator_sequence_id
+ORDER BY f.gateway_time, f.originator_node_id, f.originator_sequence_id;
 
 -- name: SelectGatewayEnvelopesByTopics :many
-WITH cursors AS (
-    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-    FROM unnest(@cursor_node_ids::INT[])   WITH ORDINALITY AS x(node_id, ord)
-             JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                  USING (ord)
-),
+WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+                 FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+                          JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                               USING (ord)),
      filtered AS (
          -- A) topic + cursor
-         SELECT
-             m.originator_node_id,
-             m.originator_sequence_id,
-             m.gateway_time,
-             m.topic
+         SELECT m.originator_node_id,
+                m.originator_sequence_id,
+                m.gateway_time,
+                m.topic
          FROM gateway_envelopes_meta AS m
                   JOIN cursors AS c
-                       ON m.originator_node_id     = c.cursor_node_id
+                       ON m.originator_node_id = c.cursor_node_id
                            AND m.originator_sequence_id > c.cursor_sequence_id
-         WHERE m.topic = ANY(@topics::BYTEA[])
+         WHERE m.topic = ANY (@topics::BYTEA[])
 
          UNION ALL
 
          -- B) topic + no-cursor
-         SELECT
-             m.originator_node_id,
-             m.originator_sequence_id,
-             m.gateway_time,
-             m.topic
+         SELECT m.originator_node_id,
+                m.originator_sequence_id,
+                m.gateway_time,
+                m.topic
          FROM gateway_envelopes_meta AS m
-         WHERE m.topic = ANY(@topics::BYTEA[])
+         WHERE m.topic = ANY (@topics::BYTEA[])
            AND m.originator_sequence_id > 0
-           AND NOT EXISTS (
-             SELECT 1
-             FROM cursors AS c
-             WHERE c.cursor_node_id = m.originator_node_id
-         )
+           AND NOT EXISTS (SELECT 1
+                           FROM cursors AS c
+                           WHERE c.cursor_node_id = m.originator_node_id)
 
          -- Do the ordering/limit on meta rows before touching blobs
          ORDER BY gateway_time, originator_node_id, originator_sequence_id
-         LIMIT NULLIF(@row_limit::INT, 0)
-     )
-SELECT
-    f.originator_node_id,
-    f.originator_sequence_id,
-    f.gateway_time,
-    f.topic,
-    b.originator_envelope
+         LIMIT NULLIF(@row_limit::INT, 0))
+SELECT f.originator_node_id,
+       f.originator_sequence_id,
+       f.gateway_time,
+       f.topic,
+       b.originator_envelope
 FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
-              ON b.originator_node_id     = f.originator_node_id
+              ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
 ORDER BY f.gateway_time, f.originator_node_id, f.originator_sequence_id;
 

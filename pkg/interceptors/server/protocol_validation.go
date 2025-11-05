@@ -55,12 +55,20 @@ func (i *ProtocolValidationInterceptor) WrapStreamingHandler(
 }
 
 func validateProtocol(protocol string) error {
-	if protocol == connect.ProtocolConnect {
+	switch protocol {
+	case connect.ProtocolGRPC, connect.ProtocolGRPCWeb:
+		return nil
+
+	case connect.ProtocolConnect:
+		return connect.NewError(
+			connect.CodeFailedPrecondition,
+			errUnsupportedProtocol,
+		)
+
+	default:
 		return connect.NewError(
 			connect.CodeFailedPrecondition,
 			errUnsupportedProtocol,
 		)
 	}
-
-	return nil
 }

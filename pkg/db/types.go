@@ -65,3 +65,23 @@ func ToVectorClock(rows []queries.GatewayEnvelopesLatest) VectorClock {
 	}
 	return vc
 }
+
+func TransformRowsByTopic(
+	rows []queries.SelectGatewayEnvelopesByTopicsRow,
+) []queries.GatewayEnvelopesView {
+	result := make([]queries.GatewayEnvelopesView, len(rows))
+	for i, row := range rows {
+		result[i] = queries.GatewayEnvelopesView(row)
+	}
+	return result
+}
+
+func TransformRowsByOriginator(
+	rows []queries.SelectGatewayEnvelopesByOriginatorsRow,
+) []queries.GatewayEnvelopesView {
+	result := make([]queries.GatewayEnvelopesView, len(rows))
+	for i, row := range rows {
+		result[i] = queries.GatewayEnvelopesView(row)
+	}
+	return result
+}

@@ -58,7 +58,7 @@ func envelopesQuery(
 		for _, env := range envs {
 			lastSeen[uint32(env.OriginatorNodeID)] = uint64(env.OriginatorSequenceID)
 		}
-		return envs, lastSeen, nil
+		return db.TransformRowsByOriginator(envs), lastSeen, nil
 	}
 }
 

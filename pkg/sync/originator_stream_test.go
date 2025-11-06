@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db"
+
 	"github.com/cenkalti/backoff/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -97,7 +99,7 @@ func getAllMessagesForOriginator(
 		},
 	)
 	require.NoError(t, err)
-	return envs
+	return db.TransformRowsByOriginator(envs)
 }
 
 func TestSyncWorkerSuccess(t *testing.T) {

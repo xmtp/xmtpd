@@ -3,17 +3,14 @@ package payer
 import (
 	"sync"
 
-	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"google.golang.org/grpc"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
-// ClientManager contains a mapping of nodeIDs to gRPC client connections.
-// These client connections are safe to be shared and re-used and will automatically attempt
-// to reconnect if the underlying socket connection is lost.
 type ClientManager struct {
 	logger           *zap.Logger
 	connections      map[uint32]*grpc.ClientConn
@@ -35,7 +32,7 @@ func NewClientManager(
 	}
 }
 
-func (c *ClientManager) GetClient(nodeID uint32) (*grpc.ClientConn, error) {
+func (c *ClientManager) GetClientConnection(nodeID uint32) (*grpc.ClientConn, error) {
 	c.connectionsMutex.RLock()
 	existing, ok := c.connections[nodeID]
 	c.connectionsMutex.RUnlock()
@@ -55,6 +52,7 @@ func (c *ClientManager) GetClient(nodeID uint32) (*grpc.ClientConn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Store the connection
 	c.connections[nodeID] = conn
 
@@ -74,7 +72,7 @@ func (c *ClientManager) newClientConnection(
 		return nil, err
 	}
 
-	conn, err := node.BuildClient(
+	conn, err := node.BuildConn(
 		grpc.WithUnaryInterceptor(c.clientMetrics.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(c.clientMetrics.StreamClientInterceptor()),
 	)

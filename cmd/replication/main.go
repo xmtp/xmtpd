@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"sync"
 	"time"
@@ -153,17 +152,6 @@ func main() {
 			logger.Fatal("starting smart contract registry", zap.Error(err))
 		}
 
-		var grpcListener net.Listener
-		if options.API.Enable {
-			grpcListener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", options.API.Port))
-			if err != nil {
-				logger.Fatal("initializing grpc listener", zap.Error(err))
-			}
-			defer func() {
-				_ = grpcListener.Close()
-			}()
-		}
-
 		feeCalculator, err := setupFeeCalculator(
 			ctx,
 			settlementChainClient,
@@ -174,14 +162,13 @@ func main() {
 			logger.Fatal("initializing fee calculator", zap.Error(err))
 		}
 
-		s, err := server.NewReplicationServer(
+		s, err := server.NewBaseServer(
 			server.WithContext(ctx),
 			server.WithLogger(logger),
 			server.WithServerOptions(&options),
 			server.WithNodeRegistry(chainRegistry),
 			server.WithDB(dbInstance),
 			server.WithFeeCalculator(feeCalculator),
-			server.WithGRPCListener(grpcListener),
 			server.WithServerVersion(version),
 		)
 		if err != nil {

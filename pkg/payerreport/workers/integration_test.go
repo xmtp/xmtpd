@@ -3,10 +3,10 @@ package workers_test
 import (
 	"crypto/ecdsa"
 	"database/sql"
-	"net"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -18,6 +18,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
 	protoEnvelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
@@ -40,12 +41,12 @@ var (
 )
 
 type multiNodeTestScaffold struct {
-	servers            []*server.ReplicationServer
+	servers            []*server.BaseServer
 	nodeIDs            []uint32
 	nodePrivateKeys    []*ecdsa.PrivateKey
 	payerPrivateKeys   []*ecdsa.PrivateKey
 	payerAddresses     []string
-	clients            []message_api.ReplicationApiClient
+	clients            []message_apiconnect.ReplicationApiClient
 	dbs                []*sql.DB
 	reportGenerators   []*workers.GeneratorWorker
 	attestationWorkers []*workers.AttestationWorker
@@ -148,12 +149,12 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	nodes := []registry.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port.Addr().(*net.TCPAddr).Port,
+			server1Port,
 			privateKey1,
 		),
 		registryTestUtils.CreateNode(
 			server2NodeID,
-			server2Port.Addr().(*net.TCPAddr).Port,
+			server2Port,
 			privateKey2,
 		),
 	}
@@ -163,10 +164,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	domainSeparator, err := reportsManager.GetDomainSeparator(t.Context())
 	require.NoError(t, err)
 
-	server1 := serverTestUtils.NewTestReplicationServer(
+	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server1Port,
+			Port:             server1Port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -177,10 +178,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			},
 		},
 	)
-	server2 := serverTestUtils.NewTestReplicationServer(
+	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server2Port,
+			Port:             server2Port,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -194,8 +195,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 
-	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
-	client2 := apiTestUtils.NewReplicationAPIClient(t, server2.Addr().String())
+	client1 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server1.Addr())
+	client2 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server2.Addr())
 
 	registrant1, err := registrant.NewRegistrant(
 		t.Context(),
@@ -307,7 +308,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	})
 
 	return multiNodeTestScaffold{
-		servers:          []*server.ReplicationServer{server1, server2},
+		servers:          []*server.BaseServer{server1, server2},
 		nodeIDs:          []uint32{server1NodeID, server2NodeID},
 		nodePrivateKeys:  []*ecdsa.PrivateKey{privateKey1, privateKey2},
 		payerPrivateKeys: []*ecdsa.PrivateKey{payerPrivateKey1, payerPrivateKey2},
@@ -315,7 +316,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 			utils.EcdsaPublicKeyToAddress(&payerPrivateKey1.PublicKey),
 			utils.EcdsaPublicKeyToAddress(&payerPrivateKey2.PublicKey),
 		},
-		clients:          []message_api.ReplicationApiClient{client1, client2},
+		clients:          []message_apiconnect.ReplicationApiClient{client1, client2},
 		dbs:              dbs,
 		reportGenerators: []*workers.GeneratorWorker{reportGenerator1, reportGenerator2},
 		registrants:      []*registrant.Registrant{registrant1, registrant2},
@@ -358,8 +359,10 @@ func (s *multiNodeTestScaffold) publishRandomMessage(
 
 	_, err := s.clients[nodeIndex].PublishPayerEnvelopes(
 		t.Context(),
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*protoEnvelopes.PayerEnvelope{payerEnv},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*protoEnvelopes.PayerEnvelope{payerEnv},
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -372,14 +375,19 @@ func (s *multiNodeTestScaffold) getMessagesFromTopic(
 ) []*protoEnvelopes.OriginatorEnvelope {
 	client := s.clients[nodeIndex]
 
-	response, err := client.QueryEnvelopes(t.Context(), &message_api.QueryEnvelopesRequest{
-		Query: &message_api.EnvelopesQuery{
-			Topics: [][]byte{topic},
+	response, err := client.QueryEnvelopes(
+		t.Context(),
+		&connect.Request[message_api.QueryEnvelopesRequest]{
+			Msg: &message_api.QueryEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					Topics: [][]byte{topic},
+				},
+			},
 		},
-	})
+	)
 	require.NoError(t, err)
 
-	return response.Envelopes
+	return response.Msg.Envelopes
 }
 
 func TestValidSignature(t *testing.T) {

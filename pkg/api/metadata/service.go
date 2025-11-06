@@ -4,33 +4,31 @@ package metadata
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/Masterminds/semver/v3"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
-const (
-	getSyncCursorMethod       = "GetSyncCursor"
-	subscribeSyncCursorMethod = "SubscribeSyncCursor"
-	getVersionMethod          = "GetVersion"
-	getPayerInfoMethod        = "GetPayerInfo"
-)
+const requestMissingMessageError = "missing request message"
 
 type Service struct {
-	metadata_api.UnimplementedMetadataApiServer
+	metadata_apiconnect.UnimplementedMetadataApiHandler
+
 	ctx              context.Context
 	logger           *zap.Logger
 	cu               CursorUpdater
 	version          *semver.Version
 	payerInfoFetcher IPayerInfoFetcher
 }
+
+var _ metadata_apiconnect.MetadataApiHandler = (*Service)(nil)
 
 func NewMetadataAPIService(
 	ctx context.Context,
@@ -50,42 +48,47 @@ func NewMetadataAPIService(
 
 func (s *Service) GetSyncCursor(
 	_ context.Context,
-	_ *metadata_api.GetSyncCursorRequest,
-) (*metadata_api.GetSyncCursorResponse, error) {
+	req *connect.Request[metadata_api.GetSyncCursorRequest],
+) (*connect.Response[metadata_api.GetSyncCursorResponse], error) {
+	s.logger.Info("received request", utils.MethodField(req.Spec().Procedure))
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(getSyncCursorMethod))
+		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}
 
-	return &metadata_api.GetSyncCursorResponse{
+	response := connect.NewResponse(&metadata_api.GetSyncCursorResponse{
 		LatestSync: s.cu.GetCursor(),
-	}, nil
+	})
+
+	return response, nil
 }
 
 func (s *Service) SubscribeSyncCursor(
-	_ *metadata_api.GetSyncCursorRequest,
-	stream metadata_api.MetadataApi_SubscribeSyncCursorServer,
+	ctx context.Context,
+	_ *connect.Request[metadata_api.GetSyncCursorRequest],
+	stream *connect.ServerStream[metadata_api.GetSyncCursorResponse],
 ) error {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(subscribeSyncCursorMethod))
+		s.logger.Debug("received request", utils.MethodField(stream.Conn().Spec().Procedure))
 	}
 
-	err := stream.SendHeader(metadata.Pairs("subscribed", "true"))
-	if err != nil {
-		return status.Errorf(codes.Internal, "could not send header: %v", err)
-	}
-
-	// send the initial cursor
-	// the subscriber will only send a new message if there was a change
+	// Send the initial cursor. The subscriber will only send a new message if there was a change.
 	cursor := s.cu.GetCursor()
-	err = stream.Send(&metadata_api.GetSyncCursorResponse{
+
+	err := stream.Send(&metadata_api.GetSyncCursorResponse{
 		LatestSync: cursor,
 	})
 	if err != nil {
-		return status.Errorf(codes.Internal, "error sending cursor: %v", err)
+		return connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("error sending cursor: %w", err),
+		)
 	}
 
-	clientID := fmt.Sprintf("client-%d", time.Now().UnixNano())
-	updateChan := make(chan struct{}, 1)
+	var (
+		clientID   = fmt.Sprintf("client-%d", time.Now().UnixNano())
+		updateChan = make(chan struct{}, 1)
+	)
+
 	s.cu.AddSubscriber(clientID, updateChan)
 	defer s.cu.RemoveSubscriber(clientID)
 
@@ -98,17 +101,22 @@ func (s *Service) SubscribeSyncCursor(
 					LatestSync: cursor,
 				})
 				if err != nil {
-					return status.Errorf(codes.Internal, "error sending cursor: %v", err)
+					return connect.NewError(
+						connect.CodeInternal,
+						fmt.Errorf("error sending cursor: %w", err),
+					)
 				}
 			} else {
 				s.logger.Debug("channel closed by worker")
 				return nil
 			}
-		case <-stream.Context().Done():
-			s.logger.Debug("stream closed")
+
+		case <-ctx.Done():
+			s.logger.Debug("metadata subscription stream closed")
 			return nil
+
 		case <-s.ctx.Done():
-			s.logger.Debug("service closed")
+			s.logger.Debug("metadata service closed")
 			return nil
 		}
 	}
@@ -116,41 +124,56 @@ func (s *Service) SubscribeSyncCursor(
 
 func (s *Service) GetVersion(
 	_ context.Context,
-	_ *metadata_api.GetVersionRequest,
-) (*metadata_api.GetVersionResponse, error) {
+	req *connect.Request[metadata_api.GetVersionRequest],
+) (*connect.Response[metadata_api.GetVersionResponse], error) {
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(getVersionMethod))
+		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
 	}
 
 	if s.version == nil {
 		s.logger.Error("version is not set")
-		return nil, status.Errorf(codes.Internal, "version is not set")
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			errors.New("version is not set"),
+		)
 	}
 
-	return &metadata_api.GetVersionResponse{
+	response := connect.NewResponse(&metadata_api.GetVersionResponse{
 		Version: s.version.String(),
-	}, nil
+	})
+
+	return response, nil
 }
 
 func (s *Service) GetPayerInfo(
 	ctx context.Context,
-	req *metadata_api.GetPayerInfoRequest,
-) (*metadata_api.GetPayerInfoResponse, error) {
+	req *connect.Request[metadata_api.GetPayerInfoRequest],
+) (*connect.Response[metadata_api.GetPayerInfoResponse], error) {
+	if req.Msg == nil {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New(requestMissingMessageError),
+		)
+	}
+
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		s.logger.Debug(
 			"received request",
-			utils.MethodField(getPayerInfoMethod),
+			utils.MethodField(req.Spec().Procedure),
 			utils.BodyField(req),
 		)
 	}
 
-	if len(req.PayerAddresses) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "payer_addresses cannot be empty")
+	if len(req.Msg.PayerAddresses) == 0 {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("payer_addresses cannot be empty"),
+		)
 	}
 
 	// Map the granularity enum to the internal type
 	var groupBy PayerInfoGroupBy
-	switch req.Granularity {
+	switch req.Msg.Granularity {
 	case metadata_api.PayerInfoGranularity_PAYER_INFO_GRANULARITY_HOUR:
 		groupBy = PayerInfoGroupByHour
 	case metadata_api.PayerInfoGranularity_PAYER_INFO_GRANULARITY_DAY:
@@ -161,24 +184,30 @@ func (s *Service) GetPayerInfo(
 	}
 
 	// Initialize response
-	response := &metadata_api.GetPayerInfoResponse{
+	response := connect.NewResponse(&metadata_api.GetPayerInfoResponse{
 		PayerInfo: make(map[string]*metadata_api.GetPayerInfoResponse_PayerInfo),
-	}
+	})
 
 	// Look up each payer address and fetch their info
-	for _, address := range req.PayerAddresses {
+	for _, address := range req.Msg.PayerAddresses {
 		// Look up payer ID from the database
 		payerID, err := s.payerInfoFetcher.GetPayerByAddress(ctx, address)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return nil, status.Errorf(codes.NotFound, "payer address not found: %s", address)
+				return nil, connect.NewError(
+					connect.CodeNotFound,
+					fmt.Errorf("payer address not found: %s", address),
+				)
 			}
 			s.logger.Error("failed to find payer",
-				utils.MethodField(getPayerInfoMethod),
+				utils.MethodField(req.Spec().Procedure),
 				utils.PayerAddressField(address),
 				zap.Error(err),
 			)
-			return nil, status.Errorf(codes.Internal, "failed to look up payer")
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				errors.New("failed to look up payer"),
+			)
 		}
 
 		// Fetch payer info from the fetcher
@@ -189,19 +218,18 @@ func (s *Service) GetPayerInfo(
 		)
 		if err != nil {
 			s.logger.Error("failed to get payer info",
-				utils.MethodField(getPayerInfoMethod),
+				utils.MethodField(req.Spec().Procedure),
 				utils.PayerAddressField(address),
 				utils.PayerIDField(payerID),
 				zap.Error(err),
 			)
-			return nil, status.Errorf(
-				codes.Internal,
-				"failed to get payer info for address: %s",
-				address,
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("failed to get payer info for address: %s", address),
 			)
 		}
 
-		response.PayerInfo[address] = payerInfo
+		response.Msg.PayerInfo[address] = payerInfo
 	}
 
 	return response, nil

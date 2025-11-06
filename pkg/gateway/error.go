@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/grpc/codes"
+	"connectrpc.com/connect"
 )
 
 type GatewayServiceError interface {
 	error
-	Code() codes.Code
+	Code() connect.Code
 	ClientMessage() string
 	RetryAfter() *time.Duration
 }
@@ -31,8 +31,8 @@ func (e PermissionDeniedError) ClientMessage() string {
 	return e.msg
 }
 
-func (e PermissionDeniedError) Code() codes.Code {
-	return codes.PermissionDenied
+func (e PermissionDeniedError) Code() connect.Code {
+	return connect.CodePermissionDenied
 }
 
 func (e PermissionDeniedError) RetryAfter() *time.Duration {
@@ -60,8 +60,8 @@ func (e UnauthenticatedError) ClientMessage() string {
 	return e.msg
 }
 
-func (e UnauthenticatedError) Code() codes.Code {
-	return codes.Unauthenticated
+func (e UnauthenticatedError) Code() connect.Code {
+	return connect.CodeUnauthenticated
 }
 
 func (e UnauthenticatedError) RetryAfter() *time.Duration {
@@ -89,8 +89,8 @@ func (e RateLimitExceededError) ClientMessage() string {
 	return "rate limit exceeded"
 }
 
-func (e RateLimitExceededError) Code() codes.Code {
-	return codes.ResourceExhausted
+func (e RateLimitExceededError) Code() connect.Code {
+	return connect.CodeResourceExhausted
 }
 
 func (e RateLimitExceededError) RetryAfter() *time.Duration {

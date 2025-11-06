@@ -4,11 +4,35 @@ package utils
 import (
 	"context"
 	"net"
+	"net/http"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
+
+func AuthorizationHeaderFromContext(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+
+	auth := md.Get("authorization")
+	if len(auth) == 0 {
+		return ""
+	}
+
+	return strings.TrimPrefix(auth[0], "Bearer ")
+}
+
+func AuthorizationTokenFromHeader(headers http.Header) string {
+	token := headers.Get("authorization")
+	if len(token) == 0 {
+		return ""
+	}
+
+	return strings.TrimPrefix(token, "Bearer ")
+}
 
 func ClientIPFromContext(ctx context.Context) string {
 	md, _ := metadata.FromIncomingContext(ctx)
@@ -30,4 +54,33 @@ func ClientIPFromContext(ctx context.Context) string {
 	// There are potentially multiple comma separated IPs bundled in that first value
 	ips := strings.Split(vals[0], ",")
 	return strings.TrimSpace(ips[0])
+}
+
+func ClientIPFromHeaderOrPeer(headers http.Header, peer string) string {
+	xForwardedFor := headers.Get("x-forwarded-for")
+
+	// Try peer string if x-forwarded-for is not set.
+	if len(xForwardedFor) == 0 {
+		if peer != "" {
+			host, _, err := net.SplitHostPort(peer)
+			if err != nil {
+				return ""
+			}
+			return host
+		}
+
+		return ""
+	}
+
+	// There are potentially multiple comma separated IPs bundled in that first value.
+	// Return the first non-empty IP.
+	ips := strings.Split(xForwardedFor, ",")
+	for _, ip := range ips {
+		trimmed := strings.TrimSpace(ip)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+
+	return ""
 }

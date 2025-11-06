@@ -6,9 +6,11 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
@@ -25,70 +27,83 @@ import (
 
 	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/fees"
+	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewReplicationAPIClient(
+// TODO: Create Connect-based clients for all APIs.
+// TODO: Create gRPC-Web clients for all APIs.
+
+/* gRPC clients */
+
+func NewTestGRPCReplicationAPIClient(
 	t *testing.T,
 	addr string,
-) message_api.ReplicationApiClient {
-	// https://github.com/grpc/grpc/blob/master/doc/naming.md
-	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
-	conn, err := grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.ReplicationApiClient {
+	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
-	client := message_api.NewReplicationApiClient(conn)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
+
+	client, err := utils.NewConnectGRPCReplicationAPIClient(
+		t.Context(),
+		fmt.Sprintf("http://localhost:%s", port),
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create replication API client: %v", err)
+	}
+
 	return client
 }
 
-func NewPayerAPIClient(
+func NewTestGRPCGatewayAPIClient(
 	t *testing.T,
 	addr string,
-) payer_api.PayerApiClient {
-	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
-	conn, err := grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
+	extraDialOpts ...connect.ClientOption,
+) payer_apiconnect.PayerApiClient {
+	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
-	client := payer_api.NewPayerApiClient(conn)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
+
+	client, err := utils.NewConnectGatewayAPIClient(
+		t.Context(),
+		fmt.Sprintf("http://localhost:%s", port),
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create gateway API client: %v", err)
+	}
+
 	return client
 }
 
-func NewMetadataAPIClient(
+func NewTestGRPCMetadataAPIClient(
 	t *testing.T,
 	addr string,
-) metadata_api.MetadataApiClient {
-	dialAddr := fmt.Sprintf("passthrough://localhost/%s", addr)
-	conn, err := grpc.NewClient(
-		dialAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(),
-	)
+	extraDialOpts ...connect.ClientOption,
+) metadata_apiconnect.MetadataApiClient {
+	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
-	client := metadata_api.NewMetadataApiClient(conn)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
+
+	options := append([]connect.ClientOption{
+		connect.WithGRPC(),
+	}, extraDialOpts...)
+
+	client, err := utils.NewConnectMetadataAPIClient(
+		t.Context(),
+		fmt.Sprintf("http://localhost:%s", port),
+		options...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create metadata API client: %v", err)
+	}
+
 	return client
 }
 
@@ -98,17 +113,41 @@ type APIServerMocks struct {
 	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
 }
 
-func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
-	ctx, cancel := context.WithCancel(context.Background())
-	log := testutils.NewLog(t)
-	db, _ := testutils.NewDB(t, ctx)
+type APIServerTestSuite struct {
+	APIServer         *api.APIServer
+	ClientReplication message_apiconnect.ReplicationApiClient
+	ClientPayer       payer_apiconnect.PayerApiClient
+	ClientMetadata    metadata_apiconnect.MetadataApiClient
+	DB                *sql.DB
+	APIServerMocks    APIServerMocks
+}
+
+// NewTestAPIServer creates a full API server with all services.
+// It creates a mock database, mock registry, mock validation service, mock message publisher,
+// and mock API server.
+// It returns the mock API server, mock database, and mock API server mocks.
+func NewTestAPIServer(
+	t *testing.T,
+) *APIServerTestSuite {
+	var (
+		ctx, cancel           = context.WithCancel(context.Background())
+		log                   = testutils.NewLog(t)
+		db, _                 = testutils.NewDB(t, ctx)
+		mockRegistry          = mocks.NewMockNodeRegistry(t)
+		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
+		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
+	)
+
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
+
 	privKeyStr := "0x" + utils.HexEncode(crypto.FromECDSA(privKey))
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+
+	// Mock registry behavior.
 	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
 		{NodeID: 100, SigningKey: &privKey.PublicKey},
 	}, nil)
+
 	registrant, err := registrant.NewRegistrant(
 		ctx,
 		log,
@@ -118,8 +157,6 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 		nil,
 	)
 	require.NoError(t, err)
-	mockMessagePublisher := blockchain.NewMockIBlockchainPublisher(t)
-	mockValidationService := mlsvalidateMocks.NewMockMLSValidationService(t)
 
 	jwtVerifier, err := authn.NewRegistryVerifier(
 		log,
@@ -129,7 +166,11 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 	)
 	require.NoError(t, err)
 
-	serviceRegistrationFunc := func(grpcServer *grpc.Server) error {
+	authInterceptor := server.NewServerAuthInterceptor(jwtVerifier, log)
+
+	serviceRegistrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
+		interceptors = append(interceptors, authInterceptor)
+
 		replicationService, err := message.NewReplicationAPIService(
 			ctx,
 			log,
@@ -145,7 +186,11 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 			10*time.Millisecond,
 		)
 		require.NoError(t, err)
-		message_api.RegisterReplicationApiServer(grpcServer, replicationService)
+
+		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
 
 		payerService, err := payer.NewPayerAPIService(
 			ctx,
@@ -157,7 +202,11 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 			0,
 		)
 		require.NoError(t, err)
-		payer_api.RegisterPayerApiServer(grpcServer, payerService)
+
+		payerPath, payerHandler := payer_apiconnect.NewPayerApiHandler(
+			payerService,
+			connect.WithInterceptors(interceptors...),
+		)
 
 		metadataService, err := metadata.NewMetadataAPIService(
 			ctx,
@@ -167,35 +216,38 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 			metadata.NewPayerInfoFetcher(db),
 		)
 		require.NoError(t, err)
-		metadata_api.RegisterMetadataApiServer(grpcServer, metadataService)
 
-		return nil
+		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
+			metadataService,
+			connect.WithInterceptors(interceptors...),
+		)
+
+		mux.Handle(replicationPath, replicationHandler)
+		mux.Handle(payerPath, payerHandler)
+		mux.Handle(metadataPath, metadataHandler)
+
+		return []string{
+			message_apiconnect.ReplicationApiName,
+			payer_apiconnect.PayerApiName,
+			metadata_apiconnect.MetadataApiName,
+		}, nil
 	}
 
-	grpcListener, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = grpcListener.Close()
-	})
+	ln := networkTestUtils.OpenListener(t)
 
 	apiOpts := []api.APIServerOption{
 		api.WithContext(ctx),
 		api.WithLogger(log),
-		api.WithGRPCListener(grpcListener),
+		api.WithListener(ln),
 		api.WithRegistrationFunc(serviceRegistrationFunc),
 		api.WithReflection(true),
 		api.WithPrometheusRegistry(prometheus.NewRegistry()),
 	}
 
-	// Add auth interceptors
-	authInterceptor := server.NewAuthInterceptor(jwtVerifier, log)
-	apiOpts = append(apiOpts,
-		api.WithUnaryInterceptors(authInterceptor.Unary()),
-		api.WithStreamInterceptors(authInterceptor.Stream()),
-	)
-
 	svr, err := api.NewAPIServer(apiOpts...)
 	require.NoError(t, err)
+
+	svr.Start()
 
 	allMocks := APIServerMocks{
 		MockRegistry:          mockRegistry,
@@ -205,24 +257,19 @@ func NewTestAPIServer(t *testing.T) (*api.APIServer, *sql.DB, APIServerMocks) {
 
 	t.Cleanup(func() {
 		cancel()
-		svr.Close(0)
+		svr.Close(10 * time.Second)
 	})
 
-	return svr, db, allMocks
-}
+	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
+	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
+	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
-func NewTestReplicationAPIClient(
-	t *testing.T,
-) (message_api.ReplicationApiClient, *sql.DB, APIServerMocks) {
-	svc, db, allMocks := NewTestAPIServer(t)
-	client := NewReplicationAPIClient(t, svc.Addr().String())
-	return client, db, allMocks
-}
-
-func NewTestMetadataAPIClient(
-	t *testing.T,
-) (metadata_api.MetadataApiClient, *sql.DB, APIServerMocks) {
-	svc, db, allMocks := NewTestAPIServer(t)
-	client := NewMetadataAPIClient(t, svc.Addr().String())
-	return client, db, allMocks
+	return &APIServerTestSuite{
+		APIServer:         svr,
+		APIServerMocks:    allMocks,
+		ClientReplication: clientReplication,
+		ClientPayer:       clientPayer,
+		ClientMetadata:    clientMetadata,
+		DB:                db,
+	}
 }

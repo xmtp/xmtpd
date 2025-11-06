@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -19,12 +19,22 @@ func createTestLogger() (*zap.Logger, *observer.ObservedLogs) {
 	return logger, observedLogs
 }
 
-type mockServerStream struct {
-	grpc.ServerStream
+type mockConnectRequestLoggingInterceptor struct {
+	connect.AnyRequest
+	procedure string
 }
 
-func (m *mockServerStream) Context() context.Context {
-	return context.Background()
+func (m *mockConnectRequestLoggingInterceptor) Spec() connect.Spec {
+	return connect.Spec{Procedure: m.procedure}
+}
+
+type mockStreamingConnLoggingInterceptor struct {
+	connect.StreamingHandlerConn
+	procedure string
+}
+
+func (m *mockStreamingConnLoggingInterceptor) Spec() connect.Spec {
+	return connect.Spec{Procedure: m.procedure}
 }
 
 func TestUnaryLoggingInterceptor(t *testing.T) {
@@ -33,18 +43,15 @@ func TestUnaryLoggingInterceptor(t *testing.T) {
 	interceptor, err := NewLoggingInterceptor(logger)
 	require.NoError(t, err)
 
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 		return nil, status.Errorf(codes.Internal, "mock internal error")
 	}
 
 	ctx := context.Background()
-	info := &grpc.UnaryServerInfo{
-		FullMethod: "/test.TestService/TestMethod",
-	}
-	req := struct{}{}
+	req := &mockConnectRequestLoggingInterceptor{procedure: "/test.TestService/TestMethod"}
 
-	interceptorUnary := interceptor.Unary()
-	_, err = interceptorUnary(ctx, req, info, handler)
+	wrappedUnary := interceptor.WrapUnary(next)
+	_, err = wrappedUnary(ctx, req)
 
 	require.Error(t, err)
 	require.Equal(t, 1, logs.Len(), "expected one log entry but got none")
@@ -60,10 +67,10 @@ func TestUnaryLoggingInterceptor(t *testing.T) {
 		"expected log to contain correct method",
 	)
 	require.Contains(t, logEntry.ContextMap(), "message")
-	require.Equal(
+	require.Contains(
 		t,
-		"mock internal error",
 		logEntry.ContextMap()["message"],
+		"mock internal error",
 		"expected log to contain correct error message",
 	)
 }
@@ -73,18 +80,15 @@ func TestStreamLoggingInterceptor(t *testing.T) {
 	interceptor, err := NewLoggingInterceptor(logger)
 	require.NoError(t, err)
 
-	handler := func(srv interface{}, ss grpc.ServerStream) error {
+	next := func(ctx context.Context, conn connect.StreamingHandlerConn) error {
 		return status.Errorf(codes.NotFound, "mock stream error")
 	}
 
-	info := &grpc.StreamServerInfo{
-		FullMethod: "/test.TestService/TestStream",
-	}
+	ctx := context.Background()
+	conn := &mockStreamingConnLoggingInterceptor{procedure: "/test.TestService/TestStream"}
 
-	stream := &mockServerStream{}
-
-	interceptorStream := interceptor.Stream()
-	err = interceptorStream(nil, stream, info, handler)
+	wrappedStream := interceptor.WrapStreamingHandler(next)
+	err = wrappedStream(ctx, conn)
 
 	require.Error(t, err)
 	require.Equal(t, 1, logs.Len(), "expected one log entry but got none")
@@ -100,10 +104,10 @@ func TestStreamLoggingInterceptor(t *testing.T) {
 		"expected log to contain correct method",
 	)
 	require.Contains(t, logEntry.ContextMap(), "message")
-	require.Equal(
+	require.Contains(
 		t,
-		"mock stream error",
 		logEntry.ContextMap()["message"],
+		"mock stream error",
 		"expected log to contain correct error message",
 	)
 }

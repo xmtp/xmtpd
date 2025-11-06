@@ -126,7 +126,7 @@ func (b *XmtpdGatewayContainerBuilder) Build(t *testing.T) (testcontainers.Conta
 		},
 		Networks:       []string{b.networkName},
 		NetworkAliases: aliases,
-		WaitingFor:     wait.ForLog("serving grpc"),
+		WaitingFor:     wait.ForLog("started api server"),
 	}
 
 	xmtpdContainer, err := testcontainers.GenericContainer(

@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
@@ -15,47 +16,92 @@ import (
 	contents "github.com/xmtp/xmtpd/pkg/proto/mls/message_contents"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 )
 
 type EnvelopesGenerator struct {
-	client       message_api.ReplicationApiClient
-	cleanup      func() error
+	client       message_apiconnect.ReplicationApiClient
+	cleanup      func()
 	privateKey   *ecdsa.PrivateKey
 	originatorID uint32
 }
+
+type Protocol int
+
+const (
+	ProtocolConnect Protocol = iota
+	ProtocolConnectGRPC
+	ProtocolConnectGRPCWeb
+	ProtocolNativeGRPC
+)
 
 func NewEnvelopesGenerator(
 	nodeHTTPAddress string,
 	privateKeyString string,
 	originatorID uint32,
+	protocol Protocol,
 ) (*EnvelopesGenerator, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
 	}
 
-	conn, err := buildGRPCConnection(nodeHTTPAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build gRPC client: %v", err)
-	}
+	var client message_apiconnect.ReplicationApiClient
 
-	client := message_api.NewReplicationApiClient(conn)
+	switch protocol {
+	case ProtocolConnect:
+		client, err = utils.NewConnectReplicationAPIClient(
+			ctx,
+			nodeHTTPAddress,
+			utils.BuildConnectProtocolDialOptions()...,
+		)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to build replication API client: %w", err)
+		}
+
+	case ProtocolConnectGRPC:
+		client, err = utils.NewConnectGRPCReplicationAPIClient(
+			ctx,
+			nodeHTTPAddress,
+			utils.BuildGRPCDialOptions()...)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to build replication API client: %w", err)
+		}
+
+	case ProtocolConnectGRPCWeb:
+		client, err = utils.NewConnectGRPCWebReplicationAPIClient(
+			ctx,
+			nodeHTTPAddress,
+			utils.BuildGRPCWebDialOptions()...)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to build replication API client: %w", err)
+		}
+
+	default:
+		cancel()
+		return nil, fmt.Errorf("invalid protocol: %d", protocol)
+	}
 
 	return &EnvelopesGenerator{
 		client:       client,
-		cleanup:      func() error { return conn.Close() },
+		cleanup:      func() { cancel() },
 		privateKey:   privateKey,
 		originatorID: originatorID,
 	}, nil
 }
 
 func (e *EnvelopesGenerator) Close() error {
-	return e.cleanup()
+	e.cleanup()
+	return nil
 }
 
 // PublishWelcomeMessageEnvelopes publishes welcome message envelopes to the XMTPD node.
@@ -127,15 +173,15 @@ func (e *EnvelopesGenerator) publishPayerEnvelopes(
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
 	r, err := e.client.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
 			PayerEnvelopes: payerEnvelopes,
-		},
+		}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish payer envelopes: %v", err)
 	}
 
-	return r.OriginatorEnvelopes, err
+	return r.Msg.OriginatorEnvelopes, nil
 }
 
 func (e *EnvelopesGenerator) buildAndSignPayerEnvelopes(
@@ -263,43 +309,4 @@ func makeGroupMessageEnvelope(size string) *envelopesProto.ClientEnvelope {
 				Bytes(),
 		},
 	}
-}
-
-func buildGRPCConnection(
-	nodeHTTPAddress string,
-	extraDialOpts ...grpc.DialOption,
-) (*grpc.ClientConn, error) {
-	target, isTLS, err := utils.HTTPAddressToGRPCTarget(nodeHTTPAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert HTTP address to gRPC target: %v", err)
-	}
-
-	if target == "" {
-		return nil, fmt.Errorf("empty gRPC target")
-	}
-
-	creds, err := utils.GetCredentialsForAddress(isTLS)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials: %v", err)
-	}
-
-	dialOpts := append([]grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithDefaultCallOptions(),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                30 * time.Second,
-			Timeout:             10 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	}, extraDialOpts...)
-
-	conn, err := grpc.NewClient(
-		target,
-		dialOpts...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create channel at %s: %v", target, err)
-	}
-
-	return conn, nil
 }

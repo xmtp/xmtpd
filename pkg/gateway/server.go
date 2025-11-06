@@ -33,6 +33,8 @@ type gatewayServiceImpl struct {
 
 // Shutdown gracefully stops the API server and cleans up resources.
 func (s *gatewayServiceImpl) Shutdown(timeout time.Duration) error {
+	s.logger.Info("shutting down gateway service")
+
 	if s.metrics != nil {
 		s.metrics.Close()
 	}
@@ -57,11 +59,12 @@ func (s *gatewayServiceImpl) Shutdown(timeout time.Duration) error {
 		s.apiServer.Close(timeout)
 	}
 
+	s.logger.Info("gateway service stopped")
+
 	return nil
 }
 
-func (s *gatewayServiceImpl) WaitForShutdown() {
-	timeout := 5 * time.Second
+func (s *gatewayServiceImpl) WaitForShutdown(timeout time.Duration) {
 	termChannel := make(chan os.Signal, 1)
 	signal.Notify(termChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	sig := <-termChannel

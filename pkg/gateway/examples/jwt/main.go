@@ -1,15 +1,17 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xmtp/xmtpd/pkg/gateway"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-const EXPECTED_ISSUER = "my-app.com"
+const expectedIssuer = "my-app.com"
 
 var (
 	ErrMissingToken     = errors.New("missing JWT token")
@@ -19,8 +21,8 @@ var (
 
 // jwtIdentityFn creates an identity function that verifies JWTs
 func jwtIdentityFn(publicKey []byte) gateway.IdentityFn {
-	return func(ctx context.Context) (gateway.Identity, error) {
-		authHeader := gateway.AuthorizationHeaderFromContext(ctx)
+	return func(headers http.Header, _ string) (gateway.Identity, error) {
+		authHeader := utils.AuthorizationTokenFromHeader(headers)
 		if authHeader == "" {
 			return gateway.Identity{}, gateway.NewUnauthenticatedError(
 				"Missing JWT token",
@@ -42,7 +44,7 @@ func jwtIdentityFn(publicKey []byte) gateway.IdentityFn {
 				}
 				return publicKey, nil
 			},
-			jwt.WithIssuer(EXPECTED_ISSUER),
+			jwt.WithIssuer(expectedIssuer),
 		)
 		if err != nil {
 			return gateway.Identity{}, gateway.NewPermissionDeniedError(
@@ -84,5 +86,5 @@ func main() {
 		log.Fatalf("failed to build gateway service: %v", err)
 	}
 
-	gatewayService.WaitForShutdown()
+	gatewayService.WaitForShutdown(30 * time.Second)
 }

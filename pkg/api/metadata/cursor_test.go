@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
+	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 
 	"github.com/xmtp/xmtpd/pkg/api/message"
 	dbUtils "github.com/xmtp/xmtpd/pkg/db"
@@ -19,16 +21,18 @@ import (
 )
 
 var (
-	topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
-	topicB = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
+	topicA  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
+	topicB  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
+	allRows []queries.InsertGatewayEnvelopeParams
 )
-var allRows []queries.InsertGatewayEnvelopeParams
 
 func setupTest(
 	t *testing.T,
-) (metadata_api.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
-	api, db, mocks := testUtilsApi.NewTestMetadataAPIClient(t)
-	payerID := dbUtils.NullInt32(testutils.CreatePayer(t, db))
+) (metadata_apiconnect.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
+	var (
+		suite   = testUtilsApi.NewTestAPIServer(t)
+		payerID = dbUtils.NullInt32(testutils.CreatePayer(t, suite.DB))
+	)
 
 	allRows = []queries.InsertGatewayEnvelopeParams{
 		// Initial rows
@@ -85,7 +89,7 @@ func setupTest(
 		},
 	}
 
-	return api, db, mocks
+	return suite.ClientMetadata, suite.DB, suite.APIServerMocks
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
@@ -107,7 +111,10 @@ func TestGetCursorBasic(t *testing.T) {
 
 	ctx := t.Context()
 
-	cursor, err := client.GetSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
+	cursor, err := client.GetSyncCursor(
+		ctx,
+		connect.NewRequest(&metadata_api.GetSyncCursorRequest{}),
+	)
 
 	require.NoError(t, err)
 	require.NotNil(t, cursor)
@@ -117,7 +124,7 @@ func TestGetCursorBasic(t *testing.T) {
 		200: 1,
 	}
 
-	require.Equal(t, expectedCursor, cursor.LatestSync.NodeIdToSequenceId)
+	require.Equal(t, expectedCursor, cursor.Msg.LatestSync.NodeIdToSequenceId)
 
 	insertAdditionalRows(t, db)
 	require.Eventually(t, func() bool {
@@ -126,17 +133,21 @@ func TestGetCursorBasic(t *testing.T) {
 			200: 2,
 		}
 
-		cursor, err := client.GetSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
+		cursor, err := client.GetSyncCursor(
+			ctx,
+			connect.NewRequest(&metadata_api.GetSyncCursorRequest{}),
+		)
 		if err != nil {
 			t.Logf("Error fetching sync cursor: %v", err)
 			return false
 		}
+
 		if cursor == nil {
 			t.Log("Cursor is nil")
 			return false
 		}
 
-		return assert.ObjectsAreEqual(expectedCursor, cursor.LatestSync.NodeIdToSequenceId)
+		return assert.ObjectsAreEqual(expectedCursor, cursor.Msg.LatestSync.NodeIdToSequenceId)
 	}, 500*time.Millisecond, 50*time.Millisecond)
 }
 
@@ -146,12 +157,18 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 
 	ctx := t.Context()
 
-	stream, err := client.SubscribeSyncCursor(ctx, &metadata_api.GetSyncCursorRequest{})
+	stream, err := client.SubscribeSyncCursor(
+		ctx,
+		connect.NewRequest(&metadata_api.GetSyncCursorRequest{}),
+	)
 	require.NoError(t, err)
 	require.NotNil(t, stream)
 
-	firstUpdate, err := stream.Recv()
-	require.NoError(t, err)
+	// Advance to the first update, otherwise stream.Msg() will be nil.
+	shouldReceive := stream.Receive()
+	require.True(t, shouldReceive)
+
+	firstUpdate := stream.Msg()
 	require.NotNil(t, firstUpdate)
 
 	expectedCursor := map[uint32]uint64{
@@ -163,22 +180,17 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 
 	insertAdditionalRows(t, db)
 
+	expectedCursor = map[uint32]uint64{
+		100: 3,
+		200: 2,
+	}
+
 	require.Eventually(t, func() bool {
-		expectedCursor := map[uint32]uint64{
-			100: 3,
-			200: 2,
+		if stream.Receive() {
+			cursor := stream.Msg()
+			require.NotNil(t, cursor)
+			return assert.ObjectsAreEqual(expectedCursor, cursor.LatestSync.NodeIdToSequenceId)
 		}
-
-		update, err := stream.Recv()
-		if err != nil {
-			t.Logf("Error receiving sync cursor update: %v", err)
-			return false
-		}
-		if update == nil {
-			t.Log("Received nil update from stream")
-			return false
-		}
-
-		return assert.ObjectsAreEqual(expectedCursor, update.LatestSync.NodeIdToSequenceId)
-	}, 500*time.Millisecond, 50*time.Millisecond)
+		return false
+	}, 2000*time.Millisecond, 10*time.Millisecond)
 }

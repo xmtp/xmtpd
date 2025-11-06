@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"google.golang.org/grpc/codes"
 
 	"go.uber.org/zap"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -28,6 +25,9 @@ type LoggingInterceptor struct {
 	logger *zap.Logger
 }
 
+// Connect-go interceptor interface implementation.
+var _ connect.Interceptor = (*LoggingInterceptor)(nil)
+
 // NewLoggingInterceptor creates a new instance of LoggingInterceptor.
 func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 	if logger == nil {
@@ -39,26 +39,23 @@ func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 	}, nil
 }
 
-// Unary intercepts unary RPC calls to log errors.
-func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
-	return func(
-		ctx context.Context,
-		req interface{},
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+func (i *LoggingInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 		start := time.Now()
-		resp, err := handler(ctx, req) // Call the actual RPC handler
+
+		// Call the actual RPC handler.
+		resp, err := next(ctx, req)
+
 		duration := time.Since(start)
 
 		if err != nil {
-			st, _ := status.FromError(err)
+			code := connect.CodeOf(err)
 			i.logger.Error(
 				"client unary RPC error",
-				utils.MethodField(info.FullMethod),
+				utils.MethodField(req.Spec().Procedure),
 				utils.DurationMsField(duration),
-				zap.String(codeField, st.Code().String()),
-				zap.String(messageField, st.Message()),
+				zap.String(codeField, code.String()),
+				zap.String(messageField, err.Error()),
 			)
 		}
 
@@ -66,26 +63,35 @@ func (i *LoggingInterceptor) Unary() grpc.UnaryServerInterceptor {
 	}
 }
 
-// Stream intercepts stream RPC calls to log errors.
-func (i *LoggingInterceptor) Stream() grpc.StreamServerInterceptor {
+// WrapStreamingClient is a no-op. Interface requirement.
+func (i *LoggingInterceptor) WrapStreamingClient(
+	next connect.StreamingClientFunc,
+) connect.StreamingClientFunc {
+	return next
+}
+
+func (i *LoggingInterceptor) WrapStreamingHandler(
+	next connect.StreamingHandlerFunc,
+) connect.StreamingHandlerFunc {
 	return func(
-		srv interface{},
-		ss grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
+		ctx context.Context,
+		conn connect.StreamingHandlerConn,
 	) error {
 		start := time.Now()
-		err := handler(srv, ss) // Call the actual stream handler
+
+		// Call the actual stream handler.
+		err := next(ctx, conn)
+
 		duration := time.Since(start)
 
 		if err != nil {
-			st, _ := status.FromError(err)
+			code := connect.CodeOf(err)
 			i.logger.Error(
 				"stream client RPC error",
-				utils.MethodField(info.FullMethod),
+				utils.MethodField(conn.Spec().Procedure),
 				utils.DurationMsField(duration),
-				zap.String(codeField, st.Code().String()),
-				zap.String(messageField, st.Message()),
+				zap.String(codeField, code.String()),
+				zap.String(messageField, err.Error()),
 			)
 		}
 
@@ -108,34 +114,44 @@ func sanitizeError(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	var (
-		finalCode codes.Code
+		finalCode connect.Code
 		finalMsg  string
 	)
+
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		finalCode = codes.DeadlineExceeded
+		finalCode = connect.CodeDeadlineExceeded
 		finalMsg = "request timed out"
+
 	case errors.Is(err, context.Canceled):
-		finalCode = codes.Canceled
+		finalCode = connect.CodeCanceled
 		finalMsg = "request was canceled"
+
 	default:
-		if st, ok := status.FromError(err); ok {
-			finalCode = st.Code()
+		connectErr, ok := err.(*connect.Error)
+		if ok {
+			finalCode = connectErr.Code()
+
 			switch finalCode {
-			case codes.InvalidArgument, codes.Unimplemented, codes.NotFound:
-				finalMsg = st.Message()
-			case codes.Internal:
+			case connect.CodeInvalidArgument, connect.CodeUnimplemented, connect.CodeNotFound:
+				finalMsg = connectErr.Message()
+
+			case connect.CodeInternal:
 				finalMsg = "internal server error"
+
 			default:
 				finalMsg = "request has failed"
 			}
 		} else {
-			finalCode = codes.Internal
-			finalMsg = "internal server error"
+			finalCode = connect.CodeUnknown
+			finalMsg = "unknown error"
 		}
 	}
+
 	// Emit metric for every non-nil error path
-	metrics.EmitNewFailedGRPCRequest(finalCode)
-	return status.Error(finalCode, finalMsg)
+	metrics.EmitNewFailedGRPCRequest(connect.Code(finalCode))
+
+	return connect.NewError(finalCode, errors.New(finalMsg))
 }

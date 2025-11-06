@@ -128,7 +128,7 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 }
 
 func (i *Indexer) Close() {
-	i.logger.Debug("stopping")
+	i.logger.Debug("closing")
 
 	if i.appChain != nil {
 		i.appChain.Stop()
@@ -141,10 +141,10 @@ func (i *Indexer) Close() {
 	i.cancel()
 	i.wg.Wait()
 
-	i.logger.Debug("stopped")
+	i.logger.Debug("closed")
 }
 
-func (i *Indexer) StartIndexer() error {
+func (i *Indexer) Start() error {
 	err := i.appChain.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start app chain: %w", err)

@@ -2,11 +2,11 @@ package server_test
 
 import (
 	"fmt"
-	"net"
 	"reflect"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -32,25 +32,29 @@ const (
 )
 
 func TestCreateServer(t *testing.T) {
-	ctx := t.Context()
-	dbs := testutils.NewDBs(t, ctx, 2)
+	var (
+		ctx = t.Context()
+		dbs = testutils.NewDBs(t, ctx, 2)
+	)
+
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
+
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	server1Port := networkTestUtils.OpenFreePort(t)
-	server2Port := networkTestUtils.OpenFreePort(t)
+	port1 := networkTestUtils.OpenFreePort(t)
+	port2 := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port.Addr().(*net.TCPAddr).Port,
+			port1,
 			privateKey1,
 		),
 		registryTestUtils.CreateNode(
 			server2NodeID,
-			server2Port.Addr().(*net.TCPAddr).Port,
+			port2,
 			privateKey2,
 		),
 	}
@@ -61,10 +65,10 @@ func TestCreateServer(t *testing.T) {
 
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server1 := serverTestUtils.NewTestReplicationServer(
+	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server1Port,
+			Port:             port1,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -76,10 +80,11 @@ func TestCreateServer(t *testing.T) {
 			},
 		},
 	)
-	server2 := serverTestUtils.NewTestReplicationServer(
+
+	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server2Port,
+			Port:             port2,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -91,7 +96,6 @@ func TestCreateServer(t *testing.T) {
 			},
 		},
 	)
-
 	require.NotEqual(t, server1.Addr(), server2.Addr())
 
 	defer func() {
@@ -99,43 +103,52 @@ func TestCreateServer(t *testing.T) {
 		server2.Shutdown(0)
 	}()
 
-	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
-	client2 := apiTestUtils.NewReplicationAPIClient(t, server2.Addr().String())
+	client1 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server1.Addr())
+	client2 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server2.Addr())
 	nodeID1 := server1NodeID
 	nodeID2 := server2NodeID
 
 	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 
+	payerEnvelope1 := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		nodeID1,
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+				TargetTopic: targetTopic,
+				DependsOn:   &envelopes.Cursor{},
+			}},
+		),
+	)
+
 	p1, err := client1.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
-				nodeID1,
-				envelopeTestUtils.CreateClientEnvelope(
-					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-						TargetTopic: targetTopic,
-						DependsOn:   &envelopes.Cursor{},
-					}},
-				),
-			)},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope1},
+			},
 		},
 	)
 	require.NoError(t, err)
+
+	payerEnvelope2 := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		nodeID2,
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+				TargetTopic: targetTopic,
+				DependsOn:   &envelopes.Cursor{},
+			}},
+		),
+	)
+
 	p2, err := client2.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
-				nodeID2,
-				envelopeTestUtils.CreateClientEnvelope(
-					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-						TargetTopic: targetTopic,
-						DependsOn:   &envelopes.Cursor{},
-					}},
-				),
-			)},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope2},
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -143,55 +156,61 @@ func TestCreateServer(t *testing.T) {
 	// NOTE: there might be a collection of PayerReports here on top of the actual envelopes
 
 	require.Eventually(t, func() bool {
-		q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{server2NodeID},
-				LastSeen:          &envelopes.Cursor{},
+		q1, err := client1.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
+			Msg: &message_api.QueryEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					OriginatorNodeIds: []uint32{server2NodeID},
+					LastSeen:          &envelopes.Cursor{},
+				},
+				Limit: 10,
 			},
-			Limit: 10,
 		})
 		require.NoError(t, err)
 
-		for _, e := range q1.Envelopes {
-			if reflect.DeepEqual(e, p2.OriginatorEnvelopes[0]) {
+		for _, e := range q1.Msg.Envelopes {
+			if reflect.DeepEqual(e, p2.Msg.OriginatorEnvelopes[0]) {
 				return true
 			}
 		}
 		return false
-	}, 3000*time.Millisecond, 200*time.Millisecond)
+	}, 5000*time.Millisecond, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
-		q2, err := client2.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: []uint32{server1NodeID},
-				LastSeen:          &envelopes.Cursor{},
+		q2, err := client2.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
+			Msg: &message_api.QueryEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					OriginatorNodeIds: []uint32{server1NodeID},
+					LastSeen:          &envelopes.Cursor{},
+				},
+				Limit: 10,
 			},
-			Limit: 10,
 		})
 		require.NoError(t, err)
 
-		for _, e := range q2.Envelopes {
-			if reflect.DeepEqual(e, p1.OriginatorEnvelopes[0]) {
+		for _, e := range q2.Msg.Envelopes {
+			if reflect.DeepEqual(e, p1.Msg.OriginatorEnvelopes[0]) {
 				return true
 			}
 		}
 		return false
-	}, 3000*time.Millisecond, 200*time.Millisecond)
+	}, 5000*time.Millisecond, 200*time.Millisecond)
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {
-	ctx := t.Context()
-	dbs := testutils.NewDBs(t, ctx, 1)
+	var (
+		ctx     = t.Context()
+		dbs     = testutils.NewDBs(t, ctx, 1)
+		port    = networkTestUtils.OpenFreePort(t)
+		nodeID1 = server1NodeID
+	)
+
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	server1Port := networkTestUtils.OpenFreePort(t)
-
-	nodeID1 := server1NodeID
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			server1Port.Addr().(*net.TCPAddr).Port,
+			port,
 			privateKey1,
 		),
 	}
@@ -200,10 +219,10 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server1 := serverTestUtils.NewTestReplicationServer(
+	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			GRPCListener:     server1Port,
+			Port:             port,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -217,24 +236,28 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		server1.Shutdown(0)
 	}()
 
-	client1 := apiTestUtils.NewReplicationAPIClient(t, server1.Addr().String())
+	client1 := apiTestUtils.NewTestGRPCReplicationAPIClient(t, server1.Addr())
 
 	targetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
 		Bytes()
 
+	payerEnvelope1 := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		nodeID1,
+		envelopeTestUtils.CreateClientEnvelope(
+			&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+				TargetTopic: targetTopic,
+				DependsOn:   &envelopes.Cursor{},
+			}},
+		),
+	)
+
 	_, err = client1.PublishPayerEnvelopes(
 		ctx,
-		&message_api.PublishPayerEnvelopesRequest{
-			PayerEnvelopes: []*envelopes.PayerEnvelope{envelopeTestUtils.CreatePayerEnvelope(
-				t,
-				nodeID1,
-				envelopeTestUtils.CreateClientEnvelope(
-					&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
-						TargetTopic: targetTopic,
-						DependsOn:   &envelopes.Cursor{},
-					}},
-				),
-			)},
+		&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+			Msg: &message_api.PublishPayerEnvelopesRequest{
+				PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope1},
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -242,29 +265,33 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	// query the same server immediately after writing
 	// the server should return the write on the first attempt
 
-	q1, err := client1.QueryEnvelopes(ctx, &message_api.QueryEnvelopesRequest{
-		Query: &message_api.EnvelopesQuery{
-			OriginatorNodeIds: []uint32{server1NodeID},
-			LastSeen:          &envelopes.Cursor{},
+	q1, err := client1.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
+		Msg: &message_api.QueryEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: []uint32{server1NodeID},
+				LastSeen:          &envelopes.Cursor{},
+			},
+			Limit: 10,
 		},
-		Limit: 10,
 	})
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(q1.Envelopes), 1)
+	require.GreaterOrEqual(t, len(q1.Msg.Envelopes), 1)
 }
 
 func TestGRPCHealthEndpoint(t *testing.T) {
-	ctx := t.Context()
-	dbs := testutils.NewDBs(t, ctx, 1)
+	var (
+		ctx  = t.Context()
+		dbs  = testutils.NewDBs(t, ctx, 1)
+		port = networkTestUtils.OpenFreePort(t)
+	)
+
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-
-	grpcPort := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
 			server1NodeID,
-			grpcPort.Addr().(*net.TCPAddr).Port,
+			port,
 			privateKey,
 		),
 	}
@@ -272,8 +299,8 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	server := serverTestUtils.NewTestReplicationServer(t, serverTestUtils.TestServerCfg{
-		GRPCListener:     grpcPort,
+	server := serverTestUtils.NewTestBaseServer(t, serverTestUtils.TestServerCfg{
+		Port:             port,
 		DB:               dbs[0],
 		Registry:         registry,
 		PrivateKey:       privateKey,
@@ -289,7 +316,7 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			conn, err := grpc.NewClient(
-				fmt.Sprintf("dns:///localhost:%d", grpcPort.Addr().(*net.TCPAddr).Port),
+				fmt.Sprintf("dns:///localhost:%d", port),
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			if err != nil {

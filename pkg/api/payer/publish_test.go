@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -28,6 +29,8 @@ import (
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	nodeRegistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,15 +45,39 @@ func (c *FixedMetadataAPIClientConstructor) NewMetadataAPIClient(
 }
 
 type MockSubscribeSyncCursorClient struct {
-	metadata_api.MetadataApi_SubscribeSyncCursorClient
+	metadata_api.MetadataApiClient
 	ctx     context.Context
 	updates []*metadata_api.GetSyncCursorResponse
 	err     error
 	index   int
 }
 
+var _ grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse] = (*MockSubscribeSyncCursorClient)(
+	nil,
+)
+
+func (m *MockSubscribeSyncCursorClient) Context() context.Context {
+	return m.ctx
+}
+
+func (m *MockSubscribeSyncCursorClient) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
 func (m *MockSubscribeSyncCursorClient) CloseSend() error {
-	return nil // No-op for the mock
+	return nil
+}
+
+func (m *MockSubscribeSyncCursorClient) Trailer() metadata.MD {
+	return nil
+}
+
+func (m *MockSubscribeSyncCursorClient) RecvMsg(req any) error {
+	return nil
+}
+
+func (m *MockSubscribeSyncCursorClient) SendMsg(req any) error {
+	return nil
 }
 
 // Recv simulates receiving cursor updates over time.
@@ -123,15 +150,15 @@ func TestPublishIdentityUpdate(t *testing.T) {
 
 	publishResponse, err := svc.PublishClientEnvelopes(
 		ctx,
-		&payer_api.PublishClientEnvelopesRequest{
+		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
 			Envelopes: []*envelopesProto.ClientEnvelope{envelope},
-		},
+		}),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
 
-	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 
@@ -146,13 +173,13 @@ func TestPublishIdentityUpdate(t *testing.T) {
 }
 
 func TestPublishToNodes(t *testing.T) {
-	originatorServer, _, _ := apiTestUtils.NewTestAPIServer(t)
+	suite := apiTestUtils.NewTestAPIServer(t)
 
 	ctx := context.Background()
 	svc, _, mockRegistry, _ := buildPayerService(t)
 
 	mockRegistry.EXPECT().GetNode(mock.Anything).Return(&registry.Node{
-		HTTPAddress: formatAddress(originatorServer.Addr().String()),
+		HTTPAddress: formatAddress(suite.APIServer.Addr()),
 	}, nil)
 
 	mockRegistry.On("GetNodes").Return([]registry.Node{
@@ -167,15 +194,15 @@ func TestPublishToNodes(t *testing.T) {
 
 	publishResponse, err := svc.PublishClientEnvelopes(
 		ctx,
-		&payer_api.PublishClientEnvelopesRequest{
+		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
 			Envelopes: []*envelopesProto.ClientEnvelope{testGroupMessage},
-		},
+		}),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
 
-	responseEnvelope := publishResponse.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 

@@ -449,4 +449,5 @@ func (m *BlockchainPublisher) Close() {
 	m.logger.Info("closing")
 	m.replenishCancel()
 	m.wg.Wait()
+	m.logger.Info("closed")
 }

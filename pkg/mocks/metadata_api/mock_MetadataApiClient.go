@@ -248,7 +248,7 @@ func (_c *MockMetadataApiClient_GetVersion_Call) RunAndReturn(run func(context.C
 }
 
 // SubscribeSyncCursor provides a mock function with given fields: ctx, in, opts
-func (_m *MockMetadataApiClient) SubscribeSyncCursor(ctx context.Context, in *metadata_api.GetSyncCursorRequest, opts ...grpc.CallOption) (metadata_api.MetadataApi_SubscribeSyncCursorClient, error) {
+func (_m *MockMetadataApiClient) SubscribeSyncCursor(ctx context.Context, in *metadata_api.GetSyncCursorRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse], error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -262,16 +262,16 @@ func (_m *MockMetadataApiClient) SubscribeSyncCursor(ctx context.Context, in *me
 		panic("no return value specified for SubscribeSyncCursor")
 	}
 
-	var r0 metadata_api.MetadataApi_SubscribeSyncCursorClient
+	var r0 grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse]
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *metadata_api.GetSyncCursorRequest, ...grpc.CallOption) (metadata_api.MetadataApi_SubscribeSyncCursorClient, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *metadata_api.GetSyncCursorRequest, ...grpc.CallOption) (grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse], error)); ok {
 		return rf(ctx, in, opts...)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *metadata_api.GetSyncCursorRequest, ...grpc.CallOption) metadata_api.MetadataApi_SubscribeSyncCursorClient); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *metadata_api.GetSyncCursorRequest, ...grpc.CallOption) grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse]); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(metadata_api.MetadataApi_SubscribeSyncCursorClient)
+			r0 = ret.Get(0).(grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse])
 		}
 	}
 
@@ -311,12 +311,12 @@ func (_c *MockMetadataApiClient_SubscribeSyncCursor_Call) Run(run func(ctx conte
 	return _c
 }
 
-func (_c *MockMetadataApiClient_SubscribeSyncCursor_Call) Return(_a0 metadata_api.MetadataApi_SubscribeSyncCursorClient, _a1 error) *MockMetadataApiClient_SubscribeSyncCursor_Call {
+func (_c *MockMetadataApiClient_SubscribeSyncCursor_Call) Return(_a0 grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse], _a1 error) *MockMetadataApiClient_SubscribeSyncCursor_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockMetadataApiClient_SubscribeSyncCursor_Call) RunAndReturn(run func(context.Context, *metadata_api.GetSyncCursorRequest, ...grpc.CallOption) (metadata_api.MetadataApi_SubscribeSyncCursorClient, error)) *MockMetadataApiClient_SubscribeSyncCursor_Call {
+func (_c *MockMetadataApiClient_SubscribeSyncCursor_Call) RunAndReturn(run func(context.Context, *metadata_api.GetSyncCursorRequest, ...grpc.CallOption) (grpc.ServerStreamingClient[metadata_api.GetSyncCursorResponse], error)) *MockMetadataApiClient_SubscribeSyncCursor_Call {
 	_c.Call.Return(run)
 	return _c
 }

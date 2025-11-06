@@ -2,14 +2,14 @@ package payer_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	nodeRegistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestGetReaderNode(t *testing.T) {
@@ -35,15 +35,22 @@ func TestGetReaderNode(t *testing.T) {
 			},
 		},
 		{
-			name:    "no nodes available",
-			nodes:   []registry.Node{},
+			name:  "no nodes available",
+			nodes: []registry.Node{},
+			registryError: connect.NewError(
+				connect.CodeUnavailable,
+				errors.New("no nodes available"),
+			),
 			wantErr: true,
 		},
 		{
-			name:          "registry error",
-			nodes:         nil,
-			registryError: status.Errorf(codes.Unavailable, "registry unavailable"),
-			wantErr:       true,
+			name:  "registry error",
+			nodes: nil,
+			registryError: connect.NewError(
+				connect.CodeUnavailable,
+				errors.New("registry unavailable"),
+			),
+			wantErr: true,
 		},
 		{
 			name: "single node",
@@ -65,8 +72,7 @@ func TestGetReaderNode(t *testing.T) {
 
 			registryMocks.On("GetNodes").Return(tt.nodes, tt.registryError)
 
-			resp, err := svc.GetNodes(ctx, &payer_api.GetNodesRequest{})
-
+			resp, err := svc.GetNodes(ctx, connect.NewRequest(&payer_api.GetNodesRequest{}))
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Nil(t, resp)
@@ -74,7 +80,7 @@ func TestGetReaderNode(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, resp)
 				if tt.checkResponse != nil {
-					tt.checkResponse(t, resp)
+					tt.checkResponse(t, resp.Msg)
 				}
 			}
 		})

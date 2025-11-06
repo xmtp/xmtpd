@@ -28,7 +28,9 @@ func mockSubscriptionOnePage(
 	t *testing.T,
 	envs []*envelopes.OriginatorEnvelope,
 ) message_api.ReplicationApi_SubscribeEnvelopesClient {
-	stream := messageApiMocks.NewMockReplicationApi_SubscribeEnvelopesClient(t)
+	stream := messageApiMocks.NewMockReplicationApi_SubscribeEnvelopesClient[*message_api.SubscribeEnvelopesResponse](
+		t,
+	)
 	hasSent := false
 	stream.EXPECT().
 		Recv().

@@ -25,17 +25,17 @@ func formatAddress(addr string) string {
 }
 
 func TestClientManager(t *testing.T) {
-	server1, _, _ := apiTestUtils.NewTestAPIServer(t)
-	server2, _, _ := apiTestUtils.NewTestAPIServer(t)
+	suite1 := apiTestUtils.NewTestAPIServer(t)
+	suite2 := apiTestUtils.NewTestAPIServer(t)
 
 	mockRegistry := registry2.CreateMockRegistry(t, []registry.Node{
 		{
 			NodeID:      100,
-			HTTPAddress: formatAddress(server1.Addr().String()),
+			HTTPAddress: formatAddress(suite1.APIServer.Addr()),
 		},
 		{
 			NodeID:      200,
-			HTTPAddress: formatAddress(server2.Addr().String()),
+			HTTPAddress: formatAddress(suite2.APIServer.Addr()),
 		},
 	})
 
@@ -43,7 +43,7 @@ func TestClientManager(t *testing.T) {
 
 	cm := payer.NewClientManager(testutils.NewLog(t), mockRegistry, prometheus.NewClientMetrics())
 
-	client1, err := cm.GetClient(100)
+	client1, err := cm.GetClientConnection(100)
 	require.NoError(t, err)
 	require.NotNil(t, client1)
 
@@ -55,10 +55,10 @@ func TestClientManager(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, healthResponse.Status)
 
-	client2, err := cm.GetClient(200)
+	client2, err := cm.GetClientConnection(200)
 	require.NoError(t, err)
 	require.NotNil(t, client2)
 
-	_, err = cm.GetClient(300)
+	_, err = cm.GetClientConnection(300)
 	require.Error(t, err)
 }

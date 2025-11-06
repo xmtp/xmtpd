@@ -69,10 +69,10 @@ func NewMetricsServer(
 }
 
 func (s *Server) Close() {
-	s.logger.Debug("stopping")
+	s.logger.Debug("closing")
 	_ = s.http.Close()
 	s.wg.Wait()
-	s.logger.Debug("stopped")
+	s.logger.Debug("closed")
 }
 
 func registerCollectors(reg prometheus.Registerer) {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -62,20 +63,24 @@ func parseResults(
 }
 
 func TestGetNewestEnvelope(t *testing.T) {
-	api, db, _ := apiTestUtils.NewTestReplicationAPIClient(t)
-	installationID1 := testutils.RandomGroupID()
-	installationID2 := testutils.RandomGroupID()
-	installationID3 := testutils.RandomGroupID()
-	installationID4 := testutils.RandomGroupID()
+	var (
+		suite           = apiTestUtils.NewTestAPIServer(t)
+		installationID1 = testutils.RandomGroupID()
+		installationID2 = testutils.RandomGroupID()
+		installationID3 = testutils.RandomGroupID()
+		installationID4 = testutils.RandomGroupID()
+	)
 
 	// Installation ID 1 has three key packages
-	topic1, _ := writeKeyPackage(t, db, installationID1[:])
+	topic1, _ := writeKeyPackage(t, suite.DB, installationID1[:])
+
 	// This one is totally ignored
-	_, _ = writeKeyPackage(t, db, installationID1[:])
+	_, _ = writeKeyPackage(t, suite.DB, installationID1[:])
+
 	// This one is the newest
-	_, seq1 := writeKeyPackage(t, db, installationID1[:])
-	topic2, seq2 := writeKeyPackage(t, db, installationID2[:])
-	topic3, seq3 := writeKeyPackage(t, db, installationID3[:])
+	_, seq1 := writeKeyPackage(t, suite.DB, installationID1[:])
+	topic2, seq2 := writeKeyPackage(t, suite.DB, installationID2[:])
+	topic3, seq3 := writeKeyPackage(t, suite.DB, installationID3[:])
 
 	// A topic that doesn't have anything in the DB
 	topic4 := *topic.NewTopic(topic.TopicKindKeyPackagesV1, installationID4[:])
@@ -125,15 +130,17 @@ func TestGetNewestEnvelope(t *testing.T) {
 			for i, topic := range c.requestedTopics {
 				requestedTopicsBytes[i] = topic.Bytes()
 			}
-			resp, err := api.GetNewestEnvelope(
+
+			resp, err := suite.ClientReplication.GetNewestEnvelope(
 				context.Background(),
-				&message_api.GetNewestEnvelopeRequest{
+				connect.NewRequest(&message_api.GetNewestEnvelopeRequest{
 					Topics: requestedTopicsBytes,
-				},
+				}),
 			)
 			require.NoError(t, err)
-			require.Equal(t, c.expectedNumReturned, len(resp.Results))
-			parsedResults := parseResults(t, resp.Results)
+			require.Equal(t, c.expectedNumReturned, len(resp.Msg.Results))
+
+			parsedResults := parseResults(t, resp.Msg.Results)
 			for i, topic := range c.expectedTopics {
 				if topic == nil {
 					require.Nil(t, parsedResults[i])

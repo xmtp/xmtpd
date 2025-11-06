@@ -2,121 +2,133 @@ package client
 
 import (
 	"context"
-	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/testutils"
-	"google.golang.org/grpc"
+	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 // Create a mock implementation of the ReplicationApiServer interface
-// but that embeds `UnimplementedReplicationApiServer` (which mockery won't do for us)
+// but that embeds `message_apiconnect.ReplicationApiHandler` (which mockery won't do for us)
 type mockReplicationAPIServer struct {
-	message.Service
+	message_apiconnect.ReplicationApiHandler
 	expectedToken string
 }
 
 func (s *mockReplicationAPIServer) QueryEnvelopes(
 	ctx context.Context,
-	req *message_api.QueryEnvelopesRequest,
-) (*message_api.QueryEnvelopesResponse, error) {
-	// Get metadata from the context
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "metadata is not provided")
-	}
-
+	req *connect.Request[message_api.QueryEnvelopesRequest],
+) (*connect.Response[message_api.QueryEnvelopesResponse], error) {
 	// Extract and verify the token
-	tokens := md.Get(constants.NodeAuthorizationHeaderName)
-	if len(tokens) == 0 {
+	token := req.Header().Get(constants.NodeAuthorizationHeaderName)
+	if token == "" {
 		return nil, status.Error(codes.Unauthenticated, "authorization token is not provided")
 	}
-	token := tokens[0]
+
 	if token != s.expectedToken {
 		return nil, status.Error(codes.Unauthenticated, "invalid authorization token")
 	}
 
 	// You can add more assertions here to verify the token's content
-	// For example, you might want to decode the token and check its claims
-	return &message_api.QueryEnvelopesResponse{}, nil
+	// For example, you might want to decode the token and check its claims.
+	return &connect.Response[message_api.QueryEnvelopesResponse]{
+		Msg: &message_api.QueryEnvelopesResponse{},
+	}, nil
 }
 
-func TestAuthInterceptor(t *testing.T) {
-	privateKey := testutils.RandomPrivateKey(t)
-	myNodeID := uint32(100)
-	targetNodeID := uint32(200)
-	tokenFactory := authn.NewTokenFactory(privateKey, myNodeID, nil)
-	interceptor := NewAuthInterceptor(tokenFactory, targetNodeID)
-	token, err := interceptor.getToken()
-	require.NoError(t, err)
-
-	// Use a bufconn listener to simulate a gRPC connection without actually dialing
-	listener := bufconn.Listen(1024 * 1024)
-
-	// Register the mock service on the server
-	server := grpc.NewServer()
-	message_api.RegisterReplicationApiServer(
-		server,
+func newMockReplicationAPIServer(
+	token *authn.Token,
+) (server *httptest.Server, addr string) {
+	// Mock handler for the replication API.
+	path, handler := message_apiconnect.NewReplicationApiHandler(
 		&mockReplicationAPIServer{expectedToken: token.SignedString},
 	)
 
-	// Start the gRPC server in a goroutine
-	go func() {
-		if err := server.Serve(listener); err != nil {
-			t.Fail()
-		}
-	}()
+	// Create a new HTTP mux to serve the API handlers.
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
 
-	t.Cleanup(func() {
-		server.Stop()
-		_ = listener.Close()
+	// Allow HTTP/2 and HTTP/1.1 connections.
+	h2cHandler := h2c.NewHandler(mux, &http2.Server{
+		IdleTimeout: 5 * time.Minute,
 	})
 
-	// Connect to the fake server and set the right interceptors
-	conn, err := grpc.NewClient(
-		"passthrough://bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return listener.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(interceptor.Unary()),
+	// Create the HTTP server to serve the API handlers.
+	server = httptest.NewServer(h2cHandler)
+
+	return server, strings.TrimPrefix(server.URL, "http://")
+}
+
+func TestAuthInterceptor(t *testing.T) {
+	var (
+		privateKey        = testutils.RandomPrivateKey(t)
+		myNodeID          = uint32(100)
+		targetNodeID      = uint32(200)
+		wrongTargetNodeID = uint32(300)
+		tokenFactory      = authn.NewTokenFactory(privateKey, myNodeID, nil)
+		interceptorHappy  = NewClientAuthInterceptor(tokenFactory, targetNodeID)
+		interceptorFail   = NewClientAuthInterceptor(tokenFactory, wrongTargetNodeID)
+	)
+
+	token, err := interceptorHappy.getToken()
+	require.NoError(t, err)
+
+	// Create a mock server to serve the API handlers.
+	server, addr := newMockReplicationAPIServer(token)
+	defer server.Close()
+
+	// Happy path: Create client with interceptor, should succeed its queries.
+	client := apiTestUtils.NewTestGRPCReplicationAPIClient(
+		t,
+		addr,
+		connect.WithInterceptors(interceptorHappy),
+	)
+
+	// Call the unary method and check the response.
+	_, err = client.QueryEnvelopes(
+		t.Context(),
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{}),
 	)
 	require.NoError(t, err)
-	defer func() { _ = conn.Close() }()
 
-	// Create a client with the connection
-	client := message_api.NewReplicationApiClient(conn)
-
-	// Call the unary method and check the response
-	_, err = client.QueryEnvelopes(context.Background(), &message_api.QueryEnvelopesRequest{})
-	require.NoError(t, err)
-
-	// Create another client without the interceptor
-	connWithoutInterceptor, err := grpc.NewClient(
-		"passthrough://bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return listener.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	// Sad path: Create another client without the interceptor, should fail its queries.
+	client = apiTestUtils.NewTestGRPCReplicationAPIClient(
+		t,
+		addr,
 	)
-	require.NoError(t, err)
-	defer func() {
-		_ = connWithoutInterceptor.Close()
-	}()
 
-	client = message_api.NewReplicationApiClient(connWithoutInterceptor)
-
-	// Call the unary method and check the response
-	_, err = client.QueryEnvelopes(context.Background(), &message_api.QueryEnvelopesRequest{})
+	_, err = client.QueryEnvelopes(
+		t.Context(),
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{}),
+	)
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "authorization token is not provided")
+
+	// Sad path: Create another client with the wrong target node ID, should fail its queries.
+	client = apiTestUtils.NewTestGRPCReplicationAPIClient(
+		t,
+		addr,
+		connect.WithInterceptors(interceptorFail),
+	)
+
+	_, err = client.QueryEnvelopes(
+		t.Context(),
+		connect.NewRequest(&message_api.QueryEnvelopesRequest{}),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid authorization token")
 }

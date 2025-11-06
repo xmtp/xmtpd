@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,7 +107,7 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 
 	// TODO: Do we need more timeouts?
 	svc.httpServer = &http.Server{
-		Handler:     h2cHandler,
+		Handler:     handleCORS(h2cHandler),
 		IdleTimeout: 5 * time.Minute,
 	}
 
@@ -212,4 +213,57 @@ func (svc *APIServer) registerReflectionHandlers(mux *http.ServeMux, servicePath
 	mux.Handle(pathV1Alpha, handlerV1Alpha)
 
 	svc.logger.Info("reflection handler v1 alpha registered")
+}
+
+func handleCORS(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow all origins.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// Expose gRPC/gRPC-Web status headers to browsers.
+		w.Header().Set("Access-Control-Expose-Headers",
+			"grpc-status,grpc-message,grpc-status-details-bin")
+
+		// Cache CORS preflight requests for 24 hours.
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Handle OPTIONS preflight requests.
+		if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
+			handleCORSOptionsPreflight(w, r)
+			return
+		}
+
+		// Serve the request.
+		h.ServeHTTP(w, r)
+	})
+}
+
+func handleCORSOptionsPreflight(w http.ResponseWriter, _ *http.Request) {
+	// Allowed headers.
+	headers := []string{
+		"Content-Type",
+		"Accept",
+		"Authorization",
+		"X-Client-Version",
+		"X-App-Version",
+		"Baggage",
+		"DNT",
+		"Sec-CH-UA",
+		"Sec-CH-UA-Mobile",
+		"Sec-CH-UA-Platform",
+		"x-grpc-web",
+		"grpc-timeout",
+		"Sentry-Trace",
+		"User-Agent",
+		"x-libxmtp-version",
+		"x-app-version",
+	}
+	w.Header().Set("Access-Control-Allow-Headers", strings.Join(headers, ","))
+
+	// Allowed methods.
+	methods := []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}
+	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
+
+	// No content is the correct response for an OPTIONS preflight request.
+	w.WriteHeader(http.StatusNoContent)
 }

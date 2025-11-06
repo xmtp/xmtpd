@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -46,6 +48,7 @@ func NewTestBaseServer(
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithFeeCalculator(fees.NewTestFeeCalculator()),
+		s.WithPromReg(prometheus.NewRegistry()),
 		s.WithServerOptions(&config.ServerOptions{
 			API: config.APIOptions{
 				Port:                  cfg.Port,

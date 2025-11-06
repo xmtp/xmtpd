@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/jessevdk/go-flags"
@@ -92,6 +94,8 @@ func main() {
 	var wg sync.WaitGroup
 	doneC := make(chan bool, 1)
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
+		promReg := prometheus.NewRegistry()
+
 		var dbInstance *sql.DB
 
 		if options.Debug.Enable {
@@ -124,6 +128,7 @@ func main() {
 				namespace,
 				options.DB.WaitForDB,
 				options.DB.ReadTimeout,
+				promReg,
 			)
 			if err != nil {
 				logger.Fatal("initializing database", zap.Error(err))
@@ -170,6 +175,7 @@ func main() {
 			server.WithDB(dbInstance),
 			server.WithFeeCalculator(feeCalculator),
 			server.WithServerVersion(version),
+			server.WithPromReg(promReg),
 		)
 		if err != nil {
 			logger.Fatal("initializing server", zap.Error(err))

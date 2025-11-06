@@ -173,6 +173,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		cfg.options.Namespace,
 		cfg.options.WaitForDB,
 		cfg.options.ReaderTimeout,
+		nil,
 	)
 	if err != nil {
 		return nil, err

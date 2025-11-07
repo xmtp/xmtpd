@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/exaring/otelpgx"
@@ -164,7 +165,7 @@ func NewNamespacedDB(
 	if prom != nil {
 
 		// enable SQL tracing
-		config.ConnConfig.Tracer = otelpgx.NewTracer()
+		config.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithSpanNameFunc(spanNamer))
 
 		mp, err := bindOTelToProm(prom)
 		if err != nil {
@@ -213,7 +214,8 @@ func ConnectToDB(
 	if prom != nil {
 
 		// enable SQL tracing
-		config.ConnConfig.Tracer = otelpgx.NewTracer()
+		config.ConnConfig.Tracer = otelpgx.NewTracer(
+			otelpgx.WithSpanNameFunc(spanNamer))
 
 		mp, err := bindOTelToProm(prom)
 		if err != nil {
@@ -242,4 +244,18 @@ func bindOTelToProm(reg *prometheus.Registry) (*sdkmetric.MeterProvider, error) 
 	)
 	otel.SetMeterProvider(mp)
 	return mp, nil
+}
+
+var qnameRE = regexp.MustCompile(`/\*\s*name:([^)*/]+)\*/`)
+
+func spanNamer(stmt string) string {
+	if m := qnameRE.FindStringSubmatch(stmt); m != nil {
+		return "db.sqlc." + strings.TrimSpace(m[1])
+	}
+	// fallback: first word of SQL (SELECT/INSERT/etc.)
+	fs := strings.Fields(stmt)
+	if len(fs) > 0 {
+		return "db." + strings.ToUpper(fs[0])
+	}
+	return "db.query"
 }

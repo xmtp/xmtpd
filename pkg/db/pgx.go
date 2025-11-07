@@ -159,18 +159,18 @@ func NewNamespacedDB(
 
 	config.ConnConfig.Database = namespace
 
+	// enable SQL tracing
+	config.ConnConfig.Tracer = &tracelog.TraceLog{
+		Logger:   metrics.PromLogger{},
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
 	db, pool, err := newPGXDB(ctx, config, waitForDB)
 	if err != nil {
 		return nil, err
 	}
 
 	if prom != nil {
-
-		// enable SQL tracing
-		config.ConnConfig.Tracer = &tracelog.TraceLog{
-			Logger:   metrics.PromLogger{},
-			LogLevel: tracelog.LogLevelTrace,
-		}
 
 		mp, err := bindOTelToProm(prom)
 		if err != nil {
@@ -211,18 +211,18 @@ func ConnectToDB(
 		config.ConnConfig.Database = namespace
 	}
 
+	// enable SQL tracing
+	config.ConnConfig.Tracer = &tracelog.TraceLog{
+		Logger:   metrics.PromLogger{},
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
 	db, pool, err := newPGXDB(ctx, config, waitForDB)
 	if err != nil {
 		return nil, err
 	}
 
 	if prom != nil {
-
-		// enable SQL tracing
-		config.ConnConfig.Tracer = &tracelog.TraceLog{
-			Logger:   metrics.PromLogger{},
-			LogLevel: tracelog.LogLevelTrace,
-		}
 
 		mp, err := bindOTelToProm(prom)
 		if err != nil {

@@ -24,7 +24,7 @@ The xmtpd system uses a **dual-protocol architecture**:
 
 - **External/Client-Facing APIs**: Implemented with **Connect-RPC handlers** that automatically support three protocols:
 
-  - Connect (HTTP/1.1 or HTTP/2 with standard HTTP semantics)
+  - Connect (HTTP/1.1 or HTTP/2 with standard HTTP semantics). **Currently not allowed**.
   - gRPC (HTTP/2 with gRPC protocol)
   - gRPC-Web (browser-compatible gRPC)
 
@@ -41,7 +41,7 @@ This approach provides **maximum flexibility for clients** (they can use any pro
 ```ascii
 ┌──────────────────────────────────────────────────────────────────────┐
 │                      XMTP Client Applications                        │
-│              (Connect, gRPC, or gRPC-Web protocols)                  │
+│                    (gRPC, or gRPC-Web protocols)                     │
 └──────────────────────────────────────────────────────────────────────┘
                                   │
                     HTTP/1.1, HTTP/2, or gRPC
@@ -84,7 +84,7 @@ This approach provides **maximum flexibility for clients** (they can use any pro
 
 ### Connect-RPC vs gRPC: What's the Difference?
 
-**Connect-RPC** (used for client-facing APIs):
+**Connect-RPC**:
 
 - Built on standard HTTP semantics (works with HTTP/1.1 and HTTP/2)
 - Single handler implementation supports 3 protocols automatically
@@ -94,7 +94,7 @@ This approach provides **maximum flexibility for clients** (they can use any pro
 - Compatible with existing gRPC clients (accepts gRPC protocol)
 - Simpler middleware/interceptor model
 
-**Native gRPC** (used for internal communication):
+**Native gRPC**:
 
 - Requires HTTP/2
 - High-performance binary protocol
@@ -104,13 +104,15 @@ This approach provides **maximum flexibility for clients** (they can use any pro
 
 ### Why This Architecture?
 
-1. **Client Flexibility**: External clients can use whatever protocol works best for them (mobile SDKs can use Connect, existing gRPC clients work unchanged, browsers can use Connect-Web or gRPC-Web)
+1. **Client Flexibility**: External clients can use whatever protocol works best for them (existing gRPC clients work unchanged, browsers can use gRPC-Web from WASM)
 
 2. **Simplified Deployment**: Connect-RPC works with standard HTTP infrastructure (no special h2c requirements in production with proper load balancers)
 
 3. **Internal Performance**: Native gRPC for internal communication provides battle-tested performance and reliability
 
 4. **Single Codebase**: Connect-RPC handlers are generated from the same .proto files as gRPC, maintaining type safety and consistency
+
+5. **Future Proof**: While not currently allowed, Connect-RPC might be enabled in the future, enabling clients and SDK's to use their preferred choice.
 
 ## Protocol Stack
 
@@ -135,9 +137,7 @@ When running in production, prefer HTTPS with HTTP/2 (no h2c) unless traffic is 
 
 - Connect (default via connect-go)
 
-  - Use for Go services and services that benefit from protocol flexibility
-  - Works over HTTP/1.1 and HTTP/2; supports Protobuf and JSON
-  - Best developer ergonomics and browser compatibility via Connect-Web
+  - Not supported currently.
 
 - gRPC (classic)
 
@@ -152,9 +152,9 @@ When running in production, prefer HTTPS with HTTP/2 (no h2c) unless traffic is 
 
 Rule of thumb:
 
-- Local dev without TLS: h2c + Connect or gRPC
+- Local dev without TLS: gRPC, gRPC-Web
 - Production: HTTPS + HTTP/2; terminate TLS at ingress (Envoy/NGINX) and forward HTTP/1.1 or h2c to backend
-- Browser clients: Connect-Web or gRPC-Web
+- Browser clients: gRPC-Web
 
 ## Client-Facing APIs
 
@@ -615,23 +615,26 @@ curl -X POST http://localhost:5050/grpc.health.v1.Health/Check \
 
 **Query Envelopes**:
 
+Binary data has to be built from protos manually. Only interesting in local development.
+
 ```bash
 curl -X POST http://localhost:5050/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": {
-      "topics": ["<base64-encoded-topic>"]
-    },
-    "limit": 10
-  }'
+  -H "Content-Type: application/grpc" \
+  -H "Accept: application/grpc" \
+  --data-binary @<(head -c 5 /dev/zero) \
+  --output -
 ```
 
 **Get Version**:
 
+Note that `GetVersion` doesn't accept a request, but a plain `curl` requires to send an empty request.
+
 ```bash
-curl -X POST http://localhost:5050/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X POST https://grpc.testnet-dev.xmtp.network:443/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion \
+    -H "Content-Type: application/grpc-web" \
+    -H "Accept: application/grpc-web" \
+    --data-binary @<(head -c 5 /dev/zero) \
+    --output -
 ```
 
 ### Using grpcurl
@@ -654,12 +657,12 @@ grpcurl -plaintext localhost:5050 list xmtp.xmtpv4.message_api.ReplicationApi
 
 ```bash
 # Get newest envelope
-grpcurl -plaintext -d '{"topics": []}' \
+grpcurl -plaintext -d 'DATA_FRAME' \
   localhost:5050 \
   xmtp.xmtpv4.message_api.ReplicationApi/GetNewestEnvelope
 
 # Get version
-grpcurl -plaintext -d '{}' \
+grpcurl -plaintext \
   localhost:5050 \
   xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion
 ```
@@ -667,7 +670,7 @@ grpcurl -plaintext -d '{}' \
 **Subscribe to a stream**:
 
 ```bash
-grpcurl -plaintext -d '{"query": {"topics": ["<topic>"]}}' \
+grpcurl -plaintext -d 'DATA_FRAME' \
   localhost:5050 \
   xmtp.xmtpv4.message_api.ReplicationApi/SubscribeEnvelopes
 ```
@@ -704,37 +707,6 @@ Note: requires HTTP/2; with plaintext backends use h2c or a proxy that upgrades 
 Below are minimal examples demonstrating how to call the APIs using different protocols.
 
 Replace `BASE_URL` with your server URL, e.g. `http://localhost:5050`.
-
-### Connect-Go client (recommended)
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "net/http"
-
-    connect "connectrpc.com/connect"
-    messageapiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
-    messageapi "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-)
-
-func main() {
-    baseURL := "http://localhost:5050"
-    client := messageapiconnect.NewReplicationApiClient(http.DefaultClient, baseURL)
-
-    // Unary example: GetNewestEnvelope
-    resp, err := client.GetNewestEnvelope(
-        context.Background(),
-        connect.NewRequest(&messageapi.GetNewestEnvelopeRequest{Topics: [][]byte{}}),
-    )
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("OK", resp.Msg)
-}
-```
 
 ### gRPC client over TLS (classic gRPC)
 

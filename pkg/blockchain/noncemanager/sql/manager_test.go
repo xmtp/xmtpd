@@ -164,9 +164,7 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	errCh := make(chan error, numClients)
 
 	for i := 0; i < numClients; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			nonce, err := nonceManager.GetNonce(ctx)
 			if err != nil {
 				errCh <- err
@@ -177,7 +175,7 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 				errCh <- err
 				return
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

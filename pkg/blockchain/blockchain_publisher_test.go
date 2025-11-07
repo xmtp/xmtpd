@@ -388,10 +388,7 @@ func TestPublishGroupMessageConcurrent(t *testing.T) {
 	errSet := sync.Map{}
 
 	for i := 0; i < parallelRuns; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			_, err := publisher.PublishGroupMessage(
 				context.Background(),
 				testutils.RandomGroupID(),
@@ -400,7 +397,7 @@ func TestPublishGroupMessageConcurrent(t *testing.T) {
 			if err != nil {
 				errSet.Store(err.Error(), struct{}{})
 			}
-		}()
+		})
 	}
 
 	// Wait for all goroutines to finish

@@ -112,10 +112,7 @@ func TestConcurrentAllocation(t *testing.T) {
 			var errors []error
 
 			for i := 0; i < numGoroutines; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-
+				wg.Go(func() {
 					for j := 0; j < noncesPerGoroutine; j++ {
 						nonce, err := tm.manager.GetNonce(ctx)
 						if err != nil {
@@ -138,7 +135,7 @@ func TestConcurrentAllocation(t *testing.T) {
 							mu.Unlock()
 						}
 					}
-				}()
+				})
 			}
 
 			wg.Wait()

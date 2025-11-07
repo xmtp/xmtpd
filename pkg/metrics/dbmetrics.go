@@ -42,6 +42,8 @@ func queryName(sql string) (string) {
 
 type PromLogger struct{}
 
+var _ tracelog.Logger = PromLogger{}
+
 func (PromLogger) Log(
 	ctx context.Context,
 	level tracelog.LogLevel,

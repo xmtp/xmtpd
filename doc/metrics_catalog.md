@@ -4,6 +4,8 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 
 | Name | Type | Description | File |
 |------|------|-------------|------|
+| `query_duration_seconds` | `Histogram` | Duration of SQL queries by named statement. | `pkg/metrics/dbmetrics.go` |
+| `query_errors_total` | `Counter` | Total SQL query errors by named statement. | `pkg/metrics/dbmetrics.go` |
 | `xmtp_api_failed_grpc_requests_counter` | `Counter` | Number of failed GRPC requests by code | `pkg/metrics/api.go` |
 | `xmtp_api_incoming_node_connection_by_version_gauge` | `Gauge` | Number of incoming node connections by version | `pkg/metrics/api.go` |
 | `xmtp_api_node_connection_requests_by_version_counter` | `Counter` | Number of incoming node connections by version | `pkg/metrics/api.go` |

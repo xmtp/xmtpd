@@ -164,11 +164,9 @@ func TestEnvelopeSinkShutdownViaClose(t *testing.T) {
 	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
 	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		dbStorerInstance.Start()
-	}()
+	})
 
 	close(writeQueue)
 	wg.Wait()
@@ -180,11 +178,9 @@ func TestEnvelopeSinkShutdownViaContext(t *testing.T) {
 	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
 	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, ctx)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		dbStorerInstance.Start()
-	}()
+	})
 
 	cancel()
 

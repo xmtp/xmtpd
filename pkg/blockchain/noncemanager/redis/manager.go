@@ -130,7 +130,7 @@ func (r *RedisBackedNonceManager) GetNonce(
 		return nil, err
 	}
 
-	metrics.EmitPayerCurrentNonce(float64(nonce))
+	metrics.EmitGatewayCurrentNonce(float64(nonce))
 
 	return r.createNonceContext(nonce), nil
 }

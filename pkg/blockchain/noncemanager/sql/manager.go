@@ -68,7 +68,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*noncemanager.Non
 		return nil, err
 	}
 
-	metrics.EmitPayerCurrentNonce(float64(nonce))
+	metrics.EmitGatewayCurrentNonce(float64(nonce))
 
 	ret := &noncemanager.NonceContext{
 		Nonce: *new(big.Int).SetInt64(nonce),

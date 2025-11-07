@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 
@@ -132,6 +133,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		ctx,
 		m.logger,
 		m.nonceManager,
+		"publish_group_message",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
 			return m.messagesContract.AddMessage(&bind.TransactOpts{
 				Context: ctx,
@@ -189,6 +191,7 @@ func (m *BlockchainPublisher) BootstrapGroupMessages(
 		ctx,
 		m.logger,
 		m.nonceManager,
+		"bootstrap_group_messages",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
 			return m.messagesContract.BootstrapMessages(
 				&bind.TransactOpts{
@@ -241,6 +244,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		ctx,
 		m.logger,
 		m.nonceManager,
+		"publish_identity_update",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
 			return m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
 				Context: ctx,
@@ -300,6 +304,7 @@ func (m *BlockchainPublisher) BootstrapIdentityUpdates(
 		ctx,
 		m.logger,
 		m.nonceManager,
+		"bootstrap_identity_updates",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
 			return m.identityUpdateContract.BootstrapIdentityUpdates(
 				&bind.TransactOpts{
@@ -369,6 +374,7 @@ func findLogs[T any](
 func withNonce[T any](ctx context.Context,
 	logger *zap.Logger,
 	nonceManager noncemanager.NonceManager,
+	payloadType string,
 	create func(context.Context, big.Int) (*types.Transaction, error),
 	wait func(context.Context, *types.Transaction) ([]*T, error),
 ) ([]*T, error) {
@@ -382,7 +388,13 @@ func withNonce[T any](ctx context.Context,
 			return nil, err
 		}
 		nonce := nonceContext.Nonce
-		tx, err = create(ctx, nonce)
+
+		tx, err = metrics.MeasureBroadcastTransaction(
+			payloadType,
+			func() (*types.Transaction, error) {
+				return create(ctx, nonce)
+			},
+		)
 		if err != nil {
 			if errors.Is(err, core.ErrNonceTooLow) ||
 				strings.Contains(
@@ -432,7 +444,9 @@ func withNonce[T any](ctx context.Context,
 		}
 	}()
 
-	val, err := wait(ctx, tx)
+	val, err := metrics.MeasureWaitForTransaction(func() ([]*T, error) {
+		return wait(ctx, tx)
+	})
 	if err != nil {
 		return nil, err
 	}

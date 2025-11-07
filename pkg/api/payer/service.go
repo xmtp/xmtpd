@@ -94,7 +94,7 @@ func (s *Service) GetNodes(
 		)
 	}
 
-	metrics.EmitPayerGetNodesAvailableNodes(len(nodes))
+	metrics.EmitGatewayGetNodesAvailableNodes(len(nodes))
 
 	response := connect.NewResponse(&payer_api.GetNodesResponse{
 		Nodes: make(map[uint32]string, len(nodes)),
@@ -273,7 +273,7 @@ func (s *Service) publishToNodeWithRetry(
 		result, err = s.publishToNodes(ctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
-				metrics.EmitPayerBanlistRetries(originatorID, retries)
+				metrics.EmitGatewayBanlistRetries(originatorID, retries)
 			}
 			return result, nil
 		}
@@ -336,8 +336,8 @@ func (s *Service) publishToNodes(
 		)
 	}
 
-	metrics.EmitPayerNodePublishDuration(originatorID, time.Since(start).Seconds())
-	metrics.EmitPayerMessageOriginated(originatorID, len(payerEnvelopes))
+	metrics.EmitGatewayPublishDuration(originatorID, time.Since(start).Seconds())
+	metrics.EmitGatewayMessageOriginated(originatorID, len(payerEnvelopes))
 
 	return response.GetOriginatorEnvelopes(), nil
 }
@@ -345,8 +345,9 @@ func (s *Service) publishToNodes(
 func (s *Service) publishToBlockchain(
 	ctx context.Context,
 	clientEnvelope *envelopes.ClientEnvelope,
-) (*envelopesProto.OriginatorEnvelope, error) {
+) (receipt *envelopesProto.OriginatorEnvelope, err error) {
 	var (
+		start               = time.Now()
 		targetTopic         = clientEnvelope.TargetTopic()
 		identifier          = targetTopic.Identifier()
 		desiredOriginatorID uint32
@@ -361,8 +362,6 @@ func (s *Service) publishToBlockchain(
 			fmt.Errorf("error getting client envelope bytes: %w", err),
 		)
 	}
-
-	start := time.Now()
 
 	var unsignedOriginatorEnvelope *envelopesProto.UnsignedOriginatorEnvelope
 	var hash common.Hash
@@ -457,14 +456,6 @@ func (s *Service) publishToBlockchain(
 		)
 	}
 
-	metrics.EmitPayerNodePublishDuration(desiredOriginatorID, time.Since(start).Seconds())
-	metrics.EmitPayerMessageOriginated(desiredOriginatorID, 1)
-
-	s.logger.Debug(
-		"published message to blockchain",
-		utils.DurationMsField(time.Since(start)),
-	)
-
 	unsignedBytes, err := proto.Marshal(unsignedOriginatorEnvelope)
 	if err != nil {
 		return nil, connect.NewError(
@@ -472,6 +463,27 @@ func (s *Service) publishToBlockchain(
 			fmt.Errorf("error marshalling unsigned originator envelope: %w", err),
 		)
 	}
+
+	defer func() {
+		if err != nil {
+			s.logger.Error(
+				"error publishing message to blockchain",
+				utils.DurationMsField(time.Since(start)),
+				utils.TopicField(targetTopic.String()),
+				zap.Error(err),
+			)
+		} else {
+			s.logger.Debug(
+				"published message to blockchain",
+				utils.DurationMsField(time.Since(start)),
+				utils.TopicField(targetTopic.String()),
+				utils.HashField(hash.String()),
+			)
+		}
+
+		metrics.EmitGatewayPublishDuration(desiredOriginatorID, time.Since(start).Seconds())
+		metrics.EmitGatewayMessageOriginated(desiredOriginatorID, 1)
+	}()
 
 	return &envelopesProto.OriginatorEnvelope{
 		UnsignedOriginatorEnvelope: unsignedBytes,

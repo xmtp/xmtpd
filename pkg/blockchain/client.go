@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum"
@@ -180,23 +179,12 @@ func WaitForTransaction(
 	timeout time.Duration,
 	pollSleep time.Duration,
 	hash common.Hash,
-) (*types.Receipt, error) {
+) (receipt *types.Receipt, err error) {
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 	defer cancel()
 
 	ticker := time.NewTicker(pollSleep)
 	defer ticker.Stop()
-
-	now := time.Now()
-	defer func() {
-		logger.Debug(
-			"blockchain wait for transaction",
-			zap.Float64("duration", time.Since(now).Seconds()),
-			zap.String("hash", hash.String()),
-		)
-
-		metrics.EmitBlockchainWaitForTransaction(time.Since(now).Seconds())
-	}()
 
 	for {
 		receipt, err := client.TransactionReceipt(ctx, hash)

@@ -6,78 +6,78 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var payerNodePublishDuration = prometheus.NewHistogramVec(
+var gatwayPublishDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name: "xmtp_payer_node_publish_duration_seconds",
+		Name: "xmtp_gateway_publish_duration_seconds",
 		Help: "Duration of the node publish call",
 	},
 	[]string{"originator_id"},
 )
 
-func EmitPayerNodePublishDuration(originatorID uint32, duration float64) {
-	payerNodePublishDuration.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
+func EmitGatewayPublishDuration(originatorID uint32, duration float64) {
+	gatwayPublishDuration.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Observe(duration)
 }
 
-var payerCursorBlockTime = prometheus.NewHistogramVec(
+var gatewayCursorBlockTime = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name: "xmtp_payer_read_own_commit_in_time_seconds",
+		Name: "xmtp_gateway_read_own_commit_in_time_seconds",
 		Help: "Read your own commit duration in seconds",
 	},
 	[]string{"originator_id"},
 )
 
-func EmitPayerBlockUntilDesiredCursorReached(originatorID uint32, duration float64) {
-	payerCursorBlockTime.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
+func EmitGatewayBlockUntilDesiredCursorReached(originatorID uint32, duration float64) {
+	gatewayCursorBlockTime.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Observe(duration)
 }
 
-var payerCurrentNonce = prometheus.NewGauge(
+var gatewayCurrentNonce = prometheus.NewGauge(
 	prometheus.GaugeOpts{
-		Name: "xmtp_payer_lru_nonce",
-		Help: "Least recently used blockchain nonce of the payer (not guaranteed to be the highest nonce).",
+		Name: "xmtp_gateway_lru_nonce",
+		Help: "Least recently used blockchain nonce of the gateway (not guaranteed to be the highest nonce).",
 	},
 )
 
-func EmitPayerCurrentNonce(nonce float64) {
+func EmitGatewayCurrentNonce(nonce float64) {
 	// Set is thread-safe
-	payerCurrentNonce.Set(nonce)
+	gatewayCurrentNonce.Set(nonce)
 }
 
-var payerBanlistRetry = prometheus.NewHistogramVec(
+var gatewayBanlistRetry = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Name:    "xmtp_payer_failed_attempts_to_publish_to_node_via_banlist",
+		Name:    "xmtp_gateway_failed_attempts_to_publish_to_node_via_banlist",
 		Help:    "Number of failed attempts to publish to a node via banlist",
 		Buckets: []float64{0, 1, 2, 3, 4, 5},
 	},
 	[]string{"originator_id"},
 )
 
-func EmitPayerBanlistRetries(originatorID uint32, retries int) {
-	payerBanlistRetry.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
+func EmitGatewayBanlistRetries(originatorID uint32, retries int) {
+	gatewayBanlistRetry.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Observe(float64(retries))
 }
 
-var payerMessagesOriginated = prometheus.NewCounterVec(
+var gatewayMessagesOriginated = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
-		Name: "xmtp_payer_messages_originated",
-		Help: "Number of messages originated by the payer.",
+		Name: "xmtp_gateway_messages_originated",
+		Help: "Number of messages originated by the gateway.",
 	},
 	[]string{"originator_id"},
 )
 
-func EmitPayerMessageOriginated(originatorID uint32, count int) {
-	payerMessagesOriginated.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
+func EmitGatewayMessageOriginated(originatorID uint32, count int) {
+	gatewayMessagesOriginated.With(prometheus.Labels{"originator_id": strconv.Itoa(int(originatorID))}).
 		Add(float64(count))
 }
 
-var payerGetNodesAvailableNodes = prometheus.NewGauge(
+var gatewayGetNodesAvailableNodes = prometheus.NewGauge(
 	prometheus.GaugeOpts{
-		Name: "xmtp_payer_get_nodes_available_nodes",
+		Name: "xmtp_gateway_get_nodes_available_nodes",
 		Help: "Number of currently available nodes for reader selection",
 	},
 )
 
-func EmitPayerGetNodesAvailableNodes(count int) {
-	payerGetNodesAvailableNodes.Set(float64(count))
+func EmitGatewayGetNodesAvailableNodes(count int) {
+	gatewayGetNodesAvailableNodes.Set(float64(count))
 }

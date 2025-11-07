@@ -915,7 +915,7 @@ func (s *Service) waitForGatewayPublish(
 		case <-timeout:
 			if s.logger.Core().Enabled(zap.DebugLevel) {
 				logger.Debug(
-					"Timeout waiting for publisher",
+					"timeout waiting for publisher",
 					utils.LastProcessedField(s.publishWorker.lastProcessed.Load()),
 				)
 			}
@@ -924,7 +924,7 @@ func (s *Service) waitForGatewayPublish(
 		case <-ctx.Done():
 			if s.logger.Core().Enabled(zap.DebugLevel) {
 				logger.Debug(
-					"Context cancelled while waiting for publisher",
+					"context cancelled while waiting for publisher",
 					utils.LastProcessedField(s.publishWorker.lastProcessed.Load()),
 				)
 			}
@@ -935,7 +935,7 @@ func (s *Service) waitForGatewayPublish(
 			if s.publishWorker.lastProcessed.Load() >= stagedEnv.ID {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					logger.Debug(
-						"Finished waiting for publisher",
+						"finished waiting for publisher",
 						utils.DurationMsField(time.Since(startTime)),
 					)
 				}

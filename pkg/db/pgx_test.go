@@ -28,6 +28,7 @@ func TestNamespacedDB(t *testing.T) {
 		newDBName,
 		time.Second,
 		time.Second,
+		nil,
 	)
 	t.Cleanup(func() { _ = namespacedDB.Close() })
 	require.NoError(t, err)
@@ -58,6 +59,7 @@ func TestNamespaceRepeat(t *testing.T) {
 		newDBName,
 		time.Second,
 		time.Second,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, db1)
@@ -71,6 +73,7 @@ func TestNamespaceRepeat(t *testing.T) {
 		newDBName,
 		time.Second,
 		time.Second,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, db2)
@@ -87,6 +90,7 @@ func TestNamespacedDBInvalidName(t *testing.T) {
 		"invalid/name",
 		time.Second,
 		time.Second,
+		nil,
 	)
 	require.Error(t, err)
 }
@@ -101,6 +105,7 @@ func TestNamespacedDBInvalidDSN(t *testing.T) {
 		"dbname",
 		time.Second,
 		time.Second,
+		nil,
 	)
 	require.Error(t, err)
 }
@@ -176,6 +181,7 @@ func TestBlackholeDNS(t *testing.T) {
 		"dbname",
 		dbTimeout,
 		5*time.Second,
+		nil,
 	)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "database is not ready")

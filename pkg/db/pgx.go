@@ -8,11 +8,20 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/jackc/pgx/v5/tracelog"
+	"github.com/xmtp/xmtpd/pkg/metrics"
+
+	"github.com/exaring/otelpgx"
+	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
+	exporter "go.opentelemetry.io/otel/exporters/prometheus"
+
 	"go.uber.org/zap"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/xmtp/xmtpd/pkg/migrations"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
 const (
@@ -44,6 +53,7 @@ func parseConfig(dsn string, statementTimeout time.Duration) (*pgxpool.Config, e
 	config.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(
 		statementTimeout.Milliseconds(),
 	)
+
 	return config, nil
 }
 
@@ -51,19 +61,16 @@ func newPGXDB(
 	ctx context.Context,
 	config *pgxpool.Config,
 	waitForDB time.Duration,
-) (*sql.DB, error) {
+) (*sql.DB, *pgxpool.Pool, error) {
 	dbPool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
 	if err = waitUntilDBReady(ctx, dbPool, waitForDB); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
 	db := stdlib.OpenDBFromPool(dbPool)
-
-	return db, nil
+	return db, dbPool, nil
 }
 
 func isValidNamespace(namespace string) error {
@@ -136,6 +143,7 @@ func NewNamespacedDB(
 	namespace string,
 	waitForDB time.Duration,
 	statementTimeout time.Duration,
+	prom *prometheus.Registry,
 ) (*sql.DB, error) {
 	// Parse the DSN to get the config
 	config, err := parseConfig(dsn, statementTimeout)
@@ -151,9 +159,27 @@ func NewNamespacedDB(
 
 	config.ConnConfig.Database = namespace
 
-	db, err := newPGXDB(ctx, config, waitForDB)
+	// enable SQL tracing
+	config.ConnConfig.Tracer = &tracelog.TraceLog{
+		Logger:   metrics.PromLogger{},
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	db, pool, err := newPGXDB(ctx, config, waitForDB)
 	if err != nil {
 		return nil, err
+	}
+
+	if prom != nil {
+
+		mp, err := bindOTelToProm(prom)
+		if err != nil {
+			return nil, fmt.Errorf("bind OTel to Prom: %w", err)
+		}
+
+		if err := otelpgx.RecordStats(pool, otelpgx.WithStatsMeterProvider(mp)); err != nil {
+			return nil, fmt.Errorf("otelpgx.RecordStats: %w", err)
+		}
 	}
 
 	err = migrations.Migrate(ctx, db)
@@ -174,6 +200,7 @@ func ConnectToDB(
 	namespace string,
 	waitForDB time.Duration,
 	statementTimeout time.Duration,
+	prom *prometheus.Registry,
 ) (*sql.DB, error) {
 	config, err := parseConfig(dsn, statementTimeout)
 	if err != nil {
@@ -184,12 +211,44 @@ func ConnectToDB(
 		config.ConnConfig.Database = namespace
 	}
 
-	db, err := newPGXDB(ctx, config, waitForDB)
+	// enable SQL tracing
+	config.ConnConfig.Tracer = &tracelog.TraceLog{
+		Logger:   metrics.PromLogger{},
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	db, pool, err := newPGXDB(ctx, config, waitForDB)
 	if err != nil {
 		return nil, err
+	}
+
+	if prom != nil {
+
+		mp, err := bindOTelToProm(prom)
+		if err != nil {
+			return nil, fmt.Errorf("bind OTel to Prom: %w", err)
+		}
+
+		if err := otelpgx.RecordStats(pool, otelpgx.WithStatsMeterProvider(mp)); err != nil {
+			return nil, fmt.Errorf("otelpgx.RecordStats: %w", err)
+		}
 	}
 
 	logger.Info(connectSuccessMessage, zap.String("database", config.ConnConfig.Database))
 
 	return db, nil
+}
+
+func bindOTelToProm(reg *prometheus.Registry) (*sdkmetric.MeterProvider, error) {
+	exp, err := exporter.New(
+		exporter.WithRegisterer(reg),
+	)
+	if err != nil {
+		return nil, err
+	}
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(exp),
+	)
+	otel.SetMeterProvider(mp)
+	return mp, nil
 }

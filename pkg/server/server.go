@@ -56,6 +56,7 @@ type BaseServerConfig struct {
 	Options       *config.ServerOptions
 	ServerVersion *semver.Version
 	FeeCalculator fees.IFeeCalculator
+	PromReg       *prometheus.Registry
 }
 
 func WithContext(ctx context.Context) BaseServerOption {
@@ -97,6 +98,12 @@ func WithServerVersion(version *semver.Version) BaseServerOption {
 func WithFeeCalculator(feeCalculator fees.IFeeCalculator) BaseServerOption {
 	return func(cfg *BaseServerConfig) {
 		cfg.FeeCalculator = feeCalculator
+	}
+}
+
+func WithPromReg(promReg *prometheus.Registry) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
+		cfg.PromReg = promReg
 	}
 }
 
@@ -171,8 +178,11 @@ func NewBaseServer(
 		return nil, errors.New("no fee calculator found")
 	}
 
-	// Setup Prometheus registry.
-	promReg := prometheus.NewRegistry()
+	if cfg.PromReg == nil {
+		return nil, errors.New("prometheus registry not provided")
+	}
+
+	promReg := cfg.PromReg
 
 	// Client metrics are registered into the metrics server,
 	// and also passed to the MLS validation service.

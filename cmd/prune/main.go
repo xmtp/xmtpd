@@ -66,6 +66,7 @@ func main() {
 		namespace,
 		options.DB.WaitForDB,
 		options.DB.ReadTimeout,
+		nil,
 	)
 	if err != nil {
 		fatal("could not connect to DB: %s", err)

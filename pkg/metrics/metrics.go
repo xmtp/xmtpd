@@ -111,6 +111,8 @@ func registerCollectors(reg prometheus.Registerer) {
 		migratorWriterLatency,
 		migratorWriterRetryAttempts,
 		migratorWriterRowsMigrated,
+		QueryDuration,
+		QueryErrors,
 	}
 
 	for _, col := range cols {

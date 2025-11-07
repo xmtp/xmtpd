@@ -32,7 +32,7 @@ var QueryErrors = prometheus.NewCounterVec(
 // Extract /* name:FooBar */ from SQL text
 var qnameRE = regexp.MustCompile(`--\s*name:\s*([A-Za-z0-9_]+)`)
 
-func queryName(sql string) (string) {
+func queryName(sql string) string {
 	if m := qnameRE.FindStringSubmatch(sql); m != nil {
 		return strings.TrimSpace(m[1])
 	}

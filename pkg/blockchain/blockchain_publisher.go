@@ -438,21 +438,17 @@ func withNonce[T any](ctx context.Context,
 		break
 	}
 
-	defer func() {
-		if err != nil {
-			nonceContext.Cancel()
-		}
-	}()
-
 	val, err := metrics.MeasureWaitForTransaction(func() ([]*T, error) {
 		return wait(ctx, tx)
 	})
 	if err != nil {
+		nonceContext.Cancel()
 		return nil, err
 	}
 
 	err = nonceContext.Consume()
 	if err != nil {
+		nonceContext.Cancel()
 		return nil, err
 	}
 

@@ -23,6 +23,8 @@ type SQLBackedNonceManager struct {
 	limiter *noncemanager.OpenConnectionsLimiter
 }
 
+var _ noncemanager.NonceManager = &SQLBackedNonceManager{}
+
 // NewSQLBackedNonceManager creates a new SQL-backed nonce manager with default concurrency settings
 func NewSQLBackedNonceManager(db *sql.DB, logger *zap.Logger) *SQLBackedNonceManager {
 	return &SQLBackedNonceManager{

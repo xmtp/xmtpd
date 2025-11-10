@@ -71,6 +71,8 @@ type RedisBackedNonceManager struct {
 	keyPrefix string
 }
 
+var _ noncemanager.NonceManager = &RedisBackedNonceManager{}
+
 // NewRedisBackedNonceManager creates a new Redis-backed nonce manager
 func NewRedisBackedNonceManager(
 	client redis.UniversalClient,

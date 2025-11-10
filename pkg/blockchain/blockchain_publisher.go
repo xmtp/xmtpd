@@ -448,11 +448,13 @@ func withNonce[T any](ctx context.Context,
 		return wait(ctx, tx)
 	})
 	if err != nil {
+		nonceContext.Cancel()
 		return nil, err
 	}
 
 	err = nonceContext.Consume()
 	if err != nil {
+		nonceContext.Cancel()
 		return nil, err
 	}
 

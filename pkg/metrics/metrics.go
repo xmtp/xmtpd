@@ -98,6 +98,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		apiIncomingNodeConnectionByVersionGauge,
 		apiNodeConnectionRequestsByVersionCounter,
 		apiFailedGRPCRequestsCounter,
+		blockchainBroadcastTransaction,
 		blockchainWaitForTransaction,
 		blockchainPublishPayload,
 		gatewayGetNodesAvailableNodes,

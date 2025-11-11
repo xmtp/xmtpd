@@ -315,6 +315,63 @@ func (_c *MockIPayerReportStore_GetAdvisoryLocker_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetLatestSequenceID provides a mock function with given fields: ctx, originatorNodeID
+func (_m *MockIPayerReportStore) GetLatestSequenceID(ctx context.Context, originatorNodeID int32) (int64, error) {
+	ret := _m.Called(ctx, originatorNodeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestSequenceID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int32) (int64, error)); ok {
+		return rf(ctx, originatorNodeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int32) int64); ok {
+		r0 = rf(ctx, originatorNodeID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int32) error); ok {
+		r1 = rf(ctx, originatorNodeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIPayerReportStore_GetLatestSequenceID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestSequenceID'
+type MockIPayerReportStore_GetLatestSequenceID_Call struct {
+	*mock.Call
+}
+
+// GetLatestSequenceID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - originatorNodeID int32
+func (_e *MockIPayerReportStore_Expecter) GetLatestSequenceID(ctx interface{}, originatorNodeID interface{}) *MockIPayerReportStore_GetLatestSequenceID_Call {
+	return &MockIPayerReportStore_GetLatestSequenceID_Call{Call: _e.mock.On("GetLatestSequenceID", ctx, originatorNodeID)}
+}
+
+func (_c *MockIPayerReportStore_GetLatestSequenceID_Call) Run(run func(ctx context.Context, originatorNodeID int32)) *MockIPayerReportStore_GetLatestSequenceID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int32))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_GetLatestSequenceID_Call) Return(_a0 int64, _a1 error) *MockIPayerReportStore_GetLatestSequenceID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_GetLatestSequenceID_Call) RunAndReturn(run func(context.Context, int32) (int64, error)) *MockIPayerReportStore_GetLatestSequenceID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Queries provides a mock function with no fields
 func (_m *MockIPayerReportStore) Queries() *queries.Queries {
 	ret := _m.Called()

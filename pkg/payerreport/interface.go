@@ -80,4 +80,5 @@ type IPayerReportStore interface {
 	GetAdvisoryLocker(
 		ctx context.Context,
 	) (db.ITransactionScopedAdvisoryLocker, error)
+	GetLatestSequenceID(ctx context.Context, originatorNodeID int32) (int64, error)
 }

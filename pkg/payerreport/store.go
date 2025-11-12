@@ -52,6 +52,10 @@ func (s *Store) GetAdvisoryLocker(
 	return db.NewTransactionScopedAdvisoryLocker(ctx, s.db, &sql.TxOptions{})
 }
 
+func (s *Store) GetLatestSequenceID(ctx context.Context, originatorNodeID int32) (int64, error) {
+	return s.queries.GetLatestSequenceId(ctx, originatorNodeID)
+}
+
 // StoreReport stores a report in the database. No validations have been performed, and no originator envelope is stored.
 func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (int64, error) {
 	params, err := prepareStoreReportParams(report)

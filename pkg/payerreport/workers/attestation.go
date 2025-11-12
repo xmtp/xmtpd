@@ -4,6 +4,7 @@ package workers
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -131,12 +132,41 @@ func (w *AttestationWorker) AttestReports() error {
 // The only possible state where a report is needing attestation is when it's pending submission and attestation.
 func (w *AttestationWorker) findReportsNeedingAttestation() ([]*payerreport.PayerReportWithStatus, error) {
 	w.logger.Debug("fetching reports needing attestation")
-	return w.store.FetchReports(
+
+	reports, err := w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().
 			WithAttestationStatus(payerreport.AttestationPending).
 			WithSubmissionStatus(payerreport.SubmissionPending),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*payerreport.PayerReportWithStatus, 0, len(reports))
+
+	for _, report := range reports {
+		latestSequenceID, err := w.store.GetLatestSequenceID(w.ctx, int32(report.OriginatorNodeID))
+		if err != nil {
+			return nil, err
+		}
+
+		if latestSequenceID < int64(report.EndSequenceID) {
+			w.logger.Debug(
+				"skipping attestation for report, node has not processed all messages from originator",
+				utils.OriginatorIDField(report.OriginatorNodeID),
+				utils.StartSequenceIDField(int64(report.StartSequenceID)),
+				utils.LastSequenceIDField(int64(report.EndSequenceID)),
+				zap.Int64("last_sequence_id_seen", latestSequenceID),
+			)
+
+			continue
+		}
+
+		out = append(out, report)
+	}
+
+	return slices.Clip(out), nil
 }
 
 // attestReport validates a single report by checking its consistency with previous reports

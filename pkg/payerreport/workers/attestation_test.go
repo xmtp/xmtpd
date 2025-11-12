@@ -7,11 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
 	registrantMocks "github.com/xmtp/xmtpd/pkg/mocks/registrant"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
+
+const originatorNodeID = 100
 
 var domainSeparator = common.BytesToHash(testutils.RandomBytes(32))
 
@@ -19,27 +22,51 @@ func testAttestationWorker(
 	t *testing.T,
 	pollInterval time.Duration,
 ) (*AttestationWorker, *payerreport.Store, *registrantMocks.MockIRegistrant, *payerreportMocks.MockIPayerReportVerifier) {
-	log := testutils.NewLog(t)
-	ctx := t.Context()
-	db, _ := testutils.NewDB(t, ctx)
-	store := payerreport.NewStore(db, log)
-	mockRegistrant := registrantMocks.NewMockIRegistrant(t)
+	var (
+		log            = testutils.NewLog(t)
+		ctx            = t.Context()
+		db, _          = testutils.NewDB(t, ctx)
+		store          = payerreport.NewStore(db, log)
+		mockRegistrant = registrantMocks.NewMockIRegistrant(t)
+		verifier       = payerreportMocks.NewMockIPayerReportVerifier(t)
+		worker         = NewAttestationWorker(
+			ctx,
+			log,
+			mockRegistrant,
+			store,
+			pollInterval,
+			domainSeparator,
+		)
+	)
+
+	worker.verifier = verifier
+
 	mockRegistrant.EXPECT().
 		SignPayerReportAttestation(mock.Anything).
 		Return(&payerreport.NodeSignature{
 			Signature: []byte("signature"),
-			NodeID:    1,
+			NodeID:    originatorNodeID,
 		}, nil).
 		Maybe()
+
 	mockRegistrant.EXPECT().
 		SignClientEnvelopeToSelf(mock.Anything).
 		Return([]byte("signature"), nil).
 		Maybe()
+
 	mockRegistrant.EXPECT().NodeID().Return(uint32(1)).Maybe()
 
-	verifier := payerreportMocks.NewMockIPayerReportVerifier(t)
-	worker := NewAttestationWorker(ctx, log, mockRegistrant, store, pollInterval, domainSeparator)
-	worker.verifier = verifier
+	// Create real sequence IDs, from 1 to 10.
+	for i := uint64(1); i <= 10; i++ {
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
+			{
+				OriginatorNodeID:     originatorNodeID,
+				OriginatorSequenceID: int64(i),
+				OriginatorEnvelope:   testutils.RandomBytes(32),
+				Topic:                testutils.RandomBytes(32),
+			},
+		})
+	}
 
 	return worker, store, mockRegistrant, verifier
 }
@@ -62,11 +89,11 @@ func TestFindReport(t *testing.T) {
 	worker, store, _, _ := testAttestationWorker(t, time.Second)
 
 	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
-		OriginatorNodeID: 1,
+		OriginatorNodeID: originatorNodeID,
 		StartSequenceID:  1,
 		EndSequenceID:    10,
 		DomainSeparator:  domainSeparator,
-		NodeIDs:          []uint32{1},
+		NodeIDs:          []uint32{originatorNodeID},
 	})
 	require.NoError(t, err)
 	storedReport := storeReport(t, store, &report.PayerReport)
@@ -85,6 +112,24 @@ func TestFindReport(t *testing.T) {
 	)
 
 	reports, err = worker.findReportsNeedingAttestation()
+	require.NoError(t, err)
+	require.Len(t, reports, 0)
+}
+
+func TestDontAttestReportsIfSeqIDNotProcessed(t *testing.T) {
+	worker, store, _, _ := testAttestationWorker(t, time.Second)
+
+	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
+		OriginatorNodeID: originatorNodeID,
+		StartSequenceID:  1,
+		EndSequenceID:    20,
+		DomainSeparator:  domainSeparator,
+		NodeIDs:          []uint32{originatorNodeID},
+	})
+	require.NoError(t, err)
+	_ = storeReport(t, store, &report.PayerReport)
+
+	reports, err := worker.findReportsNeedingAttestation()
 	require.NoError(t, err)
 	require.Len(t, reports, 0)
 }
@@ -177,11 +222,11 @@ func TestDontAttestReportsInNonPendingStates(t *testing.T) {
 			worker, store, _, _ := testAttestationWorker(t, time.Second)
 
 			report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
-				OriginatorNodeID: 1,
+				OriginatorNodeID: originatorNodeID,
 				StartSequenceID:  0,
 				EndSequenceID:    10,
 				DomainSeparator:  domainSeparator,
-				NodeIDs:          []uint32{1},
+				NodeIDs:          []uint32{originatorNodeID},
 			})
 			require.NoError(t, err)
 
@@ -207,10 +252,10 @@ func TestAttestFirstReport(t *testing.T) {
 	worker, store, _, mockVerifier := testAttestationWorker(t, time.Second)
 
 	report, err := payerreport.BuildPayerReport(payerreport.BuildPayerReportParams{
-		OriginatorNodeID: 1,
+		OriginatorNodeID: originatorNodeID,
 		StartSequenceID:  0,
 		EndSequenceID:    10,
-		NodeIDs:          []uint32{1},
+		NodeIDs:          []uint32{originatorNodeID},
 		DomainSeparator:  domainSeparator,
 	})
 	require.NoError(t, err)

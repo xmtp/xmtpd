@@ -397,6 +397,8 @@ func NewBaseServer(
 			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
 			WithGenerationSelfPeriod(cfg.Options.PayerReport.GenerateReportSelfPeriod).
 			WithGenerationOthersPeriod(cfg.Options.PayerReport.GenerateReportOthersPeriod).
+			WithExpirySelfPeriod(cfg.Options.PayerReport.ExpirySelfPeriod).
+			WithExpiryOthersPeriod(cfg.Options.PayerReport.ExpiryOthersPeriod).
 			Build()
 		if err != nil {
 			cfg.Logger.Error("failed to build worker config", zap.Error(err))

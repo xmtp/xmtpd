@@ -32,6 +32,8 @@ type GeneratorWorker struct {
 	myNodeID             uint32
 	generateSelfPeriod   time.Duration
 	generateOthersPeriod time.Duration
+	expirySelfPeriod     time.Duration
+	expiryOthersPeriod   time.Duration
 }
 
 func NewGeneratorWorker(
@@ -43,6 +45,8 @@ func NewGeneratorWorker(
 	domainSeparator common.Hash,
 	generateSelfPeriod time.Duration,
 	generateOthersPeriod time.Duration,
+	expirySelfPeriod time.Duration,
+	expiryOthersPeriod time.Duration,
 ) *GeneratorWorker {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -62,6 +66,8 @@ func NewGeneratorWorker(
 		myNodeID:             registrant.NodeID(),
 		generateSelfPeriod:   generateSelfPeriod,
 		generateOthersPeriod: generateOthersPeriod,
+		expirySelfPeriod:     expirySelfPeriod,
+		expiryOthersPeriod:   expiryOthersPeriod,
 	}
 	return worker
 }
@@ -179,7 +185,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	if len(existingReports) > 0 {
 		// Validate existing reports and expire old ones.
 		for _, report := range existingReports {
-			if w.isOlderThanReportInterval(report) {
+			if w.isReportExpired(report) {
 				w.logger.Debug(
 					"expiring old report",
 					utils.OriginatorIDField(nodeID),
@@ -289,5 +295,17 @@ func (w *GeneratorWorker) isOlderThanReportInterval(
 		return time.Now().UTC().Sub(reportEndTime) > w.generateSelfPeriod
 	} else {
 		return time.Now().UTC().Sub(reportEndTime) > w.generateOthersPeriod
+	}
+}
+
+func (w *GeneratorWorker) isReportExpired(
+	report *payerreport.PayerReportWithStatus,
+) bool {
+	reportEndTime := time.Unix(int64(report.EndMinuteSinceEpoch)*60, 0).UTC()
+
+	if report.OriginatorNodeID == w.registrant.NodeID() {
+		return time.Now().UTC().Sub(reportEndTime) > w.expirySelfPeriod
+	} else {
+		return time.Now().UTC().Sub(reportEndTime) > w.expiryOthersPeriod
 	}
 }

@@ -30,6 +30,8 @@ type workerConfig struct {
 	attestationPollInterval time.Duration
 	generateSelfPeriod      time.Duration
 	generateOthersPeriod    time.Duration
+	expirySelfPeriod        time.Duration
+	expiryOthersPeriod      time.Duration
 }
 
 // WorkerConfigBuilder provides a builder pattern for creating WorkerConfig instances.
@@ -45,6 +47,8 @@ type WorkerConfigBuilder struct {
 	attestationPollInterval time.Duration
 	generateSelfPeriod      time.Duration
 	generateOthersPeriod    time.Duration
+	expirySelfPeriod        time.Duration
+	expiryOthersPeriod      time.Duration
 }
 
 // NewWorkerConfigBuilder creates a new WorkerConfigBuilder instance.
@@ -111,6 +115,20 @@ func (b *WorkerConfigBuilder) WithGenerationOthersPeriod(
 	period time.Duration,
 ) *WorkerConfigBuilder {
 	b.generateOthersPeriod = period
+	return b
+}
+
+func (b *WorkerConfigBuilder) WithExpirySelfPeriod(
+	period time.Duration,
+) *WorkerConfigBuilder {
+	b.expirySelfPeriod = period
+	return b
+}
+
+func (b *WorkerConfigBuilder) WithExpiryOthersPeriod(
+	period time.Duration,
+) *WorkerConfigBuilder {
+	b.expiryOthersPeriod = period
 	return b
 }
 
@@ -193,6 +211,8 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 		cfg.domainSeparator,
 		cfg.generateSelfPeriod,
 		cfg.generateOthersPeriod,
+		cfg.expirySelfPeriod,
+		cfg.expiryOthersPeriod,
 	)
 
 	submitterWorker := NewSubmitterWorker(

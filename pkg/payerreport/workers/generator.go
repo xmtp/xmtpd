@@ -135,7 +135,10 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 
 	// Only continue if the last submitted report doesn't exist (there have been no reports) or if it is older than the minimum report interval
 	if lastSubmittedReport != nil && !w.isOlderThanReportInterval(lastSubmittedReport) {
-		w.logger.Debug("skipping report generation for node", utils.OriginatorIDField(nodeID))
+		w.logger.Debug(
+			"skipping report generation for node because the last submitted report is not too old",
+			utils.OriginatorIDField(nodeID),
+		)
 		return nil
 	}
 
@@ -156,6 +159,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		utils.OriginatorIDField(nodeID),
 		utils.LastSequenceIDField(int64(existingReportEndSequenceID)),
 	)
+
 	existingReports, err := w.store.FetchReports(
 		w.ctx,
 		payerreport.NewFetchReportsQuery().
@@ -170,11 +174,32 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		return err
 	}
 
+	validReports := make([]*payerreport.PayerReportWithStatus, 0, len(existingReports))
+
 	if len(existingReports) > 0 {
+		// Validate existing reports and expire old ones.
+		for _, report := range existingReports {
+			if w.isOlderThanReportInterval(report) {
+				w.logger.Debug(
+					"expiring old report",
+					utils.OriginatorIDField(nodeID),
+				)
+
+				err = w.store.SetReportSubmissionRejected(w.ctx, report.ID)
+				if err != nil {
+					return err
+				}
+			} else {
+				validReports = append(validReports, report)
+			}
+		}
+	}
+
+	if len(validReports) > 0 {
 		w.logger.Debug(
-			"skipping report generation for node because there are existing reports pending",
+			"skipping report generation for node because there are existing valid reports pending",
 			utils.OriginatorIDField(nodeID),
-			utils.CountField(int64(len(existingReports))),
+			utils.CountField(int64(len(validReports))),
 		)
 		return nil
 	}

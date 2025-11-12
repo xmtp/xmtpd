@@ -1,6 +1,8 @@
 package workers
 
-import "time"
+import (
+	"time"
+)
 
 // Distributes the minute of the hour that each node will run operations on.
 // This is to avoid having many nodes do identical work at the same time, and potentially leading to

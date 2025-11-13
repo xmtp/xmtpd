@@ -74,8 +74,8 @@ func ClientIPFromHeaderOrPeer(headers http.Header, peer string) string {
 
 	// There are potentially multiple comma separated IPs bundled in that first value.
 	// Return the first non-empty IP.
-	ips := strings.Split(xForwardedFor, ",")
-	for _, ip := range ips {
+	ips := strings.SplitSeq(xForwardedFor, ",")
+	for ip := range ips {
 		trimmed := strings.TrimSpace(ip)
 		if trimmed != "" {
 			return trimmed

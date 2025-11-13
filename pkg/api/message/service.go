@@ -508,6 +508,87 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
+	processedEnvelopes, err := s.preprocessPayerEnvelopes(ctx, payerEnvelopes)
+	if err != nil {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("error processing payer envelopes:%w", err),
+		)
+	}
+
+	var results []*envelopesProto.OriginatorEnvelope
+	var latestStaged *queries.StagedOriginatorEnvelope
+
+	err = db.RunInTx(
+		ctx,
+		s.store,
+		nil,
+		func(ctx context.Context, querier *queries.Queries) error {
+			for _, envelope := range processedEnvelopes {
+				stagedEnvelope, err := querier.
+					InsertStagedOriginatorEnvelope(
+						ctx,
+						queries.InsertStagedOriginatorEnvelopeParams{
+							Topic:         envelope.TopicBytes,
+							PayerEnvelope: envelope.EnvelopeBytes,
+						},
+					)
+				if err != nil {
+					return connect.NewError(
+						connect.CodeInternal,
+						fmt.Errorf("could not insert staged envelope: %w", err),
+					)
+				}
+
+				baseFee, congestionFee, err := s.publishWorker.calculateFees(
+					&stagedEnvelope,
+					envelope.RetentionDays,
+				)
+				if err != nil {
+					return connect.NewError(
+						connect.CodeInternal,
+						fmt.Errorf("could not calculate fees: %w", err),
+					)
+				}
+
+				originatorEnvelope, err := s.registrant.SignStagedEnvelope(
+					stagedEnvelope,
+					baseFee,
+					congestionFee,
+					envelope.RetentionDays,
+				)
+				if err != nil {
+					return connect.NewError(
+						connect.CodeInternal,
+						fmt.Errorf("could not sign envelope: %w", err),
+					)
+				}
+
+				results = append(results, originatorEnvelope)
+				latestStaged = &stagedEnvelope
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("failed to write to database: %w", err),
+		)
+	}
+
+	s.publishWorker.notifyStagedPublish()
+	s.waitForGatewayPublish(ctx, latestStaged, logger)
+
+	return connect.NewResponse(&message_api.PublishPayerEnvelopesResponse{
+		OriginatorEnvelopes: results,
+	}), nil
+}
+
+func (s *Service) preprocessPayerEnvelopes(
+	ctx context.Context,
+	payerEnvelopes []*envelopesProto.PayerEnvelope,
+) ([]ValidatedBytesWithTopic, error) {
 	var processedEnvelopes []ValidatedBytesWithTopic
 	var errs []string
 
@@ -528,26 +609,46 @@ func (s *Service) PublishPayerEnvelopes(
 		topicKind := targetTopic.Kind()
 
 		if targetTopic.IsReserved() {
-			errs = append(errs, fmt.Sprintf("reserved topics cannot be published to by gateways. index %d: %v", i, err))
+			errs = append(
+				errs,
+				fmt.Sprintf(
+					"reserved topics cannot be published to by gateways. index %d: %v",
+					i,
+					err,
+				),
+			)
 			continue
 		}
 
 		if topicKind == topic.TopicKindIdentityUpdatesV1 {
 
-			errs = append(errs, fmt.Sprintf("identity updates must be published via the blockchain. index %d: %v", i, err))
+			errs = append(
+				errs,
+				fmt.Sprintf(
+					"identity updates must be published via the blockchain. index %d: %v",
+					i,
+					err,
+				),
+			)
 			continue
 		}
 
 		if topicKind == topic.TopicKindGroupMessagesV1 {
 			if err = s.validateGroupMessage(&payerEnvelope.ClientEnvelope); err != nil {
-				errs = append(errs, fmt.Sprintf("could not validate group message. index %d: %v", i, err))
+				errs = append(
+					errs,
+					fmt.Sprintf("could not validate group message. index %d: %v", i, err),
+				)
 				continue
 			}
 		}
 
 		if topicKind == topic.TopicKindKeyPackagesV1 {
 			if err = s.validateKeyPackage(ctx, &payerEnvelope.ClientEnvelope); err != nil {
-				errs = append(errs, fmt.Sprintf("could not validate key package. index %d: %v", i, err))
+				errs = append(
+					errs,
+					fmt.Sprintf("could not validate key package. index %d: %v", i, err),
+				)
 				continue
 			}
 		}
@@ -560,64 +661,9 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 
 	if len(errs) > 0 {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			fmt.Errorf("invalid payer envelopes:\n%s", strings.Join(errs, "\n")),
-		)
+		return nil, errors.New(strings.Join(errs, "\n"))
 	}
-
-	var results []*envelopesProto.OriginatorEnvelope
-	var latestStaged *queries.StagedOriginatorEnvelope
-
-	for _, envelope := range processedEnvelopes {
-
-		stagedEnvelope, err := queries.New(s.store).
-			InsertStagedOriginatorEnvelope(ctx, queries.InsertStagedOriginatorEnvelopeParams{
-				Topic:         envelope.TopicBytes,
-				PayerEnvelope: envelope.EnvelopeBytes,
-			})
-		if err != nil {
-			return nil, connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("could not insert staged envelope: %w", err),
-			)
-		}
-
-		baseFee, congestionFee, err := s.publishWorker.calculateFees(
-			&stagedEnvelope,
-			envelope.RetentionDays,
-		)
-		if err != nil {
-			return nil, connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("could not calculate fees: %w", err),
-			)
-		}
-
-		originatorEnvelope, err := s.registrant.SignStagedEnvelope(
-			stagedEnvelope,
-			baseFee,
-			congestionFee,
-			envelope.RetentionDays,
-		)
-		if err != nil {
-			return nil, connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("could not sign envelope: %w", err),
-			)
-		}
-
-		results = append(results, originatorEnvelope)
-		latestStaged = &stagedEnvelope
-	}
-
-	s.publishWorker.notifyStagedPublish()
-
-	s.waitForGatewayPublish(ctx, latestStaged, logger)
-
-	return connect.NewResponse(&message_api.PublishPayerEnvelopesResponse{
-		OriginatorEnvelopes: results,
-	}), nil
+	return processedEnvelopes, nil
 }
 
 func (s *Service) validateGroupMessage(

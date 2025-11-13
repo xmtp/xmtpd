@@ -515,3 +515,88 @@ func TestPublishCommitViaNodeGetsRejected(t *testing.T) {
 	)
 	require.ErrorContains(t, err, "published via the blockchain")
 }
+
+func TestPublishEnvelopeEmpty(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(t)
+
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{}),
+	)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.Contains(t, err.Error(), "missing payer envelope")
+}
+
+func TestPublishEnvelopeBatchPublish(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(t)
+
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
+	)
+
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope, payerEnvelope, payerEnvelope},
+		}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Msg)
+
+	require.Len(t, resp.Msg.OriginatorEnvelopes, 3)
+
+	require.Eventually(t, func() bool {
+		envs, err := queries.New(suite.DB).
+			SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
+		require.NoError(t, err)
+
+		return len(envs) == 3
+	}, 500*time.Millisecond, 50*time.Millisecond)
+}
+
+func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(t)
+
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
+	)
+
+	clientEnv := envelopeTestUtils.CreateClientEnvelope(
+		&envelopeTestUtils.ClientEnvelopeOptions{Aad: &envelopes.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte{1, 2, 3}).
+				Bytes(),
+			DependsOn: &envelopes.Cursor{},
+		}, IsCommit: true},
+	)
+	invalidPayerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
+		clientEnv,
+	)
+
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{
+				payerEnvelope,
+				payerEnvelope,
+				invalidPayerEnvelope,
+			},
+		}),
+	)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.Contains(t, err.Error(), "published via the blockchain")
+
+	// give this some time to process just in case
+	time.Sleep(100 * time.Millisecond)
+
+	envs, err := queries.New(suite.DB).
+		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
+	require.NoError(t, err)
+	require.Len(t, envs, 0)
+}

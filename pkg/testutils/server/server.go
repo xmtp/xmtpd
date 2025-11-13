@@ -64,6 +64,8 @@ func NewTestBaseServer(
 				AttestationWorkerPollInterval: 10 * time.Second,
 				GenerateReportSelfPeriod:      10 * time.Second,
 				GenerateReportOthersPeriod:    10 * time.Second,
+				ExpirySelfPeriod:              20 * time.Second,
+				ExpiryOthersPeriod:            20 * time.Second,
 			},
 			Signer: config.SignerOptions{
 				PrivateKey: hex.EncodeToString(crypto.FromECDSA(cfg.PrivateKey)),

@@ -534,10 +534,7 @@ func (s *Service) PublishPayerEnvelopes(
 						},
 					)
 				if err != nil {
-					return connect.NewError(
-						connect.CodeInternal,
-						fmt.Errorf("could not insert staged envelope: %w", err),
-					)
+					return fmt.Errorf("could not insert staged envelope: %w", err)
 				}
 
 				baseFee, congestionFee, err := s.publishWorker.calculateFees(
@@ -545,10 +542,7 @@ func (s *Service) PublishPayerEnvelopes(
 					envelope.RetentionDays,
 				)
 				if err != nil {
-					return connect.NewError(
-						connect.CodeInternal,
-						fmt.Errorf("could not calculate fees: %w", err),
-					)
+					return fmt.Errorf("could not calculate fees: %w", err)
 				}
 
 				originatorEnvelope, err := s.registrant.SignStagedEnvelope(
@@ -558,10 +552,7 @@ func (s *Service) PublishPayerEnvelopes(
 					envelope.RetentionDays,
 				)
 				if err != nil {
-					return connect.NewError(
-						connect.CodeInternal,
-						fmt.Errorf("could not sign envelope: %w", err),
-					)
+					return fmt.Errorf("could not sign envelope: %w", err)
 				}
 
 				results = append(results, originatorEnvelope)
@@ -573,7 +564,7 @@ func (s *Service) PublishPayerEnvelopes(
 	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInternal,
-			fmt.Errorf("failed to write to database: %w", err),
+			err,
 		)
 	}
 

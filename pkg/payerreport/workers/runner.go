@@ -163,6 +163,25 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 		return nil, fmt.Errorf("generate others period must be greater than 0")
 	}
 
+	// Expiration periods must be always longer than generation periods to avoid race conditions.
+	if float64(
+		b.expirySelfPeriod.Nanoseconds(),
+	) < float64(
+		b.generateSelfPeriod.Nanoseconds(),
+	)*1.5 {
+		return nil, fmt.Errorf("expiry self period must be at least 1.5x the generate self period")
+	}
+
+	if float64(
+		b.expiryOthersPeriod.Nanoseconds(),
+	) < float64(
+		b.generateOthersPeriod.Nanoseconds(),
+	)*1.5 {
+		return nil, fmt.Errorf(
+			"expiry others period must be at least 1.5x the generate others period",
+		)
+	}
+
 	return &workerConfig{
 		ctx:                     b.ctx,
 		logger:                  b.logger,
@@ -174,6 +193,8 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 		attestationPollInterval: b.attestationPollInterval,
 		generateSelfPeriod:      b.generateSelfPeriod,
 		generateOthersPeriod:    b.generateOthersPeriod,
+		expirySelfPeriod:        b.expirySelfPeriod,
+		expiryOthersPeriod:      b.expiryOthersPeriod,
 	}, nil
 }
 

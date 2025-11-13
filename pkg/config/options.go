@@ -124,8 +124,8 @@ type PayerReportOptions struct {
 	AttestationWorkerPollInterval time.Duration `long:"attestation-worker-poll-interval" env:"XMTPD_PAYER_REPORT_ATTESTATION_WORKER_POLL_INTERVAL" description:"Interval between checks for new reports to attest to"                            default:"1m"`
 	GenerateReportSelfPeriod      time.Duration `long:"generate-report-self-period"      env:"XMTPD_PAYER_REPORT_GENERATE_REPORT_SELF_PERIOD"      description:"Period of time we should use to generate payer reports about self"               default:"6h"`
 	GenerateReportOthersPeriod    time.Duration `long:"generate-report-others-period"    env:"XMTPD_PAYER_REPORT_GENERATE_REPORT_OTHERS_PERIOD"    description:"Period of time we should use to generate backup payer reports about other nodes" default:"12h"`
-	ExpirySelfPeriod              time.Duration `long:"expiry-self-period"               env:"XMTPD_PAYER_REPORT_EXPIRY_SELF_PERIOD"               description:"Period of time we should use to expire payer reports about self"                 default:"6h"`
-	ExpiryOthersPeriod            time.Duration `long:"expiry-others-period"             env:"XMTPD_PAYER_REPORT_EXPIRY_OTHERS_PERIOD"             description:"Period of time we should use to expire backup payer reports about other nodes"   default:"12h"`
+	ExpirySelfPeriod              time.Duration `long:"expiry-self-period"               env:"XMTPD_PAYER_REPORT_EXPIRY_SELF_PERIOD"               description:"Period of time we should use to expire payer reports about self"                 default:"9h"`
+	ExpiryOthersPeriod            time.Duration `long:"expiry-others-period"             env:"XMTPD_PAYER_REPORT_EXPIRY_OTHERS_PERIOD"             description:"Period of time we should use to expire backup payer reports about other nodes"   default:"18h"`
 }
 
 type ServerOptions struct {

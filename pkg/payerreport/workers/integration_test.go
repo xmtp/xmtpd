@@ -228,6 +228,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		domainSeparator,
 		1*time.Minute,
 		12*time.Hour,
+		5*time.Minute,
+		12*time.Hour,
 	)
 	reportGenerator2 := workers.NewGeneratorWorker(
 		t.Context(),
@@ -237,6 +239,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registrant2,
 		domainSeparator,
 		1*time.Minute,
+		12*time.Hour,
+		5*time.Minute,
 		12*time.Hour,
 	)
 

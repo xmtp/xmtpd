@@ -1,6 +1,8 @@
 package payerreport
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+)
 
 // payerReportDigestTypeHash is the type hash as defined by EIP-712 for structured data hashing and signing.
 // Calculated as the following keccak256 hash:

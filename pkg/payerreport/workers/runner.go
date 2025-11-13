@@ -30,6 +30,8 @@ type workerConfig struct {
 	attestationPollInterval time.Duration
 	generateSelfPeriod      time.Duration
 	generateOthersPeriod    time.Duration
+	expirySelfPeriod        time.Duration
+	expiryOthersPeriod      time.Duration
 }
 
 // WorkerConfigBuilder provides a builder pattern for creating WorkerConfig instances.
@@ -45,6 +47,8 @@ type WorkerConfigBuilder struct {
 	attestationPollInterval time.Duration
 	generateSelfPeriod      time.Duration
 	generateOthersPeriod    time.Duration
+	expirySelfPeriod        time.Duration
+	expiryOthersPeriod      time.Duration
 }
 
 // NewWorkerConfigBuilder creates a new WorkerConfigBuilder instance.
@@ -114,6 +118,20 @@ func (b *WorkerConfigBuilder) WithGenerationOthersPeriod(
 	return b
 }
 
+func (b *WorkerConfigBuilder) WithExpirySelfPeriod(
+	period time.Duration,
+) *WorkerConfigBuilder {
+	b.expirySelfPeriod = period
+	return b
+}
+
+func (b *WorkerConfigBuilder) WithExpiryOthersPeriod(
+	period time.Duration,
+) *WorkerConfigBuilder {
+	b.expiryOthersPeriod = period
+	return b
+}
+
 // Build creates a WorkerConfig instance after validating that all required fields are set.
 // Returns an error if any required field is nil or invalid.
 func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
@@ -145,6 +163,25 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 		return nil, fmt.Errorf("generate others period must be greater than 0")
 	}
 
+	// Expiration periods must be always longer than generation periods to avoid race conditions.
+	if float64(
+		b.expirySelfPeriod.Nanoseconds(),
+	) < float64(
+		b.generateSelfPeriod.Nanoseconds(),
+	)*1.5 {
+		return nil, fmt.Errorf("expiry self period must be at least 1.5x the generate self period")
+	}
+
+	if float64(
+		b.expiryOthersPeriod.Nanoseconds(),
+	) < float64(
+		b.generateOthersPeriod.Nanoseconds(),
+	)*1.5 {
+		return nil, fmt.Errorf(
+			"expiry others period must be at least 1.5x the generate others period",
+		)
+	}
+
 	return &workerConfig{
 		ctx:                     b.ctx,
 		logger:                  b.logger,
@@ -156,6 +193,8 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 		attestationPollInterval: b.attestationPollInterval,
 		generateSelfPeriod:      b.generateSelfPeriod,
 		generateOthersPeriod:    b.generateOthersPeriod,
+		expirySelfPeriod:        b.expirySelfPeriod,
+		expiryOthersPeriod:      b.expiryOthersPeriod,
 	}, nil
 }
 
@@ -193,6 +232,8 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 		cfg.domainSeparator,
 		cfg.generateSelfPeriod,
 		cfg.generateOthersPeriod,
+		cfg.expirySelfPeriod,
+		cfg.expiryOthersPeriod,
 	)
 
 	submitterWorker := NewSubmitterWorker(

@@ -612,22 +612,19 @@ func (s *Service) preprocessPayerEnvelopes(
 			errs = append(
 				errs,
 				fmt.Sprintf(
-					"reserved topics cannot be published to by gateways. index %d: %v",
+					"reserved topics cannot be published to by gateways. index %d",
 					i,
-					err,
 				),
 			)
 			continue
 		}
 
 		if topicKind == topic.TopicKindIdentityUpdatesV1 {
-
 			errs = append(
 				errs,
 				fmt.Sprintf(
-					"identity updates must be published via the blockchain. index %d: %v",
+					"identity updates must be published via the blockchain. index %d",
 					i,
-					err,
 				),
 			)
 			continue

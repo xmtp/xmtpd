@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -468,6 +469,12 @@ func (s *Service) fetchEnvelopes(
 	return rows, nil
 }
 
+type ValidatedBytesWithTopic struct {
+	EnvelopeBytes []byte
+	TopicBytes    []byte
+	RetentionDays uint32
+}
+
 func (s *Service) PublishPayerEnvelopes(
 	ctx context.Context,
 	req *connect.Request[message_api.PublishPayerEnvelopesRequest],
@@ -501,91 +508,150 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
-	payerEnvelope, err := s.validatePayerEnvelope(payerEnvelopes[0])
+	processedEnvelopes, err := s.preprocessPayerEnvelopes(ctx, payerEnvelopes)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("error processing payer envelopes:%w", err),
+		)
 	}
 
-	// TODO(rich): Properly support batch publishing
-	payerBytes, err := payerEnvelope.Bytes()
+	var results []*envelopesProto.OriginatorEnvelope
+	var latestStaged *queries.StagedOriginatorEnvelope
+
+	err = db.RunInTx(
+		ctx,
+		s.store,
+		nil,
+		func(ctx context.Context, querier *queries.Queries) error {
+			for _, envelope := range processedEnvelopes {
+				stagedEnvelope, err := querier.
+					InsertStagedOriginatorEnvelope(
+						ctx,
+						queries.InsertStagedOriginatorEnvelopeParams{
+							Topic:         envelope.TopicBytes,
+							PayerEnvelope: envelope.EnvelopeBytes,
+						},
+					)
+				if err != nil {
+					return fmt.Errorf("could not insert staged envelope: %w", err)
+				}
+
+				baseFee, congestionFee, err := s.publishWorker.calculateFees(
+					&stagedEnvelope,
+					envelope.RetentionDays,
+				)
+				if err != nil {
+					return fmt.Errorf("could not calculate fees: %w", err)
+				}
+
+				originatorEnvelope, err := s.registrant.SignStagedEnvelope(
+					stagedEnvelope,
+					baseFee,
+					congestionFee,
+					envelope.RetentionDays,
+				)
+				if err != nil {
+					return fmt.Errorf("could not sign envelope: %w", err)
+				}
+
+				results = append(results, originatorEnvelope)
+				latestStaged = &stagedEnvelope
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInternal,
-			fmt.Errorf("could not marshal envelope: %w", err),
+			err,
 		)
 	}
 
-	targetTopic := payerEnvelope.ClientEnvelope.TargetTopic()
-	topicKind := targetTopic.Kind()
-
-	if targetTopic.IsReserved() {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("reserved topics cannot be published to by gateways"),
-		)
-	}
-
-	if topicKind == topic.TopicKindIdentityUpdatesV1 {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("identity updates must be published via the blockchain"),
-		)
-	}
-
-	if topicKind == topic.TopicKindGroupMessagesV1 {
-		if err = s.validateGroupMessage(&payerEnvelope.ClientEnvelope); err != nil {
-			return nil, err
-		}
-	}
-
-	if topicKind == topic.TopicKindKeyPackagesV1 {
-		if err = s.validateKeyPackage(ctx, &payerEnvelope.ClientEnvelope); err != nil {
-			return nil, err
-		}
-	}
-
-	stagedEnvelope, err := queries.New(s.store).
-		InsertStagedOriginatorEnvelope(ctx, queries.InsertStagedOriginatorEnvelopeParams{
-			Topic:         targetTopic.Bytes(),
-			PayerEnvelope: payerBytes,
-		})
-	if err != nil {
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not insert staged envelope: %w", err),
-		)
-	}
 	s.publishWorker.notifyStagedPublish()
-
-	baseFee, congestionFee, err := s.publishWorker.calculateFees(
-		&stagedEnvelope,
-		payerEnvelope.Proto().GetMessageRetentionDays(),
-	)
-	if err != nil {
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not calculate fees: %w", err),
-		)
-	}
-
-	originatorEnvelope, err := s.registrant.SignStagedEnvelope(
-		stagedEnvelope,
-		baseFee,
-		congestionFee,
-		payerEnvelope.Proto().GetMessageRetentionDays(),
-	)
-	if err != nil {
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not sign envelope: %w", err),
-		)
-	}
-
-	s.waitForGatewayPublish(ctx, stagedEnvelope, logger)
+	s.waitForGatewayPublish(ctx, latestStaged, logger)
 
 	return connect.NewResponse(&message_api.PublishPayerEnvelopesResponse{
-		OriginatorEnvelopes: []*envelopesProto.OriginatorEnvelope{originatorEnvelope},
+		OriginatorEnvelopes: results,
 	}), nil
+}
+
+func (s *Service) preprocessPayerEnvelopes(
+	ctx context.Context,
+	payerEnvelopes []*envelopesProto.PayerEnvelope,
+) ([]ValidatedBytesWithTopic, error) {
+	var processedEnvelopes []ValidatedBytesWithTopic
+	var errs []string
+
+	for i, envelope := range payerEnvelopes {
+		payerEnvelope, err := s.validatePayerEnvelope(envelope)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("could not validate envelope. index %d: %v", i, err))
+			continue
+		}
+
+		bytes, err := payerEnvelope.Bytes()
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("could not marshal envelope. index %d: %v", i, err))
+			continue
+		}
+
+		targetTopic := payerEnvelope.ClientEnvelope.TargetTopic()
+		topicKind := targetTopic.Kind()
+
+		if targetTopic.IsReserved() {
+			errs = append(
+				errs,
+				fmt.Sprintf(
+					"reserved topics cannot be published to by gateways. index %d",
+					i,
+				),
+			)
+			continue
+		}
+
+		if topicKind == topic.TopicKindIdentityUpdatesV1 {
+			errs = append(
+				errs,
+				fmt.Sprintf(
+					"identity updates must be published via the blockchain. index %d",
+					i,
+				),
+			)
+			continue
+		}
+
+		if topicKind == topic.TopicKindGroupMessagesV1 {
+			if err = s.validateGroupMessage(&payerEnvelope.ClientEnvelope); err != nil {
+				errs = append(
+					errs,
+					fmt.Sprintf("could not validate group message. index %d: %v", i, err),
+				)
+				continue
+			}
+		}
+
+		if topicKind == topic.TopicKindKeyPackagesV1 {
+			if err = s.validateKeyPackage(ctx, &payerEnvelope.ClientEnvelope); err != nil {
+				errs = append(
+					errs,
+					fmt.Sprintf("could not validate key package. index %d: %v", i, err),
+				)
+				continue
+			}
+		}
+
+		processedEnvelopes = append(processedEnvelopes, ValidatedBytesWithTopic{
+			EnvelopeBytes: bytes,
+			TopicBytes:    targetTopic.Bytes(),
+			RetentionDays: payerEnvelope.Proto().GetMessageRetentionDays(),
+		})
+	}
+
+	if len(errs) > 0 {
+		return nil, errors.New(strings.Join(errs, "\n"))
+	}
+	return processedEnvelopes, nil
 }
 
 func (s *Service) validateGroupMessage(
@@ -894,7 +960,7 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 
 func (s *Service) waitForGatewayPublish(
 	ctx context.Context,
-	stagedEnv queries.StagedOriginatorEnvelope,
+	stagedEnv *queries.StagedOriginatorEnvelope,
 	logger *zap.Logger,
 ) {
 	if s.logger.Core().Enabled(zap.DebugLevel) {

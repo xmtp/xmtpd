@@ -102,11 +102,11 @@ func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID Ev
 
 	if err == nil && lastCancel.CreatedAt.After(lastWithdrawal.CreatedAt) {
 		if bytes.Equal(lastCancel.EventID, eventID[:]) {
-			// Cancelation already complete
+			// Cancellation already complete
 			return nil
 		}
 		l.logger.Warn(
-			"multiple cancelation events for a single withdrawal",
+			"multiple cancellation events for a single withdrawal",
 			utils.EventIDField(eventID.String()),
 			zap.String("last_cancel_event_id", EventID(lastCancel.EventID).String()),
 			zap.String("last_withdrawal_event_id", EventID(lastWithdrawal.EventID).String()),

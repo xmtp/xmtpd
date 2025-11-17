@@ -55,16 +55,28 @@ func newTestEnvelopeSink(
 ) *EnvelopeSink {
 	log := testutils.NewLog(t)
 	calculator := feesTestUtils.NewTestFeeCalculator()
-	db, _ := testutils.NewDB(t, ctx)
+	dbInstance, _ := testutils.NewDB(t, ctx)
+
+	querier := queries.New(dbInstance)
+	err := querier.EnsureGatewayParts(
+		ctx,
+		queries.EnsureGatewayPartsParams{
+			OriginatorNodeID:     200,
+			OriginatorSequenceID: 1,
+			BandWidth:            1_000_000,
+		},
+	)
+	require.NoError(t, err)
 
 	return newEnvelopeSink(
 		ctx,
-		db,
+		dbInstance,
 		log,
 		calculator,
 		payerreportMocks.NewMockIPayerReportStore(t),
 		payerReportDomainSeparator,
 		writeQueue,
+		10*time.Millisecond,
 	)
 }
 
@@ -126,7 +138,7 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	require.Eventually(t, func() bool {
 		envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
 		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
-	}, 5*time.Second, 50*time.Millisecond)
+	}, time.Second, 50*time.Millisecond)
 }
 
 func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {

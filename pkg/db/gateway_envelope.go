@@ -3,8 +3,9 @@ package db
 import (
 	"context"
 	"database/sql"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"strings"
+
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
 // InsertGatewayEnvelopeAndIncrementUnsettledUsage inserts a gateway envelope and

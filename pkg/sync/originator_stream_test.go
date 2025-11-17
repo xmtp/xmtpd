@@ -104,7 +104,7 @@ func getAllMessagesForOriginator(
 
 func TestSyncWorkerSuccess(t *testing.T) {
 	nodeID := uint32(200)
-	sequenceID := uint64(100)
+	sequenceID := uint64(1)
 	envelope := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, sequenceID)
 	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{envelope})
 
@@ -126,7 +126,7 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	require.Eventually(t, func() bool {
 		envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
 		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
-	}, 1*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 }
 
 func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {

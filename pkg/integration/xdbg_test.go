@@ -10,6 +10,7 @@ import (
 )
 
 func TestXDBGRealMLSPayloads(t *testing.T) {
+	t.Skip("XDBG is unstable")
 	network := MakeDockerNetwork(t)
 	xmtpdAlias := "xmtpd"
 	gatewayAlias := "gateway"

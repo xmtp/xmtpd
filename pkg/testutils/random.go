@@ -46,6 +46,10 @@ func RandomInboxIDBytes() [32]byte {
 	return inboxID
 }
 
+func RandomReportID() []byte {
+	return RandomBytes(32)
+}
+
 func RandomAddress() common.Address {
 	bytes := RandomBytes(20)
 	return common.BytesToAddress(bytes)

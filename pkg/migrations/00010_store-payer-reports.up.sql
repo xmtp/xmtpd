@@ -7,7 +7,7 @@ CREATE TABLE payer_reports (
     end_minute_since_epoch INT NOT NULL,
     payers_merkle_root BYTEA NOT NULL,
     active_node_ids INT [] NOT NULL,
-    -- 0 = pending, 1 = submitted, 2 = settled
+    -- 0 = pending, 1 = submitted, 2 = settled, 3 = rejected
     submission_status SMALLINT NOT NULL DEFAULT 0,
     -- 0 = pending, 1 = approved, 2 = rejected
     attestation_status SMALLINT NOT NULL DEFAULT 0,

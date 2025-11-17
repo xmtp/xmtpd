@@ -53,7 +53,7 @@ func (l *RedisLimiter) buildKeys(subject string) []string {
 }
 
 func (l *RedisLimiter) buildArgs(requestTime time.Time, cost uint64) []any {
-	args := make([]interface{}, 0, 3+len(l.limits)*2)
+	args := make([]any, 0, 3+len(l.limits)*2)
 	args = append(args, requestTime.UnixMilli(), len(l.limits), cost)
 	for _, lim := range l.limits {
 		args = append(args, lim.Capacity, lim.RefillEvery.Milliseconds())

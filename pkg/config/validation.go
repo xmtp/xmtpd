@@ -511,7 +511,7 @@ func validateSettlementChainConfig(
 }
 
 // validateField checks if a field meets the validation requirements and adds appropriate errors.
-func validateField(value interface{}, fieldName string, set map[string]struct{}) {
+func validateField(value any, fieldName string, set map[string]struct{}) {
 	switch v := value.(type) {
 	case string:
 		if v == "" {

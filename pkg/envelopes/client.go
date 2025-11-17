@@ -57,7 +57,7 @@ func (c *ClientEnvelope) TargetTopic() topic.Topic {
 	return c.targetTopic
 }
 
-func (c *ClientEnvelope) Payload() interface{} {
+func (c *ClientEnvelope) Payload() any {
 	return c.proto.Payload
 }
 

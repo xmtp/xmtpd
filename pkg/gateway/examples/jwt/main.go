@@ -34,7 +34,7 @@ func jwtIdentityFn(publicKey []byte) gateway.IdentityFn {
 		token, err := jwt.ParseWithClaims(
 			authHeader,
 			&jwt.RegisteredClaims{},
-			func(token *jwt.Token) (interface{}, error) {
+			func(token *jwt.Token) (any, error) {
 				// Verify signing method
 				if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 					return nil, gateway.NewPermissionDeniedError(

@@ -460,14 +460,14 @@ func (n *ParameterAdmin) setParameterBytes32(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.registry.Set(opts, paramName, value)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			key, v, err := n.registry.ParseParameterSet(*log)
 			if err != nil {
 				return nil, err
 			}
 			return parameterSetEvent{Key: key, Value: v}, nil
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(parameterSetEvent)
 			if !ok {
 				n.logger.Error("unexpected event type, not ParameterSet tuple")
@@ -493,14 +493,14 @@ func (n *ParameterAdmin) setParametersBytes32Many(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return n.registry.SetMany(opts, keys, values)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			key, v, err := n.registry.ParseParameterSet(*log)
 			if err != nil {
 				return nil, err
 			}
 			return parameterSetEvent{Key: key, Value: v}, nil
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(parameterSetEvent)
 			if !ok {
 				n.logger.Error("unexpected event type, not ParameterSet tuple")

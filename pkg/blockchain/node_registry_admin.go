@@ -91,10 +91,10 @@ func (n *nodeRegistryAdmin) AddNode(
 				httpAddress,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return n.nodeContract.ParseNodeAdded(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAdded)
 			if !ok {
 				n.logger.Error("node added event is not of type NodesNodeAdded")
@@ -131,10 +131,10 @@ func (n *nodeRegistryAdmin) AddToNetwork(
 				nodeID,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return n.nodeContract.ParseNodeAddedToCanonicalNetwork(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			nodeAdded, ok := event.(*noderegistry.NodeRegistryNodeAddedToCanonicalNetwork)
 			if !ok {
 				n.logger.Error(
@@ -164,10 +164,10 @@ func (n *nodeRegistryAdmin) RemoveFromNetwork(
 				nodeID,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return n.nodeContract.ParseNodeRemovedFromCanonicalNetwork(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			nodeRemoved, ok := event.(*noderegistry.NodeRegistryNodeRemovedFromCanonicalNetwork)
 			if !ok {
 				n.logger.Error(
@@ -199,10 +199,10 @@ func (n *nodeRegistryAdmin) SetHTTPAddress(
 				httpAddress,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return n.nodeContract.ParseHttpAddressUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			httpAddressUpdated, ok := event.(*noderegistry.NodeRegistryHttpAddressUpdated)
 			if !ok {
 				n.logger.Error(
@@ -237,10 +237,10 @@ func (n *nodeRegistryAdmin) SetMaxCanonical(
 				opts,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return n.nodeContract.ParseMaxCanonicalNodesUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			maxCanonicalUpdated, ok := event.(*noderegistry.NodeRegistryMaxCanonicalNodesUpdated)
 			if !ok {
 				n.logger.Error(

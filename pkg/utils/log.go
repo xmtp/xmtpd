@@ -150,7 +150,7 @@ func BlockNumberField(blockNumber uint64) zap.Field {
 
 // BodyField uses reflection to log the body of the request or response.
 // Do not use in hot paths unless guarded with "if logger.Core().Enabled(zap.DebugLevel) { ... }"
-func BodyField(body interface{}) zap.Field {
+func BodyField(body any) zap.Field {
 	return zap.Any("body", body)
 }
 

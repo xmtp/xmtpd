@@ -122,10 +122,10 @@ func (a appChainAdmin) UpdateIdentityUpdateBootstrapper(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.identityUpdateBroadcaster.UpdatePayloadBootstrapper(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.identityUpdateBroadcaster.ParsePayloadBootstrapperUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			parameterSet, ok := event.(*iu.IdentityUpdateBroadcasterPayloadBootstrapperUpdated)
 			if !ok {
 				a.logger.Error(
@@ -166,10 +166,10 @@ func (a appChainAdmin) UpdateGroupMessageBootstrapper(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.groupMessageBroadcaster.UpdatePayloadBootstrapper(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.groupMessageBroadcaster.ParsePayloadBootstrapperUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			parameterSet, ok := event.(*gm.GroupMessageBroadcasterPayloadBootstrapperUpdated)
 			if !ok {
 				a.logger.Error(
@@ -208,10 +208,10 @@ func (a appChainAdmin) UpdateGroupMessagePauseStatus(ctx context.Context) error 
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.groupMessageBroadcaster.UpdatePauseStatus(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.groupMessageBroadcaster.ParsePauseStatusUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			parameterSet, ok := event.(*gm.GroupMessageBroadcasterPauseStatusUpdated)
 			if !ok {
 				a.logger.Error(
@@ -249,10 +249,10 @@ func (a appChainAdmin) UpdateIdentityUpdatePauseStatus(ctx context.Context) erro
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.identityUpdateBroadcaster.UpdatePauseStatus(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.identityUpdateBroadcaster.ParsePauseStatusUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*iu.IdentityUpdateBroadcasterPauseStatusUpdated)
 			if !ok {
 				a.logger.Error(
@@ -288,10 +288,10 @@ func (a appChainAdmin) UpdateAppChainGatewayPauseStatus(ctx context.Context) err
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.appChainGateway.UpdatePauseStatus(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.appChainGateway.ParsePauseStatusUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*acg.AppChainGatewayPauseStatusUpdated)
 			if !ok {
 				a.logger.Error(
@@ -325,10 +325,10 @@ func (a appChainAdmin) UpdateGroupMessageMaxPayloadSize(ctx context.Context) err
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.groupMessageBroadcaster.UpdateMaxPayloadSize(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.groupMessageBroadcaster.ParseMaxPayloadSizeUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*gm.GroupMessageBroadcasterMaxPayloadSizeUpdated)
 			if !ok {
 				a.logger.Error(
@@ -363,10 +363,10 @@ func (a appChainAdmin) UpdateGroupMessageMinPayloadSize(ctx context.Context) err
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.groupMessageBroadcaster.UpdateMinPayloadSize(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.groupMessageBroadcaster.ParseMinPayloadSizeUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*gm.GroupMessageBroadcasterMinPayloadSizeUpdated)
 			if !ok {
 				a.logger.Error(
@@ -401,10 +401,10 @@ func (a appChainAdmin) UpdateIdentityUpdateMaxPayloadSize(ctx context.Context) e
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.identityUpdateBroadcaster.UpdateMaxPayloadSize(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.identityUpdateBroadcaster.ParseMaxPayloadSizeUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*iu.IdentityUpdateBroadcasterMaxPayloadSizeUpdated)
 			if !ok {
 				a.logger.Error(
@@ -439,10 +439,10 @@ func (a appChainAdmin) UpdateIdentityUpdateMinPayloadSize(ctx context.Context) e
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return a.identityUpdateBroadcaster.UpdateMinPayloadSize(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return a.identityUpdateBroadcaster.ParseMinPayloadSizeUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*iu.IdentityUpdateBroadcasterMinPayloadSizeUpdated)
 			if !ok {
 				a.logger.Error(

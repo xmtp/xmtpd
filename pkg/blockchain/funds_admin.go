@@ -195,10 +195,10 @@ func (f *fundsAdmin) MintMockUSDC(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return f.mockUnderlyingFeeToken.Mint(opts, addr, amount)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return f.mockUnderlyingFeeToken.ParseTransfer(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			transfer, ok := event.(*mft.MockUnderlyingFeeTokenTransfer)
 			if !ok {
 				f.logger.Error("unexpected event type, not MockUnderlyingFeeTokenTransfer")
@@ -266,10 +266,10 @@ func (f *fundsAdmin) Deposit(
 				gasPrice,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return f.settlementGateway.ParseDeposit(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			deposit, ok := event.(*scg.SettlementChainGatewayDeposit)
 			if !ok {
 				f.logger.Error("node added event is not of type SettlementChainGatewayDeposit")
@@ -323,10 +323,10 @@ func (f *fundsAdmin) Withdraw(
 				from,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return f.appGateway.ParseWithdrawal(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			withdrawal, ok := event.(*acg.AppChainGatewayWithdrawal)
 			if !ok {
 				f.logger.Error("node added event is not of type AppChainGatewayWithdrawal")
@@ -364,10 +364,10 @@ func (f *fundsAdmin) ReceiveWithdrawal(
 				from,
 			)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return f.settlementGateway.ParseWithdrawalReceived(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			withdrawal, ok := event.(*scg.SettlementChainGatewayWithdrawalReceived)
 			if !ok {
 				f.logger.Error(

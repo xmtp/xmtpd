@@ -3,10 +3,8 @@ package db
 import (
 	"context"
 	"database/sql"
-	"strings"
-	"sync"
-
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"strings"
 )
 
 // InsertGatewayEnvelopeAndIncrementUnsettledUsage inserts a gateway envelope and
@@ -49,7 +47,6 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 				return 0, nil
 			}
 
-			var wg sync.WaitGroup
 			// Use the sequence ID from the envelope to set the last sequence ID value
 			if incrementParams.SequenceID == 0 {
 				incrementParams.SequenceID = insertParams.OriginatorSequenceID
@@ -58,8 +55,6 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			if incrementParams.MessageCount == 0 {
 				incrementParams.MessageCount = 1
 			}
-
-			wg.Add(2)
 
 			err = txQueries.IncrementUnsettledUsage(ctx, incrementParams)
 			if err != nil {

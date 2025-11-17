@@ -65,7 +65,7 @@ func TestFullJWT(t *testing.T) {
 	tokenString, err := token.SignedString(privateKey)
 	require.NoError(t, err)
 
-	parsedToken, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	parsedToken, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return privateKey.Public(), nil
 	})
 	require.NoError(t, err)

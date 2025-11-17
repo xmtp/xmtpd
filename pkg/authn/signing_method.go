@@ -27,7 +27,7 @@ var (
 // but updated to work with the latest serverVersion of jwt-go.
 type SigningMethodSecp256k1 struct{}
 
-func (sm *SigningMethodSecp256k1) Verify(signingString string, sig []byte, key interface{}) error {
+func (sm *SigningMethodSecp256k1) Verify(signingString string, sig []byte, key any) error {
 	pub, ok := key.(*ecdsa.PublicKey)
 	if !ok {
 		return ErrWrongKeyFormat
@@ -49,7 +49,7 @@ func (sm *SigningMethodSecp256k1) Verify(signingString string, sig []byte, key i
 	return nil
 }
 
-func (sm *SigningMethodSecp256k1) Sign(signingString string, key interface{}) ([]byte, error) {
+func (sm *SigningMethodSecp256k1) Sign(signingString string, key any) ([]byte, error) {
 	priv, ok := key.(*ecdsa.PrivateKey)
 	if !ok {
 		return nil, ErrWrongKeyFormat

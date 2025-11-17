@@ -97,8 +97,8 @@ func ExecuteTransaction(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
-	eventParser func(*types.Log) (interface{}, error),
-	logHandler func(interface{}),
+	eventParser func(*types.Log) (any, error),
+	logHandler func(any),
 ) ProtocolError {
 	if signer == nil {
 		return NewBlockchainError(fmt.Errorf("no signer provided"))

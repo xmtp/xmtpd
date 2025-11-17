@@ -95,10 +95,10 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return r.ratesContract.UpdateRates(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return r.ratesContract.ParseRatesUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			e, ok := event.(*rateregistry.RateRegistryRatesUpdated)
 			if !ok {
 				r.logger.Error("unexpected event type, not of type RateRegistryRatesUpdated")

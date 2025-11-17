@@ -167,10 +167,10 @@ func (s settlementChainAdmin) UpdateSettlementChainGatewayPauseStatus(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.settlementChainGateway.UpdatePauseStatus(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.settlementChainGateway.ParsePauseStatusUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*scg.SettlementChainGatewayPauseStatusUpdated)
 			if !ok {
 				s.logger.Error(
@@ -207,10 +207,10 @@ func (s settlementChainAdmin) UpdatePayerRegistryPauseStatus(ctx context.Context
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.payerRegistry.UpdatePauseStatus(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.payerRegistry.ParsePauseStatusUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*pr.PayerRegistryPauseStatusUpdated)
 			if !ok {
 				s.logger.Error(
@@ -249,10 +249,10 @@ func (s settlementChainAdmin) UpdateDistributionManagerPauseStatus(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.distributionManager.UpdatePauseStatus(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.distributionManager.ParsePauseStatusUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*dm.DistributionManagerPauseStatusUpdated)
 			if !ok {
 				s.logger.Error(
@@ -292,10 +292,10 @@ func (s settlementChainAdmin) UpdateDistributionManagerProtocolFeesRecipient(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.distributionManager.UpdateProtocolFeesRecipient(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.distributionManager.ParseProtocolFeesRecipientUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*dm.DistributionManagerProtocolFeesRecipientUpdated)
 			if !ok {
 				s.logger.Error(
@@ -331,10 +331,10 @@ func (s settlementChainAdmin) UpdatePayerRegistryMinimumDeposit(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.payerRegistry.UpdateMinimumDeposit(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.payerRegistry.ParseMinimumDepositUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*pr.PayerRegistryMinimumDepositUpdated)
 			if !ok {
 				s.logger.Error("unexpected event type, not PayerRegistryMinimumDepositUpdated")
@@ -369,10 +369,10 @@ func (s settlementChainAdmin) UpdatePayerRegistryWithdrawLockPeriod(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.payerRegistry.UpdateWithdrawLockPeriod(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.payerRegistry.ParseWithdrawLockPeriodUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*pr.PayerRegistryWithdrawLockPeriodUpdated)
 			if !ok {
 				s.logger.Error("unexpected event type, not PayerRegistryWithdrawLockPeriodUpdated")
@@ -407,10 +407,10 @@ func (s settlementChainAdmin) UpdatePayerReportManagerProtocolFeeRate(
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.payerReportManager.UpdateProtocolFeeRate(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.payerReportManager.ParseProtocolFeeRateUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*prm.PayerReportManagerProtocolFeeRateUpdated)
 			if !ok {
 				s.logger.Error(
@@ -443,10 +443,10 @@ func (s settlementChainAdmin) UpdateNodeRegistryAdmin(ctx context.Context) error
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
 			return s.nodeRegistry.UpdateAdmin(opts)
 		},
-		func(log *types.Log) (interface{}, error) {
+		func(log *types.Log) (any, error) {
 			return s.nodeRegistry.ParseAdminUpdated(*log)
 		},
-		func(event interface{}) {
+		func(event any) {
 			ev, ok := event.(*nr.NodeRegistryAdminUpdated)
 			if !ok {
 				s.logger.Error(
@@ -511,10 +511,10 @@ func (s settlementChainAdmin) BridgeParameters(ctx context.Context, keys []strin
 				amountToSend,
 			)
 		},
-		func(l *types.Log) (interface{}, error) {
+		func(l *types.Log) (any, error) {
 			return s.settlementChainGateway.ParseParametersSent(*l)
 		},
-		func(ev interface{}) {
+		func(ev any) {
 			e, ok := ev.(*scg.SettlementChainGatewayParametersSent)
 			if ok {
 				s.logger.Info("parameters sent",

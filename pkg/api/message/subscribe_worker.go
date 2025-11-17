@@ -84,7 +84,7 @@ func (ls *listenerSet) removeListener(l *listener) {
 
 func (ls *listenerSet) isEmpty() bool {
 	empty := true
-	ls.Range(func(_, _ interface{}) bool {
+	ls.Range(func(_, _ any) bool {
 		empty = false
 		return false // stop iteration
 	})

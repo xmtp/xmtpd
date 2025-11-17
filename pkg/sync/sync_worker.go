@@ -151,6 +151,7 @@ func (s *syncWorker) subscribeToNode(nodeID uint32) {
 				s.payerReportStore,
 				s.payerReportDomainSeparator,
 				writeQueue,
+				1*time.Second,
 			).Start()
 		})
 

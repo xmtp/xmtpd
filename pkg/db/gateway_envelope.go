@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"strings"
-	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
@@ -49,8 +48,6 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 				return 0, nil
 			}
 
-			var wg sync.WaitGroup
-			var incrementErr, congestionErr error
 			// Use the sequence ID from the envelope to set the last sequence ID value
 			if incrementParams.SequenceID == 0 {
 				incrementParams.SequenceID = insertParams.OriginatorSequenceID
@@ -60,32 +57,20 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 				incrementParams.MessageCount = 1
 			}
 
-			wg.Add(2)
-
-			go func() {
-				defer wg.Done()
-				incrementErr = txQueries.IncrementUnsettledUsage(ctx, incrementParams)
-			}()
-
-			go func() {
-				defer wg.Done()
-				congestionErr = txQueries.IncrementOriginatorCongestion(
-					ctx,
-					queries.IncrementOriginatorCongestionParams{
-						OriginatorID:      incrementParams.OriginatorID,
-						MinutesSinceEpoch: incrementParams.MinutesSinceEpoch,
-					},
-				)
-			}()
-
-			wg.Wait()
-
-			if incrementErr != nil {
-				return 0, incrementErr
+			err = txQueries.IncrementUnsettledUsage(ctx, incrementParams)
+			if err != nil {
+				return 0, err
 			}
 
-			if congestionErr != nil {
-				return 0, congestionErr
+			err = txQueries.IncrementOriginatorCongestion(
+				ctx,
+				queries.IncrementOriginatorCongestionParams{
+					OriginatorID:      incrementParams.OriginatorID,
+					MinutesSinceEpoch: incrementParams.MinutesSinceEpoch,
+				},
+			)
+			if err != nil {
+				return 0, err
 			}
 
 			return numInserted.InsertedMetaRows, nil

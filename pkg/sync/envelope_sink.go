@@ -26,6 +26,7 @@ type EnvelopeSink struct {
 	payerReportStore           payerreport.IPayerReportStore
 	payerReportDomainSeparator common.Hash
 	writeQueue                 chan *envUtils.OriginatorEnvelope
+	errorRetrySleepTime        time.Duration
 }
 
 func newEnvelopeSink(
@@ -36,6 +37,7 @@ func newEnvelopeSink(
 	payerReportStore payerreport.IPayerReportStore,
 	payerReportDomainSeparator common.Hash,
 	writeQueue chan *envUtils.OriginatorEnvelope,
+	errorRetrySleepTime time.Duration,
 ) *EnvelopeSink {
 	return &EnvelopeSink{
 		ctx:                        ctx,
@@ -46,6 +48,7 @@ func newEnvelopeSink(
 		payerReportStore:           payerReportStore,
 		payerReportDomainSeparator: payerReportDomainSeparator,
 		writeQueue:                 writeQueue,
+		errorRetrySleepTime:        errorRetrySleepTime,
 	}
 }
 
@@ -73,7 +76,7 @@ func (s *EnvelopeSink) Start() {
 					err := s.storeEnvelope(env)
 					if err != nil {
 						s.logger.Error("error storing envelope", zap.Error(err))
-						time.Sleep(1 * time.Second)
+						time.Sleep(s.errorRetrySleepTime)
 						continue
 					}
 					break storeLoop

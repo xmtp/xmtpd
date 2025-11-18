@@ -330,6 +330,7 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 		}, 3*time.Second, 100*time.Millisecond)
 	})
 }
+
 func TestCreateServer_AllOptionPermutations(t *testing.T) {
 	var (
 		ctx = t.Context()
@@ -372,7 +373,6 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 		)
 
 		t.Run(name, func(t *testing.T) {
-
 			port := networkTestUtils.OpenFreePort(t)
 
 			server := serverTestUtils.NewTestBaseServer(

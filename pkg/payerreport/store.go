@@ -135,6 +135,25 @@ func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID, reportIndex
 	})
 }
 
+// ForceSetReportSubmitted is used to set the report submitted status to submitted, regardless of the previous status.
+// This is a dangerous operation and should only be used in rare cases, when the system has to
+// guarantee consistency between the database and the chain, where the chain is the source of truth.
+func (s *Store) ForceSetReportSubmitted(ctx context.Context, id ReportID, reportIndex int32) error {
+	allowAllStatuses := []int16{
+		int16(SubmissionPending),
+		int16(SubmissionSubmitted),
+		int16(SubmissionSettled),
+		int16(SubmissionRejected),
+	}
+
+	return s.queries.SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
+		ReportID:             id[:],
+		NewStatus:            int16(SubmissionSubmitted),
+		PrevStatus:           allowAllStatuses,
+		SubmittedReportIndex: reportIndex,
+	})
+}
+
 func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 	return db.RunInTx(
 		ctx,

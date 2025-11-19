@@ -257,6 +257,54 @@ func (_c *MockIPayerReportStore_FetchReports_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// ForceSetReportSubmitted provides a mock function with given fields: ctx, id, reportIndex
+func (_m *MockIPayerReportStore) ForceSetReportSubmitted(ctx context.Context, id payerreport.ReportID, reportIndex int32) error {
+	ret := _m.Called(ctx, id, reportIndex)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForceSetReportSubmitted")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, payerreport.ReportID, int32) error); ok {
+		r0 = rf(ctx, id, reportIndex)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockIPayerReportStore_ForceSetReportSubmitted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForceSetReportSubmitted'
+type MockIPayerReportStore_ForceSetReportSubmitted_Call struct {
+	*mock.Call
+}
+
+// ForceSetReportSubmitted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id payerreport.ReportID
+//   - reportIndex int32
+func (_e *MockIPayerReportStore_Expecter) ForceSetReportSubmitted(ctx interface{}, id interface{}, reportIndex interface{}) *MockIPayerReportStore_ForceSetReportSubmitted_Call {
+	return &MockIPayerReportStore_ForceSetReportSubmitted_Call{Call: _e.mock.On("ForceSetReportSubmitted", ctx, id, reportIndex)}
+}
+
+func (_c *MockIPayerReportStore_ForceSetReportSubmitted_Call) Run(run func(ctx context.Context, id payerreport.ReportID, reportIndex int32)) *MockIPayerReportStore_ForceSetReportSubmitted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(payerreport.ReportID), args[2].(int32))
+	})
+	return _c
+}
+
+func (_c *MockIPayerReportStore_ForceSetReportSubmitted_Call) Return(_a0 error) *MockIPayerReportStore_ForceSetReportSubmitted_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIPayerReportStore_ForceSetReportSubmitted_Call) RunAndReturn(run func(context.Context, payerreport.ReportID, int32) error) *MockIPayerReportStore_ForceSetReportSubmitted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAdvisoryLocker provides a mock function with given fields: ctx
 func (_m *MockIPayerReportStore) GetAdvisoryLocker(ctx context.Context) (db.ITransactionScopedAdvisoryLocker, error) {
 	ret := _m.Called(ctx)

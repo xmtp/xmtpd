@@ -330,3 +330,65 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 		}, 3*time.Second, 100*time.Millisecond)
 	})
 }
+
+func TestCreateServer_AllOptionPermutations(t *testing.T) {
+	var (
+		ctx = t.Context()
+		dbs = testutils.NewDBs(t, ctx, 2)
+	)
+
+	privateKey1, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	// Use a single registry port for all subtests – registry is shared.
+	registryPort := networkTestUtils.OpenFreePort(t)
+
+	nodes := []r.Node{
+		registryTestUtils.CreateNode(
+			server1NodeID,
+			registryPort,
+			privateKey1,
+		),
+	}
+
+	registry := registryTestUtils.CreateMockRegistry(t, nodes)
+
+	wsURL, rpcURL := anvil.StartAnvil(t, false)
+	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
+
+	for mask := 0; mask < 16; mask++ {
+		services := serverTestUtils.EnabledServices{
+			API:     mask&1 != 0,
+			Reports: mask&2 != 0,
+			Sync:    mask&4 != 0,
+			Indexer: mask&8 != 0,
+		}
+
+		name := fmt.Sprintf(
+			"api=%t/reports=%t/sync=%t/indexer=%t",
+			services.API,
+			services.Reports,
+			services.Sync,
+			services.Indexer,
+		)
+
+		t.Run(name, func(t *testing.T) {
+			port := networkTestUtils.OpenFreePort(t)
+
+			server := serverTestUtils.NewTestBaseServer(
+				t,
+				serverTestUtils.TestServerCfg{
+					Port:             port,
+					DB:               dbs[0],
+					Registry:         registry,
+					PrivateKey:       privateKey1,
+					ContractsOptions: contractsOptions,
+					Services:         services,
+				},
+			)
+
+			require.NotNil(t, server)
+			server.Shutdown(0)
+		})
+	}
+}

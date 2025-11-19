@@ -113,7 +113,7 @@ func main() {
 		}
 
 		if options.API.Enable || options.Sync.Enable || options.Indexer.Enable ||
-			options.MigrationServer.Enable {
+			options.MigrationServer.Enable || options.PayerReport.Enable {
 			namespace := options.DB.NameOverride
 			if namespace == "" {
 				namespace = utils.BuildNamespace(

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -eu
+
+. dev/local.env
+
+export XMTPD_REFLECTION_ENABLE=true
+export XMTPD_PAYER_REPORT_RUN_WORKERS=true
+export XMTPD_METRICS_ENABLE=true
+export XMTPD_METRICS_METRICS_ADDRESS=0.0.0.0
+export XMTPD_CONTRACTS_ENVIRONMENT=anvil
+
+go run -ldflags="-X main.Version=$(git describe HEAD --tags --long)" cmd/replication/main.go "$@"

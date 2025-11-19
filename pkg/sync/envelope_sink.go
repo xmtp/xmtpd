@@ -3,7 +3,11 @@ package sync
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -67,20 +71,38 @@ func (s *EnvelopeSink) Start() {
 				continue
 			}
 
-		storeLoop:
-			for {
+			exp := backoff.NewExponentialBackOff()
+			exp.InitialInterval = 10 * time.Millisecond
+			exp.MaxInterval = s.errorRetrySleepTime
+			exp.Multiplier = 2.0
+			exp.RandomizationFactor = 0.5
+			exp.MaxElapsedTime = 0 // no limit
+
+			boCtx := backoff.WithContext(exp, s.ctx)
+
+			operation := func() error {
 				select {
 				case <-s.ctx.Done():
-					return
+					return backoff.Permanent(errors.New("shutting down"))
 				default:
 					err := s.storeEnvelope(env)
 					if err != nil {
 						s.logger.Error("error storing envelope", zap.Error(err))
-						time.Sleep(s.errorRetrySleepTime)
-						continue
+
+						if !retryerrors.IsRetryableSQLError(err) {
+							s.logger.Error("Unexpected runtime error. Retry might be indefinite.")
+						}
+
+						return err
 					}
-					break storeLoop
+
+					return nil
 				}
+			}
+
+			err := backoff.Retry(operation, boCtx)
+			if err != nil {
+				return
 			}
 		}
 	}

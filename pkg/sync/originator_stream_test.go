@@ -76,7 +76,7 @@ func newTestEnvelopeSink(
 		payerreportMocks.NewMockIPayerReportStore(t),
 		payerReportDomainSeparator,
 		writeQueue,
-		10*time.Millisecond,
+		100*time.Millisecond,
 	)
 }
 

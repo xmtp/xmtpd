@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
+
 	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -230,7 +233,7 @@ func (s *Service) catchUpFromCursor(
 	}
 
 	for {
-		rows, err := s.fetchEnvelopes(ctx, query, maxRequestedRows)
+		rows, err := s.fetchEnvelopesWithRetry(ctx, query, maxRequestedRows)
 		if err != nil {
 			return err
 		}
@@ -339,7 +342,7 @@ func (s *Service) QueryEnvelopes(
 		limit = int32(req.Msg.GetLimit())
 	}
 
-	rows, err := s.fetchEnvelopes(ctx, req.Msg.GetQuery(), limit)
+	rows, err := s.fetchEnvelopesWithRetry(ctx, req.Msg.GetQuery(), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -400,6 +403,47 @@ func (s *Service) validateQuery(
 	}
 
 	return nil
+}
+
+func (s *Service) fetchEnvelopesWithRetry(
+	ctx context.Context,
+	query *message_api.EnvelopesQuery,
+	rowLimit int32,
+) ([]queries.GatewayEnvelopesView, error) {
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = 50 * time.Millisecond
+	bo.MaxInterval = 300 * time.Millisecond
+	bo.Multiplier = 2.0
+	bo.RandomizationFactor = 0.5
+	bo.MaxElapsedTime = 2 * time.Second
+
+	// Wrap the backoff with context
+	boCtx := backoff.WithContext(bo, ctx)
+
+	var result []queries.GatewayEnvelopesView
+
+	operation := func() error {
+		res, err := s.fetchEnvelopes(ctx, query, rowLimit)
+		if err == nil {
+			result = res
+			return nil
+		}
+
+		// Non-retryable SQL errors stop retrying
+		if !retryerrors.IsRetryableSQLError(err) {
+			return backoff.Permanent(err)
+		}
+
+		// Retryable → return as-is to trigger backoff retry
+		return err
+	}
+
+	err := backoff.Retry(operation, boCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (s *Service) fetchEnvelopes(

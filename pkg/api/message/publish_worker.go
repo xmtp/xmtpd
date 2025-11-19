@@ -135,18 +135,20 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		logger.Warn("failed to unmarshall originator envelope", zap.Error(err))
 		return false
 	}
-	retentionDays := env.RetentionDays()
 
 	parsedTopic, err := topic.ParseTopic(stagedEnv.Topic)
 	if err != nil {
 		return false
 	}
-	isReserved := parsedTopic.IsReserved()
 
-	var baseFee, congestionFee currency.PicoDollar
-	// We do not charge fees for messages on reserved topics.
-	// These topics should be blocked from regular publishing and messages can only be produced by the node itself.
-	if !isReserved {
+	var (
+		baseFee         currency.PicoDollar
+		congestionFee   currency.PicoDollar
+		isReservedTopic = parsedTopic.IsReserved()
+		retentionDays   = env.RetentionDays()
+	)
+
+	if !isReservedTopic {
 		if baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays); err != nil {
 			logger.Error("failed to calculate fees", zap.Error(err))
 			return false
@@ -166,11 +168,13 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		)
 		return false
 	}
+
 	validatedEnvelope, err := envelopes.NewOriginatorEnvelope(originatorEnv)
 	if err != nil {
 		logger.Error("failed to validate originator envelope", zap.Error(err))
 		return false
 	}
+
 	originatorBytes, err := validatedEnvelope.Bytes()
 	if err != nil {
 		logger.Error("failed to marshal originator envelope", zap.Error(err))
@@ -192,27 +196,55 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
-	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
-		p.ctx,
-		p.store,
-		queries.InsertGatewayEnvelopeParams{
-			OriginatorNodeID:     originatorID,
-			OriginatorSequenceID: stagedEnv.ID,
-			Topic:                stagedEnv.Topic,
-			OriginatorEnvelope:   originatorBytes,
-			PayerID:              db.NullInt32(payerID),
-			GatewayTime:          stagedEnv.OriginatorTime,
-			Expiry: int64(
-				validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-			),
-		},
-		queries.IncrementUnsettledUsageParams{
-			PayerID:           payerID,
-			OriginatorID:      originatorID,
-			MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
-			SpendPicodollars:  int64(baseFee) + int64(congestionFee),
-		},
-	)
+	var inserted int64
+
+	if isReservedTopic {
+		// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
+		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
+			p.ctx,
+			queries.New(p.store),
+			queries.InsertGatewayEnvelopeParams{
+				OriginatorNodeID:     originatorID,
+				OriginatorSequenceID: stagedEnv.ID,
+				Topic:                stagedEnv.Topic,
+				OriginatorEnvelope:   originatorBytes,
+				PayerID:              db.NullInt32(payerID),
+				Expiry: int64(
+					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+				),
+			})
+		if err != nil {
+			logger.Error("failed to insert gateway envelope with reserved topic", zap.Error(err))
+			return false
+		}
+
+		if rows.InsertedMetaRows > 0 {
+			inserted = rows.InsertedMetaRows
+		}
+
+	} else {
+		inserted, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+			p.ctx,
+			p.store,
+			queries.InsertGatewayEnvelopeParams{
+				OriginatorNodeID:     originatorID,
+				OriginatorSequenceID: stagedEnv.ID,
+				Topic:                stagedEnv.Topic,
+				OriginatorEnvelope:   originatorBytes,
+				PayerID:              db.NullInt32(payerID),
+				GatewayTime:          stagedEnv.OriginatorTime,
+				Expiry: int64(
+					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+				),
+			},
+			queries.IncrementUnsettledUsageParams{
+				PayerID:           payerID,
+				OriginatorID:      originatorID,
+				MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
+				SpendPicodollars:  int64(baseFee) + int64(congestionFee),
+			},
+		)
+	}
 
 	if p.ctx.Err() != nil {
 		return false

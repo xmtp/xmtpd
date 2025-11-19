@@ -198,12 +198,11 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
 	var inserted int64
 
-	switch isReservedTopic {
-	// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
-	case true:
-		inserted, err = db.InsertGatewayEnvelope(
+	if isReservedTopic {
+		// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
+		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 			p.ctx,
-			p.store,
+			queries.New(p.store),
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     originatorID,
 				OriginatorSequenceID: stagedEnv.ID,
@@ -214,7 +213,16 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
 				),
 			})
-	case false:
+		if err != nil {
+			logger.Error("failed to insert gateway envelope with reserved topic", zap.Error(err))
+			return false
+		}
+
+		if rows.InsertedMetaRows > 0 {
+			inserted = rows.InsertedMetaRows
+		}
+
+	} else {
 		inserted, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			p.ctx,
 			p.store,

@@ -258,7 +258,8 @@ func (s *PayerReportManagerStorer) setReportSubmitted(
 	if err != nil {
 		return re.NewNonRecoverableError(ErrSetReportSubmissionStatus, err)
 	}
-	if err = s.store.SetReportSubmitted(ctx, *reportID, reportIndex); err != nil {
+
+	if err = s.store.ForceSetReportSubmitted(ctx, *reportID, reportIndex); err != nil {
 		return re.NewRecoverableError(ErrSetReportSubmissionStatus, err)
 	}
 

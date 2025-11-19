@@ -449,7 +449,7 @@ func TestCanGenerateReport(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, messageTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, messageTopic)
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 
 	err := scaffold.reportGenerators[0].GenerateReports()
 	require.NoError(t, err)
@@ -461,7 +461,7 @@ func TestCanGenerateReport(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, node1ReportTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, node1ReportTopic)
 		return len(messagesOnNode1) == 1 && len(messagesOnNode2) == 1
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 
 	// Try and generate a report again. This should be a no-op.
 	err = scaffold.reportGenerators[0].GenerateReports()

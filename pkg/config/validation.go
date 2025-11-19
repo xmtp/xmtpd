@@ -12,37 +12,55 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/config/environments"
 )
 
-func ValidateServerOptions(options *ServerOptions) error {
+type OptionsValidator struct {
+	logger *zap.Logger
+}
+
+func NewOptionsValidator(logger *zap.Logger) *OptionsValidator {
+	return &OptionsValidator{logger: logger}
+}
+
+func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 	missingSet := make(map[string]struct{})
 	customSet := make(map[string]struct{})
 
-	err := ParseJSONConfig(&options.Contracts)
+	err := v.ParseJSONConfig(&options.Contracts)
 	if err != nil {
 		return err
 	}
 
-	validateBlockchainConfig(options, missingSet, customSet)
+	v.validateBlockchainConfig(options, missingSet, customSet)
 
-	validateMigrationOptions(options, missingSet, customSet)
+	v.validateMigrationOptions(options, missingSet, customSet)
 
-	validateField(
+	v.validateField(
 		options.DB.WriterConnectionString,
 		"db.writer-connection-string",
 		missingSet,
 	)
 
 	if options.API.Enable {
-		validateField(options.Signer.PrivateKey, "signer.private-key", missingSet)
-		validateField(options.MlsValidation.GrpcAddress, "mls-validation.grpc-address", missingSet)
+		v.validateField(options.Signer.PrivateKey, "signer.private-key", missingSet)
+		v.validateField(
+			options.MlsValidation.GrpcAddress,
+			"mls-validation.grpc-address",
+			missingSet,
+		)
 	}
 
 	if options.Indexer.Enable {
-		validateField(options.MlsValidation.GrpcAddress, "mls-validation.grpc-address", missingSet)
+		v.validateField(
+			options.MlsValidation.GrpcAddress,
+			"mls-validation.grpc-address",
+			missingSet,
+		)
 	}
 
 	if len(missingSet) > 0 || len(customSet) > 0 {
@@ -69,7 +87,7 @@ func ValidateServerOptions(options *ServerOptions) error {
 	return nil
 }
 
-func ValidatePruneOptions(options PruneOptions) error {
+func (v *OptionsValidator) ValidatePruneOptions(options PruneOptions) error {
 	missingSet := make(map[string]struct{})
 
 	if options.DB.WriterConnectionString == "" {
@@ -100,7 +118,7 @@ func ValidatePruneOptions(options PruneOptions) error {
 	return nil
 }
 
-func validateMigrationOptions(
+func (v *OptionsValidator) validateMigrationOptions(
 	opts *ServerOptions,
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
@@ -110,36 +128,36 @@ func validateMigrationOptions(
 	}
 
 	if opts.MigrationServer.Enable {
-		validateField(
+		v.validateField(
 			opts.MigrationServer.PayerPrivateKey,
 			"migration-server.payer-private-key",
 			missingSet,
 		)
-		validateField(
+		v.validateField(
 			opts.MigrationServer.NodeSigningKey,
 			"migration-server.node-signing-key",
 			missingSet,
 		)
-		validateField(
+		v.validateField(
 			opts.Signer.PrivateKey,
 			"signer.private-key",
 			missingSet,
 		)
-		validateField(
+		v.validateField(
 			opts.MigrationServer.ReaderConnectionString,
 			"migration-server.reader-connection-string",
 			missingSet,
 		)
-		validateField(
+		v.validateField(
 			opts.MigrationServer.ReaderTimeout,
 			"migration-server.reader-timeout",
 			missingSet,
 		)
-		validateAppChainConfig(opts, missingSet, customSet)
+		v.validateAppChainConfig(opts, missingSet, customSet)
 	}
 
 	if opts.MigrationClient.Enable {
-		validateField(
+		v.validateField(
 			opts.MigrationClient.FromNodeID,
 			"migration-client.from-node-id",
 			missingSet,
@@ -273,7 +291,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 	}, nil
 }
 
-func ParseJSONConfig(options *ContractsOptions) error {
+func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
 	if options.Environment != "" && (options.ConfigFilePath != "" || options.ConfigJSON != "") {
 		return errors.New(
 			"--contracts.environment cannot be used with --contracts.config-file or --contracts.config-json",
@@ -285,7 +303,7 @@ func ParseJSONConfig(options *ContractsOptions) error {
 	}
 
 	if options.Environment != "" {
-		fmt.Printf("Environment is %s\n", options.Environment)
+		v.logger.Info("Environment is set", zap.Any("environment", options.Environment))
 		data, err := environments.GetEnvironmentConfig(
 			options.Environment,
 		)
@@ -297,7 +315,7 @@ func ParseJSONConfig(options *ContractsOptions) error {
 		if err := json.Unmarshal(data, &config); err != nil {
 			return err
 		}
-		fmt.Printf("Chain config %v\n", config)
+		v.logger.Debug("Chain config", zap.Any("config", config))
 
 		fillConfigFromJSON(options, &config)
 	}
@@ -400,21 +418,21 @@ func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 	}
 }
 
-func validateBlockchainConfig(
+func (v *OptionsValidator) validateBlockchainConfig(
 	options *ServerOptions,
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateAppChainConfig(options, missingSet, customSet)
-	validateSettlementChainConfig(options, missingSet, customSet)
+	v.validateAppChainConfig(options, missingSet, customSet)
+	v.validateSettlementChainConfig(options, missingSet, customSet)
 
 	if options.API.Enable || options.Sync.Enable {
-		validateHexAddress(
+		v.validateHexAddress(
 			options.Contracts.SettlementChain.RateRegistryAddress,
 			"contracts.settlement-chain.rate-registry-address",
 			missingSet,
 		)
-		validateField(
+		v.validateField(
 			options.Contracts.SettlementChain.RateRegistryRefreshInterval,
 			"contracts.settlement-chain.rate-registry-refresh-interval",
 			customSet,
@@ -422,88 +440,88 @@ func validateBlockchainConfig(
 	}
 }
 
-func validateAppChainConfig(
+func (v *OptionsValidator) validateAppChainConfig(
 	options *ServerOptions,
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateField(
+	v.validateField(
 		options.Contracts.AppChain.ChainID,
 		"contracts.app-chain.chain-id",
 		customSet,
 	)
-	validateRPCURL(
+	v.validateRPCURL(
 		options.Contracts.AppChain.RPCURL,
 		options.Contracts.AppChain.ChainID,
 		"contracts.app-chain.rpc-url",
 		missingSet,
 	)
-	validateWebsocketURL(
+	v.validateWebsocketURL(
 		options.Contracts.AppChain.WssURL,
 		options.Contracts.AppChain.ChainID,
 		"contracts.app-chain.wss-url",
 		missingSet,
 	)
-	validateHexAddress(
+	v.validateHexAddress(
 		options.Contracts.AppChain.GroupMessageBroadcasterAddress,
 		"contracts.app-chain.group-message-broadcaster-address",
 		missingSet,
 	)
-	validateHexAddress(
+	v.validateHexAddress(
 		options.Contracts.AppChain.IdentityUpdateBroadcasterAddress,
 		"contracts.app-chain.identity-update-broadcaster-address",
 		missingSet,
 	)
-	validateField(
+	v.validateField(
 		options.Contracts.AppChain.MaxChainDisconnectTime,
 		"contracts.app-chain.max-chain-disconnect-time",
 		customSet,
 	)
 }
 
-func validateSettlementChainConfig(
+func (v *OptionsValidator) validateSettlementChainConfig(
 	options *ServerOptions,
 	missingSet map[string]struct{},
 	customSet map[string]struct{},
 ) {
-	validateField(
+	v.validateField(
 		options.Contracts.SettlementChain.ChainID,
 		"contracts.settlement-chain.chain-id",
 		customSet,
 	)
-	validateRPCURL(
+	v.validateRPCURL(
 		options.Contracts.SettlementChain.RPCURL,
 		options.Contracts.SettlementChain.ChainID,
 		"contracts.settlement-chain.rpc-url",
 		missingSet,
 	)
-	validateWebsocketURL(
+	v.validateWebsocketURL(
 		options.Contracts.SettlementChain.WssURL,
 		options.Contracts.SettlementChain.ChainID,
 		"contracts.settlement-chain.wss-url",
 		missingSet,
 	)
-	validateHexAddress(
+	v.validateHexAddress(
 		options.Contracts.SettlementChain.NodeRegistryAddress,
 		"contracts.settlement-chain.node-registry-address",
 		missingSet,
 	)
-	validateField(
+	v.validateField(
 		options.Contracts.SettlementChain.NodeRegistryRefreshInterval,
 		"contracts.settlement-chain.node-registry-refresh-interval",
 		customSet,
 	)
-	validateHexAddress(
+	v.validateHexAddress(
 		options.Contracts.SettlementChain.PayerRegistryAddress,
 		"contracts.settlement-chain.payer-registry-address",
 		missingSet,
 	)
-	validateHexAddress(
+	v.validateHexAddress(
 		options.Contracts.SettlementChain.PayerReportManagerAddress,
 		"contracts.settlement-chain.payer-report-manager-address",
 		missingSet,
 	)
-	validateField(
+	v.validateField(
 		options.Contracts.SettlementChain.MaxChainDisconnectTime,
 		"contracts.settlement-chain.max-chain-disconnect-time",
 		customSet,
@@ -511,7 +529,7 @@ func validateSettlementChainConfig(
 }
 
 // validateField checks if a field meets the validation requirements and adds appropriate errors.
-func validateField(value any, fieldName string, set map[string]struct{}) {
+func (v *OptionsValidator) validateField(value any, fieldName string, set map[string]struct{}) {
 	switch v := value.(type) {
 	case string:
 		if v == "" {
@@ -528,7 +546,11 @@ func validateField(value any, fieldName string, set map[string]struct{}) {
 	}
 }
 
-func validateHexAddress(address string, fieldName string, set map[string]struct{}) {
+func (v *OptionsValidator) validateHexAddress(
+	address string,
+	fieldName string,
+	set map[string]struct{},
+) {
 	if address == "" {
 		set[fmt.Sprintf("--%s is required", fieldName)] = struct{}{}
 	}
@@ -537,7 +559,12 @@ func validateHexAddress(address string, fieldName string, set map[string]struct{
 	}
 }
 
-func validateRPCURL(rpcURL string, chainID int64, fieldName string, set map[string]struct{}) {
+func (v *OptionsValidator) validateRPCURL(
+	rpcURL string,
+	chainID int64,
+	fieldName string,
+	set map[string]struct{},
+) {
 	u, err := url.Parse(rpcURL)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
@@ -549,10 +576,15 @@ func validateRPCURL(rpcURL string, chainID int64, fieldName string, set map[stri
 		return
 	}
 
-	validateChainID(rpcURL, chainID, fieldName, set)
+	v.validateChainID(rpcURL, chainID, fieldName, set)
 }
 
-func validateWebsocketURL(wsURL string, chainID int64, fieldName string, set map[string]struct{}) {
+func (v *OptionsValidator) validateWebsocketURL(
+	wsURL string,
+	chainID int64,
+	fieldName string,
+	set map[string]struct{},
+) {
 	u, err := url.Parse(wsURL)
 	if err != nil {
 		set[fmt.Sprintf("--%s is an invalid URL, %s", fieldName, err.Error())] = struct{}{}
@@ -564,10 +596,15 @@ func validateWebsocketURL(wsURL string, chainID int64, fieldName string, set map
 		return
 	}
 
-	validateChainID(wsURL, chainID, fieldName, set)
+	v.validateChainID(wsURL, chainID, fieldName, set)
 }
 
-func validateChainID(url string, expectedChainID int64, fieldName string, set map[string]struct{}) {
+func (v *OptionsValidator) validateChainID(
+	url string,
+	expectedChainID int64,
+	fieldName string,
+	set map[string]struct{},
+) {
 	ctx := context.Background()
 
 	client, err := ethclient.DialContext(ctx, url)

@@ -75,7 +75,8 @@ func main() {
 		options.API.Enable = true
 	}
 
-	err = config.ValidateServerOptions(&options)
+	validator := config.NewOptionsValidator(logger)
+	err = validator.ValidateServerOptions(&options)
 	if err != nil {
 		fatal("could not validate options: %s", err)
 	}

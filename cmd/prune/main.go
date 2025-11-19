@@ -33,16 +33,6 @@ func main() {
 		}
 	}
 
-	err = config.ParseJSONConfig(&options.Contracts)
-	if err != nil {
-		fatal("could not parse JSON contracts config: %s", err)
-	}
-
-	err = config.ValidatePruneOptions(options)
-	if err != nil {
-		fatal("could not validate options: %s", err)
-	}
-
 	logger, _, err := utils.BuildLogger(options.Log)
 	if err != nil {
 		fatal("could not build logger: %s", err)
@@ -50,6 +40,18 @@ func main() {
 	logger = logger.Named(utils.PrunerLoggerName)
 
 	logger.Info(fmt.Sprintf("version: %s", Version))
+
+	validator := config.NewOptionsValidator(logger)
+
+	err = validator.ParseJSONConfig(&options.Contracts)
+	if err != nil {
+		fatal("could not parse JSON contracts config: %s", err)
+	}
+
+	err = validator.ValidatePruneOptions(options)
+	if err != nil {
+		fatal("could not validate options: %s", err)
+	}
 
 	ctx := context.Background()
 

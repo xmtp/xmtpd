@@ -78,6 +78,45 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 	)
 }
 
+// InsertGatewayEnvelope inserts a gateway envelope into the database.
+// It does not increment the unsettled usage and congestion counters.
+// Used exclusively for reserved topics.
+//
+// This function runs inside a managed transaction created by RunInTxWithResult().
+//
+// Steps:
+//  1. Calls InsertGatewayEnvelopeWithChecksTransactional() to insert the envelope,
+//     automatically creating any missing partitions if needed.
+func InsertGatewayEnvelope(
+	ctx context.Context,
+	db *sql.DB,
+	insertParams queries.InsertGatewayEnvelopeParams,
+) (int64, error) {
+	return RunInTxWithResult(
+		ctx,
+		db,
+		&sql.TxOptions{},
+		func(ctx context.Context, txQueries *queries.Queries) (int64, error) {
+			numInserted, err := InsertGatewayEnvelopeWithChecksTransactional(
+				ctx,
+				txQueries,
+				insertParams,
+			)
+			if err != nil {
+				return 0, err
+			}
+
+			// If the numInserted is 0 it means the envelope already exists
+			// and we don't need to increment the unsettled usage
+			if numInserted.InsertedMetaRows == 0 {
+				return 0, nil
+			}
+
+			return numInserted.InsertedMetaRows, nil
+		},
+	)
+}
+
 // InsertGatewayEnvelopeWithChecksTransactional attempts to insert a gateway envelope
 // inside the current SQL transaction, with automatic partition creation and retry.
 //

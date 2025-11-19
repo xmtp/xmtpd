@@ -59,9 +59,9 @@ func CalculateCongestion(last5Minutes [5]int32, targetRatePerMinute int32) int32
 	}
 
 	// 6) Exponential mapping for 1 < ratio < MAX_CONGESTION_RATIO
-	//    - ratio=1   => 0
-	//    - ratio=MAX_CONGESTION_RATIO => 100
-	//    - Grows exponentially in between
+	//      - ratio=1                    => 0
+	//      - ratio=MAX_CONGESTION_RATIO => 100
+	//      - Grows exponentially in between
 	k := 4.0 // Adjust k to tune how fast congestion rises
 	numerator := math.Exp(k*(ratio-1.0)) - 1.0
 	denominator := math.Exp(k*(maxCongestionRatio-1.0)) - 1.0

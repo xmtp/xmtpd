@@ -67,7 +67,7 @@ func (cu *DBBasedCursorUpdater) start() {
 		case <-ticker.C:
 			updated, err := cu.read()
 			if err != nil {
-				// TODO proper error handling
+				// TODO: proper error handling
 				return
 			}
 			if updated {

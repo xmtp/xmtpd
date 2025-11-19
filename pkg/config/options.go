@@ -73,8 +73,8 @@ type IndexerOptions struct {
 // MetricsOptions are settings used to start a prometheus server
 type MetricsOptions struct {
 	Enable  bool   `long:"enable"          env:"XMTPD_METRICS_ENABLE"          description:"Enable the metrics server"`
-	Address string `long:"metrics-address" env:"XMTPD_METRICS_METRICS_ADDRESS" description:"Listening address of the metrics server"   default:"127.0.0.1"`
-	Port    int    `long:"metrics-port"    env:"XMTPD_METRICS_METRICS_PORT"    description:"Listening HTTP port of the metrics server" default:"8008"`
+	Address string `long:"metrics-address" env:"XMTPD_METRICS_ADDRESS"         description:"Listening address of the metrics server"   default:"127.0.0.1"`
+	Port    int    `long:"metrics-port"    env:"XMTPD_METRICS_PORT"            description:"Listening HTTP port of the metrics server" default:"8008"`
 }
 
 type DebugOptions struct {

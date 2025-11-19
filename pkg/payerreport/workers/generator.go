@@ -134,15 +134,46 @@ func (w *GeneratorWorker) GenerateReports() error {
 }
 
 func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
-	lastSubmittedReport, err := w.getLastSubmittedReport(nodeID)
+	w.logger.Debug(
+		"maybe generating report, fetching existing reports snapshot",
+		utils.OriginatorIDField(nodeID),
+	)
+
+	// Snapshot: all non-rejected reports for this originator in active states.
+	reports, err := w.store.FetchReports(
+		w.ctx,
+		payerreport.NewFetchReportsQuery().
+			WithOriginatorNodeID(nodeID).
+			WithSubmissionStatus(
+				payerreport.SubmissionPending,
+				payerreport.SubmissionSubmitted,
+				payerreport.SubmissionSettled,
+			),
+	)
 	if err != nil {
 		return err
 	}
 
-	// Only continue if the last submitted report doesn't exist (there have been no reports) or if it is older than the minimum report interval
-	if lastSubmittedReport != nil && !w.isOlderThanReportInterval(lastSubmittedReport) {
+	// Derive the "last submitted" (Submitted/Settled) report from the same snapshot.
+	var lastSubmittedReport *payerreport.PayerReportWithStatus
+	for i := range reports {
+		r := reports[i]
+
+		if r.SubmissionStatus != payerreport.SubmissionSubmitted &&
+			r.SubmissionStatus != payerreport.SubmissionSettled {
+			continue
+		}
+
+		if lastSubmittedReport == nil || r.EndSequenceID > lastSubmittedReport.EndSequenceID {
+			lastSubmittedReport = r
+		}
+	}
+
+	// Only continue if there have been no reports yet OR the last submitted
+	// report is past the minimum generation threshold.
+	if lastSubmittedReport != nil && !w.isPastGenerationThreshold(lastSubmittedReport) {
 		w.logger.Debug(
-			"skipping report generation for node because the last submitted report is not too old",
+			"skipping report generation for node because the last submitted report is within the generation interval",
 			utils.OriginatorIDField(nodeID),
 		)
 		return nil
@@ -153,51 +184,38 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		existingReportEndSequenceID = lastSubmittedReport.EndSequenceID
 	}
 
-	// TODO(mkysel) there is a timing hazard here
-	// A concurrent submitter might transition a report from pending to submitted.
-	// getLastSubmittedReport checks the latest submitted report, FetchReports looks for a pending/unsubmitted one
-	// A concurrent submitter can transition from pending to submitted between these two calls
-	// This will result in us missing the new report and generating a duplicate
-
-	// Fetch all reports for the originator that are pending and approved
 	w.logger.Debug(
-		"maybe generating report, fetching existing reports",
+		"maybe generating report, checking for existing report at boundary",
 		utils.OriginatorIDField(nodeID),
 		utils.LastSequenceIDField(int64(existingReportEndSequenceID)),
 	)
 
-	existingReports, err := w.store.FetchReports(
-		w.ctx,
-		payerreport.NewFetchReportsQuery().
-			WithOriginatorNodeID(nodeID).
-			// Ignore existing reports that were rejected or not yet attested
-			WithAttestationStatus(payerreport.AttestationApproved).
-			WithSubmissionStatus(payerreport.SubmissionPending).
-			// We are looking for reports that start at the end of the last submitted report
-			WithStartSequenceID(existingReportEndSequenceID),
-	)
-	if err != nil {
-		return err
-	}
+	// From the same snapshot:
+	//   - expire reports that are too old, and
+	//   - collect valid (non-expired) reports that start exactly at the boundary.
+	// 	 - our local AttestationStatus does not matter.
+	//	 	Even if we Rejected the report, it might settle if there is sufficient consensus.
+	//		All other AttestationStatus states are managed by the Attestation Worker and not relevant to generation
+	validReports := make([]*payerreport.PayerReportWithStatus, 0, len(reports))
+	for i := range reports {
+		r := reports[i]
 
-	validReports := make([]*payerreport.PayerReportWithStatus, 0, len(existingReports))
+		if r.SubmissionStatus == payerreport.SubmissionPending && w.isReportExpired(r) {
+			w.logger.Debug(
+				"expiring old report",
+				utils.OriginatorIDField(nodeID),
+				utils.PayerReportIDField(r.ID.String()),
+			)
 
-	if len(existingReports) > 0 {
-		// Validate existing reports and expire old ones.
-		for _, report := range existingReports {
-			if w.isReportExpired(report) {
-				w.logger.Debug(
-					"expiring old report",
-					utils.OriginatorIDField(nodeID),
-				)
-
-				err = w.store.SetReportSubmissionRejected(w.ctx, report.ID)
-				if err != nil {
-					return err
-				}
-			} else {
-				validReports = append(validReports, report)
+			if err := w.store.SetReportSubmissionRejected(w.ctx, r.ID); err != nil {
+				return err
 			}
+
+			continue
+		}
+
+		if r.StartSequenceID == existingReportEndSequenceID {
+			validReports = append(validReports, r)
 		}
 	}
 
@@ -205,6 +223,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		w.logger.Debug(
 			"skipping report generation for node because there are existing valid reports pending",
 			utils.OriginatorIDField(nodeID),
+			utils.LastSequenceIDField(int64(existingReportEndSequenceID)),
 			utils.CountField(int64(len(validReports))),
 		)
 		return nil
@@ -259,33 +278,18 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 	return nil
 }
 
-func (w *GeneratorWorker) getLastSubmittedReport(
-	nodeID uint32,
-) (*payerreport.PayerReportWithStatus, error) {
-	w.logger.Debug("fetching last submitted report",
-		utils.OriginatorIDField(nodeID),
-	)
-	reports, err := w.store.FetchReports(
-		w.ctx,
-		payerreport.NewFetchReportsQuery().
-			WithOriginatorNodeID(nodeID).
-			WithSubmissionStatus(payerreport.SubmissionSubmitted, payerreport.SubmissionSettled),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	var latestReport *payerreport.PayerReportWithStatus
-	for _, report := range reports {
-		if latestReport == nil || report.EndSequenceID > latestReport.EndSequenceID {
-			latestReport = report
-		}
-	}
-
-	return latestReport, nil
-}
-
-func (w *GeneratorWorker) isOlderThanReportInterval(
+// isPastGenerationThreshold reports whether enough time has passed since the
+// end of the given report to allow generating a new one.
+//
+// Each originator node has a minimum report generation interval:
+//   - For the local node (w.registrant.NodeID), the interval is w.generateSelfPeriod.
+//   - For all other nodes, the interval is w.generateOthersPeriod.
+//
+// A report is considered "past the generation threshold" when the duration since
+// its EndMinuteSinceEpoch exceeds the applicable interval. When this function
+// returns true, the caller may proceed to generate the next report for that
+// originator node.
+func (w *GeneratorWorker) isPastGenerationThreshold(
 	report *payerreport.PayerReportWithStatus,
 ) bool {
 	// Convert the report's end minute since epoch to a time.Time
@@ -298,6 +302,23 @@ func (w *GeneratorWorker) isOlderThanReportInterval(
 	}
 }
 
+// isReportExpired determines whether the given report is considered expired
+// based on how long ago it ended.
+//
+// Expiration serves two purposes:
+//  1. Healing stalled consensus: If the network fails to reach consensus on a
+//     report for an extended period, older reports should eventually be ignored
+//     so the system can move forward and recover.
+//  2. Preventing accumulation of stale work: Nodes should not continue acting
+//     on or submitting reports that are far outside the normal operational
+//     window.
+//
+// The expiration threshold depends on whether the report was produced by:
+//   - the local node       → w.expirySelfPeriod
+//   - another originator   → w.expiryOthersPeriod
+//
+// A report is considered expired once the elapsed time since its
+// EndMinuteSinceEpoch exceeds the applicable threshold.
 func (w *GeneratorWorker) isReportExpired(
 	report *payerreport.PayerReportWithStatus,
 ) bool {

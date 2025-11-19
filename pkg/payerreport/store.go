@@ -112,16 +112,28 @@ func (s *Store) FetchReports(
 	query *FetchReportsQuery,
 ) ([]*PayerReportWithStatus, error) {
 	params := query.toParams()
+
 	rows, err := s.queries.FetchPayerReports(ctx, params)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("fetched reports", zap.Any("rows", rows))
+	reports, err := convertPayerReports(rows)
+	if err != nil {
+		return nil, err
 	}
 
-	return convertPayerReports(rows)
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		for _, report := range reports {
+			s.logger.Debug("fetched report",
+				utils.PayerReportIDField(report.ID.String()),
+				utils.StartSequenceIDField(int64(report.StartSequenceID)),
+				utils.LastSequenceIDField(int64(report.EndSequenceID)),
+				utils.OriginatorIDField(report.OriginatorNodeID))
+		}
+	}
+
+	return reports, nil
 }
 
 func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID, reportIndex int32) error {

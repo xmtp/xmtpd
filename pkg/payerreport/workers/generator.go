@@ -273,7 +273,12 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 		return err
 	}
 
-	w.logger.Info("generated report", utils.PayerReportIDField(reportID.String()))
+	w.logger.Info("generated report",
+		utils.PayerReportIDField(reportID.String()),
+		utils.StartSequenceIDField(int64(report.StartSequenceID)),
+		utils.LastSequenceIDField(int64(report.EndSequenceID)),
+		utils.OriginatorIDField(report.OriginatorNodeID),
+	)
 
 	return nil
 }

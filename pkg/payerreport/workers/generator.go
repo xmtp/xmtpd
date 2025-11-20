@@ -156,21 +156,22 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 
 	// Derive the "last submitted" (Submitted/Settled) report from the same snapshot.
 	var lastSubmittedReport *payerreport.PayerReportWithStatus
-	for i := range reports {
-		r := reports[i]
-
-		if r.SubmissionStatus != payerreport.SubmissionSubmitted &&
-			r.SubmissionStatus != payerreport.SubmissionSettled {
+	for _, report := range reports {
+		// Only consider submitted and settled reports.
+		if report.SubmissionStatus != payerreport.SubmissionSubmitted &&
+			report.SubmissionStatus != payerreport.SubmissionSettled {
 			continue
 		}
 
-		if lastSubmittedReport == nil || r.EndSequenceID > lastSubmittedReport.EndSequenceID {
-			lastSubmittedReport = r
+		// Update the last submitted report if it's the highest end sequence ID.
+		if lastSubmittedReport == nil || report.EndSequenceID > lastSubmittedReport.EndSequenceID {
+			lastSubmittedReport = report
 		}
 	}
 
-	// Only continue if there have been no reports yet OR the last submitted
+	// Only continue and generate a new report if there have been no reports yet OR the last submitted
 	// report is past the minimum generation threshold.
+	// Otherwise, wait until on going report resolution is complete.
 	if lastSubmittedReport != nil && !w.isPastGenerationThreshold(lastSubmittedReport) {
 		w.logger.Debug(
 			"skipping report generation for node because the last submitted report is within the generation interval",
@@ -179,6 +180,9 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		return nil
 	}
 
+	// The generation threshold has passed, so we can generate a new report.
+	// Get the last sequence ID of the last submitted report.
+	// If there is no last submitted report, use 0 as the existing report end sequence ID.
 	existingReportEndSequenceID := uint64(0)
 	if lastSubmittedReport != nil {
 		existingReportEndSequenceID = lastSubmittedReport.EndSequenceID
@@ -191,31 +195,34 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	)
 
 	// From the same snapshot:
-	//   - expire reports that are too old, and
-	//   - collect valid (non-expired) reports that start exactly at the boundary.
-	// 	 - our local AttestationStatus does not matter.
-	//	 	Even if we Rejected the report, it might settle if there is sufficient consensus.
-	//		All other AttestationStatus states are managed by the Attestation Worker and not relevant to generation
+	//   - Expire reports that are too old: consider only pending reports for this.
+	//   - Collect valid (non-expired) reports that start exactly at the boundary.
+	//   - A valid report is one that is submitted or settled, and:
+	//     - Our local attestation status does not matter.
+	//     - Even if we rejected the report, others might submit and settle it if there is sufficient consensus.
+	//     - All other attestation status states are managed by the Attestation Worker and not relevant to generation.
 	validReports := make([]*payerreport.PayerReportWithStatus, 0, len(reports))
-	for i := range reports {
-		r := reports[i]
-
-		if r.SubmissionStatus == payerreport.SubmissionPending && w.isReportExpired(r) {
+	for _, report := range reports {
+		if report.SubmissionStatus == payerreport.SubmissionPending && w.isReportExpired(report) {
 			w.logger.Debug(
 				"expiring old report",
 				utils.OriginatorIDField(nodeID),
-				utils.PayerReportIDField(r.ID.String()),
+				utils.PayerReportIDField(report.ID.String()),
 			)
 
-			if err := w.store.SetReportSubmissionRejected(w.ctx, r.ID); err != nil {
+			if err := w.store.SetReportSubmissionRejected(w.ctx, report.ID); err != nil {
 				return err
 			}
 
 			continue
 		}
 
-		if r.StartSequenceID == existingReportEndSequenceID {
-			validReports = append(validReports, r)
+		// Ignore zero-length reports (start == end) because they do not cover any
+		// new usage and should not block generating the next window once additional
+		// messages arrive.
+		if report.StartSequenceID == existingReportEndSequenceID &&
+			report.EndSequenceID > existingReportEndSequenceID {
+			validReports = append(validReports, report)
 		}
 	}
 

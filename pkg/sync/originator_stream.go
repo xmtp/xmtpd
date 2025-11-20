@@ -17,8 +17,7 @@ import (
 )
 
 type cursor struct {
-	sequenceID  uint64
-	timestampNS int64
+	sequenceID uint64
 }
 
 type originatorStream struct {
@@ -163,28 +162,22 @@ func (s *originatorStream) validateEnvelope(
 	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
 	var lastSequenceID uint64 = 0
-	var lastNs int64 = 0
 	if s.cursor != nil {
 		lastSequenceID = s.cursor.sequenceID
-		lastNs = s.cursor.timestampNS
 	}
 
-	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
-		// TODO(rich) Submit misbehavior report and continue
+	if env.OriginatorSequenceID() != lastSequenceID+1 {
 		s.logger.Error(
 			"received out-of-order envelope",
 			utils.OriginatorIDField(env.OriginatorNodeID()),
 			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
 			zap.Uint64("expected_sequence_id", lastSequenceID+1),
-			zap.Int64("last_timestamp_ns", lastNs),
-			zap.Int64("actual_timestamp_ns", env.OriginatorNs()),
 		)
 	}
 
 	if env.OriginatorSequenceID() > lastSequenceID {
 		s.cursor = &cursor{
-			sequenceID:  env.OriginatorSequenceID(),
-			timestampNS: env.OriginatorNs(),
+			sequenceID: env.OriginatorSequenceID(),
 		}
 	}
 

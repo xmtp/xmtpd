@@ -32,6 +32,7 @@ SELECT (SELECT COUNT(*) FROM m)                            AS inserted_meta_rows
        (SELECT COUNT(*) FROM m) + (SELECT COUNT(*) FROM b) AS total_inserted_rows;
 
 
+-- TODO(mkysel) -- sorting by gateway time can lead to wrong results, this query needs to be redone
 -- name: SelectNewestFromTopics :many
 WITH latest AS (SELECT DISTINCT ON (m.topic) m.originator_node_id,
                                              m.originator_sequence_id,
@@ -76,7 +77,7 @@ FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
               ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
-ORDER BY f.gateway_time, f.originator_node_id, f.originator_sequence_id;
+ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 -- name: SelectGatewayEnvelopesByTopics :many
 WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
@@ -121,7 +122,7 @@ FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
               ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
-ORDER BY f.gateway_time, f.originator_node_id, f.originator_sequence_id;
+ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 
 -- name: SelectGatewayEnvelopesUnfiltered :many
@@ -138,7 +139,6 @@ FROM gateway_envelopes_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
 WHERE v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time,
-         v.originator_node_id,
+ORDER BY v.originator_node_id,
          v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);

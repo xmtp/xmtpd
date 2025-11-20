@@ -385,8 +385,7 @@ func (s *syncWorker) setupStream(
 	for _, row := range result {
 		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
 			c = &cursor{
-				sequenceID:  uint64(row.OriginatorSequenceID),
-				timestampNS: row.GatewayTime.UnixNano(),
+				sequenceID: uint64(row.OriginatorSequenceID),
 			}
 		}
 	}

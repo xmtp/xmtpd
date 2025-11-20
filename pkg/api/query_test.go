@@ -94,7 +94,7 @@ func TestQueryAllEnvelopes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{0, 1, 2, 3, 4}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{0, 2, 4, 1, 3}, resp.Msg.Envelopes)
 }
 
 func TestQueryPagedEnvelopes(t *testing.T) {
@@ -110,7 +110,7 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{0, 1}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{0, 2}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
@@ -148,7 +148,7 @@ func TestQueryEnvelopesByTopic(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{0, 1, 4}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{0, 4, 1}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesFromLastSeen(t *testing.T) {
@@ -166,7 +166,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{1, 3, 4}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{4, 1, 3}, resp.Msg.Envelopes)
 }
 
 func TestQueryTopicFromLastSeen(t *testing.T) {
@@ -208,7 +208,7 @@ func TestQueryMultipleTopicsFromLastSeen(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{3, 4}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{4, 3}, resp.Msg.Envelopes)
 }
 
 func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
@@ -229,7 +229,7 @@ func TestQueryMultipleOriginatorsFromLastSeen(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{2, 3, 4}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{2, 4, 3}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesWithEmptyResult(t *testing.T) {

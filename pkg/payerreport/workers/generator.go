@@ -220,8 +220,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 		// Ignore zero-length reports (start == end) because they do not cover any
 		// new usage and should not block generating the next window once additional
 		// messages arrive.
-		if report.StartSequenceID == existingReportEndSequenceID &&
-			report.EndSequenceID > existingReportEndSequenceID {
+		if report.StartSequenceID == existingReportEndSequenceID {
 			validReports = append(validReports, report)
 		}
 	}

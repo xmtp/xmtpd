@@ -6,10 +6,10 @@ import (
 
 var (
 	// Spread nodes across N minutes (0 .. 59).
-	distributionSpreadMinutes uint32 = 60
+	distributionSpreadMinutes uint32 = 10
 
 	// Run every M minutes.
-	repeatIntervalMinutes uint32 = 60
+	repeatIntervalMinutes uint32 = 10
 )
 
 // Distributes the minute of the hour that each node will run operations on.

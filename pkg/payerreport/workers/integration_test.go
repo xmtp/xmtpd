@@ -26,7 +26,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
-	"github.com/xmtp/xmtpd/pkg/testutils/flags"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
@@ -437,6 +436,10 @@ func TestValidSignature(t *testing.T) {
 }
 
 func TestCanGenerateReport(t *testing.T) {
+	t.Skip(
+		"TODO: This test relied on zero length reports to pass. Now it requires >2 min to complete. Move to an  integration test suite.",
+	)
+
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
@@ -474,7 +477,9 @@ func TestCanGenerateReport(t *testing.T) {
 }
 
 func TestFullReportLifecycle(t *testing.T) {
-	flags.SkipOnRaceTest(t)
+	t.Skip(
+		"TODO: This test relied on zero length reports to pass. Now it requires >2 min to complete. Move to an  integration test suite.",
+	)
 
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()

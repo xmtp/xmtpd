@@ -217,9 +217,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 			continue
 		}
 
-		// Ignore zero-length reports (start == end) because they do not cover any
-		// new usage and should not block generating the next window once additional
-		// messages arrive.
+		// If there's a submitted, settled or non-expired pending report at the boundary, skip generation.
 		if report.StartSequenceID == existingReportEndSequenceID {
 			validReports = append(validReports, report)
 		}
@@ -245,6 +243,10 @@ func (w *GeneratorWorker) generateReport(nodeID uint32, lastReportEndSequenceID 
 	})
 	if err != nil {
 		return err
+	}
+
+	if report == nil {
+		return nil
 	}
 
 	clientEnvelope, err := report.ToClientEnvelope()

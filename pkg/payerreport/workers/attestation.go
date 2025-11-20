@@ -230,8 +230,6 @@ func (w *AttestationWorker) getPreviousReport(
 		return nil, err
 	}
 
-	// Avoid 0 length reports.
-
 	if len(prevReports) != 1 {
 		return nil, fmt.Errorf("expected 1 previous report, got %d", len(prevReports))
 	}

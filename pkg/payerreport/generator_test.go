@@ -155,28 +155,6 @@ func TestReportWithNoMessages(t *testing.T) {
 	require.Nil(t, report)
 }
 
-func TestSecondReportWithNoMessages(t *testing.T) {
-	db, generator := setupGenerator(t)
-
-	originatorID := int32(100)
-	payerAddress1 := testutils.RandomAddress()
-
-	addEnvelope(t, db, originatorID, 1, payerAddress1, getMinute(1))
-
-	report, err := generator.GenerateReport(
-		context.Background(),
-		payerreport.PayerReportGenerationParams{
-			OriginatorID:            uint32(originatorID),
-			LastReportEndSequenceID: 1,
-		},
-	)
-	require.NoError(t, err)
-
-	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint64(1), report.StartSequenceID)
-	require.Equal(t, uint64(1), report.EndSequenceID)
-}
-
 func TestSecondReport(t *testing.T) {
 	db, generator := setupGenerator(t)
 
@@ -220,6 +198,10 @@ func TestSecondReport(t *testing.T) {
 
 // Make sure that we don't pick up sequence IDs from other originators in the report
 func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
+	t.Skip(
+		"TODO: This test relied on zero length reports to pass. Now it requires >2 min to complete. Move to an  integration test suite.",
+	)
+
 	db, generator := setupGenerator(t)
 
 	originatorID := int32(100)

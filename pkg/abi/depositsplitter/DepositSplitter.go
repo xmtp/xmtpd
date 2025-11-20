@@ -31,7 +31,7 @@ var (
 
 // DepositSplitterMetaData contains all meta data concerning the DepositSplitter contract.
 var DepositSplitterMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"feeToken_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"settlementChainGateway_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainId_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"appChainId\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositFromUnderlying\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositFromUnderlyingWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"feeToken\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"payerRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"settlementChainGateway\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"TransferFromFailed\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroAppChainId\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroFeeToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroPayerRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroSettlementChainGateway\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroTotalAmount\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"feeToken_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"settlementChainGateway_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainId_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"appChainId\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"contractName\",\"inputs\":[],\"outputs\":[{\"name\":\"contractName_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositFromUnderlying\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositFromUnderlyingWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"depositWithPermit\",\"inputs\":[{\"name\":\"payer_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"payerRegistryAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainRecipient_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"appChainAmount_\",\"type\":\"uint96\",\"internalType\":\"uint96\"},{\"name\":\"appChainGasLimit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"appChainMaxFeePerGas_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"v_\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"r_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"s_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"feeToken\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"payerRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"settlementChainGateway\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"version_\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"error\",\"name\":\"TransferFromFailed\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroAppChainId\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroFeeToken\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroPayerRegistry\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroSettlementChainGateway\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZeroTotalAmount\",\"inputs\":[]}]",
 }
 
 // DepositSplitterABI is the input ABI used to generate the binding from.
@@ -211,6 +211,37 @@ func (_DepositSplitter *DepositSplitterCallerSession) AppChainId() (*big.Int, er
 	return _DepositSplitter.Contract.AppChainId(&_DepositSplitter.CallOpts)
 }
 
+// ContractName is a free data retrieval call binding the contract method 0x75d0c0dc.
+//
+// Solidity: function contractName() pure returns(string contractName_)
+func (_DepositSplitter *DepositSplitterCaller) ContractName(opts *bind.CallOpts) (string, error) {
+	var out []interface{}
+	err := _DepositSplitter.contract.Call(opts, &out, "contractName")
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
+}
+
+// ContractName is a free data retrieval call binding the contract method 0x75d0c0dc.
+//
+// Solidity: function contractName() pure returns(string contractName_)
+func (_DepositSplitter *DepositSplitterSession) ContractName() (string, error) {
+	return _DepositSplitter.Contract.ContractName(&_DepositSplitter.CallOpts)
+}
+
+// ContractName is a free data retrieval call binding the contract method 0x75d0c0dc.
+//
+// Solidity: function contractName() pure returns(string contractName_)
+func (_DepositSplitter *DepositSplitterCallerSession) ContractName() (string, error) {
+	return _DepositSplitter.Contract.ContractName(&_DepositSplitter.CallOpts)
+}
+
 // FeeToken is a free data retrieval call binding the contract method 0x647846a5.
 //
 // Solidity: function feeToken() view returns(address)
@@ -302,6 +333,37 @@ func (_DepositSplitter *DepositSplitterSession) SettlementChainGateway() (common
 // Solidity: function settlementChainGateway() view returns(address)
 func (_DepositSplitter *DepositSplitterCallerSession) SettlementChainGateway() (common.Address, error) {
 	return _DepositSplitter.Contract.SettlementChainGateway(&_DepositSplitter.CallOpts)
+}
+
+// Version is a free data retrieval call binding the contract method 0x54fd4d50.
+//
+// Solidity: function version() pure returns(string version_)
+func (_DepositSplitter *DepositSplitterCaller) Version(opts *bind.CallOpts) (string, error) {
+	var out []interface{}
+	err := _DepositSplitter.contract.Call(opts, &out, "version")
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
+}
+
+// Version is a free data retrieval call binding the contract method 0x54fd4d50.
+//
+// Solidity: function version() pure returns(string version_)
+func (_DepositSplitter *DepositSplitterSession) Version() (string, error) {
+	return _DepositSplitter.Contract.Version(&_DepositSplitter.CallOpts)
+}
+
+// Version is a free data retrieval call binding the contract method 0x54fd4d50.
+//
+// Solidity: function version() pure returns(string version_)
+func (_DepositSplitter *DepositSplitterCallerSession) Version() (string, error) {
+	return _DepositSplitter.Contract.Version(&_DepositSplitter.CallOpts)
 }
 
 // Deposit is a paid mutator transaction binding the contract method 0xc9679bd0.

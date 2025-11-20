@@ -5,12 +5,15 @@ import (
 	"errors"
 	"math/big"
 
+	settleReg "github.com/xmtp/xmtpd/pkg/abi/settlementchainparameterregistry"
+
 	dm "github.com/xmtp/xmtpd/pkg/abi/distributionmanager"
 	nr "github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	prm "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	rr "github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	scg "github.com/xmtp/xmtpd/pkg/abi/settlementchaingateway"
+
 	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -50,6 +53,14 @@ type ISettlementChainAdmin interface {
 	SetRawParameter(ctx context.Context, key string, value [32]byte) error
 
 	BridgeParameters(ctx context.Context, keys []string) error
+
+	GetSettlementChainGatewayVersion(ctx context.Context) (string, error)
+	GetSettlementParameterRegistryVersion(ctx context.Context) (string, error)
+	GetPayerReportManagerVersion(ctx context.Context) (string, error)
+	GetRateRegistryVersion(ctx context.Context) (string, error)
+	GetPayerRegistryVersion(ctx context.Context) (string, error)
+	GetNodeRegistryVersion(ctx context.Context) (string, error)
+	GetDistributionManagerVersion(ctx context.Context) (string, error)
 }
 
 const (
@@ -63,16 +74,17 @@ const (
 )
 
 type settlementChainAdmin struct {
-	client                 *ethclient.Client
-	signer                 TransactionSigner
-	logger                 *zap.Logger
-	parameterAdmin         IParameterAdmin
-	settlementChainGateway *scg.SettlementChainGateway
-	payerRegistry          *pr.PayerRegistry
-	distributionManager    *dm.DistributionManager
-	payerReportManager     *prm.PayerReportManager
-	nodeRegistry           *nr.NodeRegistry
-	rateRegistry           *rr.RateRegistry
+	client                      *ethclient.Client
+	signer                      TransactionSigner
+	logger                      *zap.Logger
+	parameterAdmin              IParameterAdmin
+	settlementChainGateway      *scg.SettlementChainGateway
+	payerRegistry               *pr.PayerRegistry
+	distributionManager         *dm.DistributionManager
+	payerReportManager          *prm.PayerReportManager
+	nodeRegistry                *nr.NodeRegistry
+	rateRegistry                *rr.RateRegistry
+	settlementParameterRegistry *settleReg.SettlementChainParameterRegistry
 }
 
 var _ ISettlementChainAdmin = (*settlementChainAdmin)(nil)
@@ -132,21 +144,27 @@ func NewSettlementChainAdmin(
 		return nil, err
 	}
 
+	paramRegistry, err := settleReg.NewSettlementChainParameterRegistry(
+		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
+		client,
+	)
+
 	settlementChainAdminLogger := logger.Named(utils.SettlementChainAdminLoggerName).With(
 		utils.SettlementChainChainIDField(contractsOptions.SettlementChain.ChainID),
 	)
 
 	return &settlementChainAdmin{
-		client:                 client,
-		signer:                 signer,
-		logger:                 settlementChainAdminLogger,
-		parameterAdmin:         parameterAdmin,
-		settlementChainGateway: acGateway,
-		payerRegistry:          payerRegistry,
-		distributionManager:    distributionManager,
-		payerReportManager:     payerReportManager,
-		nodeRegistry:           nodeContract,
-		rateRegistry:           rateRegistry,
+		client:                      client,
+		signer:                      signer,
+		logger:                      settlementChainAdminLogger,
+		parameterAdmin:              parameterAdmin,
+		settlementChainGateway:      acGateway,
+		payerRegistry:               payerRegistry,
+		distributionManager:         distributionManager,
+		payerReportManager:          payerReportManager,
+		nodeRegistry:                nodeContract,
+		rateRegistry:                rateRegistry,
+		settlementParameterRegistry: paramRegistry,
 	}, nil
 }
 
@@ -526,4 +544,36 @@ func (s settlementChainAdmin) BridgeParameters(ctx context.Context, keys []strin
 	)
 
 	return err
+}
+
+func (s settlementChainAdmin) GetSettlementChainGatewayVersion(
+	ctx context.Context,
+) (string, error) {
+	return s.settlementChainGateway.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) GetSettlementParameterRegistryVersion(
+	ctx context.Context,
+) (string, error) {
+	return s.settlementParameterRegistry.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) GetPayerReportManagerVersion(ctx context.Context) (string, error) {
+	return s.payerReportManager.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) GetRateRegistryVersion(ctx context.Context) (string, error) {
+	return s.rateRegistry.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) GetPayerRegistryVersion(ctx context.Context) (string, error) {
+	return s.payerRegistry.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) GetNodeRegistryVersion(ctx context.Context) (string, error) {
+	return s.nodeRegistry.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) GetDistributionManagerVersion(ctx context.Context) (string, error) {
+	return s.distributionManager.Version(&bind.CallOpts{Context: ctx})
 }

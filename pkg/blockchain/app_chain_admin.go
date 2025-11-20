@@ -3,6 +3,8 @@ package blockchain
 import (
 	"context"
 
+	appReg "github.com/xmtp/xmtpd/pkg/abi/appchainparameterregistry"
+
 	acg "github.com/xmtp/xmtpd/pkg/abi/appchaingateway"
 	"github.com/xmtp/xmtpd/pkg/utils"
 
@@ -40,6 +42,11 @@ type IAppChainAdmin interface {
 	UpdateIdentityUpdateMinPayloadSize(ctx context.Context) error
 
 	GetRawParameter(ctx context.Context, key string) ([32]byte, error)
+
+	GetAppChainGatewayVersion(ctx context.Context) (string, error)
+	GetAppParameterRegistryVersion(ctx context.Context) (string, error)
+	GetGroupMessageBroadcasterVersion(ctx context.Context) (string, error)
+	GetIdentityUpdateBroadcasterVersion(ctx context.Context) (string, error)
 }
 
 const (
@@ -55,6 +62,7 @@ type appChainAdmin struct {
 	identityUpdateBroadcaster *iu.IdentityUpdateBroadcaster
 	groupMessageBroadcaster   *gm.GroupMessageBroadcaster
 	appChainGateway           *acg.AppChainGateway
+	appChainParameterRegistry *appReg.AppChainParameterRegistry
 }
 
 var _ IAppChainAdmin = (*appChainAdmin)(nil)
@@ -94,6 +102,14 @@ func NewAppChainAdmin(
 		utils.AppChainChainIDField(contractsOptions.AppChain.ChainID),
 	)
 
+	appChainParamRegistry, err := appReg.NewAppChainParameterRegistry(
+		common.HexToAddress(contractsOptions.AppChain.ParameterRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &appChainAdmin{
 		client:                    client,
 		signer:                    signer,
@@ -102,6 +118,7 @@ func NewAppChainAdmin(
 		identityUpdateBroadcaster: iuBroadcaster,
 		groupMessageBroadcaster:   gmBroadcaster,
 		appChainGateway:           acGateway,
+		appChainParameterRegistry: appChainParamRegistry,
 	}, nil
 }
 
@@ -466,4 +483,20 @@ func (a appChainAdmin) UpdateIdentityUpdateMinPayloadSize(ctx context.Context) e
 
 func (a appChainAdmin) GetRawParameter(ctx context.Context, key string) ([32]byte, error) {
 	return a.parameterAdmin.GetRawParameter(ctx, key)
+}
+
+func (a appChainAdmin) GetAppChainGatewayVersion(ctx context.Context) (string, error) {
+	return a.appChainGateway.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (a appChainAdmin) GetAppParameterRegistryVersion(ctx context.Context) (string, error) {
+	return a.appChainParameterRegistry.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (a appChainAdmin) GetGroupMessageBroadcasterVersion(ctx context.Context) (string, error) {
+	return a.groupMessageBroadcaster.Version(&bind.CallOpts{Context: ctx})
+}
+
+func (a appChainAdmin) GetIdentityUpdateBroadcasterVersion(ctx context.Context) (string, error) {
+	return a.identityUpdateBroadcaster.Version(&bind.CallOpts{Context: ctx})
 }

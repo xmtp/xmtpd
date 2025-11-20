@@ -77,7 +77,7 @@ function generate() {
     abi_file_url="${release_url}/${contract}.abi.json"
     abi_file="${build_dir}/${contract}.abi.json"
 
-    download_release_artifacts
+#    download_release_artifacts
     gen_go_bindings
 }
 
@@ -97,7 +97,7 @@ function main() {
     version=$1
     release_url="https://github.com/${owner}/${repository}/releases/download/${version}"
 
-    check_release "${version}"
+#    check_release "${version}"
 
     for contract in "${contracts[@]}"; do
         echo "⧖ Generating ABIs for contract: ${contract}"

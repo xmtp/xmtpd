@@ -148,6 +148,9 @@ func NewSettlementChainAdmin(
 		common.HexToAddress(contractsOptions.SettlementChain.ParameterRegistryAddress),
 		client,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	settlementChainAdminLogger := logger.Named(utils.SettlementChainAdminLoggerName).With(
 		utils.SettlementChainChainIDField(contractsOptions.SettlementChain.ChainID),

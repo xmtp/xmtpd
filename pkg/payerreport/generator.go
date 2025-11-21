@@ -8,6 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -60,19 +61,14 @@ func (p *PayerReportGenerator) GenerateReport(
 		return nil, err
 	}
 
-	// If the end sequence ID is 0, we don't have enough envelopes to generate a report.
-	// Returns an empty report rather than an error here
+	// No-op: If the end sequence ID is 0, we don't have enough envelopes to generate a report.
 	if endSequenceID == 0 {
-		payers := make(map[common.Address]currency.PicoDollar)
-		return BuildPayerReport(BuildPayerReportParams{
-			OriginatorNodeID:    uint32(originatorID),
-			StartSequenceID:     params.LastReportEndSequenceID,
-			EndSequenceID:       params.LastReportEndSequenceID,
-			EndMinuteSinceEpoch: 0,
-			Payers:              payers,
-			NodeIDs:             activeNodeIDs,
-			DomainSeparator:     p.domainSeparator,
-		})
+		p.logger.Warn(
+			"skipping report generation because there are not enough envelopes",
+			utils.OriginatorIDField(uint32(originatorID)),
+		)
+
+		return nil, nil
 	}
 
 	payers, err := p.queries.BuildPayerReport(

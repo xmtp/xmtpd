@@ -87,6 +87,7 @@ func TestValidFirstReport(t *testing.T) {
 	testCases := []struct {
 		name             string
 		messagesToInsert []envelopeCreateParams
+		expectNilReport  bool
 	}{
 		{
 			name: "one message per payer in the report",
@@ -96,6 +97,7 @@ func TestValidFirstReport(t *testing.T) {
 				// This message is in the last minute of the report. Will be ignored by the generator
 				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(2), 3),
 			},
+			expectNilReport: false,
 		},
 		{
 			name: "two messages per payer",
@@ -106,6 +108,7 @@ func TestValidFirstReport(t *testing.T) {
 				newEnvelopeCreateParams(t, originatorID, payerAddress2, getMinute(2), 4),
 				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(3), 5),
 			},
+			expectNilReport: false,
 		},
 		{
 			name: "messages exist but not enough for a report",
@@ -113,10 +116,12 @@ func TestValidFirstReport(t *testing.T) {
 				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(1), 1),
 				newEnvelopeCreateParams(t, originatorID, payerAddress1, getMinute(1), 2),
 			},
+			expectNilReport: true,
 		},
 		{
 			name:             "no messages",
 			messagesToInsert: []envelopeCreateParams{},
+			expectNilReport:  true,
 		},
 	}
 
@@ -140,6 +145,11 @@ func TestValidFirstReport(t *testing.T) {
 			)
 			logger.Info("report", zap.Any("report", report))
 			require.NoError(t, err)
+
+			if testCase.expectNilReport {
+				require.Nil(t, report)
+				return
+			}
 
 			verifyResult, err := verifier.VerifyReport(t.Context(), nil, &report.PayerReport)
 			require.NoError(t, err)

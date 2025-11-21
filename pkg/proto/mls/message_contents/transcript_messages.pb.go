@@ -169,9 +169,17 @@ type GroupUpdated struct {
 	// The metadata changes in the commit
 	MetadataFieldChanges []*GroupUpdated_MetadataFieldChange `protobuf:"bytes,4,rep,name=metadata_field_changes,json=metadataFieldChanges,proto3" json:"metadata_field_changes,omitempty"`
 	// / The inboxes that were removed from the group in response to pending-remove/self-remove requests
-	LeftInboxes   []*GroupUpdated_Inbox `protobuf:"bytes,5,rep,name=left_inboxes,json=leftInboxes,proto3" json:"left_inboxes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LeftInboxes []*GroupUpdated_Inbox `protobuf:"bytes,5,rep,name=left_inboxes,json=leftInboxes,proto3" json:"left_inboxes,omitempty"`
+	// The inboxes that were added to admin list in the commit
+	AddedAdminInboxes []*GroupUpdated_Inbox `protobuf:"bytes,6,rep,name=added_admin_inboxes,json=addedAdminInboxes,proto3" json:"added_admin_inboxes,omitempty"`
+	// The inboxes that were removed from admin list in the commit
+	RemovedAdminInboxes []*GroupUpdated_Inbox `protobuf:"bytes,7,rep,name=removed_admin_inboxes,json=removedAdminInboxes,proto3" json:"removed_admin_inboxes,omitempty"`
+	// The inboxes that were added to super admin list in the commit
+	AddedSuperAdminInboxes []*GroupUpdated_Inbox `protobuf:"bytes,8,rep,name=added_super_admin_inboxes,json=addedSuperAdminInboxes,proto3" json:"added_super_admin_inboxes,omitempty"`
+	// The inboxes that were removed from super admin list in the commit
+	RemovedSuperAdminInboxes []*GroupUpdated_Inbox `protobuf:"bytes,9,rep,name=removed_super_admin_inboxes,json=removedSuperAdminInboxes,proto3" json:"removed_super_admin_inboxes,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *GroupUpdated) Reset() {
@@ -235,6 +243,34 @@ func (x *GroupUpdated) GetMetadataFieldChanges() []*GroupUpdated_MetadataFieldCh
 func (x *GroupUpdated) GetLeftInboxes() []*GroupUpdated_Inbox {
 	if x != nil {
 		return x.LeftInboxes
+	}
+	return nil
+}
+
+func (x *GroupUpdated) GetAddedAdminInboxes() []*GroupUpdated_Inbox {
+	if x != nil {
+		return x.AddedAdminInboxes
+	}
+	return nil
+}
+
+func (x *GroupUpdated) GetRemovedAdminInboxes() []*GroupUpdated_Inbox {
+	if x != nil {
+		return x.RemovedAdminInboxes
+	}
+	return nil
+}
+
+func (x *GroupUpdated) GetAddedSuperAdminInboxes() []*GroupUpdated_Inbox {
+	if x != nil {
+		return x.AddedSuperAdminInboxes
+	}
+	return nil
+}
+
+func (x *GroupUpdated) GetRemovedSuperAdminInboxes() []*GroupUpdated_Inbox {
+	if x != nil {
+		return x.RemovedSuperAdminInboxes
 	}
 	return nil
 }
@@ -361,13 +397,17 @@ const file_mls_message_contents_transcript_messages_proto_rawDesc = "" +
 	"\rmembers_added\x18\x01 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\fmembersAdded\x12T\n" +
 	"\x0fmembers_removed\x18\x02 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x0emembersRemoved\x12\\\n" +
 	"\x13installations_added\x18\x03 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x12installationsAdded\x12`\n" +
-	"\x15installations_removed\x18\x04 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x14installationsRemoved\"\xed\x04\n" +
+	"\x15installations_removed\x18\x04 \x03(\v2+.xmtp.mls.message_contents.MembershipChangeR\x14installationsRemoved\"\x87\b\n" +
 	"\fGroupUpdated\x121\n" +
 	"\x15initiated_by_inbox_id\x18\x01 \x01(\tR\x12initiatedByInboxId\x12R\n" +
 	"\radded_inboxes\x18\x02 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\faddedInboxes\x12V\n" +
 	"\x0fremoved_inboxes\x18\x03 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\x0eremovedInboxes\x12q\n" +
 	"\x16metadata_field_changes\x18\x04 \x03(\v2;.xmtp.mls.message_contents.GroupUpdated.MetadataFieldChangeR\x14metadataFieldChanges\x12P\n" +
-	"\fleft_inboxes\x18\x05 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\vleftInboxes\x1a\"\n" +
+	"\fleft_inboxes\x18\x05 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\vleftInboxes\x12]\n" +
+	"\x13added_admin_inboxes\x18\x06 \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\x11addedAdminInboxes\x12a\n" +
+	"\x15removed_admin_inboxes\x18\a \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\x13removedAdminInboxes\x12h\n" +
+	"\x19added_super_admin_inboxes\x18\b \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\x16addedSuperAdminInboxes\x12l\n" +
+	"\x1bremoved_super_admin_inboxes\x18\t \x03(\v2-.xmtp.mls.message_contents.GroupUpdated.InboxR\x18removedSuperAdminInboxes\x1a\"\n" +
 	"\x05Inbox\x12\x19\n" +
 	"\binbox_id\x18\x01 \x01(\tR\ainboxId\x1a\x94\x01\n" +
 	"\x13MetadataFieldChange\x12\x1d\n" +
@@ -402,19 +442,23 @@ var file_mls_message_contents_transcript_messages_proto_goTypes = []any{
 	(*GroupUpdated_MetadataFieldChange)(nil), // 4: xmtp.mls.message_contents.GroupUpdated.MetadataFieldChange
 }
 var file_mls_message_contents_transcript_messages_proto_depIdxs = []int32{
-	0, // 0: xmtp.mls.message_contents.GroupMembershipChanges.members_added:type_name -> xmtp.mls.message_contents.MembershipChange
-	0, // 1: xmtp.mls.message_contents.GroupMembershipChanges.members_removed:type_name -> xmtp.mls.message_contents.MembershipChange
-	0, // 2: xmtp.mls.message_contents.GroupMembershipChanges.installations_added:type_name -> xmtp.mls.message_contents.MembershipChange
-	0, // 3: xmtp.mls.message_contents.GroupMembershipChanges.installations_removed:type_name -> xmtp.mls.message_contents.MembershipChange
-	3, // 4: xmtp.mls.message_contents.GroupUpdated.added_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
-	3, // 5: xmtp.mls.message_contents.GroupUpdated.removed_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
-	4, // 6: xmtp.mls.message_contents.GroupUpdated.metadata_field_changes:type_name -> xmtp.mls.message_contents.GroupUpdated.MetadataFieldChange
-	3, // 7: xmtp.mls.message_contents.GroupUpdated.left_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	0,  // 0: xmtp.mls.message_contents.GroupMembershipChanges.members_added:type_name -> xmtp.mls.message_contents.MembershipChange
+	0,  // 1: xmtp.mls.message_contents.GroupMembershipChanges.members_removed:type_name -> xmtp.mls.message_contents.MembershipChange
+	0,  // 2: xmtp.mls.message_contents.GroupMembershipChanges.installations_added:type_name -> xmtp.mls.message_contents.MembershipChange
+	0,  // 3: xmtp.mls.message_contents.GroupMembershipChanges.installations_removed:type_name -> xmtp.mls.message_contents.MembershipChange
+	3,  // 4: xmtp.mls.message_contents.GroupUpdated.added_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	3,  // 5: xmtp.mls.message_contents.GroupUpdated.removed_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	4,  // 6: xmtp.mls.message_contents.GroupUpdated.metadata_field_changes:type_name -> xmtp.mls.message_contents.GroupUpdated.MetadataFieldChange
+	3,  // 7: xmtp.mls.message_contents.GroupUpdated.left_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	3,  // 8: xmtp.mls.message_contents.GroupUpdated.added_admin_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	3,  // 9: xmtp.mls.message_contents.GroupUpdated.removed_admin_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	3,  // 10: xmtp.mls.message_contents.GroupUpdated.added_super_admin_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	3,  // 11: xmtp.mls.message_contents.GroupUpdated.removed_super_admin_inboxes:type_name -> xmtp.mls.message_contents.GroupUpdated.Inbox
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_transcript_messages_proto_init() }

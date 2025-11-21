@@ -21,12 +21,11 @@ func versionCmd() *cobra.Command {
 	return cmd
 }
 
-// --- pause ---
 func getVersionCmd() *cobra.Command {
 	var target options.Target
 	cmd := &cobra.Command{
 		Use:          "get",
-		Short:        "todo",
+		Short:        "Gets the version of the contract for the given target",
 		SilenceUsage: true,
 		RunE: func(*cobra.Command, []string) error {
 			return getVersionHandler(target)
@@ -144,35 +143,3 @@ func getVersionHandler(target options.Target) error {
 	}
 	return nil
 }
-
-//func (s settlementChainAdmin) GetSettlementChainGatewayVersion(
-//	ctx context.Context,
-//) (string, error) {
-//	return s.settlementChainGateway.Version(&bind.CallOpts{Context: ctx})
-//}
-//
-//func (s settlementChainAdmin) GetSettlementParameterRegistryVersion(
-//	ctx context.Context,
-//) (string, error) {
-//	return s.settlementParameterRegistry.Version(&bind.CallOpts{Context: ctx})
-//}
-//
-//func (s settlementChainAdmin) GetPayerReportManagerVersion(ctx context.Context) (string, error) {
-//	return s.payerReportManager.Version(&bind.CallOpts{Context: ctx})
-//}
-//
-//func (s settlementChainAdmin) GetRateRegistryVersion(ctx context.Context) (string, error) {
-//	return s.rateRegistry.Version(&bind.CallOpts{Context: ctx})
-//}
-//
-//func (s settlementChainAdmin) GetPayerRegistryVersion(ctx context.Context) (string, error) {
-//	return s.payerRegistry.Version(&bind.CallOpts{Context: ctx})
-//}
-//
-//func (s settlementChainAdmin) GetNodeRegistryVersion(ctx context.Context) (string, error) {
-//	return s.nodeRegistry.Version(&bind.CallOpts{Context: ctx})
-//}
-//
-//func (s settlementChainAdmin) GetDistributionManagerVersion(ctx context.Context) (string, error) {
-//	return s.distributionManager.Version(&bind.CallOpts{Context: ctx})
-//}

@@ -381,12 +381,10 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	var c *cursor
+	lastSequenceId := uint64(0)
 	for _, row := range result {
 		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
-			c = &cursor{
-				sequenceID: uint64(row.OriginatorSequenceID),
-			}
+			lastSequenceId = uint64(row.OriginatorSequenceID)
 		}
 	}
 
@@ -394,7 +392,7 @@ func (s *syncWorker) setupStream(
 		s.ctx,
 		s.logger,
 		&node,
-		c,
+		lastSequenceId,
 		stream,
 		writeQueue,
 	), nil

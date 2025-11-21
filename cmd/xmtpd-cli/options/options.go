@@ -13,12 +13,16 @@ import (
 type Target string
 
 const (
-	TargetIdentity               Target = "identity"
-	TargetGroup                  Target = "group"
-	TargetAppChainGateway        Target = "app-chain-gateway"
-	TargetDistributionManager    Target = "distribution-manager"
-	TargetPayerRegistry          Target = "payer-registry"
-	TargetSettlementChainGateway Target = "settlement-chain-gateway"
+	TargetIdentity                    Target = "identity"
+	TargetGroup                       Target = "group"
+	TargetAppChainGateway             Target = "app-chain-gateway"
+	TargetDistributionManager         Target = "distribution-manager"
+	TargetPayerRegistry               Target = "payer-registry"
+	TargetSettlementChainGateway      Target = "settlement-chain-gateway"
+	TargetSettlementParameterRegistry Target = "settlement-parameter-registry"
+	TargetPayerReportManager          Target = "payer-report-manager"
+	TargetRateRegistry                Target = "rate-registry"
+	TargetAppParameterRegistry        Target = "app-parameter-registry"
 )
 
 func (t Target) String() string {
@@ -36,7 +40,12 @@ func (t *Target) Set(s string) error {
 		TargetAppChainGateway,
 		TargetDistributionManager,
 		TargetPayerRegistry,
-		TargetSettlementChainGateway:
+		TargetSettlementChainGateway,
+		TargetSettlementParameterRegistry,
+		TargetPayerReportManager,
+		TargetAppParameterRegistry,
+		TargetRateRegistry:
+
 		*t = Target(s)
 		return nil
 	default:

@@ -58,6 +58,7 @@ func configureRootCmd() error {
 		generateCmd(),
 		fundsCmd(),
 		paramsCmd(),
+		versionCmd(),
 	)
 
 	return nil

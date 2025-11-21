@@ -84,7 +84,7 @@ func newTestOriginatorStream(
 	t *testing.T,
 	node *registry.Node,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
-	cursor *cursor,
+	lastSequenceId uint64,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
 	log := testutils.NewLog(t)
@@ -93,7 +93,7 @@ func newTestOriginatorStream(
 		t.Context(),
 		log,
 		node,
-		cursor,
+		lastSequenceId,
 		stream,
 		writeQueue,
 	)
@@ -128,7 +128,7 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	go func() {
 		dbStorerInstance.Start()
 	}()
-	origStream := newTestOriginatorStream(t, &node, stream, nil, writeQueue)
+	origStream := newTestOriginatorStream(t, &node, stream, 0, writeQueue)
 
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
@@ -160,7 +160,7 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 	go func() {
 		dbStorerInstance.Start()
 	}()
-	origStream := newTestOriginatorStream(t, &node, stream, nil, writeQueue)
+	origStream := newTestOriginatorStream(t, &node, stream, 0, writeQueue)
 
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError

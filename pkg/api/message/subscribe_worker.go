@@ -178,9 +178,17 @@ func startSubscribeWorker(
 			nodeID := uint32(env.OriginatorNodeID)
 			seqID := uint64(env.OriginatorSequenceID)
 
-			if current, ok := lastSeen[nodeID]; !ok || seqID > current {
-				lastSeen[nodeID] = seqID
+			if last, ok := lastSeen[nodeID]; ok && seqID < last {
+				// 🛑 Hard crash: we must originate in order
+				// if you see this panic, DB cleanup is required
+				logger.Fatal("system invariant broken: unsorted envelope stream",
+					utils.SequenceIDField(int64(seqID)),
+					utils.OriginatorIDField(nodeID),
+					utils.LastSequenceIDField(int64(last)),
+				)
 			}
+
+			lastSeen[nodeID] = seqID
 		}
 		return envs, lastSeen, nil
 	}

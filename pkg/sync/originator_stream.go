@@ -16,25 +16,20 @@ import (
 	"go.uber.org/zap"
 )
 
-type cursor struct {
-	sequenceID  uint64
-	timestampNS int64
-}
-
 type originatorStream struct {
-	ctx        context.Context
-	logger     *zap.Logger
-	node       *registry.Node
-	cursor     *cursor
-	stream     message_api.ReplicationApi_SubscribeEnvelopesClient
-	writeQueue chan *envUtils.OriginatorEnvelope
+	ctx            context.Context
+	logger         *zap.Logger
+	node           *registry.Node
+	lastSequenceId uint64
+	stream         message_api.ReplicationApi_SubscribeEnvelopesClient
+	writeQueue     chan *envUtils.OriginatorEnvelope
 }
 
 func newOriginatorStream(
 	ctx context.Context,
 	logger *zap.Logger,
 	node *registry.Node,
-	cursor *cursor,
+	lastSequenceId uint64,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
@@ -44,10 +39,10 @@ func newOriginatorStream(
 			utils.OriginatorIDField(node.NodeID),
 			utils.NodeHTTPAddressField(node.HTTPAddress),
 		),
-		node:       node,
-		cursor:     cursor,
-		stream:     stream,
-		writeQueue: writeQueue,
+		node:           node,
+		lastSequenceId: lastSequenceId,
+		stream:         stream,
+		writeQueue:     writeQueue,
 	}
 }
 
@@ -162,30 +157,17 @@ func (s *originatorStream) validateEnvelope(
 	metrics.EmitSyncLastSeenOriginatorSequenceID(env.OriginatorNodeID(), env.OriginatorSequenceID())
 	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
-	var lastSequenceID uint64 = 0
-	var lastNs int64 = 0
-	if s.cursor != nil {
-		lastSequenceID = s.cursor.sequenceID
-		lastNs = s.cursor.timestampNS
-	}
-
-	if env.OriginatorSequenceID() != lastSequenceID+1 || env.OriginatorNs() < lastNs {
-		// TODO(rich) Submit misbehavior report and continue
+	if env.OriginatorSequenceID() != s.lastSequenceId+1 {
 		s.logger.Error(
 			"received out-of-order envelope",
 			utils.OriginatorIDField(env.OriginatorNodeID()),
 			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
-			zap.Uint64("expected_sequence_id", lastSequenceID+1),
-			zap.Int64("last_timestamp_ns", lastNs),
-			zap.Int64("actual_timestamp_ns", env.OriginatorNs()),
+			zap.Uint64("expected_sequence_id", s.lastSequenceId+1),
 		)
 	}
 
-	if env.OriginatorSequenceID() > lastSequenceID {
-		s.cursor = &cursor{
-			sequenceID:  env.OriginatorSequenceID(),
-			timestampNS: env.OriginatorNs(),
-		}
+	if env.OriginatorSequenceID() > s.lastSequenceId {
+		s.lastSequenceId = env.OriginatorSequenceID()
 	}
 
 	// Validate that there is a valid payer signature

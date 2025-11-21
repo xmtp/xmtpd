@@ -351,7 +351,24 @@ func (s *Service) QueryEnvelopes(
 		Envelopes: make([]*envelopesProto.OriginatorEnvelope, 0, len(rows)),
 	})
 
+	// Track last sequence per originator
+	lastSeen := make(map[int32]int64)
+
 	for _, row := range rows {
+		nodeID := row.OriginatorNodeID
+		seqID := row.OriginatorSequenceID
+
+		if last, ok := lastSeen[nodeID]; ok && seqID < last {
+			// 🛑 Hard crash on out-of-order sequences for the same originator
+			logger.Fatal(
+				"system invariant broken: unsorted envelope stream",
+				utils.SequenceIDField(seqID),
+				utils.OriginatorIDField(uint32(nodeID)),
+				utils.LastSequenceIDField(last),
+			)
+		}
+		lastSeen[nodeID] = seqID
+
 		originatorEnv := &envelopesProto.OriginatorEnvelope{}
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {

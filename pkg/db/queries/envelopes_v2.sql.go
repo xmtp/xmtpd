@@ -103,7 +103,7 @@ FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
               ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
-ORDER BY f.gateway_time, f.originator_node_id, f.originator_sequence_id
+ORDER BY f.originator_node_id, f.originator_sequence_id
 `
 
 type SelectGatewayEnvelopesByOriginatorsParams struct {
@@ -198,7 +198,7 @@ FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
               ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
-ORDER BY f.gateway_time, f.originator_node_id, f.originator_sequence_id
+ORDER BY f.originator_node_id, f.originator_sequence_id
 `
 
 type SelectGatewayEnvelopesByTopicsParams struct {
@@ -264,8 +264,7 @@ FROM gateway_envelopes_view v
          LEFT JOIN cursors c
                    ON v.originator_node_id = c.cursor_node_id
 WHERE v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-ORDER BY v.gateway_time,
-         v.originator_node_id,
+ORDER BY v.originator_node_id,
          v.originator_sequence_id
 LIMIT NULLIF($1::INT, 0)
 `
@@ -333,6 +332,7 @@ type SelectNewestFromTopicsRow struct {
 	OriginatorEnvelope   []byte
 }
 
+// TODO(mkysel) -- sorting by gateway time can lead to wrong results, this query needs to be redone
 func (q *Queries) SelectNewestFromTopics(ctx context.Context, topics [][]byte) ([]SelectNewestFromTopicsRow, error) {
 	rows, err := q.db.QueryContext(ctx, selectNewestFromTopics, pq.Array(topics))
 	if err != nil {

@@ -52,7 +52,7 @@ func getVersionHandler(target options.Target) error {
 
 	_, appAdmin, err := setupAppChainAdmin(ctx, logger)
 	if err != nil {
-		logger.Error("could not setup settlement chain admin", zap.Error(err))
+            logger.Error("could not setup app chain admin", zap.Error(err))
 		return err
 	}
 

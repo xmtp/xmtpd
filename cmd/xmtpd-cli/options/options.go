@@ -19,6 +19,7 @@ const (
 	TargetDistributionManager         Target = "distribution-manager"
 	TargetPayerRegistry               Target = "payer-registry"
 	TargetSettlementChainGateway      Target = "settlement-chain-gateway"
+	TargetNodeRegistry                Target = "node-registry"
 	TargetSettlementParameterRegistry Target = "settlement-parameter-registry"
 	TargetPayerReportManager          Target = "payer-report-manager"
 	TargetRateRegistry                Target = "rate-registry"
@@ -41,6 +42,7 @@ func (t *Target) Set(s string) error {
 		TargetDistributionManager,
 		TargetPayerRegistry,
 		TargetSettlementChainGateway,
+		TargetNodeRegistry,
 		TargetSettlementParameterRegistry,
 		TargetPayerReportManager,
 		TargetAppParameterRegistry,

@@ -136,6 +136,15 @@ func getVersionHandler(target options.Target) error {
 			return err
 		}
 		logger.Info("app-chain parameter registry version", zap.String("version", version))
+
+	case options.TargetNodeRegistry:
+		version, err := settlementAdmin.GetNodeRegistryVersion(ctx)
+		if err != nil {
+			logger.Error("getting version", zap.Error(err))
+			return err
+		}
+		logger.Info("node registry version", zap.String("version", version))
+
 	default:
 		return fmt.Errorf(
 			"unknown target",

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 
 	"connectrpc.com/connect"
@@ -631,6 +632,11 @@ func (s *Service) PublishPayerEnvelopes(
 
 	s.publishWorker.notifyStagedPublish()
 	s.waitForGatewayPublish(ctx, latestStaged, logger)
+
+	metrics.EmitSyncLastSeenOriginatorSequenceID(
+		s.registrant.NodeID(),
+		uint64(latestStaged.ID),
+	)
 
 	return connect.NewResponse(&message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: results,

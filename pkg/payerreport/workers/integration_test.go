@@ -436,10 +436,6 @@ func TestValidSignature(t *testing.T) {
 }
 
 func TestCanGenerateReport(t *testing.T) {
-	t.Skip(
-		"TODO: This test relied on zero length reports to pass. Now it requires >2 min to complete. Move to an  integration test suite.",
-	)
-
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
@@ -453,6 +449,8 @@ func TestCanGenerateReport(t *testing.T) {
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, messageTopic)
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
 	}, 5*time.Second, 50*time.Millisecond)
+
+	advanceUnsettledUsage(t, &scaffold)
 
 	err := scaffold.reportGenerators[0].GenerateReports()
 	require.NoError(t, err)
@@ -477,10 +475,6 @@ func TestCanGenerateReport(t *testing.T) {
 }
 
 func TestFullReportLifecycle(t *testing.T) {
-	t.Skip(
-		"TODO: This test relied on zero length reports to pass. Now it requires >2 min to complete. Move to an  integration test suite.",
-	)
-
 	scaffold := setupMultiNodeTest(t)
 	groupID := testutils.RandomGroupID()
 	messageTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
@@ -494,6 +488,8 @@ func TestFullReportLifecycle(t *testing.T) {
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, messageTopic)
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
 	}, 5*time.Second, 50*time.Millisecond)
+
+	advanceUnsettledUsage(t, &scaffold)
 
 	require.Eventually(t, func() bool {
 		err := scaffold.reportGenerators[0].GenerateReports()
@@ -617,6 +613,47 @@ func TestFullReportLifecycle(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.True(t, settlementSummary.IsSettled)
+}
+
+// advanceUnsettledUsage inserts a synthetic “future minute” unsettled_usage row
+// for every (db, nodeID) pair in the test scaffold.
+//
+// This artificially advances the unsettled_usage clock by one minute for each
+// node in each database, allowing tests to immediately query what would
+// normally be “the next minute” without waiting for real time to pass.
+func advanceUnsettledUsage(t *testing.T, scaffold *multiNodeTestScaffold) {
+	injectDummyUnsettled(t, scaffold.dbs[0], scaffold.nodeIDs[0])
+	injectDummyUnsettled(t, scaffold.dbs[0], scaffold.nodeIDs[1])
+	injectDummyUnsettled(t, scaffold.dbs[1], scaffold.nodeIDs[0])
+	injectDummyUnsettled(t, scaffold.dbs[1], scaffold.nodeIDs[1])
+}
+
+func injectDummyUnsettled(t *testing.T, db *sql.DB, nodeId uint32) {
+	_, err := db.Exec(`
+WITH latest AS (
+    SELECT 
+        COALESCE(MAX(minutes_since_epoch), FLOOR(EXTRACT(EPOCH FROM now()) / 60)::INT) AS max_minute
+    FROM unsettled_usage
+    WHERE originator_id = $1
+)
+INSERT INTO unsettled_usage (
+    payer_id,
+    originator_id,
+    minutes_since_epoch,
+    spend_picodollars,
+    last_sequence_id,
+    message_count
+)
+SELECT
+    1001 AS payer_id,
+    $1 AS originator_id,
+    latest.max_minute + 1 AS minutes_since_epoch,
+    0 AS spend_picodollars,
+    0 AS last_sequence_id,
+    0 AS message_count
+FROM latest;
+`, nodeId)
+	require.NoError(t, err)
 }
 
 func TestCanRejectReport(t *testing.T) {

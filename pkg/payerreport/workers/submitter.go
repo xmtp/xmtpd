@@ -16,15 +16,14 @@ import (
 const submitterWorkerID = 2
 
 type SubmitterWorker struct {
-	logger             *zap.Logger
-	ctx                context.Context
-	cancel             context.CancelFunc
-	wg                 *sync.WaitGroup
-	payerReportStore   payerreport.IPayerReportStore
-	registry           registry.NodeRegistry
-	reportsAdmin       blockchain.PayerReportsManager
-	myNodeID           uint32
-	submissionNotifyCh chan<- struct{}
+	logger           *zap.Logger
+	ctx              context.Context
+	cancel           context.CancelFunc
+	wg               *sync.WaitGroup
+	payerReportStore payerreport.IPayerReportStore
+	registry         registry.NodeRegistry
+	reportsAdmin     blockchain.PayerReportsManager
+	myNodeID         uint32
 }
 
 func NewSubmitterWorker(
@@ -34,19 +33,17 @@ func NewSubmitterWorker(
 	registry registry.NodeRegistry,
 	reportsManager blockchain.PayerReportsManager,
 	myNodeID uint32,
-	submissionNotifyCh chan<- struct{},
 ) *SubmitterWorker {
 	ctx, cancel := context.WithCancel(ctx)
 	return &SubmitterWorker{
-		logger:             logger.Named(utils.PayerReportSubmitterWorkerLoggerName),
-		ctx:                ctx,
-		cancel:             cancel,
-		wg:                 &sync.WaitGroup{},
-		payerReportStore:   payerReportStore,
-		registry:           registry,
-		myNodeID:           myNodeID,
-		reportsAdmin:       reportsManager,
-		submissionNotifyCh: submissionNotifyCh,
+		logger:           logger.Named(utils.PayerReportSubmitterWorkerLoggerName),
+		ctx:              ctx,
+		cancel:           cancel,
+		wg:               &sync.WaitGroup{},
+		payerReportStore: payerReportStore,
+		registry:         registry,
+		myNodeID:         myNodeID,
+		reportsAdmin:     reportsManager,
 	}
 }
 
@@ -188,14 +185,6 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				utils.PayerReportIDField(report.ID.String()),
 			)
 		}
-	}
-
-	// Notify the settlement worker in a non-blocking way
-	select {
-	case w.submissionNotifyCh <- struct{}{}:
-		w.logger.Debug("notified settlement worker of submission")
-	default:
-		// Channel is full, skip notification - settlement worker will run on its schedule
 	}
 
 	return latestErr

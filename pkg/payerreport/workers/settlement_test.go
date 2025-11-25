@@ -32,7 +32,6 @@ func testSettlementWorker(
 		myNodeID       = uint32(1)
 	)
 
-	submissionNotifyCh := make(chan struct{}, 10)
 	worker := NewSettlementWorker(
 		ctx,
 		log,
@@ -40,7 +39,6 @@ func testSettlementWorker(
 		verifier,
 		reportsManager,
 		myNodeID,
-		submissionNotifyCh,
 	)
 
 	return worker, store, reportsManager, verifier

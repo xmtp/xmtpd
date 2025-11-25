@@ -279,12 +279,13 @@ func (x *BackupMetadataSave) GetEndNs() int64 {
 
 // Backup Options
 type BackupOptions struct {
-	state         protoimpl.MessageState   `protogen:"open.v1"`
-	Elements      []BackupElementSelection `protobuf:"varint,1,rep,packed,name=elements,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"elements,omitempty"`
-	StartNs       *int64                   `protobuf:"varint,2,opt,name=start_ns,json=startNs,proto3,oneof" json:"start_ns,omitempty"`
-	EndNs         *int64                   `protobuf:"varint,3,opt,name=end_ns,json=endNs,proto3,oneof" json:"end_ns,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                       protoimpl.MessageState   `protogen:"open.v1"`
+	Elements                    []BackupElementSelection `protobuf:"varint,1,rep,packed,name=elements,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"elements,omitempty"`
+	StartNs                     *int64                   `protobuf:"varint,2,opt,name=start_ns,json=startNs,proto3,oneof" json:"start_ns,omitempty"`
+	EndNs                       *int64                   `protobuf:"varint,3,opt,name=end_ns,json=endNs,proto3,oneof" json:"end_ns,omitempty"`
+	ExcludeDisappearingMessages bool                     `protobuf:"varint,4,opt,name=exclude_disappearing_messages,json=excludeDisappearingMessages,proto3" json:"exclude_disappearing_messages,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *BackupOptions) Reset() {
@@ -338,6 +339,13 @@ func (x *BackupOptions) GetEndNs() int64 {
 	return 0
 }
 
+func (x *BackupOptions) GetExcludeDisappearingMessages() bool {
+	if x != nil {
+		return x.ExcludeDisappearingMessages
+	}
+	return false
+}
+
 var File_device_sync_device_sync_proto protoreflect.FileDescriptor
 
 const file_device_sync_device_sync_proto_rawDesc = "" +
@@ -356,11 +364,12 @@ const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\bstart_ns\x18\x04 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
 	"\x06end_ns\x18\x05 \x01(\x03H\x01R\x05endNs\x88\x01\x01B\v\n" +
 	"\t_start_nsB\t\n" +
-	"\a_end_ns\"\xa9\x01\n" +
+	"\a_end_ns\"\xed\x01\n" +
 	"\rBackupOptions\x12D\n" +
 	"\belements\x18\x01 \x03(\x0e2(.xmtp.device_sync.BackupElementSelectionR\belements\x12\x1e\n" +
 	"\bstart_ns\x18\x02 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
-	"\x06end_ns\x18\x03 \x01(\x03H\x01R\x05endNs\x88\x01\x01B\v\n" +
+	"\x06end_ns\x18\x03 \x01(\x03H\x01R\x05endNs\x88\x01\x01\x12B\n" +
+	"\x1dexclude_disappearing_messages\x18\x04 \x01(\bR\x1bexcludeDisappearingMessagesB\v\n" +
 	"\t_start_nsB\t\n" +
 	"\a_end_ns*\xb3\x01\n" +
 	"\x16BackupElementSelection\x12(\n" +

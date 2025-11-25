@@ -2,7 +2,7 @@ package payerreport
 
 import (
 	"context"
-	"sort"
+	"slices"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
@@ -154,7 +154,7 @@ func extractActiveNodeIDs(nodes []registry.Node) []uint32 {
 		activeNodeIDs[i] = node.NodeID
 	}
 
-	sort.Slice(activeNodeIDs, func(i, j int) bool { return activeNodeIDs[i] < activeNodeIDs[j] })
+	slices.Sort(activeNodeIDs)
 
 	return activeNodeIDs
 }

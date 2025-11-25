@@ -108,6 +108,11 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		return err
 	}
 
+	if len(reports) == 0 {
+		w.logger.Debug("no reports to submit, skipping")
+		return nil
+	}
+
 	var latestErr error
 
 	for _, report := range reports {
@@ -183,14 +188,14 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				utils.PayerReportIDField(report.ID.String()),
 			)
 		}
+	}
 
-		// Notify the settlement worker in a non-blocking way
-		select {
-		case w.submissionNotifyCh <- struct{}{}:
-			reportLogger.Debug("notified settlement worker of submission")
-		default:
-			// Channel is full, skip notification - settlement worker will run on its schedule
-		}
+	// Notify the settlement worker in a non-blocking way
+	select {
+	case w.submissionNotifyCh <- struct{}{}:
+		w.logger.Debug("notified settlement worker of submission")
+	default:
+		// Channel is full, skip notification - settlement worker will run on its schedule
 	}
 
 	return latestErr

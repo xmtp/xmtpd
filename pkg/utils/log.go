@@ -50,7 +50,7 @@ const (
 	AppChainIndexerLoggerName            = "app-chain"
 	GroupMessageBroadcasterLoggerName    = "group-message-broadcaster"
 	IdentityUpdateBroadcasterLoggerName  = "identity-update-broadcaster"
-	PayerReportContractLoggerName        = "payer-report"
+	PayerRegistryContractLoggerName      = "payer-registry"
 	PayerReportManagerContractLoggerName = "payer-report-manager"
 	RPCLogStreamerLoggerName             = "rpc-log-streamer"
 	StorerLoggerName                     = "storer"

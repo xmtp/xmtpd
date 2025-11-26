@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -693,7 +693,7 @@ func TestSequentialConsistency(t *testing.T) {
 			require.Len(t, allNonces, numWorkers*noncesPerWorker)
 
 			// Verify nonces form a continuous sequence starting from 0
-			sort.Slice(allNonces, func(i, j int) bool { return allNonces[i] < allNonces[j] })
+			slices.Sort(allNonces)
 			for i, nonce := range allNonces {
 				require.EqualValues(t, i, nonce, "Nonces should be sequential starting from 0")
 			}

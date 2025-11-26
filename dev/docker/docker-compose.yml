@@ -19,7 +19,7 @@ services:
 
   chain:
     platform: linux/amd64
-    image: ghcr.io/xmtp/contracts:sha-7ec03fd
+    image: ghcr.io/xmtp/contracts:v2025.11.26-1
     ports:
       - 7545:8545
 

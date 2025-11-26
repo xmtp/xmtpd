@@ -100,7 +100,6 @@ var (
 		"PayerReportNotSettled(uint32,uint256)",
 	)
 	ErrPendingWithdrawalExists = fmt.Errorf("PendingWithdrawalExists()")
-	ErrSettleUsageFailed       = fmt.Errorf("SettleUsageFailed(bytes)")
 	ErrTransferFailed          = fmt.Errorf("TransferFailed()")
 	ErrTransferFromFailed      = fmt.Errorf("TransferFromFailed()")
 	ErrUnorderedNodeIDs        = fmt.Errorf("UnorderedNodeIds()")
@@ -198,7 +197,6 @@ var (
 		"0xc3e0931f": ErrPayerReportIndexOutOfBounds,
 		"0x7fddb8df": ErrPayerReportNotSettled,
 		"0x75c41473": ErrPendingWithdrawalExists,
-		"0xcaa2acb9": ErrSettleUsageFailed,
 		"0x90b8ec18": ErrTransferFailed,
 		"0x7939f424": ErrTransferFromFailed,
 		"0x99a67242": ErrUnorderedNodeIDs,

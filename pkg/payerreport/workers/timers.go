@@ -21,7 +21,9 @@ func findNextRunTime(myNodeID uint32, workerID uint32) time.Time {
 	// Use a hash function to distribute node IDs evenly across minutes
 	// regardless of their numerical distribution
 	// Uses a Knuth multiplicative hash function
-	minuteOffset := int((((myNodeID + workerID) * 2654435761) >> 16) % distributionSpreadMinutes)
+	minuteOffset := int(((myNodeID) * 2654435761) >> 16)
+	minuteOffset += int(workerID-1) * 5
+	minuteOffset %= int(distributionSpreadMinutes)
 
 	now := time.Now().UTC()
 

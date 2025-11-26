@@ -212,8 +212,6 @@ func (w *WorkerWrapper) Stop() {
 // The configuration should be created using NewWorkerConfigBuilder().Build().
 // Returns a WorkerWrapper that can be used to stop all workers.
 func RunWorkers(cfg workerConfig) *WorkerWrapper {
-	submissionNotifyCh := make(chan struct{}, 1)
-
 	attestationWorker := NewAttestationWorker(
 		cfg.ctx,
 		cfg.logger,
@@ -243,7 +241,6 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 		cfg.registry,
 		cfg.reportsManager,
 		cfg.registrant.NodeID(),
-		submissionNotifyCh,
 	)
 
 	settlementWorker := NewSettlementWorker(
@@ -253,7 +250,6 @@ func RunWorkers(cfg workerConfig) *WorkerWrapper {
 		payerreport.NewPayerReportVerifier(cfg.logger, cfg.store),
 		cfg.reportsManager,
 		cfg.registrant.NodeID(),
-		submissionNotifyCh,
 	)
 
 	attestationWorker.Start()

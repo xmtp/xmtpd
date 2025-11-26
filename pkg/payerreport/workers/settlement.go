@@ -19,15 +19,14 @@ const (
 )
 
 type SettlementWorker struct {
-	logger             *zap.Logger
-	ctx                context.Context
-	cancel             context.CancelFunc
-	wg                 *sync.WaitGroup
-	payerReportStore   payerreport.IPayerReportStore
-	verifier           payerreport.IPayerReportVerifier
-	reportManager      blockchain.PayerReportsManager
-	myNodeID           uint32
-	submissionNotifyCh <-chan struct{}
+	logger           *zap.Logger
+	ctx              context.Context
+	cancel           context.CancelFunc
+	wg               *sync.WaitGroup
+	payerReportStore payerreport.IPayerReportStore
+	verifier         payerreport.IPayerReportVerifier
+	reportManager    blockchain.PayerReportsManager
+	myNodeID         uint32
 }
 
 func NewSettlementWorker(
@@ -37,19 +36,17 @@ func NewSettlementWorker(
 	verifier payerreport.IPayerReportVerifier,
 	reportManager blockchain.PayerReportsManager,
 	myNodeID uint32,
-	submissionNotifyCh <-chan struct{},
 ) *SettlementWorker {
 	ctx, cancel := context.WithCancel(ctx)
 	return &SettlementWorker{
-		logger:             logger.Named(utils.PayerReportSettlementWorkerLoggerName),
-		ctx:                ctx,
-		cancel:             cancel,
-		wg:                 &sync.WaitGroup{},
-		payerReportStore:   payerReportStore,
-		myNodeID:           myNodeID,
-		verifier:           verifier,
-		reportManager:      reportManager,
-		submissionNotifyCh: submissionNotifyCh,
+		logger:           logger.Named(utils.PayerReportSettlementWorkerLoggerName),
+		ctx:              ctx,
+		cancel:           cancel,
+		wg:               &sync.WaitGroup{},
+		payerReportStore: payerReportStore,
+		myNodeID:         myNodeID,
+		verifier:         verifier,
+		reportManager:    reportManager,
 	}
 }
 
@@ -64,11 +61,6 @@ func (w *SettlementWorker) Start() {
 			case <-time.After(wait):
 				if err := w.SettleReports(ctx); err != nil {
 					w.logger.Error("error settling reports", zap.Error(err))
-				}
-			case <-w.submissionNotifyCh:
-				w.logger.Debug("received submission notification, settling reports")
-				if err := w.SettleReports(ctx); err != nil {
-					w.logger.Error("error settling reports after submission", zap.Error(err))
 				}
 			}
 		}

@@ -260,10 +260,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		domainSeparator,
 	)
 
-	// Create buffered channels for submission notifications to avoid blocking the submitter
-	submissionNotifyCh1 := make(chan struct{}, 10)
-	submissionNotifyCh2 := make(chan struct{}, 10)
-
 	submitterWorker1 := workers.NewSubmitterWorker(
 		t.Context(),
 		log,
@@ -271,7 +267,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registry,
 		reportsManager,
 		server1NodeID,
-		submissionNotifyCh1,
 	)
 	submitterWorker2 := workers.NewSubmitterWorker(
 		t.Context(),
@@ -280,7 +275,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		registry,
 		reportsManager,
 		server2NodeID,
-		submissionNotifyCh2,
 	)
 
 	verifier1 := payerreport.NewPayerReportVerifier(log, payerReportStore1)
@@ -292,7 +286,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		verifier1,
 		reportsManager,
 		server1NodeID,
-		submissionNotifyCh1,
 	)
 	settlementWorker2 := workers.NewSettlementWorker(
 		t.Context(),
@@ -301,7 +294,6 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 		verifier2,
 		reportsManager,
 		server2NodeID,
-		submissionNotifyCh2,
 	)
 
 	t.Cleanup(func() {

@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	payerRegistry "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	reportManager "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/merkle"
@@ -25,6 +26,7 @@ type ReportsManager struct {
 	signer                TransactionSigner
 	logger                *zap.Logger
 	reportManagerContract *reportManager.PayerReportManager
+	payerRegistryContract *payerRegistry.PayerRegistry
 	domainSeparator       *common.Hash
 	domainSeparatorLock   sync.Mutex
 }
@@ -48,11 +50,20 @@ func NewReportsManager(
 		return nil, err
 	}
 
+	payerRegistryContract, err := payerRegistry.NewPayerRegistry(
+		common.HexToAddress(options.PayerRegistryAddress),
+		client,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ReportsManager{
 		logger:                logger.Named(utils.PayerReportManagerAdminLoggerName),
 		client:                client,
 		signer:                signer,
 		reportManagerContract: reportManagerContract,
+		payerRegistryContract: payerRegistryContract,
 		domainSeparator:       nil,
 	}, nil
 }
@@ -231,6 +242,14 @@ func (r *ReportsManager) SettleReport(
 			)
 		},
 		func(log *types.Log) (any, error) {
+			if usageSettled, err := r.payerRegistryContract.ParseUsageSettled(*log); err == nil {
+				r.logger.Info(
+					"usage settled for",
+					zap.String("payer", usageSettled.Payer.String()),
+					zap.Any("amount", usageSettled.Amount),
+				)
+			}
+
 			return r.reportManagerContract.ParsePayerReportSubsetSettled(*log)
 		},
 		func(event any) {

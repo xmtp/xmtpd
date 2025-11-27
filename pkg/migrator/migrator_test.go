@@ -87,15 +87,17 @@ func TestMigrator(t *testing.T) {
 	// Publishing to the blockchain takes time.
 	<-time.After(10 * time.Second)
 
-	checkMigrationTrackerState(t, test.ctx, test.db)
-	checkGatewayEnvelopesLastID(t, test.ctx, test.db)
-	checkGatewayEnvelopesMigratedAmount(t, test.ctx, test.db)
-	checkGatewayEnvelopesAreUnique(t, test.ctx, test.db)
+	require.Eventually(t, func() bool {
+		return checkMigrationTrackerState(t, test.ctx, test.db) &&
+			checkGatewayEnvelopesLastID(t, test.ctx, test.db) &&
+			checkGatewayEnvelopesMigratedAmount(t, test.ctx, test.db) &&
+			checkGatewayEnvelopesAreUnique(t, test.ctx, test.db)
+	}, 10*time.Second, 100*time.Millisecond)
 
 	require.NoError(t, test.migrator.Stop())
 }
 
-func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
+func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) bool {
 	rows, err := db.QueryContext(ctx, "SELECT * FROM migration_tracker")
 	require.NoError(t, err)
 
@@ -126,9 +128,11 @@ func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
 	require.Equal(t, welcomeMessageLastID, state["welcome_messages"])
 	require.Equal(t, inboxLogLastID, state["inbox_log"])
 	require.Equal(t, keyPackageLastID, state["key_packages"])
+
+	return true
 }
 
-func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) {
+func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) bool {
 	require.Equal(t, groupMessageLastID, getGatewayEnvelopesLastSequenceID(
 		t,
 		ctx,
@@ -149,9 +153,11 @@ func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) 
 		db,
 		int32(migrator.KeyPackagesOriginatorID),
 	))
+
+	return true
 }
 
-func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *sql.DB) {
+func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *sql.DB) bool {
 	require.Equal(t, groupMessageAmount, getGatewayEnvelopesAmount(
 		t,
 		ctx,
@@ -179,9 +185,11 @@ func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *
 		db,
 		int32(migrator.KeyPackagesOriginatorID),
 	))
+
+	return true
 }
 
-func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.DB) {
+func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.DB) bool {
 	require.Equal(t, groupMessageAmount, getGatewayEnvelopesUniqueAmount(
 		t,
 		ctx,
@@ -209,6 +217,8 @@ func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.D
 		db,
 		int32(migrator.KeyPackagesOriginatorID),
 	))
+
+	return true
 }
 
 func getGatewayEnvelopesLastSequenceID(

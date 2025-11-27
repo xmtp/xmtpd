@@ -13,10 +13,10 @@ type Leaf []byte
 
 // MerkleTree is a binary Merkle tree.
 //
-// tree has the collection of nodes, where:
-// - The tree is 1-indexed, so root is at index 1.
-// - The internal nodes are at index 1 to N-1.
-// - The leaves are at index N to 2N-1.
+// The tree is built as a balanced tree, where:
+// The root is at index 0, internal nodes are at index 1 to N-1, and the leaves are at index N to 2N-1.
+// Empty nodes and leaves are nil and not hashed, to save space.
+
 type MerkleTree struct {
 	tree   []Node
 	leaves []Leaf

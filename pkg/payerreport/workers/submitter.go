@@ -26,6 +26,8 @@ type SubmitterWorker struct {
 	myNodeID         uint32
 }
 
+var _ stoppable = &SubmitterWorker{}
+
 func NewSubmitterWorker(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -35,6 +37,7 @@ func NewSubmitterWorker(
 	myNodeID uint32,
 ) *SubmitterWorker {
 	ctx, cancel := context.WithCancel(ctx)
+
 	return &SubmitterWorker{
 		logger:           logger.Named(utils.PayerReportSubmitterWorkerLoggerName),
 		ctx:              ctx,

@@ -84,24 +84,24 @@ func TestMigrator(t *testing.T) {
 
 	require.NoError(t, test.migrator.Start())
 
-	// Publishing to the blockchain takes time.
-	<-time.After(10 * time.Second)
-
-	checkMigrationTrackerState(t, test.ctx, test.db)
-	checkGatewayEnvelopesLastID(t, test.ctx, test.db)
-	checkGatewayEnvelopesMigratedAmount(t, test.ctx, test.db)
-	checkGatewayEnvelopesAreUnique(t, test.ctx, test.db)
+	require.Eventually(t, func() bool {
+		return checkMigrationTrackerState(test.ctx, test.db) &&
+			checkGatewayEnvelopesLastID(test.ctx, test.db) &&
+			checkGatewayEnvelopesMigratedAmount(test.ctx, test.db) &&
+			checkGatewayEnvelopesAreUnique(test.ctx, test.db)
+	}, 20*time.Second, 50*time.Millisecond)
 
 	require.NoError(t, test.migrator.Stop())
 }
 
-func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
+func checkMigrationTrackerState(ctx context.Context, db *sql.DB) bool {
 	rows, err := db.QueryContext(ctx, "SELECT * FROM migration_tracker")
-	require.NoError(t, err)
+	if err != nil {
+		return false
+	}
 
 	defer func() {
-		err := rows.Close()
-		require.NoError(t, err)
+		_ = rows.Close()
 	}()
 
 	state := make(map[string]int64)
@@ -114,126 +114,146 @@ func checkMigrationTrackerState(t *testing.T, ctx context.Context, db *sql.DB) {
 			updatedAt      time.Time
 		)
 
-		err := rows.Scan(&tableName, &lastMigratedID, &createdAt, &updatedAt)
-		require.NoError(t, err)
+		if err := rows.Scan(&tableName, &lastMigratedID, &createdAt, &updatedAt); err != nil {
+			return false
+		}
 
 		state[tableName] = lastMigratedID
 	}
 
-	require.NoError(t, rows.Err())
+	if rows.Err() != nil {
+		return false
+	}
 
-	require.Equal(t, groupMessageLastID, state["group_messages"])
-	require.Equal(t, welcomeMessageLastID, state["welcome_messages"])
-	require.Equal(t, inboxLogLastID, state["inbox_log"])
-	require.Equal(t, keyPackageLastID, state["key_packages"])
+	return state["group_messages"] == groupMessageLastID &&
+		state["welcome_messages"] == welcomeMessageLastID &&
+		state["inbox_log"] == inboxLogLastID &&
+		state["key_packages"] == keyPackageLastID
 }
 
-func checkGatewayEnvelopesLastID(t *testing.T, ctx context.Context, db *sql.DB) {
-	require.Equal(t, groupMessageLastID, getGatewayEnvelopesLastSequenceID(
-		t,
+func checkGatewayEnvelopesLastID(ctx context.Context, db *sql.DB) bool {
+	groupMsgSeqID, err := getGatewayEnvelopesLastSequenceID(
 		ctx,
 		db,
 		int32(migrator.GroupMessageOriginatorID),
-	))
+	)
+	if err != nil || groupMsgSeqID != groupMessageLastID {
+		return false
+	}
 
-	require.Equal(t, welcomeMessageLastID, getGatewayEnvelopesLastSequenceID(
-		t,
+	welcomeMsgSeqID, err := getGatewayEnvelopesLastSequenceID(
 		ctx,
 		db,
 		int32(migrator.WelcomeMessageOriginatorID),
-	))
+	)
+	if err != nil || welcomeMsgSeqID != welcomeMessageLastID {
+		return false
+	}
 
-	require.Equal(t, keyPackageLastID, getGatewayEnvelopesLastSequenceID(
-		t,
+	keyPkgSeqID, err := getGatewayEnvelopesLastSequenceID(
 		ctx,
 		db,
 		int32(migrator.KeyPackagesOriginatorID),
-	))
+	)
+	if err != nil || keyPkgSeqID != keyPackageLastID {
+		return false
+	}
+
+	return true
 }
 
-func checkGatewayEnvelopesMigratedAmount(t *testing.T, ctx context.Context, db *sql.DB) {
-	require.Equal(t, groupMessageAmount, getGatewayEnvelopesAmount(
-		t,
+func checkGatewayEnvelopesMigratedAmount(ctx context.Context, db *sql.DB) bool {
+	groupMsgAmount, err := getGatewayEnvelopesAmount(
 		ctx,
 		db,
 		int32(migrator.GroupMessageOriginatorID),
-	))
+	)
+	if err != nil || groupMsgAmount != groupMessageAmount {
+		return false
+	}
 
-	require.Equal(t, inboxLogAmount, getGatewayEnvelopesAmount(
-		t,
+	inboxAmount, err := getGatewayEnvelopesAmount(ctx, db, int32(migrator.InboxLogOriginatorID))
+	if err != nil || inboxAmount != inboxLogAmount {
+		return false
+	}
+
+	welcomeMsgAmount, err := getGatewayEnvelopesAmount(
+		ctx,
+		db,
+		int32(migrator.WelcomeMessageOriginatorID),
+	)
+	if err != nil || welcomeMsgAmount != welcomeMessageAmount {
+		return false
+	}
+
+	keyPkgAmount, err := getGatewayEnvelopesAmount(ctx, db, int32(migrator.KeyPackagesOriginatorID))
+	if err != nil || keyPkgAmount != keyPackageAmount {
+		return false
+	}
+
+	return true
+}
+
+func checkGatewayEnvelopesAreUnique(ctx context.Context, db *sql.DB) bool {
+	groupMsgUnique, err := getGatewayEnvelopesUniqueAmount(
+		ctx,
+		db,
+		int32(migrator.GroupMessageOriginatorID),
+	)
+	if err != nil || groupMsgUnique != groupMessageAmount {
+		return false
+	}
+
+	inboxUnique, err := getGatewayEnvelopesUniqueAmount(
 		ctx,
 		db,
 		int32(migrator.InboxLogOriginatorID),
-	))
+	)
+	if err != nil || inboxUnique != inboxLogAmount {
+		return false
+	}
 
-	require.Equal(t, welcomeMessageAmount, getGatewayEnvelopesAmount(
-		t,
+	welcomeMsgUnique, err := getGatewayEnvelopesUniqueAmount(
 		ctx,
 		db,
 		int32(migrator.WelcomeMessageOriginatorID),
-	))
+	)
+	if err != nil || welcomeMsgUnique != welcomeMessageAmount {
+		return false
+	}
 
-	require.Equal(t, keyPackageAmount, getGatewayEnvelopesAmount(
-		t,
+	keyPkgUnique, err := getGatewayEnvelopesUniqueAmount(
 		ctx,
 		db,
 		int32(migrator.KeyPackagesOriginatorID),
-	))
-}
+	)
+	if err != nil || keyPkgUnique != keyPackageAmount {
+		return false
+	}
 
-func checkGatewayEnvelopesAreUnique(t *testing.T, ctx context.Context, db *sql.DB) {
-	require.Equal(t, groupMessageAmount, getGatewayEnvelopesUniqueAmount(
-		t,
-		ctx,
-		db,
-		int32(migrator.GroupMessageOriginatorID),
-	))
-
-	require.Equal(t, inboxLogAmount, getGatewayEnvelopesUniqueAmount(
-		t,
-		ctx,
-		db,
-		int32(migrator.InboxLogOriginatorID),
-	))
-
-	require.Equal(t, welcomeMessageAmount, getGatewayEnvelopesUniqueAmount(
-		t,
-		ctx,
-		db,
-		int32(migrator.WelcomeMessageOriginatorID),
-	))
-
-	require.Equal(t, keyPackageAmount, getGatewayEnvelopesUniqueAmount(
-		t,
-		ctx,
-		db,
-		int32(migrator.KeyPackagesOriginatorID),
-	))
+	return true
 }
 
 func getGatewayEnvelopesLastSequenceID(
-	t *testing.T,
 	ctx context.Context,
 	db *sql.DB,
 	originatorNodeID int32,
-) int64 {
+) (int64, error) {
 	querier := queries.New(db)
 
-	lastSequenceID, err := querier.GetLatestSequenceId(
-		ctx,
-		originatorNodeID,
-	)
-	require.NoError(t, err)
+	lastSequenceID, err := querier.GetLatestSequenceId(ctx, originatorNodeID)
+	if err != nil {
+		return 0, err
+	}
 
-	return lastSequenceID
+	return lastSequenceID, nil
 }
 
 func getGatewayEnvelopesAmount(
-	t *testing.T,
 	ctx context.Context,
 	db *sql.DB,
 	originatorNodeID int32,
-) int64 {
+) (int64, error) {
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(*)::BIGINT
@@ -242,17 +262,18 @@ WHERE originator_node_id = $1`
 	)
 
 	row := db.QueryRowContext(ctx, getEnvelopesAmount, originatorNodeID)
-	require.NoError(t, row.Scan(&count))
+	if err := row.Scan(&count); err != nil {
+		return 0, err
+	}
 
-	return count
+	return count, nil
 }
 
 func getGatewayEnvelopesUniqueAmount(
-	t *testing.T,
 	ctx context.Context,
 	db *sql.DB,
 	originatorNodeID int32,
-) int64 {
+) (int64, error) {
 	var (
 		count              int64
 		getEnvelopesAmount = `SELECT COUNT(DISTINCT originator_sequence_id)::BIGINT
@@ -261,7 +282,9 @@ WHERE originator_node_id = $1`
 	)
 
 	row := db.QueryRowContext(ctx, getEnvelopesAmount, originatorNodeID)
-	require.NoError(t, row.Scan(&count))
+	if err := row.Scan(&count); err != nil {
+		return 0, err
+	}
 
-	return count
+	return count, nil
 }

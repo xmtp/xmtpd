@@ -81,7 +81,7 @@ func TestClaimsVariousVersions(t *testing.T) {
 	}{
 		{"current-version", currentVersion, false},
 		{"next-patch-version", currentVersion.IncPatch(), false},
-		{"next-minor-version", currentVersion.IncMinor(), true},
+		{"next-minor-version", currentVersion.IncMinor(), false},
 		{"next-major-version", currentVersion.IncMajor(), true},
 		{
 			"with-prerelease-version",

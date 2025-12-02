@@ -23,8 +23,9 @@ func NewClaimValidator(logger *zap.Logger, serverVersion *semver.Version) (*Clai
 		return nil, fmt.Errorf("serverVersion is nil")
 	}
 
-	// https://github.com/Masterminds/semver?tab=readme-ov-file#caret-range-comparisons-major
-	constraintStr := fmt.Sprintf("^%d.%d", serverVersion.Major(), serverVersion.Minor())
+	// https://github.com/Masterminds/semver?tab=readme-ov-file#tilde-range-comparisons-patch
+	// Tilde (~) only allows patch-level changes, ensuring nodes must match on major.minor
+	constraintStr := fmt.Sprintf("~%d.%d", serverVersion.Major(), serverVersion.Minor())
 
 	logger.Debug(
 		"using semver constraint for sync compatibility",

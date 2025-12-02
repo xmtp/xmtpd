@@ -24,7 +24,8 @@ const (
 
 func buildVerifier(
 	t *testing.T,
-	verifierNodeID uint32, version *semver.Version,
+	verifierNodeID uint32,
+	version *semver.Version,
 ) (*authn.RegistryVerifier, *registryMocks.MockNodeRegistry) {
 	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	verifier, err := authn.NewRegistryVerifier(

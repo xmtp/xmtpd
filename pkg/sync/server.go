@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -22,20 +23,25 @@ type MigrationConfig struct {
 
 type SyncServerConfig struct {
 	Ctx                        context.Context
-	Logger                     *zap.Logger
-	NodeRegistry               registry.NodeRegistry
-	Registrant                 *registrant.Registrant
+	ClientMetrics              *grpcprom.ClientMetrics
 	DB                         *sql.DB
 	FeeCalculator              fees.IFeeCalculator
-	PayerReportStore           payerreport.IPayerReportStore
-	PayerReportDomainSeparator common.Hash
+	Logger                     *zap.Logger
 	Migration                  MigrationConfig
+	NodeRegistry               registry.NodeRegistry
+	PayerReportDomainSeparator common.Hash
+	PayerReportStore           payerreport.IPayerReportStore
+	Registrant                 *registrant.Registrant
 }
 
 type SyncServerOption func(*SyncServerConfig)
 
 func WithContext(ctx context.Context) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.Ctx = ctx }
+}
+
+func WithClientMetrics(metrics *grpcprom.ClientMetrics) SyncServerOption {
+	return func(cfg *SyncServerConfig) { cfg.ClientMetrics = metrics }
 }
 
 func WithLogger(logger *zap.Logger) SyncServerOption {
@@ -89,6 +95,10 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 		return nil, errors.New("syncserver: context is required")
 	}
 
+	if cfg.ClientMetrics == nil {
+		return nil, errors.New("syncserver: client metrics is required")
+	}
+
 	if cfg.Logger == nil {
 		return nil, errors.New("syncserver: logger is required")
 	}
@@ -96,12 +106,15 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 	if cfg.NodeRegistry == nil {
 		return nil, errors.New("syncserver: node registry is required")
 	}
+
 	if cfg.Registrant == nil {
 		return nil, errors.New("syncserver: registrant is required")
 	}
+
 	if cfg.DB == nil {
 		return nil, errors.New("syncserver: DB is required")
 	}
+
 	if cfg.FeeCalculator == nil {
 		return nil, errors.New("syncserver: fee calculator is required")
 	}

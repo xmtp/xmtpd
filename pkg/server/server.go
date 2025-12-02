@@ -319,6 +319,7 @@ func NewBaseServer(
 			log.Error("failed to get domain separator", zap.Error(err))
 			return nil, err
 		}
+
 		svc.sync, err = sync.NewSyncServer(
 			sync.WithContext(svc.ctx),
 			sync.WithLogger(cfg.Logger),
@@ -328,6 +329,7 @@ func NewBaseServer(
 			sync.WithFeeCalculator(cfg.FeeCalculator),
 			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Logger)),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
+			sync.WithClientMetrics(clientMetrics),
 		)
 		if err != nil {
 			cfg.Logger.Error("failed to initialize sync server", zap.Error(err))

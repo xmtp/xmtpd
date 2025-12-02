@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/ethereum/go-ethereum/common"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
@@ -42,6 +43,7 @@ type syncWorker struct {
 	payerReportStore           payerreport.IPayerReportStore
 	payerReportDomainSeparator common.Hash
 	migration                  MigrationConfig
+	clientMetrics              *grpcprom.ClientMetrics
 }
 
 func startSyncWorker(
@@ -61,6 +63,7 @@ func startSyncWorker(
 		payerReportDomainSeparator: cfg.PayerReportDomainSeparator,
 		migration:                  cfg.Migration,
 		cancel:                     cancel,
+		clientMetrics:              cfg.ClientMetrics,
 	}
 	if err := s.start(); err != nil {
 		return nil, err
@@ -297,9 +300,16 @@ func (s *syncWorker) connectToNode(
 		node.NodeID,
 	)
 
+	// Execute first the auth interceptor, then metrics.
 	dialOpts := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(interceptor.Unary()),
-		grpc.WithStreamInterceptor(interceptor.Stream()),
+		grpc.WithChainUnaryInterceptor(
+			interceptor.Unary(),
+			s.clientMetrics.UnaryClientInterceptor(),
+		),
+		grpc.WithChainStreamInterceptor(
+			interceptor.Stream(),
+			s.clientMetrics.StreamClientInterceptor(),
+		),
 	}
 
 	conn, err := node.BuildConn(dialOpts...)

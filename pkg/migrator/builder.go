@@ -6,6 +6,7 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	sqlmgr "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
+	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
@@ -35,6 +36,11 @@ func setupBlockchainPublisher(
 		return nil, err
 	}
 
+	oracle, err := oracle.New(ctx, logger, cfg.AppChain.WssURL)
+	if err != nil {
+		return nil, err
+	}
+
 	return blockchain.NewBlockchainPublisher(
 		ctx,
 		logger,
@@ -42,5 +48,6 @@ func setupBlockchainPublisher(
 		signer,
 		*cfg,
 		nonceManager,
+		oracle,
 	)
 }

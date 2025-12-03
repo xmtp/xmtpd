@@ -3,6 +3,7 @@ package blockchain_test
 import (
 	"container/heap"
 	"context"
+	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
+	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	"go.uber.org/zap"
@@ -118,6 +120,9 @@ func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 
 	nonceManager := NewTestNonceManager(logger)
 
+	oracle, err := oracle.New(ctx, logger, contractsOptions.AppChain.WssURL)
+	require.NoError(t, err)
+
 	publisher, err := blockchain.NewBlockchainPublisher(
 		ctx,
 		logger,
@@ -125,6 +130,7 @@ func buildPublisher(t *testing.T) *blockchain.BlockchainPublisher {
 		signer,
 		contractsOptions,
 		nonceManager,
+		oracle,
 	)
 	require.NoError(t, err)
 
@@ -181,6 +187,13 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			require.Equal(t, tt.identityUpdate, logMessage.Update)
 			require.Greater(t, logMessage.SequenceId, uint64(0))
 			require.NotNil(t, logMessage.Raw.TxHash)
+			fmt.Printf(
+				"## DEBUG: inboxId: %x, update: %x, sequenceId: %d, txHash: %x\n",
+				logMessage.InboxId,
+				logMessage.Update,
+				logMessage.SequenceId,
+				logMessage.Raw.TxHash,
+			)
 		})
 	}
 }

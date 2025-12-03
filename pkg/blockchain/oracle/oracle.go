@@ -206,7 +206,9 @@ func (o *Oracle) watch() {
 		)
 		return
 	}
-	defer sub.Unsubscribe()
+	defer func() {
+		sub.Unsubscribe()
+	}()
 
 	o.logger.Info("watching for new blocks")
 

@@ -327,7 +327,10 @@ func NewBaseServer(
 			sync.WithRegistrant(svc.registrant),
 			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(cfg.FeeCalculator),
-			sync.WithPayerReportStore(payerreport.NewStore(cfg.DB, cfg.Logger)),
+			sync.WithPayerReportStore(
+				payerreport.NewStore(cfg.DB, cfg.Logger.Named(utils.PayerReportMainLoggerName).
+					With(utils.WorkerNodeIDField(svc.registrant.NodeID()))),
+			),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 			sync.WithClientMetrics(clientMetrics),
 		)
@@ -386,7 +389,8 @@ func NewBaseServer(
 			return nil, err
 		}
 
-		payerReportBaseLogger := cfg.Logger.Named(utils.PayerReportMainLoggerName)
+		payerReportBaseLogger := cfg.Logger.Named(utils.PayerReportMainLoggerName).
+			With(utils.WorkerNodeIDField(svc.registrant.NodeID()))
 
 		workerConfig, err := workers.NewWorkerConfigBuilder().
 			WithLogger(payerReportBaseLogger).

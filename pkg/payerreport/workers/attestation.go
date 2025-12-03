@@ -34,6 +34,8 @@ type AttestationWorker struct {
 	domainSeparator common.Hash
 }
 
+var _ stoppable = &AttestationWorker{}
+
 // NewAttestationWorker creates and starts a new attestation worker that will periodically
 // check for reports that need attestation.
 // It takes a context, logger, registrant for signing, store for accessing reports,

@@ -216,6 +216,7 @@ func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 
 			s.logger.Info(
 				"cleared unsettled usage",
+				utils.OriginatorIDField(uint32(existingReport.OriginatorNodeID)),
 				zap.Int32("prev_report_end_minute_since_epoch", prevReportEndMinuteSinceEpoch),
 				zap.Int32(
 					"existing_report_end_minute_since_epoch",
@@ -233,6 +234,8 @@ func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 			); err != nil {
 				s.logger.Error(
 					"failed to set report submission status",
+					utils.OriginatorIDField(uint32(existingReport.OriginatorNodeID)),
+					utils.PayerReportIDField(id.String()),
 					zap.Error(err),
 				)
 				return err
@@ -358,7 +361,8 @@ func (s *Store) CreateAttestation(
 			if AttestationStatus(report.AttestationStatus) != AttestationPending {
 				s.logger.Debug(
 					"report already approved or rejected",
-					utils.PayerReportIDField(fmt.Sprintf("%x", reportID)),
+					utils.OriginatorIDField(uint32(report.OriginatorNodeID)),
+					utils.PayerReportIDField(attestation.Report.ID.String()),
 					zap.Int16("attestation_status", report.AttestationStatus),
 				)
 				return nil

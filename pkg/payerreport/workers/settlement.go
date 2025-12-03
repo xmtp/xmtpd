@@ -29,6 +29,8 @@ type SettlementWorker struct {
 	myNodeID         uint32
 }
 
+var _ stoppable = &SettlementWorker{}
+
 func NewSettlementWorker(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -38,6 +40,7 @@ func NewSettlementWorker(
 	myNodeID uint32,
 ) *SettlementWorker {
 	ctx, cancel := context.WithCancel(ctx)
+
 	return &SettlementWorker{
 		logger:           logger.Named(utils.PayerReportSettlementWorkerLoggerName),
 		ctx:              ctx,

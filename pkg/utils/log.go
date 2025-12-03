@@ -309,3 +309,7 @@ func ToAddressField(toAddress string) zap.Field {
 func TopicField(topic string) zap.Field {
 	return zap.String("topic", topic)
 }
+
+func WorkerNodeIDField(nodeID uint32) zap.Field {
+	return zap.Uint32("worker_node_id", nodeID)
+}

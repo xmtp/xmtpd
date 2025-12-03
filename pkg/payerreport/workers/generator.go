@@ -36,6 +36,8 @@ type GeneratorWorker struct {
 	expiryOthersPeriod   time.Duration
 }
 
+var _ stoppable = &GeneratorWorker{}
+
 func NewGeneratorWorker(
 	ctx context.Context,
 	logger *zap.Logger,

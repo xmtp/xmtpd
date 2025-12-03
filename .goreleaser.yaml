@@ -38,16 +38,19 @@ archives:
     ids: [ xmtpd ]
     formats: [ "zip" ]
     name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
 
   - id: xmtpd-tars
     ids: [ xmtpd ]
     formats: [ "tar.gz" ]
     name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
 
   - id: zips
     ids: [xmtpd-cli]
     formats: ["zip"]
     name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
     files:
       - LICENSE*
       - src: build/completions/xmtpd-cli.bash
@@ -61,6 +64,7 @@ archives:
     ids: [xmtpd-cli]
     formats: ["tar.gz"]
     name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
     files:
       - LICENSE*
       - src: build/completions/xmtpd-cli.bash

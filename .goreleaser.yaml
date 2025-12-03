@@ -14,6 +14,15 @@ before:
     - bash -euo pipefail -c 'build/tools/xmtpd-cli-gen completion fish > build/completions/xmtpd-cli.fish && test -s build/completions/xmtpd-cli.fish'
 
 builds:
+  - id: xmtpd
+    main: ./cmd/replication/main.go
+    binary: xmtpd
+    env:
+      - CGO_ENABLED=0
+    goos: [ linux, darwin ]
+    goarch: [ amd64, arm64 ]
+    ldflags:
+      - '-s -w -X main.Version={{ if .IsSnapshot }}{{ replace .Version "/" "-" }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}'
   - id: xmtpd-cli
     main: ./cmd/xmtpd-cli/main.go
     binary: xmtpd-cli
@@ -25,10 +34,23 @@ builds:
       - '-s -w -X main.Version={{ if .IsSnapshot }}{{ replace .Version "/" "-" }}-next+{{ .ShortCommit }}{{ else }}{{ .Tag }}-{{ .ShortCommit }}{{ end }}'
 
 archives:
+  - id: xmtpd-zips
+    ids: [ xmtpd ]
+    formats: [ "zip" ]
+    name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
+
+  - id: xmtpd-tars
+    ids: [ xmtpd ]
+    formats: [ "tar.gz" ]
+    name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
+
   - id: zips
     ids: [xmtpd-cli]
     formats: ["zip"]
     name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
     files:
       - LICENSE*
       - src: build/completions/xmtpd-cli.bash
@@ -42,6 +64,7 @@ archives:
     ids: [xmtpd-cli]
     formats: ["tar.gz"]
     name_template: '{{ .Binary }}_{{ replace .Version "/" "-" }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
     files:
       - LICENSE*
       - src: build/completions/xmtpd-cli.bash

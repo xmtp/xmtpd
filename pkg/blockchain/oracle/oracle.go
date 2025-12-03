@@ -93,22 +93,29 @@ type Oracle struct {
 	running atomic.Bool
 }
 
-func NewOracle(
+func New(
 	ctx context.Context,
 	logger *zap.Logger,
 	wsURL string,
-) (*Oracle, error) {
+) (oracle *Oracle, err error) {
 	ethClient, err := ethclient.Dial(wsURL)
 	if err != nil {
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+
+	defer func() {
+		if err != nil {
+			ethClient.Close()
+			cancel()
+		}
+	}()
+
 	chainID, err := ethClient.ChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := context.WithCancel(ctx)
 
 	logger = logger.Named(utils.BlockchainOracleLoggerName).With(
 		utils.ChainIDField(chainID.Int64()),
@@ -121,7 +128,7 @@ func NewOracle(
 
 	logger.Info("gas price source", zap.String("source", gasPriceSource.String()))
 
-	oracle := &Oracle{
+	oracle = &Oracle{
 		ctx:            ctx,
 		cancel:         cancel,
 		logger:         logger,

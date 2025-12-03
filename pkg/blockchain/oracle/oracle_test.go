@@ -20,7 +20,7 @@ func buildOracle(t *testing.T) *oracle.Oracle {
 
 	wsURL, _ := anvil.StartAnvil(t, false)
 
-	o, err := oracle.NewOracle(
+	o, err := oracle.New(
 		ctx,
 		logger,
 		wsURL,
@@ -43,7 +43,7 @@ func buildOracleWithoutStart(t *testing.T) (*oracle.Oracle, context.CancelFunc) 
 
 	wsURL, _ := anvil.StartAnvil(t, false)
 
-	o, err := oracle.NewOracle(
+	o, err := oracle.New(
 		ctx,
 		logger,
 		wsURL,
@@ -148,7 +148,7 @@ func TestOracleGracefulShutdown(t *testing.T) {
 	logger := testutils.NewLog(t)
 	wsURL, _ := anvil.StartAnvil(t, false)
 
-	o, err := oracle.NewOracle(ctx, logger, wsURL)
+	o, err := oracle.New(ctx, logger, wsURL)
 	require.NoError(t, err)
 	o.Start()
 

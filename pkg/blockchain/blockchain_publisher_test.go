@@ -3,7 +3,6 @@ package blockchain_test
 import (
 	"container/heap"
 	"context"
-	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -187,13 +186,6 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			require.Equal(t, tt.identityUpdate, logMessage.Update)
 			require.Greater(t, logMessage.SequenceId, uint64(0))
 			require.NotNil(t, logMessage.Raw.TxHash)
-			fmt.Printf(
-				"## DEBUG: inboxId: %x, update: %x, sequenceId: %d, txHash: %x\n",
-				logMessage.InboxId,
-				logMessage.Update,
-				logMessage.SequenceId,
-				logMessage.Raw.TxHash,
-			)
 		})
 	}
 }

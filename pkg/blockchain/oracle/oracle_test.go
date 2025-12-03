@@ -71,7 +71,7 @@ func TestOracleGetGasPriceBeforeStart(t *testing.T) {
 	// GetGasPrice should return a valid price even before Start()
 	// because NewOracle() fetches the initial gas price
 	gasPrice := o.GetGasPrice()
-	require.Greater(t, gasPrice, uint64(0))
+	require.Greater(t, gasPrice, int64(0))
 }
 
 func TestOracleStartIdempotent(t *testing.T) {
@@ -117,7 +117,7 @@ func TestOracleConcurrentGetGasPrice(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			price := o.GetGasPrice()
-			require.Greater(t, price, uint64(0))
+			require.Greater(t, price, int64(0))
 		}()
 	}
 	wg.Wait()
@@ -140,7 +140,7 @@ func TestOracleGasPriceUpdatesOnNewBlock(t *testing.T) {
 	// Price should still be valid (not stale)
 	currentPrice := o.GetGasPrice()
 	t.Logf("current gas price: %d", currentPrice)
-	require.Greater(t, currentPrice, uint64(0))
+	require.Greater(t, currentPrice, int64(0))
 }
 
 func TestOracleGracefulShutdown(t *testing.T) {

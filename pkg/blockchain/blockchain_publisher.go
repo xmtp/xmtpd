@@ -26,11 +26,8 @@ import (
 
 var ErrNoLogsFound = errors.New("no logs found")
 
-const (
-	// Fixed gas parameters for the L3 chain.
-	// These are generous values since we control the chain.
-	defaultGasLimit = uint64(5_000_000)
-)
+// 200KB max payload + ABI encoding + safety margin.
+const defaultGasLimit = uint64(6_000_000)
 
 // BlockchainPublisher can publish to the blockchain, signing messages using the provided signer.
 type BlockchainPublisher struct {

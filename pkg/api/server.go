@@ -127,10 +127,13 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		return nil, err
 	}
 
+	grpcMetricsInterceptor := interceptors.NewGRPCMetricsInterceptor()
+
 	// Register services.
 	servicePaths, err := cfg.RegistrationFunc(
 		mux,
 		protocolValidationInterceptor,
+		grpcMetricsInterceptor,
 		openConnInterceptor,
 		loggingInterceptor,
 	)

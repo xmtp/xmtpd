@@ -51,45 +51,19 @@ var grpcServerHandlingSeconds = prometheus.NewHistogramVec(
 	[]string{"grpc_type", "grpc_service", "grpc_method"},
 )
 
-// GRPCType represents the type of RPC call.
-type GRPCType string
-
-const (
-	GRPCTypeUnary        GRPCType = "unary"
-	GRPCTypeServerStream GRPCType = "server_stream"
-	GRPCTypeClientStream GRPCType = "client_stream"
-	GRPCTypeBidiStream   GRPCType = "bidi_stream"
-)
-
-// StreamTypeToGRPCType converts connect.StreamType to our GRPCType.
-func StreamTypeToGRPCType(streamType connect.StreamType) GRPCType {
-	switch streamType {
-	case connect.StreamTypeUnary:
-		return GRPCTypeUnary
-	case connect.StreamTypeServer:
-		return GRPCTypeServerStream
-	case connect.StreamTypeClient:
-		return GRPCTypeClientStream
-	case connect.StreamTypeBidi:
-		return GRPCTypeBidiStream
-	default:
-		return GRPCTypeUnary
-	}
-}
-
 // EmitGRPCServerStarted increments the started counter for an RPC.
-func EmitGRPCServerStarted(grpcType GRPCType, service, method string) {
+func EmitGRPCServerStarted(grpcType string, service, method string) {
 	grpcServerStartedTotal.With(prometheus.Labels{
-		"grpc_type":    string(grpcType),
+		"grpc_type":    grpcType,
 		"grpc_service": service,
 		"grpc_method":  method,
 	}).Inc()
 }
 
 // EmitGRPCServerHandled increments the handled counter for a completed RPC.
-func EmitGRPCServerHandled(grpcType GRPCType, service, method string, code connect.Code) {
+func EmitGRPCServerHandled(grpcType string, service, method string, code connect.Code) {
 	grpcServerHandledTotal.With(prometheus.Labels{
-		"grpc_type":    string(grpcType),
+		"grpc_type":    grpcType,
 		"grpc_service": service,
 		"grpc_method":  method,
 		"grpc_code":    code.String(),
@@ -97,39 +71,28 @@ func EmitGRPCServerHandled(grpcType GRPCType, service, method string, code conne
 }
 
 // EmitGRPCServerMsgReceived increments the received message counter.
-func EmitGRPCServerMsgReceived(grpcType GRPCType, service, method string) {
+func EmitGRPCServerMsgReceived(grpcType string, service, method string) {
 	grpcServerMsgReceivedTotal.With(prometheus.Labels{
-		"grpc_type":    string(grpcType),
+		"grpc_type":    grpcType,
 		"grpc_service": service,
 		"grpc_method":  method,
 	}).Inc()
 }
 
 // EmitGRPCServerMsgSent increments the sent message counter.
-func EmitGRPCServerMsgSent(grpcType GRPCType, service, method string) {
+func EmitGRPCServerMsgSent(grpcType string, service, method string) {
 	grpcServerMsgSentTotal.With(prometheus.Labels{
-		"grpc_type":    string(grpcType),
+		"grpc_type":    grpcType,
 		"grpc_service": service,
 		"grpc_method":  method,
 	}).Inc()
 }
 
 // EmitGRPCServerHandlingTime records the handling duration for an RPC.
-func EmitGRPCServerHandlingTime(grpcType GRPCType, service, method string, duration time.Duration) {
+func EmitGRPCServerHandlingTime(grpcType string, service, method string, duration time.Duration) {
 	grpcServerHandlingSeconds.With(prometheus.Labels{
-		"grpc_type":    string(grpcType),
+		"grpc_type":    grpcType,
 		"grpc_service": service,
 		"grpc_method":  method,
 	}).Observe(duration.Seconds())
-}
-
-// GRPCServerMetrics returns all gRPC server metrics for registration.
-func GRPCServerMetrics() []prometheus.Collector {
-	return []prometheus.Collector{
-		grpcServerStartedTotal,
-		grpcServerHandledTotal,
-		grpcServerMsgReceivedTotal,
-		grpcServerMsgSentTotal,
-		grpcServerHandlingSeconds,
-	}
 }

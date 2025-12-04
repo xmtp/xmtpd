@@ -7,7 +7,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 )
 
 type mockConnectRequestGRPCMetrics struct {
@@ -91,42 +90,6 @@ func TestParseProcedure(t *testing.T) {
 			service, method := parseProcedure(tt.procedure)
 			require.Equal(t, tt.expectedService, service)
 			require.Equal(t, tt.expectedMethod, method)
-		})
-	}
-}
-
-func TestStreamTypeToGRPCType(t *testing.T) {
-	tests := []struct {
-		name       string
-		streamType connect.StreamType
-		expected   metrics.GRPCType
-	}{
-		{
-			name:       "unary",
-			streamType: connect.StreamTypeUnary,
-			expected:   metrics.GRPCTypeUnary,
-		},
-		{
-			name:       "server stream",
-			streamType: connect.StreamTypeServer,
-			expected:   metrics.GRPCTypeServerStream,
-		},
-		{
-			name:       "client stream",
-			streamType: connect.StreamTypeClient,
-			expected:   metrics.GRPCTypeClientStream,
-		},
-		{
-			name:       "bidi stream",
-			streamType: connect.StreamTypeBidi,
-			expected:   metrics.GRPCTypeBidiStream,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := metrics.StreamTypeToGRPCType(tt.streamType)
-			require.Equal(t, tt.expected, result)
 		})
 	}
 }

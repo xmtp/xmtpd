@@ -30,7 +30,7 @@ func (i *GRPCMetricsInterceptor) WrapUnary(next connect.UnaryFunc) connect.Unary
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 		var (
 			service, method = parseProcedure(req.Spec().Procedure)
-			grpcType        = metrics.GRPCTypeUnary
+			grpcType        = req.Spec().StreamType.String()
 			start           = time.Now()
 		)
 
@@ -75,7 +75,7 @@ func (i *GRPCMetricsInterceptor) WrapStreamingHandler(
 	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
 		var (
 			service, method = parseProcedure(conn.Spec().Procedure)
-			grpcType        = metrics.StreamTypeToGRPCType(conn.Spec().StreamType)
+			grpcType        = conn.Spec().StreamType.String()
 			start           = time.Now()
 		)
 
@@ -112,7 +112,7 @@ func (i *GRPCMetricsInterceptor) WrapStreamingHandler(
 // metricsStreamingHandlerConn wraps a StreamingHandlerConn to count sent and received messages.
 type metricsStreamingHandlerConn struct {
 	connect.StreamingHandlerConn
-	grpcType metrics.GRPCType
+	grpcType string
 	service  string
 	method   string
 }

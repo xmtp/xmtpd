@@ -4,6 +4,11 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 
 | Name | Type | Description | File |
 |------|------|-------------|------|
+| `grpc_server_handled_total` | `Counter` | Total number of RPCs completed on the server, regardless of success or failure. | `pkg/metrics/grpc.go` |
+| `grpc_server_handling_seconds` | `Histogram` | Histogram of response latency (seconds) of gRPC that had been application-level handled by the server. | `pkg/metrics/grpc.go` |
+| `grpc_server_msg_received_total` | `Counter` | Total number of RPC stream messages received on the server. | `pkg/metrics/grpc.go` |
+| `grpc_server_msg_sent_total` | `Counter` | Total number of gRPC stream messages sent by the server. | `pkg/metrics/grpc.go` |
+| `grpc_server_started_total` | `Counter` | Total number of RPCs started on the server. | `pkg/metrics/grpc.go` |
 | `query_duration_seconds` | `Histogram` | Duration of SQL queries by named statement. | `pkg/metrics/dbmetrics.go` |
 | `query_errors_total` | `Counter` | Total SQL query errors by named statement. | `pkg/metrics/dbmetrics.go` |
 | `xmtp_api_failed_grpc_requests_counter` | `Counter` | Number of failed GRPC requests by code | `pkg/metrics/api.go` |

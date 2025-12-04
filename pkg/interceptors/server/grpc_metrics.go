@@ -137,15 +137,16 @@ func (c *metricsStreamingHandlerConn) Send(msg any) error {
 // The procedure path format is: /package.service/method
 // Example: /xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes
 // Returns service="xmtp.xmtpv4.message_api.ReplicationApi", method="QueryEnvelopes"
-func parseProcedure(procedure string) (service, method string) {
-	// Remove leading slash.
-	procedure = strings.TrimPrefix(procedure, "/")
-
-	// Split by the last slash.
-	lastSlash := strings.LastIndex(procedure, "/")
-	if lastSlash == -1 {
-		return "unknown", procedure
+func parseProcedure(procedure string) (string, string) {
+	// Trim leading slash without allocating.
+	if len(procedure) > 0 && procedure[0] == '/' {
+		procedure = procedure[1:]
 	}
 
-	return procedure[:lastSlash], procedure[lastSlash+1:]
+	// Find last slash and return the service and method.
+	if i := strings.LastIndexByte(procedure, '/'); i != -1 {
+		return procedure[:i], procedure[i+1:]
+	}
+
+	return "unknown", procedure
 }

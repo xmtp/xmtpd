@@ -164,6 +164,13 @@ func (s *Service) PublishClientEnvelopes(
 
 		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorID, payloadsWithIndex)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, connect.NewError(
+					connect.CodeCanceled,
+					errors.New("request canceled by client"),
+				)
+			}
+
 			return nil, connect.NewError(
 				connect.CodeInternal,
 				fmt.Errorf("error publishing payer envelopes: %w", err),
@@ -279,7 +286,7 @@ func (s *Service) publishToNodeWithRetry(
 
 		// Don't retry or ban nodes if context was cancelled.
 		if ctx.Err() != nil {
-			s.logger.Debug("request cancelled by client", zap.Error(err))
+			s.logger.Debug("request canceled by client", zap.Error(err))
 			return nil, err
 		}
 

@@ -69,7 +69,7 @@ import (
 type BlockchainOracle interface {
 	Start()
 	Stop()
-	GetGasPrice() uint64
+	GetGasPrice() int64
 }
 
 const (
@@ -88,7 +88,7 @@ type Oracle struct {
 
 	gasPriceSource      GasPriceSource
 	gasPriceLastUpdated atomic.Int64
-	gasPrice            atomic.Uint64
+	gasPrice            atomic.Int64
 
 	running atomic.Bool
 }
@@ -147,7 +147,7 @@ func New(
 
 // GetGasPrice is a fast non-blocking way to get the current gas price.
 // If the price is stale or 0, it will return a sane default.
-func (o *Oracle) GetGasPrice() uint64 {
+func (o *Oracle) GetGasPrice() int64 {
 	if time.Since(time.Unix(o.gasPriceLastUpdated.Load(), 0)) > maxStaleDuration {
 		o.logger.Debug("gas price stale, using default")
 		metrics.EmitBlockchainGasPriceDefaultFallbackTotal(o.chainID)
@@ -206,6 +206,11 @@ func (o *Oracle) watch() {
 		)
 		return
 	}
+
+	// Defer inside a function to unsubscribe the subscription by reference.
+	// So we can re-create safely. If we defer it outside the function,
+	// the sub value is immediately evaluated, and unsubscribe only applies to the
+	// original sub value.
 	defer func() {
 		sub.Unsubscribe()
 	}()
@@ -266,7 +271,7 @@ func (o *Oracle) updateGasPrice() error {
 
 	now := time.Now().Unix()
 	o.gasPriceLastUpdated.Store(now)
-	o.gasPrice.Store(gasPrice.Uint64())
+	o.gasPrice.Store(gasPrice.Int64())
 
 	metrics.EmitBlockchainGasPrice(o.chainID, gasPrice.Uint64())
 	metrics.EmitBlockchainGasPriceUpdatesTotal(o.chainID)

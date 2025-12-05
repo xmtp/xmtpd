@@ -19,6 +19,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	redisnoncemanager "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/redis"
+	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -415,6 +416,11 @@ func setupBlockchainPublisher(
 		return nil, err
 	}
 
+	oracle, err := oracle.New(ctx, logger, cfg.Contracts.AppChain.WssURL)
+	if err != nil {
+		return nil, err
+	}
+
 	return blockchain.NewBlockchainPublisher(
 		ctx,
 		logger,
@@ -422,6 +428,7 @@ func setupBlockchainPublisher(
 		signer,
 		cfg.Contracts,
 		nonceManager,
+		oracle,
 	)
 }
 

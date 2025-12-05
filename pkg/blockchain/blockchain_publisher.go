@@ -8,34 +8,40 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/tracing"
-	"github.com/xmtp/xmtpd/pkg/utils"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
+	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 var ErrNoLogsFound = errors.New("no logs found")
 
+// 200KB max payload + ABI encoding + safety margin.
+const defaultGasLimit = uint64(6_000_000)
+
 // BlockchainPublisher can publish to the blockchain, signing messages using the provided signer.
 type BlockchainPublisher struct {
-	signer                 TransactionSigner
-	client                 *ethclient.Client
-	messagesContract       *gm.GroupMessageBroadcaster
-	identityUpdateContract *iu.IdentityUpdateBroadcaster
-	logger                 *zap.Logger
-	nonceManager           noncemanager.NonceManager
-	replenishCancel        context.CancelFunc
-	wg                     sync.WaitGroup
+	signer                TransactionSigner
+	oracle                oracle.BlockchainOracle
+	nonceManager          noncemanager.NonceManager
+	logger                *zap.Logger
+	client                *ethclient.Client
+	replenishCancel       context.CancelFunc
+	wg                    sync.WaitGroup
+	groupMessageABI       abi.ABI
+	identityUpdateABI     abi.ABI
+	groupMessageAddress   common.Address
+	identityUpdateAddress common.Address
 }
 
 func NewBlockchainPublisher(
@@ -45,25 +51,20 @@ func NewBlockchainPublisher(
 	signer TransactionSigner,
 	contractOptions config.ContractsOptions,
 	nonceManager noncemanager.NonceManager,
+	oracle oracle.BlockchainOracle,
 ) (*BlockchainPublisher, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
 
-	messagesContract, err := gm.NewGroupMessageBroadcaster(
-		common.HexToAddress(contractOptions.AppChain.GroupMessageBroadcasterAddress),
-		client,
-	)
+	groupMessageABI, err := abi.JSON(strings.NewReader(gm.GroupMessageBroadcasterMetaData.ABI))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to parse GroupMessageBroadcaster ABI: " + err.Error())
 	}
 
-	identityUpdateContract, err := iu.NewIdentityUpdateBroadcaster(
-		common.HexToAddress(contractOptions.AppChain.IdentityUpdateBroadcasterAddress),
-		client,
-	)
+	identityUpdateABI, err := abi.JSON(strings.NewReader(iu.IdentityUpdateBroadcasterMetaData.ABI))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to parse IdentityUpdateBroadcaster ABI: " + err.Error())
 	}
 
 	nonce, err := client.PendingNonceAt(ctx, signer.FromAddress())
@@ -71,7 +72,7 @@ func NewBlockchainPublisher(
 		return nil, err
 	}
 
-	logger.Info("starting server with blockchain nonce", utils.NonceField(nonce))
+	logger.Info("starting blockchain publisher with blockchain nonce", utils.NonceField(nonce))
 
 	err = nonceManager.FastForwardNonce(ctx, *new(big.Int).SetUint64(nonce))
 	if err != nil {
@@ -84,13 +85,20 @@ func NewBlockchainPublisher(
 		With(utils.ContractAddressField(contractOptions.AppChain.GroupMessageBroadcasterAddress))
 
 	publisher := BlockchainPublisher{
-		signer:                 signer,
-		logger:                 publisherLogger,
-		messagesContract:       messagesContract,
-		identityUpdateContract: identityUpdateContract,
-		client:                 client,
-		nonceManager:           nonceManager,
-		replenishCancel:        cancel,
+		signer:          signer,
+		logger:          publisherLogger,
+		client:          client,
+		nonceManager:    nonceManager,
+		replenishCancel: cancel,
+		groupMessageAddress: common.HexToAddress(
+			contractOptions.AppChain.GroupMessageBroadcasterAddress,
+		),
+		identityUpdateAddress: common.HexToAddress(
+			contractOptions.AppChain.IdentityUpdateBroadcasterAddress,
+		),
+		groupMessageABI:   groupMessageABI,
+		identityUpdateABI: identityUpdateABI,
+		oracle:            oracle,
 	}
 
 	tracing.GoPanicWrap(
@@ -117,7 +125,40 @@ func NewBlockchainPublisher(
 		},
 	)
 
+	publisher.oracle.Start()
+
 	return &publisher, nil
+}
+
+// sendRawTransaction packs the calldata, creates a transaction, signs it, and sends it.
+func (m *BlockchainPublisher) sendRawTransaction(
+	ctx context.Context,
+	to common.Address,
+	data []byte,
+	nonce *big.Int,
+) (*types.Transaction, error) {
+	gasPrice := m.oracle.GetGasPrice()
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce.Uint64(),
+		To:       &to,
+		Value:    big.NewInt(0),
+		Gas:      defaultGasLimit,
+		GasPrice: big.NewInt(gasPrice),
+		Data:     data,
+	})
+
+	signedTx, err := m.signer.SignerFunc()(m.signer.FromAddress(), tx)
+	if err != nil {
+		return nil, errors.New("failed to sign transaction: " + err.Error())
+	}
+
+	err = m.client.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return signedTx, nil
 }
 
 func (m *BlockchainPublisher) PublishGroupMessage(
@@ -135,12 +176,12 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 		m.nonceManager,
 		"publish_group_message",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
-			return m.messagesContract.AddMessage(&bind.TransactOpts{
-				Context: ctx,
-				Nonce:   &nonce,
-				From:    m.signer.FromAddress(),
-				Signer:  m.signer.SignerFunc(),
-			}, groupID, message)
+			data, err := m.groupMessageABI.Pack("addMessage", groupID, message)
+			if err != nil {
+				return nil, errors.New("failed to pack addMessage: " + err.Error())
+			}
+
+			return m.sendRawTransaction(ctx, m.groupMessageAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
 			receipt, err := WaitForTransaction(
@@ -159,11 +200,7 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 				return nil, errors.New("transaction receipt is nil")
 			}
 
-			return findLogs(
-				receipt,
-				m.messagesContract.ParseMessageSent,
-				1,
-			)
+			return findGroupMessageLogs(receipt, &m.groupMessageABI, 1)
 		},
 	)
 	if err != nil {
@@ -193,17 +230,17 @@ func (m *BlockchainPublisher) BootstrapGroupMessages(
 		m.nonceManager,
 		"bootstrap_group_messages",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
-			return m.messagesContract.BootstrapMessages(
-				&bind.TransactOpts{
-					Context: ctx,
-					Nonce:   &nonce,
-					From:    m.signer.FromAddress(),
-					Signer:  m.signer.SignerFunc(),
-				},
+			data, err := m.groupMessageABI.Pack(
+				"bootstrapMessages",
 				groupIDs,
 				messages,
 				sequenceIDs,
 			)
+			if err != nil {
+				return nil, errors.New("failed to pack bootstrapMessages: " + err.Error())
+			}
+
+			return m.sendRawTransaction(ctx, m.groupMessageAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
 			receipt, err := WaitForTransaction(
@@ -222,11 +259,7 @@ func (m *BlockchainPublisher) BootstrapGroupMessages(
 				return nil, errors.New("transaction receipt is nil")
 			}
 
-			return findLogs(
-				receipt,
-				m.messagesContract.ParseMessageSent,
-				len(groupIDs),
-			)
+			return findGroupMessageLogs(receipt, &m.groupMessageABI, len(groupIDs))
 		},
 	)
 }
@@ -246,12 +279,12 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 		m.nonceManager,
 		"publish_identity_update",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
-			return m.identityUpdateContract.AddIdentityUpdate(&bind.TransactOpts{
-				Context: ctx,
-				Nonce:   &nonce,
-				From:    m.signer.FromAddress(),
-				Signer:  m.signer.SignerFunc(),
-			}, inboxID, identityUpdate)
+			data, err := m.identityUpdateABI.Pack("addIdentityUpdate", inboxID, identityUpdate)
+			if err != nil {
+				return nil, errors.New("failed to pack addIdentityUpdate: " + err.Error())
+			}
+
+			return m.sendRawTransaction(ctx, m.identityUpdateAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			receipt, err := WaitForTransaction(
@@ -270,11 +303,7 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 				return nil, errors.New("transaction receipt is nil")
 			}
 
-			return findLogs(
-				receipt,
-				m.identityUpdateContract.ParseIdentityUpdateCreated,
-				1,
-			)
+			return findIdentityUpdateLogs(receipt, &m.identityUpdateABI, 1)
 		},
 	)
 	if err != nil {
@@ -306,17 +335,17 @@ func (m *BlockchainPublisher) BootstrapIdentityUpdates(
 		m.nonceManager,
 		"bootstrap_identity_updates",
 		func(ctx context.Context, nonce big.Int) (*types.Transaction, error) {
-			return m.identityUpdateContract.BootstrapIdentityUpdates(
-				&bind.TransactOpts{
-					Context: ctx,
-					Nonce:   &nonce,
-					From:    m.signer.FromAddress(),
-					Signer:  m.signer.SignerFunc(),
-				},
+			data, err := m.identityUpdateABI.Pack(
+				"bootstrapIdentityUpdates",
 				inboxIDs,
 				identityUpdates,
 				sequenceIDs,
 			)
+			if err != nil {
+				return nil, errors.New("failed to pack bootstrapIdentityUpdates: " + err.Error())
+			}
+
+			return m.sendRawTransaction(ctx, m.identityUpdateAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
 			receipt, err := WaitForTransaction(
@@ -335,30 +364,107 @@ func (m *BlockchainPublisher) BootstrapIdentityUpdates(
 				return nil, errors.New("transaction receipt is nil")
 			}
 
-			return findLogs(
-				receipt,
-				m.identityUpdateContract.ParseIdentityUpdateCreated,
-				len(inboxIDs),
-			)
+			return findIdentityUpdateLogs(receipt, &m.identityUpdateABI, len(inboxIDs))
 		},
 	)
 }
 
-func findLogs[T any](
+// findGroupMessageLogs parses MessageSent events from the receipt logs.
+func findGroupMessageLogs(
 	receipt *types.Receipt,
-	parseFunc func(types.Log) (*T, error),
+	contractABI *abi.ABI,
 	expectedEventCount int,
-) ([]*T, error) {
-	events := make([]*T, 0, expectedEventCount)
+) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
+	events := make([]*gm.GroupMessageBroadcasterMessageSent, 0, expectedEventCount)
+
+	messageSentEvent := contractABI.Events["MessageSent"]
 
 	for _, logEntry := range receipt.Logs {
 		if logEntry == nil {
 			continue
 		}
 
-		event, err := parseFunc(*logEntry)
-		if err != nil {
+		// Check if this log matches the MessageSent event signature
+		if len(logEntry.Topics) == 0 || logEntry.Topics[0] != messageSentEvent.ID {
 			continue
+		}
+
+		event := &gm.GroupMessageBroadcasterMessageSent{
+			Raw: *logEntry,
+		}
+
+		// Parse indexed parameters from topics
+		// Topic[0] is the event signature
+		// Topic[1] is groupId (bytes16, indexed) - left-aligned in 32-byte topic
+		// Topic[2] is sequenceId (uint64, indexed)
+		if len(logEntry.Topics) >= 3 {
+			copy(event.GroupId[:], logEntry.Topics[1][0:16])
+			event.SequenceId = new(big.Int).SetBytes(logEntry.Topics[2][:]).Uint64()
+		}
+
+		// Parse non-indexed parameters from data
+		// message (bytes, non-indexed)
+		if len(logEntry.Data) > 0 {
+			unpacked, err := contractABI.Unpack("MessageSent", logEntry.Data)
+			if err == nil && len(unpacked) > 0 {
+				if msg, ok := unpacked[0].([]byte); ok {
+					event.Message = msg
+				}
+			}
+		}
+
+		events = append(events, event)
+	}
+
+	if len(events) == 0 {
+		return nil, ErrNoLogsFound
+	}
+
+	return events, nil
+}
+
+// findIdentityUpdateLogs parses IdentityUpdateCreated events from the receipt logs.
+func findIdentityUpdateLogs(
+	receipt *types.Receipt,
+	contractABI *abi.ABI,
+	expectedEventCount int,
+) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+	events := make([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, 0, expectedEventCount)
+
+	identityUpdateEvent := contractABI.Events["IdentityUpdateCreated"]
+
+	for _, logEntry := range receipt.Logs {
+		if logEntry == nil {
+			continue
+		}
+
+		// Check if this log matches the IdentityUpdateCreated event signature
+		if len(logEntry.Topics) == 0 || logEntry.Topics[0] != identityUpdateEvent.ID {
+			continue
+		}
+
+		event := &iu.IdentityUpdateBroadcasterIdentityUpdateCreated{
+			Raw: *logEntry,
+		}
+
+		// Parse indexed parameters from topics
+		// Topic[0] is the event signature
+		// Topic[1] is inboxId (bytes32, indexed)
+		// Topic[2] is sequenceId (uint64, indexed)
+		if len(logEntry.Topics) >= 3 {
+			copy(event.InboxId[:], logEntry.Topics[1][:])
+			event.SequenceId = new(big.Int).SetBytes(logEntry.Topics[2][:]).Uint64()
+		}
+
+		// Parse non-indexed parameters from data
+		// update (bytes, non-indexed)
+		if len(logEntry.Data) > 0 {
+			unpacked, err := contractABI.Unpack("IdentityUpdateCreated", logEntry.Data)
+			if err == nil && len(unpacked) > 0 {
+				if update, ok := unpacked[0].([]byte); ok {
+					event.Update = update
+				}
+			}
 		}
 
 		events = append(events, event)
@@ -459,5 +565,6 @@ func (m *BlockchainPublisher) Close() {
 	m.logger.Info("closing")
 	m.replenishCancel()
 	m.wg.Wait()
+	m.oracle.Stop()
 	m.logger.Info("closed")
 }

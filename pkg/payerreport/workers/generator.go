@@ -111,7 +111,10 @@ func (w *GeneratorWorker) GenerateReports() error {
 		_ = haLock.Release()
 	}()
 
-	err = haLock.LockGeneratorWorker()
+	locked, err := haLock.TryLockGeneratorWorker()
+	if !locked {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

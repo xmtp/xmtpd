@@ -91,7 +91,10 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		_ = haLock.Release()
 	}()
 
-	err = haLock.LockSubmitterWorker()
+	locked, err := haLock.TryLockSubmitterWorker()
+	if !locked {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

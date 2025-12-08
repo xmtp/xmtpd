@@ -30,54 +30,54 @@ func NewAdvisoryLocker() *AdvisoryLocker {
 	return &AdvisoryLocker{}
 }
 
-func (a *AdvisoryLocker) LockIdentityUpdateInsert(
+func (a *AdvisoryLocker) TryLockIdentityUpdateInsert(
 	ctx context.Context,
 	queries *queries.Queries,
 	nodeID uint32,
-) error {
+) (bool, error) {
 	key := int64((uint64(nodeID) << 8) | uint64(LockKindIdentityUpdateInsert))
-	return queries.AdvisoryLockWithKey(ctx, key)
+	return queries.AdvisoryTryLockWithKey(ctx, key)
 }
 
-func (a *AdvisoryLocker) LockGeneratorWorker(
+func (a *AdvisoryLocker) TryLockGeneratorWorker(
 	ctx context.Context,
 	queries *queries.Queries,
-) error {
+) (bool, error) {
 	key := int64(LockKindGeneratorWorker)
-	return queries.AdvisoryLockWithKey(ctx, key)
+	return queries.AdvisoryTryLockWithKey(ctx, key)
 }
 
-func (a *AdvisoryLocker) LockAttestationWorker(
+func (a *AdvisoryLocker) TryLockAttestationWorker(
 	ctx context.Context,
 	queries *queries.Queries,
-) error {
+) (bool, error) {
 	key := int64(LockKindAttestationWorker)
-	return queries.AdvisoryLockWithKey(ctx, key)
+	return queries.AdvisoryTryLockWithKey(ctx, key)
 }
 
-func (a *AdvisoryLocker) LockSubmitterWorker(
+func (a *AdvisoryLocker) TryLockSubmitterWorker(
 	ctx context.Context,
 	queries *queries.Queries,
-) error {
+) (bool, error) {
 	key := int64(LockKindSubmitterWorker)
-	return queries.AdvisoryLockWithKey(ctx, key)
+	return queries.AdvisoryTryLockWithKey(ctx, key)
 }
 
-func (a *AdvisoryLocker) LockSettlementWorker(
+func (a *AdvisoryLocker) TryLockSettlementWorker(
 	ctx context.Context,
 	queries *queries.Queries,
-) error {
+) (bool, error) {
 	key := int64(LockKindSettlementWorker)
-	return queries.AdvisoryLockWithKey(ctx, key)
+	return queries.AdvisoryTryLockWithKey(ctx, key)
 }
 
 type ITransactionScopedAdvisoryLocker interface {
 	Release() error
-	LockGeneratorWorker() error
-	LockAttestationWorker() error
-	LockSubmitterWorker() error
-	LockSettlementWorker() error
-	LockIdentityUpdateInsert(nodeID uint32) error
+	TryLockGeneratorWorker() (bool, error)
+	TryLockAttestationWorker() (bool, error)
+	TryLockSubmitterWorker() (bool, error)
+	TryLockSettlementWorker() (bool, error)
+	TryLockIdentityUpdateInsert(nodeID uint32) (bool, error)
 }
 
 // TransactionScopedAdvisoryLocker creates and owns a transaction; methods acquire
@@ -106,22 +106,22 @@ func (a *TransactionScopedAdvisoryLocker) Release() error {
 	return a.tx.Rollback()
 }
 
-func (a *TransactionScopedAdvisoryLocker) LockGeneratorWorker() error {
-	return a.locker.LockGeneratorWorker(a.ctx, queries.New(a.tx))
+func (a *TransactionScopedAdvisoryLocker) TryLockGeneratorWorker() (bool, error) {
+	return a.locker.TryLockGeneratorWorker(a.ctx, queries.New(a.tx))
 }
 
-func (a *TransactionScopedAdvisoryLocker) LockAttestationWorker() error {
-	return a.locker.LockAttestationWorker(a.ctx, queries.New(a.tx))
+func (a *TransactionScopedAdvisoryLocker) TryLockAttestationWorker() (bool, error) {
+	return a.locker.TryLockAttestationWorker(a.ctx, queries.New(a.tx))
 }
 
-func (a *TransactionScopedAdvisoryLocker) LockSubmitterWorker() error {
-	return a.locker.LockSubmitterWorker(a.ctx, queries.New(a.tx))
+func (a *TransactionScopedAdvisoryLocker) TryLockSubmitterWorker() (bool, error) {
+	return a.locker.TryLockSubmitterWorker(a.ctx, queries.New(a.tx))
 }
 
-func (a *TransactionScopedAdvisoryLocker) LockSettlementWorker() error {
-	return a.locker.LockSettlementWorker(a.ctx, queries.New(a.tx))
+func (a *TransactionScopedAdvisoryLocker) TryLockSettlementWorker() (bool, error) {
+	return a.locker.TryLockSettlementWorker(a.ctx, queries.New(a.tx))
 }
 
-func (a *TransactionScopedAdvisoryLocker) LockIdentityUpdateInsert(nodeID uint32) error {
-	return a.locker.LockIdentityUpdateInsert(a.ctx, queries.New(a.tx), nodeID)
+func (a *TransactionScopedAdvisoryLocker) TryLockIdentityUpdateInsert(nodeID uint32) (bool, error) {
+	return a.locker.TryLockIdentityUpdateInsert(a.ctx, queries.New(a.tx), nodeID)
 }

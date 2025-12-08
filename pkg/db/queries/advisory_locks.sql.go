@@ -9,11 +9,13 @@ import (
 	"context"
 )
 
-const advisoryLockWithKey = `-- name: AdvisoryLockWithKey :exec
-SELECT pg_advisory_xact_lock($1)
+const advisoryTryLockWithKey = `-- name: AdvisoryTryLockWithKey :one
+SELECT pg_try_advisory_xact_lock($1) as lock_succeeded
 `
 
-func (q *Queries) AdvisoryLockWithKey(ctx context.Context, lockingKey int64) error {
-	_, err := q.db.ExecContext(ctx, advisoryLockWithKey, lockingKey)
-	return err
+func (q *Queries) AdvisoryTryLockWithKey(ctx context.Context, lockingKey int64) (bool, error) {
+	row := q.db.QueryRowContext(ctx, advisoryTryLockWithKey, lockingKey)
+	var lock_succeeded bool
+	err := row.Scan(&lock_succeeded)
+	return lock_succeeded, err
 }

@@ -85,7 +85,10 @@ func (w *SettlementWorker) SettleReports(ctx context.Context) error {
 		_ = haLock.Release()
 	}()
 
-	err = haLock.LockSettlementWorker()
+	locked, err := haLock.TryLockSettlementWorker()
+	if !locked {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

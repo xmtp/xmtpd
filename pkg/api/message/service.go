@@ -240,7 +240,7 @@ func (s *Service) catchUpFromCursor(
 		}
 
 		if s.logger.Core().Enabled(zap.DebugLevel) {
-			logger.Debug("fetched envelopes", utils.BodyField(rows))
+			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
 		}
 
 		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))

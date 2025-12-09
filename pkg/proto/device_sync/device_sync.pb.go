@@ -30,7 +30,8 @@ const (
 	BackupElementSelection_BACKUP_ELEMENT_SELECTION_UNSPECIFIED BackupElementSelection = 0
 	BackupElementSelection_BACKUP_ELEMENT_SELECTION_MESSAGES    BackupElementSelection = 1
 	BackupElementSelection_BACKUP_ELEMENT_SELECTION_CONSENT     BackupElementSelection = 2
-	BackupElementSelection_BACKUP_ELEMENT_SELECTION_EVENT       BackupElementSelection = 3
+	// Deprecated: Marked as deprecated in device_sync/device_sync.proto.
+	BackupElementSelection_BACKUP_ELEMENT_SELECTION_EVENT BackupElementSelection = 3
 )
 
 // Enum value maps for BackupElementSelection.
@@ -164,6 +165,7 @@ func (x *BackupElement) GetConsent() *ConsentSave {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in device_sync/device_sync.proto.
 func (x *BackupElement) GetEvent() *EventSave {
 	if x != nil {
 		if x, ok := x.Element.(*BackupElement_Event); ok {
@@ -194,6 +196,7 @@ type BackupElement_Consent struct {
 }
 
 type BackupElement_Event struct {
+	// Deprecated: Marked as deprecated in device_sync/device_sync.proto.
 	Event *EventSave `protobuf:"bytes,5,opt,name=event,proto3,oneof"`
 }
 
@@ -350,13 +353,13 @@ var File_device_sync_device_sync_proto protoreflect.FileDescriptor
 
 const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\n" +
-	"\x1ddevice_sync/device_sync.proto\x12\x10xmtp.device_sync\x1a device_sync/consent_backup.proto\x1a\x1edevice_sync/event_backup.proto\x1a\x1edevice_sync/group_backup.proto\x1a device_sync/message_backup.proto\"\x86\x03\n" +
+	"\x1ddevice_sync/device_sync.proto\x12\x10xmtp.device_sync\x1a device_sync/consent_backup.proto\x1a\x1edevice_sync/event_backup.proto\x1a\x1edevice_sync/group_backup.proto\x1a device_sync/message_backup.proto\"\x8a\x03\n" +
 	"\rBackupElement\x12B\n" +
 	"\bmetadata\x18\x01 \x01(\v2$.xmtp.device_sync.BackupMetadataSaveH\x00R\bmetadata\x12@\n" +
 	"\x05group\x18\x02 \x01(\v2(.xmtp.device_sync.group_backup.GroupSaveH\x00R\x05group\x12X\n" +
 	"\rgroup_message\x18\x03 \x01(\v21.xmtp.device_sync.message_backup.GroupMessageSaveH\x00R\fgroupMessage\x12H\n" +
-	"\aconsent\x18\x04 \x01(\v2,.xmtp.device_sync.consent_backup.ConsentSaveH\x00R\aconsent\x12@\n" +
-	"\x05event\x18\x05 \x01(\v2(.xmtp.device_sync.event_backup.EventSaveH\x00R\x05eventB\t\n" +
+	"\aconsent\x18\x04 \x01(\v2,.xmtp.device_sync.consent_backup.ConsentSaveH\x00R\aconsent\x12D\n" +
+	"\x05event\x18\x05 \x01(\v2(.xmtp.device_sync.event_backup.EventSaveB\x02\x18\x01H\x00R\x05eventB\t\n" +
 	"\aelement\"\xd4\x01\n" +
 	"\x12BackupMetadataSave\x12D\n" +
 	"\belements\x18\x02 \x03(\x0e2(.xmtp.device_sync.BackupElementSelectionR\belements\x12$\n" +
@@ -371,12 +374,12 @@ const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\x06end_ns\x18\x03 \x01(\x03H\x01R\x05endNs\x88\x01\x01\x12B\n" +
 	"\x1dexclude_disappearing_messages\x18\x04 \x01(\bR\x1bexcludeDisappearingMessagesB\v\n" +
 	"\t_start_nsB\t\n" +
-	"\a_end_ns*\xb3\x01\n" +
+	"\a_end_ns*\xb7\x01\n" +
 	"\x16BackupElementSelection\x12(\n" +
 	"$BACKUP_ELEMENT_SELECTION_UNSPECIFIED\x10\x00\x12%\n" +
 	"!BACKUP_ELEMENT_SELECTION_MESSAGES\x10\x01\x12$\n" +
-	" BACKUP_ELEMENT_SELECTION_CONSENT\x10\x02\x12\"\n" +
-	"\x1eBACKUP_ELEMENT_SELECTION_EVENT\x10\x03B\xb1\x01\n" +
+	" BACKUP_ELEMENT_SELECTION_CONSENT\x10\x02\x12&\n" +
+	"\x1eBACKUP_ELEMENT_SELECTION_EVENT\x10\x03\x1a\x02\b\x01B\xb1\x01\n" +
 	"\x14com.xmtp.device_syncB\x0fDeviceSyncProtoP\x01Z+github.com/xmtp/xmtpd/pkg/proto/device_sync\xa2\x02\x03XDX\xaa\x02\x0fXmtp.DeviceSync\xca\x02\x0fXmtp\\DeviceSync\xe2\x02\x1bXmtp\\DeviceSync\\GPBMetadata\xea\x02\x10Xmtp::DeviceSyncb\x06proto3"
 
 var (

@@ -97,13 +97,10 @@ func (s *IdentityUpdateStorer) StoreLog(
 		s.db,
 		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
-			locked, err := db.NewAdvisoryLocker().
-				TryLockIdentityUpdateInsert(ctx, querier, uint32(constants.IdentityUpdateOriginatorID))
+			err := db.NewAdvisoryLocker().
+				LockIdentityUpdateInsert(ctx, querier, uint32(constants.IdentityUpdateOriginatorID))
 			if err != nil {
 				return re.NewNonRecoverableError(ErrAdvisoryLockSequence, err)
-			}
-			if !locked {
-				return nil
 			}
 
 			latestSequenceID, err := querier.GetLatestSequenceId(

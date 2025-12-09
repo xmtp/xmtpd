@@ -30,13 +30,13 @@ func NewAdvisoryLocker() *AdvisoryLocker {
 	return &AdvisoryLocker{}
 }
 
-func (a *AdvisoryLocker) TryLockIdentityUpdateInsert(
+func (a *AdvisoryLocker) LockIdentityUpdateInsert(
 	ctx context.Context,
 	queries *queries.Queries,
 	nodeID uint32,
-) (bool, error) {
+) error {
 	key := int64((uint64(nodeID) << 8) | uint64(LockKindIdentityUpdateInsert))
-	return queries.AdvisoryTryLockWithKey(ctx, key)
+	return queries.AdvisoryLockWithKey(ctx, key)
 }
 
 func (a *AdvisoryLocker) TryLockGeneratorWorker(
@@ -44,7 +44,7 @@ func (a *AdvisoryLocker) TryLockGeneratorWorker(
 	queries *queries.Queries,
 ) (bool, error) {
 	key := int64(LockKindGeneratorWorker)
-	return queries.AdvisoryTryLockWithKey(ctx, key)
+	return queries.TryAdvisoryLockWithKey(ctx, key)
 }
 
 func (a *AdvisoryLocker) TryLockAttestationWorker(
@@ -52,7 +52,7 @@ func (a *AdvisoryLocker) TryLockAttestationWorker(
 	queries *queries.Queries,
 ) (bool, error) {
 	key := int64(LockKindAttestationWorker)
-	return queries.AdvisoryTryLockWithKey(ctx, key)
+	return queries.TryAdvisoryLockWithKey(ctx, key)
 }
 
 func (a *AdvisoryLocker) TryLockSubmitterWorker(
@@ -60,7 +60,7 @@ func (a *AdvisoryLocker) TryLockSubmitterWorker(
 	queries *queries.Queries,
 ) (bool, error) {
 	key := int64(LockKindSubmitterWorker)
-	return queries.AdvisoryTryLockWithKey(ctx, key)
+	return queries.TryAdvisoryLockWithKey(ctx, key)
 }
 
 func (a *AdvisoryLocker) TryLockSettlementWorker(
@@ -68,7 +68,7 @@ func (a *AdvisoryLocker) TryLockSettlementWorker(
 	queries *queries.Queries,
 ) (bool, error) {
 	key := int64(LockKindSettlementWorker)
-	return queries.AdvisoryTryLockWithKey(ctx, key)
+	return queries.TryAdvisoryLockWithKey(ctx, key)
 }
 
 type ITransactionScopedAdvisoryLocker interface {
@@ -77,7 +77,7 @@ type ITransactionScopedAdvisoryLocker interface {
 	TryLockAttestationWorker() (bool, error)
 	TryLockSubmitterWorker() (bool, error)
 	TryLockSettlementWorker() (bool, error)
-	TryLockIdentityUpdateInsert(nodeID uint32) (bool, error)
+	LockIdentityUpdateInsert(nodeID uint32) error
 }
 
 // TransactionScopedAdvisoryLocker creates and owns a transaction; methods acquire
@@ -122,6 +122,6 @@ func (a *TransactionScopedAdvisoryLocker) TryLockSettlementWorker() (bool, error
 	return a.locker.TryLockSettlementWorker(a.ctx, queries.New(a.tx))
 }
 
-func (a *TransactionScopedAdvisoryLocker) TryLockIdentityUpdateInsert(nodeID uint32) (bool, error) {
-	return a.locker.TryLockIdentityUpdateInsert(a.ctx, queries.New(a.tx), nodeID)
+func (a *TransactionScopedAdvisoryLocker) LockIdentityUpdateInsert(nodeID uint32) error {
+	return a.locker.LockIdentityUpdateInsert(a.ctx, queries.New(a.tx), nodeID)
 }

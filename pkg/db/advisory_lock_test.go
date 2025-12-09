@@ -9,7 +9,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-func TestAdvisoryTryLockWithKey(t *testing.T) {
+func TestTryAdvisoryLockWithKey(t *testing.T) {
 	ctx := context.Background()
 	db, _ := testutils.NewDB(t, ctx)
 
@@ -29,17 +29,17 @@ func TestAdvisoryTryLockWithKey(t *testing.T) {
 	key := testutils.RandomInt64()
 
 	// Lock should succeed.
-	locked, err := queries.New(tx1).AdvisoryTryLockWithKey(ctx, key)
+	locked, err := queries.New(tx1).TryAdvisoryLockWithKey(ctx, key)
 	require.NoError(t, err)
 	require.True(t, locked)
 
 	// Another transaction already hold the lock, so this should return but without a lock.
-	locked, err = queries.New(tx2).AdvisoryTryLockWithKey(ctx, key)
+	locked, err = queries.New(tx2).TryAdvisoryLockWithKey(ctx, key)
 	require.NoError(t, err)
 	require.False(t, locked)
 
 	// Perhaps codifying bad practice but - trying to get a lock while already owning it should work.
-	locked, err = queries.New(tx1).AdvisoryTryLockWithKey(ctx, key)
+	locked, err = queries.New(tx1).TryAdvisoryLockWithKey(ctx, key)
 	require.NoError(t, err)
 	require.True(t, locked)
 }

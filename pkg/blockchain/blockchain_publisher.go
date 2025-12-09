@@ -24,6 +24,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	messageSentEventID           = "0xe69329a8"
+	identityUpdateCreatedEventID = "0xc1a40f29"
+)
+
 var ErrNoLogsFound = errors.New("no logs found")
 
 // 200KB max payload + ABI encoding + safety margin.
@@ -377,39 +382,42 @@ func findGroupMessageLogs(
 
 	messageSentEvent := contractABI.Events["MessageSent"]
 
-	for _, logEntry := range receipt.Logs {
-		if logEntry == nil {
+	for _, log := range receipt.Logs {
+		if log == nil {
 			continue
 		}
 
-		// Check if this log matches the MessageSent event signature
-		if len(logEntry.Topics) == 0 || logEntry.Topics[0] != messageSentEvent.ID {
+		// Check if this log matches the MessageSent event signature.
+		// event MessageSent(bytes16 indexed groupId, bytes message, uint64 indexed sequenceId);
+		// Topic[0] is the event signature
+		// Topic[1] is groupId (bytes16, indexed) - left-aligned in 32-byte topic
+		// Topic[2] is sequenceId (uint64, indexed)
+		if len(log.Topics) != 3 || log.Topics[0] != messageSentEvent.ID || len(log.Data) <= 0 {
 			continue
 		}
 
 		event := &gm.GroupMessageBroadcasterMessageSent{
-			Raw: *logEntry,
+			Raw: *log,
 		}
 
-		// Parse indexed parameters from topics
-		// Topic[0] is the event signature
-		// Topic[1] is groupId (bytes16, indexed) - left-aligned in 32-byte topic
-		// Topic[2] is sequenceId (uint64, indexed)
-		if len(logEntry.Topics) >= 3 {
-			copy(event.GroupId[:], logEntry.Topics[1][0:16])
-			event.SequenceId = new(big.Int).SetBytes(logEntry.Topics[2][:]).Uint64()
+		// Set GroupId.
+		copy(event.GroupId[:], log.Topics[1][0:16])
+
+		// Set SequenceId.
+		event.SequenceId = new(big.Int).SetBytes(log.Topics[2][:]).Uint64()
+
+		// Parse non-indexed parameters from data.
+		data, err := messageSentEvent.Inputs.NonIndexed().UnpackValues(log.Data)
+		if err != nil {
+			return nil, err
 		}
 
-		// Parse non-indexed parameters from data
-		// message (bytes, non-indexed)
-		if len(logEntry.Data) > 0 {
-			unpacked, err := contractABI.Unpack("MessageSent", logEntry.Data)
-			if err == nil && len(unpacked) > 0 {
-				if msg, ok := unpacked[0].([]byte); ok {
-					event.Message = msg
-				}
-			}
+		dataBytes, ok := data[0].([]byte)
+		if !ok {
+			return nil, errors.New("data is not the expected type")
 		}
+
+		event.Message = dataBytes
 
 		events = append(events, event)
 	}
@@ -431,39 +439,42 @@ func findIdentityUpdateLogs(
 
 	identityUpdateEvent := contractABI.Events["IdentityUpdateCreated"]
 
-	for _, logEntry := range receipt.Logs {
-		if logEntry == nil {
+	for _, log := range receipt.Logs {
+		if log == nil {
 			continue
 		}
 
-		// Check if this log matches the IdentityUpdateCreated event signature
-		if len(logEntry.Topics) == 0 || logEntry.Topics[0] != identityUpdateEvent.ID {
+		// Check if this log matches the IdentityUpdateCreated event signature.
+		// event IdentityUpdateCreated(bytes32 indexed inboxId, bytes update, uint64 indexed sequenceId);
+		// Topic[0] is the event signature
+		// Topic[1] is inboxId (bytes32, indexed)
+		// Topic[2] is sequenceId (uint64, indexed)
+		if len(log.Topics) != 3 || log.Topics[0] != identityUpdateEvent.ID || len(log.Data) <= 0 {
 			continue
 		}
 
 		event := &iu.IdentityUpdateBroadcasterIdentityUpdateCreated{
-			Raw: *logEntry,
+			Raw: *log,
 		}
 
-		// Parse indexed parameters from topics
-		// Topic[0] is the event signature
-		// Topic[1] is inboxId (bytes32, indexed)
-		// Topic[2] is sequenceId (uint64, indexed)
-		if len(logEntry.Topics) >= 3 {
-			copy(event.InboxId[:], logEntry.Topics[1][:])
-			event.SequenceId = new(big.Int).SetBytes(logEntry.Topics[2][:]).Uint64()
+		// Set InboxId.
+		event.InboxId = log.Topics[1]
+
+		// Set SequenceId.
+		event.SequenceId = new(big.Int).SetBytes(log.Topics[2][:]).Uint64()
+
+		// Set Update from non-indexed parameters.
+		data, err := identityUpdateEvent.Inputs.NonIndexed().UnpackValues(log.Data)
+		if err != nil {
+			return nil, err
 		}
 
-		// Parse non-indexed parameters from data
-		// update (bytes, non-indexed)
-		if len(logEntry.Data) > 0 {
-			unpacked, err := contractABI.Unpack("IdentityUpdateCreated", logEntry.Data)
-			if err == nil && len(unpacked) > 0 {
-				if update, ok := unpacked[0].([]byte); ok {
-					event.Update = update
-				}
-			}
+		dataBytes, ok := data[0].([]byte)
+		if !ok {
+			return nil, errors.New("data is not the expected type")
 		}
+
+		event.Update = dataBytes
 
 		events = append(events, event)
 	}

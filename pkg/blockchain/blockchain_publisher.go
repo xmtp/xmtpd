@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"math/big"
 	"strings"
@@ -22,11 +23,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-)
-
-const (
-	messageSentEventID           = "0xe69329a8"
-	identityUpdateCreatedEventID = "0xc1a40f29"
 )
 
 var ErrNoLogsFound = errors.New("no logs found")
@@ -404,7 +400,7 @@ func findGroupMessageLogs(
 		copy(event.GroupId[:], log.Topics[1][0:16])
 
 		// Set SequenceId.
-		event.SequenceId = new(big.Int).SetBytes(log.Topics[2][:]).Uint64()
+		event.SequenceId = binary.BigEndian.Uint64(log.Topics[2][24:32])
 
 		// Parse non-indexed parameters from data.
 		data, err := messageSentEvent.Inputs.NonIndexed().UnpackValues(log.Data)
@@ -461,7 +457,7 @@ func findIdentityUpdateLogs(
 		event.InboxId = log.Topics[1]
 
 		// Set SequenceId.
-		event.SequenceId = new(big.Int).SetBytes(log.Topics[2][:]).Uint64()
+		event.SequenceId = binary.BigEndian.Uint64(log.Topics[2][24:32])
 
 		// Set Update from non-indexed parameters.
 		data, err := identityUpdateEvent.Inputs.NonIndexed().UnpackValues(log.Data)

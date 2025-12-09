@@ -93,7 +93,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 		} else if err != nil {
 			// Log is extremely noisy during test teardown
 			s.logger.Error(
-				"",
+				"error querying for database subscription",
 				zap.Error(err),
 				utils.NumRowsField(s.options.NumRows),
 			)

@@ -23,6 +23,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Deprecated: Marked as deprecated in device_sync/event_backup.proto.
 type EventLevelSave int32
 
 const (
@@ -82,6 +83,8 @@ func (EventLevelSave) EnumDescriptor() ([]byte, []int) {
 }
 
 // Proto representation of a client record save
+//
+// Deprecated: Marked as deprecated in device_sync/event_backup.proto.
 type EventSave struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CreatedAtNs   int64                  `protobuf:"varint,1,opt,name=created_at_ns,json=createdAtNs,proto3" json:"created_at_ns,omitempty"`
@@ -170,23 +173,23 @@ var File_device_sync_event_backup_proto protoreflect.FileDescriptor
 
 const file_device_sync_event_backup_proto_rawDesc = "" +
 	"\n" +
-	"\x1edevice_sync/event_backup.proto\x12\x1dxmtp.device_sync.event_backup\"\xf3\x01\n" +
+	"\x1edevice_sync/event_backup.proto\x12\x1dxmtp.device_sync.event_backup\"\xf7\x01\n" +
 	"\tEventSave\x12\"\n" +
 	"\rcreated_at_ns\x18\x01 \x01(\x03R\vcreatedAtNs\x12\x14\n" +
 	"\x05event\x18\x02 \x01(\tR\x05event\x12\x18\n" +
 	"\adetails\x18\x03 \x01(\fR\adetails\x12\x1e\n" +
 	"\bgroup_id\x18\x04 \x01(\fH\x00R\agroupId\x88\x01\x01\x12C\n" +
 	"\x05level\x18\x05 \x01(\x0e2-.xmtp.device_sync.event_backup.EventLevelSaveR\x05level\x12\x17\n" +
-	"\x04icon\x18\x06 \x01(\tH\x01R\x04icon\x88\x01\x01B\v\n" +
+	"\x04icon\x18\x06 \x01(\tH\x01R\x04icon\x88\x01\x01:\x02\x18\x01B\v\n" +
 	"\t_group_idB\a\n" +
-	"\x05_icon*\xbe\x01\n" +
+	"\x05_icon*\xc2\x01\n" +
 	"\x0eEventLevelSave\x12 \n" +
 	"\x1cEVENT_LEVEL_SAVE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15EVENT_LEVEL_SAVE_NONE\x10\x01\x12\x1c\n" +
 	"\x18EVENT_LEVEL_SAVE_SUCCESS\x10\x02\x12\x19\n" +
 	"\x15EVENT_LEVEL_SAVE_WARN\x10\x03\x12\x1a\n" +
 	"\x16EVENT_LEVEL_SAVE_ERROR\x10\x04\x12\x1a\n" +
-	"\x16EVENT_LEVEL_SAVE_FAULT\x10\x05B\xf0\x01\n" +
+	"\x16EVENT_LEVEL_SAVE_FAULT\x10\x05\x1a\x02\x18\x01B\xf0\x01\n" +
 	"!com.xmtp.device_sync.event_backupB\x10EventBackupProtoP\x01Z+github.com/xmtp/xmtpd/pkg/proto/device_sync\xa2\x02\x03XDE\xaa\x02\x1bXmtp.DeviceSync.EventBackup\xca\x02\x1bXmtp\\DeviceSync\\EventBackup\xe2\x02'Xmtp\\DeviceSync\\EventBackup\\GPBMetadata\xea\x02\x1dXmtp::DeviceSync::EventBackupb\x06proto3"
 
 var (

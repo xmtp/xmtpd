@@ -2,6 +2,7 @@ package oracle_test
 
 import (
 	"context"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -28,87 +29,36 @@ func buildOracle(t *testing.T) *oracle.Oracle {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		o.Stop()
+		o.Close()
 	})
 
-	o.Start()
-
 	return o
-}
-
-func buildOracleWithoutStart(t *testing.T) (*oracle.Oracle, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	logger := testutils.NewLog(t)
-
-	wsURL, _ := anvil.StartAnvil(t, false)
-
-	o, err := oracle.New(
-		ctx,
-		logger,
-		wsURL,
-	)
-	require.NoError(t, err)
-
-	return o, cancel
 }
 
 func TestOracleGetGasPrice(t *testing.T) {
 	o := buildOracle(t)
 
-	require.Eventually(t, func() bool {
-		gasPrice := o.GetGasPrice()
-		t.Logf("gas price: %d", gasPrice)
-		return gasPrice > 0
-	}, 10*time.Second, 100*time.Millisecond)
-}
-
-func TestOracleGetGasPriceBeforeStart(t *testing.T) {
-	o, cancel := buildOracleWithoutStart(t)
-	t.Cleanup(cancel)
-	t.Cleanup(o.Stop)
-
-	// GetGasPrice should return a valid price even before Start()
-	// because NewOracle() fetches the initial gas price
+	// By forcing waiting, we ensure that the gas price is fetched from the blockchain.
+	time.Sleep(500 * time.Millisecond)
 	gasPrice := o.GetGasPrice()
 	require.Greater(t, gasPrice, int64(0))
 }
 
-func TestOracleStartIdempotent(t *testing.T) {
-	o, cancel := buildOracleWithoutStart(t)
-	t.Cleanup(cancel)
-	t.Cleanup(o.Stop)
+func TestOracleGetGasPriceAfterNew(t *testing.T) {
+	o := buildOracle(t)
 
-	// Multiple starts should not panic or cause issues
-	o.Start()
-	o.Start()
-	o.Start()
-
-	// Should still work normally
-	require.Eventually(t, func() bool {
-		return o.GetGasPrice() > 0
-	}, 10*time.Second, 100*time.Millisecond)
-}
-
-func TestOracleStopIdempotent(t *testing.T) {
-	o, cancel := buildOracleWithoutStart(t)
-	t.Cleanup(cancel)
-
-	o.Start()
-
-	// Multiple stops should not panic
-	o.Stop()
-	o.Stop()
-	o.Stop()
+	// GetGasPrice should return a valid price immediately after New()
+	// because it fetches lazily on first call
+	gasPrice := o.GetGasPrice()
+	require.Greater(t, gasPrice, int64(0))
 }
 
 func TestOracleConcurrentGetGasPrice(t *testing.T) {
 	o := buildOracle(t)
 
-	// Wait for initial gas price
-	require.Eventually(t, func() bool {
-		return o.GetGasPrice() > 0
-	}, 10*time.Second, 100*time.Millisecond)
+	// Get initial gas price to warm up
+	initialPrice := o.GetGasPrice()
+	require.Greater(t, initialPrice, int64(0))
 
 	// GetGasPrice is safe for concurrent calls
 	var wg sync.WaitGroup
@@ -123,24 +73,57 @@ func TestOracleConcurrentGetGasPrice(t *testing.T) {
 	wg.Wait()
 }
 
-func TestOracleGasPriceUpdatesOnNewBlock(t *testing.T) {
+func TestOracleGetGasPriceRandom(t *testing.T) {
 	o := buildOracle(t)
 
-	// Wait for initial gas price
-	require.Eventually(t, func() bool {
-		return o.GetGasPrice() > 0
-	}, 10*time.Second, 100*time.Millisecond)
+	initialPrice := o.GetGasPrice()
+	require.Greater(t, initialPrice, int64(0))
 
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Force the oracle to fetch a new gas price for some goroutines.
+			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+			price := o.GetGasPrice()
+			require.Greater(t, price, int64(0))
+		}()
+	}
+	wg.Wait()
+}
+
+func TestOracleGasPriceRefreshesAfterStaleness(t *testing.T) {
+	o := buildOracle(t)
+
+	// Get initial gas price
 	initialPrice := o.GetGasPrice()
 	t.Logf("initial gas price: %d", initialPrice)
+	require.Greater(t, initialPrice, int64(0))
 
-	// Wait for a few blocks (Anvil produces blocks every ~1s by default)
-	time.Sleep(3 * time.Second)
+	// Wait for staleness (250ms + buffer)
+	time.Sleep(300 * time.Millisecond)
 
-	// Price should still be valid (not stale)
+	// Price should still be valid after refresh
 	currentPrice := o.GetGasPrice()
 	t.Logf("current gas price: %d", currentPrice)
 	require.Greater(t, currentPrice, int64(0))
+}
+
+func TestOracleCloseIdempotent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	logger := testutils.NewLog(t)
+	wsURL, _ := anvil.StartAnvil(t, false)
+
+	o, err := oracle.New(ctx, logger, wsURL)
+	require.NoError(t, err)
+
+	// Multiple closes should not panic
+	o.Close()
+	o.Close()
+	o.Close()
 }
 
 func TestOracleGracefulShutdown(t *testing.T) {
@@ -150,18 +133,18 @@ func TestOracleGracefulShutdown(t *testing.T) {
 
 	o, err := oracle.New(ctx, logger, wsURL)
 	require.NoError(t, err)
-	o.Start()
 
-	// Give it time to start watching
-	time.Sleep(500 * time.Millisecond)
+	// Get a gas price to ensure connection is established
+	price := o.GetGasPrice()
+	require.Greater(t, price, int64(0))
 
 	// Cancel context
 	cancel()
 
-	// Stop should complete quickly
+	// Close should complete quickly
 	done := make(chan struct{})
 	go func() {
-		o.Stop()
+		o.Close()
 		close(done)
 	}()
 
@@ -169,22 +152,6 @@ func TestOracleGracefulShutdown(t *testing.T) {
 	case <-done:
 		// Success - shutdown completed
 	case <-time.After(5 * time.Second):
-		t.Fatal("Stop() took too long")
+		t.Fatal("Close() took too long")
 	}
-}
-
-func TestOracleStopBeforeStart(t *testing.T) {
-	o, cancel := buildOracleWithoutStart(t)
-	t.Cleanup(cancel)
-
-	// Stop before Start should not panic
-	o.Stop()
-
-	// Should still be able to start after
-	o.Start()
-	t.Cleanup(o.Stop)
-
-	require.Eventually(t, func() bool {
-		return o.GetGasPrice() > 0
-	}, 10*time.Second, 100*time.Millisecond)
 }

@@ -125,8 +125,6 @@ func NewBlockchainPublisher(
 		},
 	)
 
-	publisher.oracle.Start()
-
 	return &publisher, nil
 }
 
@@ -565,6 +563,6 @@ func (m *BlockchainPublisher) Close() {
 	m.logger.Info("closing")
 	m.replenishCancel()
 	m.wg.Wait()
-	m.oracle.Stop()
+	m.oracle.Close()
 	m.logger.Info("closed")
 }

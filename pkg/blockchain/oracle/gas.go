@@ -2,6 +2,7 @@ package oracle
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -27,13 +28,14 @@ func (g GasPriceSource) String() string {
 	}
 }
 
+// ArbGasInfo is a Nitro precompile.
+// Source: https://github.com/OffchainLabs/nitro-precompile-interfaces/blob/main/ArbGasInfo.sol
 var (
 	// ArbGasInfo precompile address.
 	arbGasInfoAddr = common.HexToAddress("0x000000000000000000000000000000000000006C")
 
-	// getMinimumGasPrice() selector = keccak256("getMinimumGasPrice()")[:4].
-	// Verified with: `cast sig "getMinimumGasPrice()"`.
-	getMinimumGasPriceSelector = common.FromHex("0xf918379a")
+	// getPricesInWei() selector = keccak256("getPricesInWei()")[:4].
+	getPricesInWeiSelector = common.FromHex("0x41b247a8")
 )
 
 func isArbChain(ctx context.Context, client *ethclient.Client) bool {
@@ -51,29 +53,36 @@ func getGasPrice(
 	gasPriceSource GasPriceSource,
 ) (*big.Int, error) {
 	if gasPriceSource == gasPriceSourceArbMinimum {
-		return getArbMinimumGasPrice(ctx, client)
+		price, err := getArbGasPrices(ctx, client)
+		if err != nil {
+			return nil, err
+		}
+		return price, nil
 	}
 
 	return getDefaultGasPrice(ctx, client)
 }
 
-func getArbMinimumGasPrice(ctx context.Context, client *ethclient.Client) (*big.Int, error) {
+func getArbGasPrices(ctx context.Context, client *ethclient.Client) (*big.Int, error) {
 	result, err := client.CallContract(ctx, ethereum.CallMsg{
 		To:   &arbGasInfoAddr,
-		Data: getMinimumGasPriceSelector,
+		Data: getPricesInWeiSelector,
 	}, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return new(big.Int).SetBytes(result), nil
+	// Response is 6 consecutive uint256 (32 bytes each) = 192 bytes total.
+	// Direct byte slicing is faster than abi.Arguments.Unpack() (no reflection).
+	const wordSize = 32
+	if len(result) < 6*wordSize {
+		return nil, errors.New("unexpected response length from getPricesInWei")
+	}
+
+	// Last 32 bytes are the total gas price. Index 5 * 32 bytes.
+	return new(big.Int).SetBytes(result[5*wordSize : 6*wordSize]), nil
 }
 
 func getDefaultGasPrice(ctx context.Context, client *ethclient.Client) (*big.Int, error) {
-	gasPrice, err := client.SuggestGasPrice(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return gasPrice, nil
+	return client.SuggestGasPrice(ctx)
 }

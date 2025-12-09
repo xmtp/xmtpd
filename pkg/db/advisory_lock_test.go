@@ -26,7 +26,6 @@ func TestAdvisoryTryLockWithKey(t *testing.T) {
 		_ = tx2.Rollback()
 	}()
 
-	// Use a random value for the key that's unlikely to interfere with other tests that may involve locking.
 	key := testutils.RandomInt64()
 
 	// Lock should succeed.

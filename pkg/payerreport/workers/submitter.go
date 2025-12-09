@@ -91,9 +91,12 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		_ = haLock.Release()
 	}()
 
-	err = haLock.LockSubmitterWorker()
+	locked, err := haLock.TryLockSubmitterWorker()
 	if err != nil {
 		return err
+	}
+	if !locked {
+		return nil
 	}
 
 	// Fetch all reports that are pending submission and approved attestation.

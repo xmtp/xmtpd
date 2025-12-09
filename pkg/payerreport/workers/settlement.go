@@ -85,9 +85,12 @@ func (w *SettlementWorker) SettleReports(ctx context.Context) error {
 		_ = haLock.Release()
 	}()
 
-	err = haLock.LockSettlementWorker()
+	locked, err := haLock.TryLockSettlementWorker()
 	if err != nil {
 		return err
+	}
+	if !locked {
+		return nil
 	}
 
 	// SettlementWorker fetches all reports that have been submitted but not yet settled.

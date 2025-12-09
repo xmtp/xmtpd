@@ -17,3 +17,14 @@ func (q *Queries) AdvisoryLockWithKey(ctx context.Context, lockingKey int64) err
 	_, err := q.db.ExecContext(ctx, advisoryLockWithKey, lockingKey)
 	return err
 }
+
+const tryAdvisoryLockWithKey = `-- name: TryAdvisoryLockWithKey :one
+SELECT pg_try_advisory_xact_lock($1) as lock_succeeded
+`
+
+func (q *Queries) TryAdvisoryLockWithKey(ctx context.Context, lockingKey int64) (bool, error) {
+	row := q.db.QueryRowContext(ctx, tryAdvisoryLockWithKey, lockingKey)
+	var lock_succeeded bool
+	err := row.Scan(&lock_succeeded)
+	return lock_succeeded, err
+}

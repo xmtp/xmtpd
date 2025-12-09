@@ -111,9 +111,12 @@ func (w *GeneratorWorker) GenerateReports() error {
 		_ = haLock.Release()
 	}()
 
-	err = haLock.LockGeneratorWorker()
+	locked, err := haLock.TryLockGeneratorWorker()
 	if err != nil {
 		return err
+	}
+	if !locked {
+		return nil
 	}
 
 	w.logger.Info("getting nodes from registry")

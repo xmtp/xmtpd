@@ -21,12 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrTxFailed              = fmt.Errorf("transaction failed")
-	ErrTxFailedNoError       = fmt.Errorf("transaction failed but no error found")
-	ErrTxNotFound            = fmt.Errorf("transaction not found")
-	ErrTxGenesisNotTraceable = fmt.Errorf("genesis is not traceable")
-)
+var ErrTxFailed = fmt.Errorf("transaction failed")
 
 type WebsocketClientOption func(*websocketClientConfig)
 
@@ -134,7 +129,7 @@ func ExecuteTransaction(
 		return NewBlockchainError(err)
 	}
 
-	receipt, err := WaitForTransaction(
+	receipt, protocolErr := WaitForTransaction(
 		ctx,
 		logger,
 		client,
@@ -142,22 +137,8 @@ func ExecuteTransaction(
 		250*time.Millisecond,
 		tx.Hash(),
 	)
-	if err != nil {
-		if errors.Is(err, ErrTxFailed) {
-			code, err := traceTransactionOutput(
-				ctx,
-				client,
-				tx.Hash(),
-				10*time.Second,
-				250*time.Millisecond,
-			)
-			if err != nil {
-				return NewBlockchainError(err)
-			}
-			return NewBlockchainError(errors.New(code))
-		}
-
-		return NewBlockchainError(err)
+	if protocolErr != nil {
+		return protocolErr
 	}
 
 	for _, log := range receipt.Logs {
@@ -179,7 +160,7 @@ func WaitForTransaction(
 	timeout time.Duration,
 	pollSleep time.Duration,
 	hash common.Hash,
-) (receipt *types.Receipt, err error) {
+) (receipt *types.Receipt, err ProtocolError) {
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 	defer cancel()
 
@@ -192,7 +173,7 @@ func WaitForTransaction(
 			if errors.Is(err, ethereum.NotFound) {
 				logger.Debug("waiting for transaction", utils.HashField(hash.String()))
 			} else {
-				return nil, ErrTxFailed
+				return nil, NewBlockchainError(err)
 			}
 		}
 
@@ -200,68 +181,52 @@ func WaitForTransaction(
 			if receipt.Status == types.ReceiptStatusSuccessful {
 				return receipt, nil
 			}
+
 			if receipt.Status == types.ReceiptStatusFailed {
-				return receipt, ErrTxFailed
+				tx, _, err := client.TransactionByHash(ctx, hash)
+				if err != nil {
+					return receipt, NewBlockchainError(err)
+				}
+
+				protocolErr := getProtocolError(ctx, client, tx, receipt)
+				return receipt, protocolErr
 			}
 		}
 
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("timed out")
+			return nil, NewBlockchainError(errors.New("timed out"))
 		case <-ticker.C:
 			continue
 		}
 	}
 }
 
-type traceTransactionResult struct {
-	Output string `json:"output"`
-}
-type traceTransactionConfig struct {
-	Tracer string `json:"tracer"`
-}
-
-// traceTransactionOutput traces the given transaction and returns the output field.
-// Output is the field where the revert reason is stored.
-// go-ethereum defines a trace transaction config type and a TraceTransaction method on the gethClient.
-// However, we define our own light weight types to not instantiate a gethClient just to trace a transaction.
-// https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
-func traceTransactionOutput(
+// getProtocolError replays the transaction at the block where it failed and returns the protocol error.
+func getProtocolError(
 	ctx context.Context,
 	client *ethclient.Client,
-	hash common.Hash,
-	timeout time.Duration,
-	pollSleep time.Duration,
-) (string, error) {
-	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
-	defer cancel()
-
-	ticker := time.NewTicker(pollSleep)
-	defer ticker.Stop()
-
-	traceCfg := traceTransactionConfig{
-		Tracer: "callTracer",
+	tx *types.Transaction,
+	receipt *types.Receipt,
+) ProtocolError {
+	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	if err != nil {
+		return NewBlockchainError(err)
 	}
 
-	for {
-		var traceOut traceTransactionResult
-
-		err := client.Client().
-			CallContext(ctx, &traceOut, "debug_traceTransaction", hash.Hex(), &traceCfg)
-		if err != nil {
-			if err.Error() != ErrTxNotFound.Error() &&
-				err.Error() != ErrTxGenesisNotTraceable.Error() {
-				return "", err
-			}
-		} else if traceOut.Output != "" {
-			return traceOut.Output, nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("timed out")
-		case <-ticker.C:
-			continue
-		}
+	msg := ethereum.CallMsg{
+		From:     from,
+		To:       tx.To(),
+		Gas:      tx.Gas(),
+		GasPrice: tx.GasPrice(),
+		Value:    tx.Value(),
+		Data:     tx.Data(),
 	}
+
+	_, err = client.CallContract(ctx, msg, receipt.BlockNumber)
+	if err != nil {
+		return NewBlockchainError(err)
+	}
+
+	return NewBlockchainError(errors.New("unknown revert reason"))
 }

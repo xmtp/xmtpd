@@ -2,13 +2,12 @@ package contracts
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -34,7 +33,7 @@ var _ c.IContract = &IdentityUpdateBroadcaster{}
 func NewIdentityUpdateBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,
-	db *sql.DB,
+	db *db.Handler,
 	logger *zap.Logger,
 	validationService mlsvalidate.MLSValidationService,
 	address common.Address,
@@ -46,13 +45,11 @@ func NewIdentityUpdateBroadcaster(
 		return nil, err
 	}
 
-	querier := queries.New(db)
-
 	identityUpdatesTracker, err := c.NewBlockTracker(
 		ctx,
 		client,
 		address,
-		querier,
+		db,
 		startBlock,
 	)
 	if err != nil {
@@ -67,7 +64,7 @@ func NewIdentityUpdateBroadcaster(
 	logger = logger.Named(utils.IdentityUpdateBroadcasterLoggerName).
 		With(utils.ContractAddressField(address.Hex()))
 
-	identityUpdateStorer := NewIdentityUpdateStorer(db, logger, contract, validationService)
+	identityUpdateStorer := NewIdentityUpdateStorer(db.DB(), logger, contract, validationService)
 
 	reorgHandler := NewIdentityUpdateReorgHandler(logger)
 

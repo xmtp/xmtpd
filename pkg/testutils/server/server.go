@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	s "github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -44,7 +45,7 @@ func NewTestBaseServer(
 	server, err := s.NewBaseServer(
 		s.WithContext(t.Context()),
 		s.WithLogger(log),
-		s.WithDB(cfg.DB),
+		s.WithDB(db.NewDBHandler(cfg.DB)),
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithFeeCalculator(fees.NewTestFeeCalculator()),

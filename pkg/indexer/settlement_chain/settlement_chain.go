@@ -4,7 +4,6 @@ package settlementchain
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
 	"github.com/xmtp/xmtpd/pkg/indexer/settlement_chain/contracts"
@@ -43,7 +42,7 @@ func NewSettlementChain(
 	ctxwc context.Context,
 	logger *zap.Logger,
 	cfg config.SettlementChainOptions,
-	db *sql.DB,
+	db *db.Handler,
 ) (*SettlementChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
 
@@ -59,12 +58,10 @@ func NewSettlementChain(
 		return nil, err
 	}
 
-	querier := queries.New(db)
-
 	payerRegistry, err := contracts.NewPayerRegistry(
 		ctxwc,
 		rpcClient,
-		querier,
+		db,
 		chainLogger,
 		common.HexToAddress(cfg.PayerRegistryAddress),
 		cfg.ChainID,

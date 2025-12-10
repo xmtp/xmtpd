@@ -12,7 +12,7 @@ import (
 
 func TestIncrementUnsettledUsage(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 	payerID := testutils.RandomInt32()
@@ -54,7 +54,7 @@ func TestIncrementUnsettledUsage(t *testing.T) {
 
 func TestGetUnsettledUsage(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 	payerID := testutils.RandomInt32()

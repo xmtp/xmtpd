@@ -4,7 +4,6 @@ package appchain
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -14,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/indexer/app_chain/contracts"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
@@ -53,7 +52,7 @@ func NewAppChain(
 	ctxwc context.Context,
 	logger *zap.Logger,
 	cfg config.AppChainOptions,
-	db *sql.DB,
+	db *db.Handler,
 	validationService mlsvalidate.MLSValidationService,
 ) (*AppChain, error) {
 	ctxwc, cancel := context.WithCancel(ctxwc)
@@ -71,12 +70,10 @@ func NewAppChain(
 		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
 	}
 
-	querier := queries.New(db)
-
 	groupMessageBroadcaster, err := contracts.NewGroupMessageBroadcaster(
 		ctxwc,
 		rpcClient,
-		querier,
+		db,
 		chainLogger,
 		common.HexToAddress(cfg.GroupMessageBroadcasterAddress),
 		cfg.ChainID,

@@ -2,7 +2,6 @@ package sync
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 
 type EnvelopeSink struct {
 	ctx                        context.Context
-	db                         *sql.DB
+	db                         *db.Handler
 	logger                     *zap.Logger
 	queries                    *queries.Queries
 	feeCalculator              fees.IFeeCalculator
@@ -35,7 +34,7 @@ type EnvelopeSink struct {
 
 func newEnvelopeSink(
 	ctx context.Context,
-	db *sql.DB,
+	db *db.Handler,
 	logger *zap.Logger,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
@@ -47,7 +46,6 @@ func newEnvelopeSink(
 		ctx:                        ctx,
 		db:                         db,
 		logger:                     logger,
-		queries:                    queries.New(db),
 		feeCalculator:              feeCalculator,
 		payerReportStore:           payerReportStore,
 		payerReportDomainSeparator: payerReportDomainSeparator,
@@ -156,7 +154,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		s.ctx,
-		s.db,
+		s.db.Write(),
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     int32(env.OriginatorNodeID()),
 			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
@@ -245,9 +243,11 @@ func (s *EnvelopeSink) calculateFees(
 		return 0, err
 	}
 
+	// NOTE: Code smell in my book - we have a function that is a reader function,
+	// but it feels bad to IMPOSE read limitation on it this way
 	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
 		s.ctx,
-		s.queries,
+		s.db.ReadQuery(),
 		messageTime,
 		env.OriginatorNodeID(),
 	)

@@ -2,8 +2,8 @@ package metadata
 
 import (
 	"context"
-	"database/sql"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 )
@@ -28,9 +28,9 @@ type PayerInfoFetcher struct {
 	queries *queries.Queries
 }
 
-func NewPayerInfoFetcher(db *sql.DB) *PayerInfoFetcher {
+func NewPayerInfoFetcher(db *db.Handler) *PayerInfoFetcher {
 	return &PayerInfoFetcher{
-		queries: queries.New(db),
+		queries: db.ReadQuery(),
 	}
 }
 

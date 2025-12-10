@@ -2,7 +2,6 @@ package message
 
 import (
 	"context"
-	"database/sql"
 	"sync/atomic"
 	"time"
 
@@ -23,7 +22,7 @@ type publishWorker struct {
 	listener           <-chan []queries.StagedOriginatorEnvelope
 	notifier           chan<- bool
 	registrant         *registrant.Registrant
-	store              *sql.DB
+	store              *db.Handler
 	subscription       db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
 	lastProcessed      atomic.Int64
 	feeCalculator      fees.IFeeCalculator
@@ -34,16 +33,15 @@ func startPublishWorker(
 	ctx context.Context,
 	logger *zap.Logger,
 	reg *registrant.Registrant,
-	store *sql.DB,
+	store *db.Handler,
 	feeCalculator fees.IFeeCalculator,
 	sleepOnFailureTime time.Duration,
 ) (*publishWorker, error) {
 	logger = logger.Named(utils.PublishWorkerName)
 	logger.Info("starting")
 
-	q := queries.New(store)
 	query := func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.StagedOriginatorEnvelope, int64, error) {
-		results, err := q.SelectStagedOriginatorEnvelopes(
+		results, err := store.ReadQuery().SelectStagedOriginatorEnvelopes(
 			ctx,
 			queries.SelectStagedOriginatorEnvelopesParams{
 				LastSeenID: lastSeenID,
@@ -181,15 +179,13 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		return false
 	}
 
-	q := queries.New(p.store)
-
 	payerAddress, err := validatedEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
 		logger.Error("failed to recover payer address", zap.Error(err))
 		return false
 	}
 
-	payerID, err := q.FindOrCreatePayer(p.ctx, payerAddress.Hex())
+	payerID, err := p.store.WriteQuery().FindOrCreatePayer(p.ctx, payerAddress.Hex())
 	if err != nil {
 		logger.Error("failed to find or create payer", zap.Error(err))
 		return false
@@ -199,10 +195,11 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	var inserted int64
 
 	if isReservedTopic {
+
 		// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
 		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 			p.ctx,
-			queries.New(p.store),
+			p.store.WriteQuery(),
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     originatorID,
 				OriginatorSequenceID: stagedEnv.ID,
@@ -225,7 +222,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	} else {
 		inserted, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			p.ctx,
-			p.store,
+			p.store.DB(),
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     originatorID,
 				OriginatorSequenceID: stagedEnv.ID,
@@ -257,7 +254,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
-	deleted, err := q.DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)
+	deleted, err := p.store.WriteQuery().DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)
 	if p.ctx.Err() != nil {
 		return true
 	} else if err != nil {
@@ -285,12 +282,11 @@ func (p *publishWorker) calculateFees(
 		return 0, 0, err
 	}
 
-	q := queries.New(p.store)
 	// TODO:nm: Set this to the actual congestion fee
 	// For now we are setting congestion to 0
 	congestionFee, err := p.feeCalculator.CalculateCongestionFee(
 		p.ctx,
-		q,
+		p.store.Query(),
 		stagedEnv.OriginatorTime,
 		p.registrant.NodeID(),
 	)

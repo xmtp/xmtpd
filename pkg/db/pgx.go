@@ -44,7 +44,7 @@ func waitUntilDBReady(ctx context.Context, db *pgxpool.Pool, waitTime time.Durat
 	return nil
 }
 
-func parseConfig(dsn string, statementTimeout time.Duration) (*pgxpool.Config, error) {
+func parsePgxPoolConfig(dsn string, statementTimeout time.Duration) (*pgxpool.Config, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
@@ -135,6 +135,110 @@ func createNamespace(
 	return nil
 }
 
+type dbConnConfig struct {
+	pingTimeout        time.Duration
+	statementTimeout   time.Duration
+	prometheusRegistry *prometheus.Registry
+	createNamespace    bool
+	runMigrations      bool
+}
+
+type dbOptionFunc func(*dbConnConfig)
+
+func dbPingTimeout(d time.Duration) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.pingTimeout = d
+	}
+}
+
+func dbStatementTimeout(d time.Duration) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.statementTimeout = d
+	}
+}
+
+// doCreateNamespace will create the namespace if it does not exist.
+func doCreateNamespace(b bool) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.createNamespace = b
+	}
+}
+
+func runMigrations(b bool) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.runMigrations = b
+	}
+}
+
+func prometheusRegistry(p *prometheus.Registry) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.prometheusRegistry = p
+	}
+}
+
+func connectToDB(
+	ctx context.Context,
+	logger *zap.Logger,
+	dsn string,
+	namespace string,
+	opts ...dbOptionFunc,
+) (*sql.DB, error) {
+	var cfg dbConnConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	poolcfg, err := parsePgxPoolConfig(dsn, cfg.statementTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", parseDSNErrorMessage, err)
+	}
+
+	if cfg.createNamespace {
+		err := createNamespace(ctx, poolcfg, namespace, cfg.pingTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("could not create namespace (name: %v): %w", namespace, err)
+		}
+	}
+
+	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
+
+	// TODO: Comment - this is a slight difference between the two functions, double check this, might be incompatible.
+	if namespace != "" {
+		poolcfg.ConnConfig.Database = namespace
+	}
+
+	// enable SQL tracing
+	poolcfg.ConnConfig.Tracer = &tracelog.TraceLog{
+		Logger:   metrics.PromLogger{},
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	db, pool, err := newPGXDB(ctx, poolcfg, cfg.pingTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.prometheusRegistry != nil {
+		mp, err := bindOTelToProm(cfg.prometheusRegistry)
+		if err != nil {
+			return nil, fmt.Errorf("bind OTel to Prom: %w", err)
+		}
+
+		if err := otelpgx.RecordStats(pool, otelpgx.WithStatsMeterProvider(mp)); err != nil {
+			return nil, fmt.Errorf("otelpgx.RecordStats: %w", err)
+		}
+	}
+
+	if cfg.runMigrations {
+		err = migrations.Migrate(ctx, db)
+		if err != nil {
+			return nil, fmt.Errorf("could not run migrations: %w", err)
+		}
+	}
+
+	return db, nil
+}
+
 // NewNamespacedDB creates a new database with the given namespace if it doesn't exist and returns the full DSN for the new database.
 func NewNamespacedDB(
 	ctx context.Context,
@@ -145,56 +249,23 @@ func NewNamespacedDB(
 	statementTimeout time.Duration,
 	prom *prometheus.Registry,
 ) (*sql.DB, error) {
-	// Parse the DSN to get the config
-	config, err := parseConfig(dsn, statementTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", parseDSNErrorMessage, err)
-	}
-
-	if err = createNamespace(ctx, config, namespace, waitForDB); err != nil {
-		return nil, err
-	}
-
-	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
-
-	config.ConnConfig.Database = namespace
-
-	// enable SQL tracing
-	config.ConnConfig.Tracer = &tracelog.TraceLog{
-		Logger:   metrics.PromLogger{},
-		LogLevel: tracelog.LogLevelTrace,
-	}
-
-	db, pool, err := newPGXDB(ctx, config, waitForDB)
-	if err != nil {
-		return nil, err
-	}
-
-	if prom != nil {
-
-		mp, err := bindOTelToProm(prom)
-		if err != nil {
-			return nil, fmt.Errorf("bind OTel to Prom: %w", err)
-		}
-
-		if err := otelpgx.RecordStats(pool, otelpgx.WithStatsMeterProvider(mp)); err != nil {
-			return nil, fmt.Errorf("otelpgx.RecordStats: %w", err)
-		}
-	}
-
-	err = migrations.Migrate(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
+	return connectToDB(
+		ctx,
+		logger,
+		dsn,
+		namespace,
+		dbPingTimeout(waitForDB),
+		dbStatementTimeout(statementTimeout),
+		prometheusRegistry(prom),
+		doCreateNamespace(true),
+		runMigrations(true),
+	)
 }
 
 // ConnectToDB establishes a connection to an existing database using the provided DSN.
 // Unlike NewNamespacedDB, this function does not create the database or run migrations.
 // If namespace is provided, it overrides the database name in the DSN.
-func ConnectToDB(
-	ctx context.Context,
+func ConnectToDB(ctx context.Context,
 	logger *zap.Logger,
 	dsn string,
 	namespace string,
@@ -202,41 +273,13 @@ func ConnectToDB(
 	statementTimeout time.Duration,
 	prom *prometheus.Registry,
 ) (*sql.DB, error) {
-	config, err := parseConfig(dsn, statementTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", parseDSNErrorMessage, err)
-	}
-
-	if namespace != "" {
-		config.ConnConfig.Database = namespace
-	}
-
-	// enable SQL tracing
-	config.ConnConfig.Tracer = &tracelog.TraceLog{
-		Logger:   metrics.PromLogger{},
-		LogLevel: tracelog.LogLevelTrace,
-	}
-
-	db, pool, err := newPGXDB(ctx, config, waitForDB)
-	if err != nil {
-		return nil, err
-	}
-
-	if prom != nil {
-
-		mp, err := bindOTelToProm(prom)
-		if err != nil {
-			return nil, fmt.Errorf("bind OTel to Prom: %w", err)
-		}
-
-		if err := otelpgx.RecordStats(pool, otelpgx.WithStatsMeterProvider(mp)); err != nil {
-			return nil, fmt.Errorf("otelpgx.RecordStats: %w", err)
-		}
-	}
-
-	logger.Info(connectSuccessMessage, zap.String("database", config.ConnConfig.Database))
-
-	return db, nil
+	return connectToDB(ctx, logger, dsn, namespace,
+		dbPingTimeout(waitForDB),
+		dbStatementTimeout(statementTimeout),
+		prometheusRegistry(prom),
+		// Not creating namespace.
+		// Not running migrations.
+	)
 }
 
 func bindOTelToProm(reg *prometheus.Registry) (*sdkmetric.MeterProvider, error) {

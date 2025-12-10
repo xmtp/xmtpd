@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -22,7 +23,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 
 	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
@@ -132,7 +132,8 @@ func NewTestAPIServer(
 	var (
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
-		db, _                 = testutils.NewDB(t, ctx)
+		sqlDB, _              = testutils.NewRawDB(t, ctx)
+		db                    = db.NewDBHandler(sqlDB)
 		mockRegistry          = mocks.NewMockNodeRegistry(t)
 		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
@@ -151,7 +152,7 @@ func NewTestAPIServer(
 	registrant, err := registrant.NewRegistrant(
 		ctx,
 		log,
-		queries.New(db),
+		db.WriteQuery(),
 		mockRegistry,
 		privKeyStr,
 		nil,
@@ -270,6 +271,6 @@ func NewTestAPIServer(
 		ClientReplication: clientReplication,
 		ClientPayer:       clientPayer,
 		ClientMetadata:    clientMetadata,
-		DB:                db,
+		DB:                db.DB(),
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -18,7 +19,7 @@ import (
 // SQLBackedNonceManager implements NonceManager using a SQL database for persistence.
 // It provides thread-safe nonce allocation with configurable concurrency limits.
 type SQLBackedNonceManager struct {
-	db      *sql.DB
+	db      *db.Handler
 	logger  *zap.Logger
 	limiter *noncemanager.OpenConnectionsLimiter
 }
@@ -26,7 +27,7 @@ type SQLBackedNonceManager struct {
 var _ noncemanager.NonceManager = &SQLBackedNonceManager{}
 
 // NewSQLBackedNonceManager creates a new SQL-backed nonce manager with default concurrency settings
-func NewSQLBackedNonceManager(db *sql.DB, logger *zap.Logger) *SQLBackedNonceManager {
+func NewSQLBackedNonceManager(db *db.Handler, logger *zap.Logger) *SQLBackedNonceManager {
 	return &SQLBackedNonceManager{
 		db:      db,
 		logger:  logger.Named(utils.SQLNonceManagerLoggerName),
@@ -48,7 +49,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*noncemanager.Non
 		return nil, ctx.Err()
 	}
 
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
+	tx, err := s.db.Write().BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		<-s.limiter.Semaphore
 		s.limiter.WG.Done()
@@ -61,7 +62,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*noncemanager.Non
 		}
 	}()
 
-	txQuerier := queries.New(s.db).WithTx(tx)
+	txQuerier := s.db.WriteQuery().WithTx(tx)
 
 	nonce, err := txQuerier.GetNextAvailableNonce(ctx)
 	if err != nil {
@@ -97,8 +98,7 @@ func (s *SQLBackedNonceManager) GetNonce(ctx context.Context) (*noncemanager.Non
 // fillNonces generates and stores a batch of sequential nonces starting from the given value.
 // This is used internally by both Replenish and FastForwardNonce methods.
 func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.Int) (int32, error) {
-	querier := queries.New(s.db)
-	return querier.FillNonceSequence(ctx, queries.FillNonceSequenceParams{
+	return s.db.WriteQuery().FillNonceSequence(ctx, queries.FillNonceSequenceParams{
 		PendingNonce: startNonce.Int64(),
 		NumElements:  10000,
 	})
@@ -107,8 +107,7 @@ func (s *SQLBackedNonceManager) fillNonces(ctx context.Context, startNonce big.I
 // abandonNonces removes all nonces below the given threshold value.
 // This is used by FastForwardNonce to clean up obsolete nonces.
 func (s *SQLBackedNonceManager) abandonNonces(ctx context.Context, endNonce big.Int) error {
-	querier := queries.New(s.db)
-	_, err := querier.DeleteObsoleteNonces(ctx, endNonce.Int64())
+	_, err := s.db.WriteQuery().DeleteObsoleteNonces(ctx, endNonce.Int64())
 	return err
 }
 

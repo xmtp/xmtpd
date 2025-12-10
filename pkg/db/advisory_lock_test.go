@@ -14,13 +14,13 @@ func TestTryAdvisoryLockWithKey(t *testing.T) {
 	db, _ := testutils.NewDB(t, ctx)
 
 	// NOTE: We need two transactions in order to compete for the lock.
-	tx1, err := db.BeginTx(ctx, nil)
+	tx1, err := db.DB().BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() {
 		_ = tx1.Rollback()
 	}()
 
-	tx2, err := db.BeginTx(ctx, nil)
+	tx2, err := db.DB().BeginTx(ctx, nil)
 	require.NoError(t, err)
 	defer func() {
 		_ = tx2.Rollback()

@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ var topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).By
 
 func setup(t *testing.T) (*sql.DB, *zap.Logger) {
 	ctx := context.Background()
-	store, _ := testutils.NewDB(t, ctx)
+	store, _ := testutils.NewRawDB(t, ctx)
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
@@ -117,10 +118,95 @@ func flakyEnvelopesQuery(
 	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		numQueries++
 		if numQueries%2 == 1 {
-			return nil, lastSeen, fmt.Errorf("flaky query")
+			return nil, lastSeen, errors.New("flaky query")
 		}
 
 		return query(ctx, lastSeen, numRows)
+	}
+}
+
+func createGatewayEnvelopes(t *testing.T, n int) []queries.InsertGatewayEnvelopeParams {
+	t.Helper()
+
+	envelopes := make([]queries.InsertGatewayEnvelopeParams, n)
+	for i := range n {
+		e := queries.InsertGatewayEnvelopeParams{
+			OriginatorNodeID: 100,
+			Topic: topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).
+				Bytes(),
+			OriginatorSequenceID: int64(1 + i),
+			OriginatorEnvelope:   fmt.Appendf([]byte{}, "envelope%v", i+1),
+		}
+
+		envelopes[i] = e
+	}
+
+	return envelopes
+}
+
+func TestChunkSizeSubscription(t *testing.T) {
+	var (
+		store, logger = setup(t)
+		count         = 100
+		chunkSize     = 7
+		envelopes     = createGatewayEnvelopes(t, count)
+
+		interval = 10 * time.Millisecond
+	)
+
+	// Insert envelopes in the DB
+	testutils.InsertGatewayEnvelopes(t, store, envelopes)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	sub := db.NewDBSubscription(
+		ctx,
+		logger,
+		envelopesQuery(store),
+		db.VectorClock{},
+		db.PollingOptions{Interval: interval, NumRows: int32(chunkSize)},
+	)
+
+	updates, err := sub.Start()
+	require.NoError(t, err)
+
+	var (
+		retrieved  []queries.GatewayEnvelopesView
+		chunkCount = 0
+	)
+loop:
+	for {
+		select {
+		case chunk, ok := <-updates:
+			if !ok {
+				break loop
+			}
+
+			require.LessOrEqual(t, len(chunk), chunkSize)
+
+			chunkCount++
+			retrieved = append(retrieved, chunk...)
+
+			if len(retrieved) == len(envelopes) {
+				cancel()
+			}
+
+		case <-ctx.Done():
+			break loop
+		}
+	}
+
+	require.Len(t, retrieved, count)
+
+	for i := range len(envelopes) {
+		e := envelopes[i]
+		record := retrieved[i]
+
+		require.Equal(t, e.OriginatorNodeID, record.OriginatorNodeID)
+		require.Equal(t, e.OriginatorSequenceID, record.OriginatorSequenceID)
+		require.Equal(t, e.Topic, record.Topic)
+		require.Equal(t, e.OriginatorEnvelope, record.OriginatorEnvelope)
 	}
 }
 

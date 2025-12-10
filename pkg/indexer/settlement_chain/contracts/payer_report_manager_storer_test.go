@@ -246,7 +246,7 @@ func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify the report status
-			q := queries.New(db)
+			q := db.Query()
 			res, queryErr := q.FetchPayerReports(ctx, queries.FetchPayerReportsParams{
 				OriginatorNodeID: utils.NewNullInt32(&tc.originatorNodeID),
 			})
@@ -361,8 +361,7 @@ func TestStorePayerReportManagerPayerReportSubsetSettledIdempotency(t *testing.T
 	require.NoError(t, err)
 
 	// Verify the report exists and is marked as settled
-	q := queries.New(db)
-	res, queryErr := q.FetchPayerReports(ctx, queries.FetchPayerReportsParams{
+	res, queryErr := db.Query().FetchPayerReports(ctx, queries.FetchPayerReportsParams{
 		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
 	})
 	require.Nil(t, queryErr)
@@ -403,7 +402,7 @@ func buildPayerReportManagerStorerTester(t *testing.T) *payerReportManagerStorer
 	return &payerReportManagerStorerTester{
 		abi:     abi,
 		storer:  storer,
-		queries: queries.New(db),
+		queries: db.Query(),
 	}
 }
 

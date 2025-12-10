@@ -12,7 +12,7 @@ import (
 
 func setupTest(t *testing.T) (context.Context, *queries.Queries) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 

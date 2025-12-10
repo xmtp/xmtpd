@@ -4,7 +4,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -18,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
@@ -39,7 +39,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/indexer"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -50,7 +49,7 @@ import (
 
 type BaseServerConfig struct {
 	Ctx           context.Context
-	DB            *sql.DB
+	DB            *db.Handler
 	Logger        *zap.Logger
 	NodeRegistry  registry.NodeRegistry
 	Options       *config.ServerOptions
@@ -59,13 +58,47 @@ type BaseServerConfig struct {
 	PromReg       *prometheus.Registry
 }
 
+func (cfg BaseServerConfig) Valid() error {
+	var errs []error
+
+	if cfg.Options == nil {
+		errs = append(errs, errors.New("server options not provided"))
+	}
+
+	if cfg.Ctx == nil {
+		errs = append(errs, errors.New("context not provided"))
+	}
+
+	if cfg.Logger == nil {
+		errs = append(errs, errors.New("logger not provided"))
+	}
+
+	if cfg.NodeRegistry == nil {
+		errs = append(errs, errors.New("node registry not provided"))
+	}
+
+	if cfg.DB == nil {
+		errs = append(errs, errors.New("database handler not provided"))
+	}
+
+	if cfg.FeeCalculator == nil {
+		errs = append(errs, errors.New("fee calculator not provided"))
+	}
+
+	if cfg.PromReg == nil {
+		errs = append(errs, errors.New("prometheus registry not provided"))
+	}
+
+	return errors.Join(errs...)
+}
+
 func WithContext(ctx context.Context) BaseServerOption {
 	return func(cfg *BaseServerConfig) {
 		cfg.Ctx = ctx
 	}
 }
 
-func WithDB(db *sql.DB) BaseServerOption {
+func WithDB(db *db.Handler) BaseServerOption {
 	return func(cfg *BaseServerConfig) {
 		cfg.DB = db
 	}
@@ -154,32 +187,9 @@ func NewBaseServer(
 		opt(cfg)
 	}
 
-	if cfg.Options == nil {
-		return nil, errors.New("server Options not provided")
-	}
-
-	if cfg.Ctx == nil {
-		return nil, errors.New("context not provided")
-	}
-
-	if cfg.Logger == nil {
-		return nil, errors.New("logger not provided")
-	}
-
-	if cfg.NodeRegistry == nil {
-		return nil, errors.New("node registry not provided")
-	}
-
-	if cfg.DB == nil {
-		return nil, errors.New("database not provided")
-	}
-
-	if cfg.FeeCalculator == nil {
-		return nil, errors.New("no fee calculator found")
-	}
-
-	if cfg.PromReg == nil {
-		return nil, errors.New("prometheus registry not provided")
+	err = cfg.Valid()
+	if err != nil {
+		return nil, fmt.Errorf("invalid base server configuration: %w", err)
 	}
 
 	promReg := cfg.PromReg
@@ -225,7 +235,7 @@ func NewBaseServer(
 		svc.registrant, err = registrant.NewRegistrant(
 			svc.ctx,
 			cfg.Logger,
-			queries.New(cfg.DB),
+			cfg.DB.Query(),
 			cfg.NodeRegistry,
 			cfg.Options.Signer.PrivateKey,
 			cfg.ServerVersion,
@@ -328,8 +338,10 @@ func NewBaseServer(
 			sync.WithDB(cfg.DB),
 			sync.WithFeeCalculator(cfg.FeeCalculator),
 			sync.WithPayerReportStore(
-				payerreport.NewStore(cfg.DB, cfg.Logger.Named(utils.PayerReportMainLoggerName).
-					With(utils.WorkerNodeIDField(svc.registrant.NodeID()))),
+				payerreport.NewStore(
+					cfg.Logger.Named(utils.PayerReportMainLoggerName).
+						With(utils.WorkerNodeIDField(svc.registrant.NodeID())),
+					cfg.DB),
 			),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 			sync.WithClientMetrics(clientMetrics),
@@ -398,7 +410,7 @@ func NewBaseServer(
 			WithRegistrant(svc.registrant).
 			WithRegistry(svc.nodeRegistry).
 			WithReportsManager(reportsManager).
-			WithStore(payerreport.NewStore(cfg.DB, payerReportBaseLogger)).
+			WithStore(payerreport.NewStore(payerReportBaseLogger, cfg.DB)).
 			WithDomainSeparator(domainSeparator).
 			WithAttestationPollInterval(cfg.Options.PayerReport.AttestationWorkerPollInterval).
 			WithGenerationSelfPeriod(cfg.Options.PayerReport.GenerateReportSelfPeriod).

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
@@ -42,7 +43,7 @@ type migratorTest struct {
 	ctx      context.Context
 	cleanup  func()
 	migrator *migrator.Migrator
-	db       *sql.DB
+	db       *db.Handler
 }
 
 func newMigratorTest(t *testing.T) *migratorTest {
@@ -91,10 +92,10 @@ func TestMigrator(t *testing.T) {
 	require.NoError(t, test.migrator.Start())
 
 	require.Eventually(t, func() bool {
-		return checkMigrationTrackerState(test.ctx, test.db) &&
-			checkGatewayEnvelopesLastID(test.ctx, test.db) &&
-			checkGatewayEnvelopesMigratedAmount(test.ctx, test.db) &&
-			checkGatewayEnvelopesAreUnique(test.ctx, test.db)
+		return checkMigrationTrackerState(test.ctx, test.db.DB()) &&
+			checkGatewayEnvelopesLastID(test.ctx, test.db.DB()) &&
+			checkGatewayEnvelopesMigratedAmount(test.ctx, test.db.DB()) &&
+			checkGatewayEnvelopesAreUnique(test.ctx, test.db.DB())
 	}, 20*time.Second, 50*time.Millisecond)
 
 	require.NoError(t, test.migrator.Stop())

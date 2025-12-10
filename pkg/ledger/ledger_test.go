@@ -3,23 +3,21 @@ package ledger_test
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/currency"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"go.uber.org/zap"
 )
 
 type testFixture struct {
-	ctx     context.Context
-	db      *sql.DB
-	ledger  *ledger.Ledger
-	queries *queries.Queries
+	ctx    context.Context
+	db     *db.Handler
+	ledger *ledger.Ledger
 }
 
 type initialEvent struct {
@@ -41,14 +39,12 @@ func setupTest(t *testing.T) *testFixture {
 	ctx := context.Background()
 	db, _ := testutils.NewDB(t, ctx)
 	logger := zap.NewNop()
-	l := ledger.NewLedger(logger, queries.New(db))
-	q := queries.New(db)
+	l := ledger.NewLedger(logger, db)
 
 	return &testFixture{
-		ctx:     ctx,
-		db:      db,
-		ledger:  l,
-		queries: q,
+		ctx:    ctx,
+		db:     db,
+		ledger: l,
 	}
 }
 

@@ -22,7 +22,7 @@ import (
 func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	queryImpl := queries.New(db)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, rpcURL, wsURL)

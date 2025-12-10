@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -39,7 +39,7 @@ var _ c.IContract = &PayerRegistry{}
 func NewPayerRegistry(
 	ctx context.Context,
 	client *ethclient.Client,
-	querier *queries.Queries,
+	db *db.Handler,
 	logger *zap.Logger,
 	address common.Address,
 	chainID int64,
@@ -54,7 +54,7 @@ func NewPayerRegistry(
 		ctx,
 		client,
 		address,
-		querier,
+		db,
 		startBlock,
 	)
 	if err != nil {
@@ -72,7 +72,7 @@ func NewPayerRegistry(
 	payerRegistryStorer, err := NewPayerRegistryStorer(
 		logger,
 		contract,
-		ledger.NewLedger(logger, querier),
+		ledger.NewLedger(logger, db),
 	)
 	if err != nil {
 		return nil, err

@@ -27,7 +27,7 @@ func buildIdentityUpdateStorer(
 ) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, rpcURL, wsURL)
 

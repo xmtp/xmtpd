@@ -57,8 +57,7 @@ func newTestEnvelopeSink(
 	calculator := feesTestUtils.NewTestFeeCalculator()
 	dbInstance, _ := testutils.NewDB(t, ctx)
 
-	querier := queries.New(dbInstance)
-	err := querier.EnsureGatewayParts(
+	err := dbInstance.Query().EnsureGatewayParts(
 		ctx,
 		queries.EnsureGatewayPartsParams{
 			OriginatorNodeID:     200,

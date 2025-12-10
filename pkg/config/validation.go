@@ -321,15 +321,7 @@ func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
 	}
 
 	if options.ConfigFilePath != "" {
-		file, err := os.Open(options.ConfigFilePath)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = file.Close()
-		}()
-
-		data, err := io.ReadAll(file)
+		data, err := os.ReadFile(options.ConfigFilePath)
 		if err != nil {
 			return err
 		}

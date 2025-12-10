@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -97,7 +98,11 @@ func main() {
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
 		promReg := prometheus.NewRegistry()
 
-		var dbInstance *sql.DB
+		var (
+			dbh     *db.Handler
+			readDB  *sql.DB
+			writeDB *sql.DB
+		)
 
 		if options.Debug.Enable {
 			pprofServer := debug.NewServer(options.Debug.Port)
@@ -113,16 +118,21 @@ func main() {
 			}()
 		}
 
-		if options.API.Enable || options.Sync.Enable || options.Indexer.Enable ||
-			options.MigrationServer.Enable || options.PayerReport.Enable {
-			namespace := options.DB.NameOverride
-			if namespace == "" {
-				namespace = utils.BuildNamespace(
+		if options.API.Enable ||
+			options.Sync.Enable ||
+			options.Indexer.Enable ||
+			options.MigrationServer.Enable ||
+			options.PayerReport.Enable {
+
+			namespace := cmp.Or(
+				options.DB.NameOverride,
+				utils.BuildNamespace(
 					options.Signer.PrivateKey,
 					options.Contracts.SettlementChain.NodeRegistryAddress,
-				)
-			}
-			dbInstance, err = db.NewNamespacedDB(
+				),
+			)
+
+			writeDB, err = db.NewNamespacedDB(
 				ctx,
 				logger,
 				options.DB.WriterConnectionString,
@@ -132,8 +142,32 @@ func main() {
 				promReg,
 			)
 			if err != nil {
-				logger.Fatal("initializing database", zap.Error(err))
+				logger.Fatal("initializing writer database", zap.Error(err))
 			}
+
+			var dbopts []db.HandlerOption
+
+			// If we have a separate reader DB initialize it here.
+			if options.DB.ReaderConnectionString != "" {
+
+				readDB, err = db.NewNamespacedDB(
+					ctx,
+					logger,
+					options.DB.ReaderConnectionString,
+					namespace,
+					options.DB.WaitForDB,
+					options.DB.ReadTimeout,
+					promReg,
+				)
+				if err != nil {
+					logger.Fatal("initializing reader database", zap.Error(err))
+				}
+
+				// Instruct db handler to include a read replica.
+				dbopts = append(dbopts, db.WithReadReplica(readDB))
+			}
+
+			dbh = db.NewDBHandler(writeDB, dbopts...)
 		}
 
 		settlementChainClient, err := blockchain.NewRPCClient(
@@ -173,7 +207,7 @@ func main() {
 			server.WithLogger(logger),
 			server.WithServerOptions(&options),
 			server.WithNodeRegistry(chainRegistry),
-			server.WithDB(dbInstance),
+			server.WithDB(dbh),
 			server.WithFeeCalculator(feeCalculator),
 			server.WithServerVersion(version),
 			server.WithPromReg(promReg),

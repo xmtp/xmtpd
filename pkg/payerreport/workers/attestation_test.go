@@ -26,7 +26,7 @@ func testAttestationWorker(
 		log            = testutils.NewLog(t)
 		ctx            = t.Context()
 		db, _          = testutils.NewDB(t, ctx)
-		store          = payerreport.NewStore(db, log)
+		store          = payerreport.NewStore(log, db)
 		mockRegistrant = registrantMocks.NewMockIRegistrant(t)
 		verifier       = payerreportMocks.NewMockIPayerReportVerifier(t)
 		worker         = NewAttestationWorker(
@@ -58,7 +58,7 @@ func testAttestationWorker(
 
 	// Create real sequence IDs, from 1 to 10.
 	for i := uint64(1); i <= 10; i++ {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{
+		testutils.InsertGatewayEnvelopes(t, db.DB(), []queries.InsertGatewayEnvelopeParams{
 			{
 				OriginatorNodeID:     originatorNodeID,
 				OriginatorSequenceID: int64(i),

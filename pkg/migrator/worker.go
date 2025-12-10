@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -23,7 +24,7 @@ type Worker struct {
 	logger *zap.Logger
 
 	// Data management.
-	writer              *sql.DB
+	writer              *db.Handler
 	wrtrQueries         *queries.Queries
 	blockchainPublisher blockchain.IBlockchainPublisher
 
@@ -44,7 +45,7 @@ type Worker struct {
 func NewWorker(
 	tableName string,
 	batchSize int32,
-	writer *sql.DB,
+	writer *db.Handler,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	logger *zap.Logger,
 	pollInterval time.Duration,
@@ -62,7 +63,6 @@ func NewWorker(
 	return &Worker{
 		logger:              logger,
 		writer:              writer,
-		wrtrQueries:         queries.New(writer),
 		blockchainPublisher: blockchainPublisher,
 		recvChan:            make(chan ISourceRecord, batchSize*2),
 		wrtrChan:            make(chan *envelopes.OriginatorEnvelope, batchSize*2),
@@ -249,7 +249,7 @@ func (w *Worker) startTransformer(ctx context.Context, transformer IDataTransfor
 
 						err := insertMigrationDeadLetterBox(
 							ctx,
-							w.writer,
+							w.writer.Write(),
 							w.tableName,
 							record.GetID(),
 							nil,

@@ -14,7 +14,6 @@ import (
 	pr "github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/currency"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
@@ -311,7 +310,7 @@ func buildPayerRegistryStorerTester(t *testing.T) *payerRegistryStorerTester {
 	)
 	require.NoError(t, err)
 
-	payerLedger := ledger.NewLedger(testutils.NewLog(t), queries.New(db))
+	payerLedger := ledger.NewLedger(testutils.NewLog(t), db)
 
 	// Storer and ABI.
 	storer, err := NewPayerRegistryStorer(testutils.NewLog(t), contract, payerLedger)

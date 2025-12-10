@@ -185,10 +185,12 @@ func WaitForTransaction(
 			if receipt.Status == types.ReceiptStatusFailed {
 				tx, _, err := client.TransactionByHash(ctx, hash)
 				if err != nil {
-					return receipt, NewBlockchainError(err)
+					return receipt, NewBlockchainError(
+						fmt.Errorf("failed to get transaction %s: %w", hash.Hex(), err),
+					)
 				}
 
-				protocolErr := getProtocolError(ctx, client, tx, receipt)
+				protocolErr := getProtocolError(ctx, client, tx)
 				return receipt, protocolErr
 			}
 		}
@@ -202,31 +204,40 @@ func WaitForTransaction(
 	}
 }
 
-// getProtocolError replays the transaction at the block where it failed and returns the protocol error.
+type traceTransactionResult struct {
+	Output string `json:"output"`
+}
+
+type traceTransactionConfig struct {
+	Tracer string `json:"tracer"`
+}
+
+// getProtocolError uses debug_traceTransaction with callTracer to extract the revert reason.
+// This approach works reliably on Arbitrum Orbit L3 where eth_call may not return revert data.
 func getProtocolError(
 	ctx context.Context,
 	client *ethclient.Client,
 	tx *types.Transaction,
-	receipt *types.Receipt,
 ) ProtocolError {
-	from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	traceCfg := traceTransactionConfig{
+		Tracer: "callTracer",
+	}
+
+	var traceOut traceTransactionResult
+
+	err := client.Client().
+		CallContext(ctx, &traceOut, "debug_traceTransaction", tx.Hash(), &traceCfg)
 	if err != nil {
-		return NewBlockchainError(err)
+		return NewBlockchainError(
+			fmt.Errorf("failed to trace transaction %s: %w", tx.Hash().Hex(), err),
+		)
 	}
 
-	msg := ethereum.CallMsg{
-		From:     from,
-		To:       tx.To(),
-		Gas:      tx.Gas(),
-		GasPrice: tx.GasPrice(),
-		Value:    tx.Value(),
-		Data:     tx.Data(),
+	if traceOut.Output == "" {
+		return NewBlockchainError(
+			fmt.Errorf("transaction %s reverted without reason", tx.Hash().Hex()),
+		)
 	}
 
-	_, err = client.CallContract(ctx, msg, receipt.BlockNumber)
-	if err != nil {
-		return NewBlockchainError(err)
-	}
-
-	return NewBlockchainError(errors.New("unknown revert reason"))
+	return NewBlockchainError(errors.New(traceOut.Output))
 }

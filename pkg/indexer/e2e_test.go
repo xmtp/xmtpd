@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	sqlnonce "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
+	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
@@ -72,6 +73,9 @@ func messagePublisher(
 
 	nonceManager := sqlnonce.NewSQLBackedNonceManager(db, testutils.NewLog(t))
 
+	oracle, err := oracle.New(ctx, testutils.NewLog(t), contractsCfg.AppChain.WssURL)
+	require.NoError(t, err)
+
 	publisher, err := blockchain.NewBlockchainPublisher(
 		ctx,
 		testutils.NewLog(t),
@@ -79,6 +83,7 @@ func messagePublisher(
 		signer,
 		contractsCfg,
 		nonceManager,
+		oracle,
 	)
 	require.NoError(t, err)
 

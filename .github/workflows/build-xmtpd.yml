@@ -87,6 +87,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: push_to_registry
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: deploy-testnet-staging-main
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v6

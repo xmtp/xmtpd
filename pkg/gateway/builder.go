@@ -380,7 +380,7 @@ func setupNodeRegistry(
 		ctx,
 		settlementChainClient,
 		logger,
-		cfg.Contracts,
+		&cfg.Contracts,
 	)
 	if err != nil {
 		return nil, err
@@ -420,7 +420,7 @@ func setupBlockchainPublisher(
 		logger,
 		appChainClient,
 		signer,
-		cfg.Contracts,
+		&cfg.Contracts,
 		nonceManager,
 	)
 }

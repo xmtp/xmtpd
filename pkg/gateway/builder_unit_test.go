@@ -27,7 +27,7 @@ func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
 		API: config.APIOptions{
 			Port: 0,
 		},
-		Contracts: testutils.NewContractsOptions(t, wsURL, rpcURL),
+		Contracts: *testutils.NewContractsOptions(t, wsURL, rpcURL),
 		Log: config.LogOptions{
 			LogEncoding: "console",
 			LogLevel:    "info",

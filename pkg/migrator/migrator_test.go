@@ -66,7 +66,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			BatchSize:              1000,
 			PollInterval:           500 * time.Millisecond,
 		}),
-		migrator.WithContractsOptions(&chainConfig),
+		migrator.WithContractsOptions(chainConfig),
 	)
 	require.NoError(t, err)
 

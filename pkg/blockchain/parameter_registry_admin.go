@@ -115,7 +115,7 @@ func NewSettlementParameterAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 ) (IParameterAdmin, error) {
 	reg, err := NewSettlementRegistryAdapter(
 		client,
@@ -139,7 +139,7 @@ func NewAppChainParameterAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 ) (IParameterAdmin, error) {
 	reg, err := NewAppChainRegistryAdapter(
 		client,

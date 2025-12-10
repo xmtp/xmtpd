@@ -165,9 +165,9 @@ func (v *OptionsValidator) validateMigrationOptions(
 	}
 }
 
-func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
+func ContractOptionsFromEnv(filePath string) (*ContractsOptions, error) {
 	if filePath == "" {
-		return ContractsOptions{}, errors.New("config file path is not set")
+		return nil, errors.New("config file path is not set")
 	}
 
 	var data []byte
@@ -180,19 +180,19 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 				environments.SmartContractEnvironment(u.Host),
 			)
 			if err != nil {
-				return ContractsOptions{}, fmt.Errorf("unknown config environment %s", u.Host)
+				return nil, fmt.Errorf("unknown config environment %s", u.Host)
 			}
 		case "http", "https":
 			client := &http.Client{Timeout: 10 * time.Second}
 			resp, err := client.Get(filePath)
 			if err != nil {
-				return ContractsOptions{}, fmt.Errorf("fetching %s: %w", filePath, err)
+				return nil, fmt.Errorf("fetching %s: %w", filePath, err)
 			}
 			defer func() {
 				_ = resp.Body.Close()
 			}()
 			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-				return ContractsOptions{}, fmt.Errorf(
+				return nil, fmt.Errorf(
 					"fetching %s: http %d",
 					filePath,
 					resp.StatusCode,
@@ -202,7 +202,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			limited := io.LimitReader(resp.Body, 10<<10)
 			data, err = io.ReadAll(limited)
 			if err != nil {
-				return ContractsOptions{}, fmt.Errorf("reading %s: %w", filePath, err)
+				return nil, fmt.Errorf("reading %s: %w", filePath, err)
 			}
 		case "file":
 			// file:// URLs may have URL-encoded paths
@@ -216,7 +216,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			}
 			localPath, err = url.PathUnescape(localPath)
 			if err != nil {
-				return ContractsOptions{}, fmt.Errorf(
+				return nil, fmt.Errorf(
 					"invalid file URL path %q: %w",
 					localPath,
 					err,
@@ -225,7 +225,7 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 
 			f, err := os.Open(localPath)
 			if err != nil {
-				return ContractsOptions{}, fmt.Errorf("open %s: %w", localPath, err)
+				return nil, fmt.Errorf("open %s: %w", localPath, err)
 			}
 			defer func() {
 				_ = f.Close()
@@ -233,16 +233,16 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 			limited := io.LimitReader(f, 10<<10)
 			data, err = io.ReadAll(limited)
 			if err != nil {
-				return ContractsOptions{}, fmt.Errorf("read %s: %w", localPath, err)
+				return nil, fmt.Errorf("read %s: %w", localPath, err)
 			}
 		default:
-			return ContractsOptions{}, fmt.Errorf("unsupported URL scheme %q", u.Scheme)
+			return nil, fmt.Errorf("unsupported URL scheme %q", u.Scheme)
 		}
 	} else {
 		// Local filesystem path
 		f, err := os.Open(filePath)
 		if err != nil {
-			return ContractsOptions{}, fmt.Errorf("open %s: %w", filePath, err)
+			return nil, fmt.Errorf("open %s: %w", filePath, err)
 		}
 		defer func() {
 			_ = f.Close()
@@ -250,17 +250,17 @@ func ContractOptionsFromEnv(filePath string) (ContractsOptions, error) {
 		r := io.LimitReader(f, 10<<10)
 		data, err = io.ReadAll(r)
 		if err != nil {
-			return ContractsOptions{}, fmt.Errorf("read %s: %w", filePath, err)
+			return nil, fmt.Errorf("read %s: %w", filePath, err)
 		}
 	}
 
 	var config ChainConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		return ContractsOptions{}, fmt.Errorf("unmarshal config: %w", err)
+		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}
 
 	// Set default values for missing options in environment json.
-	return ContractsOptions{
+	return &ContractsOptions{
 		SettlementChain: SettlementChainOptions{
 			NodeRegistryAddress:         config.NodeRegistry,
 			RateRegistryAddress:         config.RateRegistry,
@@ -317,7 +317,7 @@ func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
 		}
 		v.logger.Debug("Chain config", zap.Any("config", config))
 
-		fillConfigFromJSON(options, &config)
+		FillConfigFromJSON(options, &config)
 	}
 
 	if options.ConfigFilePath != "" {
@@ -340,7 +340,7 @@ func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
 			return err
 		}
 
-		fillConfigFromJSON(options, &config)
+		FillConfigFromJSON(options, &config)
 	}
 
 	if options.ConfigJSON != "" {
@@ -350,13 +350,13 @@ func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
 			return err
 		}
 
-		fillConfigFromJSON(options, &config)
+		FillConfigFromJSON(options, &config)
 	}
 
 	return nil
 }
 
-func fillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
+func FillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
 	// Explicitly specified ENV variables in options take precedence!
 	// Only fill in values from the JSON if the relevant fields in options are empty or zero.
 

@@ -93,7 +93,7 @@ func NewSettlementChainAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 	parameterAdmin IParameterAdmin,
 ) (ISettlementChainAdmin, error) {
 	acGateway, err := scg.NewSettlementChainGateway(

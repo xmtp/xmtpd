@@ -24,7 +24,7 @@ import (
 
 func startIndexing(
 	t *testing.T,
-) (*sql.DB, *queries.Queries, config.ContractsOptions, context.Context) {
+) (*sql.DB, *queries.Queries, *config.ContractsOptions, context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
@@ -40,7 +40,7 @@ func startIndexing(
 		indexer.WithLogger(logger),
 		indexer.WithContext(ctx),
 		indexer.WithValidationService(validationService),
-		indexer.WithContractsOptions(&cfg),
+		indexer.WithContractsOptions(cfg),
 	)
 	require.NoError(t, err)
 
@@ -54,7 +54,7 @@ func messagePublisher(
 	t *testing.T,
 	ctx context.Context,
 	db *sql.DB,
-	contractsCfg config.ContractsOptions,
+	contractsCfg *config.ContractsOptions,
 ) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	var signer blockchain.TransactionSigner

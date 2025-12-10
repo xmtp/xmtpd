@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -19,22 +18,21 @@ func setupAppChainAdmin(
 	var (
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
+		env        = viper.GetString("environment")
 	)
 
 	rpcURL, err := resolveAppRPCURL()
 	if err != nil {
 		return nil, nil, err
 	}
-	if configFile == "" {
-		return nil, nil, fmt.Errorf("config-file is required")
-	}
+
 	if privateKey == "" {
 		return nil, nil, fmt.Errorf("private-key is required")
 	}
 
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, nil, err
 	}
 
 	client, err := blockchain.NewRPCClient(ctx, rpcURL)
@@ -67,21 +65,20 @@ func setupSettlementChainAdmin(
 	var (
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
+		env        = viper.GetString("environment")
 	)
 	rpcURL, err := resolveSettlementRPCURL()
 	if err != nil {
 		return nil, nil, err
 	}
-	if configFile == "" {
-		return nil, nil, fmt.Errorf("config-file is required")
-	}
+
 	if privateKey == "" {
 		return nil, nil, fmt.Errorf("private-key is required")
 	}
 
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, nil, err
 	}
 
 	client, err := blockchain.NewRPCClient(ctx, rpcURL)
@@ -119,23 +116,21 @@ func setupNodeRegistryAdmin(
 	var (
 		privateKey = viper.GetString("private-key")
 		configFile = viper.GetString("config-file")
+		env        = viper.GetString("environment")
 	)
 
 	rpcURL, err := resolveSettlementRPCURL()
 	if err != nil {
 		return nil, err
 	}
+
 	if privateKey == "" {
 		return nil, fmt.Errorf("private key is required")
 	}
 
-	if configFile == "" {
-		return nil, fmt.Errorf("config file is required")
-	}
-
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, err
 	}
 
 	chainClient, err := blockchain.NewRPCClient(
@@ -182,20 +177,19 @@ func setupNodeRegistryCaller(
 	ctx context.Context,
 	logger *zap.Logger,
 ) (blockchain.INodeRegistryCaller, error) {
-	configFile := viper.GetString("config-file")
+	var (
+		configFile = viper.GetString("config-file")
+		env        = viper.GetString("environment")
+	)
 
 	rpcURL, err := resolveSettlementRPCURL()
 	if err != nil {
 		return nil, err
 	}
 
-	if configFile == "" {
-		return nil, fmt.Errorf("config file is required")
-	}
-
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, err
 	}
 
 	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
@@ -222,22 +216,21 @@ func setupRateRegistryAdmin(
 	var (
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
+		env        = viper.GetString("environment")
 	)
 
 	rpcURL, err := resolveSettlementRPCURL()
 	if err != nil {
 		return nil, err
 	}
-	if configFile == "" {
-		return nil, fmt.Errorf("config-file is required")
-	}
+
 	if privateKey == "" {
 		return nil, fmt.Errorf("private-key is required")
 	}
 
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, err
 	}
 
 	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
@@ -281,19 +274,19 @@ func setupRatesFetcher(
 	ctx context.Context,
 	logger *zap.Logger,
 ) (*fees.ContractRatesFetcher, error) {
-	configFile := viper.GetString("config-file")
+	var (
+		configFile = viper.GetString("config-file")
+		env        = viper.GetString("environment")
+	)
 
 	rpcURL, err := resolveSettlementRPCURL()
 	if err != nil {
 		return nil, err
 	}
-	if configFile == "" {
-		return nil, fmt.Errorf("config-file is required")
-	}
 
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, err
 	}
 
 	chainClient, err := blockchain.NewRPCClient(ctx, rpcURL)
@@ -316,6 +309,7 @@ func setupFundsAdmin(
 	var (
 		configFile = viper.GetString("config-file")
 		privateKey = viper.GetString("private-key")
+		env        = viper.GetString("environment")
 	)
 
 	settlementRPCURL, err := resolveSettlementRPCURL()
@@ -328,17 +322,13 @@ func setupFundsAdmin(
 		return nil, err
 	}
 
-	if configFile == "" {
-		return nil, fmt.Errorf("config-file is required")
-	}
-
 	if privateKey == "" {
 		return nil, fmt.Errorf("private-key is required")
 	}
 
-	contracts, err := config.ContractOptionsFromEnv(configFile)
+	contracts, err := resolveConfig(configFile, env)
 	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
+		return nil, err
 	}
 
 	chainClientSettlement, err := blockchain.NewRPCClient(ctx, settlementRPCURL)

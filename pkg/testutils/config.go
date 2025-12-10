@@ -17,14 +17,14 @@ const (
 	TestPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
-func NewContractsOptions(t *testing.T, rpcURL, wsURL string) config.ContractsOptions {
+func NewContractsOptions(t *testing.T, rpcURL, wsURL string) *config.ContractsOptions {
 	anvilJson, err := environments.GetEnvironmentConfig(environments.Anvil)
 	require.NoError(t, err)
 	var chainConfig config.ChainConfig
 	err = json.Unmarshal(anvilJson, &chainConfig)
 	require.NoError(t, err)
 
-	return config.ContractsOptions{
+	return &config.ContractsOptions{
 		AppChain: config.AppChainOptions{
 			RPCURL:                           rpcURL,
 			WssURL:                           wsURL,

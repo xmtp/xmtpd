@@ -40,7 +40,7 @@ func setupBlockchainPublisher(
 		logger,
 		appChainClient,
 		signer,
-		*cfg,
+		cfg,
 		nonceManager,
 	)
 }

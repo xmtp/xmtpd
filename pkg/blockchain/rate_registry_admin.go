@@ -34,7 +34,7 @@ func NewRatesAdmin(
 	client *ethclient.Client,
 	signer TransactionSigner,
 	paramAdmin IParameterAdmin,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 ) (IRatesAdmin, error) {
 	rateContract, err := rateregistry.NewRateRegistry(
 		common.HexToAddress(contractsOptions.SettlementChain.RateRegistryAddress),

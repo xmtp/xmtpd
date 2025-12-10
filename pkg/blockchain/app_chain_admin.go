@@ -71,7 +71,7 @@ func NewAppChainAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 	parameterAdmin IParameterAdmin,
 ) (IAppChainAdmin, error) {
 	iuBroadcaster, err := iu.NewIdentityUpdateBroadcaster(

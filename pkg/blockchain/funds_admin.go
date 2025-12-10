@@ -60,7 +60,7 @@ type FundsAdminAppOpts struct {
 
 type FundsAdminOpts struct {
 	Logger          *zap.Logger
-	ContractOptions config.ContractsOptions
+	ContractOptions *config.ContractsOptions
 	Settlement      FundsAdminSettlementOpts
 	App             FundsAdminAppOpts
 }

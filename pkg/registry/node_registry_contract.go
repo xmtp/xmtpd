@@ -55,7 +55,7 @@ func NewSmartContractRegistry(
 	ctx context.Context,
 	ethclient bind.ContractCaller,
 	logger *zap.Logger,
-	options config.ContractsOptions,
+	options *config.ContractsOptions,
 ) (*SmartContractRegistry, error) {
 	contract, err := noderegistry.NewNodeRegistryCaller(
 		common.HexToAddress(options.SettlementChain.NodeRegistryAddress),

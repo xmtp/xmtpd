@@ -15,7 +15,7 @@ trap 'rm -f "$tmp"' EXIT
 set +e
 dev/cmd/cli \
   --private-key "${PRIVATE_KEY}" \
-  --rpc-url "${RPC_URL}" \
+  --settlement-rpc-url "${RPC_URL}" \
   --log-encoding json \
   --config-file "${CFG}" \
   nodes register \
@@ -33,7 +33,7 @@ if [[ $status -ne 0 ]]; then
     echo "⚠️  Signing key already registered; resolving node id…"
     NODE_ID="$(
       dev/cmd/cli \
-        --rpc-url "${RPC_URL}" \
+        --settlement-rpc-url "${RPC_URL}" \
         --log-encoding json \
         --config-file "${CFG}" \
         nodes get --all \
@@ -57,7 +57,7 @@ echo "==> Node id: ${NODE_ID}"
 
 dev/cmd/cli \
   --private-key "${PRIVATE_KEY}" \
-  --rpc-url "${RPC_URL}" \
+  --settlement-rpc-url "${RPC_URL}" \
   --log-encoding json \
   --config-file "${CFG}" \
   nodes canonical-network --add --node-id "${NODE_ID}" \

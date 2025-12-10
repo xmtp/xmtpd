@@ -22,7 +22,7 @@ import (
 // --- local helper that also returns client + options so we can assert balances on-chain.
 func buildFundsAdminWithDeps(
 	t *testing.T,
-) (blockchain.IFundsAdmin, context.Context, *ethclient.Client, config.ContractsOptions) {
+) (blockchain.IFundsAdmin, context.Context, *ethclient.Client, *config.ContractsOptions) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -24,7 +24,7 @@ const (
 	PayerPrivateKeyString = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
-func NewMigratorBlockchain(t *testing.T) config.ContractsOptions {
+func NewMigratorBlockchain(t *testing.T) *config.ContractsOptions {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(t, wsURL, rpcURL)
 

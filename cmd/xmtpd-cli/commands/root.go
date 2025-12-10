@@ -2,9 +2,12 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/xmtp/xmtpd/pkg/config/environments"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,11 +23,11 @@ var rootCmd = &cobra.Command{
 }
 
 var (
+	environment         string
 	globalConfigFile    string
 	globalLogLevel      string
 	globalLogEncoding   string
 	globalPrivateKey    string
-	globalRPCURL        string
 	globalSettlementURL string
 	globalAppURL        string
 )
@@ -96,17 +99,14 @@ func registerGlobalFlags() error {
 	}
 
 	rootCmd.PersistentFlags().
-		StringVarP(&globalRPCURL, "rpc-url", "r", "", "RPC URL to use")
+		StringVarP(&environment, "environment", "", "", "Deployed environment to load contracts config for")
 
-	if err := viper.BindPFlag("rpc-url", rootCmd.PersistentFlags().Lookup("rpc-url")); err != nil {
+	if err := viper.BindPFlag("environment", rootCmd.PersistentFlags().Lookup("environment")); err != nil {
 		return err
 	}
-	if err := viper.BindEnv("rpc-url", "RPC_URL"); err != nil {
+	if err := viper.BindEnv("environment", "XMTPD_CONTRACTS_ENVIRONMENT"); err != nil {
 		return err
 	}
-
-	_ = rootCmd.PersistentFlags().
-		MarkDeprecated("rpc-url", "use --settlement-rpc-url or --app-rpc-url instead")
 
 	rootCmd.PersistentFlags().
 		StringVarP(&globalPrivateKey, "private-key", "p", "", "private key to use")
@@ -154,22 +154,59 @@ func resolveSettlementRPCURL() (string, error) {
 	if v := viper.GetString("settlement-rpc-url"); v != "" {
 		return v, nil
 	}
-	// fallback to legacy rpc-url
-	if v := viper.GetString("rpc-url"); v != "" {
-		return v, nil
-	}
-	return "", fmt.Errorf("missing settlement RPC URL: set --settlement-rpc-url or --rpc-url")
+	return "", fmt.Errorf("missing settlement RPC URL: set --settlement-rpc-url")
 }
 
 func resolveAppRPCURL() (string, error) {
 	if v := viper.GetString("app-rpc-url"); v != "" {
 		return v, nil
 	}
-	// fallback to legacy rpc-url
-	if v := viper.GetString("rpc-url"); v != "" {
-		return v, nil
+	return "", fmt.Errorf("missing app RPC URL: set --app-rpc-url")
+}
+
+func resolveConfig(configFile string, environment string) (*config.ContractsOptions, error) {
+	if environment != "" && configFile != "" {
+		return nil, fmt.Errorf(
+			"--environment cannot be used with --config-file",
+		)
 	}
-	return "", fmt.Errorf("missing app RPC URL: set --app-rpc-url or --rpc-url")
+
+	if environment != "" {
+		var env environments.SmartContractEnvironment
+		err := env.UnmarshalFlag(environment)
+		if err != nil {
+			return nil, err
+		}
+
+		data, err := environments.GetEnvironmentConfig(
+			env,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		var cfg config.ChainConfig
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return nil, err
+		}
+
+		var resultOptions config.ContractsOptions
+
+		config.FillConfigFromJSON(&resultOptions, &cfg)
+
+		return &resultOptions, nil
+	}
+
+	if configFile == "" {
+		return nil, fmt.Errorf("config-file or environment is required")
+	}
+
+	contracts, err := config.ContractOptionsFromEnv(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not load config from file: %w", err)
+	}
+
+	return contracts, nil
 }
 
 func init() {

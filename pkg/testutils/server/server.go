@@ -27,7 +27,7 @@ type EnabledServices struct {
 }
 
 type TestServerCfg struct {
-	ContractsOptions config.ContractsOptions
+	ContractsOptions *config.ContractsOptions
 	DB               *sql.DB
 	Port             int
 	PrivateKey       *ecdsa.PrivateKey
@@ -55,7 +55,7 @@ func NewTestBaseServer(
 				Enable:                cfg.Services.API,
 				SendKeepAliveInterval: 30 * time.Second,
 			},
-			Contracts: cfg.ContractsOptions,
+			Contracts: *cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{
 				GrpcAddress: "http://localhost:60051",
 			},

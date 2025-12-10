@@ -58,7 +58,7 @@ func NewContractRatesFetcher(
 	ctx context.Context,
 	ethclient bind.ContractCaller,
 	logger *zap.Logger,
-	options config.ContractsOptions,
+	options *config.ContractsOptions,
 ) (*ContractRatesFetcher, error) {
 	contract, err := rateregistry.NewRateRegistryCaller(
 		common.HexToAddress(options.SettlementChain.RateRegistryAddress),

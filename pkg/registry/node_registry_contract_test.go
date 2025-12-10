@@ -35,7 +35,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{
+		&config.ContractsOptions{
 			SettlementChain: config.SettlementChainOptions{
 				NodeRegistryRefreshInterval: 100 * time.Millisecond,
 			},
@@ -85,7 +85,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	registry, err := r.NewSmartContractRegistry(context.Background(),
 		nil,
 		testutils.NewLog(t),
-		config.ContractsOptions{
+		&config.ContractsOptions{
 			SettlementChain: config.SettlementChainOptions{
 				NodeRegistryRefreshInterval: 10 * time.Millisecond,
 			},

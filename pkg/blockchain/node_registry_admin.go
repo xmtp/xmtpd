@@ -45,7 +45,7 @@ func NewNodeRegistryAdmin(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 	parameterAdmin IParameterAdmin,
 ) (*nodeRegistryAdmin, error) {
 	nodeContract, err := noderegistry.NewNodeRegistry(

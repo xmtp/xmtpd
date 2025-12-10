@@ -61,7 +61,7 @@ type multiNodeTestScaffold struct {
 func setupBlockchain(
 	t *testing.T,
 	nodes []registry.Node,
-) (registry.NodeRegistry, blockchain.PayerReportsManager, config.ContractsOptions) {
+) (registry.NodeRegistry, blockchain.PayerReportsManager, *config.ContractsOptions) {
 	log := testutils.NewLog(t)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)

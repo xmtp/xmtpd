@@ -50,7 +50,7 @@ func NewBlockchainPublisher(
 	logger *zap.Logger,
 	client *ethclient.Client,
 	signer TransactionSigner,
-	contractOptions config.ContractsOptions,
+	contractOptions *config.ContractsOptions,
 	nonceManager noncemanager.NonceManager,
 	oracle oracle.BlockchainOracle,
 ) (*BlockchainPublisher, error) {

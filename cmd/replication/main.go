@@ -148,7 +148,7 @@ func main() {
 			ctx,
 			settlementChainClient,
 			logger,
-			options.Contracts,
+			&options.Contracts,
 		)
 		if err != nil {
 			logger.Fatal("initializing smart contract registry", zap.Error(err))
@@ -162,7 +162,7 @@ func main() {
 			ctx,
 			settlementChainClient,
 			logger,
-			options.Contracts,
+			&options.Contracts,
 		)
 		if err != nil {
 			logger.Fatal("initializing fee calculator", zap.Error(err))
@@ -195,7 +195,7 @@ func setupFeeCalculator(
 	ctx context.Context,
 	ethclient bind.ContractCaller,
 	logger *zap.Logger,
-	contractsOptions config.ContractsOptions,
+	contractsOptions *config.ContractsOptions,
 ) (*fees.FeeCalculator, error) {
 	ratesFetcher, err := fees.NewContractRatesFetcher(ctx, ethclient, logger, contractsOptions)
 	if err != nil {

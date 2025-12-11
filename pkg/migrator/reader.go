@@ -67,7 +67,7 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1
+		WHERE id > $1 AND is_commit = false
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -76,6 +76,27 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 			db,
 			query,
 			func() *GroupMessage { return &GroupMessage{} },
+		),
+	}
+}
+
+type CommitMessageReader struct {
+	*DBReader[*CommitMessage]
+}
+
+func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
+	query := `
+		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
+		FROM group_messages
+		WHERE id > $1 AND is_commit = true
+		ORDER BY id ASC
+		LIMIT $2
+	`
+	return &CommitMessageReader{
+		DBReader: NewDBReader(
+			db,
+			query,
+			func() *CommitMessage { return &CommitMessage{} },
 		),
 	}
 }

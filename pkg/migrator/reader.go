@@ -3,7 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"time"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
 )
@@ -37,14 +37,17 @@ func (r *DBReader[T]) Fetch(
 	lastID int64,
 	limit int32,
 ) ([]ISourceRecord, error) {
-	var heightID int64
+	// Query source height every 10 minutes to update the metric.
+	if time.Now().Minute()%10 == 0 {
+		var heightID int64
 
-	err := r.db.QueryRowContext(ctx, r.queryHeight).Scan(&heightID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+		err := r.db.QueryRowContext(ctx, r.queryHeight).Scan(&heightID)
+
+		// Don't error if no rows are found, just don't update the metric.
+		if err == nil {
+			metrics.EmitMigratorSourceLastSequenceID(r.factory().TableName(), heightID)
+		}
 	}
-
-	metrics.EmitMigratorSourceLastSequenceID(r.factory().TableName(), heightID)
 
 	rows, err := r.db.QueryContext(ctx, r.query, lastID, limit)
 	if err != nil {

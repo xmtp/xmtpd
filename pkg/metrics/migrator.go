@@ -192,3 +192,16 @@ func EmitMigratorWriterRetryAttempts(table, destination string, attempts int) {
 		"destination": destination,
 	}).Observe(float64(attempts))
 }
+
+var migratorWriterBytesMigrated = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_migrator_writer_bytes_migrated",
+		Help: "Total number of bytes successfully migrated",
+	},
+	[]string{"table", "destination"},
+)
+
+func EmitMigratorWriterBytesMigrated(table string, destination string, bytes int) {
+	migratorWriterBytesMigrated.With(prometheus.Labels{"table": table, "destination": destination}).
+		Add(float64(bytes))
+}

@@ -114,7 +114,6 @@ func registerCollectors(reg prometheus.Registerer) {
 		blockchainGasPriceLastUpdateTimestamp,
 		gatewayGetNodesAvailableNodes,
 		migratorE2ELatency,
-		migratorDestLastSequenceIDBlockchain,
 		migratorDestLastSequenceID,
 		migratorReaderErrors,
 		migratorReaderFetchDuration,

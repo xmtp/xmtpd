@@ -115,7 +115,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		gatewayGetNodesAvailableNodes,
 		migratorE2ELatency,
 		migratorDestLastSequenceIDBlockchain,
-		migratorDestLastSequenceIDDatabase,
+		migratorDestLastSequenceID,
 		migratorReaderErrors,
 		migratorReaderFetchDuration,
 		migratorReaderNumRowsFound,

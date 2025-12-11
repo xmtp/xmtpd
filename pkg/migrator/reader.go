@@ -3,25 +3,31 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"errors"
+
+	"github.com/xmtp/xmtpd/pkg/metrics"
 )
 
 // DBReader provides a generic implementation for fetching records from database tables.
 type DBReader[T ISourceRecord] struct {
-	db      *sql.DB
-	query   string
-	factory func() T
+	db          *sql.DB
+	query       string
+	queryHeight string
+	factory     func() T
 }
 
 // NewDBReader creates a new reader for the specified table and type.
 func NewDBReader[T ISourceRecord](
 	db *sql.DB,
 	query string,
+	queryHeight string,
 	factory func() T,
 ) *DBReader[T] {
 	return &DBReader[T]{
-		db:      db,
-		query:   query,
-		factory: factory,
+		db:          db,
+		query:       query,
+		queryHeight: queryHeight,
+		factory:     factory,
 	}
 }
 
@@ -31,6 +37,15 @@ func (r *DBReader[T]) Fetch(
 	lastID int64,
 	limit int32,
 ) ([]ISourceRecord, error) {
+	var heightID int64
+
+	err := r.db.QueryRowContext(ctx, r.queryHeight).Scan(&heightID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	metrics.EmitMigratorSourceLastSequenceID(r.factory().TableName(), heightID)
+
 	rows, err := r.db.QueryContext(ctx, r.query, lastID, limit)
 	if err != nil {
 		return nil, err
@@ -71,10 +86,18 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 		ORDER BY id ASC
 		LIMIT $2
 	`
+	queryHeight := `
+		SELECT id
+		FROM group_messages
+		WHERE is_commit = false
+		ORDER BY id DESC
+		LIMIT 1
+	`
 	return &GroupMessageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *GroupMessage { return &GroupMessage{} },
 		),
 	}
@@ -92,10 +115,20 @@ func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 		ORDER BY id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT id
+		FROM group_messages
+		WHERE is_commit = true
+		ORDER BY id DESC
+		LIMIT 1
+	`
+
 	return &CommitMessageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *CommitMessage { return &CommitMessage{} },
 		),
 	}
@@ -113,10 +146,19 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT sequence_id
+		FROM inbox_log
+		ORDER BY sequence_id DESC
+		LIMIT 1
+	`
+
 	return &InboxLogReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *InboxLog { return &InboxLog{} },
 		),
 	}
@@ -134,10 +176,19 @@ func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT sequence_id
+		FROM key_packages
+		ORDER BY sequence_id DESC
+		LIMIT 1
+	`
+
 	return &KeyPackageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *KeyPackage { return &KeyPackage{} },
 		),
 	}
@@ -155,10 +206,19 @@ func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
 		ORDER BY id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT id
+		FROM welcome_messages
+		ORDER BY id DESC
+		LIMIT 1
+	`
+
 	return &WelcomeMessageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *WelcomeMessage { return &WelcomeMessage{} },
 		),
 	}

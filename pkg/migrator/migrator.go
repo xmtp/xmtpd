@@ -418,8 +418,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 							inflight[id] = startE2ELatency
 							inflightMu.Unlock()
 
-							metrics.EmitMigratorSourceLastSequenceID(tableName, id)
-
 							logger.Debug(
 								"sent record to transformer",
 								zap.Int64(idField, id),
@@ -530,13 +528,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 								switch destination {
 								case destinationDatabase:
-									metrics.EmitMigratorDestLastSequenceIDDatabase(
+									metrics.EmitMigratorDestLastSequenceID(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)
 
 								case destinationBlockchain:
-									metrics.EmitMigratorDestLastSequenceIDBlockchain(
+									metrics.EmitMigratorDestLastSequenceID(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)

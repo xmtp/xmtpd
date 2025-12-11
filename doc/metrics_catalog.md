@@ -27,7 +27,6 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_gateway_lru_nonce` | `Gauge` | Least recently used blockchain nonce of the gateway (not guaranteed to be the highest nonce). | `pkg/metrics/payer.go` |
 | `xmtp_gateway_messages_originated` | `Counter` | Number of messages originated by the gateway. | `pkg/metrics/payer.go` |
 | `xmtp_gateway_publish_duration_seconds` | `Histogram` | Duration of the node publish call | `pkg/metrics/payer.go` |
-| `xmtp_gateway_read_own_commit_in_time_seconds` | `Histogram` | Read your own commit duration in seconds | `pkg/metrics/payer.go` |
 | `xmtp_indexer_log_processing_time_seconds` | `Histogram` | Time to process a blockchain log | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_streamer_block_lag` | `Gauge` | Lag between current block and max block | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_streamer_current_block` | `Gauge` | Current block being processed by the log streamer | `pkg/metrics/indexer.go` |
@@ -44,6 +43,7 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_migrator_reader_num_rows_found` | `Counter` | Number of rows fetched from source database | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_source_last_sequence_id` | `Gauge` | Last sequence ID pulled from source DB | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_transformer_errors_total` | `Counter` | Total number of transformation errors | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_writer_bytes_migrated` | `Counter` | Total number of bytes successfully migrated | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_writer_errors_total` | `Counter` | Total number of writer errors by destination and error type | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_writer_latency_seconds` | `Histogram` | Time spent writing to destination | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_writer_retry_attempts` | `Histogram` | Number of retry attempts before success or failure | `pkg/metrics/migrator.go` |

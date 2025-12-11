@@ -529,6 +529,12 @@ func (m *Migrator) migrationWorker(tableName string) {
 									)
 								}
 
+								b, err := env.Bytes()
+								if err != nil {
+									logger.Warn("failed to marshal envelope", zap.Error(err))
+								} else {
+									metrics.EmitMigratorWriterBytesMigrated(tableName, destination, len(b))
+								}
 								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
 
 								switch destination {

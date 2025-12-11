@@ -86,7 +86,6 @@ func registerCollectors(reg prometheus.Registerer) {
 		indexerGetLogsRequests,
 		indexerLogProcessingTime,
 		gatwayPublishDuration,
-		gatewayCursorBlockTime,
 		gatewayCurrentNonce,
 		gatewayBanlistRetry,
 		gatewayMessagesOriginated,

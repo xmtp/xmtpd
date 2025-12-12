@@ -271,9 +271,8 @@ func TestExecutor_PruneCountWorks(t *testing.T) {
 		logger.Logger,
 		db,
 		&config.PruneConfig{
-			BatchSize:      1000,
-			MaxCycles:      5,
-			CountDeletable: true,
+			BatchSize: 1000,
+			MaxCycles: 5,
 		},
 	)
 	err := exec.Run()

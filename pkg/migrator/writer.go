@@ -165,7 +165,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 				zap.Int("size", totalSize),
 			)
 
-			return nil
+			return ErrDeadLetterBox
 		}
 
 		log, err := m.blockchainPublisher.BootstrapGroupMessages(
@@ -230,7 +230,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 				zap.Int("size", totalSize),
 			)
 
-			return nil
+			return ErrDeadLetterBox
 		}
 
 		m.logger.Debug(

@@ -70,6 +70,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			WaitForDB:              5 * time.Second,
 			BatchSize:              1000,
 			PollInterval:           500 * time.Millisecond,
+			StartDate:              startDate,
 		}),
 		migrator.WithContractsOptions(chainConfig),
 	)

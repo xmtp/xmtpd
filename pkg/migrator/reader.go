@@ -14,6 +14,7 @@ type DBReader[T ISourceRecord] struct {
 	query       string
 	queryHeight string
 	factory     func() T
+	startDate   int64
 }
 
 // NewDBReader creates a new reader for the specified table and type.
@@ -22,12 +23,14 @@ func NewDBReader[T ISourceRecord](
 	query string,
 	queryHeight string,
 	factory func() T,
+	startDate int64,
 ) *DBReader[T] {
 	return &DBReader[T]{
 		db:          db,
 		query:       query,
 		queryHeight: queryHeight,
 		factory:     factory,
+		startDate:   startDate,
 	}
 }
 
@@ -49,7 +52,17 @@ func (r *DBReader[T]) Fetch(
 		}
 	}
 
-	rows, err := r.db.QueryContext(ctx, r.query, lastID, limit)
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	if r.startDate != 0 {
+		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit, r.startDate)
+	} else {
+		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -81,11 +94,11 @@ type GroupMessageReader struct {
 	*DBReader[*GroupMessage]
 }
 
-func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
+func NewGroupMessageReader(db *sql.DB, startDate int64) *GroupMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND is_commit = false
+		WHERE id > $1 AND is_commit = false AND created_at > to_timestamp($3)
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -102,6 +115,7 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 			query,
 			queryHeight,
 			func() *GroupMessage { return &GroupMessage{} },
+			startDate,
 		),
 	}
 }
@@ -110,11 +124,11 @@ type CommitMessageReader struct {
 	*DBReader[*CommitMessage]
 }
 
-func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
+func NewCommitMessageReader(db *sql.DB, startDate int64) *CommitMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND is_commit = true
+		WHERE id > $1 AND is_commit = true AND created_at > to_timestamp($3)
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -133,6 +147,7 @@ func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 			query,
 			queryHeight,
 			func() *CommitMessage { return &CommitMessage{} },
+			startDate,
 		),
 	}
 }
@@ -141,11 +156,11 @@ type InboxLogReader struct {
 	*DBReader[*InboxLog]
 }
 
-func NewInboxLogReader(db *sql.DB) *InboxLogReader {
+func NewInboxLogReader(db *sql.DB, startDate int64) *InboxLogReader {
 	query := `
 		SELECT sequence_id, inbox_id, server_timestamp_ns, identity_update_proto
 		FROM inbox_log
-		WHERE sequence_id > $1
+		WHERE sequence_id > $1 AND server_timestamp_ns > $3
 		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
@@ -163,6 +178,7 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 			query,
 			queryHeight,
 			func() *InboxLog { return &InboxLog{} },
+			startDate,
 		),
 	}
 }
@@ -193,6 +209,7 @@ func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 			query,
 			queryHeight,
 			func() *KeyPackage { return &KeyPackage{} },
+			0,
 		),
 	}
 }
@@ -201,11 +218,11 @@ type WelcomeMessageReader struct {
 	*DBReader[*WelcomeMessage]
 }
 
-func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
+func NewWelcomeMessageReader(db *sql.DB, startDate int64) *WelcomeMessageReader {
 	query := `
 		SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm, welcome_metadata
 		FROM welcome_messages
-		WHERE id > $1
+		WHERE id > $1 AND created_at > to_timestamp($3)
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -223,6 +240,7 @@ func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
 			query,
 			queryHeight,
 			func() *WelcomeMessage { return &WelcomeMessage{} },
+			startDate,
 		),
 	}
 }

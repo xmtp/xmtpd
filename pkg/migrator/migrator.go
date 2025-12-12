@@ -179,11 +179,11 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	}
 
 	readers := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(reader),
-		inboxLogTableName:        NewInboxLogReader(reader),
+		groupMessagesTableName:   NewGroupMessageReader(reader, cfg.options.StartDate.Unix()),
+		inboxLogTableName:        NewInboxLogReader(reader, cfg.options.StartDate.UnixNano()),
 		keyPackagesTableName:     NewKeyPackageReader(reader),
-		welcomeMessagesTableName: NewWelcomeMessageReader(reader),
-		commitMessagesTableName:  NewCommitMessageReader(reader),
+		welcomeMessagesTableName: NewWelcomeMessageReader(reader, cfg.options.StartDate.Unix()),
+		commitMessagesTableName:  NewCommitMessageReader(reader, cfg.options.StartDate.Unix()),
 	}
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)

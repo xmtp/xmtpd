@@ -19,16 +19,15 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
-	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
@@ -112,7 +111,7 @@ type Migrator struct {
 	// Configuration.
 	pollInterval time.Duration
 	batchSize    int32
-	running      bool
+	running      atomic.Bool
 }
 
 func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
@@ -180,10 +179,11 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	}
 
 	readers := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(reader),
-		inboxLogTableName:        NewInboxLogReader(reader),
+		groupMessagesTableName:   NewGroupMessageReader(reader, cfg.options.StartDate.Unix()),
+		inboxLogTableName:        NewInboxLogReader(reader, cfg.options.StartDate.UnixNano()),
 		keyPackagesTableName:     NewKeyPackageReader(reader),
-		welcomeMessagesTableName: NewWelcomeMessageReader(reader),
+		welcomeMessagesTableName: NewWelcomeMessageReader(reader, cfg.options.StartDate.Unix()),
+		commitMessagesTableName:  NewCommitMessageReader(reader, cfg.options.StartDate.Unix()),
 	}
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
@@ -214,7 +214,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		blockchainPublisher: blockchainPublisher,
 		pollInterval:        cfg.options.PollInterval,
 		batchSize:           cfg.options.BatchSize,
-		running:             false,
+		running:             atomic.Bool{},
 	}, nil
 }
 
@@ -222,11 +222,9 @@ func (m *Migrator) Start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.running {
+	if m.running.Swap(true) {
 		return fmt.Errorf("migration service is already running")
 	}
-
-	m.running = true
 
 	for tableName := range m.readers {
 		m.migrationWorker(tableName)
@@ -241,13 +239,12 @@ func (m *Migrator) Stop() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.running {
-		return nil
+	if !m.running.Swap(false) {
+		return fmt.Errorf("migration service is not running")
 	}
 
 	m.cancel()
 	m.wg.Wait()
-	m.running = false
 
 	if err := m.reader.Close(); err != nil {
 		m.logger.Error("failed to close connection to source database", zap.Error(err))
@@ -421,8 +418,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 							inflight[id] = startE2ELatency
 							inflightMu.Unlock()
 
-							metrics.EmitMigratorSourceLastSequenceID(tableName, id)
-
 							logger.Debug(
 								"sent record to transformer",
 								zap.Int64(idField, id),
@@ -539,13 +534,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 								switch destination {
 								case destinationDatabase:
-									metrics.EmitMigratorDestLastSequenceIDDatabase(
+									metrics.EmitMigratorDestLastSequenceID(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)
 
 								case destinationBlockchain:
-									metrics.EmitMigratorDestLastSequenceIDBlockchain(
+									metrics.EmitMigratorDestLastSequenceID(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)
@@ -562,7 +557,9 @@ func (m *Migrator) migrationWorker(tableName string) {
 						}()
 
 						switch env.OriginatorNodeID() {
-						case WelcomeMessageOriginatorID, KeyPackagesOriginatorID:
+						case WelcomeMessageOriginatorID,
+							KeyPackagesOriginatorID,
+							GroupMessageOriginatorID:
 							destination = destinationDatabase
 
 							err = metrics.MeasureWriterLatency(
@@ -585,83 +582,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 								logger.Error("failed to insert envelope", zap.Error(err))
 							}
 
-						case GroupMessageOriginatorID:
-							destination = destinationDatabase
-
-							payload, ok := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
-							if !ok {
-								err = fmt.Errorf(
-									"group message with sequence ID %d has unexpected payload type",
-									env.OriginatorSequenceID(),
-								)
-
-								logger.Error(
-									"unexpected payload type",
-									utils.SequenceIDField(int64(env.OriginatorSequenceID())),
-								)
-
-								return
-							}
-
-							isCommit, err := deserializer.IsGroupMessageCommit(payload)
-							if err != nil {
-								err = fmt.Errorf(
-									"failed to check if group message is commit: %w",
-									err,
-								)
-
-								logger.Error(
-									"failed to check if group message is commit",
-									zap.Error(err),
-								)
-
-								return
-							}
-
-							switch isCommit {
-							case true:
-								destination = destinationBlockchain
-
-								err = metrics.MeasureWriterLatency(
-									tableName,
-									destination,
-									func() error {
-										return m.insertOriginatorEnvelopeBlockchain(env)
-									},
-								)
-								if err != nil {
-									logger.Error(
-										"error publishing group message to blockchain",
-										zap.Error(err),
-									)
-								}
-
-							case false:
-								err = metrics.MeasureWriterLatency(
-									tableName,
-									destination,
-									func() error {
-										return retry(
-											ctx,
-											logger,
-											50*time.Millisecond,
-											tableName,
-											destination,
-											func() re.RetryableError {
-												return m.insertOriginatorEnvelopeDatabase(env)
-											},
-										)
-									},
-								)
-								if err != nil {
-									logger.Error(
-										"error publishing group message to database",
-										zap.Error(err),
-									)
-								}
-							}
-
-						case InboxLogOriginatorID:
+						case InboxLogOriginatorID, CommitMessageOriginatorID:
 							destination = destinationBlockchain
 
 							err = metrics.MeasureWriterLatency(
@@ -673,7 +594,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 							)
 							if err != nil {
 								logger.Error(
-									"error publishing identity update",
+									"error publishing blockchain message",
 									zap.Error(err),
 								)
 							}

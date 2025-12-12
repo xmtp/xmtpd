@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
-	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
@@ -43,6 +42,14 @@ func (t *Transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnve
 		}
 
 		return t.TransformGroupMessage(data)
+
+	case commitMessagesTableName:
+		data, ok := record.(*CommitMessage)
+		if !ok {
+			return nil, fmt.Errorf("invalid record type: %T", record)
+		}
+
+		return t.TransformCommitMessage(data)
 
 	case inboxLogTableName:
 		data, ok := record.(*InboxLog)
@@ -80,40 +87,31 @@ func (t *Transformer) Transform(record ISourceRecord) (*envelopes.OriginatorEnve
 func (t *Transformer) TransformGroupMessage(
 	groupMessage *GroupMessage,
 ) (*envelopes.OriginatorEnvelope, error) {
-	if groupMessage == nil {
-		return nil, fmt.Errorf("groupMessage is nil")
-	}
-
-	if groupMessage.GroupID == nil {
-		return nil, fmt.Errorf("groupID is nil")
-	}
-
-	if len(groupMessage.Data) <= 0 {
-		return nil, fmt.Errorf("data is empty")
-	}
-
-	protoClientEnvelope := &proto.ClientEnvelope{
-		Payload: &proto.ClientEnvelope_GroupMessage{
-			GroupMessage: &mlsv1.GroupMessageInput{
-				Version: &mlsv1.GroupMessageInput_V1_{
-					V1: &mlsv1.GroupMessageInput_V1{
-						Data:       groupMessage.Data,
-						SenderHmac: groupMessage.SenderHmac,
-						ShouldPush: groupMessage.ShouldPush.Bool,
-					},
-				},
-			},
-		},
-		Aad: &proto.AuthenticatedData{
-			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, groupMessage.GroupID[:]).
-				Bytes(),
-		},
+	protoClientEnvelope, err := transformGroupMessage(groupMessage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transform group message: %w", err)
 	}
 
 	return t.originatorEnvelope(
 		protoClientEnvelope,
 		GroupMessageOriginatorID,
 		uint64(groupMessage.ID),
+	)
+}
+
+// TransformCommitMessage converts CommitMessage to appropriate XMTPD envelope format.
+func (t *Transformer) TransformCommitMessage(
+	commitMessage *CommitMessage,
+) (*envelopes.OriginatorEnvelope, error) {
+	protoClientEnvelope, err := transformGroupMessage(&commitMessage.GroupMessage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transform group message: %w", err)
+	}
+
+	return t.originatorEnvelope(
+		protoClientEnvelope,
+		CommitMessageOriginatorID,
+		uint64(commitMessage.ID),
 	)
 }
 
@@ -284,21 +282,8 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 	// Lower than MaxUint32 to avoid overflow.
 	retentionDays := uint32(math.MaxInt32)
 
-	switch originatorID {
-	case KeyPackagesOriginatorID, WelcomeMessageOriginatorID:
+	if isDatabaseDestination(originatorID) {
 		retentionDays = constants.DefaultStorageDurationDays
-
-	case GroupMessageOriginatorID:
-		payload := clientEnvelope.Payload().(*proto.ClientEnvelope_GroupMessage)
-
-		isCommit, err := deserializer.IsGroupMessageCommit(payload)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check if group message is commit: %w", err)
-		}
-
-		if !isCommit {
-			retentionDays = constants.DefaultStorageDurationDays
-		}
 	}
 
 	protoPayerEnvelope := &proto.PayerEnvelope{
@@ -362,4 +347,37 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 	}
 
 	return envelopes.NewOriginatorEnvelope(protoOriginatorEnvelope)
+}
+
+// transformGroupMessage transforms a GroupMessage (commit or not) to a ClientEnvelope.
+func transformGroupMessage(groupMessage *GroupMessage) (*proto.ClientEnvelope, error) {
+	if groupMessage == nil {
+		return nil, fmt.Errorf("groupMessage is nil")
+	}
+
+	if groupMessage.GroupID == nil {
+		return nil, fmt.Errorf("groupID is nil")
+	}
+
+	if len(groupMessage.Data) <= 0 {
+		return nil, fmt.Errorf("data is empty")
+	}
+
+	return &proto.ClientEnvelope{
+		Payload: &proto.ClientEnvelope_GroupMessage{
+			GroupMessage: &mlsv1.GroupMessageInput{
+				Version: &mlsv1.GroupMessageInput_V1_{
+					V1: &mlsv1.GroupMessageInput_V1{
+						Data:       groupMessage.Data,
+						SenderHmac: groupMessage.SenderHmac,
+						ShouldPush: groupMessage.ShouldPush.Bool,
+					},
+				},
+			},
+		},
+		Aad: &proto.AuthenticatedData{
+			TargetTopic: topic.NewTopic(topic.TopicKindGroupMessagesV1, groupMessage.GroupID[:]).
+				Bytes(),
+		},
+	}, nil
 }

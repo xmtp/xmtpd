@@ -64,7 +64,7 @@ func newTransformerTest(t *testing.T) *transformerTest {
 func TestTransformGroupMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewGroupMessageReader(test.db)
+		reader = migrator.NewGroupMessageReader(test.db, startDate.Unix())
 	)
 
 	defer test.cleanup()
@@ -108,7 +108,74 @@ func TestTransformGroupMessage(t *testing.T) {
 	require.NotNil(t, groupMessageV1)
 	require.Equal(t, migratedGroupMessage.Data, groupMessageV1.GetData())
 
-	// Payer checks: expiration. Should not expire.
+	// Payer checks: expiration. Group messages go to database with default retention.
+	require.Equal(
+		t,
+		uint32(constants.DefaultStorageDurationDays),
+		envelope.UnsignedOriginatorEnvelope.PayerEnvelope.RetentionDays(),
+	)
+
+	// Originator node checks: fees.
+	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	require.Equal(
+		t,
+		uint64(0),
+		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+	)
+
+	// Signature checks.
+	checkPayerSignature(t, envelope, test.payerAddress)
+	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
+}
+
+func TestTransformCommitMessage(t *testing.T) {
+	var (
+		test   = newTransformerTest(t)
+		reader = migrator.NewCommitMessageReader(test.db, startDate.Unix())
+	)
+
+	defer test.cleanup()
+
+	records, err := reader.Fetch(test.ctx, 0, 1)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.IsType(t, &migrator.CommitMessage{}, records[0])
+
+	migratedCommitMessage, ok := records[0].(*migrator.CommitMessage)
+	require.True(t, ok)
+
+	envelope, err := test.transformer.Transform(migratedCommitMessage)
+	require.NoError(t, err)
+	require.NotNil(t, envelope)
+
+	// OriginatorEnvelope check: Target topic has to be equal to TOPIC_KIND_GROUP_MESSAGES_V1 and the groupID.
+	checkTopic(
+		t,
+		envelope,
+		topic.NewTopic(topic.TopicKindGroupMessagesV1, migratedCommitMessage.GroupID[:]),
+	)
+
+	// OriginatorEnvelope check: Originator ID has to be hardcoded with CommitMessageOriginatorID.
+	require.Equal(t, migrator.CommitMessageOriginatorID, envelope.OriginatorNodeID())
+
+	// OriginatorEnvelope check: Sequence ID has to be the ID of the record.
+	require.Equal(t, uint64(migratedCommitMessage.ID), envelope.OriginatorSequenceID())
+
+	// OriginatorEnvelope check: Payload checks.
+	payload := envelope.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Payload()
+	require.NotNil(t, payload)
+	require.IsType(t, &proto.ClientEnvelope_GroupMessage{}, payload)
+
+	groupMessagePayload, ok := payload.(*proto.ClientEnvelope_GroupMessage)
+	require.True(t, ok)
+	require.NotNil(t, groupMessagePayload.GroupMessage)
+	require.IsType(t, &mlsv1.GroupMessageInput{}, groupMessagePayload.GroupMessage)
+
+	groupMessageV1 := groupMessagePayload.GroupMessage.GetV1()
+	require.NotNil(t, groupMessageV1)
+	require.Equal(t, migratedCommitMessage.Data, groupMessageV1.GetData())
+
+	// Payer checks: expiration. Commit messages go to blockchain, should not expire.
 	require.Equal(
 		t,
 		uint32(math.MaxInt32),
@@ -131,7 +198,7 @@ func TestTransformGroupMessage(t *testing.T) {
 func TestTransformInboxLog(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewInboxLogReader(test.db)
+		reader = migrator.NewInboxLogReader(test.db, startDate.UnixNano())
 	)
 
 	defer test.cleanup()
@@ -278,7 +345,7 @@ func TestTransformKeyPackage(t *testing.T) {
 func TestTransformWelcomeMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewWelcomeMessageReader(test.db)
+		reader = migrator.NewWelcomeMessageReader(test.db, startDate.Unix())
 	)
 
 	defer test.cleanup()

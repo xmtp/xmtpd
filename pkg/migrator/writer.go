@@ -112,13 +112,14 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 	env *envelopes.OriginatorEnvelope,
 ) error {
 	var (
-		identifier = env.TargetTopic().Identifier()
-		sequenceID = env.OriginatorSequenceID()
+		identifier   = env.TargetTopic().Identifier()
+		sequenceID   = env.OriginatorSequenceID()
+		originatorID = env.OriginatorNodeID()
 	)
 
-	tableName, ok := originatorIDToTableName[env.OriginatorNodeID()]
+	tableName, ok := originatorIDToTableName[originatorID]
 	if !ok {
-		return fmt.Errorf("invalid originator id: %d", env.OriginatorNodeID())
+		return fmt.Errorf("invalid originator id: %d", originatorID)
 	}
 
 	clientEnvelopeBytes, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
@@ -129,8 +130,8 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 
 	querier := queries.New(m.writer)
 
-	switch env.OriginatorNodeID() {
-	case GroupMessageOriginatorID:
+	switch originatorID {
+	case CommitMessageOriginatorID:
 		groupID, err := utils.ParseGroupID(identifier)
 		if err != nil {
 			return fmt.Errorf("error converting identifier to group ID: %w", err)
@@ -158,7 +159,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		}
 
 		err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
-			LastMigratedID: int64(env.OriginatorSequenceID()),
+			LastMigratedID: int64(sequenceID),
 			SourceTable:    tableName,
 		})
 		if err != nil {
@@ -206,7 +207,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		}
 
 		err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
-			LastMigratedID: int64(env.OriginatorSequenceID()),
+			LastMigratedID: int64(sequenceID),
 			SourceTable:    tableName,
 		})
 		if err != nil {

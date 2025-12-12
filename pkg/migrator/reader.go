@@ -3,25 +3,34 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"github.com/xmtp/xmtpd/pkg/metrics"
 )
 
 // DBReader provides a generic implementation for fetching records from database tables.
 type DBReader[T ISourceRecord] struct {
-	db      *sql.DB
-	query   string
-	factory func() T
+	db          *sql.DB
+	query       string
+	queryHeight string
+	factory     func() T
+	startDate   int64
 }
 
 // NewDBReader creates a new reader for the specified table and type.
 func NewDBReader[T ISourceRecord](
 	db *sql.DB,
 	query string,
+	queryHeight string,
 	factory func() T,
+	startDate int64,
 ) *DBReader[T] {
 	return &DBReader[T]{
-		db:      db,
-		query:   query,
-		factory: factory,
+		db:          db,
+		query:       query,
+		queryHeight: queryHeight,
+		factory:     factory,
+		startDate:   startDate,
 	}
 }
 
@@ -31,7 +40,29 @@ func (r *DBReader[T]) Fetch(
 	lastID int64,
 	limit int32,
 ) ([]ISourceRecord, error) {
-	rows, err := r.db.QueryContext(ctx, r.query, lastID, limit)
+	// Query source height every 10 minutes to update the metric.
+	if time.Now().Minute()%10 == 0 {
+		var heightID int64
+
+		err := r.db.QueryRowContext(ctx, r.queryHeight).Scan(&heightID)
+
+		// Don't error if no rows are found, just don't update the metric.
+		if err == nil {
+			metrics.EmitMigratorSourceLastSequenceID(r.factory().TableName(), heightID)
+		}
+	}
+
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	if r.startDate != 0 {
+		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit, r.startDate)
+	} else {
+		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -63,19 +94,60 @@ type GroupMessageReader struct {
 	*DBReader[*GroupMessage]
 }
 
-func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
+func NewGroupMessageReader(db *sql.DB, startDate int64) *GroupMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1
+		WHERE id > $1 AND is_commit = false AND created_at > to_timestamp($3)
 		ORDER BY id ASC
 		LIMIT $2
+	`
+	queryHeight := `
+		SELECT id
+		FROM group_messages
+		WHERE is_commit = false
+		ORDER BY id DESC
+		LIMIT 1
 	`
 	return &GroupMessageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *GroupMessage { return &GroupMessage{} },
+			startDate,
+		),
+	}
+}
+
+type CommitMessageReader struct {
+	*DBReader[*CommitMessage]
+}
+
+func NewCommitMessageReader(db *sql.DB, startDate int64) *CommitMessageReader {
+	query := `
+		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
+		FROM group_messages
+		WHERE id > $1 AND is_commit = true AND created_at > to_timestamp($3)
+		ORDER BY id ASC
+		LIMIT $2
+	`
+
+	queryHeight := `
+		SELECT id
+		FROM group_messages
+		WHERE is_commit = true
+		ORDER BY id DESC
+		LIMIT 1
+	`
+
+	return &CommitMessageReader{
+		DBReader: NewDBReader(
+			db,
+			query,
+			queryHeight,
+			func() *CommitMessage { return &CommitMessage{} },
+			startDate,
 		),
 	}
 }
@@ -84,19 +156,29 @@ type InboxLogReader struct {
 	*DBReader[*InboxLog]
 }
 
-func NewInboxLogReader(db *sql.DB) *InboxLogReader {
+func NewInboxLogReader(db *sql.DB, startDate int64) *InboxLogReader {
 	query := `
 		SELECT sequence_id, inbox_id, server_timestamp_ns, identity_update_proto
 		FROM inbox_log
-		WHERE sequence_id > $1
+		WHERE sequence_id > $1 AND server_timestamp_ns > $3
 		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT sequence_id
+		FROM inbox_log
+		ORDER BY sequence_id DESC
+		LIMIT 1
+	`
+
 	return &InboxLogReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *InboxLog { return &InboxLog{} },
+			startDate,
 		),
 	}
 }
@@ -113,11 +195,21 @@ func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT sequence_id
+		FROM key_packages
+		ORDER BY sequence_id DESC
+		LIMIT 1
+	`
+
 	return &KeyPackageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *KeyPackage { return &KeyPackage{} },
+			0,
 		),
 	}
 }
@@ -126,19 +218,29 @@ type WelcomeMessageReader struct {
 	*DBReader[*WelcomeMessage]
 }
 
-func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
+func NewWelcomeMessageReader(db *sql.DB, startDate int64) *WelcomeMessageReader {
 	query := `
 		SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm, welcome_metadata
 		FROM welcome_messages
-		WHERE id > $1
+		WHERE id > $1 AND created_at > to_timestamp($3)
 		ORDER BY id ASC
 		LIMIT $2
 	`
+
+	queryHeight := `
+		SELECT id
+		FROM welcome_messages
+		ORDER BY id DESC
+		LIMIT 1
+	`
+
 	return &WelcomeMessageReader{
 		DBReader: NewDBReader(
 			db,
 			query,
+			queryHeight,
 			func() *WelcomeMessage { return &WelcomeMessage{} },
+			startDate,
 		),
 	}
 }

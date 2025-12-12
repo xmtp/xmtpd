@@ -2,11 +2,14 @@ package migrator_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
 )
+
+var startDate time.Time
 
 func TestGroupMessageReader(t *testing.T) {
 	ctx := t.Context()
@@ -14,7 +17,7 @@ func TestGroupMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewGroupMessageReader(db)
+	reader := migrator.NewGroupMessageReader(db, startDate.Unix())
 
 	cases := []struct {
 		name      string
@@ -66,7 +69,7 @@ func TestInboxLogReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewInboxLogReader(db)
+	reader := migrator.NewInboxLogReader(db, startDate.UnixNano())
 
 	cases := []struct {
 		name      string
@@ -164,13 +167,60 @@ func TestKeyPackageReader(t *testing.T) {
 	}
 }
 
+func TestCommitMessageReader(t *testing.T) {
+	ctx := t.Context()
+
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
+	defer cleanup()
+
+	reader := migrator.NewCommitMessageReader(db, startDate.Unix())
+
+	cases := []struct {
+		name   string
+		lastID int64
+		limit  int32
+	}{
+		{
+			name:   "Fetch 0",
+			lastID: 0,
+			limit:  0,
+		},
+		{
+			name:   "Fetch 5",
+			lastID: 0,
+			limit:  5,
+		},
+		{
+			name:   "Fetch 10",
+			lastID: 5,
+			limit:  10,
+		},
+		{
+			name:   "Fetch all",
+			lastID: 10,
+			limit:  9999,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			records, err := reader.Fetch(ctx, tc.lastID, tc.limit)
+			require.NoError(t, err)
+
+			for _, record := range records {
+				require.IsType(t, &migrator.CommitMessage{}, record)
+			}
+		})
+	}
+}
+
 func TestWelcomeMessageReader(t *testing.T) {
 	ctx := t.Context()
 
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewWelcomeMessageReader(db)
+	reader := migrator.NewWelcomeMessageReader(db, startDate.Unix())
 
 	cases := []struct {
 		name      string

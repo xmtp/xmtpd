@@ -13,11 +13,13 @@ const (
 	welcomeMessagesTableName = "welcome_messages"
 	inboxLogTableName        = "inbox_log"
 	keyPackagesTableName     = "key_packages"
+	commitMessagesTableName  = "commit_messages"
 
 	GroupMessageOriginatorID   uint32 = 10
 	WelcomeMessageOriginatorID uint32 = 11
 	InboxLogOriginatorID       uint32 = 12
 	KeyPackagesOriginatorID    uint32 = 13
+	CommitMessageOriginatorID  uint32 = 14
 )
 
 var originatorIDToTableName = map[uint32]string{
@@ -25,12 +27,20 @@ var originatorIDToTableName = map[uint32]string{
 	WelcomeMessageOriginatorID: welcomeMessagesTableName,
 	InboxLogOriginatorID:       inboxLogTableName,
 	KeyPackagesOriginatorID:    keyPackagesTableName,
+	CommitMessageOriginatorID:  commitMessagesTableName,
 }
 
 func isValidOriginatorID(originatorID uint32) bool {
 	return originatorID == GroupMessageOriginatorID ||
 		originatorID == WelcomeMessageOriginatorID ||
 		originatorID == InboxLogOriginatorID ||
+		originatorID == KeyPackagesOriginatorID ||
+		originatorID == CommitMessageOriginatorID
+}
+
+func isDatabaseDestination(originatorID uint32) bool {
+	return originatorID == GroupMessageOriginatorID ||
+		originatorID == WelcomeMessageOriginatorID ||
 		originatorID == KeyPackagesOriginatorID
 }
 
@@ -56,7 +66,7 @@ type ISourceRecord interface {
 	Scan(rows *sql.Rows) error
 }
 
-// GroupMessage represents the group_messages table from the source database.
+// GroupMessage represents the group_messages (with is_commit = false) from the source database.
 // Order by ID ASC.
 type GroupMessage struct {
 	ID              int64        `db:"id"`
@@ -87,6 +97,33 @@ func (g *GroupMessage) Scan(rows *sql.Rows) error {
 		&g.IsCommit,
 		&g.SenderHmac,
 		&g.ShouldPush,
+	)
+}
+
+// CommitMessage represents the group_messages (with is_commit = true) from the source database.
+// Order by ID ASC.
+type CommitMessage struct {
+	GroupMessage
+}
+
+func (c CommitMessage) GetID() int64 {
+	return c.ID
+}
+
+func (c CommitMessage) TableName() string {
+	return commitMessagesTableName
+}
+
+func (c *CommitMessage) Scan(rows *sql.Rows) error {
+	return rows.Scan(
+		&c.ID,
+		&c.CreatedAt,
+		&c.GroupID,
+		&c.Data,
+		&c.GroupIDDataHash,
+		&c.IsCommit,
+		&c.SenderHmac,
+		&c.ShouldPush,
 	)
 }
 

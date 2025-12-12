@@ -22,29 +22,16 @@ func EmitMigratorE2ELatency(table, destination string, duration float64) {
 	}).Observe(duration)
 }
 
-var migratorDestLastSequenceIDBlockchain = prometheus.NewGaugeVec(
+var migratorDestLastSequenceID = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
-		Name: "xmtp_migrator_destination_blockchain_last_sequence_id",
-		Help: "Last sequence ID published to blockchain",
-	},
-	[]string{"table"},
-)
-
-func EmitMigratorDestLastSequenceIDBlockchain(table string, sequenceID int64) {
-	migratorDestLastSequenceIDBlockchain.With(prometheus.Labels{"table": table}).
-		Set(float64(sequenceID))
-}
-
-var migratorDestLastSequenceIDDatabase = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Name: "xmtp_migrator_destination_database_last_sequence_id",
+		Name: "xmtp_migrator_destination_last_sequence_id",
 		Help: "Last sequence ID persisted in destination database",
 	},
 	[]string{"table"},
 )
 
-func EmitMigratorDestLastSequenceIDDatabase(table string, sequenceID int64) {
-	migratorDestLastSequenceIDDatabase.With(prometheus.Labels{"table": table}).
+func EmitMigratorDestLastSequenceID(table string, sequenceID int64) {
+	migratorDestLastSequenceID.With(prometheus.Labels{"table": table}).
 		Set(float64(sequenceID))
 }
 

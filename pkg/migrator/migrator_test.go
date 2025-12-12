@@ -20,11 +20,16 @@ import (
 // TODO: Check 9 group messages are published to the blockchain.
 
 const (
-	// 19 total group messages: 10 non-commit, 9 commit.
-	groupMessageAmount int64 = 10
+	// Source: 19 total group_messages rows in CSV.
+	// - 7 commit messages (ids 1-7, is_commit=true) -> blockchain.
+	// - 12 non-commit messages (ids 8-19, is_commit=false) -> database.
+	groupMessageAmount int64 = 12
 	groupMessageLastID int64 = 19
 
-	// Identity updates shouldn't be inserted in database.
+	// Commit messages go to blockchain, not database.
+	commitMessageLastID int64 = 7
+
+	// Identity updates go to blockchain, not database.
 	inboxLogAmount       int64 = 0
 	inboxLogLastID       int64 = 19
 	welcomeMessageAmount int64 = 19
@@ -65,6 +70,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			WaitForDB:              5 * time.Second,
 			BatchSize:              1000,
 			PollInterval:           500 * time.Millisecond,
+			StartDate:              startDate,
 		}),
 		migrator.WithContractsOptions(chainConfig),
 	)
@@ -128,7 +134,8 @@ func checkMigrationTrackerState(ctx context.Context, db *sql.DB) bool {
 	return state["group_messages"] == groupMessageLastID &&
 		state["welcome_messages"] == welcomeMessageLastID &&
 		state["inbox_log"] == inboxLogLastID &&
-		state["key_packages"] == keyPackageLastID
+		state["key_packages"] == keyPackageLastID &&
+		state["commit_messages"] == commitMessageLastID
 }
 
 func checkGatewayEnvelopesLastID(ctx context.Context, db *sql.DB) bool {

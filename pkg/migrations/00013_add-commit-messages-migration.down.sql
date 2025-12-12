@@ -1,0 +1,1 @@
+DELETE FROM migration_tracker WHERE source_table = 'commit_messages';

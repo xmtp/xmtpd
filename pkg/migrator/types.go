@@ -210,3 +210,25 @@ func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 		&w.WelcomeMetadata,
 	)
 }
+
+type FailureReason string
+
+const (
+	FailureTransformerError      FailureReason = "transformer error"
+	FailureOversizedChainMessage FailureReason = "oversized chain message"
+)
+
+func (f FailureReason) String() string {
+	return string(f)
+}
+
+func (f FailureReason) ShouldRetry() bool {
+	switch f {
+	case FailureTransformerError:
+		return true
+	case FailureOversizedChainMessage:
+		return false
+	default:
+		return false
+	}
+}

@@ -460,6 +460,32 @@ func (m *Migrator) migrationWorker(tableName string) {
 							zap.Int64(idField, record.GetID()),
 						)
 
+						_, dlbErr := wrtrQueries.InsertMigrationDeadLetterBox(
+							ctx,
+							queries.InsertMigrationDeadLetterBoxParams{
+								SourceTable: tableName,
+								SequenceID:  record.GetID(),
+								Payload:     nil,
+								Reason:      FailureTransformerError.String(),
+								Retryable:   FailureTransformerError.ShouldRetry(),
+							},
+						)
+						if dlbErr != nil {
+							logger.Error("failed to insert dead letter box", zap.Error(dlbErr))
+						}
+
+						// Skip this record by advancing migration progress.
+						progErr := wrtrQueries.UpdateMigrationProgress(
+							ctx,
+							queries.UpdateMigrationProgressParams{
+								LastMigratedID: record.GetID(),
+								SourceTable:    tableName,
+							},
+						)
+						if progErr != nil {
+							logger.Error("failed to update migration progress", zap.Error(progErr))
+						}
+
 						metrics.EmitMigratorTransformerError(tableName)
 
 						cleanupInflight(ctx, record.GetID())

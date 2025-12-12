@@ -36,8 +36,7 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_indexer_log_streamer_logs` | `Counter` | Number of logs found by the log streamer | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_streamer_max_block` | `Gauge` | Max block on the chain to be processed by the log streamer | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_retryable_storage_error_count` | `Counter` | Number of retryable storage errors | `pkg/metrics/indexer.go` |
-| `xmtp_migrator_destination_blockchain_last_sequence_id` | `Gauge` | Last sequence ID published to blockchain | `pkg/metrics/migrator.go` |
-| `xmtp_migrator_destination_database_last_sequence_id` | `Gauge` | Last sequence ID persisted in destination database | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_destination_last_sequence_id` | `Gauge` | Last sequence ID persisted in destination database | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_e2e_latency_seconds` | `Histogram` | Time spent migrating a message | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_reader_errors_total` | `Counter` | Total number of reader errors | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_reader_fetch_duration_seconds` | `Histogram` | Time spent fetching records from source database | `pkg/metrics/migrator.go` |

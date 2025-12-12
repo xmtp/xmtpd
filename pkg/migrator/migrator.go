@@ -179,11 +179,11 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	}
 
 	readers := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(reader),
-		inboxLogTableName:        NewInboxLogReader(reader),
+		groupMessagesTableName:   NewGroupMessageReader(reader, cfg.options.StartDate.Unix()),
+		inboxLogTableName:        NewInboxLogReader(reader, cfg.options.StartDate.UnixNano()),
 		keyPackagesTableName:     NewKeyPackageReader(reader),
-		welcomeMessagesTableName: NewWelcomeMessageReader(reader),
-		commitMessagesTableName:  NewCommitMessageReader(reader),
+		welcomeMessagesTableName: NewWelcomeMessageReader(reader, cfg.options.StartDate.Unix()),
+		commitMessagesTableName:  NewCommitMessageReader(reader, cfg.options.StartDate.Unix()),
 	}
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
@@ -418,8 +418,6 @@ func (m *Migrator) migrationWorker(tableName string) {
 							inflight[id] = startE2ELatency
 							inflightMu.Unlock()
 
-							metrics.EmitMigratorSourceLastSequenceID(tableName, id)
-
 							logger.Debug(
 								"sent record to transformer",
 								zap.Int64(idField, id),
@@ -530,13 +528,13 @@ func (m *Migrator) migrationWorker(tableName string) {
 
 								switch destination {
 								case destinationDatabase:
-									metrics.EmitMigratorDestLastSequenceIDDatabase(
+									metrics.EmitMigratorDestLastSequenceID(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)
 
 								case destinationBlockchain:
-									metrics.EmitMigratorDestLastSequenceIDBlockchain(
+									metrics.EmitMigratorDestLastSequenceID(
 										tableName,
 										int64(env.OriginatorSequenceID()),
 									)

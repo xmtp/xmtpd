@@ -2,6 +2,7 @@ package migrator
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -145,27 +146,16 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		}
 
 		if totalSize > maxChainMessageSize {
-			_, err := querier.InsertMigrationDeadLetterBox(
+			err := insertMigrationDeadLetterBox(
 				m.ctx,
-				queries.InsertMigrationDeadLetterBoxParams{
-					SourceTable: tableName,
-					SequenceID:  int64(sequenceID),
-					Payload:     groupID[:],
-					Reason:      FailureOversizedChainMessage.String(),
-					Retryable:   FailureOversizedChainMessage.ShouldRetry(),
-				},
+				m.writer,
+				tableName,
+				int64(sequenceID),
+				groupID[:],
+				FailureOversizedChainMessage,
 			)
 			if err != nil {
 				return fmt.Errorf("insert migration dead letter box failed: %w", err)
-			}
-
-			// Skip this record by advancing migration progress.
-			err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: int64(sequenceID),
-				SourceTable:    tableName,
-			})
-			if err != nil {
-				return fmt.Errorf("update migration progress failed: %w", err)
 			}
 
 			m.logger.Warn(
@@ -221,27 +211,16 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		}
 
 		if totalSize > maxChainMessageSize {
-			_, err := querier.InsertMigrationDeadLetterBox(
+			err := insertMigrationDeadLetterBox(
 				m.ctx,
-				queries.InsertMigrationDeadLetterBoxParams{
-					SourceTable: tableName,
-					SequenceID:  int64(sequenceID),
-					Payload:     inboxID[:],
-					Reason:      FailureOversizedChainMessage.String(),
-					Retryable:   FailureOversizedChainMessage.ShouldRetry(),
-				},
+				m.writer,
+				tableName,
+				int64(sequenceID),
+				inboxID[:],
+				FailureOversizedChainMessage,
 			)
 			if err != nil {
 				return fmt.Errorf("insert migration dead letter box failed: %w", err)
-			}
-
-			// Skip this record by advancing migration progress.
-			err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: int64(sequenceID),
-				SourceTable:    tableName,
-			})
-			if err != nil {
-				return fmt.Errorf("update migration progress failed: %w", err)
 			}
 
 			m.logger.Warn(
@@ -335,4 +314,45 @@ func retry(
 			return nil
 		}
 	}
+}
+
+func insertMigrationDeadLetterBox(
+	ctx context.Context,
+	database *sql.DB,
+	sourceTable string,
+	sequenceID int64,
+	payload []byte,
+	reason FailureReason,
+) error {
+	return db.RunInTx(
+		ctx,
+		database,
+		nil,
+		func(ctx context.Context, querier *queries.Queries) error {
+			_, err := querier.InsertMigrationDeadLetterBox(
+				ctx,
+				queries.InsertMigrationDeadLetterBoxParams{
+					SourceTable: sourceTable,
+					SequenceID:  sequenceID,
+					Payload:     payload,
+					Reason:      reason.String(),
+					Retryable:   reason.ShouldRetry(),
+				},
+			)
+			if err != nil {
+				return fmt.Errorf("insert migration dead letter box failed: %w", err)
+			}
+
+			// Skip this record by advancing migration progress.
+			err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+				LastMigratedID: sequenceID,
+				SourceTable:    sourceTable,
+			})
+			if err != nil {
+				return fmt.Errorf("update migration progress failed: %w", err)
+			}
+
+			return nil
+		},
+	)
 }

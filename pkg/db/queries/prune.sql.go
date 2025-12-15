@@ -32,6 +32,21 @@ func (q *Queries) CountExpiredEnvelopes(ctx context.Context) (int64, error) {
 	return expired_count, err
 }
 
+const countExpiredMigratedEnvelopes = `-- name: CountExpiredMigratedEnvelopes :one
+SELECT COUNT(*)::bigint AS expired_count
+FROM gateway_envelopes_meta
+WHERE expiry IS NOT NULL
+  AND expiry < EXTRACT(EPOCH FROM now())::bigint
+  AND originator_node_id BETWEEN 10 AND 14
+`
+
+func (q *Queries) CountExpiredMigratedEnvelopes(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countExpiredMigratedEnvelopes)
+	var expired_count int64
+	err := row.Scan(&expired_count)
+	return expired_count, err
+}
+
 const deleteExpiredEnvelopesBatch = `-- name: DeleteExpiredEnvelopesBatch :many
 WITH max_prunable AS (SELECT originator_node_id,
                              COALESCE(MAX(end_sequence_id), 0) AS max_end_sequence_id
@@ -72,6 +87,52 @@ func (q *Queries) DeleteExpiredEnvelopesBatch(ctx context.Context, batchSize int
 	var items []DeleteExpiredEnvelopesBatchRow
 	for rows.Next() {
 		var i DeleteExpiredEnvelopesBatchRow
+		if err := rows.Scan(&i.OriginatorNodeID, &i.OriginatorSequenceID, &i.Expiry); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteExpiredMigratedEnvelopesBatch = `-- name: DeleteExpiredMigratedEnvelopesBatch :many
+WITH to_delete AS (SELECT originator_node_id,
+                          originator_sequence_id
+                   FROM gateway_envelopes_meta
+                   WHERE expiry IS NOT NULL
+                     AND expiry < EXTRACT(EPOCH FROM now())::bigint
+                     AND originator_node_id BETWEEN 10 AND 14
+                   ORDER BY expiry, originator_node_id, originator_sequence_id
+                   LIMIT $1 FOR UPDATE SKIP LOCKED)
+DELETE
+FROM gateway_envelopes_meta ge
+    USING to_delete td
+WHERE ge.originator_node_id = td.originator_node_id
+  AND ge.originator_sequence_id = td.originator_sequence_id
+RETURNING ge.originator_node_id, ge.originator_sequence_id, ge.expiry
+`
+
+type DeleteExpiredMigratedEnvelopesBatchRow struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	Expiry               int64
+}
+
+func (q *Queries) DeleteExpiredMigratedEnvelopesBatch(ctx context.Context, batchSize int32) ([]DeleteExpiredMigratedEnvelopesBatchRow, error) {
+	rows, err := q.db.QueryContext(ctx, deleteExpiredMigratedEnvelopesBatch, batchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteExpiredMigratedEnvelopesBatchRow
+	for rows.Next() {
+		var i DeleteExpiredMigratedEnvelopesBatchRow
 		if err := rows.Scan(&i.OriginatorNodeID, &i.OriginatorSequenceID, &i.Expiry); err != nil {
 			return nil, err
 		}

@@ -25,6 +25,9 @@ const (
 	DefaultExpiredCnt   = 10
 	DefaultValidCnt     = 5
 	DefaultSubmittedCnt = 10000
+
+	// Migrated envelope originator IDs (10-14)
+	MigratedOriginatorID = 10 // GroupMessageOriginatorID
 )
 
 func setupTestData(
@@ -60,6 +63,37 @@ func setupTestData(
 	}
 
 	createPrunableReport(t, ctx, db, submitted)
+}
+
+func setupMigratedTestData(
+	t *testing.T,
+	db *sql.DB,
+	expired int,
+	valid int,
+) {
+	// Insert expired migrated envelopes (originator_node_id 10-14)
+	for i := 0; i < expired; i++ {
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+			OriginatorNodeID:     MigratedOriginatorID,
+			OriginatorSequenceID: int64(i + 1),
+			Topic:                []byte("migrated-topic"),
+			OriginatorEnvelope:   []byte("migrated-payload"),
+			GatewayTime:          time.Now(),
+			Expiry:               time.Now().Add(-1 * time.Hour).Unix(),
+		}})
+	}
+
+	// Insert non-expired migrated envelopes
+	for i := 0; i < valid; i++ {
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+			OriginatorNodeID:     MigratedOriginatorID,
+			OriginatorSequenceID: int64(i + expired + 1),
+			Topic:                []byte("migrated-topic"),
+			OriginatorEnvelope:   []byte("migrated-payload"),
+			GatewayTime:          time.Now(),
+			Expiry:               time.Now().Add(1 * time.Hour).Unix(),
+		}})
+	}
 }
 
 func makeTestExecutor(
@@ -429,4 +463,105 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
+	ctx := context.Background()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	db := dbs[0]
+	q := queries.New(db)
+
+	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
+
+	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
+		DryRun:    false,
+		MaxCycles: 5,
+	})
+
+	err := exec.Run()
+	assert.NoError(t, err)
+
+	cnt, err := q.CountExpiredMigratedEnvelopes(ctx)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, cnt, "All expired migrated envelopes should be deleted")
+
+	// Ensure non-expired migrated envelopes remain
+	var total int64
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	err = row.Scan(&total)
+	assert.NoError(t, err)
+	assert.EqualValues(
+		t,
+		DefaultValidCnt,
+		total,
+		"Only non-expired migrated envelopes should remain",
+	)
+}
+
+func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
+	ctx := context.Background()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	db := dbs[0]
+	q := queries.New(db)
+
+	// Setup both regular and migrated test data
+	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
+	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
+
+	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
+		DryRun:    false,
+		MaxCycles: 5,
+	})
+
+	err := exec.Run()
+	assert.NoError(t, err)
+
+	// Verify regular expired envelopes are deleted
+	regularCnt, err := q.CountExpiredEnvelopes(ctx)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, regularCnt, "All expired regular envelopes should be deleted")
+
+	// Verify migrated expired envelopes are deleted
+	migratedCnt, err := q.CountExpiredMigratedEnvelopes(ctx)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, migratedCnt, "All expired migrated envelopes should be deleted")
+
+	// Ensure only non-expired envelopes remain (both types)
+	var total int64
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	err = row.Scan(&total)
+	assert.NoError(t, err)
+	assert.EqualValues(
+		t,
+		DefaultValidCnt*2, // valid regular + valid migrated
+		total,
+		"Only non-expired envelopes should remain",
+	)
+}
+
+func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
+	ctx := context.Background()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	db := dbs[0]
+
+	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
+
+	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
+		DryRun:    true,
+		MaxCycles: 5,
+	})
+	err := exec.Run()
+	assert.NoError(t, err)
+
+	var total int64
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	err = row.Scan(&total)
+	assert.NoError(t, err)
+
+	assert.EqualValues(
+		t,
+		DefaultValidCnt+DefaultExpiredCnt,
+		total,
+		"All migrated envelopes should still be present in dry run mode",
+	)
 }

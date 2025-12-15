@@ -31,6 +31,10 @@ func NewPruneExecutor(
 		logger.Panic("batch size must be greater than zero")
 	}
 
+	if config.MaxCycles <= 0 {
+		logger.Panic("max cycles must be greater than zero")
+	}
+
 	return &Executor{
 		ctx:      ctx,
 		logger:   logger,
@@ -40,17 +44,27 @@ func NewPruneExecutor(
 }
 
 func (e *Executor) Run() error {
-	querier := queries.New(e.writerDB)
-	start := time.Now()
+	var (
+		querier = queries.New(e.writerDB)
+		start   = time.Now()
+	)
 
 	if e.config.CountDeletable {
-		cnt, err := querier.CountExpiredEnvelopes(e.ctx)
+		envelopesCount, err := querier.CountExpiredEnvelopes(e.ctx)
 		if err != nil {
 			return err
 		}
-		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(cnt))
 
-		if cnt == 0 {
+		migratedCount, err := querier.CountExpiredMigratedEnvelopes(e.ctx)
+		if err != nil {
+			return err
+		}
+
+		total := envelopesCount + migratedCount
+
+		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(total))
+
+		if total == 0 {
 			e.logger.Info("no envelopes found for pruning")
 			return nil
 		}
@@ -61,32 +75,60 @@ func (e *Executor) Run() error {
 		return nil
 	}
 
-	cyclesCompleted := 0
-	totalDeletionCount := 0
+	var (
+		cyclesCompleted    = 0
+		totalDeletionCount = 0
+		envelopesExhausted = false
+		migratedExhausted  = false
+	)
 
 	for {
-		rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx, e.config.BatchSize)
-		if err != nil {
-			return err
-		}
-
-		deletedThisCycle := len(rows)
-
-		totalDeletionCount = totalDeletionCount + deletedThisCycle
-
-		e.logger.Info("pruned expired envelopes batch", utils.CountField(int64(deletedThisCycle)))
-
-		cyclesCompleted++
-
-		if deletedThisCycle < int(e.config.BatchSize) {
-			break
-		}
-
 		if cyclesCompleted >= e.config.MaxCycles {
 			e.logger.Warn(
 				"reached maximum pruning cycles",
 				zap.Int("max_cycles", e.config.MaxCycles),
 			)
+			break
+		}
+
+		var deletedThisCycle int
+
+		if !envelopesExhausted {
+			rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx, e.config.BatchSize)
+			if err != nil {
+				return err
+			}
+
+			deletedThisCycle += len(rows)
+
+			if len(rows) < int(e.config.BatchSize) {
+				envelopesExhausted = true
+			}
+		}
+
+		if !migratedExhausted {
+			rows, err := querier.DeleteExpiredMigratedEnvelopesBatch(
+				e.ctx,
+				e.config.BatchSize,
+			)
+			if err != nil {
+				return err
+			}
+
+			deletedThisCycle += len(rows)
+
+			if len(rows) < int(e.config.BatchSize) {
+				migratedExhausted = true
+			}
+		}
+
+		totalDeletionCount += deletedThisCycle
+
+		e.logger.Info("pruned expired envelopes batch", utils.CountField(int64(deletedThisCycle)))
+
+		cyclesCompleted++
+
+		if envelopesExhausted && migratedExhausted {
 			break
 		}
 	}

@@ -36,3 +36,26 @@ FROM gateway_envelopes_meta ge
 WHERE ge.originator_node_id = td.originator_node_id
   AND ge.originator_sequence_id = td.originator_sequence_id
 RETURNING ge.originator_node_id, ge.originator_sequence_id, ge.expiry;
+
+-- name: CountExpiredMigratedEnvelopes :one
+SELECT COUNT(*)::bigint AS expired_count
+FROM gateway_envelopes_meta
+WHERE expiry IS NOT NULL
+  AND expiry < EXTRACT(EPOCH FROM now())::bigint
+  AND originator_node_id BETWEEN 10 AND 14;
+
+-- name: DeleteExpiredMigratedEnvelopesBatch :many
+WITH to_delete AS (SELECT originator_node_id,
+                          originator_sequence_id
+                   FROM gateway_envelopes_meta
+                   WHERE expiry IS NOT NULL
+                     AND expiry < EXTRACT(EPOCH FROM now())::bigint
+                     AND originator_node_id BETWEEN 10 AND 14
+                   ORDER BY expiry, originator_node_id, originator_sequence_id
+                   LIMIT @batch_size FOR UPDATE SKIP LOCKED)
+DELETE
+FROM gateway_envelopes_meta ge
+    USING to_delete td
+WHERE ge.originator_node_id = td.originator_node_id
+  AND ge.originator_sequence_id = td.originator_sequence_id
+RETURNING ge.originator_node_id, ge.originator_sequence_id, ge.expiry;

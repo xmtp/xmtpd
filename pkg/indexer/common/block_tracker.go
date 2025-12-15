@@ -51,7 +51,6 @@ func NewBlockTracker(
 		db:      db,
 	}
 
-	// NOTE: read query
 	latest, err := bt.loadLatestBlock(ctx, client, address, deploymentBlock)
 	if err != nil {
 		return nil, err
@@ -128,7 +127,6 @@ func (bt *BlockTracker) loadLatestBlock(
 		hash:   common.Hash{},
 	}
 
-	// NOTE: read query
 	storedBlock, err := bt.db.ReadQuery().GetLatestBlock(ctx, address.Hex())
 	if err != nil {
 		switch err {

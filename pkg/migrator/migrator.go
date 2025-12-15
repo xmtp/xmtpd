@@ -172,8 +172,6 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, err
 	}
 
-	// Somewhat unnecessary indirection but it seems cleaner to just use db handlers everywhere now
-	// instead of raw SQL handles.
 	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
 
 	readers := map[string]ISourceReader{
@@ -189,7 +187,6 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
 
-	// NOTE: Read and write - reads and deletes nonce from the DB.
 	blockchainPublisher, err := setupBlockchainPublisher(
 		cfg.ctx,
 		logger,
@@ -268,7 +265,7 @@ func (m *Migrator) Stop() error {
 		m.logger.Error("failed to close connection to source database", zap.Error(err))
 	}
 
-	// NOTE: Migrator should not be the one closing the writer DB since it's not the one who opened it.
+	// TODO: IMO migrator should not be the one closing the writer DB since it's not the one who opened it.
 	if err := m.target.DB().Close(); err != nil {
 		m.logger.Error("failed to close connection to destination database", zap.Error(err))
 	}

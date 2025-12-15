@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -98,11 +97,7 @@ func main() {
 	tracing.GoPanicWrap(ctx, &wg, "main", func(ctx context.Context) {
 		promReg := prometheus.NewRegistry()
 
-		var (
-			dbh     *db.Handler
-			readDB  *sql.DB
-			writeDB *sql.DB
-		)
+		var dbh *db.Handler
 
 		if options.Debug.Enable {
 			pprofServer := debug.NewServer(options.Debug.Port)
@@ -132,7 +127,7 @@ func main() {
 				),
 			)
 
-			writeDB, err = db.NewNamespacedDB(
+			writeDB, err := db.NewNamespacedDB(
 				ctx,
 				logger,
 				options.DB.WriterConnectionString,
@@ -150,7 +145,7 @@ func main() {
 			// If we have a separate reader DB initialize it here.
 			if options.DB.ReaderConnectionString != "" {
 
-				readDB, err = db.NewNamespacedDB(
+				readDB, err := db.NewNamespacedDB(
 					ctx,
 					logger,
 					options.DB.ReaderConnectionString,

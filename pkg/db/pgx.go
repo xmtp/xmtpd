@@ -202,7 +202,6 @@ func connectToDB(
 
 	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
 
-	// TODO: Comment - this is a slight difference between the two functions, double check this, might be incompatible.
 	if namespace != "" {
 		poolcfg.ConnConfig.Database = namespace
 	}

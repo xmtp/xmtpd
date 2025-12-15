@@ -91,11 +91,16 @@ func TestMigrator(t *testing.T) {
 
 	require.NoError(t, test.migrator.Start())
 
+	var (
+		db  = test.db.DB()
+		ctx = test.ctx
+	)
+
 	require.Eventually(t, func() bool {
-		return checkMigrationTrackerState(test.ctx, test.db.DB()) &&
-			checkGatewayEnvelopesLastID(test.ctx, test.db.DB()) &&
-			checkGatewayEnvelopesMigratedAmount(test.ctx, test.db.DB()) &&
-			checkGatewayEnvelopesAreUnique(test.ctx, test.db.DB())
+		return checkMigrationTrackerState(ctx, db) &&
+			checkGatewayEnvelopesLastID(ctx, db) &&
+			checkGatewayEnvelopesMigratedAmount(ctx, db) &&
+			checkGatewayEnvelopesAreUnique(ctx, db)
 	}, 20*time.Second, 50*time.Millisecond)
 
 	require.NoError(t, test.migrator.Stop())

@@ -18,9 +18,10 @@ func WithReadReplica(db *sql.DB) HandlerOption {
 	}
 }
 
-// Handler is essentially syntactic sugar to ease working with two databases - a read-write and read-only database.
-// It mitigates the possibility of a component attempting a write to DB, not knowing it received access to a read-only DB.
-// This might happen if some part of the code used to do read-only and later needs to write data.
+// Handler eases working with two databases - a read-write and read-only database. It mitigates the possibility of a component
+// attempting a write to DB, not knowing it received a handle to a read-only SQL DB. Handler also makes the query intent explicit.
+// The handler will correctly route the request to the appropriate DB. It also eases the transition if some part of the code used
+// to do read-only access and later needs to write data.
 type Handler struct {
 	// Handle to read-write DB.
 	write *sql.DB
@@ -33,7 +34,7 @@ type Handler struct {
 	readQuery *queries.Queries
 }
 
-// NewDBHandler creates a new database handler with two database connections - a write and a read one.
+// NewDBHandler creates a new database handler with two database connections - a read-write and a read one.
 // If there's no exclusive read replica it can be ommitted and the write replica will be used.
 func NewDBHandler(db *sql.DB, options ...HandlerOption) *Handler {
 	var cfg handlerConfig

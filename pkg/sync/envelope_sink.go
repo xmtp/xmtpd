@@ -243,8 +243,9 @@ func (s *EnvelopeSink) calculateFees(
 		return 0, err
 	}
 
-	// NOTE: Code smell in my book - we have a function that is a reader function,
-	// but it feels bad to IMPOSE read limitation on it this way
+	// NOTE: This is code smell IMO. We have a function that is (by name) a reader function,
+	// but it feels wrong to IMPOSE read limitation on it this way. However, if the goal is to
+	// have read queries work on a db read replica, then this should operate on the read db.
 	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
 		s.ctx,
 		s.db.ReadQuery(),

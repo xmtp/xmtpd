@@ -188,6 +188,7 @@ loop:
 			chunkCount++
 			retrieved = append(retrieved, chunk...)
 
+			// Not the foolproof way to signal completion.
 			if len(retrieved) == len(envelopes) {
 				cancel()
 			}

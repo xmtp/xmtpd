@@ -31,9 +31,8 @@ var (
 )
 
 type Store struct {
-	queries *queries.Queries
-	db      *db.Handler
-	logger  *zap.Logger
+	db     *db.Handler
+	logger *zap.Logger
 }
 
 var _ IPayerReportStore = (*Store)(nil)
@@ -51,9 +50,8 @@ func (s *Store) GetAdvisoryLocker(
 	return db.NewTransactionScopedAdvisoryLocker(ctx, s.db.DB(), &sql.TxOptions{})
 }
 
-// TODO: Check - this might mod db state indirectly (autoincrement sequence id?)
 func (s *Store) GetLatestSequenceID(ctx context.Context, originatorNodeID int32) (int64, error) {
-	return s.queries.GetLatestSequenceId(ctx, originatorNodeID)
+	return s.db.Query().GetLatestSequenceId(ctx, originatorNodeID)
 }
 
 // StoreReport stores a report in the database. No validations have been performed, and no originator envelope is stored.

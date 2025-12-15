@@ -2,6 +2,7 @@ package migrator
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -14,6 +15,11 @@ import (
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+)
+
+const (
+	maxChainMessageSize = 200 * 1024 // 200KB
+	overheadSize        = 40         // 40 bytes
 )
 
 func (m *Migrator) insertOriginatorEnvelopeDatabase(
@@ -128,6 +134,8 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		return fmt.Errorf("failed to get payer envelope bytes: %w", err)
 	}
 
+	totalSize := len(clientEnvelopeBytes) + overheadSize
+
 	querier := queries.New(m.writer)
 
 	switch originatorID {
@@ -135,6 +143,29 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		groupID, err := utils.ParseGroupID(identifier)
 		if err != nil {
 			return fmt.Errorf("error converting identifier to group ID: %w", err)
+		}
+
+		if totalSize > maxChainMessageSize {
+			err := insertMigrationDeadLetterBox(
+				m.ctx,
+				m.writer,
+				tableName,
+				int64(sequenceID),
+				groupID[:],
+				FailureOversizedChainMessage,
+			)
+			if err != nil {
+				return fmt.Errorf("insert migration dead letter box failed: %w", err)
+			}
+
+			m.logger.Warn(
+				"oversized commit message, skipped and added to dead letter box",
+				utils.GroupIDField(utils.HexEncode(groupID[:])),
+				utils.SequenceIDField(int64(sequenceID)),
+				zap.Int("size", totalSize),
+			)
+
+			return ErrDeadLetterBox
 		}
 
 		log, err := m.blockchainPublisher.BootstrapGroupMessages(
@@ -177,6 +208,29 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		inboxID, err := utils.ParseInboxID(identifier)
 		if err != nil {
 			return fmt.Errorf("error converting identifier to inbox ID: %w", err)
+		}
+
+		if totalSize > maxChainMessageSize {
+			err := insertMigrationDeadLetterBox(
+				m.ctx,
+				m.writer,
+				tableName,
+				int64(sequenceID),
+				inboxID[:],
+				FailureOversizedChainMessage,
+			)
+			if err != nil {
+				return fmt.Errorf("insert migration dead letter box failed: %w", err)
+			}
+
+			m.logger.Warn(
+				"oversized identity update, skipped and added to dead letter box",
+				utils.InboxIDField(utils.HexEncode(inboxID[:])),
+				utils.SequenceIDField(int64(sequenceID)),
+				zap.Int("size", totalSize),
+			)
+
+			return ErrDeadLetterBox
 		}
 
 		m.logger.Debug(
@@ -260,4 +314,45 @@ func retry(
 			return nil
 		}
 	}
+}
+
+func insertMigrationDeadLetterBox(
+	ctx context.Context,
+	database *sql.DB,
+	sourceTable string,
+	sequenceID int64,
+	payload []byte,
+	reason FailureReason,
+) error {
+	return db.RunInTx(
+		ctx,
+		database,
+		nil,
+		func(ctx context.Context, querier *queries.Queries) error {
+			_, err := querier.InsertMigrationDeadLetterBox(
+				ctx,
+				queries.InsertMigrationDeadLetterBoxParams{
+					SourceTable: sourceTable,
+					SequenceID:  sequenceID,
+					Payload:     payload,
+					Reason:      reason.String(),
+					Retryable:   reason.ShouldRetry(),
+				},
+			)
+			if err != nil {
+				return fmt.Errorf("insert migration dead letter box failed: %w", err)
+			}
+
+			// Skip this record by advancing migration progress.
+			err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+				LastMigratedID: sequenceID,
+				SourceTable:    sourceTable,
+			})
+			if err != nil {
+				return fmt.Errorf("update migration progress failed: %w", err)
+			}
+
+			return nil
+		},
+	)
 }

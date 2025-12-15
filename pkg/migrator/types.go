@@ -3,6 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -209,4 +210,28 @@ func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 		&w.WrapperAlgorithm,
 		&w.WelcomeMetadata,
 	)
+}
+
+type FailureReason string
+
+const (
+	FailureTransformerError      FailureReason = "transformer error"
+	FailureOversizedChainMessage FailureReason = "oversized chain message"
+)
+
+var ErrDeadLetterBox = errors.New("skipped and added to dead letter box")
+
+func (f FailureReason) String() string {
+	return string(f)
+}
+
+func (f FailureReason) ShouldRetry() bool {
+	switch f {
+	case FailureTransformerError:
+		return true
+	case FailureOversizedChainMessage:
+		return false
+	default:
+		return false
+	}
 }

@@ -460,6 +460,18 @@ func (m *Migrator) migrationWorker(tableName string) {
 							zap.Int64(idField, record.GetID()),
 						)
 
+						err := insertMigrationDeadLetterBox(
+							ctx,
+							m.writer,
+							tableName,
+							record.GetID(),
+							nil,
+							FailureTransformerError,
+						)
+						if err != nil {
+							logger.Error("failed to insert dead letter box", zap.Error(err))
+						}
+
 						metrics.EmitMigratorTransformerError(tableName)
 
 						cleanupInflight(ctx, record.GetID())

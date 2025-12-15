@@ -59,6 +59,16 @@ type LatestBlock struct {
 	BlockHash       []byte
 }
 
+type MigrationDeadLetterBox struct {
+	SourceTable string
+	SequenceID  int64
+	Payload     []byte
+	Reason      string
+	Retryable   bool
+	AddedAt     time.Time
+	RetriedAt   time.Time
+}
+
 type MigrationTracker struct {
 	SourceTable    string
 	LastMigratedID int64

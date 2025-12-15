@@ -9,6 +9,22 @@ import (
 	"context"
 )
 
+const deleteMigrationDeadLetterBox = `-- name: DeleteMigrationDeadLetterBox :one
+SELECT delete_migration_dead_letter_box($1, $2)
+`
+
+type DeleteMigrationDeadLetterBoxParams struct {
+	SourceTable string
+	SequenceID  int64
+}
+
+func (q *Queries) DeleteMigrationDeadLetterBox(ctx context.Context, arg DeleteMigrationDeadLetterBoxParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, deleteMigrationDeadLetterBox, arg.SourceTable, arg.SequenceID)
+	var delete_migration_dead_letter_box bool
+	err := row.Scan(&delete_migration_dead_letter_box)
+	return delete_migration_dead_letter_box, err
+}
+
 const getMigrationProgress = `-- name: GetMigrationProgress :one
 
 SELECT last_migrated_id 
@@ -22,6 +38,79 @@ func (q *Queries) GetMigrationProgress(ctx context.Context, sourceTable string) 
 	var last_migrated_id int64
 	err := row.Scan(&last_migrated_id)
 	return last_migrated_id, err
+}
+
+const getRetryableMigrationDeadLetterBoxes = `-- name: GetRetryableMigrationDeadLetterBoxes :many
+SELECT source_table, sequence_id, payload, reason, retryable, added_at, retried_at
+FROM migration_dead_letter_box
+WHERE retryable = TRUE
+ORDER BY retried_at ASC
+LIMIT $1
+`
+
+func (q *Queries) GetRetryableMigrationDeadLetterBoxes(ctx context.Context, rowLimit int32) ([]MigrationDeadLetterBox, error) {
+	rows, err := q.db.QueryContext(ctx, getRetryableMigrationDeadLetterBoxes, rowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MigrationDeadLetterBox
+	for rows.Next() {
+		var i MigrationDeadLetterBox
+		if err := rows.Scan(
+			&i.SourceTable,
+			&i.SequenceID,
+			&i.Payload,
+			&i.Reason,
+			&i.Retryable,
+			&i.AddedAt,
+			&i.RetriedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const insertMigrationDeadLetterBox = `-- name: InsertMigrationDeadLetterBox :one
+SELECT source_table, sequence_id, payload, reason, retryable, added_at, retried_at
+FROM insert_migration_dead_letter_box($1, $2, $3, $4, $5)
+`
+
+type InsertMigrationDeadLetterBoxParams struct {
+	SourceTable string
+	SequenceID  int64
+	Payload     []byte
+	Reason      string
+	Retryable   bool
+}
+
+func (q *Queries) InsertMigrationDeadLetterBox(ctx context.Context, arg InsertMigrationDeadLetterBoxParams) (MigrationDeadLetterBox, error) {
+	row := q.db.QueryRowContext(ctx, insertMigrationDeadLetterBox,
+		arg.SourceTable,
+		arg.SequenceID,
+		arg.Payload,
+		arg.Reason,
+		arg.Retryable,
+	)
+	var i MigrationDeadLetterBox
+	err := row.Scan(
+		&i.SourceTable,
+		&i.SequenceID,
+		&i.Payload,
+		&i.Reason,
+		&i.Retryable,
+		&i.AddedAt,
+		&i.RetriedAt,
+	)
+	return i, err
 }
 
 const updateMigrationProgress = `-- name: UpdateMigrationProgress :exec

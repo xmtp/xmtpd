@@ -25,11 +25,7 @@ import (
 
 func startIndexing(
 	t *testing.T,
-<<<<<<< HEAD
-) (*sql.DB, *queries.Queries, *config.ContractsOptions, context.Context) {
-=======
-) (*db.Handler, *queries.Queries, config.ContractsOptions, context.Context) {
->>>>>>> b493af5 (Introduce support for read only DB)
+) (*db.Handler, *queries.Queries, *config.ContractsOptions, context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
@@ -58,13 +54,8 @@ func startIndexing(
 func messagePublisher(
 	t *testing.T,
 	ctx context.Context,
-<<<<<<< HEAD
-	db *sql.DB,
-	contractsCfg *config.ContractsOptions,
-=======
 	db *db.Handler,
-	contractsCfg config.ContractsOptions,
->>>>>>> b493af5 (Introduce support for read only DB)
+	contractsCfg *config.ContractsOptions,
 ) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)
 	var signer blockchain.TransactionSigner

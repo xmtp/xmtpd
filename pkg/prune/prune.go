@@ -45,30 +45,29 @@ func NewPruneExecutor(
 
 func (e *Executor) Run() error {
 	var (
-		querier        = queries.New(e.writerDB)
-		start          = time.Now()
-		envelopesCount int64
-		migratedCount  int64
-		err            error
+		querier = queries.New(e.writerDB)
+		start   = time.Now()
 	)
 
-	envelopesCount, err = querier.CountExpiredEnvelopes(e.ctx)
-	if err != nil {
-		return err
-	}
+	if e.config.CountDeletable {
+		envelopesCount, err := querier.CountExpiredEnvelopes(e.ctx)
+		if err != nil {
+			return err
+		}
 
-	migratedCount, err = querier.CountExpiredMigratedEnvelopes(e.ctx)
-	if err != nil {
-		return err
-	}
+		migratedCount, err := querier.CountExpiredMigratedEnvelopes(e.ctx)
+		if err != nil {
+			return err
+		}
 
-	total := envelopesCount + migratedCount
+		total := envelopesCount + migratedCount
 
-	e.logger.Info("count of envelopes eligible for pruning", utils.CountField(total))
+		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(total))
 
-	if total == 0 {
-		e.logger.Info("no envelopes found for pruning")
-		return nil
+		if total == 0 {
+			e.logger.Info("no envelopes found for pruning")
+			return nil
+		}
 	}
 
 	if e.config.DryRun {
@@ -79,6 +78,8 @@ func (e *Executor) Run() error {
 	var (
 		cyclesCompleted    = 0
 		totalDeletionCount = 0
+		envelopesExhausted = false
+		migratedExhausted  = false
 	)
 
 	for {
@@ -92,17 +93,20 @@ func (e *Executor) Run() error {
 
 		var deletedThisCycle int
 
-		if envelopesCount > 0 {
+		if !envelopesExhausted {
 			rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx, e.config.BatchSize)
 			if err != nil {
 				return err
 			}
 
 			deletedThisCycle += len(rows)
-			envelopesCount -= int64(len(rows))
+
+			if len(rows) < int(e.config.BatchSize) {
+				envelopesExhausted = true
+			}
 		}
 
-		if migratedCount > 0 {
+		if !migratedExhausted {
 			rows, err := querier.DeleteExpiredMigratedEnvelopesBatch(
 				e.ctx,
 				e.config.BatchSize,
@@ -112,7 +116,10 @@ func (e *Executor) Run() error {
 			}
 
 			deletedThisCycle += len(rows)
-			migratedCount -= int64(len(rows))
+
+			if len(rows) < int(e.config.BatchSize) {
+				migratedExhausted = true
+			}
 		}
 
 		totalDeletionCount += deletedThisCycle
@@ -121,7 +128,7 @@ func (e *Executor) Run() error {
 
 		cyclesCompleted++
 
-		if deletedThisCycle < int(e.config.BatchSize) {
+		if envelopesExhausted && migratedExhausted {
 			break
 		}
 	}

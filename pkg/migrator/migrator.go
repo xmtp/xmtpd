@@ -502,24 +502,45 @@ func (m *Migrator) migrationWorker(tableName string) {
 			logger := m.logger.Named(utils.MigratorWriterLoggerName).
 				With(zap.String(tableField, tableName))
 
+			identityUpdateBatch := &IdentityUpdateBatch{}
+
 			logger.Info("started")
 
 			for {
 				select {
 				case <-ctx.Done():
+					// Flush remaining identity updates before exiting.
+					if identityUpdateBatch.Len() > 0 {
+						if err := m.flushIdentityUpdateBatch(ctx, logger, identityUpdateBatch); err != nil {
+							logger.Error(
+								"final batch flush failed on context cancel",
+								zap.Error(err),
+							)
+						}
+					}
 					logger.Info(contextCancelledMessage)
 					return
 
 				case envelope, open := <-wrtrChan:
 					if !open {
+						// Flush remaining identity updates before exiting.
+						if identityUpdateBatch.Len() > 0 {
+							if err := m.flushIdentityUpdateBatch(ctx, logger, identityUpdateBatch); err != nil {
+								logger.Error(
+									"final batch flush failed on channel close",
+									zap.Error(err),
+								)
+							}
+						}
 						logger.Info(channelClosedMessage)
 						return
 					}
 
 					func(env *envelopes.OriginatorEnvelope) {
 						var (
-							err         error
-							destination string
+							err          error
+							destination  string
+							originatorID = env.OriginatorNodeID()
 						)
 
 						defer func() {
@@ -568,7 +589,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 							cleanupInflight(ctx, int64(env.OriginatorSequenceID()))
 						}()
 
-						switch env.OriginatorNodeID() {
+						switch originatorID {
 						case WelcomeMessageOriginatorID,
 							KeyPackagesOriginatorID,
 							GroupMessageOriginatorID:
@@ -585,7 +606,10 @@ func (m *Migrator) migrationWorker(tableName string) {
 										tableName,
 										destination,
 										func() re.RetryableError {
-											return m.insertOriginatorEnvelopeDatabase(env)
+											return m.insertOriginatorEnvelopeDatabase(
+												env,
+												tableName,
+											)
 										},
 									)
 								},
@@ -594,7 +618,55 @@ func (m *Migrator) migrationWorker(tableName string) {
 								logger.Error("failed to insert envelope", zap.Error(err))
 							}
 
-						case InboxLogOriginatorID, CommitMessageOriginatorID:
+						case InboxLogOriginatorID:
+							destination = destinationBlockchain
+
+							clientEnvelopeBytes, identifier, sequenceID, _, err := m.prepareClientEnvelope(
+								env,
+								tableName,
+							)
+							if err != nil {
+								logger.Error(
+									"failed to prepare identity update envelope",
+									zap.Error(err),
+								)
+								return
+							}
+
+							inboxID, err := utils.ParseInboxID(identifier)
+							if err != nil {
+								logger.Error("failed to parse inbox ID", zap.Error(err))
+								return
+							}
+
+							// Add to batch.
+							identityUpdateBatch.Add(
+								inboxID,
+								clientEnvelopeBytes,
+								sequenceID,
+							)
+
+							// Check if batch should be flushed, based on size threshold.
+							if identityUpdateBatch.Size() >= maxBatchSize {
+								err = metrics.MeasureWriterLatency(
+									tableName,
+									destination,
+									func() error {
+										return m.flushIdentityUpdateBatch(
+											ctx,
+											logger,
+											identityUpdateBatch,
+										)
+									},
+								)
+								if err != nil {
+									logger.Error("batch flush failed", zap.Error(err))
+								}
+
+								identityUpdateBatch.Reset()
+							}
+
+						case CommitMessageOriginatorID:
 							destination = destinationBlockchain
 
 							err = metrics.MeasureWriterLatency(
@@ -614,10 +686,7 @@ func (m *Migrator) migrationWorker(tableName string) {
 								},
 							)
 							if err != nil {
-								logger.Error(
-									"error publishing blockchain message",
-									zap.Error(err),
-								)
+								logger.Error("failed to insert envelope", zap.Error(err))
 							}
 						}
 					}(envelope)

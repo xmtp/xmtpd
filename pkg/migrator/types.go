@@ -212,6 +212,7 @@ func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 	)
 }
 
+// FailureReason defines the reason for inserting a record into the dead letter box.
 type FailureReason string
 
 const (
@@ -234,4 +235,41 @@ func (f FailureReason) ShouldRetry() bool {
 	default:
 		return false
 	}
+}
+
+// IdentityUpdateBatch defines a batch of identity updates to be published to the blockchain.
+type IdentityUpdateBatch struct {
+	inboxIDs        [][32]byte
+	identityUpdates [][]byte
+	sequenceIDs     []uint64
+}
+
+func (i *IdentityUpdateBatch) Size() int64 {
+	size := 0
+
+	for _, identityUpdate := range i.identityUpdates {
+		size += len(identityUpdate)
+	}
+
+	return int64(len(i.inboxIDs)*32 + size + len(i.sequenceIDs)*8)
+}
+
+func (i *IdentityUpdateBatch) LastSequenceID() uint64 {
+	return i.sequenceIDs[len(i.sequenceIDs)-1]
+}
+
+func (i *IdentityUpdateBatch) Add(inboxID [32]byte, payload []byte, sequenceID uint64) {
+	i.inboxIDs = append(i.inboxIDs, inboxID)
+	i.identityUpdates = append(i.identityUpdates, payload)
+	i.sequenceIDs = append(i.sequenceIDs, sequenceID)
+}
+
+func (i *IdentityUpdateBatch) Len() int {
+	return len(i.inboxIDs)
+}
+
+func (i *IdentityUpdateBatch) Reset() {
+	i.inboxIDs = nil
+	i.identityUpdates = nil
+	i.sequenceIDs = nil
 }

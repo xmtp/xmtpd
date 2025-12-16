@@ -20,19 +20,15 @@ import (
 
 const (
 	maxChainMessageSize = 200 * 1024 // 200KB
-	overheadSize        = 40         // 40 bytes
+	maxBatchSize        = 100 * 1024 // 100KB - batch threshold for identity updates
 )
 
 func (m *Migrator) insertOriginatorEnvelopeDatabase(
 	env *envelopes.OriginatorEnvelope,
+	tableName string,
 ) re.RetryableError {
 	if env == nil {
 		return re.NewNonRecoverableError("", errors.New("envelope is nil"))
-	}
-
-	tableName, ok := originatorIDToTableName[env.OriginatorNodeID()]
-	if !ok {
-		return re.NewNonRecoverableError("", errors.New("invalid originator id"))
 	}
 
 	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
@@ -135,7 +131,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		return re.NewNonRecoverableError("failed to get payer envelope bytes", err)
 	}
 
-	totalSize := len(clientEnvelopeBytes) + overheadSize
+	totalSize := len(clientEnvelopeBytes) + len(identifier) + 8
 
 	querier := queries.New(m.writer)
 
@@ -249,34 +245,6 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			return re.NewNonRecoverableError("error converting identifier to inbox ID", err)
 		}
 
-		if totalSize > maxChainMessageSize {
-			err := insertMigrationDeadLetterBox(
-				m.ctx,
-				m.writer,
-				tableName,
-				int64(sequenceID),
-				inboxID[:],
-				FailureOversizedChainMessage,
-			)
-			if err != nil {
-				// Ensure dead letter box is inserted before returning an error.
-				return re.NewRecoverableError("insert migration dead letter box failed", err)
-			}
-
-			m.logger.Warn(
-				"oversized identity update, skipped and added to dead letter box",
-				utils.InboxIDField(utils.HexEncode(inboxID[:])),
-				utils.SequenceIDField(int64(sequenceID)),
-				zap.Int("size", totalSize),
-			)
-
-			// Return a non-recoverable error to ensure the message is not retried.
-			return re.NewNonRecoverableError(
-				"oversized identity update, skipped and added to dead letter box",
-				ErrDeadLetterBox,
-			)
-		}
-
 		m.logger.Debug(
 			"publishing identity update",
 			utils.InboxIDField(utils.HexEncode(inboxID[:])),
@@ -353,6 +321,183 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 	return nil
 }
 
+func (m *Migrator) prepareClientEnvelope(
+	env *envelopes.OriginatorEnvelope,
+	tableName string,
+) (clientEnvelopeBytes []byte, identifier []byte, sequenceID uint64, totalSize int, err error) {
+	sequenceID = env.OriginatorSequenceID()
+	identifier = env.TargetTopic().Identifier()
+
+	clientEnvelopeBytes, err = env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
+	if err != nil {
+		m.logger.Error("failed to get payer envelope bytes", zap.Error(err))
+		return nil, nil, 0, 0, fmt.Errorf("failed to get payer envelope bytes: %w", err)
+	}
+
+	// 8 bytes for the sequence ID.
+	totalSize = len(clientEnvelopeBytes) + len(identifier) + 8
+
+	if totalSize > maxChainMessageSize {
+		err := insertMigrationDeadLetterBox(
+			m.ctx,
+			m.writer,
+			tableName,
+			int64(sequenceID),
+			identifier[:],
+			FailureOversizedChainMessage,
+		)
+		if err != nil {
+			// Ensure dead letter box is inserted before returning an error.
+			return nil, nil, 0, 0, fmt.Errorf("insert migration dead letter box failed: %w", err)
+		}
+
+		m.logger.Warn(
+			"oversized blockchain payload, skipped and added to dead letter box",
+			zap.String("identifier", utils.HexEncode(identifier[:])),
+			utils.SequenceIDField(int64(sequenceID)),
+			zap.Int("size", totalSize),
+		)
+
+		// Return a non-recoverable error to ensure the message is not retried.
+		return nil, nil, 0, 0, fmt.Errorf(
+			"oversized blockchain payload, skipped and added to dead letter box: %w",
+			ErrDeadLetterBox,
+		)
+	}
+
+	return clientEnvelopeBytes, identifier, sequenceID, totalSize, nil
+}
+
+func (m *Migrator) bootstrapIdentityUpdates(batch *IdentityUpdateBatch) re.RetryableError {
+	// Should never happen.
+	if len(batch.inboxIDs) != len(batch.identityUpdates) ||
+		len(batch.inboxIDs) != len(batch.sequenceIDs) {
+		return re.NewNonRecoverableError("array mismatch", errors.New("array mismatch"))
+	}
+
+	querier := queries.New(m.writer)
+
+	_, err := m.blockchainPublisher.BootstrapIdentityUpdates(
+		m.ctx,
+		batch.inboxIDs,
+		batch.identityUpdates,
+		batch.sequenceIDs,
+	)
+	if err != nil {
+		// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
+		if strings.Contains(err.Error(), "NotPaused()") ||
+			strings.Contains(err.Error(), "NotPayloadBootstrapper()") {
+			return re.NewRecoverableError(err.Error(), err)
+		}
+
+		// Transient errors - recoverable (timeout, network issues).
+		if strings.Contains(err.Error(), "timed out") ||
+			errors.Is(err, context.DeadlineExceeded) ||
+			errors.Is(err, context.Canceled) {
+			return re.NewRecoverableError("transient blockchain error", err)
+		}
+
+		// Unknown errors - default to recoverable.
+		return re.NewRecoverableError(
+			"error publishing identity update batch",
+			err,
+		)
+	}
+
+	err = querier.UpdateMigrationProgress(m.ctx, queries.UpdateMigrationProgressParams{
+		LastMigratedID: int64(batch.LastSequenceID()),
+		SourceTable:    inboxLogTableName,
+	})
+	if err != nil {
+		m.logger.Error("update migration progress failed", zap.Error(err))
+
+		// If we reached this point, the message has been published and the log emitted.
+		// Therefore, we can return a non-recoverable error to ensure the message is not retried.
+		return re.NewNonRecoverableError("update migration progress failed", err)
+	}
+
+	m.logger.Debug(
+		"published identity update batch",
+		utils.SequenceIDField(int64(batch.LastSequenceID())),
+	)
+
+	return nil
+}
+
+func (m *Migrator) flushIdentityUpdateBatch(
+	ctx context.Context,
+	logger *zap.Logger,
+	batch *IdentityUpdateBatch,
+) error {
+	if batch.Len() == 0 {
+		return nil
+	}
+
+	err := retry(
+		ctx,
+		logger,
+		50*time.Millisecond,
+		inboxLogTableName,
+		destinationBlockchain,
+		func() re.RetryableError {
+			return m.bootstrapIdentityUpdates(batch)
+		},
+	)
+
+	if err == nil {
+		logger.Debug(
+			"batch flush successful",
+			zap.Int("count", batch.Len()),
+			utils.SequenceIDField(int64(batch.LastSequenceID())),
+		)
+		return nil
+	}
+
+	logger.Warn(
+		"batch failed, retrying identity updates individually",
+		zap.Error(err),
+		zap.Int("count", batch.Len()),
+	)
+
+	for i := range batch.inboxIDs {
+		unitaryBatch := &IdentityUpdateBatch{
+			inboxIDs:        [][32]byte{batch.inboxIDs[i]},
+			identityUpdates: [][]byte{batch.identityUpdates[i]},
+			sequenceIDs:     []uint64{batch.sequenceIDs[i]},
+		}
+
+		err := retry(
+			ctx,
+			logger,
+			50*time.Millisecond,
+			inboxLogTableName,
+			destinationBlockchain,
+			func() re.RetryableError {
+				return m.bootstrapIdentityUpdates(unitaryBatch)
+			},
+		)
+		if err != nil {
+			logger.Error(
+				"individual retry failed",
+				utils.InboxIDField(utils.HexEncode(unitaryBatch.inboxIDs[0][:])),
+				utils.SequenceIDField(int64(unitaryBatch.sequenceIDs[0])),
+				zap.Error(err),
+			)
+		} else {
+			logger.Debug(
+				"individual retry succeeded",
+				utils.InboxIDField(utils.HexEncode(unitaryBatch.inboxIDs[0][:])),
+				utils.SequenceIDField(int64(unitaryBatch.sequenceIDs[0])),
+			)
+		}
+	}
+
+	return nil
+}
+
+/* Database helper functions. */
+
+// retry implements the retry logic for insert (db or chain) operations.
 func retry(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -390,6 +535,7 @@ func retry(
 	}
 }
 
+// insertMigrationDeadLetterBox inserts a record into the migration dead letter box.
 func insertMigrationDeadLetterBox(
 	ctx context.Context,
 	database *sql.DB,

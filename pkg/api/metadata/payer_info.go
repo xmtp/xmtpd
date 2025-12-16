@@ -25,12 +25,12 @@ type IPayerInfoFetcher interface {
 }
 
 type PayerInfoFetcher struct {
-	queries *queries.Queries
+	db *db.Handler
 }
 
 func NewPayerInfoFetcher(db *db.Handler) *PayerInfoFetcher {
 	return &PayerInfoFetcher{
-		queries: db.ReadQuery(),
+		db: db,
 	}
 }
 
@@ -40,7 +40,7 @@ func (f *PayerInfoFetcher) GetPayerInfo(
 	payerID int32,
 	groupBy PayerInfoGroupBy,
 ) (*metadata_api.GetPayerInfoResponse_PayerInfo, error) {
-	result, err := f.queries.GetPayerInfoReport(ctx, queries.GetPayerInfoReportParams{
+	result, err := f.db.ReadQuery().GetPayerInfoReport(ctx, queries.GetPayerInfoReportParams{
 		GroupBy: string(groupBy),
 		PayerID: payerID,
 	})
@@ -67,5 +67,5 @@ func (f *PayerInfoFetcher) GetPayerInfo(
 
 // GetPayerByAddress looks up a payer ID by address
 func (f *PayerInfoFetcher) GetPayerByAddress(ctx context.Context, address string) (int32, error) {
-	return f.queries.GetPayerByAddress(ctx, address)
+	return f.db.ReadQuery().GetPayerByAddress(ctx, address)
 }

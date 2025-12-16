@@ -26,7 +26,7 @@ type Handler struct {
 	// Handle to read-write DB.
 	write *sql.DB
 
-	// Handle to read-only DB. Preferred for reads, if avaiable.
+	// Handle to read-only DB. Preferred for reads, if available.
 	read *sql.DB
 
 	// NOTE: This is potentially just overhead since it's trivial to create queries in other places.

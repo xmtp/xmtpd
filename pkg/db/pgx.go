@@ -200,8 +200,6 @@ func connectToDB(
 		}
 	}
 
-	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
-
 	if namespace != "" {
 		poolcfg.ConnConfig.Database = namespace
 	}
@@ -216,6 +214,8 @@ func connectToDB(
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
 
 	if cfg.prometheusRegistry != nil {
 		mp, err := bindOTelToProm(cfg.prometheusRegistry)

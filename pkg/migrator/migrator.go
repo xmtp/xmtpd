@@ -261,12 +261,12 @@ func (m *Migrator) Stop() error {
 	m.cancel()
 	m.wg.Wait()
 
-	if err := m.source.DB().Close(); err != nil {
+	if err := m.source.Close(); err != nil {
 		m.logger.Error("failed to close connection to source database", zap.Error(err))
 	}
 
 	// TODO: IMO migrator should not be the one closing the writer DB since it's not the one who opened it.
-	if err := m.target.DB().Close(); err != nil {
+	if err := m.target.Close(); err != nil {
 		m.logger.Error("failed to close connection to destination database", zap.Error(err))
 	}
 

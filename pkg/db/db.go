@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
@@ -85,4 +86,22 @@ func (h *Handler) ReadQuery() *queries.Queries {
 	}
 
 	return h.query
+}
+
+func (h *Handler) Close() error {
+	var errs []error
+
+	err := h.write.Close()
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	if h.read != nil {
+		err = h.read.Close()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
 }

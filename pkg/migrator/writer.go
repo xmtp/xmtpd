@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -116,7 +117,7 @@ func (m *Migrator) insertOriginatorEnvelopeDatabase(
 
 func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 	env *envelopes.OriginatorEnvelope,
-) error {
+) re.RetryableError {
 	var (
 		identifier   = env.TargetTopic().Identifier()
 		sequenceID   = env.OriginatorSequenceID()
@@ -125,13 +126,13 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 
 	tableName, ok := originatorIDToTableName[originatorID]
 	if !ok {
-		return fmt.Errorf("invalid originator id: %d", originatorID)
+		return re.NewNonRecoverableError("", errors.New("invalid originator id"))
 	}
 
 	clientEnvelopeBytes, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
 	if err != nil {
 		m.logger.Error("failed to get payer envelope bytes", zap.Error(err))
-		return fmt.Errorf("failed to get payer envelope bytes: %w", err)
+		return re.NewNonRecoverableError("failed to get payer envelope bytes", err)
 	}
 
 	totalSize := len(clientEnvelopeBytes) + overheadSize
@@ -142,7 +143,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 	case CommitMessageOriginatorID:
 		groupID, err := utils.ParseGroupID(identifier)
 		if err != nil {
-			return fmt.Errorf("error converting identifier to group ID: %w", err)
+			return re.NewNonRecoverableError("error converting identifier to group ID", err)
 		}
 
 		if totalSize > maxChainMessageSize {
@@ -155,7 +156,8 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 				FailureOversizedChainMessage,
 			)
 			if err != nil {
-				return fmt.Errorf("insert migration dead letter box failed: %w", err)
+				// Ensure dead letter box is inserted before returning an error.
+				return re.NewRecoverableError("insert migration dead letter box failed", err)
 			}
 
 			m.logger.Warn(
@@ -165,27 +167,58 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 				zap.Int("size", totalSize),
 			)
 
-			return ErrDeadLetterBox
+			// Return a non-recoverable error to ensure the message is not retried.
+			return re.NewNonRecoverableError(
+				"oversized commit message, skipped and added to dead letter box",
+				ErrDeadLetterBox,
+			)
 		}
 
-		log, err := m.blockchainPublisher.BootstrapGroupMessages(
+		_, err = m.blockchainPublisher.BootstrapGroupMessages(
 			m.ctx,
 			[][16]byte{groupID},
 			[][]byte{clientEnvelopeBytes},
 			[]uint64{sequenceID},
 		)
 		if err != nil {
-			return fmt.Errorf(
-				"error publishing group message with sequence ID %d: %w",
-				sequenceID,
-				err,
-			)
-		}
+			// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
+			if strings.Contains(err.Error(), "NotPaused()") ||
+				strings.Contains(err.Error(), "NotPayloadBootstrapper()") {
+				return re.NewRecoverableError(
+					err.Error(),
+					err,
+				)
+			}
 
-		if len(log) == 0 {
-			return fmt.Errorf(
-				"received nil log publishing group message with sequence ID %d",
-				sequenceID,
+			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
+				err := insertMigrationDeadLetterBox(
+					m.ctx,
+					m.writer,
+					tableName,
+					int64(sequenceID),
+					groupID[:],
+					FailureOversizedChainMessage,
+				)
+				if err != nil {
+					// Ensure dead letter box is inserted before returning an error.
+					return re.NewRecoverableError("insert migration dead letter box failed", err)
+				}
+
+				// Return a non-recoverable error to ensure the message is not retried.
+				return re.NewNonRecoverableError("invalid payload size", err)
+			}
+
+			// Transient errors - recoverable (timeout, network issues).
+			if strings.Contains(err.Error(), "timed out") ||
+				errors.Is(err, context.DeadlineExceeded) ||
+				errors.Is(err, context.Canceled) {
+				return re.NewRecoverableError("transient blockchain error", err)
+			}
+
+			// Unknown errors - default to recoverable.
+			return re.NewRecoverableError(
+				fmt.Sprintf("error publishing group message %d", sequenceID),
+				err,
 			)
 		}
 
@@ -195,7 +228,10 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		})
 		if err != nil {
 			m.logger.Error("update migration progress failed", zap.Error(err))
-			return fmt.Errorf("update migration progress failed: %w", err)
+
+			// If we reached this point, the message has been published and the log emitted.
+			// Therefore, we can return a non-recoverable error to ensure the message is not retried.
+			return re.NewNonRecoverableError("update migration progress failed", err)
 		}
 
 		m.logger.Debug(
@@ -207,7 +243,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 	case InboxLogOriginatorID:
 		inboxID, err := utils.ParseInboxID(identifier)
 		if err != nil {
-			return fmt.Errorf("error converting identifier to inbox ID: %w", err)
+			return re.NewNonRecoverableError("error converting identifier to inbox ID", err)
 		}
 
 		if totalSize > maxChainMessageSize {
@@ -220,7 +256,8 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 				FailureOversizedChainMessage,
 			)
 			if err != nil {
-				return fmt.Errorf("insert migration dead letter box failed: %w", err)
+				// Ensure dead letter box is inserted before returning an error.
+				return re.NewRecoverableError("insert migration dead letter box failed", err)
 			}
 
 			m.logger.Warn(
@@ -230,7 +267,11 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 				zap.Int("size", totalSize),
 			)
 
-			return ErrDeadLetterBox
+			// Return a non-recoverable error to ensure the message is not retried.
+			return re.NewNonRecoverableError(
+				"oversized identity update, skipped and added to dead letter box",
+				ErrDeadLetterBox,
+			)
 		}
 
 		m.logger.Debug(
@@ -239,24 +280,48 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			utils.SequenceIDField(int64(sequenceID)),
 		)
 
-		log, err := m.blockchainPublisher.BootstrapIdentityUpdates(
+		_, err = m.blockchainPublisher.BootstrapIdentityUpdates(
 			m.ctx,
 			[][32]byte{inboxID},
 			[][]byte{clientEnvelopeBytes},
 			[]uint64{sequenceID},
 		)
 		if err != nil {
-			return fmt.Errorf(
-				"error publishing identity update with sequence ID %d: %w",
-				sequenceID,
-				err,
-			)
-		}
+			// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
+			if strings.Contains(err.Error(), "NotPaused()") ||
+				strings.Contains(err.Error(), "NotPayloadBootstrapper()") {
+				return re.NewRecoverableError(err.Error(), err)
+			}
 
-		if len(log) == 0 {
-			return fmt.Errorf(
-				"received nil log publishing identity update with sequence ID %d",
-				sequenceID,
+			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
+				err := insertMigrationDeadLetterBox(
+					m.ctx,
+					m.writer,
+					tableName,
+					int64(sequenceID),
+					inboxID[:],
+					FailureOversizedChainMessage,
+				)
+				if err != nil {
+					// Ensure dead letter box is inserted before returning an error.
+					return re.NewRecoverableError("insert migration dead letter box failed", err)
+				}
+
+				// Return a non-recoverable error to ensure the message is not retried.
+				return re.NewNonRecoverableError("invalid payload size", err)
+			}
+
+			// Transient errors - recoverable (timeout, network issues).
+			if strings.Contains(err.Error(), "timed out") ||
+				errors.Is(err, context.DeadlineExceeded) ||
+				errors.Is(err, context.Canceled) {
+				return re.NewRecoverableError("transient blockchain error", err)
+			}
+
+			// Unknown errors - default to recoverable.
+			return re.NewRecoverableError(
+				fmt.Sprintf("error publishing identity update %d", sequenceID),
+				err,
 			)
 		}
 
@@ -266,7 +331,10 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 		})
 		if err != nil {
 			m.logger.Error("update migration progress failed", zap.Error(err))
-			return fmt.Errorf("update migration progress failed: %w", err)
+
+			// If we reached this point, the message has been published and the log emitted.
+			// Therefore, we can return a non-recoverable error to ensure the message is not retried.
+			return re.NewNonRecoverableError("update migration progress failed", err)
 		}
 
 		m.logger.Debug(

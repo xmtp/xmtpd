@@ -601,7 +601,16 @@ func (m *Migrator) migrationWorker(tableName string) {
 								tableName,
 								destination,
 								func() error {
-									return m.insertOriginatorEnvelopeBlockchain(env)
+									return retry(
+										ctx,
+										logger,
+										50*time.Millisecond,
+										tableName,
+										destination,
+										func() re.RetryableError {
+											return m.insertOriginatorEnvelopeBlockchain(env)
+										},
+									)
 								},
 							)
 							if err != nil {

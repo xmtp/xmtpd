@@ -24,7 +24,6 @@ type EnvelopeSink struct {
 	ctx                        context.Context
 	db                         *db.Handler
 	logger                     *zap.Logger
-	queries                    *queries.Queries
 	feeCalculator              fees.IFeeCalculator
 	payerReportStore           payerreport.IPayerReportStore
 	payerReportDomainSeparator common.Hash
@@ -265,7 +264,7 @@ func (s *EnvelopeSink) getPayerID(env *envUtils.OriginatorEnvelope) (int32, erro
 		return 0, err
 	}
 
-	payerID, err := s.queries.FindOrCreatePayer(s.ctx, payerAddress.Hex())
+	payerID, err := s.db.WriteQuery().FindOrCreatePayer(s.ctx, payerAddress.Hex())
 	if err != nil {
 		return 0, err
 	}

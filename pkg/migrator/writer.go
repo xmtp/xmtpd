@@ -191,7 +191,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			}
 
 			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
-				err := insertMigrationDeadLetterBox(
+				errInsert := insertMigrationDeadLetterBox(
 					m.ctx,
 					m.writer,
 					tableName,
@@ -199,9 +199,12 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 					groupID[:],
 					FailureOversizedChainMessage,
 				)
-				if err != nil {
+				if errInsert != nil {
 					// Ensure dead letter box is inserted before returning an error.
-					return re.NewRecoverableError("insert migration dead letter box failed", err)
+					return re.NewRecoverableError(
+						"invalid payload size, inserted migration dead letter box failed",
+						errInsert,
+					)
 				}
 
 				// Return a non-recoverable error to ensure the message is not retried.
@@ -294,7 +297,7 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 			}
 
 			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
-				err := insertMigrationDeadLetterBox(
+				errInsert := insertMigrationDeadLetterBox(
 					m.ctx,
 					m.writer,
 					tableName,
@@ -302,9 +305,12 @@ func (m *Migrator) insertOriginatorEnvelopeBlockchain(
 					inboxID[:],
 					FailureOversizedChainMessage,
 				)
-				if err != nil {
+				if errInsert != nil {
 					// Ensure dead letter box is inserted before returning an error.
-					return re.NewRecoverableError("insert migration dead letter box failed", err)
+					return re.NewRecoverableError(
+						"invalid payload size, inserted migration dead letter box failed",
+						errInsert,
+					)
 				}
 
 				// Return a non-recoverable error to ensure the message is not retried.

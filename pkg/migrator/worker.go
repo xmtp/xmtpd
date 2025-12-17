@@ -502,7 +502,7 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 				lastSequenceID := identityUpdateBatch.LastSequenceID()
 
 				logger.Info(
-					"flushing identity update batch",
+					"publishing identity update batch",
 					zap.Int("length", identityUpdateBatch.Len()),
 					zap.Uint64("last_sequence_id", lastSequenceID),
 				)
@@ -522,7 +522,7 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 					logger.Error(
 						"failed to flush identity update batch",
 						zap.Int("length", identityUpdateBatch.Len()),
-						zap.Uint64("last_sequence_id", lastSequenceID),
+						utils.SequenceIDField(int64(lastSequenceID)),
 						zap.Error(err),
 					)
 

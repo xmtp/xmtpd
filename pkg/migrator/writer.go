@@ -472,6 +472,7 @@ func (w *Worker) bootstrapIdentityUpdates(
 
 	w.logger.Debug(
 		"published identity update batch",
+		zap.Int("length", batch.Len()),
 		utils.SequenceIDField(int64(batch.LastSequenceID())),
 	)
 

@@ -360,6 +360,10 @@ func (w *Worker) flushIdentityUpdatesBatch(
 		return nil
 	}
 
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+
 	logger.Warn(
 		"batch failed, retrying identity updates individually",
 		zap.Error(err),

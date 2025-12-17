@@ -582,13 +582,6 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 				case <-ctx.Done():
 					logger.Info(contextCancelledMessage)
 
-					if identityUpdateBatch.Len() <= 0 {
-						return
-					}
-
-					// Flush remaining identity updates before exiting.
-					triggerBatchFlush()
-
 					return
 
 				case <-ticker.C:

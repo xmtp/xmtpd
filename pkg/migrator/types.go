@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"iter"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -212,11 +213,13 @@ func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 	)
 }
 
+// FailureReason defines the reason for inserting a record into the dead letter box.
 type FailureReason string
 
 const (
-	FailureTransformerError      FailureReason = "transformer error"
-	FailureOversizedChainMessage FailureReason = "oversized chain message"
+	FailureTransformerError       FailureReason = "transformer error"
+	FailureOversizedChainMessage  FailureReason = "oversized chain message"
+	FailureBlockchainUndetermined FailureReason = "blockchain undetermined error"
 )
 
 var ErrDeadLetterBox = errors.New("skipped and added to dead letter box")
@@ -234,4 +237,67 @@ func (f FailureReason) ShouldRetry() bool {
 	default:
 		return false
 	}
+}
+
+// IdentityUpdateBatch defines a batch of identity updates to be published to the blockchain.
+type IdentityUpdateBatch struct {
+	inboxIDs        [][32]byte
+	identityUpdates [][]byte
+	sequenceIDs     []uint64
+}
+
+// IdentityUpdate represents a single element from the batch.
+type IdentityUpdate struct {
+	InboxID        [32]byte
+	IdentityUpdate []byte
+	SequenceID     uint64
+}
+
+// All returns an iterator over all items in the batch.
+func (i *IdentityUpdateBatch) All() iter.Seq[IdentityUpdate] {
+	return func(yield func(IdentityUpdate) bool) {
+		for index := range i.inboxIDs {
+			if !yield(IdentityUpdate{
+				InboxID:        i.inboxIDs[index],
+				IdentityUpdate: i.identityUpdates[index],
+				SequenceID:     i.sequenceIDs[index],
+			}) {
+				return
+			}
+		}
+	}
+}
+
+func (i *IdentityUpdateBatch) Size() int64 {
+	size := 0
+
+	for _, identityUpdate := range i.identityUpdates {
+		size += len(identityUpdate)
+	}
+
+	return int64(len(i.inboxIDs)*32 + size + len(i.sequenceIDs)*8)
+}
+
+func (i *IdentityUpdateBatch) LastSequenceID() uint64 {
+	if len(i.sequenceIDs) == 0 {
+		return 0
+	}
+
+	return i.sequenceIDs[len(i.sequenceIDs)-1]
+}
+
+func (i *IdentityUpdateBatch) Add(inboxID [32]byte, payload []byte, sequenceID uint64) {
+	i.inboxIDs = append(i.inboxIDs, inboxID)
+	i.identityUpdates = append(i.identityUpdates, payload)
+	i.sequenceIDs = append(i.sequenceIDs, sequenceID)
+}
+
+func (i *IdentityUpdateBatch) Len() int {
+	return len(i.inboxIDs)
+}
+
+func (i *IdentityUpdateBatch) Reset() {
+	i.inboxIDs = nil
+	i.identityUpdates = nil
+	i.sequenceIDs = nil
 }

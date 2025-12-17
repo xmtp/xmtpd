@@ -67,6 +67,7 @@ const (
 	MigratorReaderLoggerName      = "reader"
 	MigratorTransformerLoggerName = "transformer"
 	MigratorWriterLoggerName      = "writer"
+	MigratorWriterBatchLoggerName = "writer-batch"
 
 	// On-chain protocol services.
 	AppChainAdminLoggerName           = "app-chain-admin"

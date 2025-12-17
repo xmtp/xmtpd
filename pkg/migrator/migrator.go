@@ -25,12 +25,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
 
@@ -226,8 +221,24 @@ func (m *Migrator) Start() error {
 		return fmt.Errorf("migration service is already running")
 	}
 
-	for tableName := range m.readers {
-		m.migrationWorker(tableName)
+	if err := m.startKeyPackagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startWelcomeMessagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startGroupMessagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startCommitMessagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startInboxLogWorker(); err != nil {
+		return err
 	}
 
 	m.logger.Info("migration service started")
@@ -259,369 +270,127 @@ func (m *Migrator) Stop() error {
 	return nil
 }
 
-// migrationWorker continuously processes migration for a specific table.
-func (m *Migrator) migrationWorker(tableName string) {
-	var (
-		recvChan    = make(chan ISourceRecord, m.batchSize*2)
-		wrtrChan    = make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
-		wrtrQueries = queries.New(m.writer)
-
-		inflightMu = &sync.Mutex{}
-		inflight   = make(map[int64]time.Time)
+func (m *Migrator) startKeyPackagesWorker() error {
+	keyPackagesWorker := NewWorker(
+		keyPackagesTableName,
+		m.batchSize,
+		m.writer,
+		nil,
+		m.logger,
+		m.pollInterval,
 	)
 
-	maxInflight := int(m.batchSize) * 4
-	sem := make(chan struct{}, maxInflight)
-	for i := 0; i < maxInflight; i++ {
-		sem <- struct{}{}
+	if err := keyPackagesWorker.startReader(m.ctx, m.readers[keyPackagesTableName]); err != nil {
+		return err
 	}
 
-	cleanupInflight := func(ctx context.Context, id int64) {
-		inflightMu.Lock()
-		delete(inflight, id)
-		inflightMu.Unlock()
-
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-		default:
-			// semaphore already full => double-release attempt; don't block
-		}
+	if err := keyPackagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
 	}
 
-	tracing.GoPanicWrap(
-		m.ctx,
-		&m.wg,
-		fmt.Sprintf("reader-%s", tableName),
-		func(ctx context.Context) {
-			defer close(recvChan)
+	if err := keyPackagesWorker.startDatabaseWriter(m.ctx); err != nil {
+		return err
+	}
 
-			logger := m.logger.Named(utils.MigratorReaderLoggerName).
-				With(zap.String(tableField, tableName))
+	return nil
+}
 
-			logger.Info("started")
+func (m *Migrator) startWelcomeMessagesWorker() error {
+	welcomeMessagesWorker := NewWorker(
+		welcomeMessagesTableName,
+		m.batchSize,
+		m.writer,
+		nil,
+		m.logger,
+		m.pollInterval,
+	)
 
-			ticker := time.NewTicker(m.pollInterval)
-			defer ticker.Stop()
+	if err := welcomeMessagesWorker.startReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
+		return err
+	}
 
-			reader, ok := m.readers[tableName]
-			if !ok {
-				m.logger.Error("unknown table", zap.String(tableField, tableName))
-				return
-			}
+	if err := welcomeMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
 
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info("context cancelled, stopping")
-					return
+	if err := welcomeMessagesWorker.startDatabaseWriter(m.ctx); err != nil {
+		return err
+	}
 
-				case <-ticker.C:
-					startE2ELatency := time.Now()
+	return nil
+}
 
-					lastMigratedID, err := metrics.MeasureReaderLatency(
-						"migration_tracker",
-						func() (int64, error) {
-							return wrtrQueries.GetMigrationProgress(ctx, tableName)
-						},
-					)
-					if err != nil {
-						metrics.EmitMigratorReaderError(
-							"migration_tracker",
-							err.Error(),
-						)
+func (m *Migrator) startGroupMessagesWorker() error {
+	groupMessagesWorker := NewWorker(
+		groupMessagesTableName,
+		m.batchSize,
+		m.writer,
+		nil,
+		m.logger,
+		m.pollInterval,
+	)
 
-						logger.Fatal("failed to get migration progress", zap.Error(err))
-					}
+	if err := groupMessagesWorker.startReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
+		return err
+	}
 
-					logger.Debug(
-						"getting next batch of records",
-						zap.Int64(lastMigratedIDField, lastMigratedID),
-					)
+	if err := groupMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
 
-					records, err := metrics.MeasureReaderLatency(
-						tableName,
-						func() ([]ISourceRecord, error) {
-							return reader.Fetch(ctx, lastMigratedID, m.batchSize)
-						},
-					)
-					if err != nil {
-						switch err {
-						case sql.ErrNoRows:
-							logger.Info(noMoreRecordsToMigrateMessage)
+	if err := groupMessagesWorker.startDatabaseWriter(m.ctx); err != nil {
+		return err
+	}
 
-							metrics.EmitMigratorReaderNumRowsFound(tableName, 0)
+	return nil
+}
 
-							select {
-							case <-ctx.Done():
-								return
-							case <-time.After(sleepTimeOnNoRows):
-							}
+func (m *Migrator) startCommitMessagesWorker() error {
+	commitMessagesWorker := NewWorker(
+		commitMessagesTableName,
+		m.batchSize,
+		m.writer,
+		m.blockchainPublisher,
+		m.logger,
+		m.pollInterval,
+	)
 
-						default:
-							metrics.EmitMigratorReaderError(tableName, err.Error())
+	if err := commitMessagesWorker.startReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
+		return err
+	}
 
-							logger.Error(
-								"getting next batch of records failed, retrying",
-								zap.Error(err),
-							)
+	if err := commitMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
 
-							select {
-							case <-ctx.Done():
-								return
-							case <-time.After(sleepTimeOnError):
-							}
-						}
+	if err := commitMessagesWorker.startBlockchainWriterUnary(m.ctx); err != nil {
+		return err
+	}
 
-						continue
-					}
+	return nil
+}
 
-					metrics.EmitMigratorReaderNumRowsFound(tableName, int64(len(records)))
+func (m *Migrator) startInboxLogWorker() error {
+	inboxLogWorker := NewWorker(
+		inboxLogTableName,
+		m.batchSize,
+		m.writer,
+		m.blockchainPublisher,
+		m.logger,
+		m.pollInterval,
+	)
 
-					if len(records) == 0 {
-						logger.Info(noMoreRecordsToMigrateMessage)
+	if err := inboxLogWorker.startReader(m.ctx, m.readers[inboxLogTableName]); err != nil {
+		return err
+	}
 
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(sleepTimeOnNoRows):
-						}
+	if err := inboxLogWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
 
-						continue
-					}
+	if err := inboxLogWorker.startBlockchainWriterIdentityUpdateBatches(m.ctx); err != nil {
+		return err
+	}
 
-					for _, record := range records {
-						id := record.GetID()
-
-						inflightMu.Lock()
-						_, seen := inflight[id]
-						inflightMu.Unlock()
-
-						if seen {
-							continue
-						}
-
-						select {
-						case <-ctx.Done():
-							logger.Info(contextCancelledMessage)
-							return
-						case <-sem:
-						}
-
-						select {
-						case <-ctx.Done():
-							logger.Info(contextCancelledMessage)
-							return
-
-						case recvChan <- record:
-							inflightMu.Lock()
-							inflight[id] = startE2ELatency
-							inflightMu.Unlock()
-
-							logger.Debug(
-								"sent record to transformer",
-								zap.Int64(idField, id),
-							)
-						}
-					}
-				}
-			}
-		})
-
-	tracing.GoPanicWrap(
-		m.ctx,
-		&m.wg,
-		fmt.Sprintf("transformer-%s", tableName),
-		func(ctx context.Context) {
-			logger := m.logger.Named(utils.MigratorTransformerLoggerName).
-				With(zap.String(tableField, tableName))
-
-			logger.Info("started")
-
-			defer close(wrtrChan)
-
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info(contextCancelledMessage)
-					return
-
-				case record, open := <-recvChan:
-					if !open {
-						logger.Info(channelClosedMessage)
-						return
-					}
-
-					envelope, err := m.transformer.Transform(record)
-					if err != nil {
-						logger.Error(
-							"failed to transform",
-							zap.Error(err),
-							zap.Int64(idField, record.GetID()),
-						)
-
-						err := insertMigrationDeadLetterBox(
-							ctx,
-							m.writer,
-							tableName,
-							record.GetID(),
-							nil,
-							FailureTransformerError,
-						)
-						if err != nil {
-							logger.Error("failed to insert dead letter box", zap.Error(err))
-						}
-
-						metrics.EmitMigratorTransformerError(tableName)
-
-						cleanupInflight(ctx, record.GetID())
-						continue
-					}
-
-					select {
-					case <-ctx.Done():
-						logger.Info(contextCancelledMessage)
-						return
-
-					case wrtrChan <- envelope:
-						logger.Debug(
-							"envelope sent to writer",
-							utils.OriginatorIDField(envelope.OriginatorNodeID()),
-							utils.SequenceIDField(int64(envelope.OriginatorSequenceID())),
-						)
-					}
-				}
-			}
-		})
-
-	tracing.GoPanicWrap(
-		m.ctx,
-		&m.wg,
-		fmt.Sprintf("writer-%s", tableName),
-		func(ctx context.Context) {
-			logger := m.logger.Named(utils.MigratorWriterLoggerName).
-				With(zap.String(tableField, tableName))
-
-			logger.Info("started")
-
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info(contextCancelledMessage)
-					return
-
-				case envelope, open := <-wrtrChan:
-					if !open {
-						logger.Info(channelClosedMessage)
-						return
-					}
-
-					func(env *envelopes.OriginatorEnvelope) {
-						var (
-							err         error
-							destination string
-						)
-
-						defer func() {
-							if err == nil {
-								inflightMu.Lock()
-								startTime, exists := inflight[int64(env.OriginatorSequenceID())]
-								inflightMu.Unlock()
-
-								if exists {
-									metrics.EmitMigratorE2ELatency(
-										tableName,
-										destination,
-										time.Since(startTime).Seconds(),
-									)
-								}
-
-								b, err := env.Bytes()
-								if err != nil {
-									logger.Warn("failed to marshal envelope", zap.Error(err))
-								} else {
-									metrics.EmitMigratorWriterBytesMigrated(tableName, destination, len(b))
-								}
-								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
-
-								switch destination {
-								case destinationDatabase:
-									metrics.EmitMigratorDestLastSequenceID(
-										tableName,
-										int64(env.OriginatorSequenceID()),
-									)
-
-								case destinationBlockchain:
-									metrics.EmitMigratorDestLastSequenceID(
-										tableName,
-										int64(env.OriginatorSequenceID()),
-									)
-								}
-							} else {
-								metrics.EmitMigratorWriterError(
-									tableName,
-									destination,
-									err.Error(),
-								)
-							}
-
-							cleanupInflight(ctx, int64(env.OriginatorSequenceID()))
-						}()
-
-						switch env.OriginatorNodeID() {
-						case WelcomeMessageOriginatorID,
-							KeyPackagesOriginatorID,
-							GroupMessageOriginatorID:
-							destination = destinationDatabase
-
-							err = metrics.MeasureWriterLatency(
-								tableName,
-								destination,
-								func() error {
-									return retry(
-										ctx,
-										logger,
-										50*time.Millisecond,
-										tableName,
-										destination,
-										func() re.RetryableError {
-											return m.insertOriginatorEnvelopeDatabase(env)
-										},
-									)
-								},
-							)
-							if err != nil {
-								logger.Error("failed to insert envelope", zap.Error(err))
-							}
-
-						case InboxLogOriginatorID, CommitMessageOriginatorID:
-							destination = destinationBlockchain
-
-							err = metrics.MeasureWriterLatency(
-								tableName,
-								destination,
-								func() error {
-									return retry(
-										ctx,
-										logger,
-										50*time.Millisecond,
-										tableName,
-										destination,
-										func() re.RetryableError {
-											return m.insertOriginatorEnvelopeBlockchain(env)
-										},
-									)
-								},
-							)
-							if err != nil {
-								logger.Error(
-									"error publishing blockchain message",
-									zap.Error(err),
-								)
-							}
-						}
-					}(envelope)
-				}
-			}
-		})
+	return nil
 }

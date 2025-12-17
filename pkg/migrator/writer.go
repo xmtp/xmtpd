@@ -29,6 +29,12 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 	logger *zap.Logger,
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
+	// instrument the logger for easier debugging
+	logger = logger.With(
+		utils.SequenceIDField(int64(env.OriginatorSequenceID())),
+		utils.OriginatorIDField(env.OriginatorNodeID()),
+	)
+
 	if env == nil {
 		return re.NewNonRecoverableError("", errors.New("envelope is nil"))
 	}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -25,7 +24,6 @@ type Worker struct {
 
 	// Data management.
 	writer              *db.Handler
-	wrtrQueries         *queries.Queries
 	blockchainPublisher blockchain.IBlockchainPublisher
 
 	// IPC.
@@ -107,7 +105,7 @@ func (w *Worker) startReader(ctx context.Context, reader ISourceReader) error {
 					lastMigratedID, err := metrics.MeasureReaderLatency(
 						"migration_tracker",
 						func() (int64, error) {
-							return w.wrtrQueries.GetMigrationProgress(ctx, w.tableName)
+							return w.writer.ReadQuery().GetMigrationProgress(ctx, w.tableName)
 						},
 					)
 					if err != nil {

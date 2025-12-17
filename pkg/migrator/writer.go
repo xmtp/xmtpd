@@ -352,11 +352,6 @@ func (w *Worker) flushIdentityUpdatesBatch(
 	)
 
 	if err == nil {
-		logger.Debug(
-			"batch flush successful",
-			zap.Int("count", batch.Len()),
-			utils.SequenceIDField(int64(batch.LastSequenceID())),
-		)
 		return nil
 	}
 

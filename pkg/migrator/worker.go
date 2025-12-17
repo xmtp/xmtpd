@@ -587,7 +587,6 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 						continue
 					}
 
-					// Flush remaining identity updates before exiting.
 					triggerBatchFlush()
 
 				case envelope, open := <-w.wrtrChan:

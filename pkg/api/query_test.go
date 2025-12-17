@@ -84,11 +84,10 @@ func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvel
 func TestQueryAllEnvelopes(t *testing.T) {
 	suite := apiTestUtils.NewTestAPIServer(t)
 	dbRows := setupQueryTest(t, suite.DB)
-
 	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{},
+			Query: &message_api.EnvelopesQuery{Topics: [][]byte{topicA, topicB, topicC}},
 			Limit: 0,
 		}),
 	)
@@ -104,13 +103,13 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 	resp, err := suite.ClientReplication.QueryEnvelopes(
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{},
+			Query: &message_api.EnvelopesQuery{Topics: [][]byte{topicA}},
 			Limit: 2,
 		}),
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{0, 2}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{0, 1}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {
@@ -159,6 +158,7 @@ func TestQueryEnvelopesFromLastSeen(t *testing.T) {
 		context.Background(),
 		connect.NewRequest(&message_api.QueryEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
+				Topics:   [][]byte{topicA, topicB, topicC},
 				LastSeen: &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{100: 2}},
 			},
 			Limit: 0,

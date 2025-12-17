@@ -113,7 +113,7 @@ func validateUpdates(
 ) {
 	receivedCount := 0
 
-	for receivedCount >= len(expectedIndices) {
+	for receivedCount < len(expectedIndices) {
 		// Now receive the next message. Break if the stream ended or there was an error.
 		if !stream.Receive() {
 			break
@@ -140,6 +140,7 @@ func validateUpdates(
 	}
 
 	require.NoError(t, stream.Err())
+	require.Equal(t, len(expectedIndices), receivedCount)
 }
 
 func TestSubscribeEnvelopesAll(t *testing.T) {
@@ -159,7 +160,7 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 	require.NoError(t, err)
 
 	insertAdditionalRows(t, db)
-	validateUpdates(t, stream, []int{2, 3, 4})
+	validateUpdates(t, stream, []int{})
 }
 
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
@@ -238,7 +239,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 
 	insertAdditionalRows(t, store)
-	validateUpdates(t, stream1, []int{2, 3, 4})
+	validateUpdates(t, stream1, []int{})
 	validateUpdates(t, stream2, []int{2, 3})
 	validateUpdates(t, stream3, []int{3})
 }

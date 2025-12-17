@@ -512,20 +512,8 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByOriginator(rows), nil
 	}
 
-	params := queries.SelectGatewayEnvelopesUnfilteredParams{
-		RowLimit:          rowLimit,
-		CursorNodeIds:     nil,
-		CursorSequenceIds: nil,
-	}
-	db.SetVectorClockUnfiltered(&params, query.GetLastSeen().GetNodeIdToSequenceId())
-
-	rows, err := s.store.ReadQuery().SelectGatewayEnvelopesUnfiltered(ctx, params)
-	if err != nil {
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not select envelopes: %w", err),
-		)
-	}
+	// compatibility with V3, if no filters are set -- return nothing
+	rows := make([]queries.GatewayEnvelopesView, 0)
 
 	return rows, nil
 }

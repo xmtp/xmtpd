@@ -28,7 +28,6 @@ type listener struct {
 	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
-	isGlobal    bool
 }
 
 func newListener(
@@ -42,15 +41,9 @@ func newListener(
 		ch:          ch,
 		topics:      make(map[string]struct{}),
 		originators: make(map[uint32]struct{}),
-		isGlobal:    false,
 	}
 	topics := query.GetTopics()
 	originators := query.GetOriginatorNodeIds()
-
-	if len(topics) == 0 && len(originators) == 0 {
-		l.isGlobal = true
-		return l
-	}
 
 	for _, t := range topics {
 		validatedTopic, err := topic.ParseTopic(t)
@@ -145,7 +138,6 @@ type subscribeWorker struct {
 
 	dbSubscription <-chan []queries.GatewayEnvelopesView
 	// Assumption: listeners cannot be in multiple slices
-	globalListeners     listenerSet
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
 }
@@ -218,7 +210,6 @@ func startSubscribeWorker(
 		ctx:                 ctx,
 		logger:              logger,
 		dbSubscription:      dbChan,
-		globalListeners:     listenerSet{},
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
 	}
@@ -252,7 +243,6 @@ func (s *subscribeWorker) start() {
 			}
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
-			s.dispatchToGlobals(envs)
 		}
 	}
 }
@@ -280,10 +270,6 @@ func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope)
 		listeners := s.topicListeners.getListeners(env.TargetTopic().String())
 		s.dispatchToListeners(listeners, []*envelopes.OriginatorEnvelope{env})
 	}
-}
-
-func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
-	s.dispatchToListeners(&s.globalListeners, envs)
 }
 
 func (s *subscribeWorker) dispatchToListeners(
@@ -332,9 +318,7 @@ func (s *subscribeWorker) closeListener(l *listener) {
 	close(l.ch)
 
 	go func() {
-		if l.isGlobal {
-			s.globalListeners.Delete(l)
-		} else if len(l.topics) > 0 {
+		if len(l.topics) > 0 {
 			s.topicListeners.removeListener(l.topics, l)
 		} else if len(l.originators) > 0 {
 			s.originatorListeners.removeListener(l.originators, l)
@@ -349,9 +333,7 @@ func (s *subscribeWorker) listen(
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
 	l := newListener(ctx, s.logger, query, ch)
 
-	if l.isGlobal {
-		s.globalListeners.Store(l, struct{}{})
-	} else if len(l.topics) > 0 {
+	if len(l.topics) > 0 {
 		s.topicListeners.addListener(l.topics, l)
 	} else if len(l.originators) > 0 {
 		s.originatorListeners.addListener(l.originators, l)

@@ -629,6 +629,7 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 					// Prepare client envelope. On failure or oversized, insert into dead letter box.
 					clientEnvelopeBytes, identifier, sequenceID, err := w.prepareClientEnvelope(
 						ctx,
+						logger,
 						envelope,
 						w.tableName,
 					)

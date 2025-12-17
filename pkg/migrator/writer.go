@@ -350,7 +350,7 @@ func (w *Worker) flushIdentityUpdatesBatch(
 		inboxLogTableName,
 		destinationBlockchain,
 		func() re.RetryableError {
-			return w.bootstrapIdentityUpdates(ctx, batch)
+			return w.bootstrapIdentityUpdates(ctx, logger, batch)
 		},
 	)
 
@@ -375,7 +375,7 @@ func (w *Worker) flushIdentityUpdatesBatch(
 			inboxLogTableName,
 			destinationBlockchain,
 			func() re.RetryableError {
-				return w.bootstrapIdentityUpdates(ctx, &IdentityUpdateBatch{
+				return w.bootstrapIdentityUpdates(ctx, logger, &IdentityUpdateBatch{
 					inboxIDs:        [][32]byte{identityUpdate.InboxID},
 					identityUpdates: [][]byte{identityUpdate.IdentityUpdate},
 					sequenceIDs:     []uint64{identityUpdate.SequenceID},
@@ -421,6 +421,7 @@ func (w *Worker) flushIdentityUpdatesBatch(
 // On failure, it inserts a record into the migration dead letter box.
 func (w *Worker) bootstrapIdentityUpdates(
 	ctx context.Context,
+	logger *zap.Logger,
 	batch *IdentityUpdateBatch,
 ) re.RetryableError {
 	// Should never happen.
@@ -463,7 +464,7 @@ func (w *Worker) bootstrapIdentityUpdates(
 		SourceTable:    inboxLogTableName,
 	})
 	if err != nil {
-		w.logger.Error("update migration progress failed", zap.Error(err))
+		logger.Error("update migration progress failed", zap.Error(err))
 
 		// If we reached this point, the message has been published and the log emitted.
 		// Therefore, we can return a non-recoverable error to ensure the message is not retried.
@@ -473,7 +474,7 @@ func (w *Worker) bootstrapIdentityUpdates(
 		)
 	}
 
-	w.logger.Debug(
+	logger.Debug(
 		"published identity update batch",
 		utils.LengthField(batch.Len()),
 		utils.SequenceIDField(int64(batch.LastSequenceID())),
@@ -486,6 +487,7 @@ func (w *Worker) bootstrapIdentityUpdates(
 // On failure, it inserts a record into the migration dead letter box.
 func (w *Worker) prepareClientEnvelope(
 	ctx context.Context,
+	logger *zap.Logger,
 	env *envelopes.OriginatorEnvelope,
 	tableName string,
 ) (clientEnvelopeBytes []byte, identifier []byte, sequenceID uint64, err error) {
@@ -494,7 +496,7 @@ func (w *Worker) prepareClientEnvelope(
 
 	clientEnvelopeBytes, err = env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
 	if err != nil {
-		w.logger.Error("failed to get payer envelope bytes", zap.Error(err))
+		logger.Error("failed to get payer envelope bytes", zap.Error(err))
 		return nil, nil, 0, fmt.Errorf("failed to get payer envelope bytes: %w", err)
 	}
 
@@ -515,7 +517,7 @@ func (w *Worker) prepareClientEnvelope(
 			return nil, nil, 0, fmt.Errorf("insert migration dead letter box failed: %w", err)
 		}
 
-		w.logger.Warn(
+		logger.Warn(
 			"oversized blockchain payload, skipped and added to dead letter box",
 			zap.String("identifier", utils.HexEncode(identifier[:])),
 			utils.SequenceIDField(int64(sequenceID)),

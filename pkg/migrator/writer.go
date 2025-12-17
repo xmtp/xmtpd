@@ -342,7 +342,6 @@ func (w *Worker) flushIdentityUpdatesBatch(
 
 	err := retry(
 		ctx,
-		logger,
 		50*time.Millisecond,
 		inboxLogTableName,
 		destinationBlockchain,
@@ -368,7 +367,6 @@ func (w *Worker) flushIdentityUpdatesBatch(
 	for identityUpdate := range batch.All() {
 		err := retry(
 			ctx,
-			logger,
 			50*time.Millisecond,
 			inboxLogTableName,
 			destinationBlockchain,
@@ -535,7 +533,6 @@ func (w *Worker) prepareClientEnvelope(
 // retry implements the retry logic for insert (db or chain) operations.
 func retry(
 	ctx context.Context,
-	logger *zap.Logger,
 	sleep time.Duration,
 	tableName string,
 	destination string,
@@ -549,8 +546,6 @@ func retry(
 
 		default:
 			if err := fn(); err != nil {
-				logger.Error("error storing log", zap.Error(err))
-
 				if err.ShouldRetry() {
 					attempts++
 					metrics.EmitMigratorWriterRetryAttempts(tableName, destination, attempts)

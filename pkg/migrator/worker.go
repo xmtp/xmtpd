@@ -313,7 +313,6 @@ func (w *Worker) startDatabaseWriter(ctx context.Context) error {
 						func() error {
 							return retry(
 								ctx,
-								logger,
 								50*time.Millisecond,
 								w.tableName,
 								destinationDatabase,
@@ -409,7 +408,6 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 						func() error {
 							return retry(
 								ctx,
-								logger,
 								50*time.Millisecond,
 								w.tableName,
 								destinationBlockchain,
@@ -423,10 +421,12 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 						},
 					)
 					if err != nil {
-						logger.Error(
-							"error publishing blockchain message",
-							zap.Error(err),
-						)
+						if !errors.Is(err, ErrDeadLetterBox) {
+							logger.Error(
+								"error publishing blockchain message",
+								zap.Error(err),
+							)
+						}
 
 						metrics.EmitMigratorWriterError(
 							w.tableName,

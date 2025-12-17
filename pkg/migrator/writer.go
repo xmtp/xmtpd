@@ -354,7 +354,7 @@ func (w *Worker) flushIdentityUpdatesBatch(
 		},
 	)
 
-	if err == nil {
+	if err == nil || errors.Is(err, ErrMigrationProgressUpdateFailed) {
 		return nil
 	}
 
@@ -467,12 +467,15 @@ func (w *Worker) bootstrapIdentityUpdates(
 
 		// If we reached this point, the message has been published and the log emitted.
 		// Therefore, we can return a non-recoverable error to ensure the message is not retried.
-		return re.NewNonRecoverableError("update migration progress failed", err)
+		return re.NewNonRecoverableError(
+			"update migration progress failed",
+			ErrMigrationProgressUpdateFailed,
+		)
 	}
 
 	w.logger.Debug(
 		"published identity update batch",
-		zap.Int("length", batch.Len()),
+		utils.LengthField(batch.Len()),
 		utils.SequenceIDField(int64(batch.LastSequenceID())),
 	)
 

@@ -222,7 +222,10 @@ const (
 	FailureBlockchainUndetermined FailureReason = "blockchain undetermined error"
 )
 
-var ErrDeadLetterBox = errors.New("skipped and added to dead letter box")
+var (
+	ErrDeadLetterBox                 = errors.New("skipped and added to dead letter box")
+	ErrMigrationProgressUpdateFailed = errors.New("migration progress update failed")
+)
 
 func (f FailureReason) String() string {
 	return string(f)

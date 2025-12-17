@@ -404,6 +404,10 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 						return
 					}
 
+					if envelope == nil {
+						continue
+					}
+
 					sequenceID := int64(envelope.OriginatorSequenceID())
 
 					err := metrics.MeasureWriterLatency(

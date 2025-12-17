@@ -25,12 +25,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
-	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
 
@@ -226,9 +221,11 @@ func (m *Migrator) Start() error {
 		return fmt.Errorf("migration service is already running")
 	}
 
-	for tableName := range m.readers {
-		m.migrationWorker(tableName)
-	}
+	m.startKeyPackagesWorker()
+	m.startWelcomeMessagesWorker()
+	m.startGroupMessagesWorker()
+	m.startCommitMessagesWorker()
+	m.startInboxLogWorker()
 
 	m.logger.Info("migration service started")
 
@@ -259,438 +256,77 @@ func (m *Migrator) Stop() error {
 	return nil
 }
 
-// migrationWorker continuously processes migration for a specific table.
-func (m *Migrator) migrationWorker(tableName string) {
-	var (
-		recvChan    = make(chan ISourceRecord, m.batchSize*2)
-		wrtrChan    = make(chan *envelopes.OriginatorEnvelope, m.batchSize*2)
-		wrtrQueries = queries.New(m.writer)
-
-		inflightMu = &sync.Mutex{}
-		inflight   = make(map[int64]time.Time)
+func (m *Migrator) startKeyPackagesWorker() {
+	keyPackagesWorker := NewWorker(
+		keyPackagesTableName,
+		m.batchSize,
+		m.writer,
+		nil,
+		m.logger,
+		m.pollInterval,
 	)
 
-	maxInflight := int(m.batchSize) * 4
-	sem := make(chan struct{}, maxInflight)
-	for i := 0; i < maxInflight; i++ {
-		sem <- struct{}{}
-	}
+	keyPackagesWorker.startReader(m.ctx, m.readers[keyPackagesTableName])
+	keyPackagesWorker.startTransformer(m.ctx, m.transformer)
+	keyPackagesWorker.startDatabaseWriter(m.ctx)
+}
 
-	cleanupInflight := func(ctx context.Context, id int64) {
-		inflightMu.Lock()
-		delete(inflight, id)
-		inflightMu.Unlock()
+func (m *Migrator) startWelcomeMessagesWorker() {
+	welcomeMessagesWorker := NewWorker(
+		welcomeMessagesTableName,
+		m.batchSize,
+		m.writer,
+		nil,
+		m.logger,
+		m.pollInterval,
+	)
 
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-		default:
-			// semaphore already full => double-release attempt; don't block
-		}
-	}
+	welcomeMessagesWorker.startReader(m.ctx, m.readers[welcomeMessagesTableName])
+	welcomeMessagesWorker.startTransformer(m.ctx, m.transformer)
+	welcomeMessagesWorker.startDatabaseWriter(m.ctx)
+}
 
-	tracing.GoPanicWrap(
-		m.ctx,
-		&m.wg,
-		fmt.Sprintf("reader-%s", tableName),
-		func(ctx context.Context) {
-			defer close(recvChan)
+func (m *Migrator) startGroupMessagesWorker() {
+	groupMessagesWorker := NewWorker(
+		groupMessagesTableName,
+		m.batchSize,
+		m.writer,
+		nil,
+		m.logger,
+		m.pollInterval,
+	)
 
-			logger := m.logger.Named(utils.MigratorReaderLoggerName).
-				With(zap.String(tableField, tableName))
+	groupMessagesWorker.startReader(m.ctx, m.readers[groupMessagesTableName])
+	groupMessagesWorker.startTransformer(m.ctx, m.transformer)
+	groupMessagesWorker.startDatabaseWriter(m.ctx)
+}
 
-			logger.Info("started")
+func (m *Migrator) startCommitMessagesWorker() {
+	commitMessagesWorker := NewWorker(
+		commitMessagesTableName,
+		m.batchSize,
+		m.writer,
+		m.blockchainPublisher,
+		m.logger,
+		m.pollInterval,
+	)
 
-			ticker := time.NewTicker(m.pollInterval)
-			defer ticker.Stop()
+	commitMessagesWorker.startReader(m.ctx, m.readers[commitMessagesTableName])
+	commitMessagesWorker.startTransformer(m.ctx, m.transformer)
+	commitMessagesWorker.startBlockchainWriterUnary(m.ctx)
+}
 
-			reader, ok := m.readers[tableName]
-			if !ok {
-				m.logger.Error("unknown table", zap.String(tableField, tableName))
-				return
-			}
+func (m *Migrator) startInboxLogWorker() {
+	inboxLogWorker := NewWorker(
+		inboxLogTableName,
+		m.batchSize,
+		m.writer,
+		m.blockchainPublisher,
+		m.logger,
+		m.pollInterval,
+	)
 
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info("context cancelled, stopping")
-					return
-
-				case <-ticker.C:
-					startE2ELatency := time.Now()
-
-					lastMigratedID, err := metrics.MeasureReaderLatency(
-						"migration_tracker",
-						func() (int64, error) {
-							return wrtrQueries.GetMigrationProgress(ctx, tableName)
-						},
-					)
-					if err != nil {
-						metrics.EmitMigratorReaderError(
-							"migration_tracker",
-							err.Error(),
-						)
-
-						logger.Fatal("failed to get migration progress", zap.Error(err))
-					}
-
-					logger.Debug(
-						"getting next batch of records",
-						zap.Int64(lastMigratedIDField, lastMigratedID),
-					)
-
-					records, err := metrics.MeasureReaderLatency(
-						tableName,
-						func() ([]ISourceRecord, error) {
-							return reader.Fetch(ctx, lastMigratedID, m.batchSize)
-						},
-					)
-					if err != nil {
-						switch err {
-						case sql.ErrNoRows:
-							logger.Info(noMoreRecordsToMigrateMessage)
-
-							metrics.EmitMigratorReaderNumRowsFound(tableName, 0)
-
-							select {
-							case <-ctx.Done():
-								return
-							case <-time.After(sleepTimeOnNoRows):
-							}
-
-						default:
-							metrics.EmitMigratorReaderError(tableName, err.Error())
-
-							logger.Error(
-								"getting next batch of records failed, retrying",
-								zap.Error(err),
-							)
-
-							select {
-							case <-ctx.Done():
-								return
-							case <-time.After(sleepTimeOnError):
-							}
-						}
-
-						continue
-					}
-
-					metrics.EmitMigratorReaderNumRowsFound(tableName, int64(len(records)))
-
-					if len(records) == 0 {
-						logger.Info(noMoreRecordsToMigrateMessage)
-
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(sleepTimeOnNoRows):
-						}
-
-						continue
-					}
-
-					for _, record := range records {
-						id := record.GetID()
-
-						inflightMu.Lock()
-						_, seen := inflight[id]
-						inflightMu.Unlock()
-
-						if seen {
-							continue
-						}
-
-						select {
-						case <-ctx.Done():
-							logger.Info(contextCancelledMessage)
-							return
-						case <-sem:
-						}
-
-						select {
-						case <-ctx.Done():
-							logger.Info(contextCancelledMessage)
-							return
-
-						case recvChan <- record:
-							inflightMu.Lock()
-							inflight[id] = startE2ELatency
-							inflightMu.Unlock()
-
-							logger.Debug(
-								"sent record to transformer",
-								zap.Int64(idField, id),
-							)
-						}
-					}
-				}
-			}
-		})
-
-	tracing.GoPanicWrap(
-		m.ctx,
-		&m.wg,
-		fmt.Sprintf("transformer-%s", tableName),
-		func(ctx context.Context) {
-			logger := m.logger.Named(utils.MigratorTransformerLoggerName).
-				With(zap.String(tableField, tableName))
-
-			logger.Info("started")
-
-			defer close(wrtrChan)
-
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info(contextCancelledMessage)
-					return
-
-				case record, open := <-recvChan:
-					if !open {
-						logger.Info(channelClosedMessage)
-						return
-					}
-
-					envelope, err := m.transformer.Transform(record)
-					if err != nil {
-						logger.Error(
-							"failed to transform",
-							zap.Error(err),
-							zap.Int64(idField, record.GetID()),
-						)
-
-						err := insertMigrationDeadLetterBox(
-							ctx,
-							m.writer,
-							tableName,
-							record.GetID(),
-							nil,
-							FailureTransformerError,
-						)
-						if err != nil {
-							logger.Error("failed to insert dead letter box", zap.Error(err))
-						}
-
-						metrics.EmitMigratorTransformerError(tableName)
-
-						cleanupInflight(ctx, record.GetID())
-						continue
-					}
-
-					select {
-					case <-ctx.Done():
-						logger.Info(contextCancelledMessage)
-						return
-
-					case wrtrChan <- envelope:
-						logger.Debug(
-							"envelope sent to writer",
-							utils.OriginatorIDField(envelope.OriginatorNodeID()),
-							utils.SequenceIDField(int64(envelope.OriginatorSequenceID())),
-						)
-					}
-				}
-			}
-		})
-
-	tracing.GoPanicWrap(
-		m.ctx,
-		&m.wg,
-		fmt.Sprintf("writer-%s", tableName),
-		func(ctx context.Context) {
-			logger := m.logger.Named(utils.MigratorWriterLoggerName).
-				With(zap.String(tableField, tableName))
-
-			identityUpdateBatch := &IdentityUpdateBatch{}
-
-			logger.Info("started")
-
-			for {
-				select {
-				case <-ctx.Done():
-					// Flush remaining identity updates before exiting.
-					if identityUpdateBatch.Len() > 0 {
-						if err := m.flushIdentityUpdateBatch(ctx, logger, identityUpdateBatch); err != nil {
-							logger.Error(
-								"final batch flush failed on context cancel",
-								zap.Error(err),
-							)
-						}
-					}
-					logger.Info(contextCancelledMessage)
-					return
-
-				case envelope, open := <-wrtrChan:
-					if !open {
-						// Flush remaining identity updates before exiting.
-						if identityUpdateBatch.Len() > 0 {
-							if err := m.flushIdentityUpdateBatch(ctx, logger, identityUpdateBatch); err != nil {
-								logger.Error(
-									"final batch flush failed on channel close",
-									zap.Error(err),
-								)
-							}
-						}
-						logger.Info(channelClosedMessage)
-						return
-					}
-
-					func(env *envelopes.OriginatorEnvelope) {
-						var (
-							err          error
-							destination  string
-							originatorID = env.OriginatorNodeID()
-						)
-
-						defer func() {
-							if err == nil {
-								inflightMu.Lock()
-								startTime, exists := inflight[int64(env.OriginatorSequenceID())]
-								inflightMu.Unlock()
-
-								if exists {
-									metrics.EmitMigratorE2ELatency(
-										tableName,
-										destination,
-										time.Since(startTime).Seconds(),
-									)
-								}
-
-								b, err := env.Bytes()
-								if err != nil {
-									logger.Warn("failed to marshal envelope", zap.Error(err))
-								} else {
-									metrics.EmitMigratorWriterBytesMigrated(tableName, destination, len(b))
-								}
-								metrics.EmitMigratorWriterRowsMigrated(tableName, 1)
-
-								switch destination {
-								case destinationDatabase:
-									metrics.EmitMigratorDestLastSequenceID(
-										tableName,
-										int64(env.OriginatorSequenceID()),
-									)
-
-								case destinationBlockchain:
-									metrics.EmitMigratorDestLastSequenceID(
-										tableName,
-										int64(env.OriginatorSequenceID()),
-									)
-								}
-							} else {
-								metrics.EmitMigratorWriterError(
-									tableName,
-									destination,
-									err.Error(),
-								)
-							}
-
-							cleanupInflight(ctx, int64(env.OriginatorSequenceID()))
-						}()
-
-						switch originatorID {
-						case WelcomeMessageOriginatorID,
-							KeyPackagesOriginatorID,
-							GroupMessageOriginatorID:
-							destination = destinationDatabase
-
-							err = metrics.MeasureWriterLatency(
-								tableName,
-								destination,
-								func() error {
-									return retry(
-										ctx,
-										logger,
-										50*time.Millisecond,
-										tableName,
-										destination,
-										func() re.RetryableError {
-											return m.insertOriginatorEnvelopeDatabase(
-												env,
-												tableName,
-											)
-										},
-									)
-								},
-							)
-							if err != nil {
-								logger.Error("failed to insert envelope", zap.Error(err))
-							}
-
-						case InboxLogOriginatorID:
-							destination = destinationBlockchain
-
-							clientEnvelopeBytes, identifier, sequenceID, _, err := m.prepareClientEnvelope(
-								env,
-								tableName,
-							)
-							if err != nil {
-								logger.Error(
-									"failed to prepare identity update envelope",
-									zap.Error(err),
-								)
-								return
-							}
-
-							inboxID, err := utils.ParseInboxID(identifier)
-							if err != nil {
-								logger.Error("failed to parse inbox ID", zap.Error(err))
-								return
-							}
-
-							// Add to batch.
-							identityUpdateBatch.Add(
-								inboxID,
-								clientEnvelopeBytes,
-								sequenceID,
-							)
-
-							// Check if batch should be flushed, based on size threshold.
-							if identityUpdateBatch.Size() >= maxBatchSize {
-								err = metrics.MeasureWriterLatency(
-									tableName,
-									destination,
-									func() error {
-										return m.flushIdentityUpdateBatch(
-											ctx,
-											logger,
-											identityUpdateBatch,
-										)
-									},
-								)
-								if err != nil {
-									logger.Error("batch flush failed", zap.Error(err))
-								}
-
-								identityUpdateBatch.Reset()
-							}
-
-						case CommitMessageOriginatorID:
-							destination = destinationBlockchain
-
-							err = metrics.MeasureWriterLatency(
-								tableName,
-								destination,
-								func() error {
-									return retry(
-										ctx,
-										logger,
-										50*time.Millisecond,
-										tableName,
-										destination,
-										func() re.RetryableError {
-											return m.insertOriginatorEnvelopeBlockchain(env)
-										},
-									)
-								},
-							)
-							if err != nil {
-								logger.Error("failed to insert envelope", zap.Error(err))
-							}
-						}
-					}(envelope)
-				}
-			}
-		})
+	inboxLogWorker.startReader(m.ctx, m.readers[inboxLogTableName])
+	inboxLogWorker.startTransformer(m.ctx, m.transformer)
+	inboxLogWorker.startBlockchainWriterIdentityUpdateBatches(m.ctx)
 }

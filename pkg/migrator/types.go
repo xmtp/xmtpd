@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"iter"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/envelopes"
@@ -216,8 +217,9 @@ func (w *WelcomeMessage) Scan(rows *sql.Rows) error {
 type FailureReason string
 
 const (
-	FailureTransformerError      FailureReason = "transformer error"
-	FailureOversizedChainMessage FailureReason = "oversized chain message"
+	FailureTransformerError       FailureReason = "transformer error"
+	FailureOversizedChainMessage  FailureReason = "oversized chain message"
+	FailureBlockchainUndetermined FailureReason = "blockchain undetermined error"
 )
 
 var ErrDeadLetterBox = errors.New("skipped and added to dead letter box")
@@ -242,6 +244,28 @@ type IdentityUpdateBatch struct {
 	inboxIDs        [][32]byte
 	identityUpdates [][]byte
 	sequenceIDs     []uint64
+}
+
+// IdentityUpdate represents a single element from the batch.
+type IdentityUpdate struct {
+	InboxID        [32]byte
+	IdentityUpdate []byte
+	SequenceID     uint64
+}
+
+// All returns an iterator over all items in the batch.
+func (i *IdentityUpdateBatch) All() iter.Seq[IdentityUpdate] {
+	return func(yield func(IdentityUpdate) bool) {
+		for index := range i.inboxIDs {
+			if !yield(IdentityUpdate{
+				InboxID:        i.inboxIDs[index],
+				IdentityUpdate: i.identityUpdates[index],
+				SequenceID:     i.sequenceIDs[index],
+			}) {
+				return
+			}
+		}
+	}
 }
 
 func (i *IdentityUpdateBatch) Size() int64 {

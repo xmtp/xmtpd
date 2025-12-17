@@ -63,10 +63,11 @@ const (
 	SQLNonceManagerLoggerName   = "sql-nonce-manager"
 
 	// Migrator.
-	MigratorLoggerName            = "migrator"
-	MigratorReaderLoggerName      = "reader"
-	MigratorTransformerLoggerName = "transformer"
-	MigratorWriterLoggerName      = "writer"
+	MigratorLoggerName                      = "migrator"
+	MigratorReaderLoggerName                = "reader"
+	MigratorTransformerLoggerName           = "transformer"
+	MigratorWriterLoggerName                = "writer"
+	MigratorIdentityUpdateBatchesLoggerName = "writer-identity-update-batches"
 
 	// On-chain protocol services.
 	AppChainAdminLoggerName           = "app-chain-admin"

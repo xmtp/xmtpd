@@ -67,6 +67,7 @@ const (
 	MigratorReaderLoggerName      = "reader"
 	MigratorTransformerLoggerName = "transformer"
 	MigratorWriterLoggerName      = "writer"
+	MigratorWriterBatchLoggerName = "writer-batch"
 
 	// On-chain protocol services.
 	AppChainAdminLoggerName           = "app-chain-admin"
@@ -205,6 +206,10 @@ func LastProcessedField(lastProcessed int64) zap.Field {
 
 func LastSequenceIDField(lastSequenceID int64) zap.Field {
 	return zap.Int64("last_sequence_id", lastSequenceID)
+}
+
+func LengthField(length int) zap.Field {
+	return zap.Int("length", length)
 }
 
 func LimitField(limit uint8) zap.Field {

@@ -18,14 +18,14 @@ CREATE INDEX IF NOT EXISTS migration_dead_letter_box_retryable_retried_at_idx
     ON migration_dead_letter_box (retried_at)
     WHERE retryable = TRUE;
 
-CREATE FUNCTION insert_migration_dead_letter_box(source_table TEXT, sequence_id BIGINT, payload BYTEA, reason TEXT, retryable BOOLEAN)
+CREATE FUNCTION insert_migration_dead_letter_box(p_source_table TEXT, p_sequence_id BIGINT, p_payload BYTEA, p_reason TEXT, p_retryable BOOLEAN)
 	RETURNS SETOF migration_dead_letter_box
 	AS $$
 BEGIN
 	PERFORM
 		pg_advisory_xact_lock(hashtext('migration_dead_letter_box_sequence'));
 	RETURN QUERY INSERT INTO migration_dead_letter_box(source_table, sequence_id, payload, reason, retryable)
-		VALUES(source_table, sequence_id, payload, reason, retryable)
+		VALUES(p_source_table, p_sequence_id, p_payload, p_reason, p_retryable)
 	ON CONFLICT (source_table, sequence_id)
 		DO UPDATE SET
 		    reason = EXCLUDED.reason,

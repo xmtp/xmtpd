@@ -102,6 +102,7 @@ func NewGroupMessageReader(db *sql.DB, startDate int64) *GroupMessageReader {
 		ORDER BY id ASC
 		LIMIT $2
 	`
+
 	queryHeight := `
 		SELECT id
 		FROM group_messages

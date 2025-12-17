@@ -3,6 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"sync"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -15,6 +16,11 @@ type DBReader[T ISourceRecord] struct {
 	queryHeight string
 	factory     func() T
 	startDate   int64
+
+	// height metric throttling
+	heightEvery  time.Duration
+	heightMu     sync.RWMutex
+	lastHeightAt time.Time
 }
 
 // NewDBReader creates a new reader for the specified table and type.
@@ -31,7 +37,52 @@ func NewDBReader[T ISourceRecord](
 		queryHeight: queryHeight,
 		factory:     factory,
 		startDate:   startDate,
+		heightEvery: 10 * time.Minute,
 	}
+}
+
+// maybeEmitHeight updates the source height metric at most once per r.heightEvery.
+func (r *DBReader[T]) maybeEmitHeight(ctx context.Context) {
+	now := time.Now()
+
+	// 1) Fast path: read-lock to check if we should emit.
+	r.heightMu.RLock()
+	last := r.lastHeightAt
+	shouldEmit := last.IsZero() || now.Sub(last) >= r.heightEvery
+	r.heightMu.RUnlock()
+
+	if !shouldEmit {
+		return
+	}
+
+	// 2) Slow path: write-lock to "claim" the emit, re-check to avoid races.
+	r.heightMu.Lock()
+	prev := r.lastHeightAt
+	shouldEmit = prev.IsZero() || now.Sub(prev) >= r.heightEvery
+	if shouldEmit {
+		r.lastHeightAt = now
+	}
+	r.heightMu.Unlock()
+
+	if !shouldEmit {
+		return
+	}
+
+	// 3) Do the DB work outside locks.
+	var heightID int64
+	if err := r.db.QueryRowContext(ctx, r.queryHeight).Scan(&heightID); err != nil {
+		// Roll back claim so a later call can retry.
+		r.heightMu.Lock()
+		// Only roll back if nobody else advanced it since we claimed.
+		// (This should almost always be true, but it's cheap to be safe.)
+		if r.lastHeightAt.Equal(now) {
+			r.lastHeightAt = prev
+		}
+		r.heightMu.Unlock()
+		return
+	}
+
+	metrics.EmitMigratorSourceLastSequenceID(r.factory().TableName(), heightID)
 }
 
 // Fetch rows from the database and return a slice of records.
@@ -40,17 +91,7 @@ func (r *DBReader[T]) Fetch(
 	lastID int64,
 	limit int32,
 ) ([]ISourceRecord, error) {
-	// Query source height every 10 minutes to update the metric.
-	if time.Now().Minute()%10 == 0 {
-		var heightID int64
-
-		err := r.db.QueryRowContext(ctx, r.queryHeight).Scan(&heightID)
-
-		// Don't error if no rows are found, just don't update the metric.
-		if err == nil {
-			metrics.EmitMigratorSourceLastSequenceID(r.factory().TableName(), heightID)
-		}
-	}
+	r.maybeEmitHeight(ctx)
 
 	var (
 		rows *sql.Rows
@@ -62,27 +103,19 @@ func (r *DBReader[T]) Fetch(
 	} else {
 		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit)
 	}
-
 	if err != nil {
 		return nil, err
 	}
-
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer func() { _ = rows.Close() }()
 
 	records := make([]ISourceRecord, 0, limit)
-
 	for rows.Next() {
 		record := r.factory()
-
 		if err := record.Scan(rows); err != nil {
 			return nil, err
 		}
-
 		records = append(records, record)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}

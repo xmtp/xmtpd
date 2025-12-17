@@ -279,6 +279,10 @@ func (i *IdentityUpdateBatch) Size() int64 {
 }
 
 func (i *IdentityUpdateBatch) LastSequenceID() uint64 {
+	if len(i.sequenceIDs) == 0 {
+		return 0
+	}
+
 	return i.sequenceIDs[len(i.sequenceIDs)-1]
 }
 

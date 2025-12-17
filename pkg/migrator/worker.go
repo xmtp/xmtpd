@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -20,8 +19,7 @@ import (
 
 type Worker struct {
 	// Internals.
-	logger  *zap.Logger
-	running atomic.Bool
+	logger *zap.Logger
 
 	// Data management.
 	writer              *sql.DB
@@ -465,7 +463,7 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) {
 }
 
 func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context) {
-	logger := w.logger.Named(utils.MigratorIdentityUpdateBatchesLoggerName).
+	logger := w.logger.Named(utils.MigratorWriterBatchLoggerName).
 		With(zap.String(tableField, w.tableName))
 
 	if w.tableName != inboxLogTableName {
@@ -485,12 +483,21 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 		&w.wg,
 		fmt.Sprintf("writer-identity-update-batches-%s", w.tableName),
 		func(ctx context.Context) {
+			// Flush the batch every 250 milliseconds. Arbitrum Orbit L3 min block time.
 			ticker := time.NewTicker(250 * time.Millisecond)
 			defer ticker.Stop()
 
 			identityUpdateBatch := &IdentityUpdateBatch{}
 
 			triggerBatchFlush := func() {
+				lastSequenceID := identityUpdateBatch.LastSequenceID()
+
+				logger.Info(
+					"flushing identity update batch",
+					zap.Int("length", identityUpdateBatch.Len()),
+					zap.Uint64("last_sequence_id", lastSequenceID),
+				)
+
 				err := metrics.MeasureWriterLatency(
 					w.tableName,
 					destinationBlockchain,
@@ -504,7 +511,9 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 				)
 				if err != nil {
 					logger.Error(
-						"failed to insert identity update batch",
+						"failed to flush identity update batch",
+						zap.Int("length", identityUpdateBatch.Len()),
+						zap.Uint64("last_sequence_id", lastSequenceID),
 						zap.Error(err),
 					)
 
@@ -525,7 +534,8 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 
 				logger.Info(
 					"identity update batch flushed successfully",
-					zap.Int("batch_length", identityUpdateBatch.Len()),
+					zap.Int("length", identityUpdateBatch.Len()),
+					zap.Uint64("last_sequence_id", lastSequenceID),
 				)
 
 				for item := range identityUpdateBatch.All() {

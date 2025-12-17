@@ -403,7 +403,7 @@ func (w *Worker) flushIdentityUpdatesBatch(
 			w.writer,
 			inboxLogTableName,
 			int64(identityUpdate.SequenceID),
-			identityUpdate.IdentityUpdate,
+			identityUpdate.InboxID[:],
 			FailureBlockchainUndetermined,
 		)
 		if err != nil {
@@ -461,10 +461,6 @@ func (w *Worker) bootstrapIdentityUpdates(
 		)
 	}
 
-	// TODO: Remove this.
-	fmt.Println("batch.LastSequenceID()", batch.LastSequenceID())
-	fmt.Println("batch.Size()", batch.Size())
-	fmt.Println("batch.Len()", batch.Len())
 	err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
 		LastMigratedID: int64(batch.LastSequenceID()),
 		SourceTable:    inboxLogTableName,

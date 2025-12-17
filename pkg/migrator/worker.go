@@ -3,6 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -73,13 +74,13 @@ func NewWorker(
 	}
 }
 
-func (w *Worker) startReader(ctx context.Context, reader ISourceReader) {
+func (w *Worker) startReader(ctx context.Context, reader ISourceReader) error {
 	logger := w.logger.Named(utils.MigratorReaderLoggerName).
 		With(zap.String(tableField, w.tableName))
 
 	if reader == nil {
 		logger.Error("reader is nil", zap.String(tableField, w.tableName))
-		return
+		return errors.New("reader is nil")
 	}
 
 	logger.Info("started")
@@ -207,9 +208,11 @@ func (w *Worker) startReader(ctx context.Context, reader ISourceReader) {
 				}
 			}
 		})
+
+	return nil
 }
 
-func (w *Worker) startTransformer(ctx context.Context, transformer IDataTransformer) {
+func (w *Worker) startTransformer(ctx context.Context, transformer IDataTransformer) error {
 	logger := w.logger.Named(utils.MigratorTransformerLoggerName).
 		With(zap.String(tableField, w.tableName))
 
@@ -275,9 +278,11 @@ func (w *Worker) startTransformer(ctx context.Context, transformer IDataTransfor
 				}
 			}
 		})
+
+	return nil
 }
 
-func (w *Worker) startDatabaseWriter(ctx context.Context) {
+func (w *Worker) startDatabaseWriter(ctx context.Context) error {
 	logger := w.logger.Named(utils.MigratorWriterLoggerName).
 		With(zap.String(tableField, w.tableName))
 
@@ -364,15 +369,17 @@ func (w *Worker) startDatabaseWriter(ctx context.Context) {
 			}
 		},
 	)
+
+	return nil
 }
 
-func (w *Worker) startBlockchainWriterUnary(ctx context.Context) {
+func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 	logger := w.logger.Named(utils.MigratorWriterLoggerName).
 		With(zap.String(tableField, w.tableName))
 
 	if w.blockchainPublisher == nil {
 		logger.Error("blockchain publisher is nil")
-		return
+		return errors.New("blockchain publisher is nil")
 	}
 
 	logger.Info("started")
@@ -460,20 +467,22 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) {
 				}
 			}
 		})
+
+	return nil
 }
 
-func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context) {
+func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context) error {
 	logger := w.logger.Named(utils.MigratorWriterBatchLoggerName).
 		With(zap.String(tableField, w.tableName))
 
 	if w.tableName != inboxLogTableName {
 		logger.Error("identity update batches are only supported for inbox log table")
-		return
+		return errors.New("identity update batches are only supported for inbox log table")
 	}
 
 	if w.blockchainPublisher == nil {
 		logger.Error("blockchain publisher is nil")
-		return
+		return errors.New("blockchain publisher is nil")
 	}
 
 	logger.Info("started")
@@ -652,6 +661,8 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 				}
 			}
 		})
+
+	return nil
 }
 
 /* Inflight management. */

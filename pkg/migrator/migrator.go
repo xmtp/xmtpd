@@ -221,11 +221,25 @@ func (m *Migrator) Start() error {
 		return fmt.Errorf("migration service is already running")
 	}
 
-	m.startKeyPackagesWorker()
-	m.startWelcomeMessagesWorker()
-	m.startGroupMessagesWorker()
-	m.startCommitMessagesWorker()
-	m.startInboxLogWorker()
+	if err := m.startKeyPackagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startWelcomeMessagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startGroupMessagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startCommitMessagesWorker(); err != nil {
+		return err
+	}
+
+	if err := m.startInboxLogWorker(); err != nil {
+		return err
+	}
 
 	m.logger.Info("migration service started")
 
@@ -256,7 +270,7 @@ func (m *Migrator) Stop() error {
 	return nil
 }
 
-func (m *Migrator) startKeyPackagesWorker() {
+func (m *Migrator) startKeyPackagesWorker() error {
 	keyPackagesWorker := NewWorker(
 		keyPackagesTableName,
 		m.batchSize,
@@ -266,12 +280,22 @@ func (m *Migrator) startKeyPackagesWorker() {
 		m.pollInterval,
 	)
 
-	keyPackagesWorker.startReader(m.ctx, m.readers[keyPackagesTableName])
-	keyPackagesWorker.startTransformer(m.ctx, m.transformer)
-	keyPackagesWorker.startDatabaseWriter(m.ctx)
+	if err := keyPackagesWorker.startReader(m.ctx, m.readers[keyPackagesTableName]); err != nil {
+		return err
+	}
+
+	if err := keyPackagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
+
+	if err := keyPackagesWorker.startDatabaseWriter(m.ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (m *Migrator) startWelcomeMessagesWorker() {
+func (m *Migrator) startWelcomeMessagesWorker() error {
 	welcomeMessagesWorker := NewWorker(
 		welcomeMessagesTableName,
 		m.batchSize,
@@ -281,12 +305,22 @@ func (m *Migrator) startWelcomeMessagesWorker() {
 		m.pollInterval,
 	)
 
-	welcomeMessagesWorker.startReader(m.ctx, m.readers[welcomeMessagesTableName])
-	welcomeMessagesWorker.startTransformer(m.ctx, m.transformer)
-	welcomeMessagesWorker.startDatabaseWriter(m.ctx)
+	if err := welcomeMessagesWorker.startReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
+		return err
+	}
+
+	if err := welcomeMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
+
+	if err := welcomeMessagesWorker.startDatabaseWriter(m.ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (m *Migrator) startGroupMessagesWorker() {
+func (m *Migrator) startGroupMessagesWorker() error {
 	groupMessagesWorker := NewWorker(
 		groupMessagesTableName,
 		m.batchSize,
@@ -296,12 +330,22 @@ func (m *Migrator) startGroupMessagesWorker() {
 		m.pollInterval,
 	)
 
-	groupMessagesWorker.startReader(m.ctx, m.readers[groupMessagesTableName])
-	groupMessagesWorker.startTransformer(m.ctx, m.transformer)
-	groupMessagesWorker.startDatabaseWriter(m.ctx)
+	if err := groupMessagesWorker.startReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
+		return err
+	}
+
+	if err := groupMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
+
+	if err := groupMessagesWorker.startDatabaseWriter(m.ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (m *Migrator) startCommitMessagesWorker() {
+func (m *Migrator) startCommitMessagesWorker() error {
 	commitMessagesWorker := NewWorker(
 		commitMessagesTableName,
 		m.batchSize,
@@ -311,12 +355,22 @@ func (m *Migrator) startCommitMessagesWorker() {
 		m.pollInterval,
 	)
 
-	commitMessagesWorker.startReader(m.ctx, m.readers[commitMessagesTableName])
-	commitMessagesWorker.startTransformer(m.ctx, m.transformer)
-	commitMessagesWorker.startBlockchainWriterUnary(m.ctx)
+	if err := commitMessagesWorker.startReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
+		return err
+	}
+
+	if err := commitMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
+
+	if err := commitMessagesWorker.startBlockchainWriterUnary(m.ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (m *Migrator) startInboxLogWorker() {
+func (m *Migrator) startInboxLogWorker() error {
 	inboxLogWorker := NewWorker(
 		inboxLogTableName,
 		m.batchSize,
@@ -326,7 +380,17 @@ func (m *Migrator) startInboxLogWorker() {
 		m.pollInterval,
 	)
 
-	inboxLogWorker.startReader(m.ctx, m.readers[inboxLogTableName])
-	inboxLogWorker.startTransformer(m.ctx, m.transformer)
-	inboxLogWorker.startBlockchainWriterIdentityUpdateBatches(m.ctx)
+	if err := inboxLogWorker.startReader(m.ctx, m.readers[inboxLogTableName]); err != nil {
+		return err
+	}
+
+	if err := inboxLogWorker.startTransformer(m.ctx, m.transformer); err != nil {
+		return err
+	}
+
+	if err := inboxLogWorker.startBlockchainWriterIdentityUpdateBatches(m.ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

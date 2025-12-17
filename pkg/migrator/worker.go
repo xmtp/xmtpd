@@ -626,6 +626,10 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 						return
 					}
 
+					if envelope == nil {
+						continue
+					}
+
 					// Prepare client envelope. On failure or oversized, insert into dead letter box.
 					clientEnvelopeBytes, identifier, sequenceID, err := w.prepareClientEnvelope(
 						ctx,
@@ -634,10 +638,9 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 						w.tableName,
 					)
 					if err != nil {
-						logger.Debug(
+						logger.Warn(
 							"envelope preparation failed, added to dead letter box",
-							utils.InboxIDField(utils.HexEncode(identifier[:])),
-							utils.SequenceIDField(int64(sequenceID)),
+							zap.Error(err),
 						)
 
 						w.cleanupInflight(ctx, int64(envelope.OriginatorSequenceID()))

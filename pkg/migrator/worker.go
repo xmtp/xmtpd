@@ -98,7 +98,7 @@ func (w *Worker) startReader(ctx context.Context, reader ISourceReader) error {
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info("context cancelled, stopping")
+					logger.Debug(contextCancelledMessage)
 					return
 
 				case <-ticker.C:
@@ -228,12 +228,14 @@ func (w *Worker) startTransformer(ctx context.Context, transformer IDataTransfor
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info(contextCancelledMessage)
+					logger.Debug(contextCancelledMessage)
+
 					return
 
 				case record, open := <-w.recvChan:
 					if !open {
-						logger.Info(channelClosedMessage)
+						logger.Debug(channelClosedMessage)
+
 						return
 					}
 
@@ -319,6 +321,7 @@ func (w *Worker) startDatabaseWriter(ctx context.Context) error {
 								func() re.RetryableError {
 									return w.insertOriginatorEnvelopeDatabase(
 										ctx,
+										logger,
 										envelope,
 									)
 								},
@@ -377,7 +380,6 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 		With(zap.String(tableField, w.tableName))
 
 	if w.blockchainPublisher == nil {
-		logger.Error("blockchain publisher is nil")
 		return errors.New("blockchain publisher is nil")
 	}
 
@@ -391,12 +393,14 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info(contextCancelledMessage)
+					logger.Debug(contextCancelledMessage)
+
 					return
 
 				case envelope, open := <-w.wrtrChan:
 					if !open {
-						logger.Info(channelClosedMessage)
+						logger.Debug(channelClosedMessage)
+
 						return
 					}
 
@@ -414,6 +418,7 @@ func (w *Worker) startBlockchainWriterUnary(ctx context.Context) error {
 								func() re.RetryableError {
 									return w.insertOriginatorEnvelopeBlockchainUnary(
 										ctx,
+										logger,
 										envelope,
 									)
 								},
@@ -476,12 +481,10 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 		With(zap.String(tableField, w.tableName))
 
 	if w.tableName != inboxLogTableName {
-		logger.Error("identity update batches are only supported for inbox log table")
 		return errors.New("identity update batches are only supported for inbox log table")
 	}
 
 	if w.blockchainPublisher == nil {
-		logger.Error("blockchain publisher is nil")
 		return errors.New("blockchain publisher is nil")
 	}
 
@@ -594,7 +597,7 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 			for {
 				select {
 				case <-ctx.Done():
-					logger.Info(contextCancelledMessage)
+					logger.Debug(contextCancelledMessage)
 
 					return
 
@@ -607,7 +610,7 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 
 				case envelope, open := <-w.wrtrChan:
 					if !open {
-						logger.Info(channelClosedMessage)
+						logger.Debug(channelClosedMessage)
 
 						if identityUpdateBatch.Len() <= 0 {
 							return

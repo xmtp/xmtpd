@@ -26,6 +26,7 @@ const (
 // insertOriginatorEnvelopeDatabase inserts an originator envelope into the database.
 func (w *Worker) insertOriginatorEnvelopeDatabase(
 	ctx context.Context,
+	logger *zap.Logger,
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
 	if env == nil {
@@ -34,20 +35,20 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 
 	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
-		w.logger.Error("recover payer address failed", zap.Error(err))
+		logger.Error("recover payer address failed", zap.Error(err))
 		return re.NewNonRecoverableError("recover payer address failed", err)
 	}
 
 	querier := queries.New(w.writer)
 	payerID, err := querier.FindOrCreatePayer(ctx, payerAddress.Hex())
 	if err != nil {
-		w.logger.Error("find or create payer failed", zap.Error(err))
+		logger.Error("find or create payer failed", zap.Error(err))
 		return re.NewRecoverableError("find or create payer failed", err)
 	}
 
 	originatorEnvelopeBytes, err := proto.Marshal(env.Proto())
 	if err != nil {
-		w.logger.Error("marshall originator envelope failed", zap.Error(err))
+		logger.Error("marshall originator envelope failed", zap.Error(err))
 		return re.NewNonRecoverableError("marshall originator envelope failed", err)
 	}
 
@@ -72,7 +73,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 				},
 			)
 			if err != nil {
-				w.logger.Error("insert originator envelope failed", zap.Error(err))
+				logger.Error("insert originator envelope failed", zap.Error(err))
 				return re.NewRecoverableError("insert originator envelope failed", err)
 			}
 
@@ -85,7 +86,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 				SequenceID: int64(env.OriginatorSequenceID()),
 			})
 			if err != nil {
-				w.logger.Error("increment unsettled usage failed", zap.Error(err))
+				logger.Error("increment unsettled usage failed", zap.Error(err))
 				return re.NewRecoverableError("increment unsettled usage failed", err)
 			}
 
@@ -94,7 +95,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 				SourceTable:    w.tableName,
 			})
 			if err != nil {
-				w.logger.Error("update migration progress failed", zap.Error(err))
+				logger.Error("update migration progress failed", zap.Error(err))
 				return re.NewRecoverableError("update migration progress failed", err)
 			}
 
@@ -117,6 +118,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 //	On failure, it inserts a record into the migration dead letter box.
 func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 	ctx context.Context,
+	logger *zap.Logger,
 	env *envelopes.OriginatorEnvelope,
 ) re.RetryableError {
 	var (
@@ -132,7 +134,7 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 
 	clientEnvelopeBytes, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
 	if err != nil {
-		w.logger.Error("failed to get payer envelope bytes", zap.Error(err))
+		logger.Error("failed to get payer envelope bytes", zap.Error(err))
 		return re.NewNonRecoverableError("failed to get payer envelope bytes", err)
 	}
 
@@ -161,7 +163,7 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 				return re.NewRecoverableError("insert migration dead letter box failed", err)
 			}
 
-			w.logger.Warn(
+			logger.Warn(
 				"oversized commit message, skipped and added to dead letter box",
 				utils.GroupIDField(utils.HexEncode(groupID[:])),
 				utils.SequenceIDField(int64(sequenceID)),
@@ -231,15 +233,15 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			SourceTable:    tableName,
 		})
 		if err != nil {
-			w.logger.Error("update migration progress failed", zap.Error(err))
+			logger.Error("update migration progress failed", zap.Error(err))
 
 			// If we reached this point, the message has been published and the log emitted.
 			// Therefore, we can return a non-recoverable error to ensure the message is not retried.
 			return re.NewNonRecoverableError("update migration progress failed", err)
 		}
 
-		w.logger.Debug(
-			"published group message",
+		logger.Debug(
+			"published commit message",
 			utils.GroupIDField(utils.HexEncode(groupID[:])),
 			utils.SequenceIDField(int64(sequenceID)),
 		)
@@ -250,7 +252,7 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			return re.NewNonRecoverableError("error converting identifier to inbox ID", err)
 		}
 
-		w.logger.Debug(
+		logger.Debug(
 			"publishing identity update",
 			utils.InboxIDField(utils.HexEncode(inboxID[:])),
 			utils.SequenceIDField(int64(sequenceID)),
@@ -309,14 +311,14 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			SourceTable:    tableName,
 		})
 		if err != nil {
-			w.logger.Error("update migration progress failed", zap.Error(err))
+			logger.Error("update migration progress failed", zap.Error(err))
 
 			// If we reached this point, the message has been published and the log emitted.
 			// Therefore, we can return a non-recoverable error to ensure the message is not retried.
 			return re.NewNonRecoverableError("update migration progress failed", err)
 		}
 
-		w.logger.Debug(
+		logger.Debug(
 			"published identity update",
 			utils.InboxIDField(utils.HexEncode(inboxID[:])),
 			utils.SequenceIDField(int64(sequenceID)),

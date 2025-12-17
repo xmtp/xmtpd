@@ -408,6 +408,8 @@ func (w *Worker) flushIdentityUpdatesBatch(
 				utils.SequenceIDField(int64(identityUpdate.SequenceID)),
 				zap.Error(err),
 			)
+
+			return err
 		}
 
 	}

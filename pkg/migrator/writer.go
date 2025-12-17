@@ -83,7 +83,8 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 				MinutesSinceEpoch: utils.MinutesSinceEpoch(env.OriginatorTime()),
 				SpendPicodollars: int64(env.UnsignedOriginatorEnvelope.BaseFee()) +
 					int64(env.UnsignedOriginatorEnvelope.CongestionFee()),
-				SequenceID: int64(env.OriginatorSequenceID()),
+				SequenceID:   int64(env.OriginatorSequenceID()),
+				MessageCount: 1,
 			})
 			if err != nil {
 				logger.Error("increment unsettled usage failed", zap.Error(err))

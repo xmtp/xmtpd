@@ -3,11 +3,11 @@ package sync
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
@@ -24,7 +24,7 @@ type MigrationConfig struct {
 type SyncServerConfig struct {
 	Ctx                        context.Context
 	ClientMetrics              *grpcprom.ClientMetrics
-	DB                         *sql.DB
+	DB                         *db.Handler
 	FeeCalculator              fees.IFeeCalculator
 	Logger                     *zap.Logger
 	Migration                  MigrationConfig
@@ -56,7 +56,7 @@ func WithRegistrant(r *registrant.Registrant) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.Registrant = r }
 }
 
-func WithDB(db *sql.DB) SyncServerOption {
+func WithDB(db *db.Handler) SyncServerOption {
 	return func(cfg *SyncServerConfig) { cfg.DB = db }
 }
 
@@ -80,7 +80,6 @@ type SyncServer struct {
 	ctx        context.Context
 	logger     *zap.Logger
 	registrant *registrant.Registrant
-	store      *sql.DB
 	worker     *syncWorker
 }
 
@@ -128,7 +127,6 @@ func NewSyncServer(opts ...SyncServerOption) (*SyncServer, error) {
 		ctx:        cfg.Ctx,
 		logger:     cfg.Logger.Named(utils.SyncLoggerName),
 		registrant: cfg.Registrant,
-		store:      cfg.DB,
 		worker:     worker,
 	}, nil
 }

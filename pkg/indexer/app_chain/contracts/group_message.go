@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -37,7 +37,7 @@ var _ c.IContract = &GroupMessageBroadcaster{}
 func NewGroupMessageBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,
-	querier *queries.Queries,
+	db *db.Handler,
 	logger *zap.Logger,
 	address common.Address,
 	chainID int64,
@@ -52,7 +52,7 @@ func NewGroupMessageBroadcaster(
 		ctx,
 		client,
 		address,
-		querier,
+		db,
 		startBlock,
 	)
 	if err != nil {
@@ -67,7 +67,7 @@ func NewGroupMessageBroadcaster(
 	logger = logger.Named(utils.GroupMessageBroadcasterLoggerName).
 		With(utils.ContractAddressField(address.Hex()))
 
-	groupMessageStorer := NewGroupMessageStorer(querier, logger, contract)
+	groupMessageStorer := NewGroupMessageStorer(db.Query(), logger, contract)
 
 	reorgHandler := NewGroupMessageReorgHandler(logger)
 

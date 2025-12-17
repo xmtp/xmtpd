@@ -57,8 +57,7 @@ func newTestEnvelopeSink(
 	calculator := feesTestUtils.NewTestFeeCalculator()
 	dbInstance, _ := testutils.NewDB(t, ctx)
 
-	querier := queries.New(dbInstance)
-	err := querier.EnsureGatewayParts(
+	err := dbInstance.Query().EnsureGatewayParts(
 		ctx,
 		queries.EnsureGatewayPartsParams{
 			OriginatorNodeID:     200,
@@ -104,7 +103,7 @@ func getAllMessagesForOriginator(
 	storer *EnvelopeSink,
 	nodeID uint32,
 ) []queries.GatewayEnvelopesView {
-	envs, err := storer.queries.SelectGatewayEnvelopesByOriginators(
+	envs, err := storer.db.ReadQuery().SelectGatewayEnvelopesByOriginators(
 		t.Context(),
 		queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: []int32{int32(nodeID)},

@@ -2,7 +2,6 @@ package sync
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
@@ -23,9 +22,8 @@ import (
 
 type EnvelopeSink struct {
 	ctx                        context.Context
-	db                         *sql.DB
+	db                         *db.Handler
 	logger                     *zap.Logger
-	queries                    *queries.Queries
 	feeCalculator              fees.IFeeCalculator
 	payerReportStore           payerreport.IPayerReportStore
 	payerReportDomainSeparator common.Hash
@@ -35,7 +33,7 @@ type EnvelopeSink struct {
 
 func newEnvelopeSink(
 	ctx context.Context,
-	db *sql.DB,
+	db *db.Handler,
 	logger *zap.Logger,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
@@ -47,7 +45,6 @@ func newEnvelopeSink(
 		ctx:                        ctx,
 		db:                         db,
 		logger:                     logger,
-		queries:                    queries.New(db),
 		feeCalculator:              feeCalculator,
 		payerReportStore:           payerReportStore,
 		payerReportDomainSeparator: payerReportDomainSeparator,
@@ -156,7 +153,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		s.ctx,
-		s.db,
+		s.db.Write(),
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     int32(env.OriginatorNodeID()),
 			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
@@ -245,9 +242,12 @@ func (s *EnvelopeSink) calculateFees(
 		return 0, err
 	}
 
+	// NOTE: This is code smell IMO. We have a function that is (by name) a reader function,
+	// but it feels wrong to IMPOSE read limitation on it this way. However, if the goal is to
+	// have read queries work on a db read replica, then this should operate on the read db.
 	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
 		s.ctx,
-		s.queries,
+		s.db.ReadQuery(),
 		messageTime,
 		env.OriginatorNodeID(),
 	)
@@ -264,7 +264,7 @@ func (s *EnvelopeSink) getPayerID(env *envUtils.OriginatorEnvelope) (int32, erro
 		return 0, err
 	}
 
-	payerID, err := s.queries.FindOrCreatePayer(s.ctx, payerAddress.Hex())
+	payerID, err := s.db.WriteQuery().FindOrCreatePayer(s.ctx, payerAddress.Hex())
 	if err != nil {
 		return 0, err
 	}

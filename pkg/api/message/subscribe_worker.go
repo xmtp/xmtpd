@@ -2,7 +2,6 @@ package message
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 	"time"
 
@@ -154,14 +153,13 @@ type subscribeWorker struct {
 func startSubscribeWorker(
 	ctx context.Context,
 	logger *zap.Logger,
-	store *sql.DB,
+	store *db.Handler,
 ) (*subscribeWorker, error) {
 	logger = logger.Named(utils.SubscribeWorkerLoggerName)
 	logger.Info("starting")
 
-	q := queries.New(store)
 	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
-		envs, err := q.
+		envs, err := store.ReadQuery().
 			SelectGatewayEnvelopesUnfiltered(
 				ctx,
 				*db.SetVectorClockUnfiltered(&queries.SelectGatewayEnvelopesUnfilteredParams{RowLimit: numRows}, lastSeen),
@@ -193,7 +191,7 @@ func startSubscribeWorker(
 		return envs, lastSeen, nil
 	}
 
-	vc, err := q.SelectVectorClock(ctx)
+	vc, err := store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
 		logger.Error("failed to get vector clock", zap.Error(err))
 		return nil, err

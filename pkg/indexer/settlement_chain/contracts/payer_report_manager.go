@@ -2,13 +2,12 @@ package contracts
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	p "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -35,13 +34,12 @@ var _ c.IContract = &PayerReportManager{}
 func NewPayerReportManager(
 	ctx context.Context,
 	client *ethclient.Client,
-	db *sql.DB,
+	db *db.Handler,
 	logger *zap.Logger,
 	address common.Address,
 	chainID int64,
 	startBlock uint64,
 ) (*PayerReportManager, error) {
-	querier := queries.New(db)
 	contract, err := payerReportManagerContract(address, client)
 	if err != nil {
 		return nil, err
@@ -51,7 +49,7 @@ func NewPayerReportManager(
 		ctx,
 		client,
 		address,
-		querier,
+		db,
 		startBlock,
 	)
 	if err != nil {

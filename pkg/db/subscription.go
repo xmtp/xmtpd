@@ -89,23 +89,32 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 	for {
 		results, lastID, err := s.query(s.ctx, s.lastSeen, s.options.NumRows)
 		if s.ctx.Err() != nil {
-			break
-		} else if err != nil {
+			return
+		}
+
+		if err != nil {
 			// Log is extremely noisy during test teardown
 			s.logger.Error(
 				"error querying for database subscription",
 				zap.Error(err),
 				utils.NumRowsField(s.options.NumRows),
 			)
+
 			// Did not update lastSeen; will retry on next poll
-			break
-		} else if len(results) == 0 {
-			break
+			return
 		}
+
+		if len(results) == 0 {
+			return
+		}
+
 		s.lastSeen = lastID
 		s.updates <- results
+
+		// If we have less results than allowed, it means there's currently no more items to retrieve.
+		// Else repeat query and return more batches.
 		if int32(len(results)) < s.options.NumRows {
-			break
+			return
 		}
 	}
 }

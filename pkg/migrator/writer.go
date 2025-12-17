@@ -45,8 +45,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 		return re.NewNonRecoverableError("recover payer address failed", err)
 	}
 
-	querier := queries.New(w.writer)
-	payerID, err := querier.FindOrCreatePayer(ctx, payerAddress.Hex())
+	payerID, err := w.writer.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
 	if err != nil {
 		logger.Error("find or create payer failed", zap.Error(err))
 		return re.NewRecoverableError("find or create payer failed", err)
@@ -60,7 +59,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 
 	err = db.RunInTx(
 		ctx,
-		w.writer,
+		w.writer.Write(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(
@@ -147,8 +146,6 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 
 	totalSize := len(clientEnvelopeBytes) + len(identifier) + 8
 
-	querier := queries.New(w.writer)
-
 	switch originatorID {
 	case CommitMessageOriginatorID:
 		groupID, err := utils.ParseGroupID(identifier)
@@ -159,7 +156,7 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 		if totalSize > maxChainMessageSize {
 			err := insertMigrationDeadLetterBox(
 				ctx,
-				w.writer,
+				w.writer.Write(),
 				tableName,
 				int64(sequenceID),
 				groupID[:],
@@ -203,7 +200,7 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
 				errInsert := insertMigrationDeadLetterBox(
 					ctx,
-					w.writer,
+					w.writer.Write(),
 					tableName,
 					int64(sequenceID),
 					groupID[:],
@@ -235,10 +232,11 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			)
 		}
 
-		err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-			LastMigratedID: int64(sequenceID),
-			SourceTable:    tableName,
-		})
+		err = w.writer.WriteQuery().
+			UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+				LastMigratedID: int64(sequenceID),
+				SourceTable:    tableName,
+			})
 		if err != nil {
 			logger.Error("update migration progress failed", zap.Error(err))
 
@@ -281,7 +279,7 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
 				errInsert := insertMigrationDeadLetterBox(
 					ctx,
-					w.writer,
+					w.writer.Write(),
 					tableName,
 					int64(sequenceID),
 					inboxID[:],
@@ -313,10 +311,11 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 			)
 		}
 
-		err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-			LastMigratedID: int64(sequenceID),
-			SourceTable:    tableName,
-		})
+		err = w.writer.WriteQuery().
+			UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+				LastMigratedID: int64(sequenceID),
+				SourceTable:    tableName,
+			})
 		if err != nil {
 			logger.Error("update migration progress failed", zap.Error(err))
 
@@ -402,7 +401,7 @@ func (w *Worker) flushIdentityUpdatesBatch(
 
 		err = insertMigrationDeadLetterBox(
 			ctx,
-			w.writer,
+			w.writer.Write(),
 			inboxLogTableName,
 			int64(identityUpdate.SequenceID),
 			identityUpdate.InboxID[:],
@@ -437,8 +436,6 @@ func (w *Worker) bootstrapIdentityUpdates(
 		return re.NewNonRecoverableError("array mismatch", errors.New("array mismatch"))
 	}
 
-	querier := queries.New(w.writer)
-
 	_, err := w.blockchainPublisher.BootstrapIdentityUpdates(
 		ctx,
 		batch.inboxIDs,
@@ -466,7 +463,7 @@ func (w *Worker) bootstrapIdentityUpdates(
 		)
 	}
 
-	err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+	err = w.writer.WriteQuery().UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
 		LastMigratedID: int64(batch.LastSequenceID()),
 		SourceTable:    inboxLogTableName,
 	})
@@ -513,7 +510,7 @@ func (w *Worker) prepareClientEnvelope(
 	if totalSize > maxChainMessageSize {
 		err := insertMigrationDeadLetterBox(
 			ctx,
-			w.writer,
+			w.writer.Write(),
 			tableName,
 			int64(sequenceID),
 			identifier[:],

@@ -174,17 +174,21 @@ func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *reg
 		return fmt.Errorf("unable to insert node info into database: %w", err)
 	}
 
-	if numRows == 0 {
-		nodeInfo, err := db.SelectNodeInfo(ctx)
-		if err != nil {
-			return fmt.Errorf("unable to retrieve node info from database: %w", err)
-		}
-		if nodeInfo.NodeID != int32(record.NodeID) {
-			return fmt.Errorf("registry node ID does not match ID in database")
-		}
-		if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
-			return fmt.Errorf("registry public key does not match public key in database")
-		}
+	// Successful insert means we're all good.
+	if numRows > 0 {
+		return nil
+	}
+
+	// Insert failed due to conflict - check if our configuration matches the stored one.
+	nodeInfo, err := db.SelectNodeInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve node info from database: %w", err)
+	}
+	if nodeInfo.NodeID != int32(record.NodeID) {
+		return fmt.Errorf("registry node ID does not match ID in database")
+	}
+	if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
+		return fmt.Errorf("registry public key does not match public key in database")
 	}
 
 	return nil

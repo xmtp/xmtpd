@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"math/big"
@@ -13,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	p "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
+	"github.com/xmtp/xmtpd/pkg/db"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -49,7 +49,7 @@ type PayerReportManagerStorer struct {
 var _ c.ILogStorer = &PayerReportManagerStorer{}
 
 func NewPayerReportManagerStorer(
-	db *sql.DB,
+	db *db.Handler,
 	logger *zap.Logger,
 	contract PayerReportManagerContract,
 ) (*PayerReportManagerStorer, error) {
@@ -63,7 +63,7 @@ func NewPayerReportManagerStorer(
 		return nil, err
 	}
 
-	store := payerreport.NewStore(db, logger)
+	store := payerreport.NewStore(logger, db)
 
 	return &PayerReportManagerStorer{
 		abi:             abi,

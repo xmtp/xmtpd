@@ -5,12 +5,11 @@ package indexer
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	appchain "github.com/xmtp/xmtpd/pkg/indexer/app_chain"
 	settlementchain "github.com/xmtp/xmtpd/pkg/indexer/settlement_chain"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
@@ -21,7 +20,7 @@ import (
 type IndexerConfig struct {
 	ctx               context.Context
 	logger            *zap.Logger
-	dB                *sql.DB
+	db                *db.Handler
 	contractsConfig   *config.ContractsOptions
 	validationService mlsvalidate.MLSValidationService
 }
@@ -40,9 +39,9 @@ func WithLogger(logger *zap.Logger) IndexerOption {
 	}
 }
 
-func WithDB(db *sql.DB) IndexerOption {
+func WithDB(db *db.Handler) IndexerOption {
 	return func(cfg *IndexerConfig) {
-		cfg.dB = db
+		cfg.db = db
 	}
 }
 
@@ -62,7 +61,6 @@ type Indexer struct {
 	ctx             context.Context
 	logger          *zap.Logger
 	cancel          context.CancelFunc
-	wg              sync.WaitGroup
 	appChain        *appchain.AppChain
 	settlementChain *settlementchain.SettlementChain
 }
@@ -81,7 +79,7 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 		return nil, errors.New("indexer: logger is required")
 	}
 
-	if cfg.dB == nil {
+	if cfg.db == nil {
 		return nil, errors.New("indexer: DB is required")
 	}
 	if cfg.validationService == nil {
@@ -99,7 +97,7 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 		ctx,
 		indexerLogger,
 		cfg.contractsConfig.AppChain,
-		cfg.dB,
+		cfg.db,
 		cfg.validationService,
 	)
 	if err != nil {
@@ -111,7 +109,7 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 		ctx,
 		indexerLogger,
 		cfg.contractsConfig.SettlementChain,
-		cfg.dB,
+		cfg.db,
 	)
 	if err != nil {
 		cancel()
@@ -139,7 +137,6 @@ func (i *Indexer) Close() {
 	}
 
 	i.cancel()
-	i.wg.Wait()
 
 	i.logger.Debug("closed")
 }

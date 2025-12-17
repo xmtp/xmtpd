@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -23,8 +23,7 @@ type Worker struct {
 	logger *zap.Logger
 
 	// Data management.
-	writer              *sql.DB
-	wrtrQueries         *queries.Queries
+	writer              *db.Handler
 	blockchainPublisher blockchain.IBlockchainPublisher
 
 	// IPC.
@@ -44,7 +43,7 @@ type Worker struct {
 func NewWorker(
 	tableName string,
 	batchSize int32,
-	writer *sql.DB,
+	writer *db.Handler,
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	logger *zap.Logger,
 	pollInterval time.Duration,
@@ -62,7 +61,6 @@ func NewWorker(
 	return &Worker{
 		logger:              logger,
 		writer:              writer,
-		wrtrQueries:         queries.New(writer),
 		blockchainPublisher: blockchainPublisher,
 		recvChan:            make(chan ISourceRecord, batchSize*2),
 		wrtrChan:            make(chan *envelopes.OriginatorEnvelope, batchSize*2),
@@ -107,7 +105,7 @@ func (w *Worker) startReader(ctx context.Context, reader ISourceReader) error {
 					lastMigratedID, err := metrics.MeasureReaderLatency(
 						"migration_tracker",
 						func() (int64, error) {
-							return w.wrtrQueries.GetMigrationProgress(ctx, w.tableName)
+							return w.writer.ReadQuery().GetMigrationProgress(ctx, w.tableName)
 						},
 					)
 					if err != nil {
@@ -249,7 +247,7 @@ func (w *Worker) startTransformer(ctx context.Context, transformer IDataTransfor
 
 						err := insertMigrationDeadLetterBox(
 							ctx,
-							w.writer,
+							w.writer.Write(),
 							w.tableName,
 							record.GetID(),
 							nil,

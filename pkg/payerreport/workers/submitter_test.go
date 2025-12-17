@@ -21,7 +21,7 @@ func testSubmitterWorker(
 		log            = testutils.NewLog(t)
 		ctx            = t.Context()
 		db, _          = testutils.NewDB(t, ctx)
-		store          = payerreport.NewStore(db, log)
+		store          = payerreport.NewStore(log, db)
 		mockRegistrant = registrantMocks.NewMockIRegistrant(t)
 		registry       = mocks.NewMockNodeRegistry(t)
 		reportsManager = blockchainMocks.NewMockPayerReportsManager(t)

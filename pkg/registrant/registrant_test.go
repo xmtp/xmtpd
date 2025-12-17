@@ -40,7 +40,7 @@ func setup(t *testing.T) *deps {
 	ctx := context.Background()
 	log := testutils.NewLog(t)
 	mockRegistry := mocks.NewMockNodeRegistry(t)
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	queries := queries.New(db)
 	privKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)

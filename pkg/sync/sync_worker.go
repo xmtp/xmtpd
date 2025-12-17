@@ -2,7 +2,6 @@ package sync
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"sync"
@@ -12,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	clientInterceptors "github.com/xmtp/xmtpd/pkg/interceptors/client"
@@ -34,7 +32,7 @@ type syncWorker struct {
 	logger                     *zap.Logger
 	nodeRegistry               registry.NodeRegistry
 	registrant                 *registrant.Registrant
-	store                      *sql.DB
+	store                      *db.Handler
 	wg                         sync.WaitGroup
 	subscriptions              map[uint32]struct{}
 	subscriptionsMutex         sync.RWMutex
@@ -337,7 +335,7 @@ func (s *syncWorker) setupStream(
 	conn *grpc.ClientConn,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (*originatorStream, error) {
-	result, err := queries.New(s.store).SelectVectorClock(ctx)
+	result, err := s.store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
 		return nil, err
 	}

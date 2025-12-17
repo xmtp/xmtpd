@@ -15,7 +15,6 @@ package migrator
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -51,7 +50,7 @@ const (
 type DBMigratorConfig struct {
 	ctx       context.Context
 	logger    *zap.Logger
-	db        *sql.DB
+	db        *db.Handler
 	options   *config.MigrationServerOptions
 	contracts *config.ContractsOptions
 }
@@ -70,7 +69,7 @@ func WithLogger(logger *zap.Logger) DBMigratorOption {
 	}
 }
 
-func WithDestinationDB(db *sql.DB) DBMigratorOption {
+func WithDestinationDB(db *db.Handler) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
 		cfg.db = db
 	}
@@ -97,8 +96,8 @@ type Migrator struct {
 	logger *zap.Logger
 
 	// Data management.
-	writer              *sql.DB
-	reader              *sql.DB
+	target              *db.Handler
+	source              *db.Handler
 	readers             map[string]ISourceReader
 	transformer         IDataTransformer
 	blockchainPublisher blockchain.IBlockchainPublisher
@@ -173,12 +172,17 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, err
 	}
 
+	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
+
 	readers := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(reader, cfg.options.StartDate.Unix()),
-		inboxLogTableName:        NewInboxLogReader(reader, cfg.options.StartDate.UnixNano()),
-		keyPackagesTableName:     NewKeyPackageReader(reader),
-		welcomeMessagesTableName: NewWelcomeMessageReader(reader, cfg.options.StartDate.Unix()),
-		commitMessagesTableName:  NewCommitMessageReader(reader, cfg.options.StartDate.Unix()),
+		groupMessagesTableName: NewGroupMessageReader(readDB.DB(), cfg.options.StartDate.Unix()),
+		inboxLogTableName:      NewInboxLogReader(readDB.DB(), cfg.options.StartDate.UnixNano()),
+		keyPackagesTableName:   NewKeyPackageReader(readDB.DB()),
+		welcomeMessagesTableName: NewWelcomeMessageReader(
+			readDB.DB(),
+			cfg.options.StartDate.Unix(),
+		),
+		commitMessagesTableName: NewCommitMessageReader(readDB.DB(), cfg.options.StartDate.Unix()),
 	}
 
 	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
@@ -202,8 +206,8 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		wg:                  sync.WaitGroup{},
 		mu:                  sync.RWMutex{},
 		logger:              logger,
-		writer:              cfg.db,
-		reader:              reader,
+		target:              cfg.db,
+		source:              readDB,
 		readers:             readers,
 		transformer:         transformer,
 		blockchainPublisher: blockchainPublisher,
@@ -257,11 +261,12 @@ func (m *Migrator) Stop() error {
 	m.cancel()
 	m.wg.Wait()
 
-	if err := m.reader.Close(); err != nil {
+	if err := m.source.Close(); err != nil {
 		m.logger.Error("failed to close connection to source database", zap.Error(err))
 	}
 
-	if err := m.writer.Close(); err != nil {
+	// TODO: IMO migrator should not be the one closing the writer DB since it's not the one who opened it.
+	if err := m.target.Close(); err != nil {
 		m.logger.Error("failed to close connection to destination database", zap.Error(err))
 	}
 
@@ -274,7 +279,7 @@ func (m *Migrator) startKeyPackagesWorker() error {
 	keyPackagesWorker := NewWorker(
 		keyPackagesTableName,
 		m.batchSize,
-		m.writer,
+		m.target,
 		nil,
 		m.logger,
 		m.pollInterval,
@@ -299,7 +304,7 @@ func (m *Migrator) startWelcomeMessagesWorker() error {
 	welcomeMessagesWorker := NewWorker(
 		welcomeMessagesTableName,
 		m.batchSize,
-		m.writer,
+		m.target,
 		nil,
 		m.logger,
 		m.pollInterval,
@@ -324,7 +329,7 @@ func (m *Migrator) startGroupMessagesWorker() error {
 	groupMessagesWorker := NewWorker(
 		groupMessagesTableName,
 		m.batchSize,
-		m.writer,
+		m.target,
 		nil,
 		m.logger,
 		m.pollInterval,
@@ -349,7 +354,7 @@ func (m *Migrator) startCommitMessagesWorker() error {
 	commitMessagesWorker := NewWorker(
 		commitMessagesTableName,
 		m.batchSize,
-		m.writer,
+		m.target,
 		m.blockchainPublisher,
 		m.logger,
 		m.pollInterval,
@@ -374,7 +379,7 @@ func (m *Migrator) startInboxLogWorker() error {
 	inboxLogWorker := NewWorker(
 		inboxLogTableName,
 		m.batchSize,
-		m.writer,
+		m.target,
 		m.blockchainPublisher,
 		m.logger,
 		m.pollInterval,

@@ -2,11 +2,11 @@ package indexer_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/indexer"
 
 	"github.com/stretchr/testify/require"
@@ -25,7 +25,7 @@ import (
 
 func startIndexing(
 	t *testing.T,
-) (*sql.DB, *queries.Queries, *config.ContractsOptions, context.Context) {
+) (*db.Handler, *queries.Queries, *config.ContractsOptions, context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	logger := testutils.NewLog(t)
@@ -48,13 +48,13 @@ func startIndexing(
 	err = indx.Start()
 	require.NoError(t, err)
 
-	return db, queries.New(db), cfg, ctx
+	return db, db.Query(), cfg, ctx
 }
 
 func messagePublisher(
 	t *testing.T,
 	ctx context.Context,
-	db *sql.DB,
+	db *db.Handler,
 	contractsCfg *config.ContractsOptions,
 ) *blockchain.BlockchainPublisher {
 	payerCfg := testutils.GetPayerOptions(t)

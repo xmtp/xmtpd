@@ -31,29 +31,27 @@ var (
 )
 
 type Store struct {
-	queries *queries.Queries
-	db      *sql.DB
-	logger  *zap.Logger
+	db     *db.Handler
+	logger *zap.Logger
 }
 
 var _ IPayerReportStore = (*Store)(nil)
 
-func NewStore(db *sql.DB, logger *zap.Logger) *Store {
+func NewStore(logger *zap.Logger, db *db.Handler) *Store {
 	return &Store{
-		queries: queries.New(db),
-		db:      db,
-		logger:  logger.Named(utils.PayerReportStoreLoggerName),
+		db:     db,
+		logger: logger.Named(utils.PayerReportStoreLoggerName),
 	}
 }
 
 func (s *Store) GetAdvisoryLocker(
 	ctx context.Context,
 ) (db.ITransactionScopedAdvisoryLocker, error) {
-	return db.NewTransactionScopedAdvisoryLocker(ctx, s.db, &sql.TxOptions{})
+	return db.NewTransactionScopedAdvisoryLocker(ctx, s.db.DB(), &sql.TxOptions{})
 }
 
 func (s *Store) GetLatestSequenceID(ctx context.Context, originatorNodeID int32) (int64, error) {
-	return s.queries.GetLatestSequenceId(ctx, originatorNodeID)
+	return s.db.Query().GetLatestSequenceId(ctx, originatorNodeID)
 }
 
 // StoreReport stores a report in the database. No validations have been performed, and no originator envelope is stored.
@@ -63,7 +61,7 @@ func (s *Store) StoreReport(ctx context.Context, report *PayerReport) (int64, er
 		return 0, err
 	}
 
-	numRows, err := s.queries.InsertOrIgnorePayerReport(ctx, *params)
+	numRows, err := s.db.Query().InsertOrIgnorePayerReport(ctx, *params)
 	if err != nil {
 		return 0, err
 	}
@@ -84,7 +82,7 @@ func (s *Store) StoreAttestation(ctx context.Context, attestation *PayerReportAt
 		return ErrOriginatorNodeIDTooLarge
 	}
 
-	return s.queries.InsertOrIgnorePayerReportAttestation(
+	return s.db.Query().InsertOrIgnorePayerReportAttestation(
 		ctx,
 		queries.InsertOrIgnorePayerReportAttestationParams{
 			PayerReportID: reportID[:],
@@ -113,7 +111,7 @@ func (s *Store) FetchReports(
 ) ([]*PayerReportWithStatus, error) {
 	params := query.toParams()
 
-	rows, err := s.queries.FetchPayerReports(ctx, params)
+	rows, err := s.db.ReadQuery().FetchPayerReports(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +137,7 @@ func (s *Store) FetchReports(
 func (s *Store) SetReportSubmitted(ctx context.Context, id ReportID, reportIndex int32) error {
 	allowedPrevStatuses := []int16{int16(SubmissionPending)}
 
-	return s.queries.SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
+	return s.db.Query().SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
 		ReportID:             id[:],
 		NewStatus:            int16(SubmissionSubmitted),
 		PrevStatus:           allowedPrevStatuses,
@@ -158,7 +156,7 @@ func (s *Store) ForceSetReportSubmitted(ctx context.Context, id ReportID, report
 		int16(SubmissionRejected),
 	}
 
-	return s.queries.SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
+	return s.db.Query().SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
 		ReportID:             id[:],
 		NewStatus:            int16(SubmissionSubmitted),
 		PrevStatus:           allowAllStatuses,
@@ -169,7 +167,7 @@ func (s *Store) ForceSetReportSubmitted(ctx context.Context, id ReportID, report
 func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 	return db.RunInTx(
 		ctx,
-		s.db,
+		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			var (
@@ -249,7 +247,7 @@ func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
 func (s *Store) SetReportSubmissionRejected(ctx context.Context, id ReportID) error {
 	return setReportSubmissionStatus(
 		ctx,
-		s.queries,
+		s.db.Query(),
 		id,
 		[]SubmissionStatus{SubmissionPending},
 		SubmissionRejected,
@@ -259,7 +257,7 @@ func (s *Store) SetReportSubmissionRejected(ctx context.Context, id ReportID) er
 func (s *Store) SetReportAttestationApproved(ctx context.Context, id ReportID) error {
 	return setReportAttestationStatus(
 		ctx,
-		s.queries,
+		s.db.Query(),
 		id,
 		[]AttestationStatus{AttestationPending},
 		AttestationApproved,
@@ -269,7 +267,7 @@ func (s *Store) SetReportAttestationApproved(ctx context.Context, id ReportID) e
 func (s *Store) SetReportAttestationRejected(ctx context.Context, id ReportID) error {
 	return setReportAttestationStatus(
 		ctx,
-		s.queries,
+		s.db.Query(),
 		id,
 		[]AttestationStatus{AttestationPending},
 		AttestationRejected,
@@ -293,7 +291,7 @@ func (s *Store) CreatePayerReport(
 
 	if err = db.RunInTx(
 		ctx,
-		s.db,
+		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, tx *queries.Queries) error {
 			var (
@@ -350,7 +348,7 @@ func (s *Store) CreateAttestation(
 
 	return db.RunInTx(
 		ctx,
-		s.db,
+		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, tx *queries.Queries) error {
 			report, err := tx.FetchPayerReportLocked(ctx, reportID)
@@ -454,7 +452,7 @@ func (s *Store) StoreSyncedReport(
 
 	return db.RunInTx(
 		ctx,
-		s.db,
+		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
@@ -500,7 +498,7 @@ func (s *Store) StoreSyncedAttestation(
 
 	return db.RunInTx(
 		ctx,
-		s.db,
+		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
@@ -531,8 +529,10 @@ func (s *Store) StoreSyncedAttestation(
 	)
 }
 
+// TODO: This method returns a vague object that can be used for both read and write queries.
+// These can be abstracted away to more specialized functions.
 func (s *Store) Queries() *queries.Queries {
-	return s.queries
+	return s.db.Query()
 }
 
 func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWithStatus, error) {

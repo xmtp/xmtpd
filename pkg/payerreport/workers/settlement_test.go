@@ -26,7 +26,7 @@ func testSettlementWorker(
 		log            = testutils.NewLog(t)
 		ctx            = t.Context()
 		db, _          = testutils.NewDB(t, ctx)
-		store          = payerreport.NewStore(db, log)
+		store          = payerreport.NewStore(log, db)
 		reportsManager = blockchainMocks.NewMockPayerReportsManager(t)
 		verifier       = payerreportMocks.NewMockIPayerReportVerifier(t)
 		myNodeID       = uint32(1)

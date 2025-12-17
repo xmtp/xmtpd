@@ -2,11 +2,10 @@ package metadata
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 	"time"
 
-	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"go.uber.org/zap"
@@ -21,7 +20,7 @@ type CursorUpdater interface {
 
 type DBBasedCursorUpdater struct {
 	ctx           context.Context
-	store         *sql.DB
+	store         *db.Handler
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
 	cursorMu      sync.RWMutex
@@ -30,7 +29,7 @@ type DBBasedCursorUpdater struct {
 	subscribers   map[string][]chan struct{}
 }
 
-func NewCursorUpdater(ctx context.Context, logger *zap.Logger, store *sql.DB) CursorUpdater {
+func NewCursorUpdater(ctx context.Context, logger *zap.Logger, store *db.Handler) CursorUpdater {
 	subscribers := make(map[string][]chan struct{})
 	ctx, cancel := context.WithCancel(ctx)
 	cu := DBBasedCursorUpdater{
@@ -90,7 +89,7 @@ func equalCursors(a, b map[uint32]uint64) bool {
 }
 
 func (cu *DBBasedCursorUpdater) read() (bool, error) {
-	rows, err := queries.New(cu.store).SelectVectorClock(cu.ctx)
+	rows, err := cu.store.ReadQuery().SelectVectorClock(cu.ctx)
 	if err != nil {
 		return false, err
 	}

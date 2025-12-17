@@ -40,7 +40,7 @@ func buildParams(
 
 func TestInsertAndIncrement(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 	// Create a payer
@@ -77,7 +77,7 @@ func TestInsertAndIncrement(t *testing.T) {
 
 func TestPayerMustExist(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	payerID := testutils.RandomInt32()
 	originatorID := int32(100)
@@ -96,7 +96,7 @@ func TestPayerMustExist(t *testing.T) {
 
 func TestInsertAndIncrementParallel(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 	// Create a payer
@@ -154,7 +154,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 
 func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -194,7 +194,7 @@ func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 
 func TestInsertGatewayEnvelopeWithChecksStandalone(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -216,7 +216,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone(t *testing.T) {
 
 func TestInsertGatewayEnvelopeWithChecksStandalone_FailsInTransaction(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	querier := queries.New(db).WithTx(tx)
@@ -244,7 +244,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_AutoCreateAndRetry(t *testing
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	q := queries.New(db)
 
 	const nodeID int32 = 42
@@ -280,7 +280,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_PreexistingPartitions(t *test
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	q := queries.New(db)
 
 	const nodeID int32 = 7
@@ -311,7 +311,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	q := queries.New(db)
 
 	const nodeID int32 = 99
@@ -372,7 +372,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 
 func TestInsertGatewayEnvelopeWithChecksTransactional_FailsWithoutTx(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
 
@@ -394,7 +394,7 @@ func TestInsertGatewayEnvelopeWithChecksTransactional_FailsWithoutTx(t *testing.
 
 func TestInsertGatewayEnvelopeWithCheckTransactional(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	querier := queries.New(db).WithTx(tx)
@@ -421,7 +421,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_AutoCreateAndRetry(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)
@@ -462,7 +462,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_PreexistingPartitions(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)
@@ -498,7 +498,7 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)
@@ -566,7 +566,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_RollbackDDL(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)
@@ -612,7 +612,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_Commit(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	db, _ := testutils.NewRawDB(t, ctx)
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q := queries.New(db).WithTx(tx)

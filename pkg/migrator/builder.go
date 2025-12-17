@@ -2,19 +2,19 @@ package migrator
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	sqlmgr "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
 	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"go.uber.org/zap"
 )
 
 func setupBlockchainPublisher(
 	ctx context.Context,
 	logger *zap.Logger,
-	db *sql.DB,
+	db *db.Handler,
 	payerPrivateKey string,
 	cfg *config.ContractsOptions,
 ) (*blockchain.BlockchainPublisher, error) {

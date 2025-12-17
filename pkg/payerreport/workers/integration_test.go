@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
@@ -216,8 +217,8 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	)
 	require.NoError(t, err)
 
-	payerReportStore1 := payerreport.NewStore(dbs[0], log)
-	payerReportStore2 := payerreport.NewStore(dbs[1], log)
+	payerReportStore1 := payerreport.NewStore(log, db.NewDBHandler(dbs[0]))
+	payerReportStore2 := payerreport.NewStore(log, db.NewDBHandler(dbs[1]))
 	reportGenerator1 := workers.NewGeneratorWorker(
 		t.Context(),
 		log.With(zap.Uint32("node_id", server1NodeID)),

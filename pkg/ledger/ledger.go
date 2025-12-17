@@ -9,25 +9,26 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
 type Ledger struct {
-	queries *queries.Queries
-	logger  *zap.Logger
+	db     *db.Handler
+	logger *zap.Logger
 }
 
-func NewLedger(logger *zap.Logger, querier *queries.Queries) *Ledger {
+func NewLedger(logger *zap.Logger, db *db.Handler) *Ledger {
 	return &Ledger{
-		queries: querier,
-		logger:  logger.Named(utils.LedgerLoggerName),
+		db:     db,
+		logger: logger.Named(utils.LedgerLoggerName),
 	}
 }
 
 func (l *Ledger) GetBalance(ctx context.Context, payerID int32) (currency.PicoDollar, error) {
-	balance, err := l.queries.GetPayerBalance(ctx, payerID)
+	balance, err := l.db.ReadQuery().GetPayerBalance(ctx, payerID)
 	if err != nil {
 		return 0, err
 	}
@@ -48,7 +49,7 @@ func (l *Ledger) Deposit(
 		return err
 	}
 
-	return l.queries.InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
+	return l.db.WriteQuery().InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(amount),
@@ -70,7 +71,7 @@ func (l *Ledger) InitiateWithdrawal(
 		return err
 	}
 
-	return l.queries.InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
+	return l.db.WriteQuery().InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(amount) * -1,
@@ -79,7 +80,7 @@ func (l *Ledger) InitiateWithdrawal(
 }
 
 func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID EventID) error {
-	lastWithdrawal, err := l.queries.GetLastEvent(ctx, queries.GetLastEventParams{
+	lastWithdrawal, err := l.db.ReadQuery().GetLastEvent(ctx, queries.GetLastEventParams{
 		PayerID:   payerID,
 		EventType: int16(eventTypeWithdrawal),
 	})
@@ -92,7 +93,7 @@ func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID Ev
 
 	// For additional safety, check if the last withdrawal was canceled by another event.
 	// The smart contract should protect against this, but we are double checking.
-	lastCancel, err := l.queries.GetLastEvent(ctx, queries.GetLastEventParams{
+	lastCancel, err := l.db.ReadQuery().GetLastEvent(ctx, queries.GetLastEventParams{
 		PayerID:   payerID,
 		EventType: int16(eventTypeCanceledWithdrawal),
 	})
@@ -115,7 +116,7 @@ func (l *Ledger) CancelWithdrawal(ctx context.Context, payerID int32, eventID Ev
 		return ErrWithdrawalAlreadyCanceled
 	}
 
-	return l.queries.InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
+	return l.db.WriteQuery().InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(lastWithdrawal.AmountPicodollars) * -1,
@@ -137,7 +138,7 @@ func (l *Ledger) SettleUsage(
 		return err
 	}
 
-	return l.queries.InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
+	return l.db.WriteQuery().InsertPayerLedgerEvent(ctx, queries.InsertPayerLedgerEventParams{
 		EventID:           eventID[:],
 		PayerID:           payerID,
 		AmountPicodollars: int64(amount) * -1,
@@ -149,7 +150,7 @@ func (l *Ledger) FindOrCreatePayer(
 	ctx context.Context,
 	payerAddress common.Address,
 ) (int32, error) {
-	return l.queries.FindOrCreatePayer(ctx, payerAddress.Hex())
+	return l.db.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
 }
 
 func validateAmount(amount currency.PicoDollar) error {

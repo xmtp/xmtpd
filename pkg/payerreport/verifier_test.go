@@ -129,11 +129,11 @@ func TestValidFirstReport(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			db, generator := setupGenerator(t)
 			logger := testutils.NewLog(t).With(zap.String("test_case", testCase.name))
-			store := payerreport.NewStore(db, logger)
+			store := payerreport.NewStore(logger, db)
 			verifier := payerreport.NewPayerReportVerifier(logger, store)
 
 			for _, message := range testCase.messagesToInsert {
-				insertEnvelope(t, db, message)
+				insertEnvelope(t, db.DB(), message)
 			}
 
 			report, err := generator.GenerateReport(
@@ -162,10 +162,10 @@ func TestValidFirstReport(t *testing.T) {
 func setupVerifier(t *testing.T) (*sql.DB, *payerreport.PayerReportVerifier) {
 	db, _ := testutils.NewDB(t, context.Background())
 	logger := testutils.NewLog(t)
-	store := payerreport.NewStore(db, logger)
+	store := payerreport.NewStore(logger, db)
 	verifier := payerreport.NewPayerReportVerifier(logger, store)
 
-	return db, verifier
+	return db.DB(), verifier
 }
 
 func TestValidateReportTransition(t *testing.T) {

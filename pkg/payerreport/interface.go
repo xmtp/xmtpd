@@ -47,6 +47,16 @@ type IPayerReportVerifier interface {
 }
 
 type IPayerReportStore interface {
+	IPayerReportReadStore
+	IPayerReportWriteStore
+}
+
+type IPayerReportReadStore interface {
+	FetchReport(ctx context.Context, id ReportID) (*PayerReportWithStatus, error)
+	FetchReports(ctx context.Context, query *FetchReportsQuery) ([]*PayerReportWithStatus, error)
+}
+
+type IPayerReportWriteStore interface {
 	StoreReport(ctx context.Context, report *PayerReport) (int64, error)
 	CreatePayerReport(
 		ctx context.Context,
@@ -58,8 +68,6 @@ type IPayerReportStore interface {
 		attestation *PayerReportAttestation,
 		payerEnvelope *envelopes.PayerEnvelope,
 	) error
-	FetchReport(ctx context.Context, id ReportID) (*PayerReportWithStatus, error)
-	FetchReports(ctx context.Context, query *FetchReportsQuery) ([]*PayerReportWithStatus, error)
 	StoreSyncedReport(
 		ctx context.Context,
 		envelope *envelopes.OriginatorEnvelope,
@@ -77,6 +85,7 @@ type IPayerReportStore interface {
 	SetReportSubmissionRejected(ctx context.Context, id ReportID) error
 	SetReportAttestationApproved(ctx context.Context, id ReportID) error
 	SetReportAttestationRejected(ctx context.Context, id ReportID) error
+	// NOTE: Having a broad `Queries` object returned makes this part hard to specialize - some code paths could use it in a read capacity but we cannot infer that from here.
 	Queries() *queries.Queries
 	GetAdvisoryLocker(
 		ctx context.Context,

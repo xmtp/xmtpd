@@ -23,7 +23,7 @@ func createTestStore(t *testing.T) *payerreport.Store {
 	log := testutils.NewLog(t)
 	db, _ := testutils.NewDB(t, context.Background())
 
-	return payerreport.NewStore(db, log)
+	return payerreport.NewStore(log, db)
 }
 
 func insertRandomReport(

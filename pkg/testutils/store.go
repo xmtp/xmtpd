@@ -64,11 +64,18 @@ func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, s
 	return dbInstance, dsn
 }
 
-func NewDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
+func NewRawDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
 	ctlDB, _ := newCtlDB(t)
 	dbInstance, dsn := newInstanceDB(t, ctx, ctlDB)
 
 	return dbInstance, dsn
+}
+
+func NewDB(t *testing.T, ctx context.Context) (*db.Handler, string) {
+	t.Helper()
+
+	dbh, dsn := NewRawDB(t, ctx)
+	return db.NewDBHandler(dbh), dsn
 }
 
 func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
@@ -19,7 +20,7 @@ import (
 type BlockTracker struct {
 	latest  *Block
 	address common.Address
-	queries *queries.Queries
+	db      *db.Handler
 	mu      sync.Mutex
 }
 
@@ -42,15 +43,15 @@ func NewBlockTracker(
 	ctx context.Context,
 	client blockchain.ChainClient,
 	address common.Address,
-	queries *queries.Queries,
+	db *db.Handler,
 	deploymentBlock uint64,
 ) (*BlockTracker, error) {
 	bt := &BlockTracker{
 		address: address,
-		queries: queries,
+		db:      db,
 	}
 
-	latest, err := loadLatestBlock(ctx, client, address, queries, deploymentBlock)
+	latest, err := bt.loadLatestBlock(ctx, client, address, deploymentBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +105,7 @@ func (bt *BlockTracker) UpdateLatestBlock(
 }
 
 func (bt *BlockTracker) updateDB(ctx context.Context, block uint64, hash []byte) error {
-	return bt.queries.SetLatestBlock(ctx, queries.SetLatestBlockParams{
+	return bt.db.WriteQuery().SetLatestBlock(ctx, queries.SetLatestBlockParams{
 		ContractAddress: bt.address.Hex(),
 		BlockNumber:     int64(block),
 		BlockHash:       hash,
@@ -115,11 +116,10 @@ func (bt *BlockTracker) updateDB(ctx context.Context, block uint64, hash []byte)
 // - returns an error if querying the database fails.
 // - returns the stored block number and hash if the db contains a valid block number for the address.
 // - returns the deployment block number and hash if the db does not contain a block number for the address.
-func loadLatestBlock(
+func (bt *BlockTracker) loadLatestBlock(
 	ctx context.Context,
 	client blockchain.ChainClient,
 	address common.Address,
-	querier *queries.Queries,
 	deploymentBlock uint64,
 ) (*Block, error) {
 	block := &Block{
@@ -127,7 +127,7 @@ func loadLatestBlock(
 		hash:   common.Hash{},
 	}
 
-	storedBlock, err := querier.GetLatestBlock(ctx, address.Hex())
+	storedBlock, err := bt.db.ReadQuery().GetLatestBlock(ctx, address.Hex())
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:

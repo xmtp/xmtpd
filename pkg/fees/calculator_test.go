@@ -71,7 +71,7 @@ func TestCalculateBaseFee(t *testing.T) {
 
 func TestCalculateCongestionFee(t *testing.T) {
 	calculator := setupCalculator()
-	db, _ := testutils.NewDB(t, context.Background())
+	db, _ := testutils.NewRawDB(t, context.Background())
 
 	ctx := context.Background()
 	querier := queries.New(db)

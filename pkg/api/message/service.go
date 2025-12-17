@@ -3,7 +3,6 @@ package message
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"math"
@@ -53,7 +52,7 @@ type Service struct {
 	ctx               context.Context
 	logger            *zap.Logger
 	registrant        *registrant.Registrant
-	store             *sql.DB
+	store             *db.Handler
 	publishWorker     *publishWorker
 	subscribeWorker   *subscribeWorker
 	validationService mlsvalidate.MLSValidationService
@@ -69,7 +68,7 @@ func NewReplicationAPIService(
 	ctx context.Context,
 	logger *zap.Logger,
 	registrant *registrant.Registrant,
-	store *sql.DB,
+	db *db.Handler,
 	validationService mlsvalidate.MLSValidationService,
 	updater metadata.CursorUpdater,
 	feeCalculator fees.IFeeCalculator,
@@ -85,7 +84,7 @@ func NewReplicationAPIService(
 		ctx,
 		logger,
 		registrant,
-		store,
+		db,
 		feeCalculator,
 		sleepOnFailureTime,
 	)
@@ -94,7 +93,7 @@ func NewReplicationAPIService(
 		return nil, err
 	}
 
-	subscribeWorker, err := startSubscribeWorker(ctx, logger, store)
+	subscribeWorker, err := startSubscribeWorker(ctx, logger, db)
 	if err != nil {
 		logger.Error("could not start subscribe worker", zap.Error(err))
 		return nil, err
@@ -104,7 +103,7 @@ func NewReplicationAPIService(
 		ctx:               ctx,
 		logger:            logger,
 		registrant:        registrant,
-		store:             store,
+		store:             db,
 		publishWorker:     publishWorker,
 		subscribeWorker:   subscribeWorker,
 		validationService: validationService,
@@ -479,7 +478,7 @@ func (s *Service) fetchEnvelopes(
 
 		db.SetVectorClockByTopics(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-		rows, err := queries.New(s.store).SelectGatewayEnvelopesByTopics(ctx, params)
+		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByTopics(ctx, params)
 		if err != nil {
 			return nil, connect.NewError(
 				connect.CodeInternal,
@@ -502,7 +501,7 @@ func (s *Service) fetchEnvelopes(
 
 		db.SetVectorClockByOriginators(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-		rows, err := queries.New(s.store).SelectGatewayEnvelopesByOriginators(ctx, params)
+		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx, params)
 		if err != nil {
 			return nil, connect.NewError(
 				connect.CodeInternal,
@@ -520,7 +519,7 @@ func (s *Service) fetchEnvelopes(
 	}
 	db.SetVectorClockUnfiltered(&params, query.GetLastSeen().GetNodeIdToSequenceId())
 
-	rows, err := queries.New(s.store).SelectGatewayEnvelopesUnfiltered(ctx, params)
+	rows, err := s.store.ReadQuery().SelectGatewayEnvelopesUnfiltered(ctx, params)
 	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInternal,
@@ -583,7 +582,7 @@ func (s *Service) PublishPayerEnvelopes(
 
 	err = db.RunInTx(
 		ctx,
-		s.store,
+		s.store.DB(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
 			for _, envelope := range processedEnvelopes {
@@ -767,16 +766,13 @@ func (s *Service) GetInboxIds(
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
-	var (
-		queries   = queries.New(s.store)
-		addresses = []string{}
-	)
+	addresses := []string{}
 
 	for _, request := range req.Msg.Requests {
 		addresses = append(addresses, request.GetIdentifier())
 	}
 
-	addressLogEntries, err := queries.GetAddressLogs(ctx, addresses)
+	addressLogEntries, err := s.store.ReadQuery().GetAddressLogs(ctx, addresses)
 	if err != nil {
 		return nil, err
 	}
@@ -821,7 +817,6 @@ func (s *Service) GetNewestEnvelope(
 	}
 
 	var (
-		queries      = queries.New(s.store)
 		topics       = req.Msg.Topics
 		originalSort = make(map[string]int)
 	)
@@ -830,7 +825,7 @@ func (s *Service) GetNewestEnvelope(
 		originalSort[string(topic)] = idx
 	}
 
-	rows, err := queries.SelectNewestFromTopics(ctx, topics)
+	rows, err := s.store.ReadQuery().SelectNewestFromTopics(ctx, topics)
 	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInternal,

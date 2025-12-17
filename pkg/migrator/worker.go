@@ -499,14 +499,22 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 			identityUpdateBatch := &IdentityUpdateBatch{}
 
 			triggerBatchFlush := func() {
-				lastSequenceID := identityUpdateBatch.LastSequenceID()
+				var (
+					batchLen            = identityUpdateBatch.Len()
+					batchLastSequenceID = identityUpdateBatch.LastSequenceID()
+				)
 
 				logger.Info(
 					"publishing identity update batch",
-					zap.Int("length", identityUpdateBatch.Len()),
-					zap.Uint64("last_sequence_id", lastSequenceID),
+					utils.LengthField(batchLen),
+					utils.SequenceIDField(int64(batchLastSequenceID)),
 				)
 
+				// flushIdentityUpdatesBatch handles:
+				// 1. Batch insert attempt.
+				// 2. On batch failure: individual retries.
+				// 3. On individual failure: dead letter box insertion.
+				// It only returns an error on context cancellation.
 				err := metrics.MeasureWriterLatency(
 					w.tableName,
 					destinationBlockchain,
@@ -519,10 +527,16 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 					},
 				)
 				if err != nil {
+					if errors.Is(err, context.Canceled) ||
+						errors.Is(err, context.DeadlineExceeded) {
+						logger.Info(contextCancelledMessage)
+						return
+					}
+
 					logger.Error(
-						"failed to flush identity update batch",
-						zap.Int("length", identityUpdateBatch.Len()),
-						utils.SequenceIDField(int64(lastSequenceID)),
+						"failed to publish identity update batch",
+						utils.LengthField(identityUpdateBatch.Len()),
+						utils.SequenceIDField(int64(batchLastSequenceID)),
 						zap.Error(err),
 					)
 
@@ -542,9 +556,9 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 				}
 
 				logger.Info(
-					"identity update batch flushed successfully",
-					zap.Int("length", identityUpdateBatch.Len()),
-					zap.Uint64("last_sequence_id", lastSequenceID),
+					"identity update batch published successfully",
+					utils.LengthField(identityUpdateBatch.Len()),
+					utils.SequenceIDField(int64(batchLastSequenceID)),
 				)
 
 				for item := range identityUpdateBatch.All() {
@@ -612,11 +626,10 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 						w.tableName,
 					)
 					if err != nil {
-						logger.Error(
-							"failed to prepare identity update envelope",
+						logger.Debug(
+							"envelope preparation failed, added to dead letter box",
 							utils.InboxIDField(utils.HexEncode(identifier[:])),
 							utils.SequenceIDField(int64(sequenceID)),
-							zap.Error(err),
 						)
 
 						w.cleanupInflight(ctx, int64(envelope.OriginatorSequenceID()))
@@ -626,7 +639,7 @@ func (w *Worker) startBlockchainWriterIdentityUpdateBatches(ctx context.Context)
 
 					inboxID, err := utils.ParseInboxID(identifier)
 					if err != nil {
-						logger.Error(
+						logger.Warn(
 							"failed to parse inbox ID",
 							utils.InboxIDField(utils.HexEncode(identifier[:])),
 							utils.SequenceIDField(int64(sequenceID)),

@@ -208,6 +208,10 @@ func LastSequenceIDField(lastSequenceID int64) zap.Field {
 	return zap.Int64("last_sequence_id", lastSequenceID)
 }
 
+func LengthField(length int) zap.Field {
+	return zap.Int("length", length)
+}
+
 func LimitField(limit uint8) zap.Field {
 	return zap.Uint8("limit", limit)
 }

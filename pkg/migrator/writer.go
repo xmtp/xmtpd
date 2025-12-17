@@ -113,7 +113,8 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 }
 
 // insertOriginatorEnvelopeBlockchainUnary is a generic function that inserts an originator envelope into the blockchain.
-// On failure, it inserts a record into the migration dead letter box.
+//
+//	On failure, it inserts a record into the migration dead letter box.
 func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 	ctx context.Context,
 	env *envelopes.OriginatorEnvelope,
@@ -328,9 +329,10 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 /* Identity updates bootstrap functions. */
 
 // flushIdentityUpdatesBatch handles the retry logic for the identity updates batch.
-// - It tries to bootstrap the batch in a single transaction.
-// - If batch fails, it retries the individual identity updates.
-// - On individual retry failure, it inserts a record into the migration dead letter box.
+//
+//	It tries to bootstrap the batch in a single transaction.
+//	If batch fails, it retries the individual identity updates.
+//	On individual retry failure, it inserts a record into the migration dead letter box.
 func (w *Worker) flushIdentityUpdatesBatch(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -379,16 +381,10 @@ func (w *Worker) flushIdentityUpdatesBatch(
 			},
 		)
 		if err == nil {
-			logger.Debug(
-				"individual retry succeeded",
-				utils.InboxIDField(utils.HexEncode(identityUpdate.InboxID[:])),
-				utils.SequenceIDField(int64(identityUpdate.SequenceID)),
-			)
-
 			continue
 		}
 
-		logger.Error(
+		logger.Warn(
 			"individual retry failed, inserting into dead letter box",
 			utils.InboxIDField(utils.HexEncode(identityUpdate.InboxID[:])),
 			utils.SequenceIDField(int64(identityUpdate.SequenceID)),

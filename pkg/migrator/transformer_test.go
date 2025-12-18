@@ -18,6 +18,7 @@ import (
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	proto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/fees"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	protobuf "google.golang.org/protobuf/proto"
@@ -45,6 +46,7 @@ func newTransformerTest(t *testing.T) *transformerTest {
 	)
 
 	transformer := migrator.NewTransformer(
+		fees.NewTestFeeCalculator(),
 		payerPrivateKey,
 		nodePrivateKey,
 	)
@@ -116,7 +118,9 @@ func TestTransformGroupMessage(t *testing.T) {
 	)
 
 	// Originator node checks: fees.
-	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	// Base fee is calculated based on message size and retention days.
+	require.Greater(t, envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars, uint64(0))
+	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
@@ -183,7 +187,9 @@ func TestTransformCommitMessage(t *testing.T) {
 	)
 
 	// Originator node checks: fees.
+	// Blockchain-bound messages (commits) don't have fees calculated.
 	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
@@ -261,7 +267,9 @@ func TestTransformInboxLog(t *testing.T) {
 	)
 
 	// Originator node checks: fees.
+	// Blockchain-bound messages (inbox logs) don't have fees calculated.
 	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
@@ -330,7 +338,9 @@ func TestTransformKeyPackage(t *testing.T) {
 	)
 
 	// Originator node checks: fees.
-	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	// Base fee is calculated based on message size and retention days.
+	require.Greater(t, envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars, uint64(0))
+	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
@@ -407,7 +417,9 @@ func TestTransformWelcomeMessage(t *testing.T) {
 	)
 
 	// Originator node checks: fees.
-	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	// Base fee is calculated based on message size and retention days.
+	require.Greater(t, envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars, uint64(0))
+	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),

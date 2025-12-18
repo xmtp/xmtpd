@@ -290,6 +290,7 @@ func NewBaseServer(
 			migrator.WithDestinationDB(cfg.DB),
 			migrator.WithMigratorConfig(&cfg.Options.MigrationServer),
 			migrator.WithContractsOptions(&cfg.Options.Contracts),
+			migrator.WithFeeCalculator(cfg.FeeCalculator),
 		)
 		if err != nil {
 			cfg.Logger.Error("failed to initialize migrator", zap.Error(err))

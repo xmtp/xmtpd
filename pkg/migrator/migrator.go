@@ -24,6 +24,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -48,11 +49,12 @@ const (
 )
 
 type DBMigratorConfig struct {
-	ctx       context.Context
-	logger    *zap.Logger
-	db        *db.Handler
-	options   *config.MigrationServerOptions
-	contracts *config.ContractsOptions
+	ctx           context.Context
+	logger        *zap.Logger
+	db            *db.Handler
+	options       *config.MigrationServerOptions
+	contracts     *config.ContractsOptions
+	feeCalculator fees.IFeeCalculator
 }
 
 type DBMigratorOption func(*DBMigratorConfig)
@@ -85,6 +87,10 @@ func WithContractsOptions(contracts *config.ContractsOptions) DBMigratorOption {
 	return func(cfg *DBMigratorConfig) {
 		cfg.contracts = contracts
 	}
+}
+
+func WithFeeCalculator(calc fees.IFeeCalculator) DBMigratorOption {
+	return func(cfg *DBMigratorConfig) { cfg.feeCalculator = calc }
 }
 
 type Migrator struct {
@@ -147,6 +153,10 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, errors.New("node signing key is required")
 	}
 
+	if cfg.feeCalculator == nil {
+		return nil, errors.New("fee calculator is required")
+	}
+
 	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.options.PayerPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
@@ -185,7 +195,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		commitMessagesTableName: NewCommitMessageReader(readDB.DB(), cfg.options.StartDate.Unix()),
 	}
 
-	transformer := NewTransformer(payerPrivateKey, nodeSigningKey)
+	transformer := NewTransformer(cfg.feeCalculator, payerPrivateKey, nodeSigningKey)
 
 	blockchainPublisher, err := setupBlockchainPublisher(
 		cfg.ctx,

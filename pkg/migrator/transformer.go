@@ -8,7 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	mlsv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	messageContents "github.com/xmtp/xmtpd/pkg/proto/mls/message_contents"
@@ -19,15 +21,18 @@ import (
 )
 
 type Transformer struct {
+	feeCalculator   fees.IFeeCalculator
 	payerPrivateKey *ecdsa.PrivateKey
 	nodeSigningKey  *ecdsa.PrivateKey
 }
 
 func NewTransformer(
+	feeCalculator fees.IFeeCalculator,
 	payerPrivateKey *ecdsa.PrivateKey,
 	nodeSigningKey *ecdsa.PrivateKey,
 ) *Transformer {
 	return &Transformer{
+		feeCalculator:   feeCalculator,
 		payerPrivateKey: payerPrivateKey,
 		nodeSigningKey:  nodeSigningKey,
 	}
@@ -298,8 +303,6 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 	return envelopes.NewPayerEnvelope(protoPayerEnvelope)
 }
 
-// TODO: Does the migrator pay fees?
-
 func (t *Transformer) buildAndSignOriginatorEnvelope(
 	payerEnvelope *envelopes.PayerEnvelope,
 	sequenceID uint64,
@@ -313,15 +316,31 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 		return nil, fmt.Errorf("failed to get payer envelope bytes: %w", err)
 	}
 
+	var (
+		now     = time.Now()
+		baseFee currency.PicoDollar
+	)
+
+	if isDatabaseDestination(payerEnvelope.TargetOriginator) {
+		baseFee, err = t.calculateFees(
+			now,
+			int64(len(payerEnvelopeBytes)),
+			payerEnvelope.Proto().GetMessageRetentionDays(),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate fees: %w", err)
+		}
+	}
+
 	unsignedEnv := proto.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:         payerEnvelope.TargetOriginator,
 		OriginatorSequenceId:     sequenceID,
-		OriginatorNs:             time.Now().UnixNano(),
+		OriginatorNs:             now.UnixNano(),
 		PayerEnvelopeBytes:       payerEnvelopeBytes,
-		BaseFeePicodollars:       0,
-		CongestionFeePicodollars: 0,
+		BaseFeePicodollars:       uint64(baseFee),
+		CongestionFeePicodollars: 0, // Migrator does not pay congestion fees.
 		ExpiryUnixtime: uint64(
-			time.Now().UTC().
+			now.UTC().
 				Add(time.Hour * 24 * time.Duration(payerEnvelope.Proto().GetMessageRetentionDays())).
 				Unix(),
 		),
@@ -380,4 +399,22 @@ func transformGroupMessage(groupMessage *GroupMessage) (*proto.ClientEnvelope, e
 				Bytes(),
 		},
 	}, nil
+}
+
+func (t *Transformer) calculateFees(
+	originatorTime time.Time,
+	envelopeLength int64,
+	retentionDays uint32,
+) (currency.PicoDollar, error) {
+	baseFee, err := t.feeCalculator.CalculateBaseFee(
+		originatorTime,
+		envelopeLength,
+		retentionDays,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	// Migrator does not pay congestion fees.
+	return baseFee, nil
 }

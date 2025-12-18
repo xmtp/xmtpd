@@ -28,7 +28,7 @@ type listener struct {
 	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
-	isGlobal    bool
+	isEmpty     bool
 }
 
 func newListener(
@@ -42,13 +42,13 @@ func newListener(
 		ch:          ch,
 		topics:      make(map[string]struct{}),
 		originators: make(map[uint32]struct{}),
-		isGlobal:    false,
+		isEmpty:     false,
 	}
 	topics := query.GetTopics()
 	originators := query.GetOriginatorNodeIds()
 
 	if len(topics) == 0 && len(originators) == 0 {
-		l.isGlobal = true
+		l.isEmpty = true
 		return l
 	}
 
@@ -145,7 +145,7 @@ type subscribeWorker struct {
 
 	dbSubscription <-chan []queries.GatewayEnvelopesView
 	// Assumption: listeners cannot be in multiple slices
-	globalListeners     listenerSet
+	emptyListeners      listenerSet
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
 }
@@ -218,7 +218,7 @@ func startSubscribeWorker(
 		ctx:                 ctx,
 		logger:              logger,
 		dbSubscription:      dbChan,
-		globalListeners:     listenerSet{},
+		emptyListeners:      listenerSet{},
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
 	}
@@ -252,7 +252,7 @@ func (s *subscribeWorker) start() {
 			}
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
-			s.dispatchToGlobals(envs)
+			s.dispatchToEmpties()
 		}
 	}
 }
@@ -282,15 +282,16 @@ func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope)
 	}
 }
 
-func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
-	s.dispatchToListeners(&s.globalListeners, envs)
+func (s *subscribeWorker) dispatchToEmpties() {
+	// only keep this to possibly close listeners
+	s.dispatchToListeners(&s.emptyListeners, []*envelopes.OriginatorEnvelope{})
 }
 
 func (s *subscribeWorker) dispatchToListeners(
 	listeners *listenerSet,
 	envs []*envelopes.OriginatorEnvelope,
 ) {
-	if listeners == nil || len(envs) == 0 {
+	if listeners == nil {
 		return
 	}
 	listeners.Range(func(key, _ any) bool {
@@ -308,6 +309,10 @@ func (s *subscribeWorker) dispatchToListeners(
 			s.closeListener(l)
 
 		default:
+			if len(envs) == 0 {
+				return true
+			}
+
 			select {
 			case l.ch <- envs:
 				if s.logger.Core().Enabled(zap.DebugLevel) {
@@ -332,8 +337,8 @@ func (s *subscribeWorker) closeListener(l *listener) {
 	close(l.ch)
 
 	go func() {
-		if l.isGlobal {
-			s.globalListeners.Delete(l)
+		if l.isEmpty {
+			s.emptyListeners.Delete(l)
 		} else if len(l.topics) > 0 {
 			s.topicListeners.removeListener(l.topics, l)
 		} else if len(l.originators) > 0 {
@@ -349,8 +354,8 @@ func (s *subscribeWorker) listen(
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
 	l := newListener(ctx, s.logger, query, ch)
 
-	if l.isGlobal {
-		s.globalListeners.Store(l, struct{}{})
+	if l.isEmpty {
+		s.emptyListeners.Store(l, struct{}{})
 	} else if len(l.topics) > 0 {
 		s.topicListeners.addListener(l.topics, l)
 	} else if len(l.originators) > 0 {

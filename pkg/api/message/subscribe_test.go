@@ -111,35 +111,81 @@ func validateUpdates(
 	stream *connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse],
 	expectedIndices []int,
 ) {
-	receivedCount := 0
+	type key struct {
+		nodeID int32
+		seqID  int64
+	}
 
-	for receivedCount >= len(expectedIndices) {
-		// Now receive the next message. Break if the stream ended or there was an error.
+	// Build the set of expected (nodeID, seqID) we must observe.
+	expected := make(map[key]queries.InsertGatewayEnvelopeParams, len(expectedIndices))
+	for _, idx := range expectedIndices {
+		r := allRows[idx]
+		expected[key{
+			nodeID: r.OriginatorNodeID,
+			seqID:  r.OriginatorSequenceID,
+		}] = r
+	}
+
+	seen := make(map[key]struct{}, len(expectedIndices))
+	lastSeqByNode := make(map[int32]int64)
+
+	for len(seen) < len(expected) {
 		if !stream.Receive() {
 			break
 		}
 
-		envs := stream.Msg()
-
-		for _, env := range envs.Envelopes {
-			require.Less(t, receivedCount, len(expectedIndices),
-				"received more envelopes than expected")
-
-			expected := allRows[expectedIndices[receivedCount]]
+		msg := stream.Msg()
+		for _, env := range msg.Envelopes {
 			actual := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 				t,
 				env.UnsignedOriginatorEnvelope,
 			)
 
-			require.EqualValues(t, expected.OriginatorNodeID, actual.OriginatorNodeId)
-			require.EqualValues(t, expected.OriginatorSequenceID, actual.OriginatorSequenceId)
-			require.Equal(t, expected.OriginatorEnvelope, testutils.Marshal(t, env))
+			k := key{
+				nodeID: int32(actual.OriginatorNodeId),
+				seqID:  int64(actual.OriginatorSequenceId),
+			}
 
-			receivedCount++
+			// Per-originator ordering must be strictly increasing in the *received stream*.
+			if last, ok := lastSeqByNode[k.nodeID]; ok {
+				require.Greater(
+					t,
+					k.seqID,
+					last,
+					"sequenceID must be strictly increasing for originator nodeID=%s", k.nodeID,
+				)
+			}
+			lastSeqByNode[k.nodeID] = k.seqID
+
+			// Envelope must be one we expected (order across originators doesn't matter).
+			expRow, ok := expected[k]
+			require.True(t, ok, "received unexpected update: nodeID=%s seqID=%d", k.nodeID, k.seqID)
+
+			// Must not receive duplicates for the expected set.
+			_, dup := seen[k]
+			require.False(
+				t,
+				dup,
+				"received duplicate update: nodeID=%s seqID=%d",
+				k.nodeID,
+				k.seqID,
+			)
+
+			// Validate contents match expected.
+			require.EqualValues(t, expRow.OriginatorNodeID, actual.OriginatorNodeId)
+			require.EqualValues(t, expRow.OriginatorSequenceID, actual.OriginatorSequenceId)
+			require.Equal(t, expRow.OriginatorEnvelope, testutils.Marshal(t, env))
+
+			seen[k] = struct{}{}
+
+			if len(seen) == len(expected) {
+				break
+			}
 		}
 	}
 
 	require.NoError(t, stream.Err())
+	require.Len(t, seen, len(expected), "did not receive all expected updates")
 }
 
 func TestSubscribeEnvelopesAll(t *testing.T) {
@@ -159,7 +205,7 @@ func TestSubscribeEnvelopesAll(t *testing.T) {
 	require.NoError(t, err)
 
 	insertAdditionalRows(t, db)
-	validateUpdates(t, stream, []int{2, 3, 4})
+	validateUpdates(t, stream, []int{})
 }
 
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
@@ -238,7 +284,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 
 	insertAdditionalRows(t, store)
-	validateUpdates(t, stream1, []int{2, 3, 4})
+	validateUpdates(t, stream1, []int{})
 	validateUpdates(t, stream2, []int{2, 3})
 	validateUpdates(t, stream3, []int{3})
 }

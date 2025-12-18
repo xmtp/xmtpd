@@ -42,7 +42,7 @@ func newListener(
 		ch:          ch,
 		topics:      make(map[string]struct{}),
 		originators: make(map[uint32]struct{}),
-		isEmpty:    false,
+		isEmpty:     false,
 	}
 	topics := query.GetTopics()
 	originators := query.GetOriginatorNodeIds()

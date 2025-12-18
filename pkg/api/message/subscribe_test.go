@@ -163,7 +163,13 @@ func validateUpdates(
 
 			// Must not receive duplicates for the expected set.
 			_, dup := seen[k]
-			require.False(t, dup, "received duplicate update: nodeID=%s seqID=%d", k.nodeID, k.seqID)
+			require.False(
+				t,
+				dup,
+				"received duplicate update: nodeID=%s seqID=%d",
+				k.nodeID,
+				k.seqID,
+			)
 
 			// Validate contents match expected.
 			require.EqualValues(t, expRow.OriginatorNodeID, actual.OriginatorNodeId)

@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/testutils/fees"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -53,6 +54,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 		_, dsn, cleanup = testdata.NewMigratorTestDB(t, ctx)
 		chainConfig     = testdata.NewMigratorBlockchain(t)
 		nodePrivateKey  = testutils.RandomPrivateKey(t)
+		feeCalculator   = fees.NewTestFeeCalculator()
 	)
 
 	payerPrivateKey, err := crypto.HexToECDSA(testdata.PayerPrivateKeyString)
@@ -74,6 +76,7 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			StartDate:              startDate,
 		}),
 		migrator.WithContractsOptions(chainConfig),
+		migrator.WithFeeCalculator(feeCalculator),
 	)
 	require.NoError(t, err)
 

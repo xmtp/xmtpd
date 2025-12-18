@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
@@ -67,5 +68,5 @@ func (f *PayerInfoFetcher) GetPayerInfo(
 
 // GetPayerByAddress looks up a payer ID by address
 func (f *PayerInfoFetcher) GetPayerByAddress(ctx context.Context, address string) (int32, error) {
-	return f.db.ReadQuery().GetPayerByAddress(ctx, address)
+	return f.db.ReadQuery().GetPayerByAddress(ctx, common.HexToAddress(address).Hex())
 }

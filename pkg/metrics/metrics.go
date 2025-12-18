@@ -124,6 +124,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		migratorWriterRetryAttempts,
 		migratorWriterRowsMigrated,
 		migratorWriterBytesMigrated,
+		migratorTargetLastSequenceID,
 		QueryDuration,
 		QueryErrors,
 	}

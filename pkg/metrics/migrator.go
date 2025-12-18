@@ -96,6 +96,18 @@ func EmitMigratorSourceLastSequenceID(table string, sequenceID int64) {
 	migratorSourceLastSequenceID.With(prometheus.Labels{"table": table}).Set(float64(sequenceID))
 }
 
+var migratorTargetLastSequenceID = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "xmtp_migrator_target_last_sequence_id",
+		Help: "Last sequence ID migrated to target from source DB",
+	},
+	[]string{"table"},
+)
+
+func EmitMigratorTargetLastSequenceID(table string, sequenceID int64) {
+	migratorTargetLastSequenceID.With(prometheus.Labels{"table": table}).Set(float64(sequenceID))
+}
+
 var migratorTransformerErrors = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "xmtp_migrator_transformer_errors_total",

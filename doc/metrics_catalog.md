@@ -41,6 +41,7 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_migrator_reader_fetch_duration_seconds` | `Histogram` | Time spent fetching records from source database | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_reader_num_rows_found` | `Counter` | Number of rows fetched from source database | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_source_last_sequence_id` | `Gauge` | Last sequence ID pulled from source DB | `pkg/metrics/migrator.go` |
+| `xmtp_migrator_target_last_sequence_id` | `Gauge` | Last sequence ID migrated to target from source DB | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_transformer_errors_total` | `Counter` | Total number of transformation errors | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_writer_bytes_migrated` | `Counter` | Total number of bytes successfully migrated | `pkg/metrics/migrator.go` |
 | `xmtp_migrator_writer_errors_total` | `Counter` | Total number of writer errors by destination and error type | `pkg/metrics/migrator.go` |

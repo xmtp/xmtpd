@@ -116,6 +116,8 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 		return re.NewRecoverableError("database error", err)
 	}
 
+	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(env.OriginatorSequenceID()))
+
 	return nil
 }
 
@@ -331,6 +333,8 @@ func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
 		)
 	}
 
+	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(env.OriginatorSequenceID()))
+
 	return nil
 }
 
@@ -483,6 +487,8 @@ func (w *Worker) bootstrapIdentityUpdates(
 		utils.LengthField(batch.Len()),
 		utils.SequenceIDField(int64(batch.LastSequenceID())),
 	)
+
+	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(batch.LastSequenceID()))
 
 	return nil
 }

@@ -2,7 +2,6 @@ package payer_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -12,118 +11,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"go.uber.org/zap"
 )
-
-func ExampleManualNodeSelector() {
-	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
-
-	cfg := &config.ContractsOptions{
-		SettlementChain: config.SettlementChainOptions{
-			NodeRegistryAddress:         "0x1234567890123456789012345678901234567890",
-			RPCURL:                      "http://localhost:8545",
-			NodeRegistryRefreshInterval: 30 * time.Second,
-		},
-	}
-
-	nodeRegistry, err := registry.NewSmartContractRegistry(ctx, nil, logger, cfg)
-	if err != nil {
-		logger.Fatal("Failed to create registry", zap.Error(err))
-	}
-
-	selector := payer.NewManualNodeSelectorAlgorithm(nodeRegistry, []uint32{100})
-
-	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
-	nodeID, err := selector.GetNode(tpc)
-	if err != nil {
-		logger.Fatal("Failed to get node", zap.Error(err))
-	}
-
-	fmt.Printf("Selected node: %d\n", nodeID)
-}
-
-func ExampleOrderedPreferenceNodeSelector() {
-	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
-
-	cfg := &config.ContractsOptions{
-		SettlementChain: config.SettlementChainOptions{
-			NodeRegistryAddress:         "0x1234567890123456789012345678901234567890",
-			RPCURL:                      "http://localhost:8545",
-			NodeRegistryRefreshInterval: 30 * time.Second,
-		},
-	}
-
-	nodeRegistry, err := registry.NewSmartContractRegistry(ctx, nil, logger, cfg)
-	if err != nil {
-		logger.Fatal("Failed to create registry", zap.Error(err))
-	}
-
-	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(nodeRegistry, []uint32{100, 200, 300})
-
-	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
-	nodeID, err := selector.GetNode(tpc)
-	if err != nil {
-		logger.Fatal("Failed to get node", zap.Error(err))
-	}
-
-	fmt.Printf("Selected node: %d\n", nodeID)
-}
-
-func ExampleRandomNodeSelector() {
-	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
-
-	cfg := &config.ContractsOptions{
-		SettlementChain: config.SettlementChainOptions{
-			NodeRegistryAddress:         "0x1234567890123456789012345678901234567890",
-			RPCURL:                      "http://localhost:8545",
-			NodeRegistryRefreshInterval: 30 * time.Second,
-		},
-	}
-
-	nodeRegistry, err := registry.NewSmartContractRegistry(ctx, nil, logger, cfg)
-	if err != nil {
-		logger.Fatal("Failed to create registry", zap.Error(err))
-	}
-
-	selector := payer.NewRandomNodeSelectorAlgorithm(nodeRegistry)
-
-	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
-	nodeID, err := selector.GetNode(tpc)
-	if err != nil {
-		logger.Fatal("Failed to get node", zap.Error(err))
-	}
-
-	fmt.Printf("Selected node: %d\n", nodeID)
-}
-
-func ExampleClosestNodeSelector() {
-	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
-
-	cfg := &config.ContractsOptions{
-		SettlementChain: config.SettlementChainOptions{
-			NodeRegistryAddress:         "0x1234567890123456789012345678901234567890",
-			RPCURL:                      "http://localhost:8545",
-			NodeRegistryRefreshInterval: 30 * time.Second,
-		},
-	}
-
-	nodeRegistry, err := registry.NewSmartContractRegistry(ctx, nil, logger, cfg)
-	if err != nil {
-		logger.Fatal("Failed to create registry", zap.Error(err))
-	}
-
-	selector := payer.NewClosestNodeSelectorAlgorithm(nodeRegistry, 5*time.Minute, 2*time.Second)
-
-	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
-	nodeID, err := selector.GetNode(tpc)
-	if err != nil {
-		logger.Fatal("Failed to get node", zap.Error(err))
-	}
-
-	fmt.Printf("Selected node: %d\n", nodeID)
-}
 
 func TestNodeSelectorsWithRealRegistry(t *testing.T) {
 	t.Skip("Enable this test when you have a real blockchain node running")

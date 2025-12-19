@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -83,6 +84,7 @@ func (ls *listenerSet) removeListener(l *listener) {
 
 func (ls *listenerSet) isEmpty() bool {
 	empty := true
+
 	ls.Range(func(_, _ any) bool {
 		empty = false
 		return false // stop iteration
@@ -143,11 +145,18 @@ type subscribeWorker struct {
 	ctx    context.Context
 	logger *zap.Logger
 
-	dbSubscription <-chan []queries.GatewayEnvelopesView
+	// TODO: Check - queries.GatewayEnvelopesView and queries.SelectGatewayEnvelopesByOriginatorsRow
+	// models are identical and they're overly verbose.
+	// dbSubscription  <-chan []queries.GatewayEnvelopesView
+	dbSubscriptions map[uint32]<-chan []queries.SelectGatewayEnvelopesByOriginatorsRow
 	// Assumption: listeners cannot be in multiple slices
 	emptyListeners      listenerSet
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
+}
+
+func shortEnvelopeID(e queries.GatewayEnvelopesView) string {
+	return fmt.Sprintf("%v-%v", e.OriginatorNodeID, e.OriginatorSequenceID)
 }
 
 func startSubscribeWorker(
@@ -156,69 +165,92 @@ func startSubscribeWorker(
 	store *db.Handler,
 ) (*subscribeWorker, error) {
 	logger = logger.Named(utils.SubscribeWorkerLoggerName)
-	logger.Info("starting")
 
-	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
-		envs, err := store.ReadQuery().
-			SelectGatewayEnvelopesUnfiltered(
-				ctx,
-				*db.SetVectorClockUnfiltered(&queries.SelectGatewayEnvelopesUnfilteredParams{RowLimit: numRows}, lastSeen),
-			)
-		if err != nil {
-			logger.Error(
-				"failed to get envelopes",
-				zap.Error(err),
-				zap.Any("last_seen", lastSeen),
-			)
-			return nil, db.VectorClock{}, err
-		}
-		for _, env := range envs {
-			nodeID := uint32(env.OriginatorNodeID)
-			seqID := uint64(env.OriginatorSequenceID)
+	// TODO: Use some actual IDs.
+	nodeIDs := []uint32{100, 200, 300}
 
-			if last, ok := lastSeen[nodeID]; ok && seqID < last {
-				// 🛑 Hard crash: we must originate in order
-				// if you see this panic, DB cleanup is required
-				logger.Fatal("system invariant broken: unsorted envelope stream",
-					utils.SequenceIDField(int64(seqID)),
-					utils.OriginatorIDField(nodeID),
-					utils.LastSequenceIDField(int64(last)),
-				)
-			}
-
-			lastSeen[nodeID] = seqID
-		}
-		return envs, lastSeen, nil
-	}
-
-	vc, err := store.ReadQuery().SelectVectorClock(ctx)
+	latestEnvelopes, err := store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
 		logger.Error("failed to get vector clock", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("could not create subscribe worker: %w", err)
 	}
+	vc := db.ToVectorClock(latestEnvelopes)
 
-	subscription := db.NewDBSubscription(
-		ctx,
-		logger,
-		pollableQuery,
-		db.ToVectorClock(vc),
-		db.PollingOptions{
-			Interval: SubscribeWorkerPollTime,
-			NumRows:  subscribeWorkerPollRows,
-		},
-	)
+	logger.Debug("queried vector clock", zap.Any("vector_clock", vc))
 
-	dbChan, err := subscription.Start()
-	if err != nil {
-		logger.Error("failed to start subscription", zap.Error(err))
-		return nil, err
+	subscriptions := make(map[uint32]<-chan []queries.SelectGatewayEnvelopesByOriginatorsRow)
+
+	// TODO: Paralelize this.
+	for _, nodeID := range nodeIDs {
+		logger := logger.With(utils.OriginatorIDField(nodeID))
+
+		query := func(ctx context.Context, lastSeen int64, numRows int32) ([]queries.SelectGatewayEnvelopesByOriginatorsRow, int64, error) {
+			logger.Debug("running pollable query",
+				zap.Int64("last_seen", lastSeen))
+
+			envs, err := store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx,
+				// TODO: Check this query - what are originator node IDs and what are cursor node IDs?
+				queries.SelectGatewayEnvelopesByOriginatorsParams{
+					OriginatorNodeIds: []int32{int32(nodeID)},
+					CursorSequenceIds: []int64{lastSeen},
+					RowLimit:          numRows,
+				})
+			if err != nil {
+				logger.Error("failed to get envelopes",
+					zap.Error(err))
+				return nil, 0, fmt.Errorf("could not get envelopes: %w", err)
+			}
+
+			last := lastSeen
+
+			for i, env := range envs {
+
+				seqID := uint64(env.OriginatorSequenceID)
+
+				logger.Debug("processing envelope",
+					zap.String("env_no", fmt.Sprintf("%v/%v", i+1, len(envs))),
+					// zap.String("short_id", shortEnvelopeID(env)),
+					utils.SequenceIDField(int64(seqID)),
+				)
+
+				logger.Debug("checking last seen for this node",
+					// zap.String("short_id", shortEnvelopeID(env)),
+					zap.Uint64("sequence_id", seqID),
+					zap.Int64("last_seen", last),
+				)
+
+				if env.OriginatorSequenceID < last {
+					logger.Fatal("system invariant broken: unsorted envelope stream",
+						utils.SequenceIDField(env.OriginatorSequenceID),
+						utils.LastSequenceIDField(last))
+				}
+
+				last = env.OriginatorSequenceID
+			}
+
+			return envs, last, nil
+		}
+
+		sub := db.NewDBSubscription(ctx, logger, query, int64(vc[nodeID]),
+			db.PollingOptions{
+				Interval: SubscribeWorkerPollTime,
+				NumRows:  subscribeWorkerPollRows,
+			})
+
+		ch, err := sub.Start()
+		if err != nil {
+			logger.Error("failed to start subscription", zap.Error(err))
+			return nil, fmt.Errorf("could not start subscription: %w", err)
+		}
+
+		subscriptions[nodeID] = ch
 	}
 
 	worker := &subscribeWorker{
 		ctx:                 ctx,
 		logger:              logger,
-		dbSubscription:      dbChan,
 		emptyListeners:      listenerSet{},
+		dbSubscriptions:     subscriptions,
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
 	}
@@ -229,12 +261,49 @@ func startSubscribeWorker(
 	return worker, nil
 }
 
+func merge[T any](ch ...<-chan T) <-chan T {
+	var (
+		wg  sync.WaitGroup
+		out = make(chan T)
+	)
+
+	wg.Add(len(ch))
+
+	// Function will forward entries from its channel to the common channel.
+	fw := func(c <-chan T) {
+		for e := range c {
+			out <- e
+		}
+
+		// Once our channel is done, signal that we completed.
+		wg.Done()
+	}
+
+	// Start a forwarding goroutine for each channel.
+	for _, c := range ch {
+		go fw(c)
+	}
+
+	go func() {
+		// When all goroutines have completed (all channels done) - close our common, merged channel.
+		wg.Wait()
+		close(out)
+	}()
+
+	return out
+}
+
 func (s *subscribeWorker) start() {
+	var subs []<-chan []queries.SelectGatewayEnvelopesByOriginatorsRow
+	for _, sub := range s.dbSubscriptions {
+		subs = append(subs, sub)
+	}
+
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
-		case batch, ok := <-s.dbSubscription:
+		case batch, ok := <-merge(subs...):
 			if !ok {
 				s.logger.Error("database subscription is closed")
 				return

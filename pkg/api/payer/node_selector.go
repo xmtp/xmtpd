@@ -31,11 +31,13 @@ func NewStableHashingNodeSelectorAlgorithm(
 	return &StableHashingNodeSelectorAlgorithm{reg: reg}
 }
 
+// HashKey hashes the topic to a stable uint16 hash
 func HashKey(topic topic.Topic) uint32 {
 	hash := sha256.Sum256(topic.Bytes())
 	return binary.BigEndian.Uint32(hash[:4])
 }
 
+// GetNode selects a node for a given topic using stable hashing
 func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 	topic topic.Topic,
 	banlist ...[]uint32,

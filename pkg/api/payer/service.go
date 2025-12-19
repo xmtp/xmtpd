@@ -59,8 +59,34 @@ func NewPayerAPIService(
 	clientMetrics *grpcprom.ClientMetrics,
 	maxPayerMessageSize uint64,
 ) (*Service, error) {
+	return NewPayerAPIServiceWithSelector(
+		ctx,
+		logger,
+		nodeRegistry,
+		payerPrivateKey,
+		blockchainPublisher,
+		clientMetrics,
+		maxPayerMessageSize,
+		nil,
+	)
+}
+
+func NewPayerAPIServiceWithSelector(
+	ctx context.Context,
+	logger *zap.Logger,
+	nodeRegistry registry.NodeRegistry,
+	payerPrivateKey *ecdsa.PrivateKey,
+	blockchainPublisher blockchain.IBlockchainPublisher,
+	clientMetrics *grpcprom.ClientMetrics,
+	maxPayerMessageSize uint64,
+	nodeSelector NodeSelectorAlgorithm,
+) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
+	}
+
+	if nodeSelector == nil {
+		nodeSelector = NewStableHashingNodeSelectorAlgorithm(nodeRegistry)
 	}
 
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
@@ -71,7 +97,7 @@ func NewPayerAPIService(
 		clientManager:       clientManager,
 		payerPrivateKey:     payerPrivateKey,
 		blockchainPublisher: blockchainPublisher,
-		nodeSelector:        &StableHashingNodeSelectorAlgorithm{reg: nodeRegistry},
+		nodeSelector:        nodeSelector,
 		nodeRegistry:        nodeRegistry,
 		maxPayerMessageSize: maxPayerMessageSize,
 	}, nil

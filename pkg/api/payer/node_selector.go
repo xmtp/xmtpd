@@ -51,6 +51,7 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 		return 0, errors.New("no available nodes")
 	}
 
+	// Sort nodes to ensure stability
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].NodeID < nodes[j].NodeID })
 
 	topicHash := HashKey(topic)
@@ -59,15 +60,18 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 	maxHashSpace := ^uint32(0)
 	spacing := maxHashSpace / numNodes
 
+	// Compute virtual positions for each node
 	nodeLocations := make([]uint32, numNodes)
 	for i := range nodes {
 		nodeLocations[i] = uint32(i) * spacing
 	}
 
+	// Binary search to find the first node with a virtual position >= topicHash
 	idx := sort.Search(len(nodeLocations), func(i int) bool {
 		return topicHash < nodeLocations[i]
 	})
 
+	// Flatten banlist
 	banned := make(map[uint32]struct{})
 	for _, list := range banlist {
 		for _, id := range list {
@@ -75,6 +79,7 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 		}
 	}
 
+	// Find the next available node
 	for i := 0; i < len(nodes); i++ {
 		candidateIdx := (idx + i) % len(nodeLocations)
 		candidateNodeID := nodes[candidateIdx].NodeID

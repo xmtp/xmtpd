@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/tracelog"
@@ -29,6 +30,12 @@ const (
 
 	connectSuccessMessage = "successfully connected to database"
 	parseDSNErrorMessage  = "failed to parse DSN"
+)
+
+var (
+	bindOTelOnce sync.Once
+	bindOTELErr  error
+	boundMP      *sdkmetric.MeterProvider
 )
 
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
@@ -282,15 +289,15 @@ func ConnectToDB(ctx context.Context,
 }
 
 func bindOTelToProm(reg *prometheus.Registry) (*sdkmetric.MeterProvider, error) {
-	exp, err := exporter.New(
-		exporter.WithRegisterer(reg),
-	)
-	if err != nil {
-		return nil, err
-	}
-	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(exp),
-	)
-	otel.SetMeterProvider(mp)
-	return mp, nil
+	bindOTelOnce.Do(func() {
+		exp, err := exporter.New(exporter.WithRegisterer(reg))
+		if err != nil {
+			bindOTELErr = err
+			return
+		}
+		mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exp))
+		otel.SetMeterProvider(mp)
+		boundMP = mp
+	})
+	return boundMP, bindOTELErr
 }

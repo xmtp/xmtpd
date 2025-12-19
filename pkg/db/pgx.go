@@ -302,7 +302,9 @@ func bindOTelToProm(reg *prometheus.Registry) (*sdkmetric.MeterProvider, error) 
 		boundRegistry = reg
 	})
 	if boundRegistry != nil && reg != boundRegistry {
-		return nil, fmt.Errorf("OTel already bound to a different Prometheus registry; cannot rebind")
+		return nil, fmt.Errorf(
+			"OTel already bound to a different Prometheus registry; cannot rebind",
+		)
 	}
 	return boundMP, bindOTELErr
 }

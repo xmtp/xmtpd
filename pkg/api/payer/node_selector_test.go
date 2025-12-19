@@ -262,3 +262,230 @@ func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 	require.Error(t, err)
 	require.EqualValues(t, 0, reselectedNode)
 }
+
+func TestManualNodeSelector_SingleNode(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{200})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 200, node)
+}
+
+func TestManualNodeSelector_MultipleNodes(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{200, 300, 100})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 200, node)
+}
+
+func TestManualNodeSelector_WithBanlist(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{200, 300, 100})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc, []uint32{200})
+	require.NoError(t, err)
+	require.EqualValues(t, 300, node)
+}
+
+func TestManualNodeSelector_NoNodesConfigured(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+	}, nil)
+
+	selector := payer.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	_, err := selector.GetNode(tpc)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no manual nodes configured")
+}
+
+func TestManualNodeSelector_NodeNotInRegistry(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+	}, nil)
+
+	selector := payer.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{200, 300})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	_, err := selector.GetNode(tpc)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no available manual nodes")
+}
+
+func TestOrderedPreferenceNodeSelector_FirstPreferred(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{300, 200, 100})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 300, node)
+}
+
+func TestOrderedPreferenceNodeSelector_FallbackToSecond(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{400, 300, 200})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 300, node)
+}
+
+func TestOrderedPreferenceNodeSelector_WithBanlist(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{300, 200, 100})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc, []uint32{300, 200})
+	require.NoError(t, err)
+	require.EqualValues(t, 100, node)
+}
+
+func TestOrderedPreferenceNodeSelector_FallbackToAny(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{400, 500})
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.Contains(t, []uint32{100, 200, 300}, node)
+}
+
+func TestRandomNodeSelector_ReturnsValidNode(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewRandomNodeSelectorAlgorithm(mockRegistry)
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.Contains(t, []uint32{100, 200, 300}, node)
+}
+
+func TestRandomNodeSelector_Distribution(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewRandomNodeSelectorAlgorithm(mockRegistry)
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	counts := make(map[uint32]int)
+	iterations := 1000
+
+	for i := 0; i < iterations; i++ {
+		node, err := selector.GetNode(tpc)
+		require.NoError(t, err)
+		counts[node]++
+	}
+
+	require.Len(t, counts, 3)
+	for nodeID, count := range counts {
+		require.Greater(t, count, 200, "Node %d should be selected at least 200 times", nodeID)
+	}
+}
+
+func TestRandomNodeSelector_WithBanlist(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector := payer.NewRandomNodeSelectorAlgorithm(mockRegistry)
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc, []uint32{100, 200})
+	require.NoError(t, err)
+	require.EqualValues(t, 300, node)
+}
+
+func TestRandomNodeSelector_EmptyNodes(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{}, nil)
+
+	selector := payer.NewRandomNodeSelectorAlgorithm(mockRegistry)
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	_, err := selector.GetNode(tpc)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no available nodes")
+}
+
+func TestClosestNodeSelector_ReturnsNode(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+	}, nil)
+
+	selector := payer.NewClosestNodeSelectorAlgorithm(mockRegistry, 0, 0)
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+
+	node, err := selector.GetNode(tpc)
+	if err == nil {
+		require.EqualValues(t, 100, node)
+	} else {
+		require.Contains(t, err.Error(), "no available nodes with latency measurements")
+	}
+}

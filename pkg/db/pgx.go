@@ -33,9 +33,10 @@ const (
 )
 
 var (
-	bindOTelOnce sync.Once
-	bindOTELErr  error
-	boundMP      *sdkmetric.MeterProvider
+	bindOTelOnce  sync.Once
+	bindOTELErr   error
+	boundMP       *sdkmetric.MeterProvider
+	boundRegistry *prometheus.Registry
 )
 
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
@@ -298,6 +299,10 @@ func bindOTelToProm(reg *prometheus.Registry) (*sdkmetric.MeterProvider, error) 
 		mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exp))
 		otel.SetMeterProvider(mp)
 		boundMP = mp
+		boundRegistry = reg
 	})
+	if boundRegistry != nil && reg != boundRegistry {
+		return nil, fmt.Errorf("OTel already bound to a different Prometheus registry; cannot rebind")
+	}
 	return boundMP, bindOTELErr
 }

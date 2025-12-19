@@ -313,9 +313,6 @@ func TestManualNodeSelector_WithBanlist(t *testing.T) {
 
 func TestManualNodeSelector_NoNodesConfigured(t *testing.T) {
 	mockRegistry := mocks.NewMockNodeRegistry(t)
-	mockRegistry.On("GetNodes").Return([]registry.Node{
-		nodeRegistry.GetHealthyNode(100),
-	}, nil)
 
 	selector := payer.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{})
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))

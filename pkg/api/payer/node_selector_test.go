@@ -363,7 +363,10 @@ func TestOrderedPreferenceNodeSelector_FallbackToSecond(t *testing.T) {
 		nodeRegistry.GetHealthyNode(300),
 	}, nil)
 
-	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{400, 300, 200})
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(
+		mockRegistry,
+		[]uint32{400, 300, 200},
+	)
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 
 	node, err := selector.GetNode(tpc)

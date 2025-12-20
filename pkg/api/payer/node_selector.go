@@ -377,7 +377,7 @@ func (c *ClosestNodeSelectorAlgorithm) measureLatency(httpAddress string) time.D
 	if err != nil {
 		return -1
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	return latency
 }

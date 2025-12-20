@@ -344,7 +344,10 @@ func TestOrderedPreferenceNodeSelector_FirstPreferred(t *testing.T) {
 		nodeRegistry.GetHealthyNode(300),
 	}, nil)
 
-	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{300, 200, 100})
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(
+		mockRegistry,
+		[]uint32{300, 200, 100},
+	)
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 
 	node, err := selector.GetNode(tpc)

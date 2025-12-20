@@ -497,4 +497,5 @@ func TestClosestNodeSelector_ReturnsNode(t *testing.T) {
 	} else {
 		require.Contains(t, err.Error(), "no available nodes with latency measurements")
 	}
-}
+} 
+ 

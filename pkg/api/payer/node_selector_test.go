@@ -382,7 +382,10 @@ func TestOrderedPreferenceNodeSelector_WithBanlist(t *testing.T) {
 		nodeRegistry.GetHealthyNode(300),
 	}, nil)
 
-	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{300, 200, 100})
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(
+		mockRegistry,
+		[]uint32{300, 200, 100},
+	)
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 
 	node, err := selector.GetNode(tpc, []uint32{300, 200})
@@ -398,7 +401,10 @@ func TestOrderedPreferenceNodeSelector_FallbackToAny(t *testing.T) {
 		nodeRegistry.GetHealthyNode(300),
 	}, nil)
 
-	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(mockRegistry, []uint32{400, 500})
+	selector := payer.NewOrderedPreferenceNodeSelectorAlgorithm(
+		mockRegistry,
+		[]uint32{400, 500},
+	)
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 
 	node, err := selector.GetNode(tpc)

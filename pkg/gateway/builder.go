@@ -248,7 +248,20 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	}
 
 	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
-		gatewayAPIService, err := payer.NewPayerAPIService(
+		nodeSelector, err := payer.NewNodeSelector(
+			b.nodeRegistry,
+			payer.NodeSelectorConfig{
+				Strategy:       payer.NodeSelectorStrategy(b.config.Payer.NodeSelectorStrategy),
+				PreferredNodes: b.config.Payer.NodeSelectorPreferredNodes,
+				CacheExpiry:    time.Duration(b.config.Payer.NodeSelectorCacheExpiry),
+				ConnectTimeout: time.Duration(b.config.Payer.NodeSelectorConnectTimeout),
+			},
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create node selector")
+		}
+
+		gatewayAPIService, err := payer.NewPayerAPIServiceWithSelector(
 			ctx,
 			b.logger,
 			b.nodeRegistry,
@@ -256,6 +269,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			b.blockchainPublisher,
 			clientMetrics,
 			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
+			nodeSelector,
 		)
 		if err != nil {
 			return nil, err
@@ -264,6 +278,11 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		if gatewayAPIService == nil {
 			return nil, fmt.Errorf("gateway api service is nil")
 		}
+
+		b.logger.Info(
+			"gateway api registered",
+			zap.String("node_selector_strategy", b.config.Payer.NodeSelectorStrategy),
+		)
 
 		// Append the gateway interceptor to the list of default serverinterceptors.
 		interceptors = append(
@@ -277,8 +296,6 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		)
 
 		mux.Handle(gatewayPath, gatewayHandler)
-
-		b.logger.Info("gateway api registered")
 
 		return []string{payer_apiconnect.PayerApiName}, nil
 	}

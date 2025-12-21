@@ -32,10 +32,10 @@ const (
 )
 
 type NodeSelectorConfig struct {
-	Strategy        NodeSelectorStrategy
-	PreferredNodes  []uint32
-	CacheExpiry     time.Duration
-	ConnectTimeout  time.Duration
+	Strategy       NodeSelectorStrategy
+	PreferredNodes []uint32
+	CacheExpiry    time.Duration
+	ConnectTimeout time.Duration
 }
 
 func NewNodeSelector(
@@ -63,7 +63,6 @@ func NewNodeSelector(
 		return nil, fmt.Errorf("unknown node selector strategy: %s", config.Strategy)
 	}
 }
-
 
 type StableHashingNodeSelectorAlgorithm struct {
 	reg registry.NodeRegistry

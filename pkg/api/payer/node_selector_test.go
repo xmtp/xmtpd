@@ -498,3 +498,147 @@ func TestClosestNodeSelector_ReturnsNode(t *testing.T) {
 		require.Contains(t, err.Error(), "no available nodes with latency measurements")
 	}
 }
+
+func TestNewNodeSelector_StableStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+	}, nil)
+
+	selector, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy: payer.NodeSelectorStrategyStable,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, selector)
+
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+	node1, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+
+	node2, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.Equal(t, node1, node2, "stable strategy should return same node for same topic")
+}
+
+func TestNewNodeSelector_ManualStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+	}, nil)
+
+	selector, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy:       payer.NodeSelectorStrategyManual,
+		PreferredNodes: []uint32{200},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, selector)
+
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 200, node)
+}
+
+func TestNewNodeSelector_ManualStrategyNoNodes(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+
+	_, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy:       payer.NodeSelectorStrategyManual,
+		PreferredNodes: []uint32{},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "manual strategy requires at least one preferred node")
+}
+
+func TestNewNodeSelector_OrderedStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+		nodeRegistry.GetHealthyNode(300),
+	}, nil)
+
+	selector, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy:       payer.NodeSelectorStrategyOrdered,
+		PreferredNodes: []uint32{300, 200, 100},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, selector)
+
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.EqualValues(t, 300, node)
+}
+
+func TestNewNodeSelector_OrderedStrategyNoNodes(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+
+	_, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy: payer.NodeSelectorStrategyOrdered,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ordered strategy requires at least one preferred node")
+}
+
+func TestNewNodeSelector_RandomStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+		nodeRegistry.GetHealthyNode(200),
+	}, nil)
+
+	selector, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy: payer.NodeSelectorStrategyRandom,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, selector)
+
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+	node, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.Contains(t, []uint32{100, 200}, node)
+}
+
+func TestNewNodeSelector_ClosestStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+
+	selector, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy: payer.NodeSelectorStrategyClosest,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, selector)
+}
+
+func TestNewNodeSelector_DefaultStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(100),
+	}, nil)
+
+	selector, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy: "",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, selector)
+
+	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
+	node1, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+
+	node2, err := selector.GetNode(tpc)
+	require.NoError(t, err)
+	require.Equal(t, node1, node2, "default strategy should be stable")
+}
+
+func TestNewNodeSelector_UnknownStrategy(t *testing.T) {
+	mockRegistry := mocks.NewMockNodeRegistry(t)
+
+	_, err := payer.NewNodeSelector(mockRegistry, payer.NodeSelectorConfig{
+		Strategy: "invalid",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown node selector strategy")
+}

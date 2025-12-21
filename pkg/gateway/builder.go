@@ -254,7 +254,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 				Strategy:       payer.NodeSelectorStrategy(b.config.Payer.NodeSelectorStrategy),
 				PreferredNodes: b.config.Payer.NodeSelectorPreferredNodes,
 				CacheExpiry:    time.Duration(b.config.Payer.NodeSelectorCacheExpiry),
-				ConnectTimeout: time.Duration(b.config.Payer.NodeSelectorConnectTimeout),
+				ConnectTimeout: time.Duration(b.config.Payer.NodeSelectorTimeout),
 			},
 		)
 		if err != nil {

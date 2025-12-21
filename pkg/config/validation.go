@@ -659,7 +659,7 @@ func (v *OptionsValidator) validatePayerOptions(
 		customSet["--payer.node-selector-cache-expiry must be greater than 0"] = struct{}{}
 	}
 
-	if options.NodeSelectorConnectTimeout <= 0 {
+	if options.NodeSelectorTimeout <= 0 {
 		customSet["--payer.node-selector-connect-timeout must be greater than 0"] = struct{}{}
 	}
 

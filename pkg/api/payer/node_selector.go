@@ -402,6 +402,10 @@ func (c *ClosestNodeSelectorAlgorithm) measureLatency(httpAddress string) time.D
 	}
 
 	host := parsedURL.Hostname()
+	if host == "" {
+		return -1
+	}
+
 	port := parsedURL.Port()
 	if port == "" {
 		if parsedURL.Scheme == "https" {

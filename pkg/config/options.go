@@ -86,7 +86,7 @@ type PayerOptions struct {
 	PrivateKey                 string        `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY"`
 	Enable                     bool          `long:"enable" env:"XMTPD_PAYER_ENABLE"`
 	NodeSelectorStrategy       string        `long:"strategy" env:"XMTPD_PAYER_STRATEGY"`
-	NodeSelectorPreferredNodes []uint32      `long:"nodes" env:"XMTPD_PAYER_NODE_NODES"`
+	NodeSelectorPreferredNodes []uint32      `long:"nodes" env:"XMTPD_PAYER_NODE_NODES" env-delim:","`
 	NodeSelectorCacheExpiry    time.Duration `long:"cache-expiry" env:"XMTPD_PAYER_CACHE" default:"5m"`
 	NodeSelectorTimeout        time.Duration `long:"timeout" env:"XMTPD_PAYER_TIMEOUT" default:"2s"`
 }

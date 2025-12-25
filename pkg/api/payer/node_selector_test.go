@@ -666,7 +666,7 @@ func TestClosestNodeSelector_WithPreferredNodes(t *testing.T) {
 
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	node, err := selector.GetNode(tpc)
-	
+
 	// Test will pass if either:
 	// 1. It successfully returns node 100 or 200 (preferred nodes)
 	// 2. It errors due to no latency measurements (expected in test environment)

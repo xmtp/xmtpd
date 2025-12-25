@@ -321,12 +321,12 @@ func NewClosestNodeSelectorAlgorithm(
 	if connectTimeout == 0 {
 		connectTimeout = 2 * time.Second
 	}
-	
+
 	var nodes []uint32
 	if len(preferredNodes) > 0 && len(preferredNodes[0]) > 0 {
 		nodes = preferredNodes[0]
 	}
-	
+
 	return &ClosestNodeSelectorAlgorithm{
 		reg:            reg,
 		preferredNodes: nodes,

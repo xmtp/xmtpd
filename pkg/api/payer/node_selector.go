@@ -58,7 +58,12 @@ func NewNodeSelector(
 	case NodeSelectorStrategyRandom:
 		return NewRandomNodeSelectorAlgorithm(reg), nil
 	case NodeSelectorStrategyClosest:
-		return NewClosestNodeSelectorAlgorithm(reg, config.CacheExpiry, config.ConnectTimeout), nil
+		return NewClosestNodeSelectorAlgorithm(
+			reg,
+			config.CacheExpiry,
+			config.ConnectTimeout,
+			config.PreferredNodes,
+		), nil
 	default:
 		return nil, fmt.Errorf("unknown node selector strategy: %s", config.Strategy)
 	}
@@ -296,6 +301,7 @@ func (r *RandomNodeSelectorAlgorithm) GetNode(
 
 type ClosestNodeSelectorAlgorithm struct {
 	reg            registry.NodeRegistry
+	preferredNodes []uint32
 	latencyCache   map[uint32]time.Duration
 	cacheMutex     sync.RWMutex
 	cacheExpiry    time.Duration
@@ -307,6 +313,7 @@ func NewClosestNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,
 	cacheExpiry time.Duration,
 	connectTimeout time.Duration,
+	preferredNodes ...[]uint32,
 ) *ClosestNodeSelectorAlgorithm {
 	if cacheExpiry == 0 {
 		cacheExpiry = 5 * time.Minute
@@ -314,8 +321,15 @@ func NewClosestNodeSelectorAlgorithm(
 	if connectTimeout == 0 {
 		connectTimeout = 2 * time.Second
 	}
+	
+	var nodes []uint32
+	if len(preferredNodes) > 0 && len(preferredNodes[0]) > 0 {
+		nodes = preferredNodes[0]
+	}
+	
 	return &ClosestNodeSelectorAlgorithm{
 		reg:            reg,
+		preferredNodes: nodes,
 		latencyCache:   make(map[uint32]time.Duration),
 		cacheExpiry:    cacheExpiry,
 		connectTimeout: connectTimeout,
@@ -342,12 +356,34 @@ func (c *ClosestNodeSelectorAlgorithm) GetNode(
 		}
 	}
 
+	// Filter nodes to preferred list if specified
+	nodesToConsider := nodes
+	if len(c.preferredNodes) > 0 {
+		preferredSet := make(map[uint32]struct{})
+		for _, nodeID := range c.preferredNodes {
+			preferredSet[nodeID] = struct{}{}
+		}
+
+		filtered := make([]registry.Node, 0, len(nodes))
+		for _, node := range nodes {
+			if _, isPreferred := preferredSet[node.NodeID]; isPreferred {
+				filtered = append(filtered, node)
+			}
+		}
+
+		// If we have preferred nodes available, use only those
+		// Otherwise fall back to all nodes
+		if len(filtered) > 0 {
+			nodesToConsider = filtered
+		}
+	}
+
 	c.cacheMutex.RLock()
 	cacheExpired := time.Since(c.lastUpdate) > c.cacheExpiry
 	c.cacheMutex.RUnlock()
 
 	if cacheExpired {
-		c.updateLatencyCache(nodes)
+		c.updateLatencyCache(nodesToConsider)
 	}
 
 	c.cacheMutex.RLock()
@@ -356,7 +392,7 @@ func (c *ClosestNodeSelectorAlgorithm) GetNode(
 	var closestNodeID uint32
 	minLatency := time.Duration(1<<63 - 1)
 
-	for _, node := range nodes {
+	for _, node := range nodesToConsider {
 		if _, isBanned := banned[node.NodeID]; isBanned {
 			continue
 		}

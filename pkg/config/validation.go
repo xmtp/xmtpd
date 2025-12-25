@@ -640,9 +640,9 @@ func (v *OptionsValidator) validatePayerOptions(
 		"closest": true,
 	}
 
-	if !validStrategies[options.NodeSelectorStrategy] {
+	if options.NodeSelectorStrategy != "" && !validStrategies[options.NodeSelectorStrategy] {
 		return fmt.Errorf(
-			"invalid payer.node-selector-strategy: %s (must be one of: stable, manual, ordered, random, closest)",
+			"invalid node-selector-strategy: %s (must be one of: stable, manual, ordered, random, closest)",
 			options.NodeSelectorStrategy,
 		)
 	}
@@ -650,7 +650,7 @@ func (v *OptionsValidator) validatePayerOptions(
 	if (options.NodeSelectorStrategy == "manual" || options.NodeSelectorStrategy == "ordered") &&
 		len(options.NodeSelectorPreferredNodes) == 0 {
 		return fmt.Errorf(
-			"payer.node-selector-strategy %s requires at least one node in payer.node-selector-preferred-nodes",
+			"strategy %s requires at least one node in node-selector-preferred-nodes",
 			options.NodeSelectorStrategy,
 		)
 	}

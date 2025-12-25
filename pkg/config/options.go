@@ -83,12 +83,12 @@ type DebugOptions struct {
 }
 
 type PayerOptions struct {
-	PrivateKey                 string        `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY"`
-	Enable                     bool          `long:"enable" env:"XMTPD_PAYER_ENABLE"`
-	NodeSelectorStrategy       string        `long:"strategy" env:"XMTPD_PAYER_STRATEGY"`
-	NodeSelectorPreferredNodes []uint32      `long:"nodes" env:"XMTPD_PAYER_NODE_NODES" env-delim:","`
-	NodeSelectorCacheExpiry    time.Duration `long:"cache-expiry" env:"XMTPD_PAYER_CACHE" default:"5m"`
-	NodeSelectorTimeout        time.Duration `long:"timeout" env:"XMTPD_PAYER_TIMEOUT" default:"2s"`
+	PrivateKey                 string        `long:"private-key"                 env:"XMTPD_PAYER_PRIVATE_KEY"          description:"Private key for the payer"`
+	Enable                     bool          `long:"enable"                      env:"XMTPD_PAYER_ENABLE"               description:"Enable the payer service"`
+	NodeSelectorStrategy       string        `long:"node-selector-strategy"      env:"XMTPD_PAYER_NODE_SELECTOR_STRATEGY"      description:"Node selection strategy (stable|manual|ordered|random|closest)" default:"stable"`
+	NodeSelectorPreferredNodes []uint32      `long:"node-selector-preferred-nodes" env:"XMTPD_PAYER_NODE_SELECTOR_PREFERRED_NODES" env-delim:"," description:"Comma-separated list of preferred node IDs (required for manual/ordered)"`
+	NodeSelectorCacheExpiry    time.Duration `long:"node-selector-cache-expiry"  env:"XMTPD_PAYER_NODE_SELECTOR_CACHE_EXPIRY"  description:"Cache expiry duration for closest strategy" default:"5m"`
+	NodeSelectorTimeout        time.Duration `long:"node-selector-connect-timeout" env:"XMTPD_PAYER_NODE_SELECTOR_CONNECT_TIMEOUT" description:"Connection timeout for node health checks" default:"2s"`
 }
 
 type ReplicationOptions struct {

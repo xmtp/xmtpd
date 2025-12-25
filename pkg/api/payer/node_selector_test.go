@@ -732,7 +732,12 @@ func TestClosestNodeSelector_PreferredNodesFallback(t *testing.T) {
 
 	// Should fall back to node 300 if latency measurement succeeds
 	if err == nil {
-		require.Equal(t, uint32(300), node, "Should fall back to node 300 when preferred nodes unavailable")
+		require.Equal(
+			t,
+			uint32(300),
+			node,
+			"Should fall back to node 300 when preferred nodes unavailable",
+		)
 	} else {
 		require.Contains(t, err.Error(), "no available nodes with latency measurements")
 	}

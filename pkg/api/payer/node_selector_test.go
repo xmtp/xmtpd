@@ -671,7 +671,9 @@ func TestClosestNodeSelector_WithPreferredNodes(t *testing.T) {
 	// 1. It successfully returns node 100 or 200 (preferred nodes)
 	// 2. It errors due to no latency measurements (expected in test environment)
 	if err == nil {
-		require.Contains(t, []uint32{100, 200}, node, "Should only return preferred nodes 100 or 200")
+		require.Contains(
+			t, []uint32{100, 200}, node, "Should only return preferred nodes 100 or 200",
+		)
 		require.NotEqual(t, uint32(300), node, "Should never return non-preferred node 300")
 	} else {
 		require.Contains(t, err.Error(), "no available nodes with latency measurements")
@@ -700,7 +702,7 @@ func TestClosestNodeSelector_WithoutPreferredNodes(t *testing.T) {
 
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	_, err = selector.GetNode(tpc)
-	
+
 	// In test environment, latency measurement may fail - both outcomes are acceptable
 	// The key is that the selector was created successfully without preferred nodes
 	if err != nil {

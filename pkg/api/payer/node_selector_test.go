@@ -730,7 +730,7 @@ func TestClosestNodeSelector_PreferredNodesFallback(t *testing.T) {
 
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	node, err := selector.GetNode(tpc)
-	
+
 	// Should fall back to node 300 if latency measurement succeeds
 	if err == nil {
 		require.Equal(t, uint32(300), node, "Should fall back to node 300 when preferred nodes unavailable")

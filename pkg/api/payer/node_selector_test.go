@@ -702,7 +702,6 @@ func TestClosestNodeSelector_WithoutPreferredNodes(t *testing.T) {
 
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	_, err = selector.GetNode(tpc)
-
 	// In test environment, latency measurement may fail - both outcomes are acceptable
 	// The key is that the selector was created successfully without preferred nodes
 	if err != nil {
@@ -738,4 +737,3 @@ func TestClosestNodeSelector_PreferredNodesFallback(t *testing.T) {
 		require.Contains(t, err.Error(), "no available nodes with latency measurements")
 	}
 }
-

@@ -167,7 +167,7 @@ func startSubscribeWorker(
 	logger = logger.Named(utils.SubscribeWorkerLoggerName)
 
 	// TODO: Use some actual IDs.
-	nodeIDs := []uint32{100, 200, 300}
+	nodeIDs := []uint32{100, 200, 300, 400}
 
 	latestEnvelopes, err := store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
@@ -176,8 +176,6 @@ func startSubscribeWorker(
 	}
 	vc := db.ToVectorClock(latestEnvelopes)
 
-	logger.Debug("queried vector clock", zap.Any("vector_clock", vc))
-
 	subscriptions := make(map[uint32]<-chan []queries.SelectGatewayEnvelopesByOriginatorsRow)
 
 	// TODO: Paralelize this.
@@ -185,12 +183,9 @@ func startSubscribeWorker(
 		logger := logger.With(utils.OriginatorIDField(nodeID))
 
 		query := func(ctx context.Context, lastSeen int64, numRows int32) ([]queries.SelectGatewayEnvelopesByOriginatorsRow, int64, error) {
-			logger.Debug("running pollable query",
-				zap.Int64("last_seen", lastSeen))
-
 			envs, err := store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx,
-				// TODO: Check this query - what are originator node IDs and what are cursor node IDs?
 				queries.SelectGatewayEnvelopesByOriginatorsParams{
+					CursorNodeIds:     []int32{int32(nodeID)},
 					OriginatorNodeIds: []int32{int32(nodeID)},
 					CursorSequenceIds: []int64{lastSeen},
 					RowLimit:          numRows,
@@ -203,21 +198,22 @@ func startSubscribeWorker(
 
 			last := lastSeen
 
-			for i, env := range envs {
-
-				seqID := uint64(env.OriginatorSequenceID)
-
-				logger.Debug("processing envelope",
-					zap.String("env_no", fmt.Sprintf("%v/%v", i+1, len(envs))),
-					// zap.String("short_id", shortEnvelopeID(env)),
-					utils.SequenceIDField(int64(seqID)),
+			if len(envs) > 0 {
+				logger.Debug("pollable query returned results",
+					zap.Int64("last_seen", lastSeen),
+					zap.Int("count", len(envs)),
 				)
+			}
 
-				logger.Debug("checking last seen for this node",
-					// zap.String("short_id", shortEnvelopeID(env)),
-					zap.Uint64("sequence_id", seqID),
-					zap.Int64("last_seen", last),
-				)
+			for _, env := range envs {
+
+				// seqID := uint64(env.OriginatorSequenceID)
+
+				// logger.Debug("processing envelope",
+				// 	zap.String("env_no", fmt.Sprintf("%v/%v", i+1, len(envs))),
+				// 	// zap.String("short_id", shortEnvelopeID(env)),
+				// 	utils.SequenceIDField(int64(seqID)),
+				// )
 
 				if env.OriginatorSequenceID < last {
 					logger.Fatal("system invariant broken: unsorted envelope stream",
@@ -271,12 +267,12 @@ func merge[T any](ch ...<-chan T) <-chan T {
 
 	// Function will forward entries from its channel to the common channel.
 	fw := func(c <-chan T) {
+		// Once our channel is done, signal that we completed.
+		defer wg.Done()
+
 		for e := range c {
 			out <- e
 		}
-
-		// Once our channel is done, signal that we completed.
-		wg.Done()
 	}
 
 	// Start a forwarding goroutine for each channel.
@@ -299,17 +295,19 @@ func (s *subscribeWorker) start() {
 		subs = append(subs, sub)
 	}
 
+	ch := merge(subs...)
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
-		case batch, ok := <-merge(subs...):
+		case batch, ok := <-ch:
 			if !ok {
 				s.logger.Error("database subscription is closed")
 				return
 			}
 
 			s.logger.Debug("received new batch", utils.NumEnvelopesField(len(batch)))
+
 			envs := make([]*envelopes.OriginatorEnvelope, 0, len(batch))
 			for _, row := range batch {
 				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)

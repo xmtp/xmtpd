@@ -466,6 +466,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 			LastSeen: nil,
 		},
 	}
+
 	stream, err := server.ClientReplication.SubscribeEnvelopes(ctx, connect.NewRequest(req))
 	require.NoError(t, err)
 
@@ -492,6 +493,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 				t,
 				env.UnsignedOriginatorEnvelope,
 			)
+
 			received[keyID(int32(decoded.OriginatorNodeId), int64(decoded.OriginatorSequenceId))] = struct{}{}
 		}
 	}

@@ -116,6 +116,7 @@ func buildPayerService(
 		mockMessagePublisher,
 		nil,
 		0,
+		nil,
 	)
 	require.NoError(t, err)
 

@@ -63,6 +63,12 @@ func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 		)
 	}
 
+	if options.Payer.Enable {
+		if err := v.validatePayerOptions(&options.Payer, customSet); err != nil {
+			return err
+		}
+	}
+
 	if len(missingSet) > 0 || len(customSet) > 0 {
 		var errs []string
 		if len(missingSet) > 0 {
@@ -620,4 +626,42 @@ func (v *OptionsValidator) validateChainID(
 	if chainID.Int64() != int64(expectedChainID) {
 		set[fmt.Sprintf("--%s is invalid, expected chain ID %d, got %d", fieldName, expectedChainID, chainID.Int64())] = struct{}{}
 	}
+}
+
+func (v *OptionsValidator) validatePayerOptions(
+	options *PayerOptions,
+	customSet map[string]struct{},
+) error {
+	validStrategies := map[string]bool{
+		"stable":  true,
+		"manual":  true,
+		"ordered": true,
+		"random":  true,
+		"closest": true,
+	}
+
+	if options.NodeSelectorStrategy != "" && !validStrategies[options.NodeSelectorStrategy] {
+		return fmt.Errorf(
+			"invalid node-selector-strategy: %s (must be one of: stable, manual, ordered, random, closest)",
+			options.NodeSelectorStrategy,
+		)
+	}
+
+	if (options.NodeSelectorStrategy == "manual" || options.NodeSelectorStrategy == "ordered") &&
+		len(options.NodeSelectorPreferredNodes) == 0 {
+		return fmt.Errorf(
+			"strategy %s requires at least one node in node-selector-preferred-nodes",
+			options.NodeSelectorStrategy,
+		)
+	}
+
+	if options.NodeSelectorCacheExpiry <= 0 {
+		customSet["--payer.node-selector-cache-expiry must be greater than 0"] = struct{}{}
+	}
+
+	if options.NodeSelectorTimeout <= 0 {
+		customSet["--payer.node-selector-connect-timeout must be greater than 0"] = struct{}{}
+	}
+
+	return nil
 }

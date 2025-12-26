@@ -1,4 +1,4 @@
-package payer
+package selectors
 
 import (
 	"crypto/sha256"
@@ -10,13 +10,16 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-type NodeSelectorAlgorithm interface {
-	GetNode(topic topic.Topic, banlist ...[]uint32) (uint32, error)
-}
-
+// StableHashingNodeSelectorAlgorithm implements deterministic topic-to-node selection using a stable hash.
+// Nodes are sorted by NodeID to ensure consistent ordering.
+//
+// This strategy provides stickiness (topic affinity) and minimizes churn as long as the node set is stable,
+// but any node set change will cause remapping for some topics.
 type StableHashingNodeSelectorAlgorithm struct {
 	reg registry.NodeRegistry
 }
+
+var _ NodeSelectorAlgorithm = (*StableHashingNodeSelectorAlgorithm)(nil)
 
 func NewStableHashingNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,
@@ -24,7 +27,7 @@ func NewStableHashingNodeSelectorAlgorithm(
 	return &StableHashingNodeSelectorAlgorithm{reg: reg}
 }
 
-// HashKey hashes the topic to a stable uint16 hash
+// HashKey hashes the topic to a stable uint32 hash using SHA-256.
 func HashKey(topic topic.Topic) uint32 {
 	hash := sha256.Sum256(topic.Bytes())
 	return binary.BigEndian.Uint32(hash[:4])

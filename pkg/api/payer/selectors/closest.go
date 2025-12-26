@@ -11,6 +11,9 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
+// ClosestNodeSelectorAlgorithm selects the node with the lowest measured TCP connect latency,
+// excluding any nodes present in the banlist. Latency measurements are cached for a configured duration
+// and refreshed periodically to reduce overhead.
 type ClosestNodeSelectorAlgorithm struct {
 	reg            registry.NodeRegistry
 	preferredNodes []uint32
@@ -20,6 +23,8 @@ type ClosestNodeSelectorAlgorithm struct {
 	lastUpdate     time.Time
 	connectTimeout time.Duration
 }
+
+var _ NodeSelectorAlgorithm = (*ClosestNodeSelectorAlgorithm)(nil)
 
 func NewClosestNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,
@@ -131,8 +136,8 @@ func (c *ClosestNodeSelectorAlgorithm) updateLatencyCache(nodes []registry.Node)
 	newCache := make(map[uint32]time.Duration)
 
 	for _, node := range nodes {
-		latency := c.measureLatency(node.HTTPAddress)
-		if latency > 0 {
+		latency, err := c.measureLatency(node.HTTPAddress)
+		if err == nil && latency > 0 {
 			newCache[node.NodeID] = latency
 		}
 	}
@@ -147,15 +152,15 @@ func (c *ClosestNodeSelectorAlgorithm) updateLatencyCache(nodes []registry.Node)
 	}
 }
 
-func (c *ClosestNodeSelectorAlgorithm) measureLatency(httpAddress string) time.Duration {
+func (c *ClosestNodeSelectorAlgorithm) measureLatency(httpAddress string) (time.Duration, error) {
 	parsedURL, err := url.Parse(httpAddress)
 	if err != nil {
-		return -1
+		return 0, errors.New("invalid HTTP address")
 	}
 
 	host := parsedURL.Hostname()
 	if host == "" {
-		return -1
+		return 0, errors.New("invalid HTTP address")
 	}
 
 	port := parsedURL.Port()
@@ -171,12 +176,12 @@ func (c *ClosestNodeSelectorAlgorithm) measureLatency(httpAddress string) time.D
 
 	start := time.Now()
 	conn, err := net.DialTimeout("tcp", address, c.connectTimeout)
-	latency := time.Since(start)
-
 	if err != nil {
-		return -1
+		return 0, err
 	}
 	_ = conn.Close()
 
-	return latency
+	latency := time.Since(start)
+
+	return latency, nil
 }

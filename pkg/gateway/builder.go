@@ -263,7 +263,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			return nil, errors.Wrap(err, "failed to create node selector")
 		}
 
-		gatewayAPIService, err := payer.NewPayerAPIServiceWithSelector(
+		gatewayAPIService, err := payer.NewPayerAPIService(
 			ctx,
 			b.logger,
 			b.nodeRegistry,

@@ -10,9 +10,15 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
+// RandomNodeSelectorAlgorithm selects a node uniformly at random from all currently available nodes,
+// excluding any nodes present in the banlist.
+//
+// This strategy provides load distribution but does not provide affinity or determinism.
 type RandomNodeSelectorAlgorithm struct {
 	reg registry.NodeRegistry
 }
+
+var _ NodeSelectorAlgorithm = (*RandomNodeSelectorAlgorithm)(nil)
 
 func NewRandomNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,

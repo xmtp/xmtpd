@@ -60,27 +60,6 @@ func NewPayerAPIService(
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	clientMetrics *grpcprom.ClientMetrics,
 	maxPayerMessageSize uint64,
-) (*Service, error) {
-	return NewPayerAPIServiceWithSelector(
-		ctx,
-		logger,
-		nodeRegistry,
-		payerPrivateKey,
-		blockchainPublisher,
-		clientMetrics,
-		maxPayerMessageSize,
-		nil,
-	)
-}
-
-func NewPayerAPIServiceWithSelector(
-	ctx context.Context,
-	logger *zap.Logger,
-	nodeRegistry registry.NodeRegistry,
-	payerPrivateKey *ecdsa.PrivateKey,
-	blockchainPublisher blockchain.IBlockchainPublisher,
-	clientMetrics *grpcprom.ClientMetrics,
-	maxPayerMessageSize uint64,
 	nodeSelector selectors.NodeSelectorAlgorithm,
 ) (*Service, error) {
 	if clientMetrics == nil {

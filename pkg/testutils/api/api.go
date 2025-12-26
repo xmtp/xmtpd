@@ -201,6 +201,7 @@ func NewTestAPIServer(
 			mockMessagePublisher,
 			nil,
 			0,
+			nil,
 		)
 		require.NoError(t, err)
 

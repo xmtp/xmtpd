@@ -7,10 +7,17 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
+// ManualNodeSelectorAlgorithm always selects the first available node from an explicit list of node IDs.
+// The topic is ignored. If a node in the manual list is not present in the registry or is banned,
+// it is skipped. If no node from the list is usable, selection fails.
+//
+// This strategy is useful for pinning traffic to specific nodes (e.g., during testing or partial rollouts).
 type ManualNodeSelectorAlgorithm struct {
 	reg     registry.NodeRegistry
 	nodeIDs []uint32
 }
+
+var _ NodeSelectorAlgorithm = (*ManualNodeSelectorAlgorithm)(nil)
 
 func NewManualNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,

@@ -7,10 +7,17 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
+// OrderedPreferenceNodeSelectorAlgorithm selects the first available node from a preferred ordered list,
+// falling back to the first unbanned node in the full registry if none of the preferred nodes are usable.
+//
+// This strategy is useful when you want to prioritize certain nodes but retain automatic fallback
+// in case preferred nodes are unavailable.
 type OrderedPreferenceNodeSelectorAlgorithm struct {
 	reg              registry.NodeRegistry
 	preferredNodeIDs []uint32
 }
+
+var _ NodeSelectorAlgorithm = (*OrderedPreferenceNodeSelectorAlgorithm)(nil)
 
 func NewOrderedPreferenceNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,

@@ -10,9 +10,16 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
+// StableHashingNodeSelectorAlgorithm implements deterministic topic-to-node selection using a stable hash.
+// Nodes are sorted by NodeID to ensure consistent ordering.
+//
+// This strategy provides stickiness (topic affinity) and minimizes churn as long as the node set is stable,
+// but any node set change will cause remapping for some topics.
 type StableHashingNodeSelectorAlgorithm struct {
 	reg registry.NodeRegistry
 }
+
+var _ NodeSelectorAlgorithm = (*StableHashingNodeSelectorAlgorithm)(nil)
 
 func NewStableHashingNodeSelectorAlgorithm(
 	reg registry.NodeRegistry,

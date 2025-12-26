@@ -156,7 +156,7 @@ func NewManualNodeSelectorAlgorithm(
 }
 
 func (m *ManualNodeSelectorAlgorithm) GetNode(
-	topic topic.Topic,
+	_ topic.Topic,
 	banlist ...[]uint32,
 ) (uint32, error) {
 	if len(m.nodeIDs) == 0 {
@@ -208,7 +208,7 @@ func NewOrderedPreferenceNodeSelectorAlgorithm(
 }
 
 func (o *OrderedPreferenceNodeSelectorAlgorithm) GetNode(
-	topic topic.Topic,
+	_ topic.Topic,
 	banlist ...[]uint32,
 ) (uint32, error) {
 	nodes, err := o.reg.GetNodes()
@@ -261,7 +261,7 @@ func NewRandomNodeSelectorAlgorithm(
 }
 
 func (r *RandomNodeSelectorAlgorithm) GetNode(
-	topic topic.Topic,
+	_ topic.Topic,
 	banlist ...[]uint32,
 ) (uint32, error) {
 	nodes, err := r.reg.GetNodes()
@@ -321,12 +321,12 @@ func NewClosestNodeSelectorAlgorithm(
 	if connectTimeout == 0 {
 		connectTimeout = 2 * time.Second
 	}
-	
+
 	var nodes []uint32
 	if len(preferredNodes) > 0 && len(preferredNodes[0]) > 0 {
 		nodes = preferredNodes[0]
 	}
-	
+
 	return &ClosestNodeSelectorAlgorithm{
 		reg:            reg,
 		preferredNodes: nodes,
@@ -337,7 +337,7 @@ func NewClosestNodeSelectorAlgorithm(
 }
 
 func (c *ClosestNodeSelectorAlgorithm) GetNode(
-	topic topic.Topic,
+	_ topic.Topic,
 	banlist ...[]uint32,
 ) (uint32, error) {
 	nodes, err := c.reg.GetNodes()
@@ -425,10 +425,14 @@ func (c *ClosestNodeSelectorAlgorithm) updateLatencyCache(nodes []registry.Node)
 		}
 	}
 
-	c.cacheMutex.Lock()
-	c.latencyCache = newCache
-	c.lastUpdate = time.Now()
-	c.cacheMutex.Unlock()
+	// Only update cache if at least one latency measurement was successful
+	// This prevents wiping out the previous cache when all probes fail
+	if len(newCache) > 0 {
+		c.cacheMutex.Lock()
+		c.latencyCache = newCache
+		c.lastUpdate = time.Now()
+		c.cacheMutex.Unlock()
+	}
 }
 
 func (c *ClosestNodeSelectorAlgorithm) measureLatency(httpAddress string) time.Duration {

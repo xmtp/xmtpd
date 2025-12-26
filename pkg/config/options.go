@@ -83,12 +83,12 @@ type DebugOptions struct {
 }
 
 type PayerOptions struct {
-	PrivateKey                 string        `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
-	Enable                     bool          `long:"enable" env:"XMTPD_PAYER_ENABLE" description:"Enable the payer API"`
-	NodeSelectorStrategy       string        `long:"node-selector-strategy" env:"XMTPD_PAYER_NODE_SELECTOR_STRATEGY" description:"Node selection strategy" default:"stable"`
-	NodeSelectorPreferredNodes []uint32      `long:"node-selector-preferred-nodes" env:"XMTPD_PAYER_NODE_SELECTOR_PREFERRED_NODES" description:"Preferred node IDs" env-delim:","`
-	NodeSelectorCacheExpiry    time.Duration `long:"node-selector-cache-expiry" env:"XMTPD_PAYER_NODE_SELECTOR_CACHE_EXPIRY" description:"Cache expiry for closest strategy" default:"5m"`
-	NodeSelectorTimeout        time.Duration `long:"node-selector-connect-timeout" env:"XMTPD_PAYER_NODE_SELECTOR_CONNECT_TIMEOUT" description:"Connection timeout" default:"2s"`
+	PrivateKey                 string        `long:"private-key"                    env:"XMTPD_PAYER_PRIVATE_KEY"                         description:"Private key used to sign blockchain transactions"`
+	Enable                     bool          `long:"enable"                         env:"XMTPD_PAYER_ENABLE"                              description:"Enable the payer API"`
+	NodeSelectorStrategy       string        `long:"node-selector-strategy"         env:"XMTPD_PAYER_NODE_SELECTOR_STRATEGY"              description:"Node selection strategy"                default:"stable"`
+	NodeSelectorPreferredNodes []uint32      `long:"node-selector-preferred-nodes"  env:"XMTPD_PAYER_NODE_SELECTOR_PREFERRED_NODES"       description:"Preferred node IDs"                     env-delim:","`
+	NodeSelectorCacheExpiry    time.Duration `long:"node-selector-cache-expiry"     env:"XMTPD_PAYER_NODE_SELECTOR_CACHE_EXPIRY"          description:"Cache expiry for closest strategy"      default:"5m"`
+	NodeSelectorTimeout        time.Duration `long:"node-selector-connect-timeout"  env:"XMTPD_PAYER_NODE_SELECTOR_CONNECT_TIMEOUT"       description:"Connection timeout"                     default:"2s"`
 }
 
 type ReplicationOptions struct {

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/api/payer/selectors"
+
 	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -43,7 +45,7 @@ type Service struct {
 	clientManager       *ClientManager
 	blockchainPublisher blockchain.IBlockchainPublisher
 	payerPrivateKey     *ecdsa.PrivateKey
-	nodeSelector        NodeSelectorAlgorithm
+	nodeSelector        selectors.NodeSelectorAlgorithm
 	nodeRegistry        registry.NodeRegistry
 	maxPayerMessageSize uint64
 }
@@ -79,14 +81,14 @@ func NewPayerAPIServiceWithSelector(
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	clientMetrics *grpcprom.ClientMetrics,
 	maxPayerMessageSize uint64,
-	nodeSelector NodeSelectorAlgorithm,
+	nodeSelector selectors.NodeSelectorAlgorithm,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
 	}
 
 	if nodeSelector == nil {
-		nodeSelector = NewStableHashingNodeSelectorAlgorithm(nodeRegistry)
+		nodeSelector = selectors.NewStableHashingNodeSelectorAlgorithm(nodeRegistry)
 	}
 
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)

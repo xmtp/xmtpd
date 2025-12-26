@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/api/payer/selectors"
+
 	"connectrpc.com/connect"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/pkg/errors"
@@ -248,13 +250,13 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 	}
 
 	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
-		nodeSelector, err := payer.NewNodeSelector(
+		nodeSelector, err := selectors.NewNodeSelector(
 			b.nodeRegistry,
-			payer.NodeSelectorConfig{
-				Strategy:       payer.NodeSelectorStrategy(b.config.Payer.NodeSelectorStrategy),
+			selectors.NodeSelectorConfig{
+				Strategy:       selectors.NodeSelectorStrategy(b.config.Payer.NodeSelectorStrategy),
 				PreferredNodes: b.config.Payer.NodeSelectorPreferredNodes,
-				CacheExpiry:    time.Duration(b.config.Payer.NodeSelectorCacheExpiry),
-				ConnectTimeout: time.Duration(b.config.Payer.NodeSelectorTimeout),
+				CacheExpiry:    b.config.Payer.NodeSelectorCacheExpiry,
+				ConnectTimeout: b.config.Payer.NodeSelectorTimeout,
 			},
 		)
 		if err != nil {

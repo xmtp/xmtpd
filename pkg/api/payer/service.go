@@ -182,15 +182,16 @@ func (s *Service) PublishClientEnvelopes(
 			utils.NumEnvelopesField(len(payloadsWithIndex)),
 		)
 
-		// Log each envelope being sent to node
+		// Log each envelope being sent to node - include topic in message for DD searchability
 		for i, env := range payloadsWithIndex {
+			topicID := fmt.Sprintf("%x", env.payload.TargetTopic().Identifier())
 			s.logger.Info(
-				"[PERF_TRACE] payer sending envelope to node",
+				fmt.Sprintf("[PERF_TRACE] payer_to_node topic=%s kind=%s", topicID, env.payload.TargetTopic().Kind().String()),
 				zap.Int("batch_index", i),
 				zap.Int("original_index", env.originalIndex),
 				zap.String("topic", env.payload.TargetTopic().String()),
 				zap.String("topic_kind", env.payload.TargetTopic().Kind().String()),
-				zap.String("topic_identifier", fmt.Sprintf("%x", env.payload.TargetTopic().Identifier())),
+				zap.String("topic_identifier", topicID),
 				utils.OriginatorIDField(originatorID),
 				zap.Int64("timestamp_ns", publishStartNs),
 			)
@@ -248,13 +249,14 @@ func (s *Service) PublishClientEnvelopes(
 	for _, payload := range grouped.forBlockchain {
 		// PERF TRACING: Log blockchain publish
 		blockchainStartNs := time.Now().UnixNano()
+		blockchainTopicID := fmt.Sprintf("%x", payload.payload.TargetTopic().Identifier())
 		s.logger.Info(
-			"[PERF_TRACE] payer publishing to blockchain",
+			fmt.Sprintf("[PERF_TRACE] payer_to_blockchain topic=%s kind=%s", blockchainTopicID, payload.payload.TargetTopic().Kind().String()),
 			zap.Int64("blockchain_start_ns", blockchainStartNs),
 			zap.Int("original_index", payload.originalIndex),
 			zap.String("topic", payload.payload.TargetTopic().String()),
 			zap.String("topic_kind", payload.payload.TargetTopic().Kind().String()),
-			zap.String("topic_identifier", fmt.Sprintf("%x", payload.payload.TargetTopic().Identifier())),
+			zap.String("topic_identifier", blockchainTopicID),
 		)
 
 		var originatorEnvelope *envelopesProto.OriginatorEnvelope

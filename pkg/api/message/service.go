@@ -601,12 +601,13 @@ func (s *Service) PublishPayerEnvelopes(
 					return fmt.Errorf("could not insert staged envelope: %w", err)
 				}
 
-				// PERF TRACING: Log staged envelope
+				// PERF TRACING: Log staged envelope - include topic in message for DD searchability
+				stagedTopicID := fmt.Sprintf("%x", envelope.TopicBytes)
 				s.logger.Info(
-					"[PERF_TRACE] node staged envelope",
+					fmt.Sprintf("[PERF_TRACE] node_staged topic=%s staged_id=%d", stagedTopicID, stagedEnvelope.ID),
 					zap.Int("envelope_index", i),
 					zap.Int64("staged_id", stagedEnvelope.ID),
-					zap.String("topic", fmt.Sprintf("%x", envelope.TopicBytes)),
+					zap.String("topic", stagedTopicID),
 					zap.Int64("stage_time_ns", stageStartNs),
 				)
 
@@ -628,19 +629,20 @@ func (s *Service) PublishPayerEnvelopes(
 					return fmt.Errorf("could not sign envelope: %w", err)
 				}
 
-				// PERF TRACING: Log originator envelope created
+				// PERF TRACING: Log originator envelope created - include IDs in message for DD searchability
 				signedNs := time.Now().UnixNano()
 				// Parse the unsigned to get sequence ID
 				unsigned, parseErr := envelopes.NewOriginatorEnvelope(originatorEnvelope)
 				if parseErr == nil {
+					originatorTopicID := fmt.Sprintf("%x", envelope.TopicBytes)
 					s.logger.Info(
-						"[PERF_TRACE] node created originator envelope",
+						fmt.Sprintf("[PERF_TRACE] node_originator topic=%s seq=%d node=%d", originatorTopicID, unsigned.OriginatorSequenceID(), unsigned.OriginatorNodeID()),
 						zap.Int("envelope_index", i),
 						zap.Int64("staged_id", stagedEnvelope.ID),
 						zap.Uint32("originator_node_id", unsigned.OriginatorNodeID()),
 						zap.Uint64("originator_sequence_id", unsigned.OriginatorSequenceID()),
 						zap.Int64("originator_ns", unsigned.OriginatorNs()),
-						zap.String("topic", fmt.Sprintf("%x", envelope.TopicBytes)),
+						zap.String("topic", originatorTopicID),
 						zap.Int64("signed_time_ns", signedNs),
 					)
 				}
@@ -725,13 +727,14 @@ func (s *Service) preprocessPayerEnvelopes(
 		targetTopic := payerEnvelope.ClientEnvelope.TargetTopic()
 		topicKind := targetTopic.Kind()
 
-		// PERF TRACING: Log topic details
+		// PERF TRACING: Log topic details - include topic in message for DD searchability
+		nodeTopicID := fmt.Sprintf("%x", targetTopic.Identifier())
 		s.logger.Info(
-			"[PERF_TRACE] node envelope topic details",
+			fmt.Sprintf("[PERF_TRACE] node_topic topic=%s kind=%s", nodeTopicID, topicKind.String()),
 			zap.Int("envelope_index", i),
 			zap.String("topic", targetTopic.String()),
 			zap.String("topic_kind", topicKind.String()),
-			zap.String("topic_identifier", fmt.Sprintf("%x", targetTopic.Identifier())),
+			zap.String("topic_identifier", nodeTopicID),
 			zap.Int64("timestamp_ns", time.Now().UnixNano()),
 		)
 

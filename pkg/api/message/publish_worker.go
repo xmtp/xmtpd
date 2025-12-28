@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -110,12 +111,31 @@ func (p *publishWorker) start() {
 			}
 
 			for _, stagedEnv := range batch {
-				p.logger.Info("publishing envelope", utils.SequenceIDField(stagedEnv.ID))
+				// PERF TRACING: Log when publish worker picks up envelope
+				publishStartNs := time.Now().UnixNano()
+				p.logger.Info(
+					"[PERF_TRACE] publish_worker processing envelope",
+					utils.SequenceIDField(stagedEnv.ID),
+					zap.Int64("publish_worker_start_ns", publishStartNs),
+					zap.String("topic", fmt.Sprintf("%x", stagedEnv.Topic)),
+					zap.Time("originator_time", stagedEnv.OriginatorTime),
+				)
+
 				for !p.publishStagedEnvelope(stagedEnv) {
 					// Infinite retry on failure to publish; we cannot
 					// continue to the next envelope until this one is processed
 					time.Sleep(p.sleepOnFailureTime)
 				}
+
+				// PERF TRACING: Log when publish worker completes
+				publishEndNs := time.Now().UnixNano()
+				p.logger.Info(
+					"[PERF_TRACE] publish_worker completed envelope",
+					utils.SequenceIDField(stagedEnv.ID),
+					zap.Int64("publish_worker_end_ns", publishEndNs),
+					zap.Int64("publish_worker_duration_ns", publishEndNs-publishStartNs),
+				)
+
 				p.lastProcessed.Store(stagedEnv.ID)
 				metrics.EmitApiStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
 			}
@@ -175,6 +195,19 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		logger.Error("failed to validate originator envelope", zap.Error(err))
 		return false
 	}
+
+	// PERF TRACING: Log validated envelope details
+	p.logger.Info(
+		"[PERF_TRACE] publish_worker validated originator envelope",
+		utils.SequenceIDField(stagedEnv.ID),
+		zap.Uint32("originator_node_id", validatedEnvelope.OriginatorNodeID()),
+		zap.Uint64("originator_sequence_id", validatedEnvelope.OriginatorSequenceID()),
+		zap.Int64("originator_ns", validatedEnvelope.OriginatorNs()),
+		zap.String("topic", parsedTopic.String()),
+		zap.String("topic_kind", parsedTopic.Kind().String()),
+		zap.String("topic_identifier", fmt.Sprintf("%x", parsedTopic.Identifier())),
+		zap.Int64("timestamp_ns", time.Now().UnixNano()),
+	)
 
 	originatorBytes, err := validatedEnvelope.Bytes()
 	if err != nil {
@@ -255,6 +288,18 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		// Envelope was already inserted by another worker
 		logger.Debug("envelope already inserted")
 	}
+
+	// PERF TRACING: Log gateway envelope inserted
+	p.logger.Info(
+		"[PERF_TRACE] publish_worker inserted gateway envelope",
+		utils.SequenceIDField(stagedEnv.ID),
+		zap.Uint32("originator_node_id", validatedEnvelope.OriginatorNodeID()),
+		zap.Uint64("originator_sequence_id", validatedEnvelope.OriginatorSequenceID()),
+		zap.Int64("originator_ns", validatedEnvelope.OriginatorNs()),
+		zap.String("topic", parsedTopic.String()),
+		zap.Int64("inserted_rows", inserted),
+		zap.Int64("gateway_insert_time_ns", time.Now().UnixNano()),
+	)
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
 	deleted, err := p.store.WriteQuery().DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)

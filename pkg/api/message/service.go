@@ -537,6 +537,17 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
+	// PERF TRACING: Log when node receives request from payer
+	receiveTimeNs := time.Now().UnixNano()
+	numPayerEnvelopes := len(req.Msg.GetPayerEnvelopes())
+	s.logger.Info(
+		"[PERF_TRACE] node received PublishPayerEnvelopes from payer",
+		zap.Int64("receive_time_ns", receiveTimeNs),
+		zap.Int("num_payer_envelopes", numPayerEnvelopes),
+		zap.Uint32("node_id", s.registrant.NodeID()),
+		utils.MethodField(req.Spec().Procedure),
+	)
+
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
@@ -570,12 +581,14 @@ func (s *Service) PublishPayerEnvelopes(
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
+	txStartNs := time.Now().UnixNano()
 	err = db.RunInTx(
 		ctx,
 		s.store.DB(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
-			for _, envelope := range processedEnvelopes {
+			for i, envelope := range processedEnvelopes {
+				stageStartNs := time.Now().UnixNano()
 				stagedEnvelope, err := querier.
 					InsertStagedOriginatorEnvelope(
 						ctx,
@@ -587,6 +600,15 @@ func (s *Service) PublishPayerEnvelopes(
 				if err != nil {
 					return fmt.Errorf("could not insert staged envelope: %w", err)
 				}
+
+				// PERF TRACING: Log staged envelope
+				s.logger.Info(
+					"[PERF_TRACE] node staged envelope",
+					zap.Int("envelope_index", i),
+					zap.Int64("staged_id", stagedEnvelope.ID),
+					zap.String("topic", fmt.Sprintf("%x", envelope.TopicBytes)),
+					zap.Int64("stage_time_ns", stageStartNs),
+				)
 
 				baseFee, congestionFee, err := s.publishWorker.calculateFees(
 					&stagedEnvelope,
@@ -606,12 +628,30 @@ func (s *Service) PublishPayerEnvelopes(
 					return fmt.Errorf("could not sign envelope: %w", err)
 				}
 
+				// PERF TRACING: Log originator envelope created
+				signedNs := time.Now().UnixNano()
+				// Parse the unsigned to get sequence ID
+				unsigned, parseErr := envelopes.NewOriginatorEnvelope(originatorEnvelope)
+				if parseErr == nil {
+					s.logger.Info(
+						"[PERF_TRACE] node created originator envelope",
+						zap.Int("envelope_index", i),
+						zap.Int64("staged_id", stagedEnvelope.ID),
+						zap.Uint32("originator_node_id", unsigned.OriginatorNodeID()),
+						zap.Uint64("originator_sequence_id", unsigned.OriginatorSequenceID()),
+						zap.Int64("originator_ns", unsigned.OriginatorNs()),
+						zap.String("topic", fmt.Sprintf("%x", envelope.TopicBytes)),
+						zap.Int64("signed_time_ns", signedNs),
+					)
+				}
+
 				results = append(results, originatorEnvelope)
 				latestStaged = &stagedEnvelope
 			}
 			return nil
 		},
 	)
+	txEndNs := time.Now().UnixNano()
 	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInternal,
@@ -619,12 +659,31 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
+	// PERF TRACING: Log transaction complete
+	s.logger.Info(
+		"[PERF_TRACE] node transaction complete",
+		zap.Int64("tx_start_ns", txStartNs),
+		zap.Int64("tx_end_ns", txEndNs),
+		zap.Int64("tx_duration_ns", txEndNs-txStartNs),
+		zap.Int("num_results", len(results)),
+	)
+
 	s.publishWorker.notifyStagedPublish()
 	s.waitForGatewayPublish(ctx, latestStaged, logger)
 
 	metrics.EmitSyncLastSeenOriginatorSequenceID(
 		s.registrant.NodeID(),
 		uint64(latestStaged.ID),
+	)
+
+	// PERF TRACING: Log final response
+	responseTimeNs := time.Now().UnixNano()
+	s.logger.Info(
+		"[PERF_TRACE] node sending response to payer",
+		zap.Int64("response_time_ns", responseTimeNs),
+		zap.Int64("total_duration_ns", responseTimeNs-receiveTimeNs),
+		zap.Int("num_originator_envelopes", len(results)),
+		zap.Uint32("node_id", s.registrant.NodeID()),
 	)
 
 	return connect.NewResponse(&message_api.PublishPayerEnvelopesResponse{
@@ -639,7 +698,18 @@ func (s *Service) preprocessPayerEnvelopes(
 	var processedEnvelopes []ValidatedBytesWithTopic
 	var errs []string
 
+	preprocessStartNs := time.Now().UnixNano()
+
 	for i, envelope := range payerEnvelopes {
+		// PERF TRACING: Log each payer envelope being processed
+		s.logger.Info(
+			"[PERF_TRACE] node preprocessing payer envelope",
+			zap.Int("envelope_index", i),
+			zap.Int64("preprocess_time_ns", time.Now().UnixNano()),
+			zap.Uint32("target_originator", envelope.GetTargetOriginator()),
+			zap.Uint32("retention_days", envelope.GetMessageRetentionDays()),
+		)
+
 		payerEnvelope, err := s.validatePayerEnvelope(envelope)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("could not validate envelope. index %d: %v", i, err))
@@ -654,6 +724,16 @@ func (s *Service) preprocessPayerEnvelopes(
 
 		targetTopic := payerEnvelope.ClientEnvelope.TargetTopic()
 		topicKind := targetTopic.Kind()
+
+		// PERF TRACING: Log topic details
+		s.logger.Info(
+			"[PERF_TRACE] node envelope topic details",
+			zap.Int("envelope_index", i),
+			zap.String("topic", targetTopic.String()),
+			zap.String("topic_kind", topicKind.String()),
+			zap.String("topic_identifier", fmt.Sprintf("%x", targetTopic.Identifier())),
+			zap.Int64("timestamp_ns", time.Now().UnixNano()),
+		)
 
 		if targetTopic.IsReserved() {
 			errs = append(
@@ -707,6 +787,15 @@ func (s *Service) preprocessPayerEnvelopes(
 	if len(errs) > 0 {
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
+
+	// PERF TRACING: Log preprocessing complete
+	s.logger.Info(
+		"[PERF_TRACE] node preprocessing complete",
+		zap.Int64("preprocess_end_ns", time.Now().UnixNano()),
+		zap.Int64("preprocess_duration_ns", time.Now().UnixNano()-preprocessStartNs),
+		zap.Int("num_processed", len(processedEnvelopes)),
+	)
+
 	return processedEnvelopes, nil
 }
 

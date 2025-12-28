@@ -125,8 +125,19 @@ func (s *Service) PublishClientEnvelopes(
 		)
 	}
 
-	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug("received request", utils.MethodField(req.Spec().Procedure))
+	// PERF TRACING: Log when payer receives request from SDK
+	receiveTimeNs := time.Now().UnixNano()
+	numEnvelopes := len(req.Msg.GetEnvelopes())
+	s.logger.Info(
+		"[PERF_TRACE] payer received PublishClientEnvelopes from SDK",
+		zap.Int64("receive_time_ns", receiveTimeNs),
+		zap.Int("num_envelopes", numEnvelopes),
+		utils.MethodField(req.Spec().Procedure),
+	)
+
+	// PERF TRACING: Log details for each envelope
+	for i, rawEnvelope := range req.Msg.GetEnvelopes() {
+		s.logEnvelopeDetails("payer_received", i, rawEnvelope, receiveTimeNs)
 	}
 
 	grouped, err := s.groupEnvelopes(req.Msg.GetEnvelopes())
@@ -162,12 +173,28 @@ func (s *Service) PublishClientEnvelopes(
 
 	// For each originator found in the request, publish all matching envelopes to the node
 	for originatorID, payloadsWithIndex := range grouped.forNodes {
-		s.logger.Debug(
-			"publishing to originator",
+		// PERF TRACING: Log before publishing to node
+		publishStartNs := time.Now().UnixNano()
+		s.logger.Info(
+			"[PERF_TRACE] payer publishing to node",
+			zap.Int64("publish_start_ns", publishStartNs),
 			utils.OriginatorIDField(originatorID),
-			utils.MethodField(req.Spec().Procedure),
 			utils.NumEnvelopesField(len(payloadsWithIndex)),
 		)
+
+		// Log each envelope being sent to node
+		for i, env := range payloadsWithIndex {
+			s.logger.Info(
+				"[PERF_TRACE] payer sending envelope to node",
+				zap.Int("batch_index", i),
+				zap.Int("original_index", env.originalIndex),
+				zap.String("topic", env.payload.TargetTopic().String()),
+				zap.String("topic_kind", env.payload.TargetTopic().Kind().String()),
+				zap.String("topic_identifier", fmt.Sprintf("%x", env.payload.TargetTopic().Identifier())),
+				utils.OriginatorIDField(originatorID),
+				zap.Int64("timestamp_ns", publishStartNs),
+			)
+		}
 
 		originatorEnvelopes, err := s.publishToNodeWithRetry(ctx, originatorID, payloadsWithIndex)
 		if err != nil {
@@ -184,17 +211,50 @@ func (s *Service) PublishClientEnvelopes(
 			)
 		}
 
+		// PERF TRACING: Log response from node
+		publishEndNs := time.Now().UnixNano()
+		s.logger.Info(
+			"[PERF_TRACE] payer received response from node",
+			zap.Int64("publish_end_ns", publishEndNs),
+			zap.Int64("publish_duration_ns", publishEndNs-publishStartNs),
+			utils.OriginatorIDField(originatorID),
+			zap.Int("num_originator_envelopes", len(originatorEnvelopes)),
+		)
+
 		// The originator envelopes come back from the API in the same order as the request
 		for idx, originatorEnvelope := range originatorEnvelopes {
 			response.Msg.OriginatorEnvelopes[payloadsWithIndex[idx].originalIndex] = originatorEnvelope
+
+			// PERF TRACING: Log each originator envelope returned
+			if originatorEnvelope != nil {
+				// Parse the unsigned originator envelope to get sequence ID
+				unsigned, parseErr := envelopes.NewOriginatorEnvelope(originatorEnvelope)
+				if parseErr == nil {
+					s.logger.Info(
+						"[PERF_TRACE] payer got originator envelope",
+						zap.Int("batch_index", idx),
+						zap.Int("original_index", payloadsWithIndex[idx].originalIndex),
+						zap.Uint32("originator_node_id", unsigned.OriginatorNodeID()),
+						zap.Uint64("originator_sequence_id", unsigned.OriginatorSequenceID()),
+						zap.Int64("originator_ns", unsigned.OriginatorNs()),
+						zap.String("topic", payloadsWithIndex[idx].payload.TargetTopic().String()),
+						zap.Int64("payer_receive_ns", publishEndNs),
+					)
+				}
+			}
 		}
 	}
 
 	for _, payload := range grouped.forBlockchain {
-		s.logger.Debug(
-			"publishing to blockchain",
-			utils.MethodField(req.Spec().Procedure),
-			utils.TopicField(payload.payload.TargetTopic().String()),
+		// PERF TRACING: Log blockchain publish
+		blockchainStartNs := time.Now().UnixNano()
+		s.logger.Info(
+			"[PERF_TRACE] payer publishing to blockchain",
+			zap.Int64("blockchain_start_ns", blockchainStartNs),
+			zap.Int("original_index", payload.originalIndex),
+			zap.String("topic", payload.payload.TargetTopic().String()),
+			zap.String("topic_kind", payload.payload.TargetTopic().Kind().String()),
+			zap.String("topic_identifier", fmt.Sprintf("%x", payload.payload.TargetTopic().Identifier())),
 		)
 
 		var originatorEnvelope *envelopesProto.OriginatorEnvelope
@@ -206,8 +266,27 @@ func (s *Service) PublishClientEnvelopes(
 			)
 		}
 
+		// PERF TRACING: Log blockchain publish complete
+		blockchainEndNs := time.Now().UnixNano()
+		s.logger.Info(
+			"[PERF_TRACE] payer blockchain publish complete",
+			zap.Int64("blockchain_end_ns", blockchainEndNs),
+			zap.Int64("blockchain_duration_ns", blockchainEndNs-blockchainStartNs),
+			zap.Int("original_index", payload.originalIndex),
+			zap.String("topic", payload.payload.TargetTopic().String()),
+		)
+
 		response.Msg.OriginatorEnvelopes[payload.originalIndex] = originatorEnvelope
 	}
+
+	// PERF TRACING: Log final response
+	responseTimeNs := time.Now().UnixNano()
+	s.logger.Info(
+		"[PERF_TRACE] payer sending response to SDK",
+		zap.Int64("response_time_ns", responseTimeNs),
+		zap.Int64("total_duration_ns", responseTimeNs-receiveTimeNs),
+		zap.Int("num_envelopes", numEnvelopes),
+	)
 
 	return response, nil
 }
@@ -637,4 +716,49 @@ func newClientEnvelopeWithIndex(
 		originalIndex: index,
 		payload:       payload,
 	}
+}
+
+// logEnvelopeDetails logs detailed information about a client envelope for performance tracing
+func (s *Service) logEnvelopeDetails(stage string, index int, rawEnvelope *envelopesProto.ClientEnvelope, timestampNs int64) {
+	if rawEnvelope == nil {
+		return
+	}
+
+	// Extract topic info
+	var topicKind, topicIdentifier, payloadType string
+	if rawEnvelope.Aad != nil && len(rawEnvelope.Aad.TargetTopic) > 0 {
+		parsedTopic, err := topic.ParseTopic(rawEnvelope.Aad.TargetTopic)
+		if err == nil {
+			topicKind = parsedTopic.Kind().String()
+			topicIdentifier = fmt.Sprintf("%x", parsedTopic.Identifier())
+		}
+	}
+
+	// Determine payload type
+	switch rawEnvelope.Payload.(type) {
+	case *envelopesProto.ClientEnvelope_GroupMessage:
+		payloadType = "group_message"
+	case *envelopesProto.ClientEnvelope_WelcomeMessage:
+		payloadType = "welcome_message"
+	case *envelopesProto.ClientEnvelope_IdentityUpdate:
+		payloadType = "identity_update"
+	case *envelopesProto.ClientEnvelope_UploadKeyPackage:
+		payloadType = "key_package"
+	case *envelopesProto.ClientEnvelope_PayerReport:
+		payloadType = "payer_report"
+	case *envelopesProto.ClientEnvelope_PayerReportAttestation:
+		payloadType = "payer_report_attestation"
+	default:
+		payloadType = "unknown"
+	}
+
+	s.logger.Info(
+		fmt.Sprintf("[PERF_TRACE] %s envelope details", stage),
+		zap.Int("envelope_index", index),
+		zap.Int64("timestamp_ns", timestampNs),
+		zap.String("topic_kind", topicKind),
+		zap.String("topic_identifier", topicIdentifier),
+		zap.String("payload_type", payloadType),
+		zap.Int("aad_topic_bytes_len", len(rawEnvelope.Aad.GetTargetTopic())),
+	)
 }

@@ -230,6 +230,53 @@ func (_c *MockNodeRegistry_OnNewNodes_Call) RunAndReturn(run func() <-chan []reg
 	return _c
 }
 
+// OnRemovedNodes provides a mock function with no fields
+func (_m *MockNodeRegistry) OnRemovedNodes() <-chan []uint32 {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for OnRemovedNodes")
+	}
+
+	var r0 <-chan []uint32
+	if rf, ok := ret.Get(0).(func() <-chan []uint32); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(<-chan []uint32)
+		}
+	}
+
+	return r0
+}
+
+// MockNodeRegistry_OnRemovedNodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OnRemovedNodes'
+type MockNodeRegistry_OnRemovedNodes_Call struct {
+	*mock.Call
+}
+
+// OnRemovedNodes is a helper method to define mock.On call
+func (_e *MockNodeRegistry_Expecter) OnRemovedNodes() *MockNodeRegistry_OnRemovedNodes_Call {
+	return &MockNodeRegistry_OnRemovedNodes_Call{Call: _e.mock.On("OnRemovedNodes")}
+}
+
+func (_c *MockNodeRegistry_OnRemovedNodes_Call) Run(run func()) *MockNodeRegistry_OnRemovedNodes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockNodeRegistry_OnRemovedNodes_Call) Return(_a0 <-chan []uint32) *MockNodeRegistry_OnRemovedNodes_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNodeRegistry_OnRemovedNodes_Call) RunAndReturn(run func() <-chan []uint32) *MockNodeRegistry_OnRemovedNodes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Stop provides a mock function with no fields
 func (_m *MockNodeRegistry) Stop() {
 	_m.Called()

@@ -176,6 +176,7 @@ func NewTestAPIServer(
 			ctx,
 			log,
 			registrant,
+			mockRegistry,
 			db,
 			mockValidationService,
 			metadata.NewCursorUpdater(ctx, log, db),

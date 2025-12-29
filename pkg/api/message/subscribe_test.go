@@ -17,9 +17,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	testregistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
@@ -372,7 +374,7 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 
 func generateEnvelopes(
 	t *testing.T,
-	originatorCount int,
+	nodes []registry.Node,
 	low int,
 	high int,
 	payerID int32,
@@ -385,9 +387,9 @@ func generateEnvelopes(
 
 	out := make(map[int32][]queries.InsertGatewayEnvelopeParams)
 
-	for i := range originatorCount {
+	for _, node := range nodes {
 		var (
-			id    = int32(100 * (i + 1))
+			id    = int32(node.NodeID)
 			topic = topic.NewTopic(
 				topic.TopicKindGroupMessagesV1,
 				[]byte(fmt.Sprintf("topic-%v", rand.Intn(topicCount))),
@@ -438,13 +440,23 @@ func saveEnvelopes(
 	}
 }
 
+func generateNodes(n int) []registry.Node {
+	out := make([]registry.Node, n)
+	for i := range n {
+		out[i] = testregistry.GetHealthyNode(uint32(100 * (i + 1)))
+	}
+
+	return out
+}
+
 func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 	var (
 		server      = testUtilsApi.NewTestAPIServer(t)
 		ctx, cancel = context.WithCancel(t.Context())
 		payerID     = testutils.CreatePayer(t, server.DB)
 
-		sourceEnvelopes = generateEnvelopes(t, 4, 50, 100, payerID)
+		nodes           = generateNodes(4)
+		sourceEnvelopes = generateEnvelopes(t, nodes, 50, 100, payerID)
 
 		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
 		keyID = func(nodeID int32, seqID int64) string {
@@ -452,6 +464,8 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		}
 	)
 	defer cancel()
+
+	// server.APIServerMocks.MockRegistry.EXPECT().GetNodes().Return(nodes, nil)
 
 	// Check how many envelopes we have so we know how many to expect back.
 	total := 0
@@ -486,6 +500,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		}
 
 		msg := stream.Msg()
+
 		for _, env := range msg.Envelopes {
 			received_count += 1
 

@@ -4,29 +4,31 @@ import (
 	"sync"
 )
 
-type SingleNotificationNotifier[ValueType any] struct {
-	channels map[chan<- ValueType]bool
+type SingleNotificationNotifier[T any] struct {
+	channels map[chan<- T]bool
 	mutex    sync.RWMutex
 }
 
-func newNotifier[ValueType any]() *SingleNotificationNotifier[ValueType] {
-	return &SingleNotificationNotifier[ValueType]{
-		channels: make(map[chan<- ValueType]bool),
+func newNotifier[T any]() *SingleNotificationNotifier[T] {
+	return &SingleNotificationNotifier[T]{
+		channels: make(map[chan<- T]bool),
 	}
 }
 
-func (c *SingleNotificationNotifier[ValueType]) register() <-chan ValueType {
+func (c *SingleNotificationNotifier[T]) register() <-chan T {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	newChannel := make(chan ValueType, 1)
-	c.channels[newChannel] = true
 
-	return newChannel
+	ch := make(chan T, 1)
+	c.channels[ch] = true
+
+	return ch
 }
 
-func (c *SingleNotificationNotifier[ValueType]) trigger(value ValueType) {
+func (c *SingleNotificationNotifier[T]) trigger(value T) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
+
 	for channel := range c.channels {
 		channel <- value
 	}

@@ -379,23 +379,14 @@ func generateEnvelopes(
 	low int,
 	high int,
 	payerID int32,
+	topic *topic.Topic,
 ) map[int32][]queries.InsertGatewayEnvelopeParams {
 	t.Helper()
-
-	const (
-		topicCount = 5
-	)
 
 	out := make(map[int32][]queries.InsertGatewayEnvelopeParams)
 
 	for _, node := range nodes {
-		var (
-			id    = int32(node.NodeID)
-			topic = topic.NewTopic(
-				topic.TopicKindGroupMessagesV1,
-				[]byte(fmt.Sprintf("topic-%v", rand.Intn(topicCount))),
-			)
-		)
+		id := int32(node.NodeID)
 
 		n := low + rand.Intn(high-low)
 
@@ -463,8 +454,12 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		server      = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
 		ctx, cancel = context.WithCancel(t.Context())
 		payerID     = testutils.CreatePayer(t, server.DB)
+		subTopic    = topic.NewTopic(
+			topic.TopicKindGroupMessagesV1,
+			[]byte(fmt.Sprintf("generic-topic-%v", rand.Int())),
+		)
 
-		sourceEnvelopes = generateEnvelopes(t, nodes, 50, 100, payerID)
+		sourceEnvelopes = generateEnvelopes(t, nodes, 50, 100, payerID, subTopic)
 
 		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
 		keyID = func(nodeID int32, seqID int64) string {
@@ -484,6 +479,9 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 	req := &message_api.SubscribeEnvelopesRequest{
 		Query: &message_api.EnvelopesQuery{
 			LastSeen: nil,
+			Topics: [][]byte{
+				subTopic.Bytes(),
+			},
 		},
 	}
 

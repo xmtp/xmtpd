@@ -17,7 +17,7 @@ type listener struct {
 	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
-	isGlobal    bool
+	isEmpty     bool
 }
 
 func newListener(
@@ -31,13 +31,13 @@ func newListener(
 		ch:          ch,
 		topics:      make(map[string]struct{}),
 		originators: make(map[uint32]struct{}),
-		isGlobal:    false,
+		isEmpty:     false,
 	}
 	topics := query.GetTopics()
 	originators := query.GetOriginatorNodeIds()
 
 	if len(topics) == 0 && len(originators) == 0 {
-		l.isGlobal = true
+		l.isEmpty = true
 		return l
 	}
 

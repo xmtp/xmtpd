@@ -160,9 +160,6 @@ type subscribeWorker struct {
 }
 
 func (s *subscribeWorker) getOriginatorNodeIds() ([]uint32, error) {
-	// TODO: Testing helper.
-	return []uint32{100, 200, 300, 400}, nil
-
 	// Get initial list of nodes.
 	nodes, err := s.registry.GetNodes()
 	if err != nil {

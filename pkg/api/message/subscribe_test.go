@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -440,10 +441,17 @@ func saveEnvelopes(
 	}
 }
 
-func generateNodes(n int) []registry.Node {
+func generateNodes(t *testing.T, n int) []registry.Node {
 	out := make([]registry.Node, n)
 	for i := range n {
-		out[i] = testregistry.GetHealthyNode(uint32(100 * (i + 1)))
+		key, err := crypto.GenerateKey()
+		require.NoError(t, err)
+
+		// NOTE: Start node IDs from 1000 so we do not collide with nodes created elsewhere (starting at 100).
+		node := testregistry.GetHealthyNode(uint32(1000 + 100*i))
+		node.SigningKey = &key.PublicKey
+
+		out[i] = node
 	}
 
 	return out
@@ -451,11 +459,11 @@ func generateNodes(n int) []registry.Node {
 
 func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 	var (
-		server      = testUtilsApi.NewTestAPIServer(t)
+		nodes       = generateNodes(t, 4)
+		server      = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
 		ctx, cancel = context.WithCancel(t.Context())
 		payerID     = testutils.CreatePayer(t, server.DB)
 
-		nodes           = generateNodes(4)
 		sourceEnvelopes = generateEnvelopes(t, nodes, 50, 100, payerID)
 
 		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
@@ -464,8 +472,6 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		}
 	)
 	defer cancel()
-
-	// server.APIServerMocks.MockRegistry.EXPECT().GetNodes().Return(nodes, nil)
 
 	// Check how many envelopes we have so we know how many to expect back.
 	total := 0
@@ -526,6 +532,8 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 	)
 
 	require.Equal(t, total, received_count)
+
+	t.Logf("processed %v envelopes", received_count)
 
 	// Accounting - verify that query returned everything.
 	// Confirm simply that we got back all envelopes based on nodeID and seqID.

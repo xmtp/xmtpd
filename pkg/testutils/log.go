@@ -44,7 +44,7 @@ func NewLog(t testing.TB) *zap.Logger {
 
 	cfg := zap.NewDevelopmentConfig()
 	cfg.Level = level
-	cfg.DisableCaller = disableStackTrace
+	cfg.DisableStacktrace = disableStackTrace
 
 	log, err := cfg.Build()
 	require.NoError(t, err)

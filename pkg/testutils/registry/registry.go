@@ -28,6 +28,10 @@ func CreateMockRegistry(t *testing.T, nodes []r.Node) *registryMocks.MockNodeReg
 	mockRegistry.On("OnNewNodes").Maybe().
 		Return((<-chan []r.Node)(nodesChan))
 
+	removedNodesChan := make(chan []uint32)
+	mockRegistry.On("OnRemovedNodes").Maybe().
+		Return((<-chan []uint32)(removedNodesChan))
+
 	for _, node := range nodes {
 		nodeChan := make(chan r.Node)
 		mockRegistry.On("OnChangedNode", node.NodeID).

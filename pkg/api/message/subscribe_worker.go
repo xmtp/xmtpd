@@ -193,8 +193,6 @@ func startSubscribeWorker(
 	}
 	vc := db.ToVectorClock(latestEnvelopes)
 
-	// TODO: Add handling for updating node originator list - add new nodes and remove obsolete ones.
-
 	worker := &subscribeWorker{
 		ctx:                 ctx,
 		logger:              logger,
@@ -209,14 +207,18 @@ func startSubscribeWorker(
 
 	nodeIDs, err := worker.getOriginatorNodeIds()
 	if err != nil {
-		// TODO: Log also
+		logger.Error("failed to get list of originators", zap.Error(err))
 		return nil, fmt.Errorf("could not get list of originators: %w", err)
 	}
 
 	for _, id := range nodeIDs {
-		// TODO: Consider this error handling - how does the original code behave?
 		err = worker.subscriptions.newSubscription(ctx, id)
 		if err != nil {
+			logger.Error(
+				"could not create new subscription",
+				utils.OriginatorIDField(id),
+				zap.Error(err),
+			)
 			return nil, fmt.Errorf(
 				"could not create new subscription (originator: %v): %w",
 				id,
@@ -225,6 +227,7 @@ func startSubscribeWorker(
 		}
 	}
 
+	go worker.monitorNodeChanges()
 	go worker.start()
 	logger.Debug("started")
 
@@ -232,13 +235,11 @@ func startSubscribeWorker(
 }
 
 func (s *subscribeWorker) start() {
-	// TODO: This needs to be refreshed.
-	ch := s.subscriptions.allSubscriptions()
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
-		case batch, ok := <-ch:
+		case batch, ok := <-s.subscriptions.mergedSubs.output():
 			if !ok {
 				s.logger.Error("database subscription is closed")
 				return
@@ -262,7 +263,7 @@ func (s *subscribeWorker) start() {
 	}
 }
 
-func (s *subscribeWorker) onNodeChange() {
+func (s *subscribeWorker) monitorNodeChanges() {
 	newNodes := s.registry.OnNewNodes()
 	removedNodes := s.registry.OnRemovedNodes()
 	for {

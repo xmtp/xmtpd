@@ -400,9 +400,9 @@ func generateEnvelopes(
 		n := low + rand.Intn(high-low)
 
 		envs := make([]queries.InsertGatewayEnvelopeParams, n)
-		for j := range n {
-			// Sequence ID start at 1.
-			seqID := int64(j + 1)
+		for i := range n {
+			// Sequence IDs start at 1.
+			seqID := int64(i + 1)
 
 			oe := testutils.Marshal(
 				t,
@@ -414,7 +414,7 @@ func generateEnvelopes(
 				),
 			)
 
-			envs[j] = queries.InsertGatewayEnvelopeParams{
+			envs[i] = queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     id,
 				OriginatorSequenceID: seqID,
 				Topic:                topic.Bytes(),
@@ -480,7 +480,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		total += len(env)
 	}
 
-	// Subscribe to envelopes the node.
+	// Subscribe to envelopes from all nodes.
 	req := &message_api.SubscribeEnvelopesRequest{
 		Query: &message_api.EnvelopesQuery{
 			LastSeen: nil,

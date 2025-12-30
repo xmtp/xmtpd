@@ -150,7 +150,7 @@ type subscribeWorker struct {
 	// Keep track of known originators.
 	registry registry.NodeRegistry
 
-	// Poll envelopers per originator
+	// Poll envelopes per originator
 	subscriptions *subscriptionHandler
 
 	// Assumption: listeners cannot be in multiple slices
@@ -211,6 +211,7 @@ func startSubscribeWorker(
 		return nil, fmt.Errorf("could not get list of originators: %w", err)
 	}
 
+	// NOTE: This can be done in parallel.
 	for _, id := range nodeIDs {
 		err = worker.subscriptions.newSubscription(ctx, id)
 		if err != nil {
@@ -239,7 +240,7 @@ func (s *subscribeWorker) start() {
 		select {
 		case <-s.ctx.Done():
 			return
-		case batch, ok := <-s.subscriptions.mergedSubs.output():
+		case batch, ok := <-s.subscriptions.allSubscriptions():
 			if !ok {
 				s.logger.Error("database subscription is closed")
 				return

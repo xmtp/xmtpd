@@ -59,6 +59,7 @@ func NewJSONLog(t testing.TB) *zap.Logger {
 		level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	}
 
+	// test_log_testname_hhmmss.json
 	logName := fmt.Sprintf("test_log_%v_%v.json", t.Name(), time.Now().Format("150405"))
 
 	cfg := zap.NewDevelopmentConfig()

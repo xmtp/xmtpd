@@ -121,7 +121,7 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 		ch:     ch,
 	}
 
-	// Save the poller in the subscription worker.
+	// Save the poller in the subscription handler.
 	s.Lock()
 	defer s.Unlock()
 	s.subs[id] = e
@@ -136,7 +136,7 @@ func (s *subscriptionHandler) allSubscriptions() <-chan []queries.SelectGatewayE
 	s.Lock()
 	defer s.Unlock()
 
-	return s.mergedSubs.out
+	return s.mergedSubs.output()
 }
 
 func (s *subscriptionHandler) removeSubscription(id uint32) error {

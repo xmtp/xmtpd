@@ -135,6 +135,24 @@ func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
 	}
 }
 
+func createMockRegistry(t *testing.T, nodes []registry.Node) *mocks.MockNodeRegistry {
+	reg := mocks.NewMockNodeRegistry(t)
+
+	reg.EXPECT().GetNodes().Return(nodes, nil)
+
+	// Return a closed channel for new nodes (never blocks).
+	nch := make(chan []registry.Node)
+	close(nch)
+	reg.EXPECT().OnNewNodes().Return(nch).Maybe()
+
+	// Return a closed channel for removed nodes.
+	rch := make(chan []uint32)
+	close(rch)
+	reg.EXPECT().OnRemovedNodes().Return(rch).Maybe()
+
+	return reg
+}
+
 // NewTestAPIServer creates a full API server with all services.
 // It creates a mock database, mock registry, mock validation service, mock message publisher,
 // and mock API server.
@@ -153,7 +171,6 @@ func NewTestAPIServer(
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
 		db                    = db.NewDBHandler(sqlDB)
-		mockRegistry          = mocks.NewMockNodeRegistry(t)
 		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
@@ -167,7 +184,7 @@ func NewTestAPIServer(
 		{NodeID: 100, SigningKey: &privKey.PublicKey},
 	}, cfg.registryNodes...)
 
-	mockRegistry.EXPECT().GetNodes().Return(nodes, nil)
+	mockRegistry := createMockRegistry(t, nodes)
 
 	registrant, err := registrant.NewRegistrant(
 		ctx,

@@ -37,7 +37,11 @@ func setupTest(
 	t *testing.T,
 ) (message_apiconnect.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	var (
-		suite   = testUtilsApi.NewTestAPIServer(t)
+		nodes = []registry.Node{
+			{NodeID: 100},
+			{NodeID: 200},
+		}
+		suite   = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
 		payerID = db.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 

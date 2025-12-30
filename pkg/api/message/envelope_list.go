@@ -139,17 +139,15 @@ func (s *subscriptionHandler) allSubscriptions() <-chan []queries.SelectGatewayE
 	return s.mergedSubs.output()
 }
 
-func (s *subscriptionHandler) removeSubscription(id uint32) error {
+func (s *subscriptionHandler) removeSubscription(id uint32) {
 	s.Lock()
 	defer s.Unlock()
 
 	poller, ok := s.subs[id]
 	if !ok {
-		return nil
+		return
 	}
 
 	poller.cancel()
 	delete(s.subs, id)
-
-	return nil
 }

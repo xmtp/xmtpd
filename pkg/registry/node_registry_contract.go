@@ -43,7 +43,6 @@ type SmartContractRegistry struct {
 	nodesMutex sync.RWMutex
 	// Notifiers for new nodes and changed nodes
 	newNodesNotifier          *SingleNotificationNotifier[[]Node]
-	removedNodes              *SingleNotificationNotifier[[]uint32]
 	changedNodeNotifiers      map[uint32]*SingleNotificationNotifier[Node]
 	changedNodeNotifiersMutex sync.RWMutex
 	cancel                    context.CancelFunc
@@ -74,7 +73,6 @@ func NewSmartContractRegistry(
 		refreshInterval:      options.SettlementChain.NodeRegistryRefreshInterval,
 		logger:               logger.Named(utils.NodeRegistryWatchdogLoggerName),
 		newNodesNotifier:     newNotifier[[]Node](),
-		removedNodes:         newNotifier[[]uint32](),
 		nodes:                make(map[uint32]Node),
 		changedNodeNotifiers: make(map[uint32]*SingleNotificationNotifier[Node]),
 		cancel:               cancel,
@@ -103,10 +101,6 @@ func (s *SmartContractRegistry) Start() error {
 
 func (s *SmartContractRegistry) OnNewNodes() <-chan []Node {
 	return s.newNodesNotifier.register()
-}
-
-func (s *SmartContractRegistry) OnRemovedNodes() <-chan []uint32 {
-	return s.removedNodes.register()
 }
 
 func (s *SmartContractRegistry) OnChangedNode(
@@ -191,25 +185,6 @@ func (s *SmartContractRegistry) refreshData() error {
 
 	if len(newNodes) > 0 {
 		s.processNewNodes(newNodes)
-	}
-
-	// Check if we have any removed nodes.
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
-
-	var removed []uint32
-	for _, node := range s.nodes {
-		_, seen := seenNodes[node.NodeID]
-		if seen {
-			continue
-		}
-
-		delete(s.nodes, node.NodeID)
-		removed = append(removed, node.NodeID)
-	}
-
-	if len(removed) > 0 {
-		s.removedNodes.trigger(removed)
 	}
 
 	return nil

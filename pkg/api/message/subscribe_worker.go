@@ -150,15 +150,22 @@ func (s *subscribeWorker) start() {
 	}
 }
 
+// Monitor node changes so we keep track of new canonical originators.
+// We will spin up a new subscription goroutine for each new node.
 func (s *subscribeWorker) monitorNodeChanges() {
 	newNodes := s.registry.OnNewNodes()
-	removedNodes := s.registry.OnRemovedNodes()
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 
-		case nodes := <-newNodes:
+		case nodes, ok := <-newNodes:
+
+			if !ok {
+				s.logger.Info("registry notifier for new nodes closed")
+				return
+			}
+
 			for _, node := range nodes {
 
 				if !node.IsCanonical {
@@ -177,10 +184,6 @@ func (s *subscribeWorker) monitorNodeChanges() {
 						zap.Error(err),
 					)
 				}
-			}
-		case ids := <-removedNodes:
-			for _, id := range ids {
-				s.subscriptions.removeSubscription(id)
 			}
 		}
 	}

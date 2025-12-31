@@ -140,13 +140,9 @@ func createMockRegistry(t *testing.T, nodes []registry.Node) *mocks.MockNodeRegi
 
 	reg.EXPECT().GetNodes().Return(nodes, nil)
 
-	// Return a channel for new nodes..
-	nch := make(chan []registry.Node)
-	reg.EXPECT().OnNewNodes().Return(nch).Maybe()
-
-	// Return a channel for removed nodes.
-	rch := make(chan []uint32)
-	reg.EXPECT().OnRemovedNodes().Return(rch).Maybe()
+	// Return a channel for new nodes.
+	ch := make(chan []registry.Node)
+	reg.EXPECT().OnNewNodes().Return(ch).Maybe()
 
 	return reg
 }

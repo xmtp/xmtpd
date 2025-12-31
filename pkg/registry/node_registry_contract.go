@@ -159,26 +159,18 @@ func (s *SmartContractRegistry) refreshData() error {
 		return fmt.Errorf("could not load nodes from contract: %w", err)
 	}
 
-	var (
-		newNodes  []Node
-		seenNodes = make(map[uint32]struct{}) // Accounting of visited nodes
-	)
+	var newNodes []Node
 	for _, node := range fromContract {
 		// nodes realistically start at 100, but the contract fills the array with empty nodes
 		if !node.IsValidConfig {
 			continue
 		}
 
-		seenNodes[node.NodeID] = struct{}{}
-
 		existingValue, ok := s.nodes[node.NodeID]
 		if !ok {
 			// New node found
 			newNodes = append(newNodes, node)
-			continue
-		}
-
-		if !node.Equals(existingValue) {
+		} else if !node.Equals(existingValue) {
 			s.processChangedNode(node)
 		}
 	}

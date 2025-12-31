@@ -179,7 +179,7 @@ func NewTestAPIServer(
 	privKeyStr := "0x" + utils.HexEncode(crypto.FromECDSA(privKey))
 
 	nodes := append([]registry.Node{
-		{NodeID: 100, SigningKey: &privKey.PublicKey},
+		{NodeID: 100, SigningKey: &privKey.PublicKey, IsCanonical: true},
 	}, cfg.registryNodes...)
 
 	mockRegistry := createMockRegistry(t, nodes)

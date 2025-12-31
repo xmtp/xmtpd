@@ -51,10 +51,13 @@ func (s *subscribeWorker) getOriginatorNodeIds() ([]uint32, error) {
 
 	var nodeIDs []uint32
 	for _, node := range nodes {
-		// TODO: Check - this seems like a sane thing to do but requires updating tests.
-		// if !node.IsCanonical {
-		// 	continue
-		// }
+		if !node.IsCanonical {
+			s.logger.Debug(
+				"skipping non-canonical node",
+				utils.OriginatorIDField(node.NodeID),
+			)
+			continue
+		}
 
 		nodeIDs = append(nodeIDs, node.NodeID)
 	}
@@ -158,10 +161,13 @@ func (s *subscribeWorker) monitorNodeChanges() {
 		case nodes := <-newNodes:
 			for _, node := range nodes {
 
-				// TODO: Check - this seems like a sane thing to do but requires updating tests.
-				// if !node.IsCanonical {
-				// 	continue
-				// }
+				if !node.IsCanonical {
+					s.logger.Debug(
+						"skipping non-canonical node",
+						utils.OriginatorIDField(node.NodeID),
+					)
+					continue
+				}
 
 				err := s.subscriptions.newSubscription(s.ctx, node.NodeID)
 				if err != nil {

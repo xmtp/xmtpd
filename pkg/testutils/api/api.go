@@ -122,19 +122,49 @@ type APIServerTestSuite struct {
 	APIServerMocks    APIServerMocks
 }
 
+// APIServerTestConfig allows explicitly setting some components used for tests.
+type APIServerTestConfig struct {
+	registryNodes []registry.Node
+}
+
+type TestAPIOption func(*APIServerTestConfig)
+
+func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
+	return func(cfg *APIServerTestConfig) {
+		cfg.registryNodes = nodes
+	}
+}
+
+func createMockRegistry(t *testing.T, nodes []registry.Node) *mocks.MockNodeRegistry {
+	reg := mocks.NewMockNodeRegistry(t)
+
+	reg.EXPECT().GetNodes().Return(nodes, nil)
+
+	// Return a channel for new nodes.
+	ch := make(chan []registry.Node)
+	reg.EXPECT().OnNewNodes().Return(ch).Maybe()
+
+	return reg
+}
+
 // NewTestAPIServer creates a full API server with all services.
 // It creates a mock database, mock registry, mock validation service, mock message publisher,
 // and mock API server.
 // It returns the mock API server, mock database, and mock API server mocks.
 func NewTestAPIServer(
 	t *testing.T,
+	opts ...TestAPIOption,
 ) *APIServerTestSuite {
+	var cfg APIServerTestConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	var (
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
 		db                    = db.NewDBHandler(sqlDB)
-		mockRegistry          = mocks.NewMockNodeRegistry(t)
 		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
@@ -144,10 +174,11 @@ func NewTestAPIServer(
 
 	privKeyStr := "0x" + utils.HexEncode(crypto.FromECDSA(privKey))
 
-	// Mock registry behavior.
-	mockRegistry.EXPECT().GetNodes().Return([]registry.Node{
-		{NodeID: 100, SigningKey: &privKey.PublicKey},
-	}, nil)
+	nodes := append([]registry.Node{
+		{NodeID: 100, SigningKey: &privKey.PublicKey, IsCanonical: true},
+	}, cfg.registryNodes...)
+
+	mockRegistry := createMockRegistry(t, nodes)
 
 	registrant, err := registrant.NewRegistrant(
 		ctx,
@@ -176,6 +207,7 @@ func NewTestAPIServer(
 			ctx,
 			log,
 			registrant,
+			mockRegistry,
 			db,
 			mockValidationService,
 			metadata.NewCursorUpdater(ctx, log, db),

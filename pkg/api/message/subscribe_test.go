@@ -3,10 +3,14 @@ package message_test
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -14,9 +18,11 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	testregistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
@@ -31,7 +37,11 @@ func setupTest(
 	t *testing.T,
 ) (message_apiconnect.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
 	var (
-		suite   = testUtilsApi.NewTestAPIServer(t)
+		nodes = []registry.Node{
+			{NodeID: 100, IsCanonical: true},
+			{NodeID: 200, IsCanonical: true},
+		}
+		suite   = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
 		payerID = db.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 
@@ -365,4 +375,176 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 		connect.CodeOf(err),
 		"stream should close with InvalidArgument error",
 	)
+}
+
+func generateEnvelopes(
+	t *testing.T,
+	nodes []registry.Node,
+	low int,
+	high int,
+	payerID int32,
+	topic *topic.Topic,
+) map[int32][]queries.InsertGatewayEnvelopeParams {
+	t.Helper()
+
+	out := make(map[int32][]queries.InsertGatewayEnvelopeParams)
+
+	for _, node := range nodes {
+		id := int32(node.NodeID)
+
+		n := low + rand.Intn(high-low)
+
+		envs := make([]queries.InsertGatewayEnvelopeParams, n)
+		for i := range n {
+			// Sequence IDs start at 1.
+			seqID := int64(i + 1)
+
+			oe := testutils.Marshal(
+				t,
+				envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(
+					t,
+					uint32(id),
+					uint64(seqID),
+					topic.Bytes(),
+				),
+			)
+
+			envs[i] = queries.InsertGatewayEnvelopeParams{
+				OriginatorNodeID:     id,
+				OriginatorSequenceID: seqID,
+				Topic:                topic.Bytes(),
+				PayerID:              db.NullInt32(payerID),
+				OriginatorEnvelope:   oe,
+			}
+		}
+
+		out[id] = envs
+	}
+
+	return out
+}
+
+func saveEnvelopes(
+	t *testing.T,
+	store *sql.DB,
+	envelopes map[int32][]queries.InsertGatewayEnvelopeParams,
+) {
+	t.Helper()
+
+	for _, nodeEnvelopes := range envelopes {
+		testutils.InsertGatewayEnvelopes(t, store, nodeEnvelopes)
+	}
+}
+
+func generateNodes(t *testing.T, n int) []registry.Node {
+	out := make([]registry.Node, n)
+	for i := range n {
+		key, err := crypto.GenerateKey()
+		require.NoError(t, err)
+
+		// NOTE: Start node IDs from 1000 so we do not collide with nodes created elsewhere (starting at 100).
+		node := testregistry.GetHealthyNode(uint32(1000 + 100*i))
+		node.SigningKey = &key.PublicKey
+
+		out[i] = node
+	}
+
+	return out
+}
+
+func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
+	var (
+		nodes       = generateNodes(t, 4)
+		server      = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
+		ctx, cancel = context.WithCancel(t.Context())
+		payerID     = testutils.CreatePayer(t, server.DB)
+		subTopic    = topic.NewTopic(
+			topic.TopicKindGroupMessagesV1,
+			[]byte(fmt.Sprintf("generic-topic-%v", rand.Int())),
+		)
+
+		sourceEnvelopes = generateEnvelopes(t, nodes, 50, 100, payerID, subTopic)
+
+		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
+		keyID = func(nodeID int32, seqID int64) string {
+			return fmt.Sprintf("%v-%v", nodeID, seqID)
+		}
+	)
+	defer cancel()
+
+	// Check how many envelopes we have so we know how many to expect back.
+	total := 0
+	for id, env := range sourceEnvelopes {
+		t.Logf("generated %v envelopes for nodeID %v", len(env), id)
+		total += len(env)
+	}
+
+	// Subscribe to envelopes from all nodes.
+	req := &message_api.SubscribeEnvelopesRequest{
+		Query: &message_api.EnvelopesQuery{
+			LastSeen: nil,
+			Topics: [][]byte{
+				subTopic.Bytes(),
+			},
+		},
+	}
+
+	stream, err := server.ClientReplication.SubscribeEnvelopes(ctx, connect.NewRequest(req))
+	require.NoError(t, err)
+
+	// Insert envelopes which will be streamed.
+	saveEnvelopes(t, server.DB, sourceEnvelopes)
+
+	// Receive messages and do accounting.
+	var (
+		received_count = 0
+		received       = make(map[string]struct{})
+	)
+	for received_count < total {
+
+		ok := stream.Receive()
+		if !ok {
+			break
+		}
+
+		msg := stream.Msg()
+
+		for _, env := range msg.Envelopes {
+			received_count += 1
+
+			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+				t,
+				env.UnsignedOriginatorEnvelope,
+			)
+
+			received[keyID(int32(decoded.OriginatorNodeId), int64(decoded.OriginatorSequenceId))] = struct{}{}
+		}
+	}
+
+	cancel()
+
+	err = stream.Err()
+	require.Truef(
+		t,
+		err == nil || errors.Is(err, context.Canceled),
+		"unexpected stream error: %s, received %v/%v envelopes",
+		err,
+		received_count,
+		total,
+	)
+
+	require.Equal(t, total, received_count)
+
+	t.Logf("processed %v envelopes", received_count)
+
+	// Accounting - verify that query returned everything.
+	// Confirm simply that we got back all envelopes based on nodeID and seqID.
+	sent := make(map[string]struct{})
+	for _, envs := range sourceEnvelopes {
+		for _, env := range envs {
+			sent[keyID(env.OriginatorNodeID, env.OriginatorSequenceID)] = struct{}{}
+		}
+	}
+
+	require.Equal(t, sent, received)
 }

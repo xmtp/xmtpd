@@ -479,6 +479,7 @@ func startAPIServer(
 			svc.ctx,
 			cfg.Logger,
 			svc.registrant,
+			cfg.NodeRegistry,
 			cfg.DB,
 			svc.mlsValidation,
 			svc.cursorUpdater,

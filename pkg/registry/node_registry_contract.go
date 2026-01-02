@@ -159,12 +159,13 @@ func (s *SmartContractRegistry) refreshData() error {
 		return fmt.Errorf("could not load nodes from contract: %w", err)
 	}
 
-	newNodes := []Node{}
+	var newNodes []Node
 	for _, node := range fromContract {
 		// nodes realistically start at 100, but the contract fills the array with empty nodes
 		if !node.IsValidConfig {
 			continue
 		}
+
 		existingValue, ok := s.nodes[node.NodeID]
 		if !ok {
 			// New node found

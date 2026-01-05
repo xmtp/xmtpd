@@ -11,6 +11,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 
 	"connectrpc.com/connect"
@@ -68,6 +69,7 @@ func NewReplicationAPIService(
 	ctx context.Context,
 	logger *zap.Logger,
 	registrant *registrant.Registrant,
+	registry registry.NodeRegistry,
 	db *db.Handler,
 	validationService mlsvalidate.MLSValidationService,
 	updater metadata.CursorUpdater,
@@ -93,7 +95,7 @@ func NewReplicationAPIService(
 		return nil, err
 	}
 
-	subscribeWorker, err := startSubscribeWorker(ctx, logger, db)
+	subscribeWorker, err := startSubscribeWorker(ctx, logger, db, registry)
 	if err != nil {
 		logger.Error("could not start subscribe worker", zap.Error(err))
 		return nil, err

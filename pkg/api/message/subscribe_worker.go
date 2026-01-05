@@ -2,16 +2,16 @@ package message
 
 import (
 	"context"
-	"sync"
+	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
 )
 
 const (
@@ -22,207 +22,99 @@ const (
 	subscribeWorkerPollRows = 1000
 )
 
-type listener struct {
-	ctx         context.Context
-	ch          chan<- []*envelopes.OriginatorEnvelope
-	closed      bool
-	topics      map[string]struct{}
-	originators map[uint32]struct{}
-	isEmpty     bool
-}
-
-func newListener(
-	ctx context.Context,
-	logger *zap.Logger,
-	query *message_api.EnvelopesQuery,
-	ch chan<- []*envelopes.OriginatorEnvelope,
-) *listener {
-	l := &listener{
-		ctx:         ctx,
-		ch:          ch,
-		topics:      make(map[string]struct{}),
-		originators: make(map[uint32]struct{}),
-		isEmpty:     false,
-	}
-	topics := query.GetTopics()
-	originators := query.GetOriginatorNodeIds()
-
-	if len(topics) == 0 && len(originators) == 0 {
-		l.isEmpty = true
-		return l
-	}
-
-	for _, t := range topics {
-		validatedTopic, err := topic.ParseTopic(t)
-		if err != nil {
-			logger.Warn("skipping invalid topic", zap.Binary("topic_bytes", t))
-			continue
-		}
-		logger.Debug("adding topic listener", zap.String("topic", validatedTopic.String()))
-		l.topics[validatedTopic.String()] = struct{}{}
-	}
-
-	for _, originator := range originators {
-		l.originators[originator] = struct{}{}
-	}
-
-	return l
-}
-
-type listenerSet struct {
-	sync.Map // map[*listener]struct{}
-}
-
-func (ls *listenerSet) addListener(l *listener) {
-	ls.Store(l, struct{}{})
-}
-
-func (ls *listenerSet) removeListener(l *listener) {
-	ls.Delete(l)
-}
-
-func (ls *listenerSet) isEmpty() bool {
-	empty := true
-	ls.Range(func(_, _ any) bool {
-		empty = false
-		return false // stop iteration
-	})
-	return empty
-}
-
-// Maps from a key to a set of listeners
-type listenersMap[K comparable] struct {
-	data sync.Map     // map[K]*listenerSet
-	mu   sync.RWMutex // ensures mutations are consistent
-}
-
-func (lm *listenersMap[K]) addListener(keys map[K]struct{}, l *listener) {
-	lm.mu.RLock()
-	defer lm.mu.RUnlock()
-	for key := range keys {
-		value, _ := lm.data.LoadOrStore(key, &listenerSet{})
-		set := value.(*listenerSet)
-		set.addListener(l)
-	}
-}
-
-func (lm *listenersMap[K]) removeListener(keys map[K]struct{}, l *listener) {
-	lm.mu.Lock()
-	defer lm.mu.Unlock()
-	for key := range keys {
-		value, ok := lm.data.Load(key)
-		if !ok || value == nil {
-			return // Key doesn't exist, nothing to do
-		}
-		set := value.(*listenerSet)
-		set.removeListener(l)
-		if set.isEmpty() {
-			lm.data.Delete(key)
-		}
-	}
-}
-
-func (lm *listenersMap[K]) getListeners(key K) *listenerSet {
-	// No lock needed, because we are not mutating lm.data
-	if value, ok := lm.data.Load(key); ok {
-		return value.(*listenerSet)
-	}
-	return nil
-}
-
-func (lm *listenersMap[K]) rangeKeys(fn func(key K, listeners *listenerSet) bool) {
-	lm.data.Range(func(key, value any) bool {
-		return fn(key.(K), value.(*listenerSet))
-	})
-}
-
 // A worker that listens for new envelopes in the DB and sends them to subscribers
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
 // and may be dropped if full
 type subscribeWorker struct {
 	ctx    context.Context
 	logger *zap.Logger
+	store  *db.Handler
 
-	dbSubscription <-chan []queries.GatewayEnvelopesView
+	// Keep track of known originators.
+	registry registry.NodeRegistry
+
+	// Poll envelopes per originator
+	subscriptions *subscriptionHandler
+
 	// Assumption: listeners cannot be in multiple slices
 	emptyListeners      listenerSet
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
 }
 
+func (s *subscribeWorker) getOriginatorNodeIds() ([]uint32, error) {
+	// Get initial list of nodes.
+	nodes, err := s.registry.GetNodes()
+	if err != nil {
+		return nil, fmt.Errorf("could not get list of originators: %w", err)
+	}
+
+	var nodeIDs []uint32
+	for _, node := range nodes {
+		if !node.IsCanonical {
+			s.logger.Debug(
+				"skipping non-canonical node",
+				utils.OriginatorIDField(node.NodeID),
+			)
+			continue
+		}
+
+		nodeIDs = append(nodeIDs, node.NodeID)
+	}
+
+	return nodeIDs, nil
+}
+
 func startSubscribeWorker(
 	ctx context.Context,
 	logger *zap.Logger,
 	store *db.Handler,
+	registry registry.NodeRegistry,
 ) (*subscribeWorker, error) {
 	logger = logger.Named(utils.SubscribeWorkerLoggerName)
-	logger.Info("starting")
 
-	pollableQuery := func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
-		envs, err := store.ReadQuery().
-			SelectGatewayEnvelopesUnfiltered(
-				ctx,
-				*db.SetVectorClockUnfiltered(&queries.SelectGatewayEnvelopesUnfilteredParams{RowLimit: numRows}, lastSeen),
-			)
-		if err != nil {
-			logger.Error(
-				"failed to get envelopes",
-				zap.Error(err),
-				zap.Any("last_seen", lastSeen),
-			)
-			return nil, db.VectorClock{}, err
-		}
-		for _, env := range envs {
-			nodeID := uint32(env.OriginatorNodeID)
-			seqID := uint64(env.OriginatorSequenceID)
-
-			if last, ok := lastSeen[nodeID]; ok && seqID < last {
-				// 🛑 Hard crash: we must originate in order
-				// if you see this panic, DB cleanup is required
-				logger.Fatal("system invariant broken: unsorted envelope stream",
-					utils.SequenceIDField(int64(seqID)),
-					utils.OriginatorIDField(nodeID),
-					utils.LastSequenceIDField(int64(last)),
-				)
-			}
-
-			lastSeen[nodeID] = seqID
-		}
-		return envs, lastSeen, nil
-	}
-
-	vc, err := store.ReadQuery().SelectVectorClock(ctx)
+	latestEnvelopes, err := store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
 		logger.Error("failed to get vector clock", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("could not create subscribe worker: %w", err)
 	}
-
-	subscription := db.NewDBSubscription(
-		ctx,
-		logger,
-		pollableQuery,
-		db.ToVectorClock(vc),
-		db.PollingOptions{
-			Interval: SubscribeWorkerPollTime,
-			NumRows:  subscribeWorkerPollRows,
-		},
-	)
-
-	dbChan, err := subscription.Start()
-	if err != nil {
-		logger.Error("failed to start subscription", zap.Error(err))
-		return nil, err
-	}
+	vc := db.ToVectorClock(latestEnvelopes)
 
 	worker := &subscribeWorker{
 		ctx:                 ctx,
 		logger:              logger,
-		dbSubscription:      dbChan,
 		emptyListeners:      listenerSet{},
+		store:               store,
+		registry:            registry,
+		subscriptions:       newSubscriptionHandler(logger, store, vc),
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
 	}
 
+	nodeIDs, err := worker.getOriginatorNodeIds()
+	if err != nil {
+		logger.Error("failed to get list of originators", zap.Error(err))
+		return nil, fmt.Errorf("could not get list of originators: %w", err)
+	}
+
+	// NOTE: This can be done in parallel.
+	for _, id := range nodeIDs {
+		err = worker.subscriptions.newSubscription(ctx, id)
+		if err != nil {
+			logger.Error(
+				"could not create new subscription",
+				utils.OriginatorIDField(id),
+				zap.Error(err),
+			)
+			return nil, fmt.Errorf(
+				"could not create new subscription (originator: %v): %w",
+				id,
+				err,
+			)
+		}
+	}
+
+	go worker.monitorNodeChanges()
 	go worker.start()
 	logger.Debug("started")
 
@@ -234,13 +126,14 @@ func (s *subscribeWorker) start() {
 		select {
 		case <-s.ctx.Done():
 			return
-		case batch, ok := <-s.dbSubscription:
+		case batch, ok := <-s.subscriptions.allSubscriptions():
 			if !ok {
 				s.logger.Error("database subscription is closed")
 				return
 			}
 
 			s.logger.Debug("received new batch", utils.NumEnvelopesField(len(batch)))
+
 			envs := make([]*envelopes.OriginatorEnvelope, 0, len(batch))
 			for _, row := range batch {
 				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
@@ -253,6 +146,45 @@ func (s *subscribeWorker) start() {
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
 			s.dispatchToEmpties()
+		}
+	}
+}
+
+// Monitor node changes so we keep track of new canonical originators.
+// We will spin up a new subscription goroutine for each new node.
+func (s *subscribeWorker) monitorNodeChanges() {
+	newNodes := s.registry.OnNewNodes()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+
+		case nodes, ok := <-newNodes:
+
+			if !ok {
+				s.logger.Info("registry notifier for new nodes closed")
+				return
+			}
+
+			for _, node := range nodes {
+
+				if !node.IsCanonical {
+					s.logger.Debug(
+						"skipping non-canonical node",
+						utils.OriginatorIDField(node.NodeID),
+					)
+					continue
+				}
+
+				err := s.subscriptions.newSubscription(s.ctx, node.NodeID)
+				if err != nil {
+					s.logger.Error(
+						"could not add subscription for new node",
+						utils.OriginatorIDField(node.NodeID),
+						zap.Error(err),
+					)
+				}
+			}
 		}
 	}
 }

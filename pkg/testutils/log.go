@@ -1,9 +1,11 @@
 package testutils
 
 import (
-	"flag"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"go.uber.org/zap/zapcore"
 
@@ -11,20 +13,76 @@ import (
 	"go.uber.org/zap"
 )
 
-var debug bool
+const (
+	// Set log level for zap debugger used in tests. Default is 'debug' and can be quite noisy.
+	envLogLevel = "XMTP_TEST_LOG_LEVEL"
 
-func init() {
-	flag.BoolVar(&debug, "debug", false, "debug level logging in tests")
-}
+	// Disable stack trace in Zap for warn and above log levels. Since we test negative cases errors
+	// are expected and should not clutter test output.
+	envDisableStackTrace = "XMTP_TEST_DISABLE_STACK_TRACE"
+
+	// Write logs to a per-test JSON log file.
+	envFileLogger = "XMTP_TEST_FILE_LOGGER"
+)
+
+var (
+	logLevel          = os.Getenv(envLogLevel)
+	disableStackTrace = parseBoolConfig(os.Getenv(envDisableStackTrace))
+	logToFile         = parseBoolConfig(os.Getenv(envFileLogger))
+)
 
 func NewLog(t testing.TB) *zap.Logger {
-	cfg := zap.NewDevelopmentConfig()
-	if !debug {
-		cfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	if logToFile {
+		return NewJSONLog(t)
 	}
+
+	level, err := zap.ParseAtomicLevel(strings.ToLower(logLevel))
+	if err != nil {
+		// Default to debug log level.
+		level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	}
+
+	cfg := zap.NewDevelopmentConfig()
+	cfg.Level = level
+	cfg.DisableStacktrace = disableStackTrace
+
 	log, err := cfg.Build()
 	require.NoError(t, err)
+
 	return log
+}
+
+func NewJSONLog(t testing.TB) *zap.Logger {
+	level, err := zap.ParseAtomicLevel(strings.ToLower(logLevel))
+	if err != nil {
+		// Default to debug log level.
+		level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	}
+
+	// test_log_testname_hhmmss.json
+	logName := fmt.Sprintf("test_log_%v_%v.json", t.Name(), time.Now().Format("150405"))
+
+	cfg := zap.NewDevelopmentConfig()
+	cfg.Level = level
+	cfg.DisableCaller = disableStackTrace
+
+	cfg.Encoding = "json"
+	cfg.EncoderConfig = zap.NewProductionEncoderConfig()
+	cfg.OutputPaths = []string{logName}
+
+	log, err := cfg.Build()
+	require.NoError(t, err)
+
+	return log
+}
+
+func parseBoolConfig(str string) bool {
+	switch strings.ToLower(str) {
+	case "1", "true", "y", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 // CapturingWriteSyncer is a WriteSyncer that stores logs in memory.

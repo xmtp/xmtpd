@@ -286,3 +286,73 @@ func TestTemporaryDBError(t *testing.T) {
 	insertAdditionalRows(t, store)
 	validateUpdates(t, updates, ctxCancel)
 }
+
+func TestSubscriptionDeliversContiguousSequencesPerOriginator(t *testing.T) {
+	store, log := setup(t)
+
+	// Insert baseline seq=1 (already seen), and then seq=2 + seq=3
+	// but with gateway_time out of order:
+	// seq=3 has earlier gateway_time than seq=2.
+	now := time.Now()
+	seq3Earlier := now.Add(-10 * time.Second)
+	seq2Later := now.Add(-5 * time.Second)
+
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+		{
+			OriginatorNodeID:     100,
+			OriginatorSequenceID: 1,
+			Topic:                topicA,
+			OriginatorEnvelope:   []byte("envelope1"),
+			GatewayTime:          now,
+		},
+		{
+			OriginatorNodeID:     100,
+			OriginatorSequenceID: 2,
+			Topic:                topicA,
+			OriginatorEnvelope:   []byte("envelope2"),
+			GatewayTime:          seq2Later, // later
+		},
+		{
+			OriginatorNodeID:     100,
+			OriginatorSequenceID: 3,
+			Topic:                topicA,
+			OriginatorEnvelope:   []byte("envelope3"),
+			GatewayTime:          seq3Earlier, // earlier (should NOT come first)
+		},
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start polling at seq=1, 1 row per poll so we can observe ordering across batches.
+	sub := db.NewDBSubscription(
+		ctx,
+		log,
+		envelopesQuery(store),
+		db.VectorClock{100: 1},
+		db.PollingOptions{
+			Interval: 10 * time.Millisecond,
+			NumRows:  1,
+		},
+	)
+
+	updates, err := sub.Start()
+	require.NoError(t, err)
+
+	// Expect seq=2 then seq=3 (strictly increasing, no gaps).
+	// This is the correct behavior and must hold for vector-clock paging to be safe.
+
+	first := <-updates
+	require.Len(t, first, 1)
+	require.Equal(t, int32(100), first[0].OriginatorNodeID)
+	require.Equal(t, int64(2), first[0].OriginatorSequenceID,
+		"subscription must deliver the next sequence ID (2) first to avoid cursor skipping")
+	require.Equal(t, []byte("envelope2"), first[0].OriginatorEnvelope)
+
+	second := <-updates
+	require.Len(t, second, 1)
+	require.Equal(t, int32(100), second[0].OriginatorNodeID)
+	require.Equal(t, int64(3), second[0].OriginatorSequenceID,
+		"subscription must deliver sequence IDs contiguously (3 after 2)")
+	require.Equal(t, []byte("envelope3"), second[0].OriginatorEnvelope)
+}

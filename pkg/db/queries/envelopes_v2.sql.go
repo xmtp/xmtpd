@@ -92,7 +92,7 @@ WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence
                                      ON m.originator_node_id = c.cursor_node_id
                   WHERE m.originator_node_id = ANY ($3::INT[])
                     AND m.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-                  ORDER BY m.gateway_time, m.originator_node_id, m.originator_sequence_id
+                  ORDER BY m.originator_node_id, m.originator_sequence_id
                   LIMIT NULLIF($4::INT, 0))
 SELECT f.originator_node_id,
        f.originator_sequence_id,
@@ -187,7 +187,7 @@ WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence
                            WHERE c.cursor_node_id = m.originator_node_id)
 
          -- Do the ordering/limit on meta rows before touching blobs
-         ORDER BY gateway_time, originator_node_id, originator_sequence_id
+         ORDER BY originator_node_id, originator_sequence_id
          LIMIT NULLIF($3::INT, 0))
 SELECT f.originator_node_id,
        f.originator_sequence_id,

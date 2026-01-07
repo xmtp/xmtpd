@@ -109,7 +109,7 @@ func TestQueryPagedEnvelopes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	checkRowsMatchProtos(t, dbRows, []int{0, 1}, resp.Msg.Envelopes)
+	checkRowsMatchProtos(t, dbRows, []int{0, 4}, resp.Msg.Envelopes)
 }
 
 func TestQueryEnvelopesByOriginator(t *testing.T) {

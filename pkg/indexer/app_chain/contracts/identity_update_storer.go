@@ -129,7 +129,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 
 			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
 			if err != nil {
-				s.logger.Error(ErrParseClientEnvelope, zap.Error(err))
+				s.logger.Error(
+					ErrParseClientEnvelope,
+					utils.TopicField(messageTopic.String()),
+					zap.Error(err),
+				)
 				return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
 			}
 
@@ -140,7 +144,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 				clientEnvelope,
 			)
 			if err != nil {
-				s.logger.Error(ErrValidateIdentityUpdate, zap.Error(err))
+				s.logger.Error(
+					ErrValidateIdentityUpdate,
+					utils.TopicField(messageTopic.String()),
+					zap.Error(err),
+				)
 				return re.NewNonRecoverableError(ErrValidateIdentityUpdate, err)
 			}
 
@@ -169,6 +177,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 							utils.AddressField(address.EthereumAddress),
 							utils.InboxIDField(inboxID),
 							utils.SequenceIDField(int64(msgSent.SequenceId)),
+							utils.TopicField(messageTopic.String()),
 						)
 					}
 				}
@@ -199,6 +208,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 							"could not find address log entry to revoke",
 							utils.AddressField(address.EthereumAddress),
 							utils.InboxIDField(inboxID),
+							utils.TopicField(messageTopic.String()),
 						)
 					}
 				}
@@ -210,7 +220,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 				msgSent.Update,
 			)
 			if err != nil {
-				s.logger.Error(ErrBuildOriginatorEnvelope, zap.Error(err))
+				s.logger.Error(
+					ErrBuildOriginatorEnvelope,
+					utils.TopicField(messageTopic.String()),
+					zap.Error(err),
+				)
 				return re.NewNonRecoverableError(ErrBuildOriginatorEnvelope, err)
 			}
 
@@ -219,13 +233,21 @@ func (s *IdentityUpdateStorer) StoreLog(
 				event.TxHash,
 			)
 			if err != nil {
-				s.logger.Error(ErrBuildSignedOriginatorEnvelope, zap.Error(err))
+				s.logger.Error(
+					ErrBuildSignedOriginatorEnvelope,
+					utils.TopicField(messageTopic.String()),
+					zap.Error(err),
+				)
 				return re.NewNonRecoverableError(ErrBuildSignedOriginatorEnvelope, err)
 			}
 
 			originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
 			if err != nil {
-				s.logger.Error(ErrMarshallOriginatorEnvelope, zap.Error(err))
+				s.logger.Error(
+					ErrMarshallOriginatorEnvelope,
+					utils.TopicField(messageTopic.String()),
+					zap.Error(err),
+				)
 				return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 			}
 
@@ -241,7 +263,11 @@ func (s *IdentityUpdateStorer) StoreLog(
 				},
 			)
 			if err != nil {
-				s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
+				s.logger.Error(
+					ErrInsertEnvelopeFromSmartContract,
+					utils.TopicField(messageTopic.String()),
+					zap.Error(err),
+				)
 				return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 			}
 

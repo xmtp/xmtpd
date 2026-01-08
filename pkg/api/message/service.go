@@ -1031,12 +1031,10 @@ func (s *Service) waitForGatewayPublish(
 	for {
 		select {
 		case <-timeout:
-			if s.logger.Core().Enabled(zap.DebugLevel) {
-				logger.Debug(
-					"timeout waiting for publisher",
-					utils.LastProcessedField(s.publishWorker.lastProcessed.Load()),
-				)
-			}
+			logger.Warn(
+				"timeout waiting for publisher",
+				utils.LastProcessedField(s.publishWorker.lastProcessed.Load()),
+			)
 			return
 
 		case <-ctx.Done():

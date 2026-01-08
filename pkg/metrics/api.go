@@ -1,9 +1,10 @@
 package metrics
 
 import (
+	"time"
+
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
-	"time"
 )
 
 var apiOpenConnections = prometheus.NewGaugeVec(

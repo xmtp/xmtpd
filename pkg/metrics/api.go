@@ -3,6 +3,7 @@ package metrics
 import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
+	"time"
 )
 
 var apiOpenConnections = prometheus.NewGaugeVec(
@@ -85,4 +86,17 @@ func EmitNewConnectionRequestVersion(version string) {
 func EmitNewFailedGRPCRequest(code connect.Code) {
 	apiFailedGRPCRequestsCounter.With(prometheus.Labels{"code": code.String()}).
 		Inc()
+}
+
+var apiWaitForGatewayPublish = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "xmtp_api_wait_for_gateway_publish_seconds",
+		Help: "Time to publish a payload to the blockchain",
+	},
+)
+
+func EmitApiWaitForGatewayPublish(
+	duration time.Duration,
+) {
+	apiWaitForGatewayPublish.Observe(duration.Seconds())
 }

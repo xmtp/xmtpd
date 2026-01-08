@@ -2,10 +2,9 @@ package message
 
 import (
 	"context"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"sync/atomic"
 	"time"
-
-	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -117,6 +116,7 @@ func (p *publishWorker) start() {
 					time.Sleep(p.sleepOnFailureTime)
 				}
 				p.lastProcessed.Store(stagedEnv.ID)
+				metrics.EmitApiStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
 			}
 		}
 	}
@@ -267,8 +267,6 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		// Envelope was already deleted by another worker
 		logger.Debug("envelope already deleted")
 	}
-
-	metrics.EmitApiStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
 
 	return true
 }

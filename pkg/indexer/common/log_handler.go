@@ -79,7 +79,7 @@ func IndexLogs(
 				contract.Logger().Error("error updating block tracker", zap.Error(trackerErr))
 			}
 
-			metrics.EmitIndexerLogProcessingTime(time.Since(now))
+			metrics.EmitIndexerLogProcessingTime(contract.Address().Hex(), time.Since(now))
 		}
 	}
 }

@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"time"
+
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -85,4 +87,28 @@ func EmitNewConnectionRequestVersion(version string) {
 func EmitNewFailedGRPCRequest(code connect.Code) {
 	apiFailedGRPCRequestsCounter.With(prometheus.Labels{"code": code.String()}).
 		Inc()
+}
+
+var apiWaitForGatewayPublish = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "xmtp_api_wait_for_gateway_publish_seconds",
+		Help: "Time spend waiting for staging envelope handing",
+	},
+)
+
+func EmitApiWaitForGatewayPublish(
+	duration time.Duration,
+) {
+	apiWaitForGatewayPublish.Observe(duration.Seconds())
+}
+
+var apiStagedEnvelopeProcessingDelay = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "xmtp_api_staged_envelope_processing_delay_seconds",
+		Help: "Delay in seconds between receiving a staged envelope and processing it",
+	},
+)
+
+func EmitApiStagedEnvelopeProcessingDelay(duration time.Duration) {
+	apiStagedEnvelopeProcessingDelay.Observe(duration.Seconds())
 }

@@ -99,6 +99,8 @@ func registerCollectors(reg prometheus.Registerer) {
 		apiIncomingNodeConnectionByVersionGauge,
 		apiNodeConnectionRequestsByVersionCounter,
 		apiFailedGRPCRequestsCounter,
+		apiStagedEnvelopeProcessingDelay,
+		apiWaitForGatewayPublish,
 		grpcServerStartedTotal,
 		grpcServerHandledTotal,
 		grpcServerMsgReceivedTotal,

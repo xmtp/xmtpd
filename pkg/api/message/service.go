@@ -1023,6 +1023,10 @@ func (s *Service) waitForGatewayPublish(
 	}
 
 	startTime := time.Now()
+	defer func() {
+		metrics.EmitApiWaitForGatewayPublish(time.Since(startTime))
+	}()
+
 	timeout := time.After(30 * time.Second)
 
 	ticker := time.NewTicker(10 * time.Millisecond)

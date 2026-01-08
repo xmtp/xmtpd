@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/metrics"
+
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -115,6 +117,7 @@ func (p *publishWorker) start() {
 					time.Sleep(p.sleepOnFailureTime)
 				}
 				p.lastProcessed.Store(stagedEnv.ID)
+				metrics.EmitApiStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
 			}
 		}
 	}

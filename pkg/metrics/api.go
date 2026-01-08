@@ -92,7 +92,7 @@ func EmitNewFailedGRPCRequest(code connect.Code) {
 var apiWaitForGatewayPublish = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
 		Name: "xmtp_api_wait_for_gateway_publish_seconds",
-		Help: "Time to publish a payload to the blockchain",
+		Help: "Time spend waiting for staging envelope handing",
 	},
 )
 
@@ -100,4 +100,15 @@ func EmitApiWaitForGatewayPublish(
 	duration time.Duration,
 ) {
 	apiWaitForGatewayPublish.Observe(duration.Seconds())
+}
+
+var apiStagedEnvelopeProcessingDelay = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "xmtp_api_staged_envelope_processing_delay_seconds",
+		Help: "Delay in seconds between receiving a staged envelope and processing it",
+	},
+)
+
+func EmitApiStagedEnvelopeProcessingDelay(duration time.Duration) {
+	apiStagedEnvelopeProcessingDelay.Observe(duration.Seconds())
 }

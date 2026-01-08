@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/metrics"
+
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -265,6 +267,8 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		// Envelope was already deleted by another worker
 		logger.Debug("envelope already deleted")
 	}
+
+	metrics.EmitApiStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
 
 	return true
 }

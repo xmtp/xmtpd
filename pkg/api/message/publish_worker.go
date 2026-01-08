@@ -2,9 +2,10 @@ package message
 
 import (
 	"context"
-	"github.com/xmtp/xmtpd/pkg/metrics"
 	"sync/atomic"
 	"time"
+
+	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"

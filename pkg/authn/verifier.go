@@ -81,12 +81,12 @@ func (v *RegistryVerifier) getMatchingPublicKey(token *jwt.Token) (any, error) {
 
 	subjectNodeID, err := getSubjectNodeID(token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get subject node ID: %w", err)
 	}
 
 	node, err := v.registry.GetNode(subjectNodeID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get node %d from registry: %w", subjectNodeID, err)
 	}
 
 	return node.SigningKey, nil

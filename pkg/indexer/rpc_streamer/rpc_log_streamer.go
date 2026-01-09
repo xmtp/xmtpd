@@ -318,6 +318,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				metrics.EmitIndexerCurrentBlock(cfg.Address.Hex(), log.BlockNumber)
 				metrics.EmitIndexerNumLogsFound(cfg.Address.Hex(), 1)
 				metrics.EmitIndexerMaxBlock(cfg.Address.Hex(), log.BlockNumber)
+				metrics.EmitIndexerLogBytesIndexed(cfg.Address.Hex(), len(log.Data))
 
 				// TODO: Implement timelocking for logs in chains with lagFromHighestBlock > 0.
 
@@ -415,6 +416,12 @@ func (r *RPCLogStreamer) GetNextPage(
 
 	metrics.EmitIndexerCurrentBlock(contractAddress, toBlock)
 	metrics.EmitIndexerNumLogsFound(contractAddress, len(logs))
+
+	dataSize := 0
+	for _, log := range logs {
+		dataSize += len(log.Data)
+	}
+	metrics.EmitIndexerLogBytesIndexed(cfg.Address.Hex(), dataSize)
 
 	if toBlock+1 > highestBlock {
 		return GetNextPageResponse{

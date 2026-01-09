@@ -29,6 +29,7 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_gateway_lru_nonce` | `Gauge` | Least recently used blockchain nonce of the gateway (not guaranteed to be the highest nonce). | `pkg/metrics/payer.go` |
 | `xmtp_gateway_messages_originated` | `Counter` | Number of messages originated by the gateway. | `pkg/metrics/payer.go` |
 | `xmtp_gateway_publish_duration_seconds` | `Histogram` | Duration of the node publish call | `pkg/metrics/payer.go` |
+| `xmtp_indexer_bytes_indexer` | `Histogram` | Bytes indexed by the indexer | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_processing_time_seconds` | `Histogram` | Time to process a blockchain log | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_streamer_block_lag` | `Gauge` | Lag between current block and max block | `pkg/metrics/indexer.go` |
 | `xmtp_indexer_log_streamer_current_block` | `Gauge` | Current block being processed by the log streamer | `pkg/metrics/indexer.go` |

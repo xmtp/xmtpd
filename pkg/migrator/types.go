@@ -24,14 +24,6 @@ const (
 	CommitMessageOriginatorID  uint32 = 14
 )
 
-var originatorIDToTableName = map[uint32]string{
-	GroupMessageOriginatorID:   groupMessagesTableName,
-	WelcomeMessageOriginatorID: welcomeMessagesTableName,
-	InboxLogOriginatorID:       inboxLogTableName,
-	KeyPackagesOriginatorID:    keyPackagesTableName,
-	CommitMessageOriginatorID:  commitMessagesTableName,
-}
-
 func isValidOriginatorID(originatorID uint32) bool {
 	return originatorID == GroupMessageOriginatorID ||
 		originatorID == WelcomeMessageOriginatorID ||
@@ -250,7 +242,7 @@ type BroadcasterBatch struct {
 	identifierLength int
 }
 
-// BroadcasterMessage represents a single element of the Batch batch.
+// BroadcasterMessage represents a single element of the BroadcasterBatch.
 type BroadcasterMessage struct {
 	Identifier []byte
 	Payload    []byte

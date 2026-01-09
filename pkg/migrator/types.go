@@ -242,28 +242,29 @@ func (f FailureReason) ShouldRetry() bool {
 	}
 }
 
-// IdentityUpdateBatch defines a batch of identity updates to be published to the blockchain.
-type IdentityUpdateBatch struct {
-	inboxIDs        [][32]byte
-	identityUpdates [][]byte
-	sequenceIDs     []uint64
+// BroadcasterBatch defines a batch of messages to be published to the blockchain.
+type BroadcasterBatch struct {
+	identifiers      [][]byte
+	payloads         [][]byte
+	sequenceIDs      []uint64
+	identifierLength int
 }
 
-// IdentityUpdate represents a single element from the batch.
-type IdentityUpdate struct {
-	InboxID        [32]byte
-	IdentityUpdate []byte
-	SequenceID     uint64
+// BroadcasterMessage represents a single element of the Batch batch.
+type BroadcasterMessage struct {
+	Identifier []byte
+	Payload    []byte
+	SequenceID uint64
 }
 
 // All returns an iterator over all items in the batch.
-func (i *IdentityUpdateBatch) All() iter.Seq[IdentityUpdate] {
-	return func(yield func(IdentityUpdate) bool) {
-		for index := range i.inboxIDs {
-			if !yield(IdentityUpdate{
-				InboxID:        i.inboxIDs[index],
-				IdentityUpdate: i.identityUpdates[index],
-				SequenceID:     i.sequenceIDs[index],
+func (c *BroadcasterBatch) All() iter.Seq[BroadcasterMessage] {
+	return func(yield func(BroadcasterMessage) bool) {
+		for index := range c.identifiers {
+			if !yield(BroadcasterMessage{
+				Identifier: c.identifiers[index],
+				Payload:    c.payloads[index],
+				SequenceID: c.sequenceIDs[index],
 			}) {
 				return
 			}
@@ -271,99 +272,36 @@ func (i *IdentityUpdateBatch) All() iter.Seq[IdentityUpdate] {
 	}
 }
 
-func (i *IdentityUpdateBatch) Size() int64 {
+func (c *BroadcasterBatch) Size() int64 {
 	size := 0
 
-	for _, identityUpdate := range i.identityUpdates {
-		size += len(identityUpdate)
+	for _, payload := range c.payloads {
+		size += len(payload)
 	}
 
-	return int64(len(i.inboxIDs)*32 + size + len(i.sequenceIDs)*8)
+	return int64(len(c.identifiers)*c.identifierLength + size + len(c.sequenceIDs)*8)
 }
 
-func (i *IdentityUpdateBatch) LastSequenceID() uint64 {
-	if len(i.sequenceIDs) == 0 {
+func (c *BroadcasterBatch) LastSequenceID() uint64 {
+	if len(c.sequenceIDs) == 0 {
 		return 0
 	}
 
-	return i.sequenceIDs[len(i.sequenceIDs)-1]
+	return c.sequenceIDs[len(c.sequenceIDs)-1]
 }
 
-func (i *IdentityUpdateBatch) Add(inboxID [32]byte, payload []byte, sequenceID uint64) {
-	i.inboxIDs = append(i.inboxIDs, inboxID)
-	i.identityUpdates = append(i.identityUpdates, payload)
-	i.sequenceIDs = append(i.sequenceIDs, sequenceID)
+func (c *BroadcasterBatch) Add(identifier []byte, payload []byte, sequenceID uint64) {
+	c.identifiers = append(c.identifiers, identifier)
+	c.payloads = append(c.payloads, payload)
+	c.sequenceIDs = append(c.sequenceIDs, sequenceID)
 }
 
-func (i *IdentityUpdateBatch) Len() int {
-	return len(i.inboxIDs)
+func (c *BroadcasterBatch) Len() int {
+	return len(c.identifiers)
 }
 
-func (i *IdentityUpdateBatch) Reset() {
-	i.inboxIDs = nil
-	i.identityUpdates = nil
-	i.sequenceIDs = nil
-}
-
-// CommitMessageBatch defines a batch of commit messages to be published to the blockchain.
-type CommitMessageBatch struct {
-	groupIDs       [][16]byte
-	commitMessages [][]byte
-	sequenceIDs    []uint64
-}
-
-// CommitMessageBlockchain represents a single element of the CommitMessageBatch batch.
-type CommitMessageBlockchain struct {
-	GroupID       [16]byte
-	CommitMessage []byte
-	SequenceID    uint64
-}
-
-// All returns an iterator over all items in the batch.
-func (i *CommitMessageBatch) All() iter.Seq[CommitMessageBlockchain] {
-	return func(yield func(CommitMessageBlockchain) bool) {
-		for index := range i.groupIDs {
-			if !yield(CommitMessageBlockchain{
-				GroupID:       i.groupIDs[index],
-				CommitMessage: i.commitMessages[index],
-				SequenceID:    i.sequenceIDs[index],
-			}) {
-				return
-			}
-		}
-	}
-}
-
-func (i *CommitMessageBatch) Size() int64 {
-	size := 0
-
-	for _, commitMessage := range i.commitMessages {
-		size += len(commitMessage)
-	}
-
-	return int64(len(i.groupIDs)*16 + size + len(i.sequenceIDs)*8)
-}
-
-func (i *CommitMessageBatch) LastSequenceID() uint64 {
-	if len(i.sequenceIDs) == 0 {
-		return 0
-	}
-
-	return i.sequenceIDs[len(i.sequenceIDs)-1]
-}
-
-func (i *CommitMessageBatch) Add(groupID [16]byte, payload []byte, sequenceID uint64) {
-	i.groupIDs = append(i.groupIDs, groupID)
-	i.commitMessages = append(i.commitMessages, payload)
-	i.sequenceIDs = append(i.sequenceIDs, sequenceID)
-}
-
-func (i *CommitMessageBatch) Len() int {
-	return len(i.groupIDs)
-}
-
-func (i *CommitMessageBatch) Reset() {
-	i.groupIDs = nil
-	i.commitMessages = nil
-	i.sequenceIDs = nil
+func (c *BroadcasterBatch) Reset() {
+	c.identifiers = nil
+	c.payloads = nil
+	c.sequenceIDs = nil
 }

@@ -121,234 +121,17 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 	return nil
 }
 
-// insertOriginatorEnvelopeBlockchainUnary is a generic function that inserts an originator envelope into the blockchain.
-//
-//	On failure, it inserts a record into the migration dead letter box.
-func (w *Worker) insertOriginatorEnvelopeBlockchainUnary(
-	ctx context.Context,
-	logger *zap.Logger,
-	env *envelopes.OriginatorEnvelope,
-) re.RetryableError {
-	var (
-		identifier   = env.TargetTopic().Identifier()
-		sequenceID   = env.OriginatorSequenceID()
-		originatorID = env.OriginatorNodeID()
-	)
-
-	tableName, ok := originatorIDToTableName[originatorID]
-	if !ok {
-		return re.NewNonRecoverableError("", errors.New("invalid originator id"))
-	}
-
-	clientEnvelopeBytes, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.ClientEnvelope.Bytes()
-	if err != nil {
-		logger.Error("failed to get payer envelope bytes", zap.Error(err))
-		return re.NewNonRecoverableError("failed to get payer envelope bytes", err)
-	}
-
-	totalSize := len(clientEnvelopeBytes) + len(identifier) + 8
-
-	switch originatorID {
-	case CommitMessageOriginatorID:
-		groupID, err := utils.ParseGroupID(identifier)
-		if err != nil {
-			return re.NewNonRecoverableError("error converting identifier to group ID", err)
-		}
-
-		if totalSize > maxChainMessageSize {
-			err := insertMigrationDeadLetterBox(
-				ctx,
-				w.writer.Write(),
-				tableName,
-				int64(sequenceID),
-				groupID[:],
-				FailureOversizedChainMessage,
-			)
-			if err != nil {
-				// Ensure dead letter box is inserted before returning an error.
-				return re.NewRecoverableError("insert migration dead letter box failed", err)
-			}
-
-			logger.Warn(
-				"oversized commit message, skipped and added to dead letter box",
-				utils.GroupIDField(utils.HexEncode(groupID[:])),
-				utils.SequenceIDField(int64(sequenceID)),
-				zap.Int("size", totalSize),
-			)
-
-			// Return a non-recoverable error to ensure the message is not retried.
-			return re.NewNonRecoverableError(
-				"oversized commit message, skipped and added to dead letter box",
-				ErrDeadLetterBox,
-			)
-		}
-
-		_, err = w.blockchainPublisher.BootstrapGroupMessages(
-			ctx,
-			[][16]byte{groupID},
-			[][]byte{clientEnvelopeBytes},
-			[]uint64{sequenceID},
-		)
-		if err != nil {
-			// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
-			if strings.Contains(err.Error(), "NotPaused()") ||
-				strings.Contains(err.Error(), "NotPayloadBootstrapper()") {
-				return re.NewRecoverableError(
-					err.Error(),
-					err,
-				)
-			}
-
-			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
-				errInsert := insertMigrationDeadLetterBox(
-					ctx,
-					w.writer.Write(),
-					tableName,
-					int64(sequenceID),
-					groupID[:],
-					FailureOversizedChainMessage,
-				)
-				if errInsert != nil {
-					// Ensure dead letter box is inserted before returning an error.
-					return re.NewRecoverableError(
-						"invalid payload size, inserted migration dead letter box failed",
-						errInsert,
-					)
-				}
-
-				// Return a non-recoverable error to ensure the message is not retried.
-				return re.NewNonRecoverableError("invalid payload size", err)
-			}
-
-			// Transient errors - recoverable (timeout, network issues).
-			if strings.Contains(err.Error(), "timed out") ||
-				errors.Is(err, context.DeadlineExceeded) ||
-				errors.Is(err, context.Canceled) {
-				return re.NewRecoverableError("transient blockchain error", err)
-			}
-
-			// Unknown errors - default to recoverable.
-			return re.NewRecoverableError(
-				fmt.Sprintf("error publishing group message %d", sequenceID),
-				err,
-			)
-		}
-
-		err = w.writer.WriteQuery().
-			UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: int64(sequenceID),
-				SourceTable:    tableName,
-			})
-		if err != nil {
-			logger.Error("update migration progress failed", zap.Error(err))
-
-			// If we reached this point, the message has been published and the log emitted.
-			// Therefore, we can return a non-recoverable error to ensure the message is not retried.
-			return re.NewNonRecoverableError("update migration progress failed", err)
-		}
-
-		logger.Debug(
-			"published commit message",
-			utils.GroupIDField(utils.HexEncode(groupID[:])),
-			utils.SequenceIDField(int64(sequenceID)),
-		)
-
-	case InboxLogOriginatorID:
-		inboxID, err := utils.ParseInboxID(identifier)
-		if err != nil {
-			return re.NewNonRecoverableError("error converting identifier to inbox ID", err)
-		}
-
-		logger.Debug(
-			"publishing identity update",
-			utils.InboxIDField(utils.HexEncode(inboxID[:])),
-			utils.SequenceIDField(int64(sequenceID)),
-		)
-
-		_, err = w.blockchainPublisher.BootstrapIdentityUpdates(
-			ctx,
-			[][32]byte{inboxID},
-			[][]byte{clientEnvelopeBytes},
-			[]uint64{sequenceID},
-		)
-		if err != nil {
-			// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
-			if strings.Contains(err.Error(), "NotPaused()") ||
-				strings.Contains(err.Error(), "NotPayloadBootstrapper()") {
-				return re.NewRecoverableError(err.Error(), err)
-			}
-
-			if strings.Contains(err.Error(), "InvalidPayloadSize()") {
-				errInsert := insertMigrationDeadLetterBox(
-					ctx,
-					w.writer.Write(),
-					tableName,
-					int64(sequenceID),
-					inboxID[:],
-					FailureOversizedChainMessage,
-				)
-				if errInsert != nil {
-					// Ensure dead letter box is inserted before returning an error.
-					return re.NewRecoverableError(
-						"invalid payload size, inserted migration dead letter box failed",
-						errInsert,
-					)
-				}
-
-				// Return a non-recoverable error to ensure the message is not retried.
-				return re.NewNonRecoverableError("invalid payload size", err)
-			}
-
-			// Transient errors - recoverable (timeout, network issues).
-			if strings.Contains(err.Error(), "timed out") ||
-				errors.Is(err, context.DeadlineExceeded) ||
-				errors.Is(err, context.Canceled) {
-				return re.NewRecoverableError("transient blockchain error", err)
-			}
-
-			// Unknown errors - default to recoverable.
-			return re.NewRecoverableError(
-				fmt.Sprintf("error publishing identity update %d", sequenceID),
-				err,
-			)
-		}
-
-		err = w.writer.WriteQuery().
-			UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: int64(sequenceID),
-				SourceTable:    tableName,
-			})
-		if err != nil {
-			logger.Error("update migration progress failed", zap.Error(err))
-
-			// If we reached this point, the message has been published and the log emitted.
-			// Therefore, we can return a non-recoverable error to ensure the message is not retried.
-			return re.NewNonRecoverableError("update migration progress failed", err)
-		}
-
-		logger.Debug(
-			"published identity update",
-			utils.InboxIDField(utils.HexEncode(inboxID[:])),
-			utils.SequenceIDField(int64(sequenceID)),
-		)
-	}
-
-	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(env.OriginatorSequenceID()))
-
-	return nil
-}
-
 /* Commit messages bootstrap functions. */
 
-// flushCommitMessagesBatch handles the retry logic for the commit messages batch.
+// flushBroadcasterBatch handles the retry logic for publishing broadcaster batches.
 //
 //	It tries to bootstrap the batch in a single transaction.
-//	If batch fails, it retries the individual commit messages.
+//	If batch fails, it retries the individual messages.
 //	On individual retry failure, it inserts a record into the migration dead letter box.
-func (w *Worker) flushCommitMessagesBatch(
+func (w *Worker) flushBroadcasterBatch(
 	ctx context.Context,
 	logger *zap.Logger,
-	batch *CommitMessageBatch,
+	batch *BroadcasterBatch,
 ) error {
 	if batch.Len() == 0 {
 		return nil
@@ -357,10 +140,10 @@ func (w *Worker) flushCommitMessagesBatch(
 	err := retry(
 		ctx,
 		50*time.Millisecond,
-		commitMessagesTableName,
+		w.tableName,
 		destinationBlockchain,
 		func() re.RetryableError {
-			return w.bootstrapCommitMessages(ctx, logger, batch)
+			return w.bootstrapBatch(ctx, logger, batch)
 		},
 	)
 
@@ -373,22 +156,22 @@ func (w *Worker) flushCommitMessagesBatch(
 	}
 
 	logger.Warn(
-		"batch failed, retrying commit messages individually",
+		"batch failed, retrying messages individually",
 		zap.Error(err),
 		zap.Int("count", batch.Len()),
 	)
 
-	for commitMessage := range batch.All() {
+	for message := range batch.All() {
 		err := retry(
 			ctx,
 			50*time.Millisecond,
-			commitMessagesTableName,
+			w.tableName,
 			destinationBlockchain,
 			func() re.RetryableError {
-				return w.bootstrapCommitMessages(ctx, logger, &CommitMessageBatch{
-					groupIDs:       [][16]byte{commitMessage.GroupID},
-					commitMessages: [][]byte{commitMessage.CommitMessage},
-					sequenceIDs:    []uint64{commitMessage.SequenceID},
+				return w.bootstrapBatch(ctx, logger, &BroadcasterBatch{
+					identifiers: [][]byte{message.Identifier},
+					payloads:    [][]byte{message.Payload},
+					sequenceIDs: []uint64{message.SequenceID},
 				})
 			},
 		)
@@ -398,24 +181,24 @@ func (w *Worker) flushCommitMessagesBatch(
 
 		logger.Warn(
 			"individual retry failed, inserting into dead letter box",
-			utils.GroupIDField(utils.HexEncode(commitMessage.GroupID[:])),
-			utils.SequenceIDField(int64(commitMessage.SequenceID)),
+			utils.IdentifierField(utils.HexEncode(message.Identifier[:])),
+			utils.SequenceIDField(int64(message.SequenceID)),
 			zap.Error(err),
 		)
 
 		err = insertMigrationDeadLetterBox(
 			ctx,
 			w.writer.Write(),
-			commitMessagesTableName,
-			int64(commitMessage.SequenceID),
-			commitMessage.CommitMessage[:],
+			w.tableName,
+			int64(message.SequenceID),
+			message.Payload[:],
 			FailureBlockchainUndetermined,
 		)
 		if err != nil {
 			logger.Error(
 				"failed to insert migration dead letter box",
-				utils.GroupIDField(utils.HexEncode(commitMessage.GroupID[:])),
-				utils.SequenceIDField(int64(commitMessage.SequenceID)),
+				utils.IdentifierField(utils.HexEncode(message.Identifier[:])),
+				utils.SequenceIDField(int64(message.SequenceID)),
 				zap.Error(err),
 			)
 
@@ -427,25 +210,47 @@ func (w *Worker) flushCommitMessagesBatch(
 	return nil
 }
 
-// bootstrapCommitMessages bootstraps a batch of commit messages to the blockchain.
+// bootstrapBatch bootstraps a batch of messages to the blockchain.
 // On failure, it inserts a record into the migration dead letter box.
-func (w *Worker) bootstrapCommitMessages(
+func (w *Worker) bootstrapBatch(
 	ctx context.Context,
 	logger *zap.Logger,
-	batch *CommitMessageBatch,
+	batch *BroadcasterBatch,
 ) re.RetryableError {
 	// Should never happen.
-	if len(batch.groupIDs) != len(batch.commitMessages) ||
-		len(batch.groupIDs) != len(batch.sequenceIDs) {
+	if len(batch.identifiers) != len(batch.payloads) ||
+		len(batch.identifiers) != len(batch.sequenceIDs) {
 		return re.NewNonRecoverableError("array mismatch", errors.New("array mismatch"))
 	}
 
-	_, err := w.blockchainPublisher.BootstrapGroupMessages(
-		ctx,
-		batch.groupIDs,
-		batch.commitMessages,
-		batch.sequenceIDs,
-	)
+	var publishFn func(context.Context, [][]byte, [][]byte, []uint64) error
+
+	switch w.tableName {
+	case commitMessagesTableName:
+		publishFn = func(ctx context.Context, ids [][]byte, payloads [][]byte, seqs []uint64) error {
+			groupIDs := make([][16]byte, len(ids))
+			for i, id := range ids {
+				copy(groupIDs[i][:], id)
+			}
+			_, err := w.blockchainPublisher.BootstrapGroupMessages(ctx, groupIDs, payloads, seqs)
+			return err
+		}
+
+	case inboxLogTableName:
+		publishFn = func(ctx context.Context, ids [][]byte, payloads [][]byte, seqs []uint64) error {
+			inboxIDs := make([][32]byte, len(ids))
+			for i, id := range ids {
+				copy(inboxIDs[i][:], id)
+			}
+			_, err := w.blockchainPublisher.BootstrapIdentityUpdates(ctx, inboxIDs, payloads, seqs)
+			return err
+		}
+
+	default:
+		return re.NewNonRecoverableError("invalid table name", errors.New("invalid table name"))
+	}
+
+	err := publishFn(ctx, batch.identifiers, batch.payloads, batch.sequenceIDs)
 	if err != nil {
 		// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
 		if strings.Contains(err.Error(), "NotPaused()") ||
@@ -469,7 +274,7 @@ func (w *Worker) bootstrapCommitMessages(
 
 	err = w.writer.WriteQuery().UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
 		LastMigratedID: int64(batch.LastSequenceID()),
-		SourceTable:    commitMessagesTableName,
+		SourceTable:    w.tableName,
 	})
 	if err != nil {
 		logger.Error("update migration progress failed", zap.Error(err))
@@ -484,161 +289,6 @@ func (w *Worker) bootstrapCommitMessages(
 
 	logger.Debug(
 		"published commit message batch",
-		utils.LengthField(batch.Len()),
-		utils.SequenceIDField(int64(batch.LastSequenceID())),
-	)
-
-	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(batch.LastSequenceID()))
-
-	return nil
-}
-
-/* Identity updates bootstrap functions. */
-
-// flushIdentityUpdatesBatch handles the retry logic for the identity updates batch.
-//
-//	It tries to bootstrap the batch in a single transaction.
-//	If batch fails, it retries the individual identity updates.
-//	On individual retry failure, it inserts a record into the migration dead letter box.
-func (w *Worker) flushIdentityUpdatesBatch(
-	ctx context.Context,
-	logger *zap.Logger,
-	batch *IdentityUpdateBatch,
-) error {
-	if batch.Len() == 0 {
-		return nil
-	}
-
-	err := retry(
-		ctx,
-		50*time.Millisecond,
-		inboxLogTableName,
-		destinationBlockchain,
-		func() re.RetryableError {
-			return w.bootstrapIdentityUpdates(ctx, logger, batch)
-		},
-	)
-
-	if err == nil || errors.Is(err, ErrMigrationProgressUpdateFailed) {
-		return nil
-	}
-
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return err
-	}
-
-	logger.Warn(
-		"batch failed, retrying identity updates individually",
-		zap.Error(err),
-		zap.Int("count", batch.Len()),
-	)
-
-	for identityUpdate := range batch.All() {
-		err := retry(
-			ctx,
-			50*time.Millisecond,
-			inboxLogTableName,
-			destinationBlockchain,
-			func() re.RetryableError {
-				return w.bootstrapIdentityUpdates(ctx, logger, &IdentityUpdateBatch{
-					inboxIDs:        [][32]byte{identityUpdate.InboxID},
-					identityUpdates: [][]byte{identityUpdate.IdentityUpdate},
-					sequenceIDs:     []uint64{identityUpdate.SequenceID},
-				})
-			},
-		)
-		if err == nil {
-			continue
-		}
-
-		logger.Warn(
-			"individual retry failed, inserting into dead letter box",
-			utils.InboxIDField(utils.HexEncode(identityUpdate.InboxID[:])),
-			utils.SequenceIDField(int64(identityUpdate.SequenceID)),
-			zap.Error(err),
-		)
-
-		err = insertMigrationDeadLetterBox(
-			ctx,
-			w.writer.Write(),
-			inboxLogTableName,
-			int64(identityUpdate.SequenceID),
-			identityUpdate.InboxID[:],
-			FailureBlockchainUndetermined,
-		)
-		if err != nil {
-			logger.Error(
-				"failed to insert migration dead letter box",
-				utils.InboxIDField(utils.HexEncode(identityUpdate.InboxID[:])),
-				utils.SequenceIDField(int64(identityUpdate.SequenceID)),
-				zap.Error(err),
-			)
-
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-// bootstrapIdentityUpdates bootstraps a batch of identity updates to the blockchain.
-// On failure, it inserts a record into the migration dead letter box.
-func (w *Worker) bootstrapIdentityUpdates(
-	ctx context.Context,
-	logger *zap.Logger,
-	batch *IdentityUpdateBatch,
-) re.RetryableError {
-	// Should never happen.
-	if len(batch.inboxIDs) != len(batch.identityUpdates) ||
-		len(batch.inboxIDs) != len(batch.sequenceIDs) {
-		return re.NewNonRecoverableError("array mismatch", errors.New("array mismatch"))
-	}
-
-	_, err := w.blockchainPublisher.BootstrapIdentityUpdates(
-		ctx,
-		batch.inboxIDs,
-		batch.identityUpdates,
-		batch.sequenceIDs,
-	)
-	if err != nil {
-		// If the broadcaster reverts with NotPaused() or NotPayloadBootstrapper(), wait and try again until resolved.
-		if strings.Contains(err.Error(), "NotPaused()") ||
-			strings.Contains(err.Error(), "NotPayloadBootstrapper()") {
-			return re.NewRecoverableError(err.Error(), err)
-		}
-
-		// Transient errors - recoverable (timeout, network issues).
-		if strings.Contains(err.Error(), "timed out") ||
-			errors.Is(err, context.DeadlineExceeded) ||
-			errors.Is(err, context.Canceled) {
-			return re.NewRecoverableError("transient blockchain error", err)
-		}
-
-		// Unknown errors - default to recoverable.
-		return re.NewRecoverableError(
-			"error publishing identity update batch",
-			err,
-		)
-	}
-
-	err = w.writer.WriteQuery().UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-		LastMigratedID: int64(batch.LastSequenceID()),
-		SourceTable:    inboxLogTableName,
-	})
-	if err != nil {
-		logger.Error("update migration progress failed", zap.Error(err))
-
-		// If we reached this point, the message has been published and the log emitted.
-		// Therefore, we can return a non-recoverable error to ensure the message is not retried.
-		return re.NewNonRecoverableError(
-			"update migration progress failed",
-			ErrMigrationProgressUpdateFailed,
-		)
-	}
-
-	logger.Debug(
-		"published identity update batch",
 		utils.LengthField(batch.Len()),
 		utils.SequenceIDField(int64(batch.LastSequenceID())),
 	)

@@ -275,11 +275,6 @@ func (m *Migrator) Stop() error {
 		m.logger.Error("failed to close connection to source database", zap.Error(err))
 	}
 
-	// TODO: IMO migrator should not be the one closing the writer DB since it's not the one who opened it.
-	if err := m.target.Close(); err != nil {
-		m.logger.Error("failed to close connection to destination database", zap.Error(err))
-	}
-
 	m.logger.Info("migration service stopped")
 
 	return nil
@@ -378,7 +373,7 @@ func (m *Migrator) startCommitMessagesWorker() error {
 		return err
 	}
 
-	if err := commitMessagesWorker.StartBlockchainWriterCommitMessagesBatches(m.ctx); err != nil {
+	if err := commitMessagesWorker.StartBlockchainWriterBatch(m.ctx); err != nil {
 		return err
 	}
 
@@ -403,7 +398,7 @@ func (m *Migrator) startInboxLogWorker() error {
 		return err
 	}
 
-	if err := inboxLogWorker.StartBlockchainWriterIdentityUpdateBatches(m.ctx); err != nil {
+	if err := inboxLogWorker.StartBlockchainWriterBatch(m.ctx); err != nil {
 		return err
 	}
 

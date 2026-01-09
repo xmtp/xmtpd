@@ -196,6 +196,10 @@ func HashField(hash string) zap.Field {
 	return zap.String("hash", hash)
 }
 
+func IdentifierField(id string) zap.Field {
+	return zap.String("identifier", id)
+}
+
 func InboxIDField(inboxID string) zap.Field {
 	return zap.String("inbox_id", inboxID)
 }

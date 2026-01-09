@@ -373,117 +373,14 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 	return nil
 }
 
-func (w *Worker) StartBlockchainWriterUnary(ctx context.Context) error {
-	logger := w.logger.Named(utils.MigratorWriterLoggerName).
-		With(zap.String(tableField, w.tableName))
-
-	if w.blockchainPublisher == nil {
-		return errors.New("blockchain publisher is nil")
-	}
-
-	logger.Info("started")
-
-	tracing.GoPanicWrap(
-		ctx,
-		&w.wg,
-		fmt.Sprintf("writer-blockchain-%s", w.tableName),
-		func(ctx context.Context) {
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Debug(contextCancelledMessage)
-
-					return
-
-				case envelope, open := <-w.wrtrChan:
-					if !open {
-						logger.Debug(channelClosedMessage)
-
-						return
-					}
-
-					if envelope == nil {
-						continue
-					}
-
-					sequenceID := int64(envelope.OriginatorSequenceID())
-
-					err := metrics.MeasureWriterLatency(
-						w.tableName,
-						destinationBlockchain,
-						func() error {
-							return retry(
-								ctx,
-								50*time.Millisecond,
-								w.tableName,
-								destinationBlockchain,
-								func() re.RetryableError {
-									return w.insertOriginatorEnvelopeBlockchainUnary(
-										ctx,
-										logger,
-										envelope,
-									)
-								},
-							)
-						},
-					)
-					if err != nil {
-						if !errors.Is(err, ErrDeadLetterBox) {
-							logger.Error(
-								"error publishing blockchain message",
-								zap.Error(err),
-							)
-						}
-
-						metrics.EmitMigratorWriterError(
-							w.tableName,
-							destinationBlockchain,
-							err.Error(),
-						)
-
-						w.cleanupInflight(ctx, sequenceID)
-
-						continue
-					}
-
-					startTime, exists := w.isInflight(sequenceID)
-
-					if exists {
-						metrics.EmitMigratorE2ELatency(
-							w.tableName,
-							destinationBlockchain,
-							time.Since(startTime).Seconds(),
-						)
-					}
-
-					b, err := envelope.Bytes()
-					if err != nil {
-						logger.Warn("failed to marshal envelope", zap.Error(err))
-					} else {
-						metrics.EmitMigratorWriterBytesMigrated(w.tableName, destinationBlockchain, len(b))
-					}
-
-					metrics.EmitMigratorWriterRowsMigrated(w.tableName, 1)
-
-					metrics.EmitMigratorDestLastSequenceID(
-						w.tableName,
-						sequenceID,
-					)
-
-					w.cleanupInflight(ctx, sequenceID)
-				}
-			}
-		})
-
-	return nil
-}
-
-func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context) error {
+func (w *Worker) StartBlockchainWriterBatch(ctx context.Context) error {
 	logger := w.logger.Named(utils.MigratorWriterBatchLoggerName).
 		With(zap.String(tableField, w.tableName))
 
-	if w.tableName != commitMessagesTableName {
-		return errors.New("commit messages batches are only supported for commit messages table")
+	if w.tableName != commitMessagesTableName && w.tableName != inboxLogTableName {
+		return errors.New(
+			"broadcaster batches are only supported for commit messages and inbox log tables",
+		)
 	}
 
 	if w.blockchainPublisher == nil {
@@ -495,22 +392,34 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 	tracing.GoPanicWrap(
 		ctx,
 		&w.wg,
-		fmt.Sprintf("writer-commit-messages-batches-%s", w.tableName),
+		fmt.Sprintf("writer-batch-%s", w.tableName),
 		func(ctx context.Context) {
 			// Flush the batch every 250 milliseconds. Arbitrum Orbit L3 min block time.
 			ticker := time.NewTicker(250 * time.Millisecond)
 			defer ticker.Stop()
 
-			commitMessageBatch := &CommitMessageBatch{}
+			var batch *BroadcasterBatch
+
+			switch w.tableName {
+			case commitMessagesTableName:
+				batch = &BroadcasterBatch{
+					identifierLength: 16,
+				}
+
+			case inboxLogTableName:
+				batch = &BroadcasterBatch{
+					identifierLength: 32,
+				}
+			}
 
 			triggerBatchFlush := func() {
 				var (
-					batchLen            = commitMessageBatch.Len()
-					batchLastSequenceID = commitMessageBatch.LastSequenceID()
+					batchLen            = batch.Len()
+					batchLastSequenceID = batch.LastSequenceID()
 				)
 
 				logger.Info(
-					"publishing commit message batch",
+					"publishing broadcaster batch",
 					utils.LengthField(batchLen),
 					utils.SequenceIDField(int64(batchLastSequenceID)),
 				)
@@ -524,10 +433,10 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					w.tableName,
 					destinationBlockchain,
 					func() error {
-						return w.flushCommitMessagesBatch(
+						return w.flushBroadcasterBatch(
 							ctx,
 							logger,
-							commitMessageBatch,
+							batch,
 						)
 					},
 				)
@@ -539,8 +448,8 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					}
 
 					logger.Error(
-						"failed to publish commit message batch",
-						utils.LengthField(commitMessageBatch.Len()),
+						"failed to publish broadcaster batch",
+						utils.LengthField(batch.Len()),
 						utils.SequenceIDField(int64(batchLastSequenceID)),
 						zap.Error(err),
 					)
@@ -551,22 +460,22 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 						err.Error(),
 					)
 
-					for _, seqID := range commitMessageBatch.sequenceIDs {
+					for _, seqID := range batch.sequenceIDs {
 						w.cleanupInflight(ctx, int64(seqID))
 					}
 
-					commitMessageBatch.Reset()
+					batch.Reset()
 
 					return
 				}
 
 				logger.Info(
-					"commit message batch published successfully",
-					utils.LengthField(commitMessageBatch.Len()),
+					"broadcaster batch published successfully",
+					utils.LengthField(batch.Len()),
 					utils.SequenceIDField(int64(batchLastSequenceID)),
 				)
 
-				for item := range commitMessageBatch.All() {
+				for item := range batch.All() {
 					startTime, exists := w.isInflight(int64(item.SequenceID))
 
 					if exists {
@@ -580,7 +489,7 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					metrics.EmitMigratorWriterBytesMigrated(
 						w.tableName,
 						destinationBlockchain,
-						len(item.CommitMessage),
+						len(item.Payload),
 					)
 
 					metrics.EmitMigratorWriterRowsMigrated(w.tableName, 1)
@@ -593,7 +502,7 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					w.cleanupInflight(ctx, int64(item.SequenceID))
 				}
 
-				commitMessageBatch.Reset()
+				batch.Reset()
 			}
 
 			for {
@@ -604,7 +513,7 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					return
 
 				case <-ticker.C:
-					if commitMessageBatch.Len() <= 0 {
+					if batch.Len() <= 0 {
 						continue
 					}
 
@@ -614,11 +523,11 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					if !open {
 						logger.Debug(channelClosedMessage)
 
-						if commitMessageBatch.Len() <= 0 {
+						if batch.Len() <= 0 {
 							return
 						}
 
-						// Flush remaining commit messages before exiting.
+						// Flush remaining messages before exiting.
 						triggerBatchFlush()
 
 						return
@@ -629,7 +538,7 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 					}
 
 					// Prepare client envelope. On failure or oversized, insert into dead letter box.
-					clientEnvelopeBytes, identifier, sequenceID, err := w.prepareClientEnvelope(
+					clientEnvelope, identifier, sequenceID, err := w.prepareClientEnvelope(
 						ctx,
 						logger,
 						envelope,
@@ -646,241 +555,25 @@ func (w *Worker) StartBlockchainWriterCommitMessagesBatches(ctx context.Context)
 						continue
 					}
 
-					groupID, err := utils.ParseGroupID(identifier)
-					if err != nil {
-						logger.Warn(
-							"failed to parse group ID",
-							utils.GroupIDField(utils.HexEncode(identifier[:])),
-							utils.SequenceIDField(int64(sequenceID)),
-							zap.Error(err),
-						)
-
-						w.cleanupInflight(ctx, int64(envelope.OriginatorSequenceID()))
-
-						continue
-					}
-
-					// commits at this point can be up to 200KB.
-					commitSize := int64(len(clientEnvelopeBytes) + len(groupID) + 8)
+					// messages at this point can be up to 200KB.
+					messageSize := int64(len(clientEnvelope) + len(identifier) + 8)
 
 					// Only add an element if the resulting batch size is less than the threshold.
 					// Otherwise, flush the current batch and start a new one.
-					if commitMessageBatch.Size() > 0 &&
-						commitMessageBatch.Size()+commitSize >= maxBatchSize {
+					if batch.Size() > 0 &&
+						batch.Size()+messageSize >= maxBatchSize {
 						triggerBatchFlush()
 					}
 
 					// Add to batch.
-					commitMessageBatch.Add(
-						groupID,
-						clientEnvelopeBytes,
+					batch.Add(
+						identifier,
+						clientEnvelope,
 						sequenceID,
 					)
 
 					// This path triggers flushing only when the batch size exceeds the threshold.
-					if commitMessageBatch.Size() < maxBatchSize {
-						continue
-					}
-
-					triggerBatchFlush()
-				}
-			}
-		})
-
-	return nil
-}
-
-func (w *Worker) StartBlockchainWriterIdentityUpdateBatches(ctx context.Context) error {
-	logger := w.logger.Named(utils.MigratorWriterBatchLoggerName).
-		With(zap.String(tableField, w.tableName))
-
-	if w.tableName != inboxLogTableName {
-		return errors.New("identity update batches are only supported for inbox log table")
-	}
-
-	if w.blockchainPublisher == nil {
-		return errors.New("blockchain publisher is nil")
-	}
-
-	logger.Info("started")
-
-	tracing.GoPanicWrap(
-		ctx,
-		&w.wg,
-		fmt.Sprintf("writer-identity-update-batches-%s", w.tableName),
-		func(ctx context.Context) {
-			// Flush the batch every 250 milliseconds. Arbitrum Orbit L3 min block time.
-			ticker := time.NewTicker(250 * time.Millisecond)
-			defer ticker.Stop()
-
-			identityUpdateBatch := &IdentityUpdateBatch{}
-
-			triggerBatchFlush := func() {
-				var (
-					batchLen            = identityUpdateBatch.Len()
-					batchLastSequenceID = identityUpdateBatch.LastSequenceID()
-				)
-
-				logger.Info(
-					"publishing identity update batch",
-					utils.LengthField(batchLen),
-					utils.SequenceIDField(int64(batchLastSequenceID)),
-				)
-
-				// flushIdentityUpdatesBatch handles:
-				// 1. Batch insert attempt.
-				// 2. On batch failure: individual retries.
-				// 3. On individual failure: dead letter box insertion.
-				// It only returns an error on context cancellation.
-				err := metrics.MeasureWriterLatency(
-					w.tableName,
-					destinationBlockchain,
-					func() error {
-						return w.flushIdentityUpdatesBatch(
-							ctx,
-							logger,
-							identityUpdateBatch,
-						)
-					},
-				)
-				if err != nil {
-					if errors.Is(err, context.Canceled) ||
-						errors.Is(err, context.DeadlineExceeded) {
-						logger.Info(contextCancelledMessage)
-						return
-					}
-
-					logger.Error(
-						"failed to publish identity update batch",
-						utils.LengthField(identityUpdateBatch.Len()),
-						utils.SequenceIDField(int64(batchLastSequenceID)),
-						zap.Error(err),
-					)
-
-					metrics.EmitMigratorWriterError(
-						w.tableName,
-						destinationBlockchain,
-						err.Error(),
-					)
-
-					for _, seqID := range identityUpdateBatch.sequenceIDs {
-						w.cleanupInflight(ctx, int64(seqID))
-					}
-
-					identityUpdateBatch.Reset()
-
-					return
-				}
-
-				logger.Info(
-					"identity update batch published successfully",
-					utils.LengthField(identityUpdateBatch.Len()),
-					utils.SequenceIDField(int64(batchLastSequenceID)),
-				)
-
-				for item := range identityUpdateBatch.All() {
-					startTime, exists := w.isInflight(int64(item.SequenceID))
-
-					if exists {
-						metrics.EmitMigratorE2ELatency(
-							w.tableName,
-							destinationBlockchain,
-							time.Since(startTime).Seconds(),
-						)
-					}
-
-					metrics.EmitMigratorWriterBytesMigrated(
-						w.tableName,
-						destinationBlockchain,
-						len(item.IdentityUpdate),
-					)
-
-					metrics.EmitMigratorWriterRowsMigrated(w.tableName, 1)
-
-					metrics.EmitMigratorDestLastSequenceID(
-						w.tableName,
-						int64(item.SequenceID),
-					)
-
-					w.cleanupInflight(ctx, int64(item.SequenceID))
-				}
-
-				identityUpdateBatch.Reset()
-			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Debug(contextCancelledMessage)
-
-					return
-
-				case <-ticker.C:
-					if identityUpdateBatch.Len() <= 0 {
-						continue
-					}
-
-					triggerBatchFlush()
-
-				case envelope, open := <-w.wrtrChan:
-					if !open {
-						logger.Debug(channelClosedMessage)
-
-						if identityUpdateBatch.Len() <= 0 {
-							return
-						}
-
-						// Flush remaining identity updates before exiting.
-						triggerBatchFlush()
-
-						return
-					}
-
-					if envelope == nil {
-						continue
-					}
-
-					// Prepare client envelope. On failure or oversized, insert into dead letter box.
-					clientEnvelopeBytes, identifier, sequenceID, err := w.prepareClientEnvelope(
-						ctx,
-						logger,
-						envelope,
-						w.tableName,
-					)
-					if err != nil {
-						logger.Warn(
-							"envelope preparation failed, added to dead letter box",
-							zap.Error(err),
-						)
-
-						w.cleanupInflight(ctx, int64(envelope.OriginatorSequenceID()))
-
-						continue
-					}
-
-					inboxID, err := utils.ParseInboxID(identifier)
-					if err != nil {
-						logger.Warn(
-							"failed to parse inbox ID",
-							utils.InboxIDField(utils.HexEncode(identifier[:])),
-							utils.SequenceIDField(int64(sequenceID)),
-							zap.Error(err),
-						)
-
-						w.cleanupInflight(ctx, int64(envelope.OriginatorSequenceID()))
-
-						continue
-					}
-
-					// Add to batch.
-					identityUpdateBatch.Add(
-						inboxID,
-						clientEnvelopeBytes,
-						sequenceID,
-					)
-
-					// This path triggers flushing only when the batch size exceeds the threshold.
-					if identityUpdateBatch.Size() < maxBatchSize {
+					if batch.Size() < maxBatchSize {
 						continue
 					}
 

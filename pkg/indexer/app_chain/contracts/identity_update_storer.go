@@ -122,10 +122,12 @@ func (s *IdentityUpdateStorer) StoreLog(
 
 			messageTopic := topic.NewTopic(topic.TopicKindIdentityUpdatesV1, msgSent.InboxId[:])
 
-			s.logger.Debug(
-				"inserting identity update from contract",
-				utils.TopicField(messageTopic.String()),
-			)
+			if s.logger.Core().Enabled(zap.DebugLevel) {
+				s.logger.Debug(
+					"inserting identity update from contract",
+					utils.TopicField(messageTopic.String()),
+				)
+			}
 
 			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
 			if err != nil {

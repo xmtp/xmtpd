@@ -98,10 +98,12 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
 	}
 
-	s.logger.Debug(
-		"inserting message from contract",
-		utils.TopicField(topicStruct.String()),
-	)
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug(
+			"inserting message from contract",
+			utils.TopicField(topicStruct.String()),
+		)
+	}
 
 	_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,

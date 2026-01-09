@@ -72,6 +72,14 @@ var indexerLogProcessingTime = prometheus.NewHistogramVec(
 	[]string{"contract_address"},
 )
 
+var indexerLogBytesIndexed = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_indexer_bytes_indexer",
+		Help: "Bytes indexed by the indexer",
+	},
+	[]string{"contract_address"},
+)
+
 func EmitIndexerNumLogsFound(contractAddress string, numLogs int) {
 	indexerNumLogsFound.With(prometheus.Labels{"contract_address": contractAddress}).
 		Add(float64(numLogs))
@@ -85,6 +93,11 @@ func EmitIndexerCurrentBlock(contractAddress string, block uint64) {
 func EmitIndexerMaxBlock(contractAddress string, block uint64) {
 	indexerMaxBlock.With(prometheus.Labels{"contract_address": contractAddress}).
 		Set(float64(block))
+}
+
+func EmitIndexerLogBytesIndexed(contractAddress string, bytes int) {
+	indexerLogBytesIndexed.With(prometheus.Labels{"contract_address": contractAddress}).
+		Add(float64(bytes))
 }
 
 func EmitIndexerGetLogsDuration(contractAddress string, duration time.Duration) {

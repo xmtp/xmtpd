@@ -143,7 +143,7 @@ func (w *Worker) flushBroadcasterBatch(
 		w.tableName,
 		destinationBlockchain,
 		func() re.RetryableError {
-			return w.bootstrapBatch(ctx, logger, batch)
+			return w.bootstrapBatch(ctx, batch)
 		},
 	)
 
@@ -168,7 +168,7 @@ func (w *Worker) flushBroadcasterBatch(
 			w.tableName,
 			destinationBlockchain,
 			func() re.RetryableError {
-				return w.bootstrapBatch(ctx, logger, &BroadcasterBatch{
+				return w.bootstrapBatch(ctx, &BroadcasterBatch{
 					identifiers: [][]byte{message.Identifier},
 					payloads:    [][]byte{message.Payload},
 					sequenceIDs: []uint64{message.SequenceID},
@@ -214,7 +214,6 @@ func (w *Worker) flushBroadcasterBatch(
 // On failure, it inserts a record into the migration dead letter box.
 func (w *Worker) bootstrapBatch(
 	ctx context.Context,
-	logger *zap.Logger,
 	batch *BroadcasterBatch,
 ) re.RetryableError {
 	// Should never happen.
@@ -267,7 +266,7 @@ func (w *Worker) bootstrapBatch(
 
 		// Unknown errors - default to recoverable.
 		return re.NewRecoverableError(
-			"error publishing commit message batch",
+			"error publishing batch",
 			err,
 		)
 	}
@@ -277,8 +276,6 @@ func (w *Worker) bootstrapBatch(
 		SourceTable:    w.tableName,
 	})
 	if err != nil {
-		logger.Error("update migration progress failed", zap.Error(err))
-
 		// If we reached this point, the message has been published and the log emitted.
 		// Therefore, we can return a non-recoverable error to ensure the message is not retried.
 		return re.NewNonRecoverableError(
@@ -286,12 +283,6 @@ func (w *Worker) bootstrapBatch(
 			ErrMigrationProgressUpdateFailed,
 		)
 	}
-
-	logger.Debug(
-		"published commit message batch",
-		utils.LengthField(batch.Len()),
-		utils.SequenceIDField(int64(batch.LastSequenceID())),
-	)
 
 	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(batch.LastSequenceID()))
 

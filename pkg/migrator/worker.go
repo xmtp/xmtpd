@@ -419,12 +419,12 @@ func (w *Worker) StartBlockchainWriterBatch(ctx context.Context) error {
 				)
 
 				logger.Info(
-					"publishing broadcaster batch",
+					"publishing batch",
 					utils.LengthField(batchLen),
 					utils.SequenceIDField(int64(batchLastSequenceID)),
 				)
 
-				// flushCommitMessagesBatch handles:
+				// flushBroadcasterBatch handles:
 				// 1. Batch insert attempt.
 				// 2. On batch failure: individual retries.
 				// 3. On individual failure: dead letter box insertion.
@@ -448,7 +448,7 @@ func (w *Worker) StartBlockchainWriterBatch(ctx context.Context) error {
 					}
 
 					logger.Error(
-						"failed to publish broadcaster batch",
+						"failed to publish batch",
 						utils.LengthField(batch.Len()),
 						utils.SequenceIDField(int64(batchLastSequenceID)),
 						zap.Error(err),
@@ -470,7 +470,7 @@ func (w *Worker) StartBlockchainWriterBatch(ctx context.Context) error {
 				}
 
 				logger.Info(
-					"broadcaster batch published successfully",
+					"batch published successfully",
 					utils.LengthField(batch.Len()),
 					utils.SequenceIDField(int64(batchLastSequenceID)),
 				)

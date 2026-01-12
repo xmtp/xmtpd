@@ -1,3 +1,8 @@
+-- NOTE: In case two processes try to attach the same table as a partition,
+-- Postgres will return a "wrong object type" error (SQLSTATE 42809) with a message
+-- 'table X is already a partition'. However, the error code 42809 is not exclusive
+-- to this scenario, so we check message text as a more precise indicator.
+
 -- META: create LIST child for one originator, then make it RANGE-partitioned
 CREATE OR REPLACE FUNCTION make_meta_originator_part_v2(_oid int)
     RETURNS void AS $$
@@ -31,7 +36,14 @@ BEGIN
         ALTER TABLE %I DROP CONSTRAINT oid_check;',
         subname
     );
-
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLERRM ~ 'is already a partition' THEN
+            -- Do nothing.
+            NULL;
+        ELSE
+            RAISE;
+        END IF;
 END
 $$ LANGUAGE plpgsql;
 
@@ -70,7 +82,14 @@ BEGIN
         'ALTER TABLE %I DROP CONSTRAINT seq_id_check;',
         subname
     );
-
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLERRM ~ 'is already a partition' THEN
+            -- Do nothing.
+            NULL;
+        ELSE
+            RAISE;
+        END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -108,7 +127,14 @@ BEGIN
         ALTER TABLE %I DROP CONSTRAINT oid_check;',
         subname
     );
-
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLERRM ~ 'is already a partition' THEN
+            -- Do nothing.
+            NULL;
+        ELSE
+            RAISE;
+        END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -148,7 +174,14 @@ BEGIN
         'ALTER TABLE %I DROP CONSTRAINT seq_id_check;',
         subname
     );
-
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLERRM ~ 'is already a partition' THEN
+            -- Do nothing.
+            NULL;
+        ELSE
+            RAISE;
+        END IF;
 END;
 $$ LANGUAGE plpgsql;
 

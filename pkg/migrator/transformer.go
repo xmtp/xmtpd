@@ -132,6 +132,11 @@ func (t *Transformer) TransformInboxLog(
 		return nil, fmt.Errorf("inboxID is nil")
 	}
 
+	_, err := utils.ParseInboxID(inboxLog.InboxID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse inbox ID: %w", err)
+	}
+
 	if len(inboxLog.IdentityUpdateProto) <= 0 {
 		return nil, fmt.Errorf("identityUpdateProto is empty")
 	}
@@ -376,6 +381,11 @@ func transformGroupMessage(groupMessage *GroupMessage) (*proto.ClientEnvelope, e
 
 	if groupMessage.GroupID == nil {
 		return nil, fmt.Errorf("groupID is nil")
+	}
+
+	_, err := utils.ParseGroupID(groupMessage.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse group ID: %w", err)
 	}
 
 	if len(groupMessage.Data) <= 0 {

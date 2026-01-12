@@ -275,11 +275,6 @@ func (m *Migrator) Stop() error {
 		m.logger.Error("failed to close connection to source database", zap.Error(err))
 	}
 
-	// TODO: IMO migrator should not be the one closing the writer DB since it's not the one who opened it.
-	if err := m.target.Close(); err != nil {
-		m.logger.Error("failed to close connection to destination database", zap.Error(err))
-	}
-
 	m.logger.Info("migration service stopped")
 
 	return nil
@@ -295,15 +290,15 @@ func (m *Migrator) startKeyPackagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := keyPackagesWorker.startReader(m.ctx, m.readers[keyPackagesTableName]); err != nil {
+	if err := keyPackagesWorker.StartReader(m.ctx, m.readers[keyPackagesTableName]); err != nil {
 		return err
 	}
 
-	if err := keyPackagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+	if err := keyPackagesWorker.StartTransformer(m.ctx, m.transformer); err != nil {
 		return err
 	}
 
-	if err := keyPackagesWorker.startDatabaseWriter(m.ctx); err != nil {
+	if err := keyPackagesWorker.StartDatabaseWriter(m.ctx); err != nil {
 		return err
 	}
 
@@ -320,15 +315,15 @@ func (m *Migrator) startWelcomeMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := welcomeMessagesWorker.startReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
+	if err := welcomeMessagesWorker.StartReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
 		return err
 	}
 
-	if err := welcomeMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+	if err := welcomeMessagesWorker.StartTransformer(m.ctx, m.transformer); err != nil {
 		return err
 	}
 
-	if err := welcomeMessagesWorker.startDatabaseWriter(m.ctx); err != nil {
+	if err := welcomeMessagesWorker.StartDatabaseWriter(m.ctx); err != nil {
 		return err
 	}
 
@@ -345,15 +340,15 @@ func (m *Migrator) startGroupMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := groupMessagesWorker.startReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
+	if err := groupMessagesWorker.StartReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
 		return err
 	}
 
-	if err := groupMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+	if err := groupMessagesWorker.StartTransformer(m.ctx, m.transformer); err != nil {
 		return err
 	}
 
-	if err := groupMessagesWorker.startDatabaseWriter(m.ctx); err != nil {
+	if err := groupMessagesWorker.StartDatabaseWriter(m.ctx); err != nil {
 		return err
 	}
 
@@ -370,15 +365,15 @@ func (m *Migrator) startCommitMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := commitMessagesWorker.startReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
+	if err := commitMessagesWorker.StartReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
 		return err
 	}
 
-	if err := commitMessagesWorker.startTransformer(m.ctx, m.transformer); err != nil {
+	if err := commitMessagesWorker.StartTransformer(m.ctx, m.transformer); err != nil {
 		return err
 	}
 
-	if err := commitMessagesWorker.startBlockchainWriterUnary(m.ctx); err != nil {
+	if err := commitMessagesWorker.StartBlockchainWriterBatch(m.ctx); err != nil {
 		return err
 	}
 
@@ -395,15 +390,15 @@ func (m *Migrator) startInboxLogWorker() error {
 		m.pollInterval,
 	)
 
-	if err := inboxLogWorker.startReader(m.ctx, m.readers[inboxLogTableName]); err != nil {
+	if err := inboxLogWorker.StartReader(m.ctx, m.readers[inboxLogTableName]); err != nil {
 		return err
 	}
 
-	if err := inboxLogWorker.startTransformer(m.ctx, m.transformer); err != nil {
+	if err := inboxLogWorker.StartTransformer(m.ctx, m.transformer); err != nil {
 		return err
 	}
 
-	if err := inboxLogWorker.startBlockchainWriterIdentityUpdateBatches(m.ctx); err != nil {
+	if err := inboxLogWorker.StartBlockchainWriterBatch(m.ctx); err != nil {
 		return err
 	}
 

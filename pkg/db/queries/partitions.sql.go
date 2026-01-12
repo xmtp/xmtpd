@@ -10,7 +10,7 @@ import (
 )
 
 const ensureGatewayParts = `-- name: EnsureGatewayParts :exec
-SELECT ensure_gateway_parts(
+SELECT ensure_gateway_parts_v2(
                $1,
                $2,
                $3
@@ -56,7 +56,7 @@ func (q *Queries) InsertSavePointRollback(ctx context.Context) error {
 }
 
 const makeBlobOriginatorPart = `-- name: MakeBlobOriginatorPart :exec
-SELECT make_blob_originator_part($1)
+SELECT make_blob_originator_part_v2($1)
 `
 
 func (q *Queries) MakeBlobOriginatorPart(ctx context.Context, originatorNodeID int32) error {
@@ -65,7 +65,7 @@ func (q *Queries) MakeBlobOriginatorPart(ctx context.Context, originatorNodeID i
 }
 
 const makeBlobSeqBand = `-- name: MakeBlobSeqBand :exec
-SELECT make_blob_seq_subpart($1, $2, $3)
+SELECT make_blob_seq_subpart_v2($1, $2, $3)
 `
 
 type MakeBlobSeqBandParams struct {
@@ -80,7 +80,7 @@ func (q *Queries) MakeBlobSeqBand(ctx context.Context, arg MakeBlobSeqBandParams
 }
 
 const makeMetaOriginatorPart = `-- name: MakeMetaOriginatorPart :exec
-SELECT make_meta_originator_part($1)
+SELECT make_meta_originator_part_v2($1)
 `
 
 func (q *Queries) MakeMetaOriginatorPart(ctx context.Context, originatorNodeID int32) error {
@@ -89,7 +89,7 @@ func (q *Queries) MakeMetaOriginatorPart(ctx context.Context, originatorNodeID i
 }
 
 const makeMetaSeqBand = `-- name: MakeMetaSeqBand :exec
-SELECT make_meta_seq_subpart($1, $2, $3)
+SELECT make_meta_seq_subpart_v2($1, $2, $3)
 `
 
 type MakeMetaSeqBandParams struct {

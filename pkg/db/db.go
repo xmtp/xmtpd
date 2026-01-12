@@ -36,7 +36,7 @@ type Handler struct {
 }
 
 // NewDBHandler creates a new database handler with two database connections - a read-write and a read one.
-// If there's no exclusive read replica it can be ommitted and the write replica will be used.
+// If there's no exclusive read replica it can be omitted and the write replica will be used.
 func NewDBHandler(db *sql.DB, options ...HandlerOption) *Handler {
 	var cfg handlerConfig
 	for _, opt := range options {

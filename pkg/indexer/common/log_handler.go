@@ -21,16 +21,23 @@ func IndexLogs(
 	eventChannel <-chan types.Log,
 	contract IContract,
 ) {
+	lastProgressLogTime := time.Now()
+
 	for {
 		select {
 		case <-ctx.Done():
-			contract.Logger().Debug("indexLogs context cancelled, exiting log handler")
+			contract.Logger().Info("indexLogs context cancelled, exiting log handler")
 			return
 
 		case event, open := <-eventChannel:
 			if !open {
-				contract.Logger().Debug("indexLogs event channel closed, exiting log handler")
+				contract.Logger().Info("indexLogs event channel closed, exiting log handler")
 				return
+			}
+			if time.Since(lastProgressLogTime) > 5*time.Minute {
+				contract.Logger().
+					Info("Reached block number", utils.BlockNumberField(event.BlockNumber))
+				lastProgressLogTime = time.Now()
 			}
 
 			if IsUpdateProgressEvent(event) {

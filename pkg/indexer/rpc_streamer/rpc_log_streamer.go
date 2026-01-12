@@ -191,7 +191,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 		for {
 			select {
 			case <-r.ctx.Done():
-				logger.Error("context cancelled, stopping watcher")
+				logger.Info("context cancelled, stopping watcher")
 				return
 
 			case err := <-sub.Err():
@@ -199,7 +199,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 					continue
 				}
 
-				logger.Error("subscription error, rebuilding", zap.Error(err))
+				logger.Warn("subscription error, rebuilding", zap.Error(err))
 				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
 					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("max_disconnect_time", cfg.MaxDisconnectTime.String()))
@@ -223,7 +223,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 							cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
 						}
 
-						logger.Debug("backfill complete, switching to subscription")
+						logger.Info("backfill complete, switching to subscription")
 						break backfillLoop
 
 					case ErrReorg:
@@ -284,7 +284,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 		for {
 			select {
 			case <-r.ctx.Done():
-				logger.Error("context cancelled, stopping watcher")
+				logger.Info("context cancelled, stopping watcher")
 				return
 
 			case err := <-sub.Err():
@@ -292,7 +292,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 					continue
 				}
 
-				logger.Error("subscription error, rebuilding", zap.Error(err))
+				logger.Warn("subscription error, rebuilding", zap.Error(err))
 				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
 					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("max_disconnect_time", cfg.MaxDisconnectTime.String()))
@@ -303,7 +303,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 
 			case log, open := <-innerSubCh:
 				if !open {
-					logger.Error("subscription channel closed, closing watcher")
+					logger.Info("subscription channel closed, closing watcher")
 					return
 				}
 

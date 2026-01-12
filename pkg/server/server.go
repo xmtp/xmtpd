@@ -162,6 +162,7 @@ type BaseServer struct {
 	nodeRegistry registry.NodeRegistry
 
 	// Dependencies.
+	db                  *db.Handler
 	cursorUpdater       metadata.CursorUpdater
 	blockchainPublisher *blockchain.BlockchainPublisher
 	reportWorkers       *workers.WorkerWrapper
@@ -225,6 +226,7 @@ func NewBaseServer(
 		logger:       cfg.Logger,
 		nodeRegistry: cfg.NodeRegistry,
 		metrics:      metricsServer,
+		db:           cfg.DB,
 	}
 
 	svc.ctx, svc.cancel = context.WithCancel(cfg.Ctx)
@@ -606,6 +608,12 @@ func (s *BaseServer) Shutdown(timeout time.Duration) {
 	if s.migrator != nil {
 		if err := s.migrator.Stop(); err != nil {
 			s.logger.Error("failed to stop migator", zap.Error(err))
+		}
+	}
+
+	if s.db != nil {
+		if err := s.db.Close(); err != nil {
+			s.logger.Error("failed to close database connections", zap.Error(err))
 		}
 	}
 

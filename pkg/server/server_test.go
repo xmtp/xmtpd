@@ -333,21 +333,21 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 
 func TestCreateServer_AllOptionPermutations(t *testing.T) {
 	var (
-		ctx = t.Context()
-		dbs = testutils.NewDBs(t, ctx, 2)
+		ctx          = t.Context()
+		serverNodeID = server1NodeID
+
+		// Use a single registry port for all subtests – registry is shared.
+		registryPort = networkTestUtils.OpenFreePort(t)
 	)
 
-	privateKey1, err := crypto.GenerateKey()
+	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-
-	// Use a single registry port for all subtests – registry is shared.
-	registryPort := networkTestUtils.OpenFreePort(t)
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
-			server1NodeID,
+			serverNodeID,
 			registryPort,
-			privateKey1,
+			privateKey,
 		),
 	}
 
@@ -373,15 +373,18 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 		)
 
 		t.Run(name, func(t *testing.T) {
-			port := networkTestUtils.OpenFreePort(t)
+			var (
+				port  = networkTestUtils.OpenFreePort(t)
+				db, _ = testutils.NewDB(t, ctx)
+			)
 
 			server := serverTestUtils.NewTestBaseServer(
 				t,
 				serverTestUtils.TestServerCfg{
 					Port:             port,
-					DB:               dbs[0],
+					DB:               db.DB(),
 					Registry:         registry,
-					PrivateKey:       privateKey1,
+					PrivateKey:       privateKey,
 					ContractsOptions: contractsOptions,
 					Services:         services,
 				},

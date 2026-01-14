@@ -9,6 +9,7 @@
 package database
 
 import (
+	device_sync "github.com/xmtp/xmtpd/pkg/proto/device_sync"
 	message_contents "github.com/xmtp/xmtpd/pkg/proto/mls/message_contents"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -29,6 +30,7 @@ type Task struct {
 	// Types that are valid to be assigned to Task:
 	//
 	//	*Task_ProcessWelcomePointer
+	//	*Task_SendSyncArchive
 	Task          isTask_Task `protobuf_oneof:"task"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -80,6 +82,15 @@ func (x *Task) GetProcessWelcomePointer() *message_contents.WelcomePointer {
 	return nil
 }
 
+func (x *Task) GetSendSyncArchive() *SendSyncArchive {
+	if x != nil {
+		if x, ok := x.Task.(*Task_SendSyncArchive); ok {
+			return x.SendSyncArchive
+		}
+	}
+	return nil
+}
+
 type isTask_Task interface {
 	isTask_Task()
 }
@@ -88,16 +99,89 @@ type Task_ProcessWelcomePointer struct {
 	ProcessWelcomePointer *message_contents.WelcomePointer `protobuf:"bytes,1,opt,name=process_welcome_pointer,json=processWelcomePointer,proto3,oneof"`
 }
 
+type Task_SendSyncArchive struct {
+	SendSyncArchive *SendSyncArchive `protobuf:"bytes,2,opt,name=send_sync_archive,json=sendSyncArchive,proto3,oneof"`
+}
+
 func (*Task_ProcessWelcomePointer) isTask_Task() {}
+
+func (*Task_SendSyncArchive) isTask_Task() {}
+
+type SendSyncArchive struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Options       *device_sync.BackupOptions `protobuf:"bytes,1,opt,name=options,proto3" json:"options,omitempty"`
+	SyncGroupId   []byte                     `protobuf:"bytes,2,opt,name=sync_group_id,json=syncGroupId,proto3" json:"sync_group_id,omitempty"`
+	RequestId     *string                    `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendSyncArchive) Reset() {
+	*x = SendSyncArchive{}
+	mi := &file_mls_database_task_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendSyncArchive) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendSyncArchive) ProtoMessage() {}
+
+func (x *SendSyncArchive) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendSyncArchive.ProtoReflect.Descriptor instead.
+func (*SendSyncArchive) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SendSyncArchive) GetOptions() *device_sync.BackupOptions {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *SendSyncArchive) GetSyncGroupId() []byte {
+	if x != nil {
+		return x.SyncGroupId
+	}
+	return nil
+}
+
+func (x *SendSyncArchive) GetRequestId() string {
+	if x != nil && x.RequestId != nil {
+		return *x.RequestId
+	}
+	return ""
+}
 
 var File_mls_database_task_proto protoreflect.FileDescriptor
 
 const file_mls_database_task_proto_rawDesc = "" +
 	"\n" +
-	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a*mls/message_contents/welcome_pointer.proto\"s\n" +
+	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\xc5\x01\n" +
 	"\x04Task\x12c\n" +
-	"\x17process_welcome_pointer\x18\x01 \x01(\v2).xmtp.mls.message_contents.WelcomePointerH\x00R\x15processWelcomePointerB\x06\n" +
-	"\x04taskB\xb6\x01\n" +
+	"\x17process_welcome_pointer\x18\x01 \x01(\v2).xmtp.mls.message_contents.WelcomePointerH\x00R\x15processWelcomePointer\x12P\n" +
+	"\x11send_sync_archive\x18\x02 \x01(\v2\".xmtp.mls.database.SendSyncArchiveH\x00R\x0fsendSyncArchiveB\x06\n" +
+	"\x04task\"\xa3\x01\n" +
+	"\x0fSendSyncArchive\x129\n" +
+	"\aoptions\x18\x01 \x01(\v2\x1f.xmtp.device_sync.BackupOptionsR\aoptions\x12\"\n" +
+	"\rsync_group_id\x18\x02 \x01(\fR\vsyncGroupId\x12\"\n" +
+	"\n" +
+	"request_id\x18\x03 \x01(\tH\x00R\trequestId\x88\x01\x01B\r\n" +
+	"\v_request_idB\xb6\x01\n" +
 	"\x15com.xmtp.mls.databaseB\tTaskProtoP\x01Z,github.com/xmtp/xmtpd/pkg/proto/mls/database\xa2\x02\x03XMD\xaa\x02\x11Xmtp.Mls.Database\xca\x02\x11Xmtp\\Mls\\Database\xe2\x02\x1dXmtp\\Mls\\Database\\GPBMetadata\xea\x02\x13Xmtp::Mls::Databaseb\x06proto3"
 
 var (
@@ -112,18 +196,22 @@ func file_mls_database_task_proto_rawDescGZIP() []byte {
 	return file_mls_database_task_proto_rawDescData
 }
 
-var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_mls_database_task_proto_goTypes = []any{
 	(*Task)(nil),                            // 0: xmtp.mls.database.Task
-	(*message_contents.WelcomePointer)(nil), // 1: xmtp.mls.message_contents.WelcomePointer
+	(*SendSyncArchive)(nil),                 // 1: xmtp.mls.database.SendSyncArchive
+	(*message_contents.WelcomePointer)(nil), // 2: xmtp.mls.message_contents.WelcomePointer
+	(*device_sync.BackupOptions)(nil),       // 3: xmtp.device_sync.BackupOptions
 }
 var file_mls_database_task_proto_depIdxs = []int32{
-	1, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
+	1, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
+	3, // 2: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.BackupOptions
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_mls_database_task_proto_init() }
@@ -133,14 +221,16 @@ func file_mls_database_task_proto_init() {
 	}
 	file_mls_database_task_proto_msgTypes[0].OneofWrappers = []any{
 		(*Task_ProcessWelcomePointer)(nil),
+		(*Task_SendSyncArchive)(nil),
 	}
+	file_mls_database_task_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mls_database_task_proto_rawDesc), len(file_mls_database_task_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

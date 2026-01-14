@@ -142,3 +142,56 @@ WHERE v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
 ORDER BY v.originator_node_id,
          v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
+
+-- name: InsertGatewayEnvelopeBatch :one
+WITH input AS (
+  SELECT *
+  FROM unnest($1::gateway_envelope_row[])
+  AS t(
+    originator_node_id,
+    originator_sequence_id,
+    topic,
+    payer_id,
+    gateway_time,
+    expiry,
+    originator_envelope
+  )
+),
+m AS (
+  INSERT INTO gateway_envelopes_meta (
+    originator_node_id,
+    originator_sequence_id,
+    topic,
+    payer_id,
+    gateway_time,
+    expiry
+  )
+  SELECT
+    originator_node_id,
+    originator_sequence_id,
+    topic,
+    payer_id,
+    gateway_time,
+    expiry
+  FROM input
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+),
+b AS (
+  INSERT INTO gateway_envelope_blobs (
+    originator_node_id,
+    originator_sequence_id,
+    originator_envelope
+  )
+  SELECT
+    originator_node_id,
+    originator_sequence_id,
+    originator_envelope
+  FROM input
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+)
+SELECT
+  (SELECT COUNT(*) FROM m) AS inserted_meta_rows,
+  (SELECT COUNT(*) FROM b) AS inserted_blob_rows,
+  (SELECT COUNT(*) FROM m) + (SELECT COUNT(*) FROM b) AS total_inserted_rows;

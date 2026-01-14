@@ -78,6 +78,73 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 	return i, err
 }
 
+const insertGatewayEnvelopeBatch = `-- name: InsertGatewayEnvelopeBatch :one
+WITH input AS (
+  SELECT originator_node_id, originator_sequence_id, topic, payer_id, gateway_time, expiry, originator_envelope
+  FROM unnest($1::gateway_envelope_row[])
+  AS t(
+    originator_node_id,
+    originator_sequence_id,
+    topic,
+    payer_id,
+    gateway_time,
+    expiry,
+    originator_envelope
+  )
+),
+m AS (
+  INSERT INTO gateway_envelopes_meta (
+    originator_node_id,
+    originator_sequence_id,
+    topic,
+    payer_id,
+    gateway_time,
+    expiry
+  )
+  SELECT
+    originator_node_id,
+    originator_sequence_id,
+    topic,
+    payer_id,
+    gateway_time,
+    expiry
+  FROM input
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+),
+b AS (
+  INSERT INTO gateway_envelope_blobs (
+    originator_node_id,
+    originator_sequence_id,
+    originator_envelope
+  )
+  SELECT
+    originator_node_id,
+    originator_sequence_id,
+    originator_envelope
+  FROM input
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+)
+SELECT
+  (SELECT COUNT(*) FROM m) AS inserted_meta_rows,
+  (SELECT COUNT(*) FROM b) AS inserted_blob_rows,
+  (SELECT COUNT(*) FROM m) + (SELECT COUNT(*) FROM b) AS total_inserted_rows
+`
+
+type InsertGatewayEnvelopeBatchRow struct {
+	InsertedMetaRows  int64
+	InsertedBlobRows  int64
+	TotalInsertedRows int32
+}
+
+func (q *Queries) InsertGatewayEnvelopeBatch(ctx context.Context, dollar_1 []string) (InsertGatewayEnvelopeBatchRow, error) {
+	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeBatch, pq.Array(dollar_1))
+	var i InsertGatewayEnvelopeBatchRow
+	err := row.Scan(&i.InsertedMetaRows, &i.InsertedBlobRows, &i.TotalInsertedRows)
+	return i, err
+}
+
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
 WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
                  FROM unnest($1::INT[]) WITH ORDINALITY AS x(node_id, ord)

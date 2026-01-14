@@ -84,7 +84,7 @@ WITH input AS (
     a.originator_node_id,
     b.originator_sequence_id,
     c.topic,
-    d.payer_id,
+    NULLIF(d.payer_id, 0) AS payer_id,
     e.gateway_time,
     f.expiry,
     g.originator_envelope,

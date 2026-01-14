@@ -11,6 +11,15 @@ import (
 
 // InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage inserts a batch of gateway envelopes and
 // updates unsettled usage and congestion counters within a single database transaction.
+//
+// The input is an array of originator node IDs, sequence IDs, topics, payer IDs, gateway times,
+// expiries, originator envelopes, and spend picodollars.
+//
+// The sequenceIDs are expected to be strictly ascending per originator node ID.
+// Payers:
+//   - if not 0, they must exist.
+//   - if 0, they are treated as null, as it's nullable in gateway_envelopes_meta.
+//   - if 0, no unsettled usage is incremented.
 func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 	ctx context.Context,
 	db *sql.DB,
@@ -33,6 +42,21 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			"input array length mismatch: all arrays must have length %d",
 			inputLength,
 		)
+	}
+
+	// Deduplicate originator node IDs.
+	// Check that sequence IDs are sorted in ascending order.
+	// Save last sequence ID for each originator node.
+	seen := make(map[int32]int64)
+	for i, nodeID := range input.OriginatorNodeIds {
+		seqID := input.OriginatorSequenceIds[i]
+		if lastSeq, exists := seen[nodeID]; exists && seqID <= lastSeq {
+			return 0, fmt.Errorf(
+				"originator %d: sequence IDs must be strictly ascending (got %d after %d)",
+				nodeID, seqID, lastSeq,
+			)
+		}
+		seen[nodeID] = seqID
 	}
 
 	return RunInTxWithResult(
@@ -67,20 +91,12 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				return 0, err
 			}
 
-			// Deduplicate originator node IDs.
-			seen := make(map[int32]int64)
-			for i, nodeID := range input.OriginatorNodeIds {
-				if input.OriginatorSequenceIds[i] > seen[nodeID] {
-					seen[nodeID] = input.OriginatorSequenceIds[i]
-				}
-			}
-
 			// Ensure the gateway parts for the originator nodes.
 			for nodeID, seqID := range seen {
 				err = txQueries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 					OriginatorNodeID:     nodeID,
 					OriginatorSequenceID: seqID,
-					BandWidth:            1_000_000,
+					BandWidth:            GatewayEnvelopeBandWidth,
 				})
 				if err != nil {
 					return 0, fmt.Errorf("ensure gateway parts: %w", err)

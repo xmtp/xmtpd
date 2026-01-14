@@ -315,11 +315,10 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	q := queries.New(db)
 
 	const nodeID int32 = 99
-	const bw int64 = 1_000_000
 
 	// Sequence values straddling a band boundary:
-	seqLeft := bw - 1 // falls into band [0, bw)
-	seqRight := bw    // falls into band [bw, 2*bw)
+	seqLeft := xmtpd_db.GatewayEnvelopeBandWidth - 1 // falls into band [0, bw)
+	seqRight := xmtpd_db.GatewayEnvelopeBandWidth    // falls into band [bw, 2*bw)
 
 	_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
@@ -477,7 +476,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_PreexistingPartitions(t *testing.T) {
 	err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     nodeID,
 		OriginatorSequenceID: seqID,
-		BandWidth:            1_000_000,
+		BandWidth:            xmtpd_db.GatewayEnvelopeBandWidth,
 	})
 	require.NoError(t, err)
 
@@ -507,11 +506,10 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	}(tx)
 
 	const nodeID int32 = 99
-	const bw int64 = 1_000_000
 
 	// Sequence values straddling a band boundary:
-	seqLeft := bw - 1 // falls into band [0, bw)
-	seqRight := bw    // falls into band [bw, 2*bw)
+	seqLeft := xmtpd_db.GatewayEnvelopeBandWidth - 1 // falls into band [0, bw)
+	seqRight := xmtpd_db.GatewayEnvelopeBandWidth    // falls into band [bw, 2*bw)
 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
 		ctx,

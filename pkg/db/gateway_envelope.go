@@ -121,7 +121,7 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 	err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     row.OriginatorNodeID,
 		OriginatorSequenceID: row.OriginatorSequenceID,
-		BandWidth:            1_000_000,
+		BandWidth:            GatewayEnvelopeBandWidth,
 	})
 	if err != nil {
 		return queries.InsertGatewayEnvelopeRow{}, err
@@ -159,7 +159,7 @@ func InsertGatewayEnvelopeWithChecksStandalone(
 	err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     row.OriginatorNodeID,
 		OriginatorSequenceID: row.OriginatorSequenceID,
-		BandWidth:            1_000_000,
+		BandWidth:            GatewayEnvelopeBandWidth,
 	})
 	if err != nil {
 		return queries.InsertGatewayEnvelopeRow{}, err

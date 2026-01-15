@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db/types"
 )
 
 // InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage inserts a batch of gateway envelopes and
@@ -23,41 +25,22 @@ import (
 func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 	ctx context.Context,
 	db *sql.DB,
-	input queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams,
+	input []types.GatewayEnvelopeRow,
 ) (int64, error) {
-	inputLength := len(input.OriginatorNodeIds)
-
-	if inputLength == 0 {
-		return 0, nil
+	if len(input) == 0 {
+		return 0, fmt.Errorf("empty input")
 	}
 
-	if len(input.OriginatorSequenceIds) != inputLength ||
-		len(input.Topics) != inputLength ||
-		len(input.PayerIds) != inputLength ||
-		len(input.GatewayTimes) != inputLength ||
-		len(input.Expiries) != inputLength ||
-		len(input.OriginatorEnvelopes) != inputLength ||
-		len(input.SpendPicodollars) != inputLength {
-		return 0, fmt.Errorf(
-			"input array length mismatch: all arrays must have length %d",
-			inputLength,
-		)
-	}
-
-	// Deduplicate originator node IDs.
-	// Check that sequence IDs are sorted in ascending order.
-	// Save last sequence ID for each originator node.
-	seen := make(map[int32]int64)
-	for i, nodeID := range input.OriginatorNodeIds {
-		seqID := input.OriginatorSequenceIds[i]
-		if lastSeq, exists := seen[nodeID]; exists && seqID <= lastSeq {
-			return 0, fmt.Errorf(
-				"originator %d: sequence IDs must be strictly ascending (got %d after %d)",
-				nodeID, seqID, lastSeq,
-			)
+	// Order by originator sequence ID ascending for each originator node.
+	slices.SortFunc(input, func(a, b types.GatewayEnvelopeRow) int {
+		if a.OriginatorSequenceID < b.OriginatorSequenceID {
+			return -1
 		}
-		seen[nodeID] = seqID
-	}
+		if a.OriginatorSequenceID > b.OriginatorSequenceID {
+			return 1
+		}
+		return 0
+	})
 
 	return RunInTxWithResult(
 		ctx,
@@ -92,10 +75,10 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			}
 
 			// Ensure the gateway parts for the originator nodes.
-			for i, nodeID := range input.OriginatorNodeIds {
+			for _, envelope := range input {
 				err = txQueries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
-					OriginatorNodeID:     nodeID,
-					OriginatorSequenceID: input.OriginatorSequenceIds[i],
+					OriginatorNodeID:     envelope.OriginatorNodeID,
+					OriginatorSequenceID: envelope.OriginatorSequenceID,
 					BandWidth:            GatewayEnvelopeBandWidth,
 				})
 				if err != nil {

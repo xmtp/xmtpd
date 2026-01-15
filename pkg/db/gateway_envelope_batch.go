@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/db/types"
@@ -42,6 +43,8 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		return 0
 	})
 
+	params := toParallelArrays(input)
+
 	return RunInTxWithResult(
 		ctx,
 		db,
@@ -56,7 +59,7 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			// Optimistically insert the envelopes and increment the unsettled usage.
 			result, err := txQueries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
-				input,
+				params,
 			)
 			if err == nil {
 				_ = txQueries.InsertSavePointRelease(ctx)
@@ -89,7 +92,7 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			// Retry the insert.
 			result, err = txQueries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
-				input,
+				params,
 			)
 			if err != nil {
 				return 0, fmt.Errorf(
@@ -101,4 +104,35 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			return result.InsertedMetaRows, nil
 		},
 	)
+}
+
+// toParallelArrays converts a slice of GatewayEnvelopeRow to parallel arrays.
+func toParallelArrays(
+	input []types.GatewayEnvelopeRow,
+) queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams {
+	n := len(input)
+
+	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
+		OriginatorNodeIds:     make([]int32, n),
+		OriginatorSequenceIds: make([]int64, n),
+		Topics:                make([][]byte, n),
+		PayerIds:              make([]int32, n),
+		GatewayTimes:          make([]time.Time, n),
+		Expiries:              make([]int64, n),
+		OriginatorEnvelopes:   make([][]byte, n),
+		SpendPicodollars:      make([]int64, n),
+	}
+
+	for i, row := range input {
+		params.OriginatorNodeIds[i] = row.OriginatorNodeID
+		params.OriginatorSequenceIds[i] = row.OriginatorSequenceID
+		params.Topics[i] = row.Topic
+		params.PayerIds[i] = row.PayerID
+		params.GatewayTimes[i] = row.GatewayTime
+		params.Expiries[i] = row.Expiry
+		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
+		params.SpendPicodollars[i] = row.SpendPicodollars
+	}
+
+	return params
 }

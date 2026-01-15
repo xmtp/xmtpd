@@ -148,4 +148,13 @@ SELECT
     inserted_meta_rows::bigint,
     inserted_blob_rows::bigint,
     affected_usage_rows::bigint
-FROM insert_gateway_envelope_batch(@envelopes::gateway_envelope_row[]);
+FROM insert_gateway_envelope_batch(
+    @originator_node_ids::int[],
+    @originator_sequence_ids::bigint[],
+    @topics::bytea[],
+    @payer_ids::int[],
+    @gateway_times::timestamp[],
+    @expiries::bigint[],
+    @originator_envelopes::bytea[],
+    @spend_picodollars::bigint[]
+);

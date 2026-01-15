@@ -1,17 +1,12 @@
-CREATE TYPE gateway_envelope_row AS (
-    originator_node_id     int,
-    originator_sequence_id bigint,
-    topic                  bytea,
-    payer_id               int,
-    gateway_time           timestamp,
-    expiry                 bigint,
-    originator_envelope    bytea,
-    spend_picodollars      bigint
-);
-
--- Create the batch insert function
 CREATE OR REPLACE FUNCTION insert_gateway_envelope_batch(
-    envelopes gateway_envelope_row[]
+    p_originator_node_ids     int[],
+    p_originator_sequence_ids bigint[],
+    p_topics                  bytea[],
+    p_payer_ids               int[],
+    p_gateway_times           timestamp[],
+    p_expiries                bigint[],
+    p_originator_envelopes    bytea[],
+    p_spend_picodollars       bigint[]
 )
 RETURNS TABLE (
     inserted_meta_rows  bigint,
@@ -22,15 +17,33 @@ LANGUAGE SQL
 AS $$
 WITH input AS (
     SELECT
-        e.originator_node_id,
-        e.originator_sequence_id,
-        e.topic,
-        NULLIF(e.payer_id, 0) AS payer_id,
-        e.gateway_time,
-        e.expiry,
-        e.originator_envelope,
-        e.spend_picodollars
-    FROM unnest(envelopes) AS e
+        originator_node_id,
+        originator_sequence_id,
+        topic,
+        NULLIF(payer_id, 0) AS payer_id,
+        gateway_time,
+        expiry,
+        originator_envelope,
+        spend_picodollars
+    FROM unnest(
+        p_originator_node_ids,
+        p_originator_sequence_ids,
+        p_topics,
+        p_payer_ids,
+        p_gateway_times,
+        p_expiries,
+        p_originator_envelopes,
+        p_spend_picodollars
+    ) AS t(
+        originator_node_id,
+        originator_sequence_id,
+        topic,
+        payer_id,
+        gateway_time,
+        expiry,
+        originator_envelope,
+        spend_picodollars
+    )
 ),
 
 m AS (

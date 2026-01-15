@@ -70,7 +70,7 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				return 0, err
 			}
 
-			// Insert the envelopes and increment the unsettled usage.
+			// Optimistically insert the envelopes and increment the unsettled usage.
 			result, err := txQueries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
 				input,
@@ -92,10 +92,10 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			}
 
 			// Ensure the gateway parts for the originator nodes.
-			for nodeID, seqID := range seen {
+			for i, nodeID := range input.OriginatorNodeIds {
 				err = txQueries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 					OriginatorNodeID:     nodeID,
-					OriginatorSequenceID: seqID,
+					OriginatorSequenceID: input.OriginatorSequenceIds[i],
 					BandWidth:            GatewayEnvelopeBandWidth,
 				})
 				if err != nil {

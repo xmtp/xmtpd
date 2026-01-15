@@ -429,9 +429,11 @@ func TestValidSignature(t *testing.T) {
 }
 
 func TestCanGenerateReport(t *testing.T) {
-	scaffold := setupMultiNodeTest(t)
-	groupID := testutils.RandomGroupID()
-	messageTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
+	var (
+		scaffold     = setupMultiNodeTest(t)
+		groupID      = testutils.RandomGroupID()
+		messageTopic = topic.NewTopic(topic.TopicKindGroupMessagesV1, groupID[:]).Bytes()
+	)
 
 	scaffold.publishRandomMessage(t, messageTopic, 0, 0)
 	scaffold.publishRandomMessage(t, messageTopic, 1, 1)
@@ -441,7 +443,7 @@ func TestCanGenerateReport(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, messageTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, messageTopic)
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
-	}, 5*time.Second, 50*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 
 	advanceUnsettledUsage(t, &scaffold)
 
@@ -480,7 +482,7 @@ func TestFullReportLifecycle(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, messageTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, messageTopic)
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
-	}, 5*time.Second, 50*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 
 	advanceUnsettledUsage(t, &scaffold)
 

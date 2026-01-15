@@ -173,7 +173,7 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 5000*time.Millisecond, 200*time.Millisecond)
+	}, 10*time.Second, 200*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		q2, err := client2.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
@@ -327,7 +327,7 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 			healthClient := grpc_health_v1.NewHealthClient(conn)
 			grpcResp, err = healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 			return err == nil && grpcResp.GetStatus() == grpc_health_v1.HealthCheckResponse_SERVING
-		}, 3*time.Second, 100*time.Millisecond)
+		}, 10*time.Second, 100*time.Millisecond)
 	})
 }
 

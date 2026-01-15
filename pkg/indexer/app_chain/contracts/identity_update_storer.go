@@ -151,6 +151,13 @@ func (s *IdentityUpdateStorer) StoreLog(
 					utils.TopicField(messageTopic.String()),
 					zap.Error(err),
 				)
+
+				// If we received an error with retryability info just forward it, else treat as non-retryable.
+				var retryableErr re.RetryableError
+				if errors.As(err, &retryableErr) {
+					return err
+				}
+
 				return re.NewNonRecoverableError(ErrValidateIdentityUpdate, err)
 			}
 
@@ -304,7 +311,10 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, re.NewRecoverableError(
+			"could not retrieve envelopes to validate identity update",
+			err,
+		)
 	}
 
 	identityUpdate, ok := clientEnvelope.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)

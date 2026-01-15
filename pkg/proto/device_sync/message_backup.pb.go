@@ -127,6 +127,8 @@ func (DeliveryStatusSave) EnumDescriptor() ([]byte, []int) {
 }
 
 // Group message content type
+//
+// Deprecated: Marked as deprecated in device_sync/message_backup.proto.
 type ContentTypeSave int32
 
 const (
@@ -211,15 +213,17 @@ type GroupMessageSave struct {
 	SenderInstallationId  []byte                 `protobuf:"bytes,6,opt,name=sender_installation_id,json=senderInstallationId,proto3" json:"sender_installation_id,omitempty"`
 	SenderInboxId         string                 `protobuf:"bytes,7,opt,name=sender_inbox_id,json=senderInboxId,proto3" json:"sender_inbox_id,omitempty"`
 	DeliveryStatus        DeliveryStatusSave     `protobuf:"varint,8,opt,name=delivery_status,json=deliveryStatus,proto3,enum=xmtp.device_sync.message_backup.DeliveryStatusSave" json:"delivery_status,omitempty"`
-	ContentType           ContentTypeSave        `protobuf:"varint,9,opt,name=content_type,json=contentType,proto3,enum=xmtp.device_sync.message_backup.ContentTypeSave" json:"content_type,omitempty"`
-	VersionMajor          int32                  `protobuf:"varint,10,opt,name=version_major,json=versionMajor,proto3" json:"version_major,omitempty"`
-	VersionMinor          int32                  `protobuf:"varint,11,opt,name=version_minor,json=versionMinor,proto3" json:"version_minor,omitempty"`
-	AuthorityId           string                 `protobuf:"bytes,12,opt,name=authority_id,json=authorityId,proto3" json:"authority_id,omitempty"`
-	ReferenceId           []byte                 `protobuf:"bytes,13,opt,name=reference_id,json=referenceId,proto3,oneof" json:"reference_id,omitempty"`
-	SequenceId            *int64                 `protobuf:"varint,14,opt,name=sequence_id,json=sequenceId,proto3,oneof" json:"sequence_id,omitempty"`
-	OriginatorId          *int64                 `protobuf:"varint,15,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Deprecated: Marked as deprecated in device_sync/message_backup.proto.
+	ContentTypeSave ContentTypeSave `protobuf:"varint,9,opt,name=content_type_save,json=contentTypeSave,proto3,enum=xmtp.device_sync.message_backup.ContentTypeSave" json:"content_type_save,omitempty"`
+	VersionMajor    int32           `protobuf:"varint,10,opt,name=version_major,json=versionMajor,proto3" json:"version_major,omitempty"`
+	VersionMinor    int32           `protobuf:"varint,11,opt,name=version_minor,json=versionMinor,proto3" json:"version_minor,omitempty"`
+	AuthorityId     string          `protobuf:"bytes,12,opt,name=authority_id,json=authorityId,proto3" json:"authority_id,omitempty"`
+	ReferenceId     []byte          `protobuf:"bytes,13,opt,name=reference_id,json=referenceId,proto3,oneof" json:"reference_id,omitempty"`
+	SequenceId      *int64          `protobuf:"varint,14,opt,name=sequence_id,json=sequenceId,proto3,oneof" json:"sequence_id,omitempty"`
+	OriginatorId    *int64          `protobuf:"varint,15,opt,name=originator_id,json=originatorId,proto3,oneof" json:"originator_id,omitempty"`
+	ContentType     string          `protobuf:"bytes,16,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GroupMessageSave) Reset() {
@@ -308,9 +312,10 @@ func (x *GroupMessageSave) GetDeliveryStatus() DeliveryStatusSave {
 	return DeliveryStatusSave_DELIVERY_STATUS_SAVE_UNSPECIFIED
 }
 
-func (x *GroupMessageSave) GetContentType() ContentTypeSave {
+// Deprecated: Marked as deprecated in device_sync/message_backup.proto.
+func (x *GroupMessageSave) GetContentTypeSave() ContentTypeSave {
 	if x != nil {
-		return x.ContentType
+		return x.ContentTypeSave
 	}
 	return ContentTypeSave_CONTENT_TYPE_SAVE_UNSPECIFIED
 }
@@ -357,11 +362,18 @@ func (x *GroupMessageSave) GetOriginatorId() int64 {
 	return 0
 }
 
+func (x *GroupMessageSave) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
 var File_device_sync_message_backup_proto protoreflect.FileDescriptor
 
 const file_device_sync_message_backup_proto_rawDesc = "" +
 	"\n" +
-	" device_sync/message_backup.proto\x12\x1fxmtp.device_sync.message_backup\"\x87\x06\n" +
+	" device_sync/message_backup.proto\x12\x1fxmtp.device_sync.message_backup\"\xb7\x06\n" +
 	"\x10GroupMessageSave\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12\x19\n" +
 	"\bgroup_id\x18\x02 \x01(\fR\agroupId\x126\n" +
@@ -371,8 +383,8 @@ const file_device_sync_message_backup_proto_rawDesc = "" +
 	"\x04kind\x18\x05 \x01(\x0e25.xmtp.device_sync.message_backup.GroupMessageKindSaveR\x04kind\x124\n" +
 	"\x16sender_installation_id\x18\x06 \x01(\fR\x14senderInstallationId\x12&\n" +
 	"\x0fsender_inbox_id\x18\a \x01(\tR\rsenderInboxId\x12\\\n" +
-	"\x0fdelivery_status\x18\b \x01(\x0e23.xmtp.device_sync.message_backup.DeliveryStatusSaveR\x0edeliveryStatus\x12S\n" +
-	"\fcontent_type\x18\t \x01(\x0e20.xmtp.device_sync.message_backup.ContentTypeSaveR\vcontentType\x12#\n" +
+	"\x0fdelivery_status\x18\b \x01(\x0e23.xmtp.device_sync.message_backup.DeliveryStatusSaveR\x0edeliveryStatus\x12`\n" +
+	"\x11content_type_save\x18\t \x01(\x0e20.xmtp.device_sync.message_backup.ContentTypeSaveB\x02\x18\x01R\x0fcontentTypeSave\x12#\n" +
 	"\rversion_major\x18\n" +
 	" \x01(\x05R\fversionMajor\x12#\n" +
 	"\rversion_minor\x18\v \x01(\x05R\fversionMinor\x12!\n" +
@@ -380,7 +392,8 @@ const file_device_sync_message_backup_proto_rawDesc = "" +
 	"\freference_id\x18\r \x01(\fH\x00R\vreferenceId\x88\x01\x01\x12$\n" +
 	"\vsequence_id\x18\x0e \x01(\x03H\x01R\n" +
 	"sequenceId\x88\x01\x01\x12(\n" +
-	"\roriginator_id\x18\x0f \x01(\x03H\x02R\foriginatorId\x88\x01\x01B\x0f\n" +
+	"\roriginator_id\x18\x0f \x01(\x03H\x02R\foriginatorId\x88\x01\x01\x12!\n" +
+	"\fcontent_type\x18\x10 \x01(\tR\vcontentTypeB\x0f\n" +
 	"\r_reference_idB\x0e\n" +
 	"\f_sequence_idB\x10\n" +
 	"\x0e_originator_id*\x97\x01\n" +
@@ -392,7 +405,7 @@ const file_device_sync_message_backup_proto_rawDesc = "" +
 	" DELIVERY_STATUS_SAVE_UNSPECIFIED\x10\x00\x12$\n" +
 	" DELIVERY_STATUS_SAVE_UNPUBLISHED\x10\x01\x12\"\n" +
 	"\x1eDELIVERY_STATUS_SAVE_PUBLISHED\x10\x02\x12\x1f\n" +
-	"\x1bDELIVERY_STATUS_SAVE_FAILED\x10\x03*\x9c\x03\n" +
+	"\x1bDELIVERY_STATUS_SAVE_FAILED\x10\x03*\xa0\x03\n" +
 	"\x0fContentTypeSave\x12!\n" +
 	"\x1dCONTENT_TYPE_SAVE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19CONTENT_TYPE_SAVE_UNKNOWN\x10\x01\x12\x1a\n" +
@@ -405,7 +418,7 @@ const file_device_sync_message_backup_proto_rawDesc = "" +
 	"\x1cCONTENT_TYPE_SAVE_ATTACHMENT\x10\b\x12'\n" +
 	"#CONTENT_TYPE_SAVE_REMOTE_ATTACHMENT\x10\t\x12+\n" +
 	"'CONTENT_TYPE_SAVE_TRANSACTION_REFERENCE\x10\n" +
-	"B\xfc\x01\n" +
+	"\x1a\x02\x18\x01B\xfc\x01\n" +
 	"#com.xmtp.device_sync.message_backupB\x12MessageBackupProtoP\x01Z+github.com/xmtp/xmtpd/pkg/proto/device_sync\xa2\x02\x03XDM\xaa\x02\x1dXmtp.DeviceSync.MessageBackup\xca\x02\x1dXmtp\\DeviceSync\\MessageBackup\xe2\x02)Xmtp\\DeviceSync\\MessageBackup\\GPBMetadata\xea\x02\x1fXmtp::DeviceSync::MessageBackupb\x06proto3"
 
 var (
@@ -431,7 +444,7 @@ var file_device_sync_message_backup_proto_goTypes = []any{
 var file_device_sync_message_backup_proto_depIdxs = []int32{
 	0, // 0: xmtp.device_sync.message_backup.GroupMessageSave.kind:type_name -> xmtp.device_sync.message_backup.GroupMessageKindSave
 	1, // 1: xmtp.device_sync.message_backup.GroupMessageSave.delivery_status:type_name -> xmtp.device_sync.message_backup.DeliveryStatusSave
-	2, // 2: xmtp.device_sync.message_backup.GroupMessageSave.content_type:type_name -> xmtp.device_sync.message_backup.ContentTypeSave
+	2, // 2: xmtp.device_sync.message_backup.GroupMessageSave.content_type_save:type_name -> xmtp.device_sync.message_backup.ContentTypeSave
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

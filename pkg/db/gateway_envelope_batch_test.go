@@ -15,16 +15,16 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
-// buildBatchParams builds a batch of gateway envelope parameters.
+// buildBatchInput builds a batch of gateway envelope parameters.
 // From startSequenceID to startSequenceID + count - 1.
-func buildBatchParams(
+func buildBatchInput(
 	payerID int32,
 	originatorID int32,
 	startSequenceID int64,
 	count int,
 	spendPerMessage int64,
 ) queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams {
-	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
+	input := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
 		OriginatorNodeIds:     make([]int32, count),
 		OriginatorSequenceIds: make([]int64, count),
 		Topics:                make([][]byte, count),
@@ -37,17 +37,17 @@ func buildBatchParams(
 
 	now := time.Now()
 	for i := 0; i < count; i++ {
-		params.OriginatorNodeIds[i] = originatorID
-		params.OriginatorSequenceIds[i] = startSequenceID + int64(i)
-		params.Topics[i] = testutils.RandomBytes(32)
-		params.PayerIds[i] = payerID
-		params.GatewayTimes[i] = now
-		params.Expiries[i] = now.Add(24 * time.Hour).Unix()
-		params.OriginatorEnvelopes[i] = testutils.RandomBytes(100)
-		params.SpendPicodollars[i] = spendPerMessage
+		input.OriginatorNodeIds[i] = originatorID
+		input.OriginatorSequenceIds[i] = startSequenceID + int64(i)
+		input.Topics[i] = testutils.RandomBytes(32)
+		input.PayerIds[i] = payerID
+		input.GatewayTimes[i] = now
+		input.Expiries[i] = now.Add(24 * time.Hour).Unix()
+		input.OriginatorEnvelopes[i] = testutils.RandomBytes(100)
+		input.SpendPicodollars[i] = spendPerMessage
 	}
 
-	return params
+	return input
 }
 
 func TestBatchInsert_Basic(t *testing.T) {
@@ -59,7 +59,7 @@ func TestBatchInsert_Basic(t *testing.T) {
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
 		batchSize       = rand.Intn(100)
-		input           = buildBatchParams(payerID, originatorID, 1, batchSize, spendPerMessage)
+		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
@@ -77,6 +77,58 @@ func TestBatchInsert_Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(batchSize)*spendPerMessage, payerSpend.TotalSpendPicodollars)
 	require.Equal(t, int64(batchSize), payerSpend.LastSequenceID)
+}
+
+func TestBatchInsert_OnlyEnvelopesBatch(t *testing.T) {
+	var (
+		ctx          = context.Background()
+		db, _        = testutils.NewRawDB(t, ctx)
+		querier      = queries.New(db)
+		originatorID = testutils.RandomInt32()
+	)
+
+	input := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
+		OriginatorNodeIds:     []int32{originatorID, originatorID, originatorID},
+		OriginatorSequenceIds: []int64{1, 2, 3},
+		Topics: [][]byte{
+			testutils.RandomBytes(32),
+			testutils.RandomBytes(32),
+			testutils.RandomBytes(32),
+		},
+		PayerIds:     []int32{0, 0, 0},
+		GatewayTimes: []time.Time{time.Now(), time.Now(), time.Now()},
+		Expiries: []int64{
+			time.Now().Add(24 * time.Hour).Unix(),
+			time.Now().Add(24 * time.Hour).Unix(),
+			time.Now().Add(24 * time.Hour).Unix(),
+		},
+		OriginatorEnvelopes: [][]byte{
+			testutils.RandomBytes(100),
+			testutils.RandomBytes(100),
+			testutils.RandomBytes(100),
+		},
+		// It doesn't matter what the spend picodollars are, as all the payers are null.
+		// SQL will not insert any rows into unsettled_usage.
+		SpendPicodollars: []int64{1, 2, 3},
+	}
+
+	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
+		ctx,
+		db,
+		input,
+	)
+	require.NoError(t, err)
+	require.Equal(t, int64(3), result)
+
+	payerSpend, err := querier.GetPayerUnsettledUsage(
+		ctx,
+		queries.GetPayerUnsettledUsageParams{PayerID: 0},
+	)
+	require.NoError(t, err)
+
+	// Unsettled usage should not be incremented, as all the payers are null.
+	require.Equal(t, int64(0), payerSpend.TotalSpendPicodollars)
+	require.Equal(t, int64(0), payerSpend.LastSequenceID)
 }
 
 func TestBatchInsert_EmptyInput(t *testing.T) {
@@ -153,15 +205,15 @@ func TestBatchInsert_ArrayLengthMismatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
 				payerID = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
-				params  = buildBatchParams(payerID, int32(100), 1, 5, 100)
+				input   = buildBatchInput(payerID, int32(100), 1, 5, 100)
 			)
 
-			tc.modify(&params)
+			tc.modify(&input)
 
 			_, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
 				db,
-				params,
+				input,
 			)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "input array length mismatch")
@@ -178,7 +230,7 @@ func TestBatchInsert_DuplicatesIgnored(t *testing.T) {
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
 		batchSize       = rand.Intn(100)
-		input           = buildBatchParams(payerID, originatorID, 1, batchSize, spendPerMessage)
+		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
 	// Insert first batch.
@@ -219,7 +271,7 @@ func TestBatchInsert_PartialDuplicates(t *testing.T) {
 	)
 
 	// Insert first batch (seq 1-5).
-	input1 := buildBatchParams(payerID, originatorID, 1, 5, spendPerMessage)
+	input1 := buildBatchInput(payerID, originatorID, 1, 5, spendPerMessage)
 	result1, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,
 		db,
@@ -229,7 +281,7 @@ func TestBatchInsert_PartialDuplicates(t *testing.T) {
 	require.Equal(t, int64(5), result1)
 
 	// Insert overlapping batch (seq 3-7). 3,4,5 are duplicates, 6,7 are new.
-	input2 := buildBatchParams(payerID, originatorID, 3, 5, spendPerMessage)
+	input2 := buildBatchInput(payerID, originatorID, 3, 5, spendPerMessage)
 	result2, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,
 		db,
@@ -379,7 +431,7 @@ func TestBatchInsert_NullPayerID(t *testing.T) {
 		originatorID = int32(100)
 
 		// 0 is a null payer ID.
-		input = buildBatchParams(0, originatorID, 1, 3, 100)
+		input = buildBatchInput(0, originatorID, 1, 3, 100)
 	)
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
@@ -409,7 +461,7 @@ func TestBatchInsert_PayerMustExist(t *testing.T) {
 		db, _              = testutils.NewRawDB(t, ctx)
 		nonExistentPayerID = testutils.RandomInt32()
 		originatorID       = int32(100)
-		input              = buildBatchParams(nonExistentPayerID, originatorID, 1, 3, 100)
+		input              = buildBatchInput(nonExistentPayerID, originatorID, 1, 3, 100)
 	)
 
 	_, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
@@ -434,7 +486,7 @@ func TestBatchInsert_BandBoundaries(t *testing.T) {
 		seqRight     = xmtpd_db.GatewayEnvelopeBandWidth + 1 // falls into band [bw, 2*bw)
 	)
 
-	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
+	input := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
 		OriginatorNodeIds:     []int32{originatorID, originatorID},
 		OriginatorSequenceIds: []int64{seqLeft, seqRight},
 		Topics:                [][]byte{testutils.RandomBytes(32), testutils.RandomBytes(32)},
@@ -451,7 +503,7 @@ func TestBatchInsert_BandBoundaries(t *testing.T) {
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,
 		db,
-		params,
+		input,
 	)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), result)
@@ -468,7 +520,7 @@ func TestBatchInsert_Parallel(t *testing.T) {
 		numGoroutines   = 10
 		batchSize       = 5
 		totalInserted   = int64(0)
-		input           = buildBatchParams(payerID, originatorID, 1, batchSize, spendPerMessage)
+		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
 	// First insert to create partitions (avoid DDL deadlocks).
@@ -488,7 +540,7 @@ func TestBatchInsert_Parallel(t *testing.T) {
 		wg.Add(1)
 		go func(startSeq int64) {
 			defer wg.Done()
-			p := buildBatchParams(payerID, originatorID, startSeq, batchSize, spendPerMessage)
+			p := buildBatchInput(payerID, originatorID, startSeq, batchSize, spendPerMessage)
 			n, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
 				db,
@@ -523,7 +575,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 		numGoroutines   = 20
 		batchSize       = 5
 		totalInserted   = int64(0)
-		input           = buildBatchParams(payerID, originatorID, 1, batchSize, spendPerMessage)
+		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
 	// First insert to create partitions.
@@ -543,7 +595,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			p := buildBatchParams(payerID, originatorID, 1, batchSize, spendPerMessage)
+			p := buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 			n, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
 				db,
@@ -576,7 +628,7 @@ func TestBatchInsert_LargeBatch(t *testing.T) {
 		originatorID    = int32(100)
 		batchSize       = 1000
 		spendPerMessage = int64(50)
-		input           = buildBatchParams(payerID, originatorID, 1, batchSize, spendPerMessage)
+		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
@@ -604,7 +656,7 @@ func TestBatchInsert_PreexistingPartitions(t *testing.T) {
 		querier      = queries.New(db)
 		payerID      = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID = int32(7)
-		input        = buildBatchParams(payerID, originatorID, 1, 5, 100)
+		input        = buildBatchInput(payerID, originatorID, 1, 5, 100)
 	)
 
 	// Pre-create partitions.

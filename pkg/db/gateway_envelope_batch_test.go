@@ -24,22 +24,24 @@ func buildBatchInput(
 	startSequenceID int64,
 	count int,
 	spendPerMessage int64,
-) []types.GatewayEnvelopeRow {
-	input := make([]types.GatewayEnvelopeRow, count)
+) *types.GatewayEnvelopeBatch {
+	batch := types.NewGatewayEnvelopeBatch()
 
 	now := time.Now()
 	for i := 0; i < count; i++ {
-		input[i].OriginatorNodeID = originatorID
-		input[i].OriginatorSequenceID = startSequenceID + int64(i)
-		input[i].Topic = testutils.RandomBytes(32)
-		input[i].PayerID = payerID
-		input[i].GatewayTime = now
-		input[i].Expiry = now.Add(24 * time.Hour).Unix()
-		input[i].OriginatorEnvelope = testutils.RandomBytes(100)
-		input[i].SpendPicodollars = spendPerMessage
+		batch.Add(types.GatewayEnvelopeRow{
+			OriginatorNodeID:     originatorID,
+			OriginatorSequenceID: startSequenceID + int64(i),
+			Topic:                testutils.RandomBytes(32),
+			PayerID:              payerID,
+			GatewayTime:          now,
+			Expiry:               now.Add(24 * time.Hour).Unix(),
+			OriginatorEnvelope:   testutils.RandomBytes(100),
+			SpendPicodollars:     spendPerMessage,
+		})
 	}
 
-	return input
+	return batch
 }
 
 func TestBatchInsert_Basic(t *testing.T) {
@@ -50,7 +52,7 @@ func TestBatchInsert_Basic(t *testing.T) {
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
-		batchSize       = rand.Intn(10)
+		batchSize       = rand.Intn(10) + 1
 		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
@@ -79,22 +81,24 @@ func TestBatchInsert_OnlyEnvelopesBatch(t *testing.T) {
 		originatorID = testutils.RandomInt32()
 	)
 
-	input := make([]types.GatewayEnvelopeRow, 3)
+	batch := types.NewGatewayEnvelopeBatch()
 	for i := 0; i < 3; i++ {
-		input[i].OriginatorNodeID = originatorID
-		input[i].OriginatorSequenceID = int64(i + 1)
-		input[i].Topic = testutils.RandomBytes(32)
-		input[i].PayerID = 0
-		input[i].GatewayTime = time.Now()
-		input[i].Expiry = time.Now().Add(24 * time.Hour).Unix()
-		input[i].OriginatorEnvelope = testutils.RandomBytes(100)
-		input[i].SpendPicodollars = 100
+		batch.Add(types.GatewayEnvelopeRow{
+			OriginatorNodeID:     originatorID,
+			OriginatorSequenceID: int64(i + 1),
+			Topic:                testutils.RandomBytes(32),
+			PayerID:              0,
+			GatewayTime:          time.Now(),
+			Expiry:               time.Now().Add(24 * time.Hour).Unix(),
+			OriginatorEnvelope:   testutils.RandomBytes(100),
+			SpendPicodollars:     100,
+		})
 	}
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,
 		db,
-		input,
+		batch,
 	)
 	require.NoError(t, err)
 	require.Equal(t, int64(3), result)
@@ -114,7 +118,7 @@ func TestBatchInsert_EmptyInput(t *testing.T) {
 	var (
 		ctx   = context.Background()
 		db, _ = testutils.NewRawDB(t, ctx)
-		input = []types.GatewayEnvelopeRow{}
+		input = types.NewGatewayEnvelopeBatch()
 	)
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
@@ -135,7 +139,7 @@ func TestBatchInsert_DuplicatesIgnored(t *testing.T) {
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
-		batchSize       = rand.Intn(10)
+		batchSize       = rand.Intn(10) + 1
 		input           = buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 	)
 
@@ -213,11 +217,18 @@ func TestBatchInsert_MultipleOriginators(t *testing.T) {
 		originatorID1   = int32(100)
 		originatorID2   = int32(200)
 		spendPerMessage = int64(100)
-		messages1       = buildBatchInput(payerID, originatorID1, 1, 4, spendPerMessage)
-		messages2       = buildBatchInput(payerID, originatorID2, 1, 4, spendPerMessage)
+		batch1          = buildBatchInput(payerID, originatorID1, 1, 4, spendPerMessage)
+		batch2          = buildBatchInput(payerID, originatorID2, 1, 4, spendPerMessage)
 	)
 
-	input := append(messages1, messages2...)
+	input := types.NewGatewayEnvelopeBatch()
+	for _, envelope := range batch1.Envelopes {
+		input.Add(envelope)
+	}
+
+	for _, envelope := range batch2.Envelopes {
+		input.Add(envelope)
+	}
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,
@@ -279,16 +290,20 @@ func TestBatchInsert_InvalidSequenceOrder(t *testing.T) {
 			payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 			count := len(tc.originatorNodeIds)
 
-			input := make([]types.GatewayEnvelopeRow, count)
+			input := types.NewGatewayEnvelopeBatch()
 
 			now := time.Now()
 			for i := 0; i < count; i++ {
-				input[i].Topic = testutils.RandomBytes(32)
-				input[i].PayerID = payerID
-				input[i].GatewayTime = now
-				input[i].Expiry = now.Add(24 * time.Hour).Unix()
-				input[i].OriginatorEnvelope = testutils.RandomBytes(100)
-				input[i].SpendPicodollars = 100
+				input.Add(types.GatewayEnvelopeRow{
+					OriginatorNodeID:     tc.originatorNodeIds[i],
+					OriginatorSequenceID: tc.originatorSequenceIds[i],
+					Topic:                testutils.RandomBytes(32),
+					PayerID:              payerID,
+					GatewayTime:          now,
+					Expiry:               now.Add(24 * time.Hour).Unix(),
+					OriginatorEnvelope:   testutils.RandomBytes(100),
+					SpendPicodollars:     100,
+				})
 			}
 
 			_, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
@@ -365,7 +380,14 @@ func TestBatchInsert_BandBoundaries(t *testing.T) {
 
 	message1 := buildBatchInput(payerID, originatorID, seqLeft, 1, 100)
 	message2 := buildBatchInput(payerID, originatorID, seqRight, 1, 100)
-	input := append(message1, message2...)
+
+	input := types.NewGatewayEnvelopeBatch()
+	for _, envelope := range message1.Envelopes {
+		input.Add(envelope)
+	}
+	for _, envelope := range message2.Envelopes {
+		input.Add(envelope)
+	}
 
 	result, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,

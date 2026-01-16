@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"slices"
 	"strings"
-	"time"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/db/types"
@@ -26,24 +24,13 @@ import (
 func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 	ctx context.Context,
 	db *sql.DB,
-	input []types.GatewayEnvelopeRow,
+	input *types.GatewayEnvelopeBatch,
 ) (int64, error) {
-	if len(input) == 0 {
+	if input.Len() == 0 {
 		return 0, fmt.Errorf("empty input")
 	}
 
-	// Order by originator sequence ID ascending for each originator node.
-	slices.SortFunc(input, func(a, b types.GatewayEnvelopeRow) int {
-		if a.OriginatorSequenceID < b.OriginatorSequenceID {
-			return -1
-		}
-		if a.OriginatorSequenceID > b.OriginatorSequenceID {
-			return 1
-		}
-		return 0
-	})
-
-	params := toParallelArrays(input)
+	params := input.ToParams()
 
 	return RunInTxWithResult(
 		ctx,
@@ -78,7 +65,7 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			}
 
 			// Ensure the gateway parts for the originator nodes.
-			for _, envelope := range input {
+			for _, envelope := range input.Envelopes {
 				err = txQueries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 					OriginatorNodeID:     envelope.OriginatorNodeID,
 					OriginatorSequenceID: envelope.OriginatorSequenceID,
@@ -104,35 +91,4 @@ func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 			return result.InsertedMetaRows, nil
 		},
 	)
-}
-
-// toParallelArrays converts a slice of GatewayEnvelopeRow to parallel arrays.
-func toParallelArrays(
-	input []types.GatewayEnvelopeRow,
-) queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams {
-	n := len(input)
-
-	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
-		OriginatorNodeIds:     make([]int32, n),
-		OriginatorSequenceIds: make([]int64, n),
-		Topics:                make([][]byte, n),
-		PayerIds:              make([]int32, n),
-		GatewayTimes:          make([]time.Time, n),
-		Expiries:              make([]int64, n),
-		OriginatorEnvelopes:   make([][]byte, n),
-		SpendPicodollars:      make([]int64, n),
-	}
-
-	for i, row := range input {
-		params.OriginatorNodeIds[i] = row.OriginatorNodeID
-		params.OriginatorSequenceIds[i] = row.OriginatorSequenceID
-		params.Topics[i] = row.Topic
-		params.PayerIds[i] = row.PayerID
-		params.GatewayTimes[i] = row.GatewayTime
-		params.Expiries[i] = row.Expiry
-		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
-		params.SpendPicodollars[i] = row.SpendPicodollars
-	}
-
-	return params
 }

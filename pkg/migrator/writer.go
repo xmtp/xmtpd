@@ -34,39 +34,23 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 		return re.NewNonRecoverableError("", errors.New("batch is nil"))
 	}
 
-	err := db.RunInTx(
+	_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 		ctx,
 		w.writer.Write(),
-		nil,
-		func(ctx context.Context, querier *queries.Queries) error {
-			_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
-				ctx,
-				w.writer.Write(),
-				batch,
-			)
-			if err != nil {
-				logger.Error("insert originator envelope batch failed", zap.Error(err))
-				return re.NewRecoverableError("insert originator envelope batch failed", err)
-			}
-
-			err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: batch.LastSequenceID(),
-				SourceTable:    w.tableName,
-			})
-			if err != nil {
-				logger.Error("update migration progress failed", zap.Error(err))
-				return re.NewRecoverableError("update migration progress failed", err)
-			}
-
-			return nil
-		})
+		batch,
+	)
 	if err != nil {
-		var retryableError re.RetryableError
-		if errors.As(err, &retryableError) {
-			return retryableError
-		}
+		logger.Error("insert originator envelope batch failed", zap.Error(err))
+		return re.NewRecoverableError("insert originator envelope batch failed", err)
+	}
 
-		return re.NewRecoverableError("database error", err)
+	err = w.writer.WriteQuery().UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+		LastMigratedID: batch.LastSequenceID(),
+		SourceTable:    w.tableName,
+	})
+	if err != nil {
+		logger.Error("update migration progress failed", zap.Error(err))
+		return re.NewRecoverableError("update migration progress failed", err)
 	}
 
 	metrics.EmitMigratorTargetLastSequenceID(w.tableName, batch.LastSequenceID())

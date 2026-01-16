@@ -17,7 +17,8 @@ import (
 // expiries, originator envelopes, and spend picodollars.
 //
 // The sequenceIDs are expected to be strictly ascending per originator node ID.
-// Payers:
+//
+// Payer IDs considerations:
 //   - if not 0, they must exist.
 //   - if 0, they are treated as null, as it's nullable in gateway_envelopes_meta.
 //   - if 0, no unsettled usage is incremented.

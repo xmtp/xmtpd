@@ -34,23 +34,31 @@ func (b *GatewayEnvelopeBatch) Add(envelope GatewayEnvelopeRow) {
 	b.Envelopes = append(b.Envelopes, envelope)
 }
 
+func (b *GatewayEnvelopeBatch) All() []GatewayEnvelopeRow {
+	b.ensureOrdered()
+	return slices.Clone(b.Envelopes)
+}
+
+func (b *GatewayEnvelopeBatch) LastSequenceID() int64 {
+	b.ensureOrdered()
+	if len(b.Envelopes) == 0 {
+		return 0
+	}
+	return b.Envelopes[len(b.Envelopes)-1].OriginatorSequenceID
+}
+
 func (b *GatewayEnvelopeBatch) Len() int {
 	return len(b.Envelopes)
+}
+
+func (b *GatewayEnvelopeBatch) Reset() {
+	b.Envelopes = make([]GatewayEnvelopeRow, 0)
 }
 
 func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams {
 	n := b.Len()
 
-	// Order by originator_sequence_id ascending.
-	slices.SortFunc(b.Envelopes, func(a, b GatewayEnvelopeRow) int {
-		if a.OriginatorSequenceID < b.OriginatorSequenceID {
-			return -1
-		}
-		if a.OriginatorSequenceID > b.OriginatorSequenceID {
-			return 1
-		}
-		return 0
-	})
+	b.ensureOrdered()
 
 	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
 		OriginatorNodeIds:     make([]int32, n),
@@ -75,4 +83,16 @@ func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndI
 	}
 
 	return params
+}
+
+func (b *GatewayEnvelopeBatch) ensureOrdered() {
+	slices.SortFunc(b.Envelopes, func(a, b GatewayEnvelopeRow) int {
+		if a.OriginatorSequenceID < b.OriginatorSequenceID {
+			return -1
+		}
+		if a.OriginatorSequenceID > b.OriginatorSequenceID {
+			return 1
+		}
+		return 0
+	})
 }

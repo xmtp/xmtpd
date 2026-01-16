@@ -10,94 +10,47 @@ import (
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db/types"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
-	maxChainMessageSize = 200 * 1024 // 200KB
-	maxBatchSize        = 100 * 1024 // 100KB - batch threshold for identity updates
+	maxChainMessageSize  = 200 * 1024 // 200KB
+	maxChainBatchSize    = 100 * 1024 // 100KB - batch threshold for identity updates
+	maxDatabaseBatchSize = 1000       // 1000 messages - batch threshold for database inserts
 )
 
-// insertOriginatorEnvelopeDatabase inserts an originator envelope into the database.
-func (w *Worker) insertOriginatorEnvelopeDatabase(
+// insertOriginatorEnvelopeDatabaseBatch inserts a batch of originator envelopes into the database.
+func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 	ctx context.Context,
 	logger *zap.Logger,
-	env *envelopes.OriginatorEnvelope,
+	batch *types.GatewayEnvelopeBatch,
 ) re.RetryableError {
-	// instrument the logger for easier debugging
-	logger = logger.With(
-		utils.SequenceIDField(int64(env.OriginatorSequenceID())),
-		utils.OriginatorIDField(env.OriginatorNodeID()),
-	)
-
-	if env == nil {
-		return re.NewNonRecoverableError("", errors.New("envelope is nil"))
+	if batch == nil {
+		return re.NewNonRecoverableError("", errors.New("batch is nil"))
 	}
 
-	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
-	if err != nil {
-		logger.Error("recover payer address failed", zap.Error(err))
-		return re.NewNonRecoverableError("recover payer address failed", err)
-	}
-
-	payerID, err := w.writer.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
-	if err != nil {
-		logger.Error("find or create payer failed", zap.Error(err))
-		return re.NewRecoverableError("find or create payer failed", err)
-	}
-
-	originatorEnvelopeBytes, err := proto.Marshal(env.Proto())
-	if err != nil {
-		logger.Error("marshall originator envelope failed", zap.Error(err))
-		return re.NewNonRecoverableError("marshall originator envelope failed", err)
-	}
-
-	err = db.RunInTx(
+	err := db.RunInTx(
 		ctx,
 		w.writer.Write(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
-			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(
+			_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
-				querier,
-				queries.InsertGatewayEnvelopeParams{
-					OriginatorNodeID:     int32(env.OriginatorNodeID()),
-					OriginatorSequenceID: int64(env.OriginatorSequenceID()),
-					Topic:                env.TargetTopic().Bytes(),
-					OriginatorEnvelope:   originatorEnvelopeBytes,
-					PayerID:              db.NullInt32(payerID),
-					GatewayTime:          env.OriginatorTime(),
-					Expiry: int64(
-						env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-					),
-				},
+				w.writer.Write(),
+				batch,
 			)
 			if err != nil {
-				logger.Error("insert originator envelope failed", zap.Error(err))
-				return re.NewRecoverableError("insert originator envelope failed", err)
-			}
-
-			err = querier.IncrementUnsettledUsage(ctx, queries.IncrementUnsettledUsageParams{
-				PayerID:           payerID,
-				OriginatorID:      int32(env.OriginatorNodeID()),
-				MinutesSinceEpoch: utils.MinutesSinceEpoch(env.OriginatorTime()),
-				SpendPicodollars: int64(env.UnsignedOriginatorEnvelope.BaseFee()) +
-					int64(env.UnsignedOriginatorEnvelope.CongestionFee()),
-				SequenceID:   int64(env.OriginatorSequenceID()),
-				MessageCount: 1,
-			})
-			if err != nil {
-				logger.Error("increment unsettled usage failed", zap.Error(err))
-				return re.NewRecoverableError("increment unsettled usage failed", err)
+				logger.Error("insert originator envelope batch failed", zap.Error(err))
+				return re.NewRecoverableError("insert originator envelope batch failed", err)
 			}
 
 			err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: int64(env.OriginatorSequenceID()),
+				LastMigratedID: batch.LastSequenceID(),
 				SourceTable:    w.tableName,
 			})
 			if err != nil {
@@ -116,7 +69,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabase(
 		return re.NewRecoverableError("database error", err)
 	}
 
-	metrics.EmitMigratorTargetLastSequenceID(w.tableName, int64(env.OriginatorSequenceID()))
+	metrics.EmitMigratorTargetLastSequenceID(w.tableName, batch.LastSequenceID())
 
 	return nil
 }

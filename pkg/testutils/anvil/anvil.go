@@ -23,6 +23,10 @@ const (
 )
 
 func streamContainerLogs(t *testing.T, ctx context.Context, container testcontainers.Container) {
+	if ctx.Err() != nil {
+		return
+	}
+
 	rc, err := container.Logs(ctx)
 	if err != nil {
 		t.Logf("error streaming logs: %v", err)
@@ -34,6 +38,9 @@ func streamContainerLogs(t *testing.T, ctx context.Context, container testcontai
 
 	scanner := bufio.NewScanner(rc)
 	for scanner.Scan() {
+		if ctx.Err() != nil {
+			return
+		}
 		t.Log(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {

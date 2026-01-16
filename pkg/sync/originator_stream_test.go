@@ -62,7 +62,7 @@ func newTestEnvelopeSink(
 		queries.EnsureGatewayPartsParams{
 			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
-			BandWidth:            1_000_000,
+			BandWidth:            db.GatewayEnvelopeBandWidth,
 		},
 	)
 	require.NoError(t, err)

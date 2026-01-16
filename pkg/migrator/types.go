@@ -38,6 +38,22 @@ func isDatabaseDestination(originatorID uint32) bool {
 		originatorID == KeyPackagesOriginatorID
 }
 
+func originatorIDToTableName(originatorID uint32) string {
+	switch originatorID {
+	case GroupMessageOriginatorID:
+		return groupMessagesTableName
+	case WelcomeMessageOriginatorID:
+		return welcomeMessagesTableName
+	case InboxLogOriginatorID:
+		return inboxLogTableName
+	case KeyPackagesOriginatorID:
+		return keyPackagesTableName
+	case CommitMessageOriginatorID:
+		return commitMessagesTableName
+	}
+	return ""
+}
+
 // IDataTransformer defines the interface for transforming external data to xmtpd OriginatorEnvelope format.
 type IDataTransformer interface {
 	Transform(record ISourceRecord) (*envelopes.OriginatorEnvelope, error)

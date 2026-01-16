@@ -109,6 +109,7 @@ u AS (
     )
     SELECT payer_id, originator_id, minutes_since_epoch, spend_picodollars, last_sequence_id, message_count
     FROM u_prep
+    ORDER BY payer_id, originator_id, minutes_since_epoch
     ON CONFLICT (payer_id, originator_id, minutes_since_epoch) DO UPDATE
     SET
         spend_picodollars = unsettled_usage.spend_picodollars + EXCLUDED.spend_picodollars,

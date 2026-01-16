@@ -356,7 +356,9 @@ func verifyGroupMessagesIntegrity(t *testing.T, ctx context.Context, sourceDB, d
 		ORDER BY id
 	`)
 	require.NoError(t, err)
-	defer sourceRows.Close()
+	defer func() {
+		_ = sourceRows.Close()
+	}()
 
 	var sourceRecords []struct {
 		ID      int64
@@ -406,7 +408,9 @@ func verifyWelcomeMessagesIntegrity(t *testing.T, ctx context.Context, sourceDB,
 		ORDER BY id
 	`)
 	require.NoError(t, err)
-	defer sourceRows.Close()
+	defer func() {
+		_ = sourceRows.Close()
+	}()
 
 	var sourceRecords []struct {
 		ID              int64
@@ -453,7 +457,9 @@ func verifyKeyPackagesIntegrity(t *testing.T, ctx context.Context, sourceDB, des
 		ORDER BY sequence_id
 	`)
 	require.NoError(t, err)
-	defer sourceRows.Close()
+	defer func() {
+		_ = sourceRows.Close()
+	}()
 
 	var sourceRecords []struct {
 		SequenceID     int64

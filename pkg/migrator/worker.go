@@ -441,6 +441,12 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 						continue
 					}
 
+					envelopeBytes, err := envelope.Bytes()
+					if err != nil {
+						logger.Error("failed to get envelope bytes", zap.Error(err))
+						continue
+					}
+
 					batch.Add(types.GatewayEnvelopeRow{
 						OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
 						OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
@@ -449,6 +455,10 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 						GatewayTime:          envelope.OriginatorTime(),
 						Expiry: int64(
 							envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+						),
+						OriginatorEnvelope: envelopeBytes,
+						SpendPicodollars: int64(
+							envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars,
 						),
 					})
 				}

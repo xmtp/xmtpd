@@ -142,3 +142,19 @@ WHERE v.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
 ORDER BY v.originator_node_id,
          v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
+
+-- name: InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage :one
+SELECT
+    inserted_meta_rows::bigint,
+    inserted_blob_rows::bigint,
+    affected_usage_rows::bigint
+FROM insert_gateway_envelope_batch(
+    @originator_node_ids::int[],
+    @originator_sequence_ids::bigint[],
+    @topics::bytea[],
+    @payer_ids::int[],
+    @gateway_times::timestamp[],
+    @expiries::bigint[],
+    @originator_envelopes::bytea[],
+    @spend_picodollars::bigint[]
+);

@@ -11,6 +11,8 @@ type (
 	Topic       = []byte
 )
 
+const GatewayEnvelopeBandWidth int64 = 1_000_000
+
 func NullInt32(v int32) sql.NullInt32 {
 	return sql.NullInt32{Int32: v, Valid: true}
 }

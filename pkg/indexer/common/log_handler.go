@@ -34,9 +34,10 @@ func IndexLogs(
 				contract.Logger().Info("indexLogs event channel closed, exiting log handler")
 				return
 			}
+
 			if time.Since(lastProgressLogTime) > 5*time.Minute {
 				contract.Logger().
-					Info("Reached block number", utils.BlockNumberField(event.BlockNumber))
+					Info("reached block number", utils.BlockNumberField(event.BlockNumber))
 				lastProgressLogTime = time.Now()
 			}
 

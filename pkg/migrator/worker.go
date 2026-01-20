@@ -402,7 +402,7 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 					return
 
 				case <-ticker.C:
-					if batch.Len() <= 0 {
+					if batch.Len() <= maxDatabaseBatchSize/2 {
 						continue
 					}
 

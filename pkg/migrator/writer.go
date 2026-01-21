@@ -19,9 +19,8 @@ import (
 )
 
 const (
-	maxChainMessageSize  = 200 * 1024 // 200KB
-	maxChainBatchSize    = 100 * 1024 // 100KB - batch threshold for identity updates
-	maxDatabaseBatchSize = 1000       // 1000 messages - batch threshold for database inserts
+	maxChainMessageSize = 200 * 1024 // 200KB
+	maxChainBatchSize   = 100 * 1024 // 100KB - batch threshold for identity updates
 )
 
 // insertOriginatorEnvelopeDatabaseBatch inserts a batch of originator envelopes into the database.

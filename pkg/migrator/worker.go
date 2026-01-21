@@ -94,6 +94,8 @@ func (w *Worker) StartReader(ctx context.Context, reader ISourceReader) error {
 			ticker := time.NewTicker(w.pollInterval)
 			defer ticker.Stop()
 
+			ticksSinceLastFetch := 0
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -101,6 +103,17 @@ func (w *Worker) StartReader(ctx context.Context, reader ISourceReader) error {
 					return
 
 				case <-ticker.C:
+					ticksSinceLastFetch++
+
+					// semaphore max capacity is batchSize * 4. If we're at 75% capacity, it means the writer is behind.
+					// This is a simple way to prevent the reader from overwhelming the writer.
+					semUsed := cap(w.sem) - len(w.sem)
+					if semUsed > int(w.batchSize)*3 && ticksSinceLastFetch < 4 {
+						continue
+					}
+
+					ticksSinceLastFetch = 0
+
 					startE2ELatency := time.Now()
 
 					lastMigratedID, err := metrics.MeasureReaderLatency(
@@ -299,11 +312,15 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 
 			batch := types.NewGatewayEnvelopeBatch()
 
+			ticksSinceLastFlush := 0
+
 			triggerBatchFlush := func() {
 				var (
 					batchLen            = batch.Len()
 					batchLastSequenceID = batch.LastSequenceID()
 				)
+
+				ticksSinceLastFlush = 0
 
 				logger.Info(
 					"publishing batch",
@@ -402,7 +419,15 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 					return
 
 				case <-ticker.C:
-					if batch.Len() <= maxDatabaseBatchSize/2 {
+					if batch.Len() <= 0 {
+						ticksSinceLastFlush = 0
+						continue
+					}
+
+					ticksSinceLastFlush++
+
+					// Do not flush prematurely.
+					if batch.Len() <= int(w.batchSize)/2 && ticksSinceLastFlush < 10 {
 						continue
 					}
 
@@ -431,7 +456,7 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 						continue
 					}
 
-					if batch.Len() >= maxDatabaseBatchSize {
+					if batch.Len() >= int(w.batchSize) {
 						triggerBatchFlush()
 					}
 

@@ -13,6 +13,7 @@ type MigrationServerOptions struct {
 	WaitForDB              time.Duration `long:"wait-for"                 env:"XMTPD_MIGRATION_DB_WAIT_FOR"                 description:"wait for DB on start, up to specified duration" default:"30s"`
 	BatchSize              int32         `long:"batch-size"               env:"XMTPD_MIGRATION_DB_BATCH_SIZE"               description:"Batch size for migration"                       default:"1000"`
 	PollInterval           time.Duration `long:"process-interval"         env:"XMTPD_MIGRATION_DB_PROCESS_INTERVAL"         description:"Interval for processing migration"              default:"10s"`
+	DatabaseWriterWorkers  int           `long:"database-writer-workers"  env:"XMTPD_MIGRATION_DB_WRITER_WORKERS"           description:"Number of database writer workers"              default:"2"`
 	Namespace              string        `long:"namespace"                env:"XMTPD_MIGRATION_DB_NAMESPACE"                description:"Namespace for migration"                        default:""`
 	StartDate              time.Time     `long:"start-date"               env:"XMTPD_MIGRATION_START_DATE"                  description:"Start date for migration"                       default:"2025-10-01T00:00:00Z"`
 }

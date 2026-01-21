@@ -109,9 +109,10 @@ type Migrator struct {
 	blockchainPublisher blockchain.IBlockchainPublisher
 
 	// Configuration.
-	pollInterval time.Duration
-	batchSize    int32
-	running      atomic.Bool
+	pollInterval          time.Duration
+	batchSize             int32
+	databaseWriterWorkers int
+	running               atomic.Bool
 }
 
 func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
@@ -211,19 +212,20 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	ctx, cancel := context.WithCancel(cfg.ctx)
 
 	return &Migrator{
-		ctx:                 ctx,
-		cancel:              cancel,
-		wg:                  sync.WaitGroup{},
-		mu:                  sync.RWMutex{},
-		logger:              logger,
-		target:              cfg.db,
-		source:              readDB,
-		readers:             readers,
-		transformer:         transformer,
-		blockchainPublisher: blockchainPublisher,
-		pollInterval:        cfg.options.PollInterval,
-		batchSize:           cfg.options.BatchSize,
-		running:             atomic.Bool{},
+		ctx:                   ctx,
+		cancel:                cancel,
+		wg:                    sync.WaitGroup{},
+		mu:                    sync.RWMutex{},
+		logger:                logger,
+		target:                cfg.db,
+		source:                readDB,
+		readers:               readers,
+		transformer:           transformer,
+		blockchainPublisher:   blockchainPublisher,
+		pollInterval:          cfg.options.PollInterval,
+		batchSize:             cfg.options.BatchSize,
+		databaseWriterWorkers: cfg.options.DatabaseWriterWorkers,
+		running:               atomic.Bool{},
 	}, nil
 }
 
@@ -288,6 +290,7 @@ func (m *Migrator) startKeyPackagesWorker() error {
 		nil,
 		m.logger,
 		m.pollInterval,
+		m.databaseWriterWorkers,
 	)
 
 	if err := keyPackagesWorker.StartReader(m.ctx, m.readers[keyPackagesTableName]); err != nil {
@@ -313,6 +316,7 @@ func (m *Migrator) startWelcomeMessagesWorker() error {
 		nil,
 		m.logger,
 		m.pollInterval,
+		m.databaseWriterWorkers,
 	)
 
 	if err := welcomeMessagesWorker.StartReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
@@ -338,6 +342,7 @@ func (m *Migrator) startGroupMessagesWorker() error {
 		nil,
 		m.logger,
 		m.pollInterval,
+		m.databaseWriterWorkers,
 	)
 
 	if err := groupMessagesWorker.StartReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
@@ -363,6 +368,7 @@ func (m *Migrator) startCommitMessagesWorker() error {
 		m.blockchainPublisher,
 		m.logger,
 		m.pollInterval,
+		m.databaseWriterWorkers,
 	)
 
 	if err := commitMessagesWorker.StartReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
@@ -388,6 +394,7 @@ func (m *Migrator) startInboxLogWorker() error {
 		m.blockchainPublisher,
 		m.logger,
 		m.pollInterval,
+		m.databaseWriterWorkers,
 	)
 
 	if err := inboxLogWorker.StartReader(m.ctx, m.readers[inboxLogTableName]); err != nil {

@@ -36,9 +36,10 @@ type Worker struct {
 	inflight   map[int64]time.Time
 
 	// Configuration.
-	tableName    string
-	pollInterval time.Duration
-	batchSize    int32
+	tableName             string
+	pollInterval          time.Duration
+	batchSize             int32
+	databaseWriterWorkers int
 }
 
 func NewWorker(
@@ -48,6 +49,7 @@ func NewWorker(
 	blockchainPublisher blockchain.IBlockchainPublisher,
 	logger *zap.Logger,
 	pollInterval time.Duration,
+	databaseWriterWorkers int,
 ) *Worker {
 	maxInflight := int(batchSize) * 4
 
@@ -60,16 +62,17 @@ func NewWorker(
 	}
 
 	return &Worker{
-		logger:              logger,
-		writer:              writer,
-		blockchainPublisher: blockchainPublisher,
-		recvChan:            make(chan ISourceRecord, batchSize*2),
-		wrtrChan:            make(chan *envelopes.OriginatorEnvelope, batchSize*2),
-		sem:                 sem,
-		inflight:            make(map[int64]time.Time),
-		tableName:           tableName,
-		pollInterval:        pollInterval,
-		batchSize:           batchSize,
+		logger:                logger,
+		writer:                writer,
+		blockchainPublisher:   blockchainPublisher,
+		recvChan:              make(chan ISourceRecord, batchSize*2),
+		wrtrChan:              make(chan *envelopes.OriginatorEnvelope, batchSize*2),
+		sem:                   sem,
+		inflight:              make(map[int64]time.Time),
+		tableName:             tableName,
+		pollInterval:          pollInterval,
+		batchSize:             batchSize,
+		databaseWriterWorkers: databaseWriterWorkers,
 	}
 }
 
@@ -300,13 +303,35 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 	logger := w.logger.Named(utils.MigratorWriterDatabaseLoggerName).
 		With(zap.String(tableField, w.tableName))
 
-	logger.Info("started")
+	logger.Info("started", zap.Int("parallel_writers", w.databaseWriterWorkers))
+
+	// Channel for batches ready to be inserted.
+	// Buffer size matches number of writers for optimal double-buffering.
+	insertChan := make(chan *types.GatewayEnvelopeBatch, w.databaseWriterWorkers)
+
+	// Start parallel insert workers.
+	var insertWg sync.WaitGroup
+	for i := range w.databaseWriterWorkers {
+		insertWg.Add(1)
+		go w.databaseWriterWorker(
+			ctx,
+			logger.With(zap.Int("worker_id", i)),
+			insertChan,
+			&insertWg,
+		)
+	}
 
 	tracing.GoPanicWrap(
 		ctx,
 		&w.wg,
 		fmt.Sprintf("writer-database-%s", w.tableName),
 		func(ctx context.Context) {
+			// Ensure insert workers are stopped when collector exits.
+			defer func() {
+				close(insertChan)
+				insertWg.Wait()
+			}()
+
 			ticker := time.NewTicker(250 * time.Millisecond)
 			defer ticker.Stop()
 
@@ -314,104 +339,29 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 
 			ticksSinceLastFlush := 0
 
-			triggerBatchFlush := func() {
-				var (
-					batchLen            = batch.Len()
-					batchLastSequenceID = batch.LastSequenceID()
-				)
-
-				ticksSinceLastFlush = 0
-
-				logger.Info(
-					"publishing batch",
-					utils.LengthField(batchLen),
-					utils.SequenceIDField(batchLastSequenceID),
-				)
-
-				err := metrics.MeasureWriterLatency(
-					w.tableName,
-					destinationDatabase,
-					func() error {
-						return retry(
-							ctx,
-							50*time.Millisecond,
-							w.tableName,
-							destinationDatabase,
-							func() re.RetryableError {
-								return w.insertOriginatorEnvelopeDatabaseBatch(
-									ctx,
-									logger,
-									batch,
-								)
-							},
-						)
-					},
-				)
-				if err != nil {
-					if errors.Is(err, context.Canceled) ||
-						errors.Is(err, context.DeadlineExceeded) {
-						logger.Info(contextCancelledMessage)
-						return
-					}
-
-					logger.Error(
-						"failed to insert batch",
-						zap.Error(err),
-						utils.LengthField(batchLen),
-						utils.SequenceIDField(batchLastSequenceID),
-					)
-
-					metrics.EmitMigratorWriterError(
-						w.tableName,
-						destinationDatabase,
-						err.Error(),
-					)
-
-					for _, envelope := range batch.All() {
-						w.cleanupInflight(ctx, envelope.OriginatorSequenceID)
-					}
-
-					batch.Reset()
-
+			sendBatchToWorkers := func() {
+				if batch.Len() == 0 {
 					return
 				}
 
 				logger.Info(
-					"batch published successfully",
-					utils.LengthField(batchLen),
-					utils.SequenceIDField(batchLastSequenceID),
+					"sending batch to insert workers",
+					utils.LengthField(batch.Len()),
+					utils.SequenceIDField(batch.LastSequenceID()),
 				)
 
-				metrics.EmitMigratorWriterRowsMigrated(w.tableName, int64(batch.Len()))
+				// Send batch to insert workers (blocks if all workers busy).
+				select {
+				case insertChan <- batch:
+					batch = types.NewGatewayEnvelopeBatch()
+					ticksSinceLastFlush = 0
 
-				for _, envelope := range batch.All() {
-					startTime, exists := w.isInflight(envelope.OriginatorSequenceID)
-
-					if exists {
-						metrics.EmitMigratorE2ELatency(
-							w.tableName,
-							destinationDatabase,
-							time.Since(startTime).Seconds(),
-						)
-					}
-
-					metrics.EmitMigratorWriterBytesMigrated(
-						w.tableName,
-						destinationDatabase,
-						len(envelope.OriginatorEnvelope),
-					)
-
-					metrics.EmitMigratorDestLastSequenceID(
-						w.tableName,
-						envelope.OriginatorSequenceID,
-					)
-
-					w.cleanupInflight(ctx, envelope.OriginatorSequenceID)
+				case <-ctx.Done():
+					return
 				}
-
-				batch.Reset()
 			}
 
+			// Collect envelopes and send to insert workers.
 			for {
 				select {
 				case <-ctx.Done():
@@ -427,22 +377,18 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 					ticksSinceLastFlush++
 
 					// Do not flush prematurely.
-					if batch.Len() <= int(w.batchSize)/2 && ticksSinceLastFlush < 10 {
+					if batch.Len() <= int(w.batchSize)/2 && ticksSinceLastFlush < 8 {
 						continue
 					}
 
-					triggerBatchFlush()
+					sendBatchToWorkers()
 
 				case envelope, open := <-w.wrtrChan:
 					if !open {
 						logger.Info(channelClosedMessage)
 
-						if batch.Len() <= 0 {
-							return
-						}
-
 						// Flush remaining messages before exiting.
-						triggerBatchFlush()
+						sendBatchToWorkers()
 
 						return
 					}
@@ -457,7 +403,7 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 					}
 
 					if batch.Len() >= int(w.batchSize) {
-						triggerBatchFlush()
+						sendBatchToWorkers()
 					}
 
 					payerID, err := w.payerIDFromEnvelope(ctx, envelope)
@@ -492,6 +438,126 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 	)
 
 	return nil
+}
+
+// databaseWriterWorker processes batches from the insert channel.
+// Multiple workers run in parallel for concurrent inserts.
+func (w *Worker) databaseWriterWorker(
+	ctx context.Context,
+	logger *zap.Logger,
+	batches <-chan *types.GatewayEnvelopeBatch,
+	wg *sync.WaitGroup,
+) {
+	defer wg.Done()
+
+	logger.Info("database writer worker started")
+	defer logger.Info("database writer worker stopped")
+
+	for batch := range batches {
+		select {
+		case <-ctx.Done():
+			// Cleanup inflight for remaining batch on shutdown.
+			for _, envelope := range batch.All() {
+				w.cleanupInflight(ctx, envelope.OriginatorSequenceID)
+			}
+			return
+
+		default:
+		}
+
+		var (
+			batchLen            = batch.Len()
+			batchLastSequenceID = batch.LastSequenceID()
+		)
+
+		logger.Info(
+			"publishing batch",
+			utils.LengthField(batchLen),
+			utils.SequenceIDField(batchLastSequenceID),
+		)
+
+		err := metrics.MeasureWriterLatency(
+			w.tableName,
+			destinationDatabase,
+			func() error {
+				return retry(
+					ctx,
+					50*time.Millisecond,
+					w.tableName,
+					destinationDatabase,
+					func() re.RetryableError {
+						return w.insertOriginatorEnvelopeDatabaseBatch(
+							ctx,
+							logger,
+							batch,
+						)
+					},
+				)
+			},
+		)
+		if err != nil {
+			if errors.Is(err, context.Canceled) ||
+				errors.Is(err, context.DeadlineExceeded) {
+				logger.Info(contextCancelledMessage)
+				for _, envelope := range batch.All() {
+					w.cleanupInflight(ctx, envelope.OriginatorSequenceID)
+				}
+				return
+			}
+
+			logger.Error(
+				"failed to insert batch",
+				zap.Error(err),
+				utils.LengthField(batchLen),
+				utils.SequenceIDField(batchLastSequenceID),
+			)
+
+			metrics.EmitMigratorWriterError(
+				w.tableName,
+				destinationDatabase,
+				err.Error(),
+			)
+
+			for _, envelope := range batch.All() {
+				w.cleanupInflight(ctx, envelope.OriginatorSequenceID)
+			}
+
+			continue
+		}
+
+		logger.Info(
+			"batch published successfully",
+			utils.LengthField(batchLen),
+			utils.SequenceIDField(batchLastSequenceID),
+		)
+
+		metrics.EmitMigratorWriterRowsMigrated(w.tableName, int64(batchLen))
+
+		for _, envelope := range batch.All() {
+			startTime, exists := w.isInflight(envelope.OriginatorSequenceID)
+
+			if exists {
+				metrics.EmitMigratorE2ELatency(
+					w.tableName,
+					destinationDatabase,
+					time.Since(startTime).Seconds(),
+				)
+			}
+
+			metrics.EmitMigratorWriterBytesMigrated(
+				w.tableName,
+				destinationDatabase,
+				len(envelope.OriginatorEnvelope),
+			)
+
+			metrics.EmitMigratorDestLastSequenceID(
+				w.tableName,
+				envelope.OriginatorSequenceID,
+			)
+
+			w.cleanupInflight(ctx, envelope.OriginatorSequenceID)
+		}
+	}
 }
 
 func (w *Worker) payerIDFromEnvelope(

@@ -300,6 +300,24 @@ func (s *Service) sendEnvelopes(
 		return nil
 	}
 
+	// PERF TRACING: Log when streaming envelopes to client
+	streamSendNs := time.Now().UnixNano()
+	for i, env := range envs {
+		if env != nil {
+			targetTopic := env.TargetTopic()
+			topicID := fmt.Sprintf("%x", targetTopic.Identifier())
+			s.logger.Info(
+				fmt.Sprintf("[PERF_TRACE] stream_send kind=%s topic=%s seq=%d node=%d", targetTopic.Kind().String(), topicID, env.OriginatorSequenceID(), env.OriginatorNodeID()),
+				zap.Int("envelope_index", i),
+				zap.Int64("stream_send_ns", streamSendNs),
+				zap.Uint64("originator_sequence_id", env.OriginatorSequenceID()),
+				zap.Uint32("originator_node_id", uint32(env.OriginatorNodeID())),
+				zap.String("topic_identifier", topicID),
+				zap.String("topic_kind", targetTopic.Kind().String()),
+			)
+		}
+	}
+
 	err := stream.Send(&message_api.SubscribeEnvelopesResponse{
 		Envelopes: envsToSend,
 	})
@@ -344,10 +362,47 @@ func (s *Service) QueryEnvelopes(
 		limit = int32(req.Msg.GetLimit())
 	}
 
+	// PERF TRACING: Log incoming query parameters
+	queryStartNs := time.Now().UnixNano()
+	query := req.Msg.GetQuery()
+	topics := query.GetTopics()
+	queryCursors := query.GetLastSeen().GetNodeIdToSequenceId()
+	topicHexList := make([]string, 0, len(topics))
+	for _, t := range topics {
+		topicHexList = append(topicHexList, fmt.Sprintf("%x", t))
+	}
+	cursorStrList := make([]string, 0, len(queryCursors))
+	for nodeID, seqID := range queryCursors {
+		cursorStrList = append(cursorStrList, fmt.Sprintf("node%d:seq%d", nodeID, seqID))
+	}
+	s.logger.Info(
+		fmt.Sprintf("[PERF_TRACE] query_envelopes_start topics=[%s] cursors=[%s]", strings.Join(topicHexList, ","), strings.Join(cursorStrList, ",")),
+		zap.Int64("query_start_ns", queryStartNs),
+		zap.Int("num_topics", len(topics)),
+		zap.Strings("topic_hex", topicHexList),
+		zap.Int("num_cursors", len(queryCursors)),
+		zap.Strings("cursors", cursorStrList),
+		zap.Int32("limit", limit),
+	)
+
 	rows, err := s.fetchEnvelopesWithRetry(ctx, req.Msg.GetQuery(), limit)
 	if err != nil {
 		return nil, err
 	}
+
+	// PERF TRACING: Log query results
+	queryEndNs := time.Now().UnixNano()
+	resultSeqIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		resultSeqIDs = append(resultSeqIDs, fmt.Sprintf("node%d:seq%d", row.OriginatorNodeID, row.OriginatorSequenceID))
+	}
+	s.logger.Info(
+		fmt.Sprintf("[PERF_TRACE] query_envelopes_result topics=[%s] num_results=%d", strings.Join(topicHexList, ","), len(rows)),
+		zap.Int64("query_end_ns", queryEndNs),
+		zap.Int64("query_duration_ns", queryEndNs-queryStartNs),
+		zap.Int("num_results", len(rows)),
+		zap.Strings("result_seq_ids", resultSeqIDs),
+	)
 
 	response := connect.NewResponse(&message_api.QueryEnvelopesResponse{
 		Envelopes: make([]*envelopesProto.OriginatorEnvelope, 0, len(rows)),

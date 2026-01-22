@@ -755,7 +755,7 @@ func (s *Service) logEnvelopeDetails(stage string, index int, rawEnvelope *envel
 	}
 
 	s.logger.Info(
-		fmt.Sprintf("[PERF_TRACE] %s envelope details", stage),
+		fmt.Sprintf("[PERF_TRACE] %s kind=%s payload=%s topic=%s", stage, topicKind, payloadType, topicIdentifier),
 		zap.Int("envelope_index", index),
 		zap.Int64("timestamp_ns", timestampNs),
 		zap.String("topic_kind", topicKind),

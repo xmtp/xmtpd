@@ -7,8 +7,10 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -21,6 +23,15 @@ const (
 	// this gives us sufficient throughput if being run continually
 	subscribeWorkerPollRows = 1000
 )
+
+// Reserved originator IDs we should always include.
+var reservedOriginatorIDs = []uint32{
+	constants.GroupMessageOriginatorID,
+	constants.IdentityUpdateOriginatorID,
+	migrator.GroupMessageOriginatorID,
+	migrator.WelcomeMessageOriginatorID,
+	migrator.KeyPackagesOriginatorID,
+}
 
 // A worker that listens for new envelopes in the DB and sends them to subscribers
 // Assumes that there are many listeners - non-blocking updates are sent on buffered channels
@@ -49,7 +60,7 @@ func (s *subscribeWorker) getOriginatorNodeIds() ([]uint32, error) {
 		return nil, fmt.Errorf("could not get list of originators: %w", err)
 	}
 
-	var nodeIDs []uint32
+	nodeIDs := append([]uint32{}, reservedOriginatorIDs...)
 	for _, node := range nodes {
 		if !node.IsCanonical {
 			s.logger.Debug(

@@ -218,7 +218,7 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 
 	// Compute expected balance
 	expectedPerNode := totalRequests / uint32(len(nodes))
-	tolerance := float64(expectedPerNode) * 0.05 // 10% tolerance
+	tolerance := float64(expectedPerNode) * 0.10 // 10% tolerance
 	t.Logf("Target Tolerance: %v", tolerance)
 
 	// Verify that each bucket is within ±10% of expected distribution
@@ -239,23 +239,25 @@ func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 
 	selector := selectors.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
 
+	// Note: HashKey now uses topic.Identifier() instead of topic.Bytes()
+	// to ensure different message types for the same entity route to the same node
 	node1, err := selector.GetNode(tpc1)
 	require.NoError(t, err)
-	require.EqualValues(t, 200, node1)
+	require.EqualValues(t, 300, node1)
 
 	banlist := []uint32{node1}
 
 	reselectedNode, err := selector.GetNode(tpc1, banlist)
 	require.NoError(t, err)
 	require.NotEqualValues(t, node1, reselectedNode)
-	require.EqualValues(t, 300, reselectedNode)
+	require.EqualValues(t, 100, reselectedNode)
 
 	banlist = append(banlist, reselectedNode)
 
 	reselectedNode, err = selector.GetNode(tpc1, banlist)
 	require.NoError(t, err)
 	require.NotEqualValues(t, node1, reselectedNode)
-	require.EqualValues(t, 100, reselectedNode)
+	require.EqualValues(t, 200, reselectedNode)
 
 	banlist = append(banlist, reselectedNode)
 

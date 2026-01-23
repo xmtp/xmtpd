@@ -4,12 +4,14 @@ WITH ins AS (
   VALUES (@address)
   ON CONFLICT (address) DO NOTHING
   RETURNING id
+), u AS (
+  SELECT id FROM ins
+  UNION ALL
+  SELECT id FROM payers WHERE address = @address
 )
-SELECT id FROM ins
-UNION ALL
-SELECT id FROM payers WHERE address = @address
+SELECT id
+FROM u
 LIMIT 1;
-
 -- name: GetPayerByAddress :one
 SELECT id
 FROM payers

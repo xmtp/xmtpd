@@ -322,11 +322,16 @@ func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsPa
 }
 
 const findOrCreatePayer = `-- name: FindOrCreatePayer :one
-INSERT INTO payers(address)
-VALUES ($1) ON CONFLICT (address) DO
-UPDATE
-SET address = $1
-RETURNING id
+WITH ins AS (
+  INSERT INTO payers(address)
+  VALUES ($1)
+  ON CONFLICT (address) DO NOTHING
+  RETURNING id
+)
+SELECT id FROM ins
+UNION ALL
+SELECT id FROM payers WHERE address = $1
+LIMIT 1
 `
 
 func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32, error) {

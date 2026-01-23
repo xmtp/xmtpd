@@ -13,8 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/api/message"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
@@ -379,7 +381,7 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 
 func generateEnvelopes(
 	t *testing.T,
-	nodes []registry.Node,
+	nodeIDs []uint32,
 	low int,
 	high int,
 	payerID int32,
@@ -389,8 +391,7 @@ func generateEnvelopes(
 
 	out := make(map[int32][]queries.InsertGatewayEnvelopeParams)
 
-	for _, node := range nodes {
-		id := int32(node.NodeID)
+	for _, id := range nodeIDs {
 
 		n := low + rand.Intn(high-low)
 
@@ -410,7 +411,7 @@ func generateEnvelopes(
 			)
 
 			envs[i] = queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     id,
+				OriginatorNodeID:     int32(id),
 				OriginatorSequenceID: seqID,
 				Topic:                topic.Bytes(),
 				PayerID:              db.NullInt32(payerID),
@@ -418,7 +419,7 @@ func generateEnvelopes(
 			}
 		}
 
-		out[id] = envs
+		out[int32(id)] = envs
 	}
 
 	return out
@@ -452,6 +453,14 @@ func generateNodes(t *testing.T, n int) []registry.Node {
 	return out
 }
 
+func nodeIDs(nodes []registry.Node) []uint32 {
+	out := make([]uint32, len(nodes))
+	for i, node := range nodes {
+		out[i] = node.NodeID
+	}
+	return out
+}
+
 func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 	var (
 		nodes       = generateNodes(t, 4)
@@ -463,7 +472,16 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 			[]byte(fmt.Sprintf("generic-topic-%v", rand.Int())),
 		)
 
-		sourceEnvelopes = generateEnvelopes(t, nodes, 50, 100, payerID, subTopic)
+		// Include messages not coming from our nodes.
+		reservedOriginatorIDs = []uint32{
+			constants.GroupMessageOriginatorID,
+			constants.IdentityUpdateOriginatorID,
+			migrator.GroupMessageOriginatorID,
+			migrator.WelcomeMessageOriginatorID,
+			migrator.KeyPackagesOriginatorID,
+		}
+		ids             = append(nodeIDs(nodes), reservedOriginatorIDs...)
+		sourceEnvelopes = generateEnvelopes(t, ids, 50, 100, payerID, subTopic)
 
 		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
 		keyID = func(nodeID int32, seqID int64) string {

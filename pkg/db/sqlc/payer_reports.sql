@@ -1,9 +1,14 @@
 -- name: FindOrCreatePayer :one
-INSERT INTO payers(address)
-VALUES (@address) ON CONFLICT (address) DO
-UPDATE
-SET address = @address
-RETURNING id;
+WITH ins AS (
+  INSERT INTO payers(address)
+  VALUES (@address)
+  ON CONFLICT (address) DO NOTHING
+  RETURNING id
+)
+SELECT id FROM ins
+UNION ALL
+SELECT id FROM payers WHERE address = @address
+LIMIT 1;
 
 -- name: GetPayerByAddress :one
 SELECT id

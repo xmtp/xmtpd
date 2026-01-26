@@ -2,12 +2,9 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-
-	"github.com/xmtp/xmtpd/pkg/config/environments"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -74,6 +71,11 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
 		return err
 	}
+	// Bind to new standardized env var
+	if err := viper.BindEnv("log-level", "XMTPD_LOG_LEVEL"); err != nil {
+		return err
+	}
+	// Backward compatibility: bind to old env var
 	if err := viper.BindEnv("log-level", "LOG_LEVEL"); err != nil {
 		return err
 	}
@@ -84,6 +86,11 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("log-encoding", rootCmd.PersistentFlags().Lookup("log-encoding")); err != nil {
 		return err
 	}
+	// Bind to new standardized env var
+	if err := viper.BindEnv("log-encoding", "XMTPD_LOG_ENCODING"); err != nil {
+		return err
+	}
+	// Backward compatibility: bind to old env var
 	if err := viper.BindEnv("log-encoding", "LOG_ENCODING"); err != nil {
 		return err
 	}
@@ -114,6 +121,11 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("private-key", rootCmd.PersistentFlags().Lookup("private-key")); err != nil {
 		return err
 	}
+	// Bind to new standardized env var
+	if err := viper.BindEnv("private-key", "XMTPD_SIGNER_PRIVATE_KEY"); err != nil {
+		return err
+	}
+	// Backward compatibility: bind to old env var
 	if err := viper.BindEnv("private-key", "PRIVATE_KEY"); err != nil {
 		return err
 	}
@@ -123,6 +135,11 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("settlement-rpc-url", rootCmd.PersistentFlags().Lookup("settlement-rpc-url")); err != nil {
 		return err
 	}
+	// Bind to new standardized env var
+	if err := viper.BindEnv("settlement-rpc-url", "XMTPD_SETTLEMENT_CHAIN_RPC_URL"); err != nil {
+		return err
+	}
+	// Backward compatibility: bind to old env var
 	if err := viper.BindEnv("settlement-rpc-url", "SETTLEMENT_RPC_URL"); err != nil {
 		return err
 	}
@@ -132,6 +149,11 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("app-rpc-url", rootCmd.PersistentFlags().Lookup("app-rpc-url")); err != nil {
 		return err
 	}
+	// Bind to new standardized env var
+	if err := viper.BindEnv("app-rpc-url", "XMTPD_APP_CHAIN_RPC_URL"); err != nil {
+		return err
+	}
+	// Backward compatibility: bind to old env var
 	if err := viper.BindEnv("app-rpc-url", "APP_RPC_URL"); err != nil {
 		return err
 	}
@@ -140,6 +162,9 @@ func registerGlobalFlags() error {
 }
 
 func cliLogger() (*zap.Logger, error) {
+	// Check for deprecated environment variables and warn
+	checkDeprecatedEnvVars()
+
 	l, _, err := utils.BuildLogger(config.LogOptions{
 		LogLevel:    viper.GetString("log-level"),
 		LogEncoding: viper.GetString("log-encoding"),
@@ -148,6 +173,27 @@ func cliLogger() (*zap.Logger, error) {
 		return nil, fmt.Errorf("could not build logger: %w", err)
 	}
 	return l, nil
+}
+
+// checkDeprecatedEnvVars checks for usage of deprecated environment variables
+// and prints warnings to stderr to guide users to the new standardized names.
+func checkDeprecatedEnvVars() {
+	deprecatedVars := map[string]string{
+		"LOG_LEVEL":         "XMTPD_LOG_LEVEL",
+		"LOG_ENCODING":      "XMTPD_LOG_ENCODING",
+		"PRIVATE_KEY":       "XMTPD_SIGNER_PRIVATE_KEY",
+		"SETTLEMENT_RPC_URL": "XMTPD_SETTLEMENT_CHAIN_RPC_URL",
+		"APP_RPC_URL":       "XMTPD_APP_CHAIN_RPC_URL",
+	}
+
+	for oldVar, newVar := range deprecatedVars {
+		if val := os.Getenv(oldVar); val != "" {
+			// Only warn if the new variable is not set (to avoid double warning)
+			if os.Getenv(newVar) == "" {
+				fmt.Fprintf(os.Stderr, "WARNING: Environment variable %s is deprecated. Please use %s instead.\n", oldVar, newVar)
+			}
+		}
+	}
 }
 
 func resolveSettlementRPCURL() (string, error) {
@@ -165,48 +211,11 @@ func resolveAppRPCURL() (string, error) {
 }
 
 func resolveConfig(configFile string, environment string) (*config.ContractsOptions, error) {
-	if environment != "" && configFile != "" {
-		return nil, fmt.Errorf(
-			"--environment cannot be used with --config-file",
-		)
-	}
-
-	if environment != "" {
-		var env environments.SmartContractEnvironment
-		err := env.UnmarshalFlag(environment)
-		if err != nil {
-			return nil, err
-		}
-
-		data, err := environments.GetEnvironmentConfig(
-			env,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		var cfg config.ChainConfig
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return nil, err
-		}
-
-		var resultOptions config.ContractsOptions
-
-		config.FillConfigFromJSON(&resultOptions, &cfg)
-
-		return &resultOptions, nil
-	}
-
-	if configFile == "" {
-		return nil, fmt.Errorf("config-file or environment is required")
-	}
-
-	contracts, err := config.ContractOptionsFromEnv(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not load config from file: %w", err)
-	}
-
-	return contracts, nil
+	// Use the unified loader from pkg/config
+	return config.LoadContractsConfig(config.ContractsSource{
+		Environment: environment,
+		FilePath:    configFile,
+	})
 }
 
 func init() {

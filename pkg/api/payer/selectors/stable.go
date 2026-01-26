@@ -27,9 +27,12 @@ func NewStableHashingNodeSelectorAlgorithm(
 	return &StableHashingNodeSelectorAlgorithm{reg: reg}
 }
 
-// HashKey hashes the topic to a stable uint32 hash using SHA-256.
+// HashKey hashes the topic identifier to a stable uint32 hash using SHA-256.
+// We hash only the identifier (not the full topic bytes) so that different message
+// types for the same entity (e.g., key_packages and welcome_messages for the same
+// installation) route to the same node.
 func HashKey(topic topic.Topic) uint32 {
-	hash := sha256.Sum256(topic.Bytes())
+	hash := sha256.Sum256(topic.Identifier())
 	return binary.BigEndian.Uint32(hash[:4])
 }
 

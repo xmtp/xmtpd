@@ -327,10 +327,13 @@ WITH ins AS (
   VALUES ($1)
   ON CONFLICT (address) DO NOTHING
   RETURNING id
+), u AS (
+  SELECT id FROM ins
+  UNION ALL
+  SELECT id FROM payers WHERE address = $1
 )
-SELECT id FROM ins
-UNION ALL
-SELECT id FROM payers WHERE address = $1
+SELECT id
+FROM u
 LIMIT 1
 `
 

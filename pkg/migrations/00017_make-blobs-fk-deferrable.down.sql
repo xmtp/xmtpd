@@ -1,3 +1,98 @@
+-- Revert to non-deferrable FK constraints and original function
+
+-- Step 1: Revert all existing leaf partitions to non-deferrable FK constraints
+DO $$
+DECLARE
+    leaf_partition RECORD;
+    constraint_name TEXT;
+BEGIN
+    -- Find all leaf partitions of gateway_envelope_blobs (2 levels deep: list -> range)
+    FOR leaf_partition IN
+        SELECT c.relname AS partition_name
+        FROM pg_inherits i1
+        JOIN pg_class c1 ON i1.inhrelid = c1.oid
+        JOIN pg_inherits i2 ON c1.oid = i2.inhparent
+        JOIN pg_class c ON i2.inhrelid = c.oid
+        WHERE i1.inhparent = 'gateway_envelope_blobs'::regclass
+    LOOP
+        -- Find the FK constraint name on this partition
+        SELECT con.conname INTO constraint_name
+        FROM pg_constraint con
+        JOIN pg_class rel ON con.conrelid = rel.oid
+        WHERE rel.relname = leaf_partition.partition_name
+          AND con.contype = 'f'
+          AND con.confrelid IN (
+              SELECT oid FROM pg_class WHERE relname LIKE 'gateway_envelopes_meta%'
+          );
+
+        IF constraint_name IS NOT NULL THEN
+            -- Drop the deferrable constraint
+            EXECUTE format(
+                'ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I',
+                leaf_partition.partition_name,
+                constraint_name
+            );
+
+            -- Recreate as non-deferrable
+            EXECUTE format(
+                'ALTER TABLE %I ADD CONSTRAINT %I
+                 FOREIGN KEY (originator_node_id, originator_sequence_id)
+                 REFERENCES gateway_envelopes_meta(originator_node_id, originator_sequence_id)
+                 ON DELETE CASCADE',
+                leaf_partition.partition_name,
+                leaf_partition.partition_name || '_meta_fkey'
+            );
+        END IF;
+    END LOOP;
+END $$;
+
+-- Step 2: Revert the blob subpartition creation function
+CREATE OR REPLACE FUNCTION make_blob_seq_subpart_v2(_oid int, _start bigint, _end bigint)
+    RETURNS void AS $$
+DECLARE
+    -- gateway_envelope_blobs_oXXX
+    parent text := format('gateway_envelope_blobs_o%s', _oid);
+    -- gateway_envelope_blobs_oXXX_sN0_N1
+    subname       text := format('gateway_envelope_blobs_o%s_s%s_%s', _oid, _start, _end);
+BEGIN
+    -- Since it's a standalone table - setup a constraint.
+    EXECUTE format(
+        'CREATE TABLE IF NOT EXISTS %I (
+            LIKE gateway_envelope_blobs INCLUDING DEFAULTS INCLUDING CONSTRAINTS,
+            CONSTRAINT seq_id_check CHECK ( originator_sequence_id >= %s AND originator_sequence_id < %s )
+        )',
+        subname,
+        _oid::text,
+        _start::text,
+        _end::text
+    );
+
+    EXECUTE format(
+        'ALTER TABLE %I ATTACH PARTITION %I
+            FOR VALUES FROM (%s) TO (%s)',
+        parent,
+        subname,
+        _start::text,
+        _end::text
+    );
+
+    -- Now we can drop the constraint.
+    EXECUTE format(
+        'ALTER TABLE %I DROP CONSTRAINT seq_id_check;',
+        subname
+    );
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLERRM ~ 'is already a partition' THEN
+            -- Do nothing.
+            NULL;
+        ELSE
+            RAISE;
+        END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Step 3: Revert to original SQL-based batch insert function
 CREATE OR REPLACE FUNCTION insert_gateway_envelope_batch(
     p_originator_node_ids     int[],
     p_originator_sequence_ids bigint[],

@@ -68,7 +68,10 @@ func registerGlobalFlags() error {
 	rootCmd.PersistentFlags().
 		StringVarP(&globalLogLevel, "log-level", "l", "info", "set logging level. Available levels: debug, info, warn, error, fatal, panic")
 
-	if err := viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
+	if err := viper.BindPFlag(
+		"log-level",
+		rootCmd.PersistentFlags().Lookup("log-level"),
+	); err != nil {
 		return err
 	}
 	// Bind to new standardized env var (and legacy for backward compatibility)
@@ -79,7 +82,10 @@ func registerGlobalFlags() error {
 	rootCmd.PersistentFlags().
 		StringVarP(&globalLogEncoding, "log-encoding", "e", "console", "set log encoding. Available encodings: console, json")
 
-	if err := viper.BindPFlag("log-encoding", rootCmd.PersistentFlags().Lookup("log-encoding")); err != nil {
+	if err := viper.BindPFlag(
+		"log-encoding",
+		rootCmd.PersistentFlags().Lookup("log-encoding"),
+	); err != nil {
 		return err
 	}
 	// Bind to new standardized env var (and legacy for backward compatibility)
@@ -90,7 +96,10 @@ func registerGlobalFlags() error {
 	rootCmd.PersistentFlags().
 		StringVarP(&globalConfigFile, "config-file", "c", "", "path to the config file")
 
-	if err := viper.BindPFlag("config-file", rootCmd.PersistentFlags().Lookup("config-file")); err != nil {
+	if err := viper.BindPFlag(
+		"config-file",
+		rootCmd.PersistentFlags().Lookup("config-file"),
+	); err != nil {
 		return err
 	}
 	if err := viper.BindEnv("config-file", "XMTPD_CONTRACTS_CONFIG_FILE_PATH"); err != nil {
@@ -100,7 +109,10 @@ func registerGlobalFlags() error {
 	rootCmd.PersistentFlags().
 		StringVarP(&environment, "environment", "", "", "Deployed environment to load contracts config for")
 
-	if err := viper.BindPFlag("environment", rootCmd.PersistentFlags().Lookup("environment")); err != nil {
+	if err := viper.BindPFlag(
+		"environment",
+		rootCmd.PersistentFlags().Lookup("environment"),
+	); err != nil {
 		return err
 	}
 	if err := viper.BindEnv("environment", "XMTPD_CONTRACTS_ENVIRONMENT"); err != nil {
@@ -110,7 +122,10 @@ func registerGlobalFlags() error {
 	rootCmd.PersistentFlags().
 		StringVarP(&globalPrivateKey, "private-key", "p", "", "private key to use")
 
-	if err := viper.BindPFlag("private-key", rootCmd.PersistentFlags().Lookup("private-key")); err != nil {
+	if err := viper.BindPFlag(
+		"private-key",
+		rootCmd.PersistentFlags().Lookup("private-key"),
+	); err != nil {
 		return err
 	}
 	// Bind to new standardized env var (and legacy for backward compatibility)
@@ -120,17 +135,27 @@ func registerGlobalFlags() error {
 
 	rootCmd.PersistentFlags().
 		StringVar(&globalSettlementURL, "settlement-rpc-url", "", "Settlement chain RPC URL")
-	if err := viper.BindPFlag("settlement-rpc-url", rootCmd.PersistentFlags().Lookup("settlement-rpc-url")); err != nil {
+	if err := viper.BindPFlag(
+		"settlement-rpc-url",
+		rootCmd.PersistentFlags().Lookup("settlement-rpc-url"),
+	); err != nil {
 		return err
 	}
 	// Bind to new standardized env var (and legacy for backward compatibility)
-	if err := viper.BindEnv("settlement-rpc-url", "XMTPD_SETTLEMENT_CHAIN_RPC_URL", "SETTLEMENT_RPC_URL"); err != nil {
+	if err := viper.BindEnv(
+		"settlement-rpc-url",
+		"XMTPD_SETTLEMENT_CHAIN_RPC_URL",
+		"SETTLEMENT_RPC_URL",
+	); err != nil {
 		return err
 	}
 
 	rootCmd.PersistentFlags().
 		StringVar(&globalAppURL, "app-rpc-url", "", "App chain RPC URL")
-	if err := viper.BindPFlag("app-rpc-url", rootCmd.PersistentFlags().Lookup("app-rpc-url")); err != nil {
+	if err := viper.BindPFlag(
+		"app-rpc-url",
+		rootCmd.PersistentFlags().Lookup("app-rpc-url"),
+	); err != nil {
 		return err
 	}
 	// Bind to new standardized env var (and legacy for backward compatibility)

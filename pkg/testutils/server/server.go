@@ -3,7 +3,6 @@ package server
 
 import (
 	"crypto/ecdsa"
-	"database/sql"
 	"encoding/hex"
 	"testing"
 	"time"
@@ -29,7 +28,7 @@ type EnabledServices struct {
 
 type TestServerCfg struct {
 	ContractsOptions *config.ContractsOptions
-	DB               *sql.DB
+	DB               *db.Handler
 	Port             int
 	PrivateKey       *ecdsa.PrivateKey
 	Registry         r.NodeRegistry
@@ -40,12 +39,16 @@ func NewTestBaseServer(
 	t *testing.T,
 	cfg TestServerCfg,
 ) *s.BaseServer {
-	log := testutils.NewLog(t)
+	var (
+		ctx    = t.Context()
+		log    = testutils.NewLog(t)
+		dbh, _ = testutils.NewDB(t, ctx)
+	)
 
 	server, err := s.NewBaseServer(
-		s.WithContext(t.Context()),
+		s.WithContext(ctx),
 		s.WithLogger(log),
-		s.WithDB(db.NewDBHandler(cfg.DB)),
+		s.WithDB(dbh),
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithFeeCalculator(fees.NewTestFeeCalculator()),

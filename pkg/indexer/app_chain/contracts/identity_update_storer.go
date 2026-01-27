@@ -36,23 +36,23 @@ var (
 )
 
 type IdentityUpdateStorer struct {
-	contract          *iu.IdentityUpdateBroadcaster
-	db                *sql.DB
 	logger            *zap.Logger
+	db                *db.Handler
+	contract          *iu.IdentityUpdateBroadcaster
 	validationService mlsvalidate.MLSValidationService
 }
 
 var _ c.ILogStorer = &IdentityUpdateStorer{}
 
 func NewIdentityUpdateStorer(
-	db *sql.DB,
 	logger *zap.Logger,
+	db *db.Handler,
 	contract *iu.IdentityUpdateBroadcaster,
 	validationService mlsvalidate.MLSValidationService,
 ) *IdentityUpdateStorer {
 	return &IdentityUpdateStorer{
-		db:                db,
 		logger:            logger.Named(utils.StorerLoggerName),
+		db:                db,
 		contract:          contract,
 		validationService: validationService,
 	}
@@ -94,7 +94,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 
 	err = db.RunInTx(
 		ctx,
-		s.db,
+		s.db.DB(),
 		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
 		func(ctx context.Context, querier *queries.Queries) error {
 			err := db.NewAdvisoryLocker().
@@ -282,6 +282,9 @@ func (s *IdentityUpdateStorer) StoreLog(
 
 			return nil
 		},
+		db.OnCommit(func() {
+			s.db.VectorClock().Save(constants.IdentityUpdateOriginatorID, msgSent.SequenceId)
+		}),
 	)
 	if err != nil {
 		var logStorageErr re.RetryableError

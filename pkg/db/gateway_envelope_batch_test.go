@@ -47,8 +47,7 @@ func buildBatchInput(
 func TestBatchInsert_Basic(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
-		querier         = queries.New(db)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
@@ -64,7 +63,7 @@ func TestBatchInsert_Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(batchSize), result)
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -76,8 +75,7 @@ func TestBatchInsert_Basic(t *testing.T) {
 func TestBatchInsert_OnlyEnvelopesBatch(t *testing.T) {
 	var (
 		ctx          = context.Background()
-		db, _        = testutils.NewRawDB(t, ctx)
-		querier      = queries.New(db)
+		db, _        = testutils.NewDB(t, ctx)
 		originatorID = testutils.RandomInt32()
 	)
 
@@ -103,7 +101,7 @@ func TestBatchInsert_OnlyEnvelopesBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(3), result)
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: 0},
 	)
@@ -117,7 +115,7 @@ func TestBatchInsert_OnlyEnvelopesBatch(t *testing.T) {
 func TestBatchInsert_EmptyInput(t *testing.T) {
 	var (
 		ctx   = context.Background()
-		db, _ = testutils.NewRawDB(t, ctx)
+		db, _ = testutils.NewDB(t, ctx)
 		input = types.NewGatewayEnvelopeBatch()
 	)
 
@@ -134,8 +132,7 @@ func TestBatchInsert_EmptyInput(t *testing.T) {
 func TestBatchInsert_DuplicatesIgnored(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
-		querier         = queries.New(db)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
@@ -162,7 +159,7 @@ func TestBatchInsert_DuplicatesIgnored(t *testing.T) {
 	require.Equal(t, int64(0), result)
 
 	// Verify usage was NOT double-counted.
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -173,8 +170,7 @@ func TestBatchInsert_DuplicatesIgnored(t *testing.T) {
 func TestBatchInsert_PartialDuplicates(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
-		querier         = queries.New(db)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
@@ -201,7 +197,7 @@ func TestBatchInsert_PartialDuplicates(t *testing.T) {
 	require.Equal(t, int64(2), result2)
 
 	// Verify usage is 5 + 2 = 7 messages.
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -212,7 +208,7 @@ func TestBatchInsert_PartialDuplicates(t *testing.T) {
 func TestBatchInsert_MultipleOriginators(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID1   = int32(100)
 		originatorID2   = int32(200)
@@ -243,7 +239,7 @@ func TestBatchInsert_InvalidSequenceOrder(t *testing.T) {
 	// Function has to handle ordering of sequence IDs for each originator node.
 	var (
 		ctx           = context.Background()
-		db, _         = testutils.NewRawDB(t, ctx)
+		db, _         = testutils.NewDB(t, ctx)
 		originatorID1 = int32(100)
 		originatorID2 = int32(200)
 	)
@@ -319,7 +315,7 @@ func TestBatchInsert_InvalidSequenceOrder(t *testing.T) {
 func TestBatchInsert_NullPayerID(t *testing.T) {
 	var (
 		ctx          = context.Background()
-		db, _        = testutils.NewRawDB(t, ctx)
+		db, _        = testutils.NewDB(t, ctx)
 		originatorID = int32(100)
 
 		// 0 is a null payer ID.
@@ -336,7 +332,7 @@ func TestBatchInsert_NullPayerID(t *testing.T) {
 
 	// Verify payer_id is NULL in the database.
 	var payerID sql.NullInt32
-	err = db.QueryRowContext(
+	err = db.DB().QueryRowContext(
 		ctx,
 		`SELECT payer_id FROM gateway_envelopes_meta 
 		 WHERE originator_node_id = $1 AND originator_sequence_id = $2`,
@@ -350,7 +346,7 @@ func TestBatchInsert_NullPayerID(t *testing.T) {
 func TestBatchInsert_PayerMustExist(t *testing.T) {
 	var (
 		ctx                = context.Background()
-		db, _              = testutils.NewRawDB(t, ctx)
+		db, _              = testutils.NewDB(t, ctx)
 		nonExistentPayerID = testutils.RandomInt32()
 		originatorID       = int32(100)
 		input              = buildBatchInput(nonExistentPayerID, originatorID, 1, 3, 100)
@@ -371,7 +367,7 @@ func TestBatchInsert_BandBoundaries(t *testing.T) {
 
 	var (
 		ctx          = context.Background()
-		db, _        = testutils.NewRawDB(t, ctx)
+		db, _        = testutils.NewDB(t, ctx)
 		payerID      = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID = int32(99)
 		seqLeft      = xmtpd_db.GatewayEnvelopeBandWidth - 1 // falls into band [0, bw)
@@ -401,8 +397,7 @@ func TestBatchInsert_BandBoundaries(t *testing.T) {
 func TestBatchInsert_Parallel(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
-		querier         = queries.New(db)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
@@ -445,7 +440,7 @@ func TestBatchInsert_Parallel(t *testing.T) {
 	expectedTotal := int64((numGoroutines + 1) * batchSize)
 	require.Equal(t, expectedTotal, totalInserted)
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -456,8 +451,7 @@ func TestBatchInsert_Parallel(t *testing.T) {
 func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
-		querier         = queries.New(db)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		spendPerMessage = int64(100)
@@ -500,7 +494,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 	// Only the first batch should have been inserted.
 	require.Equal(t, int64(batchSize), totalInserted)
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -511,8 +505,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 func TestBatchInsert_LargeBatch(t *testing.T) {
 	var (
 		ctx             = context.Background()
-		db, _           = testutils.NewRawDB(t, ctx)
-		querier         = queries.New(db)
+		db, _           = testutils.NewDB(t, ctx)
 		payerID         = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID    = int32(100)
 		batchSize       = 1000
@@ -528,7 +521,7 @@ func TestBatchInsert_LargeBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(batchSize), result)
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -541,15 +534,14 @@ func TestBatchInsert_PreexistingPartitions(t *testing.T) {
 
 	var (
 		ctx          = context.Background()
-		db, _        = testutils.NewRawDB(t, ctx)
-		querier      = queries.New(db)
+		db, _        = testutils.NewDB(t, ctx)
 		payerID      = testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 		originatorID = int32(7)
 		input        = buildBatchInput(payerID, originatorID, 1, 5, 100)
 	)
 
 	// Pre-create partitions.
-	err := querier.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+	err := db.Query().EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     originatorID,
 		OriginatorSequenceID: 1,
 		BandWidth:            xmtpd_db.GatewayEnvelopeBandWidth,

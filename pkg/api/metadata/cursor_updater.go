@@ -2,13 +2,15 @@ package metadata
 
 import (
 	"context"
+	"maps"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/tracing"
-	"go.uber.org/zap"
 )
 
 type CursorUpdater interface {
@@ -20,7 +22,7 @@ type CursorUpdater interface {
 
 type DBBasedCursorUpdater struct {
 	ctx           context.Context
-	store         *db.Handler
+	vc            db.VectorClock
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
 	cursorMu      sync.RWMutex
@@ -29,12 +31,16 @@ type DBBasedCursorUpdater struct {
 	subscribers   map[string][]chan struct{}
 }
 
-func NewCursorUpdater(ctx context.Context, logger *zap.Logger, store *db.Handler) CursorUpdater {
+func NewCursorUpdater(
+	ctx context.Context,
+	logger *zap.Logger,
+	vc db.VectorClock,
+) CursorUpdater {
 	subscribers := make(map[string][]chan struct{})
 	ctx, cancel := context.WithCancel(ctx)
 	cu := DBBasedCursorUpdater{
 		ctx:         ctx,
-		store:       store,
+		vc:          vc,
 		cancel:      cancel,
 		wg:          sync.WaitGroup{},
 		subscribers: subscribers,
@@ -57,6 +63,8 @@ func (cu *DBBasedCursorUpdater) GetCursor() *envelopes.Cursor {
 }
 
 func (cu *DBBasedCursorUpdater) start() {
+	// TODO: Check - this can now be more frequent, if that is something we want.
+
 	ticker := time.NewTicker(100 * time.Millisecond) // Adjust the period as needed
 	defer ticker.Stop()
 	for {
@@ -64,11 +72,7 @@ func (cu *DBBasedCursorUpdater) start() {
 		case <-cu.ctx.Done():
 			return
 		case <-ticker.C:
-			updated, err := cu.read()
-			if err != nil {
-				// TODO proper error handling
-				return
-			}
+			updated := cu.read()
 			if updated {
 				cu.notifySubscribers()
 			}
@@ -76,38 +80,19 @@ func (cu *DBBasedCursorUpdater) start() {
 	}
 }
 
-func equalCursors(a, b map[uint32]uint64) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for key, valA := range a {
-		if valB, ok := b[key]; !ok || valA != valB {
-			return false
-		}
-	}
-	return true
-}
-
-func (cu *DBBasedCursorUpdater) read() (bool, error) {
-	rows, err := cu.store.ReadQuery().SelectVectorClock(cu.ctx)
-	if err != nil {
-		return false, err
-	}
-
-	nodeIDToSequenceID := make(map[uint32]uint64)
-	for _, row := range rows {
-		nodeIDToSequenceID[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
-	}
+func (cu *DBBasedCursorUpdater) read() bool {
+	// Read current vector clock.
+	current := cu.vc.Values()
 
 	cu.cursorMu.Lock()
 	defer cu.cursorMu.Unlock()
 
-	if !equalCursors(cu.cursor, nodeIDToSequenceID) {
-		cu.cursor = nodeIDToSequenceID
-		return true, nil
+	if !maps.Equal(cu.cursor, current) {
+		cu.cursor = current
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 func (cu *DBBasedCursorUpdater) notifySubscribers() {

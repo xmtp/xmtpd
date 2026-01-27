@@ -2,32 +2,32 @@ package db_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"go.uber.org/zap"
 )
 
 var topicA = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
 
-func setup(t *testing.T) (*sql.DB, *zap.Logger) {
+func setup(t *testing.T) (*db.Handler, *zap.Logger) {
 	ctx := context.Background()
-	store, _ := testutils.NewRawDB(t, ctx)
+	store, _ := testutils.NewDB(t, ctx)
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
 	return store, log
 }
 
-func insertInitialRows(t *testing.T, store *sql.DB) {
+func insertInitialRows(t *testing.T, store *db.Handler) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     100,
@@ -45,10 +45,10 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 }
 
 func envelopesQuery(
-	store *sql.DB,
-) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
-	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
-		envs, err := queries.New(store).
+	store *db.Handler,
+) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClockRecord] {
+	return func(ctx context.Context, lastSeen db.VectorClockRecord, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClockRecord, error) {
+		envs, err := store.Query().
 			SelectGatewayEnvelopesByOriginators(ctx, *db.SetVectorClockByOriginators(&queries.SelectGatewayEnvelopesByOriginatorsParams{
 				OriginatorNodeIds: []int32{100},
 				RowLimit:          numRows,
@@ -63,7 +63,7 @@ func envelopesQuery(
 	}
 }
 
-func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
+func insertAdditionalRows(t *testing.T, store *db.Handler, notifyChan ...chan bool) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		{
 			OriginatorNodeID:     100,
@@ -111,11 +111,11 @@ func validateUpdates(
 // flakyEnvelopesQuery returns a query that fails every other time
 // to simulate a transient database error
 func flakyEnvelopesQuery(
-	store *sql.DB,
-) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
+	store *db.Handler,
+) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClockRecord] {
 	numQueries := 0
 	query := envelopesQuery(store)
-	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
+	return func(ctx context.Context, lastSeen db.VectorClockRecord, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClockRecord, error) {
 		numQueries++
 		if numQueries%2 == 1 {
 			return nil, lastSeen, errors.New("flaky query")
@@ -164,7 +164,7 @@ func TestChunkSizeSubscription(t *testing.T) {
 		ctx,
 		logger,
 		envelopesQuery(store),
-		db.VectorClock{},
+		db.VectorClockRecord{},
 		db.PollingOptions{Interval: interval, NumRows: int32(chunkSize)},
 	)
 
@@ -222,7 +222,7 @@ func TestIntervalSubscription(t *testing.T) {
 		ctx,
 		log,
 		envelopesQuery(store),
-		db.VectorClock{100: 1},
+		db.VectorClockRecord{100: 1},
 		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,
@@ -249,7 +249,7 @@ func TestNotifiedSubscription(t *testing.T) {
 		ctx,
 		log,
 		envelopesQuery(store),
-		db.VectorClock{100: 1},
+		db.VectorClockRecord{100: 1},
 		db.PollingOptions{
 			Notifier: notifyChan,
 			Interval: 30 * time.Second,
@@ -274,7 +274,7 @@ func TestTemporaryDBError(t *testing.T) {
 		ctx,
 		log,
 		flakyEnvelopesQuery(store),
-		db.VectorClock{100: 1},
+		db.VectorClockRecord{100: 1},
 		db.PollingOptions{
 			Interval: 100 * time.Millisecond,
 			NumRows:  1,
@@ -329,7 +329,7 @@ func TestSubscriptionDeliversContiguousSequencesPerOriginator(t *testing.T) {
 		ctx,
 		log,
 		envelopesQuery(store),
-		db.VectorClock{100: 1},
+		db.VectorClockRecord{100: 1},
 		db.PollingOptions{
 			Interval: 10 * time.Millisecond,
 			NumRows:  1,

@@ -1,13 +1,13 @@
 package metadata_test
 
 import (
-	"database/sql"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 
@@ -28,7 +28,7 @@ var (
 
 func setupTest(
 	t *testing.T,
-) (metadata_apiconnect.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
+) (metadata_apiconnect.MetadataApiClient, *db.Handler, testUtilsApi.APIServerMocks) {
 	var (
 		suite   = testUtilsApi.NewTestAPIServer(t)
 		payerID = dbUtils.NullInt32(testutils.CreatePayer(t, suite.DB))
@@ -92,14 +92,14 @@ func setupTest(
 	return suite.ClientMetadata, suite.DB, suite.APIServerMocks
 }
 
-func insertInitialRows(t *testing.T, store *sql.DB) {
+func insertInitialRows(t *testing.T, store *db.Handler) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
-func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
+func insertAdditionalRows(t *testing.T, store *db.Handler, notifyChan ...chan bool) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)

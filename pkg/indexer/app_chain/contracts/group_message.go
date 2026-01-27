@@ -67,7 +67,7 @@ func NewGroupMessageBroadcaster(
 	logger = logger.Named(utils.GroupMessageBroadcasterLoggerName).
 		With(utils.ContractAddressField(address.Hex()))
 
-	groupMessageStorer := NewGroupMessageStorer(db.Query(), logger, contract)
+	groupMessageStorer := NewGroupMessageStorer(logger, db, contract)
 
 	reorgHandler := NewGroupMessageReorgHandler(logger)
 

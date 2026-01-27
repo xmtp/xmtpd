@@ -32,21 +32,21 @@ var (
 )
 
 type GroupMessageStorer struct {
-	contract *gm.GroupMessageBroadcaster
-	queries  *queries.Queries
 	logger   *zap.Logger
+	db       *db.Handler
+	contract *gm.GroupMessageBroadcaster
 }
 
 var _ c.ILogStorer = &GroupMessageStorer{}
 
 func NewGroupMessageStorer(
-	queries *queries.Queries,
 	logger *zap.Logger,
+	db *db.Handler,
 	contract *gm.GroupMessageBroadcaster,
 ) *GroupMessageStorer {
 	return &GroupMessageStorer{
-		queries:  queries,
 		logger:   logger.Named(utils.StorerLoggerName),
+		db:       db,
 		contract: contract,
 	}
 }
@@ -107,7 +107,7 @@ func (s *GroupMessageStorer) StoreLog(
 
 	_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		s.queries,
+		s.db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     constants.GroupMessageOriginatorID,
 			OriginatorSequenceID: int64(msgSent.SequenceId),
@@ -120,6 +120,8 @@ func (s *GroupMessageStorer) StoreLog(
 		s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
 		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 	}
+
+	s.db.VectorClock().Save(constants.GroupMessageOriginatorID, msgSent.SequenceId)
 
 	return nil
 }

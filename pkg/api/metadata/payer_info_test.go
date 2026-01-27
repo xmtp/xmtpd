@@ -27,9 +27,11 @@ type testSetup struct {
 }
 
 func setupPayerInfoTest(t *testing.T) *testSetup {
-	database, _ := testutils.NewDB(t, t.Context())
-	fetcher := metadata.NewPayerInfoFetcher(database)
-	payerID := testutils.CreatePayer(t, database.DB(), testutils.RandomAddress().Hex())
+	var (
+		database, _ = testutils.NewDB(t, t.Context())
+		fetcher     = metadata.NewPayerInfoFetcher(database)
+		payerID     = testutils.CreatePayer(t, database, testutils.RandomAddress().Hex())
+	)
 	return &testSetup{
 		database: database,
 		fetcher:  fetcher,
@@ -68,7 +70,7 @@ func (ts *testSetup) insertMessages(t *testing.T, messages []testMessage) {
 
 		numInserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			ctx,
-			ts.database.DB(),
+			ts.database,
 			insertParams,
 			incrementParams,
 		)
@@ -275,14 +277,16 @@ func TestPayerInfo_EdgeCases(t *testing.T) {
 }
 
 func TestGetPayerByAddress(t *testing.T) {
-	ctx := t.Context()
-	database, _ := testutils.NewDB(t, ctx)
-	fetcher := metadata.NewPayerInfoFetcher(database)
+	var (
+		ctx     = t.Context()
+		db, _   = testutils.NewDB(t, ctx)
+		fetcher = metadata.NewPayerInfoFetcher(db)
+	)
 
 	t.Run("existing_payer", func(t *testing.T) {
 		// Create a payer with a known address
 		address := testutils.RandomAddress().Hex()
-		expectedPayerID := testutils.CreatePayer(t, database.DB(), address)
+		expectedPayerID := testutils.CreatePayer(t, db, address)
 
 		// Test GetPayerByAddress
 		payerID, err := fetcher.GetPayerByAddress(ctx, address)
@@ -305,8 +309,6 @@ func TestGetPayerByAddress(t *testing.T) {
 		address2 := testutils.RandomAddress().Hex()
 		address3 := testutils.RandomAddress().Hex()
 
-		db := database.DB()
-
 		payerID1 := testutils.CreatePayer(t, db, address1)
 		payerID2 := testutils.CreatePayer(t, db, address2)
 		payerID3 := testutils.CreatePayer(t, db, address3)
@@ -328,7 +330,7 @@ func TestGetPayerByAddress(t *testing.T) {
 	t.Run("case_sensitivity", func(t *testing.T) {
 		// Create a payer with lowercase address
 		lowerAddress := testutils.RandomAddress().Hex()
-		payerID := testutils.CreatePayer(t, database.DB(), lowerAddress)
+		payerID := testutils.CreatePayer(t, db, lowerAddress)
 
 		// Test exact match
 		foundID, err := fetcher.GetPayerByAddress(ctx, lowerAddress)

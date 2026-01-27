@@ -69,8 +69,8 @@ func newTestEnvelopeSink(
 
 	return newEnvelopeSink(
 		ctx,
-		dbInstance,
 		log,
+		dbInstance,
 		calculator,
 		payerreportMocks.NewMockIPayerReportStore(t),
 		payerReportDomainSeparator,

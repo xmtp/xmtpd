@@ -40,9 +40,8 @@ func buildParams(
 
 func TestInsertAndIncrement(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 
-	querier := queries.New(db)
 	// Create a payer
 	payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 	originatorID := int32(100)
@@ -59,7 +58,7 @@ func TestInsertAndIncrement(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, numInserted, int64(1))
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -67,7 +66,7 @@ func TestInsertAndIncrement(t *testing.T) {
 	require.Equal(t, payerSpend.TotalSpendPicodollars, int64(100))
 	require.Equal(t, payerSpend.LastSequenceID, sequenceID)
 
-	originatorCongestion, err := querier.SumOriginatorCongestion(
+	originatorCongestion, err := db.Query().SumOriginatorCongestion(
 		ctx,
 		queries.SumOriginatorCongestionParams{OriginatorID: originatorID},
 	)
@@ -77,7 +76,7 @@ func TestInsertAndIncrement(t *testing.T) {
 
 func TestPayerMustExist(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 
 	payerID := testutils.RandomInt32()
 	originatorID := int32(100)
@@ -96,9 +95,8 @@ func TestPayerMustExist(t *testing.T) {
 
 func TestInsertAndIncrementParallel(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 
-	querier := queries.New(db)
 	// Create a payer
 	payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 	originatorID := int32(100)
@@ -136,7 +134,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 
 	require.Equal(t, totalInserted, int64(1))
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -144,7 +142,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 	require.Equal(t, payerSpend.TotalSpendPicodollars, int64(100))
 	require.Equal(t, payerSpend.LastSequenceID, sequenceID)
 
-	originatorCongestion, err := querier.SumOriginatorCongestion(
+	originatorCongestion, err := db.Query().SumOriginatorCongestion(
 		ctx,
 		queries.SumOriginatorCongestionParams{OriginatorID: originatorID},
 	)
@@ -154,9 +152,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 
 func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-
-	querier := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
 
 	payerID := testutils.CreatePayer(t, db, testutils.RandomAddress().Hex())
 	originatorID := int32(100)
@@ -184,7 +180,7 @@ func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	payerSpend, err := querier.GetPayerUnsettledUsage(
+	payerSpend, err := db.Query().GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
@@ -194,14 +190,12 @@ func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 
 func TestInsertGatewayEnvelopeWithChecksStandalone(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-
-	querier := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
 
 	for i := 1; i < 10; i++ {
 		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 			ctx,
-			querier,
+			db,
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     int32(i),
 				OriginatorSequenceID: 1,
@@ -216,16 +210,16 @@ func TestInsertGatewayEnvelopeWithChecksStandalone(t *testing.T) {
 
 func TestInsertGatewayEnvelopeWithChecksStandalone_FailsInTransaction(t *testing.T) {
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	db, _ := testutils.NewDB(t, ctx)
+	tx, err := db.DB().BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
-	querier := queries.New(db).WithTx(tx)
+	querier := db.Query().WithTx(tx)
 	defer func(tx *sql.Tx) {
 		_ = tx.Rollback()
 	}(tx)
 
 	for i := 1; i < 10; i++ {
-		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
+		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandaloneWithQuerier(
 			ctx,
 			querier,
 			queries.InsertGatewayEnvelopeParams{
@@ -244,15 +238,14 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_AutoCreateAndRetry(t *testing
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
 
 	const nodeID int32 = 42
 	const seqID int64 = 1
 
 	_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
@@ -265,7 +258,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_AutoCreateAndRetry(t *testing
 	// A second insert into the SAME band should succeed without needing to create parts again.
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID + 123, // still within [0..1_000_000) default band
@@ -280,14 +273,13 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_PreexistingPartitions(t *test
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
 
 	const nodeID int32 = 7
 	const seqID int64 = 10
 
 	// Explicitly ensure parts up-front to simulate "partitions already exist" path.
-	err := q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+	err := db.Query().EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     nodeID,
 		OriginatorSequenceID: seqID,
 		BandWidth:            1_000_000,
@@ -296,7 +288,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_PreexistingPartitions(t *test
 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqID,
@@ -311,9 +303,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-	q := queries.New(db)
-
+	db, _ := testutils.NewDB(t, ctx)
 	const nodeID int32 = 99
 
 	// Sequence values straddling a band boundary:
@@ -322,7 +312,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 
 	_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqLeft,
@@ -334,7 +324,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqRight,
@@ -346,7 +336,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqLeft + 123, // still within first band
@@ -358,7 +348,7 @@ func TestInsertGatewayEnvelopeWithChecksStandalone_BandBoundaries(t *testing.T) 
 
 	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
-		q,
+		db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     nodeID,
 			OriginatorSequenceID: seqRight + 456, // still within second band

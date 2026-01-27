@@ -33,8 +33,8 @@ var _ c.IContract = &IdentityUpdateBroadcaster{}
 func NewIdentityUpdateBroadcaster(
 	ctx context.Context,
 	client *ethclient.Client,
-	db *db.Handler,
 	logger *zap.Logger,
+	db *db.Handler,
 	validationService mlsvalidate.MLSValidationService,
 	address common.Address,
 	chainID int64,
@@ -64,7 +64,12 @@ func NewIdentityUpdateBroadcaster(
 	logger = logger.Named(utils.IdentityUpdateBroadcasterLoggerName).
 		With(utils.ContractAddressField(address.Hex()))
 
-	identityUpdateStorer := NewIdentityUpdateStorer(db.DB(), logger, contract, validationService)
+	identityUpdateStorer := NewIdentityUpdateStorer(
+		logger,
+		db,
+		contract,
+		validationService,
+	)
 
 	reorgHandler := NewIdentityUpdateReorgHandler(logger)
 

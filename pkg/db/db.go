@@ -1,14 +1,23 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
+type VectorClock interface {
+	Save(nodeID uint32, seqID uint64)
+	Get(nodeID uint32) uint64
+	Values() map[uint32]uint64
+	ForceSync(context.Context) error
+}
+
 type handlerConfig struct {
 	readReplica *sql.DB
+	vc          VectorClock
 }
 
 type HandlerOption func(*handlerConfig)
@@ -33,11 +42,13 @@ type Handler struct {
 	// NOTE: This is potentially just overhead since it's trivial to create queries in other places.
 	query     *queries.Queries
 	readQuery *queries.Queries
+
+	vc VectorClock
 }
 
 // NewDBHandler creates a new database handler with two database connections - a read-write and a read one.
 // If there's no exclusive read replica it can be omitted and the write replica will be used.
-func NewDBHandler(db *sql.DB, options ...HandlerOption) *Handler {
+func NewDBHandler(db *sql.DB, vc VectorClock, options ...HandlerOption) *Handler {
 	var cfg handlerConfig
 	for _, opt := range options {
 		opt(&cfg)
@@ -46,6 +57,7 @@ func NewDBHandler(db *sql.DB, options ...HandlerOption) *Handler {
 	handler := &Handler{
 		write: db,
 		query: queries.New(db),
+		vc:    vc,
 	}
 
 	if cfg.readReplica != nil {
@@ -86,6 +98,10 @@ func (h *Handler) ReadQuery() *queries.Queries {
 	}
 
 	return h.query
+}
+
+func (h *Handler) VectorClock() VectorClock {
+	return h.vc
 }
 
 func (h *Handler) Close() error {

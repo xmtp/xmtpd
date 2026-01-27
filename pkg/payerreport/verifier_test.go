@@ -2,10 +2,10 @@ package payerreport_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -45,7 +45,7 @@ func newEnvelopeCreateParams(
 	}
 }
 
-func insertEnvelope(t *testing.T, db *sql.DB, params envelopeCreateParams) {
+func insertEnvelope(t *testing.T, db *db.Handler, params envelopeCreateParams) {
 	payerID := testutils.CreatePayer(t, db, params.payerAddress.Hex())
 
 	envelope := envelopeTestUtils.CreateOriginatorEnvelopeWithTimestamp(
@@ -133,7 +133,7 @@ func TestValidFirstReport(t *testing.T) {
 			verifier := payerreport.NewPayerReportVerifier(logger, store)
 
 			for _, message := range testCase.messagesToInsert {
-				insertEnvelope(t, db.DB(), message)
+				insertEnvelope(t, db, message)
 			}
 
 			report, err := generator.GenerateReport(
@@ -159,13 +159,13 @@ func TestValidFirstReport(t *testing.T) {
 	}
 }
 
-func setupVerifier(t *testing.T) (*sql.DB, *payerreport.PayerReportVerifier) {
+func setupVerifier(t *testing.T) (*db.Handler, *payerreport.PayerReportVerifier) {
 	db, _ := testutils.NewDB(t, context.Background())
 	logger := testutils.NewLog(t)
 	store := payerreport.NewStore(logger, db)
 	verifier := payerreport.NewPayerReportVerifier(logger, store)
 
-	return db.DB(), verifier
+	return db, verifier
 }
 
 func TestValidateReportTransition(t *testing.T) {

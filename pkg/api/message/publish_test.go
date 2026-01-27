@@ -67,7 +67,7 @@ func TestPublishEnvelope(t *testing.T) {
 
 	// Check that the envelope was published to the database after a delay
 	require.Eventually(t, func() bool {
-		envs, err := queries.New(suite.DB).
+		envs, err := suite.DB.Query().
 			SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 		require.NoError(t, err)
 
@@ -334,7 +334,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 	// TODO:nm: Set this to the actual congestion fee
 	require.Equal(t, returnedEnv.UnsignedOriginatorEnvelope.CongestionFee(), currency.PicoDollar(0))
 
-	envs, err := queries.New(suite.DB).
+	envs, err := suite.DB.Query().
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
 	require.Equal(t, len(envs), 1)
@@ -356,7 +356,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	var (
 		suite   = apiTestUtils.NewTestAPIServer(t)
-		querier = queries.New(suite.DB)
+		querier = suite.DB.Query()
 	)
 
 	clientEnv := envelopeTestUtils.CreatePayerReportClientEnvelope(100)
@@ -549,7 +549,7 @@ func TestPublishEnvelopeBatchPublish(t *testing.T) {
 	require.Len(t, resp.Msg.OriginatorEnvelopes, 3)
 
 	require.Eventually(t, func() bool {
-		envs, err := queries.New(suite.DB).
+		envs, err := suite.DB.Query().
 			SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 		require.NoError(t, err)
 
@@ -595,7 +595,7 @@ func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {
 	// give this some time to process just in case
 	time.Sleep(100 * time.Millisecond)
 
-	envs, err := queries.New(suite.DB).
+	envs, err := suite.DB.Query().
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
 	require.Len(t, envs, 0)

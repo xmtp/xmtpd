@@ -33,6 +33,8 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 		return re.NewNonRecoverableError("", errors.New("batch is nil"))
 	}
 
+	largest := determineLargestSequenceIDs(batch)
+
 	err := db.RunInTx(
 		ctx,
 		w.writer.Write(),
@@ -54,7 +56,12 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 			}
 
 			return nil
-		})
+		},
+		db.OnCommit(func() {
+			for nodeID, seqID := range largest {
+				w.writer.VectorClock().Save(nodeID, seqID)
+			}
+		}))
 	if err != nil {
 		var retryableError re.RetryableError
 		if errors.As(err, &retryableError) {
@@ -365,4 +372,26 @@ func insertMigrationDeadLetterBox(
 			return nil
 		},
 	)
+}
+
+// For a batch of envelopes, iterate through the list and determine the largest sequence ID for each
+// originator ID.
+func determineLargestSequenceIDs(batch *types.GatewayEnvelopeBatch) map[uint32]uint64 {
+	largest := make(map[uint32]uint64)
+	for _, row := range batch.Envelopes {
+
+		currentSeqID := uint64(row.OriginatorSequenceID)
+
+		saved, ok := largest[uint32(row.OriginatorNodeID)]
+		if !ok {
+			largest[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
+			continue
+		}
+
+		if currentSeqID > saved {
+			largest[uint32(row.OriginatorNodeID)] = currentSeqID
+		}
+	}
+
+	return largest
 }

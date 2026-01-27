@@ -2,10 +2,10 @@ package payerreport_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -42,7 +42,7 @@ func setupGenerator(t *testing.T) (*dbHelpers.Handler, *payerreport.PayerReportG
 
 func addEnvelope(
 	t *testing.T,
-	db *sql.DB,
+	db *db.Handler,
 	originatorID int32,
 	sequenceID int64,
 	payerAddress common.Address,
@@ -92,11 +92,11 @@ func TestFirstReport(t *testing.T) {
 	originatorID := int32(100)
 
 	// Two envelopes in the first minute since the epoch
-	addEnvelope(t, db.DB(), originatorID, 1, payerAddress, getMinute(1))
-	addEnvelope(t, db.DB(), originatorID, 2, payerAddress, getMinute(1))
+	addEnvelope(t, db, originatorID, 1, payerAddress, getMinute(1))
+	addEnvelope(t, db, originatorID, 2, payerAddress, getMinute(1))
 
 	// One envelope in the second minute since the epoch
-	addEnvelope(t, db.DB(), originatorID, 3, payerAddress, getMinute(2))
+	addEnvelope(t, db, originatorID, 3, payerAddress, getMinute(2))
 
 	report, err := generator.GenerateReport(
 		context.Background(),
@@ -120,9 +120,9 @@ func TestReportWithMultiplePayers(t *testing.T) {
 	payerAddress2 := testutils.RandomAddress()
 	originatorID := int32(100)
 
-	addEnvelope(t, db.DB(), originatorID, 1, payerAddress1, getMinute(1))
-	addEnvelope(t, db.DB(), originatorID, 2, payerAddress2, getMinute(1))
-	addEnvelope(t, db.DB(), originatorID, 3, payerAddress1, getMinute(2))
+	addEnvelope(t, db, originatorID, 1, payerAddress1, getMinute(1))
+	addEnvelope(t, db, originatorID, 2, payerAddress2, getMinute(1))
+	addEnvelope(t, db, originatorID, 3, payerAddress1, getMinute(2))
 
 	report, err := generator.GenerateReport(
 		context.Background(),
@@ -161,9 +161,9 @@ func TestSecondReport(t *testing.T) {
 	originatorID := int32(100)
 	payerAddress := testutils.RandomAddress()
 
-	addEnvelope(t, db.DB(), originatorID, 1, payerAddress, getMinute(1))
-	addEnvelope(t, db.DB(), originatorID, 2, payerAddress, getMinute(1))
-	addEnvelope(t, db.DB(), originatorID, 3, payerAddress, getMinute(2))
+	addEnvelope(t, db, originatorID, 1, payerAddress, getMinute(1))
+	addEnvelope(t, db, originatorID, 2, payerAddress, getMinute(1))
+	addEnvelope(t, db, originatorID, 3, payerAddress, getMinute(2))
 
 	report, err := generator.GenerateReport(
 		context.Background(),
@@ -179,8 +179,8 @@ func TestSecondReport(t *testing.T) {
 	require.Equal(t, uint64(2), report.EndSequenceID)
 	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
 
-	addEnvelope(t, db.DB(), originatorID, 4, payerAddress, getMinute(3))
-	addEnvelope(t, db.DB(), originatorID, 5, payerAddress, getMinute(4))
+	addEnvelope(t, db, originatorID, 4, payerAddress, getMinute(3))
+	addEnvelope(t, db, originatorID, 5, payerAddress, getMinute(4))
 
 	report, err = generator.GenerateReport(
 		context.Background(),
@@ -208,9 +208,9 @@ func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
 	otherOriginatorID := int32(200)
 	payerAddress := testutils.RandomAddress()
 
-	addEnvelope(t, db.DB(), otherOriginatorID, 1, payerAddress, getMinute(1))
-	addEnvelope(t, db.DB(), otherOriginatorID, 2, payerAddress, getMinute(2))
-	addEnvelope(t, db.DB(), otherOriginatorID, 3, payerAddress, getMinute(3))
+	addEnvelope(t, db, otherOriginatorID, 1, payerAddress, getMinute(1))
+	addEnvelope(t, db, otherOriginatorID, 2, payerAddress, getMinute(2))
+	addEnvelope(t, db, otherOriginatorID, 3, payerAddress, getMinute(3))
 
 	report, err := generator.GenerateReport(
 		context.Background(),

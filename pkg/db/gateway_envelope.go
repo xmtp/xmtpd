@@ -25,13 +25,13 @@ import (
 // must succeed or fail together.
 func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 	ctx context.Context,
-	db *sql.DB,
+	db *Handler,
 	insertParams queries.InsertGatewayEnvelopeParams,
 	incrementParams queries.IncrementUnsettledUsageParams,
 ) (int64, error) {
 	return RunInTxWithResult(
 		ctx,
-		db,
+		db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) (int64, error) {
 			numInserted, err := InsertGatewayEnvelopeWithChecksTransactional(
@@ -75,6 +75,12 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 
 			return numInserted.InsertedMetaRows, nil
 		},
+		OnCommit(
+			func() {
+				db.VectorClock().
+					Save(uint32(insertParams.OriginatorNodeID), uint64(insertParams.OriginatorSequenceID))
+			},
+		),
 	)
 }
 
@@ -143,11 +149,28 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 // ingestion workers where each insert is independent of others.
 func InsertGatewayEnvelopeWithChecksStandalone(
 	ctx context.Context,
-	q *queries.Queries,
+	db *Handler,
+	row queries.InsertGatewayEnvelopeParams,
+) (returnedRow queries.InsertGatewayEnvelopeRow, err error) {
+	inserted, err := InsertGatewayEnvelopeWithChecksStandaloneWithQuerier(
+		ctx,
+		db.Query(),
+		row,
+	)
+
+	if inserted.InsertedMetaRows > 0 {
+		db.VectorClock().Save(uint32(row.OriginatorNodeID), uint64(row.OriginatorSequenceID))
+	}
+
+	return inserted, err
+}
+
+func InsertGatewayEnvelopeWithChecksStandaloneWithQuerier(
+	ctx context.Context,
+	querier *queries.Queries,
 	row queries.InsertGatewayEnvelopeParams,
 ) (queries.InsertGatewayEnvelopeRow, error) {
-	inserted, err := q.InsertGatewayEnvelope(ctx, row)
-
+	inserted, err := querier.InsertGatewayEnvelope(ctx, row)
 	if err == nil {
 		return inserted, nil
 	}
@@ -156,7 +179,7 @@ func InsertGatewayEnvelopeWithChecksStandalone(
 		return queries.InsertGatewayEnvelopeRow{}, err
 	}
 
-	err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+	err = querier.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     row.OriginatorNodeID,
 		OriginatorSequenceID: row.OriginatorSequenceID,
 		BandWidth:            GatewayEnvelopeBandWidth,
@@ -166,5 +189,5 @@ func InsertGatewayEnvelopeWithChecksStandalone(
 	}
 
 	// retry insert
-	return q.InsertGatewayEnvelope(ctx, row)
+	return querier.InsertGatewayEnvelope(ctx, row)
 }

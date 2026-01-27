@@ -9,6 +9,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/vectorclock"
 	"github.com/xmtp/xmtpd/pkg/prune"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -74,7 +75,9 @@ func main() {
 		fatal("could not connect to DB: %s", err)
 	}
 
-	pruneExecutor := prune.NewPruneExecutor(ctx, logger, dbInstance, &options.PruneConfig)
+	vc := vectorclock.New(logger, db.GetVectorClockReader(dbInstance))
+	db := db.NewDBHandler(dbInstance, vc)
+	pruneExecutor := prune.NewPruneExecutor(ctx, logger, db, &options.PruneConfig)
 
 	err = pruneExecutor.Run()
 	if err != nil {

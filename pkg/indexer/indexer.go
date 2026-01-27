@@ -78,14 +78,13 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 	if cfg.logger == nil {
 		return nil, errors.New("indexer: logger is required")
 	}
-
 	if cfg.db == nil {
 		return nil, errors.New("indexer: DB is required")
 	}
+
 	if cfg.validationService == nil {
 		return nil, errors.New("indexer: ValidationService is required")
 	}
-
 	if cfg.contractsConfig == nil {
 		return nil, errors.New("indexer: contracts config is required")
 	}

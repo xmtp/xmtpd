@@ -91,6 +91,7 @@ const (
 	PrunerLoggerName             = "pruner-worker"
 	StressChainWatcherLoggerName = "chain-watcher"
 	BlockchainOracleLoggerName   = "blockchain-oracle"
+	VectorClockLoggerName        = "vector-clock"
 )
 
 /* BuildLogger */

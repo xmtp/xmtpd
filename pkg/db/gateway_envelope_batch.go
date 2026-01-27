@@ -17,13 +17,21 @@ import (
 // InsertGatewayEnvelopeBatchTransactional when you need to participate in an existing transaction.
 func InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 	ctx context.Context,
-	db *sql.DB,
+	db *Handler,
 	input *types.GatewayEnvelopeBatch,
 ) (int64, error) {
-	return RunInTxWithResult(ctx, db, &sql.TxOptions{},
+	largest := determineLargestSequenceIDs(input)
+
+	return RunInTxWithResult(ctx, db.DB(), &sql.TxOptions{},
 		func(ctx context.Context, q *queries.Queries) (int64, error) {
 			return InsertGatewayEnvelopeBatchTransactional(ctx, q, input)
-		})
+		},
+		OnCommit(func() {
+			for nodeID, seqID := range largest {
+				db.VectorClock().Save(nodeID, seqID)
+			}
+		}),
+	)
 }
 
 // InsertGatewayEnvelopeBatchTransactional inserts a batch of gateway envelopes within an existing transaction.
@@ -94,4 +102,26 @@ func InsertGatewayEnvelopeBatchTransactional(
 	}
 
 	return result.InsertedMetaRows, nil
+}
+
+// For a batch of envelopes, iterate through the list and determine the largest sequence ID for each
+// originator ID.
+func determineLargestSequenceIDs(batch *types.GatewayEnvelopeBatch) map[uint32]uint64 {
+	largest := make(map[uint32]uint64)
+	for _, row := range batch.Envelopes {
+
+		currentSeqID := uint64(row.OriginatorSequenceID)
+
+		saved, ok := largest[uint32(row.OriginatorNodeID)]
+		if !ok {
+			largest[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
+			continue
+		}
+
+		if currentSeqID > saved {
+			largest[uint32(row.OriginatorNodeID)] = currentSeqID
+		}
+	}
+
+	return largest
 }

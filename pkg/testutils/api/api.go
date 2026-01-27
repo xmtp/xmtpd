@@ -3,7 +3,6 @@ package apiutils
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -118,7 +117,7 @@ type APIServerTestSuite struct {
 	ClientReplication message_apiconnect.ReplicationApiClient
 	ClientPayer       payer_apiconnect.PayerApiClient
 	ClientMetadata    metadata_apiconnect.MetadataApiClient
-	DB                *sql.DB
+	DB                *db.Handler
 	APIServerMocks    APIServerMocks
 }
 
@@ -163,8 +162,7 @@ func NewTestAPIServer(
 	var (
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
-		sqlDB, _              = testutils.NewRawDB(t, ctx)
-		db                    = db.NewDBHandler(sqlDB)
+		db, _                 = testutils.NewDBWithLogger(t, ctx, log)
 		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
@@ -210,7 +208,7 @@ func NewTestAPIServer(
 			mockRegistry,
 			db,
 			mockValidationService,
-			metadata.NewCursorUpdater(ctx, log, db),
+			metadata.NewCursorUpdater(ctx, log, db.VectorClock()),
 			fees.NewTestFeeCalculator(),
 			config.APIOptions{
 				SendKeepAliveInterval: 30 * time.Second,
@@ -245,7 +243,7 @@ func NewTestAPIServer(
 		metadataService, err := metadata.NewMetadataAPIService(
 			ctx,
 			log,
-			metadata.NewCursorUpdater(ctx, log, db),
+			metadata.NewCursorUpdater(ctx, log, db.VectorClock()),
 			testutils.GetLatestVersion(t),
 			metadata.NewPayerInfoFetcher(db),
 		)
@@ -304,6 +302,6 @@ func NewTestAPIServer(
 		ClientReplication: clientReplication,
 		ClientPayer:       clientPayer,
 		ClientMetadata:    clientMetadata,
-		DB:                db.DB(),
+		DB:                db,
 	}
 }

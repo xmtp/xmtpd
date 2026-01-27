@@ -311,7 +311,7 @@ func NewBaseServer(
 	// Maybe initialize API server.
 	// The API serves the replication and metadata APIs.
 	if cfg.Options.API.Enable {
-		svc.cursorUpdater = metadata.NewCursorUpdater(svc.ctx, cfg.Logger, cfg.DB)
+		svc.cursorUpdater = metadata.NewCursorUpdater(svc.ctx, cfg.Logger, cfg.DB.VectorClock())
 
 		err = startAPIServer(
 			svc,

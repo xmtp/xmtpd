@@ -382,7 +382,7 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 				t,
 				serverTestUtils.TestServerCfg{
 					Port:             port,
-					DB:               db.DB(),
+					DB:               db,
 					Registry:         registry,
 					PrivateKey:       privateKey,
 					ContractsOptions: contractsOptions,

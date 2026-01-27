@@ -5,17 +5,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xmtp/xmtpd/pkg/metrics"
+	"go.uber.org/zap"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
 )
 
 type publishWorker struct {
@@ -195,61 +195,42 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
-	var inserted int64
+	var (
+		inserted    int64
+		usageParams *queries.IncrementUnsettledUsageParams
+	)
 
-	if isReservedTopic {
+	params := &queries.InsertGatewayEnvelopeParams{
+		OriginatorNodeID:     originatorID,
+		OriginatorSequenceID: stagedEnv.ID,
+		Topic:                stagedEnv.Topic,
+		OriginatorEnvelope:   originatorBytes,
+		PayerID:              db.NullInt32(payerID),
+		Expiry: int64(
+			validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+		),
+	}
 
-		// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
-		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
-			p.ctx,
-			p.store.WriteQuery(),
-			queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     originatorID,
-				OriginatorSequenceID: stagedEnv.ID,
-				Topic:                stagedEnv.Topic,
-				OriginatorEnvelope:   originatorBytes,
-				PayerID:              db.NullInt32(payerID),
-				Expiry: int64(
-					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-				),
-			})
-		if err != nil {
-			logger.Error("failed to insert gateway envelope with reserved topic", zap.Error(err))
-			return false
+	// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
+	if !isReservedTopic {
+		usageParams = &queries.IncrementUnsettledUsageParams{
+			PayerID:           payerID,
+			OriginatorID:      originatorID,
+			MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
+			SpendPicodollars:  int64(baseFee) + int64(congestionFee),
 		}
-
-		if rows.InsertedMetaRows > 0 {
-			inserted = rows.InsertedMetaRows
-		}
-
-	} else {
-		inserted, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
-			p.ctx,
-			p.store.DB(),
-			queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     originatorID,
-				OriginatorSequenceID: stagedEnv.ID,
-				Topic:                stagedEnv.Topic,
-				OriginatorEnvelope:   originatorBytes,
-				PayerID:              db.NullInt32(payerID),
-				GatewayTime:          stagedEnv.OriginatorTime,
-				Expiry: int64(
-					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-				),
-			},
-			queries.IncrementUnsettledUsageParams{
-				PayerID:           payerID,
-				OriginatorID:      originatorID,
-				MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
-				SpendPicodollars:  int64(baseFee) + int64(congestionFee),
-			},
+	}
+	inserted, err = p.saveEnvelope(params, usageParams)
+	if err != nil {
+		logger.Error(
+			"failed to insert gateway envelope",
+			zap.Error(err),
+			zap.Bool("reserved_topic", isReservedTopic),
 		)
+		return false
 	}
 
 	if p.ctx.Err() != nil {
-		return false
-	} else if err != nil {
-		logger.Error("failed to insert gateway envelope", zap.Error(err))
 		return false
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
@@ -270,6 +251,36 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	}
 
 	return true
+}
+
+func (p *publishWorker) saveEnvelope(
+	params *queries.InsertGatewayEnvelopeParams,
+	usageParams *queries.IncrementUnsettledUsageParams,
+) (int64, error) {
+	if usageParams == nil {
+
+		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
+			p.ctx,
+			p.store,
+			*params)
+		if err != nil {
+			return 0, err
+		}
+
+		return rows.InsertedMetaRows, nil
+	}
+
+	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+		p.ctx,
+		p.store,
+		*params,
+		*usageParams,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return inserted, nil
 }
 
 func (p *publishWorker) calculateFees(

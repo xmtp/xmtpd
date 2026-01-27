@@ -10,8 +10,10 @@ import (
 )
 
 func TestTryAdvisoryLockWithKey(t *testing.T) {
-	ctx := context.Background()
-	db, _ := testutils.NewDB(t, ctx)
+	var (
+		ctx   = context.Background()
+		db, _ = testutils.NewDB(t, ctx)
+	)
 
 	// NOTE: We need two transactions in order to compete for the lock.
 	tx1, err := db.DB().BeginTx(ctx, nil)

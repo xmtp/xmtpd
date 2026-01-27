@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -23,7 +22,7 @@ var (
 	topicC = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
 )
 
-func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeParams {
+func setupQueryTest(t *testing.T, dbHandle *db.Handler) []queries.InsertGatewayEnvelopeParams {
 	payerID := db.NullInt32(testutils.CreatePayer(t, dbHandle))
 	dbRows := []queries.InsertGatewayEnvelopeParams{
 		{

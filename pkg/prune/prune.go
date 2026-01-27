@@ -3,13 +3,11 @@ package prune
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/utils"
-
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 
 	"go.uber.org/zap"
 )
@@ -17,14 +15,14 @@ import (
 type Executor struct {
 	ctx      context.Context
 	logger   *zap.Logger
-	writerDB *sql.DB
+	writerDB *db.Handler
 	config   *config.PruneConfig
 }
 
 func NewPruneExecutor(
 	ctx context.Context,
 	logger *zap.Logger,
-	writerDB *sql.DB,
+	writerDB *db.Handler,
 	config *config.PruneConfig,
 ) *Executor {
 	if config.BatchSize <= 0 {
@@ -45,7 +43,7 @@ func NewPruneExecutor(
 
 func (e *Executor) Run() error {
 	var (
-		querier = queries.New(e.writerDB)
+		querier = e.writerDB.Query()
 		start   = time.Now()
 	)
 

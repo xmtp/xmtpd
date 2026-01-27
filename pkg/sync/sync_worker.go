@@ -10,6 +10,9 @@ import (
 	"github.com/cenkalti/backoff/v5"
 	"github.com/ethereum/go-ethereum/common"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
 	"github.com/xmtp/xmtpd/pkg/db"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
@@ -23,8 +26,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 type syncWorker struct {
@@ -146,8 +147,8 @@ func (s *syncWorker) subscribeToNode(nodeID uint32) {
 		func(ctx context.Context) {
 			newEnvelopeSink(
 				ctx,
-				s.store,
 				s.logger,
+				s.store,
 				s.feeCalculator,
 				s.payerReportStore,
 				s.payerReportDomainSeparator,
@@ -329,20 +330,16 @@ func (s *syncWorker) connectToNode(
 	return conn, nil
 }
 
+// TODO: Check WHEN do services select vector clock - if only once at start, don't even pass them in the db handle, just the value.
 func (s *syncWorker) setupStream(
 	ctx context.Context,
 	node registry.Node,
 	conn *grpc.ClientConn,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (*originatorStream, error) {
-	result, err := s.store.ReadQuery().SelectVectorClock(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var (
 		client            = message_api.NewReplicationApiClient(conn)
-		vc                = db.ToVectorClock(result)
+		cursor            = s.store.VectorClock().Values()
 		nodeID            = node.NodeID
 		originatorNodeIDs = []uint32{nodeID}
 	)
@@ -351,7 +348,7 @@ func (s *syncWorker) setupStream(
 		s.logger.Debug(
 			"vector clock for sync subscription",
 			utils.OriginatorIDField(node.NodeID),
-			utils.BodyField(vc),
+			utils.BodyField(cursor),
 		)
 	}
 
@@ -370,7 +367,7 @@ func (s *syncWorker) setupStream(
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: originatorNodeIDs,
 				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: vc,
+					NodeIdToSequenceId: cursor,
 				},
 			},
 		},
@@ -389,10 +386,18 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	lastSequenceID := uint64(0)
-	for _, row := range result {
-		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
-			lastSequenceID = uint64(row.OriginatorSequenceID)
+	// TODO: Check - in case of multiple originator IDs this will be almost randomly chosen sequence ID .
+
+	// Previous implementation used a query with "order by originator_id",
+	// so we'll maintain compatibility by also chosing the largest node ID.
+	var (
+		lastNodeID     = slices.Max(originatorNodeIDs)
+		lastSequenceID = uint64(0)
+	)
+
+	for nodeID, seqID := range cursor {
+		if nodeID == lastNodeID {
+			lastSequenceID = seqID
 		}
 	}
 

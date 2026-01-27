@@ -2,7 +2,6 @@ package message_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -35,7 +34,7 @@ var (
 
 func setupTest(
 	t *testing.T,
-) (message_apiconnect.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
+) (message_apiconnect.ReplicationApiClient, *db.Handler, testUtilsApi.APIServerMocks) {
 	var (
 		nodes = []registry.Node{
 			{NodeID: 100, IsCanonical: true},
@@ -103,14 +102,14 @@ func setupTest(
 	return suite.ClientReplication, suite.DB, suite.APIServerMocks
 }
 
-func insertInitialRows(t *testing.T, store *sql.DB) {
+func insertInitialRows(t *testing.T, store *db.Handler) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
-func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
+func insertAdditionalRows(t *testing.T, store *db.Handler, notifyChan ...chan bool) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
@@ -426,7 +425,7 @@ func generateEnvelopes(
 
 func saveEnvelopes(
 	t *testing.T,
-	store *sql.DB,
+	store *db.Handler,
 	envelopes map[int32][]queries.InsertGatewayEnvelopeParams,
 ) {
 	t.Helper()

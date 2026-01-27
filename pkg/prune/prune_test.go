@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 
 	"go.uber.org/zap/zapcore"
@@ -33,7 +34,7 @@ const (
 func setupTestData(
 	t *testing.T,
 	ctx context.Context,
-	db *sql.DB,
+	db *db.Handler,
 	expired int,
 	valid int,
 	submitted int,
@@ -67,7 +68,7 @@ func setupTestData(
 
 func setupMigratedTestData(
 	t *testing.T,
-	db *sql.DB,
+	db *db.Handler,
 	expired int,
 	valid int,
 ) {
@@ -99,7 +100,7 @@ func setupMigratedTestData(
 func makeTestExecutor(
 	t *testing.T,
 	ctx context.Context,
-	db *sql.DB,
+	db *db.Handler,
 	config *config.PruneConfig,
 ) *prune.Executor {
 	config.BatchSize = 1000
@@ -112,16 +113,14 @@ func makeTestExecutor(
 	)
 }
 
-func createPrunableReport(t *testing.T, ctx context.Context, db *sql.DB, endSequence int) {
+func createPrunableReport(t *testing.T, ctx context.Context, db *db.Handler, endSequence int) {
 	if endSequence == 0 {
 		return
 	}
 
-	q := queries.New(db)
-
 	reportID := testutils.RandomReportID()
 
-	_, err := q.InsertOrIgnorePayerReport(ctx, queries.InsertOrIgnorePayerReportParams{
+	_, err := db.Query().InsertOrIgnorePayerReport(ctx, queries.InsertOrIgnorePayerReportParams{
 		ID:                  reportID,
 		OriginatorNodeID:    DefaultOriginatorID,
 		StartSequenceID:     0,
@@ -131,7 +130,7 @@ func createPrunableReport(t *testing.T, ctx context.Context, db *sql.DB, endSequ
 		ActiveNodeIds:       []int32{DefaultOriginatorID},
 	})
 	require.NoError(t, err)
-	err = q.SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
+	err = db.Query().SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
 		ReportID:             reportID,
 		NewStatus:            payerreport.SubmissionSubmitted,
 		PrevStatus:           []int16{int16(payerreport.SubmissionPending)},
@@ -142,9 +141,7 @@ func createPrunableReport(t *testing.T, ctx context.Context, db *sql.DB, endSequ
 
 func TestExecutor_PrunesExpired(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
 
 	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
 
@@ -156,13 +153,13 @@ func TestExecutor_PrunesExpired(t *testing.T) {
 	err := exec.Run()
 	assert.NoError(t, err)
 
-	cnt, err := q.CountExpiredEnvelopes(ctx)
+	cnt, err := db.Query().CountExpiredEnvelopes(ctx)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 
 	// Ensure non-expired remain
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(t, DefaultValidCnt, total, "Only non-expired envelopes should remain")
@@ -170,8 +167,7 @@ func TestExecutor_PrunesExpired(t *testing.T) {
 
 func TestExecutor_DryRun_NoPrune(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
+	db, _ := testutils.NewDB(t, ctx)
 
 	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
 
@@ -183,7 +179,7 @@ func TestExecutor_DryRun_NoPrune(t *testing.T) {
 	assert.NoError(t, err)
 
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 
@@ -211,13 +207,12 @@ func openAndHoldLock(t *testing.T, ctx context.Context, db *sql.DB) *sql.Tx {
 
 func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
+	q := db.Query()
 
 	setupTestData(t, ctx, db, DefaultExpiredCnt, 0, DefaultSubmittedCnt)
 
-	tx := openAndHoldLock(t, ctx, db)
+	tx := openAndHoldLock(t, ctx, db.DB())
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -243,9 +238,9 @@ func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should now be deleted")
 }
 
-func getRemainingSequenceIds(t *testing.T, ctx context.Context, db *sql.DB) []int64 {
+func getRemainingSequenceIds(t *testing.T, ctx context.Context, db *db.Handler) []int64 {
 	var remainingIDs []int64
-	rows, err := db.QueryContext(ctx, `
+	rows, err := db.DB().QueryContext(ctx, `
 		SELECT originator_sequence_id FROM gateway_envelopes_meta
 	`)
 	require.NoError(t, err)
@@ -263,9 +258,8 @@ func getRemainingSequenceIds(t *testing.T, ctx context.Context, db *sql.DB) []in
 
 func TestExecutor_PrunesExpired_LargePayload(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
+	q := db.Query()
 
 	const KeepThisMany = 10
 
@@ -293,8 +287,7 @@ func TestExecutor_PrunesExpired_LargePayload(t *testing.T) {
 
 func TestExecutor_PruneCountWorks(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
+	db, _ := testutils.NewDB(t, ctx)
 
 	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
 
@@ -320,8 +313,7 @@ func TestExecutor_PruneCountWorks(t *testing.T) {
 
 func TestExecutor_CantPruneWithoutReport(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
+	db, _ := testutils.NewDB(t, ctx)
 
 	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, 0)
 
@@ -333,14 +325,14 @@ func TestExecutor_CantPruneWithoutReport(t *testing.T) {
 	err := exec.Run()
 	assert.NoError(t, err)
 
-	q := queries.New(db)
+	q := db.Query()
 	cnt, err := q.CountExpiredEnvelopes(ctx)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 
 	// Ensure all remain
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(
@@ -353,8 +345,7 @@ func TestExecutor_CantPruneWithoutReport(t *testing.T) {
 
 func TestExecutor_MultipleOverlappingReportsOK(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
+	db, _ := testutils.NewDB(t, ctx)
 
 	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, 0)
 
@@ -370,13 +361,13 @@ func TestExecutor_MultipleOverlappingReportsOK(t *testing.T) {
 	err := exec.Run()
 	assert.NoError(t, err)
 
-	q := queries.New(db)
+	q := db.Query()
 	cnt, err := q.CountExpiredEnvelopes(ctx)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(t, DefaultValidCnt, total, "Valid envelopes should remain")
@@ -412,12 +403,11 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("report-status-state-%s", tt.name), func(t *testing.T) {
-			dbs := testutils.NewDBs(t, ctx, 1)
-			db := dbs[0]
+			db, _ := testutils.NewDB(t, ctx)
 
 			setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, 0)
 
-			q := queries.New(db)
+			q := db.Query()
 			reportID := testutils.RandomReportID()
 			_, err := q.InsertOrIgnorePayerReport(ctx, queries.InsertOrIgnorePayerReportParams{
 				ID:                  reportID,
@@ -452,7 +442,7 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 			assert.NoError(t, err)
 
 			var total int64
-			row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+			row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 			err = row.Scan(&total)
 			assert.NoError(t, err)
 			assert.EqualValues(
@@ -467,9 +457,8 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 
 func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
+	q := db.Query()
 
 	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
 
@@ -487,7 +476,7 @@ func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
 
 	// Ensure non-expired migrated envelopes remain
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(
@@ -500,9 +489,8 @@ func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
 
 func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
-	q := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
+	q := db.Query()
 
 	// Setup both regular and migrated test data
 	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
@@ -528,7 +516,7 @@ func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
 
 	// Ensure only non-expired envelopes remain (both types)
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 	assert.EqualValues(
@@ -541,8 +529,7 @@ func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
 
 func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
 	ctx := context.Background()
-	dbs := testutils.NewDBs(t, ctx, 1)
-	db := dbs[0]
+	db, _ := testutils.NewDB(t, ctx)
 
 	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
 
@@ -554,7 +541,7 @@ func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
 	assert.NoError(t, err)
 
 	var total int64
-	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	row := db.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
 	assert.NoError(t, err)
 

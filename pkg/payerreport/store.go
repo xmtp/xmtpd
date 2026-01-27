@@ -475,6 +475,12 @@ func (s *Store) StoreSyncedReport(
 
 			return err
 		},
+		db.OnCommit(
+			func() {
+				s.db.VectorClock().
+					Save(envelope.OriginatorNodeID(), envelope.OriginatorSequenceID())
+			},
+		),
 	)
 }
 
@@ -526,6 +532,12 @@ func (s *Store) StoreSyncedAttestation(
 				},
 			)
 		},
+		db.OnCommit(
+			func() {
+				s.db.VectorClock().
+					Save(envelope.OriginatorNodeID(), envelope.OriginatorSequenceID())
+			},
+		),
 	)
 }
 

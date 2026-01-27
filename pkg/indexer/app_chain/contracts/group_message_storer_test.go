@@ -22,8 +22,7 @@ import (
 func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	db, _ := testutils.NewRawDB(t, ctx)
-	queryImpl := queries.New(db)
+	db, _ := testutils.NewDB(t, ctx)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
@@ -38,7 +37,7 @@ func buildGroupMessageStorer(t *testing.T) *GroupMessageStorer {
 	)
 
 	require.NoError(t, err)
-	storer := NewGroupMessageStorer(queryImpl, testutils.NewLog(t), contract)
+	storer := NewGroupMessageStorer(testutils.NewLog(t), db, contract)
 
 	return storer
 }
@@ -61,7 +60,7 @@ func TestStoreGroupMessages(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gatewayEnvelopes, err := storer.queries.SelectGatewayEnvelopesByOriginators(
+	gatewayEnvelopes, err := storer.db.Query().SelectGatewayEnvelopesByOriginators(
 		ctx,
 		queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: []int32{constants.GroupMessageOriginatorID},
@@ -115,7 +114,7 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	envelopes, queryErr := storer.queries.SelectGatewayEnvelopesByOriginators(
+	envelopes, queryErr := storer.db.Query().SelectGatewayEnvelopesByOriginators(
 		ctx,
 		queries.SelectGatewayEnvelopesByOriginatorsParams{OriginatorNodeIds: []int32{0}},
 	)

@@ -14,7 +14,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
-	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
 	protoEnvelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -47,7 +46,7 @@ type multiNodeTestScaffold struct {
 	payerPrivateKeys   []*ecdsa.PrivateKey
 	payerAddresses     []string
 	clients            []message_apiconnect.ReplicationApiClient
-	dbs                []*sql.DB
+	dbs                []*db.Handler
 	reportGenerators   []*workers.GeneratorWorker
 	attestationWorkers []*workers.AttestationWorker
 	submitterWorkers   []*workers.SubmitterWorker
@@ -201,7 +200,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	registrant1, err := registrant.NewRegistrant(
 		t.Context(),
 		log,
-		queries.New(dbs[0]),
+		dbs[0].Query(),
 		registry,
 		utils.EcdsaPrivateKeyToString(privateKey1),
 		nil,
@@ -210,15 +209,15 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	registrant2, err := registrant.NewRegistrant(
 		t.Context(),
 		log,
-		queries.New(dbs[1]),
+		dbs[1].Query(),
 		registry,
 		utils.EcdsaPrivateKeyToString(privateKey2),
 		nil,
 	)
 	require.NoError(t, err)
 
-	payerReportStore1 := payerreport.NewStore(log, db.NewDBHandler(dbs[0]))
-	payerReportStore2 := payerreport.NewStore(log, db.NewDBHandler(dbs[1]))
+	payerReportStore1 := payerreport.NewStore(log, dbs[0])
+	payerReportStore2 := payerreport.NewStore(log, dbs[1])
 	reportGenerator1 := workers.NewGeneratorWorker(
 		t.Context(),
 		log.With(zap.Uint32("node_id", server1NodeID)),
@@ -617,10 +616,10 @@ func TestFullReportLifecycle(t *testing.T) {
 // node in each database, allowing tests to immediately query what would
 // normally be “the next minute” without waiting for real time to pass.
 func advanceUnsettledUsage(t *testing.T, scaffold *multiNodeTestScaffold) {
-	injectDummyUnsettled(t, scaffold.dbs[0], scaffold.nodeIDs[0])
-	injectDummyUnsettled(t, scaffold.dbs[0], scaffold.nodeIDs[1])
-	injectDummyUnsettled(t, scaffold.dbs[1], scaffold.nodeIDs[0])
-	injectDummyUnsettled(t, scaffold.dbs[1], scaffold.nodeIDs[1])
+	injectDummyUnsettled(t, scaffold.dbs[0].DB(), scaffold.nodeIDs[0])
+	injectDummyUnsettled(t, scaffold.dbs[0].DB(), scaffold.nodeIDs[1])
+	injectDummyUnsettled(t, scaffold.dbs[1].DB(), scaffold.nodeIDs[0])
+	injectDummyUnsettled(t, scaffold.dbs[1].DB(), scaffold.nodeIDs[1])
 }
 
 func injectDummyUnsettled(t *testing.T, db *sql.DB, nodeId uint32) {

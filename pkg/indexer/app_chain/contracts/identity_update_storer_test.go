@@ -27,7 +27,7 @@ func buildIdentityUpdateStorer(
 ) (*IdentityUpdateStorer, *mlsvalidateMock.MockMLSValidationService) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	db, _ := testutils.NewRawDB(t, ctx)
+	db, _ := testutils.NewDB(t, ctx)
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	config := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
@@ -43,7 +43,7 @@ func buildIdentityUpdateStorer(
 	validationService := mlsvalidateMock.NewMockMLSValidationService(t)
 
 	require.NoError(t, err)
-	storer := NewIdentityUpdateStorer(db, testutils.NewLog(t), contract, validationService)
+	storer := NewIdentityUpdateStorer(testutils.NewLog(t), db, contract, validationService)
 
 	return storer, validationService
 }
@@ -82,9 +82,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 		logMessage,
 	))
 
-	querier := queries.New(storer.db)
-
-	envelopes, queryErr := querier.SelectGatewayEnvelopesByOriginators(
+	envelopes, queryErr := storer.db.Query().SelectGatewayEnvelopesByOriginators(
 		ctx,
 		queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: []int32{constants.IdentityUpdateOriginatorID},
@@ -99,7 +97,7 @@ func TestStoreIdentityUpdate(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(firstEnvelope.OriginatorEnvelope, &deserializedEnvelope))
 	require.Greater(t, len(deserializedEnvelope.UnsignedOriginatorEnvelope), 0)
 
-	getInboxIDResult, logsErr := querier.GetAddressLogs(ctx, []string{newAddress})
+	getInboxIDResult, logsErr := storer.db.Query().GetAddressLogs(ctx, []string{newAddress})
 	require.NoError(t, logsErr)
 	require.Equal(t, getInboxIDResult[0].InboxID, utils.HexEncode(inboxID[:]))
 

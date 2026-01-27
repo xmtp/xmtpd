@@ -21,7 +21,7 @@ type subscriptionHandler struct {
 	subs       map[uint32]*envelopePoller
 	mergedSubs *funnel[[]queries.SelectGatewayEnvelopesByOriginatorsRow]
 
-	cursor db.VectorClock
+	cursor db.VectorClockRecord
 }
 
 type envelopePoller struct {
@@ -34,7 +34,7 @@ type envelopePoller struct {
 func newSubscriptionHandler(
 	logger *zap.Logger,
 	store *db.Handler,
-	cursor db.VectorClock,
+	cursor db.VectorClockRecord,
 ) *subscriptionHandler {
 	s := &subscriptionHandler{
 		Mutex:      &sync.Mutex{},

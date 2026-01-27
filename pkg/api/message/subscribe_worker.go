@@ -73,12 +73,7 @@ func startSubscribeWorker(
 ) (*subscribeWorker, error) {
 	logger = logger.Named(utils.SubscribeWorkerLoggerName)
 
-	latestEnvelopes, err := store.ReadQuery().SelectVectorClock(ctx)
-	if err != nil {
-		logger.Error("failed to get vector clock", zap.Error(err))
-		return nil, fmt.Errorf("could not create subscribe worker: %w", err)
-	}
-	vc := db.ToVectorClock(latestEnvelopes)
+	cursor := store.VectorClock().Values()
 
 	worker := &subscribeWorker{
 		ctx:                 ctx,
@@ -86,7 +81,7 @@ func startSubscribeWorker(
 		emptyListeners:      listenerSet{},
 		store:               store,
 		registry:            registry,
-		subscriptions:       newSubscriptionHandler(logger, store, vc),
+		subscriptions:       newSubscriptionHandler(logger, store, cursor),
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
 	}

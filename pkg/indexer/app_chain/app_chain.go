@@ -90,8 +90,8 @@ func NewAppChain(
 	identityUpdateBroadcaster, err := contracts.NewIdentityUpdateBroadcaster(
 		ctxwc,
 		rpcClient,
-		db,
 		chainLogger,
+		db,
 		validationService,
 		common.HexToAddress(cfg.IdentityUpdateBroadcasterAddress),
 		cfg.ChainID,

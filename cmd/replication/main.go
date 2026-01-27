@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,13 +18,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/vectorclock"
 	"github.com/xmtp/xmtpd/pkg/debug"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/server"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
 )
 
 var Version string
@@ -162,7 +163,15 @@ func main() {
 				dbopts = append(dbopts, db.WithReadReplica(readDB))
 			}
 
-			dbh = db.NewDBHandler(writeDB, dbopts...)
+			// Create a vector clock with default config options
+			// TODO: Should we use a read db? Is there a noticeable lag?
+			vc := vectorclock.New(logger, db.GetVectorClockReader(writeDB))
+			dbh = db.NewDBHandler(writeDB, vc, dbopts...)
+
+			err = vc.Start(ctx)
+			if err != nil {
+				logger.Fatal("initializing vector clock failed", zap.Error(err))
+			}
 		}
 
 		settlementChainClient, err := blockchain.NewRPCClient(

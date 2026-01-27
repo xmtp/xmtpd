@@ -2,11 +2,11 @@ package message_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -19,7 +19,7 @@ import (
 
 func writeKeyPackage(
 	t *testing.T,
-	db *sql.DB,
+	db *db.Handler,
 	installationKey []byte,
 ) (topic.Topic, uint64) {
 	topicObj := topic.NewTopic(topic.TopicKindKeyPackagesV1, installationKey)

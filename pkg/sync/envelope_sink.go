@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
-
 	"github.com/ethereum/go-ethereum/common"
+	"go.uber.org/zap"
+
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -17,13 +17,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
 
 type EnvelopeSink struct {
 	ctx                        context.Context
-	db                         *db.Handler
 	logger                     *zap.Logger
+	db                         *db.Handler
 	feeCalculator              fees.IFeeCalculator
 	payerReportStore           payerreport.IPayerReportStore
 	payerReportDomainSeparator common.Hash
@@ -33,8 +33,8 @@ type EnvelopeSink struct {
 
 func newEnvelopeSink(
 	ctx context.Context,
-	db *db.Handler,
 	logger *zap.Logger,
+	db *db.Handler,
 	feeCalculator fees.IFeeCalculator,
 	payerReportStore payerreport.IPayerReportStore,
 	payerReportDomainSeparator common.Hash,
@@ -43,8 +43,8 @@ func newEnvelopeSink(
 ) *EnvelopeSink {
 	return &EnvelopeSink{
 		ctx:                        ctx,
-		db:                         db,
 		logger:                     logger,
+		db:                         db,
 		feeCalculator:              feeCalculator,
 		payerReportStore:           payerReportStore,
 		payerReportDomainSeparator: payerReportDomainSeparator,
@@ -153,7 +153,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		s.ctx,
-		s.db.Write(),
+		s.db,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     int32(env.OriginatorNodeID()),
 			OriginatorSequenceID: int64(env.OriginatorSequenceID()),

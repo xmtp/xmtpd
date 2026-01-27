@@ -1,14 +1,16 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
 type (
-	VectorClock = map[uint32]uint64
-	Topic       = []byte
+	VectorClockRecord = map[uint32]uint64
+	Topic             = []byte
 )
 
 const GatewayEnvelopeBandWidth int64 = 1_000_000
@@ -23,7 +25,7 @@ func NullInt64(v int64) sql.NullInt64 {
 
 func SetVectorClockByTopics(
 	q *queries.SelectGatewayEnvelopesByTopicsParams,
-	vc VectorClock,
+	vc VectorClockRecord,
 ) *queries.SelectGatewayEnvelopesByTopicsParams {
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
@@ -36,7 +38,7 @@ func SetVectorClockByTopics(
 
 func SetVectorClockByOriginators(
 	q *queries.SelectGatewayEnvelopesByOriginatorsParams,
-	vc VectorClock,
+	vc VectorClockRecord,
 ) *queries.SelectGatewayEnvelopesByOriginatorsParams {
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
@@ -47,21 +49,8 @@ func SetVectorClockByOriginators(
 	return q
 }
 
-func SetVectorClockUnfiltered(
-	q *queries.SelectGatewayEnvelopesUnfilteredParams,
-	vc VectorClock,
-) *queries.SelectGatewayEnvelopesUnfilteredParams {
-	q.CursorNodeIds = make([]int32, 0, len(vc))
-	q.CursorSequenceIds = make([]int64, 0, len(vc))
-	for nodeID, sequenceID := range vc {
-		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
-		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
-	}
-	return q
-}
-
-func ToVectorClock(rows []queries.GatewayEnvelopesLatest) VectorClock {
-	vc := make(VectorClock)
+func ToVectorClock(rows []queries.GatewayEnvelopesLatest) VectorClockRecord {
+	vc := make(VectorClockRecord)
 	for _, row := range rows {
 		vc[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
 	}
@@ -86,4 +75,15 @@ func TransformRowsByOriginator(
 		result[i] = queries.GatewayEnvelopesView(row)
 	}
 	return result
+}
+
+func GetVectorClockReader(db *sql.DB) func(ctx context.Context) (map[uint32]uint64, error) {
+	return func(ctx context.Context) (map[uint32]uint64, error) {
+		el, err := queries.New(db).SelectVectorClock(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("could not read vector clock: %w", err)
+		}
+
+		return ToVectorClock(el), nil
+	}
 }

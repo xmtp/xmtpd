@@ -3,24 +3,31 @@ package testutils
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
-	"github.com/xmtp/xmtpd/pkg/db"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
+	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db/vectorclock"
 	"github.com/xmtp/xmtpd/pkg/migrations"
 )
 
 const (
 	LocalTestDBDSNPrefix = "postgres://postgres:xmtp@localhost:8765"
 	LocalTestDBDSNSuffix = "?sslmode=disable"
+
+	envRunVectorClockCheck = "XMTP_RUN_VECTOR_CLOCK_CHECK"
 )
+
+var runVectorClockCheck = parseBoolConfig(os.Getenv(envRunVectorClockCheck))
 
 func GetCallerName(depth int) string {
 	pc, _, _, ok := runtime.Caller(depth)
@@ -74,11 +81,49 @@ func NewRawDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
 func NewDB(t *testing.T, ctx context.Context) (*db.Handler, string) {
 	t.Helper()
 
-	dbh, dsn := NewRawDB(t, ctx)
-	return db.NewDBHandler(dbh), dsn
+	return NewDBWithLogger(t, ctx, zap.NewNop())
 }
 
-func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
+func NewDBWithLogger(t *testing.T, ctx context.Context, log *zap.Logger) (*db.Handler, string) {
+	t.Helper()
+
+	dbh, dsn := NewRawDB(t, ctx)
+
+	readFunc := db.GetVectorClockReader(dbh)
+	vc := vectorclock.New(log, readFunc)
+
+	if runVectorClockCheck {
+		// This is an opt-in test teardown function to run a vector clock integrity check on test shutdown.
+		// Downside is that this will need to establish a new db connection and do one additional query per test which is a lot.
+		t.Cleanup(func() {
+			// Since t.Cleanup() is called AFTER t.Context() is cancelled,
+			// by now our DB is already closed.
+			// This is overhead, but lets create a new connection to the DB while it's alive and
+			// run our sanity check.
+
+			newConn, _ := openDB(t, dsn)
+			defer newConn.Close()
+
+			dbState, err := db.GetVectorClockReader(newConn)(context.Background())
+			require.NoError(t, err)
+			require.EqualValuesf(t, dbState, vc.Values(), "vector clock does not match DB state")
+		})
+	}
+
+	return db.NewDBHandler(dbh, vc), dsn
+}
+
+func NewDBs(t *testing.T, ctx context.Context, count int) []*db.Handler {
+	out := make([]*db.Handler, count)
+	for i := range count {
+		db, _ := NewDB(t, ctx)
+		out[i] = db
+	}
+
+	return out
+}
+
+func NewRawDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 	ctlDB, _ := newCtlDB(t)
 	dbs := []*sql.DB{}
 
@@ -92,14 +137,13 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 
 func InsertGatewayEnvelopes(
 	t *testing.T,
-	dbInstance *sql.DB,
+	dbh *db.Handler,
 	rows []queries.InsertGatewayEnvelopeParams,
 	notifyChan ...chan bool,
 ) {
 	ctx := t.Context()
-	q := queries.New(dbInstance)
 	for _, row := range rows {
-		inserted, err := db.InsertGatewayEnvelopeWithChecksStandalone(ctx, q, row)
+		inserted, err := db.InsertGatewayEnvelopeWithChecksStandalone(ctx, dbh, row)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(1), inserted.InsertedMetaRows)
 
@@ -112,8 +156,7 @@ func InsertGatewayEnvelopes(
 	}
 }
 
-func CreatePayer(t *testing.T, db *sql.DB, address ...string) int32 {
-	q := queries.New(db)
+func CreatePayer(t *testing.T, db *db.Handler, address ...string) int32 {
 	var payerAddress string
 	if len(address) > 0 {
 		payerAddress = address[0]
@@ -121,7 +164,7 @@ func CreatePayer(t *testing.T, db *sql.DB, address ...string) int32 {
 		payerAddress = RandomString(42)
 	}
 
-	id, err := q.FindOrCreatePayer(context.Background(), payerAddress)
+	id, err := db.Query().FindOrCreatePayer(context.Background(), payerAddress)
 	require.NoError(t, err)
 
 	return id

@@ -7,13 +7,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"go.uber.org/zap"
+
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
-	"go.uber.org/zap"
 )
 
 type MigrationConfig struct {

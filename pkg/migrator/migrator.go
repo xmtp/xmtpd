@@ -24,6 +24,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/vectorclock"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
@@ -182,7 +183,8 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, err
 	}
 
-	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
+	vc := vectorclock.New(logger, db.GetVectorClockReader(reader))
+	readDB := db.NewDBHandler(reader, vc, db.WithReadReplica(reader))
 
 	readers := map[string]ISourceReader{
 		groupMessagesTableName: NewGroupMessageReader(readDB.DB(), cfg.options.StartDate.Unix()),

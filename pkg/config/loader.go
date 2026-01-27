@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -82,6 +83,11 @@ func loadFromPath(path string) ([]byte, error) {
 	// Handle file:// URLs
 	if strings.HasPrefix(path, "file://") {
 		path = strings.TrimPrefix(path, "file://")
+		var err error
+		path, err = url.PathUnescape(path)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file URL path %q: %w", path, err)
+		}
 	}
 
 	// Local file
@@ -94,13 +100,23 @@ func fetchURL(url string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("fetch %s: status %d", url, resp.StatusCode)
 	}
 
-	return io.ReadAll(io.LimitReader(resp.Body, 10<<10))
+	const maxSize = 10 << 10
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", url, err)
+	}
+	if len(data) > maxSize {
+		return nil, fmt.Errorf("fetch %s: response exceeds %d bytes", url, maxSize)
+	}
+	return data, nil
 }
 
 func parseChainConfig(data []byte) (*ContractsOptions, error) {

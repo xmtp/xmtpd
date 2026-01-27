@@ -206,13 +206,18 @@ func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
 
 // mergeContractsOptions merges loaded config with existing options.
 // Explicitly specified values in options take precedence over loaded values.
-func (v *OptionsValidator) mergeContractsOptions(options *ContractsOptions, loaded *ContractsOptions) {
+func (v *OptionsValidator) mergeContractsOptions(
+	options *ContractsOptions,
+	loaded *ContractsOptions,
+) {
 	// AppChainOptions - only fill in values if not explicitly set
 	if options.AppChain.GroupMessageBroadcasterAddress == "" {
-		options.AppChain.GroupMessageBroadcasterAddress = loaded.AppChain.GroupMessageBroadcasterAddress
+		options.AppChain.GroupMessageBroadcasterAddress =
+			loaded.AppChain.GroupMessageBroadcasterAddress
 	}
 	if options.AppChain.IdentityUpdateBroadcasterAddress == "" {
-		options.AppChain.IdentityUpdateBroadcasterAddress = loaded.AppChain.IdentityUpdateBroadcasterAddress
+		options.AppChain.IdentityUpdateBroadcasterAddress =
+			loaded.AppChain.IdentityUpdateBroadcasterAddress
 	}
 	if options.AppChain.ChainID == 0 || options.AppChain.ChainID == 31337 {
 		options.AppChain.ChainID = loaded.AppChain.ChainID
@@ -224,39 +229,49 @@ func (v *OptionsValidator) mergeContractsOptions(options *ContractsOptions, load
 		options.AppChain.DeploymentBlock = loaded.AppChain.DeploymentBlock
 	}
 	if options.AppChain.ParameterRegistryAddress == "" {
-		options.AppChain.ParameterRegistryAddress = loaded.AppChain.ParameterRegistryAddress
+		options.AppChain.ParameterRegistryAddress =
+			loaded.AppChain.ParameterRegistryAddress
 	}
 
 	// SettlementChainOptions - only fill in values if not explicitly set
 	if options.SettlementChain.NodeRegistryAddress == "" {
-		options.SettlementChain.NodeRegistryAddress = loaded.SettlementChain.NodeRegistryAddress
+		options.SettlementChain.NodeRegistryAddress =
+			loaded.SettlementChain.NodeRegistryAddress
 	}
 	if options.SettlementChain.RateRegistryAddress == "" {
-		options.SettlementChain.RateRegistryAddress = loaded.SettlementChain.RateRegistryAddress
+		options.SettlementChain.RateRegistryAddress =
+			loaded.SettlementChain.RateRegistryAddress
 	}
 	if options.SettlementChain.ParameterRegistryAddress == "" {
-		options.SettlementChain.ParameterRegistryAddress = loaded.SettlementChain.ParameterRegistryAddress
+		options.SettlementChain.ParameterRegistryAddress =
+			loaded.SettlementChain.ParameterRegistryAddress
 	}
 	if options.SettlementChain.PayerRegistryAddress == "" {
-		options.SettlementChain.PayerRegistryAddress = loaded.SettlementChain.PayerRegistryAddress
+		options.SettlementChain.PayerRegistryAddress =
+			loaded.SettlementChain.PayerRegistryAddress
 	}
 	if options.SettlementChain.PayerReportManagerAddress == "" {
-		options.SettlementChain.PayerReportManagerAddress = loaded.SettlementChain.PayerReportManagerAddress
+		options.SettlementChain.PayerReportManagerAddress =
+			loaded.SettlementChain.PayerReportManagerAddress
 	}
 	if options.SettlementChain.ChainID == 0 || options.SettlementChain.ChainID == 31337 {
 		options.SettlementChain.ChainID = loaded.SettlementChain.ChainID
 	}
 	if options.SettlementChain.DeploymentBlock == 0 {
-		options.SettlementChain.DeploymentBlock = loaded.SettlementChain.DeploymentBlock
+		options.SettlementChain.DeploymentBlock =
+			loaded.SettlementChain.DeploymentBlock
 	}
 	if options.SettlementChain.GatewayAddress == "" {
-		options.SettlementChain.GatewayAddress = loaded.SettlementChain.GatewayAddress
+		options.SettlementChain.GatewayAddress =
+			loaded.SettlementChain.GatewayAddress
 	}
 	if options.SettlementChain.DistributionManagerAddress == "" {
-		options.SettlementChain.DistributionManagerAddress = loaded.SettlementChain.DistributionManagerAddress
+		options.SettlementChain.DistributionManagerAddress =
+			loaded.SettlementChain.DistributionManagerAddress
 	}
 	if options.SettlementChain.UnderlyingFeeToken == "" {
-		options.SettlementChain.UnderlyingFeeToken = loaded.SettlementChain.UnderlyingFeeToken
+		options.SettlementChain.UnderlyingFeeToken =
+			loaded.SettlementChain.UnderlyingFeeToken
 	}
 	if options.SettlementChain.FeeToken == "" {
 		options.SettlementChain.FeeToken = loaded.SettlementChain.FeeToken

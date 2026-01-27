@@ -71,12 +71,8 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
 		return err
 	}
-	// Bind to new standardized env var
-	if err := viper.BindEnv("log-level", "XMTPD_LOG_LEVEL"); err != nil {
-		return err
-	}
-	// Backward compatibility: bind to old env var
-	if err := viper.BindEnv("log-level", "LOG_LEVEL"); err != nil {
+	// Bind to new standardized env var (and legacy for backward compatibility)
+	if err := viper.BindEnv("log-level", "XMTPD_LOG_LEVEL", "LOG_LEVEL"); err != nil {
 		return err
 	}
 
@@ -86,12 +82,8 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("log-encoding", rootCmd.PersistentFlags().Lookup("log-encoding")); err != nil {
 		return err
 	}
-	// Bind to new standardized env var
-	if err := viper.BindEnv("log-encoding", "XMTPD_LOG_ENCODING"); err != nil {
-		return err
-	}
-	// Backward compatibility: bind to old env var
-	if err := viper.BindEnv("log-encoding", "LOG_ENCODING"); err != nil {
+	// Bind to new standardized env var (and legacy for backward compatibility)
+	if err := viper.BindEnv("log-encoding", "XMTPD_LOG_ENCODING", "LOG_ENCODING"); err != nil {
 		return err
 	}
 
@@ -121,12 +113,8 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("private-key", rootCmd.PersistentFlags().Lookup("private-key")); err != nil {
 		return err
 	}
-	// Bind to new standardized env var
-	if err := viper.BindEnv("private-key", "XMTPD_SIGNER_PRIVATE_KEY"); err != nil {
-		return err
-	}
-	// Backward compatibility: bind to old env var
-	if err := viper.BindEnv("private-key", "PRIVATE_KEY"); err != nil {
+	// Bind to new standardized env var (and legacy for backward compatibility)
+	if err := viper.BindEnv("private-key", "XMTPD_SIGNER_PRIVATE_KEY", "PRIVATE_KEY"); err != nil {
 		return err
 	}
 
@@ -135,12 +123,8 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("settlement-rpc-url", rootCmd.PersistentFlags().Lookup("settlement-rpc-url")); err != nil {
 		return err
 	}
-	// Bind to new standardized env var
-	if err := viper.BindEnv("settlement-rpc-url", "XMTPD_SETTLEMENT_CHAIN_RPC_URL"); err != nil {
-		return err
-	}
-	// Backward compatibility: bind to old env var
-	if err := viper.BindEnv("settlement-rpc-url", "SETTLEMENT_RPC_URL"); err != nil {
+	// Bind to new standardized env var (and legacy for backward compatibility)
+	if err := viper.BindEnv("settlement-rpc-url", "XMTPD_SETTLEMENT_CHAIN_RPC_URL", "SETTLEMENT_RPC_URL"); err != nil {
 		return err
 	}
 
@@ -149,12 +133,8 @@ func registerGlobalFlags() error {
 	if err := viper.BindPFlag("app-rpc-url", rootCmd.PersistentFlags().Lookup("app-rpc-url")); err != nil {
 		return err
 	}
-	// Bind to new standardized env var
-	if err := viper.BindEnv("app-rpc-url", "XMTPD_APP_CHAIN_RPC_URL"); err != nil {
-		return err
-	}
-	// Backward compatibility: bind to old env var
-	if err := viper.BindEnv("app-rpc-url", "APP_RPC_URL"); err != nil {
+	// Bind to new standardized env var (and legacy for backward compatibility)
+	if err := viper.BindEnv("app-rpc-url", "XMTPD_APP_CHAIN_RPC_URL", "APP_RPC_URL"); err != nil {
 		return err
 	}
 
@@ -179,18 +159,23 @@ func cliLogger() (*zap.Logger, error) {
 // and prints warnings to stderr to guide users to the new standardized names.
 func checkDeprecatedEnvVars() {
 	deprecatedVars := map[string]string{
-		"LOG_LEVEL":         "XMTPD_LOG_LEVEL",
-		"LOG_ENCODING":      "XMTPD_LOG_ENCODING",
-		"PRIVATE_KEY":       "XMTPD_SIGNER_PRIVATE_KEY",
+		"LOG_LEVEL":          "XMTPD_LOG_LEVEL",
+		"LOG_ENCODING":       "XMTPD_LOG_ENCODING",
+		"PRIVATE_KEY":        "XMTPD_SIGNER_PRIVATE_KEY",
 		"SETTLEMENT_RPC_URL": "XMTPD_SETTLEMENT_CHAIN_RPC_URL",
-		"APP_RPC_URL":       "XMTPD_APP_CHAIN_RPC_URL",
+		"APP_RPC_URL":        "XMTPD_APP_CHAIN_RPC_URL",
 	}
 
 	for oldVar, newVar := range deprecatedVars {
 		if val := os.Getenv(oldVar); val != "" {
 			// Only warn if the new variable is not set (to avoid double warning)
 			if os.Getenv(newVar) == "" {
-				fmt.Fprintf(os.Stderr, "WARNING: Environment variable %s is deprecated. Please use %s instead.\n", oldVar, newVar)
+				fmt.Fprintf(
+					os.Stderr,
+					"WARNING: Environment variable %s is deprecated. Please use %s instead.\n",
+					oldVar,
+					newVar,
+				)
 			}
 		}
 	}

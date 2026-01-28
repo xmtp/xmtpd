@@ -14,6 +14,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config/environments"
 )
 
+const (
+	// maxConfigSize is the maximum allowed size for configuration files (10KB).
+	maxConfigSize = 10 << 10
+	// httpTimeout is the timeout for HTTP requests when fetching remote configs.
+	httpTimeout = 10 * time.Second
+)
+
 // ContractsSource specifies how to load contract configuration.
 type ContractsSource struct {
 	Environment string // Named environment: "testnet", "mainnet"
@@ -95,7 +102,7 @@ func loadFromPath(path string) ([]byte, error) {
 }
 
 func fetchURL(url string) ([]byte, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: httpTimeout}
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("fetch %s: %w", url, err)
@@ -108,13 +115,12 @@ func fetchURL(url string) ([]byte, error) {
 		return nil, fmt.Errorf("fetch %s: status %d", url, resp.StatusCode)
 	}
 
-	const maxSize = 10 << 10
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxSize+1))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxConfigSize+1))
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", url, err)
 	}
-	if len(data) > maxSize {
-		return nil, fmt.Errorf("fetch %s: response exceeds %d bytes", url, maxSize)
+	if len(data) > maxConfigSize {
+		return nil, fmt.Errorf("fetch %s: response exceeds %d bytes", url, maxConfigSize)
 	}
 	return data, nil
 }

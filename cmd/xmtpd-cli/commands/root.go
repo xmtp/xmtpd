@@ -167,9 +167,6 @@ func registerGlobalFlags() error {
 }
 
 func cliLogger() (*zap.Logger, error) {
-	// Check for deprecated environment variables and warn
-	checkDeprecatedEnvVars()
-
 	l, _, err := utils.BuildLogger(config.LogOptions{
 		LogLevel:    viper.GetString("log-level"),
 		LogEncoding: viper.GetString("log-encoding"),
@@ -177,12 +174,16 @@ func cliLogger() (*zap.Logger, error) {
 	if err != nil || l == nil {
 		return nil, fmt.Errorf("could not build logger: %w", err)
 	}
+
+	// Check for deprecated environment variables and warn using the logger
+	checkDeprecatedEnvVars(l)
+
 	return l, nil
 }
 
 // checkDeprecatedEnvVars checks for usage of deprecated environment variables
-// and prints warnings to stderr to guide users to the new standardized names.
-func checkDeprecatedEnvVars() {
+// and logs warnings to guide users to the new standardized names.
+func checkDeprecatedEnvVars(logger *zap.Logger) {
 	deprecatedVars := map[string]string{
 		"LOG_LEVEL":          "XMTPD_LOG_LEVEL",
 		"LOG_ENCODING":       "XMTPD_LOG_ENCODING",
@@ -195,11 +196,10 @@ func checkDeprecatedEnvVars() {
 		if val := os.Getenv(oldVar); val != "" {
 			// Only warn if the new variable is not set (to avoid double warning)
 			if os.Getenv(newVar) == "" {
-				fmt.Fprintf(
-					os.Stderr,
-					"WARNING: Environment variable %s is deprecated. Please use %s instead.\n",
-					oldVar,
-					newVar,
+				logger.Warn(
+					"Deprecated environment variable in use",
+					zap.String("deprecated", oldVar),
+					zap.String("replacement", newVar),
 				)
 			}
 		}

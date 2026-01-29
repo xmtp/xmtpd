@@ -43,7 +43,7 @@ func startPublishWorker(
 	logger.Info("starting")
 
 	query := func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.StagedOriginatorEnvelope, int64, error) {
-		results, err := store.ReadQuery().SelectStagedOriginatorEnvelopes(
+		results, err := store.WriteQuery().SelectStagedOriginatorEnvelopes(
 			ctx,
 			queries.SelectStagedOriginatorEnvelopesParams{
 				LastSeenID: lastSeenID,

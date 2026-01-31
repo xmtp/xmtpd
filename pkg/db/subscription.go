@@ -87,7 +87,7 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 
 func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 	// Create APM span for polling - this helps identify notification vs timer_fallback
-	span, ctx := tracing.StartSpanFromContext(s.ctx, "db_subscription.poll")
+	span, ctx := tracing.StartSpanFromContext(s.ctx, tracing.SpanDBSubscriptionPoll)
 	defer span.Finish()
 
 	// Tag with trigger type - this is KEY for debugging the read-replica issue!

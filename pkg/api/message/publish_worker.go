@@ -146,12 +146,12 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	var ctx context.Context
 	if parentCtx != nil {
 		// Linked to original staging request - full distributed trace!
-		span = tracing.StartSpanWithParent("publish_worker.process", parentCtx)
+		span = tracing.StartSpanWithParent(tracing.SpanPublishWorkerProcess, parentCtx)
 		ctx = tracing.ContextWithSpan(p.ctx, span)
 		tracing.SpanTag(span, "trace_linked", true)
 	} else {
 		// No parent context - timer fallback or context expired
-		span, ctx = tracing.StartSpanFromContext(p.ctx, "publish_worker.process")
+		span, ctx = tracing.StartSpanFromContext(p.ctx, tracing.SpanPublishWorkerProcess)
 		tracing.SpanTag(span, "trace_linked", false)
 	}
 	defer span.Finish()
@@ -188,7 +188,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	)
 
 	if !isReservedTopic {
-		feeSpan, _ := tracing.StartSpanFromContext(ctx, "publish_worker.calculate_fees")
+		feeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerCalculateFees)
 		baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays)
 		if err != nil {
 			feeSpan.Finish(tracing.WithError(err))
@@ -200,7 +200,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		feeSpan.Finish()
 	}
 
-	signSpan, _ := tracing.StartSpanFromContext(ctx, "publish_worker.sign_envelope")
+	signSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerSignEnvelope)
 	originatorEnv, err := p.registrant.SignStagedEnvelope(
 		stagedEnv,
 		baseFee,
@@ -244,7 +244,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
 	var inserted int64
 
-	insertSpan, _ := tracing.StartSpanFromContext(ctx, "publish_worker.insert_gateway")
+	insertSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerInsertGateway)
 	tracing.SpanTag(insertSpan, "is_reserved_topic", isReservedTopic)
 
 	if isReservedTopic {
@@ -313,7 +313,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	insertSpan.Finish()
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
-	deleteSpan, _ := tracing.StartSpanFromContext(ctx, "publish_worker.delete_staged")
+	deleteSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerDeleteStaged)
 	deleted, err := p.store.WriteQuery().DeleteStagedOriginatorEnvelope(ctx, stagedEnv.ID)
 	if ctx.Err() != nil {
 		deleteSpan.Finish()

@@ -109,7 +109,7 @@ func (s *EnvelopeSink) Start() {
 
 func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	// Create APM span for sync worker storing envelope from another node
-	span, ctx := tracing.StartSpanFromContext(s.ctx, "sync_worker.store_envelope")
+	span, ctx := tracing.StartSpanFromContext(s.ctx, tracing.SpanSyncWorkerStoreEnvelope)
 	defer span.Finish()
 
 	// Tag with envelope info for debugging
@@ -127,7 +127,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	}
 
 	// Calculate the fees independently to verify the originator's calculation
-	feeSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.verify_fees")
+	feeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerVerifyFees)
 	ourFeeCalculation, err := s.calculateFees(env)
 	if err != nil {
 		feeSpan.Finish(tracing.WithError(err))
@@ -166,7 +166,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	originatorTime := utils.NsToDate(env.OriginatorNs())
 	expiry := env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()
 
-	insertSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.insert_gateway")
+	insertSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerInsertGateway)
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		ctx,
 		s.db.Write(),
@@ -212,7 +212,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 	ctx context.Context,
 ) error {
 	// Create APM span for reserved envelope processing
-	span, ctx := tracing.StartSpanFromContext(ctx, "sync_worker.store_reserved_envelope")
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStoreReservedEnvelope)
 	defer span.Finish()
 
 	tracing.SpanTag(span, "topic_kind", env.TargetTopic().Kind().String())
@@ -225,7 +225,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 
 	switch env.TargetTopic().Kind() {
 	case topic.TopicKindPayerReportsV1:
-		reportSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.store_payer_report")
+		reportSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStorePayerReport)
 		err := s.payerReportStore.StoreSyncedReport(
 			ctx,
 			env,
@@ -241,7 +241,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 		}
 		return nil
 	case topic.TopicKindPayerReportAttestationsV1:
-		attestSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.store_attestation")
+		attestSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStoreAttestation)
 		err := s.payerReportStore.StoreSyncedAttestation(
 			ctx,
 			env,

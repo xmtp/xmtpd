@@ -31,6 +31,9 @@ type publishWorker struct {
 	lastProcessed      atomic.Int64
 	feeCalculator      fees.IFeeCalculator
 	sleepOnFailureTime time.Duration
+	// traceContextStore enables async trace context propagation from staging
+	// requests to worker processing, allowing end-to-end distributed tracing
+	traceContextStore  *tracing.TraceContextStore
 }
 
 func startPublishWorker(
@@ -85,6 +88,7 @@ func startPublishWorker(
 		store:              store,
 		feeCalculator:      feeCalculator,
 		sleepOnFailureTime: sleepOnFailureTime,
+		traceContextStore:  tracing.NewTraceContextStore(),
 	}
 	go worker.start()
 
@@ -98,6 +102,13 @@ func (p *publishWorker) notifyStagedPublish() {
 	case p.notifier <- true:
 	default:
 	}
+}
+
+// storeTraceContext saves the span context for a staged envelope ID.
+// This enables async trace propagation from the staging request to
+// worker processing, creating a complete distributed trace.
+func (p *publishWorker) storeTraceContext(stagedID int64, span tracing.Span) {
+	p.traceContextStore.Store(stagedID, span)
 }
 
 func (p *publishWorker) start() {
@@ -126,8 +137,23 @@ func (p *publishWorker) start() {
 }
 
 func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
-	// Create APM span for envelope processing
-	span, ctx := tracing.StartSpanFromContext(p.ctx, "publish_worker.process")
+	// Retrieve parent span context from async trace propagation
+	// This links the worker processing to the original staging request
+	parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)
+
+	// Create APM span, linked to parent if available
+	var span tracing.Span
+	var ctx context.Context
+	if parentCtx != nil {
+		// Linked to original staging request - full distributed trace!
+		span = tracing.StartSpanWithParent("publish_worker.process", parentCtx)
+		ctx = tracing.ContextWithSpan(p.ctx, span)
+		tracing.SpanTag(span, "trace_linked", true)
+	} else {
+		// No parent context - timer fallback or context expired
+		span, ctx = tracing.StartSpanFromContext(p.ctx, "publish_worker.process")
+		tracing.SpanTag(span, "trace_linked", false)
+	}
 	defer span.Finish()
 
 	originatorID := int32(p.registrant.NodeID())

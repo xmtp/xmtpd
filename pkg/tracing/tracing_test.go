@@ -191,3 +191,97 @@ func TestStartSpanWithParent(t *testing.T) {
 	spans := mt.FinishedSpans()
 	assert.GreaterOrEqual(t, len(spans), 3)
 }
+
+func TestSpanTag_TruncatesLongStrings(t *testing.T) {
+	mt := mocktracer.Start()
+	defer mt.Stop()
+
+	span := StartSpan("test.operation")
+
+	// Create a string longer than MaxTagValueLength
+	longString := make([]byte, MaxTagValueLength+500)
+	for i := range longString {
+		longString[i] = 'x'
+	}
+
+	// Tag with the long string
+	SpanTag(span, "long_value", string(longString))
+	span.Finish()
+
+	spans := mt.FinishedSpans()
+	require.Len(t, spans, 1)
+
+	// Verify the tag was truncated
+	tagValue := spans[0].Tag("long_value").(string)
+	assert.LessOrEqual(t, len(tagValue), MaxTagValueLength+20) // Allow for "[truncated]" suffix
+	assert.Contains(t, tagValue, "...[truncated]")
+}
+
+func TestSpanTag_ShortStringsUnchanged(t *testing.T) {
+	mt := mocktracer.Start()
+	defer mt.Stop()
+
+	span := StartSpan("test.operation")
+
+	shortString := "this is a short string"
+	SpanTag(span, "short_value", shortString)
+	span.Finish()
+
+	spans := mt.FinishedSpans()
+	require.Len(t, spans, 1)
+
+	// Verify the tag was NOT truncated
+	tagValue := spans[0].Tag("short_value").(string)
+	assert.Equal(t, shortString, tagValue)
+}
+
+func TestSpanTag_NonStringsUnchanged(t *testing.T) {
+	mt := mocktracer.Start()
+	defer mt.Stop()
+
+	span := StartSpan("test.operation")
+
+	// Non-string values should pass through unchanged
+	SpanTag(span, "int_value", 12345)
+	SpanTag(span, "bool_value", true)
+	SpanTag(span, "float_value", 3.14)
+	span.Finish()
+
+	spans := mt.FinishedSpans()
+	require.Len(t, spans, 1)
+
+	// mocktracer stores numbers as float64
+	assert.Equal(t, float64(12345), spans[0].Tag("int_value"))
+	assert.Equal(t, "true", spans[0].Tag("bool_value")) // mocktracer converts to string
+	assert.Equal(t, 3.14, spans[0].Tag("float_value"))
+}
+
+func TestTraceContextStore_MaxSizeLimit(t *testing.T) {
+	mt := mocktracer.Start()
+	defer mt.Stop()
+
+	store := NewTraceContextStore()
+
+	// Fill store to capacity
+	spans := make([]Span, MaxStoreSize+100)
+	for i := 0; i < MaxStoreSize; i++ {
+		spans[i] = StartSpan("test.operation")
+		store.Store(int64(i), spans[i])
+	}
+
+	assert.Equal(t, MaxStoreSize, store.Size(), "store should be at capacity")
+
+	// Try to add one more - should be dropped
+	extraSpan := StartSpan("test.extra")
+	store.Store(int64(MaxStoreSize+1), extraSpan)
+
+	assert.Equal(t, MaxStoreSize, store.Size(), "store should still be at capacity (new entry dropped)")
+
+	// Clean up spans
+	for _, s := range spans {
+		if s != nil {
+			s.Finish()
+		}
+	}
+	extraSpan.Finish()
+}

@@ -184,7 +184,13 @@ func SpanResource(span Span, resource string) {
 	span.SetTag(ext.ResourceName, resource)
 }
 
+// SpanTag sets a tag on a span with production safety limits.
+// String values longer than MaxTagValueLength are truncated.
 func SpanTag(span Span, key string, value any) {
+	// Truncate long strings to prevent excessive payload sizes
+	if s, ok := value.(string); ok && len(s) > MaxTagValueLength {
+		value = s[:MaxTagValueLength] + "...[truncated]"
+	}
 	span.SetTag(key, value)
 }
 
@@ -233,6 +239,19 @@ type TraceContextStore struct {
 // 5 minutes is generous - publish_worker typically processes within seconds.
 const DefaultTraceContextTTL = 5 * time.Minute
 
+// Span limits for production safety - prevent runaway memory/payload sizes.
+const (
+	// MaxTagValueLength is the maximum length for string tag values.
+	// Longer strings are truncated to prevent excessive trace payload sizes.
+	// 1KB is generous for most use cases while preventing abuse.
+	MaxTagValueLength = 1024
+
+	// MaxStoreSize is the maximum number of entries in TraceContextStore.
+	// Prevents unbounded memory growth if publish_worker falls behind.
+	// 10K entries at ~100 bytes each = ~1MB max memory.
+	MaxStoreSize = 10000
+)
+
 // NewTraceContextStore creates a new store for async trace context propagation.
 func NewTraceContextStore() *TraceContextStore {
 	return &TraceContextStore{
@@ -245,6 +264,7 @@ func NewTraceContextStore() *TraceContextStore {
 // Store saves the span context for a staged envelope ID.
 // Call this after staging an envelope to enable trace linking.
 // Performs lazy cleanup of expired entries to prevent memory leaks.
+// Drops new entries if store is at capacity (production safety).
 func (s *TraceContextStore) Store(stagedID int64, span Span) {
 	if span == nil {
 		return
@@ -255,6 +275,12 @@ func (s *TraceContextStore) Store(stagedID int64, span Span) {
 	// Lazy cleanup: run every minute to prevent unbounded growth
 	if time.Since(s.lastCleanup) > time.Minute {
 		s.cleanupExpiredLocked()
+	}
+
+	// Production safety: refuse new entries if at capacity
+	// This indicates publish_worker is falling behind and needs investigation
+	if len(s.contexts) >= MaxStoreSize {
+		return
 	}
 
 	s.contexts[stagedID] = traceContextEntry{

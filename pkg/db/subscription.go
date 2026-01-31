@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -63,7 +64,7 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 	s.updates = updates
 
 	go func() {
-		s.poll()
+		s.poll("startup")
 
 		timer := time.NewTimer(s.options.Interval)
 		for {
@@ -74,9 +75,9 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 				close(s.updates)
 				return
 			case <-s.options.Notifier:
-				s.poll()
+				s.poll("notification")
 			case <-timer.C:
-				s.poll()
+				s.poll("timer_fallback")
 			}
 		}
 	}()
@@ -84,15 +85,26 @@ func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, err
 	return updates, nil
 }
 
-func (s *DBSubscription[ValueType, CursorType]) poll() {
+func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
+	// Create APM span for polling - this helps identify notification vs timer_fallback
+	span, ctx := tracing.StartSpanFromContext(s.ctx, "db_subscription.poll")
+	defer span.Finish()
+
+	// Tag with trigger type - this is KEY for debugging the read-replica issue!
+	// If you see lots of "timer_fallback" with num_results > 0, the notification
+	// poll is missing data (likely due to read-replica lag)
+	tracing.SpanTag(span, "trigger", trigger)
+
 	// Repeatedly query page by page until no more results
+	totalResults := 0
 	for {
-		results, lastID, err := s.query(s.ctx, s.lastSeen, s.options.NumRows)
-		if s.ctx.Err() != nil {
+		results, lastID, err := s.query(ctx, s.lastSeen, s.options.NumRows)
+		if ctx.Err() != nil {
 			return
 		}
 
 		if err != nil {
+			span.Finish(tracing.WithError(err))
 			// Log is extremely noisy during test teardown
 			s.logger.Error(
 				"error querying for database subscription",
@@ -105,15 +117,22 @@ func (s *DBSubscription[ValueType, CursorType]) poll() {
 		}
 
 		if len(results) == 0 {
+			tracing.SpanTag(span, "num_results", totalResults)
+			if totalResults == 0 && trigger == "notification" {
+				// This indicates the notification poll missed data - likely read-replica lag!
+				tracing.SpanTag(span, "notification_miss", true)
+			}
 			return
 		}
 
+		totalResults += len(results)
 		s.lastSeen = lastID
 		s.updates <- results
 
 		// If we have less results than allowed, it means there's currently no more items to retrieve.
 		// Else repeat query and return more batches.
 		if int32(len(results)) < s.options.NumRows {
+			tracing.SpanTag(span, "num_results", totalResults)
 			return
 		}
 	}

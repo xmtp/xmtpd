@@ -46,17 +46,21 @@ var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 // This enables query-level visibility in flame graphs.
 type apmQueryTracer struct {
 	serviceName string
+	role        string // "reader" or "writer" - critical for debugging replica issues
 }
 
 // TraceQueryStart creates a span when a query begins.
+// Uses StartSpanFromContext to make DB queries children of the active span.
 func (t *apmQueryTracer) TraceQueryStart(
 	ctx context.Context,
 	conn *pgx.Conn,
 	data pgx.TraceQueryStartData,
 ) context.Context {
-	span := tracing.StartSpan("pgx.query")
+	// Use StartSpanFromContext so queries appear as children in flame graphs
+	span, ctx := tracing.StartSpanFromContext(ctx, "pgx.query")
 	tracing.SpanTag(span, "db.system", "postgresql")
 	tracing.SpanTag(span, "db.service", t.serviceName)
+	tracing.SpanTag(span, "db.role", t.role) // reader or writer
 	tracing.SpanTag(span, "db.statement", data.SQL)
 	tracing.SpanType(span, "sql")
 	tracing.SpanResource(span, data.SQL)
@@ -221,6 +225,7 @@ type dbConnConfig struct {
 	prometheusRegistry *prometheus.Registry
 	createNamespace    bool
 	runMigrations      bool
+	role               string // "reader" or "writer" for APM tagging
 }
 
 type dbOptionFunc func(*dbConnConfig)
@@ -256,6 +261,14 @@ func prometheusRegistry(p *prometheus.Registry) dbOptionFunc {
 	}
 }
 
+// dbRole sets the role tag for APM spans (reader or writer).
+// This is critical for debugging read-replica issues.
+func dbRole(role string) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.role = role
+	}
+}
+
 func connectToDB(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -284,10 +297,16 @@ func connectToDB(
 		poolcfg.ConnConfig.Database = namespace
 	}
 
-	// Determine service name for APM spans (writer vs reader)
+	// Determine service name for APM spans
 	serviceName := "xmtpd-db"
 	if namespace != "" {
 		serviceName = "xmtpd-db-" + namespace
+	}
+
+	// Default role to "writer" if not specified
+	role := cfg.role
+	if role == "" {
+		role = "writer"
 	}
 
 	// Enable SQL tracing with composite tracer (logging + APM)
@@ -299,6 +318,7 @@ func connectToDB(
 		},
 		apmTracer: &apmQueryTracer{
 			serviceName: serviceName,
+			role:        role, // reader or writer - critical for replica debugging
 		},
 	}
 
@@ -331,6 +351,7 @@ func connectToDB(
 }
 
 // NewNamespacedDB creates a new database with the given namespace if it doesn't exist and returns the full DSN for the new database.
+// This is typically used for the writer connection (creates schema, runs migrations).
 func NewNamespacedDB(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -350,12 +371,14 @@ func NewNamespacedDB(
 		prometheusRegistry(prom),
 		doCreateNamespace(true),
 		runMigrations(true),
+		dbRole("writer"), // Explicit role for APM debugging
 	)
 }
 
 // ConnectToDB establishes a connection to an existing database using the provided DSN.
 // Unlike NewNamespacedDB, this function does not create the database or run migrations.
 // If namespace is provided, it overrides the database name in the DSN.
+// Defaults to "writer" role for APM. Use ConnectToReaderDB for read replica connections.
 func ConnectToDB(ctx context.Context,
 	logger *zap.Logger,
 	dsn string,
@@ -368,6 +391,28 @@ func ConnectToDB(ctx context.Context,
 		dbPingTimeout(waitForDB),
 		dbStatementTimeout(statementTimeout),
 		prometheusRegistry(prom),
+		dbRole("writer"), // Default to writer for APM
+		// Not creating namespace.
+		// Not running migrations.
+	)
+}
+
+// ConnectToReaderDB establishes a read-only connection to the database.
+// Use this for read replica connections - the "reader" role tag in APM helps
+// debug read-replica lag issues (like the notification bug).
+func ConnectToReaderDB(ctx context.Context,
+	logger *zap.Logger,
+	dsn string,
+	namespace string,
+	waitForDB time.Duration,
+	statementTimeout time.Duration,
+	prom *prometheus.Registry,
+) (*sql.DB, error) {
+	return connectToDB(ctx, logger, dsn, namespace,
+		dbPingTimeout(waitForDB),
+		dbStatementTimeout(statementTimeout),
+		prometheusRegistry(prom),
+		dbRole("reader"), // Reader role for APM - critical for replica debugging
 		// Not creating namespace.
 		// Not running migrations.
 	)

@@ -15,7 +15,7 @@ func TestIncrementUnsettledUsage(t *testing.T) {
 	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
-	payerID := testutils.RandomInt32()
+	payerID := testutils.CreatePayer(t, db)
 	originatorID := int32(100)
 	minutesSinceEpoch := utils.MinutesSinceEpochNow()
 
@@ -57,7 +57,7 @@ func TestGetUnsettledUsage(t *testing.T) {
 	db, _ := testutils.NewRawDB(t, ctx)
 
 	querier := queries.New(db)
-	payerID := testutils.RandomInt32()
+	payerID := testutils.CreatePayer(t, db)
 	originatorID := int32(100)
 
 	addUsage := func(minutesSinceEpoch int32, spendPicodollars int64) {

@@ -623,7 +623,11 @@ func advanceUnsettledUsage(t *testing.T, scaffold *multiNodeTestScaffold) {
 	injectDummyUnsettled(t, scaffold.dbs[1], scaffold.nodeIDs[1])
 }
 
-func injectDummyUnsettled(t *testing.T, db *sql.DB, nodeId uint32) {
+func injectDummyUnsettled(t *testing.T, db *sql.DB, nodeID uint32) {
+	// Create a payer for the dummy unsettled usage.
+	// Using a fixed address ensures we get the same payer ID across calls.
+	payerID := testutils.CreatePayer(t, db, "dummy-payer-for-unsettled-usage")
+
 	_, err := db.Exec(`
 WITH latest AS (
     SELECT 
@@ -640,14 +644,14 @@ INSERT INTO unsettled_usage (
     message_count
 )
 SELECT
-    1001 AS payer_id,
+    $2 AS payer_id,
     $1 AS originator_id,
     latest.max_minute + 1 AS minutes_since_epoch,
     0 AS spend_picodollars,
     0 AS last_sequence_id,
     0 AS message_count
 FROM latest;
-`, nodeId)
+`, nodeID, payerID)
 	require.NoError(t, err)
 }
 

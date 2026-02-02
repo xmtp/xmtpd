@@ -10,8 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/exaring/otelpgx"
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,6 +42,77 @@ var (
 )
 
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// apmQueryTracer implements pgx.QueryTracer to create Datadog APM spans for queries.
+// This enables query-level visibility in flame graphs.
+type apmQueryTracer struct {
+	serviceName string
+}
+
+// TraceQueryStart creates a span when a query begins.
+func (t *apmQueryTracer) TraceQueryStart(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryStartData,
+) context.Context {
+	span := tracing.StartSpan("pgx.query")
+	tracing.SpanTag(span, "db.system", "postgresql")
+	tracing.SpanTag(span, "db.service", t.serviceName)
+	tracing.SpanTag(span, "db.statement", data.SQL)
+	tracing.SpanType(span, "sql")
+	tracing.SpanResource(span, data.SQL)
+
+	// Store span in context for TraceQueryEnd
+	return context.WithValue(ctx, apmSpanKey{}, span)
+}
+
+// TraceQueryEnd finishes the span when query completes.
+func (t *apmQueryTracer) TraceQueryEnd(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryEndData,
+) {
+	span, ok := ctx.Value(apmSpanKey{}).(tracing.Span)
+	if !ok || span == nil {
+		return
+	}
+
+	if data.Err != nil {
+		span.Finish(tracing.WithError(data.Err))
+	} else {
+		tracing.SpanTag(span, "db.rows_affected", data.CommandTag.RowsAffected())
+		span.Finish()
+	}
+}
+
+type apmSpanKey struct{}
+
+// compositeTracer combines multiple pgx tracers (logging + APM).
+type compositeTracer struct {
+	logTracer *tracelog.TraceLog
+	apmTracer *apmQueryTracer
+}
+
+func (c *compositeTracer) TraceQueryStart(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryStartData,
+) context.Context {
+	// Call both tracers
+	ctx = c.logTracer.TraceQueryStart(ctx, conn, data)
+	ctx = c.apmTracer.TraceQueryStart(ctx, conn, data)
+	return ctx
+}
+
+func (c *compositeTracer) TraceQueryEnd(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryEndData,
+) {
+	// Call both tracers
+	c.logTracer.TraceQueryEnd(ctx, conn, data)
+	c.apmTracer.TraceQueryEnd(ctx, conn, data)
+}
 
 func waitUntilDBReady(ctx context.Context, db *pgxpool.Pool, waitTime time.Duration) error {
 	pingCtx, cancel := context.WithTimeout(ctx, waitTime)
@@ -213,10 +286,22 @@ func connectToDB(
 		poolcfg.ConnConfig.Database = namespace
 	}
 
-	// enable SQL tracing
-	poolcfg.ConnConfig.Tracer = &tracelog.TraceLog{
-		Logger:   metrics.PromLogger{},
-		LogLevel: tracelog.LogLevelTrace,
+	// Determine service name for APM spans (writer vs reader)
+	serviceName := "xmtpd-db"
+	if namespace != "" {
+		serviceName = "xmtpd-db-" + namespace
+	}
+
+	// Enable SQL tracing with composite tracer (logging + APM)
+	// This provides both Prometheus metrics and Datadog APM spans
+	poolcfg.ConnConfig.Tracer = &compositeTracer{
+		logTracer: &tracelog.TraceLog{
+			Logger:   metrics.PromLogger{},
+			LogLevel: tracelog.LogLevelTrace,
+		},
+		apmTracer: &apmQueryTracer{
+			serviceName: serviceName,
+		},
 	}
 
 	db, pool, err := newPGXDB(ctx, poolcfg, cfg.pingTimeout)

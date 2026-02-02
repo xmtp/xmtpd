@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -106,20 +108,33 @@ func (s *EnvelopeSink) Start() {
 }
 
 func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
+	// Create APM span for sync worker storing envelope from another node
+	span, ctx := tracing.StartSpanFromContext(s.ctx, "sync_worker.store_envelope")
+	defer span.Finish()
+
+	// Tag with envelope info for debugging
+	tracing.SpanTag(span, "source_node", env.OriginatorNodeID())
+	tracing.SpanTag(span, "sequence_id", env.OriginatorSequenceID())
+	tracing.SpanTag(span, "topic", hex.EncodeToString(env.TargetTopic().Bytes()))
+	tracing.SpanTag(span, "is_reserved", env.TargetTopic().IsReserved())
+
 	if env.TargetTopic().IsReserved() {
 		s.logger.Info(
 			"found envelope with reserved topic",
 			utils.TopicField(env.TargetTopic().String()),
 		)
-		return s.storeReservedEnvelope(env)
+		return s.storeReservedEnvelope(env, ctx)
 	}
 
 	// Calculate the fees independently to verify the originator's calculation
+	feeSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.verify_fees")
 	ourFeeCalculation, err := s.calculateFees(env)
 	if err != nil {
+		feeSpan.Finish(tracing.WithError(err))
 		s.logger.Error("failed to calculate fees", zap.Error(err))
 		return err
 	}
+	feeSpan.Finish()
 	originatorsFeeCalculation := env.UnsignedOriginatorEnvelope.BaseFee() +
 		env.UnsignedOriginatorEnvelope.CongestionFee()
 
@@ -151,8 +166,9 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	originatorTime := utils.NsToDate(env.OriginatorNs())
 	expiry := env.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime()
 
+	insertSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.insert_gateway")
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
-		s.ctx,
+		ctx,
 		s.db.Write(),
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     int32(env.OriginatorNodeID()),
@@ -172,22 +188,35 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	)
 
 	if err != nil {
+		insertSpan.Finish(tracing.WithError(err))
 		s.logger.Error("failed to insert gateway envelope", zap.Error(err))
 		return err
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
+		tracing.SpanTag(insertSpan, "already_inserted", true)
 		s.logger.Debug("envelope already inserted",
 			utils.OriginatorIDField(env.OriginatorNodeID()),
 			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
 		)
-
+		insertSpan.Finish()
 		return nil
 	}
+	tracing.SpanTag(insertSpan, "inserted_rows", inserted)
+	insertSpan.Finish()
 
 	return nil
 }
 
-func (s *EnvelopeSink) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) error {
+func (s *EnvelopeSink) storeReservedEnvelope(
+	env *envUtils.OriginatorEnvelope,
+	ctx context.Context,
+) error {
+	// Create APM span for reserved envelope processing
+	span, ctx := tracing.StartSpanFromContext(ctx, "sync_worker.store_reserved_envelope")
+	defer span.Finish()
+
+	tracing.SpanTag(span, "topic_kind", env.TargetTopic().Kind().String())
+
 	payerID, err := s.getPayerID(env)
 	if err != nil {
 		s.logger.Error("failed to get payer ID", zap.Error(err))
@@ -196,26 +225,34 @@ func (s *EnvelopeSink) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) e
 
 	switch env.TargetTopic().Kind() {
 	case topic.TopicKindPayerReportsV1:
+		reportSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.store_payer_report")
 		err := s.payerReportStore.StoreSyncedReport(
-			s.ctx,
+			ctx,
 			env,
 			payerID,
 			s.payerReportDomainSeparator,
 		)
 		if err != nil {
+			reportSpan.Finish(tracing.WithError(err))
 			s.logger.Error("failed to store synced report", zap.Error(err))
 			// Return nil here to avoid infinite retries
+		} else {
+			reportSpan.Finish()
 		}
 		return nil
 	case topic.TopicKindPayerReportAttestationsV1:
+		attestSpan, _ := tracing.StartSpanFromContext(ctx, "sync_worker.store_attestation")
 		err := s.payerReportStore.StoreSyncedAttestation(
-			s.ctx,
+			ctx,
 			env,
 			payerID,
 		)
 		if err != nil {
+			attestSpan.Finish(tracing.WithError(err))
 			s.logger.Error("failed to store synced attestation", zap.Error(err))
 			// Return nil here to avoid infinite retries
+		} else {
+			attestSpan.Finish()
 		}
 		return nil
 	default:

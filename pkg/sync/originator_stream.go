@@ -85,7 +85,7 @@ func (s *originatorStream) listen() error {
 			}
 
 			// Create span for processing this batch of envelopes
-			batchSpan := tracing.StartSpan("sync.receive_batch")
+			batchSpan := tracing.StartSpan(tracing.SpanSyncReceiveBatch)
 			tracing.SpanTag(batchSpan, "source_node", s.node.NodeID)
 			tracing.SpanTag(batchSpan, "num_envelopes", len(envs.Envelopes))
 
@@ -146,7 +146,7 @@ func (s *originatorStream) validateEnvelope(
 	envProto *envelopes.OriginatorEnvelope,
 ) (*envUtils.OriginatorEnvelope, error) {
 	// Create span for envelope validation
-	span := tracing.StartSpan("sync.validate_envelope")
+	span := tracing.StartSpan(tracing.SpanSyncValidateEnvelope)
 	defer span.Finish()
 
 	tracing.SpanTag(span, "source_node", s.node.NodeID)

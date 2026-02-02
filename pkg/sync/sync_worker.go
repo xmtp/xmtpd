@@ -289,7 +289,7 @@ func (s *syncWorker) connectToNode(
 	node registry.Node,
 ) (*grpc.ClientConn, error) {
 	// Create span for connection attempt
-	span := tracing.StartSpan("sync.connect_to_node")
+	span := tracing.StartSpan(tracing.SpanSyncConnectToNode)
 	defer span.Finish()
 
 	tracing.SpanTag(span, "target_node", node.NodeID)
@@ -345,7 +345,7 @@ func (s *syncWorker) setupStream(
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (*originatorStream, error) {
 	// Create span for stream setup
-	span, ctx := tracing.StartSpanFromContext(ctx, "sync.setup_stream")
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSetupStream)
 	defer span.Finish()
 
 	tracing.SpanTag(span, "target_node", node.NodeID)
@@ -383,7 +383,7 @@ func (s *syncWorker) setupStream(
 
 	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
 
-	subscribeSpan, _ := tracing.StartSpanFromContext(ctx, "sync.subscribe_envelopes")
+	subscribeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
 	stream, err := client.SubscribeEnvelopes(
 		ctx,
 		&message_api.SubscribeEnvelopesRequest{

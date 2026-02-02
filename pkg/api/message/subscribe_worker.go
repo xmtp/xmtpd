@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
@@ -143,20 +144,34 @@ func (s *subscribeWorker) start() {
 				return
 			}
 
+			// Create span for dispatching this batch to subscribers
+			span := tracing.StartSpan(tracing.SpanSubscribeWorkerDispatch)
+			tracing.SpanTag(span, "batch_size", len(batch))
+
 			s.logger.Debug("received new batch", utils.NumEnvelopesField(len(batch)))
 
 			envs := make([]*envelopes.OriginatorEnvelope, 0, len(batch))
+			parseErrors := 0
 			for _, row := range batch {
 				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
 				if err != nil {
 					s.logger.Error("failed to unmarshal envelope", zap.Error(err))
+					parseErrors++
 					continue
 				}
 				envs = append(envs, env)
 			}
+
+			tracing.SpanTag(span, "envelopes_parsed", len(envs))
+			if parseErrors > 0 {
+				tracing.SpanTag(span, "parse_errors", parseErrors)
+			}
+
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
 			s.dispatchToEmpties()
+
+			span.Finish()
 		}
 	}
 }
@@ -249,6 +264,11 @@ func (s *subscribeWorker) dispatchToListeners(
 				s.logger.Debug("stream closed, removing listener", utils.BodyField(l.ch))
 			}
 
+			// Track listener closure in APM - helps debug client disconnect issues
+			span := tracing.StartSpan(tracing.SpanSubscribeWorkerListenerClosed)
+			tracing.SpanTag(span, "reason", "context_done")
+			span.Finish()
+
 			s.closeListener(l)
 
 		default:
@@ -266,6 +286,12 @@ func (s *subscribeWorker) dispatchToListeners(
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("channel full, removing listener", utils.BodyField(l.ch))
 				}
+
+				// Track channel full events - indicates slow client or backpressure
+				span := tracing.StartSpan(tracing.SpanSubscribeWorkerListenerClosed)
+				tracing.SpanTag(span, "reason", "channel_full")
+				tracing.SpanTag(span, "dropped_envelopes", len(envs))
+				span.Finish()
 
 				s.closeListener(l)
 			}

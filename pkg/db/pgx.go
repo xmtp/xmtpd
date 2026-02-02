@@ -58,7 +58,7 @@ func (t *apmQueryTracer) TraceQueryStart(
 	data pgx.TraceQueryStartData,
 ) context.Context {
 	// Use StartSpanFromContext so queries appear as children in flame graphs
-	span, ctx := tracing.StartSpanFromContext(ctx, "pgx.query")
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanDBQuery)
 	tracing.SpanTag(span, "db.system", "postgresql")
 	tracing.SpanTag(span, "db.service", t.serviceName)
 	tracing.SpanTag(span, "db.role", t.role) // reader or writer

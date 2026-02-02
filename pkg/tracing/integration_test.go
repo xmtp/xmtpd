@@ -83,7 +83,7 @@ func TestIntegration_AsyncContextPropagation(t *testing.T) {
 
 	// Simulate staging side (API request)
 	ctx := context.Background()
-	apiSpan, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanNodePublishPayerEnvelopes)
+	apiSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanNodePublishPayerEnvelopes)
 	tracing.SpanTag(apiSpan, "staged_id", stagedID)
 
 	// Store context for async propagation

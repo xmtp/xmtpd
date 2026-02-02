@@ -26,6 +26,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
@@ -315,6 +316,10 @@ func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *connect.Request[message_api.QueryEnvelopesRequest],
 ) (*connect.Response[message_api.QueryEnvelopesResponse], error) {
+	// Create APM span for query operation
+	span, ctx := tracing.StartSpanFromContext(ctx, "node.query_envelopes")
+	defer span.Finish()
+
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
@@ -323,12 +328,14 @@ func (s *Service) QueryEnvelopes(
 	}
 
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
+	logger = tracing.Link(span, logger)
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
 	if err := s.validateQuery(req.Msg.GetQuery()); err != nil {
+		span.Finish(tracing.WithError(err))
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("invalid query: %w", err),
@@ -341,6 +348,11 @@ func (s *Service) QueryEnvelopes(
 	} else {
 		limit = int32(req.Msg.GetLimit())
 	}
+
+	// Tag with query parameters for debugging
+	tracing.SpanTag(span, "limit", limit)
+	tracing.SpanTag(span, "num_originator_ids", len(req.Msg.GetQuery().GetOriginatorNodeIds()))
+	tracing.SpanTag(span, "num_topics", len(req.Msg.GetQuery().GetTopics()))
 
 	rows, err := s.fetchEnvelopesWithRetry(ctx, req.Msg.GetQuery(), limit)
 	if err != nil {
@@ -379,6 +391,12 @@ func (s *Service) QueryEnvelopes(
 			continue
 		}
 		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
+	}
+
+	// Tag with result count for debugging
+	tracing.SpanTag(span, "num_results", len(response.Msg.Envelopes))
+	if len(response.Msg.Envelopes) == 0 {
+		tracing.SpanTag(span, "zero_results", true)
 	}
 
 	return response, nil
@@ -567,6 +585,10 @@ func (s *Service) PublishPayerEnvelopes(
 	ctx context.Context,
 	req *connect.Request[message_api.PublishPayerEnvelopesRequest],
 ) (*connect.Response[message_api.PublishPayerEnvelopesResponse], error) {
+	// Create APM span for publish operation - this is the staging transaction entry point
+	span, ctx := tracing.StartSpanFromContext(ctx, "node.publish_payer_envelopes")
+	defer span.Finish()
+
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
@@ -575,6 +597,11 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
+	logger = tracing.Link(span, logger)
+
+	// Tag with envelope count for debugging
+	tracing.SpanTag(span, "num_envelopes", len(req.Msg.GetPayerEnvelopes()))
+	tracing.SpanTag(span, "originator_node", s.registrant.NodeID())
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
@@ -607,8 +634,10 @@ func (s *Service) PublishPayerEnvelopes(
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
+	// Span for the staging transaction
+	txSpan, txCtx := tracing.StartSpanFromContext(ctx, "node.stage_transaction")
 	err = db.RunInTx(
-		ctx,
+		txCtx,
 		s.store.DB(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
@@ -650,14 +679,24 @@ func (s *Service) PublishPayerEnvelopes(
 		},
 	)
 	if err != nil {
+		txSpan.Finish(tracing.WithError(err))
 		return nil, connect.NewError(
 			connect.CodeInternal,
 			err,
 		)
 	}
+	if latestStaged != nil {
+		tracing.SpanTag(txSpan, "staged_id", latestStaged.ID)
+	}
+	txSpan.Finish()
 
+	// Notify publish worker - this triggers the async processing
 	s.publishWorker.notifyStagedPublish()
-	s.waitForGatewayPublish(ctx, latestStaged, logger)
+
+	// Wait for gateway publish - this is where we wait for the envelope to be fully processed
+	waitSpan, waitCtx := tracing.StartSpanFromContext(ctx, "node.wait_gateway_publish")
+	s.waitForGatewayPublish(waitCtx, latestStaged, logger)
+	waitSpan.Finish()
 
 	metrics.EmitSyncLastSeenOriginatorSequenceID(
 		s.registrant.NodeID(),

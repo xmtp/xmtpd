@@ -143,6 +143,33 @@ service:xmtpd operation_name:xmtpd.sync.* @error:true
 service:xmtpd @out_of_order:true
 ```
 
+## Production Safety Limits
+
+The tracing package includes built-in limits to prevent runaway resource usage:
+
+| Limit | Value | Purpose |
+|-------|-------|---------|
+| `MaxTagValueLength` | 1024 | String tags longer than this are truncated |
+| `MaxStoreSize` | 10000 | Maximum entries in TraceContextStore |
+
+### Tag Value Truncation
+
+Long string values are automatically truncated to prevent excessive trace payload sizes:
+
+```go
+// This will be truncated if longer than 1KB
+tracing.SpanTag(span, "db.statement", veryLongQuery)
+// Result: "SELECT ... ...[truncated]"
+```
+
+### TraceContextStore Limits
+
+The async context store has a maximum size to prevent unbounded memory growth:
+
+- If store reaches 10,000 entries, new entries are dropped
+- This indicates publish_worker is falling behind and needs investigation
+- Normal operation should have < 100 entries at any time
+
 ## Troubleshooting
 
 ### Traces not appearing in Datadog

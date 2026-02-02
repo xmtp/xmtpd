@@ -104,7 +104,6 @@ func getSampleRate(env string, l *zap.Logger) float64 {
 		if err != nil || rate < 0 || rate > 1 {
 			l.Warn("Invalid APM_SAMPLE_RATE, using default",
 				zap.String("value", rateStr),
-				zap.Error(err),
 			)
 		} else {
 			return rate

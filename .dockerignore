@@ -13,6 +13,10 @@
 !pkg/
 !pkg/**
 
+# Allow cmd directory
+!cmd/
+!cmd/**
+
 # Allow tools
 !tools/
 !tools/**

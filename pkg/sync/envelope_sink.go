@@ -225,9 +225,9 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 
 	switch env.TargetTopic().Kind() {
 	case topic.TopicKindPayerReportsV1:
-		reportSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStorePayerReport)
+		reportSpan, reportCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStorePayerReport)
 		err := s.payerReportStore.StoreSyncedReport(
-			ctx,
+			reportCtx,
 			env,
 			payerID,
 			s.payerReportDomainSeparator,
@@ -241,9 +241,9 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 		}
 		return nil
 	case topic.TopicKindPayerReportAttestationsV1:
-		attestSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStoreAttestation)
+		attestSpan, attestCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStoreAttestation)
 		err := s.payerReportStore.StoreSyncedAttestation(
-			ctx,
+			attestCtx,
 			env,
 			payerID,
 		)

@@ -319,7 +319,6 @@ func (s *syncWorker) connectToNode(
 
 	conn, err := node.BuildConn(dialOpts...)
 	if err != nil {
-		span.Finish(tracing.WithError(err))
 		s.logger.Error(
 			"failed to connect to node",
 			utils.OriginatorIDField(node.NodeID),

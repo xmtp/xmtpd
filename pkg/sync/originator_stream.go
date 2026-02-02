@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -87,20 +89,33 @@ func (s *originatorStream) listen() error {
 				continue
 			}
 
+			// Create span for processing this batch of envelopes
+			batchSpan := tracing.StartSpan("sync.receive_batch")
+			tracing.SpanTag(batchSpan, "source_node", s.node.NodeID)
+			tracing.SpanTag(batchSpan, "num_envelopes", len(envs.Envelopes))
+
 			s.logger.Debug(
 				"received envelopes",
 				utils.NumEnvelopesField(len(envs.GetEnvelopes())),
 			)
 
+			validCount := 0
+			invalidCount := 0
 			for _, env := range envs.GetEnvelopes() {
 				// Any message that fails validation here will be dropped permanently
 				parsedEnv, err := s.validateEnvelope(env)
 				if err != nil {
 					s.logger.Error("discarding envelope after validation failed", zap.Error(err))
+					invalidCount++
 					continue
 				}
+				validCount++
 				s.writeQueue <- parsedEnv
 			}
+
+			tracing.SpanTag(batchSpan, "valid_count", validCount)
+			tracing.SpanTag(batchSpan, "invalid_count", invalidCount)
+			batchSpan.Finish()
 
 		case err, ok := <-errChan:
 			if !ok {
@@ -135,10 +150,17 @@ func (s *originatorStream) listen() error {
 func (s *originatorStream) validateEnvelope(
 	envProto *envelopes.OriginatorEnvelope,
 ) (*envUtils.OriginatorEnvelope, error) {
+	// Create span for envelope validation
+	span := tracing.StartSpan("sync.validate_envelope")
+	defer span.Finish()
+
+	tracing.SpanTag(span, "source_node", s.node.NodeID)
+
 	var err error
 	defer func() {
 		if err != nil {
 			metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
+			span.Finish(tracing.WithError(err))
 		}
 	}()
 
@@ -148,6 +170,10 @@ func (s *originatorStream) validateEnvelope(
 		s.logger.Error("failed to unmarshal originator envelope", zap.Error(err))
 		return nil, err
 	}
+
+	// Add envelope details to span
+	tracing.SpanTag(span, "sequence_id", env.OriginatorSequenceID())
+	tracing.SpanTag(span, "topic", hex.EncodeToString(env.TargetTopic().Bytes()))
 
 	// TODO:(nm) Handle fetching envelopes from other nodes
 	originatorID := env.OriginatorNodeID()
@@ -164,6 +190,7 @@ func (s *originatorStream) validateEnvelope(
 			originatorID,
 			permittedIDs,
 		)
+		tracing.SpanTag(span, "wrong_originator", env.OriginatorNodeID())
 
 		s.logger.Error("received envelope from invalid originator",
 			zap.Uint32("originator_id", originatorID),
@@ -177,27 +204,36 @@ func (s *originatorStream) validateEnvelope(
 	metrics.EmitSyncLastSeenOriginatorSequenceID(env.OriginatorNodeID(), env.OriginatorSequenceID())
 	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
-	lastSeq := s.lastSequenceIds[originatorID]
+	var (
+		lastSID     = s.lastSequenceIds[originatorID]
+		expectedSID = lastSID + 1
+	)
 
-	if seqID != lastSeq+1 {
-		if seqID < lastSeq {
+	if seqID != expectedSID {
+		tracing.SpanTag(span, "expected_sequence_id", expectedSID)
+
+		if seqID < lastSID {
 			s.logger.Error(
 				"received out-of-order envelope",
 				utils.OriginatorIDField(originatorID),
 				utils.SequenceIDField(int64(seqID)),
-				zap.Uint64("expected_sequence_id", lastSeq+1),
+				zap.Uint64("expected_sequence_id", expectedSID),
 			)
+
+			tracing.SpanTag(span, "out_of_order", true)
 		} else {
 			s.logger.Info(
 				"envelope gap detected",
 				utils.OriginatorIDField(originatorID),
 				utils.SequenceIDField(int64(seqID)),
-				zap.Uint64("expected_sequence_id", lastSeq+1),
+				zap.Uint64("expected_sequence_id", expectedSID),
 			)
+
+			tracing.SpanTag(span, "gap_detected", true)
 		}
 	}
 
-	if seqID > lastSeq {
+	if seqID > lastSID {
 		s.lastSequenceIds[originatorID] = seqID
 	}
 

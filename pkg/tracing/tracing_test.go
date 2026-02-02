@@ -334,7 +334,9 @@ func TestTraceContextStore_MaxSizeLimit(t *testing.T) {
 	store.Store(int64(MaxStoreSize+1), extraSpan)
 
 	assert.Equal(
-		t, MaxStoreSize, store.Size(),
+		t,
+		MaxStoreSize,
+		store.Size(),
 		"store should still be at capacity (new entry dropped)",
 	)
 

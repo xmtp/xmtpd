@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
@@ -125,4 +126,54 @@ func GoPanicWrap(
 		defer wg.Done()
 		PanicWrap(ctx, name, body)
 	})
+}
+
+// TraceContextStore provides async context propagation by mapping
+// staged envelope IDs to their originating span contexts. This allows
+// the publish_worker to create child spans linked to the original
+// staging request, enabling end-to-end distributed tracing across
+// async boundaries.
+type TraceContextStore struct {
+	mu       sync.RWMutex
+	contexts map[int64]ddtrace.SpanContext
+}
+
+// NewTraceContextStore creates a new store for async trace context propagation.
+func NewTraceContextStore() *TraceContextStore {
+	return &TraceContextStore{
+		contexts: make(map[int64]ddtrace.SpanContext),
+	}
+}
+
+// Store saves the span context for a staged envelope ID.
+// Call this after staging an envelope to enable trace linking.
+func (s *TraceContextStore) Store(stagedID int64, span Span) {
+	if span == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.contexts[stagedID] = span.Context()
+}
+
+// Retrieve gets and removes the span context for a staged envelope ID.
+// Returns nil if no context was stored for this ID.
+func (s *TraceContextStore) Retrieve(stagedID int64) ddtrace.SpanContext {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ctx, ok := s.contexts[stagedID]
+	if ok {
+		delete(s.contexts, stagedID)
+	}
+	return ctx
+}
+
+// StartSpanWithParent creates a new span, optionally linked to a parent context.
+// If parentCtx is nil, creates a new root span. This is useful for async
+// workflows where the parent context may or may not be available.
+func StartSpanWithParent(operationName string, parentCtx ddtrace.SpanContext) Span {
+	if parentCtx != nil {
+		return tracer.StartSpan(operationName, tracer.ChildOf(parentCtx))
+	}
+	return tracer.StartSpan(operationName)
 }

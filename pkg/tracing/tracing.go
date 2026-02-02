@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"runtime/pprof"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,6 +15,9 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
+
+// EnvAPMSampleRate is the environment variable for configuring APM sample rate.
+const EnvAPMSampleRate = "APM_SAMPLE_RATE"
 
 // Re-export tracer types and options that don't need gating.
 var (
@@ -88,12 +92,12 @@ var apmEnabled bool
 // Start boots the datadog tracer, run this once early in the startup sequence.
 // Tracing is gated by XMTPD_TRACING_ENABLE at the application config level;
 // callers should only invoke Start() when the feature flag is on.
-// When enabled, all traces are collected deterministically (100%, no sampling).
 //
 // Configuration via environment variables:
 //   - ENV: Environment name (default: "test")
 //   - DD_AGENT_HOST: Datadog agent host (standard DD env var, default: "localhost")
 //   - DD_TRACE_AGENT_PORT: Datadog agent port (standard DD env var, default: "8126")
+//   - APM_SAMPLE_RATE: Sample rate 0.0-1.0 (default: 1.0 dev/test, 0.1 prod)
 func Start(version string, l *zap.Logger) {
 	apmEnabled = true
 
@@ -102,17 +106,54 @@ func Start(version string, l *zap.Logger) {
 		env = "test"
 	}
 
-	l.Info("APM tracing enabled (deterministic, no sampling)",
-		zap.String("env", env),
-	)
+	sampleRate := getSampleRate(env, l)
 
-	tracer.Start(
+	opts := []tracer.StartOption{
 		tracer.WithEnv(env),
 		tracer.WithService("xmtpd"),
 		tracer.WithServiceVersion(version),
 		tracer.WithLogger(logger{l}),
 		tracer.WithRuntimeMetrics(),
-	)
+	}
+
+	// Add sampler if not 100%
+	if sampleRate < 1.0 {
+		opts = append(opts, tracer.WithSampler(tracer.NewRateSampler(sampleRate)))
+		l.Info("APM tracing enabled with sampling",
+			zap.Float64("sample_rate", sampleRate),
+			zap.String("env", env),
+		)
+	} else {
+		l.Info("APM tracing enabled (100% sampling)",
+			zap.String("env", env),
+		)
+	}
+
+	tracer.Start(opts...)
+}
+
+// getSampleRate returns the configured sample rate.
+// Defaults: 1.0 (100%) for dev/test, 0.1 (10%) for production/staging.
+func getSampleRate(env string, l *zap.Logger) float64 {
+	// Check for explicit configuration
+	if rateStr := os.Getenv(EnvAPMSampleRate); rateStr != "" {
+		rate, err := strconv.ParseFloat(rateStr, 64)
+		if err != nil || rate < 0 || rate > 1 {
+			l.Warn("Invalid APM_SAMPLE_RATE, using default",
+				zap.String("value", rateStr),
+			)
+		} else {
+			return rate
+		}
+	}
+
+	// Environment-based defaults
+	switch env {
+	case "production", "prod", "staging":
+		return 0.1 // 10% sampling in production
+	default:
+		return 1.0 // 100% sampling in dev/test
+	}
 }
 
 // IsEnabled returns whether APM tracing is currently enabled.

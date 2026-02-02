@@ -9,33 +9,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/registry"
-	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
-
 	"connectrpc.com/connect"
-	"github.com/xmtp/xmtpd/pkg/deserializer"
-	"github.com/xmtp/xmtpd/pkg/utils"
-
-	"github.com/xmtp/xmtpd/pkg/config"
-
+	"github.com/cenkalti/backoff/v4"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
-	"github.com/xmtp/xmtpd/pkg/fees"
-
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	"github.com/xmtp/xmtpd/pkg/tracing"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"google.golang.org/protobuf/proto"
-
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 const (

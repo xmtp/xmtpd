@@ -636,6 +636,10 @@ func (s *Service) PublishPayerEnvelopes(
 
 	// Span for the staging transaction
 	txSpan, txCtx := tracing.StartSpanFromContext(ctx, "node.stage_transaction")
+
+	// Track staged IDs for async trace propagation
+	var stagedIDs []int64
+
 	err = db.RunInTx(
 		txCtx,
 		s.store.DB(),
@@ -653,6 +657,9 @@ func (s *Service) PublishPayerEnvelopes(
 				if err != nil {
 					return fmt.Errorf("could not insert staged envelope: %w", err)
 				}
+
+				// Track for trace context propagation
+				stagedIDs = append(stagedIDs, stagedEnvelope.ID)
 
 				baseFee, congestionFee, err := s.publishWorker.calculateFees(
 					&stagedEnvelope,
@@ -689,6 +696,12 @@ func (s *Service) PublishPayerEnvelopes(
 		tracing.SpanTag(txSpan, "staged_id", latestStaged.ID)
 	}
 	txSpan.Finish()
+
+	// Store trace context for async propagation to publish_worker
+	// This enables end-to-end distributed tracing across the async boundary
+	for _, stagedID := range stagedIDs {
+		s.publishWorker.storeTraceContext(stagedID, span)
+	}
 
 	// Notify publish worker - this triggers the async processing
 	s.publishWorker.notifyStagedPublish()

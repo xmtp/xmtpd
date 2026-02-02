@@ -397,9 +397,9 @@ func (s *syncWorker) setupStream(
 
 	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
 
-	subscribeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
+	subscribeSpan, subscribeCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
 	stream, err := client.SubscribeEnvelopes(
-		ctx,
+		subscribeCtx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: originatorNodeIDs,

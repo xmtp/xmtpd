@@ -1,13 +1,17 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
 	"github.com/xmtp/xmtpd/pkg/blockchain/migrator"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -28,6 +32,7 @@ func nodeRegistryCmd() *cobra.Command {
 		getNodeCmd(),
 		maxCanonicalCmd(),
 		setHTTPAddressCmd(),
+		healthCheckCmd(),
 	)
 
 	return cmd
@@ -422,5 +427,190 @@ func setHTTPAddressHandler(nodeID uint32, httpAddress string) error {
 		zap.Uint32("node-id", nodeID),
 		zap.String("http-address", httpAddress),
 	)
+	return nil
+}
+
+func healthCheckCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "health-check",
+		Short:        "Check the health of a node",
+		SilenceUsage: true,
+		Example: `
+Usage: xmtpd-cli nodes health-check [node url]
+`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("at least one node url is required")
+			}
+
+			return healthCheckHandler(args)
+		},
+	}
+
+	return cmd
+}
+
+func healthCheckHandler(addresses []string) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+
+	ctx := context.Background()
+
+	for _, address := range addresses {
+		logger.Info("checking health of node", zap.String("address", address))
+
+		healthy := true
+
+		/* Connect-RPC */
+
+		logger.Info("checking Connect-RPC is not exposed", zap.String("address", address))
+
+		connectRPCClient, err := utils.NewConnectMetadataAPIClient(
+			ctx,
+			address,
+		)
+		if err != nil {
+			logger.Error(
+				"could not create metadata api client for address",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		_, err = connectRPCClient.GetVersion(
+			ctx,
+			&connect.Request[metadata_api.GetVersionRequest]{
+				Msg: &metadata_api.GetVersionRequest{},
+			},
+		)
+		if err == nil {
+			logger.Error(
+				"❌ Connect-RPC is exposed",
+				zap.String("address", address),
+			)
+			healthy = false
+		}
+
+		/* gRPC */
+
+		logger.Info("checking gRPC is supported", zap.String("address", address))
+
+		gRPCClient, err := utils.NewConnectMetadataAPIClient(
+			ctx,
+			address,
+			utils.BuildGRPCDialOptions()...,
+		)
+		if err != nil {
+			logger.Error(
+				"could not create metadata api client for address",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		_, err = gRPCClient.GetVersion(
+			ctx,
+			&connect.Request[metadata_api.GetVersionRequest]{
+				Msg: &metadata_api.GetVersionRequest{},
+			},
+		)
+		if err != nil {
+			logger.Error(
+				"❌ should accept gRPC requests",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			healthy = false
+		}
+
+		/* gRPC-Web */
+
+		logger.Info("checking gRPC-Web is supported", zap.String("address", address))
+
+		gRPCWebClient, err := utils.NewConnectMetadataAPIClient(
+			ctx,
+			address,
+			utils.BuildGRPCWebDialOptions()...,
+		)
+		if err != nil {
+			logger.Error(
+				"could not create metadata api client for address",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		_, err = gRPCWebClient.GetVersion(
+			ctx,
+			&connect.Request[metadata_api.GetVersionRequest]{
+				Msg: &metadata_api.GetVersionRequest{},
+			},
+		)
+		if err != nil {
+			logger.Error(
+				"❌ should accept gRPC-Web requests",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			healthy = false
+		}
+
+		/* CORS: OPTIONS request should be supported */
+
+		logger.Info("checking CORS: OPTIONS request is supported", zap.String("address", address))
+
+		req, err := http.NewRequest(
+			http.MethodOptions,
+			address+"/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion",
+			bytes.NewReader([]byte{0, 0, 0, 0, 0}),
+		)
+		if err != nil {
+			logger.Error(
+				"could not create request",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		// These headers are what browsers send in preflight requests.
+		req.Header.Set("Origin", "https://example.com")
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		req.Header.Set("Access-Control-Request-Headers", "Content-Type")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logger.Error(
+				"could not make http request",
+				zap.String("address", address),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		// OPTIONS request should return a 204 No Content response.
+		if resp.StatusCode != http.StatusNoContent {
+			logger.Error(
+				"❌ OPTIONS requests not supported",
+				zap.String("address", address),
+				zap.Int("status-code", resp.StatusCode),
+			)
+			healthy = false
+		}
+
+		_ = resp.Body.Close()
+
+		if healthy {
+			logger.Info("✅ node is healthy", zap.String("address", address))
+		} else {
+			logger.Error("❌ node is unhealthy", zap.String("address", address))
+		}
+	}
+
 	return nil
 }

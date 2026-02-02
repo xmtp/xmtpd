@@ -317,7 +317,7 @@ func (s *Service) QueryEnvelopes(
 	req *connect.Request[message_api.QueryEnvelopesRequest],
 ) (*connect.Response[message_api.QueryEnvelopesResponse], error) {
 	// Create APM span for query operation
-	span, ctx := tracing.StartSpanFromContext(ctx, "node.query_envelopes")
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeQueryEnvelopes)
 	defer span.Finish()
 
 	if req.Msg == nil {
@@ -586,7 +586,7 @@ func (s *Service) PublishPayerEnvelopes(
 	req *connect.Request[message_api.PublishPayerEnvelopesRequest],
 ) (*connect.Response[message_api.PublishPayerEnvelopesResponse], error) {
 	// Create APM span for publish operation - this is the staging transaction entry point
-	span, ctx := tracing.StartSpanFromContext(ctx, "node.publish_payer_envelopes")
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanNodePublishPayerEnvelopes)
 	defer span.Finish()
 
 	if req.Msg == nil {
@@ -635,7 +635,7 @@ func (s *Service) PublishPayerEnvelopes(
 	var latestStaged *queries.StagedOriginatorEnvelope
 
 	// Span for the staging transaction
-	txSpan, txCtx := tracing.StartSpanFromContext(ctx, "node.stage_transaction")
+	txSpan, txCtx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeStageTransaction)
 
 	// Track staged IDs for async trace propagation
 	var stagedIDs []int64
@@ -707,7 +707,7 @@ func (s *Service) PublishPayerEnvelopes(
 	s.publishWorker.notifyStagedPublish()
 
 	// Wait for gateway publish - this is where we wait for the envelope to be fully processed
-	waitSpan, waitCtx := tracing.StartSpanFromContext(ctx, "node.wait_gateway_publish")
+	waitSpan, waitCtx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeWaitGatewayPublish)
 	s.waitForGatewayPublish(waitCtx, latestStaged, logger)
 	waitSpan.Finish()
 

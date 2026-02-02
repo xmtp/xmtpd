@@ -160,7 +160,7 @@ func (s *originatorStream) validateEnvelope(
 	defer func() {
 		if err != nil {
 			metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
-			span.Finish(tracing.WithError(err))
+			span.SetTag("error", err)
 		}
 	}()
 

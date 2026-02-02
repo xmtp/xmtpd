@@ -127,7 +127,7 @@ func extractServiceName(procedure string) string {
 	if len(parts) >= 2 {
 		// parts[1] is like "xmtp.xmtpv4.ReplicationApi"
 		serviceParts := strings.Split(parts[1], ".")
-		if len(serviceParts) > 0 {
+		if len(serviceParts) > 0 && serviceParts[len(serviceParts)-1] != "" {
 			return serviceParts[len(serviceParts)-1]
 		}
 		return parts[1]

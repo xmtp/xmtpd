@@ -2,13 +2,9 @@ package config
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -16,7 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/xmtp/xmtpd/pkg/config/environments"
 )
 
 type OptionsValidator struct {
@@ -171,248 +166,103 @@ func (v *OptionsValidator) validateMigrationOptions(
 	}
 }
 
+// ContractOptionsFromEnv loads contract options from a file path or URL.
+// Deprecated: Use LoadContractsConfig with ContractsSource instead.
 func ContractOptionsFromEnv(filePath string) (*ContractsOptions, error) {
-	if filePath == "" {
-		return nil, errors.New("config file path is not set")
-	}
-
-	var data []byte
-	// Try to parse as URL. If it fails, treat as local path.
-	if u, err := url.Parse(filePath); err == nil &&
-		(u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file" || u.Scheme == "config") {
-		switch u.Scheme {
-		case "config":
-			data, err = environments.GetEnvironmentConfig(
-				environments.SmartContractEnvironment(u.Host),
-			)
-			if err != nil {
-				return nil, fmt.Errorf("unknown config environment %s", u.Host)
-			}
-		case "http", "https":
-			client := &http.Client{Timeout: 10 * time.Second}
-			resp, err := client.Get(filePath)
-			if err != nil {
-				return nil, fmt.Errorf("fetching %s: %w", filePath, err)
-			}
-			defer func() {
-				_ = resp.Body.Close()
-			}()
-			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-				return nil, fmt.Errorf(
-					"fetching %s: http %d",
-					filePath,
-					resp.StatusCode,
-				)
-			}
-			// Guard against large config files (10KB cap).
-			limited := io.LimitReader(resp.Body, 10<<10)
-			data, err = io.ReadAll(limited)
-			if err != nil {
-				return nil, fmt.Errorf("reading %s: %w", filePath, err)
-			}
-		case "file":
-			// file:// URLs may have URL-encoded paths
-			localPath := u.Path
-			if u.Host != "" {
-				localPath = "//" + u.Host + u.Path
-			}
-			if localPath == "" {
-				// Handle cases like file:///absolute/path
-				localPath = strings.TrimPrefix(filePath, "file://")
-			}
-			localPath, err = url.PathUnescape(localPath)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"invalid file URL path %q: %w",
-					localPath,
-					err,
-				)
-			}
-
-			f, err := os.Open(localPath)
-			if err != nil {
-				return nil, fmt.Errorf("open %s: %w", localPath, err)
-			}
-			defer func() {
-				_ = f.Close()
-			}()
-			limited := io.LimitReader(f, 10<<10)
-			data, err = io.ReadAll(limited)
-			if err != nil {
-				return nil, fmt.Errorf("read %s: %w", localPath, err)
-			}
-		default:
-			return nil, fmt.Errorf("unsupported URL scheme %q", u.Scheme)
-		}
-	} else {
-		// Local filesystem path
-		f, err := os.Open(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("open %s: %w", filePath, err)
-		}
-		defer func() {
-			_ = f.Close()
-		}()
-		r := io.LimitReader(f, 10<<10)
-		data, err = io.ReadAll(r)
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", filePath, err)
-		}
-	}
-
-	var config ChainConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("unmarshal config: %w", err)
-	}
-
-	// Set default values for missing options in environment json.
-	return &ContractsOptions{
-		SettlementChain: SettlementChainOptions{
-			NodeRegistryAddress:         config.NodeRegistry,
-			RateRegistryAddress:         config.RateRegistry,
-			ParameterRegistryAddress:    config.SettlementChainParameterRegistry,
-			PayerRegistryAddress:        config.PayerRegistry,
-			PayerReportManagerAddress:   config.PayerReportManager,
-			ChainID:                     int64(config.SettlementChainID),
-			DeploymentBlock:             uint64(config.SettlementChainDeploymentBlock),
-			UnderlyingFeeToken:          config.UnderlyingFeeToken,
-			FeeToken:                    config.FeeToken,
-			NodeRegistryRefreshInterval: 60 * time.Second,
-			RateRegistryRefreshInterval: 300 * time.Second,
-			MaxChainDisconnectTime:      300 * time.Second,
-			BackfillBlockPageSize:       500,
-			GatewayAddress:              config.SettlementChainGateway,
-			DistributionManagerAddress:  config.DistributionManager,
-		},
-		AppChain: AppChainOptions{
-			GroupMessageBroadcasterAddress:   config.GroupMessageBroadcaster,
-			IdentityUpdateBroadcasterAddress: config.IdentityUpdateBroadcaster,
-			ChainID:                          int64(config.AppChainID),
-			MaxChainDisconnectTime:           300 * time.Second,
-			BackfillBlockPageSize:            500,
-			GatewayAddress:                   config.AppChainGateway,
-			DeploymentBlock:                  uint64(config.AppChainDeploymentBlock),
-			ParameterRegistryAddress:         config.AppChainParameterRegistry,
-		},
-	}, nil
+	return LoadContractsConfig(ContractsSource{
+		FilePath: filePath,
+	})
 }
 
 func (v *OptionsValidator) ParseJSONConfig(options *ContractsOptions) error {
-	if options.Environment != "" && (options.ConfigFilePath != "" || options.ConfigJSON != "") {
-		return errors.New(
-			"--contracts.environment cannot be used with --contracts.config-file or --contracts.config-json",
-		)
+	// Determine which source to use
+	source := ContractsSource{
+		Environment: string(options.Environment),
+		FilePath:    options.ConfigFilePath,
+		JSONData:    options.ConfigJSON,
 	}
 
-	if options.ConfigFilePath != "" && options.ConfigJSON != "" {
-		return errors.New("--config-file and --config-json cannot be used together")
+	// Only load if at least one source is specified
+	if source.Environment == "" && source.FilePath == "" && source.JSONData == "" {
+		return nil // No config source specified, skip loading
 	}
 
-	if options.Environment != "" {
-		v.logger.Info("Environment is set", zap.Any("environment", options.Environment))
-		data, err := environments.GetEnvironmentConfig(
-			options.Environment,
-		)
-		if err != nil {
-			return err
-		}
+	v.logger.Info("Loading contract configuration",
+		zap.String("environment", source.Environment),
+		zap.String("filePath", source.FilePath),
+		zap.Bool("hasJSON", source.JSONData != ""))
 
-		var config ChainConfig
-		if err := json.Unmarshal(data, &config); err != nil {
-			return err
-		}
-		v.logger.Debug("Chain config", zap.Any("config", config))
-
-		FillConfigFromJSON(options, &config)
+	// Load the configuration using the unified loader
+	loadedConfig, err := LoadContractsConfig(source)
+	if err != nil {
+		return fmt.Errorf("load contract config: %w", err)
 	}
 
-	if options.ConfigFilePath != "" {
-		data, err := os.ReadFile(options.ConfigFilePath)
-		if err != nil {
-			return err
-		}
-
-		// Unmarshal JSON into the Config struct
-		var config ChainConfig
-		if err := json.Unmarshal(data, &config); err != nil {
-			return err
-		}
-
-		FillConfigFromJSON(options, &config)
-	}
-
-	if options.ConfigJSON != "" {
-		// Unmarshal JSON into the Config struct
-		var config ChainConfig
-		if err := json.Unmarshal([]byte(options.ConfigJSON), &config); err != nil {
-			return err
-		}
-
-		FillConfigFromJSON(options, &config)
-	}
+	// Merge loaded config with existing options (explicitly set values take precedence)
+	v.mergeContractsOptions(options, loadedConfig)
 
 	return nil
 }
 
-func FillConfigFromJSON(options *ContractsOptions, config *ChainConfig) {
-	// Explicitly specified ENV variables in options take precedence!
-	// Only fill in values from the JSON if the relevant fields in options are empty or zero.
-
-	// AppChainOptions
+// mergeContractsOptions merges loaded config with existing options.
+// Explicitly specified values in options take precedence over loaded values.
+func (v *OptionsValidator) mergeContractsOptions(
+	options *ContractsOptions,
+	loaded *ContractsOptions,
+) {
+	// AppChainOptions - only fill in values if not explicitly set
 	if options.AppChain.GroupMessageBroadcasterAddress == "" {
-		options.AppChain.GroupMessageBroadcasterAddress = config.GroupMessageBroadcaster
+		options.AppChain.GroupMessageBroadcasterAddress = loaded.AppChain.GroupMessageBroadcasterAddress
 	}
 	if options.AppChain.IdentityUpdateBroadcasterAddress == "" {
-		options.AppChain.IdentityUpdateBroadcasterAddress = config.IdentityUpdateBroadcaster
+		options.AppChain.IdentityUpdateBroadcasterAddress = loaded.AppChain.IdentityUpdateBroadcasterAddress
 	}
 	if options.AppChain.ChainID == 0 || options.AppChain.ChainID == 31337 {
-		options.AppChain.ChainID = int64(config.AppChainID)
+		options.AppChain.ChainID = loaded.AppChain.ChainID
 	}
 	if options.AppChain.GatewayAddress == "" {
-		options.AppChain.GatewayAddress = config.AppChainGateway
+		options.AppChain.GatewayAddress = loaded.AppChain.GatewayAddress
 	}
 	if options.AppChain.DeploymentBlock == 0 {
-		options.AppChain.DeploymentBlock = uint64(config.AppChainDeploymentBlock)
+		options.AppChain.DeploymentBlock = loaded.AppChain.DeploymentBlock
 	}
 	if options.AppChain.ParameterRegistryAddress == "" {
-		options.AppChain.ParameterRegistryAddress = config.AppChainParameterRegistry
+		options.AppChain.ParameterRegistryAddress = loaded.AppChain.ParameterRegistryAddress
 	}
 
-	// SettlementChainOptions
+	// SettlementChainOptions - only fill in values if not explicitly set
 	if options.SettlementChain.NodeRegistryAddress == "" {
-		options.SettlementChain.NodeRegistryAddress = config.NodeRegistry
+		options.SettlementChain.NodeRegistryAddress = loaded.SettlementChain.NodeRegistryAddress
 	}
 	if options.SettlementChain.RateRegistryAddress == "" {
-		options.SettlementChain.RateRegistryAddress = config.RateRegistry
+		options.SettlementChain.RateRegistryAddress = loaded.SettlementChain.RateRegistryAddress
 	}
 	if options.SettlementChain.ParameterRegistryAddress == "" {
-		options.SettlementChain.ParameterRegistryAddress = config.SettlementChainParameterRegistry
+		options.SettlementChain.ParameterRegistryAddress = loaded.SettlementChain.ParameterRegistryAddress
 	}
 	if options.SettlementChain.PayerRegistryAddress == "" {
-		options.SettlementChain.PayerRegistryAddress = config.PayerRegistry
+		options.SettlementChain.PayerRegistryAddress = loaded.SettlementChain.PayerRegistryAddress
 	}
 	if options.SettlementChain.PayerReportManagerAddress == "" {
-		options.SettlementChain.PayerReportManagerAddress = config.PayerReportManager
+		options.SettlementChain.PayerReportManagerAddress = loaded.SettlementChain.PayerReportManagerAddress
 	}
 	if options.SettlementChain.ChainID == 0 || options.SettlementChain.ChainID == 31337 {
-		options.SettlementChain.ChainID = int64(config.SettlementChainID)
+		options.SettlementChain.ChainID = loaded.SettlementChain.ChainID
 	}
 	if options.SettlementChain.DeploymentBlock == 0 {
-		options.SettlementChain.DeploymentBlock = uint64(config.SettlementChainDeploymentBlock)
+		options.SettlementChain.DeploymentBlock = loaded.SettlementChain.DeploymentBlock
 	}
 	if options.SettlementChain.GatewayAddress == "" {
-		options.SettlementChain.GatewayAddress = config.SettlementChainGateway
+		options.SettlementChain.GatewayAddress = loaded.SettlementChain.GatewayAddress
 	}
 	if options.SettlementChain.DistributionManagerAddress == "" {
-		options.SettlementChain.DistributionManagerAddress = config.DistributionManager
+		options.SettlementChain.DistributionManagerAddress = loaded.SettlementChain.DistributionManagerAddress
 	}
-
 	if options.SettlementChain.UnderlyingFeeToken == "" {
-		options.SettlementChain.UnderlyingFeeToken = config.UnderlyingFeeToken
+		options.SettlementChain.UnderlyingFeeToken = loaded.SettlementChain.UnderlyingFeeToken
 	}
-
 	if options.SettlementChain.FeeToken == "" {
-		options.SettlementChain.FeeToken = config.FeeToken
+		options.SettlementChain.FeeToken = loaded.SettlementChain.FeeToken
 	}
 }
 

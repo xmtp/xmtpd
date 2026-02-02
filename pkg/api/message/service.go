@@ -335,7 +335,7 @@ func (s *Service) QueryEnvelopes(
 	}
 
 	if err := s.validateQuery(req.Msg.GetQuery()); err != nil {
-		span.Finish(tracing.WithError(err))
+		tracing.SpanTag(span, "error", err)
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("invalid query: %w", err),

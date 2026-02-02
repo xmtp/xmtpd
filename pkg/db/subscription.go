@@ -104,7 +104,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 		}
 
 		if err != nil {
-			span.Finish(tracing.WithError(err))
+			span.SetTag("error", true)
 			// Log is extremely noisy during test teardown
 			s.logger.Error(
 				"error querying for database subscription",

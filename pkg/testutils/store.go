@@ -93,8 +93,8 @@ func NewDBWithLogger(t *testing.T, ctx context.Context, log *zap.Logger) (*db.Ha
 	vc := vectorclock.New(log, readFunc)
 
 	if runVectorClockCheck {
-		// This is an opt-in test teardown function to run a vector clock integrity check on test shutdown.
-		// Downside is that this will need to establish a new db connection and do one additional query per test which is a lot.
+		// This is an opt-in vector clock integrity check ran on test shutdown.
+		// Downside is that this will need to establish a new db connection and do one additional query per test which is non-negligent.
 		t.Cleanup(func() {
 			// Since t.Cleanup() is called AFTER t.Context() is cancelled,
 			// by now our DB is already closed.

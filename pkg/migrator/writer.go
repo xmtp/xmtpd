@@ -377,21 +377,21 @@ func insertMigrationDeadLetterBox(
 // For a batch of envelopes, iterate through the list and determine the largest sequence ID for each
 // originator ID.
 func determineLargestSequenceIDs(batch *types.GatewayEnvelopeBatch) map[uint32]uint64 {
-	largest := make(map[uint32]uint64)
+	out := make(map[uint32]uint64)
 	for _, row := range batch.Envelopes {
 
 		currentSeqID := uint64(row.OriginatorSequenceID)
 
-		saved, ok := largest[uint32(row.OriginatorNodeID)]
+		saved, ok := out[uint32(row.OriginatorNodeID)]
 		if !ok {
-			largest[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
+			out[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
 			continue
 		}
 
 		if currentSeqID > saved {
-			largest[uint32(row.OriginatorNodeID)] = currentSeqID
+			out[uint32(row.OriginatorNodeID)] = currentSeqID
 		}
 	}
 
-	return largest
+	return out
 }

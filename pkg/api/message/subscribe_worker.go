@@ -73,7 +73,7 @@ func startSubscribeWorker(
 ) (*subscribeWorker, error) {
 	logger = logger.Named(utils.SubscribeWorkerLoggerName)
 
-	cursor := store.VectorClock().Values()
+	vc := store.VectorClock().Values()
 
 	worker := &subscribeWorker{
 		ctx:                 ctx,
@@ -81,7 +81,7 @@ func startSubscribeWorker(
 		emptyListeners:      listenerSet{},
 		store:               store,
 		registry:            registry,
-		subscriptions:       newSubscriptionHandler(logger, store, cursor),
+		subscriptions:       newSubscriptionHandler(logger, store, vc),
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
 	}

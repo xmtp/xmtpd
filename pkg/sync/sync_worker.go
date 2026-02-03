@@ -330,7 +330,6 @@ func (s *syncWorker) connectToNode(
 	return conn, nil
 }
 
-// TODO: Check WHEN do services select vector clock - if only once at start, don't even pass them in the db handle, just the value.
 func (s *syncWorker) setupStream(
 	ctx context.Context,
 	node registry.Node,
@@ -339,7 +338,7 @@ func (s *syncWorker) setupStream(
 ) (*originatorStream, error) {
 	var (
 		client            = message_api.NewReplicationApiClient(conn)
-		cursor            = s.store.VectorClock().Values()
+		vc                = s.store.VectorClock().Values()
 		nodeID            = node.NodeID
 		originatorNodeIDs = []uint32{nodeID}
 	)
@@ -348,7 +347,7 @@ func (s *syncWorker) setupStream(
 		s.logger.Debug(
 			"vector clock for sync subscription",
 			utils.OriginatorIDField(node.NodeID),
-			utils.BodyField(cursor),
+			utils.BodyField(vc),
 		)
 	}
 
@@ -367,7 +366,7 @@ func (s *syncWorker) setupStream(
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: originatorNodeIDs,
 				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: cursor,
+					NodeIdToSequenceId: vc,
 				},
 			},
 		},
@@ -390,13 +389,13 @@ func (s *syncWorker) setupStream(
 
 	// Previous implementation used a query with "order by originator_id",
 	// so we'll maintain compatibility by also chosing the largest node ID.
-	var (
-		lastNodeID     = slices.Max(originatorNodeIDs)
-		lastSequenceID = uint64(0)
-	)
 
-	for nodeID, seqID := range cursor {
-		if nodeID == lastNodeID {
+	lastSequenceID := uint64(0)
+	slices.Sort(originatorNodeIDs)
+
+	for _, nodeID := range originatorNodeIDs {
+		seqID, ok := vc[nodeID]
+		if ok {
 			lastSequenceID = seqID
 		}
 	}

@@ -81,7 +81,6 @@ func NewIndexer(opts ...IndexerOption) (*Indexer, error) {
 	if cfg.db == nil {
 		return nil, errors.New("indexer: DB is required")
 	}
-
 	if cfg.validationService == nil {
 		return nil, errors.New("indexer: ValidationService is required")
 	}

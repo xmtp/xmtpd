@@ -121,7 +121,5 @@ func (s *GroupMessageStorer) StoreLog(
 		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 	}
 
-	s.db.VectorClock().Save(constants.GroupMessageOriginatorID, msgSent.SequenceId)
-
 	return nil
 }

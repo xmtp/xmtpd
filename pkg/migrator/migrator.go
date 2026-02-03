@@ -183,6 +183,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, err
 	}
 
+	// We do not really need the vector clock for the source DB as we're not inserting anything there.
 	vc := vectorclock.New(logger, db.GetVectorClockReader(reader))
 	readDB := db.NewDBHandler(reader, vc, db.WithReadReplica(reader))
 

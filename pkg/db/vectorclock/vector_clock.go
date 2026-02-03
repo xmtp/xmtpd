@@ -103,8 +103,11 @@ func (v *VectorClock) runIntegrityCheck(ctx context.Context) error {
 	case ResolveCrash:
 		v.log.Fatal("vector clock mismatch detected, halting", zap.Error(err))
 	case ResolveReconcile:
+		err := v.forceSyncWithDB(ctx)
 		// TODO: What to do in case THIS again fails.
-		_ = v.forceSyncWithDB(ctx)
+		if err != nil {
+			return fmt.Errorf("vector clock force sync failed: %w", err)
+		}
 		v.log.Info("vector clock force synced with DB")
 	}
 

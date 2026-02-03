@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/currency"
-	dbHelpers "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -23,7 +22,7 @@ import (
 
 var domainSeparator = common.BytesToHash(testutils.RandomBytes(32))
 
-func setupGenerator(t *testing.T) (*dbHelpers.Handler, *payerreport.PayerReportGenerator) {
+func setupGenerator(t *testing.T) (*db.Handler, *payerreport.PayerReportGenerator) {
 	db, _ := testutils.NewDB(t, context.Background())
 
 	registry := registryTestUtils.CreateMockRegistry(t, []registry.Node{
@@ -42,13 +41,13 @@ func setupGenerator(t *testing.T) (*dbHelpers.Handler, *payerreport.PayerReportG
 
 func addEnvelope(
 	t *testing.T,
-	db *db.Handler,
+	dbh *db.Handler,
 	originatorID int32,
 	sequenceID int64,
 	payerAddress common.Address,
 	timestamp time.Time,
 ) {
-	payerID := testutils.CreatePayer(t, db, payerAddress.Hex())
+	payerID := testutils.CreatePayer(t, dbh, payerAddress.Hex())
 
 	envelope := envelopeTestUtils.CreateOriginatorEnvelopeWithTimestamp(
 		t,
@@ -60,15 +59,15 @@ func addEnvelope(
 	envelopeBytes, err := proto.Marshal(envelope)
 	require.NoError(t, err)
 
-	_, err = dbHelpers.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
+	_, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		context.Background(),
-		db,
+		dbh,
 		queries.InsertGatewayEnvelopeParams{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: sequenceID,
 			OriginatorEnvelope:   envelopeBytes,
 			Topic:                testutils.RandomBytes(32),
-			PayerID:              dbHelpers.NullInt32(payerID),
+			PayerID:              db.NullInt32(payerID),
 		},
 		queries.IncrementUnsettledUsageParams{
 			PayerID:           payerID,

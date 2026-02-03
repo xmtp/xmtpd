@@ -71,7 +71,10 @@ func (v *VectorClock) runSyncLoop(ctx context.Context) {
 			v.log.Info("stopping vector clock sync loop")
 			return
 		case <-ticker.C:
-			v.runIntegrityCheck(ctx)
+			err := v.runIntegrityCheck(ctx)
+			if err != nil {
+				v.log.Error("integrity check failed", zap.Error(err))
+			}
 		}
 	}
 }
@@ -194,7 +197,7 @@ func (v *VectorClock) Get(nodeID uint32) uint64 {
 	// NOTE: Since sequenceID of 0 is not a thing, we do not
 	// have to bother with returning (uint64, bool).
 
-	seqID, _ := v.vc[nodeID]
+	seqID := v.vc[nodeID]
 	return seqID
 }
 

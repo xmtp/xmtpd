@@ -339,6 +339,7 @@ func insertEnvelope(
 	require.NoError(t, err)
 
 	inserted, err = querier.InsertGatewayEnvelope(t.Context(), params)
+	require.NoError(t, err)
 	require.Equal(t, int64(1), inserted.InsertedMetaRows)
 }
 

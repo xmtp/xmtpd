@@ -12,7 +12,6 @@ import (
 	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 
 	"github.com/xmtp/xmtpd/pkg/api/message"
-	dbUtils "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -31,7 +30,7 @@ func setupTest(
 ) (metadata_apiconnect.MetadataApiClient, *db.Handler, testUtilsApi.APIServerMocks) {
 	var (
 		suite   = testUtilsApi.NewTestAPIServer(t)
-		payerID = dbUtils.NullInt32(testutils.CreatePayer(t, suite.DB))
+		payerID = db.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 
 	allRows = []queries.InsertGatewayEnvelopeParams{

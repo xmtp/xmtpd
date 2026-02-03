@@ -102,7 +102,9 @@ func NewDBWithLogger(t *testing.T, ctx context.Context, log *zap.Logger) (*db.Ha
 			// run our sanity check.
 
 			newConn, _ := openDB(t, dsn)
-			defer newConn.Close()
+			defer func() {
+				_ = newConn.Close()
+			}()
 
 			dbState, err := db.GetVectorClockReader(newConn)(context.Background())
 			require.NoError(t, err)

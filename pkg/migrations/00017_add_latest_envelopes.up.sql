@@ -26,5 +26,5 @@ CREATE TRIGGER gateway_latest_upd_v2
     REFERENCING NEW TABLE AS new
     FOR EACH STATEMENT EXECUTE FUNCTION update_latest_envelope_v2();
 
--- Remove old trigger,
+-- Remove old trigger.
 DROP TRIGGER IF EXISTS gateway_latest_upd ON gateway_envelopes_meta;

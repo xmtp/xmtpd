@@ -17,7 +17,6 @@ type VectorClock interface {
 
 type handlerConfig struct {
 	readReplica *sql.DB
-	vc          VectorClock
 }
 
 type HandlerOption func(*handlerConfig)

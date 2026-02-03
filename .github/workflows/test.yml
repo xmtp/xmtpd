@@ -10,6 +10,8 @@ jobs:
   test:
     name: Test (Node)
     runs-on: ubuntu-latest
+    env:
+      XMTP_RUN_VECTOR_CLOCK_CHECK: true
     steps:
       - uses: actions/checkout@v6
         with:

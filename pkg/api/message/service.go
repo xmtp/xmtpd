@@ -490,6 +490,7 @@ func (s *Service) fetchEnvelopes(
 
 		return db.TransformRowsByTopic(rows), nil
 	}
+
 	if len(query.GetOriginatorNodeIds()) != 0 {
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
@@ -497,6 +498,7 @@ func (s *Service) fetchEnvelopes(
 			CursorNodeIds:     nil,
 			CursorSequenceIds: nil,
 		}
+
 		for _, o := range query.GetOriginatorNodeIds() {
 			params.OriginatorNodeIds = append(params.OriginatorNodeIds, int32(o))
 		}
@@ -514,7 +516,7 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByOriginator(rows), nil
 	}
 
-	// compatibility with V3, if no filters are set -- return nothing
+	// Compatibility with V3, if no filters are set -- return nothing.
 	rows := make([]queries.GatewayEnvelopesView, 0)
 
 	return rows, nil

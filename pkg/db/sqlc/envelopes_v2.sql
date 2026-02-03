@@ -77,6 +77,8 @@ FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
               ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
+-- Redundant filter enables partition pruning at plan time (originator_node_ids is a constant)
+WHERE b.originator_node_id = ANY (@originator_node_ids::INT[])
 ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 -- name: SelectGatewayEnvelopesByTopics :many

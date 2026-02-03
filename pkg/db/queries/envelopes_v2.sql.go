@@ -130,8 +130,8 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
 WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest($1::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest($2::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+                 FROM unnest($2::INT[]) WITH ORDINALITY AS x(node_id, ord)
+                          JOIN unnest($3::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
                                USING (ord)),
      filtered AS (SELECT m.originator_node_id,
                          m.originator_sequence_id,
@@ -140,7 +140,7 @@ WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence
                   FROM gateway_envelopes_meta AS m
                            LEFT JOIN cursors AS c
                                      ON m.originator_node_id = c.cursor_node_id
-                  WHERE m.originator_node_id = ANY ($3::INT[])
+                  WHERE m.originator_node_id = ANY ($1::INT[])
                     AND m.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
                   ORDER BY m.originator_node_id, m.originator_sequence_id
                   LIMIT NULLIF($4::INT, 0))
@@ -153,13 +153,14 @@ FROM filtered AS f
          JOIN gateway_envelope_blobs AS b
               ON b.originator_node_id = f.originator_node_id
                   AND b.originator_sequence_id = f.originator_sequence_id
+WHERE b.originator_node_id = ANY ($1::INT[])
 ORDER BY f.originator_node_id, f.originator_sequence_id
 `
 
 type SelectGatewayEnvelopesByOriginatorsParams struct {
+	OriginatorNodeIds []int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
-	OriginatorNodeIds []int32
 	RowLimit          int32
 }
 
@@ -171,11 +172,12 @@ type SelectGatewayEnvelopesByOriginatorsRow struct {
 	OriginatorEnvelope   []byte
 }
 
+// Redundant filter enables partition pruning at plan time (originator_node_ids is a constant)
 func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]SelectGatewayEnvelopesByOriginatorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators,
+		pq.Array(arg.OriginatorNodeIds),
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),
-		pq.Array(arg.OriginatorNodeIds),
 		arg.RowLimit,
 	)
 	if err != nil {

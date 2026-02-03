@@ -134,10 +134,9 @@ func (v *VectorClock) forceSyncWithDB(ctx context.Context) error {
 	return nil
 }
 
+// Compare against checks if the internal map is the same as the provided reference.
+// Caller of this method must hold the read lock.
 func (v *VectorClock) compareAgainst(ref map[uint32]uint64) error {
-	v.lock.RLock()
-	defer v.lock.RUnlock()
-
 	var errs []error
 	if len(v.vc) != len(ref) {
 		errs = append(

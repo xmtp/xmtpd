@@ -9,13 +9,14 @@
 package envelopes
 
 import (
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
+
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	v1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
 )
 
 const (

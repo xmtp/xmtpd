@@ -82,48 +82,60 @@ WHERE b.originator_node_id = ANY (@originator_node_ids::INT[])
 ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 -- name: SelectGatewayEnvelopesByTopics :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord)),
-     filtered AS (
-         -- A) topic + cursor
-         SELECT m.originator_node_id,
-                m.originator_sequence_id,
-                m.gateway_time,
-                m.topic
-         FROM gateway_envelopes_meta AS m
-                  JOIN cursors AS c
-                       ON m.originator_node_id = c.cursor_node_id
-                           AND m.originator_sequence_id > c.cursor_sequence_id
-         WHERE m.topic = ANY (@topics::BYTEA[])
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+    USING (ord)
+),
+min_cursor_seq AS (
+    -- Pre-compute minimum cursor sequence for RANGE pruning
+    SELECT COALESCE(MIN(seq_id), 0) AS min_seq
+    FROM unnest(@cursor_sequence_ids::BIGINT[]) AS t(seq_id)
+),
+filtered AS (
+    -- A) topic + cursor (with partition pruning hints)
+    SELECT m.originator_node_id,
+           m.originator_sequence_id,
+           m.gateway_time,
+           m.topic
+    FROM gateway_envelopes_meta AS m
+    JOIN cursors AS c
+         ON m.originator_node_id = c.cursor_node_id
+         AND m.originator_sequence_id > c.cursor_sequence_id
+    WHERE m.topic = ANY (@topics::BYTEA[])
+      -- Redundant but enables LIST partition pruning:
+      AND m.originator_node_id = ANY(@cursor_node_ids::INT[])
+      -- Enables RANGE partition pruning (using min cursor as floor):
+      AND m.originator_sequence_id > (SELECT min_seq FROM min_cursor_seq)
 
-         UNION ALL
+    UNION ALL
 
-         -- B) topic + no-cursor
-         SELECT m.originator_node_id,
-                m.originator_sequence_id,
-                m.gateway_time,
-                m.topic
-         FROM gateway_envelopes_meta AS m
-         WHERE m.topic = ANY (@topics::BYTEA[])
-           AND m.originator_sequence_id > 0
-           AND NOT EXISTS (SELECT 1
-                           FROM cursors AS c
-                           WHERE c.cursor_node_id = m.originator_node_id)
+    -- B) topic + no-cursor (new originators - still needs full scan)
+    SELECT m.originator_node_id,
+           m.originator_sequence_id,
+           m.gateway_time,
+           m.topic
+    FROM gateway_envelopes_meta AS m
+    WHERE m.topic = ANY (@topics::BYTEA[])
+      AND m.originator_sequence_id > 0
+      AND NOT EXISTS (
+          SELECT 1 FROM cursors AS c
+          WHERE c.cursor_node_id = m.originator_node_id
+      )
 
-         -- Do the ordering/limit on meta rows before touching blobs
-         ORDER BY originator_node_id, originator_sequence_id
-         LIMIT NULLIF(@row_limit::INT, 0))
+    ORDER BY originator_node_id, originator_sequence_id
+    LIMIT NULLIF(@row_limit::INT, 0)
+)
 SELECT f.originator_node_id,
        f.originator_sequence_id,
        f.gateway_time,
        f.topic,
        b.originator_envelope
 FROM filtered AS f
-         JOIN gateway_envelope_blobs AS b
-              ON b.originator_node_id = f.originator_node_id
-                  AND b.originator_sequence_id = f.originator_sequence_id
+JOIN gateway_envelope_blobs AS b
+     ON b.originator_node_id = f.originator_node_id
+     AND b.originator_sequence_id = f.originator_sequence_id
 ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 

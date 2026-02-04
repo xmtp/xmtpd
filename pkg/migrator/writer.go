@@ -21,6 +21,7 @@ import (
 const (
 	maxChainMessageSize = 200 * 1024 // 200KB
 	maxChainBatchSize   = 100 * 1024 // 100KB - batch threshold for identity updates
+	batchWorkMem        = "262144"   // 256MB (in kB)
 )
 
 // insertOriginatorEnvelopeDatabaseBatch inserts a batch of originator envelopes into the database.
@@ -38,7 +39,13 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 		w.writer.Write(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
-			_, err := db.InsertGatewayEnvelopeBatchTransactional(ctx, querier, batch)
+			_, err := querier.SetLocalWorkMem(ctx, batchWorkMem)
+			if err != nil {
+				logger.Error("set local work mem failed", zap.Error(err))
+				return re.NewRecoverableError("set local work mem failed", err)
+			}
+
+			_, err = db.InsertGatewayEnvelopeBatchTransactional(ctx, querier, batch)
 			if err != nil {
 				logger.Error("insert originator envelope batch failed", zap.Error(err))
 				return re.NewRecoverableError("insert originator envelope batch failed", err)

@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -15,9 +13,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
-
-// Regex to parse partition information, for example: gateway_envelopes_meta_o100_s1000000_2000000
-var partitionRe = regexp.MustCompile(`^gateway_envelopes_meta_o(\d+)_s(\d+)_(\d+)$`)
 
 // TODO: Potentially move SQL stuff outside of this package.
 
@@ -165,46 +160,14 @@ func (w *Worker) getPartitionList(ctx context.Context) ([]partitionTableInfo, er
 
 	var partitions []partitionTableInfo
 	for _, table := range tables {
-		fields := partitionRe.FindStringSubmatch(table)
-		if len(fields) != 4 {
-			continue
-		}
 
-		nodeID, err := strconv.ParseUint(fields[1], 10, 32)
+		info, err := parsePartitionInfo(table)
 		if err != nil {
-			w.log.Warn("could not parse node ID from table name",
-				zap.String("table_name", table),
-				zap.String("node_id", fields[1]),
-				zap.Error(err))
+			w.log.Warn("could not parse partition info", zap.String("table", table), zap.Error(err))
 			continue
 		}
 
-		start, err := strconv.ParseUint(fields[2], 10, 64)
-		if err != nil {
-			w.log.Warn("could not parse partition start offset from table name",
-				zap.String("table_name", table),
-				zap.String("start", fields[2]),
-				zap.Error(err))
-			continue
-		}
-
-		end, err := strconv.ParseUint(fields[3], 10, 64)
-		if err != nil {
-			w.log.Warn("could not parse partition end from table name",
-				zap.String("table_name", table),
-				zap.String("end", fields[3]),
-				zap.Error(err))
-			continue
-		}
-
-		part := partitionTableInfo{
-			name:   table,
-			nodeID: uint32(nodeID),
-			start:  start,
-			end:    end,
-		}
-
-		partitions = append(partitions, part)
+		partitions = append(partitions, info)
 	}
 
 	return partitions, nil
@@ -239,6 +202,7 @@ func (w *Worker) createPartition(
 			nodeID,
 			start,
 			start+uint64(w.cfg.Partition.PartitionSize),
+			err,
 		)
 	}
 

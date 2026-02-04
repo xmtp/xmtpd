@@ -3,8 +3,17 @@ package worker
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
+	"strconv"
 )
+
+// Regex to parse partition information, for example: gateway_envelopes_meta_o100_s1000000_2000000
+var partitionRe = regexp.MustCompile(`^gateway_envelopes_meta_o(\d+)_s(\d+)_(\d+)$`)
+
+type nodePartitions struct {
+	partitions map[uint32][]partitionTableInfo
+}
 
 type partitionTableInfo struct {
 	name   string
@@ -13,8 +22,47 @@ type partitionTableInfo struct {
 	end    uint64
 }
 
-type nodePartitions struct {
-	partitions map[uint32][]partitionTableInfo
+func parsePartitionInfo(table string) (partitionTableInfo, error) {
+	fields := partitionRe.FindStringSubmatch(table)
+	if len(fields) != 4 {
+		return partitionTableInfo{}, errors.New("unexpected table name format")
+	}
+
+	nodeID, err := strconv.ParseUint(fields[1], 10, 32)
+	if err != nil {
+		return partitionTableInfo{}, fmt.Errorf(
+			"could not parse node ID from table (field: %v): %w",
+			fields[1],
+			err,
+		)
+	}
+
+	start, err := strconv.ParseUint(fields[2], 10, 64)
+	if err != nil {
+		return partitionTableInfo{}, fmt.Errorf(
+			"could not parse partition start from table (field: %v): %w",
+			fields[2],
+			err,
+		)
+	}
+
+	end, err := strconv.ParseUint(fields[3], 10, 64)
+	if err != nil {
+		return partitionTableInfo{}, fmt.Errorf(
+			"could not parse partition end from table (field: %v): %w",
+			fields[3],
+			err,
+		)
+	}
+
+	part := partitionTableInfo{
+		name:   table,
+		nodeID: uint32(nodeID),
+		start:  start,
+		end:    end,
+	}
+
+	return part, nil
 }
 
 // group partitions by originator and sort them

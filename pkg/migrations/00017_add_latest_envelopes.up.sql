@@ -5,12 +5,9 @@ CREATE OR REPLACE FUNCTION update_latest_envelope_v2()
 RETURNS trigger AS $$
 BEGIN
     INSERT INTO gateway_envelopes_latest as g
-    SELECT originator_node_id, originator_sequence_id, gateway_time
-    FROM (
-        SELECT originator_node_id, originator_sequence_id, gateway_time, ROW_NUMBER() OVER (PARTITION BY originator_node_id ORDER BY originator_sequence_id DESC, gateway_time DESC) as rn
-        FROM new
-    ) ranked
-    WHERE rn = 1
+    SELECT originator_node_id, MAX(originator_sequence_id) AS originator_sequence_id, MAX(gateway_time) AS gateway_time
+    FROM new
+    GROUP BY originator_node_id
     ON CONFLICT (originator_node_id)
     DO UPDATE
         SET originator_sequence_id = EXCLUDED.originator_sequence_id,

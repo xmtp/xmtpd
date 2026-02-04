@@ -459,158 +459,148 @@ func healthCheckHandler(addresses []string) error {
 	ctx := context.Background()
 
 	for _, address := range addresses {
-		logger.Info("checking health of node", zap.String("address", address))
-
-		healthy := true
+		logger.Info("checking node", zap.String("address", address))
 
 		/* Connect-RPC */
 
-		logger.Info("checking Connect-RPC is not exposed", zap.String("address", address))
-
-		connectRPCClient, err := utils.NewConnectMetadataAPIClient(
-			ctx,
-			address,
-		)
-		if err != nil {
-			logger.Error(
-				"could not create metadata api client for address",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			healthy = false
-		}
-
-		_, err = connectRPCClient.GetVersion(
-			ctx,
-			&connect.Request[metadata_api.GetVersionRequest]{
-				Msg: &metadata_api.GetVersionRequest{},
-			},
-		)
-		if err == nil {
-			logger.Error(
-				"❌ Connect-RPC is exposed",
-				zap.String("address", address),
-			)
-			healthy = false
+		connectRPCHealthy, err := checkConnectRPC(ctx, address)
+		if err != nil || !connectRPCHealthy {
+			logger.Error("❌ Connect-RPC should not be exposed")
+		} else {
+			logger.Info("✅ Connect-RPC is not exposed")
 		}
 
 		/* gRPC */
 
-		logger.Info("checking gRPC is supported", zap.String("address", address))
-
-		gRPCClient, err := utils.NewConnectMetadataAPIClient(
-			ctx,
-			address,
-			utils.BuildGRPCDialOptions()...,
-		)
-		if err != nil {
-			logger.Error(
-				"could not create metadata api client for address",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			healthy = false
-		}
-
-		_, err = gRPCClient.GetVersion(
-			ctx,
-			&connect.Request[metadata_api.GetVersionRequest]{
-				Msg: &metadata_api.GetVersionRequest{},
-			},
-		)
-		if err != nil {
-			logger.Error(
-				"❌ should accept gRPC requests",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			healthy = false
+		grpcHealthy, err := checkGRPC(ctx, address)
+		if err != nil || !grpcHealthy {
+			logger.Error("❌ gRPC should be supported")
+		} else {
+			logger.Info("✅ gRPC is supported")
 		}
 
 		/* gRPC-Web */
 
-		logger.Info("checking gRPC-Web is supported", zap.String("address", address))
-
-		gRPCWebClient, err := utils.NewConnectMetadataAPIClient(
-			ctx,
-			address,
-			utils.BuildGRPCWebDialOptions()...,
-		)
-		if err != nil {
-			logger.Error(
-				"could not create metadata api client for address",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			healthy = false
-		}
-
-		_, err = gRPCWebClient.GetVersion(
-			ctx,
-			&connect.Request[metadata_api.GetVersionRequest]{
-				Msg: &metadata_api.GetVersionRequest{},
-			},
-		)
-		if err != nil {
-			logger.Error(
-				"❌ should accept gRPC-Web requests",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			healthy = false
+		grpcWebHealthy, err := checkGRPCWeb(ctx, address)
+		if err != nil || !grpcWebHealthy {
+			logger.Error("❌ gRPC-Web should be supported")
+		} else {
+			logger.Info("✅ gRPC-Web is supported")
 		}
 
 		/* CORS: OPTIONS request should be supported */
 
-		logger.Info("checking CORS: OPTIONS request is supported", zap.String("address", address))
-
-		req, err := http.NewRequest(
-			http.MethodOptions,
-			address+"/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion",
-			bytes.NewReader([]byte{0, 0, 0, 0, 0}),
-		)
-		if err != nil {
-			logger.Error(
-				"could not create request",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		// These headers are what browsers send in preflight requests.
-		req.Header.Set("Origin", "https://example.com")
-		req.Header.Set("Access-Control-Request-Method", "POST")
-		req.Header.Set("Access-Control-Request-Headers", "Content-Type")
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			logger.Error(
-				"could not make http request",
-				zap.String("address", address),
-				zap.Error(err),
-			)
-			healthy = false
-		}
-
-		// OPTIONS request should return a 204 No Content response.
-		if resp.StatusCode != http.StatusNoContent {
-			logger.Error(
-				"❌ OPTIONS requests not supported",
-				zap.String("address", address),
-				zap.Int("status-code", resp.StatusCode),
-			)
-			healthy = false
-		}
-
-		_ = resp.Body.Close()
-
-		if healthy {
-			logger.Info("✅ node is healthy", zap.String("address", address))
+		corsHealthy, err := checkCORS(address)
+		if err != nil || !corsHealthy {
+			logger.Error("❌ CORS: OPTIONS request should be supported")
 		} else {
-			logger.Error("❌ node is unhealthy", zap.String("address", address))
+			logger.Info("✅ CORS: OPTIONS requests are supported")
+		}
+
+		if connectRPCHealthy && grpcHealthy && grpcWebHealthy && corsHealthy {
+			logger.Info("✅ node is healthy")
+		} else {
+			logger.Error("❌ node is unhealthy")
 		}
 	}
 
 	return nil
+}
+
+func checkConnectRPC(ctx context.Context, address string) (bool, error) {
+	connectRPCClient, err := utils.NewConnectMetadataAPIClient(
+		ctx,
+		address,
+	)
+	if err != nil {
+		return false, fmt.Errorf("could not create metadata api client for address: %w", err)
+	}
+
+	_, err = connectRPCClient.GetVersion(
+		ctx,
+		&connect.Request[metadata_api.GetVersionRequest]{
+			Msg: &metadata_api.GetVersionRequest{},
+		},
+	)
+	if err == nil {
+		return false, fmt.Errorf("Connect-RPC is exposed")
+	}
+
+	return true, nil
+}
+
+func checkGRPC(ctx context.Context, address string) (bool, error) {
+	gRPCClient, err := utils.NewConnectMetadataAPIClient(
+		ctx,
+		address,
+		utils.BuildGRPCDialOptions()...,
+	)
+	if err != nil {
+		return false, fmt.Errorf("could not create metadata api client for address: %w", err)
+	}
+
+	_, err = gRPCClient.GetVersion(
+		ctx,
+		&connect.Request[metadata_api.GetVersionRequest]{
+			Msg: &metadata_api.GetVersionRequest{},
+		},
+	)
+	if err != nil {
+		return false, fmt.Errorf("should accept gRPC requests: %w", err)
+	}
+
+	return true, nil
+}
+
+func checkGRPCWeb(ctx context.Context, address string) (bool, error) {
+	gRPCWebClient, err := utils.NewConnectMetadataAPIClient(
+		ctx,
+		address,
+		utils.BuildGRPCWebDialOptions()...,
+	)
+	if err != nil {
+		return false, fmt.Errorf("could not create metadata api client for address: %w", err)
+	}
+
+	_, err = gRPCWebClient.GetVersion(
+		ctx,
+		&connect.Request[metadata_api.GetVersionRequest]{
+			Msg: &metadata_api.GetVersionRequest{},
+		},
+	)
+	if err != nil {
+		return false, fmt.Errorf("should accept gRPC-Web requests: %w", err)
+	}
+
+	return true, nil
+}
+
+func checkCORS(address string) (bool, error) {
+	req, err := http.NewRequest(
+		http.MethodOptions,
+		address+"/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion",
+		bytes.NewReader([]byte{0, 0, 0, 0, 0}),
+	)
+	if err != nil {
+		return false, fmt.Errorf("could not create request: %w", err)
+	}
+
+	// These headers are what browsers send in preflight requests.
+	req.Header.Set("Origin", "https://example.com")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "Content-Type")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("could not make http request: %w", err)
+	}
+
+	// OPTIONS request should return a 204 No Content response.
+	if resp.StatusCode != http.StatusNoContent {
+		return false, fmt.Errorf("OPTIONS requests not supported: %d", resp.StatusCode)
+	}
+
+	_ = resp.Body.Close()
+
+	return true, nil
 }

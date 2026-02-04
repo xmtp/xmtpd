@@ -15,9 +15,23 @@ import (
 )
 
 type testFixture struct {
+	t      *testing.T
 	ctx    context.Context
 	db     *db.Handler
 	ledger *ledger.Ledger
+	// payers maps logical test payer IDs to actual database payer IDs
+	payers map[int32]int32
+}
+
+// payer returns the actual database payer ID for a logical test payer ID.
+// Creates the payer if it doesn't exist yet.
+func (f *testFixture) payer(logicalID int32) int32 {
+	if actualID, ok := f.payers[logicalID]; ok {
+		return actualID
+	}
+	actualID := testutils.CreatePayer(f.t, f.db.DB())
+	f.payers[logicalID] = actualID
+	return actualID
 }
 
 type initialEvent struct {
@@ -42,9 +56,11 @@ func setupTest(t *testing.T) *testFixture {
 	l := ledger.NewLedger(logger, db)
 
 	return &testFixture{
+		t:      t,
 		ctx:    ctx,
 		db:     db,
 		ledger: l,
+		payers: make(map[int32]int32),
 	}
 }
 
@@ -54,18 +70,22 @@ func generateEventID(id int) ledger.EventID {
 	return sha256.Sum256([]byte(data))
 }
 
-func setupWithInitialState(t *testing.T, events []initialEvent) *testFixture {
+func setupWithInitialState(t *testing.T, tc testCase) *testFixture {
 	f := setupTest(t)
 
-	for _, event := range events {
+	// Create payers and process initial events
+	for _, event := range tc.initialEvents {
+		// Get or create the actual payer ID for this logical ID
+		actualPayerID := f.payer(event.payerID)
+
 		var err error
 		switch event.eventType {
 		case "deposit":
-			err = f.ledger.Deposit(f.ctx, event.payerID, event.amount, event.eventID)
+			err = f.ledger.Deposit(f.ctx, actualPayerID, event.amount, event.eventID)
 		case "withdrawal":
-			err = f.ledger.InitiateWithdrawal(f.ctx, event.payerID, event.amount, event.eventID)
+			err = f.ledger.InitiateWithdrawal(f.ctx, actualPayerID, event.amount, event.eventID)
 		case "settlement":
-			err = f.ledger.SettleUsage(f.ctx, event.payerID, event.amount, event.eventID)
+			err = f.ledger.SettleUsage(f.ctx, actualPayerID, event.amount, event.eventID)
 		default:
 			t.Fatalf("unknown event type: %s", event.eventType)
 		}
@@ -84,11 +104,11 @@ func TestDuplicateEventPrevention(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// Try to deposit again with same eventID
-				return f.ledger.Deposit(f.ctx, 1, 1000, generateEventID(100))
+				return f.ledger.Deposit(f.ctx, f.payer(1), 1000, generateEventID(100))
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// Balance should remain unchanged at 1000
-				balance, err := f.ledger.GetBalance(f.ctx, 1)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(1))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(1000), balance)
 			},
@@ -101,11 +121,11 @@ func TestDuplicateEventPrevention(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// Try to withdraw again with same eventID
-				return f.ledger.InitiateWithdrawal(f.ctx, 2, 1000, generateEventID(201))
+				return f.ledger.InitiateWithdrawal(f.ctx, f.payer(2), 1000, generateEventID(201))
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// Balance should remain at 4000 (5000 - 1000)
-				balance, err := f.ledger.GetBalance(f.ctx, 2)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(2))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(4000), balance)
 			},
@@ -118,11 +138,11 @@ func TestDuplicateEventPrevention(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// Try to settle again with same eventID
-				return f.ledger.SettleUsage(f.ctx, 3, 500, generateEventID(301))
+				return f.ledger.SettleUsage(f.ctx, f.payer(3), 500, generateEventID(301))
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// Balance should remain at 4500 (5000 - 500)
-				balance, err := f.ledger.GetBalance(f.ctx, 3)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(3))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(4500), balance)
 			},
@@ -134,16 +154,17 @@ func TestDuplicateEventPrevention(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// Try to use same eventID for different payer
-				return f.ledger.Deposit(f.ctx, 5, 2000, generateEventID(400))
+				// Use f.payer(5) to create payer 5 on demand
+				return f.ledger.Deposit(f.ctx, f.payer(5), 2000, generateEventID(400))
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// First payer should have their balance
-				balance1, err := f.ledger.GetBalance(f.ctx, 4)
+				balance1, err := f.ledger.GetBalance(f.ctx, f.payer(4))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(1000), balance1)
 
 				// Second payer should have zero (event was ignored)
-				balance2, err := f.ledger.GetBalance(f.ctx, 5)
+				balance2, err := f.ledger.GetBalance(f.ctx, f.payer(5))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(0), balance2)
 			},
@@ -152,7 +173,7 @@ func TestDuplicateEventPrevention(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			f := setupWithInitialState(t, tc.initialEvents)
+			f := setupWithInitialState(t, tc)
 
 			err := tc.action(f)
 			if tc.expectedError != nil {
@@ -176,7 +197,8 @@ func TestBalanceCalculations(t *testing.T) {
 				return nil // No action, just checking balance
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 10)
+				// Non-existent payer should return zero balance
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(10))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(0), balance)
 			},
@@ -190,7 +212,7 @@ func TestBalanceCalculations(t *testing.T) {
 				return nil // No action, just checking balance
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 11)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(11))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(5000), balance)
 			},
@@ -206,7 +228,7 @@ func TestBalanceCalculations(t *testing.T) {
 				return nil // No action, just checking balance
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 12)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(12))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(6000), balance)
 			},
@@ -234,7 +256,7 @@ func TestBalanceCalculations(t *testing.T) {
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// Expected: 10000 - 2000 - 1000 + 5000 = 12000
-				balance, err := f.ledger.GetBalance(f.ctx, 13)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(13))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(12000), balance)
 			},
@@ -245,10 +267,10 @@ func TestBalanceCalculations(t *testing.T) {
 				{payerID: 14, amount: 5000, eventID: generateEventID(1401), eventType: "deposit"},
 			},
 			action: func(f *testFixture) error {
-				return f.ledger.InitiateWithdrawal(f.ctx, 14, 1500, generateEventID(1402))
+				return f.ledger.InitiateWithdrawal(f.ctx, f.payer(14), 1500, generateEventID(1402))
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 14)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(14))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(3500), balance)
 			},
@@ -259,10 +281,10 @@ func TestBalanceCalculations(t *testing.T) {
 				{payerID: 15, amount: 8000, eventID: generateEventID(1501), eventType: "deposit"},
 			},
 			action: func(f *testFixture) error {
-				return f.ledger.SettleUsage(f.ctx, 15, 2500, generateEventID(1502))
+				return f.ledger.SettleUsage(f.ctx, f.payer(15), 2500, generateEventID(1502))
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 15)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(15))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(5500), balance)
 			},
@@ -271,11 +293,11 @@ func TestBalanceCalculations(t *testing.T) {
 			name:          "negative_balance_allowed",
 			initialEvents: []initialEvent{},
 			action: func(f *testFixture) error {
-				// Withdraw without deposit
-				return f.ledger.InitiateWithdrawal(f.ctx, 16, 1000, generateEventID(1601))
+				// Withdraw without deposit - payer created on demand
+				return f.ledger.InitiateWithdrawal(f.ctx, f.payer(16), 1000, generateEventID(1601))
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 16)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(16))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(-1000), balance)
 			},
@@ -290,11 +312,11 @@ func TestBalanceCalculations(t *testing.T) {
 				return nil // No action, just checking balances
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance1, err := f.ledger.GetBalance(f.ctx, 17)
+				balance1, err := f.ledger.GetBalance(f.ctx, f.payer(17))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(3000), balance1)
 
-				balance2, err := f.ledger.GetBalance(f.ctx, 18)
+				balance2, err := f.ledger.GetBalance(f.ctx, f.payer(18))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(7000), balance2)
 			},
@@ -303,7 +325,7 @@ func TestBalanceCalculations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			f := setupWithInitialState(t, tc.initialEvents)
+			f := setupWithInitialState(t, tc)
 
 			err := tc.action(f)
 			if tc.expectedError != nil {
@@ -379,7 +401,7 @@ func TestAmountValidations(t *testing.T) {
 
 	t.Run("valid_positive_amounts_accepted", func(t *testing.T) {
 		f := setupTest(t)
-		payerID := int32(26)
+		payerID := f.payer(26)
 		amounts := []currency.PicoDollar{1, 100, 1000, 1000000}
 
 		for i, amount := range amounts {
@@ -466,7 +488,7 @@ func TestEventIDValidations(t *testing.T) {
 
 	t.Run("valid_positive_event_ids_accepted", func(t *testing.T) {
 		f := setupTest(t)
-		payerID := int32(36)
+		payerID := f.payer(36)
 		amount := currency.PicoDollar(1000)
 		eventIDs := []int{1, 100, 1000, 999999} // Test with various valid IDs
 
@@ -497,7 +519,7 @@ func TestEventIDGeneration(t *testing.T) {
 func TestConcurrentOperations(t *testing.T) {
 	t.Run("concurrent_deposits_different_events", func(t *testing.T) {
 		f := setupTest(t)
-		payerID := int32(40)
+		payerID := f.payer(40)
 		numDeposits := 10
 		amount := currency.PicoDollar(100)
 
@@ -523,9 +545,14 @@ func TestConcurrentOperations(t *testing.T) {
 	})
 
 	t.Run("concurrent_mixed_operations", func(t *testing.T) {
-		f := setupWithInitialState(t, []initialEvent{
-			{payerID: 41, amount: 10000, eventID: generateEventID(4100), eventType: "deposit"},
+		f := setupWithInitialState(t, testCase{
+			initialEvents: []initialEvent{
+				{payerID: 41, amount: 10000, eventID: generateEventID(4100), eventType: "deposit"},
+			},
 		})
+
+		// Get the actual payer ID
+		payer41 := f.payer(41)
 
 		// Run mixed operations concurrently
 		type operation struct {
@@ -533,19 +560,23 @@ func TestConcurrentOperations(t *testing.T) {
 		}
 
 		operations := []operation{
-			{fn: func() error { return f.ledger.Deposit(f.ctx, 41, 1000, generateEventID(4101)) }},
-			{fn: func() error { return f.ledger.Deposit(f.ctx, 41, 2000, generateEventID(4102)) }},
 			{
-				fn: func() error { return f.ledger.InitiateWithdrawal(f.ctx, 41, 500, generateEventID(4103)) },
+				fn: func() error { return f.ledger.Deposit(f.ctx, payer41, 1000, generateEventID(4101)) },
 			},
 			{
-				fn: func() error { return f.ledger.InitiateWithdrawal(f.ctx, 41, 700, generateEventID(4104)) },
+				fn: func() error { return f.ledger.Deposit(f.ctx, payer41, 2000, generateEventID(4102)) },
 			},
 			{
-				fn: func() error { return f.ledger.SettleUsage(f.ctx, 41, 300, generateEventID(4105)) },
+				fn: func() error { return f.ledger.InitiateWithdrawal(f.ctx, payer41, 500, generateEventID(4103)) },
 			},
 			{
-				fn: func() error { return f.ledger.SettleUsage(f.ctx, 41, 400, generateEventID(4106)) },
+				fn: func() error { return f.ledger.InitiateWithdrawal(f.ctx, payer41, 700, generateEventID(4104)) },
+			},
+			{
+				fn: func() error { return f.ledger.SettleUsage(f.ctx, payer41, 300, generateEventID(4105)) },
+			},
+			{
+				fn: func() error { return f.ledger.SettleUsage(f.ctx, payer41, 400, generateEventID(4106)) },
 			},
 		}
 
@@ -563,7 +594,7 @@ func TestConcurrentOperations(t *testing.T) {
 		}
 
 		// Verify final balance: 10000 + 1000 + 2000 - 500 - 700 - 300 - 400 = 11100
-		balance, err := f.ledger.GetBalance(f.ctx, 41)
+		balance, err := f.ledger.GetBalance(f.ctx, payer41)
 		require.NoError(t, err)
 		require.Equal(t, currency.PicoDollar(11100), balance)
 	})
@@ -572,7 +603,7 @@ func TestConcurrentOperations(t *testing.T) {
 func TestEdgeCases(t *testing.T) {
 	t.Run("large_amounts", func(t *testing.T) {
 		f := setupTest(t)
-		payerID := int32(50)
+		payerID := f.payer(50)
 		// Test with very large amounts (close to max int64)
 		largeAmount := currency.PicoDollar(9223372036854775000)
 
@@ -586,7 +617,7 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("many_transactions_single_payer", func(t *testing.T) {
 		f := setupTest(t)
-		payerID := int32(51)
+		payerID := f.payer(51)
 		numTransactions := 100
 
 		// Perform many small transactions
@@ -617,7 +648,7 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("cancel_withdrawal_without_prior_withdrawal_fails", func(t *testing.T) {
 		f := setupTest(t)
-		payerID := int32(52)
+		payerID := f.payer(52)
 
 		err := f.ledger.CancelWithdrawal(f.ctx, payerID, generateEventID(5201))
 		require.Error(t, err)
@@ -638,11 +669,11 @@ func TestCancelWithdrawal(t *testing.T) {
 				},
 			},
 			action: func(f *testFixture) error {
-				return f.ledger.CancelWithdrawal(f.ctx, 60, generateEventID(6003))
+				return f.ledger.CancelWithdrawal(f.ctx, f.payer(60), generateEventID(6003))
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// Balance should be restored to original 5000
-				balance, err := f.ledger.GetBalance(f.ctx, 60)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(60))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(5000), balance)
 			},
@@ -651,7 +682,8 @@ func TestCancelWithdrawal(t *testing.T) {
 			name:          "cancel_withdrawal_without_prior_withdrawal",
 			initialEvents: []initialEvent{},
 			action: func(f *testFixture) error {
-				return f.ledger.CancelWithdrawal(f.ctx, 61, generateEventID(6101))
+				// Payer created on demand via f.payer()
+				return f.ledger.CancelWithdrawal(f.ctx, f.payer(61), generateEventID(6101))
 			},
 			validate:      func(t *testing.T, f *testFixture) {},
 			expectedError: ledger.ErrWithdrawalNotFound,
@@ -664,15 +696,15 @@ func TestCancelWithdrawal(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// First cancellation
-				err := f.ledger.CancelWithdrawal(f.ctx, 62, generateEventID(6203))
+				err := f.ledger.CancelWithdrawal(f.ctx, f.payer(62), generateEventID(6203))
 				if err != nil {
 					return err
 				}
 				// Second cancellation with same event ID should succeed (idempotent)
-				return f.ledger.CancelWithdrawal(f.ctx, 62, generateEventID(6203))
+				return f.ledger.CancelWithdrawal(f.ctx, f.payer(62), generateEventID(6203))
 			},
 			validate: func(t *testing.T, f *testFixture) {
-				balance, err := f.ledger.GetBalance(f.ctx, 62)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(62))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(3000), balance)
 			},
@@ -685,12 +717,12 @@ func TestCancelWithdrawal(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// First cancellation
-				err := f.ledger.CancelWithdrawal(f.ctx, 63, generateEventID(6303))
+				err := f.ledger.CancelWithdrawal(f.ctx, f.payer(63), generateEventID(6303))
 				if err != nil {
 					return err
 				}
 				// Second cancellation with different event ID should fail
-				return f.ledger.CancelWithdrawal(f.ctx, 63, generateEventID(6304))
+				return f.ledger.CancelWithdrawal(f.ctx, f.payer(63), generateEventID(6304))
 			},
 			validate:      func(t *testing.T, f *testFixture) {},
 			expectedError: ledger.ErrWithdrawalAlreadyCanceled,
@@ -709,11 +741,11 @@ func TestCancelWithdrawal(t *testing.T) {
 			},
 			action: func(f *testFixture) error {
 				// Should cancel the most recent withdrawal (500)
-				return f.ledger.CancelWithdrawal(f.ctx, 64, generateEventID(6404))
+				return f.ledger.CancelWithdrawal(f.ctx, f.payer(64), generateEventID(6404))
 			},
 			validate: func(t *testing.T, f *testFixture) {
 				// Balance should be 6000 - 1000 - 500 + 500 = 5000
-				balance, err := f.ledger.GetBalance(f.ctx, 64)
+				balance, err := f.ledger.GetBalance(f.ctx, f.payer(64))
 				require.NoError(t, err)
 				require.Equal(t, currency.PicoDollar(5000), balance)
 			},
@@ -722,7 +754,7 @@ func TestCancelWithdrawal(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			f := setupWithInitialState(t, tc.initialEvents)
+			f := setupWithInitialState(t, tc)
 
 			err := tc.action(f)
 			if tc.expectedError != nil {

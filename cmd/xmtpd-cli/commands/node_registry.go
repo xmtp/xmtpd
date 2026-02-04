@@ -477,7 +477,7 @@ func healthCheckHandler(addresses []string) error {
 				zap.String("address", address),
 				zap.Error(err),
 			)
-			continue
+			healthy = false
 		}
 
 		_, err = connectRPCClient.GetVersion(
@@ -509,7 +509,7 @@ func healthCheckHandler(addresses []string) error {
 				zap.String("address", address),
 				zap.Error(err),
 			)
-			continue
+			healthy = false
 		}
 
 		_, err = gRPCClient.GetVersion(
@@ -542,7 +542,7 @@ func healthCheckHandler(addresses []string) error {
 				zap.String("address", address),
 				zap.Error(err),
 			)
-			continue
+			healthy = false
 		}
 
 		_, err = gRPCWebClient.GetVersion(
@@ -590,7 +590,7 @@ func healthCheckHandler(addresses []string) error {
 				zap.String("address", address),
 				zap.Error(err),
 			)
-			continue
+			healthy = false
 		}
 
 		// OPTIONS request should return a 204 No Content response.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"math"
 	"time"
 
@@ -139,26 +138,20 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
 			}
 
-			associationState, err := s.validateIdentityUpdate(
+			associationState, validationError := s.validateIdentityUpdate(
 				ctx,
 				querier,
 				msgSent.InboxId,
 				clientEnvelope,
 			)
-			if err != nil {
+			if validationError != nil {
 				s.logger.Error(
 					ErrValidateIdentityUpdate,
 					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
+					zap.Error(validationError),
 				)
 
-				// If we received an error with retryability info just forward it, else treat as non-retryable.
-				var retryableErr re.RetryableError
-				if errors.As(err, &retryableErr) {
-					return err
-				}
-
-				return re.NewNonRecoverableError(ErrValidateIdentityUpdate, err)
+				return validationError
 			}
 
 			inboxID := utils.HexEncode(msgSent.InboxId[:])
@@ -300,7 +293,7 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	querier *queries.Queries,
 	inboxID [32]byte,
 	clientEnvelope *envelopes.ClientEnvelope,
-) (*mlsvalidate.AssociationStateResult, error) {
+) (*mlsvalidate.AssociationStateResult, re.RetryableError) {
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopesByTopics(
 		ctx,
 		queries.SelectGatewayEnvelopesByTopicsParams{
@@ -310,7 +303,8 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 			RowLimit: 256,
 		},
 	)
-	if err != nil {
+	// No rows returned means this is a new identity.
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, re.NewRecoverableError(
 			"could not retrieve envelopes to validate identity update",
 			err,
@@ -319,14 +313,25 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 
 	identityUpdate, ok := clientEnvelope.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
 	if !ok {
-		return nil, fmt.Errorf("client envelope payload is not an identity update")
+		return nil, re.NewNonRecoverableError(
+			"client envelope payload is not an identity update",
+			errors.New("client envelope payload is not an identity update"),
+		)
 	}
 
-	return s.validationService.GetAssociationStateFromEnvelopes(
+	result, err := s.validationService.GetAssociationStateFromEnvelopes(
 		ctx,
 		gatewayEnvelopes,
 		identityUpdate.IdentityUpdate,
 	)
+	if err != nil {
+		return nil, re.NewRecoverableError(
+			"could not get association state from envelopes",
+			err,
+		)
+	}
+
+	return result, nil
 }
 
 func buildOriginatorEnvelope(

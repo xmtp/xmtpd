@@ -1,0 +1,246 @@
+package worker
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"regexp"
+	"strconv"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/utils"
+)
+
+// Regex to parse partition information, for example: gateway_envelopes_meta_o100_s1000000_2000000
+var partitionRe = regexp.MustCompile(`^gateway_envelopes_meta_o(\d+)_s(\d+)_(\d+)$`)
+
+// TODO: Potentially move SQL stuff outside of this package.
+
+type Config struct {
+	Interval time.Duration
+
+	Partition PartitionConfig
+}
+
+// partition config controls when should the database worker create new partitions.
+// given the partition size, it will create new partitions when the the partition
+// is fill more than the specified fill threshold.
+// For example: partition size is 1000, fill threshold is 70% => when the partition
+// has over 700 entries it will create the next partition.
+// TODO: Perhaps use a list of originators and setup partitions even for nodes that do not have any yet.
+
+type PartitionConfig struct {
+	PartitionSize uint
+	FillThreshold float64
+}
+
+type Worker struct {
+	cfg Config
+
+	log *zap.Logger
+	db  *db.Handler
+}
+
+func NewWorker(cfg Config, log *zap.Logger, db *db.Handler) (*Worker, error) {
+	worker := &Worker{
+		cfg: cfg,
+		log: log.Named(utils.DatabaseWorkerLoggerName),
+		db:  db,
+	}
+
+	return worker, nil
+}
+
+func (w *Worker) Start(ctx context.Context) error {
+	err := w.runDBCheck(ctx)
+	if err != nil {
+		w.log.Error("database check failed", zap.Error(err))
+	}
+
+	go func() {
+		ticker := time.NewTicker(w.cfg.Interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				w.log.Info("context done, stopping")
+				return
+
+			case <-ticker.C:
+				w.log.Debug("running db check")
+				err := w.runDBCheck(ctx)
+				if err != nil {
+					w.log.Error("database check failed", zap.Error(err))
+				}
+
+				// On error - do nothing.
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (w *Worker) runDBCheck(ctx context.Context) error {
+	// Step 3: Check how full partitions are
+	// Step 4: Create partitions
+
+	partitions, err := w.getPartitionList(ctx)
+	if err != nil {
+		return fmt.Errorf("could not retrieve list of database partitions: %w", err)
+	}
+
+	if len(partitions) == 0 {
+		return errors.New("could not identify any partition tables")
+	}
+
+	np := sortPartitions(partitions)
+	err = np.validate()
+	if err != nil {
+		return fmt.Errorf("invalid partition chain(s) found: %w", err)
+	}
+
+	// NOTE: We do not validate that partitions are the width that we expect
+	// from the worker; we will only enforce that for newly created partitions
+
+	var errs []error
+
+	for nodeID, partitions := range np.partitions {
+		w.log.Debug("processing partitions for node",
+			zap.Uint32("node_id", nodeID))
+
+		// Should not happen.
+		if len(partitions) == 0 {
+			continue
+		}
+
+		// Only check the last partition as it is the one we will be extending.
+		last := partitions[len(partitions)-1]
+		count, err := w.getLastSequenceID(ctx, last.name)
+		if err != nil {
+			// Try to process as many as possible - return the error at the end
+			errs = append(errs, fmt.Errorf("could not get last sequence ID for table: %v: %w",
+				last.name,
+				err),
+			)
+			continue
+		}
+
+		fillRatio := float64(count) / float64(w.cfg.Partition.PartitionSize)
+		w.log.Info("partition fill ratio",
+			zap.String("name", last.name),
+			zap.Float64("fill", fillRatio))
+
+		// Partition has enough room left, continue.
+		if fillRatio < w.cfg.Partition.FillThreshold {
+			continue
+		}
+
+		err = w.createPartition(ctx, nodeID, last.end)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("could not create partition for table: %v: %w",
+				last.name,
+				err))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func (w *Worker) query() Querier {
+	return New(w.db.DB())
+}
+
+func (w *Worker) getPartitionList(ctx context.Context) ([]partitionTableInfo, error) {
+	tables, err := w.query().ListPartitions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve list of database tables: %w", err)
+	}
+
+	var partitions []partitionTableInfo
+	for _, table := range tables {
+		fields := partitionRe.FindStringSubmatch(table)
+		if len(fields) != 4 {
+			continue
+		}
+
+		nodeID, err := strconv.ParseUint(fields[1], 10, 32)
+		if err != nil {
+			w.log.Warn("could not parse node ID from table name",
+				zap.String("table_name", table),
+				zap.String("node_id", fields[1]),
+				zap.Error(err))
+			continue
+		}
+
+		start, err := strconv.ParseUint(fields[2], 10, 64)
+		if err != nil {
+			w.log.Warn("could not parse partition start offset from table name",
+				zap.String("table_name", table),
+				zap.String("start", fields[2]),
+				zap.Error(err))
+			continue
+		}
+
+		end, err := strconv.ParseUint(fields[3], 10, 64)
+		if err != nil {
+			w.log.Warn("could not parse partition end from table name",
+				zap.String("table_name", table),
+				zap.String("end", fields[3]),
+				zap.Error(err))
+			continue
+		}
+
+		part := partitionTableInfo{
+			name:   table,
+			nodeID: uint32(nodeID),
+			start:  start,
+			end:    end,
+		}
+
+		partitions = append(partitions, part)
+	}
+
+	return partitions, nil
+}
+
+func (w *Worker) getLastSequenceID(ctx context.Context, table string) (int64, error) {
+	query := fmt.Sprintf("SELECT MAX(originator_sequence_id) FROM %s", table)
+
+	var count sql.NullInt64
+	err := w.db.DB().QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("could not execute query: %w", err)
+	}
+
+	return count.Int64, nil
+}
+
+func (w *Worker) createPartition(
+	ctx context.Context,
+	nodeID uint32,
+	start uint64,
+) error {
+	params := queries.EnsureGatewayPartsParams{
+		OriginatorNodeID:     int32(nodeID),
+		OriginatorSequenceID: int64(start + 1),
+		BandWidth:            int64(w.cfg.Partition.PartitionSize),
+	}
+
+	err := w.db.WriteQuery().EnsureGatewayParts(ctx, params)
+	if err != nil {
+		return fmt.Errorf("could not create partition for node (id: %v, start: %v end: %v): %w",
+			nodeID,
+			start,
+			start+uint64(w.cfg.Partition.PartitionSize),
+		)
+	}
+
+	return nil
+}

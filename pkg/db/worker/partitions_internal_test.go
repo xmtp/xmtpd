@@ -2,9 +2,15 @@ package worker
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/testutils"
+	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
 func TestParsePartitionInfo(t *testing.T) {
@@ -291,10 +297,282 @@ func TestValidatePartitionChain(t *testing.T) {
 	}
 }
 
-// TODO: Remove
-func printPartitionSlice(p []partitionTableInfo) {
-	for i, part := range p {
-		fmt.Printf("[%d]:{nodeID:%d,start:%d,end:%d},", i, part.nodeID, part.start, part.end)
+func TestWorker_CreateAndListPartitionsForMultipleNodes(t *testing.T) {
+	var (
+		ctx            = t.Context()
+		partitionSize  = uint64(1_000_000)
+		ts             = newTestScaffold(t, partitionSize)
+		partitionCount = 10 // Number of partitions to create.
+	)
+
+	inputParams := make(map[uint32]partitionParams)
+
+	// Create new tables in the DB for random nodes and sequenceIDs.
+	for range partitionCount {
+
+		params := newPartitionParams(partitionSize)
+
+		err := ts.worker.createPartition(ctx, params.nodeID, params.sequenceID)
+		require.NoError(t, err)
+
+		inputParams[params.nodeID] = params
 	}
-	fmt.Printf("\n")
+
+	// Now list partitions and make sure we have what we expect to have.
+	partitions, err := ts.worker.getPartitionList(ctx)
+	require.NoError(t, err)
+	require.Len(t, partitions, partitionCount)
+
+	for _, partition := range partitions {
+
+		matchingParams, ok := inputParams[partition.nodeID]
+		require.True(t, ok)
+
+		t.Logf("partition for node %d for seqID %d of size %d: [%d,%d]: %v\n",
+			matchingParams.nodeID,
+			matchingParams.sequenceID,
+			matchingParams.bandwidth,
+			partition.start,
+			partition.end,
+			partition.name)
+
+		require.Equal(t, matchingParams.nodeID, partition.nodeID)
+
+		// Make sure partition is correct for the sequence ID we have.
+		require.GreaterOrEqual(t, matchingParams.sequenceID, partition.start)
+		require.Less(t, matchingParams.sequenceID, partition.end)
+
+		// Make sure partition is of the correct size.
+		size := partition.end - partition.start
+		require.Equal(t, matchingParams.bandwidth, size)
+	}
+}
+
+func TestWorker_CreateAndListPartitionsForSingleNode(t *testing.T) {
+	var (
+		ctx           = t.Context()
+		partitionSize = uint64(1_000_000)
+		ts            = newTestScaffold(t, partitionSize)
+
+		// Sequence IDs that should force creation of several partitions.
+		sequenceIDs = []uint64{
+			1,         // 0-1M
+			1_000_000, // 1M-2M
+			2_000_001, // 2M-3M
+			3_567_987, // 3M-4M
+			4_123_567, // 4M-5M
+			5_000_000, // 5M-6M
+		}
+
+		// Limit nodeID so we don't get errors when casting to int64.
+		nodeID = rand.Uint32N(100_000)
+	)
+
+	for _, seqID := range sequenceIDs {
+		err := ts.worker.createPartition(ctx, nodeID, uint64(seqID))
+		require.NoError(t, err)
+	}
+
+	partitions, err := ts.worker.getPartitionList(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	require.Len(t, partitions, len(sequenceIDs))
+
+	// Make sure we have a fitting partition for each sequence ID.
+	for i, seqID := range sequenceIDs {
+		partition := partitions[i]
+
+		require.Equal(t, nodeID, partition.nodeID)
+
+		// Make sure partition is correct for the sequence ID we have.
+		require.GreaterOrEqual(t, seqID, partition.start)
+		require.Less(t, seqID, partition.end)
+
+		// Make sure partition is of the correct size.
+		size := partition.end - partition.start
+		require.Equal(t, partitionSize, size)
+	}
+}
+
+func TestWorker_LastSequenceID(t *testing.T) {
+	var (
+		ctx = t.Context()
+		ts  = newTestScaffold(t, 1_000_000)
+
+		tableName = "gateway_envelopes_meta_o100_s0_1000000"
+		count     = 10 + rand.UintN(20) // 10-30 envelopes
+		nodeID    = uint32(100)
+		envelopes = generateEnvelopes(t, nodeID, count)
+
+		// Insert multiple batches to verify the largest sequence ID changes.
+		firstBatch  = envelopes[:5]
+		secondBatch = envelopes[5:]
+	)
+
+	// Make sure partition exists - just so our query doesn't fail.
+	err := ts.worker.createPartition(ctx, nodeID, 1)
+	require.NoError(t, err)
+
+	// No envelopes now so largest should be 0.
+	largest, err := ts.worker.getLastSequenceID(ctx, tableName)
+	require.NoError(t, err)
+	require.Zero(t, largest)
+
+	// Insert first batch.
+	testutils.InsertGatewayEnvelopes(t, ts.db.DB(), firstBatch)
+
+	// Get the sequence ID of the last envelope in the first batch.
+	last := firstBatch[len(firstBatch)-1].OriginatorSequenceID
+	largest, err = ts.worker.getLastSequenceID(ctx, tableName)
+	require.NoError(t, err)
+	require.Equal(t, last, largest)
+
+	// Insert second batch.
+	testutils.InsertGatewayEnvelopes(t, ts.db.DB(), secondBatch)
+
+	// Get the sequence ID of the last envelope in the first batch.
+	last = secondBatch[len(secondBatch)-1].OriginatorSequenceID
+	largest, err = ts.worker.getLastSequenceID(ctx, tableName)
+	require.NoError(t, err)
+	require.Equal(t, last, largest)
+}
+
+func TestWorker_PreparesPartition(t *testing.T) {
+	var (
+		ctx   = t.Context()
+		db, _ = testutils.NewDB(t, ctx)
+		log   = testutils.NewLog(t)
+		cfg   = Config{
+			// Super small partition with a size of 10, after 70% we create a new one.
+			Partition: PartitionConfig{
+				PartitionSize: 10,
+				FillThreshold: 0.7,
+			},
+		}
+
+		nodeID    = uint32(100)
+		envelopes = generateEnvelopes(t, nodeID, 8)
+	)
+
+	worker, err := NewWorker(cfg, log, db)
+	require.NoError(t, err)
+
+	// Have worker manually create a small partition.
+	err = worker.createPartition(ctx, nodeID, 1)
+	require.NoError(t, err)
+
+	// Insert 7 envelopes - we're below threshold.
+	testutils.InsertGatewayEnvelopes(t, db.DB(), envelopes[:7])
+
+	err = worker.runDBCheck(ctx)
+	require.NoError(t, err)
+
+	// We should still have one partition.
+	partitions, err := worker.getPartitionList(ctx)
+	require.NoError(t, err)
+	require.Len(t, partitions, 1)
+
+	// Insert remaining envelope - we're now over fill threshold.
+	testutils.InsertGatewayEnvelopes(t, db.DB(), envelopes[7:])
+
+	// Run DB check again - this should see our partition is 80% full and create a new one.
+	err = worker.runDBCheck(ctx)
+	require.NoError(t, err)
+
+	// We should now have two partitions.
+	partitions, err = worker.getPartitionList(ctx)
+	require.NoError(t, err)
+	require.Len(t, partitions, 2)
+
+	secondPartition := partitions[1]
+	require.Equal(t, uint64(10), secondPartition.start)
+	require.Equal(t, uint64(20), secondPartition.end)
+	require.Equal(t, nodeID, secondPartition.nodeID)
+}
+
+func generateEnvelopes(
+	t *testing.T,
+	nodeID uint32,
+	count uint,
+) []queries.InsertGatewayEnvelopeParams {
+	t.Helper()
+
+	topic := topic.NewTopic(
+		topic.TopicKindGroupMessagesV1,
+		[]byte(fmt.Sprintf("generic-topic-%v", rand.Int())),
+	)
+
+	out := make([]queries.InsertGatewayEnvelopeParams, count)
+	for i := range count {
+
+		seqID := int64(1 + i)
+		oe := testutils.Marshal(
+			t,
+			envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(
+				t,
+				uint32(nodeID),
+				uint64(seqID),
+				topic.Bytes(),
+			),
+		)
+
+		out[i] = queries.InsertGatewayEnvelopeParams{
+			OriginatorNodeID:     int32(nodeID),
+			OriginatorSequenceID: seqID,
+			Topic:                topic.Bytes(),
+			OriginatorEnvelope:   oe,
+		}
+	}
+
+	return out
+}
+
+type testScaffold struct {
+	db     *db.Handler
+	worker *Worker
+}
+
+func newTestScaffold(t *testing.T, partitionSize uint64) testScaffold {
+	t.Helper()
+
+	var (
+		db, _ = testutils.NewDB(t, t.Context())
+		log   = testutils.NewLog(t)
+		cfg   = Config{
+			Partition: PartitionConfig{
+				PartitionSize: partitionSize,
+			},
+		}
+	)
+
+	worker, err := NewWorker(cfg, log, db)
+	require.NoError(t, err)
+
+	ts := testScaffold{
+		db:     db,
+		worker: worker,
+	}
+
+	return ts
+}
+
+type partitionParams struct {
+	nodeID     uint32
+	sequenceID uint64
+	bandwidth  uint64
+}
+
+func newPartitionParams(partitionSize uint64) partitionParams {
+	const (
+		maxNodeID     = 100_000
+		maxSequenceID = 300_000_000
+	)
+
+	return partitionParams{
+		nodeID:     rand.Uint32N(maxNodeID),
+		sequenceID: 1 + rand.Uint64N(maxSequenceID),
+		bandwidth:  uint64(partitionSize),
+	}
 }

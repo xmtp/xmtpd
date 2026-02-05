@@ -30,7 +30,7 @@ type Config struct {
 // TODO: Perhaps use a list of originators and setup partitions even for nodes that do not have any yet.
 
 type PartitionConfig struct {
-	PartitionSize uint
+	PartitionSize uint64
 	FillThreshold float64
 }
 
@@ -127,13 +127,15 @@ func (w *Worker) runDBCheck(ctx context.Context) error {
 			continue
 		}
 
-		fillRatio := float64(count) / float64(w.cfg.Partition.PartitionSize)
+		// Use the value we have from the partition name to determine fill ratio.
+		fillRatio := float64(count) / float64(last.end)
+
 		w.log.Info("partition fill ratio",
 			zap.String("name", last.name),
 			zap.Float64("fill", fillRatio))
 
 		// Partition has enough room left, continue.
-		if fillRatio < w.cfg.Partition.FillThreshold {
+		if fillRatio <= w.cfg.Partition.FillThreshold {
 			continue
 		}
 
@@ -185,23 +187,20 @@ func (w *Worker) getLastSequenceID(ctx context.Context, table string) (int64, er
 	return count.Int64, nil
 }
 
-func (w *Worker) createPartition(
-	ctx context.Context,
-	nodeID uint32,
-	start uint64,
-) error {
+func (w *Worker) createPartition(ctx context.Context, nodeID uint32, sequenceID uint64) error {
 	params := queries.EnsureGatewayPartsParams{
 		OriginatorNodeID:     int32(nodeID),
-		OriginatorSequenceID: int64(start + 1),
+		OriginatorSequenceID: int64(sequenceID),
 		BandWidth:            int64(w.cfg.Partition.PartitionSize),
 	}
 
 	err := w.db.WriteQuery().EnsureGatewayParts(ctx, params)
 	if err != nil {
-		return fmt.Errorf("could not create partition for node (id: %v, start: %v end: %v): %w",
+		return fmt.Errorf(
+			"could not create partition for node (id: %d, sequence_id: %d, size: %d): %w",
 			nodeID,
-			start,
-			start+uint64(w.cfg.Partition.PartitionSize),
+			sequenceID,
+			w.cfg.Partition.PartitionSize,
 			err,
 		)
 	}

@@ -66,6 +66,7 @@ func parsePartitionInfo(table string) (partitionTableInfo, error) {
 }
 
 // group partitions by originator and sort them
+// NOTE: sort does NOT validate any overlapping ranges, non-contigious ranges or anything like that.
 func sortPartitions(partitions []partitionTableInfo) nodePartitions {
 	out := make(map[uint32][]partitionTableInfo)
 	for _, partition := range partitions {
@@ -105,11 +106,7 @@ func (p *nodePartitions) validate() error {
 func validatePartitionChain(partitions []partitionTableInfo) error {
 	var prev *partitionTableInfo
 
-	for _, p := range partitions {
-
-		if p.nodeID == 0 {
-			return errors.New("invalid node ID")
-		}
+	for i, p := range partitions {
 
 		if p.start >= p.end {
 			return fmt.Errorf(
@@ -118,7 +115,7 @@ func validatePartitionChain(partitions []partitionTableInfo) error {
 
 		// Save the current partition info so we can compare it against the next one.
 		if prev == nil {
-			prev = &p
+			prev = &partitions[i]
 			continue
 		}
 
@@ -137,6 +134,9 @@ func validatePartitionChain(partitions []partitionTableInfo) error {
 				p.start,
 			)
 		}
+
+		// Update previous
+		prev = &partitions[i]
 	}
 
 	return nil

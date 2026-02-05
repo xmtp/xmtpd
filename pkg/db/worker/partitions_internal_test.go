@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -482,6 +483,48 @@ func TestWorker_PreparesPartition(t *testing.T) {
 
 	// We should now have two partitions.
 	partitions, err = worker.getPartitionList(ctx)
+	require.NoError(t, err)
+	require.Len(t, partitions, 2)
+
+	secondPartition := partitions[1]
+	require.Equal(t, uint64(10), secondPartition.start)
+	require.Equal(t, uint64(20), secondPartition.end)
+	require.Equal(t, nodeID, secondPartition.nodeID)
+}
+
+func TestWorker_MonitorLoop(t *testing.T) {
+	var (
+		ctx   = t.Context()
+		db, _ = testutils.NewDB(t, ctx)
+		log   = testutils.NewLog(t)
+
+		cfg = Config{
+			Interval: 1 * time.Second,
+			// Super small partition with a size of 10, after 70% we create a new one.
+			Partition: PartitionConfig{
+				PartitionSize: 10,
+				FillThreshold: 0.7,
+			},
+		}
+
+		nodeID    = uint32(100)
+		envelopes = generateEnvelopes(t, nodeID, 8)
+	)
+
+	worker := newWorkerWithConfig(cfg, log, db)
+	go worker.Start(ctx)
+
+	// Have worker manually create a small partition.
+	err := worker.createPartition(ctx, nodeID, 1)
+	require.NoError(t, err)
+
+	// Insert envelopes - to push us over the threshold.
+	testutils.InsertGatewayEnvelopes(t, db.DB(), envelopes)
+
+	time.Sleep(2 * time.Second)
+
+	// We should now have two partitions.
+	partitions, err := worker.getPartitionList(ctx)
 	require.NoError(t, err)
 	require.Len(t, partitions, 2)
 

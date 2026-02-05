@@ -512,10 +512,11 @@ func TestWorker_MonitorLoop(t *testing.T) {
 	)
 
 	worker := newWorkerWithConfig(cfg, log, db)
-	go worker.Start(ctx)
+	err := worker.Start(ctx)
+	require.NoError(t, err)
 
 	// Have worker manually create a small partition.
-	err := worker.createPartition(ctx, nodeID, 1)
+	err = worker.createPartition(ctx, nodeID, 1)
 	require.NoError(t, err)
 
 	// Insert envelopes - to push us over the threshold.

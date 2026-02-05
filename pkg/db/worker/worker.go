@@ -98,9 +98,6 @@ func (w *Worker) Start(ctx context.Context) error {
 }
 
 func (w *Worker) runDBCheck(ctx context.Context) error {
-	// Step 3: Check how full partitions are
-	// Step 4: Create partitions
-
 	partitions, err := w.getPartitionList(ctx)
 	if err != nil {
 		return fmt.Errorf("could not retrieve list of database partitions: %w", err)

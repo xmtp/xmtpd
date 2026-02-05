@@ -499,7 +499,7 @@ func TestWorker_MonitorLoop(t *testing.T) {
 		log   = testutils.NewLog(t)
 
 		cfg = Config{
-			Interval: 1 * time.Second,
+			Interval: 100 * time.Millisecond,
 			// Super small partition with a size of 10, after 70% we create a new one.
 			Partition: PartitionConfig{
 				PartitionSize: 10,
@@ -522,7 +522,8 @@ func TestWorker_MonitorLoop(t *testing.T) {
 	// Insert envelopes - to push us over the threshold.
 	testutils.InsertGatewayEnvelopes(t, db.DB(), envelopes)
 
-	time.Sleep(2 * time.Second)
+	// Wait for the worker loop to run a check and autocreate partitions.
+	time.Sleep(200 * time.Millisecond)
 
 	// We should now have two partitions.
 	partitions, err := worker.getPartitionList(ctx)

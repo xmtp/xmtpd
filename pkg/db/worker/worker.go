@@ -70,6 +70,7 @@ func (w *Worker) Start(ctx context.Context) error {
 	err := w.runDBCheck(ctx)
 	if err != nil {
 		w.log.Error("database check failed", zap.Error(err))
+		// Not stopping on this error.
 	}
 
 	go func() {

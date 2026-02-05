@@ -28,23 +28,23 @@ import (
 
 const (
 	// https://github.com/xmtp/libxmtp/blob/main/crates/xmtp_id/src/associations/association_log.rs#L10
-	AssociationErrorGeneric                      = "Error creating association"
-	AssociationErrorMultipleCreate               = "Multiple create operations detected"
-	AssociationErrorNotCreated                   = "XID not yet created"
-	AssociationErrorSignature                    = "Signature validation failed"
-	AssociationErrorMemberNotAllowed             = "not allowed to add"
-	AssociationErrorMissingExistingMember        = "Missing existing member"
-	AssociationErrorLegacySignatureReuse         = "Legacy key is only allowed to be associated using a legacy signature with nonce 0"
-	AssociationErrorNewMemberIDSignatureMismatch = "The new member identifier does not match the signer"
-	AssociationErrorWrongInboxID                 = "Wrong inbox_id specified on association"
-	AssociationErrorSignatureNotAllowed          = "Signature not allowed for role"
-	AssociationErrorReplay                       = "Replay detected"
-	AssociationErrorDeserialization              = "Deserialization error"
-	AssociationErrorMissingIdentityUpdate        = "Missing identity update"
-	AssociationErrorChainIDMismatch              = "Wrong chain id."
-	AssociationErrorInvalidAccountAddress        = "Invalid account address: Must be 42 hex characters, starting with '0x'."
-	AssociationErrorNotIdentifier                = "are not a public identifier"
-	AssociationErrorConvert                      = "Conversion error"
+	associationErrorGeneric                      = "Error creating association"
+	associationErrorMultipleCreate               = "Multiple create operations detected"
+	associationErrorNotCreated                   = "XID not yet created"
+	associationErrorSignature                    = "Signature validation failed"
+	associationErrorMemberNotAllowed             = "not allowed to add"
+	associationErrorMissingExistingMember        = "Missing existing member"
+	associationErrorLegacySignatureReuse         = "Legacy key is only allowed to be associated using a legacy signature with nonce 0"
+	associationErrorNewMemberIDSignatureMismatch = "The new member identifier does not match the signer"
+	associationErrorWrongInboxID                 = "Wrong inbox_id specified on association"
+	associationErrorSignatureNotAllowed          = "Signature not allowed for role"
+	associationErrorReplay                       = "Replay detected"
+	associationErrorDeserialization              = "Deserialization error"
+	associationErrorMissingIdentityUpdate        = "Missing identity update"
+	associationErrorChainIDMismatch              = "Wrong chain id."
+	associationErrorInvalidAccountAddress        = "Invalid account address: Must be 42 hex characters, starting with '0x'."
+	associationErrorNotIdentifier                = "are not a public identifier"
+	associationErrorConvert                      = "Conversion error"
 
 	ErrAdvisoryLockSequence   = "advisory lock failed"
 	ErrParseIdentityUpdate    = "error parsing identity update"
@@ -55,23 +55,23 @@ const (
 )
 
 var associationErrorPatterns = []string{
-	AssociationErrorGeneric,
-	AssociationErrorMultipleCreate,
-	AssociationErrorNotCreated,
-	AssociationErrorSignature,
-	AssociationErrorMemberNotAllowed,
-	AssociationErrorMissingExistingMember,
-	AssociationErrorLegacySignatureReuse,
-	AssociationErrorNewMemberIDSignatureMismatch,
-	AssociationErrorWrongInboxID,
-	AssociationErrorSignatureNotAllowed,
-	AssociationErrorReplay,
-	AssociationErrorDeserialization,
-	AssociationErrorMissingIdentityUpdate,
-	AssociationErrorChainIDMismatch,
-	AssociationErrorInvalidAccountAddress,
-	AssociationErrorNotIdentifier,
-	AssociationErrorConvert,
+	associationErrorGeneric,
+	associationErrorMultipleCreate,
+	associationErrorNotCreated,
+	associationErrorSignature,
+	associationErrorMemberNotAllowed,
+	associationErrorMissingExistingMember,
+	associationErrorLegacySignatureReuse,
+	associationErrorNewMemberIDSignatureMismatch,
+	associationErrorWrongInboxID,
+	associationErrorSignatureNotAllowed,
+	associationErrorReplay,
+	associationErrorDeserialization,
+	associationErrorMissingIdentityUpdate,
+	associationErrorChainIDMismatch,
+	associationErrorInvalidAccountAddress,
+	associationErrorNotIdentifier,
+	associationErrorConvert,
 }
 
 type IdentityUpdateStorer struct {

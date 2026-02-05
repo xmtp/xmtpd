@@ -131,8 +131,8 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
 WITH cursors AS (
     SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-    FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
-    JOIN unnest($4::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
+    FROM unnest($4::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest($5::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
 )
 SELECT m.originator_node_id,
        m.originator_sequence_id,
@@ -160,11 +160,12 @@ CROSS JOIN LATERAL (
     LIMIT NULLIF($2::INT, 0)
 ) AS m
 ORDER BY m.originator_node_id, m.originator_sequence_id
-LIMIT NULLIF($2::INT, 0)
+LIMIT NULLIF($3::INT, 0)
 `
 
 type SelectGatewayEnvelopesByOriginatorsParams struct {
 	OriginatorNodeIds []int32
+	RowsPerOriginator int32
 	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
@@ -183,6 +184,7 @@ type SelectGatewayEnvelopesByOriginatorsRow struct {
 func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]SelectGatewayEnvelopesByOriginatorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators,
 		pq.Array(arg.OriginatorNodeIds),
+		arg.RowsPerOriginator,
 		arg.RowLimit,
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),

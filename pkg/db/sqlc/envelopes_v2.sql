@@ -100,7 +100,7 @@ CROSS JOIN LATERAL (
           0
       )
     ORDER BY m.originator_sequence_id
-    LIMIT NULLIF(@row_limit::INT, 0)
+    LIMIT NULLIF(@rows_per_originator::INT, 0)
 ) AS m
 ORDER BY m.originator_node_id, m.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);

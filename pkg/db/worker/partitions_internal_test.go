@@ -456,11 +456,10 @@ func TestWorker_PreparesPartition(t *testing.T) {
 		envelopes = generateEnvelopes(t, nodeID, 8)
 	)
 
-	worker, err := NewWorker(cfg, log, db)
-	require.NoError(t, err)
+	worker := newWorkerWithConfig(cfg, log, db)
 
 	// Have worker manually create a small partition.
-	err = worker.createPartition(ctx, nodeID, 1)
+	err := worker.createPartition(ctx, nodeID, 1)
 	require.NoError(t, err)
 
 	// Insert 7 envelopes - we're below threshold.
@@ -547,8 +546,7 @@ func newTestScaffold(t *testing.T, partitionSize uint64) testScaffold {
 		}
 	)
 
-	worker, err := NewWorker(cfg, log, db)
-	require.NoError(t, err)
+	worker := newWorkerWithConfig(cfg, log, db)
 
 	ts := testScaffold{
 		db:     db,

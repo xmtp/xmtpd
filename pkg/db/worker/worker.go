@@ -14,11 +14,22 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
-// TODO: Potentially move SQL stuff outside of this package.
+const (
+	DefaultPartitionSize = 1_000_000
+	DefaultFillThreshold = 0.7
+	DefaultCheckInterval = 30 * time.Minute
+)
+
+var defaultConfig = Config{
+	Interval: DefaultCheckInterval,
+	Partition: PartitionConfig{
+		PartitionSize: DefaultPartitionSize,
+		FillThreshold: DefaultFillThreshold,
+	},
+}
 
 type Config struct {
-	Interval time.Duration
-
+	Interval  time.Duration
 	Partition PartitionConfig
 }
 
@@ -41,14 +52,18 @@ type Worker struct {
 	db  *db.Handler
 }
 
-func NewWorker(cfg Config, log *zap.Logger, db *db.Handler) (*Worker, error) {
+func NewWorker(log *zap.Logger, db *db.Handler) *Worker {
+	return newWorkerWithConfig(defaultConfig, log, db)
+}
+
+func newWorkerWithConfig(cfg Config, log *zap.Logger, db *db.Handler) *Worker {
 	worker := &Worker{
 		cfg: cfg,
 		log: log.Named(utils.DatabaseWorkerLoggerName),
 		db:  db,
 	}
 
-	return worker, nil
+	return worker
 }
 
 func (w *Worker) Start(ctx context.Context) error {

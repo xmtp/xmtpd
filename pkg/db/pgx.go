@@ -311,17 +311,24 @@ func connectToDB(
 		role = "writer"
 	}
 
-	// Enable SQL tracing with composite tracer (logging + APM)
-	// This provides both Prometheus metrics and Datadog APM spans
-	poolcfg.ConnConfig.Tracer = &compositeTracer{
-		logTracer: &tracelog.TraceLog{
-			Logger:   metrics.PromLogger{},
-			LogLevel: tracelog.LogLevelTrace,
-		},
-		apmTracer: &apmQueryTracer{
-			serviceName: serviceName,
-			role:        role, // reader or writer - critical for replica debugging
-		},
+	// Set up SQL tracing. When APM is enabled, use a composite tracer
+	// (Prometheus metrics logging + Datadog APM spans). Otherwise, keep
+	// only the existing Prometheus metrics logger to avoid per-query overhead.
+	logTracer := &tracelog.TraceLog{
+		Logger:   metrics.PromLogger{},
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	if tracing.IsEnabled() {
+		poolcfg.ConnConfig.Tracer = &compositeTracer{
+			logTracer: logTracer,
+			apmTracer: &apmQueryTracer{
+				serviceName: serviceName,
+				role:        role, // reader or writer - critical for replica debugging
+			},
+		}
+	} else {
+		poolcfg.ConnConfig.Tracer = logTracer
 	}
 
 	db, pool, err := newPGXDB(ctx, poolcfg, cfg.pingTimeout)

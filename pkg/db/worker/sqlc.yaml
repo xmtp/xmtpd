@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "query.sql"
+    gen:
+      go:
+        package: "worker"
+        out: "."
+        emit_exported_queries: false
+        omit_unused_structs: true
+        emit_interface: true
+        overrides:
+          - column: "information_schema.tables.table_name"
+            go_type: "string"

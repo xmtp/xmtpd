@@ -59,10 +59,10 @@ func (t *apmQueryTracer) TraceQueryStart(
 ) context.Context {
 	// Use StartSpanFromContext so queries appear as children in flame graphs
 	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanDBQuery)
-	tracing.SpanTag(span, "db.system", "postgresql")
-	tracing.SpanTag(span, "db.service", t.serviceName)
-	tracing.SpanTag(span, "db.role", t.role) // reader or writer
-	tracing.SpanTag(span, "db.statement", data.SQL)
+	tracing.SpanTag(span, tracing.TagDBSystem, "postgresql")
+	tracing.SpanTag(span, tracing.TagDBService, t.serviceName)
+	tracing.SpanTag(span, tracing.TagDBRole, t.role)
+	tracing.SpanTag(span, tracing.TagDBStatement, data.SQL)
 	tracing.SpanType(span, "sql")
 	tracing.SpanResource(span, data.SQL)
 
@@ -84,7 +84,7 @@ func (t *apmQueryTracer) TraceQueryEnd(
 	if data.Err != nil {
 		span.Finish(tracing.WithError(data.Err))
 	} else {
-		tracing.SpanTag(span, "db.rows_affected", data.CommandTag.RowsAffected())
+		tracing.SpanTag(span, tracing.TagDBRowsAffected, data.CommandTag.RowsAffected())
 		span.Finish()
 	}
 }
@@ -380,14 +380,38 @@ func NewNamespacedDB(
 		prometheusRegistry(prom),
 		doCreateNamespace(true),
 		runMigrations(true),
-		dbRole("writer"), // Explicit role for APM debugging
+		dbRole("writer"),
+	)
+}
+
+// NewNamespacedReaderDB is like NewNamespacedDB but tags the connection as a
+// read replica for APM. The "reader" role helps debug read-replica lag issues.
+func NewNamespacedReaderDB(
+	ctx context.Context,
+	logger *zap.Logger,
+	dsn string,
+	namespace string,
+	waitForDB time.Duration,
+	statementTimeout time.Duration,
+	prom *prometheus.Registry,
+) (*sql.DB, error) {
+	return connectToDB(
+		ctx,
+		logger,
+		dsn,
+		namespace,
+		dbPingTimeout(waitForDB),
+		dbStatementTimeout(statementTimeout),
+		prometheusRegistry(prom),
+		doCreateNamespace(true),
+		runMigrations(true),
+		dbRole("reader"),
 	)
 }
 
 // ConnectToDB establishes a connection to an existing database using the provided DSN.
 // Unlike NewNamespacedDB, this function does not create the database or run migrations.
 // If namespace is provided, it overrides the database name in the DSN.
-// Defaults to "writer" role for APM. Use ConnectToReaderDB for read replica connections.
 func ConnectToDB(ctx context.Context,
 	logger *zap.Logger,
 	dsn string,
@@ -400,28 +424,7 @@ func ConnectToDB(ctx context.Context,
 		dbPingTimeout(waitForDB),
 		dbStatementTimeout(statementTimeout),
 		prometheusRegistry(prom),
-		dbRole("writer"), // Default to writer for APM
-		// Not creating namespace.
-		// Not running migrations.
-	)
-}
-
-// ConnectToReaderDB establishes a read-only connection to the database.
-// Use this for read replica connections - the "reader" role tag in APM helps
-// debug read-replica lag issues (like the notification bug).
-func ConnectToReaderDB(ctx context.Context,
-	logger *zap.Logger,
-	dsn string,
-	namespace string,
-	waitForDB time.Duration,
-	statementTimeout time.Duration,
-	prom *prometheus.Registry,
-) (*sql.DB, error) {
-	return connectToDB(ctx, logger, dsn, namespace,
-		dbPingTimeout(waitForDB),
-		dbStatementTimeout(statementTimeout),
-		prometheusRegistry(prom),
-		dbRole("reader"), // Reader role for APM - critical for replica debugging
+		dbRole("writer"),
 		// Not creating namespace.
 		// Not running migrations.
 	)

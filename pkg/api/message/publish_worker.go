@@ -148,20 +148,20 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		// Linked to original staging request - full distributed trace!
 		span = tracing.StartSpanWithParent(tracing.SpanPublishWorkerProcess, parentCtx)
 		ctx = tracing.ContextWithSpan(p.ctx, span)
-		tracing.SpanTag(span, "trace_linked", true)
+		tracing.SpanTag(span, tracing.TagTraceLinked, true)
 	} else {
 		// No parent context - timer fallback or context expired
 		span, ctx = tracing.StartSpanFromContext(p.ctx, tracing.SpanPublishWorkerProcess)
-		tracing.SpanTag(span, "trace_linked", false)
+		tracing.SpanTag(span, tracing.TagTraceLinked, false)
 	}
 	defer span.Finish()
 
 	originatorID := int32(p.registrant.NodeID())
 
 	// Add searchable tags for debugging (same info as our PERF_TRACE logs)
-	tracing.SpanTag(span, "staged_id", stagedEnv.ID)
-	tracing.SpanTag(span, "originator_node", originatorID)
-	tracing.SpanTag(span, "topic", hex.EncodeToString(stagedEnv.Topic))
+	tracing.SpanTag(span, tracing.TagStagedID, stagedEnv.ID)
+	tracing.SpanTag(span, tracing.TagOriginatorNode, originatorID)
+	tracing.SpanTag(span, tracing.TagTopic, hex.EncodeToString(stagedEnv.Topic))
 
 	logger := p.logger.With(
 		utils.SequenceIDField(stagedEnv.ID),

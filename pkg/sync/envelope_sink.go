@@ -119,9 +119,9 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	defer span.Finish()
 
 	// Tag with envelope info for debugging
-	tracing.SpanTag(span, "source_node", env.OriginatorNodeID())
-	tracing.SpanTag(span, "sequence_id", env.OriginatorSequenceID())
-	tracing.SpanTag(span, "topic", hex.EncodeToString(env.TargetTopic().Bytes()))
+	tracing.SpanTag(span, tracing.TagSourceNode, env.OriginatorNodeID())
+	tracing.SpanTag(span, tracing.TagSequenceID, env.OriginatorSequenceID())
+	tracing.SpanTag(span, tracing.TagTopic, hex.EncodeToString(env.TargetTopic().Bytes()))
 	tracing.SpanTag(span, "is_reserved", env.TargetTopic().IsReserved())
 
 	if env.TargetTopic().IsReserved() {
@@ -129,12 +129,12 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 			"found envelope with reserved topic",
 			utils.TopicField(env.TargetTopic().String()),
 		)
-		return s.storeReservedEnvelope(env, ctx)
+		return s.storeReservedEnvelope(ctx, env)
 	}
 
 	// Calculate the fees independently to verify the originator's calculation
 	feeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerVerifyFees)
-	ourFeeCalculation, err := s.calculateFees(env)
+	ourFeeCalculation, err := s.calculateFees(ctx, env)
 	if err != nil {
 		feeSpan.Finish(tracing.WithError(err))
 		s.logger.Error("failed to calculate fees", zap.Error(err))
@@ -215,8 +215,8 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 }
 
 func (s *EnvelopeSink) storeReservedEnvelope(
-	env *envUtils.OriginatorEnvelope,
 	ctx context.Context,
+	env *envUtils.OriginatorEnvelope,
 ) error {
 	// Create APM span for reserved envelope processing
 	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStoreReservedEnvelope)
@@ -278,6 +278,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 }
 
 func (s *EnvelopeSink) calculateFees(
+	ctx context.Context,
 	env *envUtils.OriginatorEnvelope,
 ) (currency.PicoDollar, error) {
 	var (

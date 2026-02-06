@@ -91,8 +91,8 @@ func (s *originatorStream) listen() error {
 
 			// Create span for processing this batch of envelopes
 			batchSpan := tracing.StartSpan(tracing.SpanSyncReceiveBatch)
-			tracing.SpanTag(batchSpan, "source_node", s.node.NodeID)
-			tracing.SpanTag(batchSpan, "num_envelopes", len(envs.Envelopes))
+			tracing.SpanTag(batchSpan, tracing.TagSourceNode, s.node.NodeID)
+			tracing.SpanTag(batchSpan, tracing.TagNumEnvelopes, len(envs.Envelopes))
 
 			s.logger.Debug(
 				"received envelopes",
@@ -154,7 +154,7 @@ func (s *originatorStream) validateEnvelope(
 	span := tracing.StartSpan(tracing.SpanSyncValidateEnvelope)
 	defer span.Finish()
 
-	tracing.SpanTag(span, "source_node", s.node.NodeID)
+	tracing.SpanTag(span, tracing.TagSourceNode, s.node.NodeID)
 
 	var err error
 	defer func() {
@@ -172,8 +172,8 @@ func (s *originatorStream) validateEnvelope(
 	}
 
 	// Add envelope details to span
-	tracing.SpanTag(span, "sequence_id", env.OriginatorSequenceID())
-	tracing.SpanTag(span, "topic", hex.EncodeToString(env.TargetTopic().Bytes()))
+	tracing.SpanTag(span, tracing.TagSequenceID, env.OriginatorSequenceID())
+	tracing.SpanTag(span, tracing.TagTopic, hex.EncodeToString(env.TargetTopic().Bytes()))
 
 	// TODO:(nm) Handle fetching envelopes from other nodes
 	originatorID := env.OriginatorNodeID()

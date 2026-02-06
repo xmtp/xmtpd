@@ -67,7 +67,7 @@ func parsePartitionInfo(table string) (partitionTableInfo, error) {
 
 // group partitions by originator and sort them
 // NOTE: sort does NOT validate any overlapping ranges, non-contigious ranges or anything like that.
-func sortPartitions(partitions []partitionTableInfo) nodePartitions {
+func groupAndSortPartitions(partitions []partitionTableInfo) nodePartitions {
 	out := make(map[uint32][]partitionTableInfo)
 	for _, partition := range partitions {
 		_, ok := out[partition.nodeID]

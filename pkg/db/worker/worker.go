@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	DefaultPartitionSize = 1_000_000
 	DefaultFillThreshold = 0.7
 	DefaultCheckInterval = 30 * time.Minute
 )
@@ -23,7 +22,7 @@ const (
 var defaultConfig = Config{
 	Interval: DefaultCheckInterval,
 	Partition: PartitionConfig{
-		PartitionSize: DefaultPartitionSize,
+		PartitionSize: uint64(db.GatewayEnvelopeBandWidth),
 		FillThreshold: DefaultFillThreshold,
 	},
 }
@@ -99,23 +98,10 @@ func (w *Worker) Start(ctx context.Context) error {
 }
 
 func (w *Worker) runDBCheck(ctx context.Context) error {
-	partitions, err := w.getPartitionList(ctx)
+	np, err := w.getPartitions(ctx)
 	if err != nil {
-		return fmt.Errorf("could not retrieve list of database partitions: %w", err)
+		return fmt.Errorf("could not retrieve partitions: %w", err)
 	}
-
-	if len(partitions) == 0 {
-		return errors.New("could not identify any partition tables")
-	}
-
-	np := sortPartitions(partitions)
-	err = np.validate()
-	if err != nil {
-		return fmt.Errorf("invalid partition chain(s) found: %w", err)
-	}
-
-	// NOTE: We do not validate that partitions are the width that we expect
-	// from the worker; we will only enforce that for newly created partitions
 
 	var errs []error
 
@@ -168,7 +154,29 @@ func (w *Worker) query() Querier {
 	return New(w.db.DB())
 }
 
-func (w *Worker) getPartitionList(ctx context.Context) ([]partitionTableInfo, error) {
+func (w *Worker) getPartitions(ctx context.Context) (*nodePartitions, error) {
+	// NOTE: We do not validate that partitions are the width that we expect
+	// from the worker; we will only enforce that for newly created partitions
+
+	partitions, err := w.readPartitionList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve list of database partitions: %w", err)
+	}
+
+	if len(partitions) == 0 {
+		return nil, errors.New("could not identify any partition tables")
+	}
+
+	np := groupAndSortPartitions(partitions)
+	err = np.validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid partition chain(s) found: %w", err)
+	}
+
+	return &np, nil
+}
+
+func (w *Worker) readPartitionList(ctx context.Context) ([]partitionTableInfo, error) {
 	tables, err := w.query().ListPartitions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve list of database tables: %w", err)

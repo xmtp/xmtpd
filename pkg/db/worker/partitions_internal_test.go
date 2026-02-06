@@ -173,7 +173,7 @@ func TestSortPartitions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			np := sortPartitions(test.partitions)
+			np := groupAndSortPartitions(test.partitions)
 			require.Len(t, np.partitions, len(test.expected))
 
 			for nodeID, expected := range test.expected {
@@ -320,7 +320,7 @@ func TestWorker_CreateAndListPartitionsForMultipleNodes(t *testing.T) {
 	}
 
 	// Now list partitions and make sure we have what we expect to have.
-	partitions, err := ts.worker.getPartitionList(ctx)
+	partitions, err := ts.worker.readPartitionList(ctx)
 	require.NoError(t, err)
 	require.Len(t, partitions, partitionCount)
 
@@ -374,7 +374,7 @@ func TestWorker_CreateAndListPartitionsForSingleNode(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	partitions, err := ts.worker.getPartitionList(ctx)
+	partitions, err := ts.worker.readPartitionList(ctx)
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -470,7 +470,7 @@ func TestWorker_PreparesPartition(t *testing.T) {
 	require.NoError(t, err)
 
 	// We should still have one partition.
-	partitions, err := worker.getPartitionList(ctx)
+	partitions, err := worker.readPartitionList(ctx)
 	require.NoError(t, err)
 	require.Len(t, partitions, 1)
 
@@ -482,7 +482,7 @@ func TestWorker_PreparesPartition(t *testing.T) {
 	require.NoError(t, err)
 
 	// We should now have two partitions.
-	partitions, err = worker.getPartitionList(ctx)
+	partitions, err = worker.readPartitionList(ctx)
 	require.NoError(t, err)
 	require.Len(t, partitions, 2)
 
@@ -526,7 +526,7 @@ func TestWorker_MonitorLoop(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// We should now have two partitions.
-	partitions, err := worker.getPartitionList(ctx)
+	partitions, err := worker.readPartitionList(ctx)
 	require.NoError(t, err)
 	require.Len(t, partitions, 2)
 

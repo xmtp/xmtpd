@@ -27,10 +27,10 @@ const (
 	SpanDBSubscriptionPoll = "xmtpd.db_subscription.poll"
 
 	// Sync worker spans - cross-node replication (receiving side)
-	SpanSyncConnectToNode   = "xmtpd.sync.connect_to_node"
-	SpanSyncSetupStream     = "xmtpd.sync.setup_stream"
-	SpanSyncSubscribe       = "xmtpd.sync.subscribe_envelopes"
-	SpanSyncReceiveBatch    = "xmtpd.sync.receive_batch"
+	SpanSyncConnectToNode    = "xmtpd.sync.connect_to_node"
+	SpanSyncSetupStream      = "xmtpd.sync.setup_stream"
+	SpanSyncSubscribe        = "xmtpd.sync.subscribe_envelopes"
+	SpanSyncReceiveBatch     = "xmtpd.sync.receive_batch"
 	SpanSyncValidateEnvelope = "xmtpd.sync.validate_envelope"
 
 	// Envelope sink spans - storing synced envelopes

@@ -13,6 +13,8 @@ import (
 // TestIntegration_SpanHierarchy verifies that spans are created with correct
 // parent-child relationships, simulating a real request flow.
 func TestIntegration_SpanHierarchy(t *testing.T) {
+	cleanup := tracing.SetEnabledForTesting(true)
+	defer cleanup()
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -75,6 +77,8 @@ func TestIntegration_SpanHierarchy(t *testing.T) {
 // TestIntegration_AsyncContextPropagation verifies that TraceContextStore
 // correctly propagates context across async boundaries.
 func TestIntegration_AsyncContextPropagation(t *testing.T) {
+	cleanup := tracing.SetEnabledForTesting(true)
+	defer cleanup()
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -124,6 +128,8 @@ func TestIntegration_AsyncContextPropagation(t *testing.T) {
 
 // TestIntegration_ErrorTagging verifies that errors are properly tagged on spans.
 func TestIntegration_ErrorTagging(t *testing.T) {
+	cleanup := tracing.SetEnabledForTesting(true)
+	defer cleanup()
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -144,6 +150,8 @@ func TestIntegration_ErrorTagging(t *testing.T) {
 // TestIntegration_DBSubscriptionTriggerTags verifies the trigger tag pattern
 // that would catch the read-replica bug.
 func TestIntegration_DBSubscriptionTriggerTags(t *testing.T) {
+	cleanup := tracing.SetEnabledForTesting(true)
+	defer cleanup()
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -181,6 +189,8 @@ func TestIntegration_DBSubscriptionTriggerTags(t *testing.T) {
 
 // TestIntegration_CrossNodeReplication verifies the sync worker span flow.
 func TestIntegration_CrossNodeReplication(t *testing.T) {
+	cleanup := tracing.SetEnabledForTesting(true)
+	defer cleanup()
 	mt := mocktracer.Start()
 	defer mt.Stop()
 

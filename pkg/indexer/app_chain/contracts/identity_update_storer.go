@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,7 +26,26 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var (
+const (
+	// https://github.com/xmtp/libxmtp/blob/main/crates/xmtp_id/src/associations/association_log.rs#L10
+	associationErrorGeneric                      = "Error creating association"
+	associationErrorMultipleCreate               = "Multiple create operations detected"
+	associationErrorNotCreated                   = "XID not yet created"
+	associationErrorSignature                    = "Signature validation failed"
+	associationErrorMemberNotAllowed             = "not allowed to add"
+	associationErrorMissingExistingMember        = "Missing existing member"
+	associationErrorLegacySignatureReuse         = "Legacy key is only allowed to be associated using a legacy signature with nonce 0"
+	associationErrorNewMemberIDSignatureMismatch = "The new member identifier does not match the signer"
+	associationErrorWrongInboxID                 = "Wrong inbox_id specified on association"
+	associationErrorSignatureNotAllowed          = "Signature not allowed for role"
+	associationErrorReplay                       = "Replay detected"
+	associationErrorDeserialization              = "Deserialization error"
+	associationErrorMissingIdentityUpdate        = "Missing identity update"
+	associationErrorChainIDMismatch              = "Wrong chain id."
+	associationErrorInvalidAccountAddress        = "Invalid account address: Must be 42 hex characters, starting with '0x'."
+	associationErrorNotIdentifier                = "are not a public identifier"
+	associationErrorConvert                      = "Conversion error"
+
 	ErrAdvisoryLockSequence   = "advisory lock failed"
 	ErrParseIdentityUpdate    = "error parsing identity update"
 	ErrGetLatestSequenceID    = "get latest sequence id failed"
@@ -34,6 +53,26 @@ var (
 	ErrInsertAddressLog       = "insert address log failed"
 	ErrRevokeAddressFromLog   = "revoke address from log failed"
 )
+
+var associationErrorPatterns = []string{
+	associationErrorGeneric,
+	associationErrorMultipleCreate,
+	associationErrorNotCreated,
+	associationErrorSignature,
+	associationErrorMemberNotAllowed,
+	associationErrorMissingExistingMember,
+	associationErrorLegacySignatureReuse,
+	associationErrorNewMemberIDSignatureMismatch,
+	associationErrorWrongInboxID,
+	associationErrorSignatureNotAllowed,
+	associationErrorReplay,
+	associationErrorDeserialization,
+	associationErrorMissingIdentityUpdate,
+	associationErrorChainIDMismatch,
+	associationErrorInvalidAccountAddress,
+	associationErrorNotIdentifier,
+	associationErrorConvert,
+}
 
 type IdentityUpdateStorer struct {
 	contract          *iu.IdentityUpdateBroadcaster
@@ -139,30 +178,25 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
 			}
 
-			associationState, err := s.validateIdentityUpdate(
+			associationState, validationError := s.validateIdentityUpdate(
 				ctx,
 				querier,
 				msgSent.InboxId,
 				clientEnvelope,
 			)
-			if err != nil {
+			if validationError != nil {
 				s.logger.Error(
 					ErrValidateIdentityUpdate,
 					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
+					zap.Error(validationError),
 				)
 
-				// If we received an error with retryability info just forward it, else treat as non-retryable.
-				var retryableErr re.RetryableError
-				if errors.As(err, &retryableErr) {
-					return err
-				}
-
-				return re.NewNonRecoverableError(ErrValidateIdentityUpdate, err)
+				return validationError
 			}
 
 			inboxID := utils.HexEncode(msgSent.InboxId[:])
 
+			// TODO: Batch insert address log entries
 			for _, newMember := range associationState.StateDiff.NewMembers {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("new member", utils.BodyField(newMember))
@@ -192,6 +226,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 				}
 			}
 
+			// TODO: Batch revoke address log entries
 			for _, removedMember := range associationState.StateDiff.RemovedMembers {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("removed member", utils.BodyField(removedMember))
@@ -300,7 +335,7 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	querier *queries.Queries,
 	inboxID [32]byte,
 	clientEnvelope *envelopes.ClientEnvelope,
-) (*mlsvalidate.AssociationStateResult, error) {
+) (*mlsvalidate.AssociationStateResult, re.RetryableError) {
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopesByTopics(
 		ctx,
 		queries.SelectGatewayEnvelopesByTopicsParams{
@@ -310,7 +345,8 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 			RowLimit: 256,
 		},
 	)
-	if err != nil {
+	// No rows returned means this is a new identity.
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, re.NewRecoverableError(
 			"could not retrieve envelopes to validate identity update",
 			err,
@@ -319,14 +355,32 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 
 	identityUpdate, ok := clientEnvelope.Payload().(*envelopesProto.ClientEnvelope_IdentityUpdate)
 	if !ok {
-		return nil, fmt.Errorf("client envelope payload is not an identity update")
+		return nil, re.NewNonRecoverableError(
+			"client envelope payload is not an identity update",
+			errors.New("client envelope payload is not an identity update"),
+		)
 	}
 
-	return s.validationService.GetAssociationStateFromEnvelopes(
+	result, err := s.validationService.GetAssociationStateFromEnvelopes(
 		ctx,
 		gatewayEnvelopes,
 		identityUpdate.IdentityUpdate,
 	)
+	if err != nil {
+		if shouldRetryValidationError(err) {
+			return nil, re.NewRecoverableError(
+				"could not get association state from envelopes",
+				err,
+			)
+		}
+
+		return nil, re.NewNonRecoverableError(
+			"could not get association state from envelopes",
+			err,
+		)
+	}
+
+	return result, nil
 }
 
 func buildOriginatorEnvelope(
@@ -367,4 +421,18 @@ func buildSignedOriginatorEnvelope(
 			},
 		},
 	}, nil
+}
+
+// shouldRetryValidationError returns true if the error is a validation error that should be retried.
+// Note: this approach is fragile as it depends on us creating new error messages for new validation errors.
+// This function should rely on gRPC error codes instead, but it's not possible at the moment.
+// Read https://github.com/xmtp/libxmtp/issues/3130
+func shouldRetryValidationError(err error) bool {
+	errMsg := err.Error()
+	for _, pattern := range associationErrorPatterns {
+		if strings.Contains(errMsg, pattern) {
+			return false
+		}
+	}
+	return true
 }

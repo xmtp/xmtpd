@@ -87,6 +87,63 @@ The XMTP testnet nodes operated by Ephemera include:
 | https://grpc.testnet.xmtp.network  | US-EAST-2  | 0x03e5442c5d1fe2f02b6b9a1a386383a7766860b40a6079a0223994ffa2ce10512c |
 | https://grpc2.testnet.xmtp.network | EU-NORTH-1 | 0x02fc261d43a0153539a4c64c29763cb0e7e377c0eac2910c3d4bedb2235ac70371 |
 
+## Configuration
+
+All XMTP binaries (servers and CLI tools) use a unified configuration system for contract addresses and chain settings.
+
+### Contract Configuration
+
+Contract configuration can be loaded in three ways (in priority order):
+
+1. **Named Environment** - Use a predefined environment configuration:
+   ```sh
+   # Command line
+   xmtpd --contracts.environment=testnet
+   xmtpd-cli --environment=testnet
+   
+   # Environment variable
+   export XMTPD_CONTRACTS_ENVIRONMENT=testnet
+   ```
+   Available environments: `testnet`, `mainnet`
+
+2. **Configuration File** - Specify a local file path or URL:
+   ```sh
+   # Local file
+   xmtpd --contracts.config-file-path=/path/to/config.json
+   xmtpd-cli --config-file=/path/to/config.json
+   
+   # HTTP(S) URL
+   xmtpd --contracts.config-file-path=https://example.com/config.json
+   
+   # config:// scheme (shorthand for named environments)
+   xmtpd-cli --config-file=config://testnet
+   
+   # Environment variable
+   export XMTPD_CONTRACTS_CONFIG_FILE_PATH=/path/to/config.json
+   ```
+
+3. **Raw JSON** - Pass configuration directly as JSON (servers only):
+   ```sh
+   xmtpd --contracts.config-json='{"nodeRegistry": "0x..."}'
+   export XMTPD_CONTRACTS_CONFIG_JSON='{"nodeRegistry": "0x..."}'
+   ```
+
+**Note:** Only one configuration source should be specified. Multiple sources will result in an error.
+
+### Environment Variables
+
+All CLI tools now support standardized `XMTPD_` prefixed environment variables for consistency with the server:
+
+| Configuration | CLI Flag | Environment Variable | Legacy Env Var (deprecated) |
+|--------------|----------|---------------------|---------------------------|
+| Log Level | `--log-level` | `XMTPD_LOG_LEVEL` | `LOG_LEVEL` |
+| Log Encoding | `--log-encoding` | `XMTPD_LOG_ENCODING` | `LOG_ENCODING` |
+| Private Key | `--private-key` | `XMTPD_SIGNER_PRIVATE_KEY` | `PRIVATE_KEY` |
+| Settlement RPC | `--settlement-rpc-url` | `XMTPD_SETTLEMENT_CHAIN_RPC_URL` | `SETTLEMENT_RPC_URL` |
+| App Chain RPC | `--app-rpc-url` | `XMTPD_APP_CHAIN_RPC_URL` | `APP_RPC_URL` |
+
+**Backward Compatibility:** Legacy environment variables are still supported but will print deprecation warnings. Please migrate to the new standardized names.
+
 ## Deploy a local environment for developing with xmtpd
 
 See [Deploy a local environment for developing with xmtpd](doc/deploy.md).

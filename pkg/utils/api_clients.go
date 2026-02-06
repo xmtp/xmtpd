@@ -149,9 +149,7 @@ func NewConnectMetadataAPIClient(
 		return nil, fmt.Errorf("failed to build http client: %w", err)
 	}
 
-	opts := BuildConnectProtocolDialOptions(extraDialOpts...)
-
-	return metadata_apiconnect.NewMetadataApiClient(httpClient, target, opts...), nil
+	return metadata_apiconnect.NewMetadataApiClient(httpClient, target, extraDialOpts...), nil
 }
 
 /* Native gRPC clients */
@@ -220,13 +218,9 @@ func BuildHTTP2Client(ctx context.Context, isTLS bool) (*http.Client, error) {
 		}
 
 		return &http.Client{
-			Transport: &http2.Transport{
-				DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-					return tls.DialWithDialer(dialer, network, addr, tlsConfig)
-				},
-				TLSClientConfig: tlsConfig,
-				ReadIdleTimeout: readIdleTimeout,
-				PingTimeout:     pingTimeout,
+			Transport: &http.Transport{
+				ForceAttemptHTTP2: true,
+				TLSClientConfig:   tlsConfig,
 			},
 			Timeout: clientTimeout,
 		}, nil

@@ -188,7 +188,12 @@ func SpanResource(span Span, resource string) {
 func SpanTag(span Span, key string, value any) {
 	// Truncate long strings to prevent excessive payload sizes
 	if s, ok := value.(string); ok && len(s) > MaxTagValueLength {
-		value = s[:MaxTagValueLength] + "...[truncated]"
+		runes := []rune(s)
+		if len(runes) > MaxTagValueLength {
+			value = string(runes[:MaxTagValueLength]) + "...[truncated]"
+		} else {
+			value = s[:MaxTagValueLength] + "...[truncated]"
+		}
 	}
 	span.SetTag(key, value)
 }

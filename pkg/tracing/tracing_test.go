@@ -333,7 +333,10 @@ func TestTraceContextStore_MaxSizeLimit(t *testing.T) {
 	extraSpan := StartSpan("test.extra")
 	store.Store(int64(MaxStoreSize+1), extraSpan)
 
-	assert.Equal(t, MaxStoreSize, store.Size(), "store should still be at capacity (new entry dropped)")
+	assert.Equal(
+		t, MaxStoreSize, store.Size(),
+		"store should still be at capacity (new entry dropped)",
+	)
 
 	// Clean up spans
 	for _, s := range spans {

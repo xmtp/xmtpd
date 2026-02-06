@@ -31,23 +31,34 @@ type noopSpan struct{}
 
 var noopSpanInstance Span = &noopSpan{}
 
-func (*noopSpan) SetTag(string, interface{})         {}
-func (*noopSpan) SetOperationName(string)            {}
-func (*noopSpan) BaggageItem(string) string          { return "" }
-func (*noopSpan) SetBaggageItem(string, string)      {}
-func (*noopSpan) Finish(...ddtrace.FinishOption)     {}
-func (*noopSpan) Context() ddtrace.SpanContext       { return &noopSpanContext{} }
+func (*noopSpan) SetTag(string, interface{})     {}
+func (*noopSpan) SetOperationName(string)        {}
+func (*noopSpan) BaggageItem(string) string      { return "" }
+func (*noopSpan) SetBaggageItem(string, string)  {}
+func (*noopSpan) Finish(...ddtrace.FinishOption) {}
+
+func (*noopSpan) Context() ddtrace.SpanContext {
+	return &noopSpanContext{}
+}
 
 // noopSpanContext satisfies ddtrace.SpanContext for the no-op span.
 type noopSpanContext struct{}
 
-func (*noopSpanContext) SpanID() uint64                               { return 0 }
-func (*noopSpanContext) TraceID() uint64                              { return 0 }
-func (*noopSpanContext) ForeachBaggageItem(func(k, v string) bool)   {}
+func (*noopSpanContext) SpanID() uint64  { return 0 }
+func (*noopSpanContext) TraceID() uint64 { return 0 }
+
+func (*noopSpanContext) ForeachBaggageItem(
+	func(k, v string) bool,
+) {
+}
 
 // StartSpanFromContext creates a span as a child of the context's active span.
 // Returns a no-op span and the unchanged context when tracing is disabled.
-func StartSpanFromContext(ctx context.Context, operationName string, opts ...ddtrace.StartSpanOption) (Span, context.Context) {
+func StartSpanFromContext(
+	ctx context.Context,
+	operationName string,
+	opts ...ddtrace.StartSpanOption,
+) (Span, context.Context) {
 	if !apmEnabled {
 		return noopSpanInstance, ctx
 	}

@@ -141,7 +141,8 @@ func (w *Worker) runDBCheck(ctx context.Context) error {
 		}
 
 		// Use the value we have from the partition name to determine fill ratio.
-		fillRatio := float64(count) / float64(last.end)
+
+		fillRatio := calculateFillRatio(last.start, last.end, uint64(count))
 
 		w.log.Info("partition fill ratio",
 			zap.String("name", last.name),

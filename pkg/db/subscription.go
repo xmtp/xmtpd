@@ -93,7 +93,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 	// Tag with trigger type - this is KEY for debugging the read-replica issue!
 	// If you see lots of "timer_fallback" with num_results > 0, the notification
 	// poll is missing data (likely due to read-replica lag)
-	tracing.SpanTag(span, "trigger", trigger)
+	tracing.SpanTag(span, tracing.TagTrigger, trigger)
 
 	// Repeatedly query page by page until no more results
 	totalResults := 0
@@ -117,10 +117,10 @@ func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 		}
 
 		if len(results) == 0 {
-			tracing.SpanTag(span, "num_results", totalResults)
-			if totalResults == 0 && trigger == "notification" {
+			tracing.SpanTag(span, tracing.TagNumResults, totalResults)
+			if totalResults == 0 && trigger == tracing.TriggerNotification {
 				// This indicates the notification poll missed data - likely read-replica lag!
-				tracing.SpanTag(span, "notification_miss", true)
+				tracing.SpanTag(span, tracing.TagNotificationMiss, true)
 			}
 			return
 		}
@@ -132,7 +132,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 		// If we have less results than allowed, it means there's currently no more items to retrieve.
 		// Else repeat query and return more batches.
 		if int32(len(results)) < s.options.NumRows {
-			tracing.SpanTag(span, "num_results", totalResults)
+			tracing.SpanTag(span, tracing.TagNumResults, totalResults)
 			return
 		}
 	}

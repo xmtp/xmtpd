@@ -389,9 +389,9 @@ func (s *Service) QueryEnvelopes(
 	}
 
 	// Tag with result count for debugging
-	tracing.SpanTag(span, "num_results", len(response.Msg.Envelopes))
+	tracing.SpanTag(span, tracing.TagNumResults, len(response.Msg.Envelopes))
 	if len(response.Msg.Envelopes) == 0 {
-		tracing.SpanTag(span, "zero_results", true)
+		tracing.SpanTag(span, tracing.TagZeroResults, true)
 	}
 
 	return response, nil
@@ -558,8 +558,8 @@ func (s *Service) PublishPayerEnvelopes(
 	logger = tracing.Link(span, logger)
 
 	// Tag with envelope count for debugging
-	tracing.SpanTag(span, "num_envelopes", len(req.Msg.GetPayerEnvelopes()))
-	tracing.SpanTag(span, "originator_node", s.registrant.NodeID())
+	tracing.SpanTag(span, tracing.TagNumEnvelopes, len(req.Msg.GetPayerEnvelopes()))
+	tracing.SpanTag(span, tracing.TagOriginatorNode, s.registrant.NodeID())
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
@@ -651,7 +651,7 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 	if latestStaged != nil {
-		tracing.SpanTag(txSpan, "staged_id", latestStaged.ID)
+		tracing.SpanTag(txSpan, tracing.TagStagedID, latestStaged.ID)
 	}
 	txSpan.Finish()
 

@@ -200,15 +200,19 @@ func SpanResource(span Span, resource string) {
 }
 
 // SpanTag sets a tag on a span with production safety limits.
-// String values longer than MaxTagValueLength are truncated.
+// String values longer than MaxTagValueLength (in runes) are truncated.
+// Uses rune-based truncation to safely handle multi-byte UTF-8 characters.
 // No-ops when tracing is disabled.
 func SpanTag(span Span, key string, value any) {
 	if !apmEnabled {
 		return
 	}
 	// Truncate long strings to prevent excessive payload sizes
-	if s, ok := value.(string); ok && len(s) > MaxTagValueLength {
-		value = s[:MaxTagValueLength] + "...[truncated]"
+	if s, ok := value.(string); ok {
+		runes := []rune(s)
+		if len(runes) > MaxTagValueLength {
+			value = string(runes[:MaxTagValueLength]) + "...[truncated]"
+		}
 	}
 	span.SetTag(key, value)
 }

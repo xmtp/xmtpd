@@ -183,8 +183,10 @@ func TestIntegration_DBSubscriptionTriggerTags(t *testing.T) {
 
 	require.NotNil(t, timerFallbackSpan, "timer fallback span not found")
 	assert.Equal(t, tracing.TriggerTimerFallback, timerFallbackSpan.Tag(tracing.TagTrigger))
-	assert.Equal(t, "true", timerFallbackSpan.Tag(tracing.TagNotificationMiss)) // mocktracer stores bools as strings
-	assert.Equal(t, float64(0), timerFallbackSpan.Tag("num_results"))           // mocktracer stores ints as float64
+	// mocktracer stores bools as strings
+	assert.Equal(t, "true", timerFallbackSpan.Tag(tracing.TagNotificationMiss))
+	// mocktracer stores ints as float64
+	assert.Equal(t, float64(0), timerFallbackSpan.Tag("num_results"))
 }
 
 // TestIntegration_CrossNodeReplication verifies the sync worker span flow.

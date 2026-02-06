@@ -4,40 +4,37 @@ This package provides Datadog APM distributed tracing for xmtpd, enabling end-to
 
 ## Configuration
 
+Tracing is **disabled by default** and must be explicitly enabled via the application flag.
+When enabled, tracing is **deterministic** — 100% of traces are collected, with no sampling.
+
+### Enabling Tracing
+
+Set the `XMTPD_TRACING_ENABLE` environment variable (or CLI flag `--tracing.enable`):
+
+```bash
+export XMTPD_TRACING_ENABLE=true
+```
+
+In Terraform, set the variable on the xmtpd server module:
+
+```hcl
+tracing_enable = true
+```
+
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APM_ENABLED` | `true` | Set to `false` to disable tracing entirely |
-| `APM_SAMPLE_RATE` | auto | Sampling rate 0.0-1.0. If not set: 100% in dev/test, 10% in production |
-| `ENV` | `test` | Environment name (affects default sampling) |
+| `XMTPD_TRACING_ENABLE` | `false` | Set to `true` to enable tracing. **This is the only control.** |
+| `ENV` | `test` | Environment name (used as Datadog env tag) |
 | `DD_AGENT_HOST` | `localhost` | Datadog agent host (standard DD env var) |
 | `DD_TRACE_AGENT_PORT` | `8126` | Datadog agent port (standard DD env var) |
 
-### Example Configurations
+### Zero Overhead When Disabled
 
-**Development (100% sampling):**
-```bash
-export ENV=dev
-# APM_SAMPLE_RATE defaults to 1.0
-```
-
-**Production (10% sampling):**
-```bash
-export ENV=production
-# APM_SAMPLE_RATE defaults to 0.1
-```
-
-**Production with custom rate:**
-```bash
-export ENV=production
-export APM_SAMPLE_RATE=0.05  # 5% sampling
-```
-
-**Disable tracing:**
-```bash
-export APM_ENABLED=false
-```
+When `XMTPD_TRACING_ENABLE` is not set (the default), all span creation functions
+return a shared no-op singleton. There is no allocation, no string formatting,
+and no network I/O. The DB tracer falls back to Prometheus-only logging.
 
 ## Instrumented Paths
 
@@ -152,39 +149,14 @@ The tracing package includes built-in limits to prevent runaway resource usage:
 | `MaxTagValueLength` | 1024 | String tags longer than this are truncated |
 | `MaxStoreSize` | 10000 | Maximum entries in TraceContextStore |
 
-### Tag Value Truncation
-
-Long string values are automatically truncated to prevent excessive trace payload sizes:
-
-```go
-// This will be truncated if longer than 1KB
-tracing.SpanTag(span, "db.statement", veryLongQuery)
-// Result: "SELECT ... ...[truncated]"
-```
-
-### TraceContextStore Limits
-
-The async context store has a maximum size to prevent unbounded memory growth:
-
-- If store reaches 10,000 entries, new entries are dropped
-- This indicates publish_worker is falling behind and needs investigation
-- Normal operation should have < 100 entries at any time
-
 ## Troubleshooting
 
 ### Traces not appearing in Datadog
 
-1. Verify agent is running: `curl http://localhost:8126/info`
-2. Check APM_ENABLED is not set to false
-3. Verify ENV is set correctly for your environment
-4. Check DD_AGENT_HOST if agent is not on localhost
-
-### High cardinality warnings
-
-If you see high cardinality warnings, check:
-- Don't tag with message content or user-specific data
-- Topics are hex-encoded, which is fine
-- Node IDs are integers, which is fine
+1. Verify `XMTPD_TRACING_ENABLE=true` is set
+2. Verify agent is running: `curl http://localhost:8126/info`
+3. Verify `ENV` is set correctly for your environment
+4. Check `DD_AGENT_HOST` if agent is not on localhost
 
 ### Missing parent spans (trace_linked=false)
 
@@ -192,13 +164,6 @@ This indicates async context propagation failed. Causes:
 - TraceContextStore TTL expired (5 minutes)
 - Timer fallback was used instead of notification
 - Envelope processed by different worker instance
-
-### Memory usage growing
-
-Check TraceContextStore size via logs or metrics. If growing:
-- Verify publish_worker is processing envelopes
-- TTL cleanup should prevent unbounded growth
-- Consider reducing TTL if issue persists
 
 ## Architecture Notes
 
@@ -214,7 +179,5 @@ The `TraceContextStore` bridges async boundaries between staging and worker proc
 ### Composite Database Tracer
 
 Database tracing uses a composite pattern to preserve existing functionality:
-- `tracelog.TraceLog` - Prometheus metrics logging (existing)
-- `apmQueryTracer` - Datadog APM spans (new)
-
-Both tracers are called for every query.
+- `tracelog.TraceLog` - Prometheus metrics logging (existing, always active)
+- `apmQueryTracer` - Datadog APM spans (only wired when tracing is enabled)

@@ -1,6 +1,7 @@
 package tracing
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -9,7 +10,17 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/mocktracer"
 )
 
+// enableTracingForTest sets apmEnabled=true for the duration of the test
+// and restores the previous value on cleanup.
+func enableTracingForTest(t *testing.T) {
+	t.Helper()
+	prev := apmEnabled
+	apmEnabled = true
+	t.Cleanup(func() { apmEnabled = prev })
+}
+
 func TestTraceContextStore_StoreAndRetrieve(t *testing.T) {
+	enableTracingForTest(t)
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -44,6 +55,7 @@ func TestTraceContextStore_RetrieveNonExistent(t *testing.T) {
 }
 
 func TestTraceContextStore_StoreNilSpan(t *testing.T) {
+	enableTracingForTest(t)
 	store := NewTraceContextStore()
 
 	// Storing nil span should be safe and not add entry
@@ -52,6 +64,7 @@ func TestTraceContextStore_StoreNilSpan(t *testing.T) {
 }
 
 func TestTraceContextStore_TTLExpiration(t *testing.T) {
+	enableTracingForTest(t)
 	store := NewTraceContextStore()
 	// Set short TTL for testing
 	store.ttl = 50 * time.Millisecond
@@ -79,6 +92,7 @@ func TestTraceContextStore_TTLExpiration(t *testing.T) {
 }
 
 func TestTraceContextStore_CleanupRemovesExpired(t *testing.T) {
+	enableTracingForTest(t)
 	store := NewTraceContextStore()
 	store.ttl = 50 * time.Millisecond
 
@@ -114,6 +128,7 @@ func TestTraceContextStore_CleanupRemovesExpired(t *testing.T) {
 }
 
 func TestTraceContextStore_ConcurrentAccess(t *testing.T) {
+	enableTracingForTest(t)
 	store := NewTraceContextStore()
 
 	mt := mocktracer.Start()
@@ -147,30 +162,69 @@ func TestTraceContextStore_ConcurrentAccess(t *testing.T) {
 	// Should not panic or deadlock
 }
 
-func TestGetSampleRate(t *testing.T) {
-	tests := []struct {
-		name     string
-		env      string
-		expected float64
-	}{
-		{"production defaults to 10%", "production", 0.1},
-		{"prod defaults to 10%", "prod", 0.1},
-		{"staging defaults to 10%", "staging", 0.1},
-		{"dev defaults to 100%", "dev", 1.0},
-		{"test defaults to 100%", "test", 1.0},
-		{"empty defaults to 100%", "", 1.0},
-	}
+func TestNoopSpan_WhenDisabled(t *testing.T) {
+	// Ensure apmEnabled is false (default state)
+	prevState := apmEnabled
+	apmEnabled = false
+	defer func() { apmEnabled = prevState }()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// This tests the internal logic without env vars
-			rate := getSampleRate(tt.env, nil)
-			assert.Equal(t, tt.expected, rate)
-		})
-	}
+	assert.False(t, IsEnabled())
+
+	// StartSpan should return no-op
+	span := StartSpan("test.should_be_noop")
+	assert.NotNil(t, span)
+	assert.Equal(t, uint64(0), span.Context().TraceID())
+	assert.Equal(t, uint64(0), span.Context().SpanID())
+
+	// All operations should be safe no-ops
+	span.SetTag("key", "value")
+	span.SetOperationName("noop")
+	span.SetBaggageItem("k", "v")
+	assert.Equal(t, "", span.BaggageItem("k"))
+	span.Finish() // must not panic
+
+	// StartSpanFromContext should return no-op and unchanged context
+	ctx := context.Background()
+	span2, ctx2 := StartSpanFromContext(ctx, "test.noop_from_ctx")
+	assert.NotNil(t, span2)
+	assert.Equal(t, ctx, ctx2) // context unchanged
+	span2.Finish()
+
+	// StartSpanWithParent should return no-op
+	span3 := StartSpanWithParent("test.noop_parent", nil)
+	assert.NotNil(t, span3)
+	assert.Equal(t, uint64(0), span3.Context().TraceID())
+	span3.Finish()
+
+	// SpanTag, SpanType, SpanResource should not panic
+	SpanTag(span, "key", "value")
+	SpanType(span, "web")
+	SpanResource(span, "resource")
+}
+
+func TestTraceContextStore_NoopWhenDisabled(t *testing.T) {
+	prevState := apmEnabled
+	apmEnabled = false
+	defer func() { apmEnabled = prevState }()
+
+	store := NewTraceContextStore()
+
+	// Store should be a no-op when disabled, even with a real span
+	mt := mocktracer.Start()
+	defer mt.Stop()
+	// Force-enable to create a real span for testing
+	apmEnabled = true
+	span := StartSpan("test.real_span")
+	apmEnabled = false
+
+	store.Store(12345, span)
+	assert.Equal(t, 0, store.Size(), "store should remain empty when tracing is disabled")
+
+	span.Finish()
 }
 
 func TestStartSpanWithParent(t *testing.T) {
+	enableTracingForTest(t)
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -193,6 +247,7 @@ func TestStartSpanWithParent(t *testing.T) {
 }
 
 func TestSpanTag_TruncatesLongStrings(t *testing.T) {
+	enableTracingForTest(t)
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -218,6 +273,7 @@ func TestSpanTag_TruncatesLongStrings(t *testing.T) {
 }
 
 func TestSpanTag_ShortStringsUnchanged(t *testing.T) {
+	enableTracingForTest(t)
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -236,6 +292,7 @@ func TestSpanTag_ShortStringsUnchanged(t *testing.T) {
 }
 
 func TestSpanTag_NonStringsUnchanged(t *testing.T) {
+	enableTracingForTest(t)
 	mt := mocktracer.Start()
 	defer mt.Stop()
 
@@ -257,6 +314,7 @@ func TestSpanTag_NonStringsUnchanged(t *testing.T) {
 }
 
 func TestTraceContextStore_MaxSizeLimit(t *testing.T) {
+	enableTracingForTest(t)
 	mt := mocktracer.Start()
 	defer mt.Stop()
 

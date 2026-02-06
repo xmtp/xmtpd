@@ -153,3 +153,8 @@ func partitionSortFunc(a, b partitionTableInfo) int {
 
 	return 0
 }
+
+func calculateFillRatio(start uint64, end uint64, lastSequenceID uint64) float64 {
+	ratio := float64(lastSequenceID-start) / float64(end-start)
+	return ratio
+}

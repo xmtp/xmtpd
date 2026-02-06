@@ -536,6 +536,42 @@ func TestWorker_MonitorLoop(t *testing.T) {
 	require.Equal(t, nodeID, secondPartition.nodeID)
 }
 
+func TestFillRatio(t *testing.T) {
+	tests := []struct {
+		name          string
+		start         uint64
+		end           uint64
+		last          uint64
+		expectedRatio float64
+	}{
+		{
+			name:  "first partition",
+			start: 0, end: 1_000_000,
+			last:          900_000,
+			expectedRatio: 0.9,
+		},
+		{
+			name:  "second partition",
+			start: 1_000_000, end: 2_000_000,
+			last:          1_500_000,
+			expectedRatio: 0.5,
+		},
+		{
+			name:  "third partition",
+			start: 5_000_000, end: 6_000_000,
+			last:          5_750_000,
+			expectedRatio: 0.75,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ratio := calculateFillRatio(test.start, test.end, test.last)
+			require.Equal(t, test.expectedRatio, ratio)
+		})
+	}
+}
+
 func generateEnvelopes(
 	t *testing.T,
 	nodeID uint32,

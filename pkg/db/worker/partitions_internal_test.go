@@ -562,6 +562,12 @@ func TestFillRatio(t *testing.T) {
 			last:          5_750_000,
 			expectedRatio: 0.75,
 		},
+		{
+			name:  "empty partition",
+			start: 6_000_000, end: 7_000_000,
+			last:          0,
+			expectedRatio: 0,
+		},
 	}
 
 	for _, test := range tests {

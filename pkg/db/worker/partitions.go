@@ -155,6 +155,16 @@ func partitionSortFunc(a, b partitionTableInfo) int {
 }
 
 func calculateFillRatio(start uint64, end uint64, lastSequenceID uint64) float64 {
+	if lastSequenceID == 0 {
+		return 0
+	}
+
+	// Should never happen because of DB constraints, but check for the sake of arithmetic safety.
+	// This might be even a good place to panic as it might indicate a DB problem.
+	if lastSequenceID < start {
+		return 0
+	}
+
 	ratio := float64(lastSequenceID-start) / float64(end-start)
 	return ratio
 }

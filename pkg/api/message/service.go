@@ -39,6 +39,7 @@ import (
 
 const (
 	maxRequestedRows     int32         = 1000
+	minRowsPerOriginator int32         = 50
 	maxQueriesPerRequest int           = 10000
 	maxTopicLength       int           = 128
 	maxVectorClockLength int           = 100
@@ -490,13 +491,21 @@ func (s *Service) fetchEnvelopes(
 
 		return db.TransformRowsByTopic(rows), nil
 	}
+
+	// TODO: Consider a limit on the number of originators that can be subscribed to.
 	if len(query.GetOriginatorNodeIds()) != 0 {
+		rowsPerOriginator := calculateEnvelopesPerOriginator(
+			len(query.GetOriginatorNodeIds()),
+		)
+
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
+			RowsPerOriginator: rowsPerOriginator,
 			RowLimit:          rowLimit,
 			CursorNodeIds:     nil,
 			CursorSequenceIds: nil,
 		}
+
 		for _, o := range query.GetOriginatorNodeIds() {
 			params.OriginatorNodeIds = append(params.OriginatorNodeIds, int32(o))
 		}
@@ -514,10 +523,23 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByOriginator(rows), nil
 	}
 
-	// compatibility with V3, if no filters are set -- return nothing
+	// Compatibility with V3, if no filters are set -- return nothing.
 	rows := make([]queries.GatewayEnvelopesView, 0)
 
 	return rows, nil
+}
+
+// calculateEnvelopesPerOriginator calculates the number of envelopes to fetch per originator.
+// It ensures that the number of envelopes fetched per originator is at least minRowsPerOriginator
+// and at most maxRequestedRows.
+func calculateEnvelopesPerOriginator(numOriginators int) int32 {
+	if numOriginators == 0 {
+		return 0
+	}
+
+	rowsPerOriginator := max(maxRequestedRows/int32(numOriginators), minRowsPerOriginator)
+
+	return rowsPerOriginator
 }
 
 type ValidatedBytesWithTopic struct {

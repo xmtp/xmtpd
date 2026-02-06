@@ -33,7 +33,7 @@ type publishWorker struct {
 	sleepOnFailureTime time.Duration
 	// traceContextStore enables async trace context propagation from staging
 	// requests to worker processing, allowing end-to-end distributed tracing
-	traceContextStore  *tracing.TraceContextStore
+	traceContextStore *tracing.TraceContextStore
 }
 
 func startPublishWorker(

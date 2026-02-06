@@ -108,9 +108,9 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	defer span.Finish()
 
 	// Tag with envelope info for debugging
-	tracing.SpanTag(span, "source_node", env.OriginatorNodeID())
-	tracing.SpanTag(span, "sequence_id", env.OriginatorSequenceID())
-	tracing.SpanTag(span, "topic", hex.EncodeToString(env.TargetTopic().Bytes()))
+	tracing.SpanTag(span, tracing.TagSourceNode, env.OriginatorNodeID())
+	tracing.SpanTag(span, tracing.TagSequenceID, env.OriginatorSequenceID())
+	tracing.SpanTag(span, tracing.TagTopic, hex.EncodeToString(env.TargetTopic().Bytes()))
 	tracing.SpanTag(span, "is_reserved", env.TargetTopic().IsReserved())
 
 	if env.TargetTopic().IsReserved() {
@@ -118,12 +118,12 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 			"found envelope with reserved topic",
 			utils.TopicField(env.TargetTopic().String()),
 		)
-		return s.storeReservedEnvelope(env, ctx)
+		return s.storeReservedEnvelope(ctx, env)
 	}
 
 	// Calculate the fees independently to verify the originator's calculation
 	feeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerVerifyFees)
-	ourFeeCalculation, err := s.calculateFees(env)
+	ourFeeCalculation, err := s.calculateFees(ctx, env)
 	if err != nil {
 		feeSpan.Finish(tracing.WithError(err))
 		s.logger.Error("failed to calculate fees", zap.Error(err))
@@ -151,7 +151,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	}
 
 	// The payer address has already been validated, so any errors here should be transient
-	payerID, err := s.getPayerID(env)
+	payerID, err := s.getPayerID(ctx, env)
 	if err != nil {
 		s.logger.Error("failed to get payer ID", zap.Error(err))
 		return err
@@ -203,8 +203,8 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 }
 
 func (s *EnvelopeSink) storeReservedEnvelope(
-	env *envUtils.OriginatorEnvelope,
 	ctx context.Context,
+	env *envUtils.OriginatorEnvelope,
 ) error {
 	// Create APM span for reserved envelope processing
 	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncWorkerStoreReservedEnvelope)
@@ -212,7 +212,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 
 	tracing.SpanTag(span, "topic_kind", env.TargetTopic().Kind().String())
 
-	payerID, err := s.getPayerID(env)
+	payerID, err := s.getPayerID(ctx, env)
 	if err != nil {
 		s.logger.Error("failed to get payer ID", zap.Error(err))
 		return err
@@ -266,6 +266,7 @@ func (s *EnvelopeSink) storeReservedEnvelope(
 }
 
 func (s *EnvelopeSink) calculateFees(
+	ctx context.Context,
 	env *envUtils.OriginatorEnvelope,
 ) (currency.PicoDollar, error) {
 	payerEnvelopeLength := len(env.UnsignedOriginatorEnvelope.PayerEnvelopeBytes())
@@ -284,7 +285,7 @@ func (s *EnvelopeSink) calculateFees(
 	// but it feels wrong to IMPOSE read limitation on it this way. However, if the goal is to
 	// have read queries work on a db read replica, then this should operate on the read db.
 	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
-		s.ctx,
+		ctx,
 		s.db.ReadQuery(),
 		messageTime,
 		env.OriginatorNodeID(),
@@ -296,13 +297,16 @@ func (s *EnvelopeSink) calculateFees(
 	return baseFee + congestionFee, nil
 }
 
-func (s *EnvelopeSink) getPayerID(env *envUtils.OriginatorEnvelope) (int32, error) {
+func (s *EnvelopeSink) getPayerID(
+	ctx context.Context,
+	env *envUtils.OriginatorEnvelope,
+) (int32, error) {
 	payerAddress, err := env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
 		return 0, err
 	}
 
-	payerID, err := s.db.WriteQuery().FindOrCreatePayer(s.ctx, payerAddress.Hex())
+	payerID, err := s.db.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
 	if err != nil {
 		return 0, err
 	}

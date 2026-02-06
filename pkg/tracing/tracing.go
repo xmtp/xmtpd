@@ -186,11 +186,12 @@ func Wrap(
 	action func(context.Context, *zap.Logger, Span) error,
 ) error {
 	span, ctx := StartSpanFromContext(ctx, operation)
-	defer span.Finish()
 	logger = Link(span, logger.With(zap.String("span", operation)))
 	err := action(ctx, logger, span)
 	if err != nil {
 		span.Finish(WithError(err))
+	} else {
+		span.Finish()
 	}
 	return err
 }

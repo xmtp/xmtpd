@@ -298,7 +298,7 @@ func (s *syncWorker) connectToNode(
 	span := tracing.StartSpan(tracing.SpanSyncConnectToNode)
 	defer span.Finish()
 
-	tracing.SpanTag(span, "target_node", node.NodeID)
+	tracing.SpanTag(span, tracing.TagTargetNode, node.NodeID)
 	tracing.SpanTag(span, "target_address", node.HTTPAddress)
 
 	s.logger.Info("attempting to connect to node",
@@ -348,16 +348,21 @@ func (s *syncWorker) setupStream(
 	node registry.Node,
 	conn *grpc.ClientConn,
 	writeQueue chan *envUtils.OriginatorEnvelope,
-) (*originatorStream, error) {
+) (_ *originatorStream, retErr error) {
 	// Create span for stream setup
 	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSetupStream)
-	defer span.Finish()
+	defer func() {
+		if retErr != nil {
+			span.Finish(tracing.WithError(retErr))
+		} else {
+			span.Finish()
+		}
+	}()
 
-	tracing.SpanTag(span, "target_node", node.NodeID)
+	tracing.SpanTag(span, tracing.TagTargetNode, node.NodeID)
 
 	result, err := s.store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
-		span.Finish(tracing.WithError(err))
 		return nil, err
 	}
 

@@ -401,8 +401,8 @@ func NewNamespacedReaderDB(
 		dbPingTimeout(waitForDB),
 		dbStatementTimeout(statementTimeout),
 		prometheusRegistry(prom),
-		doCreateNamespace(true),
-		runMigrations(true),
+		doCreateNamespace(false),
+		runMigrations(false),
 		dbRole("reader"),
 	)
 }

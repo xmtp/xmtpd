@@ -9,13 +9,14 @@
 package envelopes
 
 import (
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
+
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	v1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
 )
 
 const (
@@ -285,8 +286,11 @@ type PayerEnvelope struct {
 	PayerSignature         *associations.RecoverableEcdsaSignature `protobuf:"bytes,2,opt,name=payer_signature,json=payerSignature,proto3" json:"payer_signature,omitempty"`
 	TargetOriginator       uint32                                  `protobuf:"varint,3,opt,name=target_originator,json=targetOriginator,proto3" json:"target_originator,omitempty"`
 	MessageRetentionDays   uint32                                  `protobuf:"varint,4,opt,name=message_retention_days,json=messageRetentionDays,proto3" json:"message_retention_days,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Delegated signing fields: when set, the payer_signature is from the delegate,
+	// but fees should be charged to delegated_payer_address
+	DelegatedPayerAddress []byte `protobuf:"bytes,5,opt,name=delegated_payer_address,json=delegatedPayerAddress,proto3" json:"delegated_payer_address,omitempty"` // 20-byte Ethereum address of the actual payer
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *PayerEnvelope) Reset() {
@@ -345,6 +349,13 @@ func (x *PayerEnvelope) GetMessageRetentionDays() uint32 {
 		return x.MessageRetentionDays
 	}
 	return 0
+}
+
+func (x *PayerEnvelope) GetDelegatedPayerAddress() []byte {
+	if x != nil {
+		return x.DelegatedPayerAddress
+	}
+	return nil
 }
 
 // For blockchain envelopes, these fields are set by the smart contract

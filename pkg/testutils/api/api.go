@@ -234,6 +234,7 @@ func NewTestAPIServer(
 			nil,
 			0,
 			nil,
+			nil, // delegation verifier
 		)
 		require.NoError(t, err)
 

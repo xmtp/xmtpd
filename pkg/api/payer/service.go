@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
@@ -37,6 +38,11 @@ import (
 
 const requestMissingMessageError = "missing request message"
 
+// DelegationVerifier is an interface for verifying payer delegations.
+type DelegationVerifier interface {
+	IsAuthorized(ctx context.Context, payer, delegate common.Address) (bool, error)
+}
+
 type Service struct {
 	payer_apiconnect.UnimplementedPayerApiHandler
 
@@ -48,6 +54,8 @@ type Service struct {
 	nodeSelector        selectors.NodeSelectorAlgorithm
 	nodeRegistry        registry.NodeRegistry
 	maxPayerMessageSize uint64
+	delegationVerifier  DelegationVerifier
+	gatewayPayerAddress common.Address // The address of the gateway's payer key
 }
 
 var _ payer_apiconnect.PayerApiHandler = (*Service)(nil)
@@ -61,6 +69,7 @@ func NewPayerAPIService(
 	clientMetrics *grpcprom.ClientMetrics,
 	maxPayerMessageSize uint64,
 	nodeSelector selectors.NodeSelectorAlgorithm,
+	delegationVerifier DelegationVerifier,
 ) (*Service, error) {
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
@@ -72,6 +81,12 @@ func NewPayerAPIService(
 
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
 
+	// Derive gateway address from private key
+	var gatewayAddress common.Address
+	if payerPrivateKey != nil {
+		gatewayAddress = ethcrypto.PubkeyToAddress(payerPrivateKey.PublicKey)
+	}
+
 	return &Service{
 		ctx:                 ctx,
 		logger:              logger,
@@ -81,6 +96,8 @@ func NewPayerAPIService(
 		nodeSelector:        nodeSelector,
 		nodeRegistry:        nodeRegistry,
 		maxPayerMessageSize: maxPayerMessageSize,
+		delegationVerifier:  delegationVerifier,
+		gatewayPayerAddress: gatewayAddress,
 	}, nil
 }
 
@@ -263,7 +280,10 @@ func (s *Service) groupEnvelopes(
 				)
 			}
 
-			out.forNodes[targetNodeID] = append(out.forNodes[targetNodeID], newClientEnvelopeWithIndex(i, clientEnvelope))
+			out.forNodes[targetNodeID] = append(
+				out.forNodes[targetNodeID],
+				newClientEnvelopeWithIndex(i, clientEnvelope),
+			)
 		}
 	}
 
@@ -332,7 +352,7 @@ func (s *Service) publishToNodes(
 
 	client := message_api.NewReplicationApiClient(conn)
 
-	payerEnvelopes, err := s.signAllClientEnvelopes(originatorID, indexedEnvelopes)
+	payerEnvelopes, err := s.signAllClientEnvelopes(ctx, originatorID, indexedEnvelopes)
 	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInternal,
@@ -535,12 +555,12 @@ func buildUnsignedOriginatorEnvelopeFromChain(
 	}, nil
 }
 
-func (s *Service) signAllClientEnvelopes(originatorID uint32,
+func (s *Service) signAllClientEnvelopes(ctx context.Context, originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,
 ) ([]*envelopesProto.PayerEnvelope, error) {
 	out := make([]*envelopesProto.PayerEnvelope, len(indexedEnvelopes))
 	for i, indexedEnvelope := range indexedEnvelopes {
-		envelope, err := s.signClientEnvelope(originatorID, indexedEnvelope.payload)
+		envelope, err := s.signClientEnvelope(ctx, originatorID, indexedEnvelope.payload)
 		if err != nil {
 			return nil, err
 		}
@@ -549,8 +569,26 @@ func (s *Service) signAllClientEnvelopes(originatorID uint32,
 	return out, nil
 }
 
-func (s *Service) signClientEnvelope(originatorID uint32,
+// DelegatedSigningRequest represents a request to sign on behalf of another payer.
+// When DelegatedPayerAddress is set, the gateway signs but fees are charged to the delegated payer.
+type DelegatedSigningRequest struct {
+	DelegatedPayerAddress *common.Address
+}
+
+func (s *Service) signClientEnvelope(ctx context.Context, originatorID uint32,
 	clientEnvelope *envelopes.ClientEnvelope,
+) (*envelopesProto.PayerEnvelope, error) {
+	return s.signClientEnvelopeWithDelegation(ctx, originatorID, clientEnvelope, nil)
+}
+
+// signClientEnvelopeWithDelegation signs a client envelope, optionally on behalf of a delegated payer.
+// If delegatedPayerAddress is provided and the delegation is valid, the envelope will include
+// the delegated payer address so that fees are charged to the user instead of the gateway.
+func (s *Service) signClientEnvelopeWithDelegation(
+	ctx context.Context,
+	originatorID uint32,
+	clientEnvelope *envelopes.ClientEnvelope,
+	delegatedPayerAddress *common.Address,
 ) (*envelopesProto.PayerEnvelope, error) {
 	envelopeBytes, err := clientEnvelope.Bytes()
 	if err != nil {
@@ -569,14 +607,41 @@ func (s *Service) signClientEnvelope(originatorID uint32,
 		return nil, err
 	}
 
-	return &envelopesProto.PayerEnvelope{
+	envelope := &envelopesProto.PayerEnvelope{
 		UnsignedClientEnvelope: envelopeBytes,
 		PayerSignature: &associations.RecoverableEcdsaSignature{
 			Bytes: payerSignature,
 		},
 		TargetOriginator:     originatorID,
 		MessageRetentionDays: retentionDuration,
-	}, nil
+	}
+
+	// If a delegated payer address is provided, verify the delegation and set it on the envelope
+	if delegatedPayerAddress != nil && s.delegationVerifier != nil {
+		isAuthorized, err := s.delegationVerifier.IsAuthorized(ctx, *delegatedPayerAddress, s.gatewayPayerAddress)
+		if err != nil {
+			s.logger.Warn("failed to verify delegation, falling back to gateway payment",
+				zap.String("delegatedPayer", delegatedPayerAddress.Hex()),
+				zap.Error(err),
+			)
+			// Fall back to gateway payment - don't set delegated payer
+		} else if isAuthorized {
+			// Delegation is valid - set the delegated payer address
+			envelope.DelegatedPayerAddress = delegatedPayerAddress.Bytes()
+			s.logger.Debug("signing with delegation",
+				zap.String("delegatedPayer", delegatedPayerAddress.Hex()),
+				zap.String("gateway", s.gatewayPayerAddress.Hex()),
+			)
+		} else {
+			s.logger.Warn("delegation not authorized, falling back to gateway payment",
+				zap.String("delegatedPayer", delegatedPayerAddress.Hex()),
+				zap.String("gateway", s.gatewayPayerAddress.Hex()),
+			)
+			// Delegation not valid - don't set delegated payer, gateway pays
+		}
+	}
+
+	return envelope, nil
 }
 
 func determineRetentionPolicy(clientEnvelope *envelopes.ClientEnvelope) (uint32, error) {

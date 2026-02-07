@@ -53,6 +53,8 @@ func (p *PayerEnvelope) Bytes() ([]byte, error) {
 	return bytes, nil
 }
 
+// RecoverSigner recovers the address of the entity that signed the payer envelope.
+// This is the delegate (gateway) address when delegation is used.
 func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
 	payerSignature := p.proto.PayerSignature
 	if payerSignature == nil {
@@ -68,6 +70,37 @@ func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
 	address := ethcrypto.PubkeyToAddress(*signer)
 
 	return &address, nil
+}
+
+// IsDelegated returns true if this envelope uses delegated signing.
+// When delegated, the signer is the gateway but the payer is the user.
+func (p *PayerEnvelope) IsDelegated() bool {
+	return len(p.proto.DelegatedPayerAddress) > 0
+}
+
+// GetDelegatedPayerAddress returns the delegated payer address if set.
+// Returns nil if this envelope is not using delegated signing.
+func (p *PayerEnvelope) GetDelegatedPayerAddress() *common.Address {
+	if !p.IsDelegated() {
+		return nil
+	}
+	addr := common.BytesToAddress(p.proto.DelegatedPayerAddress)
+	return &addr
+}
+
+// GetActualPayer returns the address that should be charged for this message.
+// If delegation is used and valid, returns the delegated payer address.
+// Otherwise, returns the signer address (gateway).
+// NOTE: Caller should verify delegation validity on-chain before trusting this.
+func (p *PayerEnvelope) GetActualPayer() (*common.Address, error) {
+	if p.IsDelegated() {
+		addr := p.GetDelegatedPayerAddress()
+		if addr != nil {
+			return addr, nil
+		}
+	}
+	// Fall back to signer (legacy behavior)
+	return p.RecoverSigner()
 }
 
 func (p *PayerEnvelope) TargetTopic() topic.Topic {

@@ -272,6 +272,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			clientMetrics,
 			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
 			nodeSelector,
+			nil, // TODO: Add delegation verifier for user-funded messages
 		)
 		if err != nil {
 			return nil, err

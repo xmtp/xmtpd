@@ -139,7 +139,9 @@ func (p *publishWorker) start() {
 	}
 }
 
-func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) (success bool) {
+func (p *publishWorker) publishStagedEnvelope(
+	stagedEnv queries.StagedOriginatorEnvelope,
+) (success bool) {
 	// Retrieve parent span context from async trace propagation
 	// This links the worker processing to the original staging request
 	parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)

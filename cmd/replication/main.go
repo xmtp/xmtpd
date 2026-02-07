@@ -145,7 +145,7 @@ func main() {
 			// If we have a separate reader DB initialize it here.
 			if options.DB.ReaderConnectionString != "" {
 
-				readDB, err := db.NewNamespacedDB(
+				readDB, err := db.NewNamespacedReaderDB(
 					ctx,
 					logger,
 					options.DB.ReaderConnectionString,

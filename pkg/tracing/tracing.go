@@ -31,6 +31,12 @@ type noopSpan struct{}
 
 var noopSpanInstance Span = &noopSpan{}
 
+// noopSpanContext satisfies ddtrace.SpanContext for the no-op span.
+// A single instance is shared to avoid heap allocations.
+type noopSpanContext struct{}
+
+var noopSpanCtxInstance ddtrace.SpanContext = &noopSpanContext{}
+
 func (*noopSpan) SetTag(string, interface{})     {}
 func (*noopSpan) SetOperationName(string)        {}
 func (*noopSpan) BaggageItem(string) string      { return "" }
@@ -38,11 +44,8 @@ func (*noopSpan) SetBaggageItem(string, string)  {}
 func (*noopSpan) Finish(...ddtrace.FinishOption) {}
 
 func (*noopSpan) Context() ddtrace.SpanContext {
-	return &noopSpanContext{}
+	return noopSpanCtxInstance
 }
-
-// noopSpanContext satisfies ddtrace.SpanContext for the no-op span.
-type noopSpanContext struct{}
 
 func (*noopSpanContext) SpanID() uint64  { return 0 }
 func (*noopSpanContext) TraceID() uint64 { return 0 }

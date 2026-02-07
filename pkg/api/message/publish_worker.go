@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
+
+var errPublishFailed = errors.New("publish staged envelope failed")
 
 type publishWorker struct {
 	ctx                context.Context
@@ -136,7 +139,7 @@ func (p *publishWorker) start() {
 	}
 }
 
-func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
+func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) (success bool) {
 	// Retrieve parent span context from async trace propagation
 	// This links the worker processing to the original staging request
 	parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)
@@ -154,7 +157,13 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		span, ctx = tracing.StartSpanFromContext(p.ctx, tracing.SpanPublishWorkerProcess)
 		tracing.SpanTag(span, tracing.TagTraceLinked, false)
 	}
-	defer span.Finish()
+	defer func() {
+		if !success {
+			span.Finish(tracing.WithError(errPublishFailed))
+		} else {
+			span.Finish()
+		}
+	}()
 
 	originatorID := int32(p.registrant.NodeID())
 

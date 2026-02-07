@@ -147,22 +147,13 @@ func (s *originatorStream) validateEnvelope(
 ) (*envUtils.OriginatorEnvelope, error) {
 	// Create span for envelope validation
 	span := tracing.StartSpan(tracing.SpanSyncValidateEnvelope)
-	defer span.Finish()
-
 	tracing.SpanTag(span, tracing.TagSourceNode, s.node.NodeID)
 
-	var err error
-	defer func() {
-		if err != nil {
-			metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
-			span.SetTag("error", err)
-		}
-	}()
-
-	var env *envUtils.OriginatorEnvelope
-	env, err = envUtils.NewOriginatorEnvelope(envProto)
+	env, err := envUtils.NewOriginatorEnvelope(envProto)
 	if err != nil {
+		metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
 		s.logger.Error("failed to unmarshal originator envelope", zap.Error(err))
+		span.Finish(tracing.WithError(err))
 		return nil, err
 	}
 
@@ -177,7 +168,9 @@ func (s *originatorStream) validateEnvelope(
 			zap.Uint32("expected_originator_id", s.node.NodeID),
 		)
 		err = errors.New("originator ID does not match envelope")
+		metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
 		tracing.SpanTag(span, "wrong_originator", env.OriginatorNodeID())
+		span.Finish(tracing.WithError(err))
 		return nil, err
 	}
 
@@ -202,9 +195,12 @@ func (s *originatorStream) validateEnvelope(
 	// Validate that there is a valid payer signature
 	_, err = env.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
+		metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
 		s.logger.Error("failed to recover payer address", zap.Error(err))
+		span.Finish(tracing.WithError(err))
 		return nil, err
 	}
 
+	span.Finish()
 	return env, nil
 }

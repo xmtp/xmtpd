@@ -308,7 +308,7 @@ func connectToDB(
 	// Default role to "writer" if not specified
 	role := cfg.role
 	if role == "" {
-		role = "writer"
+		role = tracing.DBRoleWriter
 	}
 
 	// Set up SQL tracing. When APM is enabled, use a composite tracer
@@ -380,7 +380,7 @@ func NewNamespacedDB(
 		prometheusRegistry(prom),
 		doCreateNamespace(true),
 		runMigrations(true),
-		dbRole("writer"),
+		dbRole(tracing.DBRoleWriter),
 	)
 }
 
@@ -405,7 +405,7 @@ func NewNamespacedReaderDB(
 		prometheusRegistry(prom),
 		doCreateNamespace(false),
 		runMigrations(false),
-		dbRole("reader"),
+		dbRole(tracing.DBRoleReader),
 	)
 }
 
@@ -424,7 +424,7 @@ func ConnectToDB(ctx context.Context,
 		dbPingTimeout(waitForDB),
 		dbStatementTimeout(statementTimeout),
 		prometheusRegistry(prom),
-		dbRole("writer"),
+		dbRole(tracing.DBRoleWriter),
 		// Not creating namespace.
 		// Not running migrations.
 	)

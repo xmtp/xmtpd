@@ -87,6 +87,38 @@ func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogPara
 	return result.RowsAffected()
 }
 
+const insertAddressLogsBatch = `-- name: InsertAddressLogsBatch :execrows
+WITH input AS (
+    SELECT unnest($1::TEXT[]) AS address, 
+           decode($2, 'hex') AS inbox_id, 
+           $3::BIGINT AS association_sequence_id
+)
+INSERT INTO address_log(address, inbox_id, association_sequence_id, revocation_sequence_id)
+SELECT address, inbox_id, association_sequence_id, NULL
+FROM input
+ON CONFLICT (address, inbox_id)
+    DO UPDATE SET
+        revocation_sequence_id = NULL, 
+        association_sequence_id = EXCLUDED.association_sequence_id
+    WHERE (address_log.revocation_sequence_id IS NULL
+        OR address_log.revocation_sequence_id < EXCLUDED.association_sequence_id)
+        AND address_log.association_sequence_id < EXCLUDED.association_sequence_id
+`
+
+type InsertAddressLogsBatchParams struct {
+	Addresses             []string
+	InboxID               string
+	AssociationSequenceID int64
+}
+
+func (q *Queries) InsertAddressLogsBatch(ctx context.Context, arg InsertAddressLogsBatchParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertAddressLogsBatch, pq.Array(arg.Addresses), arg.InboxID, arg.AssociationSequenceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const revokeAddressFromLog = `-- name: RevokeAddressFromLog :execrows
 UPDATE
 	address_log
@@ -105,6 +137,33 @@ type RevokeAddressFromLogParams struct {
 
 func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFromLogParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, revokeAddressFromLog, arg.RevocationSequenceID, arg.Address, arg.InboxID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const revokeAddressFromLogBatch = `-- name: RevokeAddressFromLogBatch :execrows
+WITH input AS (
+    SELECT unnest($1::TEXT[]) AS address,
+           decode($2, 'hex') AS inbox_id,
+           $3::BIGINT AS revocation_sequence_id
+)
+UPDATE address_log AS al
+SET revocation_sequence_id = input.revocation_sequence_id
+FROM input
+WHERE al.address = input.address
+  AND al.inbox_id = input.inbox_id
+`
+
+type RevokeAddressFromLogBatchParams struct {
+	Addresses            []string
+	InboxID              string
+	RevocationSequenceID int64
+}
+
+func (q *Queries) RevokeAddressFromLogBatch(ctx context.Context, arg RevokeAddressFromLogBatchParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeAddressFromLogBatch, pq.Array(arg.Addresses), arg.InboxID, arg.RevocationSequenceID)
 	if err != nil {
 		return 0, err
 	}

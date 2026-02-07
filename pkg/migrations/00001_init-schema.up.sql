@@ -47,8 +47,8 @@ CREATE TABLE address_log(
 );
 
 CREATE TABLE payers(
-                       id SERIAL PRIMARY KEY,
-                       address TEXT NOT NULL UNIQUE
+	id SERIAL PRIMARY KEY,
+	address TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS gateway_envelopes_meta

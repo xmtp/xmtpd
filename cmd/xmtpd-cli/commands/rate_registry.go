@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +20,7 @@ type AddRatesOpts struct {
 	StorageFee    int64
 	CongestionFee int64
 	TargetRate    uint64
+	StartTime     uint64
 }
 
 // ---- Root ----
@@ -49,10 +51,12 @@ func addRatesCommand() *cobra.Command {
 			return addRatesHandler(opts)
 		},
 		Example: `
-Usage: xmtpd-cli rates add --message-fee <message-fee> --storage-fee <storage-fee> --congestion-fee <congestion-fee> --target-rate <target-rate>
+Usage: xmtpd-cli rates add --message-fee <message-fee> --storage-fee <storage-fee> --congestion-fee <congestion-fee> --target-rate <target-rate> [--start-time <unix-timestamp>]
 
 Example:
-xmtpd-cli rates add --message-fee 1000000000000000000 --storage-fee 1000000000000000000 --congestion-fee 1000000000000000000 --target-rate 1000000000000000000
+xmtpd-cli rates add --message-fee 1000000000000000000 --storage-fee 1000000000000000000 --congestion-fee 1000000000000000000 --target-rate 1000000000000000000 --start-time 1739188800
+
+If --start-time is omitted, it defaults to 2 hours from now.
 `,
 	}
 
@@ -60,6 +64,8 @@ xmtpd-cli rates add --message-fee 1000000000000000000 --storage-fee 100000000000
 	cmd.Flags().Int64Var(&opts.StorageFee, "storage-fee", 0, "storage fee to use")
 	cmd.Flags().Int64Var(&opts.CongestionFee, "congestion-fee", 0, "congestion fee to use")
 	cmd.Flags().Uint64Var(&opts.TargetRate, "target-rate", 0, "target rate to use")
+	cmd.Flags().
+		Uint64Var(&opts.StartTime, "start-time", 0, "unix timestamp when rates take effect (defaults to 2 hours from now)")
 
 	_ = cmd.MarkFlagRequired("message-fee")
 	_ = cmd.MarkFlagRequired("storage-fee")
@@ -84,11 +90,21 @@ func addRatesHandler(opts AddRatesOpts) error {
 		return err
 	}
 
+	startTime := opts.StartTime
+	if startTime == 0 {
+		startTime = uint64(time.Now().Add(2 * time.Hour).Unix())
+	}
+
+	if err := validateStartTime(startTime); err != nil {
+		return err
+	}
+
 	rates := fees.Rates{
 		MessageFee:          currency.PicoDollar(opts.MessageFee),
 		StorageFee:          currency.PicoDollar(opts.StorageFee),
 		CongestionFee:       currency.PicoDollar(opts.CongestionFee),
 		TargetRatePerMinute: opts.TargetRate,
+		StartTime:           startTime,
 	}
 
 	if err := registryAdmin.AddRates(ctx, rates); err != nil {
@@ -97,6 +113,21 @@ func addRatesHandler(opts AddRatesOpts) error {
 	}
 
 	logger.Info("rates added to rate registry", zap.Any("rates", rates))
+	return nil
+}
+
+func validateStartTime(startTime uint64) error {
+	startTimeInt, err := utils.Uint64ToInt64(startTime)
+	if err != nil {
+		return fmt.Errorf("--start-time value overflows: %w", err)
+	}
+	startAt := time.Unix(startTimeInt, 0)
+	if startAt.Before(time.Now()) {
+		return fmt.Errorf("--start-time must be in the future")
+	}
+	if startAt.After(time.Now().Add(365 * 24 * time.Hour)) {
+		return fmt.Errorf("--start-time must be less than 1 year in the future")
+	}
 	return nil
 }
 

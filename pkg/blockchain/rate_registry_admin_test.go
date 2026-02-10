@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
@@ -58,6 +59,7 @@ func TestAddRates(t *testing.T) {
 		StorageFee:          200,
 		CongestionFee:       300,
 		TargetRatePerMinute: 100 * 60,
+		StartTime:           uint64(time.Now().Add(2 * time.Hour).Unix()),
 	}
 
 	err := ratesAdmin.AddRates(context.Background(), rates)
@@ -69,16 +71,19 @@ func TestAddNegativeRates(t *testing.T) {
 
 	err := ratesAdmin.AddRates(context.Background(), fees.Rates{
 		MessageFee: -100,
+		StartTime:  uint64(time.Now().Add(2 * time.Hour).Unix()),
 	})
 	require.ErrorContains(t, err, "must be positive")
 
 	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
 		StorageFee: -100,
+		StartTime:  uint64(time.Now().Add(2 * time.Hour).Unix()),
 	})
 	require.ErrorContains(t, err, "must be positive")
 
 	err = ratesAdmin.AddRates(context.Background(), fees.Rates{
 		CongestionFee: -100,
+		StartTime:     uint64(time.Now().Add(2 * time.Hour).Unix()),
 	})
 	require.ErrorContains(t, err, "must be positive")
 }
@@ -91,6 +96,7 @@ func TestAdd0Rates(t *testing.T) {
 		StorageFee:          0,
 		CongestionFee:       0,
 		TargetRatePerMinute: 0,
+		StartTime:           uint64(time.Now().Add(2 * time.Hour).Unix()),
 	})
 	require.NoError(t, err)
 }
@@ -103,6 +109,7 @@ func TestAddLargeRates(t *testing.T) {
 		StorageFee:          math.MaxInt64,
 		CongestionFee:       math.MaxInt64,
 		TargetRatePerMinute: math.MaxUint64,
+		StartTime:           uint64(time.Now().Add(2 * time.Hour).Unix()),
 	})
 	require.NoError(t, err)
 }
@@ -110,16 +117,20 @@ func TestAddLargeRates(t *testing.T) {
 func TestAddRatesAgain(t *testing.T) {
 	ratesAdmin, _ := buildRatesAdmin(t)
 
+	startTime := uint64(time.Now().Add(2 * time.Hour).Unix())
+
 	rates := fees.Rates{
 		MessageFee:          5,
 		StorageFee:          16,
 		CongestionFee:       700,
 		TargetRatePerMinute: 1000,
+		StartTime:           startTime,
 	}
 
 	err := ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
 
+	rates.StartTime = startTime + 3600
 	err = ratesAdmin.AddRates(context.Background(), rates)
 	require.NoError(t, err)
 }
@@ -157,6 +168,7 @@ func TestRates_WriteThenRead(t *testing.T) {
 		StorageFee:          456,
 		CongestionFee:       789,
 		TargetRatePerMinute: 60,
+		StartTime:           uint64(time.Now().Add(2 * time.Hour).Unix()),
 	}
 	require.NoError(t, ratesAdmin.AddRates(ctx, want))
 
@@ -187,6 +199,7 @@ func TestRates_WriteZeroes_ReadZeroes(t *testing.T) {
 		StorageFee:          0,
 		CongestionFee:       0,
 		TargetRatePerMinute: 0,
+		StartTime:           uint64(time.Now().Add(2 * time.Hour).Unix()),
 	}
 	require.NoError(t, ratesAdmin.AddRates(ctx, zero))
 

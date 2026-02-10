@@ -63,12 +63,10 @@ func TestOracleConcurrentGetGasPrice(t *testing.T) {
 	// GetGasPrice is safe for concurrent calls
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			price := o.GetGasPrice()
 			require.Greater(t, price, int64(0))
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -81,14 +79,12 @@ func TestOracleGetGasPriceRandom(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// Force the oracle to fetch a new gas price for some goroutines.
 			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 			price := o.GetGasPrice()
 			require.Greater(t, price, int64(0))
-		}()
+		})
 	}
 	wg.Wait()
 }

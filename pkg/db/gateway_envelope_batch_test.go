@@ -481,9 +481,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 
 	// All goroutines try to insert the SAME batch (duplicates).
 	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			p := buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 			n, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
 				ctx,
@@ -492,7 +490,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 			)
 			require.NoError(t, err)
 			atomic.AddInt64(&totalInserted, n)
-		}()
+		})
 	}
 
 	wg.Wait()

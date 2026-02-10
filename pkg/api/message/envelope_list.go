@@ -71,7 +71,7 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 			})
 		if err != nil {
 			s.logger.Error("failed to get envelopes",
-				zap.Error(err))
+				zap.Error(err), utils.OriginatorIDField(id))
 			return nil, 0, fmt.Errorf("could not get envelopes: %w", err)
 		}
 

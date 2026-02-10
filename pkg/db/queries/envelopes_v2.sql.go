@@ -129,38 +129,46 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 }
 
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest($1::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest($2::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord)),
-     filtered AS (SELECT m.originator_node_id,
-                         m.originator_sequence_id,
-                         m.gateway_time,
-                         m.topic
-                  FROM gateway_envelopes_meta AS m
-                           LEFT JOIN cursors AS c
-                                     ON m.originator_node_id = c.cursor_node_id
-                  WHERE m.originator_node_id = ANY ($3::INT[])
-                    AND m.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
-                  ORDER BY m.originator_node_id, m.originator_sequence_id
-                  LIMIT NULLIF($4::INT, 0))
-SELECT f.originator_node_id,
-       f.originator_sequence_id,
-       f.gateway_time,
-       f.topic,
-       b.originator_envelope
-FROM filtered AS f
-         JOIN gateway_envelope_blobs AS b
-              ON b.originator_node_id = f.originator_node_id
-                  AND b.originator_sequence_id = f.originator_sequence_id
-ORDER BY f.originator_node_id, f.originator_sequence_id
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest($4::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest($5::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
+)
+SELECT m.originator_node_id,
+       m.originator_sequence_id,
+       m.gateway_time,
+       m.topic,
+       m.originator_envelope
+FROM unnest($1::INT[]) AS o(node_id)
+CROSS JOIN LATERAL (
+    SELECT m.originator_node_id,
+           m.originator_sequence_id,
+           m.gateway_time,
+           m.topic,
+           b.originator_envelope
+    FROM gateway_envelopes_meta AS m
+    JOIN gateway_envelope_blobs AS b
+        ON b.originator_node_id = m.originator_node_id
+       AND b.originator_sequence_id = m.originator_sequence_id
+       AND b.originator_node_id = o.node_id
+    WHERE m.originator_node_id = o.node_id
+      AND m.originator_sequence_id > COALESCE(
+          (SELECT c.cursor_sequence_id FROM cursors c WHERE c.cursor_node_id = o.node_id),
+          0
+      )
+    ORDER BY m.originator_sequence_id
+    LIMIT NULLIF($2::INT, 0)
+) AS m
+ORDER BY m.originator_node_id, m.originator_sequence_id
+LIMIT NULLIF($3::INT, 0)
 `
 
 type SelectGatewayEnvelopesByOriginatorsParams struct {
+	OriginatorNodeIds []int32
+	RowsPerOriginator int32
+	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
-	OriginatorNodeIds []int32
-	RowLimit          int32
 }
 
 type SelectGatewayEnvelopesByOriginatorsRow struct {
@@ -171,12 +179,15 @@ type SelectGatewayEnvelopesByOriginatorsRow struct {
 	OriginatorEnvelope   []byte
 }
 
+// Uses LATERAL join with scalar subquery to push cursor filter into index scan.
+// This avoids full table scans when using LEFT JOIN + COALESCE pattern.
 func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]SelectGatewayEnvelopesByOriginatorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators,
+		pq.Array(arg.OriginatorNodeIds),
+		arg.RowsPerOriginator,
+		arg.RowLimit,
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),
-		pq.Array(arg.OriginatorNodeIds),
-		arg.RowLimit,
 	)
 	if err != nil {
 		return nil, err
@@ -205,49 +216,122 @@ func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg S
 	return items, nil
 }
 
+const selectGatewayEnvelopesBySingleOriginator = `-- name: SelectGatewayEnvelopesBySingleOriginator :many
+SELECT m.originator_node_id,
+       m.originator_sequence_id,
+       m.gateway_time,
+       m.topic,
+       b.originator_envelope
+FROM gateway_envelopes_meta AS m
+JOIN gateway_envelope_blobs AS b
+    ON b.originator_node_id = m.originator_node_id
+   AND b.originator_sequence_id = m.originator_sequence_id
+   AND b.originator_node_id = $1::INT
+WHERE m.originator_node_id = $1::INT
+  AND m.originator_sequence_id > $2::BIGINT
+ORDER BY m.originator_sequence_id
+LIMIT NULLIF($3::INT, 0)
+`
+
+type SelectGatewayEnvelopesBySingleOriginatorParams struct {
+	OriginatorNodeID int32
+	CursorSequenceID int64
+	RowLimit         int32
+}
+
+type SelectGatewayEnvelopesBySingleOriginatorRow struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	GatewayTime          time.Time
+	Topic                []byte
+	OriginatorEnvelope   []byte
+}
+
+// Optimized query for a single originator - uses direct index scan
+func (q *Queries) SelectGatewayEnvelopesBySingleOriginator(ctx context.Context, arg SelectGatewayEnvelopesBySingleOriginatorParams) ([]SelectGatewayEnvelopesBySingleOriginatorRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesBySingleOriginator, arg.OriginatorNodeID, arg.CursorSequenceID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectGatewayEnvelopesBySingleOriginatorRow
+	for rows.Next() {
+		var i SelectGatewayEnvelopesBySingleOriginatorRow
+		if err := rows.Scan(
+			&i.OriginatorNodeID,
+			&i.OriginatorSequenceID,
+			&i.GatewayTime,
+			&i.Topic,
+			&i.OriginatorEnvelope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectGatewayEnvelopesByTopics = `-- name: SelectGatewayEnvelopesByTopics :many
-WITH cursors AS (SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-                 FROM unnest($1::INT[]) WITH ORDINALITY AS x(node_id, ord)
-                          JOIN unnest($2::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-                               USING (ord)),
-     filtered AS (
-         -- A) topic + cursor
-         SELECT m.originator_node_id,
-                m.originator_sequence_id,
-                m.gateway_time,
-                m.topic
-         FROM gateway_envelopes_meta AS m
-                  JOIN cursors AS c
-                       ON m.originator_node_id = c.cursor_node_id
-                           AND m.originator_sequence_id > c.cursor_sequence_id
-         WHERE m.topic = ANY ($4::BYTEA[])
+WITH cursors AS (
+    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+    FROM unnest($1::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest($2::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+    USING (ord)
+),
+min_cursor_seq AS (
+    -- Pre-compute minimum cursor sequence for RANGE pruning
+    SELECT COALESCE(MIN(seq_id), 0) AS min_seq
+    FROM unnest($2::BIGINT[]) AS t(seq_id)
+),
+filtered AS (
+    -- A) topic + cursor (with partition pruning hints)
+    SELECT m.originator_node_id,
+           m.originator_sequence_id,
+           m.gateway_time,
+           m.topic
+    FROM gateway_envelopes_meta AS m
+    JOIN cursors AS c
+         ON m.originator_node_id = c.cursor_node_id
+         AND m.originator_sequence_id > c.cursor_sequence_id
+    WHERE m.topic = ANY ($4::BYTEA[])
+      -- Redundant but enables LIST partition pruning:
+      AND m.originator_node_id = ANY($1::INT[])
+      -- Enables RANGE partition pruning (using min cursor as floor):
+      AND m.originator_sequence_id > (SELECT min_seq FROM min_cursor_seq)
 
-         UNION ALL
+    UNION ALL
 
-         -- B) topic + no-cursor
-         SELECT m.originator_node_id,
-                m.originator_sequence_id,
-                m.gateway_time,
-                m.topic
-         FROM gateway_envelopes_meta AS m
-         WHERE m.topic = ANY ($4::BYTEA[])
-           AND m.originator_sequence_id > 0
-           AND NOT EXISTS (SELECT 1
-                           FROM cursors AS c
-                           WHERE c.cursor_node_id = m.originator_node_id)
+    -- B) topic + no-cursor (new originators - still needs full scan)
+    SELECT m.originator_node_id,
+           m.originator_sequence_id,
+           m.gateway_time,
+           m.topic
+    FROM gateway_envelopes_meta AS m
+    WHERE m.topic = ANY ($4::BYTEA[])
+      AND m.originator_sequence_id > 0
+      AND NOT EXISTS (
+          SELECT 1 FROM cursors AS c
+          WHERE c.cursor_node_id = m.originator_node_id
+      )
 
-         -- Do the ordering/limit on meta rows before touching blobs
-         ORDER BY originator_node_id, originator_sequence_id
-         LIMIT NULLIF($3::INT, 0))
+    ORDER BY originator_node_id, originator_sequence_id
+    LIMIT NULLIF($3::INT, 0)
+)
 SELECT f.originator_node_id,
        f.originator_sequence_id,
        f.gateway_time,
        f.topic,
        b.originator_envelope
 FROM filtered AS f
-         JOIN gateway_envelope_blobs AS b
-              ON b.originator_node_id = f.originator_node_id
-                  AND b.originator_sequence_id = f.originator_sequence_id
+JOIN gateway_envelope_blobs AS b
+     ON b.originator_node_id = f.originator_node_id
+     AND b.originator_sequence_id = f.originator_sequence_id
 ORDER BY f.originator_node_id, f.originator_sequence_id
 `
 

@@ -19,7 +19,7 @@ type subscriptionHandler struct {
 	store  *db.Handler
 
 	subs       map[uint32]*envelopePoller
-	mergedSubs *funnel[[]queries.SelectGatewayEnvelopesByOriginatorsRow]
+	mergedSubs *funnel[[]queries.SelectGatewayEnvelopesBySingleOriginatorRow]
 
 	cursor db.VectorClock
 }
@@ -28,7 +28,7 @@ type envelopePoller struct {
 	cancel context.CancelFunc
 	// TODO: Check - queries.GatewayEnvelopesView and queries.SelectGatewayEnvelopesByOriginatorsRow
 	// models are identical and they're overly verbose.
-	ch <-chan []queries.SelectGatewayEnvelopesByOriginatorsRow
+	ch <-chan []queries.SelectGatewayEnvelopesBySingleOriginatorRow
 }
 
 func newSubscriptionHandler(
@@ -42,7 +42,7 @@ func newSubscriptionHandler(
 		logger:     logger,
 		store:      store,
 		cursor:     cursor,
-		mergedSubs: newFunnel[[]queries.SelectGatewayEnvelopesByOriginatorsRow](),
+		mergedSubs: newFunnel[[]queries.SelectGatewayEnvelopesBySingleOriginatorRow](),
 	}
 
 	return s
@@ -62,13 +62,12 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 	// TODO: Check handling of lastSeen - does it need to be saved to the outside of the sub, or does it get saved in the subscription?
 	// NOTE: I think it's handled in the subscription, so the cursor can be removed here.
 
-	query := func(ctx context.Context, lastSeen int64, numRows int32) ([]queries.SelectGatewayEnvelopesByOriginatorsRow, int64, error) {
-		envs, err := s.store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx,
-			queries.SelectGatewayEnvelopesByOriginatorsParams{
-				CursorNodeIds:     []int32{int32(id)},
-				OriginatorNodeIds: []int32{int32(id)},
-				CursorSequenceIds: []int64{lastSeen},
-				RowLimit:          numRows,
+	query := func(ctx context.Context, lastSeen int64, numRows int32) ([]queries.SelectGatewayEnvelopesBySingleOriginatorRow, int64, error) {
+		envs, err := s.store.ReadQuery().SelectGatewayEnvelopesBySingleOriginator(ctx,
+			queries.SelectGatewayEnvelopesBySingleOriginatorParams{
+				OriginatorNodeID: int32(id),
+				CursorSequenceID: lastSeen,
+				RowLimit:         numRows,
 			})
 		if err != nil {
 			s.logger.Error("failed to get envelopes",
@@ -132,7 +131,7 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 }
 
 // allSubscriptions returns a channel merging all individual subscription channels.
-func (s *subscriptionHandler) allSubscriptions() <-chan []queries.SelectGatewayEnvelopesByOriginatorsRow {
+func (s *subscriptionHandler) allSubscriptions() <-chan []queries.SelectGatewayEnvelopesBySingleOriginatorRow {
 	s.Lock()
 	defer s.Unlock()
 

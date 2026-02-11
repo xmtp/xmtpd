@@ -250,7 +250,12 @@ func (s *Service) catchUpFromCursor(
 			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
 			if err != nil {
 				// We expect to have already validated the envelope when it was inserted
-				s.logger.Error("could not unmarshal originator envelope", zap.Error(err))
+				s.logger.Error(
+					"could not unmarshal originator envelope",
+					zap.Error(err),
+					utils.OriginatorIDField(uint32(r.OriginatorNodeID)),
+					utils.SequenceIDField(r.OriginatorSequenceID),
+				)
 				continue
 			}
 			envs = append(envs, env)
@@ -376,7 +381,9 @@ func (s *Service) QueryEnvelopes(
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
-			logger.Error("could not unmarshal originator envelope", zap.Error(err))
+			logger.Error("could not unmarshal originator envelope", zap.Error(err),
+				utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+				utils.SequenceIDField(row.OriginatorSequenceID))
 			continue
 		}
 		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
@@ -865,7 +872,9 @@ func (s *Service) GetNewestEnvelope(
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
-			logger.Error("could not unmarshal originator envelope", zap.Error(err))
+			logger.Error("could not unmarshal originator envelope", zap.Error(err),
+				utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+				utils.SequenceIDField(row.OriginatorSequenceID))
 			continue
 		}
 

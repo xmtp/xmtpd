@@ -80,10 +80,11 @@ func insertKeyPackages(t *testing.T, ctx context.Context, db *sql.DB) {
 
 		_, err = db.ExecContext(
 			ctx,
-			"INSERT INTO key_packages (sequence_id, installation_id, key_package) VALUES ($1, $2, $3)",
+			"INSERT INTO key_packages (sequence_id, installation_id, key_package, created_at) VALUES ($1, $2, $3, $4)",
 			row[0],
 			id,
 			keyPackage,
+			row[3],
 		)
 		require.NoError(t, err)
 	}

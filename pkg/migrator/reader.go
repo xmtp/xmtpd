@@ -218,7 +218,7 @@ type KeyPackageReader struct {
 
 func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 	query := `
-		SELECT sequence_id, installation_id, key_package
+		SELECT sequence_id, installation_id, key_package, created_at
 		FROM key_packages
 		WHERE sequence_id > $1
 		ORDER BY sequence_id ASC

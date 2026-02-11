@@ -1,7 +1,8 @@
 CREATE TABLE key_packages(
 	sequence_id BIGSERIAL PRIMARY KEY,
 	installation_id BYTEA NOT NULL,
-	key_package BYTEA NOT NULL
+	key_package BYTEA NOT NULL,
+    created_at BIGINT NOT NULL
 );
 
 CREATE TABLE group_messages(

@@ -169,6 +169,7 @@ type KeyPackage struct {
 	SequenceID     int64  `db:"sequence_id"`
 	InstallationID []byte `db:"installation_id"`
 	KeyPackage     []byte `db:"key_package"`
+	CreatedAt      int64  `db:"created_at"`
 }
 
 func (i KeyPackage) GetID() int64 {
@@ -184,6 +185,7 @@ func (i *KeyPackage) Scan(rows *sql.Rows) error {
 		&i.SequenceID,
 		&i.InstallationID,
 		&i.KeyPackage,
+		&i.CreatedAt,
 	)
 }
 

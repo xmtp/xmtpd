@@ -17,7 +17,7 @@ func TestGroupMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewGroupMessageReader(db, startDate.Unix())
+	reader := migrator.NewGroupMessageReader(db)
 
 	cases := []struct {
 		name      string
@@ -69,7 +69,7 @@ func TestInboxLogReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewInboxLogReader(db, startDate.UnixNano())
+	reader := migrator.NewInboxLogReader(db)
 
 	cases := []struct {
 		name      string
@@ -173,7 +173,7 @@ func TestCommitMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewCommitMessageReader(db, startDate.Unix())
+	reader := migrator.NewCommitMessageReader(db)
 
 	cases := []struct {
 		name   string

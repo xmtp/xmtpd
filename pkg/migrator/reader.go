@@ -127,11 +127,11 @@ type GroupMessageReader struct {
 	*DBReader[*GroupMessage]
 }
 
-func NewGroupMessageReader(db *sql.DB, startDate int64) *GroupMessageReader {
+func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND is_commit = false AND created_at > to_timestamp($3)
+		WHERE id > $1 AND is_commit = false
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -149,7 +149,7 @@ func NewGroupMessageReader(db *sql.DB, startDate int64) *GroupMessageReader {
 			query,
 			queryHeight,
 			func() *GroupMessage { return &GroupMessage{} },
-			startDate,
+			0,
 		),
 	}
 }
@@ -158,11 +158,11 @@ type CommitMessageReader struct {
 	*DBReader[*CommitMessage]
 }
 
-func NewCommitMessageReader(db *sql.DB, startDate int64) *CommitMessageReader {
+func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND is_commit = true AND created_at > to_timestamp($3)
+		WHERE id > $1 AND is_commit = true
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -181,7 +181,7 @@ func NewCommitMessageReader(db *sql.DB, startDate int64) *CommitMessageReader {
 			query,
 			queryHeight,
 			func() *CommitMessage { return &CommitMessage{} },
-			startDate,
+			0,
 		),
 	}
 }
@@ -190,11 +190,11 @@ type InboxLogReader struct {
 	*DBReader[*InboxLog]
 }
 
-func NewInboxLogReader(db *sql.DB, startDate int64) *InboxLogReader {
+func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 	query := `
 		SELECT sequence_id, inbox_id, server_timestamp_ns, identity_update_proto
 		FROM inbox_log
-		WHERE sequence_id > $1 AND server_timestamp_ns > $3
+		WHERE sequence_id > $1
 		ORDER BY sequence_id ASC
 		LIMIT $2
 	`
@@ -212,7 +212,7 @@ func NewInboxLogReader(db *sql.DB, startDate int64) *InboxLogReader {
 			query,
 			queryHeight,
 			func() *InboxLog { return &InboxLog{} },
-			startDate,
+			0,
 		),
 	}
 }

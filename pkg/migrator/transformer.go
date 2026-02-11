@@ -101,6 +101,7 @@ func (t *Transformer) TransformGroupMessage(
 		protoClientEnvelope,
 		GroupMessageOriginatorID,
 		uint64(groupMessage.ID),
+		groupMessage.CreatedAt,
 	)
 }
 
@@ -117,6 +118,7 @@ func (t *Transformer) TransformCommitMessage(
 		protoClientEnvelope,
 		CommitMessageOriginatorID,
 		uint64(commitMessage.ID),
+		commitMessage.CreatedAt,
 	)
 }
 
@@ -162,6 +164,7 @@ func (t *Transformer) TransformInboxLog(
 		protoClientEnvelope,
 		InboxLogOriginatorID,
 		uint64(inboxLog.SequenceID),
+		time.Unix(0, inboxLog.ServerTimestampNs),
 	)
 }
 
@@ -195,6 +198,7 @@ func (t *Transformer) TransformKeyPackage(
 		protoClientEnvelope,
 		KeyPackagesOriginatorID,
 		uint64(keyPackage.SequenceID),
+		keyPackage.CreatedAt,
 	)
 }
 
@@ -232,6 +236,7 @@ func (t *Transformer) TransformWelcomeMessage(
 		protoClientEnvelope,
 		WelcomeMessageOriginatorID,
 		uint64(welcomeMessage.ID),
+		welcomeMessage.CreatedAt,
 	)
 }
 
@@ -240,6 +245,7 @@ func (t *Transformer) originatorEnvelope(
 	protoClientEnvelope *proto.ClientEnvelope,
 	originatorID uint32,
 	sequenceID uint64,
+	creationTime time.Time,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if protoClientEnvelope == nil {
 		return nil, fmt.Errorf("protoClientEnvelope is nil")
@@ -250,7 +256,11 @@ func (t *Transformer) originatorEnvelope(
 		return nil, fmt.Errorf("failed to build and sign payer envelope: %w", err)
 	}
 
-	originatorEnvelope, err := t.buildAndSignOriginatorEnvelope(payerEnvelope, sequenceID)
+	originatorEnvelope, err := t.buildAndSignOriginatorEnvelope(
+		payerEnvelope,
+		sequenceID,
+		creationTime,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build and sign originator envelope: %w", err)
 	}
@@ -311,6 +321,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 func (t *Transformer) buildAndSignOriginatorEnvelope(
 	payerEnvelope *envelopes.PayerEnvelope,
 	sequenceID uint64,
+	creationTime time.Time,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if payerEnvelope == nil {
 		return nil, fmt.Errorf("payerEnvelope is nil")
@@ -325,6 +336,10 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 		now     = time.Now()
 		baseFee currency.PicoDollar
 	)
+
+	// WARNING: we are doing some time hackery here
+	// the expiration is calculated from the original creation date of the V3 payload
+	// but fees are calculated based on the migration date
 
 	if isDatabaseDestination(payerEnvelope.TargetOriginator) {
 		baseFee, err = t.calculateFees(
@@ -345,7 +360,7 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 		BaseFeePicodollars:       uint64(baseFee),
 		CongestionFeePicodollars: 0, // Migrator does not pay congestion fees.
 		ExpiryUnixtime: uint64(
-			now.UTC().
+			creationTime.UTC().
 				Add(time.Hour * 24 * time.Duration(payerEnvelope.Proto().GetMessageRetentionDays())).
 				Unix(),
 		),

@@ -1,0 +1,190 @@
+name: Publish Gateway npm Packages
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "npm/**"
+      - "cmd/gateway/**"
+      - "pkg/gateway/**"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (build and pack but skip publish)"
+        type: boolean
+        default: false
+      npm_tag:
+        description: "npm dist-tag override (auto = latest for main, dev for dev branch)"
+        type: choice
+        options:
+          - auto
+          - latest
+          - dev
+        default: auto
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-binaries:
+    name: Build Go binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cross-compile gateway
+        run: npm/build.sh
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: gateway-binaries
+          path: npm/gateway-*/bin/xmtp-gateway
+          retention-days: 1
+
+  build-typescript:
+    name: Build TypeScript wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: npm/gateway/package-lock.json
+
+      - run: npm ci
+        working-directory: npm/gateway
+
+      - run: npm run build
+        working-directory: npm/gateway
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: gateway-dist
+          path: npm/gateway/dist/
+          retention-days: 1
+
+  publish:
+    name: Publish to npm
+    needs: [build-binaries, build-typescript]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download binaries
+        uses: actions/download-artifact@v7
+        with:
+          name: gateway-binaries
+          path: npm/
+
+      - name: Download compiled TypeScript
+        uses: actions/download-artifact@v7
+        with:
+          name: gateway-dist
+          path: npm/gateway/dist/
+
+      - name: Make binaries executable
+        run: chmod +x npm/gateway-*/bin/xmtp-gateway
+
+      - name: Determine version and tag
+        id: version
+        run: |
+          BASE_VERSION=$(node -p "require('./npm/gateway/package.json').version")
+          GIT_HASH=$(git log -1 --pretty=format:"%h")
+          BRANCH="${GITHUB_REF_NAME}"
+
+          # npm tag: dev branch → dev, main → latest, or manual override
+          if [[ "${{ inputs.npm_tag }}" != "" && "${{ inputs.npm_tag }}" != "auto" ]]; then
+            NPM_TAG="${{ inputs.npm_tag }}"
+          elif [[ "$BRANCH" == "dev" ]]; then
+            NPM_TAG="dev"
+          else
+            NPM_TAG="latest"
+          fi
+
+          # version: dev tag gets git hash suffix
+          if [[ "$NPM_TAG" == "dev" ]] || [[ "$BASE_VERSION" == *"dev"* ]]; then
+            CLEAN=$(echo "$BASE_VERSION" | sed 's/-dev.*//')
+            VERSION="${CLEAN}-dev.${GIT_HASH}"
+          else
+            VERSION="$BASE_VERSION"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "npm_tag=${NPM_TAG}" >> $GITHUB_OUTPUT
+          echo "Publishing ${VERSION} with tag ${NPM_TAG}"
+
+      - name: Sync versions across packages
+        run: |
+          chmod +x npm/sync-versions.sh
+          npm/sync-versions.sh "${{ steps.version.outputs.version }}"
+
+      # Platform packages first, then main package
+      - name: Publish @xmtp/gateway-darwin-arm64
+        if: ${{ !inputs.dry_run }}
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          package: npm/gateway-darwin-arm64
+          tag: ${{ steps.version.outputs.npm_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @xmtp/gateway-darwin-x64
+        if: ${{ !inputs.dry_run }}
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          package: npm/gateway-darwin-x64
+          tag: ${{ steps.version.outputs.npm_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @xmtp/gateway-linux-arm64
+        if: ${{ !inputs.dry_run }}
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          package: npm/gateway-linux-arm64
+          tag: ${{ steps.version.outputs.npm_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @xmtp/gateway-linux-x64
+        if: ${{ !inputs.dry_run }}
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          package: npm/gateway-linux-x64
+          tag: ${{ steps.version.outputs.npm_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @xmtp/gateway
+        if: ${{ !inputs.dry_run }}
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          package: npm/gateway
+          tag: ${{ steps.version.outputs.npm_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag release
+        if: ${{ !inputs.dry_run }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git tag -a "gateway-npm-v${VERSION}" -m "gateway npm ${VERSION}"
+          git push origin "gateway-npm-v${VERSION}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

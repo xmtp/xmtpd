@@ -29,14 +29,12 @@ func NewDBReader[T ISourceRecord](
 	query string,
 	queryHeight string,
 	factory func() T,
-	startDate int64,
 ) *DBReader[T] {
 	return &DBReader[T]{
 		db:          db,
 		query:       query,
 		queryHeight: queryHeight,
 		factory:     factory,
-		startDate:   startDate,
 		heightEvery: 10 * time.Minute,
 	}
 }
@@ -149,7 +147,6 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 			query,
 			queryHeight,
 			func() *GroupMessage { return &GroupMessage{} },
-			0,
 		),
 	}
 }
@@ -181,7 +178,6 @@ func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 			query,
 			queryHeight,
 			func() *CommitMessage { return &CommitMessage{} },
-			0,
 		),
 	}
 }
@@ -212,7 +208,6 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 			query,
 			queryHeight,
 			func() *InboxLog { return &InboxLog{} },
-			0,
 		),
 	}
 }
@@ -243,7 +238,6 @@ func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 			query,
 			queryHeight,
 			func() *KeyPackage { return &KeyPackage{} },
-			0,
 		),
 	}
 }
@@ -252,11 +246,11 @@ type WelcomeMessageReader struct {
 	*DBReader[*WelcomeMessage]
 }
 
-func NewWelcomeMessageReader(db *sql.DB, startDate int64) *WelcomeMessageReader {
+func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
 	query := `
 		SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm, welcome_metadata
 		FROM welcome_messages
-		WHERE id > $1 AND created_at > to_timestamp($3)
+		WHERE id > 150000000 AND id > $1
 		ORDER BY id ASC
 		LIMIT $2
 	`
@@ -274,7 +268,6 @@ func NewWelcomeMessageReader(db *sql.DB, startDate int64) *WelcomeMessageReader 
 			query,
 			queryHeight,
 			func() *WelcomeMessage { return &WelcomeMessage{} },
-			startDate,
 		),
 	}
 }

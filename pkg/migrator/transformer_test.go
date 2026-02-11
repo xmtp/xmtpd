@@ -355,7 +355,7 @@ func TestTransformKeyPackage(t *testing.T) {
 func TestTransformWelcomeMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewWelcomeMessageReader(test.db, startDate.Unix())
+		reader = migrator.NewWelcomeMessageReader(test.db)
 	)
 
 	defer test.cleanup()

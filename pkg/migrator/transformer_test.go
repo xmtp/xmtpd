@@ -66,7 +66,7 @@ func newTransformerTest(t *testing.T) *transformerTest {
 func TestTransformGroupMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewGroupMessageReader(test.db, startDate.Unix())
+		reader = migrator.NewGroupMessageReader(test.db)
 	)
 
 	defer test.cleanup()
@@ -135,7 +135,7 @@ func TestTransformGroupMessage(t *testing.T) {
 func TestTransformCommitMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewCommitMessageReader(test.db, startDate.Unix())
+		reader = migrator.NewCommitMessageReader(test.db)
 	)
 
 	defer test.cleanup()
@@ -204,7 +204,7 @@ func TestTransformCommitMessage(t *testing.T) {
 func TestTransformInboxLog(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewInboxLogReader(test.db, startDate.UnixNano())
+		reader = migrator.NewInboxLogReader(test.db)
 	)
 
 	defer test.cleanup()
@@ -355,7 +355,7 @@ func TestTransformKeyPackage(t *testing.T) {
 func TestTransformWelcomeMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewWelcomeMessageReader(test.db, startDate.Unix())
+		reader = migrator.NewWelcomeMessageReader(test.db)
 	)
 
 	defer test.cleanup()

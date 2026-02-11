@@ -2,14 +2,11 @@ package migrator_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/migrator/testdata"
 )
-
-var startDate time.Time
 
 func TestGroupMessageReader(t *testing.T) {
 	ctx := t.Context()
@@ -17,7 +14,7 @@ func TestGroupMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewGroupMessageReader(db, startDate.Unix())
+	reader := migrator.NewGroupMessageReader(db)
 
 	cases := []struct {
 		name      string
@@ -69,7 +66,7 @@ func TestInboxLogReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewInboxLogReader(db, startDate.UnixNano())
+	reader := migrator.NewInboxLogReader(db)
 
 	cases := []struct {
 		name      string
@@ -173,7 +170,7 @@ func TestCommitMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewCommitMessageReader(db, startDate.Unix())
+	reader := migrator.NewCommitMessageReader(db)
 
 	cases := []struct {
 		name   string
@@ -220,7 +217,7 @@ func TestWelcomeMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewWelcomeMessageReader(db, startDate.Unix())
+	reader := migrator.NewWelcomeMessageReader(db)
 
 	cases := []struct {
 		name      string

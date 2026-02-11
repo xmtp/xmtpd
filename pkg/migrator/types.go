@@ -166,10 +166,10 @@ func (i *InboxLog) Scan(rows *sql.Rows) error {
 // KeyPackage represents the key_packages table from the source database.
 // Order by CreatedAt ASC.
 type KeyPackage struct {
-	SequenceID     int64     `db:"sequence_id"`
-	InstallationID []byte    `db:"installation_id"`
-	KeyPackage     []byte    `db:"key_package"`
-	CreatedAt      time.Time `db:"created_at"`
+	SequenceID     int64  `db:"sequence_id"`
+	InstallationID []byte `db:"installation_id"`
+	KeyPackage     []byte `db:"key_package"`
+	CreatedAt      int64  `db:"created_at"`
 }
 
 func (i KeyPackage) GetID() int64 {

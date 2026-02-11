@@ -198,7 +198,7 @@ func (t *Transformer) TransformKeyPackage(
 		protoClientEnvelope,
 		KeyPackagesOriginatorID,
 		uint64(keyPackage.SequenceID),
-		keyPackage.CreatedAt,
+		time.Unix(0, keyPackage.CreatedAt),
 	)
 }
 

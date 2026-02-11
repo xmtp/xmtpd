@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tgz
+
+# Binaries are built in CI, not committed
+gateway-*/bin/
+
+# Local dev certs
+certs/

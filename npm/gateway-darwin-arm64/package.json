@@ -1,0 +1,15 @@
+{
+  "name": "@xmtp/gateway-darwin-arm64",
+  "version": "0.1.0-dev",
+  "description": "XMTP gateway binary for macOS ARM64 (Apple Silicon)",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "license": "MIT"
+}

@@ -33,7 +33,6 @@ const (
 	commitMessageLastID int64 = 7
 
 	// Identity updates go to blockchain, not database.
-	inboxLogAmount       int64 = 0
 	inboxLogLastID       int64 = 19
 	welcomeMessageAmount int64 = 19
 	welcomeMessageLastID int64 = 19

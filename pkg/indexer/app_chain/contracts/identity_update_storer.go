@@ -194,67 +194,55 @@ func (s *IdentityUpdateStorer) StoreLog(
 				return validationError
 			}
 
-			inboxID := utils.HexEncode(msgSent.InboxId[:])
+			var (
+				inboxID     = utils.HexEncode(msgSent.InboxId[:])
+				sequenceID  = int64(msgSent.SequenceId)
+				insertBatch = make([]string, 0)
+				revokeBatch = make([]string, 0)
+			)
 
-			// TODO: Batch insert address log entries
 			for _, newMember := range associationState.StateDiff.NewMembers {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("new member", utils.BodyField(newMember))
 				}
 
 				if address, ok := newMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
-					numRows, err := querier.InsertAddressLog(ctx, queries.InsertAddressLogParams{
-						Address: address.EthereumAddress,
-						InboxID: inboxID,
-						AssociationSequenceID: sql.NullInt64{
-							Valid: true,
-							Int64: int64(msgSent.SequenceId),
-						},
-					})
-					if err != nil {
-						return re.NewRecoverableError(ErrInsertAddressLog, err)
-					}
-					if numRows == 0 {
-						s.logger.Warn(
-							"could not insert address log entry",
-							utils.AddressField(address.EthereumAddress),
-							utils.InboxIDField(inboxID),
-							utils.SequenceIDField(int64(msgSent.SequenceId)),
-							utils.TopicField(messageTopic.String()),
-						)
-					}
+					insertBatch = append(insertBatch, address.EthereumAddress)
 				}
 			}
 
-			// TODO: Batch revoke address log entries
 			for _, removedMember := range associationState.StateDiff.RemovedMembers {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("removed member", utils.BodyField(removedMember))
 				}
 
 				if address, ok := removedMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
-					rows, err := querier.RevokeAddressFromLog(
-						ctx,
-						queries.RevokeAddressFromLogParams{
-							Address: address.EthereumAddress,
-							InboxID: inboxID,
-							RevocationSequenceID: sql.NullInt64{
-								Valid: true,
-								Int64: int64(msgSent.SequenceId),
-							},
-						},
-					)
-					if err != nil {
-						return re.NewRecoverableError(ErrRevokeAddressFromLog, err)
-					}
-					if rows == 0 {
-						s.logger.Warn(
-							"could not find address log entry to revoke",
-							utils.AddressField(address.EthereumAddress),
-							utils.InboxIDField(inboxID),
-							utils.TopicField(messageTopic.String()),
-						)
-					}
+					revokeBatch = append(revokeBatch, address.EthereumAddress)
+				}
+			}
+
+			if len(insertBatch) > 0 {
+				_, err := querier.InsertAddressLogsBatch(ctx, queries.InsertAddressLogsBatchParams{
+					Addresses:             insertBatch,
+					InboxID:               inboxID,
+					AssociationSequenceID: sequenceID,
+				})
+				if err != nil {
+					return re.NewRecoverableError(ErrInsertAddressLog, err)
+				}
+			}
+
+			if len(revokeBatch) > 0 {
+				_, err := querier.RevokeAddressFromLogBatch(
+					ctx,
+					queries.RevokeAddressFromLogBatchParams{
+						Addresses:            revokeBatch,
+						InboxID:              inboxID,
+						RevocationSequenceID: sequenceID,
+					},
+				)
+				if err != nil {
+					return re.NewRecoverableError(ErrRevokeAddressFromLog, err)
 				}
 			}
 

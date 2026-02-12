@@ -136,6 +136,8 @@ jobs:
         with:
           package: npm/gateway-darwin-arm64
           tag: ${{ steps.version.outputs.npm_tag }}
+          access: public
+          provenance: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -145,6 +147,8 @@ jobs:
         with:
           package: npm/gateway-darwin-x64
           tag: ${{ steps.version.outputs.npm_tag }}
+          access: public
+          provenance: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -154,6 +158,8 @@ jobs:
         with:
           package: npm/gateway-linux-arm64
           tag: ${{ steps.version.outputs.npm_tag }}
+          access: public
+          provenance: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -163,6 +169,8 @@ jobs:
         with:
           package: npm/gateway-linux-x64
           tag: ${{ steps.version.outputs.npm_tag }}
+          access: public
+          provenance: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -172,6 +180,8 @@ jobs:
         with:
           package: npm/gateway
           tag: ${{ steps.version.outputs.npm_tag }}
+          access: public
+          provenance: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -275,15 +275,29 @@ func (s *Service) publishToNodeWithRetry(
 	originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,
 ) ([]*envelopesProto.OriginatorEnvelope, error) {
-	var banlist []uint32
-	var result []*envelopesProto.OriginatorEnvelope
-	var err error
-	nodeID := originatorID
+	var (
+		banlist []uint32
+		result  []*envelopesProto.OriginatorEnvelope
+		err     error
 
-	topic := indexedEnvelopes[0].payload.TargetTopic()
+		nodeID = originatorID
+		topic  = indexedEnvelopes[0].payload.TargetTopic()
+
+		// Publish timeout is the overarching timeout for all of the retries.
+		publishTimeout = 30 * time.Second
+		// Per-node connection timeout.
+		nodeTimeout = 10 * time.Second
+	)
+
+	ctx, cancel := context.WithTimeout(ctx, publishTimeout)
+	defer cancel()
 
 	for retries := 0; retries < 5; retries++ {
-		result, err = s.publishToNodes(ctx, nodeID, indexedEnvelopes)
+
+		nctx, cancel := context.WithTimeout(ctx, nodeTimeout)
+		defer cancel()
+
+		result, err = s.publishToNode(nctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
 				metrics.EmitGatewayBanlistRetries(originatorID, retries)
@@ -291,8 +305,10 @@ func (s *Service) publishToNodeWithRetry(
 			return result, nil
 		}
 
-		// Don't retry or ban nodes if context was cancelled.
-		if ctx.Err() != nil {
+		// Don't retry or ban nodes if context was cancelled,
+		// but a deadline is treated as the nodes fault.
+		nctxErr := nctx.Err()
+		if nctx != nil && !errors.Is(nctxErr, context.DeadlineExceeded) {
 			s.logger.Debug("request canceled by client", zap.Error(err))
 			return nil, err
 		}
@@ -316,7 +332,7 @@ func (s *Service) publishToNodeWithRetry(
 	return nil, err
 }
 
-func (s *Service) publishToNodes(
+func (s *Service) publishToNode(
 	ctx context.Context,
 	originatorID uint32,
 	indexedEnvelopes []clientEnvelopeWithIndex,

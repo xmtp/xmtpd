@@ -41,6 +41,7 @@ const (
 	RateRegistryCongestionFeeKey       = "xmtp.rateRegistry.congestionFee"
 	RateRegistryMessageFeeKey          = "xmtp.rateRegistry.messageFee"
 	RateRegistryMigratorKey            = "xmtp.rateRegistry.migrator"
+	RateRegistryRatesInEffectAfterKey  = "xmtp.rateRegistry.ratesInEffectAfter"
 	RateRegistryStorageFeeKey          = "xmtp.rateRegistry.storageFee"
 	RateRegistryTargetRatePerMinuteKey = "xmtp.rateRegistry.targetRatePerMinute"
 

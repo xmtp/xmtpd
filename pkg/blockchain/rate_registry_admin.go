@@ -76,12 +76,18 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 			fmt.Errorf("%s must be positive", RateRegistryCongestionFeeKey),
 		)
 	}
+	if rates.StartTime == 0 {
+		return NewBlockchainError(
+			fmt.Errorf("%s must be set", RateRegistryRatesInEffectAfterKey),
+		)
+	}
 
 	params := []Uint64Param{
 		{Name: RateRegistryMessageFeeKey, Value: uint64(rates.MessageFee)},
 		{Name: RateRegistryStorageFeeKey, Value: uint64(rates.StorageFee)},
 		{Name: RateRegistryCongestionFeeKey, Value: uint64(rates.CongestionFee)},
 		{Name: RateRegistryTargetRatePerMinuteKey, Value: rates.TargetRatePerMinute},
+		{Name: RateRegistryRatesInEffectAfterKey, Value: rates.StartTime},
 	}
 	if err := r.paramAdmin.SetManyUint64Parameters(ctx, params); err != nil {
 		return err
@@ -109,6 +115,7 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 				zap.Uint64(RateRegistryStorageFeeKey, e.StorageFee),
 				zap.Uint64(RateRegistryCongestionFeeKey, e.CongestionFee),
 				zap.Uint64(RateRegistryTargetRatePerMinuteKey, e.TargetRatePerMinute),
+				zap.Uint64(RateRegistryRatesInEffectAfterKey, e.StartTime),
 			)
 		},
 	)
@@ -119,6 +126,7 @@ func (r *RatesAdmin) AddRates(ctx context.Context, rates fees.Rates) ProtocolErr
 				zap.Uint64(RateRegistryStorageFeeKey, uint64(rates.StorageFee)),
 				zap.Uint64(RateRegistryCongestionFeeKey, uint64(rates.CongestionFee)),
 				zap.Uint64(RateRegistryTargetRatePerMinuteKey, rates.TargetRatePerMinute),
+				zap.Uint64(RateRegistryRatesInEffectAfterKey, rates.StartTime),
 			)
 			return nil
 		}

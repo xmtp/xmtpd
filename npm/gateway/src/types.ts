@@ -1,32 +1,34 @@
 import type { ChildProcess } from "node:child_process";
 
 export interface GatewayConfig {
-  // Required — payer identity
+  /** Private key used to sign blockchain transactions */
   payerPrivateKey: string;
-
-  // Required — Redis for nonce management
+  /** Redis URL for nonce management */
   redisUrl: string;
-
-  // Required — App Chain (L3) endpoints
+  /** App Chain (L3) RPC endpoint */
   appChainRpcUrl: string;
+  /** App Chain (L3) WebSocket endpoint */
   appChainWssUrl: string;
-
-  // Required — Settlement Chain endpoints
+  /** Settlement Chain RPC endpoint */
   settlementChainRpcUrl: string;
+  /** Settlement Chain WebSocket endpoint */
   settlementChainWssUrl: string;
-
-  // Contract configuration — provide ONE of these
-  contractsEnvironment?: string; // e.g. 'dev', 'production'
-  contractsConfigJson?: string; // inline JSON string
-  contractsConfigFilePath?: string; // path to JSON file
-
-  // Optional
-  port?: number; // default: auto-select starting from 5050
-  logLevel?: string; // default: 'info'
-  logEncoding?: "json" | "console"; // default: 'json'
+  /** Deployed environment: 'testnet' or 'mainnet' */
+  contractsEnvironment?: string;
+  /** Inline JSON contracts config (alternative to contractsEnvironment) */
+  contractsConfigJson?: string;
+  /** Path to JSON contracts config file (alternative to contractsEnvironment) */
+  contractsConfigFilePath?: string;
+  /** gRPC listener port (default: auto-select starting from 5050) */
+  port?: number;
+  /** Log level (default: 'info') */
+  logLevel?: string;
+  /** Log format (default: 'console') */
+  logEncoding?: "json" | "console";
+  /** Node selection strategy (default: 'stable') */
   nodeSelectorStrategy?: "stable" | "random" | "ordered" | "closest" | "manual";
-  autoRestart?: boolean; // default: true
-  healthCheckTimeout?: number; // milliseconds, default: 30000
+  /** Health check timeout in milliseconds (default: 30000) */
+  healthCheckTimeout?: number;
 }
 
 export interface GatewayHandle {

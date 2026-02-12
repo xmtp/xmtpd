@@ -343,8 +343,10 @@ func (s *syncWorker) setupStream(
 	var (
 		client            = message_api.NewReplicationApiClient(conn)
 		vc                = db.ToVectorClock(result)
-		nodeID            = node.NodeID
-		originatorNodeIDs = []uint32{nodeID}
+		localNodeID       = s.registrant.NodeID()
+		syncNodeID        = node.NodeID
+		migratorNodeID    = s.migration.FromNodeID
+		originatorNodeIDs = []uint32{syncNodeID}
 	)
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
@@ -355,9 +357,9 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	if s.migration.Enable && nodeID == s.migration.FromNodeID {
+	if s.migration.Enable && syncNodeID == migratorNodeID && migratorNodeID != localNodeID {
 		originatorNodeIDs = []uint32{
-			nodeID,
+			syncNodeID,
 			migrator.GroupMessageOriginatorID,
 			migrator.WelcomeMessageOriginatorID,
 			migrator.KeyPackagesOriginatorID,

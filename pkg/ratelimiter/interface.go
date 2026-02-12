@@ -23,6 +23,30 @@ type Result struct {
 	Balances    []LimitBalance // remaining tokens after this check (post-decrement on success; current on reject)
 }
 
+// RateLimiter is the basic rate limiter interface for single-subject limiting.
 type RateLimiter interface {
 	Allow(ctx context.Context, subject string, cost uint64) (*Result, error)
+}
+
+// DualResult represents the result of checking both gateway and user limits.
+type DualResult struct {
+	Allowed       bool
+	GatewayResult *Result // Result from gateway limit check
+	UserResult    *Result // Result from user limit check (nil if no user specified)
+	FailedSubject string  // "gateway" or "user" if denied
+}
+
+// DualRateLimiter applies rate limits to both gateway and user in parallel.
+// This is used for delegated signing where we want to limit both:
+// - The gateway's overall throughput
+// - Individual user's message rate
+type DualRateLimiter interface {
+	// AllowDual checks both gateway and user limits in parallel.
+	// If userSubject is empty, only gateway limit is checked.
+	// Returns denied if either limit is exceeded.
+	AllowDual(
+		ctx context.Context,
+		gatewaySubject, userSubject string,
+		cost uint64,
+	) (*DualResult, error)
 }

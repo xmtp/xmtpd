@@ -4,6 +4,7 @@ package constants
 const (
 	JWTDomainSeparationLabel              = "jwt|"
 	PayerDomainSeparationLabel            = "payer|"
+	DelegatedPayerDomainSeparationLabel   = "delegated_payer|"
 	TargetOriginatorDomainSeparationLabel = "target|"
 	OriginatorDomainSeparationLabel       = "originator|"
 	NodeAuthorizationHeaderName           = "node-authorization"

@@ -3,10 +3,6 @@ name: Publish Gateway npm Packages
 on:
   push:
     branches: [main, mc/gateway-go-sidecar]
-    paths:
-      - "npm/**"
-      - "cmd/gateway/**"
-      - "pkg/gateway/**"
   workflow_dispatch:
     inputs:
       dry_run:

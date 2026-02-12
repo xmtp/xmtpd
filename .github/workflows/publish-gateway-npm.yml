@@ -2,7 +2,7 @@ name: Publish Gateway npm Packages
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, mc/gateway-go-sidecar]
     paths:
       - "npm/**"
       - "cmd/gateway/**"
@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       npm_tag:
-        description: "npm dist-tag override (auto = latest for main, dev for dev branch)"
+        description: "npm dist-tag override (auto = latest for main, dev for feature branches)"
         type: choice
         options:
           - auto
@@ -106,13 +106,13 @@ jobs:
           GIT_HASH=$(git log -1 --pretty=format:"%h")
           BRANCH="${GITHUB_REF_NAME}"
 
-          # npm tag: dev branch → dev, main → latest, or manual override
+          # npm tag: feature branches → dev, main → latest, or manual override
           if [[ "${{ inputs.npm_tag }}" != "" && "${{ inputs.npm_tag }}" != "auto" ]]; then
             NPM_TAG="${{ inputs.npm_tag }}"
-          elif [[ "$BRANCH" == "dev" ]]; then
-            NPM_TAG="dev"
-          else
+          elif [[ "$BRANCH" == "main" ]]; then
             NPM_TAG="latest"
+          else
+            NPM_TAG="dev"
           fi
 
           # version: dev tag gets git hash suffix
@@ -133,8 +133,9 @@ jobs:
           npm/sync-versions.sh "${{ steps.version.outputs.version }}"
 
       # Platform packages first, then main package
+      # Only publish on main or explicit workflow_dispatch without dry_run
       - name: Publish @xmtp/gateway-darwin-arm64
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-darwin-arm64
@@ -143,7 +144,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway-darwin-x64
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-darwin-x64
@@ -152,7 +153,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-arm64
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-linux-arm64
@@ -161,7 +162,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-x64
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-linux-x64
@@ -170,7 +171,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway
@@ -179,7 +180,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Tag release
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"

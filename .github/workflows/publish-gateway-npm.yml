@@ -19,7 +19,7 @@ on:
         options:
           - auto
           - latest
-          - dev
+          - poc
         default: auto
 
 concurrency:
@@ -106,19 +106,19 @@ jobs:
           GIT_HASH=$(git log -1 --pretty=format:"%h")
           BRANCH="${GITHUB_REF_NAME}"
 
-          # npm tag: feature branches → dev, main → latest, or manual override
+          # npm tag: main → latest, mc/gateway-go-sidecar → poc, or manual override
           if [[ "${{ inputs.npm_tag }}" != "" && "${{ inputs.npm_tag }}" != "auto" ]]; then
             NPM_TAG="${{ inputs.npm_tag }}"
           elif [[ "$BRANCH" == "main" ]]; then
             NPM_TAG="latest"
           else
-            NPM_TAG="dev"
+            NPM_TAG="poc"
           fi
 
-          # version: dev tag gets git hash suffix
-          if [[ "$NPM_TAG" == "dev" ]] || [[ "$BASE_VERSION" == *"dev"* ]]; then
-            CLEAN=$(echo "$BASE_VERSION" | sed 's/-dev.*//')
-            VERSION="${CLEAN}-dev.${GIT_HASH}"
+          # version: non-latest tags get git hash suffix
+          if [[ "$NPM_TAG" != "latest" ]]; then
+            CLEAN=$(echo "$BASE_VERSION" | sed 's/-[a-z].*//')
+            VERSION="${CLEAN}-${NPM_TAG}.${GIT_HASH}"
           else
             VERSION="$BASE_VERSION"
           fi
@@ -135,7 +135,7 @@ jobs:
       # Platform packages first, then main package
       # Only publish on main or explicit workflow_dispatch without dry_run
       - name: Publish @xmtp/gateway-darwin-arm64
-        if: ${{ !inputs.dry_run && (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ !inputs.dry_run }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-darwin-arm64
@@ -144,7 +144,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway-darwin-x64
-        if: ${{ !inputs.dry_run && (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ !inputs.dry_run }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-darwin-x64
@@ -153,7 +153,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-arm64
-        if: ${{ !inputs.dry_run && (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ !inputs.dry_run }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-linux-arm64
@@ -162,7 +162,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-x64
-        if: ${{ !inputs.dry_run && (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ !inputs.dry_run }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway-linux-x64
@@ -171,7 +171,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish @xmtp/gateway
-        if: ${{ !inputs.dry_run && (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ !inputs.dry_run }}
         uses: JS-DevTools/npm-publish@v4
         with:
           package: npm/gateway

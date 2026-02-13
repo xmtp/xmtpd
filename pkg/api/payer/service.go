@@ -308,7 +308,7 @@ func (s *Service) publishToNodeWithRetry(
 		// Don't retry or ban nodes if context was cancelled,
 		// but a deadline is treated as the nodes fault.
 		nctxErr := nctx.Err()
-		if nctx != nil && !errors.Is(nctxErr, context.DeadlineExceeded) {
+		if nctxErr != nil && !errors.Is(nctxErr, context.DeadlineExceeded) {
 			s.logger.Debug("request canceled by client", zap.Error(err))
 			return nil, err
 		}

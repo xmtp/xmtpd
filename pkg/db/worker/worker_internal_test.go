@@ -135,7 +135,14 @@ func readPartitionSet(t *testing.T, db *db.Handler) map[string]struct{} {
 	rows, err := db.DB().QueryContext(t.Context(), query)
 	require.NoError(t, err)
 
-	defer rows.Close()
+	defer func() {
+		err = rows.Close()
+		require.NoError(t, err)
+
+		err = rows.Err()
+		require.NoError(t, err)
+	}()
+
 	out := make(map[string]struct{})
 	for rows.Next() {
 
@@ -145,12 +152,6 @@ func readPartitionSet(t *testing.T, db *db.Handler) map[string]struct{} {
 
 		out[tableName] = struct{}{}
 	}
-
-	err = rows.Close()
-	require.NoError(t, err)
-
-	err = rows.Err()
-	require.NoError(t, err)
 
 	return out
 }

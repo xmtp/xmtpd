@@ -185,11 +185,20 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
 
 	readers := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(readDB.DB()),
-		inboxLogTableName:        NewInboxLogReader(readDB.DB()),
-		keyPackagesTableName:     NewKeyPackageReader(readDB.DB()),
-		welcomeMessagesTableName: NewWelcomeMessageReader(readDB.DB()),
-		commitMessagesTableName:  NewCommitMessageReader(readDB.DB()),
+		groupMessagesTableName: NewGroupMessageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceGroupMessages),
+		),
+		inboxLogTableName: NewInboxLogReader(readDB.DB()),
+		keyPackagesTableName: NewKeyPackageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceKeyPackages),
+		),
+		welcomeMessagesTableName: NewWelcomeMessageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceWelcomeMessages),
+		),
+		commitMessagesTableName: NewCommitMessageReader(readDB.DB()),
 	}
 
 	transformer := NewTransformer(cfg.feeCalculator, payerPrivateKey, nodeSigningKey)

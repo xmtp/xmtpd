@@ -294,10 +294,10 @@ func (s *Service) publishToNodeWithRetry(
 
 	for retries := 0; retries < int(s.cfg.PublishRetries); retries++ {
 
-		ctx, cancel := context.WithTimeout(ctx, s.cfg.PublishTimeout)
+		nctx, cancel := context.WithTimeout(ctx, s.cfg.PublishTimeout)
 		defer cancel()
 
-		result, err = s.publishToNode(ctx, nodeID, indexedEnvelopes)
+		result, err = s.publishToNode(nctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
 				metrics.EmitGatewayBanlistRetries(originatorID, retries)
@@ -307,8 +307,8 @@ func (s *Service) publishToNodeWithRetry(
 
 		// Don't retry or ban nodes if context was cancelled,
 		// but a deadline is treated as the nodes fault.
-		ctxErr := ctx.Err()
-		if ctx != nil && !errors.Is(ctxErr, context.DeadlineExceeded) {
+		nctxErr := nctx.Err()
+		if nctx != nil && !errors.Is(nctxErr, context.DeadlineExceeded) {
 			s.logger.Debug("request canceled by client", zap.Error(err))
 			return nil, err
 		}

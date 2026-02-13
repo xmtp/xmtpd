@@ -2,6 +2,7 @@
 package payer
 
 import (
+	"cmp"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -288,11 +289,12 @@ func (s *Service) publishToNodeWithRetry(
 		result  []*envelopesProto.OriginatorEnvelope
 		err     error
 
-		nodeID = originatorID
-		topic  = indexedEnvelopes[0].payload.TargetTopic()
+		nodeID     = originatorID
+		topic      = indexedEnvelopes[0].payload.TargetTopic()
+		retryCount = cmp.Or(s.cfg.PublishRetries, 1)
 	)
 
-	for retries := 0; retries < int(s.cfg.PublishRetries); retries++ {
+	for retries := 0; retries < int(retryCount); retries++ {
 
 		nctx, cancel := context.WithTimeout(ctx, s.cfg.PublishTimeout)
 		defer cancel()

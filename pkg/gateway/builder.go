@@ -36,9 +36,9 @@ var (
 )
 
 type GatewayServiceBuilder struct {
+	config              *config.GatewayConfig
 	identityFn          IdentityFn
 	authorizers         []AuthorizePublishFn
-	config              *config.GatewayConfig
 	blockchainPublisher blockchain.IBlockchainPublisher
 	nodeRegistry        registry.NodeRegistry
 	logger              *zap.Logger
@@ -272,6 +272,8 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			clientMetrics,
 			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
 			nodeSelector,
+			payer.WithPublishTimeout(b.config.Payer.EnvelopePublishTimeout),
+			payer.WithPublishRetries(b.config.Payer.EnvelopePublishRetries),
 		)
 		if err != nil {
 			return nil, err

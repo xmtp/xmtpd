@@ -40,6 +40,7 @@ const requestMissingMessageError = "missing request message"
 type Service struct {
 	payer_apiconnect.UnimplementedPayerApiHandler
 
+	cfg                 Config
 	ctx                 context.Context
 	logger              *zap.Logger
 	clientManager       *ClientManager
@@ -61,7 +62,13 @@ func NewPayerAPIService(
 	clientMetrics *grpcprom.ClientMetrics,
 	maxPayerMessageSize uint64,
 	nodeSelector selectors.NodeSelectorAlgorithm,
+	opts ...Option,
 ) (*Service, error) {
+	cfg := defaultConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	if clientMetrics == nil {
 		clientMetrics = grpcprom.NewClientMetrics()
 	}
@@ -73,6 +80,7 @@ func NewPayerAPIService(
 	clientManager := NewClientManager(logger, nodeRegistry, clientMetrics)
 
 	return &Service{
+		cfg:                 cfg,
 		ctx:                 ctx,
 		logger:              logger,
 		clientManager:       clientManager,
@@ -282,22 +290,14 @@ func (s *Service) publishToNodeWithRetry(
 
 		nodeID = originatorID
 		topic  = indexedEnvelopes[0].payload.TargetTopic()
-
-		// Publish timeout is the overarching timeout for all of the retries.
-		publishTimeout = 30 * time.Second
-		// Per-node connection timeout.
-		nodeTimeout = 10 * time.Second
 	)
 
-	ctx, cancel := context.WithTimeout(ctx, publishTimeout)
-	defer cancel()
+	for retries := 0; retries < int(s.cfg.PublishRetries); retries++ {
 
-	for retries := 0; retries < 5; retries++ {
-
-		nctx, cancel := context.WithTimeout(ctx, nodeTimeout)
+		ctx, cancel := context.WithTimeout(ctx, s.cfg.PublishTimeout)
 		defer cancel()
 
-		result, err = s.publishToNode(nctx, nodeID, indexedEnvelopes)
+		result, err = s.publishToNode(ctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
 				metrics.EmitGatewayBanlistRetries(originatorID, retries)
@@ -307,8 +307,8 @@ func (s *Service) publishToNodeWithRetry(
 
 		// Don't retry or ban nodes if context was cancelled,
 		// but a deadline is treated as the nodes fault.
-		nctxErr := nctx.Err()
-		if nctx != nil && !errors.Is(nctxErr, context.DeadlineExceeded) {
+		ctxErr := ctx.Err()
+		if ctx != nil && !errors.Is(ctxErr, context.DeadlineExceeded) {
 			s.logger.Debug("request canceled by client", zap.Error(err))
 			return nil, err
 		}

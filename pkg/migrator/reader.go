@@ -15,7 +15,7 @@ type DBReader[T ISourceRecord] struct {
 	query       string
 	queryHeight string
 	factory     func() T
-	startDate   int64
+	lowerLimit  int64
 
 	// height metric throttling
 	heightEvery  time.Duration
@@ -28,6 +28,7 @@ func NewDBReader[T ISourceRecord](
 	db *sql.DB,
 	query string,
 	queryHeight string,
+	lowerLimit int64,
 	factory func() T,
 ) *DBReader[T] {
 	return &DBReader[T]{
@@ -36,6 +37,7 @@ func NewDBReader[T ISourceRecord](
 		queryHeight: queryHeight,
 		factory:     factory,
 		heightEvery: 10 * time.Minute,
+		lowerLimit:  lowerLimit,
 	}
 }
 
@@ -96,11 +98,7 @@ func (r *DBReader[T]) Fetch(
 		err  error
 	)
 
-	if r.startDate != 0 {
-		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit, r.startDate)
-	} else {
-		rows, err = r.db.QueryContext(ctx, r.query, lastID, limit)
-	}
+	rows, err = r.db.QueryContext(ctx, r.query, lastID, r.lowerLimit, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -125,13 +123,13 @@ type GroupMessageReader struct {
 	*DBReader[*GroupMessage]
 }
 
-func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
+func NewGroupMessageReader(db *sql.DB, lowerLimit int64) *GroupMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND is_commit = false
+		WHERE id > $1 AND id >=$2 AND is_commit = false
 		ORDER BY id ASC
-		LIMIT $2
+		LIMIT $3
 	`
 
 	queryHeight := `
@@ -146,6 +144,7 @@ func NewGroupMessageReader(db *sql.DB) *GroupMessageReader {
 			db,
 			query,
 			queryHeight,
+			lowerLimit,
 			func() *GroupMessage { return &GroupMessage{} },
 		),
 	}
@@ -159,9 +158,9 @@ func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND is_commit = true
+		WHERE id > $1 AND id >$2 AND is_commit = true
 		ORDER BY id ASC
-		LIMIT $2
+		LIMIT $3
 	`
 
 	queryHeight := `
@@ -177,6 +176,7 @@ func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 			db,
 			query,
 			queryHeight,
+			0,
 			func() *CommitMessage { return &CommitMessage{} },
 		),
 	}
@@ -190,9 +190,9 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 	query := `
 		SELECT sequence_id, inbox_id, server_timestamp_ns, identity_update_proto
 		FROM inbox_log
-		WHERE sequence_id > $1
+		WHERE sequence_id > $1 AND sequence_id >=$2
 		ORDER BY sequence_id ASC
-		LIMIT $2
+		LIMIT $3
 	`
 
 	queryHeight := `
@@ -207,6 +207,7 @@ func NewInboxLogReader(db *sql.DB) *InboxLogReader {
 			db,
 			query,
 			queryHeight,
+			0,
 			func() *InboxLog { return &InboxLog{} },
 		),
 	}
@@ -216,13 +217,13 @@ type KeyPackageReader struct {
 	*DBReader[*KeyPackage]
 }
 
-func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
+func NewKeyPackageReader(db *sql.DB, lowerLimit int64) *KeyPackageReader {
 	query := `
 		SELECT sequence_id, installation_id, key_package, created_at
 		FROM key_packages
-		WHERE sequence_id > $1
+		WHERE sequence_id > $1 AND sequence_id >= $2
 		ORDER BY sequence_id ASC
-		LIMIT $2
+		LIMIT $3
 	`
 
 	queryHeight := `
@@ -237,6 +238,7 @@ func NewKeyPackageReader(db *sql.DB) *KeyPackageReader {
 			db,
 			query,
 			queryHeight,
+			lowerLimit,
 			func() *KeyPackage { return &KeyPackage{} },
 		),
 	}
@@ -246,13 +248,13 @@ type WelcomeMessageReader struct {
 	*DBReader[*WelcomeMessage]
 }
 
-func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
+func NewWelcomeMessageReader(db *sql.DB, lowerLimit int64) *WelcomeMessageReader {
 	query := `
 		SELECT id, created_at, installation_key, data, hpke_public_key, installation_key_data_hash, wrapper_algorithm, welcome_metadata
 		FROM welcome_messages
-		WHERE id > 150000000 AND id > $1
+		WHERE id > $1 AND id >= $2
 		ORDER BY id ASC
-		LIMIT $2
+		LIMIT $3
 	`
 
 	queryHeight := `
@@ -267,6 +269,7 @@ func NewWelcomeMessageReader(db *sql.DB) *WelcomeMessageReader {
 			db,
 			query,
 			queryHeight,
+			lowerLimit,
 			func() *WelcomeMessage { return &WelcomeMessage{} },
 		),
 	}

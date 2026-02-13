@@ -33,11 +33,7 @@ type Config struct {
 }
 
 // partition config controls when should the database worker create new partitions.
-// given the partition size, it will create new partitions when the the partition
-// is fill more than the specified fill threshold.
-// For example: partition size is 1000, fill threshold is 70% => when the partition
-// has over 700 entries it will create the next partition.
-// TODO: Perhaps use a list of originators and setup partitions even for nodes that do not have any yet.
+// TODO: Perhaps use a lis of originators and setup partitions even for nodes that do not have any yet.
 
 type PartitionConfig struct {
 	FillThreshold float64

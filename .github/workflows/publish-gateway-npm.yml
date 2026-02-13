@@ -79,7 +79,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm to latest
+        run: npm install -g npm@latest
 
       - name: Download binaries
         uses: actions/download-artifact@v7
@@ -132,38 +134,28 @@ jobs:
       # Platform packages first, then main package
       - name: Publish @xmtp/gateway-darwin-arm64
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
         working-directory: npm/gateway-darwin-arm64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway-darwin-x64
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
         working-directory: npm/gateway-darwin-x64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-arm64
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
         working-directory: npm/gateway-linux-arm64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-x64
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
         working-directory: npm/gateway-linux-x64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
         working-directory: npm/gateway
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag release
         if: ${{ !inputs.dry_run && github.ref_name == 'main' }}

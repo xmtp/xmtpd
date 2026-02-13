@@ -79,6 +79,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Download binaries
         uses: actions/download-artifact@v7
@@ -129,61 +130,40 @@ jobs:
           npm/sync-versions.sh "${{ steps.version.outputs.version }}"
 
       # Platform packages first, then main package
-      # Only publish on main or explicit workflow_dispatch without dry_run
       - name: Publish @xmtp/gateway-darwin-arm64
         if: ${{ !inputs.dry_run }}
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          package: npm/gateway-darwin-arm64
-          tag: ${{ steps.version.outputs.npm_tag }}
-          access: public
-          provenance: true
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        working-directory: npm/gateway-darwin-arm64
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway-darwin-x64
         if: ${{ !inputs.dry_run }}
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          package: npm/gateway-darwin-x64
-          tag: ${{ steps.version.outputs.npm_tag }}
-          access: public
-          provenance: true
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        working-directory: npm/gateway-darwin-x64
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-arm64
         if: ${{ !inputs.dry_run }}
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          package: npm/gateway-linux-arm64
-          tag: ${{ steps.version.outputs.npm_tag }}
-          access: public
-          provenance: true
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        working-directory: npm/gateway-linux-arm64
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway-linux-x64
         if: ${{ !inputs.dry_run }}
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          package: npm/gateway-linux-x64
-          tag: ${{ steps.version.outputs.npm_tag }}
-          access: public
-          provenance: true
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        working-directory: npm/gateway-linux-x64
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway
         if: ${{ !inputs.dry_run }}
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          package: npm/gateway
-          tag: ${{ steps.version.outputs.npm_tag }}
-          access: public
-          provenance: true
+        run: npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+        working-directory: npm/gateway
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag release
         if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
